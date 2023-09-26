@@ -1,0 +1,30 @@
+-- STARTUP https://en.wikipedia.org/wiki/Booting
+[ ] Booting up the computer
+
+-- POWERING ON
+[ ] Power sent to Motherboard 
+[ ] tells PSU to start powering rest of systems
+[ ] Once PSU finishes powering up, tells Motherboard all is good
+[ ] Motherboard will start BIOS (Basic Input Output System)
+
+-- BIOS INITIALIZATION
+[ ] BIOS starts POST (Power On Self Test) to ensure proper power levels
+[ ] POST will load BIOS at the end of memory and puts a jump instruction at
+    the first byte in memory (to the end of the memory)
+[ ] CPU's processors Instruction Pointer (program counter) is set to 0
+
+-- FIRST INSTRUCTIONS
+[ ] CPU begins executing instructions at address 0x0 (first byte in memory)
+    but since there is a jump instruction at the first byte, the processor
+    jumps to 0xFFFFF0 (or wherever the BIOS was loaded)
+[ ] BIOS creates Interrupt Vector Table and provides basic interrupt services
+[ ] BIOS runs tests to ensure no hardware problems
+[ ] BIOS supplies Setup utility
+[ ] BIOS finds OS. Based on boot order that is set up in BIOS Setup,
+    BIOS will execute Interrupt 0x19 to find bootable device
+[ ] If no bootable device is found, BIOS goes on to the next device listed
+    in the boot order. If no more devices are found, then prints error
+    "No Operating System found" and stops the systems
+
+
+
