@@ -1,5 +1,5 @@
-#ifndef ALIENCPU_H
-#define ALIENCPU_H
+#ifndef ALIENCPU6502_H
+#define ALIENCPU6502_H
 
 #include <Types.h>
 #include <../src/Motherboard/Memory/RAM.h>
@@ -91,19 +91,39 @@ class AlienCPU {
         // Number of cycles between each Interrupt check
         static const Word INTERRUPT_CHECK_INTERVAL = 0x10;
 
+
+        // ================INSTRUCTIONS================
         // Total Number of instructions supported by the processor
         static const u16 INSTRUCTION_COUNT = 0x0100;
         
         // Max Instruction Bytes Length
         static const u8 MAX_INSTRUCTION_BYTES_LENGTH = 0x02;
+    
+        // Instruction opcodes (1 byte)
+        // https://en.wikipedia.org/wiki/X86_instruction_listings#Added_as_instruction_set_extensions
+        static constexpr u8
+            INS_NULL = 0x00; // Null Instruction
+
+        // Instruction opcodes (2 bytes)
+        static constexpr u16
+            INS_LDA_IM = 0x00A9; // Load Accumulator Immediate
+
+
+
+        // Null address
+        static const Word NULL_ADDRESS = 0x00000000;
+
+
+        // Program Stack
+        // SP_INIT - STACK_SIZE = End of stack
+        static const Word STACK_SIZE = 0x00010000; // 65536 Bytes of STACK MEMORY
+
 
         // should never exceed 0x000FFFFF
         static constexpr Word
             PC_INIT = 0x00000000,
             SP_INIT = 0x00010100, // 65536 Bytes of STACK MEMORY
             BP_INIT = SP_INIT,
-
-            SS_INIT = 0x00000100,
 
             A_INIT = 0x00000000,
             X_INIT = 0x00000000,
@@ -118,10 +138,6 @@ class AlienCPU {
             FLAGS_V_INIT = 0x00000000,
             FLAGS_S_INIT = 0x00000000;
 
-        // Instruction opcodes
-        static constexpr u16 
-            INS_LDA_IM = 0x00A9; // Load Accumulator Immediate
-
     //private:
         
         // Instruction Set
@@ -129,12 +145,13 @@ class AlienCPU {
         Instruction instructions[INSTRUCTION_COUNT];
 
         // System Memory
-        RAM RAM;
+        RAM ram;
 
         // Number of cycles till the next Interrupt should be processed
-        Word NextInterruptCheck;
+        Word nextInterruptCheck;
 
-        u64 Cycles;
+        u64 cycles;
+
 
         // Program Counter Register
         //  - memory address of the next instruction to be executed
@@ -154,12 +171,8 @@ class AlienCPU {
 
         // Base Pointer Register (intially the SP value)
         //  - points to the start of the stack frame
+        //  - if BP points to the initial SP value, then we know this is the last stack frame in the call stack
         Word BP;
-
-        // Stack Segment Register --TODO MIGHT NOT NEED THIS--
-        //  - points to the end of the stack
-        //  - [SS----------SP] Stack grows to the left (down)
-        Word SS;
 
         // potentially more segment registers
 
@@ -214,7 +227,19 @@ class AlienCPU {
         void Reset();
 
         Byte FetchNextByte();
-        Byte ReadByte(Word Address);
+        Word FetchNextWord();
+
+        Byte ReadByte(Word address);
+        Word ReadWord(Word address);
+
+        void WriteByte(Word address, Byte value);
+        void WriteWord(Word address, Word value);
+
+        void SPtoAddress(Byte page = 0);
+        void PushWordToStack(Word value);
+        Word PopWordFromStack();
+        void PushByteToStack(Byte value);
+        Byte PopByteFromStack();
 
         void ExecuteInstruction(u16 instruction);
         bool ValidInstruction(u16 instruction);
@@ -222,8 +247,7 @@ class AlienCPU {
         // Instructions
         void _0000NullInstruction();
         void _00A9_LoadAccumulator_Immediate();
-        
 
 };
 
-#endif // ALIENCPU_H
+#endif // ALIENCPU6502_H
