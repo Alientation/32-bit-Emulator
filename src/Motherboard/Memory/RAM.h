@@ -17,7 +17,8 @@ class RAM;
 // point to the specific cell in memory
 //      - Allow byte addressing, word addressing is far too limiting and wastes memory
 //
-// TODO figure out if we want to segment memory or have paging
+// SOLVED figure out if we want to segment memory or have paging
+//      - for 6502, we will have paging, but for x86, we will have segmentation
 //
 // TODO also figure out if there are any significant performance benefits regarding
 // reading/writing to memory allocated on the stack vs the heap, because since we are

@@ -12,23 +12,28 @@ class AlienCPU6502; //forward declaration (!!)
 // https://en.wikipedia.org/wiki/Central_processing_unit
 // http://www.6502.org/users/obelisk/index.html
 
-// 32 bit CPU
-//  - 1 Mb of memory (addressable via 32 bit address bus)
-//      - todo memory locations
-// 
-//
+// 32 bit CPU (expanded version of 6502)
+//  - 1 Mb of memory (addressable via 32 bit address bus : 0x00000000 - 0x000FFFFF)
+//      - 0x00000000 to 0x0000FFFF : Zero page (65536 bytes)
+//      - 0x00010000 to 0x0001FFFF : Stack memory (65536 bytes)
+//      - 0x00020000 to 0x000FFFEF : General purpose memory (917488 bytes)
+//      - 0x000FFFF0 to 0x000FFFFF : Special reserved memory (16 bytes)
+//          * 0x000FFFF0 to 0x000FFFF3 : Interrupt handler
+//          * 0x000FFFF4 to 0x000FFFF7 : Power on reset location
+//          * 0x000FFFF8 to 0x000FFFFB : BRK / Interrupt Request (IRQ) handler
+//          * 0x000FFFFC to 0x000FFFFF : Reserved
 //
 // 6502 
 //  - 8 bit CPU
-//  - 64 Kb of memory (addressable via 16 bit address bus)
-//      - 0x0000 to 0x00FF (Zero page, first 256 bytes)
+//  - 64 Kb of memory (addressable via 16 bit address bus : 0x0000 - 0xFFFF)
+//      - 0x0000 to 0x00FF : Zero page, first 256 bytes
 //          - some special addressing modes allow shorter instructions to default access to zero page memory
-//      - 0x0100 to 0x01FF (reserved as stack memory)
-//      - 0x0200 to 0xFFF9 (general memory)
-//      - 0xFFFA to 0xFFFF (special reserved memory)
-//          * 0xFFFA/B - interrupt handler
-//          * 0xFFFC/D - power on reset location
-//          * 0xFFFE/F - BRK / Interrupt Request (IRQ) handler  
+//      - 0x0100 to 0x01FF : reserved as stack memory
+//      - 0x0200 to 0xFFF9 : general memory
+//      - 0xFFFA to 0xFFFF : special reserved memory
+//          * 0xFFFA/B : interrupt handler
+//          * 0xFFFC/D : power on reset location
+//          * 0xFFFE/F : BRK / Interrupt Request (IRQ) handler  
 //  - little endian (lowest bytes stored first in memory)
 //      - for example in big endian mode 0x12345678 would be stored as 12 34 56 78 (from byte 1 to byte 4)
 //        however in little endian, that same number would be stored as 78 56 34 12 (from byte 4 to byte 1)
@@ -87,6 +92,11 @@ class AlienCPU6502 {
         Instruction instructions[INSTRUCTION_COUNT];
 
         // System Memory
+        // 0x00100000 total memory (0x00000000 - 0x000FFFFF)
+        //
+        // 0x00000000 - 0x000000FF : Reserved for boot process
+        // 0x00000100 - 0x000100FF : Stack memory
+        // 0x00010100 - 0x000FFFFF : General purpose memory 
         RAM ram;
 
         // Number of cycles till the next Interrupt should be processed

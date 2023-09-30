@@ -15,8 +15,8 @@ AlienCPU6502::AlienCPU6502() {
 
 void AlienCPU6502::Reset() {
     // reset all registers
-    pc = PC_INIT; // program counter (instruction pointer)
-    sp = SP_INIT; // stack pointer (start of the first element on the stack)
+    pc = PC_INIT;
+    sp = SP_INIT;
 
     a = A_INIT;
     x = X_INIT;
@@ -25,17 +25,15 @@ void AlienCPU6502::Reset() {
     // reset flags
     p = P_INIT;
 
-
+    // reset cycle counters
     nextInterruptCheck = INTERRUPT_CHECK_INTERVAL;
-
     cycles = 0;
 
+    // prepare ram
     ram.Initialize();
 }
 
 void AlienCPU6502::Start(u64 maxCycles) {
-
-    
     // Reset the CPU, all registers, ram etc
     Reset();
 
