@@ -28,3 +28,76 @@
 
 
 
+
+//
+//
+// ---- Interrupt Process ----
+// Used to handle events such as receiving data from the internet
+// Or user inputs from keyboard or mouse
+// Generally also used to cycle between different threads of execution
+//  - Context Switch (storing the state of a thread/process)
+//      - Saves all registers the process is using (Process Control Block)
+//      - Pointer to the saved PCB located in kernel memory or call stack is
+//        added to the queue of processes to be ran (ready queue - priority queue)
+//
+//  - Interrupt Request
+//      - Hardware (sent from device to processor)
+//      - Processor (sent from another processor)
+//      - Software (sent from program to processor)
+//  - Processor halts thread execution
+//  - Processor saves thread state
+//  - Processor executes interrupt handler
+//  - Processor resumes thread execution
+//
+//
+// Plan
+// - CPU loads up the BIOS and begins the boot process
+// - BIOS 
+//      - starts up
+//      - initiializes and tests hardware components (POST)
+//      - loads boot loader program from a storage device (think this is the OS)
+//      - Initiializes a kernel
+//      - provides BIOS interrupt calls for keyboard, display, storage, other input/output devices
+//          - Used to be stored on ROM chip (Motherboard) but now is stored in flash memory
+//
+// - OS
+//      - todo
+//
+// - CPU
+//      - Managed by the OS
+//      - Executes instructions in a cyclic manner
+//
+//
+// - Call Stack - used to store variables and save the state of registers
+//  - Stored vertically, grows downward in memory
+//  - Split into stack frames (function calls)
+//
+// - Stack Frame
+//    [parameters passed to function]
+//    [return address] (to the line of code that called the function)
+//    [previous value of base pointer] (to restore the base pointer when the function returns)
+//    [local variables]
+//
+// - Stack Frame Layout
+//    (high memory address)
+//    +-------------+
+//    | Parameter 2 |
+//    +-------------+ <-- [bp + 12]
+//    | Parameter 1 |
+//    +-------------+ <-- [bp + 8]
+//    | Return Addr |     (memory address of the instruction to return to)
+//    +-------------+    
+//    | previous bp |
+//    +-------------+ <-- base pointer (first byte of the base of the stack frame)
+//    | saved eax   | 
+//    +-------------+    
+//    | saved ebx   |     (saved register values)
+//    +-------------+    
+//    | saved ecx   |  
+//    +-------------+    
+//    | saved edx   |
+//    +-------------+
+//    | local var   |
+//    +-------------+ <-- stack pointer (first byte of the top element)
+//    (low memory address)
+//

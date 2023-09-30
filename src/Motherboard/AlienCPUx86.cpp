@@ -2,10 +2,10 @@
 #include <iostream>
 #include <iomanip>
 
-const std::string AlienCPU::VERSION = "0.0.1";
+const std::string AlienCPUx86::VERSION = "0.0.1";
 
 // 32 bit CPU based off of the x86 architecture (TODO: for now, it is simply a copy of AlienCPU6502)
-AlienCPU::AlienCPU() {
+AlienCPUx86::AlienCPUx86() {
     // null out instructions
     for (int i = 0; i < INSTRUCTION_COUNT; i++) {
         instructions[i] = _0000NullInstruction;
@@ -14,7 +14,7 @@ AlienCPU::AlienCPU() {
     instructions[INS_LDA_IM] = _00A9_LoadAccumulator_Immediate;
 }
 
-void AlienCPU::Reset() {
+void AlienCPUx86::Reset() {
     // reset all registers
     
 
@@ -26,7 +26,7 @@ void AlienCPU::Reset() {
     ram.Initialize();
 }
 
-void AlienCPU::Start(u64 maxCycles) {
+void AlienCPUx86::Start(u64 maxCycles) {
 
     
     // Reset the CPU, all registers, ram etc
@@ -73,7 +73,7 @@ void AlienCPU::Start(u64 maxCycles) {
 }
 
 // Executes the instruction if it is valid, otherwise throws an exception
-void AlienCPU::ExecuteInstruction(u16 instruction) {
+void AlienCPUx86::ExecuteInstruction(u16 instruction) {
     if (!ValidInstruction(instruction)) {
         std::stringstream stream;
         stream << "Error: Invalid instruction 0x" << std::hex << instruction << std::endl;
@@ -85,12 +85,12 @@ void AlienCPU::ExecuteInstruction(u16 instruction) {
 }
 
 // Checks if the instruction is a valid instruction. Must be within max instructions and must not be a null instruction
-bool AlienCPU::ValidInstruction(u16 instruction) {
+bool AlienCPUx86::ValidInstruction(u16 instruction) {
     return instruction < INSTRUCTION_COUNT && &instructions[instruction] != &instructions[0];
 }
 
 // Gets the next byte in memory and increments PC and cycles
-Byte AlienCPU::FetchNextByte() {
+Byte AlienCPUx86::FetchNextByte() {
     Byte data = ReadByte(eip); // gets byte at the program pointer (PC)
     eip++;
     cycles++;
@@ -98,7 +98,7 @@ Byte AlienCPU::FetchNextByte() {
 }
 
 // Gets the next 4 bytes in memory
-Word AlienCPU::FetchNextWord() {
+Word AlienCPUx86::FetchNextWord() {
     Word data = FetchNextByte(); // byte 1
 
     data = (data << 8) | FetchNextByte(); // byte 2
@@ -109,7 +109,7 @@ Word AlienCPU::FetchNextWord() {
 }
 
 // Reads the byte at the specified address in memory if valid, otherwise throws an exception
-Byte AlienCPU::ReadByte(Word address) {
+Byte AlienCPUx86::ReadByte(Word address) {
     if (address >= ram.MEMORY_SIZE) {
         // display the hex address of the out of bounds memory access
         std::stringstream stream;
@@ -122,7 +122,7 @@ Byte AlienCPU::ReadByte(Word address) {
 }
 
 // Reads the next 4 bytes at the specified address in memory if valid, otherwise throws an exception
-Word AlienCPU::ReadWord(Word address) {
+Word AlienCPUx86::ReadWord(Word address) {
     if (address >= ram.MEMORY_SIZE - 4) {
         // display the hex address of the out of bounds memory access
         std::stringstream stream;
@@ -142,7 +142,7 @@ Word AlienCPU::ReadWord(Word address) {
 }
 
 // Write the byte to the specified address in memory if valid, otherwise throws an exception
-void AlienCPU::WriteByte(Word address, Byte value) {
+void AlienCPUx86::WriteByte(Word address, Byte value) {
     if (address >= ram.MEMORY_SIZE) {
         // display the hex address of the out of bounds memory access
         std::stringstream stream;
@@ -157,7 +157,7 @@ void AlienCPU::WriteByte(Word address, Byte value) {
 }
 
 // Write the next 4 bytes to the specified address in memory if valid, otherwise throws an exception
-void AlienCPU::WriteWord(Word address, Word value) {
+void AlienCPUx86::WriteWord(Word address, Word value) {
     if (address >= ram.MEMORY_SIZE - 4) {
         // display the hex address of the out of bounds memory access
         std::stringstream stream;
@@ -180,27 +180,27 @@ void AlienCPU::WriteWord(Word address, Word value) {
 //
 
 //
-void AlienCPU::SPtoAddress(Byte page) {
+void AlienCPUx86::SPtoAddress(Byte page) {
 
 }
 
 //
-void AlienCPU::PushWordToStack(Word value) {
+void AlienCPUx86::PushWordToStack(Word value) {
 
 }
 
 //
-Word AlienCPU::PopWordFromStack() {
+Word AlienCPUx86::PopWordFromStack() {
     return NULL_ADDRESS;
 }
 
 //
-void AlienCPU::PushByteToStack(Byte value) {
+void AlienCPUx86::PushByteToStack(Byte value) {
 
 }
 
 //
-Byte AlienCPU::PopByteFromStack() {
+Byte AlienCPUx86::PopByteFromStack() {
     return NULL_ADDRESS >> 24;
 }
 
@@ -211,7 +211,7 @@ Byte AlienCPU::PopByteFromStack() {
 //
 
 // Null Instruction, throws error if called
-void AlienCPU::_0000NullInstruction() {
+void AlienCPUx86::_0000NullInstruction() {
     std::stringstream stream;
     stream << "Error: Null Instruction" << std::endl;
     
@@ -220,6 +220,6 @@ void AlienCPU::_0000NullInstruction() {
 
 // Load Accumulator Immediate Instruction (LDA_IM) into register A
 // Loads the next byte into register A
-void AlienCPU::_00A9_LoadAccumulator_Immediate() {
+void AlienCPUx86::_00A9_LoadAccumulator_Immediate() {
     
 }

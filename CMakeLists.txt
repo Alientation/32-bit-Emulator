@@ -33,8 +33,8 @@ file(GLOB all_SRCS
     "src/PSU.cpp"
     "src/PSU.h"
     "src/Types.h"
-    "tests/AlienCPUTests.cpp"
-    "tests/AlienCPUTests.h"
+    "tests/AlienCPU6502Tests.cpp"
+    "tests/AlienCPU6502Tests.h"
 )
 
 include_directories(src tests)

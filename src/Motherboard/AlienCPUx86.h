@@ -6,10 +6,11 @@
 #include <string>
 #include <functional>
 
-class AlienCPU;
+//forward declaration
+class AlienCPUx86;
 
 // 32 bit CPU based off of the x86 architecture (TODO: for now, it is simply a copy of AlienCPU6502)
-class AlienCPU {
+class AlienCPUx86 {
     public:
         static const std::string VERSION;
 
@@ -52,7 +53,7 @@ class AlienCPU {
     //private:
         
         // Instruction Set
-        using Instruction = std::function<void(AlienCPU&)>;
+        using Instruction = std::function<void(AlienCPUx86&)>;
         Instruction instructions[INSTRUCTION_COUNT];
 
         // System Memory
@@ -83,7 +84,7 @@ class AlienCPU {
         Word eflags;
 
     public:
-        AlienCPU();
+        AlienCPUx86();
         void Start(u64 maxCycles = 0);
     
     private: 
