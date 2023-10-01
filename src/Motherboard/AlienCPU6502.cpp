@@ -13,6 +13,7 @@ AlienCPU6502::AlienCPU6502() {
     instructions[INS_LDA_IM] = _A9_LoadAccumulator_Immediate_Instruction;
 }
 
+// realistically, reset actually randomizes values for memory and registers
 void AlienCPU6502::Reset() {
     // reset all registers
     pc = PC_INIT;
