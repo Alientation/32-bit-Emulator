@@ -72,11 +72,243 @@ class AlienCPU6502 {
             INS_BPL_REL = 0x10, // Branch on plus (negative clear), relative addressing
             INS_ORA_IND_Y = 0x11, // OR Accumulator, indirect indexed by Y register addressing
             INS_JAM_1 = 0x12, // Illegal opcode (ILLEGAL)
-
-
-            INS_LDA_IM = 0xA9; // Load Accumulator, immediate addressing
-
-
+            INS_SLO_IND_Y = 0x13, // Shift left one bit, OR Accumulator, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X = 0x14, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_ORA_ZP_X = 0x15, // OR Accumulator, zero page indexed by X register addressing
+            INS_ASL_ZP_X = 0x16, // Arithmetic shift left, zero page indexed by X register addressing
+            INS_SLO_ZP_X = 0x17, // Shift left one bit, OR Accumulator, zero page indexed by X register addressing (ILLEGAL)
+            INS_CLC_IMPL = 0x18, // Clear carry flag, implied addressing
+            INS_ORA_ABS_Y = 0x19, // OR Accumulator, absolute indexed by Y register addressing
+            INS_NOP_IMPL = 0x1A, // No operation, implied addressing (ILLEGAL)
+            INS_SLO_ABS_Y = 0x1B, // Shift left one bit, OR Accumulator, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X = 0x1C, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_ORA_ABS_X = 0x1D, // OR Accumulator, absolute indexed by X register addressing
+            INS_ASL_ABS_X = 0x1E, // Arithmetic shift left, absolute indexed by X register addressing
+            INS_SLO_ABS_X = 0x1F, // Shift left one bit, OR Accumulator, absolute indexed by X register addressing (ILLEGAL)
+            INS_JSR_ABS = 0x20, // Jump to subroutine, absolute addressing
+            INS_AND_X_IND = 0x21, // AND Accumulator, indexed by X register, indirect addressing
+            INS_JAM_2 = 0x22, // Illegal opcode (ILLEGAL)
+            INS_RLA_X_IND = 0x23, // Rotate left one bit, AND Accumulator, indexed by X register, indirect addressing (ILLEGAL)
+            INS_BIT_ZP = 0x24, // Bit test, zero page addressing
+            INS_AND_ZP = 0x25, // AND Accumulator, zero page addressing
+            INS_ROL_ZP = 0x26, // Rotate left one bit, zero page addressing
+            INS_RLA_ZP = 0x27, // Rotate left one bit, AND Accumulator, zero page addressing (ILLEGAL)
+            INS_PLP_IMPL = 0x28, // Pull Processor Status register, implied addressing
+            INS_AND_IMM = 0x29, // AND Accumulator, immediate addressing
+            INS_ROL_ACC = 0x2A, // Rotate left one bit, accumulator addressing
+            INS_ANC_IMM_2 = 0x2B, // AND Accumulator, set C, immediate addressing (ILLEGAL)
+            INS_BIT_ABS = 0x2C, // Bit test, absolute addressing
+            INS_AND_ABS = 0x2D, // AND Accumulator, absolute addressing
+            INS_ROL_ABS = 0x2E, // Rotate left one bit, absolute addressing
+            INS_RLA_ABS = 0x2F, // Rotate left one bit, AND Accumulator, absolute addressing (ILLEGAL)
+            INS_BMI_REL = 0x30, // Branch on minus (negative set), relative addressing
+            INS_AND_IND_Y = 0x31, // AND Accumulator, indirect indexed by Y register addressing
+            INS_JAM_3 = 0x32, // Illegal opcode (ILLEGAL)
+            INS_RLA_IND_Y = 0x33, // Rotate left one bit, AND Accumulator, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X_2 = 0x34, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_AND_ZP_X = 0x35, // AND Accumulator, zero page indexed by X register addressing
+            INS_ROL_ZP_X = 0x36, // Rotate left one bit, zero page indexed by X register addressing
+            INS_RLA_ZP_X = 0x37, // Rotate left one bit, AND Accumulator, zero page indexed by X register addressing (ILLEGAL)
+            INS_SEC_IMPL = 0x38, // Set carry flag, implied addressing
+            INS_AND_ABS_Y = 0x39, // AND Accumulator, absolute indexed by Y register addressing
+            INS_NOP_IMPL_2 = 0x3A, // No operation, implied addressing (ILLEGAL)
+            INS_RLA_ABS_Y = 0x3B, // Rotate left one bit, AND Accumulator, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X_2 = 0x3C, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_AND_ABS_X = 0x3D, // AND Accumulator, absolute indexed by X register addressing
+            INS_ROL_ABS_X = 0x3E, // Rotate left one bit, absolute indexed by X register addressing
+            INS_RLA_ABS_X = 0x3F, // Rotate left one bit, AND Accumulator, absolute indexed by X register addressing (ILLEGAL)
+            INS_RTI_IMPL = 0x40, // Return from interrupt, implied addressing
+            INS_EOR_X_IND = 0x41, // Exclusive or, indexed by X register, indirect addressing
+            INS_JAM_4 = 0x42, // Illegal opcode (ILLEGAL)
+            INS_SRE_X_IND = 0x43, // Shift right one bit, exclusive or, indexed by X register, indirect addressing (ILLEGAL)
+            INS_NOP_ZP_2 = 0x44, // No operation, zero page addressing (ILLEGAL)
+            INS_EOR_ZP = 0x45, // Exclusive or, zero page addressing
+            INS_LSR_ZP = 0x46, // Logical shift right, zero page addressing
+            INS_SRE_ZP = 0x47, // Shift right one bit, exclusive or, zero page addressing (ILLEGAL)
+            INS_PHA_IMPL = 0x48, // Push Accumulator, implied addressing
+            INS_EOR_IMM = 0x49, // Exclusive or, immediate addressing
+            INS_LSR_ACC = 0x4A, // Logical shift right, accumulator addressing
+            INS_ALR_IMM = 0x4B, // AND Accumulator, logical shift right, immediate addressing (ILLEGAL)
+            INS_JMP_ABS = 0x4C, // Jump, absolute addressing
+            INS_EOR_ABS = 0x4D, // Exclusive or, absolute addressing
+            INS_LSR_ABS = 0x4E, // Logical shift right, absolute addressing
+            INS_SRE_ABS = 0x4F, // Shift right one bit, exclusive or, absolute addressing (ILLEGAL)
+            INS_BVC_REL = 0x50, // Branch on overflow clear, relative addressing
+            INS_EOR_IND_Y = 0x51, // Exclusive or, indirect indexed by Y register addressing
+            INS_JAM_5 = 0x52, // Illegal opcode (ILLEGAL)
+            INS_SRE_IND_Y = 0x53, // Shift right one bit, exclusive or, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X_3 = 0x54, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_EOR_ZP_X = 0x55, // Exclusive or, zero page indexed by X register addressing
+            INS_LSR_ZP_X = 0x56, // Logical shift right, zero page indexed by X register addressing
+            INS_SRE_ZP_X = 0x57, // Shift right one bit, exclusive or, zero page indexed by X register addressing (ILLEGAL)
+            INS_CLI_IMPL = 0x58, // Clear interrupt disable flag, implied addressing
+            INS_EOR_ABS_Y = 0x59, // Exclusive or, absolute indexed by Y register addressing
+            INS_NOP_IMPL_3 = 0x5A, // No operation, implied addressing (ILLEGAL)
+            INS_SRE_ABS_Y = 0x5B, // Shift right one bit, exclusive or, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X_3 = 0x5C, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_EOR_ABS_X = 0x5D, // Exclusive or, absolute indexed by X register addressing
+            INS_LSR_ABS_X = 0x5E, // Logical shift right, absolute indexed by X register addressing
+            INS_SRE_ABS_X = 0x5F, // Shift right one bit, exclusive or, absolute indexed by X register addressing (ILLEGAL)
+            INS_RTS_IMPL = 0x60, // Return from subroutine, implied addressing
+            INS_ADC_X_IND = 0x61, // Add with carry, indexed by X register, indirect addressing
+            INS_JAM_6 = 0x62, // Illegal opcode (ILLEGAL)
+            INS_RRA_X_IND = 0x63, // Rotate right one bit, add with carry, indexed by X register, indirect addressing (ILLEGAL)
+            INS_NOP_ZP_4 = 0x64, // No operation, zero page addressing (ILLEGAL)
+            INS_ADC_ZP = 0x65, // Add with carry, zero page addressing
+            INS_ROR_ZP = 0x66, // Rotate right one bit, zero page addressing
+            INS_RRA_ZP = 0x67, // Rotate right one bit, add with carry, zero page addressing (ILLEGAL)
+            INS_PLA_IMPL = 0x68, // Pull Accumulator, implied addressing
+            INS_ADC_IMM = 0x69, // Add with carry, immediate addressing
+            INS_ROR_ACC = 0x6A, // Rotate right one bit, accumulator addressing
+            INS_ARR_IMM = 0x6B, // AND Accumulator, rotate right one bit, immediate addressing (ILLEGAL)
+            INS_JMP_IND = 0x6C, // Jump, indirect addressing
+            INS_ADC_ABS = 0x6D, // Add with carry, absolute addressing
+            INS_ROR_ABS = 0x6E, // Rotate right one bit, absolute addressing
+            INS_RRA_ABS = 0x6F, // Rotate right one bit, add with carry, absolute addressing (ILLEGAL)
+            INS_BVS_REL = 0x70, // Branch on overflow set, relative addressing
+            INS_ADC_IND_Y = 0x71, // Add with carry, indirect indexed by Y register addressing
+            INS_JAM_7 = 0x72, // Illegal opcode (ILLEGAL)
+            INS_RRA_IND_Y = 0x73, // Rotate right one bit, add with carry, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X_4 = 0x74, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_ADC_ZP_X = 0x75, // Add with carry, zero page indexed by X register addressing
+            INS_ROR_ZP_X = 0x76, // Rotate right one bit, zero page indexed by X register addressing
+            INS_RRA_ZP_X = 0x77, // Rotate right one bit, add with carry, zero page indexed by X register addressing (ILLEGAL)
+            INS_SEI_IMPL = 0x78, // Set interrupt disable flag, implied addressing
+            INS_ADC_ABS_Y = 0x79, // Add with carry, absolute indexed by Y register addressing
+            INS_NOP_IMPL_4 = 0x7A, // No operation, implied addressing (ILLEGAL)
+            INS_RRA_ABS_Y = 0x7B, // Rotate right one bit, add with carry, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X_4 = 0x7C, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_ADC_ABS_X = 0x7D, // Add with carry, absolute indexed by X register addressing
+            INS_ROR_ABS_X = 0x7E, // Rotate right one bit, absolute indexed by X register addressing
+            INS_RRA_ABS_X = 0x7F, // Rotate right one bit, add with carry, absolute indexed by X register addressing (ILLEGAL)
+            INS_NOP_IMM = 0x80, // No operation, immediate addressing (ILLEGAL)
+            INS_STA_X_IND = 0x81, // Store Accumulator, indexed by X register, indirect addressing
+            INS_NOP_IMM_2 = 0x82, // No operation, immediate addressing (ILLEGAL)
+            INS_SAX_X_IND = 0x83, // AND X register with accumulator, store result in memory, indexed by X register, indirect addressing (ILLEGAL)
+            INS_STY_ZP = 0x84, // Store Y register, zero page addressing
+            INS_STA_ZP = 0x85, // Store Accumulator, zero page addressing
+            INS_STX_ZP = 0x86, // Store X register, zero page addressing
+            INS_SAX_ZP = 0x87, // AND X register with accumulator, store result in memory, zero page addressing (ILLEGAL)
+            INS_DEY_IMPL = 0x88, // Decrement Y register, implied addressing
+            INS_NOP_IMM_3 = 0x89, // No operation, immediate addressing (ILLEGAL)
+            INS_TXA_IMPL = 0x8A, // Transfer X register to Accumulator, implied addressing
+            INS_XAA_IMM = 0x8B, // Transfer X register to Accumulator, AND immediate, implied addressing (ILLEGAL)
+            INS_STY_ABS = 0x8C, // Store Y register, absolute addressing
+            INS_STA_ABS = 0x8D, // Store Accumulator, absolute addressing
+            INS_STX_ABS = 0x8E, // Store X register, absolute addressing
+            INS_SAX_ABS = 0x8F, // AND X register with accumulator, store result in memory, absolute addressing (ILLEGAL)
+            INS_BCC_REL = 0x90, // Branch on carry clear, relative addressing
+            INS_STA_IND_Y = 0x91, // Store Accumulator, indirect indexed by Y register addressing
+            INS_JAM_8 = 0x92, // Illegal opcode (ILLEGAL)
+            INS_AHX_IND_Y = 0x93, // AND X register with accumulator, AND high byte of memory, store result in memory, indirect indexed by Y register addressing (ILLEGAL)
+            INS_STY_ZP_X = 0x94, // Store Y register, zero page indexed by X register addressing
+            INS_STA_ZP_X = 0x95, // Store Accumulator, zero page indexed by X register addressing
+            INS_STX_ZP_Y = 0x96, // Store X register, zero page indexed by Y register addressing
+            INS_SAX_ZP_Y = 0x97, // AND X register with accumulator, store result in memory, zero page indexed by Y register addressing (ILLEGAL)
+            INS_TYA_IMPL = 0x98, // Transfer Y register to Accumulator, implied addressing
+            INS_STA_ABS_Y = 0x99, // Store Accumulator, absolute indexed by Y register addressing
+            INS_TXS_IMPL = 0x9A, // Transfer X register to Stack pointer, implied addressing
+            INS_TAS_ABS_Y = 0x9B, // Transfer Accumulator to Stack pointer, AND X register, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
+            INS_SHY_ABS_X = 0x9C, // AND Y register with high byte of memory, store result in memory, absolute indexed by X register addressing (ILLEGAL)
+            INS_STA_ABS_X = 0x9D, // Store Accumulator, absolute indexed by X register addressing
+            INS_SHX_ABS_Y = 0x9E, // AND X register with high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
+            INS_AHX_ABS_Y = 0x9F, // AND X register with accumulator, AND high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
+            INS_LDY_IMM = 0xA0, // Load Y register, immediate addressing
+            INS_LDA_X_IND = 0xA1, // Load Accumulator, indexed by X register, indirect addressing
+            INS_LDX_IMM = 0xA2, // Load X register, immediate addressing
+            INS_LAX_X_IND = 0xA3, // Load Accumulator and X register, indexed by X register, indirect addressing (ILLEGAL)
+            INS_LDY_ZP = 0xA4, // Load Y register, zero page addressing
+            INS_LDA_ZP = 0xA5, // Load Accumulator, zero page addressing
+            INS_LDX_ZP = 0xA6, // Load X register, zero page addressing
+            INS_LAX_ZP = 0xA7, // Load Accumulator and X register, zero page addressing (ILLEGAL)
+            INS_TAY_IMPL = 0xA8, // Transfer Accumulator to Y register, implied addressing
+            INS_LDA_IM = 0xA9, // Load Accumulator, immediate addressing
+            INS_TAX_IMPL = 0xAA, // Transfer Accumulator to X register, implied addressing
+            INS_LAX_IM = 0xAB, // Load Accumulator and X register, immediate addressing (ILLEGAL)
+            INS_LDY_ABS = 0xAC, // Load Y register, absolute addressing
+            INS_LDA_ABS = 0xAD, // Load Accumulator, absolute addressing
+            INS_LDX_ABS = 0xAE, // Load X register, absolute addressing
+            INS_LAX_ABS = 0xAF, // Load Accumulator and X register, absolute addressing (ILLEGAL)
+            INS_BCS_REL = 0xB0, // Branch on carry set, relative addressing
+            INS_LDA_IND_Y = 0xB1, // Load Accumulator, indirect indexed by Y register addressing
+            INS_JAM_9 = 0xB2, // Illegal opcode (ILLEGAL)
+            INS_LAX_IND_Y = 0xB3, // Load Accumulator and X register, indirect indexed by Y register addressing (ILLEGAL)
+            INS_LDY_ZP_X = 0xB4, // Load Y register, zero page indexed by X register addressing
+            INS_LDA_ZP_X = 0xB5, // Load Accumulator, zero page indexed by X register addressing
+            INS_LDX_ZP_Y = 0xB6, // Load X register, zero page indexed by Y register addressing
+            INS_LAX_ZP_Y = 0xB7, // Load Accumulator and X register, zero page indexed by Y register addressing (ILLEGAL)
+            INS_CLV_IMPL = 0xB8, // Clear overflow flag, implied addressing
+            INS_LDA_ABS_Y = 0xB9, // Load Accumulator, absolute indexed by Y register addressing
+            INS_TSX_IMPL = 0xBA, // Transfer Stack pointer to X register, implied addressing
+            INS_LAS_ABS_Y = 0xBB, // Load Accumulator and Stack pointer, AND high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
+            INS_LDY_ABS_X = 0xBC, // Load Y register, absolute indexed by X register addressing
+            INS_LDA_ABS_X = 0xBD, // Load Accumulator, absolute indexed by X register addressing
+            INS_LDX_ABS_Y = 0xBE, // Load X register, absolute indexed by Y register addressing
+            INS_LAX_ABS_Y = 0xBF, // Load Accumulator and X register, absolute indexed by Y register addressing (ILLEGAL)
+            INS_CPY_IMM = 0xC0, // Compare Y register, immediate addressing
+            INS_CMP_X_IND = 0xC1, // Compare Accumulator, indexed by X register, indirect addressing
+            INS_NOP_IMM_4 = 0xC2, // No operation, immediate addressing (ILLEGAL)
+            INS_DCP_X_IND = 0xC3, // Decrement memory, compare Accumulator, indexed by X register, indirect addressing (ILLEGAL)
+            INS_CPY_ZP = 0xC4, // Compare Y register, zero page addressing
+            INS_CMP_ZP = 0xC5, // Compare Accumulator, zero page addressing
+            INS_DEC_ZP = 0xC6, // Decrement memory, zero page addressing
+            INS_DCP_ZP = 0xC7, // Decrement memory, compare Accumulator, zero page addressing (ILLEGAL)
+            INS_INY_IMPL = 0xC8, // Increment Y register, implied addressing
+            INS_CMP_IMM = 0xC9, // Compare Accumulator, immediate addressing
+            INS_DEX_IMPL = 0xCA, // Decrement X register, implied addressing
+            INS_AXS_IMM = 0xCB, // AND X register with accumulator, subtract immediate, store result in X register, implied addressing (ILLEGAL)
+            INS_CPY_ABS = 0xCC, // Compare Y register, absolute addressing
+            INS_CMP_ABS = 0xCD, // Compare Accumulator, absolute addressing
+            INS_DEC_ABS = 0xCE, // Decrement memory, absolute addressing
+            INS_DCP_ABS = 0xCF, // Decrement memory, compare Accumulator, absolute addressing (ILLEGAL)
+            INS_BNE_REL = 0xD0, // Branch on not equal (zero clear), relative addressing
+            INS_CMP_IND_Y = 0xD1, // Compare Accumulator, indirect indexed by Y register addressing
+            INS_JAM_10 = 0xD2, // Illegal opcode (ILLEGAL)
+            INS_DCP_IND_Y = 0xD3, // Decrement memory, compare Accumulator, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X_5 = 0xD4, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_CMP_ZP_X = 0xD5, // Compare Accumulator, zero page indexed by X register addressing
+            INS_DEC_ZP_X = 0xD6, // Decrement memory, zero page indexed by X register addressing
+            INS_DCP_ZP_X = 0xD7, // Decrement memory, compare Accumulator, zero page indexed by X register addressing (ILLEGAL)
+            INS_CLD_IMPL = 0xD8, // Clear decimal flag, implied addressing
+            INS_CMP_ABS_Y = 0xD9, // Compare Accumulator, absolute indexed by Y register addressing
+            INS_NOP_IMPL_5 = 0xDA, // No operation, implied addressing (ILLEGAL)
+            INS_DCP_ABS_Y = 0xDB, // Decrement memory, compare Accumulator, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X_5 = 0xDC, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_CMP_ABS_X = 0xDD, // Compare Accumulator, absolute indexed by X register addressing
+            INS_DEC_ABS_X = 0xDE, // Decrement memory, absolute indexed by X register addressing
+            INS_DCP_ABS_X = 0xDF, // Decrement memory, compare Accumulator, absolute indexed by X register addressing (ILLEGAL)
+            INS_CPX_IMM = 0xE0, // Compare X register, immediate addressing
+            INS_SBC_X_IND = 0xE1, // Subtract with carry, indexed by X register, indirect addressing
+            INS_NOP_IMM_5 = 0xE2, // No operation, immediate addressing (ILLEGAL)
+            INS_ISC_X_IND = 0xE3, // Increment memory, subtract with carry, indexed by X register, indirect addressing (ILLEGAL)
+            INS_CPX_ZP = 0xE4, // Compare X register, zero page addressing
+            INS_SBC_ZP = 0xE5, // Subtract with carry, zero page addressing
+            INS_INC_ZP = 0xE6, // Increment memory, zero page addressing
+            INS_ISC_ZP = 0xE7, // Increment memory, subtract with carry, zero page addressing (ILLEGAL)
+            INS_INX_IMPL = 0xE8, // Increment X register, implied addressing
+            INS_SBC_IMM = 0xE9, // Subtract with carry, immediate addressing
+            INS_NOP_IMPL_6 = 0xEA, // No operation, implied addressing (ILLEGAL)
+            INS_USBC_IMM = 0xEB, // Subtract with carry, immediate addressing (ILLEGAL)
+            INS_CPX_ABS = 0xEC, // Compare X register, absolute addressing
+            INS_SBC_ABS = 0xED, // Subtract with carry, absolute addressing
+            INS_INC_ABS = 0xEE, // Increment memory, absolute addressing
+            INS_ISC_ABS = 0xEF, // Increment memory, subtract with carry, absolute addressing (ILLEGAL)
+            INS_BEQ_REL = 0xF0, // Branch on equal (zero set), relative addressing
+            INS_SBC_IND_Y = 0xF1, // Subtract with carry, indirect indexed by Y register addressing
+            INS_JAM_11 = 0xF2, // Illegal opcode (ILLEGAL)
+            INS_ISC_IND_Y = 0xF3, // Increment memory, subtract with carry, indirect indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ZP_X_6 = 0xF4, // No operation, zero page indexed by X register addressing (ILLEGAL)
+            INS_SBC_ZP_X = 0xF5, // Subtract with carry, zero page indexed by X register addressing
+            INS_INC_ZP_X = 0xF6, // Increment memory, zero page indexed by X register addressing
+            INS_ISC_ZP_X = 0xF7, // Increment memory, subtract with carry, zero page indexed by X register addressing (ILLEGAL)
+            INS_SED_IMPL = 0xF8, // Set decimal flag, implied addressing
+            INS_SBC_ABS_Y = 0xF9, // Subtract with carry, absolute indexed by Y register addressing
+            INS_NOP_IMPL_7 = 0xFA, // No operation, implied addressing (ILLEGAL)
+            INS_ISC_ABS_Y = 0xFB, // Increment memory, subtract with carry, absolute indexed by Y register addressing (ILLEGAL)
+            INS_NOP_ABS_X_6 = 0xFC, // No operation, absolute indexed by X register addressing (ILLEGAL)
+            INS_SBC_ABS_X = 0xFD, // Subtract with carry, absolute indexed by X register addressing
+            INS_INC_ABS_X = 0xFE, // Increment memory, absolute indexed by X register addressing
+            INS_ISC_ABS_X = 0xFF; // Increment memory, subtract with carry, absolute indexed by X register addressing (ILLEGAL)
 
         // Null address
         static const Word NULL_ADDRESS = 0x00000000;
@@ -708,24 +940,6 @@ class AlienCPU6502 {
         // |        Page transitions may occur and add an extra cycle to execution
         // |
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-
         
 
 };
