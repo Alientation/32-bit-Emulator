@@ -200,8 +200,38 @@ class AlienCPU6502 {
         void ExecuteInstruction(u16 instruction);
         bool ValidInstruction(u16 instruction);
 
-        // Instructions
-
+        // ================Instructions================
+        // Instruction opcodes are 1 byte, $00 to $FF (256 possible instructions)
+        //  
+        // =======Address Modes=======
+        // Symbol   :   Name                :   Operand     :   Description
+        // A        :   Accumulator         :   A           :   operand is stored in the Accumulator register
+        // abs      :   absolute            :   $LLxxxxHH   :   operand is address stored in the next four bytes $HHxxxxLL *
+        // abs,X    :   absolute,X          :   $LLxxxxHH,X :   operand is address stored in the next four bytes incremented by X register with carry $HHxxxxLL + X **
+        // abs,Y    :   absolute,Y          :   $LLxxxxHH,Y :   operand is address stored in the next four bytes incremented by Y register with carry $HHxxxxLL + Y **
+        // #        :   immediate           :   #$BBBB      :   operand is the value of the next two bytes
+        // impl     :   implied             :               :   no operand, implied by instruction
+        // ind      :   indirect            :   $($LLxxxxHH):   operand is address stored in the memory address represented by the next four bytes $($HHxxxxLL)
+        // X, ind   :   X-indexed, indirect :   $($LLxx,X)  :   operand is zeropage address stored in the next two bytes incremented by X register without carry $($0000xxLL + X) ?? todo figure out what without carry means
+        // ind, Y   :   indirect, Y-indexed :   $($LLxx),Y  :   operand is zeropage address stored in the next two bytes incremented by Y register with carry $($0000xxLL) + Y
+        // rel      :   relative            :   $BBBB       :   branch target is a signed 16 bit offset (next two bytes) from the current PC value ***
+        // zpg      :   zeropage            :   $LLxx       :   operand is address stored in the next two bytes $0000xxLL
+        // zpg,X    :   zeropage,X          :   $LLxx,X     :   operand is address stored in the next two bytes incremented by X register with carry $0000xxLL + X **
+        // zpg,Y    :   zeropage,Y          :   $LLxx,Y     :   operand is address stored in the next two bytes incremented by Y register with carry $0000xxLL + Y **
+        //
+        //
+        // *    32-bit address words are little endian, low bytes first, follwowed by high bytes
+        //      ie $HHxxxxLL is stored as $LL $xx $xx $HH
+        //
+        // **   The available 32 bit address space consists of pages of 65536 bytes each
+        //      The high bytes (stored as the last 2 bytes) represent the page index. An increment
+        //      will affect the high bytes if a carry happens (crossing page boundaries), adding an extra
+        //      cycle to execution. (unrelated to the state of carry bit in the P register)
+        //
+        // ***  Branch offsets are signed 16 bit values, -32768 to 32767, negative offsets in two's complement
+        //      Page transitions may occur and add an extra cycle to execution
+        //
+        //
         // in the 6502, $00 was the BRK implied instruction, but to be sure to capture errors easily
         // (ie when incorrect memory is accessed) for this CPU, $00 will be a null instruction
         void _00_Null_Instruction();
