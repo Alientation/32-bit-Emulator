@@ -7,10 +7,10 @@ const std::string AlienCPU6502::VERSION = "0.0.1";
 AlienCPU6502::AlienCPU6502() {
     // null out instructions to catch errors
     for (int i = 0; i < INSTRUCTION_COUNT; i++) {
-        instructions[i] = _00_Null_Instruction;
+        instructions[i] = _00_NULL_Illegal_Instruction;
     }
 
-    instructions[INS_LDA_IM] = _A9_LoadAccumulator_Immediate_Instruction;
+    instructions[INS_LDA_IM] = _A9_LDA_Immediate_Instruction;
 }
 
 // realistically, reset actually randomizes values for memory and registers
@@ -205,23 +205,95 @@ Byte AlienCPU6502::PopByteFromStack() {
 //
 
 // Null Instruction, throws error if called
-void AlienCPU6502::_00_Null_Instruction() {
+void AlienCPU6502::_00_NULL_Illegal_Instruction() {
     std::stringstream stream;
-    stream << "Error: Null Instruction" << std::endl;
+    stream << "Error: NULL Instruction" << std::endl;
 
     throw std::invalid_argument(stream.str());
 }
 
-void AlienCPU6502::_01_ORAccumulator_XIndexed_Indirect_Instruction() {
+// OR Memory with Accumulator
+void AlienCPU6502::_01_ORA_XIndexed_Indirect_Instruction() {
 
 }
 
+// Force Break
+// Software interrupt, similar to hardware interrupt (IRQ)
 void AlienCPU6502::_02_BRK_Implied_Instruction() {
 
 }
 
+void AlienCPU6502::_03_SLO_XIndexed_Indirect_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_04_NOP_ZeroPage_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_05_ORA_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU6502::_06_ASL_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU6502::_07_SLO_ZeroPage_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_08_PHP_Implied_Instruction() {
+
+}
+
+void AlienCPU6502::_09_ORA_Immediate_Instruction() {
+
+}
+
+void AlienCPU6502::_0A_ASL_Accumulator_Instruction() {
+
+}
+
+void AlienCPU6502::_0B_ANC_Immediate_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_0C_NOP_Absolute_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_0D_ORA_Absolute_Instruction() {
+
+}
+
+void AlienCPU6502::_0E_ASL_Absolute_Instruction() {
+
+}
+
+void AlienCPU6502::_0F_SLO_Absolute_Illegal_Instruction() {
+
+}
+
+void AlienCPU6502::_10_BPL_Relative_Instruction() {
+
+}
+
+void AlienCPU6502::_11_ORA_Indirect_YIndexed_Instruction() {
+
+}
+
+// Freezes the CPU indefinitely in T1 phase with $FFFF on the data bus, requires reset
+// https://www.nesdev.org/wiki/Visual6502wiki/6502_Timing_States (for T- phases)
+// also refered to as HLT or KIL
+void AlienCPU6502::_12_JAM_Illegal_Instruction() {
+
+}
+
+
+
 // Load Accumulator Immediate Instruction (LDA_IM) into register A
 // Loads the next byte into register A
-void AlienCPU6502::_A9_LoadAccumulator_Immediate_Instruction() {
+void AlienCPU6502::_A9_LDA_Immediate_Instruction() {
     
 }
