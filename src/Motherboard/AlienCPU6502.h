@@ -47,19 +47,16 @@ class AlienCPU6502 {
 
         // ================INSTRUCTIONS================
         // Total Number of instructions supported by the processor
-        static const u16 INSTRUCTION_COUNT = 0x0100;
-        
-        // Max Instruction Bytes Length
-        static const u8 MAX_INSTRUCTION_BYTES_LENGTH = 0x02;
+        static const u16 INSTRUCTION_COUNT = 0x0100; // 256 instructions
     
         // Instruction opcodes (1 byte)
         // https://en.wikipedia.org/wiki/X86_instruction_listings#Added_as_instruction_set_extensions
+        // https://www.masswerk.at/6502/6502_instruction_set.html
         static constexpr u8
-            INS_NULL = 0x00; // Null Instruction
-
-        // Instruction opcodes (2 bytes)
-        static constexpr u16
-            INS_LDA_IM = 0x00A9; // Load Accumulator Immediate
+            INS_NULL = 0x00, // Null Instruction
+            INS_ORA_X_IND = 0x01, // OR Accumulator, indexed by X register, indirect addressing
+            INS_BRK_IMPL = 0x02, // Break/Interrupt, implied addressing
+            INS_LDA_IM = 0xA9; // Load Accumulator, immediate addressing
 
 
 
@@ -204,8 +201,15 @@ class AlienCPU6502 {
         bool ValidInstruction(u16 instruction);
 
         // Instructions
-        void _0000NullInstruction();
-        void _00A9_LoadAccumulator_Immediate();
+
+        // in the 6502, $00 was the BRK implied instruction, but to be sure to capture errors easily
+        // (ie when incorrect memory is accessed) for this CPU, $00 will be a null instruction
+        void _00_Null_Instruction();
+        void _01_ORAccumulator_XIndexed_Indirect_Instruction();
+        void _02_BRK_Implied_Instruction(); // moved from $00 to $02
+
+
+        void _A9_LoadAccumulator_Immediate_Instruction();
 
 };
 

@@ -5,12 +5,12 @@
 const std::string AlienCPU6502::VERSION = "0.0.1";
 
 AlienCPU6502::AlienCPU6502() {
-    // null out instructions
+    // null out instructions to catch errors
     for (int i = 0; i < INSTRUCTION_COUNT; i++) {
-        instructions[i] = _0000NullInstruction;
+        instructions[i] = _00_Null_Instruction;
     }
 
-    instructions[INS_LDA_IM] = _00A9_LoadAccumulator_Immediate;
+    instructions[INS_LDA_IM] = _A9_LoadAccumulator_Immediate_Instruction;
 }
 
 void AlienCPU6502::Reset() {
@@ -49,20 +49,8 @@ void AlienCPU6502::Start(u64 maxCycles) {
 
         std::cout << ".";
 
-        // Reads in the next instruction of variable length (1-2 bytes for this cpu)
-        u16 nextInstruction = 0x0000;
-        Byte nextInstructionByte = 0;
-        u8 instructionBytesLength = 0;
-        
-        // while the length of the instruction in bytes is less than the max instruction bytes length
-        // stop when the current read instruction is valid
-        while (instructionBytesLength < MAX_INSTRUCTION_BYTES_LENGTH && !ValidInstruction(nextInstruction)) {
-            nextInstructionByte = FetchNextByte(); // get the next byte in memory
-
-            nextInstruction = nextInstruction << 8; // shift the current instruction 8 bits to the left
-            nextInstruction = nextInstruction | nextInstructionByte; // add the read instruction byte to the current instruction
-            instructionBytesLength++; //increment byte count
-        }
+        // Reads in the next instruction (1 byte)
+        u16 nextInstruction = FetchNextByte();
 
         // Executes the instruction even if it is invalid
         // ExecuteInstruction(nextInstruction);
@@ -216,15 +204,23 @@ Byte AlienCPU6502::PopByteFromStack() {
 //
 
 // Null Instruction, throws error if called
-void AlienCPU6502::_0000NullInstruction() {
+void AlienCPU6502::_00_Null_Instruction() {
     std::stringstream stream;
     stream << "Error: Null Instruction" << std::endl;
-    
+
     throw std::invalid_argument(stream.str());
+}
+
+void AlienCPU6502::_01_ORAccumulator_XIndexed_Indirect_Instruction() {
+
+}
+
+void AlienCPU6502::_02_BRK_Implied_Instruction() {
+
 }
 
 // Load Accumulator Immediate Instruction (LDA_IM) into register A
 // Loads the next byte into register A
-void AlienCPU6502::_00A9_LoadAccumulator_Immediate() {
+void AlienCPU6502::_A9_LoadAccumulator_Immediate_Instruction() {
     
 }
