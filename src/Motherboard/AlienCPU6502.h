@@ -204,10 +204,86 @@ class AlienCPU6502 {
         // =====================INSTRUCTIONS=====================
         // | Instruction opcodes are 1 byte, $00 to $FF (256 possible instructions)
         // |
+        // ======================TRANSFER========================
+        // | LDA    :   Load Accumulator
+        // | LDX    :   Load X register
+        // | LDY    :   Load Y register
+        // | STA    :   Store Accumulator
+        // | STX    :   Store X register
+        // | STY    :   Store Y register
+        // | TAX    :   Transfer Accumulator to X register
+        // | TAY    :   Transfer Accumulator to Y register
+        // | TSX    :   Transfer Stack pointer to X register
+        // | TXA    :   Transfer X register to Accumulator
+        // | TXS    :   Transfer X register to Stack pointer
+        // | TYA    :   Transfer Y register to Accumulator
         // |
+        // ========================STACK=========================
+        // | PHA    :   Push Accumulator onto stack
+        // | PHP    :   Push Processor Status register onto stack (sets break flag)
+        // | PLA    :   Pull Accumulator from stack
+        // | PLP    :   Pull Processor Status register from stack
         // |
+        // ================DECREMENTS=&=INCREMENTS===============
+        // | DEC    :   Decrement values stored in memory
+        // | DEX    :   Decrement X register
+        // | DEY    :   Decrement Y register
+        // | INC    :   Increment values stored in memory
+        // | INX    :   Increment X register
+        // | INY    :   Increment Y register
         // |
+        // =================ARITHMETIC=OPERATIONS================
+        // | https://www.masswerk.at/6502/6502_instruction_set.html#arithmetic
+        // | ADC    :   Add with carry (prepare by CLC)
+        // | SBC    :   Subtract with carry (prepare by SEC)
         // |
+        // ==================LOGICAL=OPERATIONS==================
+        // | AND    :   And (with Accumulator)
+        // | EOR    :   Exclusive or (with Accumulator)
+        // | ORA    :   Or (with Accumulator)
+        // |
+        // ====================SHIFT=&=ROTATE====================
+        // | ASL    :   Arithmetic shift left (shifts in a zero bit on the right)
+        // | LSR    :   Logical shift right (shifts in a zero bit from the left)
+        // | ROL    :   Rotate left (shifts in a carry bit on the right)
+        // | ROR    :   Rotate right (shifts in a zero bit on the left)
+        // | 
+        // =========================FLAG==========================
+        // | CLC    :   Clear carry flag
+        // | CLD    :   Clear decimal flag (Binary Coded Decimal arithmetics disabled)
+        // | CLI    :   Clear interrupt disable flag
+        // | CLV    :   Clear overflow flag
+        // | SEC    :   Set carry flag
+        // | SED    :   Set decimal flag (Binary Coded Decimal arithmetics enabled)
+        // | SEI    :   Set interrupt disable flag
+        // |
+        // =====================COMPARISONS======================
+        // | CMP    :   Compare (with Accumulator)
+        // | CPX    :   Compare with X register
+        // | CPY    :   Compare with Y register
+        // | 
+        // ==================CONDITIONAL=BRANCH==================
+        // | BCC    :   Branch if carry clear
+        // | BCS    :   Branch if carry set
+        // | BEQ    :   Branch on equal (zero set)
+        // | BMI    :   Branch on minus (negative set)
+        // | BNE    :   Branch on not equal (zero clear)
+        // | BPL    :   Branch on plus (negative clear)
+        // | BVC    :   Branch on overflow clear
+        // | BVS    :   Branch on overflow set
+        // |
+        // ==================JUMPS=&=SUBROUTINES=================
+        // | JMP    :   Jump
+        // | JSR    :   Jump to subroutine
+        // | RTS    :   Return from subroutine
+        // | 
+        // ====================INTERRUPTS========================
+        // | BRK    :   Break / software interrupt
+        // | RTI    :   Return from interrupt
+        // |
+        // =========================OTHER=========================
+        // | BIT    :   Bit test (Accumulator & Memory)
+        // | NOP    :   No operation
         // | 
         // =====================ADDRESS=MODES=====================
         // | https://www.masswerk.at/6502/6502_instruction_set.html#modes
@@ -227,6 +303,7 @@ class AlienCPU6502 {
         // | zpg,Y  : zeropage,Y          : $LLxx,Y      :   operand is address stored in the next two bytes incremented by Y register with carry $0000xxLL + Y **
         // |
         // |
+        // |    %   Binary
         // |    N   Decimal
         // |    $N  Hexadecimal     Hexadecimal without literal value operator represents a memory address
         // |    #   Literal value
