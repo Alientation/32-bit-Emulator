@@ -198,6 +198,10 @@ class AlienCPU {
         void SetFlag(Byte bit, bool isSet);
         bool IsFlagSet(Byte bit);
 
+        Byte ReadByte(Word address);
+        u16 ReadTwoBytes(Word address);
+        Word ReadWord(Word address);
+
         Byte FetchNextByte();
         u16 FetchNextTwoBytes();
         Word FetchNextWord();

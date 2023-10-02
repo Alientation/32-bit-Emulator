@@ -73,7 +73,7 @@ void AlienCPU::ExecuteInstruction(u16 instruction) {
         std::stringstream stream;
         stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) << std::endl;
         
-        //throw std::invalid_argument(stream.str());
+        //throw std::invalid_argument(stream.str()); // to allow compiling
         std::cout << stream.str();
         return;
     }
@@ -102,6 +102,34 @@ void AlienCPU::SetFlag(Byte bit, bool isSet) {
 bool AlienCPU::IsFlagSet(Byte bit) {
     return P & (1 << bit);
 }
+
+// Reads a byte from specified memory address
+Byte AlienCPU::ReadByte(Word address) {
+    cycles++;
+    return motherboard.ReadByte(address);
+}
+
+u16 AlienCPU::ReadTwoBytes(Word address) {
+    // lowest byte
+    u16 data = ReadByte(address);
+    data |= ReadByte(address + 1) << 8;
+    // highest byte
+
+    return data;
+}
+
+// Reads a word from specified memory address
+Word AlienCPU::ReadWord(Word address) {
+    // lowest byte
+    Word data = ReadByte(address);
+    data |= ReadByte(address + 1) << 8;
+    data |= ReadByte(address + 2) << 16;
+    data |= ReadByte(address + 3) << 24;
+    // highest byte
+
+    return data;
+}
+
 
 
 // Reads the next byte in memory and increments PC and cycles
@@ -227,11 +255,13 @@ Byte AlienCPU::PopByteFromStack() {
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 
 }
+
+// LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 4 cycles)
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
 
 }
 
-// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 2 cycles)
+// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // Loads the next 2 bytes into Accumulator, setting ZERO flag if the Accumulator is 0 and NEGATIVE 
 // flag if the last bit of the Accumulator is set
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
