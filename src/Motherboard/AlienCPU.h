@@ -82,6 +82,17 @@ class AlienCPU {
 
         static const Byte P_INIT = 0b00100000;
 
+
+        static constexpr Byte
+            C_FLAG = 0,
+            Z_FLAG = 1,
+            I_FLAG = 2,
+            D_FLAG = 3,
+            B_FLAG = 4,
+            UNUSED_FLAG = 5,
+            V_FLAG = 6,
+            N_FLAG = 7;
+
     //private:
         
         // Instruction Set
@@ -183,13 +194,19 @@ class AlienCPU {
         void InitInstructions();
         void Reset();
 
+        void ClearFlag(Byte bit);
+        void SetFlag(Byte bit, bool isSet);
+        bool IsFlagSet(Byte bit);
+
         Byte FetchNextByte();
         u16 FetchNextTwoBytes();
         Word FetchNextWord();
 
         void WriteByte(Word address, Byte value);
         void WriteTwoBytes(Word address, u16 value);
+        void WriteTwoBytesAbsolute(Word address, u16 value);
         void WriteWord(Word address, Word value);
+        void WriteWordAbsolute(Word address, Word value);
 
         void SPtoAddress(Byte page = 0);
         void PushWordToStack(Word value);

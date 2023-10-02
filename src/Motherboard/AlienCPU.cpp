@@ -67,6 +67,7 @@ void AlienCPU::Start(u64 maxCycles) {
     std::cout << "Stopping Alien CPU v" << VERSION << std::endl;
 }
 
+
 // Executes the instruction if it is valid, otherwise throws an exception
 void AlienCPU::ExecuteInstruction(u16 instruction) {
     if (!ValidInstruction(instruction)) {
@@ -84,7 +85,25 @@ bool AlienCPU::ValidInstruction(u16 instruction) {
     return instruction < INSTRUCTION_COUNT && &instructions[instruction] != &instructions[0];
 }
 
-// Gets the next byte in memory and increments PC and cycles
+
+// NEED TO TEST THIS STUFF
+// Clear the specified flag bit from processor status register
+void AlienCPU::ClearFlag(Byte bit) {
+    p &= ~(1 << bit);
+}
+
+// Sets the specified flag bit from processor status register
+void AlienCPU::SetFlag(Byte bit, bool isSet) {
+    p = (p & ~(1 << bit)) | (1 << bit);
+}
+
+// Gets the specified flag bit from processor status register
+bool AlienCPU::IsFlagSet(Byte bit) {
+    return p & (1 << bit);
+}
+
+
+// Reads the next byte in memory and increments PC and cycles
 Byte AlienCPU::FetchNextByte() {
     Byte data = motherboard.ReadByte(pc); // gets byte at the program pointer (PC)
     pc++;
@@ -92,14 +111,17 @@ Byte AlienCPU::FetchNextByte() {
     return data;
 }
 
+// Reads the next 2 bytes in memory converting from little endian to high endian and increments PC and cycles
 u16 AlienCPU::FetchNextTwoBytes() {
     // lowest byte
     u16 data = FetchNextByte();
     data |= FetchNextByte() << 8;
     // highest byte
+
+    return data;
 }
 
-// Gets the next 4 bytes in memory
+// Reads the next 4 bytes in memory converting from little endian to high endian and increments PC and cycles
 Word AlienCPU::FetchNextWord() {
     // lowest byte
     Word data = FetchNextByte();
@@ -111,12 +133,14 @@ Word AlienCPU::FetchNextWord() {
     return data;
 }
 
-// Write the byte to the specified address in memory if valid, otherwise throws an exception
+// Write byte to the specified address in memory
 void AlienCPU::WriteByte(Word address, Byte value) {
     // write byte 0 to memory
     motherboard.WriteByte(address, value);
 }
 
+// Writes two bytes to the specified address in memory
+// assumes that value is high endian
 void AlienCPU::WriteTwoBytes(Word address, u16 value) {
     // lowest byte
     WriteByte(address, value & 0xFF);
@@ -124,7 +148,15 @@ void AlienCPU::WriteTwoBytes(Word address, u16 value) {
     // highest byte
 }
 
-// Write the next 4 bytes to the specified address in memory if valid, otherwise throws an exception
+// Writes two bytes to the specified address in memory
+// assumes that value is little endian
+void AlienCPU::WriteTwoBytesAbsolute(Word address, u16 value) {
+    WriteByte(address, (value >> 8) & 0xFF);
+    WriteByte(address + 1, value & 0xFF);
+}
+
+// Write 4 bytes to the specified address in memory
+// assumes that value is high endian
 void AlienCPU::WriteWord(Word address, Word value) {
     // lowest byte
     WriteByte(address, value & 0xFF);
@@ -132,6 +164,15 @@ void AlienCPU::WriteWord(Word address, Word value) {
     WriteByte(address + 2, (value >> 16) & 0xFF);
     WriteByte(address + 3, (value >> 24) & 0xFF);
     // highest byte
+}
+
+// Write 4 bytes to the specified address in memory
+// assumes that value is little endian
+void AlienCPU::WriteWordAbsolute(Word address, Word value) {
+    WriteByte(address, (value >> 24) & 0xFF);
+    WriteByte(address + 1, (value >> 16) & 0xFF);
+    WriteByte(address + 2, (value >> 8) & 0xFF);
+    WriteByte(address + 3, value & 0xFF);
 }
 
 
@@ -152,6 +193,16 @@ void AlienCPU::PushWordToStack(Word value) {
 //
 Word AlienCPU::PopWordFromStack() {
     return NULL_ADDRESS;
+}
+
+//
+void AlienCPU::PushTwoBytesToStack(u16 value) {
+
+}
+
+//
+u16 AlienCPU::PopTwoBytesFromStack() {
+    return NULL_ADDRESS >> 8;
 }
 
 //
@@ -182,7 +233,8 @@ void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
 // Load Accumulator Immediate 
 // Loads the next 2 bytes into Accumulator
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    Byte value = FetchNextByte() | (FetchNextByte() << 8);
+    u16 value = FetchNextTwoBytes();
+
 }
 
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
