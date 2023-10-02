@@ -184,17 +184,18 @@ class AlienCPU {
         void Reset();
 
         Byte FetchNextByte();
+        u16 FetchNextTwoBytes();
         Word FetchNextWord();
 
-        Byte ReadByte(Word address);
-        Word ReadWord(Word address);
-
         void WriteByte(Word address, Byte value);
+        void WriteTwoBytes(Word address, u16 value);
         void WriteWord(Word address, Word value);
 
         void SPtoAddress(Byte page = 0);
         void PushWordToStack(Word value);
         Word PopWordFromStack();
+        void PushTwoBytesToStack(u16 value);
+        u16 PopTwoBytesFromStack();
         void PushByteToStack(Byte value);
         Byte PopByteFromStack();
 

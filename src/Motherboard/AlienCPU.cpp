@@ -86,35 +86,26 @@ bool AlienCPU::ValidInstruction(u16 instruction) {
 
 // Gets the next byte in memory and increments PC and cycles
 Byte AlienCPU::FetchNextByte() {
-    Byte data = ReadByte(pc); // gets byte at the program pointer (PC)
+    Byte data = motherboard.ReadByte(pc); // gets byte at the program pointer (PC)
     pc++;
     cycles++;
     return data;
 }
 
+u16 AlienCPU::FetchNextTwoBytes() {
+    // lowest byte
+    u16 data = FetchNextByte();
+    data |= FetchNextByte() << 8;
+    // highest byte
+}
+
 // Gets the next 4 bytes in memory
 Word AlienCPU::FetchNextWord() {
-    Word data = FetchNextByte(); // byte 1
-
-    data = (data << 8) | FetchNextByte(); // byte 2
-    data = (data << 8) | FetchNextByte(); // byte 3
-    data = (data << 8) | FetchNextByte(); // byte 4
-
-    return data;
-}
-
-// Reads the byte at the specified address in memory if valid, otherwise throws an exception
-Byte AlienCPU::ReadByte(Word address) {
-    return motherboard.ReadByte(address);
-}
-
-// Reads the next 4 bytes at the specified address in memory if valid, otherwise throws an exception
-Word AlienCPU::ReadWord(Word address) {
     // lowest byte
-    Word data = ReadByte(address) << 24;
-    data |= ReadByte(address + 1) << 16;
-    data |= ReadByte(address + 2) << 8;
-    data |= ReadByte(address + 3);
+    Word data = FetchNextByte();
+    data |= FetchNextByte() << 8;
+    data |= FetchNextByte() << 16;
+    data |= FetchNextByte() << 24;
     // highest byte
 
     return data;
@@ -124,6 +115,13 @@ Word AlienCPU::ReadWord(Word address) {
 void AlienCPU::WriteByte(Word address, Byte value) {
     // write byte 0 to memory
     motherboard.WriteByte(address, value);
+}
+
+void AlienCPU::WriteTwoBytes(Word address, u16 value) {
+    // lowest byte
+    WriteByte(address, value & 0xFF);
+    WriteByte(address + 1, (value >> 8) & 0xFF);
+    // highest byte
 }
 
 // Write the next 4 bytes to the specified address in memory if valid, otherwise throws an exception
@@ -184,7 +182,7 @@ void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
 // Load Accumulator Immediate 
 // Loads the next 2 bytes into Accumulator
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
-
+    Byte value = FetchNextByte() | (FetchNextByte() << 8);
 }
 
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
