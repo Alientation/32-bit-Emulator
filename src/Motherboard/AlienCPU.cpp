@@ -231,8 +231,9 @@ void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
 
 }
 
-// Load Accumulator Immediate 
-// Loads the next 2 bytes into Accumulator
+// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 2 cycles)
+// Loads the next 2 bytes into Accumulator, setting ZERO flag if the Accumulator is 0 and NEGATIVE 
+// flag if the last bit of the Accumulator is set
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
     A = FetchNextTwoBytes();
     SetFlag(Z_FLAG, A == 0);
