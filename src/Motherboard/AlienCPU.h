@@ -251,6 +251,7 @@ class AlienCPU {
         // | TXA    :   Transfer X register to Accumulator
         // | TXS    :   Transfer X register to Stack pointer
         // | TYA    :   Transfer Y register to Accumulator
+        void _LDA_Update_Flags();
         void _A1_LDA_XIndexed_Indirect_Instruction();
         void _A5_LDA_ZeroPage_Instruction();
         void _A9_LDA_Immediate_Instruction();

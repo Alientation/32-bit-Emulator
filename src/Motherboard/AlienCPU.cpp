@@ -131,7 +131,6 @@ Word AlienCPU::ReadWord(Word address) {
 }
 
 
-
 // Reads the next byte in memory and increments PC and cycles
 Byte AlienCPU::FetchNextByte() {
     Byte data = motherboard.ReadByte(PC); // gets byte at the program pointer (PC)
@@ -252,22 +251,34 @@ Byte AlienCPU::PopByteFromStack() {
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
+// Sets ZERO flag if the Accumulator is 0 and NEGATIVE flag if the 
+// last bit of the Accumulator is set
+void AlienCPU::_LDA_Update_Flags() {
+    SetFlag(Z_FLAG, A == 0);
+    SetFlag(N_FLAG, A >> 15);
+}
+
+// LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 6 cycles)
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 
 }
 
-// LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 4 cycles)
+// LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
+// Reads the lowest 2 bytes of memory address (highest 2 bytes are zero), loads 2 bytes from the 
+// Zero page address into the Accumulator, setting appropriate flags
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
+    u16 ZeroPageAddress = FetchNextTwoBytes();
+    A = ReadTwoBytes(ZeroPageAddress);
 
+    _LDA_Update_Flags();
 }
 
 // LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-// Loads the next 2 bytes into Accumulator, setting ZERO flag if the Accumulator is 0 and NEGATIVE 
-// flag if the last bit of the Accumulator is set
+// Loads the next 2 bytes into Accumulator, setting appropriate flags
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
     A = FetchNextTwoBytes();
-    SetFlag(Z_FLAG, A == 0);
-    SetFlag(N_FLAG, A >> 15);
+
+    _LDA_Update_Flags();
 }
 
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
