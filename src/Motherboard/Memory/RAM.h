@@ -29,10 +29,12 @@ class RAM {
     public:
         static constexpr u32 MEMORY_SIZE = 0x00100000; // ~1 MB
 
-        Byte Data[MEMORY_SIZE];
+        Byte data[MEMORY_SIZE];
     
     public:
         void Initialize();
+        void WriteByte(Word address, Byte byte);
+        Byte ReadByte(Word address);
 
 };
 

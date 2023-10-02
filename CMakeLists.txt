@@ -12,10 +12,8 @@ file(GLOB all_SRCS
     "src/Motherboard/Memory/RAM.h"
     "src/Motherboard/Memory/ROM.cpp"
     "src/Motherboard/Memory/ROM.h"
-    "src/Motherboard/AlienCPU6502.cpp"
-    "src/Motherboard/AlienCPU6502.h"
-    "src/Motherboard/AlienCPUx86.cpp"
-    "src/Motherboard/AlienCPUx86.h"
+    "src/Motherboard/AlienCPU.cpp"
+    "src/Motherboard/AlienCPU.h"
     "src/Motherboard/BIOS.cpp"
     "src/Motherboard/BIOS.h"
     "src/Motherboard/Motherboard.cpp"
@@ -33,8 +31,9 @@ file(GLOB all_SRCS
     "src/PSU.cpp"
     "src/PSU.h"
     "src/Types.h"
-    "tests/AlienCPU6502Tests.cpp"
-    "tests/AlienCPU6502Tests.h"
+
+    "tests/AlienCPUTests.cpp"
+    "tests/AlienCPUTests.h"
 )
 
 include_directories(src tests)

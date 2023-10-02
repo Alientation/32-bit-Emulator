@@ -16,6 +16,7 @@ class ROM {
     
     public:
         void Initialize();
+        Byte ReadByte(Word address);
 };
 
 #endif // ROM_H

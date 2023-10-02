@@ -7,3 +7,7 @@ void ROM::Initialize() {
         Data[i] = 0;
     }
 }
+
+Byte ROM::ReadByte(Word address) {
+    return Data[address];
+}

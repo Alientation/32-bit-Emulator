@@ -1,12 +1,12 @@
-#ifndef ALIENCPU6502_H
-#define ALIENCPU6502_H
+#ifndef ALIENCPU_H
+#define ALIENCPU_H
 
 #include <Types.h>
-#include <../src/Motherboard/Memory/RAM.h>
+#include <../src/Motherboard/Motherboard.h>
 #include <string>
 #include <functional>
 
-class AlienCPU6502; //forward declaration (!!)
+class AlienCPU; //forward declaration (!!)
 
 // CPU Emulator (modeled off of 6502)
 // https://en.wikipedia.org/wiki/Central_processing_unit
@@ -37,7 +37,7 @@ class AlienCPU6502; //forward declaration (!!)
 //  - little endian (lowest bytes stored first in memory)
 //      - for example in big endian mode 0x12345678 would be stored as 12 34 56 78 (from byte 1 to byte 4)
 //        however in little endian, that same number would be stored as 78 56 34 12 (from byte 4 to byte 1)
-class AlienCPU6502 {
+class AlienCPU {
     public:
         static const std::string VERSION;
 
@@ -336,7 +336,7 @@ class AlienCPU6502 {
     //private:
         
         // Instruction Set
-        using Instruction = std::function<void(AlienCPU6502&)>;
+        using Instruction = std::function<void(AlienCPU&)>;
         Instruction instructions[INSTRUCTION_COUNT];
 
         // System Memory
@@ -345,7 +345,7 @@ class AlienCPU6502 {
         // 0x00000000 - 0x000000FF : Reserved for boot process
         // 0x00000100 - 0x000100FF : Stack memory
         // 0x00010100 - 0x000FFFFF : General purpose memory 
-        RAM ram;
+        Motherboard motherboard;
 
         // Number of cycles till the next Interrupt should be processed
         Word nextInterruptCheck;
@@ -427,7 +427,7 @@ class AlienCPU6502 {
 
         
     public:
-        AlienCPU6502();
+        AlienCPU();
         void Start(u64 maxCycles = 0);
     
     private: 
@@ -948,4 +948,4 @@ class AlienCPU6502 {
 
 };
 
-#endif // ALIENCPU6502_H
+#endif // ALIENCPU_H
