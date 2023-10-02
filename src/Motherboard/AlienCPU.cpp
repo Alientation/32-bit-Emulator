@@ -12,15 +12,15 @@ AlienCPU::AlienCPU() {
 // realistically, reset actually randomizes values for memory and registers
 void AlienCPU::Reset() {
     // reset all registers
-    pc = PC_INIT;
-    sp = SP_INIT;
+    PC = PC_INIT;
+    SP = SP_INIT;
 
-    a = A_INIT;
-    x = X_INIT;
-    y = Y_INIT;
+    A = A_INIT;
+    X = X_INIT;
+    Y = Y_INIT;
 
     // reset flags
-    p = P_INIT;
+    P = P_INIT;
 
     // reset cycle counters
     nextInterruptCheck = INTERRUPT_CHECK_INTERVAL;
@@ -48,14 +48,13 @@ void AlienCPU::Start(u64 maxCycles) {
             std::cout << std::endl << "Max cycles reached" << std::endl;
             break;
         }
-
         std::cout << ".";
 
-        // Reads in the next instruction (1 byte)
+        // Reads in the next instruction
         u16 nextInstruction = FetchNextByte();
 
         // Executes the instruction even if it is invalid
-        // ExecuteInstruction(nextInstruction);
+        ExecuteInstruction(nextInstruction);
 
 
         // Check for Interrupts
@@ -72,9 +71,11 @@ void AlienCPU::Start(u64 maxCycles) {
 void AlienCPU::ExecuteInstruction(u16 instruction) {
     if (!ValidInstruction(instruction)) {
         std::stringstream stream;
-        stream << "Error: Invalid instruction 0x" << std::hex << instruction << std::endl;
+        stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) << std::endl;
         
-        throw std::invalid_argument(stream.str());
+        //throw std::invalid_argument(stream.str());
+        std::cout << stream.str();
+        return;
     }
 
     instructions[instruction](*this); // calls the function associated with the instruction
@@ -89,24 +90,24 @@ bool AlienCPU::ValidInstruction(u16 instruction) {
 // NEED TO TEST THIS STUFF
 // Clear the specified flag bit from processor status register
 void AlienCPU::ClearFlag(Byte bit) {
-    p &= ~(1 << bit);
+    P &= ~(1 << bit);
 }
 
 // Sets the specified flag bit from processor status register
 void AlienCPU::SetFlag(Byte bit, bool isSet) {
-    p = (p & ~(1 << bit)) | (1 << bit);
+    P = (P & ~(1 << bit)) | (1 << bit);
 }
 
 // Gets the specified flag bit from processor status register
 bool AlienCPU::IsFlagSet(Byte bit) {
-    return p & (1 << bit);
+    return P & (1 << bit);
 }
 
 
 // Reads the next byte in memory and increments PC and cycles
 Byte AlienCPU::FetchNextByte() {
-    Byte data = motherboard.ReadByte(pc); // gets byte at the program pointer (PC)
-    pc++;
+    Byte data = motherboard.ReadByte(PC); // gets byte at the program pointer (PC)
+    PC++;
     cycles++;
     return data;
 }
@@ -233,8 +234,9 @@ void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
 // Load Accumulator Immediate 
 // Loads the next 2 bytes into Accumulator
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    u16 value = FetchNextTwoBytes();
-
+    A = FetchNextTwoBytes();
+    SetFlag(Z_FLAG, A == 0);
+    SetFlag(N_FLAG, A >> 15);
 }
 
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
@@ -885,7 +887,7 @@ void AlienCPU::_2C_BIT_Absolute_Instruction() {
 // Null Instruction, throws error if called
 void AlienCPU::_00_NULL_Illegal_Instruction() {
     std::stringstream stream;
-    stream << "Error: NULL Instruction" << std::endl;
+    stream << std::endl << "Error: NULL Instruction" << std::endl;
 
     throw std::invalid_argument(stream.str());
 }

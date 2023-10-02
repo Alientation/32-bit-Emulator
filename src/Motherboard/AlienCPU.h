@@ -119,7 +119,7 @@ class AlienCPU {
         //  - PCL and PCH are the low and high bytes of the PC register
         //  - can be modified by the execution of a jump, subroutine (function) call, or branches (if/else)
         //    or by returning from a subroutine or interrupt
-        Word pc;
+        Word PC;
 
         // ===============Stack Pointer Register================
         //  - points to the first byte of the top element of the call stack
@@ -132,13 +132,13 @@ class AlienCPU {
         //      - [SP+3] = byte 0
         // https://en.wikipedia.org/wiki/Stack_register
         // https://en.wikipedia.org/wiki/Call_stack
-        u16 sp;
+        u16 SP;
 
         // ==============General Purpose Registers==============
         // https://codebase64.org/doku.php?id=base:6502_registers
-        u16 a; // accumulator, main register for arithmetic and logic operations (Direct connection to ALU)
-        u16 x; // index register X, addressing data with indices (like arrays)
-        u16 y; // index register Y, addressing data with indices (like arrays)
+        u16 A; // accumulator, main register for arithmetic and logic operations (Direct connection to ALU)
+        u16 X; // index register X, addressing data with indices (like arrays)
+        u16 Y; // index register Y, addressing data with indices (like arrays)
 
 
         // ==============Processor Status register==============
@@ -183,7 +183,7 @@ class AlienCPU {
         // - C (Carry)
         //  - Set if the last operation resulted in a carry or borrow
         //  - Reset if the last operation did not result in a carry or borrow
-        Byte p; // processor status, flags register
+        Byte P; // processor status, flags register
 
         
     public:
