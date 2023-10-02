@@ -18,7 +18,7 @@ class AlienCPU; //forward declaration (!!)
 //          - 0x00000000 to 0x0000FFFF : Zero page (65536 bytes)
 //          - 0x00010000 to 0x0001FFFF : Stack memory (65536 bytes)
 //          - 0x00020000 to 0x000FFFEF : General purpose memory (917488 bytes)
-//          - 0x000FFFF0 to 0x000FFFFF : Special reserved memory (16 bytes)
+//          - 0x000FFFF0 to 0x000FFFFF : Special reserved memory (16 bytes) // TODO move this further back since this will likely be mapped to ROM and not RAM
 //              * 0x000FFFF0 to 0x000FFFF3 : Interrupt handler
 //              * 0x000FFFF4 to 0x000FFFF7 : Power on reset location
 //              * 0x000FFFF8 to 0x000FFFFB : BRK / Interrupt Request (IRQ) handler
