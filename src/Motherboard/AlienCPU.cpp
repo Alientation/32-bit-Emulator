@@ -26,7 +26,7 @@ void AlienCPU::Reset() {
     nextInterruptCheck = INTERRUPT_CHECK_INTERVAL;
     cycles = 0;
 
-    // prepare ram
+    // prepare motherboard
     motherboard.Initialize();
 }
 
@@ -35,6 +35,11 @@ void AlienCPU::Start(u64 maxCycles) {
     Reset();
 
     std::cout << "Starting Alien CPU v" << VERSION << std::endl;
+
+    // start sequence / boot process
+    // read from PC (which should be pointed to the RESET vector)
+    // go to the address specified by the RESET vector
+    // and continue on from there
     
     // Fetch, Decode, Execute Cycle loop
     for (;;) {
