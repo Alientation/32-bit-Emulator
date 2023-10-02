@@ -20,10 +20,14 @@ using u64 = unsigned long long;
 static const u8 BITS_IN_BYTE = 8;
 static const u8 BITS_IN_WORD = 32;
 
+static const char VALUE_PREFIX = '#';
+static const char BINARY_PREFIX = '%'; // could also be 0b
+static const char HEXADECIMAL_PREFIX = '$'; // could also be 0x
+
 // help to print out hexadecimal numbers with zero padding
 static std::string stringifyHex(u64 hex, int width = 16) {
     std::stringstream stream;
-    stream << "0x" << std::setfill('0') << std::setw(width) << std::hex << hex;
+    stream << HEXADECIMAL_PREFIX << std::setfill('0') << std::setw(width) << std::hex << hex;
     std::string result(stream.str());
     return result;
 }
@@ -44,28 +48,28 @@ static std::string stringifyHex(u8 hex) {
 // help to print out binary numbers with zero padding
 static std::string stringifyBin(u64 bin) {
     std::stringstream stream;
-    stream << "0b" << std::bitset<64>(bin);
+    stream << BINARY_PREFIX << std::bitset<64>(bin);
     std::string result(stream.str());
     return result;
 }
 
 static std::string stringifyBin(u32 bin) {
     std::stringstream stream;
-    stream << "0b" << std::bitset<32>(bin);
+    stream << BINARY_PREFIX << std::bitset<32>(bin);
     std::string result(stream.str());
     return result;
 }
 
 static std::string stringifyBin(u16 bin) {
     std::stringstream stream;
-    stream << "0b" << std::bitset<16>(bin);
+    stream << BINARY_PREFIX << std::bitset<16>(bin);
     std::string result(stream.str());
     return result;
 }
 
 static std::string stringifyBin(u8 bin) {
     std::stringstream stream;
-    stream << "0b" << std::bitset<8>(bin);
+    stream << BINARY_PREFIX << std::bitset<8>(bin);
     std::string result(stream.str());
     return result;
 }
