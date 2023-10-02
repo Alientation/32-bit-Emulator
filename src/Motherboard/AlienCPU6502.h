@@ -192,7 +192,7 @@ class AlienCPU6502 {
             INS_DEY_IMPL = 0x88, // Decrement Y register, implied addressing
             INS_NOP_IMM_3 = 0x89, // No operation, immediate addressing (ILLEGAL)
             INS_TXA_IMPL = 0x8A, // Transfer X register to Accumulator, implied addressing
-            INS_XAA_IMM = 0x8B, // Transfer X register to Accumulator, AND immediate, implied addressing (ILLEGAL)
+            INS_ANE_IMM = 0x8B, // Transfer X register to Accumulator, AND immediate, implied addressing (ILLEGAL)
             INS_STY_ABS = 0x8C, // Store Y register, absolute addressing
             INS_STA_ABS = 0x8D, // Store Accumulator, absolute addressing
             INS_STX_ABS = 0x8E, // Store X register, absolute addressing
@@ -200,7 +200,7 @@ class AlienCPU6502 {
             INS_BCC_REL = 0x90, // Branch on carry clear, relative addressing
             INS_STA_IND_Y = 0x91, // Store Accumulator, indirect indexed by Y register addressing
             INS_JAM_8 = 0x92, // Illegal opcode (ILLEGAL)
-            INS_AHX_IND_Y = 0x93, // AND X register with accumulator, AND high byte of memory, store result in memory, indirect indexed by Y register addressing (ILLEGAL)
+            INS_SHA_IND_Y = 0x93, // AND X register with accumulator, AND high byte of memory, store result in memory, indirect indexed by Y register addressing (ILLEGAL)
             INS_STY_ZP_X = 0x94, // Store Y register, zero page indexed by X register addressing
             INS_STA_ZP_X = 0x95, // Store Accumulator, zero page indexed by X register addressing
             INS_STX_ZP_Y = 0x96, // Store X register, zero page indexed by Y register addressing
@@ -212,7 +212,7 @@ class AlienCPU6502 {
             INS_SHY_ABS_X = 0x9C, // AND Y register with high byte of memory, store result in memory, absolute indexed by X register addressing (ILLEGAL)
             INS_STA_ABS_X = 0x9D, // Store Accumulator, absolute indexed by X register addressing
             INS_SHX_ABS_Y = 0x9E, // AND X register with high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
-            INS_AHX_ABS_Y = 0x9F, // AND X register with accumulator, AND high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
+            INS_SHA_ABS_Y = 0x9F, // AND X register with accumulator, AND high byte of memory, store result in memory, absolute indexed by Y register addressing (ILLEGAL)
             INS_LDY_IMM = 0xA0, // Load Y register, immediate addressing
             INS_LDA_X_IND = 0xA1, // Load Accumulator, indexed by X register, indirect addressing
             INS_LDX_IMM = 0xA2, // Load X register, immediate addressing
@@ -224,7 +224,7 @@ class AlienCPU6502 {
             INS_TAY_IMPL = 0xA8, // Transfer Accumulator to Y register, implied addressing
             INS_LDA_IM = 0xA9, // Load Accumulator, immediate addressing
             INS_TAX_IMPL = 0xAA, // Transfer Accumulator to X register, implied addressing
-            INS_LAX_IM = 0xAB, // Load Accumulator and X register, immediate addressing (ILLEGAL)
+            INS_LXA_IM = 0xAB, // Load Accumulator and X register, immediate addressing (ILLEGAL)
             INS_LDY_ABS = 0xAC, // Load Y register, absolute addressing
             INS_LDA_ABS = 0xAD, // Load Accumulator, absolute addressing
             INS_LDX_ABS = 0xAE, // Load X register, absolute addressing
@@ -256,7 +256,7 @@ class AlienCPU6502 {
             INS_INY_IMPL = 0xC8, // Increment Y register, implied addressing
             INS_CMP_IMM = 0xC9, // Compare Accumulator, immediate addressing
             INS_DEX_IMPL = 0xCA, // Decrement X register, implied addressing
-            INS_AXS_IMM = 0xCB, // AND X register with accumulator, subtract immediate, store result in X register, implied addressing (ILLEGAL)
+            INS_SBX_IMM = 0xCB, // AND X register with accumulator, subtract immediate, store result in X register, implied addressing (ILLEGAL)
             INS_CPY_ABS = 0xCC, // Compare Y register, absolute addressing
             INS_CMP_ABS = 0xCD, // Compare Accumulator, absolute addressing
             INS_DEC_ABS = 0xCE, // Decrement memory, absolute addressing
@@ -431,6 +431,7 @@ class AlienCPU6502 {
         void Start(u64 maxCycles = 0);
     
     private: 
+        void InitInstructions();
         void Reset();
 
         Byte FetchNextByte();
@@ -781,6 +782,8 @@ class AlienCPU6502 {
         void _E2_NOP_Immediate_Illegal_Instruction();
         void _EA_NOP_Implied_Instruction();
         void _F4_NOP_ZeroPage_XIndexed_Illegal_Instruction();
+        void _FA_NOP_Implied_Illegal_Instruction();
+        void _FC_NOP_Absolute_XIndexed_Illegal_Instruction();
 
 
         // ========================ILLEGAL========================
@@ -822,6 +825,7 @@ class AlienCPU6502 {
         void _DB_DCP_Absolute_YIndexed_Illegal_Instruction();
         void _DF_DCP_Absolute_XIndexed_Illegal_Instruction();
 
+        void _E3_ISC_XIndexed_Indirect_Illegal_Instruction();
         void _E7_ISC_ZeroPage_Illegal_Instruction();
         void _EF_ISC_Absolute_Illegal_Instruction();
         void _F3_ISC_Indirect_YIndexed_Illegal_Instruction();
