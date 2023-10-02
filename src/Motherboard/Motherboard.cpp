@@ -16,34 +16,40 @@ void Motherboard::Initialize() {
 
 // Writes a byte to the appropriate mapped memory address
 void Motherboard::WriteByte(Word address, Byte byte) {
-    if (address <= RAM::MEMORY_SIZE) {
-        ram.WriteByte(address, byte);
+    Word searchAddress = address;
+    if (searchAddress <= RAM::MEMORY_SIZE) {
+        ram.WriteByte(searchAddress, byte);
     }
+    searchAddress -= RAM::MEMORY_SIZE;
 
-    if (address <= ROM::MEMORY_SIZE + RAM::MEMORY_SIZE) {
+    if (searchAddress <= ROM::MEMORY_SIZE) {
         throw "Cannot write to ROM";
     }
+    searchAddress -= ROM::MEMORY_SIZE;
 
     // throw out of bounds memory address error
     std::stringstream stream;
-    stream << "Error: Out of bounds memory address 0x" << std::hex << address << std::endl;
+    stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
     
     throw std::invalid_argument(stream.str());
 }
 
 // Reads a byte from the appropriate mapped memory address
 Byte Motherboard::ReadByte(Word address) {
-    if (address <= RAM::MEMORY_SIZE) {
-        return ram.ReadByte(address);
+    Word searchAddress = address;
+    if (searchAddress <= RAM::MEMORY_SIZE) {
+        return ram.ReadByte(searchAddress);
     }
+    searchAddress -= RAM::MEMORY_SIZE;
 
-    if (address <= ROM::MEMORY_SIZE + RAM::MEMORY_SIZE) {
-        return rom.ReadByte(address);
+    if (searchAddress <= ROM::MEMORY_SIZE) {
+        return rom.ReadByte(searchAddress);
     }
+    searchAddress -= ROM::MEMORY_SIZE;
 
     // throw out of bounds memory address error
     std::stringstream stream;
-    stream << "Error: Out of bounds memory address 0x" << std::hex << address << std::endl;
+    stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
     
     throw std::invalid_argument(stream.str());
 }
