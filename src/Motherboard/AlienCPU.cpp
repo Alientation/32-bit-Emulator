@@ -37,9 +37,8 @@ void AlienCPU::Start(u64 maxCycles) {
     std::cout << "Starting Alien CPU v" << VERSION << std::endl;
 
     // start sequence / boot process
-    // read from PC (which should be pointed to the RESET vector)
-    // go to the address specified by the RESET vector
-    // and continue on from there
+    // read from RESET vector and jump to there
+    PC = ReadWord(POWER_ON_RESET_VECTOR);
     
     // Fetch, Decode, Execute Cycle loop
     for (;;) {

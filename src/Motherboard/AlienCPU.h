@@ -58,9 +58,9 @@ class AlienCPU {
         // Null address
         static const Word NULL_ADDRESS = 0x00000000;
 
-        static const Word INTERRUPT_HANDLER = 0x000FFFF0;
-        static const Word POWER_ON_RESET = 0x000FFFF4;
-        static const Word BRK_HANDLER = 0x000FFFF8;
+        static const Word INTERRUPT_HANDLER_VECTOR = 0x000FFFF0;
+        static const Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
+        static const Word BRK_HANDLER_VECTOR = 0x000FFFF8;
 
 
         // Program Stack
@@ -69,7 +69,7 @@ class AlienCPU {
 
 
         // should never exceed 0x000FFFFF
-        static const Word PC_INIT = POWER_ON_RESET;
+        static const Word PC_INIT = POWER_ON_RESET_VECTOR;
         
         static constexpr u16
             SP_INIT = 0xFFFF, // stored as an offset from 0x00000100
