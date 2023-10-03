@@ -298,8 +298,11 @@ void AlienCPU::_LDA_Update_Flags() {
 
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | ? cycles)
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
-    A = ReadTwoBytes(ZeroPageAddress);
+    // get wrap around address in the zero page that points to
+    // the address of the data
+    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X;
+    u16 Address = ReadTwoBytes(ZeroPageAddressOfAddress);
+    A = ReadTwoBytes(Address);
 
     _LDA_Update_Flags();
 }
@@ -309,6 +312,7 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 // loads 2 bytes from the Zero page address into the Accumulator, 
 // setting appropriate flags
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
+    // get the address on the zero page that contains the value A should be set to
     u16 ZeroPageAddress = FetchNextTwoBytes();
     A = ReadTwoBytes(ZeroPageAddress);
 
@@ -328,11 +332,20 @@ void AlienCPU::_AD_LDA_Absolute_Instruction() {
 }
 
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
+    // get address in the zero page that points to part of the address of the data
+    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes();
+    u16 Address = ReadTwoBytes(ZeroPageAddressOfAddress) + Y;
+    A = ReadTwoBytes(Address);
 
+    _LDA_Update_Flags();
 }
 
 void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
+    // wrap around zero page address
+    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
+    A = ReadTwoBytes(ZeroPageAddress);
 
+    _LDA_Update_Flags();
 }
 
 void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
