@@ -80,34 +80,66 @@ void AlienCPU::ExecuteInstruction(u16 instruction) {
     instructions[instruction](*this); // calls the function associated with the instruction
 }
 
-// Checks if the instruction is a valid instruction. Must be within max instructions and must not be a null instruction
+// Checks if the instruction is a valid instruction. 
+// Must be within max instructions and must not be a null instruction
 bool AlienCPU::ValidInstruction(u16 instruction) {
     return instruction < INSTRUCTION_COUNT && &instructions[instruction] != &instructions[0];
 }
 
 
-// NEED TO TEST THIS STUFF
+// TODO TEST THIS
 // Clear the specified flag bit from processor status register
 void AlienCPU::ClearFlag(Byte bit) {
     P &= ~(1 << bit);
 }
 
+// TODO TEST THIS
 // Sets the specified flag bit from processor status register
 void AlienCPU::SetFlag(Byte bit, bool isSet) {
     P = (P & ~(1 << bit)) | (1 << bit);
 }
 
+// TODO TEST THIS
 // Gets the specified flag bit from processor status register
 bool AlienCPU::IsFlagSet(Byte bit) {
     return P & (1 << bit);
 }
 
-// Reads a byte from specified memory address
+
+// TODO TEST THIS
+u16 AlienCPU::ConvertToLowEndian(u16 highEndianValue) {
+    return (highEndianValue >> 8) | (highEndianValue << 8);
+}
+
+// TODO TEST THIS
+u16 AlienCPU::ConvertToHighEndian(u16 lowEndianValue) {
+    return (lowEndianValue << 8) | (lowEndianValue >> 8);
+}
+
+// TODO TEST THIS
+Word AlienCPU::ConvertToLowEndian(Word highEndianValue) {
+    return (highEndianValue >> 24) | ((highEndianValue >> 8) & 0xFF00) | 
+            ((highEndianValue << 8) & 0xFF0000) | (highEndianValue << 24);
+}
+
+// TODO TEST THIS
+Word AlienCPU::ConvertToHighEndian(Word lowEndianValue) {
+    return (lowEndianValue << 24) | ((lowEndianValue << 8) & 0xFF0000) | 
+            ((lowEndianValue >> 8) & 0xFF00) | (lowEndianValue >> 24);
+}
+
+
+// Reads a byte from a high endian memory address 
+// address = high address + low address
 Byte AlienCPU::ReadByte(Word address) {
     cycles++;
     return motherboard.ReadByte(address);
 }
 
+// Reads 2 bytes stored in little endian from a high endian memory address 
+// address = high address + low address
+// memory[address] = low byte
+// memory[address+1] = high byte
 u16 AlienCPU::ReadTwoBytes(Word address) {
     // lowest byte
     u16 data = ReadByte(address);
@@ -117,7 +149,12 @@ u16 AlienCPU::ReadTwoBytes(Word address) {
     return data;
 }
 
-// Reads a word from specified memory address
+// Reads 4 bytes stored in little endian from a high endian memory address
+// address = high address + low address
+// memory[address] = low byte
+// memory[address+1] = mid low byte
+// memory[address+2] = mid high byte
+// memory[address+3] = high byte
 Word AlienCPU::ReadWord(Word address) {
     // lowest byte
     Word data = ReadByte(address);
@@ -130,15 +167,16 @@ Word AlienCPU::ReadWord(Word address) {
 }
 
 
-// Reads the next byte in memory and increments PC and cycles
+// Reads the next byte in memory and increments PC and cycles counter
 Byte AlienCPU::FetchNextByte() {
-    Byte data = motherboard.ReadByte(PC); // gets byte at the program pointer (PC)
+    Byte data = motherboard.ReadByte(PC);
     PC++;
     cycles++;
     return data;
 }
 
-// Reads the next 2 bytes in memory converting from little endian to high endian and increments PC and cycles
+// Reads the next 2 bytes in memory stored as little endian but converts to 
+// high endian and increments PC and cycles counter
 u16 AlienCPU::FetchNextTwoBytes() {
     // lowest byte
     u16 data = FetchNextByte();
@@ -148,7 +186,8 @@ u16 AlienCPU::FetchNextTwoBytes() {
     return data;
 }
 
-// Reads the next 4 bytes in memory converting from little endian to high endian and increments PC and cycles
+// Reads the next 4 bytes in memory stored as little endian but converts to 
+// high endian and increments PC and cycles counter
 Word AlienCPU::FetchNextWord() {
     // lowest byte
     Word data = FetchNextByte();
@@ -160,14 +199,14 @@ Word AlienCPU::FetchNextWord() {
     return data;
 }
 
-// Write byte to the specified address in memory
+// Write byte to the specified high endian address in memory
 void AlienCPU::WriteByte(Word address, Byte value) {
     // write byte 0 to memory
     motherboard.WriteByte(address, value);
 }
 
-// Writes two bytes to the specified address in memory
-// assumes that value is high endian
+// Writes 2 bytes given as high endian but writes to the specified 
+// high endian address in memory in low endian
 void AlienCPU::WriteTwoBytes(Word address, u16 value) {
     // lowest byte
     WriteByte(address, value & 0xFF);
@@ -175,15 +214,15 @@ void AlienCPU::WriteTwoBytes(Word address, u16 value) {
     // highest byte
 }
 
-// Writes two bytes to the specified address in memory
-// assumes that value is little endian
+// Writes 2 bytes given as low endian to the specified 
+// high endian address in memory
 void AlienCPU::WriteTwoBytesAbsolute(Word address, u16 value) {
     WriteByte(address, (value >> 8) & 0xFF);
     WriteByte(address + 1, value & 0xFF);
 }
 
-// Write 4 bytes to the specified address in memory
-// assumes that value is high endian
+// Writes 4 bytes given as high endian but writes to the specified 
+// high endian address in memory in low endian
 void AlienCPU::WriteWord(Word address, Word value) {
     // lowest byte
     WriteByte(address, value & 0xFF);
@@ -193,8 +232,8 @@ void AlienCPU::WriteWord(Word address, Word value) {
     // highest byte
 }
 
-// Write 4 bytes to the specified address in memory
-// assumes that value is little endian
+// Writes 4 bytes given as low endian to the specified 
+// high endian address in memory
 void AlienCPU::WriteWordAbsolute(Word address, Word value) {
     WriteByte(address, (value >> 24) & 0xFF);
     WriteByte(address + 1, (value >> 16) & 0xFF);
@@ -263,8 +302,9 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 }
 
 // LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
-// Reads the lowest 2 bytes of memory address (highest 2 bytes are zero), loads 2 bytes from the 
-// Zero page address into the Accumulator, setting appropriate flags
+// Reads the lowest 2 bytes of memory address (highest 2 bytes are zero), 
+// loads 2 bytes from the Zero page address into the Accumulator, 
+// setting appropriate flags
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
     u16 ZeroPageAddress = FetchNextTwoBytes();
     A = ReadTwoBytes(ZeroPageAddress);

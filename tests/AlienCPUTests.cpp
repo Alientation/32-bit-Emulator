@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include <AlienCPUTest.h>
+// #include <AlienCPUTest.h>
 
 int main(int argc, char* argv[]) {
-    AlienCPU cpu;
+    // AlienCPU cpu;
 
-    std::cout << "AlienCPU v" << AlienCPU::VERSION << " Tests" << std::endl;
-    std::cout << "RAM: " << sizeof(cpu.motherboard.ram.data) << " bytes" << std::endl;
+    // std::cout << "AlienCPU v" << AlienCPU::VERSION << " Tests" << std::endl;
+    // std::cout << "RAM: " << sizeof(cpu.motherboard.ram.data) << " bytes" << std::endl;
 
-    cpu.Start(0);
+    // cpu.Start(0);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

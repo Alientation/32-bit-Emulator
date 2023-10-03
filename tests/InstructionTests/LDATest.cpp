@@ -3,7 +3,8 @@
 #include <AlienCPUTest.h>
 
 class LDATest : public testing::Test {
-    AlienCPU cpu;
+    public: 
+        AlienCPU cpu;
 
     virtual void SetUp() {
         cpu.Reset();
@@ -16,3 +17,9 @@ class LDATest : public testing::Test {
 
 
 };
+
+
+TEST_F(LDATest, LoadAccumulator_Immediate) {
+    
+}
+

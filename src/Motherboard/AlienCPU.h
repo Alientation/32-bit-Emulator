@@ -13,6 +13,7 @@ class AlienCPU; //forward declaration (!!)
 // http://www.6502.org/users/obelisk/index.html
 
 // 32 bit CPU (expanded version of 6502)
+//  - Everything stored in memory is little endian, but this emulator uses high endian representations for easier convienience
 //  - 4 Gb of addressable memory (via 32 bit address bus : 0x00000000 - 0xFFFFFFFF)
 //      - 1 Mb of RAM (0x00000000 - 0x000FFFFF)
 //          - 0x00000000 to 0x0000FFFF : Zero page (65536 bytes)
@@ -46,39 +47,43 @@ class AlienCPU {
         static const std::string VERSION;
 
         // Number of cycles between each Interrupt check
-        static const Word INTERRUPT_CHECK_INTERVAL = 0x10;
+        static const Word INTERRUPT_CHECK_INTERVAL = 16;
 
 
         // ================INSTRUCTIONS================
         // Total Number of instructions supported by the processor
-        static const u16 INSTRUCTION_COUNT = 0x0100; // 256 instructions
-    
+        static const u16 INSTRUCTION_COUNT = 256;
 
 
-        // Null address
+        // Null address (high endian)
         static const Word NULL_ADDRESS = 0x00000000;
 
+        // Jump address to handle hardware interrupts (high endian)
         static const Word INTERRUPT_HANDLER_VECTOR = 0x000FFFF0;
+
+        // Jump address to handle CPU reset (high endian)
         static const Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
-        static const Word BRK_HANDLER_VECTOR = 0x000FFFF8;
+
+        // Jump address to handle software interrupts (high endian)
+        static const Word BRK_HANDLER_VECTOR = 0x000FFFF;
 
 
         // Program Stack
-        // SP_INIT - STACK_SIZE = End of stack
-        static const Word STACK_SIZE = 0x00010000; // 65536 Bytes of STACK MEMORY
+        // SP_INIT - STACK_SIZE = End of stack (high endian)
+        // 65536 Bytes of STACK MEMORY
+        static const Word STACK_SIZE = 0x00010000;
 
 
-        // should never exceed 0x000FFFFF
+        // should never exceed 0x000FFFFF (high endian)
         static const Word PC_INIT = POWER_ON_RESET_VECTOR;
         
-        static constexpr u16
-            SP_INIT = 0xFFFF, // stored as an offset from 0x00000100
+        static constexpr u16 // (high endian)
+            // stored as an offset from 0x00000100
+            SP_INIT = 0xFFFF,
 
             A_INIT = 0x0000, 
             X_INIT = 0x0000,
             Y_INIT = 0x0000;
-
-
 
         static const Byte P_INIT = 0b00100000;
 
@@ -114,16 +119,17 @@ class AlienCPU {
         u64 cycles;
 
 
-        // ==============Program Counter Register===============
-        //  - memory address of the next instruction byte to be executed
-        //  - PCL and PCH are the low and high bytes of the PC register
+        // ==============PROGRAM=COUNTER=REGISTER===============
+        //  - high endian memory address of the next instruction byte to be executed,
+        //    stored as [high byte, mid high byte, mid low byte, low byte]
         //  - can be modified by the execution of a jump, subroutine (function) call, or branches (if/else)
         //    or by returning from a subroutine or interrupt
-        Word PC;
+        Word PC; 
 
-        // ===============Stack Pointer Register================
-        //  - points to the first byte of the top element of the call stack
-        //  - stored as an offset from the start of the stack page (0x0100 in 6502)
+        // ===============STACK=POINTER=REGISTER================
+        //  - high endian memory address of the first byte of the top element of the call stack
+        //    stored as [high byte, low byte]
+        //  - represents an offset from the start of the stack page
         //  - every stack element is 4 bytes big so to add elements to the stack, 
         //    the stack pointer is decremented by 4 (TODO figure out stack element sizes)
         //      - [SP+0] = byte 3
@@ -134,56 +140,66 @@ class AlienCPU {
         // https://en.wikipedia.org/wiki/Call_stack
         u16 SP;
 
-        // ==============General Purpose Registers==============
+        // ==============GENERAL=PURPOSE=REGISTERS==============
         // https://codebase64.org/doku.php?id=base:6502_registers
-        u16 A; // accumulator, main register for arithmetic and logic operations (Direct connection to ALU)
-        u16 X; // index register X, addressing data with indices (like arrays)
-        u16 Y; // index register Y, addressing data with indices (like arrays)
+
+        // =============ACCUMULATOR=REGISTER=====================
+        // high endian main register for arithmetic and logic operations (direct connection to ALU)
+        // stored as [high byte, low byte]
+        u16 A;
+
+        // high endian index register X
+        // stored as [high byte, low byte]
+        u16 X;
+
+        // high endian index register Y
+        // stored as [high byte, low byte]
+        u16 Y;
 
 
-        // ==============Processor Status register==============
+        // ==============PROCESSOR=STATUS=REGISTER==============
         // https://codebase64.org/doku.php?id=base:6502_registers
         // https://www.nesdev.org/wiki/Status_flags
         // stores flags
         //
         // bit 7 -> NV1BBDIZC <- bit 0
         // - N (Negative)
-        //   - Set after any arithmetic operations (when A, X, or Y registers are loaded with a value)
-        //     Stores the topmost bit of the register being loaded, generally used for signed integers
-        //     Behaves differently in Decimal instructions
+        //      Set after any arithmetic operations (when A, X, or Y registers are loaded with a value)
+        //      Stores the topmost bit of the register being loaded, generally used for signed integers
+        //      Behaves differently in Decimal instructions
         //
         // - V (Overflow)
-        //   - Set after addition or subtraction operations if signed overflow occurs
-        //   - Reset after any other operation
+        //      Set after addition or subtraction operations if signed overflow occurs
+        //      Reset after any other operation
         // - 1 (Unused)
-        //   - Always 1
+        //      Always 1
         //
         // - B (Break) https://en.wikipedia.org/wiki/Interrupts_in_65xx_processors
-        //   - Distinguishes software (BRK) interrupts from hardware (IRQ or NMI) interrupts
-        //   - (0) hardware interrupt 
-        //      - RESET: Reset signal, resets the CPU
-        //      - NMI: Non-maskable interrupt, must be immediately handled
-        //      - IRQ: Interrupt request, can be enabled/disabled
-        //   - (1) software interrupt (BRK instruction)
-        //   - Always set except when the P register is pushed to the stack when processing a 
-        //     hardware interrupt
+        //      Distinguishes software (BRK) interrupts from hardware (IRQ or NMI) interrupts
+        //      Always set except when the P register is pushed to the stack when processing a 
+        //      hardware interrupt
+        //      (0) hardware interrupt 
+        //          RESET: Reset signal, resets the CPU
+        //          NMI: Non-maskable interrupt, must be immediately handled
+        //          IRQ: Interrupt request, can be enabled/disabled
+        //      (1) software interrupt (BRK instruction)
         //
         // - D (Decimal)
-        //   - Used to select the Binary Coded Decimal mode for addition and subtraction
-        //   - Defaults to 0 (binary mode)
+        //      Used to select the Binary Coded Decimal mode for addition and subtraction
+        //      Defaults to 0 (binary mode)
         //
         // - I (Interrupt Disable)
-        //   - If set, the CPU will ignore all IRQ interrupts and prevent jumping to the IRQ handler vector
-        //   - Set after CPU processes an interrupt request 
+        //      If set, the CPU will ignore all IRQ interrupts and prevent jumping to the IRQ handler vector
+        //      Set after CPU processes an interrupt request 
         //
         // - Z (Zero)
-        //   - Set if the result of the last operation was zero
-        //   - Reset if the result of the last operation was non-zero
+        //      Set if the result of the last operation was zero
+        //      Reset if the result of the last operation was non-zero
         //
         // - C (Carry)
-        //  - Set if the last operation resulted in a carry or borrow
-        //  - Reset if the last operation did not result in a carry or borrow
-        Byte P; // processor status, flags register
+        //      Set if the last operation resulted in a carry or borrow
+        //      Reset if the last operation did not result in a carry or borrow
+        Byte P;
 
         
     public:
@@ -197,6 +213,11 @@ class AlienCPU {
         void ClearFlag(Byte bit);
         void SetFlag(Byte bit, bool isSet);
         bool IsFlagSet(Byte bit);
+
+        u16 ConvertToLowEndian(u16 highEndianValue);
+        Word ConvertToLowEndian(Word highEndianValue);
+        u16 ConvertToHighEndian(u16 lowEndianValue);
+        Word ConvertToHighEndian(Word lowEndianValue);
 
         Byte ReadByte(Word address);
         u16 ReadTwoBytes(Word address);
