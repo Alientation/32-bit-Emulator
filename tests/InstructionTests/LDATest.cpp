@@ -31,7 +31,7 @@ TEST_F(LDATest, LoadAccumulator_Immediate) {
     // test accumulator is set to the correct high endian value
     EXPECT_EQ(cpu.A, 0x4232);
 
-    // test flags
+    // test flags 010100010
     EXPECT_EQ(cpu.P, 0b00100000);
 
     // test PC

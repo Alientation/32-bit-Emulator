@@ -34,12 +34,13 @@ void AlienCPU::Reset() {
 
 void AlienCPU::Start(u64 maxCycles) {
     std::cout << "Starting Alien CPU v" << VERSION << std::endl;
-    
-    // reset cycle counter
-    cycles = 0;
+    std::cout << "Max cycles: " << maxCycles << std::endl;
 
     // start sequence / boot process, read from RESET vector and jump to there
     PC = ReadWord(POWER_ON_RESET_VECTOR);
+
+    // reset cycle counter
+    cycles = 0;
     
     // Fetch, Decode, Execute Cycle loop
     for (;;) {
@@ -48,7 +49,6 @@ void AlienCPU::Start(u64 maxCycles) {
             std::cout << std::endl << "Max cycles reached" << std::endl;
             break;
         }
-        std::cout << ".";
 
         // Reads in the next instruction
         u16 nextInstruction = FetchNextByte();
@@ -64,6 +64,7 @@ void AlienCPU::Start(u64 maxCycles) {
     }
 
     std::cout << "Stopping Alien CPU v" << VERSION << std::endl;
+    std::cout << "Cycles ran " << cycles << std::endl;
 }
 
 
@@ -97,7 +98,7 @@ void AlienCPU::ClearFlag(Byte bit) {
 // TODO TEST THIS
 // Sets the specified flag bit from processor status register
 void AlienCPU::SetFlag(Byte bit, bool isSet) {
-    P = (P & ~(1 << bit)) | (1 << bit);
+    P = (P & ~((u8)isSet << bit)) | ((u8)isSet << bit);
 }
 
 // TODO TEST THIS
