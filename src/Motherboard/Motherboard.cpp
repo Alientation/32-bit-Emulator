@@ -19,6 +19,7 @@ void Motherboard::WriteByte(Word address, Byte byte) {
     Word searchAddress = address;
     if (searchAddress <= RAM::MEMORY_SIZE) {
         ram.WriteByte(searchAddress, byte);
+        return;
     }
     searchAddress -= RAM::MEMORY_SIZE;
 
