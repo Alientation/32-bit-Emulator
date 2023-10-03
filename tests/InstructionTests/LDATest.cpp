@@ -16,7 +16,7 @@ class LDATest : public testing::Test {
 };
 
 
-TEST_F(LDATest, LoadAccumulator_Immediate) {
+TEST_F(LDATest, LoadAccumulator_Immediate_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
     cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
     
@@ -31,7 +31,7 @@ TEST_F(LDATest, LoadAccumulator_Immediate) {
     // test accumulator is set to the correct high endian value
     EXPECT_EQ(cpu.A, 0x4232);
 
-    // test flags 010100010
+    // test flags
     EXPECT_EQ(cpu.P, 0b00100000);
 
     // test PC
@@ -41,3 +41,52 @@ TEST_F(LDATest, LoadAccumulator_Immediate) {
     EXPECT_EQ(cpu.cycles, 3);
 }
 
+TEST_F(LDATest, LoadAccumulator_Immediate_ZFLAG) {
+    // setting reset vector to begin processing instructions at 0x0001023
+    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    
+    // test instruction load accumulator immediate addressing
+    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IM);
+
+    // load in value 0x0000 (stored in little endian as $00 $00)
+    cpu.WriteTwoBytes(0x00001024, 0x0000);
+
+    cpu.Start(3);
+
+    // test accumulator is set to the correct high endian value
+    EXPECT_EQ(cpu.A, 0x0000);
+
+    // test flags
+    EXPECT_EQ(cpu.P, 0b00100010);
+
+    // test PC
+    EXPECT_EQ(cpu.PC, 0x00001026);
+
+    // test cycle counter
+    EXPECT_EQ(cpu.cycles, 3);
+}
+
+TEST_F(LDATest, LoadAccumulator_Immediate_NFLAG) {
+    // setting reset vector to begin processing instructions at 0x0001023
+    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    
+    // test instruction load accumulator immediate addressing
+    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IM);
+
+    // load in value 0xFFEF (stored in little endian as $EF $FF)
+    cpu.WriteTwoBytes(0x00001024, 0xFFEF);
+
+    cpu.Start(3);
+
+    // test accumulator is set to the correct high endian value
+    EXPECT_EQ(cpu.A, 0xFFEF);
+
+    // test flags
+    EXPECT_EQ(cpu.P, 0b10100000);
+
+    // test PC
+    EXPECT_EQ(cpu.PC, 0x00001026);
+
+    // test cycle counter
+    EXPECT_EQ(cpu.cycles, 3);
+}
