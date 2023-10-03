@@ -104,6 +104,8 @@ class AlienCPU {
         using Instruction = std::function<void(AlienCPU&)>;
         Instruction instructions[INSTRUCTION_COUNT];
 
+        bool debugMode = false;
+
         // System Memory
         // 0x00100000 total memory (0x00000000 - 0x000FFFFF)
         //

@@ -33,8 +33,10 @@ void AlienCPU::Reset() {
 }
 
 void AlienCPU::Start(u64 maxCycles) {
-    std::cout << "Starting Alien CPU v" << VERSION << std::endl;
-    std::cout << "Max cycles: " << maxCycles << std::endl;
+    if (debugMode) {
+        std::cout << "Starting Alien CPU v" << VERSION << std::endl;
+        std::cout << "Max cycles: " << maxCycles << std::endl;
+    }
 
     // start sequence / boot process, read from RESET vector and jump to there
     PC = ReadWord(POWER_ON_RESET_VECTOR);
@@ -46,7 +48,9 @@ void AlienCPU::Start(u64 maxCycles) {
     for (;;) {
         // Halt execution because max cycles has been reached
         if (cycles >= maxCycles) {
-            std::cout << std::endl << "Max cycles reached" << std::endl;
+            if (debugMode) {
+                std::cout << std::endl << "Max cycles reached" << std::endl;
+            }
             break;
         }
 
@@ -63,8 +67,10 @@ void AlienCPU::Start(u64 maxCycles) {
         }
     }
 
-    std::cout << "Stopping Alien CPU v" << VERSION << std::endl;
-    std::cout << "Cycles ran " << cycles << std::endl;
+    if (debugMode) {
+        std::cout << "Stopping Alien CPU v" << VERSION << std::endl;
+        std::cout << "Cycles ran " << cycles << std::endl;
+    }
 }
 
 
