@@ -219,19 +219,19 @@ class AlienCPU {
         u16 ConvertToHighEndian(u16 lowEndianValue);
         Word ConvertToHighEndian(Word lowEndianValue);
 
-        Byte ReadByte(Word address);
-        u16 ReadTwoBytes(Word address);
-        Word ReadWord(Word address);
+        Byte ReadByte(Word highEndianAddress);
+        u16 ReadTwoBytes(Word highEndianAddress);
+        Word ReadWord(Word highEndianAddress);
 
         Byte FetchNextByte();
         u16 FetchNextTwoBytes();
         Word FetchNextWord();
 
-        void WriteByte(Word address, Byte value);
-        void WriteTwoBytes(Word address, u16 value);
-        void WriteTwoBytesAbsolute(Word address, u16 value);
-        void WriteWord(Word address, Word value);
-        void WriteWordAbsolute(Word address, Word value);
+        void WriteByte(Word highEndianAddress, Byte value);
+        void WriteTwoBytes(Word highEndianAddress, u16 highEndianValue);
+        void WriteTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue);
+        void WriteWord(Word highEndianAddress, Word highEndianValue);
+        void WriteWordAbsolute(Word highEndianAddress, Word lowEndianValue);
 
         void SPtoAddress(Byte page = 0);
         void PushWordToStack(Word value);

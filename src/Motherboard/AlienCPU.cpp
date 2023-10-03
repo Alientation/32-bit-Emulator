@@ -34,9 +34,11 @@ void AlienCPU::Reset() {
 
 void AlienCPU::Start(u64 maxCycles) {
     std::cout << "Starting Alien CPU v" << VERSION << std::endl;
+    
+    // reset cycle counter
+    cycles = 0;
 
-    // start sequence / boot process
-    // read from RESET vector and jump to there
+    // start sequence / boot process, read from RESET vector and jump to there
     PC = ReadWord(POWER_ON_RESET_VECTOR);
     
     // Fetch, Decode, Execute Cycle loop
@@ -128,14 +130,14 @@ Word AlienCPU::ConvertToHighEndian(Word lowEndianValue) {
 }
 
 
-// Reads a byte from a high endian memory address 
+// Reads a byte from a high endian memory address (1 cycle)
 Byte AlienCPU::ReadByte(Word highEndianAddress) {
     cycles++;
     return motherboard.ReadByte(highEndianAddress);
 }
 
 // Reads 2 low endian bytes from a high endian memory address 
-// and converts to high endian
+// and converts to high endian (2 cycles)
 u16 AlienCPU::ReadTwoBytes(Word highEndianAddress) {
     // reads in owest byte
     u16 highEndianData = ReadByte(highEndianAddress);
@@ -146,7 +148,7 @@ u16 AlienCPU::ReadTwoBytes(Word highEndianAddress) {
 }
 
 // Reads 4 low endian bytes from a high endian memory address 
-// and converts to high endian
+// and converts to high endian (4 cycles)
 Word AlienCPU::ReadWord(Word highEndianAddress) {
     // reads in lowest byte
     Word highEndianData = ReadByte(highEndianAddress);
@@ -159,7 +161,7 @@ Word AlienCPU::ReadWord(Word highEndianAddress) {
 }
 
 
-// Reads the next byte in memory and increments PC and cycles counter
+// Reads the next byte in memory and increments PC (1 cycle)
 Byte AlienCPU::FetchNextByte() {
     Byte data = motherboard.ReadByte(PC);
     PC++;
@@ -168,7 +170,7 @@ Byte AlienCPU::FetchNextByte() {
 }
 
 // Reads the next 4 low endian bytes in memory but converts to 
-// high endian and increments PC and cycles counter
+// high endian and increments PC (2 cycles)
 u16 AlienCPU::FetchNextTwoBytes() {
     // reads in lowest byte
     u16 highEndianData = FetchNextByte();
@@ -179,7 +181,7 @@ u16 AlienCPU::FetchNextTwoBytes() {
 }
 
 // Reads the next 4 low endian bytes in memory but converts to 
-// high endian and increments PC and cycles counter
+// high endian and increments PC (4 cycles)
 Word AlienCPU::FetchNextWord() {
     // reads in lowest byte
     Word highEndianData = FetchNextByte();
@@ -191,14 +193,15 @@ Word AlienCPU::FetchNextWord() {
     return highEndianData;
 }
 
-// Write byte to the specified high endian address in memory
+// Write byte to the specified high endian address in memory (1 cycle)
 void AlienCPU::WriteByte(Word highEndianAddress, Byte value) {
     // write byte 0 to memory
     motherboard.WriteByte(highEndianAddress, value);
+    cycles++;
 }
 
 // Writes 2 high endian bytes converted to low endian to the 
-// specified high endian address in memory 
+// specified high endian address in memory (2 cycles)
 void AlienCPU::WriteTwoBytes(Word highEndianAddress, u16 highEndianValue) {
     // lowest byte
     WriteByte(highEndianAddress, highEndianValue & 0xFF);
@@ -206,14 +209,14 @@ void AlienCPU::WriteTwoBytes(Word highEndianAddress, u16 highEndianValue) {
     // highest byte
 }
 
-// Writes 2 low endian bytes to the specified high endian address in memory
+// Writes 2 low endian bytes to the specified high endian address in memory (2 cycles)
 void AlienCPU::WriteTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue) {
     WriteByte(highEndianAddress, (lowEndianValue >> 8) & 0xFF);
     WriteByte(highEndianAddress + 1, lowEndianValue & 0xFF);
 }
 
 // Writes 4 high endian bytes converted to low endian to the 
-// specified high endian address in memory 
+// specified high endian address in memory (4 cycles)
 void AlienCPU::WriteWord(Word highEndianAddress, Word value) {
     // lowest byte
     WriteByte(highEndianAddress, value & 0xFF);
@@ -223,7 +226,7 @@ void AlienCPU::WriteWord(Word highEndianAddress, Word value) {
     // highest byte
 }
 
-// Writes 4 low endian bytes to the specified high endian address in memory
+// Writes 4 low endian bytes to the specified high endian address in memory (4 cycles)
 void AlienCPU::WriteWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
     WriteByte(highEndianAddress, (lowEndianValue >> 24) & 0xFF);
     WriteByte(highEndianAddress + 1, (lowEndianValue >> 16) & 0xFF);
