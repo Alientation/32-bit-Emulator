@@ -205,10 +205,10 @@ class AlienCPU {
     public:
         AlienCPU();
         void Start(u64 maxCycles = 0);
+        void Reset();
     
     private: 
         void InitInstructions();
-        void Reset();
 
         void ClearFlag(Byte bit);
         void SetFlag(Byte bit, bool isSet);

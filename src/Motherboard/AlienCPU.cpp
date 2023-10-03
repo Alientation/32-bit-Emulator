@@ -7,6 +7,8 @@ const std::string AlienCPU::VERSION = "0.0.1";
 AlienCPU::AlienCPU() {
     AlienCPU::InitInstructions();
     
+    // Reset the CPU, all registers, ram etc
+    Reset();
 }
 
 // realistically, reset actually randomizes values for memory and registers
@@ -31,9 +33,6 @@ void AlienCPU::Reset() {
 }
 
 void AlienCPU::Start(u64 maxCycles) {
-    // Reset the CPU, all registers, ram etc
-    Reset();
-
     std::cout << "Starting Alien CPU v" << VERSION << std::endl;
 
     // start sequence / boot process
