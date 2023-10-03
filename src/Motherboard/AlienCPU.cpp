@@ -298,9 +298,8 @@ void AlienCPU::_LDA_Update_Flags() {
 
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | ? cycles)
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes();
-    Word Address = ZeroPageAddress + X; // assuming this takes a lot of cycles
-    A = ReadTwoBytes(Address);
+    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
+    A = ReadTwoBytes(ZeroPageAddress);
 
     _LDA_Update_Flags();
 }
