@@ -339,7 +339,7 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES() {
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
+// 4: fetch mid high byte address from PC, increment PC, add index register to lower 2 bytes of effective address
 // 5: fetch high byte address from PC, increment PC
 // 6: read low byte from effective address, fix the high 2 bytes of the effective address
 // 7: read high byte from effective address + 1
@@ -397,6 +397,28 @@ u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_GETVALUE_TWOBYTES() {
     return ReadTwoBytes(address + Y);
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address from PC, increment PC
+// 4: read low byte from effective zero page address
+// 5: read high byte from effective zero page address + 1
+u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_GETVALUE_TWOBYTES() {
+    u16 zeroPageAddress = FetchNextTwoBytes();
+    return ReadTwoBytes(zeroPageAddress);
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add index register to base zero page address (wraps around in zero page)
+// 5: read to A's low byte from calculated effective zero page address
+// 6: read to A's high byte from calculated effective zero page address + 1
+u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_GETVALUE_TWOBYTES(u16 indexRegister) {
+    u16 zeroPageAddress = FetchNextTwoBytes() + indexRegister;
+    cycles++;
+    return ReadTwoBytes(zeroPageAddress);
+}
+
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
@@ -443,33 +465,16 @@ void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
 }
 
 // LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address from PC, increment PC
-// 4: read to A's low byte from effective zero page address
-// 5: read to A's high byte from effective zero page address + 1
+// 1-5: Zero page addressing mode load value
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
-    // get the address on the zero page that contains the value A should be set to
-    u16 ZeroPageAddress = FetchNextTwoBytes();
-    A = ReadTwoBytes(ZeroPageAddress);
-
+    A = ADDRESSING_MODE_ZERO_PAGE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
-// 5: read to A's low byte from calculated effective zero page address
-// 6: read to A's high byte from calculated effective zero page address + 1
+// 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
-    // wrap around zero page address
-    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
-    A = ReadTwoBytes(ZeroPageAddress);
-    
-    cycles++;
-
+    A = ADDRESSING_MODE_ZERO_PAGE_INDEXED_GETVALUE_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
@@ -497,31 +502,16 @@ void AlienCPU::_BE_LDX_Absolute_YIndexed_Instruction() {
 }
 
 // LOAD X ZEROPAGE ($A5 | 3 bytes | 5 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address from PC, increment PC
-// 4: read to X's low byte from effective zero page address
-// 5: read to X's high byte from effective zero page address + 1
+// 1-5: Zero page addressing mode load value
 void AlienCPU::_A6_LDX_ZeroPage_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes();
-    X = ReadTwoBytes(ZeroPageAddress);
-
+    X = ADDRESSING_MODE_ZERO_PAGE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
 // LOAD X ZEROPAGE Y-INDEXED ($B5 | 3 bytes | 6 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add Y index register to base zero page address (wraps around in zero page)
-// 5: read to X's low byte from calculated effective zero page address
-// 6: read to X's high byte from calculated effective zero page address + 1
+// 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes() + Y;
-    X = ReadTwoBytes(ZeroPageAddress);
-
-    cycles++;
-
+    X = ADDRESSING_MODE_ZERO_PAGE_INDEXED_GETVALUE_TWOBYTES(Y);
     UPDATE_FLAGS(X);
 }
 
@@ -548,31 +538,16 @@ void AlienCPU::_BC_LDY_Absolute_XIndexed_Instruction() {
 }
 
 // LOAD Y ZEROPAGE ($A5 | 3 bytes | 5 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address from PC, increment PC
-// 4: read to Y's low byte from effective zero page address
-// 5: read to Y's high byte from effective zero page address + 1
+// 1-5: Zero page addressing mode load value
 void AlienCPU::_A4_LDY_ZeroPage_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes();
-    Y = ReadTwoBytes(ZeroPageAddress);
-
+    Y = ADDRESSING_MODE_ZERO_PAGE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
-// 5: read to Y's low byte from calculated effective zero page address
-// 6: read to Y's high byte from calculated effective zero page address + 1
+// 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
-    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
-    Y = ReadTwoBytes(ZeroPageAddress);
-
-    cycles++;
-
+    Y = ADDRESSING_MODE_ZERO_PAGE_INDEXED_GETVALUE_TWOBYTES(X);
     UPDATE_FLAGS(Y);
 }
 
