@@ -315,6 +315,78 @@ void AlienCPU::_LDA_Update_Flags() {
     SetFlag(N_FLAG, A >> 15);
 }
 
+// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch A's low byte from PC, increment PC
+// 3: fetch A's high byte from PC, increment PC
+void AlienCPU::_A9_LDA_Immediate_Instruction() {
+    A = FetchNextTwoBytes();
+
+    _LDA_Update_Flags();
+}
+
+// LOAD ACCUMULATOR ABSOLUTE ($AD | 3 bytes | 7 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC
+// 5: fetch high byte address from PC, increment PC
+// 6: read to A's low byte from effective address
+// 7: read to A's high byte from effective address + 1
+void AlienCPU::_AD_LDA_Absolute_Instruction() {
+    // get the address that contains the value A should be set to
+    u16 Address = FetchNextWord();
+    A = ReadTwoBytes(Address);
+
+    _LDA_Update_Flags();
+}
+
+// LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 3 bytes | 7-9 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
+// 5: fetch high byte address from PC, increment PC
+// 6: read to A's low byte from effective address, fix the high 2 bytes of the effective address
+// 7: read to A's high byte from effective address + 1
+// 8+: read to A's low byte from effective address if high byte changed
+// 9+: read to A's low byte from effective address + 1 if high byte changed
+void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
+    Word Address = FetchNextWord();
+
+    // check for page crossing, solely for accurate cycle counting
+    if (Address & 0x0000FFFF <= Address + X) { // fill last 2 bytes with max value
+        cycles+=2;
+    }
+
+    A = ReadTwoBytes(Address + X);
+
+    _LDA_Update_Flags();
+}
+
+// LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 3 bytes | 7-9 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC, add Y index register to lower 2 bytes of effective address
+// 5: fetch high byte address from PC, increment PC
+// 6: read to A's low byte from effective address, fix the high 2 bytes of the effective address
+// 7: read to A's high byte from effective address + 1
+// 8+: read to A's low byte from effective address if high byte changed
+// 9+: read to A's low byte from effective address + 1 if high byte changed
+void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
+    Word Address = FetchNextWord();
+
+    // check for page crossing, solely for accurate cycle counting
+    if (Address & 0x0000FFFF <= Address + Y) { // fill last 2 bytes with max value
+        cycles+=2;
+    }
+    
+    A = ReadTwoBytes(Address + Y);
+
+    _LDA_Update_Flags();
+}
+
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 10 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
@@ -329,7 +401,7 @@ void AlienCPU::_LDA_Update_Flags() {
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
     // get wrap around address in the zero page that points to
     // the address of the data
-    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X; // 1 cycle to add
+    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X;
     Word Address = ReadWord(ZeroPageAddressOfAddress);
     A = ReadTwoBytes(Address);
 
@@ -346,18 +418,29 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 // 7: fetch address high byte from zero page address + 3
 // 8: read to A's low byte from calculated effective address
 // 9: read to A's high byte from calculated effective address + 1, fix high 2 bytes of effective address
-// 10+: read to A's low byte from calculated effective address
-// 11+: read to A's high byte from calculated effective address + 1
+// 10+: read to A's low byte from calculated effective address if high 2 bytes changed
+// 11+: read to A's high byte from calculated effective address + 1 if high 2 bytes changed
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
     // get address in the zero page that points to part of the address of the data
     u16 ZeroPageAddressOfAddress = FetchNextTwoBytes();
-    u16 Address = ReadTwoBytes(ZeroPageAddressOfAddress) + Y;
+    Word Address = ReadTwoBytes(ZeroPageAddressOfAddress) + Y;
+
+    // check for page crossing, solely for accurate cycle counting
+    if (Address > 0x0000FFFF) {
+        cycles+=2;
+    }
+
     A = ReadTwoBytes(Address);
 
     _LDA_Update_Flags();
 }
 
 // LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address from PC, increment PC
+// 4: read to A's low byte from effective zero page address
+// 5: read to A's high byte from effective zero page address + 1
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
     // get the address on the zero page that contains the value A should be set to
     u16 ZeroPageAddress = FetchNextTwoBytes();
@@ -381,24 +464,6 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
     _LDA_Update_Flags();
 }
 
-// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    A = FetchNextTwoBytes();
-
-    _LDA_Update_Flags();
-}
-
-void AlienCPU::_AD_LDA_Absolute_Instruction() {
-
-}
-
-void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
-
-}
 
 // ===================LOAD=X=REGISTER===================
 void AlienCPU::_A2_LDX_Immediate_Instruction() {
