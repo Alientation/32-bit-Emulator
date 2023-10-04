@@ -336,6 +336,26 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES() {
     return ReadTwoBytes(address);
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
+// 5: fetch high byte address from PC, increment PC
+// 6: read low byte from effective address, fix the high 2 bytes of the effective address
+// 7: read high byte from effective address + 1
+// 8+: read low byte from effective address if high byte changed
+// 9+: read low byte from effective address + 1 if high byte changed
+u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(u16 indexRegister) {
+    Word address = FetchNextWord();
+    
+    // check for page crossing, solely for accurate cycle counting
+    if ((address | 0x0000FFFF) < (address + indexRegister)) { // fill last 2 bytes with max value
+        cycles+=2;
+    }
+
+    return ReadTwoBytes(address + indexRegister);
+}
+
 
 
 // ======================TRANSFER========================
@@ -355,48 +375,16 @@ void AlienCPU::_AD_LDA_Absolute_Instruction() {
 }
 
 // LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
-// 5: fetch high byte address from PC, increment PC
-// 6: read to A's low byte from effective address, fix the high 2 bytes of the effective address
-// 7: read to A's high byte from effective address + 1
-// 8+: read to A's low byte from effective address if high byte changed
-// 9+: read to A's low byte from effective address + 1 if high byte changed
+// 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
-    Word Address = FetchNextWord();
-
-    // check for page crossing, solely for accurate cycle counting
-    if ((Address | 0x0000FFFF) < (Address + X)) { // fill last 2 bytes with max value
-        cycles+=2;
-    }
-
-    A = ReadTwoBytes(Address + X);
-
+    A = ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 5 bytes | 7-9 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add Y index register to lower 2 bytes of effective address
-// 5: fetch high byte address from PC, increment PC
-// 6: read to A's low byte from effective address, fix the high 2 bytes of the effective address
-// 7: read to A's high byte from effective address + 1
-// 8+: read to A's low byte from effective address if high byte changed
-// 9+: read to A's low byte from effective address + 1 if high byte changed
+// 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
-    Word Address = FetchNextWord();
-
-    // check for page crossing, solely for accurate cycle counting
-    if ((Address | 0x0000FFFF) < (Address + Y)) { // fill last 2 bytes with max value
-        cycles+=2;
-    }
-    
-    A = ReadTwoBytes(Address + Y);
-
+    A = ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(Y);
     UPDATE_FLAGS(A);
 }
 
@@ -497,25 +485,9 @@ void AlienCPU::_AE_LDX_Absolute_Instruction() {
 }
 
 // LOAD X ABSOLUTE Y-INDEXED ($BD | 5 bytes | 7-9 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add Y index register to lower 2 bytes of effective address
-// 5: fetch high byte address from PC, increment PC
-// 6: read to X's low byte from effective address, fix the higher 2 bytes of the effective address
-// 7: read to X's high byte from effective address + 1
-// 8+: read to X's low byte from effective address if the higher 2 bytes changed
-// 9+: read to X's low byte from effective address + 1 if the higher 2 bytes changed
+// 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BE_LDX_Absolute_YIndexed_Instruction() {
-    Word Address = FetchNextWord();
-
-    // check for page crossing, solely for accurate cycle counting
-    if ((Address | 0x0000FFFF) < (Address + Y)) {
-        cycles+=2;
-    }
-
-    X = ReadTwoBytes(Address + Y);
-
+    X = ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(Y);
     UPDATE_FLAGS(X);
 }
 
@@ -564,25 +536,9 @@ void AlienCPU::_AC_LDY_Absolute_Instruction() {
 }
 
 // LOAD Y ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
-// 5: fetch high byte address from PC, increment PC
-// 6: read to Y's low byte from effective address, fix the higher 2 bytes of the effective address
-// 7: read to Y's high byte from effective address + 1
-// 8+: read to Y's low byte from effective address if the higher 2 bytes changed
-// 9+: read to Y's low byte from effective address + 1 if the higher 2 bytes changed
+// 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BC_LDY_Absolute_XIndexed_Instruction() {
-    Word Address = FetchNextWord();
-
-    // check for page crossing, solely for accurate cycle counting
-    if ((Address | 0x0000FFFF) < (Address + X)) {
-        cycles+=2;
-    }
-
-    Y = ReadTwoBytes(Address + X);
-
+    Y = ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(X);
     UPDATE_FLAGS(Y);
 }
 
