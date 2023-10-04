@@ -260,6 +260,8 @@ class AlienCPU {
         // |    M6  memory bit 6
         // |    M7  memory bit 7
         // |
+        void UPDATE_FLAGS(u16 loadedRegister);
+
 
         // ======================TRANSFER========================
         // | LDA    :   Load Accumulator
@@ -274,7 +276,6 @@ class AlienCPU {
         // | TXA    :   Transfer X register to Accumulator
         // | TXS    :   Transfer X register to Stack pointer
         // | TYA    :   Transfer Y register to Accumulator
-        void _LDA_Update_Flags();
         void _A1_LDA_XIndexed_Indirect_Instruction();
         void _A5_LDA_ZeroPage_Instruction();
         void _A9_LDA_Immediate_Instruction();
@@ -284,14 +285,12 @@ class AlienCPU {
         void _B9_LDA_Absolute_YIndexed_Instruction();
         void _BD_LDA_Absolute_XIndexed_Instruction();
 
-        void _LDX_Update_Flags();
         void _A2_LDX_Immediate_Instruction();
         void _A6_LDX_ZeroPage_Instruction();
         void _AE_LDX_Absolute_Instruction();
         void _B6_LDX_ZeroPage_YIndexed_Instruction();
         void _BE_LDX_Absolute_YIndexed_Instruction();
 
-        void _LDY_Update_Flags();
         void _A0_LDY_Immediate_Instruction();
         void _A4_LDY_ZeroPage_Instruction();
         void _AC_LDY_Absolute_Instruction();

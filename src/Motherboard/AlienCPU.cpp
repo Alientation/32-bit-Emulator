@@ -305,17 +305,22 @@ Byte AlienCPU::PopByteFromStack() {
 // TODO: figure out a way to have cycle stepping instead of completing the entire instruction in one pass
 //       This will also allow basic pipelining (reading in next instruction at the last cycle step 
 //       of this current instruction if this instruction does not write to memory in the current cycle)
+//
+// TODO figure out a way to have a single instruction for each instruction and its addressable modes
+//      and have addressing modes be functions that return the correct value to use
+//
+
+// Sets ZERO flag if the modified register is 0 and NEGATIVE flag if the 
+// last bit of the modified register is set
+void AlienCPU::UPDATE_FLAGS(u16 modifiedRegister) {
+    SetFlag(Z_FLAG, modifiedRegister == 0);
+    SetFlag(N_FLAG, modifiedRegister >> 15);
+}
+
 
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
-// Sets ZERO flag if the Accumulator is 0 and NEGATIVE flag if the 
-// last bit of the Accumulator is set
-void AlienCPU::_LDA_Update_Flags() {
-    SetFlag(Z_FLAG, A == 0);
-    SetFlag(N_FLAG, A >> 15);
-}
-
 // LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch A's low byte from PC, increment PC
@@ -323,7 +328,7 @@ void AlienCPU::_LDA_Update_Flags() {
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
     A = FetchNextTwoBytes();
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE ($AD | 5 bytes | 7 cycles)
@@ -339,7 +344,7 @@ void AlienCPU::_AD_LDA_Absolute_Instruction() {
     Word Address = FetchNextWord();
     A = ReadTwoBytes(Address);
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
@@ -362,7 +367,7 @@ void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
 
     A = ReadTwoBytes(Address + X);
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 5 bytes | 7-9 cycles)
@@ -385,7 +390,7 @@ void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
     
     A = ReadTwoBytes(Address + Y);
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 10 cycles)
@@ -407,7 +412,7 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
     A = ReadTwoBytes(Address);
     cycles++;
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR INDIRECT Y-INDEXED ($B1 | 3 bytes | 9-11 cycles)
@@ -434,7 +439,7 @@ void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
 
     A = ReadTwoBytes(Address + Y);
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
@@ -448,7 +453,7 @@ void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
     u16 ZeroPageAddress = FetchNextTwoBytes();
     A = ReadTwoBytes(ZeroPageAddress);
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
@@ -465,18 +470,11 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
     
     cycles++;
 
-    _LDA_Update_Flags();
+    UPDATE_FLAGS(A);
 }
 
 
 // ===================LOAD=X=REGISTER===================
-// Sets ZERO flag if the X Register is 0 and NEGATIVE flag if the
-// last bit of the X Register is set
-void AlienCPU::_LDX_Update_Flags() {
-    SetFlag(Z_FLAG, X == 0);
-    SetFlag(N_FLAG, X >> 15);
-}
-
 // LOAD X IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch X's low byte from PC, increment PC
@@ -484,7 +482,7 @@ void AlienCPU::_LDX_Update_Flags() {
 void AlienCPU::_A2_LDX_Immediate_Instruction() {
     X = FetchNextTwoBytes();
 
-    _LDX_Update_Flags();
+    UPDATE_FLAGS(X);
 }
 
 // LOAD X ABSOLUTE ($AD | 5 bytes | 7 cycles)
@@ -499,7 +497,7 @@ void AlienCPU::_AE_LDX_Absolute_Instruction() {
     Word Address = FetchNextWord();
     X = ReadTwoBytes(Address);
 
-    _LDX_Update_Flags();
+    UPDATE_FLAGS(X);
 }
 
 // LOAD X ABSOLUTE Y-INDEXED ($BD | 5 bytes | 7-9 cycles)
@@ -522,7 +520,7 @@ void AlienCPU::_BE_LDX_Absolute_YIndexed_Instruction() {
 
     X = ReadTwoBytes(Address + Y);
 
-    _LDX_Update_Flags();
+    UPDATE_FLAGS(X);
 }
 
 // LOAD X ZEROPAGE ($A5 | 3 bytes | 5 cycles)
@@ -535,7 +533,7 @@ void AlienCPU::_A6_LDX_ZeroPage_Instruction() {
     u16 ZeroPageAddress = FetchNextTwoBytes();
     X = ReadTwoBytes(ZeroPageAddress);
 
-    _LDX_Update_Flags();
+    UPDATE_FLAGS(X);
 }
 
 // LOAD X ZEROPAGE Y-INDEXED ($B5 | 3 bytes | 6 cycles)
@@ -551,17 +549,10 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
 
     cycles++;
 
-    _LDX_Update_Flags();
+    UPDATE_FLAGS(X);
 }
 
 // ===================LOAD=Y=REGISTER===================
-// Sets ZERO flag if the Y Register is 0 and NEGATIVE flag if the
-// last bit of the Y Register is set
-void AlienCPU::_LDY_Update_Flags() {
-    SetFlag(Z_FLAG, Y == 0);
-    SetFlag(N_FLAG, Y >> 15);
-}
-
 // LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch Y's low byte from PC, increment PC
@@ -569,7 +560,7 @@ void AlienCPU::_LDY_Update_Flags() {
 void AlienCPU::_A0_LDY_Immediate_Instruction() {
     Y = FetchNextTwoBytes();
 
-    _LDY_Update_Flags();
+    UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ABSOLUTE ($AD | 5 bytes | 7 cycles)
@@ -584,7 +575,7 @@ void AlienCPU::_AC_LDY_Absolute_Instruction() {
     Word Address = FetchNextWord();
     Y = ReadTwoBytes(Address);
 
-    _LDY_Update_Flags();
+    UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
@@ -607,7 +598,7 @@ void AlienCPU::_BC_LDY_Absolute_XIndexed_Instruction() {
 
     Y = ReadTwoBytes(Address + X);
 
-    _LDY_Update_Flags();
+    UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ZEROPAGE ($A5 | 3 bytes | 5 cycles)
@@ -620,7 +611,7 @@ void AlienCPU::_A4_LDY_ZeroPage_Instruction() {
     u16 ZeroPageAddress = FetchNextTwoBytes();
     Y = ReadTwoBytes(ZeroPageAddress);
 
-    _LDY_Update_Flags();
+    UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
@@ -636,7 +627,7 @@ void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
 
     cycles++;
 
-    _LDY_Update_Flags();
+    UPDATE_FLAGS(Y);
 }
 
 
