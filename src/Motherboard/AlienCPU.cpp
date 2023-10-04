@@ -284,8 +284,27 @@ Byte AlienCPU::PopByteFromStack() {
 
 
 // ====================INSTRUCTIONS======================
+// Every cycle must memory read or write (using the pins for address and return data)
+// To add, it must be done after it is read (cannot be done in the same cycle it was read)
+// It must also have a useless memory read (not write because we do not want to change program data)
+// 
+// Although the cycle counts and what is done at each cycle may not be truly accurate to the 6502,
+// it is closely emulates the process of the 6502's instruction cycles
+// The general pattern of instruction clock cycles in this processor compared to 6502 follows this rule
+//          (6502's instruction clock cycles - 1) * 2 + 1 = this processor's instruction clock cycles
+// This is because the first cycle is reading in the opcode (1 byte and therefore 1 cycle for both processors)
+// But the rest are memory read's and write's (double the cycle count for this processor because this processor handles double the bytes)
+// There are a few instances where there are *useless* memory reads to allow for the performing of addition
+// Which results in an equation like this (6502's instruction clock cycles - 2) * 2 + 2 = this processor's instruction clock cycles
 //
+// The implementation of the instructions may not be entirely based accurately on the 6502's implementation or
+// the cycle count described by the documentation. If and once the transition to cycle accurate cpu processing
+// then the implementation shall be accurate to the described process
 //
+// https://www.nesdev.org/6502_cpu.txt
+// TODO: figure out a way to have cycle stepping instead of completing the entire instruction in one pass
+//       This will also allow basic pipelining (reading in next instruction at the last cycle step 
+//       of this current instruction if this instruction does not write to memory in the current cycle)
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
@@ -296,41 +315,39 @@ void AlienCPU::_LDA_Update_Flags() {
     SetFlag(N_FLAG, A >> 15);
 }
 
-// LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | ? cycles)
+// LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 10 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
+// 5: fetch low byte address from calculated effective zero page address
+// 6: fetch mid low byte address from calculated effective zero page address + 1
+// 7: fetch mid high byte address from calculated effective zero page address + 2
+// 8: fetch high byte address from calculated effective zero page address + 3
+// 9: read to A's low byte from calculated effective address
+// 10: read to A's high byte from calculated effective address + 1
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
     // get wrap around address in the zero page that points to
     // the address of the data
-    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X;
-    u16 Address = ReadTwoBytes(ZeroPageAddressOfAddress);
+    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X; // 1 cycle to add
+    Word Address = ReadWord(ZeroPageAddressOfAddress);
     A = ReadTwoBytes(Address);
 
     _LDA_Update_Flags();
 }
 
-// LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
-// Reads the lowest 2 bytes of memory address (highest 2 bytes are zero), 
-// loads 2 bytes from the Zero page address into the Accumulator, 
-// setting appropriate flags
-void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
-    // get the address on the zero page that contains the value A should be set to
-    u16 ZeroPageAddress = FetchNextTwoBytes();
-    A = ReadTwoBytes(ZeroPageAddress);
-
-    _LDA_Update_Flags();
-}
-
-// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-// Loads the next 2 bytes into Accumulator, setting appropriate flags
-void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    A = FetchNextTwoBytes();
-
-    _LDA_Update_Flags();
-}
-
-void AlienCPU::_AD_LDA_Absolute_Instruction() {
-
-}
-
+// LOAD ACCUMULATOR INDIRECT Y-INDEXED ($B1 | 3 bytes | 9-11 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: fetch address low byte from zero page address
+// 5: fetch address mid low byte from zero page address + 1
+// 6: fetch address mid high byte from zero page address + 2, add Y index register to lower 2 bytes of effective address
+// 7: fetch address high byte from zero page address + 3
+// 8: read to A's low byte from calculated effective address
+// 9: read to A's high byte from calculated effective address + 1, fix high 2 bytes of effective address
+// 10+: read to A's low byte from calculated effective address
+// 11+: read to A's high byte from calculated effective address + 1
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
     // get address in the zero page that points to part of the address of the data
     u16 ZeroPageAddressOfAddress = FetchNextTwoBytes();
@@ -340,12 +357,39 @@ void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
     _LDA_Update_Flags();
 }
 
+// LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
+void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
+    // get the address on the zero page that contains the value A should be set to
+    u16 ZeroPageAddress = FetchNextTwoBytes();
+    A = ReadTwoBytes(ZeroPageAddress);
+
+    _LDA_Update_Flags();
+}
+
+// LOAD ACCUMULATOR ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
+// 5: read to A's low byte from calculated effective zero page address
+// 6: read to A's high byte from calculated effective zero page address + 1
 void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
     // wrap around zero page address
     u16 ZeroPageAddress = FetchNextTwoBytes() + X;
     A = ReadTwoBytes(ZeroPageAddress);
 
     _LDA_Update_Flags();
+}
+
+// LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
+void AlienCPU::_A9_LDA_Immediate_Instruction() {
+    A = FetchNextTwoBytes();
+
+    _LDA_Update_Flags();
+}
+
+void AlienCPU::_AD_LDA_Absolute_Instruction() {
+
 }
 
 void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
