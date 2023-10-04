@@ -462,6 +462,8 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
     // wrap around zero page address
     u16 ZeroPageAddress = FetchNextTwoBytes() + X;
     A = ReadTwoBytes(ZeroPageAddress);
+    
+    cycles++;
 
     _LDA_Update_Flags();
 }
