@@ -306,6 +306,7 @@ Byte AlienCPU::PopByteFromStack() {
 //       This will also allow basic pipelining (reading in next instruction at the last cycle step 
 //       of this current instruction if this instruction does not write to memory in the current cycle)
 
+
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
 // Sets ZERO flag if the Accumulator is 0 and NEGATIVE flag if the 
@@ -325,7 +326,7 @@ void AlienCPU::_A9_LDA_Immediate_Instruction() {
     _LDA_Update_Flags();
 }
 
-// LOAD ACCUMULATOR ABSOLUTE ($AD | 3 bytes | 7 cycles)
+// LOAD ACCUMULATOR ABSOLUTE ($AD | 5 bytes | 7 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -335,13 +336,13 @@ void AlienCPU::_A9_LDA_Immediate_Instruction() {
 // 7: read to A's high byte from effective address + 1
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
     // get the address that contains the value A should be set to
-    u16 Address = FetchNextWord();
+    Word Address = FetchNextWord();
     A = ReadTwoBytes(Address);
 
     _LDA_Update_Flags();
 }
 
-// LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 3 bytes | 7-9 cycles)
+// LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -355,7 +356,7 @@ void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
     Word Address = FetchNextWord();
 
     // check for page crossing, solely for accurate cycle counting
-    if (Address & 0x0000FFFF <= Address + X) { // fill last 2 bytes with max value
+    if ((Address | 0x0000FFFF) < (Address + X)) { // fill last 2 bytes with max value
         cycles+=2;
     }
 
@@ -364,7 +365,7 @@ void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
     _LDA_Update_Flags();
 }
 
-// LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 3 bytes | 7-9 cycles)
+// LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 5 bytes | 7-9 cycles)
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -378,7 +379,7 @@ void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
     Word Address = FetchNextWord();
 
     // check for page crossing, solely for accurate cycle counting
-    if (Address & 0x0000FFFF <= Address + Y) { // fill last 2 bytes with max value
+    if ((Address | 0x0000FFFF) < (Address + Y)) { // fill last 2 bytes with max value
         cycles+=2;
     }
     
@@ -404,6 +405,7 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
     u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X;
     Word Address = ReadWord(ZeroPageAddressOfAddress);
     A = ReadTwoBytes(Address);
+    cycles++;
 
     _LDA_Update_Flags();
 }
@@ -423,14 +425,14 @@ void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
     // get address in the zero page that points to part of the address of the data
     u16 ZeroPageAddressOfAddress = FetchNextTwoBytes();
-    Word Address = ReadTwoBytes(ZeroPageAddressOfAddress) + Y;
+    Word Address = ReadWord(ZeroPageAddressOfAddress);
 
     // check for page crossing, solely for accurate cycle counting
-    if (Address > 0x0000FFFF) {
+    if ((Address | 0x0000FFFF) < (Address + Y)) {
         cycles+=2;
     }
 
-    A = ReadTwoBytes(Address);
+    A = ReadTwoBytes(Address + Y);
 
     _LDA_Update_Flags();
 }
