@@ -262,6 +262,8 @@ class AlienCPU {
         // |
         void UPDATE_FLAGS(u16 loadedRegister);
 
+        u16 ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES();
+
 
         // ======================TRANSFER========================
         // | LDA    :   Load Accumulator

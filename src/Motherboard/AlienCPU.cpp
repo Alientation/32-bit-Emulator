@@ -317,17 +317,21 @@ void AlienCPU::UPDATE_FLAGS(u16 modifiedRegister) {
     SetFlag(N_FLAG, modifiedRegister >> 15);
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch high byte address from PC, increment PC
+u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES() {
+    return FetchNextTwoBytes();
+}
+
 
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
 // LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch A's low byte from PC, increment PC
-// 3: fetch A's high byte from PC, increment PC
+// 1-3: Immediate addressing mode load value
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    A = FetchNextTwoBytes();
-
+    A = ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
@@ -476,12 +480,9 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
 
 // ===================LOAD=X=REGISTER===================
 // LOAD X IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch X's low byte from PC, increment PC
-// 3: fetch X's high byte from PC, increment PC
+// 1-3: Immediate addressing mode load value
 void AlienCPU::_A2_LDX_Immediate_Instruction() {
-    X = FetchNextTwoBytes();
-
+    X = ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
@@ -554,12 +555,9 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
 
 // ===================LOAD=Y=REGISTER===================
 // LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch Y's low byte from PC, increment PC
-// 3: fetch Y's high byte from PC, increment PC
+// 1-3: Immediate addressing mode load value
 void AlienCPU::_A0_LDY_Immediate_Instruction() {
-    Y = FetchNextTwoBytes();
-
+    Y = ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
