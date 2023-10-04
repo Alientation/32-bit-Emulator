@@ -262,7 +262,10 @@ class AlienCPU {
         // |
         void UPDATE_FLAGS(u16 loadedRegister);
 
+        // u16 ADDRESSING_MODE_ACCUMULATOR_GETVALUE_TWOBYTES();
+        // u16 ADDRESSING_MODE_IMPLIED_GETVALUE_TWOBYTES();
         u16 ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES();
+        u16 ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES();
 
 
         // ======================TRANSFER========================

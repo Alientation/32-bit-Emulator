@@ -324,6 +324,18 @@ u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_GETVALUE_TWOBYTES() {
     return FetchNextTwoBytes();
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC
+// 5: fetch high byte address from PC, increment PC
+// 6: read low byte from effective address
+// 7: read high byte from effective address + 1
+u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES() {
+    Word address = FetchNextWord();
+    return ReadTwoBytes(address);
+}
+
 
 
 // ======================TRANSFER========================
@@ -336,18 +348,9 @@ void AlienCPU::_A9_LDA_Immediate_Instruction() {
 }
 
 // LOAD ACCUMULATOR ABSOLUTE ($AD | 5 bytes | 7 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC
-// 5: fetch high byte address from PC, increment PC
-// 6: read to A's low byte from effective address
-// 7: read to A's high byte from effective address + 1
+// 1-7: Absolute addressing mode load value
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
-    // get the address that contains the value A should be set to
-    Word Address = FetchNextWord();
-    A = ReadTwoBytes(Address);
-
+    A = ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
@@ -487,17 +490,9 @@ void AlienCPU::_A2_LDX_Immediate_Instruction() {
 }
 
 // LOAD X ABSOLUTE ($AD | 5 bytes | 7 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC
-// 5: fetch high byte address from PC, increment PC
-// 6: read to X's low byte from effective address
-// 7: read to X's high byte from effective address + 1
+// 1-7: Absolute addressing mode load value
 void AlienCPU::_AE_LDX_Absolute_Instruction() {
-    Word Address = FetchNextWord();
-    X = ReadTwoBytes(Address);
-
+    X = ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
@@ -562,17 +557,9 @@ void AlienCPU::_A0_LDY_Immediate_Instruction() {
 }
 
 // LOAD Y ABSOLUTE ($AD | 5 bytes | 7 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC
-// 5: fetch high byte address from PC, increment PC
-// 6: read to Y's low byte from effective address
-// 7: read to Y's high byte from effective address + 1
+// 1-7: Absolute addressing mode load value
 void AlienCPU::_AC_LDY_Absolute_Instruction() {
-    Word Address = FetchNextWord();
-    Y = ReadTwoBytes(Address);
-
+    Y = ADDRESSING_MODE_ABSOLUTE_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
