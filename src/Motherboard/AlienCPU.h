@@ -284,6 +284,7 @@ class AlienCPU {
         void _B9_LDA_Absolute_YIndexed_Instruction();
         void _BD_LDA_Absolute_XIndexed_Instruction();
 
+        void _LDX_Update_Flags();
         void _A2_LDX_Immediate_Instruction();
         void _A6_LDX_ZeroPage_Instruction();
         void _AE_LDX_Absolute_Instruction();
