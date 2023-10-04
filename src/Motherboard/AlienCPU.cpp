@@ -555,25 +555,90 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
 }
 
 // ===================LOAD=Y=REGISTER===================
+// Sets ZERO flag if the Y Register is 0 and NEGATIVE flag if the
+// last bit of the Y Register is set
+void AlienCPU::_LDY_Update_Flags() {
+    SetFlag(Z_FLAG, Y == 0);
+    SetFlag(N_FLAG, Y >> 15);
+}
+
+// LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch Y's low byte from PC, increment PC
+// 3: fetch Y's high byte from PC, increment PC
 void AlienCPU::_A0_LDY_Immediate_Instruction() {
+    Y = FetchNextTwoBytes();
 
+    _LDY_Update_Flags();
 }
 
-void AlienCPU::_A4_LDY_ZeroPage_Instruction() {
-
-}
-
+// LOAD Y ABSOLUTE ($AD | 5 bytes | 7 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC
+// 5: fetch high byte address from PC, increment PC
+// 6: read to Y's low byte from effective address
+// 7: read to Y's high byte from effective address + 1
 void AlienCPU::_AC_LDY_Absolute_Instruction() {
+    Word Address = FetchNextWord();
+    Y = ReadTwoBytes(Address);
 
+    _LDY_Update_Flags();
 }
 
-void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
-
-}
-
+// LOAD Y ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC, add X index register to lower 2 bytes of effective address
+// 5: fetch high byte address from PC, increment PC
+// 6: read to Y's low byte from effective address, fix the higher 2 bytes of the effective address
+// 7: read to Y's high byte from effective address + 1
+// 8+: read to Y's low byte from effective address if the higher 2 bytes changed
+// 9+: read to Y's low byte from effective address + 1 if the higher 2 bytes changed
 void AlienCPU::_BC_LDY_Absolute_XIndexed_Instruction() {
+    Word Address = FetchNextWord();
 
+    // check for page crossing, solely for accurate cycle counting
+    if ((Address | 0x0000FFFF) < (Address + X)) {
+        cycles+=2;
+    }
+
+    Y = ReadTwoBytes(Address + X);
+
+    _LDY_Update_Flags();
 }
+
+// LOAD Y ZEROPAGE ($A5 | 3 bytes | 5 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address from PC, increment PC
+// 4: read to Y's low byte from effective zero page address
+// 5: read to Y's high byte from effective zero page address + 1
+void AlienCPU::_A4_LDY_ZeroPage_Instruction() {
+    u16 ZeroPageAddress = FetchNextTwoBytes();
+    Y = ReadTwoBytes(ZeroPageAddress);
+
+    _LDY_Update_Flags();
+}
+
+// LOAD Y ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
+// 5: read to Y's low byte from calculated effective zero page address
+// 6: read to Y's high byte from calculated effective zero page address + 1
+void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
+    u16 ZeroPageAddress = FetchNextTwoBytes() + X;
+    Y = ReadTwoBytes(ZeroPageAddress);
+
+    cycles++;
+
+    _LDY_Update_Flags();
+}
+
 
 // ===================LOAD=ACCUMULATOR==================
 void AlienCPU::_81_STA_XIndexed_Indirect_Instruction() {

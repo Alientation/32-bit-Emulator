@@ -291,6 +291,7 @@ class AlienCPU {
         void _B6_LDX_ZeroPage_YIndexed_Instruction();
         void _BE_LDX_Absolute_YIndexed_Instruction();
 
+        void _LDY_Update_Flags();
         void _A0_LDY_Immediate_Instruction();
         void _A4_LDY_ZeroPage_Instruction();
         void _AC_LDY_Absolute_Instruction();
