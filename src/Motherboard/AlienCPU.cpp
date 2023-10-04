@@ -356,6 +356,46 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_GETVALUE_TWOBYTES(u16 indexRegist
     return ReadTwoBytes(address + indexRegister);
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
+// 5: fetch low byte address from calculated effective zero page address
+// 6: fetch mid low byte address from calculated effective zero page address + 1
+// 7: fetch mid high byte address from calculated effective zero page address + 2
+// 8: fetch high byte address from calculated effective zero page address + 3
+// 9: read low byte from calculated effective address
+// 10: read high byte from calculated effective address + 1
+u16 AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_GETVALUE_TWOBYTES() {
+    u16 zeroPageAddressOfAddress = FetchNextTwoBytes() + X;
+    Word address = ReadWord(zeroPageAddressOfAddress);
+    cycles++;
+    return ReadTwoBytes(address);
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: fetch address low byte from zero page address
+// 5: fetch address mid low byte from zero page address + 1
+// 6: fetch address mid high byte from zero page address + 2, add Y index register to lower 2 bytes of effective address
+// 7: fetch address high byte from zero page address + 3
+// 8: read low byte from calculated effective address
+// 9: read high byte from calculated effective address + 1, fix high 2 bytes of effective address
+// 10+: read low byte from calculated effective address if high 2 bytes changed
+// 11+: read high byte from calculated effective address + 1 if high 2 bytes changed
+u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_GETVALUE_TWOBYTES() {
+    // get address in the zero page that points to part of the address of the data
+    u16 zeroPageAddressOfAddress = FetchNextTwoBytes();
+    Word address = ReadWord(zeroPageAddressOfAddress);
+
+    // check for page crossing, solely for accurate cycle counting
+    if ((address | 0x0000FFFF) < (address + Y)) {
+        cycles+=2;
+    }
+
+    return ReadTwoBytes(address + Y);
+}
 
 
 // ======================TRANSFER========================
@@ -389,51 +429,16 @@ void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
 }
 
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 10 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add X index register to base zero page address (wraps around in zero page)
-// 5: fetch low byte address from calculated effective zero page address
-// 6: fetch mid low byte address from calculated effective zero page address + 1
-// 7: fetch mid high byte address from calculated effective zero page address + 2
-// 8: fetch high byte address from calculated effective zero page address + 3
-// 9: read to A's low byte from calculated effective address
-// 10: read to A's high byte from calculated effective address + 1
+// 1-10: X indexed indirect addressing mode load value
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
-    // get wrap around address in the zero page that points to
-    // the address of the data
-    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes() + X;
-    Word Address = ReadWord(ZeroPageAddressOfAddress);
-    A = ReadTwoBytes(Address);
-    cycles++;
-
+    A = ADDRESSING_MODE_XINDEXED_INDIRECT_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR INDIRECT Y-INDEXED ($B1 | 3 bytes | 9-11 cycles)
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: fetch address low byte from zero page address
-// 5: fetch address mid low byte from zero page address + 1
-// 6: fetch address mid high byte from zero page address + 2, add Y index register to lower 2 bytes of effective address
-// 7: fetch address high byte from zero page address + 3
-// 8: read to A's low byte from calculated effective address
-// 9: read to A's high byte from calculated effective address + 1, fix high 2 bytes of effective address
-// 10+: read to A's low byte from calculated effective address if high 2 bytes changed
-// 11+: read to A's high byte from calculated effective address + 1 if high 2 bytes changed
+// 1-9/11: Indirect Y indexed addressing mode load value
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
-    // get address in the zero page that points to part of the address of the data
-    u16 ZeroPageAddressOfAddress = FetchNextTwoBytes();
-    Word Address = ReadWord(ZeroPageAddressOfAddress);
-
-    // check for page crossing, solely for accurate cycle counting
-    if ((Address | 0x0000FFFF) < (Address + Y)) {
-        cycles+=2;
-    }
-
-    A = ReadTwoBytes(Address + Y);
-
+    A = ADDRESSING_MODE_INDIRECT_YINDEXED_GETVALUE_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
