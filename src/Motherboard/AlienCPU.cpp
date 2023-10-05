@@ -325,7 +325,7 @@ void AlienCPU::ADDRESSING_MODE_ACCUMULATOR() {
 
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
-void AlienCPU::ADDRESSING_MODE_IMPLIED_TWOBYTES() {
+void AlienCPU::ADDRESSING_MODE_IMPLIED() {
     cycles++;
 }
 
@@ -740,63 +740,79 @@ void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
 
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
+// 1-2: Implied addressing mode
 void AlienCPU::_AA_TAX_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    X = A;
 }
 
 
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
+// 1-2: Implied addressing mode
 void AlienCPU::_A8_TAY_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    Y = A;
 }
 
 
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
+// 1-2: Implied addressing mode
 void AlienCPU::_BA_TSX_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    X = SP;
 }
 
 
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
+// 1-2: Implied addressing mode
 void AlienCPU::_8A_TXA_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    A = X;
 }
 
 
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
+// 1-2: Implied addressing mode
 void AlienCPU::_9A_TXS_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    SP = X;
 }
 
 
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
+// 1-2: Implied addressing mode
 void AlienCPU::_98_TYA_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
+    A = Y;
 }
 
 
 // ========================STACK=========================
 // ===================PUSH=ACCUMULATOR===================
+// 1-2: Implied addressing mode
 void AlienCPU::_48_PHA_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
 }
 
 
 // =================PUSH=PROCESSOR=STATUS================
+// 1-2: Implied addressing mode
 void AlienCPU::_08_PHP_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
 }
 
 
 // ===================POP=ACCUMULATOR====================
+// 1-2: Implied addressing mode
 void AlienCPU::_68_PLA_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
 }
 
 
 // =================POP=PROCESSOR=STATUS=================
+// 1-2: Implied addressing mode
 void AlienCPU::_28_PLP_Implied_Instruction() {
-
+    ADDRESSING_MODE_IMPLIED();
 }
 
 
