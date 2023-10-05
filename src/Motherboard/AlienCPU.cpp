@@ -604,6 +604,7 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
     UPDATE_FLAGS(X);
 }
 
+
 // ===================LOAD=Y=REGISTER===================
 // LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
@@ -642,84 +643,92 @@ void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
 
 
 // ==================STORE=ACCUMULATOR==================
-void AlienCPU::_81_STA_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_85_STA_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_8D_STA_Absolute_Instruction() {
-
-}
-
-void AlienCPU::_91_STA_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
-
-}
-
-void AlienCPU::_99_STA_Absolute_YIndexed_Instruction() {
-
+    ADDRESSING_MODE_ABSOLUTE_WRITEVALUE_TWOBYTES(A);
 }
 
 void AlienCPU::_9D_STA_Absolute_XIndexed_Instruction() {
-
+    ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITEVALUE_TWOBYTES(X, A);
 }
+
+void AlienCPU::_99_STA_Absolute_YIndexed_Instruction() {
+    ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITEVALUE_TWOBYTES(Y, A);
+}
+
+void AlienCPU::_81_STA_XIndexed_Indirect_Instruction() {
+    ADDRESSING_MODE_XINDEXED_INDIRECT_WRITEVALUE_TWOBYTES(A);
+}
+
+void AlienCPU::_91_STA_Indirect_YIndexed_Instruction() {
+    ADDRESSING_MODE_INDIRECT_YINDEXED_WRITEVALUE_TWOBYTES(A);
+}
+
+void AlienCPU::_85_STA_ZeroPage_Instruction() {
+    ADDRESSING_MODE_ZERO_PAGE_WRITEVALUE_TWOBYTES(A);
+}
+
+void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
+    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITEVALUE_TWOBYTES(X, A);
+}
+
 
 // ===================STORE=X=REGISTER==================
-void AlienCPU::_86_STX_ZeroPage_Instruction() {
-
+void AlienCPU::_8E_STX_Absolute_Instruction() {
+    ADDRESSING_MODE_ABSOLUTE_WRITEVALUE_TWOBYTES(X);
 }
 
-void AlienCPU::_8E_STX_Absolute_Instruction() {
-
+void AlienCPU::_86_STX_ZeroPage_Instruction() {
+    ADDRESSING_MODE_ZERO_PAGE_WRITEVALUE_TWOBYTES(X);
 }
 
 void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
-
+    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITEVALUE_TWOBYTES(Y, X);
 }
+
 
 // ===================STORE=Y=REGISTER==================
-void AlienCPU::_84_STY_ZeroPage_Instruction() {
-
+void AlienCPU::_8C_STY_Absolute_Instruction() {
+    ADDRESSING_MODE_ABSOLUTE_WRITEVALUE_TWOBYTES(Y);
 }
 
-void AlienCPU::_8C_STY_Absolute_Instruction() {
-
+void AlienCPU::_84_STY_ZeroPage_Instruction() {
+    ADDRESSING_MODE_ZERO_PAGE_WRITEVALUE_TWOBYTES(Y);
 }
 
 void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
-
+    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITEVALUE_TWOBYTES(X, Y);
 }
+
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
 void AlienCPU::_AA_TAX_Implied_Instruction() {
 
 }
 
+
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
 void AlienCPU::_A8_TAY_Implied_Instruction() {
 
 }
+
 
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
 void AlienCPU::_BA_TSX_Implied_Instruction() {
 
 }
 
+
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
 void AlienCPU::_8A_TXA_Implied_Instruction() {
 
 }
 
+
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
 void AlienCPU::_9A_TXS_Implied_Instruction() {
 
 }
+
 
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
 void AlienCPU::_98_TYA_Implied_Instruction() {
@@ -733,15 +742,18 @@ void AlienCPU::_48_PHA_Implied_Instruction() {
 
 }
 
+
 // =================PUSH=PROCESSOR=STATUS================
 void AlienCPU::_08_PHP_Implied_Instruction() {
 
 }
 
+
 // ===================POP=ACCUMULATOR====================
 void AlienCPU::_68_PLA_Implied_Instruction() {
 
 }
+
 
 // =================POP=PROCESSOR=STATUS=================
 void AlienCPU::_28_PLP_Implied_Instruction() {
@@ -751,15 +763,7 @@ void AlienCPU::_28_PLP_Implied_Instruction() {
 
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
-void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
-
-}
-
-void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
 
 }
 
@@ -767,26 +771,29 @@ void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {
 
 }
 
+void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
 // =================DECREMENT=X=REGISTER=================
 void AlienCPU::_CA_DEX_Implied_Instruction() {
 
 }
+
 
 // =================DECREMENT=Y=REGISTER=================
 void AlienCPU::_88_DEY_Implied_Instruction() {
 
 }
 
+
 // ===================INCREMENT=MEMORY===================
-void AlienCPU::_E6_INC_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_EE_INC_Absolute_Instruction() {
-
-}
-
-void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
 
 }
 
@@ -794,10 +801,20 @@ void AlienCPU::_FE_INC_Absolute_XIndexed_Instruction() {
 
 }
 
+void AlienCPU::_E6_INC_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
 // =================INCREMENT=X=REGISTER=================
 void AlienCPU::_E8_INX_Implied_Instruction() {
 
 }
+
 
 // =================INCREMENT=Y=REGISTER=================
 void AlienCPU::_C8_INY_Implied_Instruction() {
@@ -807,14 +824,6 @@ void AlienCPU::_C8_INY_Implied_Instruction() {
 
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
-void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_65_ADC_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_69_ADC_Immediate_Instruction() {
 
 }
@@ -823,11 +832,7 @@ void AlienCPU::_6D_ADC_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
 
 }
 
@@ -835,19 +840,24 @@ void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
 
 }
 
-void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
+void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
 
 }
+
+void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_65_ADC_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
+
+}
+
 
 // =====================SUBTRACT=WITH=BORROW=============
-void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_E9_SBC_Immediate_Instruction() {
 
 }
@@ -856,11 +866,7 @@ void AlienCPU::_ED_SBC_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
 
 }
 
@@ -868,21 +874,25 @@ void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
 
 }
 
-void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
+void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
+
+}
+
+void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
 
 }
 
 
 // ==================LOGICAL=OPERATIONS==================
 // =====================AND=WITH=ACCUMULATOR==============
-void AlienCPU::_21_AND_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_25_AND_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_29_AND_Immediate_Instruction() {
 
 }
@@ -891,11 +901,7 @@ void AlienCPU::_2D_AND_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_31_AND_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_35_AND_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_3D_AND_Absolute_XIndexed_Instruction() {
 
 }
 
@@ -903,19 +909,24 @@ void AlienCPU::_39_AND_Absolute_YIndexed_Instruction() {
 
 }
 
-void AlienCPU::_3D_AND_Absolute_XIndexed_Instruction() {
+void AlienCPU::_21_AND_XIndexed_Indirect_Instruction() {
 
 }
+
+void AlienCPU::_31_AND_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_25_AND_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_35_AND_ZeroPage_XIndexed_Instruction() {
+
+}
+
 
 // =====================EOR=WITH=ACCUMULATOR==============
-void AlienCPU::_41_EOR_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_45_EOR_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_49_EOR_Immediate_Instruction() {
 
 }
@@ -924,11 +935,7 @@ void AlienCPU::_4D_EOR_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_51_EOR_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_55_EOR_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_5D_EOR_Absolute_XIndexed_Instruction() {
 
 }
 
@@ -936,32 +943,29 @@ void AlienCPU::_59_EOR_Absolute_YIndexed_Instruction() {
 
 }
 
-void AlienCPU::_5D_EOR_Absolute_XIndexed_Instruction() {
+void AlienCPU::_41_EOR_XIndexed_Indirect_Instruction() {
 
 }
+
+void AlienCPU::_51_EOR_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_45_EOR_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_55_EOR_ZeroPage_XIndexed_Instruction() {
+
+}
+
 
 // =====================ORA=WITH=ACCUMULATOR==============
-void AlienCPU::_01_ORA_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_05_ORA_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_09_ORA_Immediate_Instruction() {
 
 }
 
 void AlienCPU::_0D_ORA_Absolute_Instruction() {
-
-}
-
-void AlienCPU::_11_ORA_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_15_ORA_ZeroPage_XIndexed_Instruction() {
 
 }
 
@@ -973,13 +977,25 @@ void AlienCPU::_1D_ORA_Absolute_XIndexed_Instruction() {
 
 }
 
-
-// ====================SHIFT=&=ROTATE====================
-// =====================ARITHMETIC=SHIFT==================
-void AlienCPU::_06_ASL_ZeroPage_Instruction() {
+void AlienCPU::_01_ORA_XIndexed_Indirect_Instruction() {
 
 }
 
+void AlienCPU::_11_ORA_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_05_ORA_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_15_ORA_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
+// ====================SHIFT=&=ROTATE====================
+// =====================ARITHMETIC=SHIFT==================
 void AlienCPU::_0A_ASL_Accumulator_Instruction() {
 
 }
@@ -988,19 +1004,20 @@ void AlienCPU::_0E_ASL_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_16_ASL_ZeroPage_XIndexed_Instruction() {
-
-}
-
 void AlienCPU::_1E_ASL_Absolute_XIndexed_Instruction() {
 
 }
 
-// =====================LOGICAL=SHIFT=====================
-void AlienCPU::_46_LSR_ZeroPage_Instruction() {
+void AlienCPU::_06_ASL_ZeroPage_Instruction() {
 
 }
 
+void AlienCPU::_16_ASL_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
+// =====================LOGICAL=SHIFT=====================
 void AlienCPU::_4A_LSR_Accumulator_Instruction() {
 
 }
@@ -1009,19 +1026,20 @@ void AlienCPU::_4E_LSR_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_56_LSR_ZeroPage_XIndexed_Instruction() {
-
-}
-
 void AlienCPU::_5E_LSR_Absolute_XIndexed_Instruction() {
 
 }
 
-// =====================ROTATE=LEFT=======================
-void AlienCPU::_26_ROL_ZeroPage_Instruction() {
+void AlienCPU::_46_LSR_ZeroPage_Instruction() {
 
 }
 
+void AlienCPU::_56_LSR_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
+// =====================ROTATE=LEFT=======================
 void AlienCPU::_2A_ROL_Accumulator_Instruction() {
 
 }
@@ -1030,19 +1048,20 @@ void AlienCPU::_2E_ROL_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_36_ROL_ZeroPage_XIndexed_Instruction() {
-
-}
-
 void AlienCPU::_3E_ROL_Absolute_XIndexed_Instruction() {
 
 }
 
-// =====================ROTATE=RIGHT======================
-void AlienCPU::_66_ROR_ZeroPage_Instruction() {
+void AlienCPU::_26_ROL_ZeroPage_Instruction() {
 
 }
 
+void AlienCPU::_36_ROL_ZeroPage_XIndexed_Instruction() {
+
+}
+
+
+// =====================ROTATE=RIGHT======================
 void AlienCPU::_6A_ROR_Accumulator_Instruction() {
 
 }
@@ -1051,11 +1070,15 @@ void AlienCPU::_6E_ROR_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_76_ROR_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_7E_ROR_Absolute_XIndexed_Instruction() {
 
 }
 
-void AlienCPU::_7E_ROR_Absolute_XIndexed_Instruction() {
+void AlienCPU::_66_ROR_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_76_ROR_ZeroPage_XIndexed_Instruction() {
 
 }
 
@@ -1092,14 +1115,6 @@ void AlienCPU::_78_SEI_Implied_Instruction() {
 
 // =====================COMPARISONS======================
 // =====================COMPARE=ACCUMULATOR==============
-void AlienCPU::_C1_CMP_XIndexed_Indirect_Instruction() {
-
-}
-
-void AlienCPU::_C5_CMP_ZeroPage_Instruction() {
-
-}
-
 void AlienCPU::_C9_CMP_Immediate_Instruction() {
 
 }
@@ -1108,11 +1123,7 @@ void AlienCPU::_CD_CMP_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_D1_CMP_Indirect_YIndexed_Instruction() {
-
-}
-
-void AlienCPU::_D5_CMP_ZeroPage_XIndexed_Instruction() {
+void AlienCPU::_DD_CMP_Absolute_XIndexed_Instruction() {
 
 }
 
@@ -1120,16 +1131,25 @@ void AlienCPU::_D9_CMP_Absolute_YIndexed_Instruction() {
 
 }
 
-void AlienCPU::_DD_CMP_Absolute_XIndexed_Instruction() {
+void AlienCPU::_C1_CMP_XIndexed_Indirect_Instruction() {
 
 }
+
+void AlienCPU::_D1_CMP_Indirect_YIndexed_Instruction() {
+
+}
+
+void AlienCPU::_C5_CMP_ZeroPage_Instruction() {
+
+}
+
+void AlienCPU::_D5_CMP_ZeroPage_XIndexed_Instruction() {
+
+}
+
 
 // =====================COMPARE=X=REGISTER==============
 void AlienCPU::_E0_CPX_Immediate_Instruction() {
-
-}
-
-void AlienCPU::_E4_CPX_ZeroPage_Instruction() {
 
 }
 
@@ -1137,16 +1157,21 @@ void AlienCPU::_EC_CPX_Absolute_Instruction() {
 
 }
 
+void AlienCPU::_E4_CPX_ZeroPage_Instruction() {
+
+}
+
+
 // =====================COMPARE=Y=REGISTER==============
 void AlienCPU::_C0_CPY_Immediate_Instruction() {
 
 }
 
-void AlienCPU::_C4_CPY_ZeroPage_Instruction() {
+void AlienCPU::_CC_CPY_Absolute_Instruction() {
 
 }
 
-void AlienCPU::_CC_CPY_Absolute_Instruction() {
+void AlienCPU::_C4_CPY_ZeroPage_Instruction() {
 
 }
 
