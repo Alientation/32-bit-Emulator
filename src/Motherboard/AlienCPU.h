@@ -267,21 +267,21 @@ class AlienCPU {
         void ADDRESSING_MODE_IMPLIED_TWOBYTES();
 
         // READING DATA FROM MEMORY
-        u16 ADDRESSING_MODE_IMMEDIATE_READVALUE_TWOBYTES();
-        u16 ADDRESSING_MODE_ABSOLUTE_READVALUE_TWOBYTES();
-        u16 ADDRESSING_MODE_ABSOLUTE_INDEXED_READVALUE_TWOBYTES(u16 indexRegister);
-        u16 ADDRESSING_MODE_XINDEXED_INDIRECT_READVALUE_TWOBYTES();
-        u16 ADDRESSING_MODE_INDIRECT_YINDEXED_READVALUE_TWOBYTES();
-        u16 ADDRESSING_MODE_ZERO_PAGE_READVALUE_TWOBYTES();
-        u16 ADDRESSING_MODE_ZERO_PAGE_INDEXED_READVALUE_TWOBYTES(u16 indexRegister);
+        u16 ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES();
+        u16 ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES();
+        u16 ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister);
+        u16 ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES();
+        u16 ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES();
+        u16 ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES();
+        u16 ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(u16 indexRegister);
 
         // WRITING DATA TO MEMORY
-        void ADDRESSING_MODE_ABSOLUTE_WRITEVALUE_TWOBYTES(u16 registerValue);
-        void ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITEVALUE_TWOBYTES(u16 indexRegister, u16 registerValue);
-        void ADDRESSING_MODE_XINDEXED_INDIRECT_WRITEVALUE_TWOBYTES(u16 registerValue);
-        void ADDRESSING_MODE_INDIRECT_YINDEXED_WRITEVALUE_TWOBYTES(u16 registerValue);
-        void ADDRESSING_MODE_ZERO_PAGE_WRITEVALUE_TWOBYTES(u16 registerValue);
-        void ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITEVALUE_TWOBYTES(u16 indexRegister, u16 registerValue);
+        void ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue);
+        void ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue);
+        void ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValue);
+        void ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValue);
+        void ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(u16 registerValue);
+        void ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue);
 
         // ======================TRANSFER========================
         // | LDA    :   Load Accumulator
@@ -935,9 +935,9 @@ class AlienCPU {
                 INS_LDX_ZP = 0xA6, // Load X register, zero page addressing
                 INS_LAX_ZP = 0xA7, // Load Accumulator and X register, zero page addressing (ILLEGAL)
                 INS_TAY_IMPL = 0xA8, // Transfer Accumulator to Y register, implied addressing
-                INS_LDA_IM = 0xA9, // Load Accumulator, immediate addressing
+                INS_LDA_IMM = 0xA9, // Load Accumulator, immediate addressing
                 INS_TAX_IMPL = 0xAA, // Transfer Accumulator to X register, implied addressing
-                INS_LXA_IM = 0xAB, // Load Accumulator and X register, immediate addressing (ILLEGAL)
+                INS_LXA_IMM = 0xAB, // Load Accumulator and X register, immediate addressing (ILLEGAL)
                 INS_LDY_ABS = 0xAC, // Load Y register, absolute addressing
                 INS_LDA_ABS = 0xAD, // Load Accumulator, absolute addressing
                 INS_LDX_ABS = 0xAE, // Load X register, absolute addressing

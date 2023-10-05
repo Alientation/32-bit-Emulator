@@ -19,7 +19,7 @@ class LDATest : public testing::Test {
 TEST_F(LDATest, LoadAccumulator_Immediate_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
     cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IM);
+    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IMM);
 
     // write value to load into accumulator
     cpu.WriteTwoBytes(0x00001024, 0x4232);
@@ -42,7 +42,7 @@ TEST_F(LDATest, LoadAccumulator_Immediate_NORMAL) {
 TEST_F(LDATest, LoadAccumulator_Immediate_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
     cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IM);
+    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IMM);
 
     // write value to load into accumulator
     cpu.WriteTwoBytes(0x00001024, 0x0000);
@@ -65,7 +65,7 @@ TEST_F(LDATest, LoadAccumulator_Immediate_ZFLAG) {
 TEST_F(LDATest, LoadAccumulator_Immediate_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
     cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IM);
+    cpu.WriteByte(0x00001023, AlienCPU::INS_LDA_IMM);
 
     // write value to load into accumulator
     cpu.WriteTwoBytes(0x00001024, 0xFFEF);
@@ -164,7 +164,6 @@ TEST_F(LDATest, LoadAccumulator_Absolute_NFLAG) {
     // test cycle counter
     EXPECT_EQ(cpu.cycles, 7);
 }
-
 
 
 // LDA ABSOLUTE X-INDEXED TESTS
@@ -629,7 +628,6 @@ TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_NFLAG) {
     // test cycle counter
     EXPECT_EQ(cpu.cycles, 9);
 }
-
 
 
 // LDA ZERO PAGE TESTS
