@@ -706,14 +706,14 @@ void AlienCPU::_8E_STX_Absolute_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(X);
 }
 
-// STORE X REGISTER ZEROPAGE ($86 | 3 bytes | 3 cycles)
-// 1-3: Zero page addressing mode store value
+// STORE X REGISTER ZEROPAGE ($86 | 3 bytes | 5 cycles)
+// 1-5: Zero page addressing mode store value
 void AlienCPU::_86_STX_ZeroPage_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(X);
 }
 
-// STORE X REGISTER ZEROPAGE Y-INDEXED ($96 | 3 bytes | 4 cycles)
-// 1-4: Zero page indexed addressing mode store value
+// STORE X REGISTER ZEROPAGE Y-INDEXED ($96 | 3 bytes | 6 cycles)
+// 1-6: Zero page indexed addressing mode store value
 void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(Y, X);
 }
