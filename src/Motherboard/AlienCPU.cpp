@@ -792,6 +792,8 @@ void AlienCPU::_98_TYA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_48_PHA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
+
+    PushTwoBytesToStack(A);
 }
 
 
@@ -799,6 +801,8 @@ void AlienCPU::_48_PHA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_08_PHP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
+
+    PushByteToStack(P);
 }
 
 
@@ -806,6 +810,8 @@ void AlienCPU::_08_PHP_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_68_PLA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
+
+    A = PopTwoBytesFromStack();
 }
 
 
@@ -813,6 +819,8 @@ void AlienCPU::_68_PLA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_28_PLP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
+
+    P = PopByteFromStack();
 }
 
 
