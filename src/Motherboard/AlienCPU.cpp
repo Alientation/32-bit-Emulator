@@ -389,11 +389,12 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) 
 // 4: fetch mid high byte address from PC, increment PC, add index register to lower 2 bytes of effective address
 // 5: fetch high byte address from PC, increment PC
 // 6: useless read from effective address, fix the high 2 bytes of the effective address
-// 6: write register's low byte to effective address
-// 7: write register's high byte to effective address + 1
+// 7: write register's low byte to effective address
+// 8: write register's high byte to effective address + 1
 void AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
     Word address = FetchNextWord() + indexRegister;
-    WriteTwoBytes(address + indexRegister, registerValue);
+    cycles++;
+    WriteTwoBytes(address, registerValue);
 }
 
 
@@ -655,58 +656,84 @@ void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
 
 
 // ==================STORE=ACCUMULATOR==================
+// STORE ACCUMULATOR ABSOLUTE ($8D | 5 bytes | 7 cycles)
+// 1-7: Absolute addressing mode store value
 void AlienCPU::_8D_STA_Absolute_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(A);
 }
 
+// STORE ACCUMULATOR ABSOLUTE X-INDEXED ($9D | 5 bytes | 7 cycles)
+// 1-8: Absolute indexed addressing mode store value
 void AlienCPU::_9D_STA_Absolute_XIndexed_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(X, A);
 }
 
+// STORE ACCUMULATOR ABSOLUTE Y-INDEXED ($99 | 5 bytes | 7 cycles)
+// 1-8: Absolute indexed addressing mode store value
 void AlienCPU::_99_STA_Absolute_YIndexed_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(Y, A);
 }
 
+// STORE ACCUMULATOR X-INDEXED INDIRECT ($81 | 3 bytes | 10 cycles)
+// 1-10: X indexed indirect addressing mode store value
 void AlienCPU::_81_STA_XIndexed_Indirect_Instruction() {
     ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(A);
 }
 
+// STORE ACCUMULATOR INDIRECT Y-INDEXED ($91 | 3 bytes | 10 cycles)
+// 1-10: Indirect Y indexed addressing mode store value
 void AlienCPU::_91_STA_Indirect_YIndexed_Instruction() {
     ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(A);
 }
 
+// STORE ACCUMULATOR ZEROPAGE ($85 | 3 bytes | 5 cycles)
+// 1-5: Zero page addressing mode store value
 void AlienCPU::_85_STA_ZeroPage_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(A);
 }
 
+// STORE ACCUMULATOR ZEROPAGE X-INDEXED ($95 | 3 bytes | 6 cycles)
+// 1-6: Zero page indexed addressing mode store value
 void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(X, A);
 }
 
 
 // ===================STORE=X=REGISTER==================
+// STORE X REGISTER ABSOLUTE ($8E | 5 bytes | 7 cycles)
+// 1-7: Absolute addressing mode store value
 void AlienCPU::_8E_STX_Absolute_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(X);
 }
 
+// STORE X REGISTER ZEROPAGE ($86 | 3 bytes | 3 cycles)
+// 1-3: Zero page addressing mode store value
 void AlienCPU::_86_STX_ZeroPage_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(X);
 }
 
+// STORE X REGISTER ZEROPAGE Y-INDEXED ($96 | 3 bytes | 4 cycles)
+// 1-4: Zero page indexed addressing mode store value
 void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(Y, X);
 }
 
 
 // ===================STORE=Y=REGISTER==================
+// STORE Y REGISTER ABSOLUTE ($8C | 5 bytes | 7 cycles)
+// 1-7: Absolute addressing mode store value
 void AlienCPU::_8C_STY_Absolute_Instruction() {
     ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(Y);
 }
 
+// STORE Y REGISTER ZEROPAGE ($84 | 3 bytes | 3 cycles)
+// 1-3: Zero page addressing mode store value
 void AlienCPU::_84_STY_ZeroPage_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(Y);
 }
 
+// STORE Y REGISTER ZEROPAGE X-INDEXED ($94 | 3 bytes | 4 cycles)
+// 1-4: Zero page indexed addressing mode store value
 void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
     ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(X, Y);
 }
