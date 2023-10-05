@@ -317,6 +317,18 @@ void AlienCPU::UPDATE_FLAGS(u16 modifiedRegister) {
     SetFlag(N_FLAG, modifiedRegister >> 15);
 }
 
+// 1: fetch opcode from PC, increment PC
+// 2: useless read from PC (for the instruction to perform its job)
+void AlienCPU::ADDRESSING_MODE_ACCUMULATOR() {
+    cycles++;
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: useless read from PC (for the instruction to perform its job)
+void AlienCPU::ADDRESSING_MODE_IMPLIED_TWOBYTES() {
+    cycles++;
+}
+
 
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
