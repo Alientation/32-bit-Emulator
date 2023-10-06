@@ -4,6 +4,9 @@ project(AlienCPU) #name of your project
 #include_directories(src/Input src/Motherboard/Memory src/Motherboard src/Output src/Storage src tests)
 
 file(GLOB all_SRCS
+    "src/AlienCPUV2/AlienCPUV2.cpp"
+    "src/AlienCPUV2/AlienCPUV2.h"
+
     "src/Input/Keyboard.cpp"
     "src/Input/Keyboard.h"
     "src/Input/Mouse.cpp"
