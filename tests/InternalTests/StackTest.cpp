@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-
 #include <AlienCPUTest.h>
 
 class StackTest : public testing::Test {
@@ -15,5 +14,6 @@ class StackTest : public testing::Test {
     }
 };
 
-
-// TODO
+TEST_F(StackTest, StackTest_Default) {
+    
+}

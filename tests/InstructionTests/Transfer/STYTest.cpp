@@ -7,7 +7,7 @@ class STYTest : public testing::Test {
         AlienCPU cpu;
 
     virtual void SetUp() {
-        cpu.Reset();
+        cpu.reset();
     }
 
     virtual void TearDown() {
@@ -19,17 +19,17 @@ class STYTest : public testing::Test {
 // STY Absolute TESTS
 TEST_F(STYTest, SaveY_Absolute_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_STY_ABS);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ABS);
 
     // write memory address to save the Y to
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
     cpu.Y = 0x4232;
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.ReadTwoBytes(0x00014232), 0x4232);
+    EXPECT_EQ(cpu.readTwoBytes(0x00014232), 0x4232);
     cpu.cycles -= 2; // nullify the extra cycles from the read
 
     // test only default flag is set
@@ -46,17 +46,17 @@ TEST_F(STYTest, SaveY_Absolute_NORMAL) {
 // STY ZERO PAGE TESTS
 TEST_F(STYTest, SaveY_ZeroPage_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_STY_ZP);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP);
 
     // write zero page memory address to save the Y
-    cpu.WriteTwoBytes(0x00001024, 0x1232);
+    cpu.writeTwoBytes(0x00001024, 0x1232);
     cpu.Y = 0x1234;
 
-    cpu.Start(5);
+    cpu.start(5);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.ReadTwoBytes(0x00001232), 0x1234);
+    EXPECT_EQ(cpu.readTwoBytes(0x00001232), 0x1234);
     cpu.cycles -= 2; // nullify the extra cycles from the read
 
     // test only default flag is set
@@ -73,18 +73,18 @@ TEST_F(STYTest, SaveY_ZeroPage_NORMAL) {
 // STY ZEROPAGE Y-INDEXED TESTS
 TEST_F(STYTest, SaveY_ZeroPage_YIndexed_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_STY_ZP_X);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP_X);
 
     // write zero page memory address save the Y
-    cpu.WriteTwoBytes(0x00001024, 0x1232);
+    cpu.writeTwoBytes(0x00001024, 0x1232);
     cpu.X = 0x0013;
     cpu.Y = 0x1234;
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.ReadTwoBytes(0x00001245), 0x1234);
+    EXPECT_EQ(cpu.readTwoBytes(0x00001245), 0x1234);
     cpu.cycles -= 2; // nullify the extra cycles from the read
 
     // test only default flag is set
@@ -99,18 +99,18 @@ TEST_F(STYTest, SaveY_ZeroPage_YIndexed_NORMAL) {
 
 TEST_F(STYTest, SaveY_ZeroPage_YIndexed_WRAPAROUND) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_STY_ZP_X);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP_X);
 
     // write zero page memory address save the Y
-    cpu.WriteTwoBytes(0x00001024, 0x1232);
+    cpu.writeTwoBytes(0x00001024, 0x1232);
     cpu.X = 0xF013;
     cpu.Y = 0x1234;
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.ReadTwoBytes(0x00000245), 0x1234);
+    EXPECT_EQ(cpu.readTwoBytes(0x00000245), 0x1234);
     cpu.cycles -= 2; // nullify the extra cycles from the read
 
     // test only default flag is set

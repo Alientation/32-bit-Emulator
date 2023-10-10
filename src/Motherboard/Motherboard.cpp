@@ -5,20 +5,20 @@
 #include <iomanip>
 
 
-void Motherboard::Initialize() {
+void Motherboard::initialize() {
 
     // initialize the memory
-    ram.Initialize();
-    rom.Initialize();
+    ram.initialize();
+    rom.initialize();
 
     // todo SSD and HDD
 }
 
 // Writes a byte to the appropriate mapped memory address
-void Motherboard::WriteByte(Word address, Byte byte) {
+void Motherboard::writeByte(Word address, Byte byte) {
     Word searchAddress = address;
     if (searchAddress <= RAM::MEMORY_SIZE) {
-        ram.WriteByte(searchAddress, byte);
+        ram.writeByte(searchAddress, byte);
         return;
     }
     searchAddress -= RAM::MEMORY_SIZE;
@@ -36,15 +36,15 @@ void Motherboard::WriteByte(Word address, Byte byte) {
 }
 
 // Reads a byte from the appropriate mapped memory address
-Byte Motherboard::ReadByte(Word address) {
+Byte Motherboard::readByte(Word address) {
     Word searchAddress = address;
     if (searchAddress <= RAM::MEMORY_SIZE) {
-        return ram.ReadByte(searchAddress);
+        return ram.readByte(searchAddress);
     }
     searchAddress -= RAM::MEMORY_SIZE;
 
     if (searchAddress <= ROM::MEMORY_SIZE) {
-        return rom.ReadByte(searchAddress);
+        return rom.readByte(searchAddress);
     }
     searchAddress -= ROM::MEMORY_SIZE;
 

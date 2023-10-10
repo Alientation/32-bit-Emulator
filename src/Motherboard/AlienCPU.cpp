@@ -5,14 +5,14 @@
 const std::string AlienCPU::VERSION = "0.0.1";
 
 AlienCPU::AlienCPU() {
-    AlienCPU::InitInstructions();
+    AlienCPU::initInstructions();
     
     // Reset the CPU, all registers, memory etc
-    Reset();
+    reset();
 }
 
 // realistically, reset actually randomizes values for memory and registers
-void AlienCPU::Reset() {
+void AlienCPU::reset() {
     // reset all registers
     PC = PC_INIT;
     SP = SP_INIT;
@@ -29,17 +29,17 @@ void AlienCPU::Reset() {
     cycles = 0;
 
     // prepare motherboard
-    motherboard.Initialize();
+    motherboard.initialize();
 }
 
-void AlienCPU::Start(u64 maxCycles) {
+void AlienCPU::start(u64 maxCycles) {
     if (debugMode) {
         std::cout << "Starting Alien CPU v" << VERSION << std::endl;
         std::cout << "Max cycles: " << maxCycles << std::endl;
     }
 
     // start sequence / boot process, read from RESET vector and jump to there
-    PC = ReadWord(POWER_ON_RESET_VECTOR);
+    PC = readWord(POWER_ON_RESET_VECTOR);
 
     // reset cycle counter
     cycles = 0;
@@ -55,10 +55,10 @@ void AlienCPU::Start(u64 maxCycles) {
         }
 
         // Reads in the next instruction
-        Byte nextInstruction = FetchNextByte();
+        Byte nextInstruction = fetchNextByte();
 
         // Executes the instruction even if it is invalid
-        ExecuteInstruction(nextInstruction);
+        executeInstruction(nextInstruction);
 
 
         // Check for Interrupts
@@ -75,8 +75,8 @@ void AlienCPU::Start(u64 maxCycles) {
 
 
 // Executes the instruction if it is valid, otherwise throws an exception
-void AlienCPU::ExecuteInstruction(u16 instruction) {
-    if (!ValidInstruction(instruction)) {
+void AlienCPU::executeInstruction(u16 instruction) {
+    if (!isValidInstruction(instruction)) {
         std::stringstream stream;
         stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) << std::endl;
         
@@ -90,75 +90,76 @@ void AlienCPU::ExecuteInstruction(u16 instruction) {
 
 // Checks if the instruction is a valid instruction. 
 // Must be within max instructions and must not be a null instruction
-bool AlienCPU::ValidInstruction(u16 instruction) {
+bool AlienCPU::isValidInstruction(u16 instruction) {
     return instruction < INSTRUCTION_COUNT && &instructions[instruction] != &instructions[0];
 }
 
 
 // Clear the specified flag bit from processor status register
-void AlienCPU::ClearFlag(Byte bit) {
-    P &= ~(1 << bit);
+void AlienCPU::clearFlag(Byte bit) {
+    P &= ~((u8)1 << bit);
 }
 
 // Sets the specified flag bit from processor status register
-void AlienCPU::SetFlag(Byte bit, bool isSet) {
-    P = (P & ~((u8)isSet << bit)) | ((u8)isSet << bit);
+void AlienCPU::setFlag(Byte bit, bool isSet) {
+    // 11111111
+    // 00000001
+    // 11111110
+    // 11111110 | 0
+
+    P = (P & ~((u8)1 << bit)) | ((u8)isSet << bit);
 }
 
 // Gets the specified flag bit from processor status register
-bool AlienCPU::IsFlagSet(Byte bit) {
+bool AlienCPU::getFlag(Byte bit) {
     return P & (1 << bit);
 }
 
 
-// TODO TEST THIS
-u16 AlienCPU::ConvertToLowEndian(u16 highEndianValue) {
-    return (highEndianValue >> 8) | (highEndianValue << 8);
+u16 AlienCPU::convertToLowEndianTwoBytes(u16 highEndianTwoBytes) {
+    return (highEndianTwoBytes >> 8) | (highEndianTwoBytes << 8);
 }
 
-// TODO TEST THIS
-u16 AlienCPU::ConvertToHighEndian(u16 lowEndianValue) {
-    return (lowEndianValue << 8) | (lowEndianValue >> 8);
+u16 AlienCPU::convertToHighEndianTwoBytes(u16 lowEndianTwoBytes) {
+    return (lowEndianTwoBytes << 8) | (lowEndianTwoBytes >> 8);
 }
 
-// TODO TEST THIS
-Word AlienCPU::ConvertToLowEndian(Word highEndianValue) {
-    return (highEndianValue >> 24) | ((highEndianValue >> 8) & 0xFF00) | 
-            ((highEndianValue << 8) & 0xFF0000) | (highEndianValue << 24);
+Word AlienCPU::convertToLowEndianWord(Word highEndianWord) {
+    return (highEndianWord >> 24) | ((highEndianWord >> 8) & 0xFF00) | 
+            ((highEndianWord << 8) & 0xFF0000) | (highEndianWord << 24);
 }
 
-// TODO TEST THIS
-Word AlienCPU::ConvertToHighEndian(Word lowEndianValue) {
-    return (lowEndianValue << 24) | ((lowEndianValue << 8) & 0xFF0000) | 
-            ((lowEndianValue >> 8) & 0xFF00) | (lowEndianValue >> 24);
+Word AlienCPU::convertToHighEndianWord(Word lowEndianWord) {
+    return (lowEndianWord << 24) | ((lowEndianWord << 8) & 0xFF0000) | 
+            ((lowEndianWord >> 8) & 0xFF00) | (lowEndianWord >> 24);
 }
 
 
-// Reads a byte from a high endian memory address (1 cycle)
-Byte AlienCPU::ReadByte(Word highEndianAddress) {
+// Reads a byte at a high endian memory address (1 cycle)
+Byte AlienCPU::readByte(Word highEndianAddress) {
     cycles++;
-    return motherboard.ReadByte(highEndianAddress);
+    return motherboard.readByte(highEndianAddress);
 }
 
-// Reads 2 low endian bytes from a high endian memory address 
+// Reads the next 2 low endian bytes at a high endian memory address 
 // and converts to high endian (2 cycles)
-u16 AlienCPU::ReadTwoBytes(Word highEndianAddress) {
+u16 AlienCPU::readTwoBytes(Word highEndianAddress) {
     // reads in owest byte
-    u16 highEndianData = ReadByte(highEndianAddress);
-    highEndianData |= ReadByte(highEndianAddress + 1) << 8;
+    u16 highEndianData = readByte(highEndianAddress);
+    highEndianData |= readByte(highEndianAddress + 1) << 8;
     // reads in highest byte
 
     return highEndianData;
 }
 
-// Reads 4 low endian bytes from a high endian memory address 
+// Reads the next 4 low endian bytes at a high endian memory address 
 // and converts to high endian (4 cycles)
-Word AlienCPU::ReadWord(Word highEndianAddress) {
+Word AlienCPU::readWord(Word highEndianAddress) {
     // reads in lowest byte
-    Word highEndianData = ReadByte(highEndianAddress);
-    highEndianData |= ReadByte(highEndianAddress + 1) << 8;
-    highEndianData |= ReadByte(highEndianAddress + 2) << 16;
-    highEndianData |= ReadByte(highEndianAddress + 3) << 24;
+    Word highEndianData = readByte(highEndianAddress);
+    highEndianData |= readByte(highEndianAddress + 1) << 8;
+    highEndianData |= readByte(highEndianAddress + 2) << 16;
+    highEndianData |= readByte(highEndianAddress + 3) << 24;
     // reads in highest byte
 
     return highEndianData;
@@ -166,8 +167,8 @@ Word AlienCPU::ReadWord(Word highEndianAddress) {
 
 
 // Reads the next byte in memory and increments PC (1 cycle)
-Byte AlienCPU::FetchNextByte() {
-    Byte data = motherboard.ReadByte(PC);
+Byte AlienCPU::fetchNextByte() {
+    Byte data = motherboard.readByte(PC);
     PC++;
     cycles++;
     return data;
@@ -175,10 +176,10 @@ Byte AlienCPU::FetchNextByte() {
 
 // Reads the next 4 low endian bytes in memory but converts to 
 // high endian and increments PC (2 cycles)
-u16 AlienCPU::FetchNextTwoBytes() {
+u16 AlienCPU::fetchNextTwoBytes() {
     // reads in lowest byte
-    u16 highEndianData = FetchNextByte();
-    highEndianData |= FetchNextByte() << 8;
+    u16 highEndianData = fetchNextByte();
+    highEndianData |= fetchNextByte() << 8;
     // reads in highest byte
 
     return highEndianData;
@@ -186,56 +187,56 @@ u16 AlienCPU::FetchNextTwoBytes() {
 
 // Reads the next 4 low endian bytes in memory but converts to 
 // high endian and increments PC (4 cycles)
-Word AlienCPU::FetchNextWord() {
+Word AlienCPU::fetchNextWord() {
     // reads in lowest byte
-    Word highEndianData = FetchNextByte();
-    highEndianData |= FetchNextByte() << 8;
-    highEndianData |= FetchNextByte() << 16;
-    highEndianData |= FetchNextByte() << 24;
+    Word highEndianData = fetchNextByte();
+    highEndianData |= fetchNextByte() << 8;
+    highEndianData |= fetchNextByte() << 16;
+    highEndianData |= fetchNextByte() << 24;
     // reads in highest byte
 
     return highEndianData;
 }
 
 // Write byte to the specified high endian address in memory (1 cycle)
-void AlienCPU::WriteByte(Word highEndianAddress, Byte value) {
+void AlienCPU::writeByte(Word highEndianAddress, Byte value) {
     // write byte 0 to memory
-    motherboard.WriteByte(highEndianAddress, value);
+    motherboard.writeByte(highEndianAddress, value);
     cycles++;
 }
 
 // Writes 2 high endian bytes converted to low endian to the 
 // specified high endian address in memory (2 cycles)
-void AlienCPU::WriteTwoBytes(Word highEndianAddress, u16 highEndianValue) {
+void AlienCPU::writeTwoBytes(Word highEndianAddress, u16 highEndianValue) {
     // lowest byte
-    WriteByte(highEndianAddress, highEndianValue & 0xFF);
-    WriteByte(highEndianAddress + 1, (highEndianValue >> 8) & 0xFF);
+    writeByte(highEndianAddress, highEndianValue & 0xFF);
+    writeByte(highEndianAddress + 1, (highEndianValue >> 8) & 0xFF);
     // highest byte
 }
 
 // Writes 2 low endian bytes to the specified high endian address in memory (2 cycles)
-void AlienCPU::WriteTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue) {
-    WriteByte(highEndianAddress, (lowEndianValue >> 8) & 0xFF);
-    WriteByte(highEndianAddress + 1, lowEndianValue & 0xFF);
+void AlienCPU::writeTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue) {
+    writeByte(highEndianAddress, (lowEndianValue >> 8) & 0xFF);
+    writeByte(highEndianAddress + 1, lowEndianValue & 0xFF);
 }
 
 // Writes 4 high endian bytes converted to low endian to the 
 // specified high endian address in memory (4 cycles)
-void AlienCPU::WriteWord(Word highEndianAddress, Word value) {
+void AlienCPU::writeWord(Word highEndianAddress, Word value) {
     // lowest byte
-    WriteByte(highEndianAddress, value & 0xFF);
-    WriteByte(highEndianAddress + 1, (value >> 8) & 0xFF);
-    WriteByte(highEndianAddress + 2, (value >> 16) & 0xFF);
-    WriteByte(highEndianAddress + 3, (value >> 24) & 0xFF);
+    writeByte(highEndianAddress, value & 0xFF);
+    writeByte(highEndianAddress + 1, (value >> 8) & 0xFF);
+    writeByte(highEndianAddress + 2, (value >> 16) & 0xFF);
+    writeByte(highEndianAddress + 3, (value >> 24) & 0xFF);
     // highest byte
 }
 
 // Writes 4 low endian bytes to the specified high endian address in memory (4 cycles)
-void AlienCPU::WriteWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
-    WriteByte(highEndianAddress, (lowEndianValue >> 24) & 0xFF);
-    WriteByte(highEndianAddress + 1, (lowEndianValue >> 16) & 0xFF);
-    WriteByte(highEndianAddress + 2, (lowEndianValue >> 8) & 0xFF);
-    WriteByte(highEndianAddress + 3, lowEndianValue & 0xFF);
+void AlienCPU::writeWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
+    writeByte(highEndianAddress, (lowEndianValue >> 24) & 0xFF);
+    writeByte(highEndianAddress + 1, (lowEndianValue >> 16) & 0xFF);
+    writeByte(highEndianAddress + 2, (lowEndianValue >> 8) & 0xFF);
+    writeByte(highEndianAddress + 3, lowEndianValue & 0xFF);
 }
 
 
@@ -249,32 +250,33 @@ void AlienCPU::SPtoAddress(Byte page) {
 }
 
 //
-void AlienCPU::PushWordToStack(Word value) {
+void AlienCPU::pushWordToStack(Word value) {
 
 }
 
 //
-Word AlienCPU::PopWordFromStack() {
-    return NULL_ADDRESS;
+Word AlienCPU::popWordFromStack() {
+    SP += 4;
+    return readWord(SP);
 }
 
 //
-void AlienCPU::PushTwoBytesToStack(u16 value) {
+void AlienCPU::pushTwoBytesToStack(u16 value) {
 
 }
 
 //
-u16 AlienCPU::PopTwoBytesFromStack() {
+u16 AlienCPU::popTwoBytesFromStack() {
     return NULL_ADDRESS >> 8;
 }
 
 //
-void AlienCPU::PushByteToStack(Byte value) {
+void AlienCPU::pushByteToStack(Byte value) {
 
 }
 
 //
-Byte AlienCPU::PopByteFromStack() {
+Byte AlienCPU::popByteFromStack() {
     return NULL_ADDRESS >> 24;
 }
 
@@ -310,8 +312,8 @@ Byte AlienCPU::PopByteFromStack() {
 // Sets ZERO flag if the modified register is 0 and NEGATIVE flag if the 
 // last bit of the modified register is set
 void AlienCPU::UPDATE_FLAGS(u16 modifiedRegister) {
-    SetFlag(Z_FLAG, modifiedRegister == 0);
-    SetFlag(N_FLAG, modifiedRegister >> 15);
+    setFlag(Z_FLAG, modifiedRegister == 0);
+    setFlag(N_FLAG, modifiedRegister >> 15);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -331,7 +333,7 @@ void AlienCPU::ADDRESSING_MODE_IMPLIED() {
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch high byte address from PC, increment PC
 u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES() {
-    return FetchNextTwoBytes();
+    return fetchNextTwoBytes();
 }
 
 
@@ -343,8 +345,8 @@ u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES() {
 // 6: read into register's low byte from effective address
 // 7: read into register's high byte from effective address + 1
 u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES() {
-    Word address = FetchNextWord();
-    return ReadTwoBytes(address);
+    Word address = fetchNextWord();
+    return readTwoBytes(address);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -355,8 +357,8 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES() {
 // 6: write register's low byte to effective address
 // 7: write register's high byte to effective address + 1
 void AlienCPU::ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
-    Word address = FetchNextWord();
-    WriteTwoBytes(address, registerValue);
+    Word address = fetchNextWord();
+    writeTwoBytes(address, registerValue);
 }
 
 
@@ -370,14 +372,14 @@ void AlienCPU::ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
 // 8+: read low byte from effective address if high byte changed
 // 9+: read low byte from effective address + 1 if high byte changed
 u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
-    Word address = FetchNextWord();
+    Word address = fetchNextWord();
     
     // check for page crossing, solely for accurate cycle counting
     if ((address | 0x0000FFFF) < (address + indexRegister)) { // fill last 2 bytes with max value
         cycles+=2;
     }
 
-    return ReadTwoBytes(address + indexRegister);
+    return readTwoBytes(address + indexRegister);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -389,9 +391,9 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) 
 // 7: write register's low byte to effective address
 // 8: write register's high byte to effective address + 1
 void AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
-    Word address = FetchNextWord() + indexRegister;
+    Word address = fetchNextWord() + indexRegister;
     cycles++;
-    WriteTwoBytes(address, registerValue);
+    writeTwoBytes(address, registerValue);
 }
 
 
@@ -406,10 +408,10 @@ void AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister
 // 9: read low byte from calculated effective address
 // 10: read high byte from calculated effective address + 1
 u16 AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES() {
-    u16 zeroPageAddressOfAddress = FetchNextTwoBytes() + X;
-    Word address = ReadWord(zeroPageAddressOfAddress);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes() + X;
+    Word address = readWord(zeroPageAddressOfAddress);
     cycles++;
-    return ReadTwoBytes(address);
+    return readTwoBytes(address);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -423,10 +425,10 @@ u16 AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES() {
 // 9: write register's low byte to calculated effective address
 // 10: write register's high byte to calculated effective address + 1
 void AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValue) {
-    u16 zeroPageAddressOfAddress = FetchNextTwoBytes() + X;
-    Word address = ReadWord(zeroPageAddressOfAddress);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes() + X;
+    Word address = readWord(zeroPageAddressOfAddress);
     cycles++;
-    WriteTwoBytes(address, registerValue);
+    writeTwoBytes(address, registerValue);
 }
 
 
@@ -443,15 +445,15 @@ void AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValu
 // 11+: read high byte from calculated effective address + 1 if high 2 bytes changed
 u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES() {
     // get address in the zero page that points to part of the address of the data
-    u16 zeroPageAddressOfAddress = FetchNextTwoBytes();
-    Word address = ReadWord(zeroPageAddressOfAddress);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes();
+    Word address = readWord(zeroPageAddressOfAddress);
 
     // check for page crossing, solely for accurate cycle counting
     if ((address | 0x0000FFFF) < (address + Y)) {
         cycles+=2;
     }
 
-    return ReadTwoBytes(address + Y);
+    return readTwoBytes(address + Y);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -466,10 +468,10 @@ u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES() {
 // 10: write register's high byte to calculated effective address + 1
 void AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValue) {
     // get address in the zero page that points to part of the address of the data
-    u16 zeroPageAddressOfAddress = FetchNextTwoBytes();
-    Word address = ReadWord(zeroPageAddressOfAddress);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes();
+    Word address = readWord(zeroPageAddressOfAddress);
     cycles++;
-    WriteTwoBytes(address + Y, registerValue);
+    writeTwoBytes(address + Y, registerValue);
 }
 
 
@@ -479,8 +481,8 @@ void AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValu
 // 4: read low byte from effective zero page address
 // 5: read high byte from effective zero page address + 1
 u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES() {
-    u16 zeroPageAddress = FetchNextTwoBytes();
-    return ReadTwoBytes(zeroPageAddress);
+    u16 zeroPageAddress = fetchNextTwoBytes();
+    return readTwoBytes(zeroPageAddress);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -489,8 +491,8 @@ u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES() {
 // 4: write register's low byte to effective zero page address
 // 5: write register's high byte to effective zero page address + 1
 void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(u16 registerValue) {
-    u16 zeroPageAddress = FetchNextTwoBytes();
-    WriteTwoBytes(zeroPageAddress, registerValue);
+    u16 zeroPageAddress = fetchNextTwoBytes();
+    writeTwoBytes(zeroPageAddress, registerValue);
 }
 
 
@@ -501,9 +503,9 @@ void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(u16 registerValue) {
 // 5: read low byte from calculated effective zero page address
 // 6: read high byte from calculated effective zero page address + 1
 u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
-    u16 zeroPageAddress = FetchNextTwoBytes() + indexRegister;
+    u16 zeroPageAddress = fetchNextTwoBytes() + indexRegister;
     cycles++;
-    return ReadTwoBytes(zeroPageAddress);
+    return readTwoBytes(zeroPageAddress);
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -513,9 +515,9 @@ u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(u16 indexRegister)
 // 5: write register's low byte from calculated effective zero page address
 // 6: write register's high byte from calculated effective zero page address + 1
 void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
-    u16 zeroPageAddress = FetchNextTwoBytes() + indexRegister;
+    u16 zeroPageAddress = fetchNextTwoBytes() + indexRegister;
     cycles++;
-    WriteTwoBytes(zeroPageAddress, registerValue);
+    writeTwoBytes(zeroPageAddress, registerValue);
 }
 
 
@@ -789,7 +791,7 @@ void AlienCPU::_98_TYA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_48_PHA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
-    PushTwoBytesToStack(A);
+    pushTwoBytesToStack(A);
 }
 
 
@@ -797,7 +799,7 @@ void AlienCPU::_48_PHA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_08_PHP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
-    PushByteToStack(P);
+    pushByteToStack(P);
 }
 
 
@@ -805,7 +807,7 @@ void AlienCPU::_08_PHP_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_68_PLA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
-    A = PopTwoBytesFromStack();
+    A = popTwoBytesFromStack();
 }
 
 
@@ -813,7 +815,7 @@ void AlienCPU::_68_PLA_Implied_Instruction() {
 // 1-2: Implied addressing mode
 void AlienCPU::_28_PLP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
-    P = PopByteFromStack();
+    P = popByteFromStack();
 }
 
 
@@ -1746,7 +1748,7 @@ void AlienCPU::_EB_USBC_Immediate_Illegal_Instruction() {
 
 
 
-void AlienCPU::InitInstructions() {
+void AlienCPU::initInstructions() {
     // null out instructions to catch errors
     for (int i = 0; i < INSTRUCTION_COUNT; i++) {
         instructions[i] = _00_NULL_Illegal_Instruction;

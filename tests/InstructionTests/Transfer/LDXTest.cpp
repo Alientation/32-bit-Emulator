@@ -7,7 +7,7 @@ class LDXTest : public testing::Test {
         AlienCPU cpu;
 
     virtual void SetUp() {
-        cpu.Reset();
+        cpu.reset();
     }
 
     virtual void TearDown() {
@@ -18,13 +18,13 @@ class LDXTest : public testing::Test {
 // LDX IMMEDIATE TESTS
 TEST_F(LDXTest, LoadX_Immediate_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
 
-    cpu.Start(3);
+    cpu.start(3);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x4232);
@@ -41,13 +41,13 @@ TEST_F(LDXTest, LoadX_Immediate_NORMAL) {
 
 TEST_F(LDXTest, LoadX_Immediate_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x0000);
+    cpu.writeTwoBytes(0x00001024, 0x0000);
 
-    cpu.Start(3);
+    cpu.start(3);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x0000);
@@ -64,13 +64,13 @@ TEST_F(LDXTest, LoadX_Immediate_ZFLAG) {
 
 TEST_F(LDXTest, LoadX_Immediate_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0xFFEF);
+    cpu.writeTwoBytes(0x00001024, 0xFFEF);
 
-    cpu.Start(3);
+    cpu.start(3);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0xFFEF);
@@ -89,16 +89,16 @@ TEST_F(LDXTest, LoadX_Immediate_NFLAG) {
 // LDX ABSOLUTE TESTS
 TEST_F(LDXTest, LoadX_Absolute_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014232, 0x1234);
+    cpu.writeTwoBytes(0x00014232, 0x1234);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x1234);
@@ -115,16 +115,16 @@ TEST_F(LDXTest, LoadX_Absolute_NORMAL) {
 
 TEST_F(LDXTest, LoadX_Absolute_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014232, 0x0000);
+    cpu.writeTwoBytes(0x00014232, 0x0000);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x0000);
@@ -141,16 +141,16 @@ TEST_F(LDXTest, LoadX_Absolute_ZFLAG) {
 
 TEST_F(LDXTest, LoadX_Absolute_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014232, 0xFFEF);
+    cpu.writeTwoBytes(0x00014232, 0xFFEF);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0xFFEF);
@@ -169,17 +169,17 @@ TEST_F(LDXTest, LoadX_Absolute_NFLAG) {
 // LDX ABSOLUTE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
     cpu.Y = 0x0013;
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014245, 0x1234);
+    cpu.writeTwoBytes(0x00014245, 0x1234);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x1234);
@@ -196,17 +196,17 @@ TEST_F(LDXTest, LoadX_Absolute_YIndexed_NORMAL) {
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_PAGECROSS) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00011232);
+    cpu.writeWord(0x00001024, 0x00011232);
     cpu.Y = 0xF013;
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00020245, 0x1234);
+    cpu.writeTwoBytes(0x00020245, 0x1234);
 
-    cpu.Start(9);
+    cpu.start(9);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x1234);
@@ -223,17 +223,17 @@ TEST_F(LDXTest, LoadX_Absolute_YIndexed_PAGECROSS) {
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
     cpu.Y = 0x0013;
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014245, 0x0000);
+    cpu.writeTwoBytes(0x00014245, 0x0000);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x0000);
@@ -250,17 +250,17 @@ TEST_F(LDXTest, LoadX_Absolute_YIndexed_ZFLAG) {
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
 
     // write memory address of value to load into X
-    cpu.WriteWord(0x00001024, 0x00014232);
+    cpu.writeWord(0x00001024, 0x00014232);
     cpu.Y = 0x0013;
 
     // write value to load into X
-    cpu.WriteTwoBytes(0x00014245, 0xFFEF);
+    cpu.writeTwoBytes(0x00014245, 0xFFEF);
 
-    cpu.Start(7);
+    cpu.start(7);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0xFFEF);
@@ -279,16 +279,16 @@ TEST_F(LDXTest, LoadX_Absolute_YIndexed_NFLAG) {
 // LDX ZERO PAGE TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
 
     // write the value to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004232, 0x2042);
+    cpu.writeTwoBytes(0x00004232, 0x2042);
 
-    cpu.Start(5);
+    cpu.start(5);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x2042);
@@ -305,16 +305,16 @@ TEST_F(LDXTest, LoadX_ZeroPage_NORMAL) {
 
 TEST_F(LDXTest, LoadX_ZeroPage_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
 
     // write the values to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004232, 0x0000);
+    cpu.writeTwoBytes(0x00004232, 0x0000);
 
-    cpu.Start(5);
+    cpu.start(5);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x0000);
@@ -331,16 +331,16 @@ TEST_F(LDXTest, LoadX_ZeroPage_ZFLAG) {
 
 TEST_F(LDXTest, LoadX_ZeroPage_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
 
     // write the values to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004232, 0xFFEF);
+    cpu.writeTwoBytes(0x00004232, 0xFFEF);
 
-    cpu.Start(5);
+    cpu.start(5);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0xFFEF);
@@ -359,17 +359,17 @@ TEST_F(LDXTest, LoadX_ZeroPage_NFLAG) {
 // LDX ZEROPAGE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NORMAL) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
     cpu.Y = 0x0013;
 
     // write the value to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004245, 0x2042);
+    cpu.writeTwoBytes(0x00004245, 0x2042);
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x2042);
@@ -386,17 +386,17 @@ TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NORMAL) {
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_WRAPAROUND) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x1232);
+    cpu.writeTwoBytes(0x00001024, 0x1232);
     cpu.Y = 0xF013;
 
     // write the value to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00000245, 0x2042);
+    cpu.writeTwoBytes(0x00000245, 0x2042);
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x2042);
@@ -413,17 +413,17 @@ TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_WRAPAROUND) {
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_ZFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
     cpu.Y = 0x0013;
 
     // write the values to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004245, 0x0000);
+    cpu.writeTwoBytes(0x00004245, 0x0000);
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0x0000);
@@ -440,17 +440,17 @@ TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_ZFLAG) {
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NFLAG) {
     // setting reset vector to begin processing instructions at 0x0001023
-    cpu.WriteWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.WriteByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
+    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
+    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
 
     // write zero page memory address to the value to load into X
-    cpu.WriteTwoBytes(0x00001024, 0x4232);
+    cpu.writeTwoBytes(0x00001024, 0x4232);
     cpu.Y = 0x0013;
 
     // write the values to be loaded to the X on the zero page
-    cpu.WriteTwoBytes(0x00004245, 0xFFEF);
+    cpu.writeTwoBytes(0x00004245, 0xFFEF);
 
-    cpu.Start(6);
+    cpu.start(6);
 
     // test X is set to the correct high endian value
     EXPECT_EQ(cpu.X, 0xFFEF);

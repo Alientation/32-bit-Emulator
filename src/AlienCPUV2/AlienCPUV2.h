@@ -33,7 +33,7 @@ class AlienCPUV2 {
         static const Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
         static const Word BRK_HANDLER_VECTOR = 0x000FFFF;
 
-        const enum StatusFlag : Byte {
+        enum StatusFlag : Byte {
             C = 0, // Carry
             Z = 1, // Zero
             I = 2, // Interrupt Disable
@@ -60,12 +60,12 @@ class AlienCPUV2 {
     public:
         AlienCPUV2(bool debugMode = false);
         void Step(u64 cycles = 1);
-        void Reset();
+        void reset();
 
     private:
-        void ClearFlag(StatusFlag bit);
-        void SetFlag(StatusFlag bit, bool isSet);
-        bool IsFlagSet(StatusFlag bit);
+        void clearFlag(StatusFlag bit);
+        void setFlag(StatusFlag bit, bool isSet);
+        bool getFlag(StatusFlag bit);
 
 };
 

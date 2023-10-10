@@ -1,17 +1,17 @@
 #include "RAM.h"
 
-void RAM::Initialize() {
+void RAM::initialize() {
 
-    // Reset memory
+    // reset memory
     for (u32 i = 0; i < MEMORY_SIZE; i++) {
         data[i] = 0;
     }
 }
 
-void RAM::WriteByte(Word address, Byte byte) {
+void RAM::writeByte(Word address, Byte byte) {
     data[address] = byte;
 }
 
-Byte RAM::ReadByte(Word address) {
+Byte RAM::readByte(Word address) {
     return data[address];
 }

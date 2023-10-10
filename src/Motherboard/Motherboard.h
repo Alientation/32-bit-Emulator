@@ -16,9 +16,9 @@ class Motherboard {
         RAM ram;
         ROM rom;
 
-        void Initialize();
-        void WriteByte(Word address, Byte byte);
-        Byte ReadByte(Word address);
+        void initialize();
+        void writeByte(Word address, Byte byte);
+        Byte readByte(Word address);
         
 };
 

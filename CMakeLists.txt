@@ -47,6 +47,12 @@ file(GLOB all_SRCS
     "tests/InstructionTests/Transfer/TransferRegistersTest.cpp"
 
     "tests/InstructionTests/Stack/StackTest.cpp"
+
+    "tests/InternalTests/ValidInstructionTest.cpp"
+    "tests/InternalTests/StatusFlagTest.cpp"
+    "tests/InternalTests/MemoryAddressingTest.cpp"
+    "tests/InternalTests/StackTest.cpp"
+    "tests/InternalTests/ResetTest.cpp"
 )
 
 include_directories(src tests)

@@ -206,45 +206,45 @@ class AlienCPU {
         
     public:
         AlienCPU();
-        void Start(u64 maxCycles = 0);
-        void Reset();
+        void start(u64 maxCycles = 0);
+        void reset();
     
     private: 
-        void InitInstructions();
+        void initInstructions();
 
-        void ClearFlag(Byte bit);
-        void SetFlag(Byte bit, bool isSet);
-        bool IsFlagSet(Byte bit);
+        void clearFlag(Byte bit);
+        void setFlag(Byte bit, bool isSet);
+        bool getFlag(Byte bit);
 
-        u16 ConvertToLowEndian(u16 highEndianValue);
-        Word ConvertToLowEndian(Word highEndianValue);
-        u16 ConvertToHighEndian(u16 lowEndianValue);
-        Word ConvertToHighEndian(Word lowEndianValue);
+        u16 convertToLowEndianTwoBytes(u16 highEndianValue);
+        Word convertToLowEndianWord(Word highEndianValue);
+        u16 convertToHighEndianTwoBytes(u16 lowEndianValue);
+        Word convertToHighEndianWord(Word lowEndianValue);
 
-        Byte ReadByte(Word highEndianAddress);
-        u16 ReadTwoBytes(Word highEndianAddress);
-        Word ReadWord(Word highEndianAddress);
+        Byte readByte(Word highEndianAddress);
+        u16 readTwoBytes(Word highEndianAddress);
+        Word readWord(Word highEndianAddress);
 
-        Byte FetchNextByte();
-        u16 FetchNextTwoBytes();
-        Word FetchNextWord();
+        Byte fetchNextByte();
+        u16 fetchNextTwoBytes();
+        Word fetchNextWord();
 
-        void WriteByte(Word highEndianAddress, Byte value);
-        void WriteTwoBytes(Word highEndianAddress, u16 highEndianValue);
-        void WriteTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue);
-        void WriteWord(Word highEndianAddress, Word highEndianValue);
-        void WriteWordAbsolute(Word highEndianAddress, Word lowEndianValue);
+        void writeByte(Word highEndianAddress, Byte value);
+        void writeTwoBytes(Word highEndianAddress, u16 highEndianValue);
+        void writeTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue);
+        void writeWord(Word highEndianAddress, Word highEndianValue);
+        void writeWordAbsolute(Word highEndianAddress, Word lowEndianValue);
 
         void SPtoAddress(Byte page = 0);
-        void PushWordToStack(Word value);
-        Word PopWordFromStack();
-        void PushTwoBytesToStack(u16 value);
-        u16 PopTwoBytesFromStack();
-        void PushByteToStack(Byte value);
-        Byte PopByteFromStack();
+        void pushWordToStack(Word value);
+        Word popWordFromStack();
+        void pushTwoBytesToStack(u16 value);
+        u16 popTwoBytesFromStack();
+        void pushByteToStack(Byte value);
+        Byte popByteFromStack();
 
-        void ExecuteInstruction(u16 instruction);
-        bool ValidInstruction(u16 instruction);
+        void executeInstruction(u16 instruction);
+        bool isValidInstruction(u16 instruction);
 
         // =====================INSTRUCTIONS=====================
         // | Instruction opcodes are 1 byte, $00 to $FF (256 possible instructions)

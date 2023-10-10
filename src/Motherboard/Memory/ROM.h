@@ -15,8 +15,8 @@ class ROM {
         Byte Data[MEMORY_SIZE];
     
     public:
-        void Initialize();
-        Byte ReadByte(Word address);
+        void initialize();
+        Byte readByte(Word address);
 };
 
 #endif // ROM_H

@@ -4,7 +4,7 @@
 
 AlienCPUV2::AlienCPUV2(bool debugMode) {
     this->debugMode = debugMode;
-    Reset();
+    reset();
 }
 
 
@@ -13,7 +13,7 @@ void AlienCPUV2::Step(u64 cycles) {
 }
 
 
-void AlienCPUV2::Reset() {
+void AlienCPUV2::reset() {
     cycles = 0;
 
     IR = 0x00;
@@ -25,16 +25,16 @@ void AlienCPUV2::Reset() {
 
 
 // Clear the specified flag bit from processor status register
-void AlienCPUV2::ClearFlag(StatusFlag flag) {
+void AlienCPUV2::clearFlag(StatusFlag flag) {
     P &= ~(1 << flag);
 }
 
 // Sets the specified flag bit from processor status register
-void AlienCPUV2::SetFlag(StatusFlag flag, bool isSet) {
+void AlienCPUV2::setFlag(StatusFlag flag, bool isSet) {
     P = (P & ~((u8)isSet << flag)) | ((u8)isSet << flag);
 }
 
 // Gets the specified flag bit from processor status register
-bool AlienCPUV2::IsFlagSet(StatusFlag flag) {
+bool AlienCPUV2::getFlag(StatusFlag flag) {
     return P & (1 << flag);
 }
