@@ -235,7 +235,9 @@ class AlienCPU {
         void writeWord(Word highEndianAddress, Word highEndianValue);
         void writeWordAbsolute(Word highEndianAddress, Word lowEndianValue);
 
-        void SPtoAddress(Byte page = 0);
+        Word SPtoAddress();
+        void pushPCToStack();
+        Word popPCFromStack();
         void pushWordToStack(Word value);
         Word popWordFromStack();
         void pushTwoBytesToStack(u16 value);

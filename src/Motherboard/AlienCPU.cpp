@@ -244,40 +244,69 @@ void AlienCPU::writeWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
 //
 //
 
-//
-void AlienCPU::SPtoAddress(Byte page) {
-
+// Converts the stack pointer to a full 32 bit address in memory on the first page
+Word AlienCPU::SPtoAddress() {
+    return 0x00010000 | SP;
 }
 
-//
+// Pushes the Program Counter to stack memory (4 bytes)
+void AlienCPU::pushPCToStack() {
+    pushWordToStack(PC);
+}
+
+// Pops the Program Counter from stack memory (4 bytes)
+Word AlienCPU::popPCFromStack() {
+    return popWordFromStack();
+}
+
+// Push 4 bytes to stack memory
 void AlienCPU::pushWordToStack(Word value) {
-
+    // push the high byte first so it comes after the low byte in memory
+    // since stack is stored backwards in memory
+    pushByteToStack(value & 0xFF000000);
+    pushByteToStack(value & 0x00FF0000);
+    pushByteToStack(value & 0x0000FF00);
+    pushByteToStack(value & 0x000000FF); // low byte
 }
 
-//
+// Pops 4 bytes from stack memory
 Word AlienCPU::popWordFromStack() {
-    SP += 4;
-    return readWord(SP);
+    // pops the little endian value from the stack and converts to high endian
+    // since stack is stored backwards, the first values read from stack are the low bytes
+    return popByteFromStack() | popByteFromStack() << 8 | popByteFromStack() << 16 | popByteFromStack() << 24;
 }
 
-//
+// Push 2 bytes to stack memory
 void AlienCPU::pushTwoBytesToStack(u16 value) {
-
+    // push the high byte first so it comes after the low byte in memory
+    // since stack is stored backwards in memory
+    pushByteToStack(value & 0xFF00);
+    pushByteToStack(value & 0x00FF); // low byte
 }
 
-//
+// Pops 2 bytes from stack memory
 u16 AlienCPU::popTwoBytesFromStack() {
-    return NULL_ADDRESS >> 8;
+    // pops the little endian value from the stack and converts to high endian
+    // since stack is stored backwards, the first values read from stack are the low bytes
+    return popByteFromStack() | popByteFromStack() << 8;
 }
 
-//
+// Push 1 byte to stack memory
 void AlienCPU::pushByteToStack(Byte value) {
+    // in the byte before the first free byte, write the value
+    writeByte(SP, value);
 
+    // move stack pointer so it points to the first free byte in stack memory
+    SP--;
 }
 
-//
+// Pops 1 byte from stack memory
 Byte AlienCPU::popByteFromStack() {
-    return NULL_ADDRESS >> 24;
+    // move stack pointer so it points to the first free byte in stack memory
+    SP++;
+
+    // read the value from the byte before the previous first free byte
+    return readByte(SP);
 }
 
 
