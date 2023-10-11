@@ -49,6 +49,52 @@ void stackTestPopByteToStack_CHAININGMETHODS() {
     std::cout << "Stack Test COMPLETED [" << count << " calls in " << elapsed_seconds.count() << "s]" << std::endl << std::endl;
 }
 
+// void stackTestPushByteToStack_INLINEMETHODS() {
+//     std::cout << "Running Stack Test: Push Byte, Inlining Methods" << std::endl;
+//     AlienCPU cpu = AlienCPU();
+//     auto start = std::chrono::system_clock::now();
+//     int count = 0; 
+
+//     for (int test = 0; test < 1000; test++) {
+//         for (int i = 0; i < 256; i++) {
+//             for (int byte = 0; byte < 0xFF; byte++) {
+//                 cpu.pushByteToStackInline(byte);
+//                 count++;
+//             }
+//         }
+
+//         cpu.SP = cpu.SP_INIT;
+//     }
+
+//     auto end = std::chrono::system_clock::now();
+//     std::chrono::duration<double> elapsed_seconds = end-start;
+
+//     std::cout << "Stack Test COMPLETED [" << count << " calls in " << elapsed_seconds.count() << "s]" << std::endl << std::endl;
+// }
+
+// void stackTestPopByteToStack_INLINEMETHODS() {
+//     std::cout << "Running Stack Test: Pop Byte, Inlining Methods" << std::endl;
+//     AlienCPU cpu = AlienCPU();
+//     auto start = std::chrono::system_clock::now();
+//     int count = 0; 
+
+//     for (int test = 0; test < 1000; test++) {
+//         cpu.SP = cpu.SP_INIT - 0x10000;
+
+//         for (int i = 0; i < 256; i++) {
+//             for (int j = 0; j < 0xFF; j++) {
+//                 cpu.popByteFromStackInline();
+//                 count++;
+//             }
+//         }
+//     }
+
+//     auto end = std::chrono::system_clock::now();
+//     std::chrono::duration<double> elapsed_seconds = end-start;
+
+//     std::cout << "Stack Test COMPLETED [" << count << " calls in " << elapsed_seconds.count() << "s]" << std::endl << std::endl;
+// }
+
 // runs some perfomance tests on the AlienCPU internal stack methods
 void runStackPerformanceTests() {
     std::cout << "Running Stack Performance Tests" << std::endl << std::endl;
@@ -56,6 +102,9 @@ void runStackPerformanceTests() {
 
     stackTestPushByteToStack_CHAININGMETHODS();
     stackTestPopByteToStack_CHAININGMETHODS();
+
+    // stackTestPushByteToStack_INLINEMETHODS();
+    // stackTestPopByteToStack_INLINEMETHODS();
 
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end-start;
