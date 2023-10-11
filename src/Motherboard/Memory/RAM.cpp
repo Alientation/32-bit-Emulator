@@ -22,3 +22,8 @@ Byte& RAM::operator[](Word address) {
     assert(address < MEMORY_SIZE && "RAM::operator[]: address out of bounds");
     return data[address];
 }
+
+const Byte& RAM::operator[](Word address) const {
+    assert(address < MEMORY_SIZE && "RAM::operator[]: address out of bounds");
+    return data[address];
+}

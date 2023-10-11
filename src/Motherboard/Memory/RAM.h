@@ -39,6 +39,7 @@ class RAM {
 
         // overload subscript operator to read and write to ram
         Byte& operator[](Word address);
+        const Byte& operator[](Word address) const;
 };
 
 

@@ -21,6 +21,7 @@ class ROM {
 
         // overload subscript operator to read and write to rom
         Byte& operator[](Word address);
+        const Byte& operator[](Word address) const;
 };
 
 #endif // ROM_H

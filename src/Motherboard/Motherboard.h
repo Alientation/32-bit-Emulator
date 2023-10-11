@@ -20,8 +20,11 @@ class Motherboard {
         void writeByte(Word address, Byte byte);
         Byte readByte(Word address);
 
-        // overload subscript operator to read and write to ram
+        // overload subscript operator to write to ram
         Byte& operator[](Word address);
+
+        // overload subscript operator to read from ram
+        const Byte& operator[](Word address) const;
         
 };
 
