@@ -245,7 +245,7 @@ void AlienCPU::writeWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
 //
 
 // Converts the stack pointer to a full 32 bit address in memory on the first page
-Word AlienCPU::SPtoAddress() {
+Word AlienCPU::SPToAddress() {
     return 0x00010000 | SP;
 }
 

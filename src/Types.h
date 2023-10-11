@@ -1,9 +1,18 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+// SUPER BAD CHEATY WAY BUT IT WORKS
+#ifdef private
+#undef private
 #include <iostream>
 #include <iomanip>
 #include <bitset>
+#define private public
+#else
+#include <iostream>
+#include <iomanip>
+#include <bitset>
+#endif
 
 using Byte = unsigned char;
 
