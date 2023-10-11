@@ -29,6 +29,7 @@ class RAM {
     public:
         static constexpr u32 MEMORY_SIZE = 0x00100000; // ~1 MB
 
+    private:
         Byte data[MEMORY_SIZE];
     
     public:
@@ -36,6 +37,8 @@ class RAM {
         void writeByte(Word address, Byte byte);
         Byte readByte(Word address);
 
+        // overload subscript operator to read and write to ram
+        Byte& operator[](Word address);
 };
 
 

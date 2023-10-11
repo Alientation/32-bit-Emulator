@@ -3,6 +3,7 @@
 #include <../src/Motherboard/Memory/RAM.h>
 #include <iostream>
 #include <iomanip>
+#include <assert.h>
 
 
 void Motherboard::initialize() {
@@ -53,4 +54,21 @@ Byte Motherboard::readByte(Word address) {
     stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
     
     throw std::invalid_argument(stream.str());
+}
+
+Byte& RAM::operator[](Word address) {
+    Word searchAddress = address;
+    if (searchAddress <= RAM::MEMORY_SIZE) {
+        return data[searchAddress];
+    }
+    searchAddress -= RAM::MEMORY_SIZE;
+
+    if (searchAddress <= ROM::MEMORY_SIZE) {
+        throw "Cannot write to ROM";
+    }
+    searchAddress -= ROM::MEMORY_SIZE;
+
+    // throw out of bounds memory address error
+    std::stringstream stream;
+    stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
 }

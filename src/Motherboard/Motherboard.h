@@ -11,14 +11,17 @@
 class Motherboard;
 
 class Motherboard {
-
-    public:
+    private:
         RAM ram;
         ROM rom;
 
+    public:
         void initialize();
         void writeByte(Word address, Byte byte);
         Byte readByte(Word address);
+
+        // overload subscript operator to read and write to ram
+        Byte& operator[](Word address);
         
 };
 

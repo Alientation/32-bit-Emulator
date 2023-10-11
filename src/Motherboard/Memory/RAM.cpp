@@ -1,5 +1,7 @@
 #include "RAM.h"
 
+#include <assert.h>
+
 void RAM::initialize() {
 
     // reset memory
@@ -13,5 +15,10 @@ void RAM::writeByte(Word address, Byte byte) {
 }
 
 Byte RAM::readByte(Word address) {
+    return data[address];
+}
+
+Byte& RAM::operator[](Word address) {
+    assert(address < MEMORY_SIZE && "RAM::operator[]: address out of bounds");
     return data[address];
 }
