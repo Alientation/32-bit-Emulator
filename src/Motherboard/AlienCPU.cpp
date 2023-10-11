@@ -241,7 +241,13 @@ void AlienCPU::writeWordAbsolute(Word highEndianAddress, Word lowEndianValue) {
 
 
 // =======================STACK============================
-//
+// Stack representation in memory
+// [0x00000000]
+// [0x00010000] End of stack memory
+// [SP]         First free byte in stack memory
+// [SP+1]       Last used byte in stack memory
+// [0x0001FFFF] Start of stack memory
+// [0x000FFFFF]
 //
 
 // Converts the stack pointer to a full 32 bit address in memory on the first page
@@ -263,7 +269,7 @@ Word AlienCPU::popPCFromStack() {
 void AlienCPU::pushWordToStack(Word value) {
     // push the high byte first so it comes after the low byte in memory
     // since stack is stored backwards in memory
-    pushByteToStack(value & 0xFF000000);
+    pushByteToStack(value & 0xFF000000); // high byte
     pushByteToStack(value & 0x00FF0000);
     pushByteToStack(value & 0x0000FF00);
     pushByteToStack(value & 0x000000FF); // low byte
@@ -273,14 +279,18 @@ void AlienCPU::pushWordToStack(Word value) {
 Word AlienCPU::popWordFromStack() {
     // pops the little endian value from the stack and converts to high endian
     // since stack is stored backwards, the first values read from stack are the low bytes
-    return popByteFromStack() | popByteFromStack() << 8 | popByteFromStack() << 16 | popByteFromStack() << 24;
+    Word value = popByteFromStack(); // low byte
+    value |= popByteFromStack() << 8;
+    value |= popByteFromStack() << 16;
+    value |= popByteFromStack() << 24; // high byte
+    return value;
 }
 
 // Push 2 bytes to stack memory
 void AlienCPU::pushTwoBytesToStack(u16 value) {
     // push the high byte first so it comes after the low byte in memory
     // since stack is stored backwards in memory
-    pushByteToStack(value & 0xFF00);
+    pushByteToStack(value & 0xFF00); // high byte
     pushByteToStack(value & 0x00FF); // low byte
 }
 
@@ -288,13 +298,15 @@ void AlienCPU::pushTwoBytesToStack(u16 value) {
 u16 AlienCPU::popTwoBytesFromStack() {
     // pops the little endian value from the stack and converts to high endian
     // since stack is stored backwards, the first values read from stack are the low bytes
-    return popByteFromStack() | popByteFromStack() << 8;
+    u16 value = popByteFromStack(); // low byte
+    value |= popByteFromStack() << 8; // high byte
+    return value;
 }
 
 // Push 1 byte to stack memory
 void AlienCPU::pushByteToStack(Byte value) {
-    // in the byte before the first free byte, write the value
-    writeByte(SP, value);
+    // write the value in the first free byte represented by the Stack Pointer
+    writeByte(SPToAddress(), value);
 
     // move stack pointer so it points to the first free byte in stack memory
     SP--;
@@ -305,8 +317,8 @@ Byte AlienCPU::popByteFromStack() {
     // move stack pointer so it points to the first free byte in stack memory
     SP++;
 
-    // read the value from the byte before the previous first free byte
-    return readByte(SP);
+    // read the value from the byte at the now free byte represented by the Stack Pointer
+    return readByte(SPToAddress());
 }
 
 
