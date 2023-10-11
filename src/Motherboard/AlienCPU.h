@@ -46,6 +46,7 @@ class AlienCPU {
     public:
         static const std::string VERSION;
 
+        // TODO decide whether this is needed
         // Number of cycles between each Interrupt check
         static const Word INTERRUPT_CHECK_INTERVAL = 16;
 
@@ -65,7 +66,7 @@ class AlienCPU {
         static const Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
 
         // Jump address to handle software interrupts (high endian)
-        static const Word BRK_HANDLER_VECTOR = 0x000FFFF;
+        static const Word BRK_HANDLER_VECTOR = 0x000FFFF8;
 
 
         // Program Stack
@@ -78,7 +79,7 @@ class AlienCPU {
         static const Word PC_INIT = POWER_ON_RESET_VECTOR;
         
         static constexpr u16 // (high endian)
-            // stored as an offset from 0x00000100
+            // stored as an offset from 0x00010000 so start of stack is at 0x0001FFFF
             SP_INIT = 0xFFFF,
 
             A_INIT = 0x0000, 
@@ -98,8 +99,7 @@ class AlienCPU {
             V_FLAG = 6,
             N_FLAG = 7;
 
-    //private:
-        
+    private:
         // Instruction Set
         using Instruction = std::function<void(AlienCPU&)>;
         Instruction instructions[INSTRUCTION_COUNT];
@@ -108,10 +108,13 @@ class AlienCPU {
 
         // System Memory
         // 0x00100000 total memory (0x00000000 - 0x000FFFFF)
+        // 
+        // 0x00010000 Pages memory (0x000N0000 - 0x000NFFFF)
         //
         // 0x00000000 - 0x000000FF : Reserved for boot process
-        // 0x00000100 - 0x000100FF : Stack memory
-        // 0x00010100 - 0x000FFFFF : General purpose memory 
+        // 0x00000100 - 0x0000FFFF : Zero Page memory
+        // 0x00010000 - 0x0001FFFF : Stack memory
+        // 0x00020000 - 0x000FFFFF : General purpose memory 
         Motherboard motherboard;
 
         // Number of cycles till the next Interrupt should be processed
@@ -129,15 +132,17 @@ class AlienCPU {
         Word PC; 
 
         // ===============STACK=POINTER=REGISTER================
-        //  - high endian memory address of the first byte of the top element of the call stack
+        //  - high endian memory address of the first empty byte of the call stack (located in first page)
         //    stored as [high byte, low byte]
-        //  - represents an offset from the start of the stack page
+        //  - represents an offset from the start of the stack page, therefore to reference the stack
+        //    memory, the stack pointer must be converted to the correct address
         //  - every stack element is 4 bytes big so to add elements to the stack, 
         //    the stack pointer is decremented by 4 (TODO figure out stack element sizes)
-        //      - [SP+0] = byte 3
-        //      - [SP+1] = byte 2      (little endian)
-        //      - [SP+2] = byte 1
-        //      - [SP+3] = byte 0
+        //      - [SP]   = empty stack element
+        //      - [SP+1] = byte 0
+        //      - [SP+2] = byte 1      (little endian)
+        //      - [SP+3] = byte 2
+        //      - [SP+4] = byte 3
         // https://en.wikipedia.org/wiki/Stack_register
         // https://en.wikipedia.org/wiki/Call_stack
         u16 SP;
