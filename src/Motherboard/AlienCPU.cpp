@@ -354,32 +354,38 @@ Byte AlienCPU::popByteFromStack() {
 
 // Sets ZERO flag if the modified register is 0 and NEGATIVE flag if the 
 // last bit of the modified register is set
-void AlienCPU::UPDATE_FLAGS(u16 modifiedRegister) {
-    setFlag(Z_FLAG, modifiedRegister == 0);
-    setFlag(N_FLAG, modifiedRegister >> 15);
+void AlienCPU::UPDATE_FLAGS(u16 modifiedValue) {
+    setFlag(Z_FLAG, modifiedValue == 0);
+    setFlag(N_FLAG, modifiedValue >> 15);
 }
 
+
+// =====================ADDRESSING=MODE=ACCUMULATOR=====================
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
-void AlienCPU::ADDRESSING_MODE_ACCUMULATOR() {
-    cycles++;
+void AlienCPU::ADDRESSING_ACCUMULATOR() {
+    cycles++; // 2
 }
 
+
+// =====================ADDRESSING=MODE=IMPLIED=====================
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
-void AlienCPU::ADDRESSING_MODE_IMPLIED() {
-    cycles++;
+void AlienCPU::ADDRESSING_IMPLIED() {
+    cycles++; // 2
 }
 
 
+// =====================ADDRESSING=MODE=IMMEDIATE=====================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch high byte address from PC, increment PC
-u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES() {
-    return fetchNextTwoBytes();
+u16 AlienCPU::ADDRESSING_IMMEDIATE_READ_TWOBYTES() {
+    return fetchNextTwoBytes(); // 2-3
 }
 
 
+// =====================ADDRESSING=MODE=ABSOLUTE=====================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -387,9 +393,25 @@ u16 AlienCPU::ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES() {
 // 5: fetch high byte address from PC, increment PC
 // 6: read into register's low byte from effective address
 // 7: read into register's high byte from effective address + 1
-u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES() {
-    Word address = fetchNextWord();
-    return readTwoBytes(address);
+u16 AlienCPU::ADDRESSING_ABSOLUTE_READ_TWOBYTES() {
+    Word address = fetchNextWord(); // 2-5
+    return readTwoBytes(address); // 6-7
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC
+// 5: fetch high byte address from PC, increment PC
+// 6: read byte from effective address
+// 7: useless write the value back to effective address, decrement value 
+// 8: write the decremented value back to effective address
+Byte AlienCPU::ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE() {
+    Word address = fetchNextWord(); // 2-5
+    Byte value = readByte(address); // 6
+    value--; cycles++; // 7
+    motherboard.writeByte(address, value); // 8
+    return value;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -399,12 +421,13 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES() {
 // 5: fetch high byte address from PC, increment PC
 // 6: write register's low byte to effective address
 // 7: write register's high byte to effective address + 1
-void AlienCPU::ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
-    Word address = fetchNextWord();
-    writeTwoBytes(address, registerValue);
+void AlienCPU::ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
+    Word address = fetchNextWord(); // 2-5
+    writeTwoBytes(address, registerValue); // 6-7
 }
 
 
+// =====================ADDRESSING=MODE=ABSOLUTE=INDEXED=====================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -414,15 +437,33 @@ void AlienCPU::ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
 // 7: read high byte from effective address + 1
 // 8+: read low byte from effective address if high byte changed
 // 9+: read low byte from effective address + 1 if high byte changed
-u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
-    Word address = fetchNextWord();
+u16 AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
+    Word address = fetchNextWord(); // 2-5
     
-    // check for page crossing, solely for accurate cycle counting
+    // check for page crossing
     if ((address | 0x0000FFFF) < (address + indexRegister)) { // fill last 2 bytes with max value
-        cycles+=2;
+        cycles+=2; // 6-7
     }
 
-    return readTwoBytes(address + indexRegister);
+    return readTwoBytes(address + indexRegister); // 6-7 or 8-9
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low byte address from PC, increment PC
+// 4: fetch mid high byte address from PC, increment PC, add index register to lower 2 bytes of effective address
+// 5: fetch high byte address from PC, increment PC
+// 6: useless read from effective address, fix the high 2 bytes of the effective address
+// 7: read the value from effective address
+// 8: useless write the value back to effective address, decrement value
+// 9: write the decremented value back to effective address
+Byte AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister) {
+    Word address = fetchNextWord(); // 2-5
+    cycles++; // 6 (fix high bytes)
+    Byte value = readByte(address + indexRegister); // 7
+    value--; cycles++ ; // 8
+    motherboard.writeByte(address, value ); // 9
+    return value;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -433,13 +474,14 @@ u16 AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) 
 // 6: useless read from effective address, fix the high 2 bytes of the effective address
 // 7: write register's low byte to effective address
 // 8: write register's high byte to effective address + 1
-void AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
-    Word address = fetchNextWord() + indexRegister;
-    cycles++;
-    writeTwoBytes(address, registerValue);
+void AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
+    Word address = fetchNextWord(); // 2-5
+    address += indexRegister; cycles++; // 6
+    writeTwoBytes(address, registerValue); // 7-8
 }
 
 
+// =====================ADDRESSING=MODE=XINDEXED=INDIRECT=====================s
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -450,11 +492,11 @@ void AlienCPU::ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister
 // 8: fetch high byte address from calculated effective zero page address + 3
 // 9: read low byte from calculated effective address
 // 10: read high byte from calculated effective address + 1
-u16 AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES() {
-    u16 zeroPageAddressOfAddress = fetchNextTwoBytes() + X;
-    Word address = readWord(zeroPageAddressOfAddress);
-    cycles++;
-    return readTwoBytes(address);
+u16 AlienCPU::ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES() {
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddressOfAddress += X; cycles++; // 4
+    Word address = readWord(zeroPageAddressOfAddress); // 5-8
+    return readTwoBytes(address); // 9-10
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -467,14 +509,15 @@ u16 AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES() {
 // 8: fetch high byte address from calculated effective zero page address + 3
 // 9: write register's low byte to calculated effective address
 // 10: write register's high byte to calculated effective address + 1
-void AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValue) {
-    u16 zeroPageAddressOfAddress = fetchNextTwoBytes() + X;
-    Word address = readWord(zeroPageAddressOfAddress);
-    cycles++;
-    writeTwoBytes(address, registerValue);
+void AlienCPU::ADDRESSING_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValue) {
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddressOfAddress += X; cycles++; // 4
+    Word address = readWord(zeroPageAddressOfAddress); // 5-8
+    writeTwoBytes(address, registerValue); // 9-10
 }
 
 
+// =====================ADDRESSING=MODE=INDIRECT=YINDEXED=====================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -486,17 +529,17 @@ void AlienCPU::ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValu
 // 9: read high byte from calculated effective address + 1
 // 10+: read low byte from calculated effective address if high 2 bytes changed
 // 11+: read high byte from calculated effective address + 1 if high 2 bytes changed
-u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES() {
+u16 AlienCPU::ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES() {
     // get address in the zero page that points to part of the address of the data
-    u16 zeroPageAddressOfAddress = fetchNextTwoBytes();
-    Word address = readWord(zeroPageAddressOfAddress);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes(); // 2-3
+    Word address = readWord(zeroPageAddressOfAddress); // 4-7
 
-    // check for page crossing, solely for accurate cycle counting
+    // check for page crossing
     if ((address | 0x0000FFFF) < (address + Y)) {
-        cycles+=2;
+        cycles+=2; // 8-9
     }
 
-    return readTwoBytes(address + Y);
+    return readTwoBytes(address + Y); // 8-9 or 10-11
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -509,23 +552,38 @@ u16 AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES() {
 // 8: useless read from calculated effective address, fix high 2 bytes of effective address
 // 9: write register's low byte to calculated effective address
 // 10: write register's high byte to calculated effective address + 1
-void AlienCPU::ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValue) {
+void AlienCPU::ADDRESSING_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValue) {
     // get address in the zero page that points to part of the address of the data
-    u16 zeroPageAddressOfAddress = fetchNextTwoBytes();
-    Word address = readWord(zeroPageAddressOfAddress);
-    cycles++;
-    writeTwoBytes(address + Y, registerValue);
+    u16 zeroPageAddressOfAddress = fetchNextTwoBytes(); // 2-3
+    Word address = readWord(zeroPageAddressOfAddress); // 4-7
+    cycles++; // 8 (fix high bytes)
+    writeTwoBytes(address + Y, registerValue); // 9-10
 }
 
 
+// ===================ADDRESSING=MODE=ZEROPAGE===================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address from PC, increment PC
 // 4: read low byte from effective zero page address
 // 5: read high byte from effective zero page address + 1
-u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES() {
-    u16 zeroPageAddress = fetchNextTwoBytes();
-    return readTwoBytes(zeroPageAddress);
+u16 AlienCPU::ADDRESSING_ZEROPAGE_READ_TWOBYTES() {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    return readTwoBytes(zeroPageAddress); // 4-5
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address from PC, increment PC
+// 4: read byte from effective zero page address
+// 5: useless write the value back to effective zero page address, decrement value
+// 6: write the decremented value back to effective zero page address
+Byte AlienCPU::ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE() {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    Byte value = readByte(zeroPageAddress); // 4
+    value--; cycles++; // 5
+    motherboard.writeByte(zeroPageAddress, value); // 6
+    return value;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -533,22 +591,39 @@ u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES() {
 // 3: fetch mid low zero page address from PC, increment PC
 // 4: write register's low byte to effective zero page address
 // 5: write register's high byte to effective zero page address + 1
-void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(u16 registerValue) {
-    u16 zeroPageAddress = fetchNextTwoBytes();
-    writeTwoBytes(zeroPageAddress, registerValue);
+void AlienCPU::ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(u16 registerValue) {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    writeTwoBytes(zeroPageAddress, registerValue); // 4-5
 }
 
 
+// ===================ADDRESSING=MODE=ZEROPAGE=INDEXED===================
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
 // 4: read useless data, add index register to base zero page address (wraps around in zero page)
 // 5: read low byte from calculated effective zero page address
 // 6: read high byte from calculated effective zero page address + 1
-u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
-    u16 zeroPageAddress = fetchNextTwoBytes() + indexRegister;
-    cycles++;
-    return readTwoBytes(zeroPageAddress);
+u16 AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddress += indexRegister; cycles++; // 4
+    return readTwoBytes(zeroPageAddress); // 5-6
+}
+
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add index register to base zero page address (wraps around in zero page)
+// 5: read byte from calculated effective zero page address
+// 6: useless write the value back to calculated effective zero page address, decrement value
+// 7: write the decremented value back to calculated effective zero page address
+Byte AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister) {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddress += indexRegister; cycles++; // 4
+    Byte value = readByte(zeroPageAddress); // 5
+    value--; cycles++; // 6
+    motherboard.writeByte(zeroPageAddress, value); // 7
+    return value;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -557,10 +632,10 @@ u16 AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(u16 indexRegister)
 // 4: read useless data, add index register to base zero page address (wraps around in zero page)
 // 5: write register's low byte from calculated effective zero page address
 // 6: write register's high byte from calculated effective zero page address + 1
-void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
-    u16 zeroPageAddress = fetchNextTwoBytes() + indexRegister;
-    cycles++;
-    writeTwoBytes(zeroPageAddress, registerValue);
+void AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue) {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddress += indexRegister; cycles++; // 4
+    writeTwoBytes(zeroPageAddress, registerValue); // 5-6
 }
 
 
@@ -569,56 +644,56 @@ void AlienCPU::ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegiste
 // LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
-    A = ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES();
+    A = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE ($AD | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode load value
 void AlienCPU::_AD_LDA_Absolute_Instruction() {
-    A = ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES();
+    A = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BD_LDA_Absolute_XIndexed_Instruction() {
-    A = ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
+    A = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ABSOLUTE Y-INDEXED ($B9 | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_B9_LDA_Absolute_YIndexed_Instruction() {
-    A = ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
+    A = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR X-INDEXED INDIRECT ($A1 | 3 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode load value
 void AlienCPU::_A1_LDA_XIndexed_Indirect_Instruction() {
-    A = ADDRESSING_MODE_XINDEXED_INDIRECT_READ_TWOBYTES();
+    A = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR INDIRECT Y-INDEXED ($B1 | 3 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode load value
 void AlienCPU::_B1_LDA_Indirect_YIndexed_Instruction() {
-    A = ADDRESSING_MODE_INDIRECT_YINDEXED_READ_TWOBYTES();
+    A = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ZEROPAGE ($A5 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode load value
 void AlienCPU::_A5_LDA_ZeroPage_Instruction() {
-    A = ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES();
+    A = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
 // LOAD ACCUMULATOR ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
-    A = ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(X);
+    A = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
@@ -627,35 +702,35 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
 // LOAD X IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A2_LDX_Immediate_Instruction() {
-    X = ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES();
+    X = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
 // LOAD X ABSOLUTE ($AD | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode load value
 void AlienCPU::_AE_LDX_Absolute_Instruction() {
-    X = ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES();
+    X = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
 // LOAD X ABSOLUTE Y-INDEXED ($BD | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BE_LDX_Absolute_YIndexed_Instruction() {
-    X = ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
+    X = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(X);
 }
 
 // LOAD X ZEROPAGE ($A5 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode load value
 void AlienCPU::_A6_LDX_ZeroPage_Instruction() {
-    X = ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES();
+    X = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(X);
 }
 
 // LOAD X ZEROPAGE Y-INDEXED ($B5 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
-    X = ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(Y);
+    X = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(X);
 }
 
@@ -664,35 +739,35 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
 // LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A0_LDY_Immediate_Instruction() {
-    Y = ADDRESSING_MODE_IMMEDIATE_READ_TWOBYTES();
+    Y = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ABSOLUTE ($AD | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode load value
 void AlienCPU::_AC_LDY_Absolute_Instruction() {
-    Y = ADDRESSING_MODE_ABSOLUTE_READ_TWOBYTES();
+    Y = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ABSOLUTE X-INDEXED ($BD | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode load value
 void AlienCPU::_BC_LDY_Absolute_XIndexed_Instruction() {
-    Y = ADDRESSING_MODE_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
+    Y = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ZEROPAGE ($A5 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode load value
 void AlienCPU::_A4_LDY_ZeroPage_Instruction() {
-    Y = ADDRESSING_MODE_ZERO_PAGE_READ_TWOBYTES();
+    Y = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(Y);
 }
 
 // LOAD Y ZEROPAGE X-INDEXED ($B5 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode load value
 void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
-    Y = ADDRESSING_MODE_ZERO_PAGE_INDEXED_READ_TWOBYTES(X);
+    Y = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(Y);
 }
 
@@ -701,43 +776,43 @@ void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
 // STORE ACCUMULATOR ABSOLUTE ($8D | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8D_STA_Absolute_Instruction() {
-    ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(A);
+    ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(A);
 }
 
 // STORE ACCUMULATOR ABSOLUTE X-INDEXED ($9D | 5 bytes | 7 cycles)
 // 1-8: Absolute indexed addressing mode store value
 void AlienCPU::_9D_STA_Absolute_XIndexed_Instruction() {
-    ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(X, A);
+    ADDRESSING_ABSOLUTE_INDEXED_WRITE_TWOBYTES(X, A);
 }
 
 // STORE ACCUMULATOR ABSOLUTE Y-INDEXED ($99 | 5 bytes | 7 cycles)
 // 1-8: Absolute indexed addressing mode store value
 void AlienCPU::_99_STA_Absolute_YIndexed_Instruction() {
-    ADDRESSING_MODE_ABSOLUTE_INDEXED_WRITE_TWOBYTES(Y, A);
+    ADDRESSING_ABSOLUTE_INDEXED_WRITE_TWOBYTES(Y, A);
 }
 
 // STORE ACCUMULATOR X-INDEXED INDIRECT ($81 | 3 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode store value
 void AlienCPU::_81_STA_XIndexed_Indirect_Instruction() {
-    ADDRESSING_MODE_XINDEXED_INDIRECT_WRITE_TWOBYTES(A);
+    ADDRESSING_XINDEXED_INDIRECT_WRITE_TWOBYTES(A);
 }
 
 // STORE ACCUMULATOR INDIRECT Y-INDEXED ($91 | 3 bytes | 10 cycles)
 // 1-10: Indirect Y indexed addressing mode store value
 void AlienCPU::_91_STA_Indirect_YIndexed_Instruction() {
-    ADDRESSING_MODE_INDIRECT_YINDEXED_WRITE_TWOBYTES(A);
+    ADDRESSING_INDIRECT_YINDEXED_WRITE_TWOBYTES(A);
 }
 
 // STORE ACCUMULATOR ZEROPAGE ($85 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode store value
 void AlienCPU::_85_STA_ZeroPage_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(A);
+    ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(A);
 }
 
 // STORE ACCUMULATOR ZEROPAGE X-INDEXED ($95 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode store value
 void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(X, A);
+    ADDRESSING_ZEROPAGE_INDEXED_WRITE_TWOBYTES(X, A);
 }
 
 
@@ -745,19 +820,19 @@ void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
 // STORE X REGISTER ABSOLUTE ($8E | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8E_STX_Absolute_Instruction() {
-    ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(X);
+    ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(X);
 }
 
 // STORE X REGISTER ZEROPAGE ($86 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode store value
 void AlienCPU::_86_STX_ZeroPage_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(X);
+    ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(X);
 }
 
 // STORE X REGISTER ZEROPAGE Y-INDEXED ($96 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode store value
 void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(Y, X);
+    ADDRESSING_ZEROPAGE_INDEXED_WRITE_TWOBYTES(Y, X);
 }
 
 
@@ -765,26 +840,26 @@ void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
 // STORE Y REGISTER ABSOLUTE ($8C | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8C_STY_Absolute_Instruction() {
-    ADDRESSING_MODE_ABSOLUTE_WRITE_TWOBYTES(Y);
+    ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(Y);
 }
 
 // STORE Y REGISTER ZEROPAGE ($84 | 3 bytes | 3 cycles)
 // 1-3: Zero page addressing mode store value
 void AlienCPU::_84_STY_ZeroPage_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_WRITE_TWOBYTES(Y);
+    ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(Y);
 }
 
 // STORE Y REGISTER ZEROPAGE X-INDEXED ($94 | 3 bytes | 4 cycles)
 // 1-4: Zero page indexed addressing mode store value
 void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
-    ADDRESSING_MODE_ZERO_PAGE_INDEXED_WRITE_TWOBYTES(X, Y);
+    ADDRESSING_ZEROPAGE_INDEXED_WRITE_TWOBYTES(X, Y);
 }
 
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
 // 1-2: Implied addressing mode
 void AlienCPU::_AA_TAX_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     X = A;
     UPDATE_FLAGS(X);
 }
@@ -793,7 +868,7 @@ void AlienCPU::_AA_TAX_Implied_Instruction() {
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
 // 1-2: Implied addressing mode
 void AlienCPU::_A8_TAY_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     Y = A;
     UPDATE_FLAGS(Y);
 }
@@ -802,7 +877,7 @@ void AlienCPU::_A8_TAY_Implied_Instruction() {
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
 // 1-2: Implied addressing mode
 void AlienCPU::_BA_TSX_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     X = SP;
     UPDATE_FLAGS(X);
 }
@@ -811,7 +886,7 @@ void AlienCPU::_BA_TSX_Implied_Instruction() {
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
 // 1-2: Implied addressing mode
 void AlienCPU::_8A_TXA_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     A = X;
     UPDATE_FLAGS(A);
 }
@@ -820,7 +895,7 @@ void AlienCPU::_8A_TXA_Implied_Instruction() {
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
 // 1-2: Implied addressing mode
 void AlienCPU::_9A_TXS_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     SP = X;
     UPDATE_FLAGS(SP);
 }
@@ -829,7 +904,7 @@ void AlienCPU::_9A_TXS_Implied_Instruction() {
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
 // 1-2: Implied addressing mode
 void AlienCPU::_98_TYA_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     A = Y;
     UPDATE_FLAGS(A);
 }
@@ -840,7 +915,7 @@ void AlienCPU::_98_TYA_Implied_Instruction() {
 // 1-2: Implied addressing mode (useless read so the high byte of accumulator can be written to stack)
 // 3: useless read so the low byte of accumulator can be written to stack
 void AlienCPU::_48_PHA_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     pushTwoBytesToStack(A);
     cycles++;
 }
@@ -849,7 +924,7 @@ void AlienCPU::_48_PHA_Implied_Instruction() {
 // =================PUSH=PROCESSOR=STATUS================
 // 1-2: Implied addressing mode (useless read so the processor status can be written to stack)
 void AlienCPU::_08_PHP_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     pushByteToStack(P);
 }
 
@@ -858,7 +933,7 @@ void AlienCPU::_08_PHP_Implied_Instruction() {
 // 1-2: Implied addressing mode (read low byte of accumulator from stack)
 // 3: read high byte of accumulator from stack
 void AlienCPU::_68_PLA_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     A = popTwoBytesFromStack();
     cycles++;
 }
@@ -867,19 +942,22 @@ void AlienCPU::_68_PLA_Implied_Instruction() {
 // =================POP=PROCESSOR=STATUS=================
 // 1-2: Implied addressing mode (read processor status from stack)
 void AlienCPU::_28_PLP_Implied_Instruction() {
-    ADDRESSING_MODE_IMPLIED();
+    ADDRESSING_IMPLIED();
     P = popByteFromStack();
 }
 
 
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
+// 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
-    
+    Byte value = ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE();
+    UPDATE_FLAGS(value);
 }
 
 void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {
-
+    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
+    UPDATE_FLAGS(value);
 }
 
 void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
