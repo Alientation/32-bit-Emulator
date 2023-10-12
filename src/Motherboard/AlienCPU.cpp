@@ -308,7 +308,7 @@ u16 AlienCPU::popTwoBytesFromStack() {
 // Push 1 byte to stack memory
 void AlienCPU::pushByteToStack(Byte value) {
     // write the value in the first free byte represented by the Stack Pointer
-    writeByte(SPToAddress(), value);
+    motherboard.writeByte(SPToAddress(), value);
 
     // move stack pointer so it points to the first free byte in stack memory
     SP--;
@@ -320,7 +320,7 @@ Byte AlienCPU::popByteFromStack() {
     SP++;
 
     // read the value from the byte at the now free byte represented by the Stack Pointer
-    return readByte(SPToAddress());
+    return motherboard.readByte(SPToAddress());
 }
 
 
