@@ -51,7 +51,7 @@ class AlienCPU {
         static constexpr Word INTERRUPT_CHECK_INTERVAL = 16;
 
 
-        // ================INSTRUCTIONS================
+        // ============================INSTRUCTIONS============================
         // Total Number of instructions supported by the processor
         static constexpr u16 INSTRUCTION_COUNT = 256;
 
@@ -124,14 +124,14 @@ class AlienCPU {
         u64 cycles;
 
 
-        // ==============PROGRAM=COUNTER=REGISTER===============
+        // ======================PROGRAM=COUNTER=REGISTER=======================
         //  - high endian memory address of the next instruction byte to be executed,
         //    stored as [high byte, mid high byte, mid low byte, low byte]
         //  - can be modified by the execution of a jump, subroutine (function) call, or branches (if/else)
         //    or by returning from a subroutine or interrupt
         Word PC; 
 
-        // ===============STACK=POINTER=REGISTER================
+        // =======================STACK=POINTER=REGISTER========================
         //  - high endian memory address of the first empty byte of the call stack (located in first page)
         //    stored as [high byte, low byte]
         //  - represents an offset from the start of the stack page, therefore to reference the stack
@@ -147,10 +147,10 @@ class AlienCPU {
         // https://en.wikipedia.org/wiki/Call_stack
         u16 SP;
 
-        // ==============GENERAL=PURPOSE=REGISTERS==============
+        // ======================GENERAL=PURPOSE=REGISTERS======================
         // https://codebase64.org/doku.php?id=base:6502_registers
 
-        // =============ACCUMULATOR=REGISTER=====================
+        // ========================ACCUMULATOR=REGISTER=========================
         // high endian main register for arithmetic and logic operations (direct connection to ALU)
         // stored as [high byte, low byte]
         u16 A;
@@ -164,7 +164,7 @@ class AlienCPU {
         u16 Y;
 
 
-        // ==============PROCESSOR=STATUS=REGISTER==============
+        // ======================PROCESSOR=STATUS=REGISTER======================
         // https://codebase64.org/doku.php?id=base:6502_registers
         // https://www.nesdev.org/wiki/Status_flags
         // stores flags
@@ -253,7 +253,7 @@ class AlienCPU {
         void executeInstruction(u16 instruction);
         bool isValidInstruction(u16 instruction);
 
-        // =====================INSTRUCTIONS=====================
+        // =========================INSTRUCTIONS=========================
         // | Instruction opcodes are 1 byte, $00 to $FF (256 possible instructions)
         // |
         // |    *   add 1 to cycles if page boundary is crossed
@@ -296,7 +296,7 @@ class AlienCPU {
         void ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(u16 registerValue);
         void ADDRESSING_ZEROPAGE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue);
 
-        // ======================TRANSFER========================
+        // ==========================TRANSFER============================
         // | LDA    :   Load Accumulator
         // | LDX    :   Load X register
         // | LDY    :   Load Y register
@@ -359,7 +359,7 @@ class AlienCPU {
         void _98_TYA_Implied_Instruction();
         
         
-        // ========================STACK=========================
+        // ============================STACK=============================
         // | PHA    :   Push Accumulator onto stack
         // | PHP    :   Push Processor Status register onto stack (sets break flag)
         // | PLA    :   Pull Accumulator from stack
@@ -373,7 +373,7 @@ class AlienCPU {
         void _28_PLP_Implied_Instruction();
 
 
-        // ================DECREMENTS=&=INCREMENTS===============
+        // ====================DECREMENTS=&=INCREMENTS===================
         // | DEC    :   Decrement values stored in memory
         // | DEX    :   Decrement X register
         // | DEY    :   Decrement Y register
@@ -399,7 +399,7 @@ class AlienCPU {
         void _C8_INY_Implied_Instruction();
         
 
-        // =================ARITHMETIC=OPERATIONS================
+        // =====================ARITHMETIC=OPERATIONS=====================
         // | https://www.masswerk.at/6502/6502_instruction_set.html#arithmetic
         // | ADC    :   Add with carry (prepare by CLC)
         // | SBC    :   Subtract with carry (prepare by SEC)
@@ -421,7 +421,7 @@ class AlienCPU {
         void _F9_SBC_Absolute_YIndexed_Instruction();
         void _FD_SBC_Absolute_XIndexed_Instruction();
         
-        // ==================LOGICAL=OPERATIONS==================
+        // ======================LOGICAL=OPERATIONS=======================
         // | AND    :   And (with Accumulator)
         // | EOR    :   Exclusive or (with Accumulator)
         // | ORA    :   Or (with Accumulator)
@@ -453,7 +453,7 @@ class AlienCPU {
         void _1D_ORA_Absolute_XIndexed_Instruction();
 
 
-        // ====================SHIFT=&=ROTATE====================
+        // ========================SHIFT=&=ROTATE=========================
         // | ASL    :   Arithmetic shift left (shifts in a zero bit on the right)
         // | LSR    :   Logical shift right (shifts in a zero bit from the left)
         // | ROL    :   Rotate left (shifts in a carry bit on the right)
@@ -484,7 +484,7 @@ class AlienCPU {
 
 
 
-        // =========================FLAG==========================
+        // =============================FLAG==============================
         // | CLC    :   Clear carry flag
         // | CLD    :   Clear decimal flag (Binary Coded Decimal arithmetics disabled)
         // | CLI    :   Clear interrupt disable flag
@@ -507,7 +507,7 @@ class AlienCPU {
         void _78_SEI_Implied_Instruction();
 
 
-        // =====================COMPARISONS======================
+        // =========================COMPARISONS===========================
         // | CMP    :   Compare (with Accumulator)
         // | CPX    :   Compare with X register
         // | CPY    :   Compare with Y register
@@ -529,7 +529,7 @@ class AlienCPU {
         void _CC_CPY_Absolute_Instruction();
         
 
-        // ==================CONDITIONAL=BRANCH==================
+        // ======================CONDITIONAL=BRANCH=======================
         // | BCC    :   Branch if carry clear
         // | BCS    :   Branch if carry set
         // | BEQ    :   Branch on equal (zero set)
@@ -555,7 +555,7 @@ class AlienCPU {
         void _70_BVS_Relative_Instruction();
 
 
-        // ==================JUMPS=&=SUBROUTINES=================
+        // =======================JUMPS=&=SUBROUTINES======================
         // | JMP    :   Jump
         // | JSR    :   Jump to subroutine
         // | RTS    :   Return from subroutine
@@ -567,14 +567,14 @@ class AlienCPU {
         void _60_RTS_Implied_Instruction();
 
 
-        // ====================INTERRUPTS========================
+        // =========================INTERRUPTS============================
         // | BRK    :   Break / software interrupt
         // | RTI    :   Return from interrupt
         void _02_BRK_Implied_Instruction(); // moved from $00 to $02, replacing the illegal opcode JAM
         
         void _40_RTI_Implied_Instruction();
 
-        // =========================OTHER=========================
+        // =============================OTHER=============================
         // | BIT    :   Bit test (Accumulator & Memory)
         // | NULL   :   No operation
         // | NOP    :   No operation
@@ -615,7 +615,7 @@ class AlienCPU {
         void _FC_NOP_Absolute_XIndexed_Illegal_Instruction();
 
 
-        // ========================ILLEGAL========================
+        // =============================ILLEGAL=============================
         // | ALR    :   
         // | ANC    : 
         // | ANE    :   
@@ -737,7 +737,7 @@ class AlienCPU {
 
         
 
-        // =====================ADDRESS=MODES=====================
+        // ============================ADDRESS=MODES============================
         // | https://www.masswerk.at/6502/6502_instruction_set.html#modes
         // | SYMBOL :         NAME        :    OPERAND   :      DESCRIPTION
         // | A      : Accumulator         : A            :   operand is stored in the Accumulator register
