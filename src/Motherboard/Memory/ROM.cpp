@@ -4,10 +4,12 @@
 
 void ROM::initialize() {
 
-    // reset memory
-    for (u32 i = 0; i < MEMORY_SIZE; i++) {
-        data[i] = 0;
-    }
+    // DO NOT RESET ROM MEMORY
+    // SHOULD SAVE ROM MEMORY TO FILE
+    // // reset memory
+    // for (u32 i = 0; i < MEMORY_SIZE; i++) {
+    //     data[i] = 0;
+    // }
 }
 
 Byte ROM::readByte(Word address) {
