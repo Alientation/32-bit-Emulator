@@ -831,15 +831,17 @@ void AlienCPU::_98_TYA_Implied_Instruction() {
 
 // ========================STACK=========================
 // ===================PUSH=ACCUMULATOR===================
-// 1-2: Implied addressing mode
+// 1-2: Implied addressing mode (useless read so the high byte of accumulator can be written to stack)
+// 3: useless read so the low byte of accumulator can be written to stack
 void AlienCPU::_48_PHA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     pushTwoBytesToStack(A);
+    cycles++;
 }
 
 
 // =================PUSH=PROCESSOR=STATUS================
-// 1-2: Implied addressing mode
+// 1-2: Implied addressing mode (useless read so the processor status can be written to stack)
 void AlienCPU::_08_PHP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     pushByteToStack(P);
@@ -847,15 +849,17 @@ void AlienCPU::_08_PHP_Implied_Instruction() {
 
 
 // ===================POP=ACCUMULATOR====================
-// 1-2: Implied addressing mode
+// 1-2: Implied addressing mode (read low byte of accumulator from stack)
+// 3: read high byte of accumulator from stack
 void AlienCPU::_68_PLA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     A = popTwoBytesFromStack();
+    cycles++;
 }
 
 
 // =================POP=PROCESSOR=STATUS=================
-// 1-2: Implied addressing mode
+// 1-2: Implied addressing mode (read processor status from stack)
 void AlienCPU::_28_PLP_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     P = popByteFromStack();
