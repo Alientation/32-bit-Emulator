@@ -242,7 +242,7 @@ class AlienCPU {
 
         Word SPToAddress();
         void pushPCToStack();
-        Word popPCFromStack();
+        void popPCFromStack();
         void pushWordToStack(Word value);
         Word popWordFromStack();
         void pushTwoBytesToStack(u16 value);

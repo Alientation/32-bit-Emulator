@@ -261,17 +261,17 @@ void AlienCPU::pushPCToStack() {
 }
 
 // Pops the Program Counter from stack memory (4 bytes)
-Word AlienCPU::popPCFromStack() {
-    return popWordFromStack();
+void AlienCPU::popPCFromStack() {
+    PC = popWordFromStack();
 }
 
 // Push 4 bytes to stack memory
 void AlienCPU::pushWordToStack(Word value) {
     // push the high byte first so it comes after the low byte in memory
     // since stack is stored backwards in memory
-    pushByteToStack(value & 0xFF000000); // high byte
-    pushByteToStack(value & 0x00FF0000);
-    pushByteToStack(value & 0x0000FF00);
+    pushByteToStack((value & 0xFF000000) >> 24); // high byte
+    pushByteToStack((value & 0x00FF0000) >> 16);
+    pushByteToStack((value & 0x0000FF00) >> 8);
     pushByteToStack(value & 0x000000FF); // low byte
 }
 
@@ -290,7 +290,7 @@ Word AlienCPU::popWordFromStack() {
 void AlienCPU::pushTwoBytesToStack(u16 value) {
     // push the high byte first so it comes after the low byte in memory
     // since stack is stored backwards in memory
-    pushByteToStack(value & 0xFF00); // high byte
+    pushByteToStack((value & 0xFF00) >> 8); // high byte
     pushByteToStack(value & 0x00FF); // low byte
 }
 
