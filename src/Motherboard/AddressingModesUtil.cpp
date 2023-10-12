@@ -55,7 +55,7 @@ Byte AlienCPU::ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE() {
     Word address = fetchNextWord(); // 2-5
     Byte value = readByte(address); // 6
     value--; cycles++; // 7
-    motherboard.writeByte(address, value); // 8
+    writeByte(address, value); // 8
     return value;
 }
 
@@ -71,7 +71,7 @@ Byte AlienCPU::ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE() {
     Word address = fetchNextWord(); // 2-5
     Byte value = readByte(address); // 6
     value++; cycles++; // 7
-    motherboard.writeByte(address, value); // 8
+    writeByte(address, value); // 8
     return value;
 }
 
@@ -123,7 +123,7 @@ Byte AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRe
     cycles++; // 6 (fix high bytes)
     Byte value = readByte(address + indexRegister); // 7
     value--; cycles++ ; // 8
-    motherboard.writeByte(address, value ); // 9
+    writeByte(address, value ); // 9
     return value;
 }
 
@@ -141,7 +141,7 @@ Byte AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRe
     cycles++; // 6 (fix high bytes)
     Byte value = readByte(address + indexRegister); // 7
     value++; cycles++ ; // 8
-    motherboard.writeByte(address, value ); // 9
+    writeByte(address, value ); // 9
     return value;
 }
 
@@ -261,7 +261,7 @@ Byte AlienCPU::ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE() {
     u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
     Byte value = readByte(zeroPageAddress); // 4
     value--; cycles++; // 5
-    motherboard.writeByte(zeroPageAddress, value); // 6
+    writeByte(zeroPageAddress, value); // 6
     return value;
 }
 
@@ -275,7 +275,7 @@ Byte AlienCPU::ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE() {
     u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
     Byte value = readByte(zeroPageAddress); // 4
     value++; cycles++; // 5
-    motherboard.writeByte(zeroPageAddress, value); // 6
+    writeByte(zeroPageAddress, value); // 6
     return value;
 }
 
@@ -315,7 +315,7 @@ Byte AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRe
     zeroPageAddress += indexRegister; cycles++; // 4
     Byte value = readByte(zeroPageAddress); // 5
     value--; cycles++; // 6
-    motherboard.writeByte(zeroPageAddress, value); // 7
+    writeByte(zeroPageAddress, value); // 7
     return value;
 }
 
@@ -331,7 +331,7 @@ Byte AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRe
     zeroPageAddress += indexRegister; cycles++; // 4
     Byte value = readByte(zeroPageAddress); // 5
     value++; cycles++; // 6
-    motherboard.writeByte(zeroPageAddress, value); // 7
+    writeByte(zeroPageAddress, value); // 7
     return value;
 }
 

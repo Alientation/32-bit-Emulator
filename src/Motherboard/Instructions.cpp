@@ -345,6 +345,7 @@ void AlienCPU::_28_PLP_Implied_Instruction() {
 
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
+// AFFECTS FLAGS: Z
 // 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE();
@@ -371,6 +372,7 @@ void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
 
 
 // =================DECREMENT=X=REGISTER=================
+// AFFECTS FLAGS: Z, N
 // 1-2: Implied addressing mode
 void AlienCPU::_CA_DEX_Implied_Instruction() {
     ADDRESSING_IMPLIED();
