@@ -434,36 +434,100 @@ void AlienCPU::_C8_INY_Implied_Instruction() {
 
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
+// 1-3: Immediate addressing mode
 void AlienCPU::_69_ADC_Immediate_Instruction() {
+    Byte value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-4: Absolute addressing mode
 void AlienCPU::_6D_ADC_Absolute_Instruction() {
+    Byte value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
+    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
+    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-10: X indexed indirect addressing mode
 void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
+    Byte value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
+    Byte value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-5: Zero page addressing mode
 void AlienCPU::_65_ADC_ZeroPage_Instruction() {
+    Byte value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
+// 1-6: Zero page indexed addressing mode
 void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
+    Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
 
+    u16 result = A + value + getFlag(C_FLAG);
+
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < value);
+
+    A = result;
 }
 
 
