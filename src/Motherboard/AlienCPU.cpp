@@ -12,6 +12,8 @@ AlienCPU::AlienCPU() {
 }
 
 // realistically, reset actually randomizes values for memory and registers
+// should also technically perform the 7 cycle reset sequence, which would require
+// fixing all the tests
 void AlienCPU::reset() {
     // reset all registers
     PC = PC_INIT;

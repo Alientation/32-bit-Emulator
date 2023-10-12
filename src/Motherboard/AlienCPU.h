@@ -48,35 +48,35 @@ class AlienCPU {
 
         // TODO decide whether this is needed
         // Number of cycles between each Interrupt check
-        static const Word INTERRUPT_CHECK_INTERVAL = 16;
+        static constexpr Word INTERRUPT_CHECK_INTERVAL = 16;
 
 
         // ================INSTRUCTIONS================
         // Total Number of instructions supported by the processor
-        static const u16 INSTRUCTION_COUNT = 256;
+        static constexpr u16 INSTRUCTION_COUNT = 256;
 
 
         // Null address (high endian)
-        static const Word NULL_ADDRESS = 0x00000000;
+        static constexpr Word NULL_ADDRESS = 0x00000000;
 
         // Jump address to handle hardware interrupts (high endian)
-        static const Word INTERRUPT_HANDLER_VECTOR = 0x000FFFF0;
+        static constexpr Word INTERRUPT_HANDLER_VECTOR = 0x000FFFF0;
 
         // Jump address to handle CPU reset (high endian)
-        static const Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
+        static constexpr Word POWER_ON_RESET_VECTOR = 0x000FFFF4;
 
         // Jump address to handle software interrupts (high endian)
-        static const Word BRK_HANDLER_VECTOR = 0x000FFFF8;
+        static constexpr Word BRK_HANDLER_VECTOR = 0x000FFFF8;
 
 
         // Program Stack
         // SP_INIT - STACK_SIZE = End of stack (high endian)
         // 65536 Bytes of STACK MEMORY
-        static const Word STACK_SIZE = 0x00010000;
+        static constexpr Word STACK_SIZE = 0x00010000;
 
 
         // should never exceed 0x000FFFFF (high endian)
-        static const Word PC_INIT = POWER_ON_RESET_VECTOR;
+        static constexpr Word PC_INIT = POWER_ON_RESET_VECTOR;
         
         static constexpr u16 // (high endian)
             // stored as an offset from 0x00010000 so start of stack is at 0x0001FFFF
@@ -86,7 +86,7 @@ class AlienCPU {
             X_INIT = 0x0000,
             Y_INIT = 0x0000;
 
-        static const Byte P_INIT = 0b00100000;
+        static constexpr Byte P_INIT = 0b00100000;
 
 
         static constexpr Byte
