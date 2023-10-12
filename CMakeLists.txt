@@ -59,12 +59,15 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/InstructionTests/Stack/PLATest.cpp"
     "tests/InstructionTests/Stack/PLPTest.cpp"
 
-    "tests/InstructionTests/DecrementAndIncrementTests/DECTest.cpp"
-    "tests/InstructionTests/DecrementAndIncrementTests/DEXTest.cpp"
-    "tests/InstructionTests/DecrementAndIncrementTests/DEYTest.cpp"
-    "tests/InstructionTests/DecrementAndIncrementTests/INCTest.cpp"
-    "tests/InstructionTests/DecrementAndIncrementTests/INXTest.cpp"
-    "tests/InstructionTests/DecrementAndIncrementTests/INYTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/DECTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/DEXTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/DEYTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/INCTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/INXTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrement/INYTest.cpp"
+
+    "tests/InstructionTests/ArithmeticOperations/ADCTest.cpp"
+    "tests/InstructionTests/ArithmeticOperations/SBCTest.cpp"
 
     "tests/InternalTests/ValidInstructionTest.cpp"
     "tests/InternalTests/StatusFlagTest.cpp"
