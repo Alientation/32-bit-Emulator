@@ -786,6 +786,7 @@ void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
 void AlienCPU::_AA_TAX_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     X = A;
+    UPDATE_FLAGS(X);
 }
 
 
@@ -794,6 +795,7 @@ void AlienCPU::_AA_TAX_Implied_Instruction() {
 void AlienCPU::_A8_TAY_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     Y = A;
+    UPDATE_FLAGS(Y);
 }
 
 
@@ -802,6 +804,7 @@ void AlienCPU::_A8_TAY_Implied_Instruction() {
 void AlienCPU::_BA_TSX_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     X = SP;
+    UPDATE_FLAGS(X);
 }
 
 
@@ -810,6 +813,7 @@ void AlienCPU::_BA_TSX_Implied_Instruction() {
 void AlienCPU::_8A_TXA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     A = X;
+    UPDATE_FLAGS(A);
 }
 
 
@@ -818,6 +822,7 @@ void AlienCPU::_8A_TXA_Implied_Instruction() {
 void AlienCPU::_9A_TXS_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     SP = X;
+    UPDATE_FLAGS(SP);
 }
 
 
@@ -826,6 +831,7 @@ void AlienCPU::_9A_TXS_Implied_Instruction() {
 void AlienCPU::_98_TYA_Implied_Instruction() {
     ADDRESSING_MODE_IMPLIED();
     A = Y;
+    UPDATE_FLAGS(A);
 }
 
 
@@ -869,7 +875,7 @@ void AlienCPU::_28_PLP_Implied_Instruction() {
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
-
+    
 }
 
 void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {

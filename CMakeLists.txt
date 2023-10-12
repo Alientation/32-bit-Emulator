@@ -44,7 +44,12 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/InstructionTests/Transfer/STATest.cpp"
     "tests/InstructionTests/Transfer/STXTest.cpp"
     "tests/InstructionTests/Transfer/STYTest.cpp"
-    "tests/InstructionTests/Transfer/TransferRegistersTest.cpp"
+    "tests/InstructionTests/Transfer/TAXTest.cpp"
+    "tests/InstructionTests/Transfer/TAYTest.cpp"
+    "tests/InstructionTests/Transfer/TSXTest.cpp"
+    "tests/InstructionTests/Transfer/TXATest.cpp"
+    "tests/InstructionTests/Transfer/TXSTest.cpp"
+    "tests/InstructionTests/Transfer/TYATest.cpp"
 
     "tests/InstructionTests/Stack/PHATest.cpp"
     "tests/InstructionTests/Stack/PHPTest.cpp"
