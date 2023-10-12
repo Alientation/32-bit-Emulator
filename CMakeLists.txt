@@ -9,6 +9,7 @@ file( GLOB ALIENCPU_SOURCES
     "src/Motherboard/Memory/ROM.cpp"
     "src/Motherboard/AlienCPU.cpp"
     "src/Motherboard/AddressingModesUtil.cpp"
+    "src/Motherboard/InstructionLinker.cpp"
     "src/Motherboard/BIOS.cpp"
     "src/Motherboard/Motherboard.cpp"
     "src/Device/Output/Monitor.cpp"
