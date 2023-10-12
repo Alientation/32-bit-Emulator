@@ -5,8 +5,8 @@
 #include <../src/Motherboard/Memory/RAM.h>
 #include <../src/Motherboard/Memory/ROM.h>
 #include <../src/Motherboard/BIOS.h>
-#include <../src/Storage/HDD.h>
-#include <../src/Storage/SSD.h>
+#include <../src/Device/Storage/HDD.h>
+#include <../src/Device/Storage/SSD.h>
 
 class Motherboard;
 
