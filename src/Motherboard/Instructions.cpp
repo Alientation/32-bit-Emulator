@@ -351,59 +351,84 @@ void AlienCPU::_CE_DEC_Absolute_Instruction() {
     UPDATE_FLAGS(value);
 }
 
+// 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
     UPDATE_FLAGS(value);
 }
 
+// 1-6: Zero page addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
-
+    Byte value = ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE();
+    UPDATE_FLAGS(value);
 }
 
+// 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
-
+    Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
+    UPDATE_FLAGS(value);
 }
 
 
 // =================DECREMENT=X=REGISTER=================
+// 1-2: Implied addressing mode
 void AlienCPU::_CA_DEX_Implied_Instruction() {
-
+    ADDRESSING_IMPLIED();
+    X--;
+    UPDATE_FLAGS(X);
 }
 
 
 // =================DECREMENT=Y=REGISTER=================
+// 1-2: Implied addressing mode
 void AlienCPU::_88_DEY_Implied_Instruction() {
-
+    ADDRESSING_IMPLIED();
+    Y--;
+    UPDATE_FLAGS(Y);
 }
 
 
 // ===================INCREMENT=MEMORY===================
+// 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_EE_INC_Absolute_Instruction() {
-
+    Byte value = ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE();
+    UPDATE_FLAGS(value);
 }
 
+// 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_FE_INC_Absolute_XIndexed_Instruction() {
-
+    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
+    UPDATE_FLAGS(value);
 }
 
+// 1-6: Zero page addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_E6_INC_ZeroPage_Instruction() {
-
+    Byte value = ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE();
+    UPDATE_FLAGS(value);
 }
 
+// 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
-
+    Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
+    UPDATE_FLAGS(value);
 }
 
 
 // =================INCREMENT=X=REGISTER=================
+// 1-2: Implied addressing mode
 void AlienCPU::_E8_INX_Implied_Instruction() {
-
+    ADDRESSING_IMPLIED();
+    X++;
+    UPDATE_FLAGS(X);
 }
 
 
 // =================INCREMENT=Y=REGISTER=================
+// 1-2: Implied addressing mode
 void AlienCPU::_C8_INY_Implied_Instruction() {
-
+    ADDRESSING_IMPLIED();
+    Y++;
+    UPDATE_FLAGS(Y);
 }
 
 
