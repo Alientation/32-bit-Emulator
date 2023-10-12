@@ -1,61 +1,6 @@
-cmake_minimum_required(VERSION 3.12) # version can be different
-project(AlienCPU) #name of your project
+cmake_minimum_required(VERSION 3.12)
+project(AlienCPU)
 
-#include_directories(src/Input src/Motherboard/Memory src/Motherboard src/Output src/Storage src tests)
-
-# file(GLOB all_SRCS
-#     "src/AlienCPU/AlienCPU.cpp"
-#     "src/AlienCPU/AlienCPU.h"
-
-#     "src/Input/Keyboard.cpp"
-#     "src/Input/Keyboard.h"
-#     "src/Input/Mouse.cpp"
-#     "src/Input/Mouse.h"
-#     "src/Motherboard/Memory/RAM.cpp"
-#     "src/Motherboard/Memory/RAM.h"
-#     "src/Motherboard/Memory/ROM.cpp"
-#     "src/Motherboard/Memory/ROM.h"
-#     "src/Motherboard/AlienCPU.cpp"
-#     "src/Motherboard/AlienCPU.h"
-#     "src/Motherboard/BIOS.cpp"
-#     "src/Motherboard/BIOS.h"
-#     "src/Motherboard/Motherboard.cpp"
-#     "src/Motherboard/Motherboard.h"
-#     "src/Output/Monitor.cpp"
-#     "src/Output/Monitor.h"
-#     "src/Output/Speaker.cpp"
-#     "src/Output/Speaker.h"
-#     "src/Storage/HDD.cpp"
-#     "src/Storage/HDD.h"
-#     "src/Storage/SSD.cpp"
-#     "src/Storage/SSD.h"
-#     "src/GPU.cpp"
-#     "src/GPU.h"
-#     "src/PSU.cpp"
-#     "src/PSU.h"
-#     "src/Types.h"
-
-#     "tests/AlienCPUTests.cpp"
-#     "tests/AlienCPUTest.h"
-
-#     "tests/InstructionTests/Transfer/LDATest.cpp"
-#     "tests/InstructionTests/Transfer/LDXTest.cpp"
-#     "tests/InstructionTests/Transfer/LDYTest.cpp"
-#     "tests/InstructionTests/Transfer/STATest.cpp"
-#     "tests/InstructionTests/Transfer/STXTest.cpp"
-#     "tests/InstructionTests/Transfer/STYTest.cpp"
-#     "tests/InstructionTests/Transfer/TransferRegistersTest.cpp"
-
-#     "tests/InstructionTests/Stack/StackTest.cpp"
-
-#     "tests/InternalTests/ValidInstructionTest.cpp"
-#     "tests/InternalTests/StatusFlagTest.cpp"
-#     "tests/InternalTests/MemoryAddressingTest.cpp"
-#     "tests/InternalTests/StackTest.cpp"
-#     "tests/InternalTests/ResetTest.cpp"
-    
-#     "tests/PerformanceTests/StackPerformanceTest.cpp"
-# )
 file( GLOB ALIENCPU_SOURCES 
     "src/AlienCPU/AlienCPU.cpp"
     "src/Input/Keyboard.cpp"
@@ -101,7 +46,17 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/InstructionTests/Transfer/STYTest.cpp"
     "tests/InstructionTests/Transfer/TransferRegistersTest.cpp"
 
-    "tests/InstructionTests/Stack/StackTest.cpp"
+    "tests/InstructionTests/Stack/PHATest.cpp"
+    "tests/InstructionTests/Stack/PHPTest.cpp"
+    "tests/InstructionTests/Stack/PLATest.cpp"
+    "tests/InstructionTests/Stack/PLPTest.cpp"
+
+    "tests/InstructionTests/DecrementAndIncrementTests/DECTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrementTests/DEXTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrementTests/DEYTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrementTests/INCTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrementTests/INXTest.cpp"
+    "tests/InstructionTests/DecrementAndIncrementTests/INYTest.cpp"
 
     "tests/InternalTests/ValidInstructionTest.cpp"
     "tests/InternalTests/StatusFlagTest.cpp"
