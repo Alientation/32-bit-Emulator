@@ -601,104 +601,152 @@ void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
 
 // ==================LOGICAL=OPERATIONS==================
 // =====================AND=WITH=ACCUMULATOR==============
+// 1-3: Immediate addressing mode
 void AlienCPU::_29_AND_Immediate_Instruction() {
-
+    A &= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7: Absolute addressing mode
 void AlienCPU::_2D_AND_Absolute_Instruction() {
-
+    A &= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_3D_AND_Absolute_XIndexed_Instruction() {
-
+    A &= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_39_AND_Absolute_YIndexed_Instruction() {
-
+    A &= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
+    UPDATE_FLAGS(A);
 }
 
+// 1-10: X indexed indirect addressing mode
 void AlienCPU::_21_AND_XIndexed_Indirect_Instruction() {
-
+    A &= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_31_AND_Indirect_YIndexed_Instruction() {
-
+    A &= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-5: Zero page addressing mode
 void AlienCPU::_25_AND_ZeroPage_Instruction() {
-
+    A &= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-6: Zero page indexed addressing mode
 void AlienCPU::_35_AND_ZeroPage_XIndexed_Instruction() {
-
+    A &= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
 
 // =====================EOR=WITH=ACCUMULATOR==============
+// 1-3: Immediate addressing mode
 void AlienCPU::_49_EOR_Immediate_Instruction() {
-
+    A ^= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7: Absolute addressing mode
 void AlienCPU::_4D_EOR_Absolute_Instruction() {
-
+    A ^= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_5D_EOR_Absolute_XIndexed_Instruction() {
-
+    A ^= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_59_EOR_Absolute_YIndexed_Instruction() {
-
+    A ^= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
+    UPDATE_FLAGS(A);
 }
 
+// 1-10: X indexed indirect addressing mode
 void AlienCPU::_41_EOR_XIndexed_Indirect_Instruction() {
-
+    A ^= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_51_EOR_Indirect_YIndexed_Instruction() {
-
+    A ^= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-5: Zero page addressing mode
 void AlienCPU::_45_EOR_ZeroPage_Instruction() {
-
+    A ^= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-6: Zero page indexed addressing mode
 void AlienCPU::_55_EOR_ZeroPage_XIndexed_Instruction() {
-
+    A ^= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
 
 // =====================ORA=WITH=ACCUMULATOR==============
+// 1-3: Immediate addressing mode
 void AlienCPU::_09_ORA_Immediate_Instruction() {
-
+    A |= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7: Absolute addressing mode
 void AlienCPU::_0D_ORA_Absolute_Instruction() {
-
+    A |= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_19_ORA_Absolute_YIndexed_Instruction() {
-
+    A |= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
+    UPDATE_FLAGS(A);
 }
 
+// 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_1D_ORA_Absolute_XIndexed_Instruction() {
-
+    A |= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
+// 1-10: X indexed indirect addressing mode
 void AlienCPU::_01_ORA_XIndexed_Indirect_Instruction() {
-
+    A |= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_11_ORA_Indirect_YIndexed_Instruction() {
-
+    A |= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-5: Zero page addressing mode
 void AlienCPU::_05_ORA_ZeroPage_Instruction() {
-
+    A |= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
+    UPDATE_FLAGS(A);
 }
 
+// 1-6: Zero page indexed addressing mode
 void AlienCPU::_15_ORA_ZeroPage_XIndexed_Instruction() {
-
+    A |= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
+    UPDATE_FLAGS(A);
 }
 
 
