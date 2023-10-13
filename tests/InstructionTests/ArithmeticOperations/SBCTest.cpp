@@ -44,7 +44,7 @@ TEST_F(SBCTest, SubtractWithCarryImmediate_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0xFFFF); // check decremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 3);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -78,7 +78,7 @@ TEST_F(SBCTest, SubtractWithCarryAbsolute_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0xFFFF); // check decremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -132,7 +132,7 @@ TEST_F(SBCTest, SubtractWithCarryAbsoluteXIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0xFFFF); // check decremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -188,7 +188,7 @@ TEST_F(SBCTest, SubtractWithCarryAbsoluteYIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -249,7 +249,7 @@ TEST_F(SBCTest, SubtractWithCarryXIndexedIndirect_CARRYFLAG) {
     EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
     EXPECT_EQ(cpu.PC, 0x00000126); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 10);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -310,7 +310,7 @@ TEST_F(SBCTest, SubtractWithCarryIndirectYIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
     EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 9);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -345,7 +345,7 @@ TEST_F(SBCTest, SubtractWithCarryZeroPage_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0xFFFF); // check decremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 5);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }
 
 
@@ -403,5 +403,5 @@ TEST_F(SBCTest, SubtractWithCarryZeroPageXIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
     EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 6);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry (borrow) flag is set
+    EXPECT_EQ(cpu.P, 0b10100001); // only default, negative, and carry (borrow) flag is set
 }

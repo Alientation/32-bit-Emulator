@@ -43,7 +43,7 @@ TEST_F(ADCTest, AddWithCarryImmediate_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 3);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
 }
 
 
@@ -77,7 +77,7 @@ TEST_F(ADCTest, AddWithCarryAbsolute_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
 }
 
 
@@ -131,7 +131,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
 }
 
 
@@ -187,7 +187,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
     EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
     EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
 }
 
 
