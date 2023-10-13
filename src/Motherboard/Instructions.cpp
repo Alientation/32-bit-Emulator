@@ -37,6 +37,7 @@ void AlienCPU::UPDATE_FLAGS(u16 modifiedValue) {
 
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
+// AFFECTS FLAGS: Z, N
 // LOAD ACCUMULATOR IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A9_LDA_Immediate_Instruction() {
@@ -95,6 +96,7 @@ void AlienCPU::_B5_LDA_ZeroPage_XIndexed_Instruction() {
 
 
 // ===================LOAD=X=REGISTER===================
+// AFFECTS FLAGS: Z, N
 // LOAD X IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A2_LDX_Immediate_Instruction() {
@@ -132,6 +134,7 @@ void AlienCPU::_B6_LDX_ZeroPage_YIndexed_Instruction() {
 
 
 // ===================LOAD=Y=REGISTER===================
+// AFFECTS FLAGS: Z, N
 // LOAD Y IMMEDIATE ($A9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode load value
 void AlienCPU::_A0_LDY_Immediate_Instruction() {
@@ -169,6 +172,7 @@ void AlienCPU::_B4_LDY_ZeroPage_XIndexed_Instruction() {
 
 
 // ==================STORE=ACCUMULATOR==================
+// AFFECTS FLAGS: NONE
 // STORE ACCUMULATOR ABSOLUTE ($8D | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8D_STA_Absolute_Instruction() {
@@ -213,6 +217,7 @@ void AlienCPU::_95_STA_ZeroPage_XIndexed_Instruction() {
 
 
 // ===================STORE=X=REGISTER==================
+// AFFECTS FLAGS: NONE
 // STORE X REGISTER ABSOLUTE ($8E | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8E_STX_Absolute_Instruction() {
@@ -233,6 +238,7 @@ void AlienCPU::_96_STX_ZeroPage_YIndexed_Instruction() {
 
 
 // ===================STORE=Y=REGISTER==================
+// AFFECTS FLAGS: NONE
 // STORE Y REGISTER ABSOLUTE ($8C | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode store value
 void AlienCPU::_8C_STY_Absolute_Instruction() {
@@ -253,6 +259,8 @@ void AlienCPU::_94_STY_ZeroPage_XIndexed_Instruction() {
 
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
+// AFFECTS FLAGS: Z, N
+// TRANSFER ACCUMULATOR TO X REGISTER ($AA | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_AA_TAX_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -262,6 +270,8 @@ void AlienCPU::_AA_TAX_Implied_Instruction() {
 
 
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
+// AFFECTS FLAGS: Z, N
+// TRANSFER ACCUMULATOR TO Y REGISTER ($A8 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_A8_TAY_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -271,6 +281,8 @@ void AlienCPU::_A8_TAY_Implied_Instruction() {
 
 
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
+// AFFECTS FLAGS: Z, N
+// TRANSFER STACK POINTER TO X REGISTER ($BA | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_BA_TSX_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -280,6 +292,8 @@ void AlienCPU::_BA_TSX_Implied_Instruction() {
 
 
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
+// AFFECTS FLAGS: Z, N
+// TRANSFER X REGISTER TO ACCUMULATOR ($8A | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_8A_TXA_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -289,6 +303,8 @@ void AlienCPU::_8A_TXA_Implied_Instruction() {
 
 
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
+// AFFECTS FLAGS: Z, N
+// TRANSFER X REGISTER TO STACK POINTER ($9A | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_9A_TXS_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -298,6 +314,8 @@ void AlienCPU::_9A_TXS_Implied_Instruction() {
 
 
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
+// AFFECTS FLAGS: Z, N
+// TRANSFER Y REGISTER TO ACCUMULATOR ($98 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_98_TYA_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -308,6 +326,8 @@ void AlienCPU::_98_TYA_Implied_Instruction() {
 
 // ========================STACK=========================
 // ===================PUSH=ACCUMULATOR===================
+// AFFECTS FLAGS: NONE
+// PUSH ACCUMULATOR ($48 | 1 byte | 3 cycles)
 // 1-2: Implied addressing mode (useless read so the high byte of accumulator can be written to stack)
 // 3: useless read so the low byte of accumulator can be written to stack
 void AlienCPU::_48_PHA_Implied_Instruction() {
@@ -318,6 +338,8 @@ void AlienCPU::_48_PHA_Implied_Instruction() {
 
 
 // =================PUSH=PROCESSOR=STATUS================
+// AFFECTS FLAGS: Z, N, C, V, D, I
+// PUSH PROCESSOR STATUS ($08 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode (useless read so the processor status can be written to stack)
 void AlienCPU::_08_PHP_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -326,16 +348,22 @@ void AlienCPU::_08_PHP_Implied_Instruction() {
 
 
 // ===================POP=ACCUMULATOR====================
+// TODO: correct tests to check for Z and N flags
+// AFFECTS FLAGS: Z, N
+// POP ACCUMULATOR ($68 | 1 byte | 3 cycles)
 // 1-2: Implied addressing mode (read low byte of accumulator from stack)
 // 3: read high byte of accumulator from stack
 void AlienCPU::_68_PLA_Implied_Instruction() {
     ADDRESSING_IMPLIED();
     A = popTwoBytesFromStack();
+    UPDATE_FLAGS(A);
     cycles++;
 }
 
 
 // =================POP=PROCESSOR=STATUS=================
+// AFFECTS FLAGS: Z, N, C, V, D, I
+// POP PROCESSOR STATUS ($28 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode (read processor status from stack)
 void AlienCPU::_28_PLP_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -346,24 +374,28 @@ void AlienCPU::_28_PLP_Implied_Instruction() {
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
 // AFFECTS FLAGS: Z
+// DEC MEMORY ABSOLUTE ($CE | 3 bytes | 8 cycles)
 // 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE();
     UPDATE_FLAGS(value);
 }
 
+// DEC MEMORY ABSOLUTE X-INDEXED ($DE | 3 bytes | 9 cycles)
 // 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
     UPDATE_FLAGS(value);
 }
 
+// DEC MEMORY ZEROPAGE ($C6 | 2 bytes | 6 cycles)
 // 1-6: Zero page addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
     Byte value = ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE();
     UPDATE_FLAGS(value);
 }
 
+// DEC MEMORY ZEROPAGE X-INDEXED ($D6 | 2 bytes | 7 cycles)
 // 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
     Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
@@ -373,6 +405,7 @@ void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
 
 // =================DECREMENT=X=REGISTER=================
 // AFFECTS FLAGS: Z, N
+// DEC X REGISTER ($CA | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_CA_DEX_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -382,6 +415,8 @@ void AlienCPU::_CA_DEX_Implied_Instruction() {
 
 
 // =================DECREMENT=Y=REGISTER=================
+// AFFECTS FLAGS: Z, N
+// DEC Y REGISTER ($88 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_88_DEY_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -391,24 +426,29 @@ void AlienCPU::_88_DEY_Implied_Instruction() {
 
 
 // ===================INCREMENT=MEMORY===================
+// AFFECTS FLAGS: Z
+// INC MEMORY ABSOLUTE ($EE | 3 bytes | 8 cycles)
 // 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_EE_INC_Absolute_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE();
     UPDATE_FLAGS(value);
 }
 
+// INC MEMORY ABSOLUTE X-INDEXED ($FE | 3 bytes | 9 cycles)
 // 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_FE_INC_Absolute_XIndexed_Instruction() {
     Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
     UPDATE_FLAGS(value);
 }
 
+// INC MEMORY ZEROPAGE ($E6 | 2 bytes | 6 cycles)
 // 1-6: Zero page addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_E6_INC_ZeroPage_Instruction() {
     Byte value = ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE();
     UPDATE_FLAGS(value);
 }
 
+// INC MEMORY ZEROPAGE X-INDEXED ($F6 | 2 bytes | 7 cycles)
 // 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
     Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
@@ -417,6 +457,8 @@ void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
 
 
 // =================INCREMENT=X=REGISTER=================
+// AFFECTS FLAGS: Z, N
+// INC X REGISTER ($E8 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_E8_INX_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -426,6 +468,8 @@ void AlienCPU::_E8_INX_Implied_Instruction() {
 
 
 // =================INCREMENT=Y=REGISTER=================
+// AFFECTS FLAGS: Z, N
+// INC Y REGISTER ($C8 | 1 byte | 2 cycles)
 // 1-2: Implied addressing mode
 void AlienCPU::_C8_INY_Implied_Instruction() {
     ADDRESSING_IMPLIED();
@@ -436,6 +480,9 @@ void AlienCPU::_C8_INY_Implied_Instruction() {
 
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
+// TODO: correct tests to check for Z and N flags
+// AFFECTS FLAGS: Z, N, C
+// ADD WITH CARRY IMMEDIATE ($69 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_69_ADC_Immediate_Instruction() {
     u16 value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
@@ -443,9 +490,11 @@ void AlienCPU::_69_ADC_Immediate_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY ABSOLUTE ($6D | 3 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_6D_ADC_Absolute_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
@@ -453,9 +502,11 @@ void AlienCPU::_6D_ADC_Absolute_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY ABSOLUTE X-INDEXED ($7D | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
@@ -463,9 +514,11 @@ void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY ABSOLUTE Y-INDEXED ($79 | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
@@ -473,9 +526,11 @@ void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY X-INDEXED INDIRECT ($61 | 2 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
     u16 value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
@@ -483,9 +538,11 @@ void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY INDIRECT Y-INDEXED ($71 | 2 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
     u16 value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
@@ -493,9 +550,11 @@ void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY ZERO PAGE ($65 | 2 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_65_ADC_ZeroPage_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
@@ -503,9 +562,11 @@ void AlienCPU::_65_ADC_ZeroPage_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// ADD WITH CARRY ZERO PAGE X-INDEXED ($75 | 2 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
@@ -513,11 +574,15 @@ void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
 
 // =====================SUBTRACT=WITH=BORROW=============
+// TODO: correct tests to check for Z and N flags
+// AFFECTS FLAGS: Z, N, C
+// SUBTRACT WITH BORROW IMMEDIATE ($E9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_E9_SBC_Immediate_Instruction() {
     u16 value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
@@ -525,9 +590,11 @@ void AlienCPU::_E9_SBC_Immediate_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW ABSOLUTE ($ED | 3 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_ED_SBC_Absolute_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
@@ -535,9 +602,11 @@ void AlienCPU::_ED_SBC_Absolute_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW ABSOLUTE X-INDEXED ($FD | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
@@ -545,9 +614,11 @@ void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW ABSOLUTE Y-INDEXED ($F9 | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
@@ -555,9 +626,11 @@ void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW X-INDEXED INDIRECT ($E1 | 2 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
     u16 value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
@@ -565,9 +638,11 @@ void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW INDIRECT Y-INDEXED ($F1 | 2 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
     u16 value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
@@ -575,9 +650,11 @@ void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW ZERO PAGE ($E5 | 2 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
@@ -585,9 +662,11 @@ void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
+// SUBTRACT WITH BORROW ZERO PAGE X-INDEXED ($F5 | 2 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
@@ -595,54 +674,64 @@ void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
 
     // update carry (represented as borrow) if underflow happens
     setFlag(C_FLAG, result > A);
+    UPDATE_FLAGS(result);
     A = result;
 }
 
 
 // ==================LOGICAL=OPERATIONS==================
 // =====================AND=WITH=ACCUMULATOR==============
+// AFFECTS FLAGS: Z, N
+// AND WITH ACCUMULATOR IMMEDIATE ($29 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_29_AND_Immediate_Instruction() {
     A &= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR ABSOLUTE ($2D | 3 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_2D_AND_Absolute_Instruction() {
     A &= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR ABSOLUTE X-INDEXED ($3D | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_3D_AND_Absolute_XIndexed_Instruction() {
     A &= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR ABSOLUTE Y-INDEXED ($39 | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_39_AND_Absolute_YIndexed_Instruction() {
     A &= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR X-INDEXED INDIRECT ($21 | 2 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_21_AND_XIndexed_Indirect_Instruction() {
     A &= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR INDIRECT Y-INDEXED ($31 | 2 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_31_AND_Indirect_YIndexed_Instruction() {
     A &= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR ZERO PAGE ($25 | 2 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_25_AND_ZeroPage_Instruction() {
     A &= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// AND WITH ACCUMULATOR ZERO PAGE X-INDEXED ($35 | 2 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_35_AND_ZeroPage_XIndexed_Instruction() {
     A &= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
@@ -651,48 +740,57 @@ void AlienCPU::_35_AND_ZeroPage_XIndexed_Instruction() {
 
 
 // =====================EOR=WITH=ACCUMULATOR==============
+// AFFECTS FLAGS: Z, N
+// EXCLUSIVE OR WITH ACCUMULATOR IMMEDIATE ($49 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_49_EOR_Immediate_Instruction() {
     A ^= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR ABSOLUTE ($4D | 3 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_4D_EOR_Absolute_Instruction() {
     A ^= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR ABSOLUTE X-INDEXED ($5D | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_5D_EOR_Absolute_XIndexed_Instruction() {
     A ^= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR ABSOLUTE Y-INDEXED ($59 | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_59_EOR_Absolute_YIndexed_Instruction() {
     A ^= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR X-INDEXED INDIRECT ($41 | 2 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_41_EOR_XIndexed_Indirect_Instruction() {
     A ^= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR INDIRECT Y-INDEXED ($51 | 2 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_51_EOR_Indirect_YIndexed_Instruction() {
     A ^= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR ZERO PAGE ($45 | 2 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_45_EOR_ZeroPage_Instruction() {
     A ^= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// EXCLUSIVE OR WITH ACCUMULATOR ZERO PAGE X-INDEXED ($55 | 2 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_55_EOR_ZeroPage_XIndexed_Instruction() {
     A ^= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
@@ -701,48 +799,57 @@ void AlienCPU::_55_EOR_ZeroPage_XIndexed_Instruction() {
 
 
 // =====================ORA=WITH=ACCUMULATOR==============
+// AFFECTS FLAGS: Z, N
+// INCLUSIVE OR WITH ACCUMULATOR IMMEDIATE ($09 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_09_ORA_Immediate_Instruction() {
     A |= ADDRESSING_IMMEDIATE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR ABSOLUTE ($0D | 3 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_0D_ORA_Absolute_Instruction() {
     A |= ADDRESSING_ABSOLUTE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR ABSOLUTE X-INDEXED ($1D | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_19_ORA_Absolute_YIndexed_Instruction() {
     A |= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR ABSOLUTE Y-INDEXED ($19 | 3 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_1D_ORA_Absolute_XIndexed_Instruction() {
     A |= ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR X-INDEXED INDIRECT ($01 | 2 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_01_ORA_XIndexed_Indirect_Instruction() {
     A |= ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR INDIRECT Y-INDEXED ($11 | 2 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_11_ORA_Indirect_YIndexed_Instruction() {
     A |= ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR ZERO PAGE ($05 | 2 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_05_ORA_ZeroPage_Instruction() {
     A |= ADDRESSING_ZEROPAGE_READ_TWOBYTES();
     UPDATE_FLAGS(A);
 }
 
+// INCLUSIVE OR WITH ACCUMULATOR ZERO PAGE X-INDEXED ($15 | 2 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_15_ORA_ZeroPage_XIndexed_Instruction() {
     A |= ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
