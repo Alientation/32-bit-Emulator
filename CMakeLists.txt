@@ -69,6 +69,10 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/InstructionTests/ArithmeticOperations/ADCTest.cpp"
     "tests/InstructionTests/ArithmeticOperations/SBCTest.cpp"
 
+    "tests/InstructionTests/LogicalOperations/ANDTest.cpp"
+    "tests/InstructionTests/LogicalOperations/EORTest.cpp"
+    "tests/InstructionTests/LogicalOperations/ORATest.cpp"
+A
     "tests/InternalTests/ValidInstructionTest.cpp"
     "tests/InternalTests/StatusFlagTest.cpp"
     "tests/InternalTests/MemoryAddressingTest.cpp"
