@@ -79,8 +79,10 @@ void AlienCPU::start(u64 maxCycles) {
 // Executes the instruction if it is valid, otherwise throws an exception
 void AlienCPU::executeInstruction(u16 instruction) {
     if (!isValidInstruction(instruction)) {
+        // TODO: create better error logger that stores information about the cpu
         std::stringstream stream;
-        stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) << std::endl;
+        stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) 
+                << std::endl << "PC=[" + stringifyHex(PC) << "]" << std::endl;
         
         //throw std::invalid_argument(stream.str()); // to allow compiling
         std::cout << stream.str();
