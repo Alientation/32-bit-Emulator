@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include <AlienCPUTest.h>
 
 class TAYTest : public testing::Test {

@@ -1,6 +1,4 @@
-#include <gtest/gtest.h>
-
-#include <AlienCPUTest.h>
+##include <AlienCPUTest.h>
 
 class DEYTest : public testing::Test {
     public: 
