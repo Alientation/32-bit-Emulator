@@ -84,7 +84,6 @@ file (GLOB ALIENCPUTEST_SOURCES
 
 file (GLOB ALIENCPUTEST_HEADERS 
     "tests/AlienCPUTest.h"
-    "tests/TestUtil.h"
 )
 
 file (GLOB ALIENCPUPERFORMANCETEST_SOURCES
