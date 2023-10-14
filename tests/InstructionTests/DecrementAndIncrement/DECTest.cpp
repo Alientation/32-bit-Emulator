@@ -13,34 +13,27 @@ class DECTest : public testing::Test {
     }
 };
 
+
+// DEC ABSOLUTE TESTS
 TEST_F(DECTest, DecrementAbsolute_Normal) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_DEC_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_DEC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address to decrement from
+    cpu.writeByte(0x00012345, 0x12); // value to decrement
 
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeByte(0x00012345, 0x12);
+    TestInstruction(cpu, 8, 0x00001028);
 
-    cpu.start(8);
-
-    EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x11); // check decremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 8);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x11) << "Memory value should be decremented";
+    TestUnchangedState(cpu, A, X, Y, SP, P);
 }
 
 TEST_F(DECTest, DecrementAbsolute_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_DEC_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_DEC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address to decrement from
+    cpu.writeByte(0x00012345, 0x01); // value to decrement
 
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeByte(0x00012345, 0x01);
+    TestInstruction(cpu, 8, 0x00001028);
 
-    cpu.start(8);
-
-    EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x00); // check decremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 8);
-    EXPECT_EQ(cpu.P, 0b00100010); // only default flag is set
+    EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x00) << "Memory value should be decremented (underflow) to zero";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only the default and zero flag should be set";
+    TestUnchangedState(cpu, A, X, Y, SP);
 }

@@ -13,16 +13,16 @@ class PHPTest : public testing::Test {
     }
 };
 
-TEST_F(PHPTest, PushProcessorImplied_Normal) {
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_PHP_IMPL);
 
+// PHP IMPLIED TESTS
+TEST_F(PHPTest, PushProcessorImplied_Normal) {
+    LoadInstruction(cpu, AlienCPU::INS_PHP_IMPL, 0x00001023);
     cpu.P = 0b01010101;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.motherboard.ram[0x0001FFFF], 0b01010101);
-    EXPECT_EQ(cpu.SP, 0xFFFE);
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.PC, 0x00001024);
+    EXPECT_EQ(cpu.motherboard.ram[0x0001FFFF], 0b01010101) << "Processor status should be pushed to the stack";
+    EXPECT_EQ(cpu.SP, 0xFFFE) << "Stack pointer should be decremented";
+    EXPECT_EQ(cpu.P, 0b01010101) << "Processor status should not be altered";
+    TestUnchangedState(cpu, A, X, Y);
 }

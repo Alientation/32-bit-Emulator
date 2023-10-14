@@ -14,499 +14,426 @@ class ANDTest : public testing::Test {
 };
 
 
-TEST_F(ANDTest, AndImmediate_DEFAULT) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IMM);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
+// AND IMMEDIATE TESTS
+TEST_F(ANDTest, AndImmediate_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(3);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    TestUnchangedState(cpu, X, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndImmediate_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IMM);
-    cpu.writeTwoBytes(0x00001024, 0x0000);
+    LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(3);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ANDTest, AndImmediate_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IMM);
-    cpu.writeTwoBytes(0x00001024, 0xFF34);
+    LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(3);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// AND ABSOLUTE TESTS
 TEST_F(ANDTest, AndAbsolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS);
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    TestUnchangedState(cpu, X, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndAbsolute_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS);
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x0000);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ANDTest, AndAbsolute_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS);
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0xFF34);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// AND ABSOLUTE XINDEXED TESTS
 TEST_F(ANDTest, AndAbsoluteXIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_X);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x1234);
+    cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteXIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_X);
-    cpu.writeWord(0x00001024, 0x00000001);
+TEST_F(ANDTest, AndAbsoluteXIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise and with accumulator
     cpu.X = 0xFFFF;
-    cpu.writeTwoBytes(0x00010000, 0x1234);
+    cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0xFFFF); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndAbsoluteXIndexed_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_X);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x0000);
+    cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ANDTest, AndAbsoluteXIndexed_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_X);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0xFF34);
+    cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
+// AND ABSOLUTE YINDEXED TESTS
 TEST_F(ANDTest, AndAbsoluteYIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x1234);
+    cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteYIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00000001);
+TEST_F(ANDTest, AndAbsoluteYIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise and with accumulator
     cpu.Y = 0xFFFF;
-    cpu.writeTwoBytes(0x00010000, 0x1234);
+    cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0xFFFF); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 TEST_F(ANDTest, AndAbsoluteYIndexed_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x0000);
+    cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(ANDTest, AndAbsoluteYIndexed_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0xFF34);
+    cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 
+// AND XINDEXED INDIRECT TESTS
 TEST_F(ANDTest, AndXIndexedIndirect_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_X_IND);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeWord(0x00001236, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x1234);
+    cpu.writeWord(0x00001236, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ANDTest, AndXIndexedIndirect_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
+    cpu.X = 0xF002;
+    cpu.writeWord(0x00000236, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0x1234); // value to bitwise and with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 10, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0xF002) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndXIndexedIndirect_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_X_IND);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeWord(0x00001236, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x0000);
+    cpu.writeWord(0x00001236, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ANDTest, AndXIndexedIndirect_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_X_IND);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeWord(0x00001236, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0xFF34);
+    cpu.writeWord(0x00001236, 0x00012345); // address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00012345, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
+// AND INDIRECT YINDEXED TESTS
 TEST_F(ANDTest, AndIndirectYIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IND_Y);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
-    cpu.writeWord(0x00001234, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x1234);
+    cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndIndirectYIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IND_Y);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
-    cpu.writeWord(0x00001234, 0x00000001);
+TEST_F(ANDTest, AndIndirectYIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
+    cpu.writeWord(0x00001234, 0x00000001); // partial address of value to bitwise and with accumulator
     cpu.Y = 0xFFFF;
-    cpu.writeTwoBytes(0x00010000, 0x1234);
+    cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(11);
+    TestInstruction(cpu, 11, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0xFFFF); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 11);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 TEST_F(ANDTest, AndIndirectYIndexed_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IND_Y);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
-    cpu.writeWord(0x00001234, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0x0000);
+    cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(ANDTest, AndIndirectYIndexed_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_AND_IND_Y);
-    cpu.writeTwoBytes(0x00001024, 0x1234);
-    cpu.writeWord(0x00001234, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
-    cpu.writeTwoBytes(0x00012347, 0xFF34);
+    cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.Y, 0x0002); // check Y is unchanged
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 
+// AND ZEROPAGE TESTS
 TEST_F(ANDTest, AndZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
-    cpu.writeTwoBytes(0x00001234, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00001234, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    TestUnchangedState(cpu, X, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndZeroPage_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
-    cpu.writeTwoBytes(0x00001234, 0x0000);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00001234, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ANDTest, AndZeroPage_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
-    cpu.writeTwoBytes(0x00001234, 0xFF34);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
+    cpu.writeTwoBytes(0x00001234, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// AND ZEROPAGE XINDEXED TESTS
 TEST_F(ANDTest, AndZeroPageXIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP_X);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00001236, 0x1234);
+    cpu.writeTwoBytes(0x00001236, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndZeroPageXIndexed_PAGEWRAPPING) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP_X);
-    cpu.writeTwoBytes(0x00011024, 0x0002);
+TEST_F(ANDTest, AndZeroPageXIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x0002); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0xFFFF;
-    cpu.writeTwoBytes(0x00000001, 0x1234);
+    cpu.writeTwoBytes(0x00000001, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0x1234 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0xFFFF); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100000); // check only default flag set
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 TEST_F(ANDTest, AndZeroPageXIndexed_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP_X);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00001236, 0x0000);
+    cpu.writeTwoBytes(0x00001236, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0x0000 & 0x5678); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b00100010); // check only default and zero flag set
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ANDTest, AndZeroPageXIndexed_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x00011023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011023);
-    cpu.writeByte(0x00011023, AlienCPU::INS_AND_ZP_X);
-    cpu.writeTwoBytes(0x00011024, 0x1234);
-    cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00001236, 0xFF34);
+    LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
+    cpu.X = 0x0002; 
+    cpu.writeTwoBytes(0x00001236, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011026);
 
-    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78); // check accumulator is correctly bitwise and
-    EXPECT_EQ(cpu.X, 0x0002); // check X is unchanged
-    EXPECT_EQ(cpu.PC, 0x00011026); // check PC points to the next instruction
-    EXPECT_EQ(cpu.P, 0b10100000); // check only default and negative flag set
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }

@@ -14,283 +14,207 @@ class STATest : public testing::Test {
 };
 
 
-// STA Absolute TESTS
-TEST_F(STATest, SaveAccumulator_Absolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ABS);
-
-    // write memory address to save the accumulator to
-    cpu.writeWord(0x00001024, 0x00014232);
+// STA ABSOLUTE TESTS
+TEST_F(STATest, StoreAccumulator_Absolute_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // address to store the accumulator
     cpu.A = 0x4232;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00014232), 0x4232);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.motherboard.ram[0x00014232], 0x32) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00014233], 0x42) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x4232) << "Accumulator should not be altered";
+    TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-// STA Absolute XIndexed TESTS
-TEST_F(STATest, SaveAccumulator_XIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ABS_X);
 
-    // write memory address to save the accumulator to
-    cpu.writeWord(0x00001024, 0x00014232);
+// STA ABSOLUTE XIndexed TESTS
+TEST_F(STATest, StoreAccumulator_Absolute_XIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial address to store the accumulator
     cpu.X = 0x0013;
     cpu.A = 0x4232;
 
-    cpu.start(8);
+    TestInstruction(cpu, 8, 0x00001028);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00014245), 0x4232);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 8);
+    EXPECT_EQ(cpu.motherboard.ram[0x00014245], 0x32) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00014246], 0x42) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x4232) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-// STA Absolute YIndexed TESTS
-TEST_F(STATest, SaveAccumulator_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ABS_Y);
+TEST_F(STATest, StoreAccumulator_Absolute_XIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00011232); // partial address to store the accumulator
+    cpu.X = 0xF013;
+    cpu.A = 0x4232;
 
-    // write memory address to save the accumulator to
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 8, 0x00001028);
+
+    // test memory address stores the accumulator's value
+    EXPECT_EQ(cpu.motherboard.ram[0x00020245], 0x32) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00020246], 0x42) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x4232) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+
+// STA ABSOLUTE YIndexed TESTS
+TEST_F(STATest, StoreAccumulator_Absolute_YIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial address to store the accumulator
     cpu.Y = 0x0013;
     cpu.A = 0x4232;
 
-    cpu.start(8);
+    TestInstruction(cpu, 8, 0x00001028);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00014245), 0x4232);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
+    EXPECT_EQ(cpu.motherboard.ram[0x00014245], 0x32) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00014246], 0x42) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x4232) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
+}
 
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
+TEST_F(STATest, StoreAccumulator_Absolute_YIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00011232); // partial address to store the accumulator
+    cpu.Y = 0xF013;
+    cpu.A = 0x4232;
 
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 8);
+    // test memory address stores the accumulator's value
+    EXPECT_EQ(cpu.motherboard.ram[0x00020245], 0x32) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00020246], 0x42) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x4232) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 
 // STA X-INDEXED INDIRECT TESTS
 TEST_F(STATest, StoreAccumulator_XIndexed_Indirect_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_X_IND);
-
-    // write zero page memory address of address to save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_STA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zp address of address to store the accumulator
     cpu.X = 0x0013;
+    cpu.writeWord(0x00004245, 0x00011234); // address to store the accumulator
     cpu.A = 0x1234;
 
-    // write memory address to save the accumulator
-    cpu.writeWord(0x00004245, 0x00011234);
-
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00011234), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.motherboard.ram[0x00011234], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00011235], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 TEST_F(STATest, StoreAccumulator_XIndexed_Indirect_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_X_IND);
-
-    // write zero page memory address of address to save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+    LoadInstruction(cpu, AlienCPU::INS_STA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address of address to store the accumulator
     cpu.X = 0xF013;
+    cpu.writeWord(0x00000245, 0x00011234); // address to store the accumulator
     cpu.A = 0x1234;
 
-    // write memory address to save the accumulator
-    cpu.writeWord(0x00000245, 0x00011234);
-
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00011234), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.motherboard.ram[0x00011234], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00011235], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 
 // STA INDIRECT YIndexed TESTS
 TEST_F(STATest, StoreAccumulator_Indirect_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_IND_Y);
-
-    // write zero page memory address of address to save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_STA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zp address of partial address to store the accumulator
+    cpu.writeWord(0x00004232, 0x00011234); // partial address to store the accumulator
     cpu.Y = 0x0013;
     cpu.A = 0x1234;
 
-    // write memory address to save the accumulator
-    cpu.writeWord(0x00004232, 0x00011234);
-
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00011247), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.motherboard.ram[0x00011247], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00011248], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(STATest, StoreAccumulator_Indirect_YIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_IND_Y);
-
-    // write zero page memory address of address to save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STATest, StoreAccumulator_Indirect_YIndexed_PAGECROSS) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address of partial address to store the accumulator
+    cpu.writeWord(0x00001232, 0x00011234); // partial address to store the accumulator
     cpu.Y = 0xF013;
     cpu.A = 0x1234;
 
-    // write memory address to save the accumulator
-    cpu.writeWord(0x00001232, 0x00011234);
-
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00020247), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.motherboard.ram[0x00020247], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00020248], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 
-// STA ZERO PAGE TESTS
-TEST_F(STATest, SaveAccumulator_ZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ZP);
-
-    // write zero page memory address to save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+// STA ZEROPAGE TESTS
+TEST_F(STATest, StoreAccumulator_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address to store the accumulator
     cpu.A = 0x1234;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001232), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001232], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001233], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    TestUnchangedState(cpu, X, Y, SP, P);
 }
 
 
 // STA ZEROPAGE X-INDEXED TESTS
-TEST_F(STATest, SaveAccumulator_ZeroPage_XIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ZP_X);
-
-    // write zero page memory address save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
     cpu.X = 0x0013;
     cpu.A = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001245], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001246], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(STATest, SaveAccumulator_ZeroPage_XIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STA_ZP_X);
-
-    // write zero page memory address save the accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
     cpu.X = 0xF013;
     cpu.A = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00000245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00000245], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00000246], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
 }

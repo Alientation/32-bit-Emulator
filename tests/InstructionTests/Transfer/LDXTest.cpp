@@ -13,6 +13,7 @@ class LDXTest : public testing::Test {
     }
 };
 
+
 // LDX IMMEDIATE TESTS
 TEST_F(LDXTest, LoadX_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_IMM, 0x00001023);
@@ -20,9 +21,8 @@ TEST_F(LDXTest, LoadX_Immediate_NORMAL) {
  
     TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x4232); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    TestUnchangedState(cpu, A, Y, SP);
+    EXPECT_EQ(cpu.X, 0x4232) << "X register is not set to the correct value";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_Immediate_ZFLAG) {
@@ -31,8 +31,8 @@ TEST_F(LDXTest, LoadX_Immediate_ZFLAG) {
 
     TestInstruction(cpu, 3, 0x00001026);
     
-    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    EXPECT_EQ(cpu.X, 0x0000) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
@@ -42,8 +42,8 @@ TEST_F(LDXTest, LoadX_Immediate_NFLAG) {
 
     TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0xFFEF) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
@@ -51,37 +51,36 @@ TEST_F(LDXTest, LoadX_Immediate_NFLAG) {
 // LDX ABSOLUTE TESTS
 TEST_F(LDXTest, LoadX_Absolute_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // address of value to load into X
     cpu.writeTwoBytes(0x00014232, 0x1234); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    TestUnchangedState(cpu, A, Y, SP);
+    EXPECT_EQ(cpu.X, 0x1234) << "X register is not set to the correct value";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_ZFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // address of value to load into X
     cpu.writeTwoBytes(0x00014232, 0x0000); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    EXPECT_EQ(cpu.X, 0x0000) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_NFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // address of value to load into X
     cpu.writeTwoBytes(0x00014232, 0xFFEF); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0xFFEF) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
@@ -89,95 +88,92 @@ TEST_F(LDXTest, LoadX_Absolute_NFLAG) {
 // LDX ABSOLUTE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // partial address of value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
-    TestUnchangedState(cpu, A, SP);
+    EXPECT_EQ(cpu.X, 0x1234) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_PAGECROSS) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00011232); // partial memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00011232); // partial address of value to load into X
     cpu.Y = 0xF013;
     cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into X
 
     TestInstruction(cpu, 9, 0x00001028);
     
-    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    EXPECT_EQ(cpu.Y, 0xF013); // test Y is unchanged
-    TestUnchangedState(cpu, A, SP);
+    EXPECT_EQ(cpu.X, 0x1234) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_ZFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // partial address of value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    EXPECT_EQ(cpu.X, 0x0000) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
     TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
-    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
+    cpu.writeWord(0x00001024, 0x00014232); // partial address of value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into X
 
     TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    EXPECT_EQ(cpu.X, 0xFFEF) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
     TestUnchangedState(cpu, A, SP);
 }
 
 
-// LDX ZERO PAGE TESTS
+// LDX ZEROPAGE TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zp address to the value to load into X
     cpu.writeTwoBytes(0x00004232, 0x2042); // value to load into X
 
     TestInstruction(cpu, 5, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    TestUnchangedState(cpu, A, Y, SP);
+    EXPECT_EQ(cpu.X, 0x2042) << "X register is not set to the correct value";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_ZFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zp address to the value to load into X
     cpu.writeTwoBytes(0x00004232, 0x0000); // value to load into X
 
     TestInstruction(cpu, 5, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    EXPECT_EQ(cpu.X, 0x0000) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_NFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zp address to the value to load into X
     cpu.writeTwoBytes(0x00004232, 0xFFEF); // value to load into X
 
     TestInstruction(cpu, 5, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0xFFEF) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
     TestUnchangedState(cpu, A, Y, SP);
 }
 
@@ -185,56 +181,54 @@ TEST_F(LDXTest, LoadX_ZeroPage_NFLAG) {
 // LDX ZEROPAGE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zp address to the value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00004245, 0x2042); // value to load into X
 
     TestInstruction(cpu, 6, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
-    TestUnchangedState(cpu, A, SP);
+    EXPECT_EQ(cpu.X, 0x2042) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address to the value to load into X
     cpu.Y = 0xF013; 
     cpu.writeTwoBytes(0x00000245, 0x2042); // value to load into X
 
     TestInstruction(cpu, 6, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
-    EXPECT_EQ(cpu.Y, 0xF013); // test Y is unchanged
-    TestUnchangedState(cpu, A, SP);
+    EXPECT_EQ(cpu.X, 0x2042) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_ZFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zp address to the value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00004245, 0x0000); // value to load to X
 
     TestInstruction(cpu, 6, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    EXPECT_EQ(cpu.X, 0x0000) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
     TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
-    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zp address to the value to load into X
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00004245, 0xFFEF); // value to load to X
 
     TestInstruction(cpu, 6, 0x00001026);
 
-    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
-    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
-    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    EXPECT_EQ(cpu.X, 0xFFEF) << "X register is not set to the correct value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
     TestUnchangedState(cpu, A, SP);
 }

@@ -13,44 +13,36 @@ class DEXTest : public testing::Test {
     }
 };
 
+
+// DEX IMPLIED TESTS
 TEST_F(DEXTest, DecrementXImplied_Normal) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_DEX_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0x1234;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.X, 0x1233); // check decremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.X, 0x1233) << "X should be decremented";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 TEST_F(DEXTest, DecrementXImplied_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_DEX_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0x0001;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.X, 0x0000); // check decremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b00100010); // only default flag is set
+    EXPECT_EQ(cpu.X, 0x0000) << "X should be decremented (underflow) to zero";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(DEXTest, DecrementXImplied_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_DEX_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.X, 0xFFFE); // check decremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b10100000); // only default flag is set
+    EXPECT_EQ(cpu.X, 0xFFFE) << "X should be decremented";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, A, Y, SP);
 }

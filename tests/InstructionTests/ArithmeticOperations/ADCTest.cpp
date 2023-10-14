@@ -13,392 +13,444 @@ class ADCTest : public testing::Test {
     }
 };
 
+
+// ADC IMMEDIATE TESTS
 TEST_F(ADCTest, AddWithCarryImmediate_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_IMM);
-    cpu.writeTwoBytes(0x00001024, 0x2034);
-    cpu.A = 0x0012;
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x2034); // value to add to accumulator
     cpu.setFlag(cpu.C_FLAG, true);
+    cpu.A = 0x0012;
 
-    cpu.start(3);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x2047); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 3);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x2047) << "Accumulator should be incremented by 0x2035";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryImmediate_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryImmediate_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_IMM);
-    cpu.writeTwoBytes(0x00001024, 0x0001);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    cpu.start(3);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001026); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 3);
-    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// ADC ABSOLUTE TESTS
 TEST_F(ADCTest, AddWithCarryAbsolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS);
-    cpu.writeWord(0x00001024, 0x00012034);
-    cpu.writeTwoBytes(0x00012034, 0x1234);
-    cpu.A = 0x0012;
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012034, 0x1234); // value to add to accumulator
     cpu.setFlag(cpu.C_FLAG, true);
+    cpu.A = 0x0012;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryAbsolute_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012034, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 7, 0x00001028);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryAbsolute_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS);
-    cpu.writeWord(0x00001024, 0x00012034);
-    cpu.writeTwoBytes(0x00012034, 0x0001);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012034, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// ADC ABSOLUTE XINDEXED TESTS
 TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_X);
-    cpu.writeWord(0x00001024, 0x00012034);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00012035, 0x1234);
-    cpu.A = 0x0012;
+    cpu.writeTwoBytes(0x00012035, 0x1234); // value to add to accumulator
     cpu.setFlag(cpu.C_FLAG, true);
+    cpu.A = 0x0012;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
 TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_X);
-    cpu.writeWord(0x00001024, 0x0001FFFF);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x0001FFFF); // partial address of value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00020000, 0x1234);
-    cpu.A = 0x0012;
+    cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
     cpu.setFlag(cpu.C_FLAG, true);
+    cpu.A = 0x0012;
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 9);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeTwoBytes(0x00012035, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 7, 0x00001028);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and carry flag should be set";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_X);
-    cpu.writeWord(0x00001024, 0x00012034);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00012035, 0x0001);
+    cpu.writeTwoBytes(0x00012035, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
+// ADC ABSOLUTE YINDEXED TESTS
 TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00012034);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
-    cpu.writeTwoBytes(0x00012035, 0x1234);
+    cpu.writeTwoBytes(0x00012035, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_Y);
-    cpu.writeWord(0x00001024, 0x0001FFFF);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x0001FFFF); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
-    cpu.writeTwoBytes(0x00020000, 0x1234);
+    cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 9);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    TestUnchangedState(cpu, X, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
+    cpu.Y = 0x0001;
+    cpu.writeTwoBytes(0x00012035, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 7, 0x00001028);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_ADC_ABS_Y);
-    cpu.writeWord(0x00001024, 0x00012034);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
-    cpu.writeTwoBytes(0x00012035, 0x0001);
+    cpu.writeTwoBytes(0x00012035, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    EXPECT_EQ(cpu.A, 0x0000); // check incremented accumulator value
-    EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 7);
-    EXPECT_EQ(cpu.P, 0b00100011); // only default, zero, and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 
+// ADC XINDEXED INDIRECT TESTS
 TEST_F(ADCTest, AddWithCarryXIndexedIndirect_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00000123);
-    cpu.writeByte(0x00000123, AlienCPU::INS_ADC_X_IND);
-    cpu.writeTwoBytes(0x00000124, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeWord(0x00001235, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x1234);
+    cpu.writeWord(0x00001235, 0x00012345); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012345, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00000126); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 10);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryXIndexedIndirect_PAGEWRAP) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00000123);
-    cpu.writeByte(0x00000123, AlienCPU::INS_ADC_X_IND);
-    cpu.writeTwoBytes(0x00000124, 0x0002);
+TEST_F(ADCTest, AddWithCarryXIndexedIndirect_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0002); // partial zp address of address to value to add to accumulator
     cpu.X = 0xFFFF;
-    cpu.writeWord(0x00000001, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x1234);
+    cpu.writeWord(0x00000001, 0x00012345); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012345, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0xFFFF); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00000126); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 10);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryXIndexedIndirect_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeWord(0x00001235, 0x00012345); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012345, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 10, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryXIndexedIndirect_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00000123);
-    cpu.writeByte(0x00000123, AlienCPU::INS_ADC_X_IND);
-    cpu.writeTwoBytes(0x00000124, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeWord(0x00001235, 0x00012345);
-    cpu.writeTwoBytes(0x00012345, 0x0001);
+    cpu.writeWord(0x00001235, 0x00012345); // address of value to add to accumulator
+    cpu.writeTwoBytes(0x00012345, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(10);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0001); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00000126); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 10);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
+// ADC INDIRECT YINDEXED TESTS
 TEST_F(ADCTest, AddWithCarryIndirectYIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_IND_Y);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
-    cpu.writeWord(0x00001234, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
-    cpu.writeTwoBytes(0x00012346, 0x1234);
+    cpu.writeTwoBytes(0x00012346, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 9);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    TestUnchangedState(cpu, X, SP, P);
 }
 
 TEST_F(ADCTest, AddWithCarryIndirectYIndexed_PAGECROSSING) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_IND_Y);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
-    cpu.writeWord(0x00001234, 0x00010001);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
+    cpu.writeWord(0x00001234, 0x00010001); // partial address of value to add to accumulator
     cpu.Y = 0xFFFF;
-    cpu.writeTwoBytes(0x00020000, 0x1234);
+    cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(11);
+    TestInstruction(cpu, 11, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.Y, 0xFFFF); // check unchanged Y register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 11);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should be unchanged";
+    TestUnchangedState(cpu, X, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryIndirectYIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
+    cpu.Y = 0x0001;
+    cpu.writeTwoBytes(0x00012346, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 9, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryIndirectYIndexed_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_IND_Y);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
-    cpu.writeWord(0x00001234, 0x00012345);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
+    cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
-    cpu.writeTwoBytes(0x00012346, 0x0001);
+    cpu.writeTwoBytes(0x00012346, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(9);
+    TestInstruction(cpu, 9, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x0001); // check incremented accumulator value
-    EXPECT_EQ(cpu.Y, 0x0001); // check unchanged Y register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 9);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, X, SP);
 }
 
 
+// ADC ZEROPAGE TESTS
 TEST_F(ADCTest, AddWithCarryZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_ZP);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
-    cpu.writeTwoBytes(0x00001234, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 5);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryZeroPage_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 5, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryZeroPage_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_ZP);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
-    cpu.writeTwoBytes(0x00001234, 0x0001);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x0001); // check incremented accumulator value
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 5);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
+// ADC ZEROPAGE XINDEXED TESTS
 TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_ZP_X);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00001235, 0x1234);
+    cpu.writeTwoBytes(0x00001235, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 6);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_PAGEWRAPPING) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_ZP_X);
-    cpu.writeTwoBytes(0x00011235, 0x0001);
+TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x0001); // partial zp address to the value to add to accumulator
     cpu.X = 0xFFFF;
-    cpu.writeTwoBytes(0x00000000, 0x1234);
+    cpu.writeTwoBytes(0x00000000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x1247); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0xFFFF); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 6);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeTwoBytes(0x00001235, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 6, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_CARRYFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00011234);
-    cpu.writeByte(0x00011234, AlienCPU::INS_ADC_ZP_X);
-    cpu.writeTwoBytes(0x00011235, 0x1234);
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
     cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00001235, 0x0001);
+    cpu.writeTwoBytes(0x00001235, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00011237);
 
-    EXPECT_EQ(cpu.A, 0x0001); // check incremented accumulator value
-    EXPECT_EQ(cpu.X, 0x0001); // check unchanged X register
-    EXPECT_EQ(cpu.PC, 0x00011237); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 6);
-    EXPECT_EQ(cpu.P, 0b00100001); // only default and carry flag is set
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, Y, SP);
 }

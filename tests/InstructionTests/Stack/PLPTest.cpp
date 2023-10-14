@@ -13,17 +13,16 @@ class PLPTest : public testing::Test {
     }
 };
 
-TEST_F(PLPTest, PopProcessorImplied_Normal) {
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_PLP_IMPL);
 
+// PLP IMPLIED TESTS
+TEST_F(PLPTest, PopProcessorImplied_Normal) {
+    LoadInstruction(cpu, AlienCPU::INS_PLP_IMPL, 0x00001023);
     cpu.motherboard.ram[0x0001FFFF] = 0b01010101;
     cpu.SP = 0xFFFE;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.P, 0b01010101);
-    EXPECT_EQ(cpu.SP, 0xFFFF);
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.PC, 0x00001024);
+    EXPECT_EQ(cpu.P, 0b01010101) << "Processor status should be set to the value on the stack";
+    EXPECT_EQ(cpu.SP, 0xFFFF) << "Stack pointer should be incremented";
+    TestUnchangedState(cpu, A, X, Y, P);
 }

@@ -13,34 +13,26 @@ class INCTest : public testing::Test {
     }
 };
 
+
+// INC ABSOLUTE TESTS
 TEST_F(INCTest, IncrementAbsolute_Normal) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_INC_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_INC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address to increment from
+    cpu.writeByte(0x00012345, 0x12); // value to increment
 
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeByte(0x00012345, 0x12);
-
-    cpu.start(8);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x13); // check incremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 8);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    TestUnchangedState(cpu, A, X, Y, SP, P);
 }
 
 TEST_F(INCTest, IncrementAbsolute_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_INC_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_INC_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00012345); // address to increment from
+    cpu.writeByte(0x00012345, 0xFF); // value to increment
 
-    cpu.writeWord(0x00001024, 0x00012345);
-    cpu.writeByte(0x00012345, 0xFF);
-
-    cpu.start(8);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.motherboard.ram[0x00012345], 0x00); // check incremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001028); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 8);
-    EXPECT_EQ(cpu.P, 0b00100010); // only default flag is set
+    TestUnchangedState(cpu, A, X, Y, SP, P);
 }

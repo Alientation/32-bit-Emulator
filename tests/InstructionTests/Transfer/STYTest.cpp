@@ -15,108 +15,66 @@ class STYTest : public testing::Test {
 
 
 // STY Absolute TESTS
-TEST_F(STYTest, SaveY_Absolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ABS);
-
-    // write memory address to save the Y to
-    cpu.writeWord(0x00001024, 0x00014232);
+TEST_F(STYTest, StoreY_Absolute_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STY_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // address to store Y
     cpu.Y = 0x4232;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00014232), 0x4232);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.motherboard.ram[0x00014232], 0x32) << "Low byte of Y not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00014233], 0x42) << "High byte of Y not stored in memory";
+    EXPECT_EQ(cpu.Y, 0x4232) << "Y should not be altered";
+    TestUnchangedState(cpu, A, X, SP, P);
 }
 
 
-// STY ZERO PAGE TESTS
-TEST_F(STYTest, SaveY_ZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP);
-
-    // write zero page memory address to save the Y
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+// STY ZEROPAGE TESTS
+TEST_F(STYTest, StoreY_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STY_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address to store Y
     cpu.Y = 0x1234;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00001026);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001232), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001232], 0x34) << "Low byte of Y not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001233], 0x12) << "High byte of Y not stored in memory";
+    EXPECT_EQ(cpu.Y, 0x1234) << "Y should not be altered";
+    TestUnchangedState(cpu, A, X, SP, P);
 }
 
 
 // STY ZEROPAGE Y-INDEXED TESTS
-TEST_F(STYTest, SaveY_ZeroPage_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP_X);
-
-    // write zero page memory address save the Y
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STYTest, StoreY_ZeroPage_YIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STY_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store Y
     cpu.X = 0x0013;
     cpu.Y = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001245], 0x34) << "Low byte of Y not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001246], 0x12) << "High byte of Y not stored in memory";
+    EXPECT_EQ(cpu.Y, 0x1234) << "Y should not be altered";
+    EXPECT_EQ(cpu.X, 0x0013) << "X should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
-TEST_F(STYTest, SaveY_ZeroPage_YIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STY_ZP_X);
-
-    // write zero page memory address save the Y
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STYTest, StoreY_ZeroPage_YIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_STY_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store Y
     cpu.X = 0xF013;
     cpu.Y = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores Y's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00000245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00000245], 0x34) << "Low byte of Y not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00000246], 0x12) << "High byte of Y not stored in memory";
+    EXPECT_EQ(cpu.Y, 0x1234) << "Y should not be altered";
+    EXPECT_EQ(cpu.X, 0xF013) << "X should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }

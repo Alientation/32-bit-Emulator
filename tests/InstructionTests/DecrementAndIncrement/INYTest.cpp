@@ -13,44 +13,36 @@ class INYTest : public testing::Test {
     }
 };
 
+
+// INY IMPLIED TESTS
 TEST_F(INYTest, IncrementYImplied_Normal) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_INY_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0x1234;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.Y, 0x1235); // check incremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b00100000); // only default flag is set
+    EXPECT_EQ(cpu.Y, 0x1235) << "Y should be incremented";
+    TestUnchangedState(cpu, A, X, SP, P);
 }
 
 TEST_F(INYTest, IncrementYImplied_ZEROFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_INY_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0xFFFF;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.Y, 0x0000); // check incremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b00100010); // only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0000) << "Y should be incremented (overflow) to zero";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, A, X, SP);
 }
 
 TEST_F(INYTest, IncrementYImplied_NEGATIVEFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_INY_IMPL);
+    LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0xFFFE;
 
-    cpu.start(2);
+    TestInstruction(cpu, 2, 0x00001024);
 
-    EXPECT_EQ(cpu.Y, 0xFFFF); // check incremented memory value
-    EXPECT_EQ(cpu.PC, 0x00001024); // check PC points to next instruction
-    EXPECT_EQ(cpu.cycles, 2);
-    EXPECT_EQ(cpu.P, 0b10100000); // only default flag is set
+    EXPECT_EQ(cpu.Y, 0xFFFF) << "Y should be incremented";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, A, X, SP);
 }

@@ -14,109 +14,67 @@ class STXTest : public testing::Test {
 };
 
 
-// STX Absolute TESTS
-TEST_F(STXTest, SaveX_Absolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STX_ABS);
-
-    // write memory address to save the X to
-    cpu.writeWord(0x00001024, 0x00014232);
+// STX ABSOLUTE TESTS
+TEST_F(STXTest, StoreX_Absolute_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STX_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // address to store X
     cpu.X = 0x4232;
 
-    cpu.start(7);
+    TestInstruction(cpu, 7, 0x00001028);
 
     // test memory address stores X's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00014232), 0x4232);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.motherboard.ram[0x00014232], 0x32) << "Low byte of X not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00014233], 0x42) << "High byte of X not stored in memory";
+    EXPECT_EQ(cpu.X, 0x4232) << "X should not be altered";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 
-// STX ZERO PAGE TESTS
-TEST_F(STXTest, SaveX_ZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STX_ZP);
-
-    // write zero page memory address to save the X
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+// STX ZEROPAGE TESTS
+TEST_F(STXTest, StoreX_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STX_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address to store X
     cpu.X = 0x1234;
 
-    cpu.start(5);
+    TestInstruction(cpu, 5, 0x00001026);
 
     // test memory address stores X's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001232), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001232], 0x34) << "Low byte of X not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001233], 0x12) << "High byte of X not stored in memory";
+    EXPECT_EQ(cpu.X, 0x1234) << "X should not be altered";
+    TestUnchangedState(cpu, A, Y, SP, P);
 }
 
 
 // STX ZEROPAGE Y-INDEXED TESTS
-TEST_F(STXTest, SaveX_ZeroPage_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STX_ZP_Y);
-
-    // write zero page memory address save the X
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STXTest, StoreX_ZeroPage_YIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STX_ZP_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address save X
     cpu.Y = 0x0013;
     cpu.X = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores X's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00001245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00001245], 0x34) << "Low byte of X not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001246], 0x12) << "High byte of X not stored in memory";
+    EXPECT_EQ(cpu.X, 0x1234) << "X should not be altered";
+    EXPECT_EQ(cpu.Y, 0x0013) << "Y should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }
 
-TEST_F(STXTest, SaveX_ZeroPage_YIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_STX_ZP_Y);
-
-    // write zero page memory address save the X
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+TEST_F(STXTest, StoreX_ZeroPage_YIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_STX_ZP_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address save X
     cpu.Y = 0xF013;
     cpu.X = 0x1234;
 
-    cpu.start(6);
+    TestInstruction(cpu, 6, 0x00001026);
 
     // test memory address stores X's value
-    EXPECT_EQ(cpu.readTwoBytes(0x00000245), 0x1234);
-    cpu.cycles -= 2; // nullify the extra cycles from the read
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.motherboard.ram[0x00000245], 0x34) << "Low byte of X not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00000246], 0x12) << "High byte of X not stored in memory";
+    EXPECT_EQ(cpu.X, 0x1234) << "X should not be altered";
+    EXPECT_EQ(cpu.Y, 0xF013) << "Y should not be altered";
+    TestUnchangedState(cpu, A, SP, P);
 }

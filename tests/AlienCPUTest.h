@@ -8,6 +8,7 @@
 #include <../src/Motherboard/AlienCPU.h>
 #undef private
 
+// registers in cpu that can be tested
 enum CPUElement {
     A,
     X,
@@ -23,33 +24,32 @@ static void LoadInstruction(AlienCPU& cpu, u8 instruction, Word address) {
     cpu.writeByte(address, instruction);
 }
 
+// Helper to start the cpu for a certain number of cycles and check the state of the cpu
 static void TestInstruction(AlienCPU& cpu, u64 expectedCycles, Word expectedPC) {
-    cpu.start(expectedCycles);
+    cpu.start(expectedCycles); 
 
-    // check that the PC is at the expected address
-    EXPECT_EQ(cpu.PC, expectedPC);
-
-    // check that the number of cycles is as expected
-    EXPECT_EQ(cpu.cycles, expectedCycles);
+    EXPECT_EQ(cpu.PC, expectedPC) << "PC is not at the expected address";
+    EXPECT_EQ(cpu.cycles, expectedCycles) << "Number of cycles is not as expected";
 }
 
+// Helper to check that the state of the specific elements of cpu is unchanged
 static void TestUnchangedState(AlienCPU& cpu, CPUElement elements...) { 
     for (auto&& element : {elements}) {
         switch (element) {
             case A:
-                EXPECT_EQ(cpu.A, cpu.A_INIT);
+                EXPECT_EQ(cpu.A, cpu.A_INIT) << "A is not unchanged";
                 break;
             case X:
-                EXPECT_EQ(cpu.X, cpu.X_INIT);
+                EXPECT_EQ(cpu.X, cpu.X_INIT) << "X is not unchanged";
                 break;
             case Y:
-                EXPECT_EQ(cpu.Y, cpu.Y_INIT);
+                EXPECT_EQ(cpu.Y, cpu.Y_INIT) << "Y is not unchanged";
                 break;
             case SP:
-                EXPECT_EQ(cpu.SP, cpu.SP_INIT);
+                EXPECT_EQ(cpu.SP, cpu.SP_INIT) << "SP is not unchanged";
                 break;
             case P:
-                EXPECT_EQ(cpu.P, cpu.P_INIT);
+                EXPECT_EQ(cpu.P, cpu.P_INIT) << "P is not unchanged";
                 break;
         }
     }
