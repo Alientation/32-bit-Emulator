@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include <AlienCPUTest.h>
 
 class LDATest : public testing::Test {
@@ -17,804 +15,408 @@ class LDATest : public testing::Test {
 
 // LDA IMMEDIATE TESTS
 TEST_F(LDATest, LoadAccumulator_Immediate_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    cpu.start(3);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x4232);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0x4232); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Immediate_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0000); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x0000);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    cpu.start(3);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test only default and zero flag is set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Immediate_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0xFFEF); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0xFFEF);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    cpu.start(3);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
 // LDA ABSOLUTE TESTS
 TEST_F(LDATest, LoadAccumulator_Absolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00014232, 0x1234); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014232, 0x1234);
-
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00014232, 0x0000); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014232, 0x0000);
-
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00014232, 0xFFEF); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014232, 0xFFEF);
-
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
 // LDA ABSOLUTE X-INDEXED TESTS
 TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_X);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0x1234);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_PAGECROSS) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_X);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00011232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00011232); // partial memory address of value to load into accumulator
     cpu.X = 0xF013;
+    cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00020245, 0x1234);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    cpu.start(9);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0xF013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_X);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0x0000);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_X);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_X, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0xFFEF);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
 // LDA ABSOLUTE Y-INDEXED TESTS
 TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_Y);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0x1234);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_PAGECROSS) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_Y);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00011232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00011232); // partial memory address of value to load into accumulator
     cpu.Y = 0xF013;
+    cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00020245, 0x1234);
+    TestInstruction(cpu, 9, 0x00001028);
 
-    cpu.start(9);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0xF013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_Y);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0x0000);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ABS_Y);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00014245, 0xFFEF);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 
 // LDA X-INDEXED INDIRECT TESTS
 TEST_F(LDATest, LoadAccumulator_XIndexed_Indirect_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_X_IND);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeWord(0x00004245, 0x00011234); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00011234, 0x1234); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004245, 0x00011234);
-
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011234, 0x1234);
-
-    cpu.start(10);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    TestInstruction(cpu, 10, 0x00001026);
+    
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_XIndexed_Indirect_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_X_IND);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zero page memory address of value to load into accumulator
     cpu.X = 0xF013;
+    cpu.writeWord(0x00000245, 0x00011234); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00011234, 0x1234); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00000245, 0x00011234);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011234, 0x1234);
-
-    cpu.start(10);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0xF013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_XIndexed_Indirect_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_X_IND);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeWord(0x00004245, 0x00011234); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00011234, 0x0000); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004245, 0x00011234);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011234, 0x0000);
-
-    cpu.start(10);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_XIndexed_Indirect_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_X_IND);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_X_IND, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address of value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeWord(0x00004245, 0x00011234); // memory address of value to load into accumulator
+    cpu.writeTwoBytes(0x00011234, 0xFFEF); // value to load into accumulator
 
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004245, 0x00011234);
+    TestInstruction(cpu, 10, 0x00001026);
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011234, 0xFFEF);
-
-    cpu.start(10);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 10);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 
 // LDA INDIRECT Y-INDEXED TESTS
 TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IND_Y);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004232, 0x00011234);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address of value to load into accumulator
+    cpu.writeWord(0x00004232, 0x00011234); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00011247, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011247, 0x1234);
+    TestInstruction(cpu, 9, 0x00001026);
 
-    cpu.start(9);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_PAGECROSS) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IND_Y);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004232, 0x00011234);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address of value to load into accumulator
+    cpu.writeWord(0x00004232, 0x00011234); // partial memory address of value to load into accumulator
     cpu.Y = 0xF013;
+    cpu.writeTwoBytes(0x00020247, 0x1234); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00020247, 0x1234);
+    TestInstruction(cpu, 11, 0x00001026);
 
-    cpu.start(11);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 11);
+    EXPECT_EQ(cpu.A, 0x1234); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0xF013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IND_Y);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004232, 0x00011234);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address of value to load into accumulator
+    cpu.writeWord(0x00004232, 0x00011234); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00011247, 0x0000); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011247, 0x0000);
+    TestInstruction(cpu, 9, 0x00001026);
 
-    cpu.start(9);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_IND_Y);
-
-    // write zero page memory address of value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
-
-    // write memory address of value to load into accumulator
-    cpu.writeWord(0x00004232, 0x00011234);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_IND_Y, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address of value to load into accumulator
+    cpu.writeWord(0x00004232, 0x00011234); // partial memory address of value to load into accumulator
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00011247, 0xFFEF); // value to load into accumulator
 
-    // write value to load into accumulator
-    cpu.writeTwoBytes(0x00011247, 0xFFEF);
-
-    cpu.start(9);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    TestInstruction(cpu, 9, 0x00001026);
+    
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y register is unchanged
+    TestUnchangedState(cpu, X, SP);
 }
 
 
 // LDA ZERO PAGE TESTS
 TEST_F(LDATest, LoadAccumulator_ZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into accumulator
+    cpu.writeTwoBytes(0x00004232, 0x2042); // value to load into accumulator
 
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the value to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004232, 0x2042);
-
-    cpu.start(5);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0x2042); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_ZeroPage_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into accumulator
+    cpu.writeTwoBytes(0x00004232, 0x0000); // value to load into accumulator
 
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the values to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004232, 0x0000);
-
-    cpu.start(5);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_ZeroPage_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into accumulator
+    cpu.writeTwoBytes(0x00004232, 0xFFEF); // value to load into accumulator
 
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the values to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004232, 0xFFEF);
-
-    cpu.start(5);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, X, Y, SP);
 }
 
 
 // LDA ZEROPAGE X-INDEXED TESTS
 TEST_F(LDATest, LoadAccumulator_ZeroPage_XIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP_X);
-
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0x2042); // value to load into accumulator
 
-    // write the value to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004245, 0x2042);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x2042); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_ZeroPage_XIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP_X);
-
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x1232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zero page memory address to the value to load into accumulator
     cpu.X = 0xF013;
+    cpu.writeTwoBytes(0x00000245, 0x2042); // value to load into accumulator
 
-    // write the value to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00000245, 0x2042);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x2042); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.X, 0xF013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_ZeroPage_XIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP_X);
-
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0x0000); // value to load into accumulator
 
-    // write the values to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004245, 0x0000);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0x0000); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
 
 TEST_F(LDATest, LoadAccumulator_ZeroPage_XIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDA_ZP_X);
-
-    // write zero page memory address to the value to load into accumulator
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into accumulator
     cpu.X = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0xFFEF); // value to load into accumulator
 
-    // write the values to be loaded to the accumulator on the zero page
-    cpu.writeTwoBytes(0x00004245, 0xFFEF);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test accumulator is set to the correct high endian value
-    EXPECT_EQ(cpu.A, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.A, 0xFFEF); // test accumulator is set to the correct value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.X, 0x0013); // test X register is unchanged
+    TestUnchangedState(cpu, Y, SP);
 }
