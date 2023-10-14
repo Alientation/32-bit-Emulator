@@ -72,7 +72,7 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/InstructionTests/LogicalOperations/ANDTest.cpp"
     "tests/InstructionTests/LogicalOperations/EORTest.cpp"
     "tests/InstructionTests/LogicalOperations/ORATest.cpp"
-A
+
     "tests/InternalTests/ValidInstructionTest.cpp"
     "tests/InternalTests/StatusFlagTest.cpp"
     "tests/InternalTests/MemoryAddressingTest.cpp"
@@ -82,8 +82,9 @@ A
     "tests/PerformanceTests/StackPerformanceTest.cpp"
 )
 
-file (GLOB ALIENCPUV1TEST_HEADERS 
+file (GLOB ALIENCPUTEST_HEADERS 
     "tests/AlienCPUTest.h"
+    "tests/TestUtil.h"
 )
 
 file (GLOB ALIENCPUPERFORMANCETEST_SOURCES
