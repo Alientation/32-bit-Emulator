@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include <AlienCPUTest.h>
 
 class LDXTest : public testing::Test {
@@ -17,450 +15,226 @@ class LDXTest : public testing::Test {
 
 // LDX IMMEDIATE TESTS
 TEST_F(LDXTest, LoadX_Immediate_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // value to load into X
+ 
+    TestInstruction(cpu, 3, 0x00001026);
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
-
-    cpu.start(3);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x4232);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.X, 0x4232); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_Immediate_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0000); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x0000);
-
-    cpu.start(3);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    TestInstruction(cpu, 3, 0x00001026);
+    
+    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_Immediate_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_IMM);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0xFFEF); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00001024, 0xFFEF);
+    TestInstruction(cpu, 3, 0x00001026);
 
-    cpu.start(3);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 3);
+    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 
 // LDX ABSOLUTE TESTS
 TEST_F(LDXTest, LoadX_Absolute_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeTwoBytes(0x00014232, 0x1234); // value to load into X
 
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014232, 0x1234);
-
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeTwoBytes(0x00014232, 0x0000); // value to load into X
 
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014232, 0x0000);
-
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // memory address of value to load into X
+    cpu.writeTwoBytes(0x00014232, 0xFFEF); // value to load into X
 
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014232, 0xFFEF);
-
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 
 // LDX ABSOLUTE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
-
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014245, 0x1234);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_PAGECROSS) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
-
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00011232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00011232); // partial memory address of value to load into X
     cpu.Y = 0xF013;
+    cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00020245, 0x1234);
-
-    cpu.start(9);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x1234);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 9);
+    TestInstruction(cpu, 9, 0x00001028);
+    
+    EXPECT_EQ(cpu.X, 0x1234); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0xF013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
-
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014245, 0x0000);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x0000);
-
-    // test zero and default flag is set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_Absolute_YIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ABS_Y);
-
-    // write memory address of value to load into X
-    cpu.writeWord(0x00001024, 0x00014232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ABS_Y, 0x00001023);
+    cpu.writeWord(0x00001024, 0x00014232); // partial memory address of value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into X
 
-    // write value to load into X
-    cpu.writeTwoBytes(0x00014245, 0xFFEF);
+    TestInstruction(cpu, 7, 0x00001028);
 
-    cpu.start(7);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001028);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 7);
+    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 
 // LDX ZERO PAGE TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00004232, 0x2042); // value to load into X
 
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the value to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004232, 0x2042);
-
-    cpu.start(5);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00004232, 0x0000); // value to load into X
 
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the values to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004232, 0x0000);
-
-    cpu.start(5);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // zero page memory address to the value to load into X
+    cpu.writeTwoBytes(0x00004232, 0xFFEF); // value to load into X
 
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    TestInstruction(cpu, 5, 0x00001026);
 
-    // write the values to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004232, 0xFFEF);
-
-    cpu.start(5);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 5);
+    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    TestUnchangedState(cpu, A, Y, SP);
 }
 
 
 // LDX ZEROPAGE Y-INDEXED TESTS
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NORMAL) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
-
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0x2042); // value to load into X
 
-    // write the value to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004245, 0x2042);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_WRAPAROUND) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zero page memory address to the value to load into X
+    cpu.Y = 0xF013; 
+    cpu.writeTwoBytes(0x00000245, 0x2042); // value to load into X
 
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x1232);
-    cpu.Y = 0xF013;
+    TestInstruction(cpu, 6, 0x00001026);
 
-    // write the value to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00000245, 0x2042);
-
-    cpu.start(6);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x2042);
-
-    // test only default flag is set
-    EXPECT_EQ(cpu.P, 0b00100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.X, 0x2042); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100000); // test only default flag is set
+    EXPECT_EQ(cpu.Y, 0xF013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_ZFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
-
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0x0000); // value to load to X
 
-    // write the values to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004245, 0x0000);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0x0000);
-
-    // test zero and default flags are set
-    EXPECT_EQ(cpu.P, 0b00100010);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.X, 0x0000); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b00100010); // test zero and default flags are set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
 
 TEST_F(LDXTest, LoadX_ZeroPage_YIndexed_NFLAG) {
-    // setting reset vector to begin processing instructions at 0x0001023
-    cpu.writeWord(AlienCPU::POWER_ON_RESET_VECTOR, 0x00001023);
-    cpu.writeByte(0x00001023, AlienCPU::INS_LDX_ZP_Y);
-
-    // write zero page memory address to the value to load into X
-    cpu.writeTwoBytes(0x00001024, 0x4232);
+    LoadInstruction(cpu, AlienCPU::INS_LDX_ZP_Y, 0x0001023);
+    cpu.writeTwoBytes(0x00001024, 0x4232); // partial zero page memory address to the value to load into X
     cpu.Y = 0x0013;
+    cpu.writeTwoBytes(0x00004245, 0xFFEF); // value to load to X
 
-    // write the values to be loaded to the X on the zero page
-    cpu.writeTwoBytes(0x00004245, 0xFFEF);
+    TestInstruction(cpu, 6, 0x00001026);
 
-    cpu.start(6);
-
-    // test X is set to the correct high endian value
-    EXPECT_EQ(cpu.X, 0xFFEF);
-
-    // test negative and default flags are set
-    EXPECT_EQ(cpu.P, 0b10100000);
-
-    // test PC
-    EXPECT_EQ(cpu.PC, 0x00001026);
-
-    // test cycle counter
-    EXPECT_EQ(cpu.cycles, 6);
+    EXPECT_EQ(cpu.X, 0xFFEF); // test X is set to the value
+    EXPECT_EQ(cpu.P, 0b10100000); // test negative and default flags are set
+    EXPECT_EQ(cpu.Y, 0x0013); // test Y is unchanged
+    TestUnchangedState(cpu, A, SP);
 }
