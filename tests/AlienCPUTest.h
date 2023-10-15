@@ -33,26 +33,30 @@ static void TestInstruction(AlienCPU& cpu, u64 expectedCycles, Word expectedPC) 
 }
 
 // Helper to check that the state of the specific elements of cpu is unchanged
-static void TestUnchangedState(AlienCPU& cpu, CPUElement elements...) { 
-    for (auto&& element : {elements}) {
-        switch (element) {
-            case A:
-                EXPECT_EQ(cpu.A, cpu.A_INIT) << "A is not unchanged";
-                break;
-            case X:
-                EXPECT_EQ(cpu.X, cpu.X_INIT) << "X is not unchanged";
-                break;
-            case Y:
-                EXPECT_EQ(cpu.Y, cpu.Y_INIT) << "Y is not unchanged";
-                break;
-            case SP:
-                EXPECT_EQ(cpu.SP, cpu.SP_INIT) << "SP is not unchanged";
-                break;
-            case P:
-                EXPECT_EQ(cpu.P, cpu.P_INIT) << "P is not unchanged";
-                break;
-        }
+static void TestUnchangedState(AlienCPU& cpu, CPUElement element) { 
+    switch (element) {
+        case A:
+            EXPECT_EQ(cpu.A, cpu.A_INIT) << "A is not unchanged";
+            break;
+        case X:
+            EXPECT_EQ(cpu.X, cpu.X_INIT) << "X is not unchanged";
+            break;
+        case Y:
+            EXPECT_EQ(cpu.Y, cpu.Y_INIT) << "Y is not unchanged";
+            break;
+        case SP:
+            EXPECT_EQ(cpu.SP, cpu.SP_INIT) << "SP is not unchanged";
+            break;
+        case P:
+            EXPECT_EQ(cpu.P, cpu.P_INIT) << "P is not unchanged";
+            break;
     }
+}
+
+// unwrap the variable arguments
+static void TestUnchangedState(AlienCPU& cpu, CPUElement element, CPUElement elements...) {
+    TestUnchangedState(cpu, element);
+    TestUnchangedState(cpu, elements);
 }
 
 

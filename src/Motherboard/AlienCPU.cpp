@@ -170,6 +170,8 @@ Word AlienCPU::readWord(Word highEndianAddress) {
 }
 
 
+// TODO: apparently the 6502 when reading from PC first increments PC then
+// reads it??? I don't think we should do this for this pc
 // Reads the next byte in memory and increments PC (1 cycle)
 Byte AlienCPU::fetchNextByte() {
     Byte data = motherboard.readByte(PC);

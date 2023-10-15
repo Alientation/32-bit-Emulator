@@ -914,24 +914,49 @@ void AlienCPU::_16_ASL_ZeroPage_XIndexed_Instruction() {
 
 
 // =====================LOGICAL=SHIFT=====================
+// LOGICAL SHIFT RIGHT ACCUMULATOR ($4A | 1 byte | 2 cycles)
+// 1-2: Accumulator addressing mode
 void AlienCPU::_4A_LSR_Accumulator_Instruction() {
-
+    ADDRESSING_ACCUMULATOR();
+    setFlag(C_FLAG, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    A >>= 1; // right shift, sign does not carry since A is unsigned short
+    UPDATE_FLAGS(A);
 }
 
+// LOGICAL SHIFT RIGHT ABSOLUTE ($4E | 5 bytes | 8 cycles)
+// 1-8: Absolute addressing mode
 void AlienCPU::_4E_LSR_Absolute_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE();
+    setFlag(C_FLAG, (*valuePointer) & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    (*valuePointer) >>= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// LOGICAL SHIFT RIGHT ABSOLUTE XINDEXED ($5E | 5 bytes | 9 cycles)
+// 1-9: Absolute indexed addressing mode
 void AlienCPU::_5E_LSR_Absolute_XIndexed_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    setFlag(C_FLAG, (*valuePointer) & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    (*valuePointer) >>= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// LOGICAL SHIFT RIGHT ZERO PAGE ($46 | 3 bytes | 6 cycles)
+// 1-6: Zero page addressing mode
 void AlienCPU::_46_LSR_ZeroPage_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE();
+    setFlag(C_FLAG, (*valuePointer) & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    (*valuePointer) >>= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// LOGICAL SHIFT RIGHT ZERO PAGE XINDEXED ($56 | 3 bytes | 7 cycles)
+// 1-6: Zero page indexed addressing mode
 void AlienCPU::_56_LSR_ZeroPage_XIndexed_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    setFlag(C_FLAG, (*valuePointer) & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    (*valuePointer) >>= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 
