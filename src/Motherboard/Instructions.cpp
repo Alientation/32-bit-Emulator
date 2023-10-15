@@ -375,31 +375,35 @@ void AlienCPU::_28_PLP_Implied_Instruction() {
 // ===================DECREMENT=MEMORY===================
 // AFFECTS FLAGS: Z
 // DEC MEMORY ABSOLUTE ($CE | 3 bytes | 8 cycles)
-// 1-8: Absolute addressing mode (read, increment, and write value back to memory)
+// 1-8: Absolute addressing mode (read, decrement, and write value back to memory)
 void AlienCPU::_CE_DEC_Absolute_Instruction() {
-    Byte value = ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE();
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE();
+    (*valuePointer)--;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // DEC MEMORY ABSOLUTE X-INDEXED ($DE | 3 bytes | 9 cycles)
-// 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
+// 1-9: Absolute indexed addressing mode (read, decrement, and write value back to memory)
 void AlienCPU::_DE_DEC_Absolute_XIndexed_Instruction() {
-    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    (*valuePointer)--;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // DEC MEMORY ZEROPAGE ($C6 | 2 bytes | 6 cycles)
-// 1-6: Zero page addressing mode (read, increment, and write value back to memory)
+// 1-6: Zero page addressing mode (read, decrement, and write value back to memory)
 void AlienCPU::_C6_DEC_ZeroPage_Instruction() {
-    Byte value = ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE();
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE();
+    (*valuePointer)--;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // DEC MEMORY ZEROPAGE X-INDEXED ($D6 | 2 bytes | 7 cycles)
-// 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
+// 1-7: Zero page indexed addressing mode (read, decrement, and write value back to memory)
 void AlienCPU::_D6_DEC_ZeroPage_XIndexed_Instruction() {
-    Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(X);
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    (*valuePointer)--;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 
@@ -430,29 +434,33 @@ void AlienCPU::_88_DEY_Implied_Instruction() {
 // INC MEMORY ABSOLUTE ($EE | 3 bytes | 8 cycles)
 // 1-8: Absolute addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_EE_INC_Absolute_Instruction() {
-    Byte value = ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE();
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE();
+    (*valuePointer)++;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // INC MEMORY ABSOLUTE X-INDEXED ($FE | 3 bytes | 9 cycles)
 // 1-9: Absolute indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_FE_INC_Absolute_XIndexed_Instruction() {
-    Byte value = ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    (*valuePointer)++;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // INC MEMORY ZEROPAGE ($E6 | 2 bytes | 6 cycles)
 // 1-6: Zero page addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_E6_INC_ZeroPage_Instruction() {
-    Byte value = ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE();
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE();
+    (*valuePointer)++;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 // INC MEMORY ZEROPAGE X-INDEXED ($F6 | 2 bytes | 7 cycles)
 // 1-7: Zero page indexed addressing mode (read, increment, and write value back to memory)
 void AlienCPU::_F6_INC_ZeroPage_XIndexed_Instruction() {
-    Byte value = ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(X);
-    UPDATE_FLAGS(value);
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    (*valuePointer)++;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 
@@ -859,24 +867,49 @@ void AlienCPU::_15_ORA_ZeroPage_XIndexed_Instruction() {
 
 // ====================SHIFT=&=ROTATE====================
 // =====================ARITHMETIC=SHIFT==================
+// ARITHMETIC SHIFT LEFT ACCUMULATOR ($0A | 1 byte | 2 cycles)
+// 1-2: Accumulator addressing mode
 void AlienCPU::_0A_ASL_Accumulator_Instruction() {
-
+    ADDRESSING_ACCUMULATOR();
+    setFlag(C_FLAG, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
+    A <<= 1;
+    UPDATE_FLAGS(A);
 }
 
+// ARITHMETIC SHIFT LEFT ABSOLUTE ($0E | 5 bytes | 8 cycles)
+// 1-8: Absolute addressing mode
 void AlienCPU::_0E_ASL_Absolute_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE();
+    setFlag(C_FLAG, (*valuePointer) >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    (*valuePointer) <<= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// ARITHMETIC SHIFT LEFT ABSOLUTE X-INDEXED ($1E | 5 bytes | 9 cycles)
+// 1-9: Absolute indexed addressing mode
 void AlienCPU::_1E_ASL_Absolute_XIndexed_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    setFlag(C_FLAG, (*valuePointer) >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    (*valuePointer) <<= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// ARITHMETIC SHIFT LEFT ZERO PAGE ($06 | 2 bytes | 6 cycles)
+// 1-6: Zero page addressing mode
 void AlienCPU::_06_ASL_ZeroPage_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE();
+    setFlag(C_FLAG, (*valuePointer) >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    (*valuePointer) <<= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
+// ARITHMETIC SHIFT LEFT ZERO PAGE X-INDEXED ($16 | 2 bytes | 7 cycles)
+// 1-7: Zero page indexed addressing mode
 void AlienCPU::_16_ASL_ZeroPage_XIndexed_Instruction() {
-
+    Byte* valuePointer = ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(X);
+    setFlag(C_FLAG, (*valuePointer) >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    (*valuePointer) <<= 1;
+    UPDATE_FLAGS(*valuePointer);
 }
 
 
