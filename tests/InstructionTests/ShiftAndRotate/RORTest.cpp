@@ -1,0 +1,14 @@
+#include <AlienCPUTest.h>
+
+class RORTest : public testing::Test {
+    public: 
+        AlienCPU cpu;
+
+    virtual void SetUp() {
+        cpu.reset();
+    }
+
+    virtual void TearDown() {
+
+    }
+};
