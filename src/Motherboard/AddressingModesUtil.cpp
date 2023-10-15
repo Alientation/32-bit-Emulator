@@ -3,7 +3,7 @@
 
 
 // =====================ADDRESSING=MODE=ACCUMULATOR=====================
-//                          (1 byte, 2 cycles) TODO: decide whether to describe this information in addressing modes documentation
+//                          1 byte | 2 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
 void AlienCPU::ADDRESSING_ACCUMULATOR() {
@@ -11,7 +11,8 @@ void AlienCPU::ADDRESSING_ACCUMULATOR() {
 }
 
 
-// =====================ADDRESSING=MODE=IMPLIED=====================
+// =======================ADDRESSING=MODE=IMPLIED=======================
+//                          1 byte | 2 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
 // TODO: this might require 3 cycles because registers are generally 2 bytes not
@@ -22,7 +23,8 @@ void AlienCPU::ADDRESSING_IMPLIED() {
 }
 
 
-// =====================ADDRESSING=MODE=IMMEDIATE=====================
+// ====================ADDRESSING=MODE=IMMEDIATE=READ===================
+//                          3 bytes | 3 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch high byte address from PC, increment PC
@@ -31,7 +33,8 @@ u16 AlienCPU::ADDRESSING_IMMEDIATE_READ_TWOBYTES() {
 }
 
 
-// =====================ADDRESSING=MODE=ABSOLUTE=====================
+// ====================ADDRESSING=MODE=ABSOLUTE=READ====================
+//                          5 bytes | 7 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -44,6 +47,8 @@ u16 AlienCPU::ADDRESSING_ABSOLUTE_READ_TWOBYTES() {
     return readTwoBytes(address); // 6-7
 }
 
+// =============ADDRESSING=MODE=ABSOLUTE=READ=MODIFY=WRITE==============
+//                          5 bytes | 8 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -58,6 +63,8 @@ Byte* AlienCPU::ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE() {
     return valuePointer;
 }
 
+// ===================ADDRESSING=MODE=ABSOLUTE=WRITE=====================
+//                          5 bytes | 7 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -71,7 +78,8 @@ void AlienCPU::ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue) {
 }
 
 
-// =====================ADDRESSING=MODE=ABSOLUTE=INDEXED=====================
+// ================ADDRESSING=MODE=ABSOLUTE=INDEXED=READ=================
+//                          5 bytes | 7-9 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -92,6 +100,8 @@ u16 AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
     return readTwoBytes(address + indexRegister); // 6-7 or 8-9
 }
 
+// ==========ADDRESSING=MODE=ABSOLUTE=INDEXED=READ=MODIFY=WRITE===========
+//                          5 bytes | 9 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -108,6 +118,8 @@ Byte* AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegi
     return valuePointer;
 }
 
+// ===============ADDRESSING=MODE=ABSOLUTE=INDEXED=WRITE=================
+//                          5 bytes | 8 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -123,7 +135,8 @@ void AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16
 }
 
 
-// =====================ADDRESSING=MODE=XINDEXED=INDIRECT=====================s
+// ================ADDRESSING=MODE=XINDEXED=INDIRECT=READ================
+//                          3 bytes | 10 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -141,6 +154,8 @@ u16 AlienCPU::ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES() {
     return readTwoBytes(address); // 9-10
 }
 
+// ================ADDRESSING=MODE=XINDEXED=INDIRECT=WRITE================
+//                          3 bytes | 10 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -159,7 +174,8 @@ void AlienCPU::ADDRESSING_XINDEXED_INDIRECT_WRITE_TWOBYTES(u16 registerValue) {
 }
 
 
-// =====================ADDRESSING=MODE=INDIRECT=YINDEXED=====================
+// ================ADDRESSING=MODE=INDIRECT=YINDEXED=READ=================
+//                          3 bytes | 9-11 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -184,6 +200,8 @@ u16 AlienCPU::ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES() {
     return readTwoBytes(address + Y); // 8-9 or 10-11
 }
 
+// ================ADDRESSING=MODE=INDIRECT=YINDEXED=WRITE================
+//                          3 bytes | 10 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -203,7 +221,8 @@ void AlienCPU::ADDRESSING_INDIRECT_YINDEXED_WRITE_TWOBYTES(u16 registerValue) {
 }
 
 
-// ===================ADDRESSING=MODE=ZEROPAGE===================
+// =====================ADDRESSING=MODE=ZEROPAGE=READ=====================
+//                          3 bytes | 5 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address from PC, increment PC
@@ -214,6 +233,8 @@ u16 AlienCPU::ADDRESSING_ZEROPAGE_READ_TWOBYTES() {
     return readTwoBytes(zeroPageAddress); // 4-5
 }
 
+// ===============ADDRESSING=MODE=ZEROPAGE=READ=MODIFY=WRITE==============
+//                          3 bytes | 6 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address from PC, increment PC
@@ -226,6 +247,8 @@ Byte* AlienCPU::ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE() {
     return valuePointer;
 }
 
+// ====================ADDRESSING=MODE=ZEROPAGE=WRITE=====================
+//                          3 bytes | 5 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address from PC, increment PC
@@ -238,6 +261,7 @@ void AlienCPU::ADDRESSING_ZEROPAGE_WRITE_TWOBYTES(u16 registerValue) {
 
 
 // ===================ADDRESSING=MODE=ZEROPAGE=INDEXED===================
+//                          3 bytes | 6 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -250,6 +274,8 @@ u16 AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
     return readTwoBytes(zeroPageAddress); // 5-6
 }
 
+// ==========ADDRESSING=MODE=ZEROPAGE=INDEXED=READ=MODIFY=WRITE==========
+//                          3 bytes | 7 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -264,6 +290,8 @@ Byte* AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegi
     return valuePointer;
 }
 
+// ================ADDRESSING=MODE=ZEROPAGE=INDEXED=WRITE================
+//                          3 bytes | 6 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
