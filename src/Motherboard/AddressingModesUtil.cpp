@@ -3,6 +3,7 @@
 
 
 // =====================ADDRESSING=MODE=ACCUMULATOR=====================
+//                          (1 byte, 2 cycles) TODO: decide whether to describe this information in addressing modes documentation
 // 1: fetch opcode from PC, increment PC
 // 2: useless read from PC (for the instruction to perform its job)
 void AlienCPU::ADDRESSING_ACCUMULATOR() {
@@ -49,30 +50,12 @@ u16 AlienCPU::ADDRESSING_ABSOLUTE_READ_TWOBYTES() {
 // 4: fetch mid high byte address from PC, increment PC
 // 5: fetch high byte address from PC, increment PC
 // 6: read byte from effective address
-// 7: useless write the value back to effective address, decrement value 
-// 8: write the decremented value back to effective address
-Byte AlienCPU::ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE() {
+// 7: useless write the value back to effective address, perform operation on value
+// 8: write modified value back to effective address (implicit in this emulator)
+Byte* AlienCPU::ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE() {
     Word address = fetchNextWord(); // 2-5
-    Byte value = readByte(address); // 6
-    value--; cycles++; // 7
-    writeByte(address, value); // 8
-    return value;
-}
-
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC
-// 5: fetch high byte address from PC, increment PC
-// 6: read byte from effective address
-// 7: useless write the value back to effective address, increment value 
-// 8: write the incremented value back to effective address
-Byte AlienCPU::ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE() {
-    Word address = fetchNextWord(); // 2-5
-    Byte value = readByte(address); // 6
-    value++; cycles++; // 7
-    writeByte(address, value); // 8
-    return value;
+    Byte* valuePointer = &motherboard[address]; cycles+=3; // 6-8
+    return valuePointer;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -116,33 +99,13 @@ u16 AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
 // 5: fetch high byte address from PC, increment PC
 // 6: useless read from effective address, fix the high 2 bytes of the effective address
 // 7: read the value from effective address
-// 8: useless write the value back to effective address, decrement value
-// 9: write the decremented value back to effective address
-Byte AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister) {
+// 8: useless write the value back to effective address, perform operation on value
+// 9: write the modified value back to effective address
+Byte* AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegister) {
     Word address = fetchNextWord(); // 2-5
     cycles++; // 6 (fix high bytes)
-    Byte value = readByte(address + indexRegister); // 7
-    value--; cycles++ ; // 8
-    writeByte(address, value ); // 9
-    return value;
-}
-
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch mid low byte address from PC, increment PC
-// 4: fetch mid high byte address from PC, increment PC, add index register to lower 2 bytes of effective address
-// 5: fetch high byte address from PC, increment PC
-// 6: useless read from effective address, fix the high 2 bytes of the effective address
-// 7: read the value from effective address
-// 8: useless write the value back to effective address, increment value
-// 9: write the incremented value back to effective address
-Byte AlienCPU::ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRegister) {
-    Word address = fetchNextWord(); // 2-5
-    cycles++; // 6 (fix high bytes)
-    Byte value = readByte(address + indexRegister); // 7
-    value++; cycles++ ; // 8
-    writeByte(address, value ); // 9
-    return value;
+    Byte* valuePointer = &motherboard[address + indexRegister]; cycles+=3; // 7-9
+    return valuePointer;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -255,28 +218,12 @@ u16 AlienCPU::ADDRESSING_ZEROPAGE_READ_TWOBYTES() {
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address from PC, increment PC
 // 4: read byte from effective zero page address
-// 5: useless write the value back to effective zero page address, decrement value
-// 6: write the decremented value back to effective zero page address
-Byte AlienCPU::ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE() {
+// 5: useless write the value back to effective zero page address, perform operation on value
+// 6: write the modified value back to effective zero page address
+Byte* AlienCPU::ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE() {
     u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
-    Byte value = readByte(zeroPageAddress); // 4
-    value--; cycles++; // 5
-    writeByte(zeroPageAddress, value); // 6
-    return value;
-}
-
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address from PC, increment PC
-// 4: read byte from effective zero page address
-// 5: useless write the value back to effective zero page address, increment value
-// 6: write the incremented value back to effective zero page address
-Byte AlienCPU::ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE() {
-    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
-    Byte value = readByte(zeroPageAddress); // 4
-    value++; cycles++; // 5
-    writeByte(zeroPageAddress, value); // 6
-    return value;
+    Byte* valuePointer = &motherboard[zeroPageAddress]; cycles+=3; // 4-6
+    return valuePointer;
 }
 
 // 1: fetch opcode from PC, increment PC
@@ -308,31 +255,13 @@ u16 AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(u16 indexRegister) {
 // 3: fetch mid low zero page address byte from PC, increment PC
 // 4: read useless data, add index register to base zero page address (wraps around in zero page)
 // 5: read byte from calculated effective zero page address
-// 6: useless write the value back to calculated effective zero page address, decrement value
-// 7: write the decremented value back to calculated effective zero page address
-Byte AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister) {
+// 6: useless write the value back to calculated effective zero page address, perform operation on value
+// 7: write the modified value back to calculated effective zero page address
+Byte* AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegister) {
     u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
     zeroPageAddress += indexRegister; cycles++; // 4
-    Byte value = readByte(zeroPageAddress); // 5
-    value--; cycles++; // 6
-    writeByte(zeroPageAddress, value); // 7
-    return value;
-}
-
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add index register to base zero page address (wraps around in zero page)
-// 5: read byte from calculated effective zero page address
-// 6: useless write the value back to calculated effective zero page address, increment value
-// 7: write the incremented value back to calculated effective zero page address
-Byte AlienCPU::ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRegister) {
-    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
-    zeroPageAddress += indexRegister; cycles++; // 4
-    Byte value = readByte(zeroPageAddress); // 5
-    value++; cycles++; // 6
-    writeByte(zeroPageAddress, value); // 7
-    return value;
+    Byte* valuePointer = &motherboard[zeroPageAddress]; cycles+=3; // 5-7
+    return valuePointer;
 }
 
 // 1: fetch opcode from PC, increment PC

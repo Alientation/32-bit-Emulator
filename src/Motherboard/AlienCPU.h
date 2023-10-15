@@ -19,7 +19,7 @@ class AlienCPU; //forward declaration (!!)
 //          - 0x00000000 to 0x0000FFFF : Zero page (65536 bytes)
 //          - 0x00010000 to 0x0001FFFF : Stack memory (65536 bytes)
 //          - 0x00020000 to 0x000FFFEF : General purpose memory (917488 bytes)
-//          - 0x000FFFF0 to 0x000FFFFF : Special reserved memory (16 bytes) // TODO move this further back since this will likely be mapped to ROM and not RAM
+//          - 0x000FFFF0 to 0x000FFFFF : Special reserved memory (16 bytes) // TODO move this further back since this should be mapped to ROM and not RAM
 //              * 0x000FFFF0 to 0x000FFFF3 : Interrupt handler
 //              * 0x000FFFF4 to 0x000FFFF7 : Power on reset location
 //              * 0x000FFFF8 to 0x000FFFFB : BRK / Interrupt Request (IRQ) handler
@@ -178,6 +178,7 @@ class AlienCPU {
         // - V (Overflow)
         //      Set after addition or subtraction operations if signed overflow occurs
         //      Reset after any other operation
+        //
         // - 1 (Unused)
         //      Always 1
         //
@@ -283,15 +284,11 @@ class AlienCPU {
         u16 ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(u16 indexRegister);
 
         // READ MODIFY WRITE TO MEMORY
-        Byte ADDRESSING_ABSOLUTE_READ_DECREMENT_WRITE_BYTE();
-        Byte ADDRESSING_ABSOLUTE_READ_INCREMENT_WRITE_BYTE();
-        Byte ADDRESSING_ABSOLUTE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister);
-        Byte ADDRESSING_ABSOLUTE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRegister);
-        Byte ADDRESSING_ZEROPAGE_READ_DECREMENT_WRITE_BYTE();
-        Byte ADDRESSING_ZEROPAGE_READ_INCREMENT_WRITE_BYTE();
-        Byte ADDRESSING_ZEROPAGE_INDEXED_READ_DECREMENT_WRITE_BYTE(u16 indexRegister);
-        Byte ADDRESSING_ZEROPAGE_INDEXED_READ_INCREMENT_WRITE_BYTE(u16 indexRegister);
-
+        Byte* ADDRESSING_ABSOLUTE_READ_MODIFY_WRITE_BYTE();
+        Byte* ADDRESSING_ABSOLUTE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegister);
+        Byte* ADDRESSING_ZEROPAGE_READ_MODIFY_WRITE_BYTE();
+        Byte* ADDRESSING_ZEROPAGE_INDEXED_READ_MODIFY_WRITE_BYTE(u16 indexRegister);
+        
         // WRITING DATA TO MEMORY
         void ADDRESSING_ABSOLUTE_WRITE_TWOBYTES(u16 registerValue);
         void ADDRESSING_ABSOLUTE_INDEXED_WRITE_TWOBYTES(u16 indexRegister, u16 registerValue);
