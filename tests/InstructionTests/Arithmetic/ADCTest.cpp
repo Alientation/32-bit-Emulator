@@ -15,7 +15,7 @@ class ADCTest : public testing::Test {
 
 
 // ADC IMMEDIATE TESTS
-TEST_F(ADCTest, AddWithCarryImmediate_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x2034); // value to add to accumulator
     cpu.setFlag(cpu.C_FLAG, true);
@@ -27,7 +27,7 @@ TEST_F(ADCTest, AddWithCarryImmediate_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryImmediate_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_Immediate_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0000); // value to add to accumulator
     cpu.A = 0x0000;
@@ -39,7 +39,7 @@ TEST_F(ADCTest, AddWithCarryImmediate_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryImmediate_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_Immediate_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
@@ -53,7 +53,7 @@ TEST_F(ADCTest, AddWithCarryImmediate_CARRYFLAG) {
 
 
 // ADC ABSOLUTE TESTS
-TEST_F(ADCTest, AddWithCarryAbsolute_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_Absolute_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012034, 0x1234); // value to add to accumulator
@@ -66,7 +66,7 @@ TEST_F(ADCTest, AddWithCarryAbsolute_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsolute_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012034, 0x0000); // value to add to accumulator
@@ -79,7 +79,7 @@ TEST_F(ADCTest, AddWithCarryAbsolute_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsolute_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_Absolute_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012034, 0x0001); // value to add to accumulator
@@ -94,7 +94,7 @@ TEST_F(ADCTest, AddWithCarryAbsolute_CARRYFLAG) {
 
 
 // ADC ABSOLUTE XINDEXED TESTS
-TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
@@ -109,7 +109,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_PAGECROSSING) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x0001FFFF); // partial address of value to add to accumulator
     cpu.X = 0x0001;
@@ -124,7 +124,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
@@ -139,7 +139,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
@@ -156,7 +156,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteXIndexed_CARRYFLAG) {
 
 
 // ADC ABSOLUTE YINDEXED TESTS
-TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
@@ -171,7 +171,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_PAGECROSSING) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x0001FFFF); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
@@ -186,7 +186,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
@@ -201,7 +201,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.Y = 0x0001;
@@ -218,7 +218,7 @@ TEST_F(ADCTest, AddWithCarryAbsoluteYIndexed_CARRYFLAG) {
 
 
 // ADC XINDEXED INDIRECT TESTS
-TEST_F(ADCTest, AddWithCarryXIndexedIndirect_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
     cpu.X = 0x0001;
@@ -234,7 +234,7 @@ TEST_F(ADCTest, AddWithCarryXIndexedIndirect_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryXIndexedIndirect_WRAPAROUND) {
+TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0002); // partial zp address of address to value to add to accumulator
     cpu.X = 0xFFFF;
@@ -250,7 +250,7 @@ TEST_F(ADCTest, AddWithCarryXIndexedIndirect_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryXIndexedIndirect_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
     cpu.X = 0x0001;
@@ -266,7 +266,7 @@ TEST_F(ADCTest, AddWithCarryXIndexedIndirect_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryXIndexedIndirect_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address to value to add to accumulator
     cpu.X = 0x0001;
@@ -285,7 +285,7 @@ TEST_F(ADCTest, AddWithCarryXIndexedIndirect_CARRYFLAG) {
 
 
 // ADC INDIRECT YINDEXED TESTS
-TEST_F(ADCTest, AddWithCarryIndirectYIndexed_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
@@ -301,7 +301,7 @@ TEST_F(ADCTest, AddWithCarryIndirectYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryIndirectYIndexed_PAGECROSSING) {
+TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
     cpu.writeWord(0x00001234, 0x00010001); // partial address of value to add to accumulator
@@ -317,7 +317,7 @@ TEST_F(ADCTest, AddWithCarryIndirectYIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryIndirectYIndexed_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
@@ -333,7 +333,7 @@ TEST_F(ADCTest, AddWithCarryIndirectYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryIndirectYIndexed_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IND_Y, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of partial address of value to add to accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to add to accumulator
@@ -352,7 +352,7 @@ TEST_F(ADCTest, AddWithCarryIndirectYIndexed_CARRYFLAG) {
 
 
 // ADC ZEROPAGE TESTS
-TEST_F(ADCTest, AddWithCarryZeroPage_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_ZeroPage_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
     cpu.writeTwoBytes(0x00001234, 0x1234); // value to add to accumulator
@@ -365,7 +365,7 @@ TEST_F(ADCTest, AddWithCarryZeroPage_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPage_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_ZeroPage_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
     cpu.writeTwoBytes(0x00001234, 0x0000); // value to add to accumulator
@@ -378,7 +378,7 @@ TEST_F(ADCTest, AddWithCarryZeroPage_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPage_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_ZeroPage_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
     cpu.writeTwoBytes(0x00001234, 0x0001); // value to add to accumulator
@@ -394,7 +394,7 @@ TEST_F(ADCTest, AddWithCarryZeroPage_CARRYFLAG) {
 
 
 // ADC ZEROPAGE XINDEXED TESTS
-TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_NORMAL) {
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
     cpu.X = 0x0001;
@@ -409,7 +409,7 @@ TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_WRAPAROUND) {
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x0001); // partial zp address to the value to add to accumulator
     cpu.X = 0xFFFF;
@@ -424,7 +424,7 @@ TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_ZEROFLAG) {
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
     cpu.X = 0x0001;
@@ -439,7 +439,7 @@ TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ADCTest, AddWithCarryZeroPageXIndexed_CARRYFLAG) {
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
     cpu.X = 0x0001;

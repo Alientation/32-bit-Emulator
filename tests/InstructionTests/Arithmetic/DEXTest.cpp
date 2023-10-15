@@ -15,7 +15,7 @@ class DEXTest : public testing::Test {
 
 
 // DEX IMPLIED TESTS
-TEST_F(DEXTest, DecrementXImplied_Normal) {
+TEST_F(DEXTest, DecrementX_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0x1234;
 
@@ -25,7 +25,7 @@ TEST_F(DEXTest, DecrementXImplied_Normal) {
     TestUnchangedState(cpu, A, Y, SP, P);
 }
 
-TEST_F(DEXTest, DecrementXImplied_ZEROFLAG) {
+TEST_F(DEXTest, DecrementX_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0x0001;
 
@@ -36,7 +36,7 @@ TEST_F(DEXTest, DecrementXImplied_ZEROFLAG) {
     TestUnchangedState(cpu, A, Y, SP);
 }
 
-TEST_F(DEXTest, DecrementXImplied_NEGATIVEFLAG) {
+TEST_F(DEXTest, DecrementX_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_DEX_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
 

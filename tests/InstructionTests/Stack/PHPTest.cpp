@@ -15,7 +15,7 @@ class PHPTest : public testing::Test {
 
 
 // PHP IMPLIED TESTS
-TEST_F(PHPTest, PushProcessorImplied_Normal) {
+TEST_F(PHPTest, PushProcessor_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_PHP_IMPL, 0x00001023);
     cpu.P = 0b01010101;
 

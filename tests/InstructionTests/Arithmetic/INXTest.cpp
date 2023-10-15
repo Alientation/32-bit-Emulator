@@ -15,7 +15,7 @@ class INXTest : public testing::Test {
 
 
 // INX IMPLIED TESTS
-TEST_F(INXTest, IncrementXImplied_Normal) {
+TEST_F(INXTest, IncrementX_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_INX_IMPL, 0x00001023);
     cpu.X = 0x1234;
 
@@ -25,7 +25,7 @@ TEST_F(INXTest, IncrementXImplied_Normal) {
     TestUnchangedState(cpu, A, Y, SP, P);
 }
 
-TEST_F(INXTest, IncrementXImplied_ZEROFLAG) {
+TEST_F(INXTest, IncrementX_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_INX_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
 
@@ -36,7 +36,7 @@ TEST_F(INXTest, IncrementXImplied_ZEROFLAG) {
     TestUnchangedState(cpu, A, Y, SP);
 }
 
-TEST_F(INXTest, IncrementXImplied_NEGATIVEFLAG) {
+TEST_F(INXTest, IncrementX_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_INX_IMPL, 0x00001023);
     cpu.X = 0xFFFE;
 

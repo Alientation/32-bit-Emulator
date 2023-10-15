@@ -15,7 +15,7 @@ class TXSTest : public testing::Test {
 
 
 // TXS IMPLIED TESTS
-TEST_F(TXSTest, TransferXToStackPointerImplied_NORMAL) {
+TEST_F(TXSTest, TransferXToStackPointer_Implied_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_TXS_IMPL, 0x00001023);
     cpu.X = 0x1342;
     cpu.SP = 0x0034;
@@ -27,7 +27,7 @@ TEST_F(TXSTest, TransferXToStackPointerImplied_NORMAL) {
     TestUnchangedState(cpu, A, Y, P);
 }
 
-TEST_F(TXSTest, TransferXToStackPointerImplied_ZEROFLAG) {
+TEST_F(TXSTest, TransferXToStackPointer_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXS_IMPL, 0x00001023);
     cpu.X = 0x0000;
     cpu.SP = 0x0034;
@@ -40,7 +40,7 @@ TEST_F(TXSTest, TransferXToStackPointerImplied_ZEROFLAG) {
     TestUnchangedState(cpu, A, Y);
 }
 
-TEST_F(TXSTest, TransferXToStackPointerImplied_NEGATIVEFLAG) {
+TEST_F(TXSTest, TransferXToStackPointer_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXS_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
     cpu.SP = 0x0034;

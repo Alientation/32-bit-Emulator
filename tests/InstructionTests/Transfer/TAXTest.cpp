@@ -15,7 +15,7 @@ class TAXTest : public testing::Test {
 
 
 // TAX IMPLIED TESTS
-TEST_F(TAXTest, TransferAccumulatorToXImplied_NORMAL) {
+TEST_F(TAXTest, TransferAccumulatorToX_Implied_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_TAX_IMPL, 0x00001023);
     cpu.A = 0x1342;
     cpu.X = 0x0034;
@@ -27,7 +27,7 @@ TEST_F(TAXTest, TransferAccumulatorToXImplied_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(TAXTest, TransferAccumulatorToXImplied_ZEROFLAG) {
+TEST_F(TAXTest, TransferAccumulatorToX_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TAX_IMPL, 0x00001023);
     cpu.A = 0x0000;
     cpu.X = 0x0034;
@@ -40,7 +40,7 @@ TEST_F(TAXTest, TransferAccumulatorToXImplied_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(TAXTest, TransferAccumulatorToXImplied_NEGATIVEFLAG) {
+TEST_F(TAXTest, TransferAccumulatorToX_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TAX_IMPL, 0x00001023);
     cpu.A = 0xFFFF;
     cpu.X = 0x0034;

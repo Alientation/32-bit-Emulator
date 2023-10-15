@@ -15,7 +15,7 @@ class EORTest : public testing::Test {
 
 
 // EOR IMMEDIATE TESTS
-TEST_F(EORTest, ExclusiveOrImmediate_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // value to bitwise exclusive or with accumulator
     cpu.A = 0x5678;
@@ -26,7 +26,7 @@ TEST_F(EORTest, ExclusiveOrImmediate_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrImmediate_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_Immediate_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x5678); // value to bitwise exclusive or with accumulator
     cpu.A = 0x5678;
@@ -38,7 +38,7 @@ TEST_F(EORTest, ExclusiveOrImmediate_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrImmediate_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_Immediate_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0xFF34); // value to bitwise exclusive or with accumulator
     cpu.A = 0x0078;
@@ -52,7 +52,7 @@ TEST_F(EORTest, ExclusiveOrImmediate_NEGATIVEFLAG) {
 
 
 // EOR ABSOLUTE TESTS
-TEST_F(EORTest, ExclusiveOrAbsolute_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_Absolute_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00012345, 0x1234); // value to bitwise exclusive or with accumulator
@@ -64,7 +64,7 @@ TEST_F(EORTest, ExclusiveOrAbsolute_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsolute_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00012345, 0x5678); // value to bitwise exclusive or with accumulator
@@ -77,7 +77,7 @@ TEST_F(EORTest, ExclusiveOrAbsolute_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsolute_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_Absolute_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00012345, 0xFF34); // value to bitwise exclusive or with accumulator
@@ -92,7 +92,7 @@ TEST_F(EORTest, ExclusiveOrAbsolute_NEGATIVEFLAG) {
 
 
 // EOR ABSOLUTE XINDEXED TESTS
-TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -106,7 +106,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_PAGECROSSING) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteXIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise exclusive or with accumulator
     cpu.X = 0xFFFF;
@@ -120,7 +120,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -135,7 +135,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteXIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345);
     cpu.X = 0x0002;
@@ -152,7 +152,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteXIndexed_NEGATIVEFLAG) {
 
 
 // EOR ABSOLUTE YINDEXED TESTS
-TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
     cpu.Y = 0x0002;
@@ -166,7 +166,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_PAGECROSSING) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteYIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise exclusive or with accumulator
     cpu.Y = 0xFFFF;
@@ -180,7 +180,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
     cpu.Y = 0x0002;
@@ -195,7 +195,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_AbsoluteYIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
     cpu.Y = 0x0002;
@@ -212,7 +212,7 @@ TEST_F(EORTest, ExclusiveOrAbsoluteYIndexed_NEGATIVEFLAG) {
 
 
 // EOR XINDEXED INDIRECT TESTS
-TEST_F(EORTest, ExclusiveOrXIndexedIndirect_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_XIndexedIndirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -227,7 +227,7 @@ TEST_F(EORTest, ExclusiveOrXIndexedIndirect_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrXIndexedIndirect_WRAPAROUND) {
+TEST_F(EORTest, ExclusiveOr_XIndexedIndirect_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise exclusive or with accumulator
     cpu.X = 0xF002;
@@ -242,7 +242,7 @@ TEST_F(EORTest, ExclusiveOrXIndexedIndirect_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrXIndexedIndirect_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_XIndexedIndirect_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -258,7 +258,7 @@ TEST_F(EORTest, ExclusiveOrXIndexedIndirect_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrXIndexedIndirect_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_XIndexedIndirect_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -276,7 +276,7 @@ TEST_F(EORTest, ExclusiveOrXIndexedIndirect_NEGATIVEFLAG) {
 
 
 // EOR INDIRECT YINDEXED TESTS
-TEST_F(EORTest, ExclusiveOrIndirectYIndexed_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_IndirectYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise exclusive or with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
@@ -291,7 +291,7 @@ TEST_F(EORTest, ExclusiveOrIndirectYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrIndirectYIndexed_PAGECROSSING) {
+TEST_F(EORTest, ExclusiveOr_IndirectYIndexed_PAGECROSSING) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise exclusive or with accumulator
     cpu.writeWord(0x00001234, 0x00000001); // partial address of value to bitwise exclusive or with accumulator
@@ -306,7 +306,7 @@ TEST_F(EORTest, ExclusiveOrIndirectYIndexed_PAGECROSSING) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrIndirectYIndexed_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_IndirectYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IND_Y, 0x00001023); 
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise exclusive or with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
@@ -322,7 +322,7 @@ TEST_F(EORTest, ExclusiveOrIndirectYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrIndirectYIndexed_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_IndirectYIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise exclusive or with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise exclusive or with accumulator
@@ -340,7 +340,7 @@ TEST_F(EORTest, ExclusiveOrIndirectYIndexed_NEGATIVEFLAG) {
 
 
 // EOR ZEROPAGE TESTS
-TEST_F(EORTest, ExclusiveOrZeroPage_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_ZeroPage_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00001234, 0x1234); // value to bitwise exclusive or with accumulator
@@ -352,7 +352,7 @@ TEST_F(EORTest, ExclusiveOrZeroPage_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrZeroPage_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_ZeroPage_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00001234, 0x5678); // value to bitwise exclusive or with accumulator
@@ -365,7 +365,7 @@ TEST_F(EORTest, ExclusiveOrZeroPage_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrZeroPage_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_ZeroPage_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
     cpu.writeTwoBytes(0x00001234, 0xFF34); // value to bitwise exclusive or with accumulator
@@ -380,7 +380,7 @@ TEST_F(EORTest, ExclusiveOrZeroPage_NEGATIVEFLAG) {
 
 
 // EOR ZEROPAGE XINDEXED TESTS
-TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_NORMAL) {
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -394,7 +394,7 @@ TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_WRAPAROUND) {
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x0002); // partial zp address of value to bitwise exclusive or with accumulator
     cpu.X = 0xFFFF;
@@ -408,7 +408,7 @@ TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_ZEROFLAG) {
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002;
@@ -423,7 +423,7 @@ TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(EORTest, ExclusiveOrZeroPageXIndexed_NEGATIVEFLAG) {
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
     cpu.X = 0x0002; 

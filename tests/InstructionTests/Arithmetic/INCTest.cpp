@@ -15,7 +15,7 @@ class INCTest : public testing::Test {
 
 
 // INC ABSOLUTE TESTS
-TEST_F(INCTest, IncrementAbsolute_Normal) {
+TEST_F(INCTest, Increment_Absolute_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_INC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address to increment from
     cpu.writeByte(0x00012345, 0x12); // value to increment
@@ -26,7 +26,7 @@ TEST_F(INCTest, IncrementAbsolute_Normal) {
     TestUnchangedState(cpu, A, X, Y, SP, P);
 }
 
-TEST_F(INCTest, IncrementAbsolute_ZEROFLAG) {
+TEST_F(INCTest, Increment_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_INC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address to increment from
     cpu.writeByte(0x00012345, 0xFF); // value to increment

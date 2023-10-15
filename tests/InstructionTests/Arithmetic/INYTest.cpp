@@ -15,7 +15,7 @@ class INYTest : public testing::Test {
 
 
 // INY IMPLIED TESTS
-TEST_F(INYTest, IncrementYImplied_Normal) {
+TEST_F(INYTest, IncrementY_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0x1234;
 
@@ -25,7 +25,7 @@ TEST_F(INYTest, IncrementYImplied_Normal) {
     TestUnchangedState(cpu, A, X, SP, P);
 }
 
-TEST_F(INYTest, IncrementYImplied_ZEROFLAG) {
+TEST_F(INYTest, IncrementY_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0xFFFF;
 
@@ -36,7 +36,7 @@ TEST_F(INYTest, IncrementYImplied_ZEROFLAG) {
     TestUnchangedState(cpu, A, X, SP);
 }
 
-TEST_F(INYTest, IncrementYImplied_NEGATIVEFLAG) {
+TEST_F(INYTest, IncrementY_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_INY_IMPL, 0x00001023);
     cpu.Y = 0xFFFE;
 

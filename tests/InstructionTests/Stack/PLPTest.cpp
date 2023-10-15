@@ -15,7 +15,7 @@ class PLPTest : public testing::Test {
 
 
 // PLP IMPLIED TESTS
-TEST_F(PLPTest, PopProcessorImplied_Normal) {
+TEST_F(PLPTest, PopProcessor_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_PLP_IMPL, 0x00001023);
     cpu.motherboard.ram[0x0001FFFF] = 0b01010101;
     cpu.SP = 0xFFFE;

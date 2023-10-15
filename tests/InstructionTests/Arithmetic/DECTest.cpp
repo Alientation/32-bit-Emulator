@@ -15,7 +15,7 @@ class DECTest : public testing::Test {
 
 
 // DEC ABSOLUTE TESTS
-TEST_F(DECTest, DecrementAbsolute_Normal) {
+TEST_F(DECTest, Decrement_Absolute_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_DEC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address to decrement from
     cpu.writeByte(0x00012345, 0x12); // value to decrement
@@ -26,7 +26,7 @@ TEST_F(DECTest, DecrementAbsolute_Normal) {
     TestUnchangedState(cpu, A, X, Y, SP, P);
 }
 
-TEST_F(DECTest, DecrementAbsolute_ZEROFLAG) {
+TEST_F(DECTest, Decrement_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_DEC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address to decrement from
     cpu.writeByte(0x00012345, 0x01); // value to decrement

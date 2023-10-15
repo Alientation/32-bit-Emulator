@@ -15,7 +15,7 @@ class ANDTest : public testing::Test {
 
 
 // AND IMMEDIATE TESTS
-TEST_F(ANDTest, AndImmediate_NORMAL) {
+TEST_F(ANDTest, And_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
@@ -26,7 +26,7 @@ TEST_F(ANDTest, AndImmediate_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndImmediate_ZEROFLAG) {
+TEST_F(ANDTest, And_Immediate_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
@@ -38,7 +38,7 @@ TEST_F(ANDTest, AndImmediate_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ANDTest, AndImmediate_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_Immediate_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
@@ -52,7 +52,7 @@ TEST_F(ANDTest, AndImmediate_NEGATIVEFLAG) {
 
 
 // AND ABSOLUTE TESTS
-TEST_F(ANDTest, AndAbsolute_NORMAL) {
+TEST_F(ANDTest, And_Absolute_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00012345, 0x1234); // value to bitwise and with accumulator
@@ -64,7 +64,7 @@ TEST_F(ANDTest, AndAbsolute_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsolute_ZEROFLAG) {
+TEST_F(ANDTest, And_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00012345, 0x0000); // value to bitwise and with accumulator
@@ -77,7 +77,7 @@ TEST_F(ANDTest, AndAbsolute_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ANDTest, AndAbsolute_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_Absolute_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00012345, 0xFF34); // value to bitwise and with accumulator
@@ -92,7 +92,7 @@ TEST_F(ANDTest, AndAbsolute_NEGATIVEFLAG) {
 
 
 // AND ABSOLUTE XINDEXED TESTS
-TEST_F(ANDTest, AndAbsoluteXIndexed_NORMAL) {
+TEST_F(ANDTest, And_AbsoluteXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -106,7 +106,7 @@ TEST_F(ANDTest, AndAbsoluteXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteXIndexed_PAGECROSS) {
+TEST_F(ANDTest, And_AbsoluteXIndexed_PAGECROSS) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise and with accumulator
     cpu.X = 0xFFFF;
@@ -120,7 +120,7 @@ TEST_F(ANDTest, AndAbsoluteXIndexed_PAGECROSS) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteXIndexed_ZEROFLAG) {
+TEST_F(ANDTest, And_AbsoluteXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -135,7 +135,7 @@ TEST_F(ANDTest, AndAbsoluteXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ANDTest, AndAbsoluteXIndexed_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_AbsoluteXIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_X, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -152,7 +152,7 @@ TEST_F(ANDTest, AndAbsoluteXIndexed_NEGATIVEFLAG) {
 
 
 // AND ABSOLUTE YINDEXED TESTS
-TEST_F(ANDTest, AndAbsoluteYIndexed_NORMAL) {
+TEST_F(ANDTest, And_AbsoluteYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
@@ -166,7 +166,7 @@ TEST_F(ANDTest, AndAbsoluteYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteYIndexed_PAGECROSS) {
+TEST_F(ANDTest, And_AbsoluteYIndexed_PAGECROSS) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000001); // partial address of value to bitwise and with accumulator
     cpu.Y = 0xFFFF;
@@ -180,7 +180,7 @@ TEST_F(ANDTest, AndAbsoluteYIndexed_PAGECROSS) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndAbsoluteYIndexed_ZEROFLAG) {
+TEST_F(ANDTest, And_AbsoluteYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
@@ -195,7 +195,7 @@ TEST_F(ANDTest, AndAbsoluteYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(ANDTest, AndAbsoluteYIndexed_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_AbsoluteYIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ABS_Y, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012345); // partial address of value to bitwise and with accumulator
     cpu.Y = 0x0002;
@@ -212,7 +212,7 @@ TEST_F(ANDTest, AndAbsoluteYIndexed_NEGATIVEFLAG) {
 
 
 // AND XINDEXED INDIRECT TESTS
-TEST_F(ANDTest, AndXIndexedIndirect_NORMAL) {
+TEST_F(ANDTest, And_XIndexedIndirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -227,7 +227,7 @@ TEST_F(ANDTest, AndXIndexedIndirect_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndXIndexedIndirect_WRAPAROUND) {
+TEST_F(ANDTest, And_XIndexedIndirect_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0xF002;
@@ -242,7 +242,7 @@ TEST_F(ANDTest, AndXIndexedIndirect_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndXIndexedIndirect_ZEROFLAG) {
+TEST_F(ANDTest, And_XIndexedIndirect_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -258,7 +258,7 @@ TEST_F(ANDTest, AndXIndexedIndirect_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ANDTest, AndXIndexedIndirect_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_XIndexedIndirect_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_X_IND, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // partial zp address of address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -276,7 +276,7 @@ TEST_F(ANDTest, AndXIndexedIndirect_NEGATIVEFLAG) {
 
 
 // AND INDIRECT YINDEXED TESTS
-TEST_F(ANDTest, AndIndirectYIndexed_NORMAL) {
+TEST_F(ANDTest, And_IndirectYIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
@@ -291,7 +291,7 @@ TEST_F(ANDTest, AndIndirectYIndexed_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndIndirectYIndexed_PAGECROSS) {
+TEST_F(ANDTest, And_IndirectYIndexed_PAGECROSS) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
     cpu.writeWord(0x00001234, 0x00000001); // partial address of value to bitwise and with accumulator
@@ -306,7 +306,7 @@ TEST_F(ANDTest, AndIndirectYIndexed_PAGECROSS) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(ANDTest, AndIndirectYIndexed_ZEROFLAG) {
+TEST_F(ANDTest, And_IndirectYIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
@@ -322,7 +322,7 @@ TEST_F(ANDTest, AndIndirectYIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(ANDTest, AndIndirectYIndexed_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_IndirectYIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_IND_Y, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x1234); // zp address of partial address of value to bitwise and with accumulator
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to bitwise and with accumulator
@@ -340,7 +340,7 @@ TEST_F(ANDTest, AndIndirectYIndexed_NEGATIVEFLAG) {
 
 
 // AND ZEROPAGE TESTS
-TEST_F(ANDTest, AndZeroPage_NORMAL) {
+TEST_F(ANDTest, And_ZeroPage_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00001234, 0x1234); // value to bitwise and with accumulator
@@ -352,7 +352,7 @@ TEST_F(ANDTest, AndZeroPage_NORMAL) {
     TestUnchangedState(cpu, X, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndZeroPage_ZEROFLAG) {
+TEST_F(ANDTest, And_ZeroPage_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00001234, 0x0000); // value to bitwise and with accumulator
@@ -365,7 +365,7 @@ TEST_F(ANDTest, AndZeroPage_ZEROFLAG) {
     TestUnchangedState(cpu, X, Y, SP);
 }
 
-TEST_F(ANDTest, AndZeroPage_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_ZeroPage_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise and with accumulator
     cpu.writeTwoBytes(0x00001234, 0xFF34); // value to bitwise and with accumulator
@@ -380,7 +380,7 @@ TEST_F(ANDTest, AndZeroPage_NEGATIVEFLAG) {
 
 
 // AND ZEROPAGE XINDEXED TESTS
-TEST_F(ANDTest, AndZeroPageXIndexed_NORMAL) {
+TEST_F(ANDTest, And_ZeroPageXIndexed_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -394,7 +394,7 @@ TEST_F(ANDTest, AndZeroPageXIndexed_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndZeroPageXIndexed_WRAPAROUND) {
+TEST_F(ANDTest, And_ZeroPageXIndexed_WRAPAROUND) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x0002); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0xFFFF;
@@ -408,7 +408,7 @@ TEST_F(ANDTest, AndZeroPageXIndexed_WRAPAROUND) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(ANDTest, AndZeroPageXIndexed_ZEROFLAG) {
+TEST_F(ANDTest, And_ZeroPageXIndexed_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0x0002;
@@ -423,7 +423,7 @@ TEST_F(ANDTest, AndZeroPageXIndexed_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(ANDTest, AndZeroPageXIndexed_NEGATIVEFLAG) {
+TEST_F(ANDTest, And_ZeroPageXIndexed_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_AND_ZP_X, 0x00011023);
     cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise and with accumulator
     cpu.X = 0x0002; 

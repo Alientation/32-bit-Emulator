@@ -15,7 +15,7 @@ class PHATest : public testing::Test {
 
 
 // PHA IMPLIED TESTS
-TEST_F(PHATest, PushAccumulatorImplied_Normal) {
+TEST_F(PHATest, PushAccumulator_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_PHA_IMPL, 0x00001023);
     cpu.A = 0x1234;
 

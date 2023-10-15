@@ -15,7 +15,7 @@ class DEYTest : public testing::Test {
 
 
 // DEY IMPLIED TESTS
-TEST_F(DEYTest, DecrementYImplied_Normal) {
+TEST_F(DEYTest, DecrementY_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_DEY_IMPL, 0x00001023);
     cpu.Y = 0x1234;
 
@@ -25,7 +25,7 @@ TEST_F(DEYTest, DecrementYImplied_Normal) {
     TestUnchangedState(cpu, A, X, SP, P);
 }
 
-TEST_F(DEYTest, DecrementYImplied_ZEROFLAG) {
+TEST_F(DEYTest, DecrementY_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_DEY_IMPL, 0x00001023);
     cpu.Y = 0x0001;
 
@@ -36,7 +36,7 @@ TEST_F(DEYTest, DecrementYImplied_ZEROFLAG) {
     TestUnchangedState(cpu, A, X, SP);
 }
 
-TEST_F(DEYTest, DecrementYImplied_NEGATIVEFLAG) {
+TEST_F(DEYTest, DecrementY_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_DEY_IMPL, 0x00001023);
     cpu.Y = 0xFFFF;
 

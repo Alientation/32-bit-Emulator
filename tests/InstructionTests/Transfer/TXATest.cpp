@@ -15,7 +15,7 @@ class TXATest : public testing::Test {
 
 
 // TXA IMPLIED TESTS
-TEST_F(TXATest, TransferXToAccumulatorImplied_NORMAL) {
+TEST_F(TXATest, TransferXToAccumulator_Implied_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_TXA_IMPL, 0x00001023);
     cpu.X = 0x1342;
     cpu.A = 0x0034;
@@ -27,7 +27,7 @@ TEST_F(TXATest, TransferXToAccumulatorImplied_NORMAL) {
     TestUnchangedState(cpu, Y, SP, P);
 }
 
-TEST_F(TXATest, TransferXToAccumulatorImplied_ZEROFLAG) {
+TEST_F(TXATest, TransferXToAccumulator_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXA_IMPL, 0x00001023);
     cpu.X = 0x0000;
     cpu.A = 0x0034;
@@ -40,7 +40,7 @@ TEST_F(TXATest, TransferXToAccumulatorImplied_ZEROFLAG) {
     TestUnchangedState(cpu, Y, SP);
 }
 
-TEST_F(TXATest, TransferXToAccumulatorImplied_NEGATIVEFLAG) {
+TEST_F(TXATest, TransferXToAccumulator_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXA_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
     cpu.A = 0x0034;

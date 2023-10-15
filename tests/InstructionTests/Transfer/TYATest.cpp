@@ -15,7 +15,7 @@ class TYATest : public testing::Test {
 
 
 // TYA IMPLIED TESTS
-TEST_F(TYATest, TransferYToAccumulatorImplied_NORMAL) {
+TEST_F(TYATest, TransferYToAccumulator_Implied_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_TYA_IMPL, 0x00001023);
     cpu.Y = 0x1342;
     cpu.A = 0x0034;
@@ -27,7 +27,7 @@ TEST_F(TYATest, TransferYToAccumulatorImplied_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(TYATest, TransferYToAccumulatorImplied_ZEROFLAG) {
+TEST_F(TYATest, TransferYToAccumulator_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TYA_IMPL, 0x00001023);
     cpu.Y = 0x0000;
     cpu.A = 0x0034;
@@ -40,7 +40,7 @@ TEST_F(TYATest, TransferYToAccumulatorImplied_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(TYATest, TransferYToAccumulatorImplied_NEGATIVEFLAG) {
+TEST_F(TYATest, TransferYToAccumulator_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TYA_IMPL, 0x00001023);
     cpu.Y = 0xFFFF;
     cpu.A = 0x0034;

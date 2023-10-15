@@ -15,7 +15,7 @@ class TAYTest : public testing::Test {
 
 
 // TAY IMPLIED TESTS
-TEST_F(TAYTest, TransferAccumulatorToYImplied_NORMAL) {
+TEST_F(TAYTest, TransferAccumulatorToY_Implied_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_TAY_IMPL, 0x00001023);
     cpu.A = 0x1342;
     cpu.Y = 0x0034;
@@ -27,7 +27,7 @@ TEST_F(TAYTest, TransferAccumulatorToYImplied_NORMAL) {
     TestUnchangedState(cpu, X, SP, P);
 }
 
-TEST_F(TAYTest, TransferAccumulatorToYImplied_ZEROFLAG) {
+TEST_F(TAYTest, TransferAccumulatorToY_Implied_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TAY_IMPL, 0x00001023);
     cpu.A = 0x0000;
     cpu.Y = 0x0034;
@@ -40,7 +40,7 @@ TEST_F(TAYTest, TransferAccumulatorToYImplied_ZEROFLAG) {
     TestUnchangedState(cpu, X, SP);
 }
 
-TEST_F(TAYTest, TransferAccumulatorToYImplied_NEGATIVEFLAG) {
+TEST_F(TAYTest, TransferAccumulatorToY_Implied_NEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TAY_IMPL, 0x00001023);
     cpu.A = 0xFFFF;
     cpu.Y = 0x0034;

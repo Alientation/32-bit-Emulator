@@ -15,7 +15,7 @@ class PLATest : public testing::Test {
 
 
 // PLA IMPLIED TESTS
-TEST_F(PLATest, PopAccumulatorImplied_Normal) {
+TEST_F(PLATest, PopAccumulator_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_PLA_IMPL, 0x00001023);
     cpu.motherboard.ram[0x0001FFFE] = 0x34;
     cpu.motherboard.ram[0x0001FFFF] = 0x12;
