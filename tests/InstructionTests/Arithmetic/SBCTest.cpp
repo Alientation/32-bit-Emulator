@@ -47,7 +47,7 @@ TEST_F(SBCTest, SubtractWithCarry_Immediate_CARRYFLAG) {
     TestInstruction(cpu, 3, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -88,7 +88,7 @@ TEST_F(SBCTest, SubtractWithCarry_Absolute_CARRYFLAG) {
     TestInstruction(cpu, 7, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -146,7 +146,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_CARRYFLAG) {
     TestInstruction(cpu, 7, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, Y, SP);
 }
 
@@ -208,7 +208,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_CARRYFLAG) {
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, X, SP);
 }
 
@@ -275,7 +275,7 @@ TEST_F(SBCTest, SubtractWithCarry_XIndexedIndirect_CARRYFLAG) {
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, Y, SP);
 }
 
@@ -342,7 +342,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_CARRYFLAG) {
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, X, SP);
 }
 
@@ -384,7 +384,7 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPage_CARRYFLAG) {
     TestInstruction(cpu, 5, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -447,6 +447,6 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPageXIndexed_CARRYFLAG) {
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry (borrow) flag should be set";
+    EXPECT_EQ(cpu.P, 0b10100001) << "Negative and carry flag should be set";
     TestUnchangedState(cpu, Y, SP);
 }
