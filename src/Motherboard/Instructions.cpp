@@ -488,8 +488,8 @@ void AlienCPU::_C8_INY_Implied_Instruction() {
 
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
-// TODO: correct tests to check for Z and N flags
-// AFFECTS FLAGS: Z, N, C
+// TODO: correct tests to check for Z, V, and N flags
+// AFFECTS FLAGS: Z, V, N, C
 // ADD WITH CARRY IMMEDIATE ($69 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_69_ADC_Immediate_Instruction() {
@@ -498,6 +498,7 @@ void AlienCPU::_69_ADC_Immediate_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -510,6 +511,7 @@ void AlienCPU::_6D_ADC_Absolute_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -522,6 +524,7 @@ void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -534,6 +537,7 @@ void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -546,6 +550,7 @@ void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -558,6 +563,7 @@ void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -570,6 +576,7 @@ void AlienCPU::_65_ADC_ZeroPage_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -582,6 +589,7 @@ void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
 
     // update carry if overflow happens
     setFlag(C_FLAG, result < A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
