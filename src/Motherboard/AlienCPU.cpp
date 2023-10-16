@@ -26,9 +26,10 @@ void AlienCPU::reset() {
     // reset flags
     P = P_INIT;
 
-    // reset cycle counters
+    // reset counters
     nextInterruptCheck = INTERRUPT_CHECK_INTERVAL;
     cycles = 0;
+    instructionsExecuted = 0;
 
     // prepare motherboard
     motherboard.initialize();
@@ -43,8 +44,9 @@ void AlienCPU::start(u64 maxCycles) {
     // start sequence / boot process, read from RESET vector and jump to there
     PC = readWord(POWER_ON_RESET_VECTOR);
 
-    // reset cycle counter
+    // reset counters
     cycles = 0;
+    instructionsExecuted = 0;
     
     // Fetch, Decode, Execute Cycle loop
     for (;;) {
@@ -89,6 +91,7 @@ void AlienCPU::executeInstruction(u16 instruction) {
         return;
     }
 
+    instructionsExecuted++;
     instructions[instruction](*this); // calls the function associated with the instruction
 }
 

@@ -122,6 +122,7 @@ class AlienCPU {
 
         // cycle counter
         u64 cycles;
+        u64 instructionsExecuted;
 
 
         // ======================PROGRAM=COUNTER=REGISTER=======================
