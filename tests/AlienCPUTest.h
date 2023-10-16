@@ -53,7 +53,7 @@ static void TestUnchangedState(AlienCPU& cpu, CPUElement element) {
     }
 }
 
-// unwrap the variable arguments
+// unwrap the variable arguments TODO: this does not work at ALL
 static void TestUnchangedState(AlienCPU& cpu, CPUElement element, CPUElement elements...) {
     TestUnchangedState(cpu, element);
     TestUnchangedState(cpu, elements);

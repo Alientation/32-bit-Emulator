@@ -1,6 +1,6 @@
 #include <AlienCPUTest.h>
 
-class ADCTest : public testing::Test {
+class ADCTest : public testing::Test { // FIX THESE TESTS TO TEST ALL FLAGS
     public: 
         AlienCPU cpu;
 
@@ -41,13 +41,48 @@ TEST_F(ADCTest, AddWithCarry_Immediate_ZEROFLAG) {
 
 TEST_F(ADCTest, AddWithCarry_Immediate_CARRYFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
-    cpu.writeTwoBytes(0x00001024, 0x0001); // value to add to accumulator
+    cpu.writeTwoBytes(0x00001024, 0x0002); // value to add to accumulator
     cpu.A = 0xFFFF;
 
     TestInstruction(cpu, 3, 0x00001026);
 
-    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flags should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+}
+
+TEST_F(ADCTest, AddWithCarry_Immediate_OVERFLOWFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0001); // value to add to accumulator
+    cpu.A = 0x7FFF;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0x8000) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b11100000) << "Only default, negative, and overflow flags should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+
+    cpu.reset();
+
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x8001); // value to add to accumulator
+    cpu.A = 0x8000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b01100001) << "Only default, carry, and overflow flag should be set";
+}
+
+TEST_F(ADCTest, AddWithCarry_Immediate_NEGATIVEFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x0001); // value to add to accumulator
+    cpu.A = 0xFFFE;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 

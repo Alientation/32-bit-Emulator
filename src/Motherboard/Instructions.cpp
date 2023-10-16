@@ -488,218 +488,139 @@ void AlienCPU::_C8_INY_Implied_Instruction() {
 
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
-// TODO: correct tests to check for Z, V, and N flags
 // AFFECTS FLAGS: Z, V, N, C
+// HELPER FUNCTION FOR ADD WITH CARRY INSTRUCTIONS
+void AlienCPU::ADC_Instruction(u16 value) {
+    u16 result = A + value + getFlag(C_FLAG);
+    
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < A);
+    
+    // set overflow flag if adding two same signed numbers results in different sign
+    clearFlag(V_FLAG);
+    if ((A & NEGATIVE_MASK) == (value & NEGATIVE_MASK)) {
+        setFlag(V_FLAG, (result & NEGATIVE_MASK) != (A & NEGATIVE_MASK));
+    }
+
+    UPDATE_FLAGS(result);
+    A = result;
+}
+
 // ADD WITH CARRY IMMEDIATE ($69 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_69_ADC_Immediate_Instruction() {
-    u16 value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_IMMEDIATE_READ_TWOBYTES());
 }
 
 // ADD WITH CARRY ABSOLUTE ($6D | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_6D_ADC_Absolute_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_ABSOLUTE_READ_TWOBYTES());
 }
 
 // ADD WITH CARRY ABSOLUTE X-INDEXED ($7D | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_7D_ADC_Absolute_XIndexed_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X));
 }
 
 // ADD WITH CARRY ABSOLUTE Y-INDEXED ($79 | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_79_ADC_Absolute_YIndexed_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y));
 }
 
 // ADD WITH CARRY X-INDEXED INDIRECT ($61 | 3 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_61_ADC_XIndexed_Indirect_Instruction() {
-    u16 value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES());
 }
 
 // ADD WITH CARRY INDIRECT Y-INDEXED ($71 | 3 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_71_ADC_Indirect_YIndexed_Instruction() {
-    u16 value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES());
 }
 
 // ADD WITH CARRY ZERO PAGE ($65 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_65_ADC_ZeroPage_Instruction() {
-    u16 value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_ZEROPAGE_READ_TWOBYTES());
 }
 
 // ADD WITH CARRY ZERO PAGE X-INDEXED ($75 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
-    u16 value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A + value + getFlag(C_FLAG);
-
-    // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    ADC_Instruction(ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X));
 }
 
 
 // =====================SUBTRACT=WITH=BORROW=============
 // TODO: correct tests to check for Z, N, and V flags
-// AFFECTS FLAGS: Z, N, C
-// SUBTRACT WITH BORROW IMMEDIATE ($E9 | 3 bytes | 3 cycles)
-// 1-3: Immediate addressing mode
-void AlienCPU::_E9_SBC_Immediate_Instruction() {
-    u16 value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
-    u16 result = A - value - ~getFlag(C_FLAG);
+// AFFECTS FLAGS: V, N, Z, C
+// HELPER FUNCTION FOR SUBTRACT WITH BORROW INSTRUCTIONS
+void AlienCPU::SBC_Instruction(u16 value) {
+    u16 result = A - value - !getFlag(C_FLAG);
 
     // set carry (represented negation of borrow) if no underflow happens
     setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
+
+    // set overflow flag if subtracting two same signed numbers results in different sign
+    clearFlag(V_FLAG);
+    if ((A & NEGATIVE_MASK) != (value & NEGATIVE_MASK)) {
+        setFlag(V_FLAG, (result & NEGATIVE_MASK) != (A & NEGATIVE_MASK));
+    }
+
     UPDATE_FLAGS(result);
     A = result;
+}
+
+// SUBTRACT WITH BORROW IMMEDIATE ($E9 | 3 bytes | 3 cycles)
+// 1-3: Immediate addressing mode
+void AlienCPU::_E9_SBC_Immediate_Instruction() {
+    SBC_Instruction(ADDRESSING_IMMEDIATE_READ_TWOBYTES());
 }
 
 // SUBTRACT WITH BORROW ABSOLUTE ($ED | 5 bytes | 7 cycles)
 // 1-7: Absolute addressing mode
 void AlienCPU::_ED_SBC_Absolute_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_ABSOLUTE_READ_TWOBYTES());
 }
 
 // SUBTRACT WITH BORROW ABSOLUTE X-INDEXED ($FD | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X));
 }
 
 // SUBTRACT WITH BORROW ABSOLUTE Y-INDEXED ($F9 | 5 bytes | 7-9 cycles)
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
-    u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y));
 }
 
 // SUBTRACT WITH BORROW X-INDEXED INDIRECT ($E1 | 3 bytes | 10 cycles)
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
-    u16 value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES());
 }
 
 // SUBTRACT WITH BORROW INDIRECT Y-INDEXED ($F1 | 3 bytes | 9-11 cycles)
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
-    u16 value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES());
 }
 
 // SUBTRACT WITH BORROW ZERO PAGE ($E5 | 3 bytes | 5 cycles)
 // 1-5: Zero page addressing mode
 void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
-    u16 value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_ZEROPAGE_READ_TWOBYTES());
 }
 
 // SUBTRACT WITH BORROW ZERO PAGE X-INDEXED ($F5 | 3 bytes | 6 cycles)
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
-    u16 value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A - value - ~getFlag(C_FLAG);
-
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
-    UPDATE_FLAGS(result);
-    A = result;
+    SBC_Instruction(ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X));
 }
 
 

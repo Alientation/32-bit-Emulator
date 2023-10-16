@@ -89,6 +89,7 @@ class AlienCPU {
         static constexpr Byte P_INIT = 0b00100000;
 
 
+        // TODO: make this an enum
         static constexpr Byte
             C_FLAG = 0,
             Z_FLAG = 1,
@@ -98,6 +99,9 @@ class AlienCPU {
             UNUSED_FLAG = 5,
             V_FLAG = 6,
             N_FLAG = 7;
+
+        static constexpr u16
+            NEGATIVE_MASK = 0b1000000000000000;
 
     private:
         // Instruction Set
@@ -405,6 +409,7 @@ class AlienCPU {
         // | https://www.masswerk.at/6502/6502_instruction_set.html#arithmetic
         // | ADC    :   Add with carry (prepare by CLC)
         // | SBC    :   Subtract with carry (prepare by SEC)
+        void ADC_Instruction(u16 value);
         void _61_ADC_XIndexed_Indirect_Instruction();
         void _65_ADC_ZeroPage_Instruction();
         void _69_ADC_Immediate_Instruction();
@@ -414,6 +419,7 @@ class AlienCPU {
         void _79_ADC_Absolute_YIndexed_Instruction();
         void _7D_ADC_Absolute_XIndexed_Instruction();
 
+        void SBC_Instruction(u16 value);
         void _E1_SBC_XIndexed_Indirect_Instruction();
         void _E5_SBC_ZeroPage_Instruction();
         void _E9_SBC_Immediate_Instruction();
