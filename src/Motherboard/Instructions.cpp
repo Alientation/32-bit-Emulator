@@ -588,16 +588,17 @@ void AlienCPU::_75_ADC_ZeroPage_XIndexed_Instruction() {
 
 
 // =====================SUBTRACT=WITH=BORROW=============
-// TODO: correct tests to check for Z and N flags
+// TODO: correct tests to check for Z, N, and V flags
 // AFFECTS FLAGS: Z, N, C
 // SUBTRACT WITH BORROW IMMEDIATE ($E9 | 3 bytes | 3 cycles)
 // 1-3: Immediate addressing mode
 void AlienCPU::_E9_SBC_Immediate_Instruction() {
     u16 value = ADDRESSING_IMMEDIATE_READ_TWOBYTES();
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -606,10 +607,11 @@ void AlienCPU::_E9_SBC_Immediate_Instruction() {
 // 1-7: Absolute addressing mode
 void AlienCPU::_ED_SBC_Absolute_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_READ_TWOBYTES();
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -618,10 +620,11 @@ void AlienCPU::_ED_SBC_Absolute_Instruction() {
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -630,10 +633,11 @@ void AlienCPU::_FD_SBC_Absolute_XIndexed_Instruction() {
 // 1-7/9: Absolute indexed addressing mode
 void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
     u16 value = ADDRESSING_ABSOLUTE_INDEXED_READ_TWOBYTES(Y);
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -642,10 +646,11 @@ void AlienCPU::_F9_SBC_Absolute_YIndexed_Instruction() {
 // 1-10: X indexed indirect addressing mode
 void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
     u16 value = ADDRESSING_XINDEXED_INDIRECT_READ_TWOBYTES();
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -654,10 +659,11 @@ void AlienCPU::_E1_SBC_XIndexed_Indirect_Instruction() {
 // 1-9/11: Indirect Y indexed addressing mode
 void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
     u16 value = ADDRESSING_INDIRECT_YINDEXED_READ_TWOBYTES();
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -666,10 +672,11 @@ void AlienCPU::_F1_SBC_Indirect_YIndexed_Instruction() {
 // 1-5: Zero page addressing mode
 void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_READ_TWOBYTES();
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
@@ -678,10 +685,11 @@ void AlienCPU::_E5_SBC_ZeroPage_Instruction() {
 // 1-6: Zero page indexed addressing mode
 void AlienCPU::_F5_SBC_ZeroPage_XIndexed_Instruction() {
     u16 value = ADDRESSING_ZEROPAGE_INDEXED_READ_TWOBYTES(X);
-    u16 result = A - value - getFlag(C_FLAG);
+    u16 result = A - value - ~getFlag(C_FLAG);
 
-    // update carry (represented as borrow) if underflow happens
-    setFlag(C_FLAG, result > A);
+    // set carry (represented negation of borrow) if no underflow happens
+    setFlag(C_FLAG, result <= A);
+    setFlag(V_FLAG, result & 0x8000 >> 15); // set overflow if the signed bit (bit 16) is set
     UPDATE_FLAGS(result);
     A = result;
 }
