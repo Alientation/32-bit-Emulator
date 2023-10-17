@@ -1,6 +1,6 @@
 #include <AlienCPUTest.h>
 
-class DECTest : public testing::Test {
+class DECTest : public testing::Test { // TODO: FINISH WRITING TESTS FOR OTHER ADDRESSING MODES
     public: 
         AlienCPU cpu;
 

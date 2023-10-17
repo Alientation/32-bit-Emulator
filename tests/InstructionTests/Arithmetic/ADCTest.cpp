@@ -252,6 +252,111 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_CARRYFLAG) {
 }
 
 
+// ADC ZEROPAGE TESTS
+TEST_F(ADCTest, AddWithCarry_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x1234); // value to add to accumulator
+    cpu.A = 0x0012;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 5, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarry_ZeroPage_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 5, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+}
+
+TEST_F(ADCTest, AddWithCarry_ZeroPage_CARRYFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
+    cpu.writeTwoBytes(0x00001234, 0x0001); // value to add to accumulator
+    cpu.A = 0xFFFF;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 5, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+}
+
+
+// ADC ZEROPAGE XINDEXED TESTS
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeTwoBytes(0x00001235, 0x1234); // value to add to accumulator
+    cpu.A = 0x0012;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 6, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x0001); // partial zp address to the value to add to accumulator
+    cpu.X = 0xFFFF;
+    cpu.writeTwoBytes(0x00000000, 0x1234); // value to add to accumulator
+    cpu.A = 0x0012;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 6, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should be unchanged";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeTwoBytes(0x00001235, 0x0000); // value to add to accumulator
+    cpu.A = 0x0000;
+
+    TestInstruction(cpu, 6, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
+}
+
+TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_CARRYFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
+    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
+    cpu.X = 0x0001;
+    cpu.writeTwoBytes(0x00001235, 0x0001); // value to add to accumulator
+    cpu.A = 0xFFFF;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 6, 0x00011237);
+
+    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
+    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
+    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
+    TestUnchangedState(cpu, Y, SP);
+}
+
+
 // ADC XINDEXED INDIRECT TESTS
 TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_X_IND, 0x00001023);
@@ -383,109 +488,4 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_CARRYFLAG) {
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
     EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
     TestUnchangedState(cpu, X, SP);
-}
-
-
-// ADC ZEROPAGE TESTS
-TEST_F(ADCTest, AddWithCarry_ZeroPage_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
-    cpu.writeTwoBytes(0x00001234, 0x1234); // value to add to accumulator
-    cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
-
-    TestInstruction(cpu, 5, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
-    TestUnchangedState(cpu, X, Y, SP, P);
-}
-
-TEST_F(ADCTest, AddWithCarry_ZeroPage_ZEROFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
-    cpu.writeTwoBytes(0x00001234, 0x0000); // value to add to accumulator
-    cpu.A = 0x0000;
-
-    TestInstruction(cpu, 5, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
-    TestUnchangedState(cpu, X, Y, SP);
-}
-
-TEST_F(ADCTest, AddWithCarry_ZeroPage_CARRYFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
-    cpu.writeTwoBytes(0x00001234, 0x0001); // value to add to accumulator
-    cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
-
-    TestInstruction(cpu, 5, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
-    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
-    TestUnchangedState(cpu, X, Y, SP);
-}
-
-
-// ADC ZEROPAGE XINDEXED TESTS
-TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
-    cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00001235, 0x1234); // value to add to accumulator
-    cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
-
-    TestInstruction(cpu, 6, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
-    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    TestUnchangedState(cpu, Y, SP, P);
-}
-
-TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_WRAPAROUND) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x0001); // partial zp address to the value to add to accumulator
-    cpu.X = 0xFFFF;
-    cpu.writeTwoBytes(0x00000000, 0x1234); // value to add to accumulator
-    cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
-
-    TestInstruction(cpu, 6, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
-    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should be unchanged";
-    TestUnchangedState(cpu, Y, SP, P);
-}
-
-TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_ZEROFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
-    cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00001235, 0x0000); // value to add to accumulator
-    cpu.A = 0x0000;
-
-    TestInstruction(cpu, 6, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
-    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
-    TestUnchangedState(cpu, Y, SP);
-}
-
-TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_CARRYFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_ADC_ZP_X, 0x00011234);
-    cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address to the value to add to accumulator
-    cpu.X = 0x0001;
-    cpu.writeTwoBytes(0x00001235, 0x0001); // value to add to accumulator
-    cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
-
-    TestInstruction(cpu, 6, 0x00011237);
-
-    EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
-    EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100001) << "Only default and carry flag should be set";
-    TestUnchangedState(cpu, Y, SP);
 }

@@ -211,6 +211,106 @@ TEST_F(EORTest, ExclusiveOr_AbsoluteYIndexed_NEGATIVEFLAG) {
 }
 
 
+// EOR ZEROPAGE TESTS
+TEST_F(EORTest, ExclusiveOr_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
+    cpu.writeTwoBytes(0x00001234, 0x1234); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 5, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+TEST_F(EORTest, ExclusiveOr_ZeroPage_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
+    cpu.writeTwoBytes(0x00001234, 0x5678); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 5, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0x5678 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+}
+
+TEST_F(EORTest, ExclusiveOr_ZeroPage_NEGATIVEFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
+    cpu.writeTwoBytes(0x00001234, 0xFF34); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x0078;
+
+    TestInstruction(cpu, 5, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0xFF34 ^ 0x0078) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, X, Y, SP);
+}
+
+
+// EOR ZEROPAGE XINDEXED TESTS
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
+    cpu.X = 0x0002;
+    cpu.writeTwoBytes(0x00001236, 0x1234); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 6, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x0002); // partial zp address of value to bitwise exclusive or with accumulator
+    cpu.X = 0xFFFF;
+    cpu.writeTwoBytes(0x00000001, 0x1234); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 6, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_ZEROFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
+    cpu.X = 0x0002;
+    cpu.writeTwoBytes(0x00001236, 0x5678); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x5678;
+
+    TestInstruction(cpu, 6, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0x5678 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
+    TestUnchangedState(cpu, Y, SP);
+}
+
+TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NEGATIVEFLAG) {
+    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
+    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
+    cpu.X = 0x0002; 
+    cpu.writeTwoBytes(0x00001236, 0xFF34); // value to bitwise exclusive or with accumulator
+    cpu.A = 0x0078;
+
+    TestInstruction(cpu, 6, 0x00011026);
+
+    EXPECT_EQ(cpu.A, 0xFF34 ^ 0x0078) << "Accumulator should be bitwise exclusive or with value";
+    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
+    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
+    TestUnchangedState(cpu, Y, SP);
+}
+
+
 // EOR XINDEXED INDIRECT TESTS
 TEST_F(EORTest, ExclusiveOr_XIndexedIndirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_EOR_X_IND, 0x00001023);
@@ -336,104 +436,4 @@ TEST_F(EORTest, ExclusiveOr_IndirectYIndexed_NEGATIVEFLAG) {
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
     EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
     TestUnchangedState(cpu, X, SP);
-}
-
-
-// EOR ZEROPAGE TESTS
-TEST_F(EORTest, ExclusiveOr_ZeroPage_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
-    cpu.writeTwoBytes(0x00001234, 0x1234); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x5678;
-
-    TestInstruction(cpu, 5, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
-    TestUnchangedState(cpu, X, Y, SP, P);
-}
-
-TEST_F(EORTest, ExclusiveOr_ZeroPage_ZEROFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
-    cpu.writeTwoBytes(0x00001234, 0x5678); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x5678;
-
-    TestInstruction(cpu, 5, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0x5678 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
-    TestUnchangedState(cpu, X, Y, SP);
-}
-
-TEST_F(EORTest, ExclusiveOr_ZeroPage_NEGATIVEFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // zp address of value to bitwise exclusive or with accumulator
-    cpu.writeTwoBytes(0x00001234, 0xFF34); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x0078;
-
-    TestInstruction(cpu, 5, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0xFF34 ^ 0x0078) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
-    TestUnchangedState(cpu, X, Y, SP);
-}
-
-
-// EOR ZEROPAGE XINDEXED TESTS
-TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
-    cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00001236, 0x1234); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x5678;
-
-    TestInstruction(cpu, 6, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
-    TestUnchangedState(cpu, Y, SP, P);
-}
-
-TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_WRAPAROUND) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x0002); // partial zp address of value to bitwise exclusive or with accumulator
-    cpu.X = 0xFFFF;
-    cpu.writeTwoBytes(0x00000001, 0x1234); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x5678;
-
-    TestInstruction(cpu, 6, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0x1234 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.X, 0xFFFF) << "X register should not be altered";
-    TestUnchangedState(cpu, Y, SP, P);
-}
-
-TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_ZEROFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
-    cpu.X = 0x0002;
-    cpu.writeTwoBytes(0x00001236, 0x5678); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x5678;
-
-    TestInstruction(cpu, 6, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0x5678 ^ 0x5678) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
-    TestUnchangedState(cpu, Y, SP);
-}
-
-TEST_F(EORTest, ExclusiveOr_ZeroPageXIndexed_NEGATIVEFLAG) {
-    LoadInstruction(cpu, AlienCPU::INS_EOR_ZP_X, 0x00011023);
-    cpu.writeTwoBytes(0x00011024, 0x1234); // partial zp address of value to bitwise exclusive or with accumulator
-    cpu.X = 0x0002; 
-    cpu.writeTwoBytes(0x00001236, 0xFF34); // value to bitwise exclusive or with accumulator
-    cpu.A = 0x0078;
-
-    TestInstruction(cpu, 6, 0x00011026);
-
-    EXPECT_EQ(cpu.A, 0xFF34 ^ 0x0078) << "Accumulator should be bitwise exclusive or with value";
-    EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
-    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
-    TestUnchangedState(cpu, Y, SP);
 }

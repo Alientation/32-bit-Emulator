@@ -23,7 +23,7 @@ Word AlienCPU::ADDRESSING_IMPLIED() {
 
 
 // ======================ADDRESSING=MODE=IMMEDIATE======================
-//                          3 bytes | 3 cycles
+//                          3 bytes | 1 cycle
 // 1: fetch opcode from PC, increment PC
 Word AlienCPU::ADDRESSING_IMMEDIATE() {
     PC+=2;
@@ -57,7 +57,7 @@ Word AlienCPU::ADDRESSING_ABSOLUTE() {
 }
 
 // ==================ADDRESSING=MODE=ABSOLUTE=XINDEXED==================
-//                          5 bytes | 7-9 cycles
+//                          5 bytes | 6 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -70,7 +70,7 @@ Word AlienCPU::ADDRESSING_ABSOLUTE_XINDEXED() {
 }
 
 // ==================ADDRESSING=MODE=ABSOLUTE=YINDEXED==================
-//                          5 bytes | 7-9 cycles
+//                          5 bytes | 6 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
 // 3: fetch mid low byte address from PC, increment PC
@@ -83,8 +83,44 @@ Word AlienCPU::ADDRESSING_ABSOLUTE_YINDEXED() {
 }
 
 
+// =======================ADDRESSING=MODE=ZEROPAGE=======================
+//                          3 bytes | 3 cycles
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address from PC, increment PC
+Word AlienCPU::ADDRESSING_ZEROPAGE() {
+    return fetchNextTwoBytes(); // 2-3
+}
+
+
+// ===================ADDRESSING=MODE=ZEROPAGE=XINDEXED===================
+//                          3 bytes | 4 cycles
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add X register to base zero page address (wraps around in zero page)
+Word AlienCPU::ADDRESSING_ZEROPAGE_XINDEXED() {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddress += X; cycles++; // 4
+    return zeroPageAddress;
+}
+
+
+// ===================ADDRESSING=MODE=ZEROPAGE=YINDEXED===================
+//                          3 bytes | 4 cycles
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte zero page address from PC, increment PC
+// 3: fetch mid low zero page address byte from PC, increment PC
+// 4: read useless data, add Y register to base zero page address (wraps around in zero page)
+Word AlienCPU::ADDRESSING_ZEROPAGE_YINDEXED() {
+    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
+    zeroPageAddress += Y; cycles++; // 4
+    return zeroPageAddress;
+}
+
+
 // ==================ADDRESSING=MODE=XINDEXED=INDIRECT==================
-//                          3 bytes | 10 cycles
+//                          3 bytes | 8 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -101,7 +137,7 @@ Word AlienCPU::ADDRESSING_XINDEXED_INDIRECT() {
 
 
 // ==================ADDRESSING=MODE=INDIRECT=YINDEXED==================
-//                          3 bytes | 9-11 cycles
+//                          3 bytes | 8 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
 // 3: fetch mid low zero page address byte from PC, increment PC
@@ -115,40 +151,4 @@ Word AlienCPU::ADDRESSING_INDIRECT_YINDEXED() {
     u16 zeroPageAddressOfAddress = fetchNextTwoBytes(); // 2-3
     Word address = readWord(zeroPageAddressOfAddress) + Y; cycles++; // 4-8
     return address;
-}
-
-
-// =======================ADDRESSING=MODE=ZEROPAGE=======================
-//                          3 bytes | 5 cycles
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address from PC, increment PC
-Word AlienCPU::ADDRESSING_ZEROPAGE() {
-    return fetchNextTwoBytes(); // 2-3
-}
-
-
-// ===================ADDRESSING=MODE=ZEROPAGE=XINDEXED===================
-//                          3 bytes | 6 cycles
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add X register to base zero page address (wraps around in zero page)
-Word AlienCPU::ADDRESSING_ZEROPAGE_XINDEXED() {
-    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
-    zeroPageAddress += X; cycles++; // 4
-    return zeroPageAddress;
-}
-
-
-// ===================ADDRESSING=MODE=ZEROPAGE=YINDEXED===================
-//                          3 bytes | 6 cycles
-// 1: fetch opcode from PC, increment PC
-// 2: fetch low byte zero page address from PC, increment PC
-// 3: fetch mid low zero page address byte from PC, increment PC
-// 4: read useless data, add Y register to base zero page address (wraps around in zero page)
-Word AlienCPU::ADDRESSING_ZEROPAGE_YINDEXED() {
-    u16 zeroPageAddress = fetchNextTwoBytes(); // 2-3
-    zeroPageAddress += Y; cycles++; // 4
-    return zeroPageAddress;
 }

@@ -21,7 +21,7 @@ TEST_F(PLATest, PopAccumulator_Implied_Normal) {
     cpu.motherboard.ram[0x0001FFFF] = 0x12;
     cpu.SP = 0xFFFD;
 
-    TestInstruction(cpu, 3, 0x00001024);
+    TestInstruction(cpu, 4, 0x00001024);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be set to the value on the stack";
     EXPECT_EQ(cpu.SP, 0xFFFF) << "Stack pointer should be incremented";
