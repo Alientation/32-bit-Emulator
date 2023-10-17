@@ -384,15 +384,15 @@ void AlienCPU::ADC_Instruction(Word address) {
 //  +1      read low byte of value from address (subtract from accumulator)
 //  +2      read high byte of value from address + 1 (subtract from accumulator)
 void AlienCPU::SBC_Instruction(Word address) {
-    u16 value = readTwoBytes(address);
-    u16 result = A - value - !getFlag(C_FLAG);
+    u16 value = ~readTwoBytes(address); // one's complement so we can add the numbers instead of dealing with subtraction
+    u16 result = A + value + getFlag(C_FLAG);
 
-    // set carry (represented negation of borrow) if no underflow happens
-    setFlag(C_FLAG, result <= A);
-
-    // set overflow flag if subtracting two same signed numbers results in different sign
+    // update carry if overflow happens
+    setFlag(C_FLAG, result < A);
+    
+    // set overflow flag if adding two same signed numbers results in different sign
     clearFlag(V_FLAG);
-    if ((A & NEGATIVE_MASK) != (value & NEGATIVE_MASK)) {
+    if ((A & NEGATIVE_MASK) == (value & NEGATIVE_MASK)) {
         setFlag(V_FLAG, (result & NEGATIVE_MASK) != (A & NEGATIVE_MASK));
     }
 

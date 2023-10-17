@@ -14,6 +14,236 @@ class SBCTest : public testing::Test { // TODO: FIX THESE TESTS TO TEST ALL FLAG
 };
 
 
+TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
+    // -32768 - 32767 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 - 32767
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 - -32768 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
+    cpu.A = 0b1000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // -32768 - -32768
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000000);
+    EXPECT_EQ(cpu.P & 0b00000001, 0b00000001);
+
+    cpu.reset();
+
+    // -32768 - -1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1111111111111111);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // -1 - 32767 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1111111111111111;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -1 - 32767
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000001);
+
+    cpu.reset();
+
+    // 0 - 32767 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b0000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // 0 - 32767
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b0000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // 0 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
+    cpu.A = 0b0000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // 0 - -32768 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b1000000000000000);
+    cpu.A = 0b0000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b00000000);
+
+    cpu.reset();
+
+    // 0 - -32768
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b1000000000000000);
+    cpu.A = 0b0000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+
+    // 32767 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b0000000000000001);
+    cpu.A = 0b0111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0111111111111110);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b00000001);
+
+    cpu.reset();
+
+    // 32767 - 32767
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b0111111111111111);
+    cpu.A = 0b0111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b00000001);
+
+    cpu.reset();
+
+    // 32767 - 32767 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b0111111111111111);
+    cpu.A = 0b0111111111111111;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // 32767 - -32768 - 1
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b1000000000000000);
+    cpu.A = 0b0111111111111111;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111110);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+
+    // 32767 - -32768
+    LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024,0b1000000000000000);
+    cpu.A = 0b0111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+}
+
+
 // SBC IMMEDIATE TESTS
 TEST_F(SBCTest, SubtractWithCarry_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
@@ -35,7 +265,7 @@ TEST_F(SBCTest, SubtractWithCarry_Immediate_ZEROFLAG) {
     TestInstruction(cpu, 3, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0000";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, carry, default, and zero flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100010) << "Default and zero flags should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -76,7 +306,7 @@ TEST_F(SBCTest, SubtractWithCarry_Absolute_ZEROFLAG) {
     TestInstruction(cpu, 7, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, carry and zero flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, carry, and zero flags should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -133,7 +363,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_ZEROFLAG) {
     TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, carry, and zero flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, carry, and zero flags should be set";
     TestUnchangedState(cpu, Y, SP);
 }
 
@@ -194,7 +424,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_ZEROFLAG) {
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, zero, and carry flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, zero, and carry flags should be set";
     TestUnchangedState(cpu, X, SP);
 }
 
@@ -259,7 +489,7 @@ TEST_F(SBCTest, SubtractWithCarry_XIndexedIndirect_ZEROFLAG) {
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, zero, and carry flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, zero, and carry flags should be set";
     TestUnchangedState(cpu, Y, SP);
 }
 
@@ -324,7 +554,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_ZEROFLAG) {
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, zero, and carry flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, zero, and carry flags should be set";
     TestUnchangedState(cpu, X, SP);
 }
 
@@ -368,7 +598,7 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPage_ZEROFLAG) {
     TestInstruction(cpu, 5, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, zero, and carry flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, zero, and carry flags should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 
@@ -427,7 +657,7 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPageXIndexed_ZEROFLAG) {
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
-    EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, zero, and carry flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default, zero, and carry flags should be set";
     TestUnchangedState(cpu, Y, SP);
 }
 

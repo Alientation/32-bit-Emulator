@@ -13,6 +13,7 @@ class ADCTest : public testing::Test { // FIX THESE TESTS TO TEST ALL FLAGS
     }
 };
 
+
 TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     // -32768 + -32768
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
