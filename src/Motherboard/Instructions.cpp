@@ -7,26 +7,11 @@
 // It must also have a useless memory read (not write because we do not want to change program data)
 // 
 // Although the cycle counts and what is done at each cycle may not be truly accurate to the 6502,
-// it is closely emulates the process of the 6502's instruction cycles
-// The general pattern of instruction clock cycles in this processor compared to 6502 follows this rule
-//          (6502's instruction clock cycles - 1) * 2 + 1 = this processor's instruction clock cycles
-// This is because the first cycle is reading in the opcode (1 byte and therefore 1 cycle for both processors)
-// But the rest are memory read's and write's (double the cycle count for this processor because this processor handles double the bytes)
-// There are a few instances where there are *useless* memory reads/writes to allow for the performing of addition
-// Which results in an equation like this (6502's instruction clock cycles - 2) * 2 + 2 = this processor's instruction clock cycles
-//
-// The implementation of the instructions may not be entirely based accurately on the 6502's implementation or
-// the cycle count described by the documentation. If and once the transition to cycle accurate cpu processing
-// then the implementation shall be accurate to the described process
+// it closely emulates the process of the 6502's instruction cycles. There are some exceptions in
+// where the 6502 had variable cycle counts depending on pagecrossing, this cpu simply uses an extra
+// cycle to allow for pagecrossing even if it is not necessary.
 //
 // https://www.nesdev.org/6502_cpu.txt
-// TODO: figure out a way to have cycle stepping instead of completing the entire instruction in one pass
-//       This will also allow basic pipelining (reading in next instruction at the last cycle step 
-//       of this current instruction if this instruction does not write to memory in the current cycle)
-//
-// TODO: figure out a way to have a single instruction for each instruction and its addressable modes
-//      and have addressing modes be functions that return the correct value to use
-//
 
 // Sets ZERO flag if the modified register is 0 and NEGATIVE flag if the 
 // last bit of the modified register is set
