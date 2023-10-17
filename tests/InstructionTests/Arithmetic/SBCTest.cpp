@@ -103,7 +103,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012035, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     TestUnchangedState(cpu, Y, SP, P);
@@ -116,7 +116,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_PAGECROSSING) {
     cpu.writeTwoBytes(0x00020000, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     TestUnchangedState(cpu, Y, SP, P);
@@ -130,7 +130,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_ZEROFLAG) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.P, 0b00100011) << "Negative, default, carry, and zero flags should be set";
@@ -145,7 +145,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_BORROWFLAG) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.P, 0b10100000) << "Negative and default flags should be set";
@@ -161,7 +161,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012035, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -175,7 +175,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_PAGECROSSING) {
     cpu.writeTwoBytes(0x00020000, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -190,7 +190,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_ZEROFLAG) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -206,7 +206,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_BORROWFLAG) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -289,7 +289,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012346, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -304,7 +304,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_PAGECROSSING) {
     cpu.writeTwoBytes(0x00020000, 0x0012); // value to subtract from accumulator
     cpu.A = 0x1247;
 
-    TestInstruction(cpu, 11, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should be decremented by 0x0012";
     EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should be unchanged";
@@ -320,7 +320,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_ZEROFLAG) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -336,7 +336,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_CARRYFLAG) {
     cpu.writeTwoBytes(0x00012346, 0x0001); // value to subtract from accumulator
     cpu.A = 0x0001;
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0xFFFF) << "Accumulator should be decremented by 0x0002";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";

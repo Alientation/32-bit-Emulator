@@ -92,7 +92,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_NORMAL) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
@@ -105,7 +105,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_PAGECROSS) {
     cpu.X = 0xF013;
     cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
@@ -118,7 +118,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_ZFLAG) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
@@ -132,7 +132,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_XIndexed_NFLAG) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFEF) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
@@ -148,7 +148,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_NORMAL) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
@@ -161,7 +161,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_PAGECROSS) {
     cpu.Y = 0xF013;
     cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
@@ -174,7 +174,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_ZFLAG) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
@@ -188,7 +188,7 @@ TEST_F(LDATest, LoadAccumulator_Absolute_YIndexed_NFLAG) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into accumulator
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFFEF) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";
@@ -265,7 +265,7 @@ TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_NORMAL) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00011247, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.Y, 0x0013) << "Y register should not be altered";
@@ -279,7 +279,7 @@ TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_PAGECROSS) {
     cpu.Y = 0xF013;
     cpu.writeTwoBytes(0x00020247, 0x1234); // value to load into accumulator
 
-    TestInstruction(cpu, 11, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
@@ -293,7 +293,7 @@ TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_ZFLAG) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00011247, 0x0000); // value to load into accumulator
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b00100010) << "Only default flag should be set";
@@ -308,7 +308,7 @@ TEST_F(LDATest, LoadAccumulator_Indirect_YIndexed_NFLAG) {
     cpu.Y = 0x0013;
     cpu.writeTwoBytes(0x00011247, 0xFFEF); // value to load into accumulator
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
     
     EXPECT_EQ(cpu.A, 0xFFEF) << "Accumulator is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b10100000) << "Only default flag should be set";

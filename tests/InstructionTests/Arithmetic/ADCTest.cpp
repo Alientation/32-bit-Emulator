@@ -137,7 +137,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_NORMAL) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0012;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
@@ -152,7 +152,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_PAGECROSSING) {
     cpu.setFlag(cpu.C_FLAG, true);
     cpu.A = 0x0012;
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.X, 0x0001) << "X register should be unchanged";
@@ -166,7 +166,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012035, 0x0000); // value to add to accumulator
     cpu.A = 0x0000;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
     EXPECT_EQ(cpu.P, 0b00100010) << "Only default and carry flag should be set";
@@ -181,7 +181,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_CARRYFLAG) {
     cpu.writeTwoBytes(0x00012035, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
     EXPECT_EQ(cpu.P, 0b00100011) << "Only default, zero, and carry flag should be set";
@@ -199,7 +199,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_NORMAL) {
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -214,7 +214,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_PAGECROSSING) {
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -228,7 +228,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012035, 0x0000); // value to add to accumulator
     cpu.A = 0x0000;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -243,7 +243,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_CARRYFLAG) {
     cpu.writeTwoBytes(0x00012035, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -329,7 +329,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_NORMAL) {
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -345,7 +345,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_PAGECROSSING) {
     cpu.A = 0x0012;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    TestInstruction(cpu, 11, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x1247) << "Accumulator should be incremented by 0x1235";
     EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should be unchanged";
@@ -360,7 +360,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012346, 0x0000); // value to add to accumulator
     cpu.A = 0x0000;
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be incremented by 0x0000";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";
@@ -377,7 +377,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_CARRYFLAG) {
     cpu.A = 0xFFFF;
     cpu.setFlag(cpu.C_FLAG, true);
 
-    TestInstruction(cpu, 9, 0x00011237);
+    TestInstruction(cpu, 10, 0x00011237);
 
     EXPECT_EQ(cpu.A, 0x0001) << "Accumulator should be incremented by 0x0001";
     EXPECT_EQ(cpu.Y, 0x0001) << "Y register should be unchanged";

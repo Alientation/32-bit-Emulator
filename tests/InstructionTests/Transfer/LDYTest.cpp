@@ -92,7 +92,7 @@ TEST_F(LDYTest, LoadY_Absolute_XIndexed_NORMAL) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x1234); // value to load into Y
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.Y, 0x1234) << "Y register is not set to the correct value";
     EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
@@ -105,7 +105,7 @@ TEST_F(LDYTest, LoadY_Absolute_XIndexed_PAGECROSS) {
     cpu.X = 0xF013;
     cpu.writeTwoBytes(0x00020245, 0x1234); // value to load into Y
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.Y, 0x1234) << "Y register is not set to the correct value";
     EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
@@ -118,7 +118,7 @@ TEST_F(LDYTest, LoadY_Absolute_XIndexed_ZFLAG) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0x0000); // value to load into Y
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.Y, 0x0000) << "Y register is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flags should be set";
@@ -132,7 +132,7 @@ TEST_F(LDYTest, LoadY_Absolute_XIndexed_NFLAG) {
     cpu.X = 0x0013;
     cpu.writeTwoBytes(0x00014245, 0xFFEF); // value to load into Y
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.Y, 0xFFEF) << "Y register is not set to the correct value";
     EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flags should be set";

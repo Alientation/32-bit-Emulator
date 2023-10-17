@@ -92,7 +92,9 @@ void AlienCPU::executeInstruction(u16 instruction) {
     }
 
     instructionsExecuted++;
-    instructions[instruction](*this); // calls the function associated with the instruction
+
+    Word address = (this->*instructions[instruction].addressingMode)(); // calls the addressing mode function
+    (this->*instructions[instruction].instruction)(address); // calls the function associated with the instruction
 }
 
 // Checks if the instruction is a valid instruction. 

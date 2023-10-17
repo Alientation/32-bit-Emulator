@@ -99,7 +99,7 @@ TEST_F(ANDTest, And_AbsoluteXIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
@@ -113,7 +113,7 @@ TEST_F(ANDTest, And_AbsoluteXIndexed_PAGECROSS) {
     cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.X, 0xFFFF) << "X register should not be altered";
@@ -127,7 +127,7 @@ TEST_F(ANDTest, And_AbsoluteXIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
@@ -142,7 +142,7 @@ TEST_F(ANDTest, And_AbsoluteXIndexed_NEGATIVEFLAG) {
     cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.X, 0x0002) << "X register should not be altered";
@@ -159,7 +159,7 @@ TEST_F(ANDTest, And_AbsoluteYIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
@@ -173,7 +173,7 @@ TEST_F(ANDTest, And_AbsoluteYIndexed_PAGECROSS) {
     cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 9, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should not be altered";
@@ -187,7 +187,7 @@ TEST_F(ANDTest, And_AbsoluteYIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
@@ -202,7 +202,7 @@ TEST_F(ANDTest, And_AbsoluteYIndexed_NEGATIVEFLAG) {
     cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    TestInstruction(cpu, 7, 0x00001028);
+    TestInstruction(cpu, 8, 0x00001028);
 
     EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
@@ -284,7 +284,7 @@ TEST_F(ANDTest, And_IndirectYIndexed_NORMAL) {
     cpu.writeTwoBytes(0x00012347, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
@@ -299,7 +299,7 @@ TEST_F(ANDTest, And_IndirectYIndexed_PAGECROSS) {
     cpu.writeTwoBytes(0x00010000, 0x1234); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 11, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x1234 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0xFFFF) << "Y register should not be altered";
@@ -314,7 +314,7 @@ TEST_F(ANDTest, And_IndirectYIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00012347, 0x0000); // value to bitwise and with accumulator
     cpu.A = 0x5678;
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x0000 & 0x5678) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
@@ -330,7 +330,7 @@ TEST_F(ANDTest, And_IndirectYIndexed_NEGATIVEFLAG) {
     cpu.writeTwoBytes(0x00012347, 0xFF34); // value to bitwise and with accumulator
     cpu.A = 0xFF78;
 
-    TestInstruction(cpu, 9, 0x00001026);
+    TestInstruction(cpu, 10, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0xFF34 & 0xFF78) << "Accumulator should be bitwise & with value";
     EXPECT_EQ(cpu.Y, 0x0002) << "Y register should not be altered";
