@@ -281,8 +281,6 @@ class AlienCPU {
         // |    M6  memory bit 6
         // |    M7  memory bit 7
         // |
-        void UPDATE_FLAGS(u16 modifiedValue);
-
         // NON MEMORY ADDRESSING MODES
         Word ADDRESSING_ACCUMULATOR();
         Word ADDRESSING_IMPLIED();

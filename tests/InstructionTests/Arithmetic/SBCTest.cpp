@@ -74,7 +74,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     TestInstruction(cpu, 3, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0b0000000000000000);
-    EXPECT_EQ(cpu.P & 0b00000001, 0b00000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b00000001);
 
     cpu.reset();
 

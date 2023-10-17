@@ -61,7 +61,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     TestInstruction(cpu, 3, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0b1000000000000000);
-    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000001);
     
     cpu.reset();
 
