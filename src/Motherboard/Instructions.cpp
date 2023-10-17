@@ -395,7 +395,7 @@ void AlienCPU::SBC_Instruction(Word address) {
     u16 result = A + value + getFlag(C_FLAG);
 
     // update carry if overflow happens
-    setFlag(C_FLAG, result < A);
+    setFlag(C_FLAG, (A + value + getFlag(C_FLAG)) > 0xFFFF);
     
     // set overflow flag if adding two same signed numbers results in different sign
     setFlag(V_FLAG, ((A ^ result) & NEGATIVE_MASK) && ((value ^ result) & NEGATIVE_MASK));

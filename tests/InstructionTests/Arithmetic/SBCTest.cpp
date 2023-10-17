@@ -265,7 +265,7 @@ TEST_F(SBCTest, SubtractWithCarry_Immediate_ZEROFLAG) {
     TestInstruction(cpu, 3, 0x00001026);
 
     EXPECT_EQ(cpu.A, 0x0000) << "Accumulator should be decremented by 0x0000";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Default and zero flags should be set";
+    EXPECT_EQ(cpu.P, 0b00100011) << "Default and zero flags should be set";
     TestUnchangedState(cpu, X, Y, SP);
 }
 

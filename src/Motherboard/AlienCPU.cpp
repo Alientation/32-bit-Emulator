@@ -111,11 +111,6 @@ void AlienCPU::clearFlag(Byte bit) {
 
 // Sets the specified flag bit from processor status register
 void AlienCPU::setFlag(Byte bit, bool isSet) {
-    // 11111111
-    // 00000001
-    // 11111110
-    // 11111110 | 0
-
     P = (P & ~((u8)1 << bit)) | ((u8)isSet << bit);
 }
 
