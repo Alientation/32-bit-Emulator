@@ -20,10 +20,22 @@ void AlienCPU::UPDATE_FLAGS(u16 modifiedValue) {
     setFlag(N_FLAG, modifiedValue >> 15);
 }
 
-// ======================TRANSFER======================== TODO: document which addressing modes are suppoorted and the bytes and cycles taken
+// ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
 // AFFECTS FLAGS: Z, N
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $A9       3         3           LDA #$nnnn
+//  absolute            $AD       5         7           LDA $nnnnnnnn
+//  absolute,X          $BD       5         8           LDA $nnnnnnnn,X
+//  absolute,Y          $B9       5         8           LDA $nnnnnnnn,Y
+//  zero page           $A5       3         5           LDA $nnnn
+//  zero page,X         $B5       3         6           LDA $nnnn,X
+//  x,indirect          $A1       3         10          LDA ($nnnn,X)
+//  indirect,Y          $B1       3         10          LDA ($nnnn),Y
+// 
+// CYCLES           DESCRIPTION         
+//  +1      read low byte from address
+//  +2      read high byte from address
 void AlienCPU::LDA_Instruction(Word address) {
     A = readTwoBytes(address);
     UPDATE_FLAGS(A);
@@ -157,8 +169,18 @@ void AlienCPU::PLP_Instruction(Word address) {
 
 // ================DECREMENTS=&=INCREMENTS===============
 // ===================DECREMENT=MEMORY===================
+// TODO: DECIDE WHETHER TO MAKE THIS DECREMENT A VALUE THAT IS TWO BYTES LONG
 // AFFECTS FLAGS: Z
-// +3 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $CE       5         8           DEC $nnnnnnnn
+//  absolute,X          $DE       5         9           DEC $nnnnnnnn,X
+//  zero page           $C6       3         6           DEC $nnnn
+//  zero page,X         $D6       3         7           DEC $nnnn,X
+// 
+// CYCLES           DESCRIPTION         
+//  +1   read value from address
+//  +2   write value to address, decrement value
+//  +3   write decremented value to address
 void AlienCPU::DEC_Instruction(Word address) {
     motherboard[address]--; cycles+=3;
     UPDATE_FLAGS(motherboard[address]);

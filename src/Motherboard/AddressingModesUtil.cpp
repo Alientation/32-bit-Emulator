@@ -25,10 +25,8 @@ Word AlienCPU::ADDRESSING_IMPLIED() {
 // ======================ADDRESSING=MODE=IMMEDIATE======================
 //                          3 bytes | 3 cycles
 // 1: fetch opcode from PC, increment PC
-// 2: fetch low byte address from PC, increment PC
-// 3: fetch high byte address from PC, increment PC
 Word AlienCPU::ADDRESSING_IMMEDIATE() {
-    PC+=2; // 2-3
+    PC+=2;
     return PC-2;
 }
 
@@ -58,7 +56,7 @@ Word AlienCPU::ADDRESSING_ABSOLUTE() {
     return fetchNextWord(); // 2 - 5
 }
 
-// ================ADDRESSING=MODE=ABSOLUTE=XINDEXED=READ================
+// ==================ADDRESSING=MODE=ABSOLUTE=XINDEXED==================
 //                          5 bytes | 7-9 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
@@ -71,7 +69,7 @@ Word AlienCPU::ADDRESSING_ABSOLUTE_XINDEXED() {
     return address;
 }
 
-// ================ADDRESSING=MODE=ABSOLUTE=YINDEXED=READ================
+// ==================ADDRESSING=MODE=ABSOLUTE=YINDEXED==================
 //                          5 bytes | 7-9 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte address from PC, increment PC
@@ -85,7 +83,7 @@ Word AlienCPU::ADDRESSING_ABSOLUTE_YINDEXED() {
 }
 
 
-// ================ADDRESSING=MODE=XINDEXED=INDIRECT=READ================
+// ==================ADDRESSING=MODE=XINDEXED=INDIRECT==================
 //                          3 bytes | 10 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
@@ -102,7 +100,7 @@ Word AlienCPU::ADDRESSING_XINDEXED_INDIRECT() {
 }
 
 
-// ================ADDRESSING=MODE=INDIRECT=YINDEXED=READ=================
+// ==================ADDRESSING=MODE=INDIRECT=YINDEXED==================
 //                          3 bytes | 9-11 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
@@ -120,7 +118,7 @@ Word AlienCPU::ADDRESSING_INDIRECT_YINDEXED() {
 }
 
 
-// =====================ADDRESSING=MODE=ZEROPAGE=READ=====================
+// =======================ADDRESSING=MODE=ZEROPAGE=======================
 //                          3 bytes | 5 cycles
 // 1: fetch opcode from PC, increment PC
 // 2: fetch low byte zero page address from PC, increment PC
