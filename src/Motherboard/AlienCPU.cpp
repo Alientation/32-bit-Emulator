@@ -32,7 +32,7 @@ void AlienCPU::reset() {
     instructionsExecuted = 0;
 
     // prepare motherboard
-    motherboard.initialize();
+    //motherboard.initialize();
 }
 
 void AlienCPU::start(u64 maxCycles) {

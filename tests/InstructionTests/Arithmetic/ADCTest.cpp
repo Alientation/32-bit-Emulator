@@ -13,6 +13,144 @@ class ADCTest : public testing::Test { // FIX THESE TESTS TO TEST ALL FLAGS
     }
 };
 
+TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
+    // -32768 + -32768
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
+    cpu.A = 0b1000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 + -1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1111111111111111);
+    cpu.A = 0b1000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 + -32768 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b01000001);
+
+    cpu.reset();
+
+    // -32768 + -1 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b1111111111111111);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+    
+    cpu.reset();
+
+    // -32768 + 0 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0000000000000000);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // -32768 + 32767
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1000000000000000;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b10000000);
+
+    cpu.reset();
+
+    // -32768 + 32767 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b1000000000000000;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b0000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b00000001);
+
+    cpu.reset();
+
+    // 32767 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
+    cpu.A = 0b0111111111111111;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000000);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+
+    // 32767 + 1 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
+    cpu.A = 0b0111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1000000000000001);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+
+    // 32767 + 32767
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b0111111111111111;
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111110);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+
+    cpu.reset();
+
+    // 32767 + 32767 + 1
+    LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
+    cpu.A = 0b0111111111111111;
+    cpu.setFlag(cpu.C_FLAG, true);
+
+    TestInstruction(cpu, 3, 0x00001026);
+
+    EXPECT_EQ(cpu.A, 0b1111111111111111);
+    EXPECT_EQ(cpu.P & 0b11000001, 0b11000000);
+}
+
 
 // ADC IMMEDIATE TESTS
 TEST_F(ADCTest, AddWithCarry_Immediate_NORMAL) {

@@ -36,10 +36,10 @@ TEST_F(ResetTest, ResetTest_Default) {
 
     ASSERT_EQ(cpu.PC, cpu.PC_INIT);
     ASSERT_EQ(cpu.SP, cpu.SP_INIT);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x00000000], 0x00);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x00000001], 0x00);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x00000002], 0x00);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x00000003], 0x00);
+    //ASSERT_EQ(cpu.motherboard.ram.data[0x00000000], 0x00);
+    //ASSERT_EQ(cpu.motherboard.ram.data[0x00000001], 0x00);
+    //ASSERT_EQ(cpu.motherboard.ram.data[0x00000002], 0x00);
+    //ASSERT_EQ(cpu.motherboard.ram.data[0x00000003], 0x00);
     ASSERT_EQ(cpu.A, cpu.A_INIT);
     ASSERT_EQ(cpu.X, cpu.X_INIT);
     ASSERT_EQ(cpu.Y, cpu.Y_INIT);
