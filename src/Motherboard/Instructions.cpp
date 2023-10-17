@@ -13,8 +13,8 @@
 //
 // https://www.nesdev.org/6502_cpu.txt
 
-// Sets ZERO flag if the modified register is 0 and NEGATIVE flag if the 
-// last bit of the modified register is set
+// Sets ZERO flag if the modified value is 0 and NEGATIVE flag if the 
+// last bit of the modified value is set
 void AlienCPU::UPDATE_FLAGS(u16 modifiedValue) {
     setFlag(Z_FLAG, modifiedValue == 0);
     setFlag(N_FLAG, modifiedValue >> 15);
@@ -35,7 +35,7 @@ void AlienCPU::UPDATE_FLAGS(u16 modifiedValue) {
 // 
 // CYCLES           DESCRIPTION         
 //  +1      read low byte from address
-//  +2      read high byte from address
+//  +2      read high byte from address + 1
 void AlienCPU::LDA_Instruction(Word address) {
     A = readTwoBytes(address);
     UPDATE_FLAGS(A);
@@ -44,7 +44,16 @@ void AlienCPU::LDA_Instruction(Word address) {
 
 // ===================LOAD=X=REGISTER===================
 // AFFECTS FLAGS: Z, N
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $A2       3         3           LDA #$nnnn
+//  absolute            $AE       5         7           LDA $nnnnnnnn
+//  absolute,Y          $BE       5         8           LDA $nnnnnnnn,Y
+//  zero page           $A6       3         5           LDA $nnnn
+//  zero page,Y         $B6       3         6           LDA $nnnn,Y
+//
+// CYCLES           DESCRIPTION         
+//  +1      read low byte from address
+//  +2      read high byte from address + 1
 void AlienCPU::LDX_Instruction(Word address) {
     X = readTwoBytes(address);
     UPDATE_FLAGS(X);
@@ -53,7 +62,16 @@ void AlienCPU::LDX_Instruction(Word address) {
 
 // ===================LOAD=Y=REGISTER===================
 // AFFECTS FLAGS: Z, N
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $A0       3         3           LDA #$nnnn
+//  absolute            $AC       5         7           LDA $nnnnnnnn
+//  absolute,X          $BC       5         8           LDA $nnnnnnnn,X
+//  zero page           $A4       3         5           LDA $nnnn
+//  zero page,X         $B4       3         6           LDA $nnnn,X
+//
+// CYCLES           DESCRIPTION         
+//  +1      read low byte from address
+//  +2      read high byte from address
 void AlienCPU::LDY_Instruction(Word address) {
     Y = readTwoBytes(address);
     UPDATE_FLAGS(Y);
@@ -62,7 +80,18 @@ void AlienCPU::LDY_Instruction(Word address) {
 
 // ==================STORE=ACCUMULATOR==================
 // AFFECTS FLAGS: NONE
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $8D       5         7           STA $nnnnnnnn
+//  absolute,X          $9D       5         8           STA $nnnnnnnn,X
+//  absolute,Y          $99       5         8           STA $nnnnnnnn,Y
+//  zero page           $85       3         5           STA $nnnn
+//  zero page,X         $95       3         6           STA $nnnn,X
+//  x,indirect          $81       3         10          STA ($nnnn,X)
+//  indirect,Y          $91       3         10          STA ($nnnn),Y
+//
+// CYCLES           DESCRIPTION         
+//  +1      write low byte of A to address
+//  +2      write high byte of A to address + 1
 void AlienCPU::STA_Instruction(Word address) {
     writeTwoBytes(address, A);
 }
@@ -70,7 +99,14 @@ void AlienCPU::STA_Instruction(Word address) {
 
 // ===================STORE=X=REGISTER==================
 // AFFECTS FLAGS: NONE
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $8E       5         7           STA $nnnnnnnn
+//  zero page           $86       3         5           STA $nnnn
+//  zero page,Y         $96       3         6           STA $nnnn,Y
+//
+// CYCLES           DESCRIPTION         
+//  +1      write low byte of X to address
+//  +2      write high byte of X to address + 1
 void AlienCPU::STX_Instruction(Word address) {
     writeTwoBytes(address, X);
 }
@@ -78,7 +114,14 @@ void AlienCPU::STX_Instruction(Word address) {
 
 // ===================STORE=Y=REGISTER==================
 // AFFECTS FLAGS: NONE
-// +2 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $8C       5         7           STA $nnnnnnnn
+//  zero page           $84       3         5           STA $nnnn
+//  zero page,X         $94       3         6           STA $nnnn,X
+//
+// CYCLES           DESCRIPTION         
+//  +1      write low byte of Y to address
+//  +2      write high byte of Y to address + 1
 void AlienCPU::STY_Instruction(Word address) {
     writeTwoBytes(address, Y);
 }
@@ -86,6 +129,8 @@ void AlienCPU::STY_Instruction(Word address) {
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
 // AFFECTS FLAGS: Z, N
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $AA       1         2           TAX
 void AlienCPU::TAX_Instruction(Word address) {
     X = A;
     UPDATE_FLAGS(X);
@@ -94,6 +139,8 @@ void AlienCPU::TAX_Instruction(Word address) {
 
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
 // AFFECTS FLAGS: Z, N
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $A8       1         2           TAY
 void AlienCPU::TAY_Instruction(Word address) {
     Y = A;
     UPDATE_FLAGS(Y);
@@ -102,6 +149,8 @@ void AlienCPU::TAY_Instruction(Word address) {
 
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
 // AFFECTS FLAGS: Z, N
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $BA       1         2           TSX
 void AlienCPU::TSX_Instruction(Word address) {
     X = SP;
     UPDATE_FLAGS(X);
@@ -110,6 +159,8 @@ void AlienCPU::TSX_Instruction(Word address) {
 
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
 // AFFECTS FLAGS: Z, N
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $8A       1         2           TXA
 void AlienCPU::TXA_Instruction(Word address) {
     A = X;
     UPDATE_FLAGS(A);
@@ -117,15 +168,18 @@ void AlienCPU::TXA_Instruction(Word address) {
 
 
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
-// AFFECTS FLAGS: Z, N
+// AFFECTS FLAGS: NONE
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $9A       1         2           TXS
 void AlienCPU::TXS_Instruction(Word address) {
     SP = X;
-    UPDATE_FLAGS(SP);
 }
 
 
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
 // AFFECTS FLAGS: Z, N
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $98       1         2           TYA
 void AlienCPU::TYA_Instruction(Word address) {
     A = Y;
     UPDATE_FLAGS(A);
@@ -135,10 +189,12 @@ void AlienCPU::TYA_Instruction(Word address) {
 // ========================STACK=========================
 // ===================PUSH=ACCUMULATOR===================
 // AFFECTS FLAGS: NONE
-// +1 cycles
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $48       1         4           PHA
+//
+// +2 cycles
 void AlienCPU::PHA_Instruction(Word address) {
     pushTwoBytesToStack(A);
-    cycles++;
 }
 
 
@@ -152,11 +208,10 @@ void AlienCPU::PHP_Instruction(Word address) {
 // ===================POP=ACCUMULATOR====================
 // TODO: correct tests to check for Z and N flags
 // AFFECTS FLAGS: Z, N
-// +1 cycles
+// +2 cycles
 void AlienCPU::PLA_Instruction(Word address) {
     A = popTwoBytesFromStack();
     UPDATE_FLAGS(A);
-    cycles++;
 }
 
 

@@ -98,6 +98,56 @@ TEST_F(STATest, StoreAccumulator_Absolute_YIndexed_PAGECROSS) {
 }
 
 
+// STA ZEROPAGE TESTS
+TEST_F(STATest, StoreAccumulator_ZeroPage_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address to store the accumulator
+    cpu.A = 0x1234;
+
+    TestInstruction(cpu, 5, 0x00001026);
+
+    // test memory address stores the accumulator's value
+    EXPECT_EQ(cpu.motherboard.ram[0x00001232], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001233], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    TestUnchangedState(cpu, X, Y, SP, P);
+}
+
+
+// STA ZEROPAGE X-INDEXED TESTS
+TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_NORMAL) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
+    cpu.X = 0x0013;
+    cpu.A = 0x1234;
+
+    TestInstruction(cpu, 6, 0x00001026);
+
+    // test memory address stores the accumulator's value
+    EXPECT_EQ(cpu.motherboard.ram[0x00001245], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00001246], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_WRAPAROUND) {
+    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
+    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
+    cpu.X = 0xF013;
+    cpu.A = 0x1234;
+
+    TestInstruction(cpu, 6, 0x00001026);
+
+    // test memory address stores the accumulator's value
+    EXPECT_EQ(cpu.motherboard.ram[0x00000245], 0x34) << "Low byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.motherboard.ram[0x00000246], 0x12) << "High byte of accumulator not stored in memory";
+    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
+    EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
+    TestUnchangedState(cpu, Y, SP, P);
+}
+
+
 // STA X-INDEXED INDIRECT TESTS
 TEST_F(STATest, StoreAccumulator_XIndexed_Indirect_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_STA_X_IND, 0x00001023);
@@ -167,54 +217,4 @@ TEST_F(STATest, StoreAccumulator_Indirect_YIndexed_PAGECROSS) {
     EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
     EXPECT_EQ(cpu.Y, 0xF013) << "Y register should not be altered";
     TestUnchangedState(cpu, X, SP, P);
-}
-
-
-// STA ZEROPAGE TESTS
-TEST_F(STATest, StoreAccumulator_ZeroPage_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_STA_ZP, 0x00001023);
-    cpu.writeTwoBytes(0x00001024, 0x1232); // zp address to store the accumulator
-    cpu.A = 0x1234;
-
-    TestInstruction(cpu, 5, 0x00001026);
-
-    // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.motherboard.ram[0x00001232], 0x34) << "Low byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.motherboard.ram[0x00001233], 0x12) << "High byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
-    TestUnchangedState(cpu, X, Y, SP, P);
-}
-
-
-// STA ZEROPAGE X-INDEXED TESTS
-TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_NORMAL) {
-    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
-    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
-    cpu.X = 0x0013;
-    cpu.A = 0x1234;
-
-    TestInstruction(cpu, 6, 0x00001026);
-
-    // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.motherboard.ram[0x00001245], 0x34) << "Low byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.motherboard.ram[0x00001246], 0x12) << "High byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
-    EXPECT_EQ(cpu.X, 0x0013) << "X register should not be altered";
-    TestUnchangedState(cpu, Y, SP, P);
-}
-
-TEST_F(STATest, StoreAccumulator_ZeroPage_XIndexed_WRAPAROUND) {
-    LoadInstruction(cpu, AlienCPU::INS_STA_ZP_X, 0x00001023);
-    cpu.writeTwoBytes(0x00001024, 0x1232); // partial zp address store the accumulator
-    cpu.X = 0xF013;
-    cpu.A = 0x1234;
-
-    TestInstruction(cpu, 6, 0x00001026);
-
-    // test memory address stores the accumulator's value
-    EXPECT_EQ(cpu.motherboard.ram[0x00000245], 0x34) << "Low byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.motherboard.ram[0x00000246], 0x12) << "High byte of accumulator not stored in memory";
-    EXPECT_EQ(cpu.A, 0x1234) << "Accumulator should not be altered";
-    EXPECT_EQ(cpu.X, 0xF013) << "X register should not be altered";
-    TestUnchangedState(cpu, Y, SP, P);
 }

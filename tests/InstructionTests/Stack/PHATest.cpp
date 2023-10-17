@@ -19,7 +19,7 @@ TEST_F(PHATest, PushAccumulator_Implied_Normal) {
     LoadInstruction(cpu, AlienCPU::INS_PHA_IMPL, 0x00001023);
     cpu.A = 0x1234;
 
-    TestInstruction(cpu, 3, 0x00001024);
+    TestInstruction(cpu, 4, 0x00001024);
 
     EXPECT_EQ(cpu.motherboard.ram[0x0001FFFE], 0x34) << "Accumulator low byte should be pushed to the stack";
     EXPECT_EQ(cpu.motherboard.ram[0x0001FFFF], 0x12) << "Accumulator high byte should be pushed to the stack";

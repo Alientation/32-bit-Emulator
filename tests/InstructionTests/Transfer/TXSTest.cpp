@@ -27,7 +27,7 @@ TEST_F(TXSTest, TransferXToStackPointer_Implied_NORMAL) {
     TestUnchangedState(cpu, A, Y, P);
 }
 
-TEST_F(TXSTest, TransferXToStackPointer_Implied_ZEROFLAG) {
+TEST_F(TXSTest, TransferXToStackPointer_Implied_NOZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXS_IMPL, 0x00001023);
     cpu.X = 0x0000;
     cpu.SP = 0x0034;
@@ -36,11 +36,10 @@ TEST_F(TXSTest, TransferXToStackPointer_Implied_ZEROFLAG) {
 
     EXPECT_EQ(cpu.SP, 0x0000) << "Stack Pointer should be set to the X's value";
     EXPECT_EQ(cpu.X, 0x0000) << "X should not be altered";
-    EXPECT_EQ(cpu.P, 0b00100010) << "Only default and zero flag should be set";
-    TestUnchangedState(cpu, A, Y);
+    TestUnchangedState(cpu, A, Y, P);
 }
 
-TEST_F(TXSTest, TransferXToStackPointer_Implied_NEGATIVEFLAG) {
+TEST_F(TXSTest, TransferXToStackPointer_Implied_NONEGATIVEFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_TXS_IMPL, 0x00001023);
     cpu.X = 0xFFFF;
     cpu.SP = 0x0034;
@@ -49,6 +48,5 @@ TEST_F(TXSTest, TransferXToStackPointer_Implied_NEGATIVEFLAG) {
 
     EXPECT_EQ(cpu.SP, 0xFFFF) << "Stack Pointer should be set to the X's value";
     EXPECT_EQ(cpu.X, 0xFFFF) << "X should not be altered";
-    EXPECT_EQ(cpu.P, 0b10100000) << "Only default and negative flag should be set";
-    TestUnchangedState(cpu, A, Y);
+    TestUnchangedState(cpu, A, Y, P);
 }
