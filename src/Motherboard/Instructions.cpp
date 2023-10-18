@@ -260,7 +260,7 @@ void AlienCPU::PHA_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::PHP_Instruction(Word address) {
-    pushByteToStack(P | 0b00010000); // B flag is always set when pushing to stack
+    pushByteToStack(P | 0b00110000); // Default and Break flag is always set when pushing to stack
 }
 
 
@@ -293,6 +293,7 @@ void AlienCPU::PLP_Instruction(Word address) {
     bool previousBFlag = getFlag(B_FLAG);
     P = popByteFromStack(); // ignore reading from B flag
     setFlag(B_FLAG, previousBFlag); // keep the original B flag
+    setFlag(UNUSED_FLAG, 1);
 }
 
 
@@ -892,63 +893,249 @@ void AlienCPU::CPY_Instruction(Word address) {
 
 
 // ==================CONDITIONAL=BRANCH==================
+// =================BRANCH=IF=CARRY=CLEAR================  
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BCC INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if C = 1 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $B0       3         4-5         BCS $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if C = 1 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCC_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (getFlag(C_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// =================BRANCH=IF=CARRY=SET==================
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BCS INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if C = 0 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $90       3         4-5         BCS $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if C = 0 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCS_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (!getFlag(C_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ================BRANCH=IF=RESULT=ZERO=================
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BEQ INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if Z = 1 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $F0       3         4-5         BEQ $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if Z = 1 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BEQ_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (getFlag(Z_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ================BRANCH=IF=RESULT=PLUS=================
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BMI INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if N = 0 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $10       3         4-5         BMI $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if N = 0 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BPL_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (!getFlag(N_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ================BRANCH=IF=RESULT=MINUS================
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BNE INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if N = 1 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $30       3         4-5         BNE $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if N = 1 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BMI_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (getFlag(N_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ================BRANCH=IF=RESULT=NOT=ZERO=============
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BNE INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if Z = 0 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $D0       3         4-5         BNE $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if Z = 0 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BNE_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (!getFlag(Z_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ===============BRANCH=IF=OVERFLOW=CLEAR===============
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BVC INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if V = 0 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $50       3         4-5         BVC $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if V = 0 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVC_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (!getFlag(V_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
+// ===============BRANCH=IF=OVERFLOW=SET=================
+// ** THIS IS NOT A TRUE ACCURATE REPRESENTATION OF THE 6502 BVS INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  if V = 1 then PC = PC + offset
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  relative            $70       3         4-5         BVS $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of offset from address
+//  +2      read high byte of offset from address + 1
+//  +3      if V = 1 then add offset to PC
+//  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVS_Instruction(Word address) {
-
+    u16 offset = readTwoBytes(address); cycles++;
+    if (getFlag(V_FLAG)) {
+        PC += offset; cycles++;
+    }
 }
 
 
 // ==================JUMPS=&=SUBROUTINES=================
+// =====================JUMP=INDIRECT====================
+// AFFECTS FLAGS: --------
+//
+//  M -> PC
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $4C       5         5           JMP $nnnnnnnn
+//  absolute indirect   $6C       5         9           JMP ($nnnnnnnn)
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::JMP_Instruction(Word address) {
-
+    PC = address;
 }
 
 
+// ==================JUMP=TO=SUBROUTINE==================
+// ** IN THE 6502, PC STORED ON STACK WOULD POINT TO THE LAST BYTE OF THE JUMP
+//    INSTRUCTION, HOWEVER, HERE IT POINTS TO THE FIRST BYTE OF THE NEXT INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  PC -> (S)   M -> PC
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $20       5         9           JSR $nnnnnnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      push high byte of PC to stack
+//  +2      push mid high byte of PC to stack
+//  +3      push mid low byte of PC to stack
+//  +4      push low byte of PC to stack
 void AlienCPU::JSR_Instruction(Word address) {
-
+    pushPCToStack();
+    PC = address;
 }
 
 
+// =====================RETURN=FROM=SUBROUTINE===========
+// ** IN THE 6502, PC STORED ON STACK WOULD POINT TO THE LAST BYTE OF THE JUMP
+//    INSTRUCTION, HOWEVER, HERE IT POINTS TO THE FIRST BYTE OF THE NEXT INSTRUCTION
+// AFFECTS FLAGS: --------
+//
+//  (S) -> PC
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $60       1         6           RTS
+//
+// CYCLES           DESCRIPTION
+//  +1      pull low byte of PC from stack
+//  +2      pull mid low byte of PC from stack
+//  +3      pull mid high byte of PC from stack
+//  +4      pull high byte of PC from stack
 void AlienCPU::RTS_Instruction(Word address) {
-
+    popPCFromStack();
 }
 
 
 // ====================INTERRUPTS========================
+// =====================BREAK=INTERRUPT===================
+// AFFECTS FLAGS: -----I--
+//
+//  PC -> (S)   P -> (S)   I = 1   PC -> ($FFFE)
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $00       1         7           BRK
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::BRK_Instruction(Word address) {
 
 }
