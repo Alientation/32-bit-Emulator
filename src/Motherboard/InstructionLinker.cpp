@@ -1,7 +1,5 @@
 #include "AlienCPU.h"
 
-// TODO: create separate functions for immediate and accumulator addressing modes if the instruction can also address memory
-// link function references to instruction codes
 void AlienCPU::initInstructions() {
     // null out instructions to catch errors
     Instruction instr;
@@ -17,9 +15,9 @@ void AlienCPU::initInstructions() {
         return instr;
     };
 
-    instructions[INS_NULL] = defineInstruction(ADDRESSING_IMPLIED, NULL_Illegal_Instruction);
-    instructions[INS_ORA_X_IND] = defineInstruction(ADDRESSING_XINDEXED_INDIRECT, ORA_Instruction);
     instructions[INS_BRK_IMPL] = defineInstruction(ADDRESSING_IMPLIED, BRK_Instruction);
+    instructions[INS_ORA_X_IND] = defineInstruction(ADDRESSING_XINDEXED_INDIRECT, ORA_Instruction);
+    instructions[INS_JAM_0] = defineInstruction(ADDRESSING_IMPLIED, JAM_Illegal_Instruction);
     instructions[INS_SLO_X_IND] = defineInstruction(ADDRESSING_XINDEXED_INDIRECT, SLO_Illegal_Instruction);
 
     instructions[INS_NOP_ZP] = defineInstruction(ADDRESSING_ZEROPAGE, NOP_Illegal_Instruction);
