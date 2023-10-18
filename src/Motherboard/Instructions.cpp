@@ -260,7 +260,7 @@ void AlienCPU::PHA_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::PHP_Instruction(Word address) {
-    pushByteToStack(P);
+    pushByteToStack(P | 0b00010000); // B flag is always set when pushing to stack
 }
 
 
@@ -290,7 +290,9 @@ void AlienCPU::PLA_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::PLP_Instruction(Word address) {
-    P = popByteFromStack();
+    bool previousBFlag = getFlag(B_FLAG);
+    P = popByteFromStack(); // ignore reading from B flag
+    setFlag(B_FLAG, previousBFlag); // keep the original B flag
 }
 
 
