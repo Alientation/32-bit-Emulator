@@ -16,6 +16,9 @@
 // ======================TRANSFER========================
 // ===================LOAD=ACCUMULATOR===================
 // AFFECTS FLAGS: N-----Z-
+//
+//  M -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $A9       3         3           LDA #$nnnn
 //  absolute            $AD       5         7           LDA $nnnnnnnn
@@ -38,6 +41,9 @@ void AlienCPU::LDA_Instruction(Word address) {
 
 // ===================LOAD=X=REGISTER===================
 // AFFECTS FLAGS: N-----Z-
+//
+//  M -> X
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $A2       3         3           LDA #$nnnn
 //  absolute            $AE       5         7           LDA $nnnnnnnn
@@ -57,6 +63,9 @@ void AlienCPU::LDX_Instruction(Word address) {
 
 // ===================LOAD=Y=REGISTER===================
 // AFFECTS FLAGS: N-----Z-
+//
+//  M -> Y
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $A0       3         3           LDA #$nnnn
 //  absolute            $AC       5         7           LDA $nnnnnnnn
@@ -76,6 +85,9 @@ void AlienCPU::LDY_Instruction(Word address) {
 
 // ==================STORE=ACCUMULATOR==================
 // AFFECTS FLAGS: --------
+//
+//  A -> M
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $8D       5         7           STA $nnnnnnnn
 //  absolute,X          $9D       5         8           STA $nnnnnnnn,X
@@ -95,6 +107,9 @@ void AlienCPU::STA_Instruction(Word address) {
 
 // ===================STORE=X=REGISTER==================
 // AFFECTS FLAGS: --------
+//
+//  X -> M
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $8E       5         7           STA $nnnnnnnn
 //  zero page           $86       3         5           STA $nnnn
@@ -110,6 +125,9 @@ void AlienCPU::STX_Instruction(Word address) {
 
 // ===================STORE=Y=REGISTER==================
 // AFFECTS FLAGS: --------
+//
+//  Y -> M
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $8C       5         7           STA $nnnnnnnn
 //  zero page           $84       3         5           STA $nnnn
@@ -125,6 +143,9 @@ void AlienCPU::STY_Instruction(Word address) {
 
 // =========TRANSFER=ACCUMULATOR=TO=X=REGISTER==========
 // AFFECTS FLAGS: N-----Z-
+//
+//  A -> X
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $AA       1         2           TAX
 //
@@ -138,6 +159,9 @@ void AlienCPU::TAX_Instruction(Word address) {
 
 // =========TRANSFER=ACCUMULATOR=TO=Y=REGISTER==========
 // AFFECTS FLAGS: N-----Z-
+//
+//  A -> Y
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $A8       1         2           TAY
 //
@@ -151,6 +175,9 @@ void AlienCPU::TAY_Instruction(Word address) {
 
 // ========TRANSFER=STACK=POINTER=TO=X=REGISTER=========
 // AFFECTS FLAGS: N-----Z-
+//
+//  SP -> X
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $BA       1         2           TSX
 //
@@ -164,6 +191,9 @@ void AlienCPU::TSX_Instruction(Word address) {
 
 // =========TRANSFER=X=REGISTER=TO=ACCUMULATOR==========
 // AFFECTS FLAGS: N-----Z-
+//
+//  X -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $8A       1         2           TXA
 //
@@ -177,6 +207,9 @@ void AlienCPU::TXA_Instruction(Word address) {
 
 // ========TRANSFER=X=REGISTER=TO=STACK=POINTER=========
 // AFFECTS FLAGS: --------
+//
+//  X -> SP
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $9A       1         2           TXS
 //
@@ -188,6 +221,9 @@ void AlienCPU::TXS_Instruction(Word address) {
 
 // =========TRANSFER=Y=REGISTER=TO=ACCUMULATOR==========
 // AFFECTS FLAGS: N-----Z-
+//
+//  Y -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $98       1         2           TYA
 //
@@ -202,6 +238,9 @@ void AlienCPU::TYA_Instruction(Word address) {
 // ========================STACK=========================
 // ===================PUSH=ACCUMULATOR===================
 // AFFECTS FLAGS: --------
+//
+//  A -> (S)
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $48       1         4           PHA
 //
@@ -213,6 +252,9 @@ void AlienCPU::PHA_Instruction(Word address) {
 
 // =================PUSH=PROCESSOR=STATUS================
 // AFFECTS FLAGS: --------
+//
+//  P -> (S)
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $08       1         3           PHP
 //
@@ -224,6 +266,9 @@ void AlienCPU::PHP_Instruction(Word address) {
 
 // ===================POP=ACCUMULATOR====================
 // AFFECTS FLAGS: N-----Z-
+//
+//  A <- (S)
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $68       1         4           PLA
 //
@@ -237,6 +282,9 @@ void AlienCPU::PLA_Instruction(Word address) {
 
 // =================POP=PROCESSOR=STATUS=================
 // AFFECTS FLAGS: NV--DIZC
+//
+//  P <- (S)
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $28       1         4           PLP
 //
@@ -250,6 +298,9 @@ void AlienCPU::PLP_Instruction(Word address) {
 // ===================DECREMENT=MEMORY===================
 // TODO: DECIDE WHETHER TO MAKE THIS DECREMENT A VALUE THAT IS TWO BYTES LONG
 // AFFECTS FLAGS: N-----Z-
+//
+//  M - 1 -> M
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $CE       5         8           DEC $nnnnnnnn
 //  absolute,X          $DE       5         9           DEC $nnnnnnnn,X
@@ -269,6 +320,9 @@ void AlienCPU::DEC_Instruction(Word address) {
 
 // =================DECREMENT=X=REGISTER=================
 // AFFECTS FLAGS: N-----Z-
+//
+//  X - 1 -> X
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $CA       1         2           DEX
 //
@@ -282,6 +336,9 @@ void AlienCPU::DEX_Instruction(Word address) {
 
 // =================DECREMENT=Y=REGISTER=================
 // AFFECTS FLAGS: N-----Z-
+//
+//  Y - 1 -> Y
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $88       1         2           DEY
 //
@@ -296,6 +353,9 @@ void AlienCPU::DEY_Instruction(Word address) {
 // ===================INCREMENT=MEMORY===================
 // TODO: DECIDE WHETHER TO MAKE THIS DECREMENT A VALUE THAT IS TWO BYTES LONG
 // AFFECTS FLAGS: N-----Z-
+//
+//  M + 1 -> M
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $EE       5         8           INC $nnnnnnnn
 //  absolute,X          $FE       5         9           INC $nnnnnnnn,X
@@ -315,6 +375,9 @@ void AlienCPU::INC_Instruction(Word address) {
 
 // =================INCREMENT=X=REGISTER=================
 // AFFECTS FLAGS: N-----Z-
+//
+//  X + 1 -> X
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $E8       1         2           INX
 //
@@ -328,6 +391,9 @@ void AlienCPU::INX_Instruction(Word address) {
 
 // =================INCREMENT=Y=REGISTER=================
 // AFFECTS FLAGS: N-----Z-
+//
+//  Y + 1 -> Y
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  implied             $C8       1         2           INY
 //
@@ -342,6 +408,9 @@ void AlienCPU::INY_Instruction(Word address) {
 // =================ARITHMETIC=OPERATIONS================
 // =====================ADD=WITH=CARRY===================
 // AFFECTS FLAGS: NV----ZC
+//
+//  A + M + C -> A, C
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $69       3         3           ADC #$nnnn
 //  absolute            $6D       5         7           ADC $nnnnnnnn
@@ -374,6 +443,9 @@ void AlienCPU::ADC_Instruction(Word address) {
 
 // =====================SUBTRACT=WITH=BORROW=============
 // AFFECTS FLAGS: NV----ZC
+//
+//  A - M - ~C -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $E9       3         3           SBC #$nnnn
 //  absolute            $ED       5         7           SBC $nnnnnnnn
@@ -407,6 +479,9 @@ void AlienCPU::SBC_Instruction(Word address) {
 // ==================LOGICAL=OPERATIONS==================
 // =====================AND=WITH=ACCUMULATOR==============
 // AFFECTS FLAGS: N-----Z-
+//
+//  A & M -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $29       3         3           AND #$nnnn
 //  absolute            $2D       5         7           AND $nnnnnnnn
@@ -429,6 +504,9 @@ void AlienCPU::AND_Instruction(Word address) {
 
 // =====================EOR=WITH=ACCUMULATOR==============
 // AFFECTS FLAGS: N-----Z-
+//
+//  A ^ M -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $49       3         3           EOR #$nnnn
 //  absolute            $4D       5         7           EOR $nnnnnnnn
@@ -451,6 +529,9 @@ void AlienCPU::EOR_Instruction(Word address) {
 
 // =====================ORA=WITH=ACCUMULATOR==============
 // AFFECTS FLAGS: N-----Z-
+//
+//  A | M -> A
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  immediate           $09       3         3           ORA #$nnnn
 //  absolute            $0D       5         7           ORA $nnnnnnnn
@@ -474,8 +555,11 @@ void AlienCPU::ORA_Instruction(Word address) {
 // ====================SHIFT=&=ROTATE====================
 // =============ARITHMETIC=SHIFT=ACCUMULATOR=============
 // AFFECTS FLAGS: N-----ZC
+//
+//  C <- [A15...A0] <- 0
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
-//  accumulator         $0A       1         2           ASL
+//  accumulator         $0A       1         2           ASL A
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::ASL_Accumulator_Instruction(Word address) {
@@ -488,6 +572,9 @@ void AlienCPU::ASL_Accumulator_Instruction(Word address) {
 
 // ===================ARITHMETIC=SHIFT===================
 // AFFECTS FLAGS: N-----ZC
+//
+//  C <- [M15...M0] <- 0
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $0E       5         8           ASL $nnnnnnnn
 //  absolute,X          $1E       5         9           ASL $nnnnnnnn,X
@@ -508,13 +595,16 @@ void AlienCPU::ASL_Instruction(Word address) {
 
 // ==============LOGICAL=SHIFT=ACCUMULATOR===============
 // AFFECTS FLAGS: N-----ZC
+//
+//  0 -> [A15...A0] -> C
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
-//  accumulator         $4A       1         2           LSR
+//  accumulator         $4A       1         2           LSR A
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::LSR_Accumulator_Instruction(Word address) {
     setFlag(C_FLAG, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
-    A >>= 1; // right shift, sign does not carry since A is unsigned short
+    A >>= 1;
     setFlag(Z_FLAG, A == 0);
     setFlag(N_FLAG, 0); // always 0 since the last bit is always rotated in as 0
 }
@@ -522,6 +612,9 @@ void AlienCPU::LSR_Accumulator_Instruction(Word address) {
 
 // ====================LOGICAL=SHIFT=====================
 // AFFECTS FLAGS: N-----ZC
+//
+//  0 -> [M15...M0] -> C
+//
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
 //  absolute            $4E       5         8           LSR $nnnnnnnn
 //  absolute,X          $5E       5         9           LSR $nnnnnnnn,X
@@ -540,80 +633,259 @@ void AlienCPU::LSR_Instruction(Word address) {
 }
 
 
-// =====================ROTATE=LEFT=======================
+// =====================ROTATE=LEFT=ACCUMULATOR===========
+// AFFECTS FLAGS: N-----ZC
+//
+//  C <- [A15...A0] <- C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  accumulator         $2A       1         2           ROL A
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::ROL_Accumulator_Instruction(Word address) {
-
+    Byte carryBit = getFlag(C_FLAG);
+    setFlag(C_FLAG, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
+    A <<= 1;
+    A |= carryBit; // rotate in the previous carry bit
+    setFlag(Z_FLAG, A == 0);
+    setFlag(N_FLAG, A >> 15);
 }
 
 
+// ======================ROTATE=LEFT======================
+// AFFECTS FLAGS: N-----ZC
+//
+//  C <- [M15...M0] <- C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $2E       5         8           ROL $nnnnnnnn
+//  absolute,X          $3E       5         9           ROL $nnnnnnnn,X
+//  zero page           $26       3         6           ROL $nnnn
+//  zero page,X         $36       3         7           ROL $nnnn,X
+//
+// CYCLES           DESCRIPTION
+//  +1      read value from address
+//  +2      write value to address, rotate value left
+//  +3      write rotated value to address
 void AlienCPU::ROL_Instruction(Word address) {
-
+    Byte carryBit = getFlag(C_FLAG);
+    setFlag(C_FLAG, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    Byte value = (motherboard[address] <<= 1); cycles += 3;
+    motherboard[address] |= carryBit; // rotate in the previous carry bit
+    setFlag(Z_FLAG, value == 0);
+    setFlag(N_FLAG, value >> 15);
 }
 
 
-// =====================ROTATE=RIGHT======================
+// =====================ROTATE=RIGHT=ACCUMULATOR==========
+// AFFECTS FLAGS: N-----ZC
+//
+//  C -> [A15...A0] -> C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  accumulator         $6A       1         2           ROR A
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::ROR_Accumulator_Instruction(Word address) {
-
+    Byte carryBit = getFlag(C_FLAG);
+    setFlag(C_FLAG, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    A >>= 1;
+    A |= carryBit << 15; // rotate in the previous carry bit
+    setFlag(Z_FLAG, A == 0);
+    setFlag(N_FLAG, A >> 15);
 }
 
 
+// ======================ROTATE=RIGHT=====================
+// AFFECTS FLAGS: N-----ZC
+//
+//  C -> [M15...M0] -> C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $6E       5         8           ROR $nnnnnnnn
+//  absolute,X          $7E       5         9           ROR $nnnnnnnn,X
+//  zero page           $66       3         6           ROR $nnnn
+//  zero page,X         $76       3         7           ROR $nnnn,X
+//
+// CYCLES           DESCRIPTION
+//  +1      read value from address
+//  +2      write value to address, rotate value right
+//  +3      write rotated value to address
 void AlienCPU::ROR_Instruction(Word address) {
-
+    Byte carryBit = getFlag(C_FLAG);
+    setFlag(C_FLAG, motherboard[address] & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    Byte value = (motherboard[address] >>= 1); cycles += 3;
+    motherboard[address] |= carryBit << 7; // rotate in the previous carry bit
+    setFlag(Z_FLAG, value == 0);
+    setFlag(N_FLAG, value >> 15);
 }
 
 
 // =========================FLAG==========================
+// =====================CLEAR=CARRY=======================
+// AFFECTS FLAGS: -------0
+//
+//  0 -> C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $18       1         2           CLC
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::CLC_Instruction(Word address) {
-
+    setFlag(C_FLAG, false);
 }
 
 
+// =====================CLEAR=DECIMAL=====================
+// AFFECTS FLAGS: ----0---
+//
+//  0 -> D
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $D8       1         2           CLD
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::CLD_Instruction(Word address) {
-
+    setFlag(D_FLAG, false);
 }
 
 
+// =====================CLEAR=INTERRUPT===================
+// AFFECTS FLAGS: -----0--
+//
+//  0 -> I
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $58       1         2           CLI
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::CLI_Instruction(Word address) {
-
+    setFlag(I_FLAG, false);
 }
 
 
+// =====================CLEAR=OVERFLOW====================
+// AFFECTS FLAGS: -0------
+//
+//  0 -> V
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $B8       1         2           CLV
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::CLV_Instruction(Word address) {
-
+    setFlag(V_FLAG, false);
 }
 
 
+// =====================SET=CARRY=========================
+// AFFECTS FLAGS: -------1
+//
+//  1 -> C
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $38       1         2           SEC
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::SEC_Instruction(Word address) {
-
+    setFlag(C_FLAG, true);
 }
 
 
+// =====================SET=DECIMAL=======================
+// AFFECTS FLAGS: ----1---
+//
+//  1 -> D
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $F8       1         2           SED
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::SED_Instruction(Word address) {
-
+    setFlag(D_FLAG, true);
 }
 
 
+// =====================SET=INTERRUPT=====================
+// AFFECTS FLAGS: -----1--
+//
+//  1 -> I
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $78       1         2           SEI
+//
+// CYCLES           DESCRIPTION
 void AlienCPU::SEI_Instruction(Word address) {
-
+    setFlag(I_FLAG, true);
 }
 
 
 // =====================COMPARISONS======================
 // =====================COMPARE=ACCUMULATOR==============
+// AFFECTS FLAGS: N-----ZC
+//
+//  A - M
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $C9       3         2           CMP #$nnnn
+//  absolute            $CD       5         4           CMP $nnnnnnnn
+//  absolute,X          $DD       5         4           CMP $nnnnnnnn,X
+//  absolute,Y          $D9       5         4           CMP $nnnnnnnn,Y
+//  zero page           $C5       3         3           CMP $nnnn
+//  zero page,X         $D5       3         4           CMP $nnnn,X
+//  x,indirect          $C1       3         6           CMP ($nnnn,X)
+//  indirect,Y          $D1       3         5           CMP ($nnnn),Y
+//
+// CYCLES           DESCRIPTION TODO: VERIFY THE CYCLE DESCRIPTIONS
+//  +1      read low byte of value from address (compare with accumulator)
+//  +2      read high byte of value from address + 1 (compare with accumulator)
 void AlienCPU::CMP_Instruction(Word address) {
-
+    u16 difference = A - readTwoBytes(address);
+    setFlag(C_FLAG, difference >= 0);
+    setFlag(Z_FLAG, difference == 0);
+    setFlag(N_FLAG, difference >> 15);
 }
 
 
 // =====================COMPARE=X=REGISTER==============
+// AFFECTS FLAGS: N-----ZC
+//
+//  X - M
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $E0       3         2           CPX #$nnnn
+//  absolute            $EC       5         4           CPX $nnnnnnnn
+//  zero page           $E4       3         3           CPX $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of value from address (compare with X register)
+//  +2      read high byte of value from address + 1 (compare with X register)
 void AlienCPU::CPX_Instruction(Word address) {
-
+    u16 difference = X - readTwoBytes(address);
+    setFlag(C_FLAG, difference >= 0);
+    setFlag(Z_FLAG, difference == 0);
+    setFlag(N_FLAG, difference >> 15);
 }
 
 
 // =====================COMPARE=Y=REGISTER==============
+// AFFECTS FLAGS: N-----ZC
+//
+//  Y - M
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  immediate           $C0       3         2           CPY #$nnnn
+//  absolute            $CC       5         4           CPY $nnnnnnnn
+//  zero page           $C4       3         3           CPY $nnnn
+//
+// CYCLES           DESCRIPTION
+//  +1      read low byte of value from address (compare with Y register)
+//  +2      read high byte of value from address + 1 (compare with Y register)
 void AlienCPU::CPY_Instruction(Word address) {
-
+    u16 difference = Y - readTwoBytes(address);
+    setFlag(C_FLAG, difference >= 0);
+    setFlag(Z_FLAG, difference == 0);
+    setFlag(N_FLAG, difference >> 15);
 }
 
 
