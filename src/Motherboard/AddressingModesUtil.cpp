@@ -26,22 +26,33 @@ Word AlienCPU::ADDRESSING_IMPLIED() {
 //                          3 bytes | 1 cycle
 // 1: fetch opcode from PC, increment PC
 Word AlienCPU::ADDRESSING_IMMEDIATE() {
-    PC+=2;
+    PC += 2;
     return PC-2;
 }
 
 
 // =======================ADDRESSING=MODE=RELATIVE======================
-//                          ? bytes | ? cycles
+//                          1 byte | 1 cycle
+// 1: fetch opcode from PC, increment PC
 Word AlienCPU::ADDRESSING_RELATIVE() {
-    return 0; // TODO: implement
+    PC += 2;
+    return PC-2;
 }
 
 
 // =======================ADDRESSING=MODE=INDIRECT======================
-//                          ? bytes | ? cycles
+//                          5 bytes | 9 cycles
+// 1: fetch opcode from PC, increment PC
+// 2: fetch low byte address from PC, increment PC
+// 3: fetch mid low address byte from PC, increment PC
+// 4: fetch mid high address byte from PC, increment PC
+// 5: fetch high byte address from PC, increment PC
+// 6: read low byte address from calculated effective address
+// 7: read mid low byte address from calculated effective address + 1
+// 8: read mid high byte address from calculated effective address + 2
+// 9: read high byte address from calculated effective address + 3
 Word AlienCPU::ADDRESSING_INDIRECT() {
-    return 0; // TODO: implement
+    return readWord(fetchNextWord());
 }
 
 

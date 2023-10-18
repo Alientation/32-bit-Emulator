@@ -100,7 +100,7 @@ void AlienCPU::executeInstruction(u16 instruction) {
 // Checks if the instruction is a valid instruction. 
 // Must be within max instructions and must not be a null instruction
 bool AlienCPU::isValidInstruction(u16 instruction) {
-    return instruction < INSTRUCTION_COUNT && &instructions[instruction] != &instructions[0];
+    return instruction < INSTRUCTION_COUNT && instructions[instruction].instruction != &NULL_Illegal_Instruction;
 }
 
 

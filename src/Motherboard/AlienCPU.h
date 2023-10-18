@@ -435,7 +435,7 @@ class AlienCPU {
         // =========================INTERRUPTS============================
         // | BRK    :   Break / software interrupt
         // | RTI    :   Return from interrupt
-        void BRK_Instruction(Word address); // moved from $00 to $02, replacing the illegal opcode JAM TODO: UNMOVE IT
+        void BRK_Instruction(Word address);
         void RTI_Instruction(Word address);
 
         // =============================OTHER=============================
@@ -544,8 +544,9 @@ class AlienCPU {
             // https://www.masswerk.at/6502/6502_instruction_set.html
             static constexpr u8
                 INS_NULL = 0x00, // Null Instruction (ILLEGAL)
+                INS_BRK_IMPL = 0x00, // Break/Interrupt, implied addressing
                 INS_ORA_X_IND = 0x01, // OR Accumulator, indexed by X register, indirect addressing
-                INS_BRK_IMPL = 0x02, // Break/Interrupt, implied addressing
+                INS_JAM_0 = 0x02, // Illegal opcode (ILLEGAL)
                 INS_SLO_X_IND = 0x03, // Shift left one bit, OR Accumulator, indexed by X register, indirect addressing (ILLEGAL)
                 INS_NOP_ZP = 0x04, // No operation, zero page addressing (ILLEGAL)
                 INS_ORA_ZP = 0x05, // OR Accumulator, zero page addressing
