@@ -1127,34 +1127,69 @@ void AlienCPU::RTS_Instruction(Word address) {
 
 
 // ====================INTERRUPTS========================
-// =====================BREAK=INTERRUPT===================
+// ===================BREAK=INTERRUPT====================
+// TODO: figure out what the break mark (spacing) is for and whether to include it in
+//       the bytes count
 // AFFECTS FLAGS: -----I--
 //
 //  PC -> (S)   P -> (S)   I = 1   PC -> ($FFFE)
 //
 // ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
-//  implied             $00       1         7           BRK
+//  implied             $00       1         11           BRK
 //
 // CYCLES           DESCRIPTION
+//  +1      push high byte of PC+1 to stack
+//  +2      push mid high byte of PC+1 to stack
+//  +3      push mid low byte of PC+1 to stack
+//  +4      push low byte of PC+1 to stack
+//  +5      push P to stack
 void AlienCPU::BRK_Instruction(Word address) {
-
+    PC++; // create a spacing for a break mark (identifying the reason for the break)
+    pushPCToStack();
+    pushByteToStack(P);
+    setFlag(I_FLAG, true);
+    PC = readWord(0xFFFE);
 }
 
 
+// =================RETURN=FROM=INTERRUPT==================
+// AFFECTS FLAGS: NV--DIZC
+//
+//  (S) -> P   (S) -> PC
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  implied             $40       1         6           RTI
+//
+// CYCLES           DESCRIPTION
+//  +1      pull P from stack
+//  +2      pull low byte of PC from stack
+//  +3      pull mid low byte of PC from stack
+//  +4      pull mid high byte of PC from stack
+//  +5      pull high byte of PC from stack
 void AlienCPU::RTI_Instruction(Word address) {
-
+    P = popByteFromStack();
+    popPCFromStack();
 }
 
 
 // =========================OTHER=========================
 // =======================BIT=TEST========================
+// AFFECTS FLAGS: NV----Z-
+//
+//  M15 -> N     M14 -> V     A & M -> Z
+//
+// ADDRESSING MODE     OPCODE    BYTES     CYCLES       ASSEMBLY
+//  absolute            $2C       5         7           BIT $nnnnnnnn
+//  zero page           $24       3         5           BIT $nnnn
 void AlienCPU::BIT_Instruction(Word address) {
-
+    u16 value = readTwoBytes(address);
+    setFlag(N_FLAG, value >> 15);
+    setFlag(V_FLAG, (value >> 14) & 0b01);
+    setFlag(Z_FLAG, (A & value) == 0);
 }
 
 
 // ====================NULL=INSTRUCTION===================
-// Null Instruction, throws error if called
 void AlienCPU::NULL_Illegal_Instruction(Word address) {
     std::stringstream stream;
     stream << std::endl << "Error: NULL Instruction" << std::endl;
