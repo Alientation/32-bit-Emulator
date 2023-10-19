@@ -592,7 +592,7 @@ void AlienCPU::ASL_Instruction(Word address) {
     setFlag(C_FLAG, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
     Byte value = (motherboard[address] <<= 1); cycles += 3;
     setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 15);
+    setFlag(N_FLAG, value >> 7);
 }
 
 
@@ -656,6 +656,7 @@ void AlienCPU::ROL_Accumulator_Instruction(Word address) {
 
 
 // ======================ROTATE=LEFT======================
+// TODO: DECIDE WHETHER TO MAKE THIS ROTATE A VALUE THAT IS TWO BYTES LONG
 // AFFECTS FLAGS: N-----ZC
 //
 //  C <- [M15...M0] <- C
@@ -676,7 +677,7 @@ void AlienCPU::ROL_Instruction(Word address) {
     Byte value = (motherboard[address] <<= 1); cycles += 3;
     motherboard[address] |= carryBit; // rotate in the previous carry bit
     setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 15);
+    setFlag(N_FLAG, value >> 7);
 }
 
 
@@ -700,6 +701,7 @@ void AlienCPU::ROR_Accumulator_Instruction(Word address) {
 
 
 // ======================ROTATE=RIGHT=====================
+// TODO: DECIDE WHETHER TO MAKE THIS ROTATE A VALUE THAT IS TWO BYTES LONG
 // AFFECTS FLAGS: N-----ZC
 //
 //  C -> [M15...M0] -> C
@@ -720,7 +722,7 @@ void AlienCPU::ROR_Instruction(Word address) {
     Byte value = (motherboard[address] >>= 1); cycles += 3;
     motherboard[address] |= carryBit << 7; // rotate in the previous carry bit
     setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 15);
+    setFlag(N_FLAG, carryBit);
 }
 
 
