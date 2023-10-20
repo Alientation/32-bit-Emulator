@@ -19,6 +19,8 @@ file( GLOB ALIENCPU_SOURCES
     "src/Device/Storage/SSD.cpp"
     "src/Device/GPU.cpp"
     "src/Device/PSU.cpp"
+
+    "src/AlienCPUAssembler.cpp"
 )
 file (GLOB ALIENCPU_HEADERS 
     "src/AlienCPU/AlienCPU.h"

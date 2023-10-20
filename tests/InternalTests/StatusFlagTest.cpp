@@ -17,203 +17,203 @@ class StatusFlagTest : public testing::Test {
 
 TEST_F(StatusFlagTest, StatusFlagTest_Default) {
     // all status flags should be false by default
-    ASSERT_FALSE(cpu.getFlag(cpu.C_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.Z_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.I_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.D_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.B_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.UNUSED_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.V_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.N_FLAG));
+    ASSERT_FALSE(cpu.getFlag(CARRY));
+    ASSERT_FALSE(cpu.getFlag(ZERO));
+    ASSERT_FALSE(cpu.getFlag(INTERRUPT));
+    ASSERT_FALSE(cpu.getFlag(DECIMAL));
+    ASSERT_FALSE(cpu.getFlag(BREAK));
+    ASSERT_TRUE(cpu.getFlag(UNUSED));
+    ASSERT_FALSE(cpu.getFlag(OVERFLOW));
+    ASSERT_FALSE(cpu.getFlag(NEGATIVE));
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_GetFlag) {
     cpu.P = 0b01010101;
 
-    ASSERT_TRUE(cpu.getFlag(cpu.C_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.Z_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.I_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.D_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.B_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.UNUSED_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.V_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.N_FLAG));
+    ASSERT_TRUE(cpu.getFlag(CARRY));
+    ASSERT_FALSE(cpu.getFlag(ZERO));
+    ASSERT_TRUE(cpu.getFlag(INTERRUPT));
+    ASSERT_FALSE(cpu.getFlag(DECIMAL));
+    ASSERT_TRUE(cpu.getFlag(BREAK));
+    ASSERT_FALSE(cpu.getFlag(UNUSED));
+    ASSERT_TRUE(cpu.getFlag(OVERFLOW));
+    ASSERT_FALSE(cpu.getFlag(NEGATIVE));
 
     cpu.P = 0b10101010;
-    ASSERT_FALSE(cpu.getFlag(cpu.C_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.Z_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.I_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.D_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.B_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.UNUSED_FLAG));
-    ASSERT_FALSE(cpu.getFlag(cpu.V_FLAG));
-    ASSERT_TRUE(cpu.getFlag(cpu.N_FLAG));
+    ASSERT_FALSE(cpu.getFlag(CARRY));
+    ASSERT_TRUE(cpu.getFlag(ZERO));
+    ASSERT_FALSE(cpu.getFlag(INTERRUPT));
+    ASSERT_TRUE(cpu.getFlag(DECIMAL));
+    ASSERT_FALSE(cpu.getFlag(BREAK));
+    ASSERT_TRUE(cpu.getFlag(UNUSED));
+    ASSERT_FALSE(cpu.getFlag(OVERFLOW));
+    ASSERT_TRUE(cpu.getFlag(NEGATIVE));
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_SetFlag_TrueToTrue) {
     cpu.P = 0b11111111;
 
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.Z_FLAG, true);
+    cpu.setFlag(ZERO, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.I_FLAG, true);
+    cpu.setFlag(INTERRUPT, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.D_FLAG, true);
+    cpu.setFlag(DECIMAL, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.B_FLAG, true);
+    cpu.setFlag(BREAK, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.UNUSED_FLAG, true);
+    cpu.setFlag(UNUSED, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.V_FLAG, true);
+    cpu.setFlag(OVERFLOW, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 
-    cpu.setFlag(cpu.N_FLAG, true);
+    cpu.setFlag(NEGATIVE, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_SetFlag_FalseToTrue) {
     cpu.P = 0b00000000;
 
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     ASSERT_EQ(cpu.P, 0b00000001);
 
-    cpu.setFlag(cpu.Z_FLAG, true);
+    cpu.setFlag(ZERO, true);
     ASSERT_EQ(cpu.P, 0b00000011);
 
-    cpu.setFlag(cpu.I_FLAG, true);
+    cpu.setFlag(INTERRUPT, true);
     ASSERT_EQ(cpu.P, 0b00000111);
 
-    cpu.setFlag(cpu.D_FLAG, true);
+    cpu.setFlag(DECIMAL, true);
     ASSERT_EQ(cpu.P, 0b00001111);
 
-    cpu.setFlag(cpu.B_FLAG, true);
+    cpu.setFlag(BREAK, true);
     ASSERT_EQ(cpu.P, 0b00011111);
 
-    cpu.setFlag(cpu.UNUSED_FLAG, true);
+    cpu.setFlag(UNUSED, true);
     ASSERT_EQ(cpu.P, 0b00111111);
 
-    cpu.setFlag(cpu.V_FLAG, true);
+    cpu.setFlag(OVERFLOW, true);
     ASSERT_EQ(cpu.P, 0b01111111);
 
-    cpu.setFlag(cpu.N_FLAG, true);
+    cpu.setFlag(NEGATIVE, true);
     ASSERT_EQ(cpu.P, 0b11111111);
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_SetFlag_TrueToFalse) {
     cpu.P = 0b11111111;
 
-    cpu.setFlag(cpu.C_FLAG, false);
+    cpu.setFlag(CARRY, false);
     ASSERT_EQ(cpu.P, 0b11111110);
 
-    cpu.setFlag(cpu.Z_FLAG, false);
+    cpu.setFlag(ZERO, false);
     ASSERT_EQ(cpu.P, 0b11111100);
 
-    cpu.setFlag(cpu.I_FLAG, false);
+    cpu.setFlag(INTERRUPT, false);
     ASSERT_EQ(cpu.P, 0b11111000);
 
-    cpu.setFlag(cpu.D_FLAG, false);
+    cpu.setFlag(DECIMAL, false);
     ASSERT_EQ(cpu.P, 0b11110000);
 
-    cpu.setFlag(cpu.B_FLAG, false);
+    cpu.setFlag(BREAK, false);
     ASSERT_EQ(cpu.P, 0b11100000);
 
-    cpu.setFlag(cpu.UNUSED_FLAG, false);
+    cpu.setFlag(UNUSED, false);
     ASSERT_EQ(cpu.P, 0b11000000);
 
-    cpu.setFlag(cpu.V_FLAG, false);
+    cpu.setFlag(OVERFLOW, false);
     ASSERT_EQ(cpu.P, 0b10000000);
 
-    cpu.setFlag(cpu.N_FLAG, false);
+    cpu.setFlag(NEGATIVE, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_SetFlag_FalseToFalse) {
     cpu.P = 0b00000000;
 
-    cpu.setFlag(cpu.C_FLAG, false);
+    cpu.setFlag(CARRY, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.Z_FLAG, false);
+    cpu.setFlag(ZERO, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.I_FLAG, false);
+    cpu.setFlag(INTERRUPT, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.D_FLAG, false);
+    cpu.setFlag(DECIMAL, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.B_FLAG, false);
+    cpu.setFlag(BREAK, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.UNUSED_FLAG, false);
+    cpu.setFlag(UNUSED, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.V_FLAG, false);
+    cpu.setFlag(OVERFLOW, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.setFlag(cpu.N_FLAG, false);
+    cpu.setFlag(NEGATIVE, false);
     ASSERT_EQ(cpu.P, 0b00000000);
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_ClearFlag_TrueToFalse) {
     cpu.P = 0b11111111;
 
-    cpu.clearFlag(cpu.C_FLAG);
+    cpu.clearFlag(CARRY);
     ASSERT_EQ(cpu.P, 0b11111110);
 
-    cpu.clearFlag(cpu.Z_FLAG);
+    cpu.clearFlag(ZERO);
     ASSERT_EQ(cpu.P, 0b11111100);
 
-    cpu.clearFlag(cpu.I_FLAG);
+    cpu.clearFlag(INTERRUPT);
     ASSERT_EQ(cpu.P, 0b11111000);
 
-    cpu.clearFlag(cpu.D_FLAG);
+    cpu.clearFlag(DECIMAL);
     ASSERT_EQ(cpu.P, 0b11110000);
 
-    cpu.clearFlag(cpu.B_FLAG);
+    cpu.clearFlag(BREAK);
     ASSERT_EQ(cpu.P, 0b11100000);
 
-    cpu.clearFlag(cpu.UNUSED_FLAG);
+    cpu.clearFlag(UNUSED);
     ASSERT_EQ(cpu.P, 0b11000000);
 
-    cpu.clearFlag(cpu.V_FLAG);
+    cpu.clearFlag(OVERFLOW);
     ASSERT_EQ(cpu.P, 0b10000000);
 
-    cpu.clearFlag(cpu.N_FLAG);
+    cpu.clearFlag(NEGATIVE);
     ASSERT_EQ(cpu.P, 0b00000000);
 }
 
 TEST_F(StatusFlagTest, StatusFlagTest_ClearFlag_FalseToFalse) {
     cpu.P = 0b00000000;
 
-    cpu.clearFlag(cpu.C_FLAG);
+    cpu.clearFlag(CARRY);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.Z_FLAG);
+    cpu.clearFlag(ZERO);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.I_FLAG);
+    cpu.clearFlag(INTERRUPT);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.D_FLAG);
+    cpu.clearFlag(DECIMAL);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.B_FLAG);
+    cpu.clearFlag(BREAK);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.UNUSED_FLAG);
+    cpu.clearFlag(UNUSED);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.V_FLAG);
+    cpu.clearFlag(OVERFLOW);
     ASSERT_EQ(cpu.P, 0b00000000);
 
-    cpu.clearFlag(cpu.N_FLAG);
+    cpu.clearFlag(NEGATIVE);
     ASSERT_EQ(cpu.P, 0b00000000);
 }

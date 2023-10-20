@@ -27,7 +27,7 @@ TEST_F(RORTest, RORTest_ACCUMULATOR_NORMAL) {
 TEST_F(RORTest, RORTest_ACCUMULATOR_CARRYFLAG_PRESET) {
     LoadInstruction(cpu, AlienCPU::INS_ROR_ACC, 0x00001023);
     cpu.A = 0b0001011001010110;
-    cpu.setFlag(cpu.C_FLAG, 1);
+    cpu.setFlag(CARRY, 1);
 
     TestInstruction(cpu, 2, 0x00001024);
 
@@ -50,7 +50,7 @@ TEST_F(RORTest, RORTest_ACCUMULATOR_CARRYFLAG_POSTSET) {
 TEST_F(RORTest, RORTest_ACCUMULATOR_CARRYFLAG_SET) {
     LoadInstruction(cpu, AlienCPU::INS_ROR_ACC, 0x00001023);
     cpu.A = 0b1001011001010111;
-    cpu.setFlag(cpu.C_FLAG, 1);
+    cpu.setFlag(CARRY, 1);
 
     TestInstruction(cpu, 2, 0x00001024);
 
@@ -87,7 +87,7 @@ TEST_F(RORTest, RORTest_CARRYFLAG_PRESET) {
     LoadInstruction(cpu, AlienCPU::INS_ROR_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000123);
     cpu.writeByte(0x00000123, 0b00101110);
-    cpu.setFlag(cpu.C_FLAG, 1);
+    cpu.setFlag(CARRY, 1);
 
     TestInstruction(cpu, 8, 0x00001028);
 
@@ -112,7 +112,7 @@ TEST_F(RORTest, RORTest_CARRYFLAG_SET) {
     LoadInstruction(cpu, AlienCPU::INS_ROR_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00000123);
     cpu.writeByte(0x00000123, 0b10101111);
-    cpu.setFlag(cpu.C_FLAG, 1);
+    cpu.setFlag(CARRY, 1);
 
     TestInstruction(cpu, 8, 0x00001028);
 

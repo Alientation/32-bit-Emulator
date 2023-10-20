@@ -43,7 +43,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -56,7 +56,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b1111111111111111);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -69,7 +69,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0000000000000000);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -94,7 +94,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -119,7 +119,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
     cpu.A = 0b0111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -144,7 +144,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
     cpu.A = 0b0111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -157,7 +157,7 @@ TEST_F(ADCTest, AddWithCarry_Immediate_BRUTEFORCE) {
 TEST_F(ADCTest, AddWithCarry_Immediate_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x2034); // value to add to accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0012;
 
     TestInstruction(cpu, 3, 0x00001026);
@@ -231,7 +231,7 @@ TEST_F(ADCTest, AddWithCarry_Absolute_NORMAL) {
     LoadInstruction(cpu, AlienCPU::INS_ADC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012034, 0x1234); // value to add to accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0012;
 
     TestInstruction(cpu, 7, 0x00001028);
@@ -273,7 +273,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_NORMAL) {
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to add to accumulator
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x1234); // value to add to accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0012;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -288,7 +288,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteXIndexed_PAGECROSSING) {
     cpu.writeWord(0x00001024, 0x0001FFFF); // partial address of value to add to accumulator
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0012;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -336,7 +336,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_NORMAL) {
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 8, 0x00001028);
 
@@ -351,7 +351,7 @@ TEST_F(ADCTest, AddWithCarry_AbsoluteYIndexed_PAGECROSSING) {
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 8, 0x00001028);
 
@@ -397,7 +397,7 @@ TEST_F(ADCTest, AddWithCarry_ZeroPage_NORMAL) {
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
     cpu.writeTwoBytes(0x00001234, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 5, 0x00011237);
 
@@ -423,7 +423,7 @@ TEST_F(ADCTest, AddWithCarry_ZeroPage_CARRYFLAG) {
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to add to accumulator
     cpu.writeTwoBytes(0x00001234, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 5, 0x00011237);
 
@@ -440,7 +440,7 @@ TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_NORMAL) {
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00001235, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 6, 0x00011237);
 
@@ -455,7 +455,7 @@ TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_WRAPAROUND) {
     cpu.X = 0xFFFF;
     cpu.writeTwoBytes(0x00000000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 6, 0x00011237);
 
@@ -485,7 +485,7 @@ TEST_F(ADCTest, AddWithCarry_ZeroPageXIndexed_CARRYFLAG) {
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00001235, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 6, 0x00011237);
 
@@ -504,7 +504,7 @@ TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_NORMAL) {
     cpu.writeWord(0x00001235, 0x00012345); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012345, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00001026);
 
@@ -520,7 +520,7 @@ TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_WRAPAROUND) {
     cpu.writeWord(0x00000001, 0x00012345); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012345, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00001026);
 
@@ -552,7 +552,7 @@ TEST_F(ADCTest, AddWithCarry_XIndexedIndirect_CARRYFLAG) {
     cpu.writeWord(0x00001235, 0x00012345); // address of value to add to accumulator
     cpu.writeTwoBytes(0x00012345, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00001026);
 
@@ -571,7 +571,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_NORMAL) {
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012346, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00011237);
 
@@ -587,7 +587,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_PAGECROSSING) {
     cpu.Y = 0xFFFF;
     cpu.writeTwoBytes(0x00020000, 0x1234); // value to add to accumulator
     cpu.A = 0x0012;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00011237);
 
@@ -619,7 +619,7 @@ TEST_F(ADCTest, AddWithCarry_IndirectYIndexed_CARRYFLAG) {
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012346, 0x0001); // value to add to accumulator
     cpu.A = 0xFFFF;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 10, 0x00011237);
 

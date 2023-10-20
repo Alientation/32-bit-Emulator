@@ -230,70 +230,109 @@ bool AlienCPU::isValidInstruction(u16 instruction) {
 
 
 /**
- * Clear the specified flag bit from processor status register. The flag bit will be set to 0.
+ * Clear the specified flag from processor status register. The flag bit will be set to 0.
  * 
- * The denoted flag bit is represented as an offset from the right most bit of the processor status register
- * Processor status register = [7 6 5 4 3 2 1 0]
- * 
- * @param bit the flag bit to clear denoted as the index of the bit from the right
+ * @param flag the flag to clear
  */
-void AlienCPU::clearFlag(Byte bit) {
-    P &= ~((u8)1 << bit);
+void AlienCPU::clearFlag(StatusFlag flag) {
+    P &= ~((u8)1 << flag);
 }
 
 /**
- * Sets the specified flag bit from processor status register. The flag bit will be set to 1.
+ * Sets the specified flag from processor status register. The flag bit will be set to 1.
  * 
- * The denoted flag bit is represented as an offset from the right most bit of the processor status register
- * Processor status register = [7 6 5 4 3 2 1 0]
- * 
- * @param bit the flag bit to set denoted as the index of the bit from the right
+ * @param bit the flag to set
  */
-void AlienCPU::setFlag(Byte bit, bool isSet) {
-    P = (P & ~((u8)1 << bit)) | ((u8)isSet << bit);
+void AlienCPU::setFlag(StatusFlag flag, bool isSet) {
+    P = (P & ~((u8)1 << flag)) | ((u8)isSet << flag);
 }
 
 /**
- * Gets the status of the specified flag bit from processor status register.
+ * Gets the status of the specified flag from processor status register.
  * 
- * The denoted flag bit is represented as an offset from the right most bit of the processor status register
- * Processor status register = [7 6 5 4 3 2 1 0]
- * 
- * @param bit the flag bit to get denoted as the index of the bit from the right
- * @return the status of the specified flag bit from processor status register
+ * @param bit the flag to get
+ * @return the status of the specified flag
  */
-bool AlienCPU::getFlag(Byte bit) {
-    return P & (1 << bit);
+bool AlienCPU::getFlag(StatusFlag flag) {
+    return P & (1 << flag);
 }
 
 
+/**
+ * Converts a two byte high endian value to a two byte low endian value
+ * 
+ * High endian representation of a value is when the left most byte is the highest valued byte and
+ * the right most byte is the lowest valued byte. Likewise, low endian representation is where the
+ * left most byte if the lowest valued byte and the right most byte is the highest valued byte.
+ * 
+ * For example, the high endian representation of the value 0x1234 is [0x12 0x34] and the low endian
+ * representation of the value 0x1234 is [0x34 0x12]
+ * 
+ * @param highEndianTwoBytes the high endian two byte value to convert
+ * @return the low endian two byte value
+ */
 u16 AlienCPU::convertToLowEndianTwoBytes(u16 highEndianTwoBytes) {
     return (highEndianTwoBytes >> 8) | (highEndianTwoBytes << 8);
 }
 
+
+/**
+ * Converts a two byte low endian value to a two byte high endian value
+ * 
+ * @param lowEndianTwoBytes the low endian two byte value to convert
+ * @return the high endian two byte value
+ */
 u16 AlienCPU::convertToHighEndianTwoBytes(u16 lowEndianTwoBytes) {
     return (lowEndianTwoBytes << 8) | (lowEndianTwoBytes >> 8);
 }
 
+
+/**
+ * Converts a four byte high endian value to a four byte low endian value. In this CPU, a word is 4 bytes.
+ * 
+ * @param highEndianWord the high endian four byte value to convert
+ * @return the low endian four byte value
+ */
 Word AlienCPU::convertToLowEndianWord(Word highEndianWord) {
     return (highEndianWord >> 24) | ((highEndianWord >> 8) & 0xFF00) | 
             ((highEndianWord << 8) & 0xFF0000) | (highEndianWord << 24);
 }
 
+
+/**
+ * Converts a four byte low endian value to a four byte high endian value. In this CPU, a word is 4 bytes.
+ * 
+ * @param lowEndianWord the low endian four byte value to convert
+ * @return the high endian four byte value
+ */
 Word AlienCPU::convertToHighEndianWord(Word lowEndianWord) {
     return (lowEndianWord << 24) | ((lowEndianWord << 8) & 0xFF0000) | 
             ((lowEndianWord >> 8) & 0xFF00) | (lowEndianWord >> 24);
 }
 
 
-// Reads a byte at a high endian memory address (1 cycle)
+/**
+ * Reads a byte at a high endian memory address
+ * 
+ * This process will take 1 simulated cycle to read
+ * 
+ * @param highEndianAddress the high endian address to read from
+ * @return the byte read from memory
+ */
 Byte AlienCPU::readByte(Word highEndianAddress) {
     cycles++;
     return motherboard.readByte(highEndianAddress);
 }
 
-// Reads the next 2 low endian bytes at a high endian memory address 
-// and converts to high endian (2 cycles)
+
+/**
+ * Reads the next 2 low endian bytes at a high endian memory address and converts to high endian.
+ * 
+ * This process will take 2 simulated cycles to read.
+ * 
+ * @param highEndianAddress the high endian address to read from
+ * @return the 2 byte value read from memory
+ */
 u16 AlienCPU::readTwoBytes(Word highEndianAddress) {
     // reads in owest byte
     u16 highEndianData = readByte(highEndianAddress);
@@ -303,8 +342,15 @@ u16 AlienCPU::readTwoBytes(Word highEndianAddress) {
     return highEndianData;
 }
 
-// Reads the next 4 low endian bytes at a high endian memory address 
-// and converts to high endian (4 cycles)
+
+/**
+ * Reads the next 4 low endian bytes at a high endian memory address and converts to high endian.
+ * 
+ * This process will take 4 simulated cycles to read.
+ * 
+ * @param highEndianAddress the high endian address to read from
+ * @return the 4 byte value read from memory
+ */
 Word AlienCPU::readWord(Word highEndianAddress) {
     // reads in lowest byte
     Word highEndianData = readByte(highEndianAddress);
@@ -317,9 +363,13 @@ Word AlienCPU::readWord(Word highEndianAddress) {
 }
 
 
-// TODO: apparently the 6502 when reading from PC first increments PC then
-// reads it??? I don't think we should do this for this pc
-// Reads the next byte in memory and increments PC (1 cycle)
+/**
+ * Reads the next byte in memory pointed to by the program counter
+ * 
+ * This process will take 1 simulated cycle to read and increment PC
+ * 
+ * @return the byte read from memory
+ */
 Byte AlienCPU::fetchNextByte() {
     Byte data = motherboard.readByte(PC);
     PC++;
@@ -327,8 +377,14 @@ Byte AlienCPU::fetchNextByte() {
     return data;
 }
 
-// Reads the next 4 low endian bytes in memory but converts to 
-// high endian and increments PC (2 cycles)
+
+/**
+ * Reads the next two low endian bytes in memory and converts to high endian.
+ * 
+ * This process will take 2 simulated cycle to read and increment PC by 2
+ * 
+ * @return the two byte value read from memory
+ */
 u16 AlienCPU::fetchNextTwoBytes() {
     // reads in lowest byte
     u16 highEndianData = fetchNextByte();
@@ -338,8 +394,14 @@ u16 AlienCPU::fetchNextTwoBytes() {
     return highEndianData;
 }
 
-// Reads the next 4 low endian bytes in memory but converts to 
-// high endian and increments PC (4 cycles)
+
+/**
+ * Reads the next 4 low endian bytes in memory and converts to high endian.
+ * 
+ * This process will take 4 simulated cycle to read and increment PC by 4
+ * 
+ * @return the 4 byte value read from memory
+ */
 Word AlienCPU::fetchNextWord() {
     // reads in lowest byte
     Word highEndianData = fetchNextByte();
@@ -351,15 +413,30 @@ Word AlienCPU::fetchNextWord() {
     return highEndianData;
 }
 
-// Write byte to the specified high endian address in memory (1 cycle)
+
+/**
+ * Write byte to the specified high endian address in memory
+ * 
+ * This process will take 1 simulated cycle to write.
+ * 
+ * @param highEndianAddress the high endian writable address to write to
+ * @param value the byte value to write
+ */
 void AlienCPU::writeByte(Word highEndianAddress, Byte value) {
     // write byte 0 to memory
     motherboard.writeByte(highEndianAddress, value);
     cycles++;
 }
 
-// Writes 2 high endian bytes converted to low endian to the 
-// specified high endian address in memory (2 cycles)
+
+/**
+ * Write two bytes to the specified high endian address in memory
+ * 
+ * This process will take 2 simulated cycles to write.
+ * 
+ * @param highEndianAddress the high endian writable address to write to
+ * @param highEndianValue the two byte high endian value to write
+ */
 void AlienCPU::writeTwoBytes(Word highEndianAddress, u16 highEndianValue) {
     // lowest byte
     writeByte(highEndianAddress, highEndianValue & 0xFF);
@@ -367,20 +444,21 @@ void AlienCPU::writeTwoBytes(Word highEndianAddress, u16 highEndianValue) {
     // highest byte
 }
 
-// Writes 2 low endian bytes to the specified high endian address in memory (2 cycles)
-void AlienCPU::writeTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue) {
-    writeByte(highEndianAddress, (lowEndianValue >> 8) & 0xFF);
-    writeByte(highEndianAddress + 1, lowEndianValue & 0xFF);
-}
 
-// Writes 4 high endian bytes converted to low endian to the 
-// specified high endian address in memory (4 cycles)
-void AlienCPU::writeWord(Word highEndianAddress, Word value) {
+/**
+ * Write four bytes to the specified high endian address in memory
+ * 
+ * This process will take 4 simulated cycles to write.
+ * 
+ * @param highEndianAddress the high endian writable address to write to
+ * @param highEndianValue the four byte high endian value to write
+ */
+void AlienCPU::writeWord(Word highEndianAddress, Word highEndianValue) {
     // lowest byte
-    writeByte(highEndianAddress, value & 0xFF);
-    writeByte(highEndianAddress + 1, (value >> 8) & 0xFF);
-    writeByte(highEndianAddress + 2, (value >> 16) & 0xFF);
-    writeByte(highEndianAddress + 3, (value >> 24) & 0xFF);
+    writeByte(highEndianAddress, highEndianValue & 0xFF);
+    writeByte(highEndianAddress + 1, (highEndianValue >> 8) & 0xFF);
+    writeByte(highEndianAddress + 2, (highEndianValue >> 16) & 0xFF);
+    writeByte(highEndianAddress + 3, (highEndianValue >> 24) & 0xFF);
     // highest byte
 }
 

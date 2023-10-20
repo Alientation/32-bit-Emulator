@@ -31,7 +31,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -44,7 +44,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -69,7 +69,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b1000000000000000);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -82,7 +82,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b1111111111111111);
     cpu.A = 0b1000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -107,7 +107,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
     cpu.A = 0b1111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -132,7 +132,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0111111111111111);
     cpu.A = 0b0000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -145,7 +145,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0b0000000000000001);
     cpu.A = 0b0000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -170,7 +170,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024,0b1000000000000000);
     cpu.A = 0b0000000000000000;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -183,7 +183,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024,0b0000000000000001);
     cpu.A = 0b0111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -196,7 +196,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024,0b0111111111111111);
     cpu.A = 0b0111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -233,7 +233,7 @@ TEST_F(SBCTest, SubtractWithCarry_BRUTEFORCE) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024,0b1000000000000000);
     cpu.A = 0b0111111111111111;
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
 
     TestInstruction(cpu, 3, 0x00001026);
 
@@ -259,7 +259,7 @@ TEST_F(SBCTest, SubtractWithCarry_Immediate_NORMAL) {
 TEST_F(SBCTest, SubtractWithCarry_Immediate_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0000); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0000;
 
     TestInstruction(cpu, 3, 0x00001026);
@@ -272,7 +272,7 @@ TEST_F(SBCTest, SubtractWithCarry_Immediate_ZEROFLAG) {
 TEST_F(SBCTest, SubtractWithCarry_Immediate_BORROWFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_IMM, 0x00001023);
     cpu.writeTwoBytes(0x00001024, 0x0002); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 3, 0x00001026);
@@ -300,7 +300,7 @@ TEST_F(SBCTest, SubtractWithCarry_Absolute_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to subtract from accumulator
     cpu.writeTwoBytes(0x00012034, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 7, 0x00001028);
@@ -314,7 +314,7 @@ TEST_F(SBCTest, SubtractWithCarry_Absolute_BORROWFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_ABS, 0x00001023);
     cpu.writeWord(0x00001024, 0x00012034); // address of value to subtract from accumulator
     cpu.writeTwoBytes(0x00012034, 0x0002); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 7, 0x00001028);
@@ -357,7 +357,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_ZEROFLAG) {
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to subtract from accumulator
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -372,7 +372,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteXIndexed_BORROWFLAG) {
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to subtract from accumulator
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x0002); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -417,7 +417,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_ZEROFLAG) {
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to subtract from accumulator
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -433,7 +433,7 @@ TEST_F(SBCTest, SubtractWithCarry_AbsoluteYIndexed_BORROWFLAG) {
     cpu.writeWord(0x00001024, 0x00012034); // partial address of value to subtract from accumulator
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012035, 0x0002); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 8, 0x00001028);
@@ -482,7 +482,7 @@ TEST_F(SBCTest, SubtractWithCarry_XIndexedIndirect_ZEROFLAG) {
     cpu.X = 0x0001;
     cpu.writeWord(0x00001235, 0x00012345); // address of value to subtract from accumulator
     cpu.writeTwoBytes(0x00012345, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 10, 0x00000126);
@@ -547,7 +547,7 @@ TEST_F(SBCTest, SubtractWithCarry_IndirectYIndexed_ZEROFLAG) {
     cpu.writeWord(0x00001234, 0x00012345); // partial address of value to subtract from accumulator
     cpu.Y = 0x0001;
     cpu.writeTwoBytes(0x00012346, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 10, 0x00011237);
@@ -592,7 +592,7 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPage_ZEROFLAG) {
     LoadInstruction(cpu, AlienCPU::INS_SBC_ZP, 0x00011234);
     cpu.writeTwoBytes(0x00011235, 0x1234); // zp address of value to subtract from accumulator
     cpu.writeTwoBytes(0x00001234, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 5, 0x00011237);
@@ -650,7 +650,7 @@ TEST_F(SBCTest, SubtractWithCarry_ZeroPageXIndexed_ZEROFLAG) {
     cpu.writeTwoBytes(0x00011235, 0x1234); // partial zp address of value to subtract from accumulator
     cpu.X = 0x0001;
     cpu.writeTwoBytes(0x00001235, 0x0001); // value to subtract from accumulator
-    cpu.setFlag(cpu.C_FLAG, true);
+    cpu.setFlag(CARRY, true);
     cpu.A = 0x0001;
 
     TestInstruction(cpu, 6, 0x00011237);

@@ -34,8 +34,8 @@
 //  +2      read high byte from address + 1
 void AlienCPU::LDA_Instruction(Word address) {
     A = readTwoBytes(address);
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -56,8 +56,8 @@ void AlienCPU::LDA_Instruction(Word address) {
 //  +2      read high byte from address + 1
 void AlienCPU::LDX_Instruction(Word address) {
     X = readTwoBytes(address);
-    setFlag(Z_FLAG, X == 0);
-    setFlag(N_FLAG, X >> 15);
+    setFlag(ZERO, X == 0);
+    setFlag(NEGATIVE, X >> 15);
 }
 
 
@@ -78,8 +78,8 @@ void AlienCPU::LDX_Instruction(Word address) {
 //  +2      read high byte from address
 void AlienCPU::LDY_Instruction(Word address) {
     Y = readTwoBytes(address);
-    setFlag(Z_FLAG, Y == 0);
-    setFlag(N_FLAG, Y >> 15);
+    setFlag(ZERO, Y == 0);
+    setFlag(NEGATIVE, Y >> 15);
 }
 
 
@@ -152,8 +152,8 @@ void AlienCPU::STY_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::TAX_Instruction(Word address) {
     X = A;
-    setFlag(Z_FLAG, X == 0);
-    setFlag(N_FLAG, X >> 15);
+    setFlag(ZERO, X == 0);
+    setFlag(NEGATIVE, X >> 15);
 }
 
 
@@ -168,8 +168,8 @@ void AlienCPU::TAX_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::TAY_Instruction(Word address) {
     Y = A;
-    setFlag(Z_FLAG, Y == 0);
-    setFlag(N_FLAG, Y >> 15);
+    setFlag(ZERO, Y == 0);
+    setFlag(NEGATIVE, Y >> 15);
 }
 
 
@@ -184,8 +184,8 @@ void AlienCPU::TAY_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::TSX_Instruction(Word address) {
     X = SP;
-    setFlag(Z_FLAG, X == 0);
-    setFlag(N_FLAG, X >> 15);
+    setFlag(ZERO, X == 0);
+    setFlag(NEGATIVE, X >> 15);
 }
 
 
@@ -200,8 +200,8 @@ void AlienCPU::TSX_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::TXA_Instruction(Word address) {
     A = X;
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -230,8 +230,8 @@ void AlienCPU::TXS_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::TYA_Instruction(Word address) {
     A = Y;
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -275,8 +275,8 @@ void AlienCPU::PHP_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::PLA_Instruction(Word address) {
     A = popTwoBytesFromStack();
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -290,10 +290,10 @@ void AlienCPU::PLA_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::PLP_Instruction(Word address) {
-    bool previousBFlag = getFlag(B_FLAG);
+    bool previousBFlag = getFlag(BREAK);
     P = popByteFromStack(); // ignore reading from B flag
-    setFlag(B_FLAG, previousBFlag); // keep the original B flag
-    setFlag(UNUSED_FLAG, 1);
+    setFlag(BREAK, previousBFlag); // keep the original B flag
+    setFlag(UNUSED, 1);
 }
 
 
@@ -316,8 +316,8 @@ void AlienCPU::PLP_Instruction(Word address) {
 //  +3   write decremented value to address
 void AlienCPU::DEC_Instruction(Word address) {
     Byte value = --motherboard[address]; cycles+=3;
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 15);
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, value >> 15);
 }
 
 
@@ -332,8 +332,8 @@ void AlienCPU::DEC_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::DEX_Instruction(Word address) {
     X--;
-    setFlag(Z_FLAG, X == 0);
-    setFlag(N_FLAG, X >> 15);
+    setFlag(ZERO, X == 0);
+    setFlag(NEGATIVE, X >> 15);
 }
 
 
@@ -348,8 +348,8 @@ void AlienCPU::DEX_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::DEY_Instruction(Word address) {
     Y--;
-    setFlag(Z_FLAG, Y == 0);
-    setFlag(N_FLAG, Y >> 15);
+    setFlag(ZERO, Y == 0);
+    setFlag(NEGATIVE, Y >> 15);
 }
 
 
@@ -371,8 +371,8 @@ void AlienCPU::DEY_Instruction(Word address) {
 //  +3   write incremented value to address
 void AlienCPU::INC_Instruction(Word address) {
     Byte value = ++motherboard[address]; cycles+=3;
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 15);
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, value >> 15);
 }
 
 
@@ -387,8 +387,8 @@ void AlienCPU::INC_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::INX_Instruction(Word address) {
     X++;
-    setFlag(Z_FLAG, X == 0);
-    setFlag(N_FLAG, X >> 15);
+    setFlag(ZERO, X == 0);
+    setFlag(NEGATIVE, X >> 15);
 }
 
 
@@ -403,8 +403,8 @@ void AlienCPU::INX_Instruction(Word address) {
 // CYCLES           DESCRIPTION
 void AlienCPU::INY_Instruction(Word address) {
     Y++;
-    setFlag(Z_FLAG, Y == 0);
-    setFlag(N_FLAG, Y >> 15);
+    setFlag(ZERO, Y == 0);
+    setFlag(NEGATIVE, Y >> 15);
 }
 
 
@@ -429,18 +429,18 @@ void AlienCPU::INY_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (add to accumulator)
 void AlienCPU::ADC_Instruction(Word address) {
     u16 value = readTwoBytes(address);
-    u16 result = A + value + getFlag(C_FLAG);
+    u16 result = A + value + getFlag(CARRY);
     
     // update carry if overflow happens
-    setFlag(C_FLAG, (A + value + getFlag(C_FLAG)) > 0xFFFF);
+    setFlag(CARRY, (A + value + getFlag(CARRY)) > 0xFFFF);
     
     // set overflow flag if adding two same signed numbers results in different sign
-    setFlag(V_FLAG, ((A ^ result) & NEGATIVE_MASK) && ((value ^ result) & NEGATIVE_MASK));
+    setFlag(OVERFLOW, ((A ^ result) & NEGATIVE_MASK) && ((value ^ result) & NEGATIVE_MASK));
 
     A = result;
 
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -464,18 +464,18 @@ void AlienCPU::ADC_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (subtract from accumulator)
 void AlienCPU::SBC_Instruction(Word address) {
     u16 value = ~readTwoBytes(address); // one's complement so we can add the numbers instead of dealing with subtraction
-    u16 result = A + value + getFlag(C_FLAG);
+    u16 result = A + value + getFlag(CARRY);
 
     // update carry if overflow happens
-    setFlag(C_FLAG, (A + value + getFlag(C_FLAG)) > 0xFFFF);
+    setFlag(CARRY, (A + value + getFlag(CARRY)) > 0xFFFF);
     
     // set overflow flag if adding two same signed numbers results in different sign
-    setFlag(V_FLAG, ((A ^ result) & NEGATIVE_MASK) && ((value ^ result) & NEGATIVE_MASK));
+    setFlag(OVERFLOW, ((A ^ result) & NEGATIVE_MASK) && ((value ^ result) & NEGATIVE_MASK));
 
     A = result;
 
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -500,8 +500,8 @@ void AlienCPU::SBC_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (AND with accumulator)
 void AlienCPU::AND_Instruction(Word address) {
     A &= readTwoBytes(address);
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -525,8 +525,8 @@ void AlienCPU::AND_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (EOR with accumulator)
 void AlienCPU::EOR_Instruction(Word address) {
     A ^= readTwoBytes(address);
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -550,8 +550,8 @@ void AlienCPU::EOR_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (OR with accumulator)
 void AlienCPU::ORA_Instruction(Word address) {
     A |= readTwoBytes(address);
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -566,10 +566,10 @@ void AlienCPU::ORA_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::ASL_Accumulator_Instruction(Word address) {
-    setFlag(C_FLAG, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
+    setFlag(CARRY, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
     A <<= 1;
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -589,10 +589,10 @@ void AlienCPU::ASL_Accumulator_Instruction(Word address) {
 //  +2      write value to address, shift value left
 //  +3      write shifted value to address
 void AlienCPU::ASL_Instruction(Word address) {
-    setFlag(C_FLAG, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    setFlag(CARRY, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
     Byte value = (motherboard[address] <<= 1); cycles += 3;
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 7);
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, value >> 7);
 }
 
 
@@ -606,10 +606,10 @@ void AlienCPU::ASL_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::LSR_Accumulator_Instruction(Word address) {
-    setFlag(C_FLAG, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    setFlag(CARRY, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
     A >>= 1;
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, 0); // always 0 since the last bit is always rotated in as 0
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, 0); // always 0 since the last bit is always rotated in as 0
 }
 
 
@@ -629,10 +629,10 @@ void AlienCPU::LSR_Accumulator_Instruction(Word address) {
 //  +2      write value to address, shift value right
 //  +3      write shifted value to address
 void AlienCPU::LSR_Instruction(Word address) {
-    setFlag(C_FLAG, motherboard[address] & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    setFlag(CARRY, motherboard[address] & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
     Byte value = (motherboard[address] >>= 1); cycles += 3;
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, 0); // always 0 since the last bit is always rotated in as 0
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, 0); // always 0 since the last bit is always rotated in as 0
 }
 
 
@@ -646,12 +646,12 @@ void AlienCPU::LSR_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::ROL_Accumulator_Instruction(Word address) {
-    Byte carryBit = getFlag(C_FLAG);
-    setFlag(C_FLAG, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
+    Byte carryBit = getFlag(CARRY);
+    setFlag(CARRY, A >> 15); // sets carry flag to the value of the 16th bit (that is rotated off)
     A <<= 1;
     A |= carryBit; // rotate in the previous carry bit
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -672,12 +672,12 @@ void AlienCPU::ROL_Accumulator_Instruction(Word address) {
 //  +2      write value to address, rotate value left
 //  +3      write rotated value to address
 void AlienCPU::ROL_Instruction(Word address) {
-    Byte carryBit = getFlag(C_FLAG);
-    setFlag(C_FLAG, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
+    Byte carryBit = getFlag(CARRY);
+    setFlag(CARRY, motherboard[address] >> 7); // sets carry flag to the value of the 8th bit (that is rotated off)
     Byte value = (motherboard[address] <<= 1); cycles += 3;
     motherboard[address] |= carryBit; // rotate in the previous carry bit
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, value >> 7);
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, value >> 7);
 }
 
 
@@ -691,12 +691,12 @@ void AlienCPU::ROL_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::ROR_Accumulator_Instruction(Word address) {
-    Byte carryBit = getFlag(C_FLAG);
-    setFlag(C_FLAG, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    Byte carryBit = getFlag(CARRY);
+    setFlag(CARRY, A & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
     A >>= 1;
     A |= carryBit << 15; // rotate in the previous carry bit
-    setFlag(Z_FLAG, A == 0);
-    setFlag(N_FLAG, A >> 15);
+    setFlag(ZERO, A == 0);
+    setFlag(NEGATIVE, A >> 15);
 }
 
 
@@ -717,12 +717,12 @@ void AlienCPU::ROR_Accumulator_Instruction(Word address) {
 //  +2      write value to address, rotate value right
 //  +3      write rotated value to address
 void AlienCPU::ROR_Instruction(Word address) {
-    Byte carryBit = getFlag(C_FLAG);
-    setFlag(C_FLAG, motherboard[address] & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
+    Byte carryBit = getFlag(CARRY);
+    setFlag(CARRY, motherboard[address] & 0x0001); // sets carry flag to the value of the 1st bit (that is rotated off)
     Byte value = (motherboard[address] >>= 1); cycles += 3;
     motherboard[address] |= carryBit << 7; // rotate in the previous carry bit
-    setFlag(Z_FLAG, value == 0);
-    setFlag(N_FLAG, carryBit);
+    setFlag(ZERO, value == 0);
+    setFlag(NEGATIVE, carryBit);
 }
 
 
@@ -737,7 +737,7 @@ void AlienCPU::ROR_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::CLC_Instruction(Word address) {
-    setFlag(C_FLAG, false);
+    setFlag(CARRY, false);
 }
 
 
@@ -751,7 +751,7 @@ void AlienCPU::CLC_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::CLD_Instruction(Word address) {
-    setFlag(D_FLAG, false);
+    setFlag(DECIMAL, false);
 }
 
 
@@ -765,7 +765,7 @@ void AlienCPU::CLD_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::CLI_Instruction(Word address) {
-    setFlag(I_FLAG, false);
+    setFlag(INTERRUPT, false);
 }
 
 
@@ -779,7 +779,7 @@ void AlienCPU::CLI_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::CLV_Instruction(Word address) {
-    setFlag(V_FLAG, false);
+    setFlag(OVERFLOW, false);
 }
 
 
@@ -793,7 +793,7 @@ void AlienCPU::CLV_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::SEC_Instruction(Word address) {
-    setFlag(C_FLAG, true);
+    setFlag(CARRY, true);
 }
 
 
@@ -807,7 +807,7 @@ void AlienCPU::SEC_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::SED_Instruction(Word address) {
-    setFlag(D_FLAG, true);
+    setFlag(DECIMAL, true);
 }
 
 
@@ -821,7 +821,7 @@ void AlienCPU::SED_Instruction(Word address) {
 //
 // CYCLES           DESCRIPTION
 void AlienCPU::SEI_Instruction(Word address) {
-    setFlag(I_FLAG, true);
+    setFlag(INTERRUPT, true);
 }
 
 
@@ -846,9 +846,9 @@ void AlienCPU::SEI_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (compare with accumulator)
 void AlienCPU::CMP_Instruction(Word address) {
     u16 difference = A - readTwoBytes(address);
-    setFlag(C_FLAG, difference >= 0);
-    setFlag(Z_FLAG, difference == 0);
-    setFlag(N_FLAG, difference >> 15);
+    setFlag(CARRY, difference >= 0);
+    setFlag(ZERO, difference == 0);
+    setFlag(NEGATIVE, difference >> 15);
 }
 
 
@@ -867,9 +867,9 @@ void AlienCPU::CMP_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (compare with X register)
 void AlienCPU::CPX_Instruction(Word address) {
     u16 difference = X - readTwoBytes(address);
-    setFlag(C_FLAG, difference >= 0);
-    setFlag(Z_FLAG, difference == 0);
-    setFlag(N_FLAG, difference >> 15);
+    setFlag(CARRY, difference >= 0);
+    setFlag(ZERO, difference == 0);
+    setFlag(NEGATIVE, difference >> 15);
 }
 
 
@@ -888,9 +888,9 @@ void AlienCPU::CPX_Instruction(Word address) {
 //  +2      read high byte of value from address + 1 (compare with Y register)
 void AlienCPU::CPY_Instruction(Word address) {
     u16 difference = Y - readTwoBytes(address);
-    setFlag(C_FLAG, difference >= 0);
-    setFlag(Z_FLAG, difference == 0);
-    setFlag(N_FLAG, difference >> 15);
+    setFlag(CARRY, difference >= 0);
+    setFlag(ZERO, difference == 0);
+    setFlag(NEGATIVE, difference >> 15);
 }
 
 
@@ -911,7 +911,7 @@ void AlienCPU::CPY_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCC_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (getFlag(C_FLAG)) {
+    if (getFlag(CARRY)) {
         PC += offset; cycles++;
     }
 }
@@ -933,7 +933,7 @@ void AlienCPU::BCC_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCS_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (!getFlag(C_FLAG)) {
+    if (!getFlag(CARRY)) {
         PC += offset; cycles++;
     }
 }
@@ -955,7 +955,7 @@ void AlienCPU::BCS_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BEQ_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (getFlag(Z_FLAG)) {
+    if (getFlag(ZERO)) {
         PC += offset; cycles++;
     }
 }
@@ -977,7 +977,7 @@ void AlienCPU::BEQ_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BPL_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (!getFlag(N_FLAG)) {
+    if (!getFlag(NEGATIVE)) {
         PC += offset; cycles++;
     }
 }
@@ -999,7 +999,7 @@ void AlienCPU::BPL_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BMI_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (getFlag(N_FLAG)) {
+    if (getFlag(NEGATIVE)) {
         PC += offset; cycles++;
     }
 }
@@ -1021,7 +1021,7 @@ void AlienCPU::BMI_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BNE_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (!getFlag(Z_FLAG)) {
+    if (!getFlag(ZERO)) {
         PC += offset; cycles++;
     }
 }
@@ -1043,7 +1043,7 @@ void AlienCPU::BNE_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVC_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (!getFlag(V_FLAG)) {
+    if (!getFlag(OVERFLOW)) {
         PC += offset; cycles++;
     }
 }
@@ -1065,7 +1065,7 @@ void AlienCPU::BVC_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVS_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
-    if (getFlag(V_FLAG)) {
+    if (getFlag(OVERFLOW)) {
         PC += offset; cycles++;
     }
 }
@@ -1149,7 +1149,7 @@ void AlienCPU::BRK_Instruction(Word address) {
     PC++; // create a spacing for a break mark (identifying the reason for the break)
     pushWordToStack(PC);
     pushByteToStack(P);
-    setFlag(I_FLAG, true);
+    setFlag(INTERRUPT, true);
     PC = readWord(0xFFFE);
 }
 
@@ -1185,9 +1185,9 @@ void AlienCPU::RTI_Instruction(Word address) {
 //  zero page           $24       3         5           BIT $nnnn
 void AlienCPU::BIT_Instruction(Word address) {
     u16 value = readTwoBytes(address);
-    setFlag(N_FLAG, value >> 15);
-    setFlag(V_FLAG, (value >> 14) & 0b01);
-    setFlag(Z_FLAG, (A & value) == 0);
+    setFlag(NEGATIVE, value >> 15);
+    setFlag(OVERFLOW, (value >> 14) & 0b01);
+    setFlag(ZERO, (A & value) == 0);
 }
 
 

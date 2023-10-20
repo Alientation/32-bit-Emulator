@@ -86,16 +86,6 @@ TEST_F(MemoryAddressingTest, MemoryAddressingTest_Write) {
     EXPECT_EQ(cpu.motherboard.ram.data[0x2002], 0x34);
     EXPECT_EQ(cpu.motherboard.ram.data[0x2003], 0x12);
     EXPECT_EQ(cpu.motherboard.ram.data[0x2004], 0x00);
-
-    cpu.writeTwoBytesAbsolute(0x00003000, 0x1234);
-    cpu.writeTwoBytesAbsolute(0x00003002, 0x5678);
-
-    EXPECT_EQ(cpu.cycles, 16);
-    EXPECT_EQ(cpu.motherboard.ram.data[0x3000], 0x12);
-    EXPECT_EQ(cpu.motherboard.ram.data[0x3001], 0x34);
-    EXPECT_EQ(cpu.motherboard.ram.data[0x3002], 0x56);
-    EXPECT_EQ(cpu.motherboard.ram.data[0x3003], 0x78);
-    EXPECT_EQ(cpu.motherboard.ram.data[0x3004], 0x00);
 }
 
 TEST_F(MemoryAddressingTest, MemoryAddressingTest_Fetch) {

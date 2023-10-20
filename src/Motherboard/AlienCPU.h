@@ -8,6 +8,16 @@
 
 class AlienCPU; //forward declaration (!!)
 
+enum StatusFlag {
+    CARRY, ZERO, INTERRUPT, DECIMAL, BREAK, UNUSED, OVERFLOW, NEGATIVE
+};
+
+enum AddressingMode {
+    ACCUMULATOR, IMPLIED, IMMEDIATE, RELATIVE, INDIRECT, 
+    ABSOLUTE, ABSOLUTE_XINDEXED, ABSOLUTE_YINDEXED, 
+    XINDEXED_INDIRECT, INDIRECT_YINDEXED, ZEROPAGE, ZEROPAGE_XINDEXED, ZEROPAGE_YINDEXED
+};
+
 // CPU Emulator (modeled off of 6502)
 // https://en.wikipedia.org/wiki/Central_processing_unit
 // http://www.6502.org/users/obelisk/index.html
@@ -87,18 +97,6 @@ class AlienCPU {
             Y_INIT = 0x0000;
 
         static constexpr Byte P_INIT = 0b00100000;
-
-
-        // TODO: make this an enum
-        static constexpr Byte
-            C_FLAG = 0,
-            Z_FLAG = 1,
-            I_FLAG = 2,
-            D_FLAG = 3,
-            B_FLAG = 4,
-            UNUSED_FLAG = 5,
-            V_FLAG = 6,
-            N_FLAG = 7;
 
         static constexpr u16
             NEGATIVE_MASK = 0b1000000000000000;
@@ -242,9 +240,9 @@ class AlienCPU {
 
         void initInstructions();
 
-        void clearFlag(Byte bit);
-        void setFlag(Byte bit, bool isSet);
-        bool getFlag(Byte bit);
+        void clearFlag(StatusFlag flag);
+        void setFlag(StatusFlag flag, bool isSet);
+        bool getFlag(StatusFlag flag);
 
         u16 convertToLowEndianTwoBytes(u16 highEndianValue);
         Word convertToLowEndianWord(Word highEndianValue);
@@ -261,7 +259,6 @@ class AlienCPU {
 
         void writeByte(Word highEndianAddress, Byte value);
         void writeTwoBytes(Word highEndianAddress, u16 highEndianValue);
-        void writeTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue);
         void writeWord(Word highEndianAddress, Word highEndianValue);
 
         Word SPToAddress();

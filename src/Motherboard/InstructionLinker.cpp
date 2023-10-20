@@ -19,7 +19,6 @@ void AlienCPU::initInstructions() {
     instructions[INS_ORA_X_IND] = defineInstruction(ADDRESSING_XINDEXED_INDIRECT, ORA_Instruction);
     instructions[INS_JAM_0] = defineInstruction(ADDRESSING_IMPLIED, JAM_Illegal_Instruction);
     instructions[INS_SLO_X_IND] = defineInstruction(ADDRESSING_XINDEXED_INDIRECT, SLO_Illegal_Instruction);
-
     instructions[INS_NOP_ZP] = defineInstruction(ADDRESSING_ZEROPAGE, NOP_Illegal_Instruction);
     instructions[INS_ORA_ZP] = defineInstruction(ADDRESSING_ZEROPAGE, ORA_Instruction);
     instructions[INS_ASL_ZP] = defineInstruction(ADDRESSING_ZEROPAGE, ASL_Instruction);
