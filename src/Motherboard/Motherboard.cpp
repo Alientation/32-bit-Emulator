@@ -6,11 +6,11 @@
 #include <assert.h>
 
 
-void Motherboard::initialize() {
+void Motherboard::reset() {
 
-    // initialize the memory
-    ram.initialize();
-    rom.initialize();
+    // reset the memory
+    ram.reset();
+    rom.reset();
 
     // todo SSD and HDD
 }

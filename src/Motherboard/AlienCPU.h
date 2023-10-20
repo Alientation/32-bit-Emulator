@@ -132,9 +132,11 @@ class AlienCPU {
         // Number of cycles till the next Interrupt should be processed
         Word nextInterruptCheck;
 
-        // cycle counter
+        // cpu state variables for debugging
         u64 cycles;
         u64 instructionsExecuted;
+
+        bool isRunning;
 
 
         // ======================PROGRAM=COUNTER=REGISTER=======================
@@ -225,10 +227,19 @@ class AlienCPU {
         
     public:
         AlienCPU();
-        void start(u64 maxCycles = 0);
-        void reset();
+
+        void start();
+        void startCycles(u64 maxCycles);
+        void startInstructions(u64 instructions);
+        void reset(bool resetMotherboard = false);
+        void stop();
+
+        std::stringstream cpustate();
+        std::stringstream memdump();
     
-    private: 
+    private:
+        void processReset();
+
         void initInstructions();
 
         void clearFlag(Byte bit);
@@ -252,11 +263,8 @@ class AlienCPU {
         void writeTwoBytes(Word highEndianAddress, u16 highEndianValue);
         void writeTwoBytesAbsolute(Word highEndianAddress, u16 lowEndianValue);
         void writeWord(Word highEndianAddress, Word highEndianValue);
-        void writeWordAbsolute(Word highEndianAddress, Word lowEndianValue);
 
         Word SPToAddress();
-        void pushPCToStack();
-        void popPCFromStack();
         void pushWordToStack(Word value);
         Word popWordFromStack();
         void pushTwoBytesToStack(u16 value);

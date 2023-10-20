@@ -33,7 +33,7 @@ class RAM {
         Byte data[MEMORY_SIZE];
     
     public:
-        void initialize();
+        void reset();
         void writeByte(Word address, Byte byte);
         Byte readByte(Word address);
 

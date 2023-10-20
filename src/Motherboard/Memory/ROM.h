@@ -16,7 +16,7 @@ class ROM {
         Byte data[MEMORY_SIZE];
     
     public:
-        void initialize();
+        void reset();
         Byte readByte(Word address);
 
         // overload subscript operator to read and write to rom

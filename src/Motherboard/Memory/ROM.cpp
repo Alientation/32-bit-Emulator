@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-void ROM::initialize() {
+void ROM::reset() {
 
     // DO NOT RESET ROM MEMORY
     // SHOULD SAVE ROM MEMORY TO FILE

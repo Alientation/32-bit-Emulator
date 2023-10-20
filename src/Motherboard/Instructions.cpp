@@ -1103,7 +1103,7 @@ void AlienCPU::JMP_Instruction(Word address) {
 //  +3      push mid low byte of PC to stack
 //  +4      push low byte of PC to stack
 void AlienCPU::JSR_Instruction(Word address) {
-    pushPCToStack();
+    pushWordToStack(PC);
     PC = address;
 }
 
@@ -1124,7 +1124,7 @@ void AlienCPU::JSR_Instruction(Word address) {
 //  +3      pull mid high byte of PC from stack
 //  +4      pull high byte of PC from stack
 void AlienCPU::RTS_Instruction(Word address) {
-    popPCFromStack();
+    PC = popWordFromStack();
 }
 
 
@@ -1147,7 +1147,7 @@ void AlienCPU::RTS_Instruction(Word address) {
 //  +5      push P to stack
 void AlienCPU::BRK_Instruction(Word address) {
     PC++; // create a spacing for a break mark (identifying the reason for the break)
-    pushPCToStack();
+    pushWordToStack(PC);
     pushByteToStack(P);
     setFlag(I_FLAG, true);
     PC = readWord(0xFFFE);
@@ -1170,7 +1170,7 @@ void AlienCPU::BRK_Instruction(Word address) {
 //  +5      pull high byte of PC from stack
 void AlienCPU::RTI_Instruction(Word address) {
     P = popByteFromStack();
-    popPCFromStack();
+    PC = popWordFromStack();
 }
 
 

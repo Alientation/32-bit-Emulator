@@ -26,7 +26,7 @@ static void LoadInstruction(AlienCPU& cpu, u8 instruction, Word address) {
 
 // Helper to start the cpu for a certain number of cycles and check the state of the cpu
 static void TestInstruction(AlienCPU& cpu, u64 expectedCycles, Word expectedPC) {
-    cpu.start(expectedCycles); 
+    cpu.startCycles(expectedCycles); 
 
     EXPECT_EQ(cpu.PC, expectedPC) << "PC is not at the expected address";
     EXPECT_EQ(cpu.cycles, expectedCycles) << "Number of cycles is not as expected";

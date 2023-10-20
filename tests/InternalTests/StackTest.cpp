@@ -22,28 +22,6 @@ TEST_F(StackTest, StackTest_SPToAddress) {
     ASSERT_EQ(cpu.SPToAddress(), 0x00010000);
 }
 
-TEST_F(StackTest, StackTest_PushPCToStack) {
-    cpu.PC = 0x00012345;
-    cpu.pushPCToStack();
-
-    ASSERT_EQ(cpu.SP, 0x0000FFFB);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x0001FFFC], 0x45);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x0001FFFD], 0x23);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x0001FFFE], 0x01);
-    ASSERT_EQ(cpu.motherboard.ram.data[0x0001FFFF], 0x00);
-}
-
-TEST_F(StackTest, StackTest_PopPCFromStack) {
-    cpu.SP = 0xFFFB;
-    cpu.motherboard.ram.data[0x0001FFFC] = 0x45;
-    cpu.motherboard.ram.data[0x0001FFFD] = 0x23;
-    cpu.motherboard.ram.data[0x0001FFFE] = 0x01;
-    cpu.motherboard.ram.data[0x0001FFFF] = 0x00;
-    cpu.popPCFromStack();
-    ASSERT_EQ(cpu.SP, 0xFFFF);
-    ASSERT_EQ(cpu.PC, 0x00012345);
-}
-
 TEST_F(StackTest, StackTest_PushWordToStack) {
     cpu.pushWordToStack(0x12345678);
     ASSERT_EQ(cpu.SP, 0x0000FFFB);

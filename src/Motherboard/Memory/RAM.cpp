@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-void RAM::initialize() {
+void RAM::reset() {
 
     // reset memory
     for (u32 i = 0; i < MEMORY_SIZE; i++) {
