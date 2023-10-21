@@ -130,6 +130,10 @@ add_executable(AlienCPUPerformanceTests "tests/AlienCPUPerformanceTests.cpp")
 target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1) # link main library to the performance test executable
 target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1PerformanceTests) # link performance test library to the performance test executable
 
+# ASSEMBLER EXECUTABLE
+add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
+target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+
 enable_testing() #to  discover tests in test explorer 
 
 include(GoogleTest)
