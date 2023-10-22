@@ -4,7 +4,7 @@
 main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu);
-    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\t$FFFG");
+    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\tB0101");
 }
 
 
@@ -411,6 +411,12 @@ u64 AlienCPUAssembler::parseValue(const std::string& value) {
 }
 
 
+/**
+ * Check if a string contains only digits
+ * 
+ * @param str string to check
+ * @return true if the string contains only digits
+ */
 bool AlienCPUAssembler::isNumber(const std::string& string) {
     std::string::const_iterator it = string.begin();
     while (it != string.end() && std::isdigit(*it)) {
