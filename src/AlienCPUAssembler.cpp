@@ -2,76 +2,143 @@
 
 
 main() {
-    AlienCPU AlienCPU;
-    assemble(AlienCPU, "\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS");
+    AlienCPU cpu;
+    AlienCPUAssembler assembler(cpu);
+    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS");
 }
 
 
 /**
- * Assembles the given assembly source code into machine code.
+ * Constructs a new AlienCPUAssembler for the given AlienCPU.
+ */
+AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu) : cpu(cpu) {
+    
+}
+
+
+/**
+ * Assembles the given assembly source code into machine code and loads it onto the cpu.
  * 
  * Documentation on the assembly language can be found SOMEWHERE
  * 
- * @param AlienCPU The AlienCPU to assemble the source code for.
  * @param source The assembly source code to assemble into machine code.
  */
-static void assemble(AlienCPU& AlienCPU, std::string source) {
+void AlienCPUAssembler::assemble(std::string source) {
     std::cout << "ASSEMBLING..." << std::endl;
 
     // memory address of the next program instruction to be assembled
-    u64 locationPointer = 0x00000000;
+    locationPointer = 0x00000000;
 
     // split the source code into lines
-    std::vector<std::string> lines = split(source, '\n');
+    lines = split(source, '\n');
+
+    // labels that reference code locations
+    globalCodeLabels.clear(); // can be referenced from anywhere in the program
+    localCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
+
+    globalUnprocessedLabels.clear(); // labels that have not been processed yet
+    localUnprocessedLabels.clear(); // labels that have not been processed yet
+
+    // labels that reference values
+    globalValueLabels.clear(); // can be referenced from anywhere in the program
+    localValueLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
 
     // iterate over each line
-    int lineNumber = 0;
-    for (std::string line : lines) {
-        std::cout << " PARSING LINE " << (lineNumber++) << ": " << line << std::endl;
-
-        // check if line is empty or a comment
-        if (line.empty() || line[0] == ';') {
-            continue;
-        }
-
-        // split the line into tokens delimited by at minimum a tab
-        std::vector<std::string> tokens;
-        for (std::string token : split(line, '\t')) {
-            // remove whitespace from token
-            token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
-
-            // only add token if it is not empty or it is the first token
-            // this will help to allign tokens so that the first token is always the label
-            if (!token.empty() || tokens.empty()) {
-                tokens.push_back(token);
-            }
-        }
-        
-        std::cout << "   TOKENS: " << std::endl;
-        for (std::string token : tokens) {
-            std::cout << "\t|" << token << " " << std::endl;
-        }
-
-        // there shouldn't be no valid tokens when the line is not empty
-        if (tokens.empty()) {
-            throw std::runtime_error("Invalid tokens: " + tostring(tokens) + " -> " + line);
-        }
-        
-        // tokens should now be alligned so that the first token is the label
-        std::string label = tokens[0];
-
-        if (tokens.size() == 1) {
-
-        }
-        
-
-
-        std::cout << std::endl;
+    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
+        assembleLine(lines[currentLine]);
     }
 
-
-    std::cout << "SUCCESSFULLY ASSEMBLED! " << std::endl;
+    std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
 }
+
+
+/**
+ * Assembles the given line.
+ * 
+ * @param line The line to assemble.
+ */
+void AlienCPUAssembler::assembleLine(std::string& line) {
+    std::cout << std::endl << " PARSING LINE " << currentLine << ": " << line << std::endl;
+
+    // check if line is empty or a comment
+    if (line.empty() || line[0] == ';') {
+        std::cout << "   >> NO CODE LINE" << std::endl;
+        return;
+    }
+
+    currentLineTokens.clear();
+
+    // split the line into tokens delimited by at minimum a tab
+    for (std::string token : split(line, '\t')) {
+        // remove whitespace from token
+        token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
+
+        // only add token if it is not empty or it is the first token
+        // this will help to allign tokens so that the first token is always the label
+        if (!token.empty() || currentLineTokens.empty()) {
+            currentLineTokens.push_back(token);
+        }
+    }
+    
+    std::cout << "   >> TOKENS: " << std::endl;
+    for (int tokenI = 0; tokenI < currentLineTokens.size(); tokenI++) {
+        std::cout << "\t" <<tokenI << ": " << currentLineTokens[tokenI] << " " << std::endl;
+    }
+
+    // there shouldn't be no valid tokens when the line is not empty
+    if (currentLineTokens.empty()) {
+        throw std::runtime_error("Invalid empty tokens: " + tostring(currentLineTokens) + " -> " + line);
+    }
+    
+    // tokens should now be alligned so that the first token is the label if it exists
+    assembleLabel(currentLineTokens[0]);
+
+    // only label on the current line
+    if (currentLineTokens.size() == 1) {
+        std::cout << "   >> ONLY LABEL LINE" << std::endl;
+        return;
+    }
+    
+    std::cout << "   >> PARSED LINE " << currentLine << std::endl;
+}
+
+
+/**
+ * Assembles the given label.
+ * 
+ * @param label The label to assemble.
+ */
+void AlienCPUAssembler::assembleLabel(std::string& label) {
+    if (currentLineTokens.size() == 1 || !label.empty()) {
+        if (label.empty()) {
+            throw std::runtime_error("Invalid label: " + label + " -> " + lines[currentLine]);
+        }
+
+        // check if label is a value label
+        if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
+            if (currentLineTokens.size() == 3) {
+
+            } else {
+                throw std::runtime_error("Invalid value label: " + label + " -> " + lines[currentLine]);
+            }
+        }
+
+        // check if label is a local label
+        if (label[0] == '.') {
+            
+
+
+
+        } else {
+
+
+
+            
+        }
+    }
+}
+
+
 
 
 /**

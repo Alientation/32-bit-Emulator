@@ -7,7 +7,39 @@
 #include <../src/Motherboard/AlienCPU.h>
 
 
-static void assemble(AlienCPU& AlienCPU, std::string source);
+class AlienCPUAssembler;
+
+
+class AlienCPUAssembler {
+    private:
+        AlienCPU& cpu;
+        std::string sourceCode;
+
+        Word locationPointer;
+        std::vector<std::string> lines;
+
+
+        int currentLine;
+        std::vector<std::string> currentLineTokens;
+
+        
+        std::map<std::string, Word> globalCodeLabels;
+        std::map<std::string, Word> localCodeLabels;
+        std::vector<std::string> globalUnprocessedLabels;
+        std::vector<std::string> localUnprocessedLabels;
+
+        std::map<std::string, Word> globalValueLabels;
+        std::map<std::string, Word> localValueLabels;
+
+
+    public:
+        AlienCPUAssembler(AlienCPU& cpu);
+        void assemble(std::string sourceCode);
+
+        void assembleLine(std::string& line);
+        void assembleLabel(std::string& label);
+
+};
 
 static std::vector<std::string> split(std::string source, char delimiter);
 static std::string tostring(std::vector<std::string>& strings);
