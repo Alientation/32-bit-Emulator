@@ -1208,52 +1208,51 @@ void AlienCPU::NOP_Illegal_Instruction(Word address) {
 
 // ========================ILLEGAL========================
 void AlienCPU::ALR_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::ANC_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::ANC2_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::ANE_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::ARR_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::DCP_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::ISC_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::LAS_Illegal_Instruction(Word address) {
-
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 void AlienCPU::LAX_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::LXA_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
@@ -1261,60 +1260,60 @@ void AlienCPU::LXA_Illegal_Instruction(Word address) {
 // Freezes the CPU indefinitely in T1 phase with $FFFF on the data bus, requires reset
 // https://www.nesdev.org/wiki/Visual6502wiki/6502_Timing_States (for T- phases)
 void AlienCPU::JAM_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::RLA_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::RRA_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SAX_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SBX_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SHA_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SHX_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SHY_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SLO_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::SRE_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::TAS_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
 
 
 void AlienCPU::USBC_Illegal_Instruction(Word address) {
-
+    std::cout << std::endl << "UNIMPLEMENTED INSTRUCTION" << std::endl;
 }
