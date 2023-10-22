@@ -9,8 +9,63 @@
 
 class AlienCPUAssembler;
 
-
 class AlienCPUAssembler {
+    public:
+        struct Label {
+            std::string labelName;
+        };
+        
+        struct LocalLabel : Label {
+            std::string parentGlobalLabel;
+
+            LocalLabel(std::string labelName, std::string parentGlobalLabel) 
+                    : Label{labelName}, parentGlobalLabel(parentGlobalLabel) {}
+        };
+
+        struct GlobalLabel : Label {
+            GlobalLabel(std::string labelName) : Label{labelName} {}
+        };
+
+        struct ProcessedLabel {
+            Label label;
+            Word value;
+            
+            ProcessedLabel(Label label, Word value) 
+                    : label(label), value(value) {}
+        };
+
+
+        /**
+         * Value labels expressions that have not be processed yet.
+         */
+        struct LabelExpressionPair {
+            std::string label;
+            std::string expression;
+
+            LabelExpressionPair(std::string label, std::string expression) 
+                    : label(label), expression(expression) {}
+        };
+
+
+        AlienCPUAssembler(AlienCPU& cpu);
+        void assemble(std::string sourceCode);
+
+        void assembleLineFirstPass(std::string& line);
+        bool parseAssemblerDirective();
+        void assembleLabelFirstPass(std::string& label);
+        void assemblePseduoInstruction(std::string& pseduoInstruction);
+        void assembleInstructionFirstPass(std::string& instruction);
+        AddressingMode convertOperandToAddressingMode(std::string& operand);
+
+        void assembleLineSecondPass(std::string& line);
+        void assembleInstructionSecondPass(std::string& instruction);
+
+        void assembleExpression(LabelExpressionPair& expression);
+
+        u64 parseValue(const std::string& value);
+        bool isNumber(const std::string& string);
+
+
     private:
         /**
          * The AlienCPU to assemble the source code for and write the machine code to.
@@ -45,7 +100,13 @@ class AlienCPUAssembler {
          */
         std::vector<std::string> currentLineTokens;
 
-        
+        /**
+         * The most recently processed global label.
+         * 
+         * This is used to determine the scope of local labels.
+         */
+        std::string previousGlobalLabel;
+
         /**
          * Labels that reference code locations.
          * 
@@ -53,8 +114,10 @@ class AlienCPUAssembler {
          * Local labels can only be referenced locally in a subroutine, must be defined after 
          * a global label. The scope of the local label lasts until the next defined global label.
          */
-        std::map<std::string, Word> globalCodeLabels;
-        std::map<std::string, Word> localCodeLabels;
+        std::map<std::string, ProcessedLabel> globalCodeLabels;
+
+        // there can be multiple local labels with the same name, but they must be defined in different scopes
+        std::map<std::string, std::vector<ProcessedLabel>> localCodeLabels;
         
         /**
          * Labels that have not yet been paired with a specific code location in memory.
@@ -62,8 +125,8 @@ class AlienCPUAssembler {
          * These labels are defined to point to a code location that has not yet been assembled.
          * After the first pass of the assembler, these should be empty.
          */
-        std::vector<std::string> globalUnprocessedCodeLabels;
-        std::vector<std::string> localUnprocessedCodeLabels;
+        std::vector<GlobalLabel> globalUnprocessedCodeLabels;
+        std::vector<LocalLabel> localUnprocessedCodeLabels;
 
 
         /**
@@ -79,42 +142,114 @@ class AlienCPUAssembler {
         std::map<std::string, Word> globalValueLabels;
         std::map<std::string, Word> localValueLabels;
 
-        /**
-         * Value labels expressions that have not be processed yet.
-         */
-        struct LabelExpressionPair {
-            std::string label;
-            std::string expression;
-
-            LabelExpressionPair(std::string label, std::string expression) 
-                    : label(label), expression(expression) {}
-        };
         std::vector<LabelExpressionPair> globalUnprocessedValueLabels;
         std::vector<LabelExpressionPair> localUnprocessedValueLabels;
 
 
-    public:
-        AlienCPUAssembler(AlienCPU& cpu);
-        void assemble(std::string sourceCode);
-
-        void assembleLineFirstPass(std::string& line);
-        void assembleLabelFirstPass(std::string& label);
-        void assemblePseduoInstruction(std::string& pseduoInstruction);
-        void assembleInstructionFirstPass(std::string& instruction);
-        AddressingMode convertOperandToAddressingMode(std::string& operand);
-
-        void assembleLineSecondPass(std::string& line);
-        void assembleInstructionSecondPass(std::string& instruction);
-
-        void assembleExpression(LabelExpressionPair& expression);
+        /**
+         * Maps global labels to their local children labels.
+         */
+        std::map<std::string, std::vector<std::string>> globalLabelToLocalChildrenLabelsMapping;
 
 };
 
-static std::vector<std::string> split(std::string source, char delimiter);
-static std::string tostring(std::vector<std::string>& strings);
 
-static bool validProcessorInstructionAddressingMode(std::string& instruction, AddressingMode addressingMode);
-static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode addressingMode);
+/**
+ * Splits a string into a vector of strings based on the given delimiter.
+ * 
+ * @param source The string to split.
+ * @param delimiter The delimiter to split the string on.
+ * @return A vector of strings split from the given string based on the given delimiter.
+ */
+static std::vector<std::string> split(std::string source, char delimiter) {
+    std::vector<std::string> lines;
+    std::string line;
+    std::stringstream ss(source);
+
+    while (std::getline(ss, line, delimiter)) {
+        lines.push_back(line);
+    }
+
+    return lines;
+}
+
+
+/**
+ * Converts a vector of strings into a single string.
+ * 
+ * Formats the string in the following way:
+ * [string1, string2, string3, ...]
+ * 
+ * @param strings The vector of strings to convert.
+ * @return A single string containing all of the strings in the given vector.
+ */
+static std::string tostring(std::vector<std::string>& strings) {
+    std::string result = "[";
+
+    for (std::string string : strings) {
+        result += string + ", ";
+    }
+
+    // remove the last comma and space from string
+    result.pop_back();
+    result.pop_back();
+
+    result += "]";
+
+    return result;
+}
+
+
+/**
+ * Converts a vector of GlobalLabels into a single string.
+ * 
+ * Formats the string in the following way:
+ * [label1, label2, label3, ...]
+ * 
+ * @param labels The vector of GlobalLabels to convert.
+ * @return A single string containing all of the GlobalLabels in the given vector.
+ */
+static std::string tostring(std::vector<AlienCPUAssembler::GlobalLabel>& labels) {
+    std::string result = "[";
+
+    for (AlienCPUAssembler::GlobalLabel label : labels) {
+        result += label.labelName + ", ";
+    }
+
+    // remove the last comma and space from string
+    result.pop_back();
+    result.pop_back();
+
+    result += "]";
+
+    return result;
+}
+
+
+/**
+ * Converts a vector of LocalLabels into a single string.
+ * 
+ * Formats the string in the following way:
+ * [label1 (parent1), label2 (parent2), label3 (parent3), ...]
+ * 
+ * @param labels The vector of LocalLabels to convert.
+ * @return A single string containing all of the LocalLabels in the given vector.
+ */
+static std::string tostring(std::vector<AlienCPUAssembler::LocalLabel>& labels) {
+    std::string result = "[";
+
+    for (AlienCPUAssembler::LocalLabel label : labels) {
+        result += label.labelName + " (" + label.parentGlobalLabel + ")" + ", ";
+    }
+
+    // remove the last comma and space from string
+    result.pop_back();
+    result.pop_back();
+
+    result += "]";
+
+    return result;
+}
 
 
 /**
@@ -438,5 +573,33 @@ std::map<std::string, std::map<AddressingMode, u8>> instructionMap = {
         }
     }
 };
+
+/**
+ * Determines if the given processor instruction is valid for the given addressing mode.
+ * 
+ * @param instruction The processor instruction to check.
+ * @param addressingMode The addressing mode to check.
+ * @return True if the processor instruction is valid for the given addressing mode, false otherwise.
+ */
+static bool validProcessorInstructionAddressingMode(std::string& instruction, AddressingMode addressingMode) {
+    if (instructionMap.count(instruction) == 0) {
+        return false;
+    }
+    
+    return instructionMap.at(instruction).count(addressingMode) > 0;
+}
+
+
+/**
+ * Gets the opcode for the given processor instruction and addressing mode.
+ * 
+ * @param instruction The processor instruction to get the opcode for.
+ * @param addressingMode The addressing mode to get the opcode for.
+ * 
+ * @return The opcode for the given processor instruction and addressing mode.
+ */
+static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode addressingMode) {
+    return instructionMap.at(instruction).at(addressingMode);
+}
 
 #endif // ALIENCPUASSEMBLER_H

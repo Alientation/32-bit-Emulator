@@ -4,7 +4,7 @@
 main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu);
-    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS");
+    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\t$FFFF");
 }
 
 
@@ -26,11 +26,19 @@ AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu) : cpu(cpu) {
 void AlienCPUAssembler::assemble(std::string source) {
     std::cout << "ASSEMBLING..." << std::endl;
 
+    // reset assembler state to be ready for a new assembly
+    // the source code to assemble
+    sourceCode = source;
+
     // memory address of the next program instruction to be assembled
     locationPointer = 0x00000000;
 
     // split the source code into lines
     lines = split(source, '\n');
+    currentLine = 0;
+    currentLineTokens.clear();
+    previousGlobalLabel = "";
+
 
     // labels that reference code locations
     globalCodeLabels.clear(); // can be referenced from anywhere in the program
@@ -48,21 +56,39 @@ void AlienCPUAssembler::assemble(std::string source) {
     globalUnprocessedValueLabels.clear();
     localUnprocessedValueLabels.clear();
 
+    // mapping of global labels to their local labels
+    globalLabelToLocalChildrenLabelsMapping.clear();
+
 
     // iterate over each line
-    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
+    for (; currentLine < lines.size(); currentLine++) {
+        std::cout << std::endl << " PARSING LINE " << currentLine << ": " << lines[currentLine] << std::endl;
         assembleLineFirstPass(lines[currentLine]);
+        std::cout << "   >> PARSED LINE " << currentLine << std::endl;
+
     }
 
     // if there are any remaining unprocessed code labels, throw an error
     // those labels have been defined to point to non-existant code locations
     if (!globalUnprocessedCodeLabels.empty() || !localUnprocessedCodeLabels.empty()) {
-        throw std::runtime_error("Unprocessed code labels: GLOBAL=" + tostring(globalUnprocessedCodeLabels) + " LOCAL=" + tostring(localUnprocessedCodeLabels));
+        throw std::runtime_error("Unprocessed code labels: GLOBAL=" + tostring(globalUnprocessedCodeLabels) + 
+                " LOCAL=" + tostring(localUnprocessedCodeLabels));
     }
 
     // process unprocessed value labels sequentially from global to local in order of appearance
     for (LabelExpressionPair labelExpressionPair : globalUnprocessedValueLabels) {
         assembleExpression(labelExpressionPair);
+    }
+
+    for (LabelExpressionPair labelExpressionPair : localUnprocessedValueLabels) {
+        assembleExpression(labelExpressionPair);
+    }
+
+
+    // iterate over each line for the second pass and fill in values for labels
+    locationPointer = 0x00000000;
+    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
+        assembleLineSecondPass(lines[currentLine]);
     }
 
     std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
@@ -75,8 +101,6 @@ void AlienCPUAssembler::assemble(std::string source) {
  * @param line The line to assemble.
  */
 void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
-    std::cout << std::endl << " PARSING LINE " << currentLine << ": " << line << std::endl;
-
     // check if line is empty or a comment
     if (line.empty() || line[0] == ';') {
         std::cout << "   >> NO CODE LINE" << std::endl;
@@ -102,9 +126,16 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
         std::cout << "\t" <<tokenI << ": " << currentLineTokens[tokenI] << " " << std::endl;
     }
 
-    // there shouldn't be no valid tokens when the line is not empty
+    // there should be code tokens when the line is not empty
     if (currentLineTokens.empty()) {
         throw std::runtime_error("Invalid empty tokens: " + tostring(currentLineTokens) + " -> " + line);
+    }
+
+
+    // process assembler directives, could potentially be local labels, but we don't know for sure
+    if (currentLineTokens[0][0] == '.' && parseAssemblerDirective()) {
+        std::cout << "   >> PARSED ASSEMBLER DIRECTIVE: " << currentLineTokens[0] << std::endl;
+        return;
     }
     
     // tokens should now be alligned so that the first token is the label if it exists
@@ -115,9 +146,59 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
         std::cout << "   >> ONLY LABEL LINE" << std::endl;
         return;
     }
+
+
+    // parse instruction
+
+
     
-    std::cout << "   >> PARSED LINE " << currentLine << std::endl;
+    
 }
+
+
+/**
+ * Checks whether the current tokenized line is an assembler directive. Parses the directive if
+ * it is a valid assembler directive and returns true. Otherwise returns false.
+ * 
+ * @return whether the current tokenized line is an assembler directive
+ */
+bool AlienCPUAssembler::parseAssemblerDirective() {
+    // ORG
+    if (currentLineTokens[0] == ".org") {
+        std::cout << "   >> ORG Statement" << std::endl;
+        
+        if (currentLineTokens.size() == 1) {
+            throw std::runtime_error("ORG Directive must be supplied a value: " + lines[currentLine]);
+        }
+
+        u64 parsedValue = parseValue(currentLineTokens[1]);
+        if (parsedValue > 0xFFFFFFFF) {
+            throw std::runtime_error("Invalid ORG value: " + currentLineTokens[1] + 
+                    "\nProgram address origin must be within 0xFFFFFFFF");
+        }
+
+        std::cout << "   >> MOVING LOCATION POINTER TO " << stringifyHex((Word) parsedValue) << std::endl;
+        locationPointer = (Word) parsedValue;
+
+        if (currentLineTokens.size() > 2) {
+            throw std::runtime_error("Unrecognized token: " + currentLineTokens[2] +
+                    "\nExpected new line. ");
+        }
+        return true;
+    }
+
+    // DEFINING DATA 
+
+
+
+
+
+
+
+
+    return false;
+}
+
 
 
 /**
@@ -126,40 +207,42 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
  * @param label The label to assemble.
  */
 void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
-    if (currentLineTokens.size() == 1 || !label.empty()) {
-        if (label.empty()) {
-            throw std::runtime_error("Invalid label: " + label + " -> " + lines[currentLine]);
-        }
-
-        // check if label is a local label
-        bool isLocalLabel = label[0] == '.';
-
-        // check if label is a value label
-        // if so, store it for later processing
-        if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
-            if (currentLineTokens.size() == 3) {
-                if (isLocalLabel) {
-                    localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
-                } else {
-                    globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
-                }
-            } else {
-                throw std::runtime_error("Invalid value label: " + label + " -> " + lines[currentLine]);
-            }
-            std::cout << "   >> VALUE LABEL LINE" << std::endl;
-            return;
-        }
-
-        if (isLocalLabel) {
-
-        } else {
-
-        }
-
-        std::cout << "   >> CODE LABEL LINE" << std::endl;
-    } else {
+    if (currentLineTokens.size() != 1 && label.empty()) {
         std::cout << "   >> NO LABEL LINE" << std::endl;
+        return;
     }
+
+    if (label.empty()) {
+        throw std::runtime_error("Invalid label: " + label + " -> " + lines[currentLine]);
+    }
+
+    // check if label is a local label
+    bool isLocalLabel = label[0] == '.';
+
+    // check if label is a value label
+    // if so, store it for later processing
+    if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
+        if (currentLineTokens.size() == 3) {
+            if (isLocalLabel) {
+                localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+            } else {
+                globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+            }
+        } else {
+            throw std::runtime_error("Invalid value label: " + label + " -> " + lines[currentLine]);
+        }
+        std::cout << "   >> VALUE LABEL LINE" << std::endl;
+        return;
+    }
+
+    // label is a code label
+    if (isLocalLabel) {
+
+    } else {
+        previousGlobalLabel = label;
+    }
+
+    std::cout << "   >> CODE LABEL LINE" << std::endl;
 }
 
 
@@ -190,7 +273,7 @@ void AlienCPUAssembler::assembleInstructionFirstPass(std::string& instruction) {
  * @return The addressing mode of the given operand.
  */
 AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& operand) {
-
+    return IMMEDIATE;
 }
 
 
@@ -226,75 +309,106 @@ void AlienCPUAssembler::assembleExpression(LabelExpressionPair& labelExpressionP
 
 
 /**
- * Splits a string into a vector of strings based on the given delimiter.
+ * Converts a string value into a number
  * 
- * @param source The string to split.
- * @param delimiter The delimiter to split the string on.
- * @return A vector of strings split from the given string based on the given delimiter.
+ * To signify a base value, the number must be preceded by a special character representing the base
+ * Binary: 'B' or '%'
+ * Octal: '@' or 'Q' or 'C' or 'O
+ * Decimal: 'D' (default, no need to preceed with a special character)
+ * Hexadecimal: 'H' or '$'
+ * 
+ * @param value string to convert to number
+ * @return numeric representation of the string
  */
-static std::vector<std::string> split(std::string source, char delimiter) {
-    std::vector<std::string> lines;
-    std::string line;
-    std::stringstream ss(source);
-
-    while (std::getline(ss, line, delimiter)) {
-        lines.push_back(line);
+u64 AlienCPUAssembler::parseValue(const std::string& value) {
+    if (value.empty()) {
+        throw std::runtime_error("Invalid value to parse: " + value);
     }
 
-    return lines;
-}
+    std::string numericValue = value.substr(1);
 
+    // hexadecimal
+    if (value[0] == 'H' || value[0] == '$') {
+        std::string::const_iterator it = numericValue.begin();
+        // check it contains only 0-9 or A-F characters
+        u64 number = 0;
+        while (it != numericValue.end() && (std::isdigit(*it) || 
+                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
+            number *= 16;
+            if (std::isdigit(*it)) {
+                number += (*it) - '0';
+            } else {
+                number += 10 + (std::toupper(*it) - 'A');
+            }
+            
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != numericValue.end()) {
+            throw std::runtime_error("Invalid hexadecimal digit \'" + std::to_string(*it) + "\': " + numericValue);
+        }
 
-/**
- * Converts a vector of strings into a single string.
- * 
- * Formats the string in the following way:
- * [string1, string2, string3, ...]
- * 
- * @param strings The vector of strings to convert.
- * @return A single string containing all of the strings in the given vector.
- */
-static std::string tostring(std::vector<std::string>& strings) {
-    std::string result = "[";
-
-    for (std::string string : strings) {
-        result += string + ", ";
+        // proper hexadecimal value
+        return number;
     }
 
-    // remove the last comma and space from string
-    result.pop_back();
-    result.pop_back();
-
-    result += "]";
-
-    return result;
-}
-
-
-/**
- * Determines if the given processor instruction is valid for the given addressing mode.
- * 
- * @param instruction The processor instruction to check.
- * @param addressingMode The addressing mode to check.
- * @return True if the processor instruction is valid for the given addressing mode, false otherwise.
- */
-static bool validProcessorInstructionAddressingMode(std::string& instruction, AddressingMode addressingMode) {
-    if (instructionMap.count(instruction) == 0) {
-        return false;
-    }
     
-    return instructionMap.at(instruction).count(addressingMode) > 0;
+    // must be an expression of some sort
+    if (!isNumber(numericValue)) {
+        throw std::runtime_error("Invalid value to parse (Unsupported Non-numeric Value): " + numericValue);
+    }
+
+    // must be a number of some base
+    u64 number = 0;
+    std::string::const_iterator it = numericValue.begin();
+    switch(value[0]) {
+        case 'B':
+        case '%':
+            // base 2
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
+                number *= 2;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                throw std::runtime_error("Invalid binary digit \'" + std::to_string(*it) + "\': " + numericValue);
+            }
+
+            break;
+        case '@':
+        case 'Q':
+        case 'C':
+        case 'O':
+            // base 8
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
+                number *= 8;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                throw std::runtime_error("Invalid octal digit \'" + std::to_string(*it) + "\': " + numericValue);
+            }
+
+            break;
+        case 'D':
+        default:
+            number = std::stoi(value);
+            break;
+    }
+
+    return number;
 }
 
 
-/**
- * Gets the opcode for the given processor instruction and addressing mode.
- * 
- * @param instruction The processor instruction to get the opcode for.
- * @param addressingMode The addressing mode to get the opcode for.
- * 
- * @return The opcode for the given processor instruction and addressing mode.
- */
-static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode addressingMode) {
-    return instructionMap.at(instruction).at(addressingMode);
+bool AlienCPUAssembler::isNumber(const std::string& string) {
+    std::string::const_iterator it = string.begin();
+    while (it != string.end() && std::isdigit(*it)) {
+        ++it;
+    }
+    return !string.empty() && it == string.end();
 }
