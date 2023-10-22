@@ -38,6 +38,8 @@ file (GLOB ALIENCPU_HEADERS
     "src/Device/GPU.h"
     "src/Device/PSU.h"
     "src/Types.h"
+
+    "src/AlienCPUAssembler.h"
 )
 
 file (GLOB ALIENCPUTEST_SOURCES 
