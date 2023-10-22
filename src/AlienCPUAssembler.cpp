@@ -4,7 +4,7 @@
 main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu);
-    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\t$FFFF");
+    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\t$FFFG");
 }
 
 
@@ -346,7 +346,9 @@ u64 AlienCPUAssembler::parseValue(const std::string& value) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            throw std::runtime_error("Invalid hexadecimal digit \'" + std::to_string(*it) + "\': " + numericValue);
+            std::stringstream ss;
+            ss << "Invalid hexadecimal digit \'" << *it << "\': " << numericValue;
+            throw std::runtime_error(ss.str());
         }
 
         // proper hexadecimal value
@@ -374,7 +376,9 @@ u64 AlienCPUAssembler::parseValue(const std::string& value) {
             
             // contains other characters
             if (it != numericValue.end()) {
-                throw std::runtime_error("Invalid binary digit \'" + std::to_string(*it) + "\': " + numericValue);
+                std::stringstream ss;
+                ss << "Invalid binary digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
             }
 
             break;
@@ -391,7 +395,9 @@ u64 AlienCPUAssembler::parseValue(const std::string& value) {
             
             // contains other characters
             if (it != numericValue.end()) {
-                throw std::runtime_error("Invalid octal digit \'" + std::to_string(*it) + "\': " + numericValue);
+                std::stringstream ss;
+                ss << "Invalid octal digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
             }
 
             break;
