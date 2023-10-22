@@ -36,16 +36,33 @@ void AlienCPUAssembler::assemble(std::string source) {
     globalCodeLabels.clear(); // can be referenced from anywhere in the program
     localCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
 
-    globalUnprocessedLabels.clear(); // labels that have not been processed yet
-    localUnprocessedLabels.clear(); // labels that have not been processed yet
+    // code labels that have not been processed into memory addresses yet
+    globalUnprocessedCodeLabels.clear();
+    localUnprocessedCodeLabels.clear();
 
-    // labels that reference values
-    globalValueLabels.clear(); // can be referenced from anywhere in the program
-    localValueLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
+    // processed value labels (labels that reference values)
+    globalValueLabels.clear();
+    localValueLabels.clear();
+
+    // value labels expressions that have not be processed yet
+    globalUnprocessedValueLabels.clear();
+    localUnprocessedValueLabels.clear();
+
 
     // iterate over each line
     for (currentLine = 0; currentLine < lines.size(); currentLine++) {
-        assembleLine(lines[currentLine]);
+        assembleLineFirstPass(lines[currentLine]);
+    }
+
+    // if there are any remaining unprocessed code labels, throw an error
+    // those labels have been defined to point to non-existant code locations
+    if (!globalUnprocessedCodeLabels.empty() || !localUnprocessedCodeLabels.empty()) {
+        throw std::runtime_error("Unprocessed code labels: GLOBAL=" + tostring(globalUnprocessedCodeLabels) + " LOCAL=" + tostring(localUnprocessedCodeLabels));
+    }
+
+    // process unprocessed value labels sequentially from global to local in order of appearance
+    for (LabelExpressionPair labelExpressionPair : globalUnprocessedValueLabels) {
+        assembleExpression(labelExpressionPair);
     }
 
     std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
@@ -57,7 +74,7 @@ void AlienCPUAssembler::assemble(std::string source) {
  * 
  * @param line The line to assemble.
  */
-void AlienCPUAssembler::assembleLine(std::string& line) {
+void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
     std::cout << std::endl << " PARSING LINE " << currentLine << ": " << line << std::endl;
 
     // check if line is empty or a comment
@@ -73,9 +90,9 @@ void AlienCPUAssembler::assembleLine(std::string& line) {
         // remove whitespace from token
         token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
 
-        // only add token if it is not empty or it is the first token
+        // only add token if it is not empty and not a comment or it is the first token
         // this will help to allign tokens so that the first token is always the label
-        if (!token.empty() || currentLineTokens.empty()) {
+        if (!token.empty() || currentLineTokens.empty() && token[0] != ';') {
             currentLineTokens.push_back(token);
         }
     }
@@ -91,7 +108,7 @@ void AlienCPUAssembler::assembleLine(std::string& line) {
     }
     
     // tokens should now be alligned so that the first token is the label if it exists
-    assembleLabel(currentLineTokens[0]);
+    assembleLabelFirstPass(currentLineTokens[0]);
 
     // only label on the current line
     if (currentLineTokens.size() == 1) {
@@ -108,37 +125,104 @@ void AlienCPUAssembler::assembleLine(std::string& line) {
  * 
  * @param label The label to assemble.
  */
-void AlienCPUAssembler::assembleLabel(std::string& label) {
+void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
     if (currentLineTokens.size() == 1 || !label.empty()) {
         if (label.empty()) {
             throw std::runtime_error("Invalid label: " + label + " -> " + lines[currentLine]);
         }
 
+        // check if label is a local label
+        bool isLocalLabel = label[0] == '.';
+
         // check if label is a value label
+        // if so, store it for later processing
         if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
             if (currentLineTokens.size() == 3) {
-
+                if (isLocalLabel) {
+                    localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+                } else {
+                    globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+                }
             } else {
                 throw std::runtime_error("Invalid value label: " + label + " -> " + lines[currentLine]);
             }
+            std::cout << "   >> VALUE LABEL LINE" << std::endl;
+            return;
         }
 
-        // check if label is a local label
-        if (label[0] == '.') {
-            
-
-
+        if (isLocalLabel) {
 
         } else {
 
-
-
-            
         }
+
+        std::cout << "   >> CODE LABEL LINE" << std::endl;
+    } else {
+        std::cout << "   >> NO LABEL LINE" << std::endl;
     }
 }
 
 
+/**
+ * Assembles the given pseduo instruction.
+ * 
+ * @param pseduoInstruction The pseduo instruction to assemble.
+ */
+void AlienCPUAssembler::assemblePseduoInstruction(std::string& pseduoInstruction) {
+
+}
+
+
+/**
+ * Assembles the given instruction.
+ * 
+ * @param instruction The instruction to assemble.
+ */
+void AlienCPUAssembler::assembleInstructionFirstPass(std::string& instruction) {
+
+}
+
+
+/**
+ * Converts the given operand to an addressing mode.
+ * 
+ * @param operand The operand to convert.
+ * @return The addressing mode of the given operand.
+ */
+AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& operand) {
+
+}
+
+
+/**
+ * Assembles the given line into machine code.
+ * 
+ * @param line The line to assemble.
+ */
+void AlienCPUAssembler::assembleLineSecondPass(std::string& line) {
+
+}
+
+
+/**
+ * Assembles the given instruction into machine code.
+ * 
+ * @param instruction The instruction to assemble.
+ */
+void AlienCPUAssembler::assembleInstructionSecondPass(std::string& instruction) {
+
+}
+
+
+
+void AlienCPUAssembler::assembleExpression(LabelExpressionPair& labelExpressionPair) {
+    std::cout << "   >> ASSEMBLING EXPRESSION: " << labelExpressionPair.expression << " (" << labelExpressionPair.label << ")" << std::endl;
+
+    Word value;
+
+
+    std::cout << "   >> ASSEMBLED EXPRESSION: " << labelExpressionPair.expression << " (" << labelExpressionPair.label << ")" << " = " << value << std::endl;
+}
 
 
 /**

@@ -12,32 +12,101 @@ class AlienCPUAssembler;
 
 class AlienCPUAssembler {
     private:
+        /**
+         * The AlienCPU to assemble the source code for and write the machine code to.
+         */
         AlienCPU& cpu;
+
+        /**
+         * The source code currently or most recently being assembled.
+         */
         std::string sourceCode;
 
+        /**
+         * The memory address of the next program instruction to be assembled.
+         */
         Word locationPointer;
+
+        /**
+         * The source code split into lines.
+         */
         std::vector<std::string> lines;
 
 
+        /**
+         * Index of the current line being processed in the source code.
+         */
         int currentLine;
+
+        /**
+         * The tokens of the current line being processed.
+         * 
+         * These tokens only include labels and code or pseduo instructions, no comments.
+         */
         std::vector<std::string> currentLineTokens;
 
         
+        /**
+         * Labels that reference code locations.
+         * 
+         * Global labels can be referenced from anywhere in the program's source code
+         * Local labels can only be referenced locally in a subroutine, must be defined after 
+         * a global label. The scope of the local label lasts until the next defined global label.
+         */
         std::map<std::string, Word> globalCodeLabels;
         std::map<std::string, Word> localCodeLabels;
-        std::vector<std::string> globalUnprocessedLabels;
-        std::vector<std::string> localUnprocessedLabels;
+        
+        /**
+         * Labels that have not yet been paired with a specific code location in memory.
+         * 
+         * These labels are defined to point to a code location that has not yet been assembled.
+         * After the first pass of the assembler, these should be empty.
+         */
+        std::vector<std::string> globalUnprocessedCodeLabels;
+        std::vector<std::string> localUnprocessedCodeLabels;
 
+
+        /**
+         * Labels that reference values expressions.
+         * 
+         * These are pseudo instructions that are defined to reference a simple value expression.
+         * The value expression can be a simple number or a previously defined label that 
+         * references a value. It can also be a simple arithmetic expression of numbers and
+         * previously defined value labels. 
+         * 
+         * Note, the value labels can only reference other labels that have already been defined.
+         */
         std::map<std::string, Word> globalValueLabels;
         std::map<std::string, Word> localValueLabels;
+
+        /**
+         * Value labels expressions that have not be processed yet.
+         */
+        struct LabelExpressionPair {
+            std::string label;
+            std::string expression;
+
+            LabelExpressionPair(std::string label, std::string expression) 
+                    : label(label), expression(expression) {}
+        };
+        std::vector<LabelExpressionPair> globalUnprocessedValueLabels;
+        std::vector<LabelExpressionPair> localUnprocessedValueLabels;
 
 
     public:
         AlienCPUAssembler(AlienCPU& cpu);
         void assemble(std::string sourceCode);
 
-        void assembleLine(std::string& line);
-        void assembleLabel(std::string& label);
+        void assembleLineFirstPass(std::string& line);
+        void assembleLabelFirstPass(std::string& label);
+        void assemblePseduoInstruction(std::string& pseduoInstruction);
+        void assembleInstructionFirstPass(std::string& instruction);
+        AddressingMode convertOperandToAddressingMode(std::string& operand);
+
+        void assembleLineSecondPass(std::string& line);
+        void assembleInstructionSecondPass(std::string& instruction);
+
+        void assembleExpression(LabelExpressionPair& expression);
 
 };
 
@@ -48,6 +117,9 @@ static bool validProcessorInstructionAddressingMode(std::string& instruction, Ad
 static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode addressingMode);
 
 
+/**
+ * Map of processor instructions syntactical names and addressing mode to their opcode value
+ */
 std::map<std::string, std::map<AddressingMode, u8>> instructionMap = {
     {"LDA", 
         {
