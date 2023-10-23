@@ -22,24 +22,50 @@ class AlienCPUAssembler {
                     : label(label), expression(expression) {}
         };
 
+        struct Token {
+            std::string token;
+            int location; // number of characters from the first character of the source code
+
+            Token(std::string token, int location) : token(token), location(location) {}
+        };
+
+        enum AssemblerError {
+            INVALID_TOKEN,
+        };
+
+        enum AssemblerLog {
+            DEFAULT,
+            TOKENIZING,
+            PARSING,
+            ASSEMBLING
+        };
+
 
         AlienCPUAssembler(AlienCPU& cpu);
-        void assemble(std::string sourceCode);
+        void assemble(std::string source);
 
-        void assembleLineFirstPass(std::string& line);
+        void betterAssemble(std::string source);
+        void tokenize();
+        void parseTokens();
+
+
+        void assemblerError(AssemblerError error, Token currentToken, std::stringstream msg);
+        void log(AssemblerLog log, std::stringstream msg);
+
+
+        void parseLine(std::string& line);
         bool parseAssemblerDirective();
 
-        bool assembleLabelFirstPass(std::string& label);
-        void assembleInstructionFirstPass(std::string& instruction);
+        bool parseLabel(std::string& label);
+        void parseInstruction(std::string& instruction);
         AddressingMode convertOperandToAddressingMode(std::string& operand);
 
-        void assembleLineSecondPass(std::string& line);
-        void assembleInstructionSecondPass(std::string& instruction);
+        void assembleLine(std::string& line);
+        void assembleInstruction(std::string& instruction);
 
-        void assembleExpression(LabelExpressionPair& expression);
+        void evaluateExpression(LabelExpressionPair& expression);
 
         u64 parseValue(const std::string& value);
-        bool isNumber(const std::string& string);
 
 
     private:
@@ -57,6 +83,13 @@ class AlienCPUAssembler {
          * The source code currently or most recently being assembled.
          */
         std::string sourceCode;
+
+
+        /**
+         * Tokenized source code
+         */
+        std::vector<Token> tokens;
+
 
         /**
          * The memory address of the next program instruction to be assembled.
@@ -140,6 +173,29 @@ static std::vector<std::string> split(std::string source, char delimiter) {
 
 
 /**
+ * Trim any leading and trailing whitespace from the given string.
+ * 
+ * @param source The string to trim
+ * @return The given string with any leading and trailing whitespace removed.
+ */
+static std::string trim(std::string& string) {
+    std::string result = string;
+
+    // remove leading whitespace
+    result.erase(result.begin(), std::find_if(result.begin(), result.end(), [](int ch) {
+        return !std::isspace(ch);
+    }));
+
+    // remove trailing whitespace
+    result.erase(std::find_if(result.rbegin(), result.rend(), [](int ch) {
+        return !std::isspace(ch);
+    }).base(), result.end());
+
+    return result;
+}
+
+
+/**
  * Converts a vector of strings into a single string.
  * 
  * Formats the string in the following way:
@@ -163,6 +219,40 @@ static std::string tostring(std::vector<std::string>& strings) {
 
     return result;
 }
+
+
+static std::string tostring(std::vector<AlienCPUAssembler::Token>& tokens) {
+    std::string result = "[";
+
+    for (AlienCPUAssembler::Token token : tokens) {
+        result += token.token + ", ";
+    }
+
+    // remove the last comma and space from string
+    result.pop_back();
+    result.pop_back();
+
+    result += "]";
+
+    return result;
+}
+
+
+/**
+ * Check if a string contains only digits
+ * 
+ * @param str string to check
+ * @return true if the string contains only digits
+ */
+static bool isNumber(const std::string& string) {
+    std::string::const_iterator it = string.begin();
+    while (it != string.end() && std::isdigit(*it)) {
+        ++it;
+    }
+    return !string.empty() && it == string.end();
+}
+
+
 
 /**
  * Map of processor instructions syntactical names and addressing mode to their opcode value

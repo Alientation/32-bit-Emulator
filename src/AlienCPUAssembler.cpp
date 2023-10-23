@@ -6,16 +6,17 @@ int main() {
     AlienCPUAssembler assembler(cpu);
 
     std::stringstream sourceCode;
-    sourceCode << "\tLDA\t\t \t#$FFFF\n" << 
-        ";THIS IS A COMMENT\n" << 
+    sourceCode << 
+        "\tLDA\t\t \t#$FFFF\n" << 
+        ";*THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
-        "#org\tB0101\n" <<
-        "globallabel1:\t;this is a comment\n" <<
-        ".locallabel:\n" <<
+        ".org\tB0101\n" <<
+        "globallabel1:\t;this is a comment*;\n" <<
+        "_locallabel:\n" <<
         "globallabel2:\n" <<
-        ".locallabel:\n";
+        "_locallabel:\n";
 
-    assembler.assemble(sourceCode.str());
+    assembler.betterAssemble(sourceCode.str());
 }
 
 
@@ -50,7 +51,6 @@ void AlienCPUAssembler::assemble(std::string source) {
 
     // split the source code into lines
     lines = split(source, '\n');
-    currentLine = 0;
     currentLineTokens.clear();
     previousGlobalLabel = "";
 
@@ -69,32 +69,238 @@ void AlienCPUAssembler::assemble(std::string source) {
 
 
     // iterate over each line
-    for (; currentLine < lines.size(); currentLine++) {
+    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
         std::cout << std::endl << " PARSING LINE " << currentLine << ": " << lines[currentLine] << std::endl;
-        assembleLineFirstPass(lines[currentLine]);
+        parseLine(lines[currentLine]);
         std::cout << "   >> PARSED LINE " << currentLine << std::endl;
 
     }
 
     // process unprocessed value labels sequentially from global to local in order of appearance
     for (LabelExpressionPair labelExpressionPair : globalUnprocessedValueLabels) {
-        assembleExpression(labelExpressionPair);
+        evaluateExpression(labelExpressionPair);
     }
 
     for (LabelExpressionPair labelExpressionPair : localUnprocessedValueLabels) {
-        assembleExpression(labelExpressionPair);
+        evaluateExpression(labelExpressionPair);
     }
 
+
+    /*
+        USE TOKENIZED LINES TO ASSEMBLE INTO BINARY FILE
+    */
 
     // iterate over each line for the second pass and fill in values for labels
     // this will write to the memory
     locationPointer = 0x00000000;
     for (currentLine = 0; currentLine < lines.size(); currentLine++) {
-        assembleLineSecondPass(lines[currentLine]);
+        assembleLine(lines[currentLine]);
     }
 
     std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
 }
+
+
+
+
+
+
+void AlienCPUAssembler::betterAssemble(std::string source) {
+    log(DEFAULT, std::stringstream() << "Assembling Source Code");
+
+    // reset assembler state to be ready for a new assembly
+    outputFile = "";
+    sourceCode = source;
+    tokens.clear();
+    
+    tokenize();
+    
+
+    log(DEFAULT, std::stringstream() << "Successfully Assembled Source Code");
+}
+
+
+
+
+void AlienCPUAssembler::parseTokens() {
+    for (Token token : tokens) {
+
+
+
+    }
+}
+
+
+
+
+void AlienCPUAssembler::assemblerError(AssemblerError error, Token currentToken, std::stringstream msg) {
+    std::string name;
+    switch(error) {
+        case INVALID_TOKEN:
+            name = "INVALID_TOKEN";
+            break;
+        default:
+            name = "ERROR";
+    }
+
+    // find the line the current token is on
+    int line = 0;
+    for (int charLocation = 0; charLocation < currentToken.location; charLocation++) {
+        if (sourceCode[charLocation] == '\n') {
+            line++;
+        }
+    }
+
+    std::cout << "[" << name << "] \"" << msg.str() << "\"\nat " << currentToken.token  
+            << " in line " << line << std::endl;
+}
+
+
+void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
+    std::string name;
+    switch(log) {
+        case TOKENIZING:
+            name = "TOKENIZING";
+            break;
+        case PARSING:
+            name = "PARSING";
+            break;
+        case ASSEMBLING:
+            name = "ASSEMBLING";
+            break;
+        default:
+            name = "LOG";
+    }
+
+    std::cout << "[" << name << "] " << msg.str() << std::endl;
+}
+
+
+
+/**
+ * Converts the source code into a list of tokens to be parsed
+ */
+void AlienCPUAssembler::tokenize() {
+    log(TOKENIZING, std::stringstream() << "Tokenizing Source Code");
+    
+    bool isSingleLineComment = false;
+    bool isMultiLineComment = false;
+    int currentTokenStart = -1;
+    std::string currentToken = "";
+
+    // default true for first column on each line. Every subsequent column should have a preceeding
+    // tab character
+    bool readyForNextToken = true;
+    for (int charLocation = 0; charLocation < sourceCode.size(); charLocation++) {
+        char character = sourceCode[charLocation];
+
+        // skip whitespace until we find a token to tokenize
+        // this will trim any leading whitespace
+        if (readyForNextToken && std::isspace(character)) {
+            continue;
+        }
+
+
+        // check to end current built token
+        if (!isMultiLineComment && (character == '\n' || character == '\t')) {
+            // end current token
+            if (!isSingleLineComment) {
+                // trim any trailing whitespace
+                tokens.push_back(Token(trim(currentToken), currentTokenStart));
+                log(TOKENIZING, std::stringstream() << "Token\t[" << currentToken << "]");
+            } else {
+                log(TOKENIZING, std::stringstream() << "Comment\t[" << currentToken << "]");
+            }
+
+            currentToken.clear();
+            currentTokenStart = -1;
+
+            // prepare for next token
+            readyForNextToken = true;
+            
+            // end single line comment
+            if (character == '\n') {
+                isSingleLineComment = false;
+            }
+            continue;
+        }
+
+        // add the current token to tokens
+        currentToken += character;
+
+        // first character of token
+        if (readyForNextToken) {
+            currentTokenStart = charLocation;
+            readyForNextToken = false;
+
+            // check if token is a comment
+            if (character == ';') {
+                isSingleLineComment = true;
+            }
+        }
+
+        // check if token is start of multi line comment denoted by ;*
+        if (isSingleLineComment && currentToken.size() == 2 && character == '*') {
+            isMultiLineComment = true;
+            isSingleLineComment = false;
+        }
+
+        // check if multi line comment is ending denoted by *;
+        if (isMultiLineComment && currentToken.size() >= 4 && character == ';' 
+                && currentToken[currentToken.size() - 2] == '*') {
+            isMultiLineComment = false;
+            
+            std::vector<std::string> list = split(currentToken,'\n');
+            log(TOKENIZING, std::stringstream() << "Comment\t[" << tostring(list) << "]");
+
+            // end current token
+            currentToken.clear();
+            currentTokenStart = -1;
+
+            readyForNextToken = true;
+        }
+    }
+
+    log(TOKENIZING, std::stringstream() << "Tokenized\t" << tostring(tokens));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /**
@@ -102,7 +308,7 @@ void AlienCPUAssembler::assemble(std::string source) {
  * 
  * @param line The line to assemble.
  */
-void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
+void AlienCPUAssembler::parseLine(std::string& line) {
     // check if line is empty or a comment
     if (line.empty() || line[0] == ';') {
         std::cout << "   >> NO CODE LINE" << std::endl;
@@ -112,7 +318,7 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
     // split the line into tokens delimited by at minimum a tab
     currentLineTokens.clear();
     for (std::string token : split(line, '\t')) {
-        // remove whitespace from token
+        // remove all whitespace from token
         token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
 
         // only add token if it is not empty and not a comment or it is the first token
@@ -140,7 +346,7 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
     }
     
     // tokens should now be alligned so that the first token is the label if it exists
-    if (assembleLabelFirstPass(currentLineTokens[0])) {
+    if (parseLabel(currentLineTokens[0])) {
         return;
     }
 
@@ -168,7 +374,7 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
 bool AlienCPUAssembler::parseAssemblerDirective() {
     // OUTFILE filename
     // Set the output file name
-    if (currentLineTokens[0] == "#outfile") {
+    if (currentLineTokens[0] == ".outfile") {
         if (currentLineTokens.size() == 1) {
             throw std::runtime_error("OUTFILE Directive must be supplied a value: " + lines[currentLine]);
         }
@@ -187,7 +393,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // ORG value
     // Set the current program location in memory to the specified value
-    if (currentLineTokens[0] == "#org") {
+    if (currentLineTokens[0] == ".org") {
         std::cout << "   >> ORG Statement" << std::endl;
         
         if (currentLineTokens.size() == 1) {
@@ -212,13 +418,13 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // DB [value,value,...,value]
     // Define a sequence of bytes at the current program location in memory
-    if (currentLineTokens[0] == "#db" || currentLineTokens[0] == "#byte") {
+    if (currentLineTokens[0] == ".db" || currentLineTokens[0] == ".byte") {
 
     }
     
     // D2B [value,value,...,value]
     // Stores in little endian format
-    if (currentLineTokens[0] == "#d2b" || currentLineTokens[0] == "#2byte") {
+    if (currentLineTokens[0] == ".d2b" || currentLineTokens[0] == ".2byte") {
 
     }
 
@@ -227,7 +433,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // DW [value,value,...,value]
     // stores in little endian format
-    if (currentLineTokens[0] == "#dw" || currentLineTokens[0] == "#word") {
+    if (currentLineTokens[0] == ".dw" || currentLineTokens[0] == ".word") {
 
     }
     
@@ -245,7 +451,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
     // ADVANCE target [filler bytesWidth]
     // Advance the current program location in memory to a specified location and fills in bytes 
     // with a filler value. Default filler value is 0
-    if (currentLineTokens[0] == "#advance") {
+    if (currentLineTokens[0] == ".advance") {
         if (currentLineTokens.size() == 1) {
             throw std::runtime_error("ADVANCE Directive must be supplied a value: " + lines[currentLine]);
         }
@@ -326,7 +532,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
     // Define a label with a value, can only reference other previously defined labels 
     // and of correct scope
     // TODO: remove the EQU directive and move it here. 
-    // All directives should be represented with #<directive name> in the first column
+    // All directives should be represented with .<directive name> in the first column
 
 
     // CHECKPC value
@@ -429,7 +635,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
  * @param label The label to assemble.
  * @return true if the whole line was parsed already
  */
-bool AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
+bool AlienCPUAssembler::parseLabel(std::string& label) {
     if (currentLineTokens.size() != 1 && label.empty()) {
         std::cout << "   >> NO LABEL LINE" << std::endl;
         return false;
@@ -439,8 +645,8 @@ bool AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
         throw std::runtime_error("Invalid Empty Label: " + label + " -> " + lines[currentLine]);
     }
 
-    // check if label is a local label, designated by '.' as the first character
-    bool isLocalLabel = label[0] == '.';
+    // check if label is a local label, designated by '_' as the first character
+    bool isLocalLabel = label[0] == '_';
 
     // label is a value label
     if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
@@ -508,7 +714,7 @@ bool AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
  * 
  * @param instruction The instruction to assemble.
  */
-void AlienCPUAssembler::assembleInstructionFirstPass(std::string& instruction) {
+void AlienCPUAssembler::parseInstruction(std::string& instruction) {
 
 }
 
@@ -520,7 +726,7 @@ void AlienCPUAssembler::assembleInstructionFirstPass(std::string& instruction) {
  * @return The addressing mode of the given operand.
  */
 AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& operand) {
-    return IMMEDIATE;
+    return IMMEDIATE; // TODO:
 }
 
 
@@ -529,7 +735,7 @@ AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& op
  * 
  * @param line The line to assemble.
  */
-void AlienCPUAssembler::assembleLineSecondPass(std::string& line) {
+void AlienCPUAssembler::assembleLine(std::string& line) {
 
 }
 
@@ -539,13 +745,13 @@ void AlienCPUAssembler::assembleLineSecondPass(std::string& line) {
  * 
  * @param instruction The instruction to assemble.
  */
-void AlienCPUAssembler::assembleInstructionSecondPass(std::string& instruction) {
+void AlienCPUAssembler::assembleInstruction(std::string& instruction) {
 
 }
 
 
 
-void AlienCPUAssembler::assembleExpression(LabelExpressionPair& labelExpressionPair) {
+void AlienCPUAssembler::evaluateExpression(LabelExpressionPair& labelExpressionPair) {
     std::cout << "   >> ASSEMBLING EXPRESSION: " << labelExpressionPair.expression << " (" << labelExpressionPair.label << ")" << std::endl;
 
     Word value;
@@ -655,19 +861,4 @@ u64 AlienCPUAssembler::parseValue(const std::string& value) {
     }
 
     return number;
-}
-
-
-/**
- * Check if a string contains only digits
- * 
- * @param str string to check
- * @return true if the string contains only digits
- */
-bool AlienCPUAssembler::isNumber(const std::string& string) {
-    std::string::const_iterator it = string.begin();
-    while (it != string.end() && std::isdigit(*it)) {
-        ++it;
-    }
-    return !string.empty() && it == string.end();
 }
