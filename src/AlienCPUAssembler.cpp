@@ -1,10 +1,21 @@
 #include "AlienCPUAssembler.h"
 
 
-main() {
+int main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu);
-    assembler.assemble("\tLDA\t\t \t#$FFFF\n;THIS IS A COMMENT\n;SO IS THIS\n.org\tB0101");
+
+    std::stringstream sourceCode;
+    sourceCode << "\tLDA\t\t \t#$FFFF\n" << 
+        ";THIS IS A COMMENT\n" << 
+        ";SO IS THIS\n" << 
+        ".org\tB0101\n" <<
+        "globallabel1:\t;this is a comment\n" <<
+        ".locallabel:\n" <<
+        "globallabel2:\n" <<
+        ".locallabel:\n";
+
+    assembler.assemble(sourceCode.str());
 }
 
 
@@ -44,10 +55,6 @@ void AlienCPUAssembler::assemble(std::string source) {
     globalCodeLabels.clear(); // can be referenced from anywhere in the program
     localCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
 
-    // code labels that have not been processed into memory addresses yet
-    globalUnprocessedCodeLabels.clear();
-    localUnprocessedCodeLabels.clear();
-
     // processed value labels (labels that reference values)
     globalValueLabels.clear();
     localValueLabels.clear();
@@ -56,9 +63,6 @@ void AlienCPUAssembler::assemble(std::string source) {
     globalUnprocessedValueLabels.clear();
     localUnprocessedValueLabels.clear();
 
-    // mapping of global labels to their local labels
-    globalLabelToLocalChildrenLabelsMapping.clear();
-
 
     // iterate over each line
     for (; currentLine < lines.size(); currentLine++) {
@@ -66,13 +70,6 @@ void AlienCPUAssembler::assemble(std::string source) {
         assembleLineFirstPass(lines[currentLine]);
         std::cout << "   >> PARSED LINE " << currentLine << std::endl;
 
-    }
-
-    // if there are any remaining unprocessed code labels, throw an error
-    // those labels have been defined to point to non-existant code locations
-    if (!globalUnprocessedCodeLabels.empty() || !localUnprocessedCodeLabels.empty()) {
-        throw std::runtime_error("Unprocessed code labels: GLOBAL=" + tostring(globalUnprocessedCodeLabels) + 
-                " LOCAL=" + tostring(localUnprocessedCodeLabels));
     }
 
     // process unprocessed value labels sequentially from global to local in order of appearance
@@ -86,6 +83,7 @@ void AlienCPUAssembler::assemble(std::string source) {
 
 
     // iterate over each line for the second pass and fill in values for labels
+    // this will write to the memory
     locationPointer = 0x00000000;
     for (currentLine = 0; currentLine < lines.size(); currentLine++) {
         assembleLineSecondPass(lines[currentLine]);
@@ -107,16 +105,15 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
         return;
     }
 
-    currentLineTokens.clear();
-
     // split the line into tokens delimited by at minimum a tab
+    currentLineTokens.clear();
     for (std::string token : split(line, '\t')) {
         // remove whitespace from token
         token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
 
         // only add token if it is not empty and not a comment or it is the first token
         // this will help to allign tokens so that the first token is always the label
-        if (!token.empty() || currentLineTokens.empty() && token[0] != ';') {
+        if ((!token.empty() || currentLineTokens.empty()) && token[0] != ';') {
             currentLineTokens.push_back(token);
         }
     }
@@ -128,7 +125,7 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
 
     // there should be code tokens when the line is not empty
     if (currentLineTokens.empty()) {
-        throw std::runtime_error("Invalid empty tokens: " + tostring(currentLineTokens) + " -> " + line);
+        throw std::runtime_error("Invalid Empty Tokens: " + tostring(currentLineTokens) + " -> " + line);
     }
 
 
@@ -164,6 +161,7 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
  */
 bool AlienCPUAssembler::parseAssemblerDirective() {
     // ORG
+    // Set the current program location in memory to the specified value
     if (currentLineTokens[0] == ".org") {
         std::cout << "   >> ORG Statement" << std::endl;
         
@@ -173,7 +171,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
         u64 parsedValue = parseValue(currentLineTokens[1]);
         if (parsedValue > 0xFFFFFFFF) {
-            throw std::runtime_error("Invalid ORG value: " + currentLineTokens[1] + 
+            throw std::runtime_error("Invalid ORG Directive Value: " + currentLineTokens[1] + 
                     "\nProgram address origin must be within 0xFFFFFFFF");
         }
 
@@ -181,8 +179,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
         locationPointer = (Word) parsedValue;
 
         if (currentLineTokens.size() > 2) {
-            throw std::runtime_error("Unrecognized token: " + currentLineTokens[2] +
-                    "\nExpected new line. ");
+            throw std::runtime_error("Expected New Line: " + currentLineTokens[2]);
         }
         return true;
     }
@@ -213,32 +210,61 @@ void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
     }
 
     if (label.empty()) {
-        throw std::runtime_error("Invalid label: " + label + " -> " + lines[currentLine]);
+        throw std::runtime_error("Invalid Empty Label: " + label + " -> " + lines[currentLine]);
     }
 
-    // check if label is a local label
+    // check if label is a local label, designated by '.' as the first character
     bool isLocalLabel = label[0] == '.';
 
-    // check if label is a value label
-    // if so, store it for later processing
+    // label is a value label
     if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
-        if (currentLineTokens.size() == 3) {
-            if (isLocalLabel) {
-                localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
-            } else {
-                globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
-            }
-        } else {
-            throw std::runtime_error("Invalid value label: " + label + " -> " + lines[currentLine]);
+        // The value label definition line is composed of only three tokens, 
+        // label name, the directive (EQU), and the value to be stored in the label
+        if (!currentLineTokens.size() == 3) {
+            throw std::runtime_error("Invalid Value Label Number Of Parameters: " + label + " -> " + lines[currentLine]);
         }
+
+        // add to correct unproccessed label lists
+        if (isLocalLabel) {
+            localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+        } else {
+            globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+        }
+        
         std::cout << "   >> VALUE LABEL LINE" << std::endl;
         return;
     }
 
     // label is a code label
     if (isLocalLabel) {
+        // check if local label is defined under a global label scope
+        if (previousGlobalLabel.empty()) {
+            throw std::runtime_error("Invalid Local Code Label: " + label + 
+                    " cannot be defined before a global label is defined");
+        }
 
+        // check if local label name is valid at the current global label scope
+        bool isLocalLabelNameUnique = localCodeLabels.find(label) != localCodeLabels.end();
+        if (isLocalLabelNameUnique && 
+                localCodeLabels.at(label).find(previousGlobalLabel) != localCodeLabels.at(label).end()) {
+            throw std::runtime_error("Duplicate Local Label In Same Scope: " + label + " (" + previousGlobalLabel + ")");
+        }
+
+        // create local label scope mapping if not already present
+        if (isLocalLabelNameUnique) {
+            localCodeLabels[label] = std::map<std::string, Word>();
+        }
+
+        // map local label to correct global label scope
+        localCodeLabels[label][previousGlobalLabel] = locationPointer;
     } else {
+        // check if global label has already been defined
+        if (globalCodeLabels.find(label) != globalCodeLabels.end()) {
+            throw std::runtime_error("Duplicate Global Label: " + label);
+        }
+
+        // add global label to map
+        globalCodeLabels[label] = locationPointer;
         previousGlobalLabel = label;
     }
 

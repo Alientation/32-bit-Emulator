@@ -11,30 +11,6 @@ class AlienCPUAssembler;
 
 class AlienCPUAssembler {
     public:
-        struct Label {
-            std::string labelName;
-        };
-        
-        struct LocalLabel : Label {
-            std::string parentGlobalLabel;
-
-            LocalLabel(std::string labelName, std::string parentGlobalLabel) 
-                    : Label{labelName}, parentGlobalLabel(parentGlobalLabel) {}
-        };
-
-        struct GlobalLabel : Label {
-            GlobalLabel(std::string labelName) : Label{labelName} {}
-        };
-
-        struct ProcessedLabel {
-            Label label;
-            Word value;
-            
-            ProcessedLabel(Label label, Word value) 
-                    : label(label), value(value) {}
-        };
-
-
         /**
          * Value labels expressions that have not be processed yet.
          */
@@ -114,19 +90,10 @@ class AlienCPUAssembler {
          * Local labels can only be referenced locally in a subroutine, must be defined after 
          * a global label. The scope of the local label lasts until the next defined global label.
          */
-        std::map<std::string, ProcessedLabel> globalCodeLabels;
+        std::map<std::string, Word> globalCodeLabels;
 
-        // there can be multiple local labels with the same name, but they must be defined in different scopes
-        std::map<std::string, std::vector<ProcessedLabel>> localCodeLabels;
-        
-        /**
-         * Labels that have not yet been paired with a specific code location in memory.
-         * 
-         * These labels are defined to point to a code location that has not yet been assembled.
-         * After the first pass of the assembler, these should be empty.
-         */
-        std::vector<GlobalLabel> globalUnprocessedCodeLabels;
-        std::vector<LocalLabel> localUnprocessedCodeLabels;
+        // Maps a local label name to a map of the global label parent to the memory address the label points to
+        std::map<std::string, std::map<std::string, Word>> localCodeLabels;
 
 
         /**
@@ -144,13 +111,6 @@ class AlienCPUAssembler {
 
         std::vector<LabelExpressionPair> globalUnprocessedValueLabels;
         std::vector<LabelExpressionPair> localUnprocessedValueLabels;
-
-
-        /**
-         * Maps global labels to their local children labels.
-         */
-        std::map<std::string, std::vector<std::string>> globalLabelToLocalChildrenLabelsMapping;
-
 };
 
 
@@ -188,58 +148,6 @@ static std::string tostring(std::vector<std::string>& strings) {
 
     for (std::string string : strings) {
         result += string + ", ";
-    }
-
-    // remove the last comma and space from string
-    result.pop_back();
-    result.pop_back();
-
-    result += "]";
-
-    return result;
-}
-
-
-/**
- * Converts a vector of GlobalLabels into a single string.
- * 
- * Formats the string in the following way:
- * [label1, label2, label3, ...]
- * 
- * @param labels The vector of GlobalLabels to convert.
- * @return A single string containing all of the GlobalLabels in the given vector.
- */
-static std::string tostring(std::vector<AlienCPUAssembler::GlobalLabel>& labels) {
-    std::string result = "[";
-
-    for (AlienCPUAssembler::GlobalLabel label : labels) {
-        result += label.labelName + ", ";
-    }
-
-    // remove the last comma and space from string
-    result.pop_back();
-    result.pop_back();
-
-    result += "]";
-
-    return result;
-}
-
-
-/**
- * Converts a vector of LocalLabels into a single string.
- * 
- * Formats the string in the following way:
- * [label1 (parent1), label2 (parent2), label3 (parent3), ...]
- * 
- * @param labels The vector of LocalLabels to convert.
- * @return A single string containing all of the LocalLabels in the given vector.
- */
-static std::string tostring(std::vector<AlienCPUAssembler::LocalLabel>& labels) {
-    std::string result = "[";
-
-    for (AlienCPUAssembler::LocalLabel label : labels) {
-        result += label.labelName + " (" + label.parentGlobalLabel + ")" + ", ";
     }
 
     // remove the last comma and space from string
