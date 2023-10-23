@@ -28,8 +28,8 @@ class AlienCPUAssembler {
 
         void assembleLineFirstPass(std::string& line);
         bool parseAssemblerDirective();
-        void assembleLabelFirstPass(std::string& label);
-        void assemblePseduoInstruction(std::string& pseduoInstruction);
+
+        bool assembleLabelFirstPass(std::string& label);
         void assembleInstructionFirstPass(std::string& instruction);
         AddressingMode convertOperandToAddressingMode(std::string& operand);
 
@@ -47,6 +47,11 @@ class AlienCPUAssembler {
          * The AlienCPU to assemble the source code for and write the machine code to.
          */
         AlienCPU& cpu;
+
+        /**
+         * The file name to output the assembled binary to. Default is 'A6502.bin'.
+         */
+        std::string outputFile;
 
         /**
          * The source code currently or most recently being assembled.
@@ -158,7 +163,6 @@ static std::string tostring(std::vector<std::string>& strings) {
 
     return result;
 }
-
 
 /**
  * Map of processor instructions syntactical names and addressing mode to their opcode value

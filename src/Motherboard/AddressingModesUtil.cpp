@@ -32,7 +32,7 @@ Word AlienCPU::ADDRESSING_IMMEDIATE() {
 
 
 // =======================ADDRESSING=MODE=RELATIVE======================
-//                          1 byte | 1 cycle
+//                          3 bytes | 1 cycle
 // 1: fetch opcode from PC, increment PC
 Word AlienCPU::ADDRESSING_RELATIVE() {
     PC += 2;

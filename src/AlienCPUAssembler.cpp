@@ -9,7 +9,7 @@ int main() {
     sourceCode << "\tLDA\t\t \t#$FFFF\n" << 
         ";THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
-        ".org\tB0101\n" <<
+        "#org\tB0101\n" <<
         "globallabel1:\t;this is a comment\n" <<
         ".locallabel:\n" <<
         "globallabel2:\n" <<
@@ -29,6 +29,7 @@ AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu) : cpu(cpu) {
 
 /**
  * Assembles the given assembly source code into machine code and loads it onto the cpu.
+ * TODO: technically should probably load into a .bin file and then manually write it into the cpu
  * 
  * Documentation on the assembly language can be found SOMEWHERE
  * 
@@ -36,6 +37,9 @@ AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu) : cpu(cpu) {
  */
 void AlienCPUAssembler::assemble(std::string source) {
     std::cout << "ASSEMBLING..." << std::endl;
+
+    // reset output file;
+    outputFile = "";
 
     // reset assembler state to be ready for a new assembly
     // the source code to assemble
@@ -130,13 +134,15 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
 
 
     // process assembler directives, could potentially be local labels, but we don't know for sure
-    if (currentLineTokens[0][0] == '.' && parseAssemblerDirective()) {
+    if (currentLineTokens[0][0] == '#' && parseAssemblerDirective()) {
         std::cout << "   >> PARSED ASSEMBLER DIRECTIVE: " << currentLineTokens[0] << std::endl;
         return;
     }
     
     // tokens should now be alligned so that the first token is the label if it exists
-    assembleLabelFirstPass(currentLineTokens[0]);
+    if (assembleLabelFirstPass(currentLineTokens[0])) {
+        return;
+    }
 
     // only label on the current line
     if (currentLineTokens.size() == 1) {
@@ -160,9 +166,28 @@ void AlienCPUAssembler::assembleLineFirstPass(std::string& line) {
  * @return whether the current tokenized line is an assembler directive
  */
 bool AlienCPUAssembler::parseAssemblerDirective() {
-    // ORG
+    // OUTFILE filename
+    // Set the output file name
+    if (currentLineTokens[0] == "#outfile") {
+        if (currentLineTokens.size() == 1) {
+            throw std::runtime_error("OUTFILE Directive must be supplied a value: " + lines[currentLine]);
+        }
+
+        if (outputFile != "") {
+            throw std::runtime_error("OUTFILE Directive multiple definition: " + currentLineTokens[1] + " (" + outputFile + ")");
+        }
+        outputFile = currentLineTokens[1];
+
+        if (currentLineTokens.size() > 2) {
+            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
+        }
+        return true;
+    }
+
+
+    // ORG value
     // Set the current program location in memory to the specified value
-    if (currentLineTokens[0] == ".org") {
+    if (currentLineTokens[0] == "#org") {
         std::cout << "   >> ORG Statement" << std::endl;
         
         if (currentLineTokens.size() == 1) {
@@ -171,7 +196,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
         u64 parsedValue = parseValue(currentLineTokens[1]);
         if (parsedValue > 0xFFFFFFFF) {
-            throw std::runtime_error("Invalid ORG Directive Value: " + currentLineTokens[1] + 
+            throw std::runtime_error("Invalid ORG Directive value: " + currentLineTokens[1] + 
                     "\nProgram address origin must be within 0xFFFFFFFF");
         }
 
@@ -179,18 +204,218 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
         locationPointer = (Word) parsedValue;
 
         if (currentLineTokens.size() > 2) {
-            throw std::runtime_error("Expected New Line: " + currentLineTokens[2]);
+            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
         }
         return true;
     }
 
-    // DEFINING DATA 
+
+    // DB [value,value,...,value]
+    // Define a sequence of bytes at the current program location in memory
+    if (currentLineTokens[0] == "#db" || currentLineTokens[0] == "#byte") {
+
+    }
+    
+    // D2B [value,value,...,value]
+    // Stores in little endian format
+    if (currentLineTokens[0] == "#d2b" || currentLineTokens[0] == "#2byte") {
+
+    }
+
+    // D2B-BE [value,value,...,value]
+    // Stores in big endian format
+
+    // DW [value,value,...,value]
+    // stores in little endian format
+    if (currentLineTokens[0] == "#dw" || currentLineTokens[0] == "#word") {
+
+    }
+    
+    // DW-BE [value,value,...,value]
+    // stores in big endian format
+
+    // D2W [value,value,...,value]
+    // stores in little endian format
+
+    // D2W-BE [value,value,...,value]
+    // stores in big endian format
 
 
 
+    // ADVANCE target [filler bytesWidth]
+    // Advance the current program location in memory to a specified location and fills in bytes 
+    // with a filler value. Default filler value is 0
+    if (currentLineTokens[0] == "#advance") {
+        if (currentLineTokens.size() == 1) {
+            throw std::runtime_error("ADVANCE Directive must be supplied a value: " + lines[currentLine]);
+        }
+
+        std::vector<std::string> splitByComma = split(currentLineTokens[1], ' ');
+
+        u64 parsedValue = parseValue(splitByComma[0]);
+        if (parsedValue > 0xFFFFFFFF) {
+            throw std::runtime_error("Invalid ADVANCE Directive value: " + splitByComma[0] + 
+                    "\nProgram address origin must be within 0xFFFFFFFF");
+        }
+
+        Word targetLocation = (Word) parsedValue;
+        if (targetLocation <= locationPointer) {
+            throw std::runtime_error("Invalid ADVANCE Directive value: " + splitByComma[0] + 
+                    "\nProgram address origin must be greater than the current location pointer");
+        }
+
+        u64 filler = 0;
+        u8 bytesWidth = 1;
+        if (splitByComma.size() > 1) {
+            filler = parseValue(splitByComma[1]);
+
+            // count how many bytes to represent the filler value
+            u64 temp = filler;
+            u8 countBytes = 0;
+            while (temp > 0) {
+                countBytes++;
+                temp >>= 8;
+            }
+
+            if (splitByComma.size() > 2) {
+                u64 parsedBytesWidth = parseValue(splitByComma[2]);
+                
+                if (parsedBytesWidth > 7) {
+                    throw std::runtime_error("Invalid ADVANCE Directive bytes width: " + splitByComma[2] + 
+                            "\nBytes width must be within 0-7");
+                }
+                bytesWidth = (u8) parsedBytesWidth;
+            } else {
+                bytesWidth = countBytes;
+            }
+
+            // if the target region cannot be split without extra space with the filler value
+            if ((targetLocation - locationPointer) % bytesWidth != 0) {
+                throw std::runtime_error("Invalid ADVANCE Directive filler value: " + splitByComma[1] + 
+                        "\nFiller value must be be able to fit completely within the target filled region\n" +
+                        "Filler value: " + std::to_string(filler) + " (" + stringifyHex(filler) + ")\n" +
+                        "Filler value size: " + std::to_string(countBytes) + " bytes\n" +
+                        "Target filled region size: " + std::to_string(targetLocation - locationPointer) + " bytes");
+            }
+
+            if (splitByComma.size() > 3) {
+                throw std::runtime_error("Expected new line: " + splitByComma[2]);
+            }
+        }
+
+        // advance location pointer, don't write any bytes yet since this is the first pass
+        locationPointer = targetLocation;
+
+        if (currentLineTokens.size() > 2) {
+            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
+        }
+
+        return true;
+    }
 
 
+    // FILL end [filler]
+    // Fill a specified region of memory with a filler value. Default filler value is 0
 
+
+    // SPACE label value
+    // Define a label to the current location and advances the current location by value
+    
+
+    // DEFINE label value
+    // Define a label with a value, can only reference other previously defined labels 
+    // and of correct scope
+    // TODO: remove the EQU directive and move it here. 
+    // All directives should be represented with #<directive name> in the first column
+
+
+    // CHECKPC value
+    // Check if the current program location in memory is less than or equal to a specified value
+
+
+    // ALIGN value
+    // Align the current program location in memory to a specified value
+
+
+    // DATA
+    // Define a data segment. If not defined with a label then the data segment is the default data segment
+
+
+    // TEXT [label]
+
+
+    // INCBIN [offest length]
+    // Include a binary file into the assembly source code. The offset and length are optional
+
+
+    // INCLUDE filename
+    // Include another assembly source code file into the current assembly source code
+
+
+    // REQUIRE filename
+    // Include another assembly source code file into the current assembly source code.
+    // Only includes the file once in the current assembly source code
+
+
+    // SCOPE
+    // Define a new scope for local labels
+
+
+    // SCEND
+    // End the current scope for local labels
+
+
+    // MACRO macrolabel [argumentlabel,argumentlabel,...,argumentlabel]
+    // Define a macro scope with a label and argument labels
+    // will be inlined into the invoke call
+
+
+    // MACEND
+    // End the current macro scope
+
+
+    // INVOKE macrolabel [argument,argument,...,argument]
+    // Invoke a macro with a label and arguments
+
+
+    // ASSERT value1 value2
+    // Assert that value1 is equal to value2
+
+
+    // ERROR message
+    // User created error message
+
+
+    // ERRORIF value message
+    // User created error message if value is true
+
+
+    // IFDEF label
+    // If the label is defined then the following code is assembled
+
+
+    // IFNDEF label
+    // If the label is not defined then the following code is assembled
+
+
+    // ELSE
+    // If the previous IFDEF or IFNDEF directive was not assembled then the following code is assembled
+
+
+    // ENDIF
+    // End the previous IFDEF or IFNDEF directive
+
+
+    // PRINT message
+    // Print a message to the console on the last pass
+
+
+    // PRINTIF value message
+    // Print a message to the console on the last pass if value is true
+
+
+    // PRINTNOW message
+    // Print a message to the console immediately
 
 
     return false;
@@ -202,11 +427,12 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
  * Assembles the given label.
  * 
  * @param label The label to assemble.
+ * @return true if the whole line was parsed already
  */
-void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
+bool AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
     if (currentLineTokens.size() != 1 && label.empty()) {
         std::cout << "   >> NO LABEL LINE" << std::endl;
-        return;
+        return false;
     }
 
     if (label.empty()) {
@@ -220,8 +446,8 @@ void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
     if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
         // The value label definition line is composed of only three tokens, 
         // label name, the directive (EQU), and the value to be stored in the label
-        if (!currentLineTokens.size() == 3) {
-            throw std::runtime_error("Invalid Value Label Number Of Parameters: " + label + " -> " + lines[currentLine]);
+        if (currentLineTokens.size() == 2) {
+            throw std::runtime_error("Value Label must be supplied a value: " + label + " -> " + lines[currentLine]);
         }
 
         // add to correct unproccessed label lists
@@ -230,9 +456,13 @@ void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
         } else {
             globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
         }
+
+        if (currentLineTokens.size() > 3) {
+            throw std::runtime_error("Expected new line: " + currentLineTokens[3]);
+        }
         
         std::cout << "   >> VALUE LABEL LINE" << std::endl;
-        return;
+        return true;
     }
 
     // label is a code label
@@ -269,16 +499,7 @@ void AlienCPUAssembler::assembleLabelFirstPass(std::string& label) {
     }
 
     std::cout << "   >> CODE LABEL LINE" << std::endl;
-}
-
-
-/**
- * Assembles the given pseduo instruction.
- * 
- * @param pseduoInstruction The pseduo instruction to assemble.
- */
-void AlienCPUAssembler::assemblePseduoInstruction(std::string& pseduoInstruction) {
-
+    return false;
 }
 
 
