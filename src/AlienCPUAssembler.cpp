@@ -8,13 +8,13 @@ int main() {
     std::stringstream sourceCode;
     sourceCode << 
         "\tLDA\t\t \t#$FFFF\n" << 
-        ";*THIS IS A COMMENT\n" << 
+        ";THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
-        ".org\tB0101\n" <<
+        ".org\t%0101\n" <<
         "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
         "globallabel2:\n" <<
-        "_locallabel:\n";
+        "_locallabel:";
 
     assembler.betterAssemble(sourceCode.str());
 }
@@ -45,42 +45,42 @@ void AlienCPUAssembler::assemble(std::string source) {
     sourceCode = source;
 
     // memory address of the next program instruction to be assembled
-    locationPointer = 0x00000000;
+    OLDlocationPointer = 0x00000000;
 
     // split the source code into lines
-    lines = split(source, '\n');
-    currentLineTokens.clear();
-    previousGlobalLabel = "";
+    OLDlines = split(source, '\n');
+    OLDcurrentLineTokens.clear();
+    OLDpreviousGlobalLabel = "";
 
 
     // labels that reference code locations
-    globalCodeLabels.clear(); // can be referenced from anywhere in the program
-    localCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
+    OLDglobalCodeLabels.clear(); // can be referenced from anywhere in the program
+    OLDlocalCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
 
     // processed value labels (labels that reference values)
-    globalValueLabels.clear();
-    localValueLabels.clear();
+    OLDglobalValueLabels.clear();
+    OLDlocalValueLabels.clear();
 
     // value labels expressions that have not be processed yet
-    globalUnprocessedValueLabels.clear();
-    localUnprocessedValueLabels.clear();
+    OLDglobalUnprocessedValueLabels.clear();
+    OLDlocalUnprocessedValueLabels.clear();
 
 
     // iterate over each line
-    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
-        std::cout << std::endl << " PARSING LINE " << currentLine << ": " << lines[currentLine] << std::endl;
-        parseLine(lines[currentLine]);
-        std::cout << "   >> PARSED LINE " << currentLine << std::endl;
+    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
+        std::cout << std::endl << " PARSING LINE " << OLDcurrentLine << ": " << OLDlines[OLDcurrentLine] << std::endl;
+        OLDparseLine(OLDlines[OLDcurrentLine]);
+        std::cout << "   >> PARSED LINE " << OLDcurrentLine << std::endl;
 
     }
 
     // process unprocessed value labels sequentially from global to local in order of appearance
-    for (LabelExpressionPair labelExpressionPair : globalUnprocessedValueLabels) {
-        evaluateExpression(labelExpressionPair);
+    for (LabelExpressionPair labelExpressionPair : OLDglobalUnprocessedValueLabels) {
+        //evaluateExpression(labelExpressionPair);
     }
 
-    for (LabelExpressionPair labelExpressionPair : localUnprocessedValueLabels) {
-        evaluateExpression(labelExpressionPair);
+    for (LabelExpressionPair labelExpressionPair : OLDlocalUnprocessedValueLabels) {
+        //evaluateExpression(labelExpressionPair);
     }
 
 
@@ -90,9 +90,9 @@ void AlienCPUAssembler::assemble(std::string source) {
 
     // iterate over each line for the second pass and fill in values for labels
     // this will write to the memory
-    locationPointer = 0x00000000;
-    for (currentLine = 0; currentLine < lines.size(); currentLine++) {
-        assembleLine(lines[currentLine]);
+    OLDlocationPointer = 0x00000000;
+    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
+        OLDassembleLine(OLDlines[OLDcurrentLine]);
     }
 
     std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
@@ -109,8 +109,18 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
     outputFile = "";
     sourceCode = source;
     tokens.clear();
+    parsedTokens.clear();
+
+    dataProgramCounter = 0;
+    textProgramCounter = 0;
     
     tokenize();
+
+    for (Token token : tokens) {
+        std::cout << token.string << " [" << token.lineNumber << "]" << std::endl;
+    }
+
+    // parseTokens();
     
 
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
@@ -118,13 +128,352 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
 
 
 
-
+/**
+ * Parses the tokens for assembler directives and to map labels
+ */
 void AlienCPUAssembler::parseTokens() {
-    for (Token token : tokens) {
+    log(PARSING, std::stringstream() << BOLD << "Parsing Tokens" << RESET);
 
+    enum SegmentType {
+        DATA,
+        TEXT
+    };
+    SegmentType segment = TEXT;
+    
+    for (int tokenI = 0; tokenI < tokens.size(); tokenI++) {
+        Token& token = tokens[tokenI];
 
+        // check if the token is a directive
+        if (token.string[0] == '.') {
 
+        }
+
+        // check if token is label
+        if (token.string[token.string.size() - 1] == ':') {
+
+        }
+
+        // check if token is instruction
+        if (instructionMap.find(token.string) != instructionMap.end()) {
+            // no more tokens to parse that are on the same line
+            // so either this has no operands or it is missing operands
+            if (tokenI == tokens.size() - 1 || tokens[tokenI + 1].lineNumber != token.lineNumber) {
+                // check if instruction is valid if there are no operands
+                if (!validInstruction(token.string, IMPLIED) && !validInstruction(token.string, ACCUMULATOR)) {
+                    // missing operands
+                    error(MISSING_TOKEN, token, std::stringstream() << "Missing Operand");
+                }
+
+                // check if in proper segment
+                if (segment != TEXT) {
+                    error(ERROR, token, std::stringstream() << "Instruction must be in the text segment");
+                }
+                
+                // valid instruction
+                log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
+                parsedTokens.push_back(ParsedToken(token, INSTRUCTION));
+                textProgramCounter++; // no extra bytes for operands
+                continue;
+            }
+
+            // parse the operand token to get the addressing mode
+            // the operand token is guaranteed to be on the same line as the instruction token
+            Token operandToken = tokens[++tokenI];
+            AddressingMode addressingMode = getAddressingMode(token, operandToken);
+        }
+
+        // unrecognized token
+        error(INVALID_TOKEN, token, std::stringstream() << "Unrecognized Token");
     }
+
+    log(PARSING, std::stringstream() << BOLD_GREEN << "Parsed Tokens" << RESET);
+}
+
+
+
+/**
+ * Converts the given operand to an addressing mode.
+ * 
+ * @param tokenInstruction The instruction that the operand is associated with.
+ * @param tokenOperand The operand to convert.
+ * @return The addressing mode of the given operand.
+ */
+AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Token tokenOperand) {
+    std::string operand = tokenOperand.string;
+    if (operand.empty()) {
+        // error(ERROR, tokenOperand, std::stringstream() << "Invalid operand to convert: " << operand);
+        return NO_ADDRESSING_MODE;
+    }
+
+    // check if operand is an immediate or relative value
+    if (operand[0] == '#') {
+        u64 parsedValue = parseValue(tokenOperand);
+        if (parsedValue > 0xFFFFFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid immediate value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (validInstruction(tokenInstruction.string, IMMEDIATE)) {
+            return IMMEDIATE;
+        } else if (validInstruction(tokenInstruction.string, RELATIVE)) {
+            return RELATIVE;
+        } else {
+            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode RELATIVE or IMMEDIATE: " << tokenInstruction.string);
+            return NO_ADDRESSING_MODE;
+        }
+    }
+
+    // check if operand is zeropage or absolute
+    if (operand[0] == '%' || operand[0] == '0' || operand[0] == '$' || isNumber(operand)) {
+        u64 parsedValue = parseValue(tokenOperand);
+        if (parsedValue > 0xFFFFFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid zeropage or absolute value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (parsedValue <= 0xFFFF && validInstruction(tokenInstruction.string, ZEROPAGE)) {
+            return ZEROPAGE;
+        } else if (validInstruction(tokenInstruction.string, ABSOLUTE)) {
+            return ABSOLUTE;
+        } else {
+            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode ZEROPAGE or ABSOLUTE: " << tokenInstruction.string);
+            return NO_ADDRESSING_MODE;    
+        }
+    }
+
+    // check if operand is zeropage,x or zeropage,y or absolute,x or absolute,y
+    std::vector<std::string> splitByComma = split(operand, ',');
+    if (splitByComma.size() == 2 && isHexadecimalNumber(splitByComma[0]) && (splitByComma[1] == "x" || splitByComma[1] == "y")) {
+        bool isX = splitByComma[1] == "x";
+
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0];
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFFFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid zeropage,x or zeropage,y or absolute,x or absolute,y value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (parsedValue <= 0xFFFF && isX && validInstruction(tokenInstruction.string, ZEROPAGE_XINDEXED)) {
+            return ZEROPAGE_XINDEXED;
+        } else if (isX && validInstruction(tokenInstruction.string, ABSOLUTE_XINDEXED)) {
+            return ABSOLUTE_XINDEXED;
+        } else if (parsedValue <= 0xFFFF && !isX && validInstruction(tokenInstruction.string, ZEROPAGE_YINDEXED)) {
+            return ZEROPAGE_YINDEXED;
+        } else if (!isX && validInstruction(tokenInstruction.string, ABSOLUTE_YINDEXED)) {
+            return ABSOLUTE_YINDEXED;
+        } else {
+            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode ZEROPAGE_X, ABSOLUTE_X, ZEROPAGE_Y, or ABSOLUTE_Y: " << tokenInstruction.string);
+            return NO_ADDRESSING_MODE;
+        }
+    }
+
+    // check if operand is indirect
+    if (operand[0] == '(' && operand[operand.size() - 1] == ')' && isHexadecimalNumber(operand.substr(1,operand.size() - 2))) {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = operand.substr(1,operand.size() - 2);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFFFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid indirect value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        return INDIRECT;
+    }
+
+    // check if operand is x indexed indirect
+    if (splitByComma.size() == 2 && splitByComma[0].size() > 1 && splitByComma[1].size() == 2
+        && splitByComma[0][0] == '(' && splitByComma[1][splitByComma[1].size() - 1] == ')'
+        && isHexadecimalNumber(splitByComma[0].substr(1)) && splitByComma[1][0] == 'x') {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0].substr(1);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid x indexed indirect value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        return XINDEXED_INDIRECT;
+    }
+
+    // check if operand is indirect y indexed
+    if (splitByComma.size() == 2 && splitByComma[0].size() > 2 && splitByComma[1].size() == 1
+        && splitByComma[0][0] == '(' && splitByComma[0][splitByComma[0].size() - 1] == ')' 
+        && isHexadecimalNumber(splitByComma[0].substr(1,splitByComma[0].size() - 2))
+        && splitByComma[1][0] == 'y') {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0].substr(1,splitByComma[0].size() - 2);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid indirect y indexed value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        return INDIRECT_YINDEXED;
+    }
+
+    // invalid operand
+    // error(ERROR, tokenInstruction, std::stringstream() << "Invalid operand to convert: " << operand);
+    return NO_ADDRESSING_MODE;
+}
+
+
+
+
+void AlienCPUAssembler::evaluateExpression(Token token) {
+
+}
+
+
+/**
+ * 
+ */
+u64 AlienCPUAssembler::parseValue(const Token token) {
+    if (token.string.empty()) {
+        error(ERROR, token, std::stringstream() << "Invalid value to parse: " << token.string);
+    }
+
+    // remove the value symbol if it is present
+    std::string value = token.string[0] == '#' ? token.string.substr(1) : token.string;
+
+    // hexadecimal
+    if (value[0] == '$') {
+        // check it contains only 0-9 or A-F characters
+        u64 number = 0;
+        std::string::const_iterator it = value.begin();
+        while (it != value.end() && (std::isdigit(*it) || 
+                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
+            number *= 16;
+            if (std::isdigit(*it)) {
+                number += (*it) - '0';
+            } else {
+                number += 10 + (std::toupper(*it) - 'A');
+            }
+            
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != value.end()) {
+            error(ERROR, token, std::stringstream() << "Invalid hexadecimal digit '" << *it << "': " << value);
+        }
+
+        // proper hexadecimal value
+        return number;
+    }
+
+
+
+
+
+
+
+
+    error(ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
+    return 0;
+}
+
+
+
+/**
+ * Converts a string value into a number
+ * 
+ * To signify a base value, the number must be preceded by a special character representing the base
+ * Binary: '%'
+ * Octal: '0'
+ * Decimal: (default, no need to preceed with a special character)
+ * Hexadecimal: '$'
+ * 
+ * @param value string to convert to number
+ * @return numeric representation of the string
+ */
+u64 AlienCPUAssembler::OLDparseValue(const std::string& value) {
+    if (value.empty()) {
+        throw std::runtime_error("Invalid value to parse: " + value);
+    }
+
+    std::string numericValue = value.substr(1);
+
+    // hexadecimal
+    if (value[0] == '$') {
+        std::string::const_iterator it = numericValue.begin();
+        // check it contains only 0-9 or A-F characters
+        u64 number = 0;
+        while (it != numericValue.end() && (std::isdigit(*it) || 
+                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
+            number *= 16;
+            if (std::isdigit(*it)) {
+                number += (*it) - '0';
+            } else {
+                number += 10 + (std::toupper(*it) - 'A');
+            }
+            
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != numericValue.end()) {
+            std::stringstream ss;
+            ss << "Invalid hexadecimal digit \'" << *it << "\': " << numericValue;
+            throw std::runtime_error(ss.str());
+        }
+
+        // proper hexadecimal value
+        return number;
+    }
+
+    
+    // must be an expression of some sort
+    if (!isNumber(numericValue)) {
+        throw std::runtime_error("Invalid value to parse (Unsupported Non-numeric Value): " + numericValue);
+    }
+
+    // must be a number of some base
+    u64 number = 0;
+    std::string::const_iterator it = numericValue.begin();
+    switch(value[0]) {
+        case '%':
+            // base 2
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
+                number *= 2;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                std::stringstream ss;
+                ss << "Invalid binary digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
+            }
+
+            break;
+        case '0':
+            // base 8
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
+                number *= 8;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                std::stringstream ss;
+                ss << "Invalid octal digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
+            }
+
+            break;
+        default:
+            number = std::stoi(value);
+            break;
+    }
+
+    return number;
 }
 
 
@@ -171,7 +520,7 @@ void AlienCPUAssembler::tokenize() {
             // end current token
             if (!isSingleLineComment) {
                 // trim any trailing whitespace
-                tokens.push_back(Token(trim(currentToken), currentTokenStart, lineNumber));
+                tokens.push_back(Token(trim(currentToken), currentTokenStart, character == '\n' ? lineNumber - 1 : lineNumber));
                 log(TOKENIZING, std::stringstream() << CYAN << "Token\t" << RESET << "[" << currentToken << "]");
             } else {
                 log(TOKENIZING, std::stringstream() << GREEN << "Comment\t" << RESET << "[" << currentToken << "]");
@@ -228,19 +577,19 @@ void AlienCPUAssembler::tokenize() {
 
 
     if (isMultiLineComment) {
-        error(MISSING_TOKEN, Token(currentToken, currentTokenStart, currentLine), 
-                std::stringstream() << "Multiline comment is not closed by \'*;\'\n");
+        error(MISSING_TOKEN, Token(currentToken, currentTokenStart, lineNumber), 
+                std::stringstream() << "Multiline comment is not closed by \'*;\'");
     }
 
     if (currentToken.size() != 0) {
-        error(ERROR, Token(currentToken, currentTokenStart, currentLine),
+        error(ERROR, Token(currentToken, currentTokenStart, OLDcurrentLine),
                 std::stringstream() << "Current token has not been processed");
     }
 
-
-
     log(TOKENIZING, std::stringstream() << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
 }
+
+
 
 
 /**
@@ -263,8 +612,8 @@ void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::str
     }
 
     std::stringstream msgStream;
-    msgStream << name << " \"" << msg.str() << "\"\nat " << currentToken.token  
-            << " in line " << currentToken.lineNumber << std::endl;
+    msgStream << name << " " << msg.str() << " at line " << currentToken.lineNumber 
+            << "\n" << currentToken.string  << std::endl;
 
     throw std::runtime_error(msgStream.str());
 }
@@ -325,7 +674,7 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
  * 
  * @param line The line to assemble.
  */
-void AlienCPUAssembler::parseLine(std::string& line) {
+void AlienCPUAssembler::OLDparseLine(std::string& line) {
     // check if line is empty or a comment
     if (line.empty() || line[0] == ';') {
         std::cout << "   >> NO CODE LINE" << std::endl;
@@ -333,42 +682,42 @@ void AlienCPUAssembler::parseLine(std::string& line) {
     }
 
     // split the line into tokens delimited by at minimum a tab
-    currentLineTokens.clear();
+    OLDcurrentLineTokens.clear();
     for (std::string token : split(line, '\t')) {
         // remove all whitespace from token
         token.erase(std::remove_if(token.begin(), token.end(), isspace), token.end());
 
         // only add token if it is not empty and not a comment or it is the first token
         // this will help to allign tokens so that the first token is always the label
-        if ((!token.empty() || currentLineTokens.empty()) && token[0] != ';') {
-            currentLineTokens.push_back(token);
+        if ((!token.empty() || OLDcurrentLineTokens.empty()) && token[0] != ';') {
+            OLDcurrentLineTokens.push_back(token);
         }
     }
     
     std::cout << "   >> TOKENS: " << std::endl;
-    for (int tokenI = 0; tokenI < currentLineTokens.size(); tokenI++) {
-        std::cout << "\t" <<tokenI << ": " << currentLineTokens[tokenI] << " " << std::endl;
+    for (int tokenI = 0; tokenI < OLDcurrentLineTokens.size(); tokenI++) {
+        std::cout << "\t" <<tokenI << ": " << OLDcurrentLineTokens[tokenI] << " " << std::endl;
     }
 
     // there should be code tokens when the line is not empty
-    if (currentLineTokens.empty()) {
-        throw std::runtime_error("Invalid Empty Tokens: " + tostring(currentLineTokens) + " -> " + line);
+    if (OLDcurrentLineTokens.empty()) {
+        throw std::runtime_error("Invalid Empty Tokens: " + tostring(OLDcurrentLineTokens) + " -> " + line);
     }
 
 
     // process assembler directives, could potentially be local labels, but we don't know for sure
-    if (currentLineTokens[0][0] == '#' && parseAssemblerDirective()) {
-        std::cout << "   >> PARSED ASSEMBLER DIRECTIVE: " << currentLineTokens[0] << std::endl;
+    if (OLDcurrentLineTokens[0][0] == '#' && OLDparseAssemblerDirective()) {
+        std::cout << "   >> PARSED ASSEMBLER DIRECTIVE: " << OLDcurrentLineTokens[0] << std::endl;
         return;
     }
     
     // tokens should now be alligned so that the first token is the label if it exists
-    if (parseLabel(currentLineTokens[0])) {
+    if (OLDparseLabel(OLDcurrentLineTokens[0])) {
         return;
     }
 
     // only label on the current line
-    if (currentLineTokens.size() == 1) {
+    if (OLDcurrentLineTokens.size() == 1) {
         std::cout << "   >> ONLY LABEL LINE" << std::endl;
         return;
     }
@@ -388,21 +737,21 @@ void AlienCPUAssembler::parseLine(std::string& line) {
  * 
  * @return whether the current tokenized line is an assembler directive
  */
-bool AlienCPUAssembler::parseAssemblerDirective() {
+bool AlienCPUAssembler::OLDparseAssemblerDirective() {
     // OUTFILE filename
     // Set the output file name
-    if (currentLineTokens[0] == ".outfile") {
-        if (currentLineTokens.size() == 1) {
-            throw std::runtime_error("OUTFILE Directive must be supplied a value: " + lines[currentLine]);
+    if (OLDcurrentLineTokens[0] == ".outfile") {
+        if (OLDcurrentLineTokens.size() == 1) {
+            throw std::runtime_error("OUTFILE Directive must be supplied a value: " + OLDlines[OLDcurrentLine]);
         }
 
         if (outputFile != "") {
-            throw std::runtime_error("OUTFILE Directive multiple definition: " + currentLineTokens[1] + " (" + outputFile + ")");
+            throw std::runtime_error("OUTFILE Directive multiple definition: " + OLDcurrentLineTokens[1] + " (" + outputFile + ")");
         }
-        outputFile = currentLineTokens[1];
+        outputFile = OLDcurrentLineTokens[1];
 
-        if (currentLineTokens.size() > 2) {
-            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
+        if (OLDcurrentLineTokens.size() > 2) {
+            throw std::runtime_error("Expected new line: " + OLDcurrentLineTokens[2]);
         }
         return true;
     }
@@ -410,24 +759,24 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // ORG value
     // Set the current program location in memory to the specified value
-    if (currentLineTokens[0] == ".org") {
+    if (OLDcurrentLineTokens[0] == ".org") {
         std::cout << "   >> ORG Statement" << std::endl;
         
-        if (currentLineTokens.size() == 1) {
-            throw std::runtime_error("ORG Directive must be supplied a value: " + lines[currentLine]);
+        if (OLDcurrentLineTokens.size() == 1) {
+            throw std::runtime_error("ORG Directive must be supplied a value: " + OLDlines[OLDcurrentLine]);
         }
 
-        u64 parsedValue = parseValue(currentLineTokens[1]);
+        u64 parsedValue = OLDparseValue(OLDcurrentLineTokens[1]);
         if (parsedValue > 0xFFFFFFFF) {
-            throw std::runtime_error("Invalid ORG Directive value: " + currentLineTokens[1] + 
+            throw std::runtime_error("Invalid ORG Directive value: " + OLDcurrentLineTokens[1] + 
                     "\nProgram address origin must be within 0xFFFFFFFF");
         }
 
         std::cout << "   >> MOVING LOCATION POINTER TO " << stringifyHex((Word) parsedValue) << std::endl;
-        locationPointer = (Word) parsedValue;
+        OLDlocationPointer = (Word) parsedValue;
 
-        if (currentLineTokens.size() > 2) {
-            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
+        if (OLDcurrentLineTokens.size() > 2) {
+            throw std::runtime_error("Expected new line: " + OLDcurrentLineTokens[2]);
         }
         return true;
     }
@@ -435,13 +784,13 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // DB [value,value,...,value]
     // Define a sequence of bytes at the current program location in memory
-    if (currentLineTokens[0] == ".db" || currentLineTokens[0] == ".byte") {
+    if (OLDcurrentLineTokens[0] == ".db" || OLDcurrentLineTokens[0] == ".byte") {
 
     }
     
     // D2B [value,value,...,value]
     // Stores in little endian format
-    if (currentLineTokens[0] == ".d2b" || currentLineTokens[0] == ".2byte") {
+    if (OLDcurrentLineTokens[0] == ".d2b" || OLDcurrentLineTokens[0] == ".2byte") {
 
     }
 
@@ -450,7 +799,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
 
     // DW [value,value,...,value]
     // stores in little endian format
-    if (currentLineTokens[0] == ".dw" || currentLineTokens[0] == ".word") {
+    if (OLDcurrentLineTokens[0] == ".dw" || OLDcurrentLineTokens[0] == ".word") {
 
     }
     
@@ -468,21 +817,21 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
     // ADVANCE target [filler bytesWidth]
     // Advance the current program location in memory to a specified location and fills in bytes 
     // with a filler value. Default filler value is 0
-    if (currentLineTokens[0] == ".advance") {
-        if (currentLineTokens.size() == 1) {
-            throw std::runtime_error("ADVANCE Directive must be supplied a value: " + lines[currentLine]);
+    if (OLDcurrentLineTokens[0] == ".advance") {
+        if (OLDcurrentLineTokens.size() == 1) {
+            throw std::runtime_error("ADVANCE Directive must be supplied a value: " + OLDlines[OLDcurrentLine]);
         }
 
-        std::vector<std::string> splitByComma = split(currentLineTokens[1], ' ');
+        std::vector<std::string> splitByComma = split(OLDcurrentLineTokens[1], ' ');
 
-        u64 parsedValue = parseValue(splitByComma[0]);
+        u64 parsedValue = OLDparseValue(splitByComma[0]);
         if (parsedValue > 0xFFFFFFFF) {
             throw std::runtime_error("Invalid ADVANCE Directive value: " + splitByComma[0] + 
                     "\nProgram address origin must be within 0xFFFFFFFF");
         }
 
         Word targetLocation = (Word) parsedValue;
-        if (targetLocation <= locationPointer) {
+        if (targetLocation <= OLDlocationPointer) {
             throw std::runtime_error("Invalid ADVANCE Directive value: " + splitByComma[0] + 
                     "\nProgram address origin must be greater than the current location pointer");
         }
@@ -490,7 +839,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
         u64 filler = 0;
         u8 bytesWidth = 1;
         if (splitByComma.size() > 1) {
-            filler = parseValue(splitByComma[1]);
+            filler = OLDparseValue(splitByComma[1]);
 
             // count how many bytes to represent the filler value
             u64 temp = filler;
@@ -501,7 +850,7 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
             }
 
             if (splitByComma.size() > 2) {
-                u64 parsedBytesWidth = parseValue(splitByComma[2]);
+                u64 parsedBytesWidth = OLDparseValue(splitByComma[2]);
                 
                 if (parsedBytesWidth > 7) {
                     throw std::runtime_error("Invalid ADVANCE Directive bytes width: " + splitByComma[2] + 
@@ -513,12 +862,12 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
             }
 
             // if the target region cannot be split without extra space with the filler value
-            if ((targetLocation - locationPointer) % bytesWidth != 0) {
+            if ((targetLocation - OLDlocationPointer) % bytesWidth != 0) {
                 throw std::runtime_error("Invalid ADVANCE Directive filler value: " + splitByComma[1] + 
                         "\nFiller value must be be able to fit completely within the target filled region\n" +
                         "Filler value: " + std::to_string(filler) + " (" + stringifyHex(filler) + ")\n" +
                         "Filler value size: " + std::to_string(countBytes) + " bytes\n" +
-                        "Target filled region size: " + std::to_string(targetLocation - locationPointer) + " bytes");
+                        "Target filled region size: " + std::to_string(targetLocation - OLDlocationPointer) + " bytes");
             }
 
             if (splitByComma.size() > 3) {
@@ -527,10 +876,10 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
         }
 
         // advance location pointer, don't write any bytes yet since this is the first pass
-        locationPointer = targetLocation;
+        OLDlocationPointer = targetLocation;
 
-        if (currentLineTokens.size() > 2) {
-            throw std::runtime_error("Expected new line: " + currentLineTokens[2]);
+        if (OLDcurrentLineTokens.size() > 2) {
+            throw std::runtime_error("Expected new line: " + OLDcurrentLineTokens[2]);
         }
 
         return true;
@@ -652,36 +1001,36 @@ bool AlienCPUAssembler::parseAssemblerDirective() {
  * @param label The label to assemble.
  * @return true if the whole line was parsed already
  */
-bool AlienCPUAssembler::parseLabel(std::string& label) {
-    if (currentLineTokens.size() != 1 && label.empty()) {
+bool AlienCPUAssembler::OLDparseLabel(std::string& label) {
+    if (OLDcurrentLineTokens.size() != 1 && label.empty()) {
         std::cout << "   >> NO LABEL LINE" << std::endl;
         return false;
     }
 
     if (label.empty()) {
-        throw std::runtime_error("Invalid Empty Label: " + label + " -> " + lines[currentLine]);
+        throw std::runtime_error("Invalid Empty Label: " + label + " -> " + OLDlines[OLDcurrentLine]);
     }
 
     // check if label is a local label, designated by '_' as the first character
     bool isLocalLabel = label[0] == '_';
 
     // label is a value label
-    if (currentLineTokens.size() > 1 && currentLineTokens[2] == "equ") {
+    if (OLDcurrentLineTokens.size() > 1 && OLDcurrentLineTokens[2] == "equ") {
         // The value label definition line is composed of only three tokens, 
         // label name, the directive (EQU), and the value to be stored in the label
-        if (currentLineTokens.size() == 2) {
-            throw std::runtime_error("Value Label must be supplied a value: " + label + " -> " + lines[currentLine]);
+        if (OLDcurrentLineTokens.size() == 2) {
+            throw std::runtime_error("Value Label must be supplied a value: " + label + " -> " + OLDlines[OLDcurrentLine]);
         }
 
         // add to correct unproccessed label lists
         if (isLocalLabel) {
-            localUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+            OLDlocalUnprocessedValueLabels.push_back(LabelExpressionPair(label, OLDcurrentLineTokens[3]));
         } else {
-            globalUnprocessedValueLabels.push_back(LabelExpressionPair(label, currentLineTokens[3]));
+            OLDglobalUnprocessedValueLabels.push_back(LabelExpressionPair(label, OLDcurrentLineTokens[3]));
         }
 
-        if (currentLineTokens.size() > 3) {
-            throw std::runtime_error("Expected new line: " + currentLineTokens[3]);
+        if (OLDcurrentLineTokens.size() > 3) {
+            throw std::runtime_error("Expected new line: " + OLDcurrentLineTokens[3]);
         }
         
         std::cout << "   >> VALUE LABEL LINE" << std::endl;
@@ -691,34 +1040,34 @@ bool AlienCPUAssembler::parseLabel(std::string& label) {
     // label is a code label
     if (isLocalLabel) {
         // check if local label is defined under a global label scope
-        if (previousGlobalLabel.empty()) {
+        if (OLDpreviousGlobalLabel.empty()) {
             throw std::runtime_error("Invalid Local Code Label: " + label + 
                     " cannot be defined before a global label is defined");
         }
 
         // check if local label name is valid at the current global label scope
-        bool isLocalLabelNameUnique = localCodeLabels.find(label) != localCodeLabels.end();
+        bool isLocalLabelNameUnique = OLDlocalCodeLabels.find(label) != OLDlocalCodeLabels.end();
         if (isLocalLabelNameUnique && 
-                localCodeLabels.at(label).find(previousGlobalLabel) != localCodeLabels.at(label).end()) {
-            throw std::runtime_error("Duplicate Local Label In Same Scope: " + label + " (" + previousGlobalLabel + ")");
+                OLDlocalCodeLabels.at(label).find(OLDpreviousGlobalLabel) != OLDlocalCodeLabels.at(label).end()) {
+            throw std::runtime_error("Duplicate Local Label In Same Scope: " + label + " (" + OLDpreviousGlobalLabel + ")");
         }
 
         // create local label scope mapping if not already present
         if (isLocalLabelNameUnique) {
-            localCodeLabels[label] = std::map<std::string, Word>();
+            OLDlocalCodeLabels[label] = std::map<std::string, Word>();
         }
 
         // map local label to correct global label scope
-        localCodeLabels[label][previousGlobalLabel] = locationPointer;
+        OLDlocalCodeLabels[label][OLDpreviousGlobalLabel] = OLDlocationPointer;
     } else {
         // check if global label has already been defined
-        if (globalCodeLabels.find(label) != globalCodeLabels.end()) {
+        if (OLDglobalCodeLabels.find(label) != OLDglobalCodeLabels.end()) {
             throw std::runtime_error("Duplicate Global Label: " + label);
         }
 
         // add global label to map
-        globalCodeLabels[label] = locationPointer;
-        previousGlobalLabel = label;
+        OLDglobalCodeLabels[label] = OLDlocationPointer;
+        OLDpreviousGlobalLabel = label;
     }
 
     std::cout << "   >> CODE LABEL LINE" << std::endl;
@@ -731,19 +1080,8 @@ bool AlienCPUAssembler::parseLabel(std::string& label) {
  * 
  * @param instruction The instruction to assemble.
  */
-void AlienCPUAssembler::parseInstruction(std::string& instruction) {
+void AlienCPUAssembler::OLDparseInstruction(std::string& instruction) {
 
-}
-
-
-/**
- * Converts the given operand to an addressing mode.
- * 
- * @param operand The operand to convert.
- * @return The addressing mode of the given operand.
- */
-AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& operand) {
-    return IMMEDIATE; // TODO:
 }
 
 
@@ -752,7 +1090,7 @@ AddressingMode AlienCPUAssembler::convertOperandToAddressingMode(std::string& op
  * 
  * @param line The line to assemble.
  */
-void AlienCPUAssembler::assembleLine(std::string& line) {
+void AlienCPUAssembler::OLDassembleLine(std::string& line) {
 
 }
 
@@ -762,120 +1100,6 @@ void AlienCPUAssembler::assembleLine(std::string& line) {
  * 
  * @param instruction The instruction to assemble.
  */
-void AlienCPUAssembler::assembleInstruction(std::string& instruction) {
+void AlienCPUAssembler::OLDassembleInstruction(std::string& instruction) {
 
-}
-
-
-
-void AlienCPUAssembler::evaluateExpression(LabelExpressionPair& labelExpressionPair) {
-    std::cout << "   >> ASSEMBLING EXPRESSION: " << labelExpressionPair.expression << " (" << labelExpressionPair.label << ")" << std::endl;
-
-    Word value;
-
-
-    std::cout << "   >> ASSEMBLED EXPRESSION: " << labelExpressionPair.expression << " (" << labelExpressionPair.label << ")" << " = " << value << std::endl;
-}
-
-
-/**
- * Converts a string value into a number
- * 
- * To signify a base value, the number must be preceded by a special character representing the base
- * Binary: 'B' or '%'
- * Octal: '@' or 'Q' or 'C' or 'O
- * Decimal: 'D' (default, no need to preceed with a special character)
- * Hexadecimal: 'H' or '$'
- * 
- * @param value string to convert to number
- * @return numeric representation of the string
- */
-u64 AlienCPUAssembler::parseValue(const std::string& value) {
-    if (value.empty()) {
-        throw std::runtime_error("Invalid value to parse: " + value);
-    }
-
-    std::string numericValue = value.substr(1);
-
-    // hexadecimal
-    if (value[0] == 'H' || value[0] == '$') {
-        std::string::const_iterator it = numericValue.begin();
-        // check it contains only 0-9 or A-F characters
-        u64 number = 0;
-        while (it != numericValue.end() && (std::isdigit(*it) || 
-                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
-            number *= 16;
-            if (std::isdigit(*it)) {
-                number += (*it) - '0';
-            } else {
-                number += 10 + (std::toupper(*it) - 'A');
-            }
-            
-            ++it;
-        }
-        
-        // contains other characters
-        if (it != numericValue.end()) {
-            std::stringstream ss;
-            ss << "Invalid hexadecimal digit \'" << *it << "\': " << numericValue;
-            throw std::runtime_error(ss.str());
-        }
-
-        // proper hexadecimal value
-        return number;
-    }
-
-    
-    // must be an expression of some sort
-    if (!isNumber(numericValue)) {
-        throw std::runtime_error("Invalid value to parse (Unsupported Non-numeric Value): " + numericValue);
-    }
-
-    // must be a number of some base
-    u64 number = 0;
-    std::string::const_iterator it = numericValue.begin();
-    switch(value[0]) {
-        case 'B':
-        case '%':
-            // base 2
-            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
-                number *= 2;
-                number += (*it) - '0';
-                ++it;
-            }
-            
-            // contains other characters
-            if (it != numericValue.end()) {
-                std::stringstream ss;
-                ss << "Invalid binary digit \'" << *it << "\': " << numericValue;
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        case '@':
-        case 'Q':
-        case 'C':
-        case 'O':
-            // base 8
-            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
-                number *= 8;
-                number += (*it) - '0';
-                ++it;
-            }
-            
-            // contains other characters
-            if (it != numericValue.end()) {
-                std::stringstream ss;
-                ss << "Invalid octal digit \'" << *it << "\': " << numericValue;
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        case 'D':
-        default:
-            number = std::stoi(value);
-            break;
-    }
-
-    return number;
 }

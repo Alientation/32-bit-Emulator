@@ -54,12 +54,30 @@ class AlienCPUAssembler {
         };
 
         struct Token {
-            std::string token;
+            std::string string;
             int location; // number of characters from the first character of the source code
             int lineNumber;
 
-            Token(std::string token, int location, int lineNumber) : 
-                    token(token), location(location), lineNumber(lineNumber) {}
+            Token(std::string string, int location, int lineNumber) : 
+                    string(string), location(location), lineNumber(lineNumber) {}
+        };
+
+        enum ParsedTokenType {
+            GLOBAL_LABEL,
+            LOCAL_LABEL,
+
+            INSTRUCTION,
+            INSTRUCTION_OPERAND,
+
+            DIRECTIVE,
+            DIRECTIVE_OPERAND
+        };
+
+        struct ParsedToken {
+            Token token;
+            ParsedTokenType type;
+
+            ParsedToken(Token token, ParsedTokenType type) : token(token), type(type) {}
         };
 
         enum AssemblerError {
@@ -86,6 +104,9 @@ class AlienCPUAssembler {
         void betterAssemble(std::string source);
         void tokenize();
         void parseTokens();
+        u64 parseValue(const Token token);
+        AddressingMode getAddressingMode(Token tokenInstruction, Token token);
+        void evaluateExpression(Token token);
 
 
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
@@ -93,19 +114,16 @@ class AlienCPUAssembler {
         void log(AssemblerLog log, std::stringstream msg);
 
 
-        void parseLine(std::string& line);
-        bool parseAssemblerDirective();
+        void OLDparseLine(std::string& line);
+        bool OLDparseAssemblerDirective();
 
-        bool parseLabel(std::string& label);
-        void parseInstruction(std::string& instruction);
-        AddressingMode convertOperandToAddressingMode(std::string& operand);
+        bool OLDparseLabel(std::string& label);
+        void OLDparseInstruction(std::string& instruction);
 
-        void assembleLine(std::string& line);
-        void assembleInstruction(std::string& instruction);
+        void OLDassembleLine(std::string& line);
+        void OLDassembleInstruction(std::string& instruction);
 
-        void evaluateExpression(LabelExpressionPair& expression);
-
-        u64 parseValue(const std::string& value);
+        u64 OLDparseValue(const std::string& value);
 
 
     private:
@@ -131,36 +149,53 @@ class AlienCPUAssembler {
          */
         std::vector<Token> tokens;
 
+        /**
+         * Parsed tokens
+         */
+        std::vector<ParsedToken> parsedTokens;
+
+
+        /**
+         * Program counters for the data and text segments of the program
+         */
+        Word dataProgramCounter;
+        Word textProgramCounter;
+
+
+
+
+
+
 
         /**
          * The memory address of the next program instruction to be assembled.
          */
-        Word locationPointer;
+        Word OLDlocationPointer;
 
         /**
          * The source code split into lines.
          */
-        std::vector<std::string> lines;
+        std::vector<std::string> OLDlines;
 
 
         /**
          * Index of the current line being processed in the source code.
          */
-        int currentLine;
+        int OLDcurrentLine;
 
         /**
          * The tokens of the current line being processed.
          * 
          * These tokens only include labels and code or pseduo instructions, no comments.
          */
-        std::vector<std::string> currentLineTokens;
+        std::vector<std::string> OLDcurrentLineTokens;
 
         /**
          * The most recently processed global label.
          * 
          * This is used to determine the scope of local labels.
          */
-        std::string previousGlobalLabel;
+        std::string OLDpreviousGlobalLabel;
 
         /**
          * Labels that reference code locations.
@@ -169,10 +204,10 @@ class AlienCPUAssembler {
          * Local labels can only be referenced locally in a subroutine, must be defined after 
          * a global label. The scope of the local label lasts until the next defined global label.
          */
-        std::map<std::string, Word> globalCodeLabels;
+        std::map<std::string, Word> OLDglobalCodeLabels;
 
         // Maps a local label name to a map of the global label parent to the memory address the label points to
-        std::map<std::string, std::map<std::string, Word>> localCodeLabels;
+        std::map<std::string, std::map<std::string, Word>> OLDlocalCodeLabels;
 
 
         /**
@@ -185,11 +220,11 @@ class AlienCPUAssembler {
          * 
          * Note, the value labels can only reference other labels that have already been defined.
          */
-        std::map<std::string, Word> globalValueLabels;
-        std::map<std::string, Word> localValueLabels;
+        std::map<std::string, Word> OLDglobalValueLabels;
+        std::map<std::string, Word> OLDlocalValueLabels;
 
-        std::vector<LabelExpressionPair> globalUnprocessedValueLabels;
-        std::vector<LabelExpressionPair> localUnprocessedValueLabels;
+        std::vector<LabelExpressionPair> OLDglobalUnprocessedValueLabels;
+        std::vector<LabelExpressionPair> OLDlocalUnprocessedValueLabels;
 };
 
 
@@ -266,7 +301,7 @@ static std::string tostring(std::vector<AlienCPUAssembler::Token>& tokens) {
     std::string result = "[";
 
     for (AlienCPUAssembler::Token token : tokens) {
-        result += token.token + ", ";
+        result += token.string + ", ";
     }
 
     // remove the last comma and space from string
@@ -288,6 +323,21 @@ static std::string tostring(std::vector<AlienCPUAssembler::Token>& tokens) {
 static bool isNumber(const std::string& string) {
     std::string::const_iterator it = string.begin();
     while (it != string.end() && std::isdigit(*it)) {
+        ++it;
+    }
+    return !string.empty() && it == string.end();
+}
+
+
+/**
+ * Check if a string contains only hexadecimal digits
+ * 
+ * @param str string to check
+ * @return true if the string contains only hexadecimal digits
+ */
+static bool isHexadecimalNumber(const std::string& string) {
+    std::string::const_iterator it = string.begin();
+    while (it != string.end() && std::isxdigit(*it)) {
         ++it;
     }
     return !string.empty() && it == string.end();
@@ -624,7 +674,7 @@ std::map<std::string, std::map<AddressingMode, u8>> instructionMap = {
  * @param addressingMode The addressing mode to check.
  * @return True if the processor instruction is valid for the given addressing mode, false otherwise.
  */
-static bool validProcessorInstructionAddressingMode(std::string& instruction, AddressingMode addressingMode) {
+static bool validInstruction(std::string& instruction, AddressingMode addressingMode) {
     if (instructionMap.count(instruction) == 0) {
         return false;
     }
