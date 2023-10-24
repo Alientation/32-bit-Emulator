@@ -3,7 +3,7 @@
 
 int main() {
     AlienCPU cpu;
-    AlienCPUAssembler assembler(cpu);
+    AlienCPUAssembler assembler(cpu, true);
 
     std::stringstream sourceCode;
     sourceCode << 
@@ -11,7 +11,7 @@ int main() {
         ";*THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
         ".org\tB0101\n" <<
-        "globallabel1:\t;this is a comment*;\n" <<
+        "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
         "globallabel2:\n" <<
         "_locallabel:\n";
@@ -23,9 +23,7 @@ int main() {
 /**
  * Constructs a new AlienCPUAssembler for the given AlienCPU.
  */
-AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu) : cpu(cpu) {
-    
-}
+AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
 
 /**
@@ -104,9 +102,8 @@ void AlienCPUAssembler::assemble(std::string source) {
 
 
 
-
 void AlienCPUAssembler::betterAssemble(std::string source) {
-    log(DEFAULT, std::stringstream() << "Assembling Source Code");
+    log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Assembling..." << RESET);
 
     // reset assembler state to be ready for a new assembly
     outputFile = "";
@@ -116,7 +113,7 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
     tokenize();
     
 
-    log(DEFAULT, std::stringstream() << "Successfully Assembled Source Code");
+    log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
 }
 
 
@@ -132,60 +129,25 @@ void AlienCPUAssembler::parseTokens() {
 
 
 
-
-void AlienCPUAssembler::assemblerError(AssemblerError error, Token currentToken, std::stringstream msg) {
-    std::string name;
-    switch(error) {
-        case INVALID_TOKEN:
-            name = "INVALID_TOKEN";
-            break;
-        default:
-            name = "ERROR";
-    }
-
-    // find the line the current token is on
-    int line = 0;
-    for (int charLocation = 0; charLocation < currentToken.location; charLocation++) {
-        if (sourceCode[charLocation] == '\n') {
-            line++;
-        }
-    }
-
-    std::cout << "[" << name << "] \"" << msg.str() << "\"\nat " << currentToken.token  
-            << " in line " << line << std::endl;
-}
-
-
-void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
-    std::string name;
-    switch(log) {
-        case TOKENIZING:
-            name = "TOKENIZING";
-            break;
-        case PARSING:
-            name = "PARSING";
-            break;
-        case ASSEMBLING:
-            name = "ASSEMBLING";
-            break;
-        default:
-            name = "LOG";
-    }
-
-    std::cout << "[" << name << "] " << msg.str() << std::endl;
-}
-
-
-
 /**
  * Converts the source code into a list of tokens to be parsed
+ * 
+ * Tokens are separated by at least a tab character with leading and trailing whitespaces removed.
+ * 
+ * Single line and Multi line comments are supported. Single line comments are denoted by a ';' and converts
+ * every character from that point to the immediate end of line character '\n' into a comment. Multi line comments
+ * are denoted by a ';*' and converts every character from that point to the closing multi line comment character
+ * '*;' into a comment.
+ * 
+ * No further processing is done on the tokens at this point.
  */
 void AlienCPUAssembler::tokenize() {
-    log(TOKENIZING, std::stringstream() << "Tokenizing Source Code");
+    log(TOKENIZING, std::stringstream() << BOLD << "Tokenizing Source Code" << RESET);
     
     bool isSingleLineComment = false;
     bool isMultiLineComment = false;
     int currentTokenStart = -1;
+    int lineNumber = 0;
     std::string currentToken = "";
 
     // default true for first column on each line. Every subsequent column should have a preceeding
@@ -193,6 +155,9 @@ void AlienCPUAssembler::tokenize() {
     bool readyForNextToken = true;
     for (int charLocation = 0; charLocation < sourceCode.size(); charLocation++) {
         char character = sourceCode[charLocation];
+        if (character == '\n') {
+            lineNumber++;
+        }
 
         // skip whitespace until we find a token to tokenize
         // this will trim any leading whitespace
@@ -202,14 +167,14 @@ void AlienCPUAssembler::tokenize() {
 
 
         // check to end current built token
-        if (!isMultiLineComment && (character == '\n' || character == '\t')) {
+        if (!isMultiLineComment && (character == '\n' || character == '\t' || charLocation == sourceCode.size() - 1)) {
             // end current token
             if (!isSingleLineComment) {
                 // trim any trailing whitespace
-                tokens.push_back(Token(trim(currentToken), currentTokenStart));
-                log(TOKENIZING, std::stringstream() << "Token\t[" << currentToken << "]");
+                tokens.push_back(Token(trim(currentToken), currentTokenStart, lineNumber));
+                log(TOKENIZING, std::stringstream() << CYAN << "Token\t" << RESET << "[" << currentToken << "]");
             } else {
-                log(TOKENIZING, std::stringstream() << "Comment\t[" << currentToken << "]");
+                log(TOKENIZING, std::stringstream() << GREEN << "Comment\t" << RESET << "[" << currentToken << "]");
             }
 
             currentToken.clear();
@@ -251,7 +216,7 @@ void AlienCPUAssembler::tokenize() {
             isMultiLineComment = false;
             
             std::vector<std::string> list = split(currentToken,'\n');
-            log(TOKENIZING, std::stringstream() << "Comment\t[" << tostring(list) << "]");
+            log(TOKENIZING, std::stringstream() << GREEN << "Comments\t" << RESET << "[" << tostring(list) << "]");
 
             // end current token
             currentToken.clear();
@@ -261,37 +226,89 @@ void AlienCPUAssembler::tokenize() {
         }
     }
 
-    log(TOKENIZING, std::stringstream() << "Tokenized\t" << tostring(tokens));
+
+    if (isMultiLineComment) {
+        error(MISSING_TOKEN, Token(currentToken, currentTokenStart, currentLine), 
+                std::stringstream() << "Multiline comment is not closed by \'*;\'\n");
+    }
+
+    if (currentToken.size() != 0) {
+        error(ERROR, Token(currentToken, currentTokenStart, currentLine),
+                std::stringstream() << "Current token has not been processed");
+    }
+
+
+
+    log(TOKENIZING, std::stringstream() << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
 }
 
 
+/**
+ * Throws a compiler error when trying to parse a token
+ * 
+ * @param error The type of error to throw
+ * @param currentToken The token that caused the error
+ * @param msg The message to display with the error
+ */
+void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::stringstream msg) {
+    std::string name;
+    switch(error) {
+        case INVALID_TOKEN:
+            name = BOLD_RED + "[INVALID_TOKEN]" + RESET;
+            break;
+        case MISSING_TOKEN:
+            name = BOLD_YELLOW + "[MISSING_TOKEN]" + RESET;
+        default:
+            name = BOLD_RED + "[ERROR]" + RESET;
+    }
+
+    std::stringstream msgStream;
+    msgStream << name << " \"" << msg.str() << "\"\nat " << currentToken.token  
+            << " in line " << currentToken.lineNumber << std::endl;
+
+    throw std::runtime_error(msgStream.str());
+}
 
 
+/**
+ * Warns about potential bugs in the code
+ * 
+ * @param warn The type of warning to display
+ * @param msg The message to display with the warning
+ */
+void AlienCPUAssembler::warn(AssemblerWarn warn, std::stringstream msg) {
+
+}
 
 
+/**
+ * Logs information about the assembling process
+ * 
+ * @param log The type of log to display
+ * @param msg The message to display with the log
+ */
+void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
+    if (!debugOn) {
+        return;
+    }
 
+    std::string name;
+    switch(log) {
+        case TOKENIZING:
+            name = BOLD_BLUE + "[TOKENIZING]" + RESET;
+            break;
+        case PARSING:
+            name = BOLD_GREEN + "[PARSING]" + RESET;
+            break;
+        case ASSEMBLING:
+            name = BOLD_MAGENTA + "[ASSEMBLING]" + RESET;
+            break;
+        default:
+            name = BOLD_CYAN + "[LOG]" + RESET;
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    std::cout << name << " " << msg.str() << std::endl;
+}
 
 
 
