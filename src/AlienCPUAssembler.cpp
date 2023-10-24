@@ -1,5 +1,6 @@
 #include "AlienCPUAssembler.h"
 
+#include <any>
 
 int main() {
     AlienCPU cpu;
@@ -53,6 +54,17 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
     // }
 
     parseTokens();
+
+    for (ParsedToken parsedToken : parsedTokens) {
+        if (parsedToken.type == INSTRUCTION) {
+            std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string 
+                    << " " << addressingModeNames.at(parsedToken.addressingMode) << std::endl;
+        } else if (parsedToken.type == INSTRUCTION_OPERAND || parsedToken.type == GLOBAL_LABEL || parsedToken.type == LOCAL_LABEL) {
+            std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string << std::endl;
+        } else {
+            std::cout << "\t" << parsedToken.token.string << std::endl;
+        }
+    }
     
 
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
@@ -66,18 +78,74 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
 void AlienCPUAssembler::parseTokens() {
     log(PARSING, std::stringstream() << BOLD << "Parsing Tokens" << RESET);
 
-    enum SegmentType {
-        DATA,
-        TEXT
-    };
+    // memory segment currently writing to
     SegmentType segment = TEXT;
+
+    // check if there is an operand available
+    auto hasOperand = [this](int tokenIndex, bool onSameLine = true) {
+        return tokenIndex != tokens.size() - 1 && (!onSameLine || tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber);
+    };
     
     for (int tokenI = 0; tokenI < tokens.size(); tokenI++) {
         Token& token = tokens[tokenI];
-        
+
         // check if the token is a directive
         if (token.string[0] == '.') {
-            if (token.string == ".org") {
+            parsedTokens.push_back(ParsedToken(token, DIRECTIVE));
+
+            if (token.string == ".data") {
+                segment = DATA;
+            } else if (token.string == ".text") {
+                segment = TEXT;
+            } else if (token.string == ".outfile") {
+                // needs an operand value
+                if (!hasOperand(tokenI)) {
+                    error(MISSING_TOKEN, token, std::stringstream() << ".outfile directive must be supplied a value");
+                }
+
+                // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
+                if (!outputFile.empty()) {
+                    error(ERROR, token, std::stringstream() << ".outfile directive cannot be defined multiple times in the same file");
+                }
+
+                // set the outfile
+                outputFile = tokens[++tokenI].string;
+                parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
+            } else if (token.string == ".org") {
+                // needs an operand value
+                if (!hasOperand(tokenI)) {
+                    error(MISSING_TOKEN, token, std::stringstream() << ".org directive must be supplied a value");
+                }
+
+                // parse org value, must be a value capable of being evaluated in the parse phase
+                // ie, any labels referenced must be already defined and any expressions must be evaluated
+                Word value = parseValue(tokens[++tokenI]);
+                parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
+                
+                if (segment == TEXT) {
+                    textProgramCounter = value;
+                } else if (segment == DATA) {
+                    dataProgramCounter = value;
+                } else {
+                    error(ERROR, token, std::stringstream() << "Invalid segment");
+                }
+            } else if (token.string == ".db") {
+
+            } else if (token.string == ".d2b") {
+
+            } else if (token.string == ".dw") {
+
+            } else if (token.string == ".d2w") {
+
+            } else if (token.string == ".db*") {
+
+            } else if (token.string == ".d2b*") {
+
+            } else if (token.string == ".dw*") {
+
+            } else if (token.string == ".d2w*") {
+
+            } else if (token.string == ".advance") {
 
             }
 
@@ -97,7 +165,7 @@ void AlienCPUAssembler::parseTokens() {
         if (instructionMap.find(token.string) != instructionMap.end()) {
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
-            if (tokenI == tokens.size() - 1 || tokens[tokenI + 1].lineNumber != token.lineNumber) {
+            if (!hasOperand(tokenI)) {
                 AddressingMode addressingMode = NO_ADDRESSING_MODE;
                 if (validInstruction(token.string, IMPLIED)) {
                     addressingMode = IMPLIED;
@@ -123,7 +191,7 @@ void AlienCPUAssembler::parseTokens() {
                 
                 // valid instruction
                 log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
-                parsedTokens.push_back(ParsedInstructionToken(token, INSTRUCTION, textProgramCounter, addressingMode));
+                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, textProgramCounter, addressingMode));
                 textProgramCounter++; // no extra bytes for operands
                 continue;
             }
@@ -140,10 +208,10 @@ void AlienCPUAssembler::parseTokens() {
 
             // valid instruction with operand
             log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
-            parsedTokens.push_back(ParsedInstructionToken(token, INSTRUCTION, textProgramCounter, addressingMode));
+            parsedTokens.push_back(ParsedToken(token, INSTRUCTION, textProgramCounter, addressingMode));
             textProgramCounter++; // 1 byte for the instruction
 
-            parsedTokens.push_back(ParsedMemoryToken(operandToken, INSTRUCTION_OPERAND, textProgramCounter));
+            parsedTokens.push_back(ParsedToken(operandToken, INSTRUCTION_OPERAND, textProgramCounter));
             textProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
             continue;
         }
@@ -451,6 +519,8 @@ void AlienCPUAssembler::tokenize() {
             continue;
         }
 
+        // add the current token to tokens
+        currentToken += character;
 
         // check to end current built token
         if (!isMultiLineComment && (character == '\n' || character == '\t' || charLocation == sourceCode.size() - 1)) {
@@ -475,9 +545,6 @@ void AlienCPUAssembler::tokenize() {
             }
             continue;
         }
-
-        // add the current token to tokens
-        currentToken += character;
 
         // first character of token
         if (readyForNextToken) {

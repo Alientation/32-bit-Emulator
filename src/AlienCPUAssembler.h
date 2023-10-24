@@ -23,6 +23,9 @@ class AlienCPUAssembler {
                     : label(label), expression(expression) {}
         };
 
+        /**
+         * An unparsed token that has been extracted from the source code.
+         */
         struct Token {
             std::string string;
             int location; // number of characters from the first character of the source code
@@ -32,6 +35,9 @@ class AlienCPUAssembler {
                     string(string), location(location), lineNumber(lineNumber) {}
         };
 
+        /**
+         * The type of token that has been parsed from the source code.
+         */
         enum ParsedTokenType {
             GLOBAL_LABEL,
             LOCAL_LABEL,
@@ -42,43 +48,56 @@ class AlienCPUAssembler {
             DIRECTIVE,
             DIRECTIVE_OPERAND
         };
+        
 
+        /**
+         * Base parsed token representing a token that has been parsed from the source code.
+         */
         struct ParsedToken {
             Token token;
             ParsedTokenType type;
-
-            ParsedToken(Token token, ParsedTokenType type) : token(token), type(type) {}
-        };
-
-        struct ParsedMemoryToken : ParsedToken {
             int memoryAddress;
-
-            ParsedMemoryToken(Token token, ParsedTokenType type, int memoryAddress) : 
-                    ParsedToken(token, type), memoryAddress(memoryAddress) {}
-        };
-
-        struct ParsedInstructionToken : ParsedMemoryToken {
             AddressingMode addressingMode;
 
-            ParsedInstructionToken(Token token, ParsedTokenType type, int memoryAddress, AddressingMode addressingMode) : 
-                    ParsedMemoryToken(token, type, memoryAddress), addressingMode(addressingMode) {}
+            ParsedToken(Token token, ParsedTokenType type) : token(token), type(type) {}
+            ParsedToken(Token token, ParsedTokenType type, int memoryAddress) : 
+                    token(token), type(type), memoryAddress(memoryAddress) {}
+            ParsedToken(Token token, ParsedTokenType type, int memoryAddress, AddressingMode addressingMode) : 
+                    token(token), type(type), memoryAddress(memoryAddress), addressingMode(addressingMode) {}
         };
 
+        /**
+         * The type of error to print to the console. 
+         */
         enum AssemblerError {
             ERROR,
             INVALID_TOKEN,
             MISSING_TOKEN,
         };
 
+        /**
+         * The type of warning to print to the console.
+         */
         enum AssemblerWarn {
             WARN,
         };
-
+        
+        /**
+         * The type of log message to print to the console.
+         */
         enum AssemblerLog {
             LOG,
             TOKENIZING,
             PARSING,
             ASSEMBLING
+        };
+
+        /**
+         * The type of segment of the program being assembled.
+         */
+        enum SegmentType {
+            DATA,
+            TEXT
         };
 
 
@@ -345,6 +364,26 @@ std::map<AddressingMode,u8> addressingModeOperandBytes = {
     {ZEROPAGE_YINDEXED, 2},
     {XINDEXED_INDIRECT, 2},
     {INDIRECT_YINDEXED, 2}
+};
+
+
+/**
+ * Map of addressing modes to their names
+ */
+std::map<AddressingMode,std::string> addressingModeNames = {
+    {ACCUMULATOR, "ACCUMULATOR"},
+    {IMPLIED, "IMPLIED"},
+    {IMMEDIATE, "IMMEDIATE"},
+    {RELATIVE, "RELATIVE"},
+    {INDIRECT, "INDIRECT"},
+    {ABSOLUTE, "ABSOLUTE"},
+    {ABSOLUTE_XINDEXED, "ABSOLUTE_XINDEXED"},
+    {ABSOLUTE_YINDEXED, "ABSOLUTE_YINDEXED"},
+    {ZEROPAGE, "ZEROPAGE"},
+    {ZEROPAGE_XINDEXED, "ZEROPAGE_XINDEXED"},
+    {ZEROPAGE_YINDEXED, "ZEROPAGE_YINDEXED"},
+    {XINDEXED_INDIRECT, "XINDEXED_INDIRECT"},
+    {INDIRECT_YINDEXED, "INDIRECT_YINDEXED"}
 };
 
 
