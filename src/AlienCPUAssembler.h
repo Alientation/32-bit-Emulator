@@ -344,6 +344,25 @@ static bool isHexadecimalNumber(const std::string& string) {
 }
 
 
+/**
+ * Map of addressing modes to how many bytes are needed
+ */
+std::map<AddressingMode,u8> addressingModeOperandBytes = {
+    {ACCUMULATOR, 0},
+    {IMPLIED, 0},
+    {IMMEDIATE, 2},
+    {RELATIVE, 2},
+    {INDIRECT, 4},
+    {ABSOLUTE, 4},
+    {ABSOLUTE_XINDEXED, 4},
+    {ABSOLUTE_YINDEXED, 4},
+    {ZEROPAGE, 2},
+    {ZEROPAGE_XINDEXED, 2},
+    {ZEROPAGE_YINDEXED, 2},
+    {XINDEXED_INDIRECT, 2},
+    {INDIRECT_YINDEXED, 2}
+};
+
 
 /**
  * Map of processor instructions syntactical names and addressing mode to their opcode value

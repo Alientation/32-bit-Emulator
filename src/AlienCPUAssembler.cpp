@@ -26,82 +26,6 @@ int main() {
 AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
 
-/**
- * Assembles the given assembly source code into machine code and loads it onto the cpu.
- * TODO: technically should probably load into a .bin file and then manually write it into the cpu
- * 
- * Documentation on the assembly language can be found SOMEWHERE
- * 
- * @param source The assembly source code to assemble into machine code.
- */
-void AlienCPUAssembler::assemble(std::string source) {
-    std::cout << "ASSEMBLING..." << std::endl;
-
-    // reset output file;
-    outputFile = "";
-
-    // reset assembler state to be ready for a new assembly
-    // the source code to assemble
-    sourceCode = source;
-
-    // memory address of the next program instruction to be assembled
-    OLDlocationPointer = 0x00000000;
-
-    // split the source code into lines
-    OLDlines = split(source, '\n');
-    OLDcurrentLineTokens.clear();
-    OLDpreviousGlobalLabel = "";
-
-
-    // labels that reference code locations
-    OLDglobalCodeLabels.clear(); // can be referenced from anywhere in the program
-    OLDlocalCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
-
-    // processed value labels (labels that reference values)
-    OLDglobalValueLabels.clear();
-    OLDlocalValueLabels.clear();
-
-    // value labels expressions that have not be processed yet
-    OLDglobalUnprocessedValueLabels.clear();
-    OLDlocalUnprocessedValueLabels.clear();
-
-
-    // iterate over each line
-    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
-        std::cout << std::endl << " PARSING LINE " << OLDcurrentLine << ": " << OLDlines[OLDcurrentLine] << std::endl;
-        OLDparseLine(OLDlines[OLDcurrentLine]);
-        std::cout << "   >> PARSED LINE " << OLDcurrentLine << std::endl;
-
-    }
-
-    // process unprocessed value labels sequentially from global to local in order of appearance
-    for (LabelExpressionPair labelExpressionPair : OLDglobalUnprocessedValueLabels) {
-        //evaluateExpression(labelExpressionPair);
-    }
-
-    for (LabelExpressionPair labelExpressionPair : OLDlocalUnprocessedValueLabels) {
-        //evaluateExpression(labelExpressionPair);
-    }
-
-
-    /*
-        USE TOKENIZED LINES TO ASSEMBLE INTO BINARY FILE
-    */
-
-    // iterate over each line for the second pass and fill in values for labels
-    // this will write to the memory
-    OLDlocationPointer = 0x00000000;
-    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
-        OLDassembleLine(OLDlines[OLDcurrentLine]);
-    }
-
-    std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
-}
-
-
-
-
-
 void AlienCPUAssembler::betterAssemble(std::string source) {
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Assembling..." << RESET);
 
@@ -116,11 +40,11 @@ void AlienCPUAssembler::betterAssemble(std::string source) {
     
     tokenize();
 
-    for (Token token : tokens) {
-        std::cout << token.string << " [" << token.lineNumber << "]" << std::endl;
-    }
+    // for (Token& token : tokens) {
+    //     std::cout << token.string << " [" << token.lineNumber << "]" << std::endl;
+    // }
 
-    // parseTokens();
+    parseTokens();
     
 
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
@@ -145,12 +69,15 @@ void AlienCPUAssembler::parseTokens() {
 
         // check if the token is a directive
         if (token.string[0] == '.') {
+            
 
+            continue;
         }
 
         // check if token is label
         if (token.string[token.string.size() - 1] == ':') {
 
+            continue;
         }
 
         // check if token is instruction
@@ -161,7 +88,7 @@ void AlienCPUAssembler::parseTokens() {
                 // check if instruction is valid if there are no operands
                 if (!validInstruction(token.string, IMPLIED) && !validInstruction(token.string, ACCUMULATOR)) {
                     // missing operands
-                    error(MISSING_TOKEN, token, std::stringstream() << "Missing Operand");
+                    error(MISSING_TOKEN, token, std::stringstream() << "Missing Instruction Operand");
                 }
 
                 // check if in proper segment
@@ -178,12 +105,21 @@ void AlienCPUAssembler::parseTokens() {
 
             // parse the operand token to get the addressing mode
             // the operand token is guaranteed to be on the same line as the instruction token
-            Token operandToken = tokens[++tokenI];
+            Token& operandToken = tokens[++tokenI];
             AddressingMode addressingMode = getAddressingMode(token, operandToken);
+
+            // invalid addressing mode
+            if (addressingMode == NO_ADDRESSING_MODE) {
+                error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode");
+            }
+
+            textProgramCounter++; // 1 byte for the instruction
+            textProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
+            continue;
         }
 
         // unrecognized token
-        error(INVALID_TOKEN, token, std::stringstream() << "Unrecognized Token");
+        error(INVALID_TOKEN, token, std::stringstream() << "Unrecognized Token While Parsing");
     }
 
     log(PARSING, std::stringstream() << BOLD_GREEN << "Parsed Tokens" << RESET);
@@ -334,75 +270,40 @@ void AlienCPUAssembler::evaluateExpression(Token token) {
  */
 u64 AlienCPUAssembler::parseValue(const Token token) {
     if (token.string.empty()) {
-        error(ERROR, token, std::stringstream() << "Invalid value to parse: " << token.string);
+        error(ERROR, token, std::stringstream() << "Invalid empty value to parse: " << token.string);
     }
 
     // remove the value symbol if it is present
     std::string value = token.string[0] == '#' ? token.string.substr(1) : token.string;
-
-    // hexadecimal
-    if (value[0] == '$') {
-        // check it contains only 0-9 or A-F characters
-        u64 number = 0;
-        std::string::const_iterator it = value.begin();
-        while (it != value.end() && (std::isdigit(*it) || 
-                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
-            number *= 16;
-            if (std::isdigit(*it)) {
-                number += (*it) - '0';
-            } else {
-                number += 10 + (std::toupper(*it) - 'A');
-            }
-            
-            ++it;
-        }
-        
-        // contains other characters
-        if (it != value.end()) {
-            error(ERROR, token, std::stringstream() << "Invalid hexadecimal digit '" << *it << "': " << value);
-        }
-
-        // proper hexadecimal value
-        return number;
-    }
-
-
-
-
-
-
-
-
-    error(ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
-    return 0;
-}
-
-
-
-/**
- * Converts a string value into a number
- * 
- * To signify a base value, the number must be preceded by a special character representing the base
- * Binary: '%'
- * Octal: '0'
- * Decimal: (default, no need to preceed with a special character)
- * Hexadecimal: '$'
- * 
- * @param value string to convert to number
- * @return numeric representation of the string
- */
-u64 AlienCPUAssembler::OLDparseValue(const std::string& value) {
+    
+    // check if value is empty
     if (value.empty()) {
-        throw std::runtime_error("Invalid value to parse: " + value);
+        error(ERROR, token, std::stringstream() << "Invalid value to parse: " << value);
     }
 
-    std::string numericValue = value.substr(1);
+
+    // check if it references a non numeric value
+    if (!isHexadecimalNumber(value.substr(1)) && !isNumber(value)) {
+
+
+
+
+
+
+
+
+
+
+        error(ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
+    }
+
 
     // hexadecimal
     if (value[0] == '$') {
-        std::string::const_iterator it = numericValue.begin();
         // check it contains only 0-9 or A-F characters
+        std::string numericValue = value.substr(1);
         u64 number = 0;
+        std::string::const_iterator it = numericValue.begin();
         while (it != numericValue.end() && (std::isdigit(*it) || 
                 (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
             number *= 16;
@@ -417,64 +318,70 @@ u64 AlienCPUAssembler::OLDparseValue(const std::string& value) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            std::stringstream ss;
-            ss << "Invalid hexadecimal digit \'" << *it << "\': " << numericValue;
-            throw std::runtime_error(ss.str());
+            error(ERROR, token, std::stringstream() << "Invalid Hexadecimal Digit '" << *it << "': " << numericValue);
         }
 
         // proper hexadecimal value
         return number;
+    } else if (value[0] == '0') {
+        // check it contains only 0-7 characters
+        std::string numericValue = value.substr(1);
+        u64 number = 0;
+        std::string::const_iterator it = numericValue.begin();
+        while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
+            number *= 8;
+            number += (*it) - '0';
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != numericValue.end()) {
+            error(ERROR, token, std::stringstream() << "Invalid Octal Digit '" << *it << "': " << numericValue);
+        }
+
+        // proper octal value
+        return number;
+    } else if (value[0] == '%') {
+        // check it contains only 0-1 characters
+        std::string numericValue = value.substr(1);
+        u64 number = 0;
+        std::string::const_iterator it = numericValue.begin();
+        while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
+            number *= 2;
+            number += (*it) - '0';
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != numericValue.end()) {
+            error(ERROR, token, std::stringstream() << "Invalid Binary Digit '" << *it << "': " << numericValue);
+        }
+
+        // proper binary value
+        return number;
+    } else if (isNumber(value)) {
+        // must be a number of some base
+        u64 number = 0;
+        std::string::const_iterator it = value.begin();
+        while (it != value.end() && (*it) >= '0' && (*it) <= '9') {
+            number *= 10;
+            number += (*it) - '0';
+            ++it;
+        }
+
+        // contains other characters
+        if (it != value.end()) {
+            error(ERROR, token, std::stringstream() << "Invalid Decimal Digit '" << *it << "': " << value);
+        }
+
+        // proper decimal value
+        return number;
     }
 
-    
-    // must be an expression of some sort
-    if (!isNumber(numericValue)) {
-        throw std::runtime_error("Invalid value to parse (Unsupported Non-numeric Value): " + numericValue);
-    }
-
-    // must be a number of some base
-    u64 number = 0;
-    std::string::const_iterator it = numericValue.begin();
-    switch(value[0]) {
-        case '%':
-            // base 2
-            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
-                number *= 2;
-                number += (*it) - '0';
-                ++it;
-            }
-            
-            // contains other characters
-            if (it != numericValue.end()) {
-                std::stringstream ss;
-                ss << "Invalid binary digit \'" << *it << "\': " << numericValue;
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        case '0':
-            // base 8
-            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
-                number *= 8;
-                number += (*it) - '0';
-                ++it;
-            }
-            
-            // contains other characters
-            if (it != numericValue.end()) {
-                std::stringstream ss;
-                ss << "Invalid octal digit \'" << *it << "\': " << numericValue;
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        default:
-            number = std::stoi(value);
-            break;
-    }
-
-    return number;
+    error(ERROR, token, std::stringstream() << "Unsupported Numeric Value: " << value);
+    return 0;
 }
+
 
 
 
@@ -667,6 +574,195 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Assembles the given assembly source code into machine code and loads it onto the cpu.
+ * TODO: technically should probably load into a .bin file and then manually write it into the cpu
+ * 
+ * Documentation on the assembly language can be found SOMEWHERE
+ * 
+ * @param source The assembly source code to assemble into machine code.
+ */
+void AlienCPUAssembler::assemble(std::string source) {
+    std::cout << "ASSEMBLING..." << std::endl;
+
+    // reset output file;
+    outputFile = "";
+
+    // reset assembler state to be ready for a new assembly
+    // the source code to assemble
+    sourceCode = source;
+
+    // memory address of the next program instruction to be assembled
+    OLDlocationPointer = 0x00000000;
+
+    // split the source code into lines
+    OLDlines = split(source, '\n');
+    OLDcurrentLineTokens.clear();
+    OLDpreviousGlobalLabel = "";
+
+
+    // labels that reference code locations
+    OLDglobalCodeLabels.clear(); // can be referenced from anywhere in the program
+    OLDlocalCodeLabels.clear(); // can only be referenced locally in a subroutine (between two global labels)
+
+    // processed value labels (labels that reference values)
+    OLDglobalValueLabels.clear();
+    OLDlocalValueLabels.clear();
+
+    // value labels expressions that have not be processed yet
+    OLDglobalUnprocessedValueLabels.clear();
+    OLDlocalUnprocessedValueLabels.clear();
+
+
+    // iterate over each line
+    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
+        std::cout << std::endl << " PARSING LINE " << OLDcurrentLine << ": " << OLDlines[OLDcurrentLine] << std::endl;
+        OLDparseLine(OLDlines[OLDcurrentLine]);
+        std::cout << "   >> PARSED LINE " << OLDcurrentLine << std::endl;
+
+    }
+
+    // process unprocessed value labels sequentially from global to local in order of appearance
+    for (LabelExpressionPair labelExpressionPair : OLDglobalUnprocessedValueLabels) {
+        //evaluateExpression(labelExpressionPair);
+    }
+
+    for (LabelExpressionPair labelExpressionPair : OLDlocalUnprocessedValueLabels) {
+        //evaluateExpression(labelExpressionPair);
+    }
+
+
+    /*
+        USE TOKENIZED LINES TO ASSEMBLE INTO BINARY FILE
+    */
+
+    // iterate over each line for the second pass and fill in values for labels
+    // this will write to the memory
+    OLDlocationPointer = 0x00000000;
+    for (OLDcurrentLine = 0; OLDcurrentLine < OLDlines.size(); OLDcurrentLine++) {
+        OLDassembleLine(OLDlines[OLDcurrentLine]);
+    }
+
+    std::cout << std::endl << "SUCCESSFULLY ASSEMBLED! " << std::endl;
+}
+
+
+
+/**
+ * Converts a string value into a number
+ * 
+ * To signify a base value, the number must be preceded by a special character representing the base
+ * Binary: '%'
+ * Octal: '0'
+ * Decimal: (default, no need to preceed with a special character)
+ * Hexadecimal: '$'
+ * 
+ * @param value string to convert to number
+ * @return numeric representation of the string
+ */
+u64 AlienCPUAssembler::OLDparseValue(const std::string& value) {
+    if (value.empty()) {
+        throw std::runtime_error("Invalid value to parse: " + value);
+    }
+
+    std::string numericValue = value.substr(1);
+
+    // hexadecimal
+    if (value[0] == '$') {
+        std::string::const_iterator it = numericValue.begin();
+        // check it contains only 0-9 or A-F characters
+        u64 number = 0;
+        while (it != numericValue.end() && (std::isdigit(*it) || 
+                (std::isalpha(*it) && std::toupper(*it) >= 'A' && std::toupper(*it) <= 'F'))) {
+            number *= 16;
+            if (std::isdigit(*it)) {
+                number += (*it) - '0';
+            } else {
+                number += 10 + (std::toupper(*it) - 'A');
+            }
+            
+            ++it;
+        }
+        
+        // contains other characters
+        if (it != numericValue.end()) {
+            std::stringstream ss;
+            ss << "Invalid hexadecimal digit \'" << *it << "\': " << numericValue;
+            throw std::runtime_error(ss.str());
+        }
+
+        // proper hexadecimal value
+        return number;
+    }
+
+    
+    // must be an expression of some sort
+    if (!isNumber(numericValue)) {
+        throw std::runtime_error("Invalid value to parse (Unsupported Non-numeric Value): " + numericValue);
+    }
+
+    // must be a number of some base
+    u64 number = 0;
+    std::string::const_iterator it = numericValue.begin();
+    switch(value[0]) {
+        case '%':
+            // base 2
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
+                number *= 2;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                std::stringstream ss;
+                ss << "Invalid binary digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
+            }
+
+            break;
+        case '0':
+            // base 8
+            while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
+                number *= 8;
+                number += (*it) - '0';
+                ++it;
+            }
+            
+            // contains other characters
+            if (it != numericValue.end()) {
+                std::stringstream ss;
+                ss << "Invalid octal digit \'" << *it << "\': " << numericValue;
+                throw std::runtime_error(ss.str());
+            }
+
+            break;
+        default:
+            number = std::stoi(value);
+            break;
+    }
+
+    return number;
+}
 
 
 /**
