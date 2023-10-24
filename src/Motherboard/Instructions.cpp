@@ -911,8 +911,9 @@ void AlienCPU::CPY_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCC_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (getFlag(CARRY)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -933,8 +934,9 @@ void AlienCPU::BCC_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BCS_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (!getFlag(CARRY)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -955,8 +957,9 @@ void AlienCPU::BCS_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BEQ_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (getFlag(ZERO)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -977,8 +980,9 @@ void AlienCPU::BEQ_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BPL_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (!getFlag(NEGATIVE)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -999,8 +1003,9 @@ void AlienCPU::BPL_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BMI_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (getFlag(NEGATIVE)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -1021,8 +1026,9 @@ void AlienCPU::BMI_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BNE_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (!getFlag(ZERO)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -1043,8 +1049,9 @@ void AlienCPU::BNE_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVC_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (!getFlag(OVERFLOW)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
@@ -1065,8 +1072,9 @@ void AlienCPU::BVC_Instruction(Word address) {
 //  +4*     fix high two bytes of PC if branch is taken
 void AlienCPU::BVS_Instruction(Word address) {
     u16 offset = readTwoBytes(address); cycles++;
+    short signedOffset = offset;
     if (getFlag(OVERFLOW)) {
-        PC += offset; cycles++;
+        PC += signedOffset; cycles++;
     }
 }
 
