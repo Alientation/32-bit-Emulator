@@ -40,6 +40,8 @@ file (GLOB ALIENCPU_HEADERS
     "src/Types.h"
 
     "src/AlienCPUAssembler.h"
+
+    "src/ConsoleColor.h"
 )
 
 file (GLOB ALIENCPUTEST_SOURCES 

@@ -26,6 +26,14 @@ int main() {
 AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
 
+/**
+ * Assembles the given assembly source code into machine code and loads it onto the cpu.
+ * 
+ * TODO: technically should probably load into a .bin file and then manually write it into the cpu
+ * Documentation on the assembly language can be found SOMEWHERE
+ * 
+ * @param source The assembly source code to assemble into machine code.
+ */
 void AlienCPUAssembler::betterAssemble(std::string source) {
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Assembling..." << RESET);
 
@@ -66,16 +74,21 @@ void AlienCPUAssembler::parseTokens() {
     
     for (int tokenI = 0; tokenI < tokens.size(); tokenI++) {
         Token& token = tokens[tokenI];
-
+        
         // check if the token is a directive
         if (token.string[0] == '.') {
-            
+            if (token.string == ".org") {
+
+            }
 
             continue;
         }
 
         // check if token is label
         if (token.string[token.string.size() - 1] == ':') {
+
+
+
 
             continue;
         }
@@ -85,8 +98,20 @@ void AlienCPUAssembler::parseTokens() {
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
             if (tokenI == tokens.size() - 1 || tokens[tokenI + 1].lineNumber != token.lineNumber) {
+                AddressingMode addressingMode = NO_ADDRESSING_MODE;
+                if (validInstruction(token.string, IMPLIED)) {
+                    addressingMode = IMPLIED;
+                }
+
+                if (validInstruction(token.string, ACCUMULATOR)) {
+                    if (addressingMode != NO_ADDRESSING_MODE) {
+                        error(INVALID_TOKEN, token, std::stringstream() << "Multiple Possible Addressing Modes");
+                    }
+                    addressingMode = ACCUMULATOR;
+                }
+
                 // check if instruction is valid if there are no operands
-                if (!validInstruction(token.string, IMPLIED) && !validInstruction(token.string, ACCUMULATOR)) {
+                if (addressingMode == NO_ADDRESSING_MODE) {
                     // missing operands
                     error(MISSING_TOKEN, token, std::stringstream() << "Missing Instruction Operand");
                 }
@@ -98,7 +123,7 @@ void AlienCPUAssembler::parseTokens() {
                 
                 // valid instruction
                 log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
-                parsedTokens.push_back(ParsedToken(token, INSTRUCTION));
+                parsedTokens.push_back(ParsedInstructionToken(token, INSTRUCTION, textProgramCounter, addressingMode));
                 textProgramCounter++; // no extra bytes for operands
                 continue;
             }
@@ -110,10 +135,15 @@ void AlienCPUAssembler::parseTokens() {
 
             // invalid addressing mode
             if (addressingMode == NO_ADDRESSING_MODE) {
-                error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode");
+                error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
             }
 
+            // valid instruction with operand
+            log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
+            parsedTokens.push_back(ParsedInstructionToken(token, INSTRUCTION, textProgramCounter, addressingMode));
             textProgramCounter++; // 1 byte for the instruction
+
+            parsedTokens.push_back(ParsedMemoryToken(operandToken, INSTRUCTION_OPERAND, textProgramCounter));
             textProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
             continue;
         }
@@ -520,7 +550,7 @@ void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::str
 
     std::stringstream msgStream;
     msgStream << name << " " << msg.str() << " at line " << currentToken.lineNumber 
-            << "\n" << currentToken.string  << std::endl;
+            << " \"" << currentToken.string << "\"" << std::endl;
 
     throw std::runtime_error(msgStream.str());
 }
