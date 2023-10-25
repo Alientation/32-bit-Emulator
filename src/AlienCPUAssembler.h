@@ -35,6 +35,8 @@ class AlienCPUAssembler {
                     string(string), location(location), lineNumber(lineNumber) {}
         };
 
+        Token NULL_TOKEN = Token("NULL", -1, -1);
+
         /**
          * The type of token that has been parsed from the source code.
          */
@@ -70,8 +72,10 @@ class AlienCPUAssembler {
          * The type of error to print to the console. 
          */
         enum AssemblerError {
-            ERROR,
+            INTERNAL_ERROR,
+            MULTIPLE_DEFINITION,
             INVALID_TOKEN,
+            UNRECOGNIZED_TOKEN,
             MISSING_TOKEN,
         };
 
@@ -110,6 +114,10 @@ class AlienCPUAssembler {
         u64 parseValue(const Token token);
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
         void evaluateExpression(Token token);
+
+        bool isStringToken(std::string token);
+        std::string getStringToken(std::string token);
+        bool isValidFilename(std::string filename);
 
 
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
@@ -156,15 +164,6 @@ class AlienCPUAssembler {
          * Parsed tokens
          */
         std::vector<ParsedToken> parsedTokens;
-
-
-        /**
-         * Program counters for the data and text segments of the program
-         */
-        Word dataProgramCounter;
-        Word textProgramCounter;
-
-
 
 
 
