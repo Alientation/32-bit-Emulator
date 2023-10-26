@@ -88,7 +88,7 @@ void AlienCPUAssembler::parseTokens() {
 
     // memory segment currently writing to
     std::string segmentName = "";
-    SegmentType segment = TEXT;
+    SegmentType segment = TEXT_SEGMENT;
     std::map<std::string, Word> textSegments;
     std::map<std::string, Word> dataSegments;
     /**
@@ -98,37 +98,15 @@ void AlienCPUAssembler::parseTokens() {
     Word textProgramCounter = 0;
 
     auto GET_SEGMENT = [this, segment, &textProgramCounter, &dataProgramCounter]() -> Word* {
-        if (segment == TEXT) {
+        if (segment == TEXT_SEGMENT) {
             return &textProgramCounter;
-        } else if (segment == DATA) {
+        } else if (segment == DATA_SEGMENT) {
             return &dataProgramCounter;
         }
 
         error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
         return nullptr;
     };
-
-    // increment the correct memory segment's program counter
-    // auto incrementPC = [this, segment, &dataProgramCounter, &textProgramCounter](Word amount) {
-    //     if (segment == TEXT) {
-    //         textProgramCounter += amount;
-    //     } else if (segment == DATA) {
-    //         dataProgramCounter += amount;
-    //     } else {
-    //         error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
-    //     }
-    // };
-
-    // // set the correct memory segment's program counter
-    // auto setPC = [this, segment, &dataProgramCounter, &textProgramCounter](Word newPC) {
-    //     if (segment == TEXT) {
-    //         textProgramCounter = newPC;
-    //     } else if (segment == DATA) {
-    //         dataProgramCounter = newPC;
-    //     } else {
-    //         error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
-    //     }
-    // };
 
     // parse a value and throw an error if it is not between min and max
     auto EXPECT_PARSEDVALUE = [this](int tokenIndex, u64 min, u64 max) {
@@ -163,33 +141,40 @@ void AlienCPUAssembler::parseTokens() {
     for (int tokenI = 0; tokenI < tokens.size(); tokenI++) {
         Token& token = tokens[tokenI];
 
+
+
         // check if the token is a directive
         if (token.string[0] == '.') {
+            if (directiveMap.find(token.string) == directiveMap.end()) {
+                error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unrecognized Directive");
+            }
+
+            DirectiveType type = directiveMap.at(token.string);
             parsedTokens.push_back(ParsedToken(token, DIRECTIVE));
             
-            if (token.string == ".data" || token.string == ".text") {
+            if (type == DATA || type == TEXT) {
                 // save previous segment
-                if (segment == TEXT) {
+                if (segment == TEXT_SEGMENT) {
                     textSegments[segmentName] = textProgramCounter;
-                } else if (segment == DATA) {
+                } else if (segment == DATA_SEGMENT) {
                     dataSegments[segmentName] = dataProgramCounter;
                 } else {
                     error(INTERNAL_ERROR, token, std::stringstream() << "Invalid segment");
                 }
 
-                segment = token.string == ".data" ? DATA : TEXT;
+                segment = type == DATA ? DATA_SEGMENT : TEXT_SEGMENT;
                 if (HAS_OPERAND(tokenI)) {
                     std::string segmentLabel = tokens[++tokenI].string;
                     parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-                    if (segment == TEXT) {
+                    if (segment == TEXT_SEGMENT) {
                         textProgramCounter = textSegments[segmentLabel];
-                    } else if (segment == DATA) {
+                    } else if (segment == DATA_SEGMENT) {
                         dataProgramCounter = dataSegments[segmentLabel];
                     } else {
                         error(INTERNAL_ERROR, token, std::stringstream() << "Invalid segment");
                     }
                 }
-            } else if (token.string == ".outfile") {
+            } else if (type == OUTFILE) {
                 EXPECT_OPERAND(tokenI++);
 
                 // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
@@ -205,7 +190,7 @@ void AlienCPUAssembler::parseTokens() {
                 }
 
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-            } else if (token.string == ".org") {
+            } else if (type == ORG) {
                 EXPECT_OPERAND(tokenI++);
 
                 // parse org value, must be a value capable of being evaluated in the parse phase
@@ -214,7 +199,7 @@ void AlienCPUAssembler::parseTokens() {
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
                 
                 *GET_SEGMENT() = value;
-            } else if (token.string == ".db") {
+            } else if (type == DB_LO) {
                 // needs an operand
                 EXPECT_OPERAND(tokenI++);
                 
@@ -233,24 +218,78 @@ void AlienCPUAssembler::parseTokens() {
                 }
 
 
-            } else if (token.string == ".d2b") {
+            } else if (type == D2B_LO) {
 
-            } else if (token.string == ".dw") {
+            } else if (type == DW_LO) {
 
-            } else if (token.string == ".d2w") {
+            } else if (type == D2W_LO) {
 
-            } else if (token.string == ".db*") {
+            } else if (type == DB_HI) {
 
-            } else if (token.string == ".d2b*") {
+            } else if (type == D2B_HI) {
 
-            } else if (token.string == ".dw*") {
+            } else if (type == DW_HI) {
 
-            } else if (token.string == ".d2w*") {
+            } else if (type == D2W_HI) {
 
-            } else if (token.string == ".advance") {
+            } else if (type == ADVANCE) {
 
-            } else if (token.string == ".fill") {
+            } else if (type == FILL) {
 
+            } else if (type == SPACE) {
+
+            } else if (type == DEFINE) {
+
+            } else if (type == CHECKPC) {
+
+            } else if (type == ALIGN) {
+
+            } else if (type == INCBIN) {
+
+            } else if (type == INCLUDE) {
+
+            } else if (type == REQUIRE) {
+
+            } else if (type == SCOPE) {
+
+            } else if (type == SCEND) {
+
+            } else if (type == MACRO) {
+
+            } else if (type == MACEND) {
+
+            } else if (type == INVOKE) {
+
+            } else if (type == ASSERT) {
+
+            } else if (type == ERROR) {
+
+            } else if (type == ERRORIF) {
+
+            } else if (type == IFF) {
+
+            } else if (type == IFDEF) {
+
+            } else if (type == IFNDEF) {
+
+            } else if (type == ELSEIF) {
+
+            } else if (type == ELSEIFDEF) {
+
+            } else if (type == ELSEIFNDEF) {
+
+            } else if (type == ELSE) {
+
+            } else if (type == ENDIF) {
+
+            } else if (type == PRINT) {
+
+            } else if (type == PRINTIF) {
+
+            } else if (type == PRINTNOW) {
+
+            } else {
+                error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unrecognized Directive");
             }
 
             EXPECT_NO_OPERAND(tokenI);
@@ -290,7 +329,7 @@ void AlienCPUAssembler::parseTokens() {
                 }
 
                 // check if in proper segment
-                if (segment != TEXT) {
+                if (segment != TEXT_SEGMENT) {
                     error(INVALID_TOKEN, token, std::stringstream() << "Instruction must be in the text segment");
                 }
                 

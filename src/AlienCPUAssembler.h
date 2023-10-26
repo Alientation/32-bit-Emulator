@@ -77,7 +77,6 @@ class AlienCPUAssembler {
             ADVANCE, FILL, SPACE,
             DEFINE,
             CHECKPC, ALIGN,
-            DATA, STRING,
             INCBIN, INCLUDE, REQUIRE, 
             SCOPE, SCEND, 
             MACRO, MACEND, INVOKE,
@@ -95,12 +94,12 @@ class AlienCPUAssembler {
             {".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
             {".define", DEFINE},
             {".checkpc", CHECKPC}, {".align", ALIGN},
-            {".data", DATA}, {".string", STRING},
             {".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
             {".scope", SCOPE}, {".scend", SCEND},
             {".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE},
             {".assert", ASSERT}, {".error", ERROR}, {".errorif", ERRORIF},
-            {".if", IFF}, {".ifdef", IFDEF}, {".ifndef", IFNDEF}, {".elseif", ELSEIF}, {".elseifdef", ELSEIFDEF}, {".elseifndef", ELSEIFNDEF}, {".else", ELSE}, {".endif", ENDIF},
+            {".if", IFF}, {".ifdef", IFDEF}, {".ifndef", IFNDEF}, {".elseif", ELSEIF}, 
+            {".elseifdef", ELSEIFDEF}, {".elseifndef", ELSEIFNDEF}, {".else", ELSE}, {".endif", ENDIF},
             {".print", PRINT}, {".printif", PRINTIF}, {".printnow", PRINTNOW}
         };
 
@@ -136,8 +135,8 @@ class AlienCPUAssembler {
          * The type of segment of the program being assembled.
          */
         enum SegmentType {
-            DATA,
-            TEXT
+            DATA_SEGMENT,
+            TEXT_SEGMENT
         };
 
 
