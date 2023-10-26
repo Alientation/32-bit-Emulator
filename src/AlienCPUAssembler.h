@@ -13,17 +13,6 @@ class AlienCPUAssembler;
 class AlienCPUAssembler {
     public:
         /**
-         * Value labels expressions that have not be processed yet.
-         */
-        struct LabelExpressionPair {
-            std::string label;
-            std::string expression;
-
-            LabelExpressionPair(std::string label, std::string expression) 
-                    : label(label), expression(expression) {}
-        };
-
-        /**
          * An unparsed token that has been extracted from the source code.
          */
         struct Token {
@@ -104,6 +93,72 @@ class AlienCPUAssembler {
         };
 
         /**
+         * The type of segment of the program being assembled.
+         */
+        enum SegmentType {
+            DATA_SEGMENT,
+            TEXT_SEGMENT
+        };
+
+        /**
+         * Status of the assembler as it is assembling the source code.
+         */
+        enum AssemblerStatus {
+            STARTING,
+            TOKENIZING,
+            PARSING,
+            ASSEMBLING,
+            ASSEMBLED
+        };
+
+
+        AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
+        void assemble(std::string source);
+
+    private:
+        /**
+         * The AlienCPU to assemble the source code for and write the machine code to.
+         */
+        AlienCPU& cpu;
+        bool debugOn;
+
+        /**
+         * Current state of the assembler
+         */
+        AssemblerStatus status;
+
+        /**
+         * The file name to output the assembled binary to. Default is 'A6502.bin'.
+         */
+        std::string outputFile;
+
+        /**
+         * The source code currently or most recently being assembled.
+         */
+        std::string sourceCode;
+
+
+        /**
+         * Tokenized source code
+         */
+        std::vector<Token> tokens;
+
+        /**
+         * Parsed tokens
+         */
+        std::vector<ParsedToken> parsedTokens;
+
+
+        std::string segmentName;
+        SegmentType segmentType;
+        std::map<SegmentType,std::map<std::string,Word>> segments = {
+            {DATA_SEGMENT, {}},
+            {TEXT_SEGMENT, {}}
+        };
+        Word currentProgramCounter;
+
+
+        /**
          * The type of error to print to the console. 
          */
         enum AssemblerError {
@@ -131,21 +186,10 @@ class AlienCPUAssembler {
             ASSEMBLING
         };
 
-        /**
-         * The type of segment of the program being assembled.
-         */
-        enum SegmentType {
-            DATA_SEGMENT,
-            TEXT_SEGMENT
-        };
+        void reset();
 
-
-        AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
-        void assemble(std::string source);
-
-        void assemble(std::string source);
         void tokenize();
-        void parseTokens();
+        void passTokens();
         u64 parseValue(const Token token);
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
         void evaluateExpression(Token token);
@@ -154,38 +198,14 @@ class AlienCPUAssembler {
         std::string getStringToken(std::string token);
         bool isValidFilename(std::string filename);
 
+        void writeByte(u8 value, bool lowEndian = true);
+        void writeTwoBytes(u16 value, bool lowEndian = true);
+        void writeWord(Word value, bool lowEndian = true);
+        void writeTwoWords(u64 value, bool lowEndian = true);
 
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
         void warn(AssemblerWarn warn, std::stringstream msg);
         void log(AssemblerLog log, std::stringstream msg);
-
-    private:
-        /**
-         * The AlienCPU to assemble the source code for and write the machine code to.
-         */
-        AlienCPU& cpu;
-        bool debugOn;
-
-        /**
-         * The file name to output the assembled binary to. Default is 'A6502.bin'.
-         */
-        std::string outputFile;
-
-        /**
-         * The source code currently or most recently being assembled.
-         */
-        std::string sourceCode;
-
-
-        /**
-         * Tokenized source code
-         */
-        std::vector<Token> tokens;
-
-        /**
-         * Parsed tokens
-         */
-        std::vector<ParsedToken> parsedTokens;
 };
 
 

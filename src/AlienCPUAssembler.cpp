@@ -27,6 +27,17 @@ int main() {
  */
 AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
+/**
+ * Resets the internal state of the assembler.
+ */
+void AlienCPUAssembler::reset() {
+    status = STARTING;
+    outputFile.clear();
+    sourceCode.clear();
+    tokens.clear();
+    parsedTokens.clear();
+}
+
 
 /**
  * Assembles the given assembly source code into machine code and loads it onto the cpu.
@@ -40,10 +51,7 @@ void AlienCPUAssembler::assemble(std::string source) {
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Assembling..." << RESET);
 
     // reset assembler state to be ready for a new assembly
-    outputFile = "";
-    sourceCode = source;
-    tokens.clear();
-    parsedTokens.clear();
+    reset();
     
     tokenize();
 
@@ -58,7 +66,7 @@ void AlienCPUAssembler::assemble(std::string source) {
     }
     std::cout << std::endl;
 
-    parseTokens();
+    passTokens();
 
     // print out each parsed token and its associated memory address
     for (ParsedToken& parsedToken : parsedTokens) {
@@ -81,32 +89,20 @@ void AlienCPUAssembler::assemble(std::string source) {
 
 
 /**
- * Parses the tokens for assembler directives and to map labels
+ * Iterates through the tokens list and performs the appropriate task for the current assembler status.
+ * 
+ * If the assembler's status is PARSING, then any label tokens are added to the symbol table.
+ * If the assembler's status is ASSEMBLING, then everything is written to binary file
  */
-void AlienCPUAssembler::parseTokens() {
+void AlienCPUAssembler::passTokens() {
     log(PARSING, std::stringstream() << BOLD << BOLD_WHITE << "Parsing Tokens" << RESET);
 
     // memory segment currently writing to
-    std::string segmentName = "";
-    SegmentType segment = TEXT_SEGMENT;
-    std::map<std::string, Word> textSegments;
-    std::map<std::string, Word> dataSegments;
-    /**
-     * Program counters for the data and text segments of the program
-     */
-    Word dataProgramCounter = 0;
-    Word textProgramCounter = 0;
+    segmentName = "";
+    segmentType = TEXT_SEGMENT;
 
-    auto GET_SEGMENT = [this, segment, &textProgramCounter, &dataProgramCounter]() -> Word* {
-        if (segment == TEXT_SEGMENT) {
-            return &textProgramCounter;
-        } else if (segment == DATA_SEGMENT) {
-            return &dataProgramCounter;
-        }
-
-        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
-        return nullptr;
-    };
+    //Program counter for the data and text segments of the program
+    Word currentProgramCounter = 0;
 
     // parse a value and throw an error if it is not between min and max
     auto EXPECT_PARSEDVALUE = [this](int tokenIndex, u64 min, u64 max) {
@@ -154,26 +150,19 @@ void AlienCPUAssembler::parseTokens() {
             
             if (type == DATA || type == TEXT) {
                 // save previous segment
-                if (segment == TEXT_SEGMENT) {
-                    textSegments[segmentName] = textProgramCounter;
-                } else if (segment == DATA_SEGMENT) {
-                    dataSegments[segmentName] = dataProgramCounter;
-                } else {
-                    error(INTERNAL_ERROR, token, std::stringstream() << "Invalid segment");
-                }
+                segments[segmentType][segmentName] = currentProgramCounter;
 
-                segment = type == DATA ? DATA_SEGMENT : TEXT_SEGMENT;
+                segmentType = type == DATA ? DATA_SEGMENT : TEXT_SEGMENT;
+                segmentName = "";
+
+                // check if segment has a name
                 if (HAS_OPERAND(tokenI)) {
                     std::string segmentLabel = tokens[++tokenI].string;
                     parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-                    if (segment == TEXT_SEGMENT) {
-                        textProgramCounter = textSegments[segmentLabel];
-                    } else if (segment == DATA_SEGMENT) {
-                        dataProgramCounter = dataSegments[segmentLabel];
-                    } else {
-                        error(INTERNAL_ERROR, token, std::stringstream() << "Invalid segment");
-                    }
                 }
+
+                // check and load value if segment has already been defined
+                currentProgramCounter = segments[segmentType][segmentName];
             } else if (type == OUTFILE) {
                 EXPECT_OPERAND(tokenI++);
 
@@ -198,7 +187,7 @@ void AlienCPUAssembler::parseTokens() {
                 Word value = EXPECT_PARSEDVALUE(tokenI, 0, 0xFFFFFFFF);
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
                 
-                *GET_SEGMENT() = value;
+                currentProgramCounter = value;
             } else if (type == DB_LO) {
                 // needs an operand
                 EXPECT_OPERAND(tokenI++);
@@ -214,7 +203,7 @@ void AlienCPUAssembler::parseTokens() {
                         error(INVALID_TOKEN, tokens[tokenI], std::stringstream() << "Invalid value for .db directive: " << value);
                     }
 
-                    *GET_SEGMENT() += 1;
+                    currentProgramCounter += 1;
                 }
 
 
@@ -307,6 +296,11 @@ void AlienCPUAssembler::parseTokens() {
 
         // check if token is instruction
         if (instructionMap.find(token.string) != instructionMap.end()) {
+            // check if in proper segment
+            if (segmentType != TEXT_SEGMENT) {
+                error(INVALID_TOKEN, token, std::stringstream() << "Instruction must be in the text segment");
+            }
+
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
             if (!HAS_OPERAND(tokenI)) {
@@ -327,39 +321,33 @@ void AlienCPUAssembler::parseTokens() {
                     // missing operands
                     error(MISSING_TOKEN, token, std::stringstream() << "Missing Instruction Operand");
                 }
-
-                // check if in proper segment
-                if (segment != TEXT_SEGMENT) {
-                    error(INVALID_TOKEN, token, std::stringstream() << "Instruction must be in the text segment");
-                }
                 
                 // valid instruction
                 log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
-                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, textProgramCounter, addressingMode));
-                textProgramCounter++; // no extra bytes for operands
+                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
+                currentProgramCounter++; // no extra bytes for operands
+            } else {
+                // parse the operand token to get the addressing mode
+                // the operand token is guaranteed to be on the same line as the instruction token
+                Token& operandToken = tokens[++tokenI];
+                AddressingMode addressingMode = getAddressingMode(token, operandToken);
 
-                continue;
+                // invalid addressing mode
+                if (addressingMode == NO_ADDRESSING_MODE) {
+                    error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
+                }
+
+                // valid instruction with operand
+                log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
+                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
+                currentProgramCounter++; // 1 byte for the instruction
+
+                // operand
+                parsedTokens.push_back(ParsedToken(operandToken, INSTRUCTION_OPERAND, currentProgramCounter));
+                currentProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
+
+                EXPECT_NO_OPERAND(tokenI);
             }
-
-            // parse the operand token to get the addressing mode
-            // the operand token is guaranteed to be on the same line as the instruction token
-            Token& operandToken = tokens[++tokenI];
-            AddressingMode addressingMode = getAddressingMode(token, operandToken);
-
-            // invalid addressing mode
-            if (addressingMode == NO_ADDRESSING_MODE) {
-                error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
-            }
-
-            // valid instruction with operand
-            log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
-            parsedTokens.push_back(ParsedToken(token, INSTRUCTION, textProgramCounter, addressingMode));
-            textProgramCounter++; // 1 byte for the instruction
-
-            parsedTokens.push_back(ParsedToken(operandToken, INSTRUCTION_OPERAND, textProgramCounter));
-            textProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
-
-            EXPECT_NO_OPERAND(tokenI);
             continue;
         }
 
@@ -401,7 +389,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         } else if (validInstruction(tokenInstruction.string, RELATIVE)) {
             return RELATIVE;
         } else {
-            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode RELATIVE or IMMEDIATE: " << tokenInstruction.string);
             return NO_ADDRESSING_MODE;
         }
     }
@@ -410,7 +397,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
     if (operand[0] == '%' || operand[0] == '0' || operand[0] == '$' || isNumber(operand)) {
         u64 parsedValue = parseValue(tokenOperand);
         if (parsedValue > 0xFFFFFFFF) {
-            // error(ERROR, tokenOperand, std::stringstream() << "Invalid zeropage or absolute value: " << operand);
             return NO_ADDRESSING_MODE;
         }
 
@@ -419,7 +405,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         } else if (validInstruction(tokenInstruction.string, ABSOLUTE)) {
             return ABSOLUTE;
         } else {
-            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode ZEROPAGE or ABSOLUTE: " << tokenInstruction.string);
             return NO_ADDRESSING_MODE;    
         }
     }
@@ -434,7 +419,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
         u64 parsedValue = parseValue(valueToken);
         if (parsedValue > 0xFFFFFFFF) {
-            // error(ERROR, tokenOperand, std::stringstream() << "Invalid zeropage,x or zeropage,y or absolute,x or absolute,y value: " << operand);
             return NO_ADDRESSING_MODE;
         }
 
@@ -447,7 +431,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         } else if (!isX && validInstruction(tokenInstruction.string, ABSOLUTE_YINDEXED)) {
             return ABSOLUTE_YINDEXED;
         } else {
-            // error(ERROR, tokenInstruction, std::stringstream() << "Invalid instruction for addressing mode ZEROPAGE_X, ABSOLUTE_X, ZEROPAGE_Y, or ABSOLUTE_Y: " << tokenInstruction.string);
             return NO_ADDRESSING_MODE;
         }
     }
@@ -459,7 +442,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
         u64 parsedValue = parseValue(valueToken);
         if (parsedValue > 0xFFFFFFFF) {
-            // error(ERROR, tokenOperand, std::stringstream() << "Invalid indirect value: " << operand);
             return NO_ADDRESSING_MODE;
         }
 
@@ -475,7 +457,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
         u64 parsedValue = parseValue(valueToken);
         if (parsedValue > 0xFFFF) {
-            // error(ERROR, tokenOperand, std::stringstream() << "Invalid x indexed indirect value: " << operand);
             return NO_ADDRESSING_MODE;
         }
 
@@ -492,7 +473,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
         u64 parsedValue = parseValue(valueToken);
         if (parsedValue > 0xFFFF) {
-            // error(INVALID_TOKEN, tokenOperand, std::stringstream() << "Invalid indirect y indexed value: " << operand);
             return NO_ADDRESSING_MODE;
         }
 
@@ -500,7 +480,6 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
     }
 
     // invalid operand
-    // error(UNRECOGNIZED_TOKEN, tokenInstruction, std::stringstream() << "Invalid operand to convert: " << operand);
     return NO_ADDRESSING_MODE;
 }
 
@@ -548,7 +527,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
     // hexadecimal
     if (value[0] == '$') {
         // check it contains only 0-9 or A-F characters
-        std::string numericValue = value.substr(1);
+        std::string numericValue = value.substr(1); // get rid of the '$' symbol
         u64 number = 0;
         std::string::const_iterator it = numericValue.begin();
         while (it != numericValue.end() && (std::isdigit(*it) || 
@@ -572,7 +551,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         return number;
     } else if (value[0] == '0') {
         // check it contains only 0-7 characters
-        std::string numericValue = value.substr(1);
+        std::string numericValue = value.substr(1); // get rid of the '0' symbol
         u64 number = 0;
         std::string::const_iterator it = numericValue.begin();
         while (it != numericValue.end() && (*it) >= '0' && (*it) <= '7') {
@@ -590,7 +569,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         return number;
     } else if (value[0] == '%') {
         // check it contains only 0-1 characters
-        std::string numericValue = value.substr(1);
+        std::string numericValue = value.substr(1); // get rid of the '%' symbol
         u64 number = 0;
         std::string::const_iterator it = numericValue.begin();
         while (it != numericValue.end() && (*it) >= '0' && (*it) <= '1') {
@@ -647,36 +626,45 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
 void AlienCPUAssembler::tokenize() {
     log(TOKENIZING, std::stringstream() << BOLD << BOLD_WHITE << "Tokenizing Source Code" << RESET);
     
-    bool isSingleLineComment = false;
-    bool isMultiLineComment = false;
-    int currentTokenStart = -1;
-    int lineNumber = 0;
+    // current token being constructed
     std::string currentToken = "";
 
-    // default true for first column on each line. Every subsequent column should have a preceeding
-    // tab character
+    // is the current token a comment and what type
+    bool isSingleLineComment = false;
+    bool isMultiLineComment = false;
+
+    // the index of the first character from the original source code of the current token being constructed
+    int currentTokenStart = -1;
+
+    // the line the current token is on in the original source code
+    int lineNumber = 0;
+
+    // default true for first column on each line. Every subsequent column should have a preceeding tab character
     bool readyForNextToken = true;
+
+    // iterate through each character in the source code
     for (int charLocation = 0; charLocation < sourceCode.size(); charLocation++) {
         char character = sourceCode[charLocation];
+        
+        // keep track of the current line number
         if (character == '\n') {
             lineNumber++;
         }
 
-        // skip whitespace until we find a token to tokenize
-        // this will trim any leading whitespace
+        // skip whitespace until we find a token to tokenize, this will trim any leading whitespace
         if (readyForNextToken && std::isspace(character)) {
             continue;
         }
 
         // add the current token to tokens
         currentToken += character;
-        
 
         // check to end current built token
         if (!isMultiLineComment && (character == '\n' || character == '\t' || charLocation == sourceCode.size() - 1)) {
-            // end current token
-            // trim any trailing whitespace
+            // end current token, trim any trailing whitespace
             currentToken = trim(currentToken);
+
+            // check if not a comment
             if (!isSingleLineComment) {
                 tokens.push_back(Token(currentToken, currentTokenStart, character == '\n' ? lineNumber - 1 : lineNumber));
                 log(TOKENIZING, std::stringstream() << CYAN << "Token\t" << RESET << "[" << currentToken << "]");
@@ -684,25 +672,27 @@ void AlienCPUAssembler::tokenize() {
                 log(TOKENIZING, std::stringstream() << GREEN << "Comment\t" << RESET << "[" << currentToken << "]");
             }
 
+            // reset current token
             currentToken.clear();
             currentTokenStart = -1;
 
             // prepare for next token
             readyForNextToken = true;
             
-            // end single line comment
+            // end single line comment if a new line was reached
             if (character == '\n') {
                 isSingleLineComment = false;
             }
             continue;
         }
 
-        // first character of token
+        // found first non-whitespace character of a token
         if (readyForNextToken) {
+            // mark current character index
             currentTokenStart = charLocation;
             readyForNextToken = false;
 
-            // check if token is a comment
+            // mark token as a comment if it starts with a ';'
             if (character == ';') {
                 isSingleLineComment = true;
             }
@@ -716,7 +706,7 @@ void AlienCPUAssembler::tokenize() {
 
         // check if multi line comment is ending denoted by *;
         if (isMultiLineComment && currentToken.size() >= 4 && character == ';' 
-                && currentToken[currentToken.size() - 2] == '*') {
+            && currentToken[currentToken.size() - 2] == '*') {
             isMultiLineComment = false;
             
             std::vector<std::string> list = split(currentToken,'\n');
@@ -730,12 +720,13 @@ void AlienCPUAssembler::tokenize() {
         }
     }
 
-
+    // check if multi line comment was never closed
     if (isMultiLineComment) {
         error(MISSING_TOKEN, Token(currentToken, currentTokenStart, lineNumber), 
                 std::stringstream() << "Multiline comment is not closed by \'*;\'");
     }
 
+    // check if current token has not been processed
     if (currentToken.size() != 0) {
         error(INTERNAL_ERROR, Token(currentToken, currentTokenStart, lineNumber),
                 std::stringstream() << "Current token has not been processed");
@@ -824,13 +815,23 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 }
 
 
-
-
-
+/**
+ * Determines whether the provided token is a string operand
+ * 
+ * @param token The token to check
+ * @return true if the token is a string operand, false otherwise
+ */
 bool AlienCPUAssembler::isStringToken(std::string token) {
     return token.size() >= 2 && token[0] == '\"' && token[token.size() - 1] == '\"';
 }
 
+
+/**
+ * Extracts the string oeprand from the token
+ * 
+ * @param token The token to extract the string operand from
+ * @return The string operand
+ */
 std::string AlienCPUAssembler::getStringToken(std::string token) {
     if (!isStringToken(token)) {
         error(INTERNAL_ERROR, Token(token, -1, -1), std::stringstream() << "Invalid string token: " << token);
@@ -839,11 +840,12 @@ std::string AlienCPUAssembler::getStringToken(std::string token) {
     return token.substr(1, token.size() - 2);
 }
 
+
 /**
  * Check to make sure the filename only contains letters, numbers, spaces, parenthesis, underscores, 
  * dashes, commas, periods, or stars.
  * 
- * @param filename
+ * @param filename The filename to check for validity
  * @return true if the filename is valid, false otherwise
  */
 bool AlienCPUAssembler::isValidFilename(std::string filename) {
