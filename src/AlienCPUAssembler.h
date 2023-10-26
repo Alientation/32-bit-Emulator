@@ -68,6 +68,42 @@ class AlienCPUAssembler {
                     token(token), type(type), memoryAddress(memoryAddress), addressingMode(addressingMode) {}
         };
 
+
+        enum DirectiveType {
+            DATA, TEXT,
+            OUTFILE,
+            ORG,
+            DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
+            ADVANCE, FILL, SPACE,
+            DEFINE,
+            CHECKPC, ALIGN,
+            DATA, STRING,
+            INCBIN, INCLUDE, REQUIRE, 
+            SCOPE, SCEND, 
+            MACRO, MACEND, INVOKE,
+            ASSERT, ERROR, ERRORIF, 
+            IFF, IFDEF, IFNDEF, ELSEIF, ELSEIFDEF, ELSEIFNDEF, ELSE, ENDIF,
+            PRINT, PRINTIF, PRINTNOW
+        };
+
+        std::map<std::string, DirectiveType> directiveMap = {
+            {".data", DATA}, {".text", TEXT},
+            {".outfile", OUTFILE},
+            {".org", ORG},
+            {".db_lo", DB_LO}, {".d2b_lo", D2B_LO}, {".dw_lo", DW_LO}, {".d2w_lo", D2W_LO}, 
+            {".db_hi", DB_HI}, {".d2b_hi", D2B_HI}, {".dw_hi", DW_HI}, {".d2w_hi", D2W_HI},
+            {".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
+            {".define", DEFINE},
+            {".checkpc", CHECKPC}, {".align", ALIGN},
+            {".data", DATA}, {".string", STRING},
+            {".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
+            {".scope", SCOPE}, {".scend", SCEND},
+            {".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE},
+            {".assert", ASSERT}, {".error", ERROR}, {".errorif", ERRORIF},
+            {".if", IFF}, {".ifdef", IFDEF}, {".ifndef", IFNDEF}, {".elseif", ELSEIF}, {".elseifdef", ELSEIFDEF}, {".elseifndef", ELSEIFNDEF}, {".else", ELSE}, {".endif", ENDIF},
+            {".print", PRINT}, {".printif", PRINTIF}, {".printnow", PRINTNOW}
+        };
+
         /**
          * The type of error to print to the console. 
          */

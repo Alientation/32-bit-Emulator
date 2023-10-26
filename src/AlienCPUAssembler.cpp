@@ -12,6 +12,7 @@ int main() {
         ";THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
         ".org\t%0101\n" <<
+        "\tLDA\t#$FFEF\n" <<
         "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
         "globallabel2:\n" <<
@@ -96,14 +97,15 @@ void AlienCPUAssembler::parseTokens() {
     Word dataProgramCounter = 0;
     Word textProgramCounter = 0;
 
-    auto getSegment = [this, segment, &textProgramCounter, &dataProgramCounter]() & {
+    auto GET_SEGMENT = [this, segment, &textProgramCounter, &dataProgramCounter]() -> Word* {
         if (segment == TEXT) {
             return &textProgramCounter;
         } else if (segment == DATA) {
             return &dataProgramCounter;
-        } else {
-            error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
         }
+
+        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid segment");
+        return nullptr;
     };
 
     // increment the correct memory segment's program counter
@@ -128,8 +130,32 @@ void AlienCPUAssembler::parseTokens() {
     //     }
     // };
 
+    // parse a value and throw an error if it is not between min and max
+    auto EXPECT_PARSEDVALUE = [this](int tokenIndex, u64 min, u64 max) {
+        u64 parsedValue = parseValue(tokens[tokenIndex]);
+        if (parsedValue < min || parsedValue > max) {
+            error(INVALID_TOKEN, tokens[tokenIndex], std::stringstream() << "Invalid Value: " << parsedValue << 
+            " must be between " << min << " and " << max);
+        }
+        return parsedValue;
+    };
+
+    // throw an error if there is no operand available
+    auto EXPECT_OPERAND = [this](int tokenIndex) {
+        if (tokenIndex == tokens.size() - 1 || tokens[tokenIndex + 1].lineNumber != tokens[tokenIndex].lineNumber) {
+            error(MISSING_TOKEN, tokens[tokenIndex], std::stringstream() << "Missing Operand");
+        }
+    };
+
+    // throw an error if there is an operand available
+    auto EXPECT_NO_OPERAND = [this](int tokenIndex) {
+        if (tokenIndex != tokens.size() - 1 && tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber) {
+            error(MISSING_TOKEN, tokens[tokenIndex], std::stringstream() << "Too Many Operands");
+        }
+    };
+
     // check if there is an operand available
-    auto hasOperand = [this](int tokenIndex, bool onSameLine = true) {
+    auto HAS_OPERAND = [this](int tokenIndex, bool onSameLine = true) {
         return tokenIndex != tokens.size() - 1 && (!onSameLine || tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber);
     };
     
@@ -140,7 +166,7 @@ void AlienCPUAssembler::parseTokens() {
         // check if the token is a directive
         if (token.string[0] == '.') {
             parsedTokens.push_back(ParsedToken(token, DIRECTIVE));
-
+            
             if (token.string == ".data" || token.string == ".text") {
                 // save previous segment
                 if (segment == TEXT) {
@@ -152,7 +178,7 @@ void AlienCPUAssembler::parseTokens() {
                 }
 
                 segment = token.string == ".data" ? DATA : TEXT;
-                if (hasOperand(tokenI)) {
+                if (HAS_OPERAND(tokenI)) {
                     std::string segmentLabel = tokens[++tokenI].string;
                     parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
                     if (segment == TEXT) {
@@ -164,10 +190,7 @@ void AlienCPUAssembler::parseTokens() {
                     }
                 }
             } else if (token.string == ".outfile") {
-                // needs an operand value
-                if (!hasOperand(tokenI)) {
-                    error(MISSING_TOKEN, token, std::stringstream() << ".outfile directive must be supplied a value");
-                }
+                EXPECT_OPERAND(tokenI++);
 
                 // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
                 if (!outputFile.empty()) {
@@ -175,7 +198,7 @@ void AlienCPUAssembler::parseTokens() {
                 }
 
                 // set the outfile, must be a string argument
-                outputFile = getStringToken(tokens[++tokenI].string);
+                outputFile = getStringToken(tokens[tokenI].string);
 
                 if (!isValidFilename(outputFile)) {
                     error(INVALID_TOKEN, tokens[tokenI], std::stringstream() << "Invalid filename for .outfile directive: " << outputFile);
@@ -183,22 +206,20 @@ void AlienCPUAssembler::parseTokens() {
 
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
             } else if (token.string == ".org") {
-                // needs an operand value
-                if (!hasOperand(tokenI)) {
-                    error(MISSING_TOKEN, token, std::stringstream() << ".org directive must be supplied a value");
-                }
+                EXPECT_OPERAND(tokenI++);
 
                 // parse org value, must be a value capable of being evaluated in the parse phase
                 // ie, any labels referenced must be already defined and any expressions must be evaluated
-                Word value = parseValue(tokens[++tokenI]);
+                Word value = EXPECT_PARSEDVALUE(tokenI, 0, 0xFFFFFFFF);
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
                 
-                *getSegment() = value;
+                *GET_SEGMENT() = value;
             } else if (token.string == ".db") {
                 // needs an operand
+                EXPECT_OPERAND(tokenI++);
                 
                 // split operand by commas
-                std::vector<std::string> splitByComma = split(tokens[++tokenI].string, ',');
+                std::vector<std::string> splitByComma = split(tokens[tokenI].string, ',');
 
                 // parse each value, must be a value capable of being evaluated in the parse phase
                 // ie, any labels referenced must be already defined and any expressions must be evaluated
@@ -208,7 +229,7 @@ void AlienCPUAssembler::parseTokens() {
                         error(INVALID_TOKEN, tokens[tokenI], std::stringstream() << "Invalid value for .db directive: " << value);
                     }
 
-                    *getSegment() += 1;
+                    *GET_SEGMENT() += 1;
                 }
 
 
@@ -228,11 +249,11 @@ void AlienCPUAssembler::parseTokens() {
 
             } else if (token.string == ".advance") {
 
+            } else if (token.string == ".fill") {
+
             }
 
-            if (hasOperand(tokenI)) {
-                error(MISSING_TOKEN, token, std::stringstream() << "Too many operands for directive");
-            }
+            EXPECT_NO_OPERAND(tokenI);
             continue;
         }
 
@@ -249,7 +270,7 @@ void AlienCPUAssembler::parseTokens() {
         if (instructionMap.find(token.string) != instructionMap.end()) {
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
-            if (!hasOperand(tokenI)) {
+            if (!HAS_OPERAND(tokenI)) {
                 AddressingMode addressingMode = NO_ADDRESSING_MODE;
                 if (validInstruction(token.string, IMPLIED)) {
                     addressingMode = IMPLIED;
@@ -277,6 +298,7 @@ void AlienCPUAssembler::parseTokens() {
                 log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
                 parsedTokens.push_back(ParsedToken(token, INSTRUCTION, textProgramCounter, addressingMode));
                 textProgramCounter++; // no extra bytes for operands
+
                 continue;
             }
 
@@ -297,6 +319,8 @@ void AlienCPUAssembler::parseTokens() {
 
             parsedTokens.push_back(ParsedToken(operandToken, INSTRUCTION_OPERAND, textProgramCounter));
             textProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
+
+            EXPECT_NO_OPERAND(tokenI);
             continue;
         }
 
@@ -311,6 +335,8 @@ void AlienCPUAssembler::parseTokens() {
 
 /**
  * Converts the given operand to an addressing mode.
+ * 
+ * TODO: can probably use regex to simplify this
  * 
  * @param tokenInstruction The instruction that the operand is associated with.
  * @param tokenOperand The operand to convert.
