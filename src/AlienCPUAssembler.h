@@ -143,7 +143,7 @@ class AlienCPUAssembler {
         AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
         void assemble(std::string source);
 
-        void betterAssemble(std::string source);
+        void assemble(std::string source);
         void tokenize();
         void parseTokens();
         u64 parseValue(const Token token);
@@ -158,19 +158,6 @@ class AlienCPUAssembler {
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
         void warn(AssemblerWarn warn, std::stringstream msg);
         void log(AssemblerLog log, std::stringstream msg);
-
-
-        void OLDparseLine(std::string& line);
-        bool OLDparseAssemblerDirective();
-
-        bool OLDparseLabel(std::string& label);
-        void OLDparseInstruction(std::string& instruction);
-
-        void OLDassembleLine(std::string& line);
-        void OLDassembleInstruction(std::string& instruction);
-
-        u64 OLDparseValue(const std::string& value);
-
 
     private:
         /**
@@ -199,69 +186,6 @@ class AlienCPUAssembler {
          * Parsed tokens
          */
         std::vector<ParsedToken> parsedTokens;
-
-
-
-
-
-        /**
-         * The memory address of the next program instruction to be assembled.
-         */
-        Word OLDlocationPointer;
-
-        /**
-         * The source code split into lines.
-         */
-        std::vector<std::string> OLDlines;
-
-
-        /**
-         * Index of the current line being processed in the source code.
-         */
-        int OLDcurrentLine;
-
-        /**
-         * The tokens of the current line being processed.
-         * 
-         * These tokens only include labels and code or pseduo instructions, no comments.
-         */
-        std::vector<std::string> OLDcurrentLineTokens;
-
-        /**
-         * The most recently processed global label.
-         * 
-         * This is used to determine the scope of local labels.
-         */
-        std::string OLDpreviousGlobalLabel;
-
-        /**
-         * Labels that reference code locations.
-         * 
-         * Global labels can be referenced from anywhere in the program's source code
-         * Local labels can only be referenced locally in a subroutine, must be defined after 
-         * a global label. The scope of the local label lasts until the next defined global label.
-         */
-        std::map<std::string, Word> OLDglobalCodeLabels;
-
-        // Maps a local label name to a map of the global label parent to the memory address the label points to
-        std::map<std::string, std::map<std::string, Word>> OLDlocalCodeLabels;
-
-
-        /**
-         * Labels that reference values expressions.
-         * 
-         * These are pseudo instructions that are defined to reference a simple value expression.
-         * The value expression can be a simple number or a previously defined label that 
-         * references a value. It can also be a simple arithmetic expression of numbers and
-         * previously defined value labels. 
-         * 
-         * Note, the value labels can only reference other labels that have already been defined.
-         */
-        std::map<std::string, Word> OLDglobalValueLabels;
-        std::map<std::string, Word> OLDlocalValueLabels;
-
-        std::vector<LabelExpressionPair> OLDglobalUnprocessedValueLabels;
-        std::vector<LabelExpressionPair> OLDlocalUnprocessedValueLabels;
 };
 
 
