@@ -30,14 +30,14 @@ class AlienCPUAssembler {
          * The type of token that has been parsed from the source code.
          */
         enum ParsedTokenType {
-            GLOBAL_LABEL,
-            LOCAL_LABEL,
+            TOKEN_GLOBAL_LABEL,
+            TOKEN_LOCAL_LABEL,
 
-            INSTRUCTION,
-            INSTRUCTION_OPERAND,
+            TOKEN_INSTRUCTION,
+            TOKEN_INSTRUCTION_OPERAND,
 
-            DIRECTIVE,
-            DIRECTIVE_OPERAND
+            TOKEN_DIRECTIVE,
+            TOKEN_DIRECTIVE_OPERAND
         };
         
 
@@ -115,6 +115,10 @@ class AlienCPUAssembler {
         AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
         void assemble(std::string source);
 
+        inline static const std::string DEFAULT_OUTPUT_FILE = "A6502.bin";
+        inline static const SegmentType DEFAULT_SEGMENT_TYPE = TEXT_SEGMENT;
+        inline static const Word DEFAULT_STARTING_ADDRESS = 0x0000;
+
     private:
         /**
          * The AlienCPU to assemble the source code for and write the machine code to.
@@ -156,6 +160,7 @@ class AlienCPUAssembler {
             {TEXT_SEGMENT, {}}
         };
         Word currentProgramCounter;
+        int currentTokenI;
 
 
         /**
@@ -206,6 +211,87 @@ class AlienCPUAssembler {
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
         void warn(AssemblerWarn warn, std::stringstream msg);
         void log(AssemblerLog log, std::stringstream msg);
+
+
+        // token processing
+        u64 EXPECT_PARSEDVALUE(u64 min, u64 max);
+        void EXPECT_OPERAND();
+        void EXPECT_NO_OPERAND();
+        bool HAS_OPERAND(bool requireSameLine = true);
+
+
+        // assembler directives
+        void DIR_DATA();
+        void DIR_TEXT();
+        void DIR_OUTFILE();
+        void DIR_ORG();
+        void DIR_DB_LO();
+        void DIR_D2B_LO();
+        void DIR_DW_LO();
+        void DIR_D2W_LO();
+        void DIR_DB_HI();
+        void DIR_D2B_HI();
+        void DIR_DW_HI();
+        void DIR_D2W_HI();
+        void DIR_ADVANCE();
+        void DIR_FILL();
+        void DIR_SPACE();
+        void DIR_DEFINE();
+        void DIR_CHECKPC();
+        void DIR_ALIGN();
+        void DIR_INCBIN();
+        void DIR_INCLUDE();
+        void DIR_REQUIRE();
+        void DIR_SCOPE();
+        void DIR_SCEND();
+        void DIR_MACRO();
+        void DIR_MACEND();
+        void DIR_INVOKE();
+        void DIR_ASSERT();
+        void DIR_ERROR();
+        void DIR_ERRORIF();
+        void DIR_IF();
+        void DIR_IFDEF();
+        void DIR_IFNDEF();
+        void DIR_ELSEIF();
+        void DIR_ELSEIFDEF();
+        void DIR_ELSEIFNDEF();
+        void DIR_ELSE();
+        void DIR_ENDIF();
+        void DIR_PRINT();
+        void DIR_PRINTIF();
+        void DIR_PRINTNOW();
+
+        /**
+         * Map of directive types to their respective processing functions.
+         */
+        typedef void (AlienCPUAssembler::*DirectiveFunction)();
+        std::map<DirectiveType,DirectiveFunction> processDirective = {
+            {DATA, &AlienCPUAssembler::DIR_DATA}, {TEXT, &AlienCPUAssembler::DIR_TEXT},
+            {OUTFILE, &AlienCPUAssembler::DIR_OUTFILE},
+            {ORG, &AlienCPUAssembler::DIR_ORG},
+            {DB_LO, &AlienCPUAssembler::DIR_DB_LO}, {D2B_LO, &AlienCPUAssembler::DIR_D2B_LO}, 
+            {DW_LO, &AlienCPUAssembler::DIR_DW_LO}, {D2W_LO, &AlienCPUAssembler::DIR_D2W_LO},
+            {DB_HI, &AlienCPUAssembler::DIR_DB_HI}, {D2B_HI, &AlienCPUAssembler::DIR_D2B_HI}, 
+            {DW_HI, &AlienCPUAssembler::DIR_DW_HI}, {D2W_HI, &AlienCPUAssembler::DIR_D2W_HI},
+            {ADVANCE, &AlienCPUAssembler::DIR_ADVANCE}, {FILL, &AlienCPUAssembler::DIR_FILL}, 
+            {SPACE, &AlienCPUAssembler::DIR_SPACE},
+            {DEFINE, &AlienCPUAssembler::DIR_DEFINE},
+            {CHECKPC, &AlienCPUAssembler::DIR_CHECKPC}, {ALIGN, &AlienCPUAssembler::DIR_ALIGN},
+            {INCBIN, &AlienCPUAssembler::DIR_INCBIN}, {INCLUDE, &AlienCPUAssembler::DIR_INCLUDE}, 
+            {REQUIRE, &AlienCPUAssembler::DIR_REQUIRE},
+            {SCOPE, &AlienCPUAssembler::DIR_SCOPE}, {SCEND, &AlienCPUAssembler::DIR_SCEND},
+            {MACRO, &AlienCPUAssembler::DIR_MACRO}, {MACEND, &AlienCPUAssembler::DIR_MACEND}, 
+            {INVOKE, &AlienCPUAssembler::DIR_INVOKE},
+            {ASSERT, &AlienCPUAssembler::DIR_ASSERT}, {ERROR, &AlienCPUAssembler::DIR_ERROR}, 
+            {ERRORIF, &AlienCPUAssembler::DIR_ERRORIF},
+            {IFF, &AlienCPUAssembler::DIR_IF}, {IFDEF, &AlienCPUAssembler::DIR_IFDEF}, 
+            {IFNDEF, &AlienCPUAssembler::DIR_IFNDEF}, {ELSEIF, &AlienCPUAssembler::DIR_ELSEIF}, 
+            {ELSEIFDEF, &AlienCPUAssembler::DIR_ELSEIFDEF}, {ELSEIFNDEF, &AlienCPUAssembler::DIR_ELSEIFNDEF},
+            {ELSE, &AlienCPUAssembler::DIR_ELSE}, {ENDIF, &AlienCPUAssembler::DIR_ENDIF},
+            {PRINT, &AlienCPUAssembler::DIR_PRINT}, {PRINTIF, &AlienCPUAssembler::DIR_PRINTIF},
+            {PRINTNOW, &AlienCPUAssembler::DIR_PRINTNOW}
+        };
 };
 
 
@@ -262,6 +348,10 @@ static std::string trim(std::string& string) {
  * @return A single string containing all of the strings in the given vector.
  */
 static std::string tostring(std::vector<std::string>& strings) {
+    if (strings.size() == 0) {
+        return "[]";
+    }
+
     std::string result = "[";
 
     for (std::string string : strings) {
@@ -279,6 +369,10 @@ static std::string tostring(std::vector<std::string>& strings) {
 
 
 static std::string tostring(std::vector<AlienCPUAssembler::Token>& tokens) {
+    if (tokens.size() == 0) {
+        return "[]";
+    }
+
     std::string result = "[";
 
     for (AlienCPUAssembler::Token token : tokens) {
@@ -324,11 +418,10 @@ static bool isHexadecimalNumber(const std::string& string) {
     return !string.empty() && it == string.end();
 }
 
-
 /**
  * Map of addressing modes to how many bytes are needed
  */
-std::map<AddressingMode,u8> addressingModeOperandBytes = {
+static std::map<AddressingMode,u8> addressingModeOperandBytes = {
     {ACCUMULATOR, 0},
     {IMPLIED, 0},
     {IMMEDIATE, 2},
@@ -348,7 +441,7 @@ std::map<AddressingMode,u8> addressingModeOperandBytes = {
 /**
  * Map of addressing modes to their names
  */
-std::map<AddressingMode,std::string> addressingModeNames = {
+static std::map<AddressingMode,std::string> addressingModeNames = {
     {ACCUMULATOR, "ACCUMULATOR"},
     {IMPLIED, "IMPLIED"},
     {IMMEDIATE, "IMMEDIATE"},
@@ -368,7 +461,7 @@ std::map<AddressingMode,std::string> addressingModeNames = {
 /**
  * Map of processor instructions syntactical names and addressing mode to their opcode value
  */
-std::map<std::string, std::map<AddressingMode, u8>> instructionMap = {
+static std::map<std::string, std::map<AddressingMode, u8>> instructionMap = {
     {"LDA", 
         {
             {IMMEDIATE, 0xA9}, 

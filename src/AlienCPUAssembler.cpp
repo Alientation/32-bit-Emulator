@@ -1,6 +1,7 @@
 #include "AlienCPUAssembler.h"
 
 #include <any>
+#include <set>
 
 int main() {
     AlienCPU cpu;
@@ -32,10 +33,14 @@ AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), de
  */
 void AlienCPUAssembler::reset() {
     status = STARTING;
-    outputFile.clear();
+    outputFile = DEFAULT_OUTPUT_FILE;
     sourceCode.clear();
     tokens.clear();
     parsedTokens.clear();
+    segmentName.clear();
+    segmentType = DEFAULT_SEGMENT_TYPE;
+    segments.clear();
+    currentProgramCounter = DEFAULT_STARTING_ADDRESS;
 }
 
 
@@ -52,7 +57,9 @@ void AlienCPUAssembler::assemble(std::string source) {
 
     // reset assembler state to be ready for a new assembly
     reset();
+    sourceCode = source;
     
+    status = TOKENIZING;
     tokenize();
 
     // print out each token
@@ -66,14 +73,16 @@ void AlienCPUAssembler::assemble(std::string source) {
     }
     std::cout << std::endl;
 
+    // parse each token to create label mappings
+    status = PARSING;
     passTokens();
 
     // print out each parsed token and its associated memory address
     for (ParsedToken& parsedToken : parsedTokens) {
-        if (parsedToken.type == INSTRUCTION) {
+        if (parsedToken.type == TOKEN_INSTRUCTION) {
             std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string 
                     << " " << addressingModeNames.at(parsedToken.addressingMode) << std::endl;
-        } else if (parsedToken.type == INSTRUCTION_OPERAND || parsedToken.type == GLOBAL_LABEL || parsedToken.type == LOCAL_LABEL) {
+        } else if (parsedToken.type == TOKEN_INSTRUCTION_OPERAND || parsedToken.type == TOKEN_GLOBAL_LABEL || parsedToken.type == TOKEN_LOCAL_LABEL) {
             std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string << std::endl;
         } else {
             std::cout << "\t" << parsedToken.token.string << std::endl;
@@ -81,8 +90,10 @@ void AlienCPUAssembler::assemble(std::string source) {
     }
 
     // assemble the parsed tokens into machine code
-    
+    status = ASSEMBLING;
+    passTokens();
 
+    status = ASSEMBLED;
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
 }
 
@@ -102,42 +113,11 @@ void AlienCPUAssembler::passTokens() {
     segmentType = TEXT_SEGMENT;
 
     //Program counter for the data and text segments of the program
-    Word currentProgramCounter = 0;
-
-    // parse a value and throw an error if it is not between min and max
-    auto EXPECT_PARSEDVALUE = [this](int tokenIndex, u64 min, u64 max) {
-        u64 parsedValue = parseValue(tokens[tokenIndex]);
-        if (parsedValue < min || parsedValue > max) {
-            error(INVALID_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Invalid Value: " << parsedValue << 
-            " must be between " << min << " and " << max);
-        }
-        return parsedValue;
-    };
-
-    // throw an error if there is no operand available
-    auto EXPECT_OPERAND = [this](int tokenIndex) {
-        if (tokenIndex == tokens.size() - 1 || tokens[tokenIndex + 1].lineNumber != tokens[tokenIndex].lineNumber) {
-            error(MISSING_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Missing Operand");
-        }
-    };
-
-    // throw an error if there is an operand available
-    auto EXPECT_NO_OPERAND = [this](int tokenIndex) {
-        if (tokenIndex != tokens.size() - 1 && tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber) {
-            error(MISSING_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Too Many Operands");
-        }
-    };
-
-    // check if there is an operand available
-    auto HAS_OPERAND = [this](int tokenIndex, bool onSameLine = true) {
-        return tokenIndex != tokens.size() - 1 && (!onSameLine || tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber);
-    };
+    currentProgramCounter = 0;
     
     // parse each token
-    for (int tokenI = 0; tokenI < tokens.size(); tokenI++) {
-        Token& token = tokens[tokenI];
-
-
+    for (currentTokenI = 0; currentTokenI < tokens.size(); currentTokenI++) {
+        Token& token = tokens[currentTokenI];
 
         // check if the token is a directive
         if (token.string[0] == '.') {
@@ -146,142 +126,13 @@ void AlienCPUAssembler::passTokens() {
             }
 
             DirectiveType type = directiveMap.at(token.string);
-            parsedTokens.push_back(ParsedToken(token, DIRECTIVE));
-            
-            if (type == DATA || type == TEXT) {
-                // save previous segment
-                segments[segmentType][segmentName] = currentProgramCounter;
+            parsedTokens.push_back(ParsedToken(token, TOKEN_DIRECTIVE));
 
-                segmentType = type == DATA ? DATA_SEGMENT : TEXT_SEGMENT;
-                segmentName = "";
+            // process directive, offload to some other function to do
+            (this->*processDirective[type])();
 
-                // check if segment has a name
-                if (HAS_OPERAND(tokenI)) {
-                    std::string segmentLabel = tokens[++tokenI].string;
-                    parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-                }
-
-                // check and load value if segment has already been defined
-                currentProgramCounter = segments[segmentType][segmentName];
-            } else if (type == OUTFILE) {
-                EXPECT_OPERAND(tokenI++);
-
-                // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
-                if (!outputFile.empty()) {
-                    error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << ".outfile directive cannot be defined multiple times in the same file");
-                }
-
-                // set the outfile, must be a string argument
-                outputFile = getStringToken(tokens[tokenI].string);
-
-                if (!isValidFilename(outputFile)) {
-                    error(INVALID_TOKEN_ERROR, tokens[tokenI], std::stringstream() << "Invalid filename for .outfile directive: " << outputFile);
-                }
-
-                parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-            } else if (type == ORG) {
-                EXPECT_OPERAND(tokenI++);
-
-                // parse org value, must be a value capable of being evaluated in the parse phase
-                // ie, any labels referenced must be already defined and any expressions must be evaluated
-                Word value = EXPECT_PARSEDVALUE(tokenI, 0, 0xFFFFFFFF);
-                parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
-                
-                currentProgramCounter = value;
-            } else if (type == DB_LO) {
-                // needs an operand
-                EXPECT_OPERAND(tokenI++);
-                
-                // split operand by commas
-                std::vector<std::string> splitByComma = split(tokens[tokenI].string, ',');
-
-                // parse each value, must be a value capable of being evaluated in the parse phase
-                // ie, any labels referenced must be already defined and any expressions must be evaluated
-                for (std::string& value : splitByComma) {
-                    u64 parsedValue = parseValue(tokens[tokenI]);
-                    if (parsedValue > 0xFF) {
-                        error(INVALID_TOKEN_ERROR, tokens[tokenI], std::stringstream() << "Invalid value for .db directive: " << value);
-                    }
-
-                    currentProgramCounter += 1;
-                }
-
-
-            } else if (type == D2B_LO) {
-
-            } else if (type == DW_LO) {
-
-            } else if (type == D2W_LO) {
-
-            } else if (type == DB_HI) {
-
-            } else if (type == D2B_HI) {
-
-            } else if (type == DW_HI) {
-
-            } else if (type == D2W_HI) {
-
-            } else if (type == ADVANCE) {
-
-            } else if (type == FILL) {
-
-            } else if (type == SPACE) {
-
-            } else if (type == DEFINE) {
-
-            } else if (type == CHECKPC) {
-
-            } else if (type == ALIGN) {
-
-            } else if (type == INCBIN) {
-
-            } else if (type == INCLUDE) {
-
-            } else if (type == REQUIRE) {
-
-            } else if (type == SCOPE) {
-
-            } else if (type == SCEND) {
-
-            } else if (type == MACRO) {
-
-            } else if (type == MACEND) {
-
-            } else if (type == INVOKE) {
-
-            } else if (type == ASSERT) {
-
-            } else if (type == ERROR) {
-
-            } else if (type == ERRORIF) {
-
-            } else if (type == IFF) {
-
-            } else if (type == IFDEF) {
-
-            } else if (type == IFNDEF) {
-
-            } else if (type == ELSEIF) {
-
-            } else if (type == ELSEIFDEF) {
-
-            } else if (type == ELSEIFNDEF) {
-
-            } else if (type == ELSE) {
-
-            } else if (type == ENDIF) {
-
-            } else if (type == PRINT) {
-
-            } else if (type == PRINTIF) {
-
-            } else if (type == PRINTNOW) {
-
-            } else {
-                error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Directive");
-            }
-
-            EXPECT_NO_OPERAND(tokenI);
+            // directives have to be on their own line
+            EXPECT_NO_OPERAND();
             continue;
         }
 
@@ -303,7 +154,7 @@ void AlienCPUAssembler::passTokens() {
 
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
-            if (!HAS_OPERAND(tokenI)) {
+            if (!HAS_OPERAND()) {
                 AddressingMode addressingMode = NO_ADDRESSING_MODE;
                 if (validInstruction(token.string, IMPLIED)) {
                     addressingMode = IMPLIED;
@@ -324,12 +175,13 @@ void AlienCPUAssembler::passTokens() {
                 
                 // valid instruction
                 log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
-                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
+                parsedTokens.push_back(ParsedToken(token, TOKEN_INSTRUCTION, currentProgramCounter, addressingMode));
                 currentProgramCounter++; // no extra bytes for operands
             } else {
                 // parse the operand token to get the addressing mode
                 // the operand token is guaranteed to be on the same line as the instruction token
-                Token& operandToken = tokens[++tokenI];
+                currentTokenI++;
+                Token& operandToken = tokens[currentTokenI];
                 AddressingMode addressingMode = getAddressingMode(token, operandToken);
 
                 // invalid addressing mode
@@ -339,14 +191,14 @@ void AlienCPUAssembler::passTokens() {
 
                 // valid instruction with operand
                 log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
-                parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
+                parsedTokens.push_back(ParsedToken(token, TOKEN_INSTRUCTION, currentProgramCounter, addressingMode));
                 currentProgramCounter++; // 1 byte for the instruction
 
                 // operand
-                parsedTokens.push_back(ParsedToken(operandToken, INSTRUCTION_OPERAND, currentProgramCounter));
+                parsedTokens.push_back(ParsedToken(operandToken, TOKEN_INSTRUCTION_OPERAND, currentProgramCounter));
                 currentProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
 
-                EXPECT_NO_OPERAND(tokenI);
+                EXPECT_NO_OPERAND();
             }
             continue;
         }
@@ -849,9 +701,9 @@ std::string AlienCPUAssembler::getStringToken(std::string token) {
  * @return true if the filename is valid, false otherwise
  */
 bool AlienCPUAssembler::isValidFilename(std::string filename) {
+    std::set<char> validChars = {' ', '(', ')', '_', '-', ',', '.', '*'};
     for (char c : filename) {
-        if (!std::isalnum(c) && c != ' ' && c != '(' && c != ')' && c != '_' && c != '-' && c != ',' 
-            && c != '.' && c != '*') {
+        if (!std::isalnum(c) && !validChars.count(c)) {
             return false;
         }
     }

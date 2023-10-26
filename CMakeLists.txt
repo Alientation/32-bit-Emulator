@@ -21,6 +21,7 @@ file( GLOB ALIENCPU_SOURCES
     "src/Device/PSU.cpp"
 
     "src/AlienCPUAssembler.cpp"
+    "src/AssemblerDirectives.cpp"
 )
 file (GLOB ALIENCPU_HEADERS 
     "src/AlienCPU/AlienCPU.h"
