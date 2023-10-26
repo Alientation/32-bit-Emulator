@@ -30,9 +30,12 @@ class RAM {
         static constexpr u32 MEMORY_SIZE = 0x00100000; // ~1 MB
 
     private:
-        Byte data[MEMORY_SIZE];
+        Byte* data = new Byte[MEMORY_SIZE];
     
     public:
+        RAM();
+        ~RAM();
+
         void reset();
         void writeByte(Word address, Byte byte);
         Byte readByte(Word address);

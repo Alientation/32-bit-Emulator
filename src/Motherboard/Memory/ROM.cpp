@@ -2,6 +2,12 @@
 
 #include <assert.h>
 
+ROM::ROM() { }
+
+ROM::~ROM() {
+    delete[] data;
+}
+
 void ROM::reset() {
 
     // DO NOT RESET ROM MEMORY

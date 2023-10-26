@@ -163,10 +163,10 @@ class AlienCPUAssembler {
          */
         enum AssemblerError {
             INTERNAL_ERROR,
-            MULTIPLE_DEFINITION,
-            INVALID_TOKEN,
-            UNRECOGNIZED_TOKEN,
-            MISSING_TOKEN,
+            MULTIPLE_DEFINITION_ERROR,
+            INVALID_TOKEN_ERROR,
+            UNRECOGNIZED_TOKEN_ERROR,
+            MISSING_TOKEN_ERROR,
         };
 
         /**
@@ -181,9 +181,9 @@ class AlienCPUAssembler {
          */
         enum AssemblerLog {
             LOG,
-            TOKENIZING,
-            PARSING,
-            ASSEMBLING
+            LOG_TOKENIZING,
+            LOG_PARSING,
+            LOG_ASSEMBLING
         };
 
         void reset();

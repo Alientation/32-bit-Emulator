@@ -13,9 +13,12 @@ class ROM {
         static constexpr u32 MEMORY_SIZE = 0x00010000; // ~65536 bytes
 
     private:
-        Byte data[MEMORY_SIZE];
+        Byte* data = new Byte[MEMORY_SIZE];
     
     public:
+        ROM();
+        ~ROM();
+
         void reset();
         Byte readByte(Word address);
 

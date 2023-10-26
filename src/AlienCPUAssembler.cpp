@@ -95,7 +95,7 @@ void AlienCPUAssembler::assemble(std::string source) {
  * If the assembler's status is ASSEMBLING, then everything is written to binary file
  */
 void AlienCPUAssembler::passTokens() {
-    log(PARSING, std::stringstream() << BOLD << BOLD_WHITE << "Parsing Tokens" << RESET);
+    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_WHITE << "Parsing Tokens" << RESET);
 
     // memory segment currently writing to
     segmentName = "";
@@ -108,7 +108,7 @@ void AlienCPUAssembler::passTokens() {
     auto EXPECT_PARSEDVALUE = [this](int tokenIndex, u64 min, u64 max) {
         u64 parsedValue = parseValue(tokens[tokenIndex]);
         if (parsedValue < min || parsedValue > max) {
-            error(INVALID_TOKEN, tokens[tokenIndex], std::stringstream() << "Invalid Value: " << parsedValue << 
+            error(INVALID_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Invalid Value: " << parsedValue << 
             " must be between " << min << " and " << max);
         }
         return parsedValue;
@@ -117,14 +117,14 @@ void AlienCPUAssembler::passTokens() {
     // throw an error if there is no operand available
     auto EXPECT_OPERAND = [this](int tokenIndex) {
         if (tokenIndex == tokens.size() - 1 || tokens[tokenIndex + 1].lineNumber != tokens[tokenIndex].lineNumber) {
-            error(MISSING_TOKEN, tokens[tokenIndex], std::stringstream() << "Missing Operand");
+            error(MISSING_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Missing Operand");
         }
     };
 
     // throw an error if there is an operand available
     auto EXPECT_NO_OPERAND = [this](int tokenIndex) {
         if (tokenIndex != tokens.size() - 1 && tokens[tokenIndex + 1].lineNumber == tokens[tokenIndex].lineNumber) {
-            error(MISSING_TOKEN, tokens[tokenIndex], std::stringstream() << "Too Many Operands");
+            error(MISSING_TOKEN_ERROR, tokens[tokenIndex], std::stringstream() << "Too Many Operands");
         }
     };
 
@@ -142,7 +142,7 @@ void AlienCPUAssembler::passTokens() {
         // check if the token is a directive
         if (token.string[0] == '.') {
             if (directiveMap.find(token.string) == directiveMap.end()) {
-                error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unrecognized Directive");
+                error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Directive");
             }
 
             DirectiveType type = directiveMap.at(token.string);
@@ -168,14 +168,14 @@ void AlienCPUAssembler::passTokens() {
 
                 // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
                 if (!outputFile.empty()) {
-                    error(MULTIPLE_DEFINITION, token, std::stringstream() << ".outfile directive cannot be defined multiple times in the same file");
+                    error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << ".outfile directive cannot be defined multiple times in the same file");
                 }
 
                 // set the outfile, must be a string argument
                 outputFile = getStringToken(tokens[tokenI].string);
 
                 if (!isValidFilename(outputFile)) {
-                    error(INVALID_TOKEN, tokens[tokenI], std::stringstream() << "Invalid filename for .outfile directive: " << outputFile);
+                    error(INVALID_TOKEN_ERROR, tokens[tokenI], std::stringstream() << "Invalid filename for .outfile directive: " << outputFile);
                 }
 
                 parsedTokens.push_back(ParsedToken(tokens[tokenI], DIRECTIVE_OPERAND));
@@ -200,7 +200,7 @@ void AlienCPUAssembler::passTokens() {
                 for (std::string& value : splitByComma) {
                     u64 parsedValue = parseValue(tokens[tokenI]);
                     if (parsedValue > 0xFF) {
-                        error(INVALID_TOKEN, tokens[tokenI], std::stringstream() << "Invalid value for .db directive: " << value);
+                        error(INVALID_TOKEN_ERROR, tokens[tokenI], std::stringstream() << "Invalid value for .db directive: " << value);
                     }
 
                     currentProgramCounter += 1;
@@ -278,7 +278,7 @@ void AlienCPUAssembler::passTokens() {
             } else if (type == PRINTNOW) {
 
             } else {
-                error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unrecognized Directive");
+                error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Directive");
             }
 
             EXPECT_NO_OPERAND(tokenI);
@@ -298,7 +298,7 @@ void AlienCPUAssembler::passTokens() {
         if (instructionMap.find(token.string) != instructionMap.end()) {
             // check if in proper segment
             if (segmentType != TEXT_SEGMENT) {
-                error(INVALID_TOKEN, token, std::stringstream() << "Instruction must be in the text segment");
+                error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Instruction must be in the text segment");
             }
 
             // no more tokens to parse that are on the same line
@@ -319,11 +319,11 @@ void AlienCPUAssembler::passTokens() {
                 // check if instruction is valid if there are no operands
                 if (addressingMode == NO_ADDRESSING_MODE) {
                     // missing operands
-                    error(MISSING_TOKEN, token, std::stringstream() << "Missing Instruction Operand");
+                    error(MISSING_TOKEN_ERROR, token, std::stringstream() << "Missing Instruction Operand");
                 }
                 
                 // valid instruction
-                log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
+                log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
                 parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
                 currentProgramCounter++; // no extra bytes for operands
             } else {
@@ -334,11 +334,11 @@ void AlienCPUAssembler::passTokens() {
 
                 // invalid addressing mode
                 if (addressingMode == NO_ADDRESSING_MODE) {
-                    error(INVALID_TOKEN, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
+                    error(INVALID_TOKEN_ERROR, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
                 }
 
                 // valid instruction with operand
-                log(PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
+                log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
                 parsedTokens.push_back(ParsedToken(token, INSTRUCTION, currentProgramCounter, addressingMode));
                 currentProgramCounter++; // 1 byte for the instruction
 
@@ -352,10 +352,10 @@ void AlienCPUAssembler::passTokens() {
         }
 
         // unrecognized token
-        error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unrecognized Token While Parsing");
+        error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Token While Parsing");
     }
 
-    log(PARSING, std::stringstream() << BOLD << BOLD_GREEN << "Parsed Tokens" << RESET);
+    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_GREEN << "Parsed Tokens" << RESET);
 }
 
 
@@ -504,7 +504,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
     
     // check if value is empty
     if (value.empty()) {
-        error(INVALID_TOKEN, token, std::stringstream() << "Invalid value to parse: " << value);
+        error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid value to parse: " << value);
     }
 
 
@@ -520,7 +520,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
 
 
 
-        error(INVALID_TOKEN, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
+        error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
     }
 
 
@@ -544,7 +544,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN, token, std::stringstream() << "Invalid Hexadecimal Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Hexadecimal Digit '" << *it << "': " << numericValue);
         }
 
         // proper hexadecimal value
@@ -562,7 +562,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN, token, std::stringstream() << "Invalid Octal Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Octal Digit '" << *it << "': " << numericValue);
         }
 
         // proper octal value
@@ -580,7 +580,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN, token, std::stringstream() << "Invalid Binary Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Binary Digit '" << *it << "': " << numericValue);
         }
 
         // proper binary value
@@ -597,14 +597,14 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
 
         // contains other characters
         if (it != value.end()) {
-            error(INVALID_TOKEN, token, std::stringstream() << "Invalid Decimal Digit '" << *it << "': " << value);
+            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Decimal Digit '" << *it << "': " << value);
         }
 
         // proper decimal value
         return number;
     }
 
-    error(UNRECOGNIZED_TOKEN, token, std::stringstream() << "Unsupported Numeric Value: " << value);
+    error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unsupported Numeric Value: " << value);
     return 0;
 }
 
@@ -624,7 +624,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
  * No further processing is done on the tokens at this point.
  */
 void AlienCPUAssembler::tokenize() {
-    log(TOKENIZING, std::stringstream() << BOLD << BOLD_WHITE << "Tokenizing Source Code" << RESET);
+    log(LOG_TOKENIZING, std::stringstream() << BOLD << BOLD_WHITE << "Tokenizing Source Code" << RESET);
     
     // current token being constructed
     std::string currentToken = "";
@@ -667,9 +667,9 @@ void AlienCPUAssembler::tokenize() {
             // check if not a comment
             if (!isSingleLineComment) {
                 tokens.push_back(Token(currentToken, currentTokenStart, character == '\n' ? lineNumber - 1 : lineNumber));
-                log(TOKENIZING, std::stringstream() << CYAN << "Token\t" << RESET << "[" << currentToken << "]");
+                log(LOG_TOKENIZING, std::stringstream() << CYAN << "Token\t" << RESET << "[" << currentToken << "]");
             } else {
-                log(TOKENIZING, std::stringstream() << GREEN << "Comment\t" << RESET << "[" << currentToken << "]");
+                log(LOG_TOKENIZING, std::stringstream() << GREEN << "Comment\t" << RESET << "[" << currentToken << "]");
             }
 
             // reset current token
@@ -710,7 +710,7 @@ void AlienCPUAssembler::tokenize() {
             isMultiLineComment = false;
             
             std::vector<std::string> list = split(currentToken,'\n');
-            log(TOKENIZING, std::stringstream() << GREEN << "Comments\t" << RESET << "[" << tostring(list) << "]");
+            log(LOG_TOKENIZING, std::stringstream() << GREEN << "Comments\t" << RESET << "[" << tostring(list) << "]");
 
             // end current token
             currentToken.clear();
@@ -722,7 +722,7 @@ void AlienCPUAssembler::tokenize() {
 
     // check if multi line comment was never closed
     if (isMultiLineComment) {
-        error(MISSING_TOKEN, Token(currentToken, currentTokenStart, lineNumber), 
+        error(MISSING_TOKEN_ERROR, Token(currentToken, currentTokenStart, lineNumber), 
                 std::stringstream() << "Multiline comment is not closed by \'*;\'");
     }
 
@@ -732,7 +732,7 @@ void AlienCPUAssembler::tokenize() {
                 std::stringstream() << "Current token has not been processed");
     }
 
-    log(TOKENIZING, std::stringstream() << BOLD << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
+    log(LOG_TOKENIZING, std::stringstream() << BOLD << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
 }
 
 
@@ -748,16 +748,16 @@ void AlienCPUAssembler::tokenize() {
 void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::stringstream msg) {
     std::string name;
     switch(error) {
-        case INVALID_TOKEN:
+        case INVALID_TOKEN_ERROR:
             name = BOLD_RED + "[invalid_token]" + RESET;
             break;
-        case MULTIPLE_DEFINITION:
+        case MULTIPLE_DEFINITION_ERROR:
             name = BOLD_RED + "[multiple_definition]" + RESET;
             break;
-        case UNRECOGNIZED_TOKEN:
+        case UNRECOGNIZED_TOKEN_ERROR:
             name = BOLD_RED + "[unrecognized_token]" + RESET;
             break;
-        case MISSING_TOKEN:
+        case MISSING_TOKEN_ERROR:
             name = BOLD_YELLOW + "[missing_token]" + RESET;
         case INTERNAL_ERROR:
             name = BOLD_RED + "[internal_error]" + RESET;
@@ -798,13 +798,13 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 
     std::string name;
     switch(log) {
-        case TOKENIZING:
+        case LOG_TOKENIZING:
             name = BOLD_BLUE + "[tokenizing]" + RESET;
             break;
-        case PARSING:
+        case LOG_PARSING:
             name = BOLD_GREEN + "[parsing]" + RESET;
             break;
-        case ASSEMBLING:
+        case LOG_ASSEMBLING:
             name = BOLD_MAGENTA + "[assembling]" + RESET;
             break;
         default:

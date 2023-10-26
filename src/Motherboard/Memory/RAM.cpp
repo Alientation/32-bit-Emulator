@@ -2,6 +2,11 @@
 
 #include <assert.h>
 
+RAM::RAM() {}
+RAM::~RAM() {
+    delete[] data;
+}
+
 void RAM::reset() {
 
     // reset memory
