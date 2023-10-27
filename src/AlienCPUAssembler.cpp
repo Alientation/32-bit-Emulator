@@ -17,7 +17,7 @@ int main() {
         "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
         "globallabel2:\n" <<
-        "_locallabel:";
+        "_locallabel3:";
 
     assembler.assemble(sourceCode.str());
 }
@@ -43,11 +43,83 @@ void AlienCPUAssembler::reset() {
     currentProgramCounter = DEFAULT_STARTING_ADDRESS;
 }
 
+/**
+ * Writes the tracked bytes to a binary file 
+ */
+void AlienCPUAssembler::writeToFile() {
+
+}
 
 /**
- * Assembles the given assembly source code into machine code and loads it onto the cpu.
+ * Simulates writing a byte to file by first tracking the byte in the assembler
+ */
+void AlienCPUAssembler::writeByte(Byte value) {
+    // Don't write if not assembling
+    if (status != ASSEMBLING) {
+        return;
+    }
+
+    // write the byte
+
+    currentProgramCounter++;
+}
+
+void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
+    if (lowEndian) {
+        writeByte(value & 0xFF);
+        writeByte((value >> 8) & 0xFF);
+    } else {
+        writeByte((value >> 8) & 0xFF);
+        writeByte(value & 0xFF);
+    }
+}
+
+void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
+    if (lowEndian) {
+        writeByte(value & 0xFF);
+        writeByte((value >> 8) & 0xFF);
+        writeByte((value >> 16) & 0xFF);
+        writeByte((value >> 24) & 0xFF);
+    } else {
+        writeTwoBytes((value >> 16) & 0xFFFF);
+        writeByte(value & 0xFFFF);
+    }
+}
+
+void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
+    if (lowEndian) {
+        writeByte(value & 0xFF);
+        writeByte((value >> 8) & 0xFF);
+        writeByte((value >> 16) & 0xFF);
+        writeByte((value >> 24) & 0xFF);
+        writeByte((value >> 32) & 0xFF);
+        writeByte((value >> 40) & 0xFF);
+        writeByte((value >> 48) & 0xFF);
+        writeByte((value >> 56) & 0xFF);
+    } else {
+        writeWord((value >> 32) & 0xFFFFFFFF);
+        writeWord(value & 0xFFFFFFFF);
+    }
+}
+
+void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
+    if (bytes == 1) {
+        writeByte(value & 0xFF);
+    } else if (bytes == 2) {
+        writeTwoBytes(value & 0xFFFF, lowEndian);
+    } else if (bytes == 4) {
+        writeWord(value & 0xFFFFFFFF, lowEndian);
+    } else if (bytes == 8) {
+        writeTwoWords(value, lowEndian);
+    } else {
+        error(INTERNAL_ERROR, Token("", -1, -1), std::stringstream() << "Invalid number of bytes to write: " << bytes);
+    }
+}
+
+
+/**
+ * Assembles the given assembly source code into machine code and writes to file.
  * 
- * TODO: technically should probably load into a .bin file and then manually write it into the cpu
  * Documentation on the assembly language can be found SOMEWHERE
  * 
  * @param source The assembly source code to assemble into machine code.
@@ -138,9 +210,25 @@ void AlienCPUAssembler::passTokens() {
 
         // check if token is label
         if (token.string[token.string.size() - 1] == ':') {
+            // check what scope we are in
+            bool isLocal = token.string[0] == '_';
 
+            // check if label is already defined in the current scope if we are in the first parsing phase
+            // TODO: store more useful information in scope struct to print debug info
+            if (status == PARSING && isLocal && currentScope.labels.find(token.string) != currentScope.labels.end()) {
+                error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Local Label");
+            } else if (status == PARSING && !isLocal && globalScope.labels.find(token.string) != globalScope.labels.end()) {
+                error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Global Label");
+            }
 
-
+            // add label to symbol table
+            if (isLocal) {
+                currentScope.labels[token.string] = currentProgramCounter;
+                parsedTokens.push_back(ParsedToken(token, TOKEN_LOCAL_LABEL, currentProgramCounter));
+            } else {
+                globalScope.labels[token.string] = currentProgramCounter;
+                parsedTokens.push_back(ParsedToken(token, TOKEN_GLOBAL_LABEL, currentProgramCounter));
+            }
 
             continue;
         }
@@ -176,7 +264,8 @@ void AlienCPUAssembler::passTokens() {
                 // valid instruction
                 log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "]");
                 parsedTokens.push_back(ParsedToken(token, TOKEN_INSTRUCTION, currentProgramCounter, addressingMode));
-                currentProgramCounter++; // no extra bytes for operands
+
+                writeByte(instructionMap[token.string][addressingMode]);
             } else {
                 // parse the operand token to get the addressing mode
                 // the operand token is guaranteed to be on the same line as the instruction token
@@ -192,11 +281,11 @@ void AlienCPUAssembler::passTokens() {
                 // valid instruction with operand
                 log(LOG_PARSING, std::stringstream() << GREEN << "Instruction\t" << RESET << "[" << token.string << "] [" << operandToken.string << "]");
                 parsedTokens.push_back(ParsedToken(token, TOKEN_INSTRUCTION, currentProgramCounter, addressingMode));
-                currentProgramCounter++; // 1 byte for the instruction
+                writeByte(instructionMap[token.string][addressingMode]);
 
                 // operand
                 parsedTokens.push_back(ParsedToken(operandToken, TOKEN_INSTRUCTION_OPERAND, currentProgramCounter));
-                currentProgramCounter+= addressingModeOperandBytes.at(addressingMode); // bytes for the operand
+                writeBytes(parseValue(operandToken), addressingModeOperandBytes.at(addressingMode));
 
                 EXPECT_NO_OPERAND();
             }

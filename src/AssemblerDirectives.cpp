@@ -163,7 +163,7 @@ void AlienCPUAssembler::DIR_DB_LO() {
             error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for .db directive: " << value);
         }
 
-        currentProgramCounter++;
+        writeByte((Byte) parsedValue);
     }
 }
 

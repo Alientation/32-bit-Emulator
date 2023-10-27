@@ -10,6 +10,12 @@
 class AlienCPUAssembler;
 
 
+/**
+ * 
+ * 
+ * 
+ * 
+ */
 class AlienCPUAssembler {
     public:
         /**
@@ -111,6 +117,22 @@ class AlienCPUAssembler {
             ASSEMBLED
         };
 
+        /**
+         * Represents information of a scope of block of code
+         */
+        struct Scope {
+            std::map<std::string, Word> labels;
+        };
+        
+        /**
+         * Represents information of a nested scope of a block of code
+         */
+        struct ScopeChild : Scope {
+            Scope& parent;
+
+            ScopeChild(Scope& parent) : parent(parent) {}
+        };
+
 
         AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
         void assemble(std::string source);
@@ -152,15 +174,34 @@ class AlienCPUAssembler {
          */
         std::vector<ParsedToken> parsedTokens;
 
-
+        /**
+         * Memory segments
+         */
         std::string segmentName;
         SegmentType segmentType;
         std::map<SegmentType,std::map<std::string,Word>> segments = {
             {DATA_SEGMENT, {}},
             {TEXT_SEGMENT, {}}
         };
+
+        /**
+         * Memory address the next bytes of the program will be written to.
+         */
         Word currentProgramCounter;
+        /**
+         * Current Token being processed
+         */
         int currentTokenI;
+
+        /**
+         * Scope of the file as a whole
+         */
+        Scope globalScope = Scope();
+
+        /**
+         * Current scope of the assembly process
+         */
+        Scope& currentScope = globalScope;
 
 
         /**
@@ -203,10 +244,12 @@ class AlienCPUAssembler {
         std::string getStringToken(std::string token);
         bool isValidFilename(std::string filename);
 
-        void writeByte(u8 value, bool lowEndian = true);
+        void writeToFile();
+        void writeByte(Byte value);
         void writeTwoBytes(u16 value, bool lowEndian = true);
         void writeWord(Word value, bool lowEndian = true);
         void writeTwoWords(u64 value, bool lowEndian = true);
+        void writeBytes(u64 value, Byte bytes, bool lowEndian = true);
 
         void error(AssemblerError error, Token currentToken, std::stringstream msg);
         void warn(AssemblerWarn warn, std::stringstream msg);
