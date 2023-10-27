@@ -56,6 +56,7 @@ void AlienCPUAssembler::writeToFile() {
 void AlienCPUAssembler::writeByte(Byte value) {
     // Don't write if not assembling
     if (status != ASSEMBLING) {
+        currentProgramCounter++;
         return;
     }
 
