@@ -184,6 +184,23 @@ class AlienCPUAssembler {
             {TEXT_SEGMENT, {}}
         };
 
+        struct MemorySegment {
+            Word startAddress;
+            std::vector<Byte> bytes;
+
+            MemorySegment(Word startAddress) : startAddress(startAddress) {}
+            int getEndAddress() {
+                return startAddress + bytes.size() - 1;
+            }
+        };
+
+        /**
+         * Program memory map. Stores all bytes currently written to memory.
+         * Maps the last written byte to a memory segment which is a continuous
+         * block of bytes ending at the last written byte.
+         */
+        std::map<Word,MemorySegment*> memoryMap;
+
         /**
          * Memory address the next bytes of the program will be written to.
          */

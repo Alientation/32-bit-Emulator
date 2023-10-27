@@ -47,7 +47,24 @@ void AlienCPUAssembler::reset() {
  * Writes the tracked bytes to a binary file 
  */
 void AlienCPUAssembler::writeToFile() {
+    // for now, just print memory map
+    std::cout << std::endl << "Memory Map:" << std::endl;
+    for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+        MemorySegment segment = *(*it).second;
+        std::cout << "[" << segment.startAddress << "," << segment.getEndAddress() << "]\t";
+        
+        // print out each byte in memory map, 16 bytes per row
+        for (int i = 0; i < segment.bytes.size(); i++) {
+            if ((i + 1) % 16 == 0) {
+                std::cout << std::endl << "\t";
+            }
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)segment.bytes[i] << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "END" << std::endl;
 
+    // write to file
 }
 
 /**
@@ -63,66 +80,56 @@ void AlienCPUAssembler::writeByte(Byte value) {
     }
 
     // write the byte
+    // check if we are writing to a new memory segment
+    if (memoryMap.find(currentProgramCounter - 1) == memoryMap.end()) {
+        // check to make sure we are not overwriting other memory segments
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+            if (otherSegment.startAddress <= currentProgramCounter && otherSegment.getEndAddress() >= currentProgramCounter) {
+                // warn we are overwriting memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.startAddress << "," 
+                        << otherSegment.getEndAddress() << "] with [" << currentProgramCounter << "," << currentProgramCounter << "]");
+            }
+        }
+
+        MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
+        (*memorySegment).bytes.push_back(value);
+        memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
+    } else {
+        MemorySegment& memorySegment = *memoryMap.at(currentProgramCounter - 1);
+        memoryMap.erase(memoryMap.find(currentProgramCounter - 1));
+        memorySegment.bytes.push_back(value);
+        
+        // check if we should combine memory segments if they are touching
+        // loop through each memory segment
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+
+            // check if the current memory segment is overwriting the another memory segment
+            if (otherSegment.startAddress >= memorySegment.startAddress && otherSegment.startAddress <= currentProgramCounter) {
+                // warn we are starting to overwrite memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.startAddress << "," 
+                        << otherSegment.getEndAddress() << "] with [" << 
+                        memorySegment.startAddress << "," << memorySegment.startAddress + memorySegment.bytes.size() - 1 << "]");
+            }
+
+            // check if the current memory segment is touching the next memory segment
+            if (otherSegment.startAddress == currentProgramCounter + 1) {
+                // combine the memory segments
+                MemorySegment& nextMemorySegment = *(*it).second;
+                memorySegment.bytes.insert(memorySegment.bytes.end(), nextMemorySegment.bytes.begin(), nextMemorySegment.bytes.end());
+                
+                // remove the other memory segment from the memory map
+                memoryMap.erase(it);
+                break;
+            }
+        }
+
+        // map the last byte of the current memory segment to the memory map
+        memoryMap.insert(std::pair<Word, MemorySegment*>(memorySegment.getEndAddress(), &memorySegment));
+    }
 
     currentProgramCounter++;
-}
-
-/**
- * Writes two bytes in specified endian order to file
- * 
- * @param value The value to write to the file
- * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
- */
-void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
-    writeBytes(value, 2, lowEndian);
-}
-
-/**
- * Writes four bytes in specified endian order to file
- * 
- * @param value The value to write to the file
- * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
- */
-void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
-    writeBytes(value, 4, lowEndian);
-}
-
-/**
- * Writes four bytes in specified endian order to file
- * 
- * @param value The value to write to the file
- * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
- */
-void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
-    writeBytes(value, 8, lowEndian);
-}
-
-/**
- * Writes the specified number of bytes in specified endian order to file
- * 
- * @param value The value to write to the file
- * @param bytes The number of bytes to write
- * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
- */
-void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
-    if (bytes > 8) {
-        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
-    } else if (bytes == 0) {
-        warn(WARN, std::stringstream() << "Writing 0 bytes");
-        return;
-    }
-
-    if (lowEndian) {
-        for (int i = 0; i < bytes; i++) {
-            writeByte(value & 0xFF);
-            value >>= 8;
-        }
-    } else {
-        u64 mask = 0xFF << (8 * (bytes - 1));
-        for (int i = 0; i < bytes; i++) {
-            writeByte((value & mask) >> (8 * (bytes - 1 - i)));
-        }
-    }
 }
 
 
@@ -156,7 +163,9 @@ void AlienCPUAssembler::assemble(std::string source) {
 
     // parse each token to create label mappings
     status = PARSING;
+    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_WHITE << "Parsing Tokens" << RESET);
     passTokens();
+    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_GREEN << "Parsed Tokens" << RESET);
 
     // print out each parsed token and its associated memory address
     for (ParsedToken& parsedToken : parsedTokens) {
@@ -172,7 +181,13 @@ void AlienCPUAssembler::assemble(std::string source) {
 
     // assemble the parsed tokens into machine code
     status = ASSEMBLING;
+    log(LOG_ASSEMBLING, std::stringstream() << BOLD << BOLD_WHITE << "Assembling Tokens" << RESET);
     passTokens();
+    log(LOG_ASSEMBLING, std::stringstream() << BOLD << BOLD_GREEN << "Assembled Tokens" << RESET);
+
+    log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Writing To File" << RESET);
+    writeToFile();
+    log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Wrote To File" << RESET);
 
     status = ASSEMBLED;
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
@@ -187,8 +202,6 @@ void AlienCPUAssembler::assemble(std::string source) {
  * If the assembler's status is ASSEMBLING, then everything is written to binary file
  */
 void AlienCPUAssembler::passTokens() {
-    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_WHITE << "Parsing Tokens" << RESET);
-
     // memory segment currently writing to
     segmentName = "";
     segmentType = TEXT_SEGMENT;
@@ -304,8 +317,6 @@ void AlienCPUAssembler::passTokens() {
         // unrecognized token
         error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Token While Parsing");
     }
-
-    log(LOG_PARSING, std::stringstream() << BOLD << BOLD_GREEN << "Parsed Tokens" << RESET);
 }
 
 
@@ -807,4 +818,63 @@ bool AlienCPUAssembler::isValidFilename(std::string filename) {
     }
 
     return true;
+}
+
+
+/**
+ * Writes two bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
+    writeBytes(value, 2, lowEndian);
+}
+
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
+    writeBytes(value, 4, lowEndian);
+}
+
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
+    writeBytes(value, 8, lowEndian);
+}
+
+/**
+ * Writes the specified number of bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param bytes The number of bytes to write
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
+    if (bytes > 8) {
+        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
+    } else if (bytes == 0) {
+        warn(WARN, std::stringstream() << "Writing 0 bytes");
+        return;
+    }
+
+    if (lowEndian) {
+        for (int i = 0; i < bytes; i++) {
+            writeByte(value & 0xFF);
+            value >>= 8;
+        }
+    } else {
+        u64 mask = 0xFF << (8 * (bytes - 1));
+        for (int i = 0; i < bytes; i++) {
+            writeByte((value & mask) >> (8 * (bytes - 1 - i)));
+        }
+    }
 }
