@@ -52,6 +52,8 @@ void AlienCPUAssembler::writeToFile() {
 
 /**
  * Simulates writing a byte to file by first tracking the byte in the assembler
+ * 
+ * @param value The value to write to the file
  */
 void AlienCPUAssembler::writeByte(Byte value) {
     // Don't write if not assembling
@@ -65,55 +67,61 @@ void AlienCPUAssembler::writeByte(Byte value) {
     currentProgramCounter++;
 }
 
+/**
+ * Writes two bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
 void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
-    if (lowEndian) {
-        writeByte(value & 0xFF);
-        writeByte((value >> 8) & 0xFF);
-    } else {
-        writeByte((value >> 8) & 0xFF);
-        writeByte(value & 0xFF);
-    }
+    writeBytes(value, 2, lowEndian);
 }
 
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
 void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
-    if (lowEndian) {
-        writeByte(value & 0xFF);
-        writeByte((value >> 8) & 0xFF);
-        writeByte((value >> 16) & 0xFF);
-        writeByte((value >> 24) & 0xFF);
-    } else {
-        writeTwoBytes((value >> 16) & 0xFFFF);
-        writeByte(value & 0xFFFF);
-    }
+    writeBytes(value, 4, lowEndian);
 }
 
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
 void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
-    if (lowEndian) {
-        writeByte(value & 0xFF);
-        writeByte((value >> 8) & 0xFF);
-        writeByte((value >> 16) & 0xFF);
-        writeByte((value >> 24) & 0xFF);
-        writeByte((value >> 32) & 0xFF);
-        writeByte((value >> 40) & 0xFF);
-        writeByte((value >> 48) & 0xFF);
-        writeByte((value >> 56) & 0xFF);
-    } else {
-        writeWord((value >> 32) & 0xFFFFFFFF);
-        writeWord(value & 0xFFFFFFFF);
-    }
+    writeBytes(value, 8, lowEndian);
 }
 
+/**
+ * Writes the specified number of bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param bytes The number of bytes to write
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
 void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
-    if (bytes == 1) {
-        writeByte(value & 0xFF);
-    } else if (bytes == 2) {
-        writeTwoBytes(value & 0xFFFF, lowEndian);
-    } else if (bytes == 4) {
-        writeWord(value & 0xFFFFFFFF, lowEndian);
-    } else if (bytes == 8) {
-        writeTwoWords(value, lowEndian);
+    if (bytes > 8) {
+        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
+    } else if (bytes == 0) {
+        warn(WARN, std::stringstream() << "Writing 0 bytes");
+        return;
+    }
+
+    if (lowEndian) {
+        for (int i = 0; i < bytes; i++) {
+            writeByte(value & 0xFF);
+            value >>= 8;
+        }
     } else {
-        error(INTERNAL_ERROR, Token("", -1, -1), std::stringstream() << "Invalid number of bytes to write: " << bytes);
+        u64 mask = 0xFF << (8 * (bytes - 1));
+        for (int i = 0; i < bytes; i++) {
+            writeByte((value & mask) >> (8 * (bytes - 1 - i)));
+        }
     }
 }
 
