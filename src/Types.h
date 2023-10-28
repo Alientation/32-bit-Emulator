@@ -7,11 +7,13 @@
 #include <iostream>
 #include <iomanip>
 #include <bitset>
+#include <../src/ConsoleColor.h>
 #define private public
 #else
 #include <iostream>
 #include <iomanip>
 #include <bitset>
+#include <../src/ConsoleColor.h>
 #endif
 
 using Byte = unsigned char;
@@ -51,6 +53,29 @@ static std::string stringifyHex(u16 hex) {
 
 static std::string stringifyHex(u8 hex) {
     return stringifyHex(hex,2);
+}
+
+
+static std::string prettyStringifyValue(std::string string) {
+    std::string result = GRAY;
+    auto iterator = string.begin();
+    if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#') {
+        iterator++;
+    }
+
+    while ((*iterator) == '0') {
+        result += *iterator;
+        iterator++;
+    }
+
+    result += BOLD_WHITE;
+    while (iterator != string.end()) {
+        result += *iterator;
+        iterator++;
+    }
+
+    result += RESET;
+    return result;
 }
 
 

@@ -53,14 +53,22 @@ class AlienCPUAssembler {
         struct ParsedToken {
             Token token;
             ParsedTokenType type;
-            int memoryAddress;
+            Word memoryAddress;
             AddressingMode addressingMode;
 
             ParsedToken(Token token, ParsedTokenType type) : token(token), type(type) {}
-            ParsedToken(Token token, ParsedTokenType type, int memoryAddress) : 
+            ParsedToken(Token token, ParsedTokenType type, Word memoryAddress) : 
                     token(token), type(type), memoryAddress(memoryAddress) {}
-            ParsedToken(Token token, ParsedTokenType type, int memoryAddress, AddressingMode addressingMode) : 
+            ParsedToken(Token token, ParsedTokenType type, Word memoryAddress, AddressingMode addressingMode) : 
                     token(token), type(type), memoryAddress(memoryAddress), addressingMode(addressingMode) {}
+
+            std::string stringifyMemoryAddress() {
+                return stringifyHex(memoryAddress);
+            }
+
+            std::string prettyStringifyMemoryAddress() {
+                return prettyStringifyValue(stringifyHex(memoryAddress));
+            }
         };
 
 
@@ -189,8 +197,24 @@ class AlienCPUAssembler {
             std::vector<Byte> bytes;
 
             MemorySegment(Word startAddress) : startAddress(startAddress) {}
-            int getEndAddress() {
+            Word getEndAddress() {
                 return startAddress + bytes.size() - 1;
+            }
+
+            std::string stringifyStartAddress() {
+                return stringifyHex(startAddress);
+            }
+            
+            std::string prettyStringifyStartAddress() {
+                return prettyStringifyValue(stringifyHex(startAddress));
+            }
+
+            std::string stringifyEndAddress() {
+                return stringifyHex(getEndAddress());
+            }
+
+            std::string prettyStringifyEndAddress() {
+                return prettyStringifyValue(stringifyHex(getEndAddress()));
             }
         };
 

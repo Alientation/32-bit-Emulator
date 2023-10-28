@@ -12,12 +12,16 @@ int main() {
         "\tLDA\t\t \t#$FFFF\n" << 
         ";THIS IS A COMMENT\n" << 
         ";SO IS THIS\n" << 
-        ".org\t%0101\n" <<
+        ".org\t%0110\n" <<
         "\tLDA\t#$FFEF\n" <<
         "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
         "globallabel2:\n" <<
-        "_locallabel3:";
+        "_locallabel3:\n" <<
+        ".org\t9\n" <<
+        "LDA\t#$AADA\n" <<
+        ".org\t3\n" <<
+        "LDA\t#$1234\n";
 
     assembler.assemble(sourceCode.str());
 }
@@ -47,18 +51,22 @@ void AlienCPUAssembler::reset() {
  * Writes the tracked bytes to a binary file 
  */
 void AlienCPUAssembler::writeToFile() {
+    const uint16_t NUMBER_OF_BYTES_PER_LINE = 16;
+
     // for now, just print memory map
     std::cout << std::endl << "Memory Map:" << std::endl;
     for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+        // get current segment
         MemorySegment segment = *(*it).second;
-        std::cout << "[" << segment.startAddress << "," << segment.getEndAddress() << "]\t";
+        std::cout << "[" << segment.prettyStringifyStartAddress() << "," 
+                << segment.prettyStringifyEndAddress() << "]\t";
         
-        // print out each byte in memory map, 16 bytes per row
+        // print out each byte in segment
         for (int i = 0; i < segment.bytes.size(); i++) {
-            if ((i + 1) % 16 == 0) {
+            if ((i + 1) % NUMBER_OF_BYTES_PER_LINE == 0) {
                 std::cout << std::endl << "\t";
             }
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)segment.bytes[i] << " ";
+            std::cout << prettyStringifyValue(stringifyHex(segment.bytes[i])) << " ";
         }
         std::cout << std::endl;
     }
@@ -87,15 +95,17 @@ void AlienCPUAssembler::writeByte(Byte value) {
             MemorySegment& otherSegment = *(*it).second;
             if (otherSegment.startAddress <= currentProgramCounter && otherSegment.getEndAddress() >= currentProgramCounter) {
                 // warn we are overwriting memory
-                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.startAddress << "," 
-                        << otherSegment.getEndAddress() << "] with [" << currentProgramCounter << "," << currentProgramCounter << "]");
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << prettyStringifyValue(stringifyHex(currentProgramCounter)) << "]");
             }
         }
 
+        // create a new memory segment
         MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
         (*memorySegment).bytes.push_back(value);
         memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
     } else {
+        // get previous memory segment that ends right before the current program counter
         MemorySegment& memorySegment = *memoryMap.at(currentProgramCounter - 1);
         memoryMap.erase(memoryMap.find(currentProgramCounter - 1));
         memorySegment.bytes.push_back(value);
@@ -108,18 +118,18 @@ void AlienCPUAssembler::writeByte(Byte value) {
             // check if the current memory segment is overwriting the another memory segment
             if (otherSegment.startAddress >= memorySegment.startAddress && otherSegment.startAddress <= currentProgramCounter) {
                 // warn we are starting to overwrite memory
-                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.startAddress << "," 
-                        << otherSegment.getEndAddress() << "] with [" << 
-                        memorySegment.startAddress << "," << memorySegment.startAddress + memorySegment.bytes.size() - 1 << "]");
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << 
+                        memorySegment.prettyStringifyStartAddress() << "," << memorySegment.prettyStringifyEndAddress() << "]");
             }
 
             // check if the current memory segment is touching the next memory segment
             if (otherSegment.startAddress == currentProgramCounter + 1) {
-                // combine the memory segments
+                // combine the touching memory segments
                 MemorySegment& nextMemorySegment = *(*it).second;
                 memorySegment.bytes.insert(memorySegment.bytes.end(), nextMemorySegment.bytes.begin(), nextMemorySegment.bytes.end());
                 
-                // remove the other memory segment from the memory map
+                // remove the other memory segment (the one that is following the current memory segment) from the memory map
                 memoryMap.erase(it);
                 break;
             }
@@ -129,6 +139,7 @@ void AlienCPUAssembler::writeByte(Byte value) {
         memoryMap.insert(std::pair<Word, MemorySegment*>(memorySegment.getEndAddress(), &memorySegment));
     }
 
+    // wrote one byte to current program counter
     currentProgramCounter++;
 }
 
@@ -170,12 +181,12 @@ void AlienCPUAssembler::assemble(std::string source) {
     // print out each parsed token and its associated memory address
     for (ParsedToken& parsedToken : parsedTokens) {
         if (parsedToken.type == TOKEN_INSTRUCTION) {
-            std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string 
+            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string 
                     << " " << addressingModeNames.at(parsedToken.addressingMode) << std::endl;
         } else if (parsedToken.type == TOKEN_INSTRUCTION_OPERAND || parsedToken.type == TOKEN_GLOBAL_LABEL || parsedToken.type == TOKEN_LOCAL_LABEL) {
-            std::cout << "[" << parsedToken.memoryAddress << "]\t" << parsedToken.token.string << std::endl;
+            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string << std::endl;
         } else {
-            std::cout << "\t" << parsedToken.token.string << std::endl;
+            std::cout << "\t\t" << ITALICS << GRAY << parsedToken.token.string << RESET << std::endl;
         }
     }
 
