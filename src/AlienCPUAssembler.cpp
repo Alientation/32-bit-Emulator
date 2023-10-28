@@ -128,6 +128,7 @@ void AlienCPUAssembler::assemble(std::string source) {
             std::cout << "\t\t" << ITALICS << GRAY << parsedToken.token.string << RESET << std::endl;
         }
     }
+    parsedTokens.clear();
 
     // assemble the parsed tokens into machine code and evaluate any unevaluated expressions
     status = ASSEMBLING;
@@ -145,6 +146,28 @@ void AlienCPUAssembler::assemble(std::string source) {
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
 }
 
+
+void AlienCPUAssembler::defineLabel(std::string labelName, Word value) {
+    // check what scope we are in
+    bool isLocal = labelName[0] == '_';
+
+    // check if label is already defined in the current scope if we are in the first parsing phase
+    // TODO: store more useful information in scope struct to print debug info
+    if (status == PARSING && isLocal && (*currentScope).labels.find(labelName) != (*currentScope).labels.end()) {
+        error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Local Label");
+    } else if (status == PARSING && !isLocal && (*globalScope).labels.find(labelName) != (*globalScope).labels.end()) {
+        error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Global Label");
+    }
+
+    // add label to symbol table
+    if (isLocal) {
+        (*currentScope).labels[labelName] = value;
+        parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_LOCAL_LABEL, value));
+    } else {
+        (*globalScope).labels[labelName] = value;
+        parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_GLOBAL_LABEL, value));
+    }
+}
 
 
 /**
@@ -184,26 +207,8 @@ void AlienCPUAssembler::passTokens() {
 
         // check if token is label
         if (token.string[token.string.size() - 1] == ':') {
-            // check what scope we are in
-            bool isLocal = token.string[0] == '_';
-
-            // check if label is already defined in the current scope if we are in the first parsing phase
-            // TODO: store more useful information in scope struct to print debug info
-            if (status == PARSING && isLocal && (*currentScope).labels.find(token.string) != (*currentScope).labels.end()) {
-                error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Local Label");
-            } else if (status == PARSING && !isLocal && (*globalScope).labels.find(token.string) != (*globalScope).labels.end()) {
-                error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Global Label");
-            }
-
-            // add label to symbol table
-            if (isLocal) {
-                (*currentScope).labels[token.string] = currentProgramCounter;
-                parsedTokens.push_back(ParsedToken(token, TOKEN_LOCAL_LABEL, currentProgramCounter));
-            } else {
-                (*globalScope).labels[token.string] = currentProgramCounter;
-                parsedTokens.push_back(ParsedToken(token, TOKEN_GLOBAL_LABEL, currentProgramCounter));
-            }
-
+            std::string labelName = token.string.substr(0, token.string.size() - 1);
+            defineLabel(labelName, currentProgramCounter);
             continue;
         }
 

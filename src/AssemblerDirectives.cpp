@@ -190,7 +190,7 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
     // parse each value, must be a value capable of being evaluated in the parse phase
     // ie, any labels referenced must be already defined and any expressions must be evaluated
     for (std::string& value : splitByComma) {
-        u64 parsedValue = EXPECT_PARSEDVALUE(value, 0, (1 << (bytes * 8)) - 1);
+        u64 parsedValue = EXPECT_PARSEDVALUE(trim(value), 0, (1 << (bytes * 8)) - 1);
         writeBytes(parsedValue, bytes, lowEndian);
     }
 }
@@ -207,6 +207,7 @@ void AlienCPUAssembler::DIR_DB_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 1, true);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -220,6 +221,7 @@ void AlienCPUAssembler::DIR_D2B_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 2, true);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -233,6 +235,7 @@ void AlienCPUAssembler::DIR_DW_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 4, true);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -246,6 +249,7 @@ void AlienCPUAssembler::DIR_D2W_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 8, true);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -259,6 +263,7 @@ void AlienCPUAssembler::DIR_DB_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 1, false);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -272,6 +277,7 @@ void AlienCPUAssembler::DIR_D2B_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 2, false);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -285,6 +291,7 @@ void AlienCPUAssembler::DIR_DW_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 4, false);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -298,6 +305,7 @@ void AlienCPUAssembler::DIR_D2W_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(tokens[currentTokenI].string, 8, false);
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
@@ -323,7 +331,7 @@ void AlienCPUAssembler::DIR_ADVANCE() {
                 << "Missing operand for .advance directive: " << tokens[currentTokenI].string);
     }
 
-    Word targetAddress = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+    Word targetAddress = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
 
     // cannot advance address backwards
     if (targetAddress < currentProgramCounter) {
@@ -334,7 +342,7 @@ void AlienCPUAssembler::DIR_ADVANCE() {
 
     // check if there is filler argument
     if (splitByComma.size() > 1) {
-        Byte filler = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 0, 0xFF);
+        Byte filler = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
 
         // fill the space with the filler value
         for (Word i = currentProgramCounter; i < targetAddress; i++) {
@@ -347,6 +355,8 @@ void AlienCPUAssembler::DIR_ADVANCE() {
                     << "Unrecognized operand for .advance directive: " << tokens[currentTokenI].string);
         }
     }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
@@ -372,17 +382,17 @@ void AlienCPUAssembler::DIR_FILL() {
                 << "Missing operand for .fill directive: " << tokens[currentTokenI].string);
     }
 
-    Word fillcount = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+    Word fillcount = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
     Byte size = 1;
     u64 value = 0;
 
     // check for size argument
     if (splitByComma.size() > 1) {
-        size = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 1, 0xFF);
+        size = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 1, 0xFF);
 
         // check for value argument
         if (splitByComma.size() > 2) {
-            value = EXPECT_PARSEDVALUE(splitByComma[2], 0, (1 << (size * 8)) - 1);
+            value = EXPECT_PARSEDVALUE(trim(splitByComma[2]), 0, (1 << (size * 8)) - 1);
         }
 
         // too many operands for .fill directive
@@ -396,6 +406,8 @@ void AlienCPUAssembler::DIR_FILL() {
     for (Word i = 0; i < fillcount; i++) {
         writeBytes(value, size, true);
     }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
@@ -418,12 +430,12 @@ void AlienCPUAssembler::DIR_SPACE() {
                 << "Missing operand for .space directive: " << tokens[currentTokenI].string);
     }
 
-    Word count = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+    Word count = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
     Byte value = 0;
 
     // check for value argument
     if (splitByComma.size() > 1) {
-        value = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 0, 0xFF);
+        value = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
 
         // too many operands for .space directive
         if (splitByComma.size() > 2) {
@@ -436,20 +448,69 @@ void AlienCPUAssembler::DIR_SPACE() {
     for (Word i = 0; i < count; i++) {
         writeBytes(value, 1, true);
     }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
+/**
+ * Defines a label with a specific value.
+ * 
+ * USAGE: .define name,value
+ * 
+ * The name must be a valid label name.
+ * The value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_DEFINE() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // no valid name operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing label name operand for .define directive: " << tokens[currentTokenI].string);
+    }
+
+    std::string name = trim(splitByComma[0]);
+
+    if (name.size() == 0) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Invalid label name for .define directive: " << name);
+    }
+
+    if (splitByComma.size() < 2) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing value operand for .define directive: " << tokens[currentTokenI].string);
+    }
+
+    // define label with value
+    Word value = EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFFFFFFFF);
+    defineLabel(name, value);
+
+    // too many operands for .define directive
+    if (splitByComma.size() > 2) {
+        error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Unrecognized operand for .define directive: " << tokens[currentTokenI].string);
+    }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
+/**
+ * Checks the current program counter to make sure it does not overstep a memory boundary
+ * 
+ * USAGE: .checkpc address
+ * 
+ * The address must be a value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_CHECKPC() {
     EXPECT_OPERAND();
     currentTokenI++;
 
-    // parse checkpc value, must be a value capable of being evaluated in the parse phase
-    // ie, any labels referenced must be already defined and any expressions must be evaluated
     Word checkpc = (Word) EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
     
     if (currentProgramCounter > checkpc) {
@@ -457,6 +518,8 @@ void AlienCPUAssembler::DIR_CHECKPC() {
                 << "Failed CHECKPC: Current address " << stringifyHex(currentProgramCounter) 
                 << " is greater than checkpc " << stringifyHex(checkpc));
     }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 void AlienCPUAssembler::DIR_ALIGN() {

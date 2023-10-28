@@ -294,6 +294,8 @@ class AlienCPUAssembler {
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
         u64 evaluateExpression(Token token);
 
+        void defineLabel(std::string label, Word value);
+
         bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
 
