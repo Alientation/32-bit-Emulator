@@ -180,7 +180,22 @@ void AlienCPUAssembler::DIR_D2W_LO() {
 }
 
 void AlienCPUAssembler::DIR_DB_HI() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // parse each value, must be a value capable of being evaluated in the parse phase
+    // ie, any labels referenced must be already defined and any expressions must be evaluated
+    for (std::string& value : splitByComma) {
+        u64 parsedValue = parseValue(tokens[currentTokenI]);
+        if (parsedValue > 0xFF) {
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for .db directive: " << value);
+        }
+
+        writeByte((Byte) parsedValue);
+    }
 }
 
 void AlienCPUAssembler::DIR_D2B_HI() {
@@ -236,12 +251,54 @@ void AlienCPUAssembler::DIR_REQUIRE() {
 }
 
 
+/**
+ * Starts a new scope.
+ * 
+ * USAGE: .scope
+ * 
+ * This directive is used to start a new scope. A scope has a set of local labels which are only visible
+ * within that scope. This is useful for defining labels which are only used within a specific
+ * section of code.
+ */
 void AlienCPUAssembler::DIR_SCOPE() {
+    // check if first pass
+    if (status == PARSING) {
+        Scope* localScope = new Scope(currentScope, currentProgramCounter);
+        if (scopeMap.find(currentProgramCounter) != scopeMap.end()) {
+            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Scope already defined at program counter: " << currentProgramCounter);
+        }
+        scopeMap.insert(std::pair<Word, Scope*>(currentProgramCounter, localScope));
+        currentScope = localScope;
+    } else if (status == ASSEMBLING) {
+        // scope has to have already been defined
+        if (scopeMap.find(currentProgramCounter) == scopeMap.end()) {
+            error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Scope not defined at program counter: " << currentProgramCounter);
+        }
 
+        currentScope = scopeMap.at(currentProgramCounter);
+    } else {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid assembler status: " << status);
+    }
 }
 
+/**
+ * Ends the current scope.
+ * 
+ * USAGE: .scend
+ * 
+ * This directive is used to end the current scope. This will return the assembler to the parent scope.
+ * If there is no parent scope, this will throw an error.
+ */
 void AlienCPUAssembler::DIR_SCEND() {
+    // check if the current scope has no parent scope. This means we are at the global scope which has
+    // no parent scope. This implies that there is more SCEND directives than SCOPE directives at this point.
+    if (currentScope->parent == nullptr) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Cannot end scope, no parent scope.");
+    }
 
+    currentScope = currentScope->parent;
 }
 
 void AlienCPUAssembler::DIR_MACRO() {

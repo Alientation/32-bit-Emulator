@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 #include <../src/Motherboard/AlienCPU.h>
 #include <../src/ConsoleColor.h>
@@ -129,17 +130,29 @@ class AlienCPUAssembler {
          * Represents information of a scope of block of code
          */
         struct Scope {
+            Scope* parent;
+            Word address;
             std::map<std::string, Word> labels;
-        };
-        
-        /**
-         * Represents information of a nested scope of a block of code
-         */
-        struct ScopeChild : Scope {
-            Scope& parent;
 
-            ScopeChild(Scope& parent) : parent(parent) {}
+            Scope() : parent(nullptr) {}
+            Scope(Scope* parent, Word address) : parent(parent), address(address) {}
+
+            std::string stringifyMemoryAddress() {
+                return stringifyHex(address);
+            }
+
+            std::string prettyStringifyMemoryAddress() {
+                return prettyStringifyValue(stringifyHex(address));
+            }
         };
+
+        /**
+         * Store scope information from the previous pass through the tokens
+         * 
+         * Whenever a scope declaration is encountered on the second pass,
+         * the scope information is stored here.
+         */
+        std::map<Word, Scope*> scopeMap;
 
 
         AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
@@ -237,12 +250,12 @@ class AlienCPUAssembler {
         /**
          * Scope of the file as a whole
          */
-        Scope globalScope = Scope();
+        Scope* globalScope = new Scope();
 
         /**
          * Current scope of the assembly process
          */
-        Scope& currentScope = globalScope;
+        Scope* currentScope = globalScope;
 
 
         /**
@@ -283,7 +296,6 @@ class AlienCPUAssembler {
 
         bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
-        bool isValidFilename(std::string filename);
 
         void writeToFile();
         void writeByte(Byte value);
@@ -891,5 +903,25 @@ static bool validInstruction(std::string& instruction, AddressingMode addressing
 static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode addressingMode) {
     return instructionMap.at(instruction).at(addressingMode);
 }
+
+
+/**
+ * Check to make sure the filename only contains letters, numbers, spaces, parenthesis, underscores, 
+ * dashes, commas, periods, or stars.
+ * 
+ * @param filename The filename to check for validity
+ * @return true if the filename is valid, false otherwise
+ */
+static bool isValidFilename(std::string filename) {
+    std::set<char> validChars = {' ', '(', ')', '_', '-', ',', '.', '*'};
+    for (char c : filename) {
+        if (!std::isalnum(c) && !validChars.count(c)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 
 #endif // ALIENCPUASSEMBLER_H

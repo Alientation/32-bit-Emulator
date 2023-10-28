@@ -1,7 +1,6 @@
 #include "AlienCPUAssembler.h"
 
 #include <any>
-#include <set>
 
 int main() {
     AlienCPU cpu;
@@ -16,8 +15,10 @@ int main() {
         "\tLDA\t#$FFEF\n" <<
         "globallabel1:\t;this is a comment\n" <<
         "_locallabel:\n" <<
+        ".scope\n" <<
         "globallabel2:\n" <<
-        "_locallabel3:\n" <<
+        "_locallabel:\n" <<
+        ".scend\n" <<
         ".org\t9\n" <<
         "LDA\t#$AADA\n" <<
         ".org\t3\n" <<
@@ -31,6 +32,7 @@ int main() {
  * Constructs a new AlienCPUAssembler for the given AlienCPU.
  */
 AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
+
 
 /**
  * Resets the internal state of the assembler.
@@ -46,6 +48,7 @@ void AlienCPUAssembler::reset() {
     segments.clear();
     currentProgramCounter = DEFAULT_STARTING_ADDRESS;
 }
+
 
 /**
  * Writes the tracked bytes to a binary file 
@@ -73,74 +76,6 @@ void AlienCPUAssembler::writeToFile() {
     std::cout << "END" << std::endl;
 
     // write to file
-}
-
-/**
- * Simulates writing a byte to file by first tracking the byte in the assembler
- * 
- * @param value The value to write to the file
- */
-void AlienCPUAssembler::writeByte(Byte value) {
-    // Don't write if not assembling
-    if (status != ASSEMBLING) {
-        currentProgramCounter++;
-        return;
-    }
-
-    // write the byte
-    // check if we are writing to a new memory segment
-    if (memoryMap.find(currentProgramCounter - 1) == memoryMap.end()) {
-        // check to make sure we are not overwriting other memory segments
-        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
-            MemorySegment& otherSegment = *(*it).second;
-            if (otherSegment.startAddress <= currentProgramCounter && otherSegment.getEndAddress() >= currentProgramCounter) {
-                // warn we are overwriting memory
-                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
-                        << otherSegment.prettyStringifyEndAddress() << "] with [" << prettyStringifyValue(stringifyHex(currentProgramCounter)) << "]");
-            }
-        }
-
-        // create a new memory segment
-        MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
-        (*memorySegment).bytes.push_back(value);
-        memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
-    } else {
-        // get previous memory segment that ends right before the current program counter
-        MemorySegment& memorySegment = *memoryMap.at(currentProgramCounter - 1);
-        memoryMap.erase(memoryMap.find(currentProgramCounter - 1));
-        memorySegment.bytes.push_back(value);
-        
-        // check if we should combine memory segments if they are touching
-        // loop through each memory segment
-        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
-            MemorySegment& otherSegment = *(*it).second;
-
-            // check if the current memory segment is overwriting the another memory segment
-            if (otherSegment.startAddress >= memorySegment.startAddress && otherSegment.startAddress <= currentProgramCounter) {
-                // warn we are starting to overwrite memory
-                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
-                        << otherSegment.prettyStringifyEndAddress() << "] with [" << 
-                        memorySegment.prettyStringifyStartAddress() << "," << memorySegment.prettyStringifyEndAddress() << "]");
-            }
-
-            // check if the current memory segment is touching the next memory segment
-            if (otherSegment.startAddress == currentProgramCounter + 1) {
-                // combine the touching memory segments
-                MemorySegment& nextMemorySegment = *(*it).second;
-                memorySegment.bytes.insert(memorySegment.bytes.end(), nextMemorySegment.bytes.begin(), nextMemorySegment.bytes.end());
-                
-                // remove the other memory segment (the one that is following the current memory segment) from the memory map
-                memoryMap.erase(it);
-                break;
-            }
-        }
-
-        // map the last byte of the current memory segment to the memory map
-        memoryMap.insert(std::pair<Word, MemorySegment*>(memorySegment.getEndAddress(), &memorySegment));
-    }
-
-    // wrote one byte to current program counter
-    currentProgramCounter++;
 }
 
 
@@ -248,18 +183,18 @@ void AlienCPUAssembler::passTokens() {
 
             // check if label is already defined in the current scope if we are in the first parsing phase
             // TODO: store more useful information in scope struct to print debug info
-            if (status == PARSING && isLocal && currentScope.labels.find(token.string) != currentScope.labels.end()) {
+            if (status == PARSING && isLocal && (*currentScope).labels.find(token.string) != (*currentScope).labels.end()) {
                 error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Local Label");
-            } else if (status == PARSING && !isLocal && globalScope.labels.find(token.string) != globalScope.labels.end()) {
+            } else if (status == PARSING && !isLocal && (*globalScope).labels.find(token.string) != (*globalScope).labels.end()) {
                 error(MULTIPLE_DEFINITION_ERROR, token, std::stringstream() << "Multiple Definition of a Global Label");
             }
 
             // add label to symbol table
             if (isLocal) {
-                currentScope.labels[token.string] = currentProgramCounter;
+                (*currentScope).labels[token.string] = currentProgramCounter;
                 parsedTokens.push_back(ParsedToken(token, TOKEN_LOCAL_LABEL, currentProgramCounter));
             } else {
-                globalScope.labels[token.string] = currentProgramCounter;
+                (*globalScope).labels[token.string] = currentProgramCounter;
                 parsedTokens.push_back(ParsedToken(token, TOKEN_GLOBAL_LABEL, currentProgramCounter));
             }
 
@@ -328,133 +263,15 @@ void AlienCPUAssembler::passTokens() {
         // unrecognized token
         error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unrecognized Token While Parsing");
     }
+
+    // end of pass
+    // some important checks to ensure user is not doing anything stupid
+    if (currentScope != globalScope) {
+        // this means we are still in a scope that has not been closed
+        error(MISSING_TOKEN_ERROR, NULL_TOKEN, std::stringstream() << "Scope defined at " 
+                << (*currentScope).prettyStringifyMemoryAddress() << "is not closed.");
+    }
 }
-
-
-
-/**
- * Converts the given operand to an addressing mode.
- * 
- * TODO: can probably use regex to simplify this
- * 
- * @param tokenInstruction The instruction that the operand is associated with.
- * @param tokenOperand The operand to convert.
- * @return The addressing mode of the given operand.
- */
-AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Token tokenOperand) {
-    std::string operand = tokenOperand.string;
-    if (operand.empty()) {
-        // error(ERROR, tokenOperand, std::stringstream() << "Invalid operand to convert: " << operand);
-        return NO_ADDRESSING_MODE;
-    }
-
-    // check if operand is an immediate or relative value
-    if (operand[0] == '#') {
-        u64 parsedValue = parseValue(tokenOperand);
-        if (parsedValue > 0xFFFFFFFF) {
-            // error(ERROR, tokenOperand, std::stringstream() << "Invalid immediate value: " << operand);
-            return NO_ADDRESSING_MODE;
-        }
-
-        if (validInstruction(tokenInstruction.string, IMMEDIATE)) {
-            return IMMEDIATE;
-        } else if (validInstruction(tokenInstruction.string, RELATIVE)) {
-            return RELATIVE;
-        } else {
-            return NO_ADDRESSING_MODE;
-        }
-    }
-
-    // check if operand is zeropage or absolute
-    if (operand[0] == '%' || operand[0] == '0' || operand[0] == '$' || isNumber(operand)) {
-        u64 parsedValue = parseValue(tokenOperand);
-        if (parsedValue > 0xFFFFFFFF) {
-            return NO_ADDRESSING_MODE;
-        }
-
-        if (parsedValue <= 0xFFFF && validInstruction(tokenInstruction.string, ZEROPAGE)) {
-            return ZEROPAGE;
-        } else if (validInstruction(tokenInstruction.string, ABSOLUTE)) {
-            return ABSOLUTE;
-        } else {
-            return NO_ADDRESSING_MODE;    
-        }
-    }
-
-    // check if operand is zeropage,x or zeropage,y or absolute,x or absolute,y
-    std::vector<std::string> splitByComma = split(operand, ',');
-    if (splitByComma.size() == 2 && isHexadecimalNumber(splitByComma[0]) && (splitByComma[1] == "x" || splitByComma[1] == "y")) {
-        bool isX = splitByComma[1] == "x";
-
-        Token valueToken = Token(tokenOperand);
-        valueToken.string = splitByComma[0];
-
-        u64 parsedValue = parseValue(valueToken);
-        if (parsedValue > 0xFFFFFFFF) {
-            return NO_ADDRESSING_MODE;
-        }
-
-        if (parsedValue <= 0xFFFF && isX && validInstruction(tokenInstruction.string, ZEROPAGE_XINDEXED)) {
-            return ZEROPAGE_XINDEXED;
-        } else if (isX && validInstruction(tokenInstruction.string, ABSOLUTE_XINDEXED)) {
-            return ABSOLUTE_XINDEXED;
-        } else if (parsedValue <= 0xFFFF && !isX && validInstruction(tokenInstruction.string, ZEROPAGE_YINDEXED)) {
-            return ZEROPAGE_YINDEXED;
-        } else if (!isX && validInstruction(tokenInstruction.string, ABSOLUTE_YINDEXED)) {
-            return ABSOLUTE_YINDEXED;
-        } else {
-            return NO_ADDRESSING_MODE;
-        }
-    }
-
-    // check if operand is indirect
-    if (operand[0] == '(' && operand[operand.size() - 1] == ')' && isHexadecimalNumber(operand.substr(1,operand.size() - 2))) {
-        Token valueToken = Token(tokenOperand);
-        valueToken.string = operand.substr(1,operand.size() - 2);
-
-        u64 parsedValue = parseValue(valueToken);
-        if (parsedValue > 0xFFFFFFFF) {
-            return NO_ADDRESSING_MODE;
-        }
-
-        return INDIRECT;
-    }
-
-    // check if operand is x indexed indirect
-    if (splitByComma.size() == 2 && splitByComma[0].size() > 1 && splitByComma[1].size() == 2
-        && splitByComma[0][0] == '(' && splitByComma[1][splitByComma[1].size() - 1] == ')'
-        && isHexadecimalNumber(splitByComma[0].substr(1)) && splitByComma[1][0] == 'x') {
-        Token valueToken = Token(tokenOperand);
-        valueToken.string = splitByComma[0].substr(1);
-
-        u64 parsedValue = parseValue(valueToken);
-        if (parsedValue > 0xFFFF) {
-            return NO_ADDRESSING_MODE;
-        }
-
-        return XINDEXED_INDIRECT;
-    }
-
-    // check if operand is indirect y indexed
-    if (splitByComma.size() == 2 && splitByComma[0].size() > 2 && splitByComma[1].size() == 1
-        && splitByComma[0][0] == '(' && splitByComma[0][splitByComma[0].size() - 1] == ')' 
-        && isHexadecimalNumber(splitByComma[0].substr(1,splitByComma[0].size() - 2))
-        && splitByComma[1][0] == 'y') {
-        Token valueToken = Token(tokenOperand);
-        valueToken.string = splitByComma[0].substr(1,splitByComma[0].size() - 2);
-
-        u64 parsedValue = parseValue(valueToken);
-        if (parsedValue > 0xFFFF) {
-            return NO_ADDRESSING_MODE;
-        }
-
-        return INDIRECT_YINDEXED;
-    }
-
-    // invalid operand
-    return NO_ADDRESSING_MODE;
-}
-
 
 
 
@@ -709,6 +526,131 @@ void AlienCPUAssembler::tokenize() {
 
 
 
+/**
+ * Converts the given operand to an addressing mode.
+ * 
+ * TODO: can probably use regex to simplify this
+ * 
+ * @param tokenInstruction The instruction that the operand is associated with.
+ * @param tokenOperand The operand to convert.
+ * @return The addressing mode of the given operand.
+ */
+AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Token tokenOperand) {
+    std::string operand = tokenOperand.string;
+    if (operand.empty()) {
+        // error(ERROR, tokenOperand, std::stringstream() << "Invalid operand to convert: " << operand);
+        return NO_ADDRESSING_MODE;
+    }
+
+    // check if operand is an immediate or relative value
+    if (operand[0] == '#') {
+        u64 parsedValue = parseValue(tokenOperand);
+        if (parsedValue > 0xFFFFFFFF) {
+            // error(ERROR, tokenOperand, std::stringstream() << "Invalid immediate value: " << operand);
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (validInstruction(tokenInstruction.string, IMMEDIATE)) {
+            return IMMEDIATE;
+        } else if (validInstruction(tokenInstruction.string, RELATIVE)) {
+            return RELATIVE;
+        } else {
+            return NO_ADDRESSING_MODE;
+        }
+    }
+
+    // check if operand is zeropage or absolute
+    if (operand[0] == '%' || operand[0] == '0' || operand[0] == '$' || isNumber(operand)) {
+        u64 parsedValue = parseValue(tokenOperand);
+        if (parsedValue > 0xFFFFFFFF) {
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (parsedValue <= 0xFFFF && validInstruction(tokenInstruction.string, ZEROPAGE)) {
+            return ZEROPAGE;
+        } else if (validInstruction(tokenInstruction.string, ABSOLUTE)) {
+            return ABSOLUTE;
+        } else {
+            return NO_ADDRESSING_MODE;    
+        }
+    }
+
+    // check if operand is zeropage,x or zeropage,y or absolute,x or absolute,y
+    std::vector<std::string> splitByComma = split(operand, ',');
+    if (splitByComma.size() == 2 && isHexadecimalNumber(splitByComma[0]) && (splitByComma[1] == "x" || splitByComma[1] == "y")) {
+        bool isX = splitByComma[1] == "x";
+
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0];
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFFFFFF) {
+            return NO_ADDRESSING_MODE;
+        }
+
+        if (parsedValue <= 0xFFFF && isX && validInstruction(tokenInstruction.string, ZEROPAGE_XINDEXED)) {
+            return ZEROPAGE_XINDEXED;
+        } else if (isX && validInstruction(tokenInstruction.string, ABSOLUTE_XINDEXED)) {
+            return ABSOLUTE_XINDEXED;
+        } else if (parsedValue <= 0xFFFF && !isX && validInstruction(tokenInstruction.string, ZEROPAGE_YINDEXED)) {
+            return ZEROPAGE_YINDEXED;
+        } else if (!isX && validInstruction(tokenInstruction.string, ABSOLUTE_YINDEXED)) {
+            return ABSOLUTE_YINDEXED;
+        } else {
+            return NO_ADDRESSING_MODE;
+        }
+    }
+
+    // check if operand is indirect
+    if (operand[0] == '(' && operand[operand.size() - 1] == ')' && isHexadecimalNumber(operand.substr(1,operand.size() - 2))) {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = operand.substr(1,operand.size() - 2);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFFFFFF) {
+            return NO_ADDRESSING_MODE;
+        }
+
+        return INDIRECT;
+    }
+
+    // check if operand is x indexed indirect
+    if (splitByComma.size() == 2 && splitByComma[0].size() > 1 && splitByComma[1].size() == 2
+        && splitByComma[0][0] == '(' && splitByComma[1][splitByComma[1].size() - 1] == ')'
+        && isHexadecimalNumber(splitByComma[0].substr(1)) && splitByComma[1][0] == 'x') {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0].substr(1);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFF) {
+            return NO_ADDRESSING_MODE;
+        }
+
+        return XINDEXED_INDIRECT;
+    }
+
+    // check if operand is indirect y indexed
+    if (splitByComma.size() == 2 && splitByComma[0].size() > 2 && splitByComma[1].size() == 1
+        && splitByComma[0][0] == '(' && splitByComma[0][splitByComma[0].size() - 1] == ')' 
+        && isHexadecimalNumber(splitByComma[0].substr(1,splitByComma[0].size() - 2))
+        && splitByComma[1][0] == 'y') {
+        Token valueToken = Token(tokenOperand);
+        valueToken.string = splitByComma[0].substr(1,splitByComma[0].size() - 2);
+
+        u64 parsedValue = parseValue(valueToken);
+        if (parsedValue > 0xFFFF) {
+            return NO_ADDRESSING_MODE;
+        }
+
+        return INDIRECT_YINDEXED;
+    }
+
+    // invalid operand
+    return NO_ADDRESSING_MODE;
+}
+
+
+
 
 /**
  * Throws a compiler error when trying to parse a token
@@ -787,6 +729,9 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 }
 
 
+
+
+
 /**
  * Determines whether the provided token is a string operand
  * 
@@ -814,23 +759,72 @@ std::string AlienCPUAssembler::getStringToken(std::string token) {
 
 
 /**
- * Check to make sure the filename only contains letters, numbers, spaces, parenthesis, underscores, 
- * dashes, commas, periods, or stars.
+ * Simulates writing a byte to file by first tracking the byte in the assembler
  * 
- * @param filename The filename to check for validity
- * @return true if the filename is valid, false otherwise
+ * @param value The value to write to the file
  */
-bool AlienCPUAssembler::isValidFilename(std::string filename) {
-    std::set<char> validChars = {' ', '(', ')', '_', '-', ',', '.', '*'};
-    for (char c : filename) {
-        if (!std::isalnum(c) && !validChars.count(c)) {
-            return false;
-        }
+void AlienCPUAssembler::writeByte(Byte value) {
+    // Don't write if not assembling
+    if (status != ASSEMBLING) {
+        currentProgramCounter++;
+        return;
     }
 
-    return true;
-}
+    // write the byte
+    // check if we are writing to a new memory segment
+    if (memoryMap.find(currentProgramCounter - 1) == memoryMap.end()) {
+        // check to make sure we are not overwriting other memory segments
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+            if (otherSegment.startAddress <= currentProgramCounter && otherSegment.getEndAddress() >= currentProgramCounter) {
+                // warn we are overwriting memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << prettyStringifyValue(stringifyHex(currentProgramCounter)) << "]");
+            }
+        }
 
+        // create a new memory segment
+        MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
+        (*memorySegment).bytes.push_back(value);
+        memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
+    } else {
+        // get previous memory segment that ends right before the current program counter
+        MemorySegment& memorySegment = *memoryMap.at(currentProgramCounter - 1);
+        memoryMap.erase(memoryMap.find(currentProgramCounter - 1));
+        memorySegment.bytes.push_back(value);
+        
+        // check if we should combine memory segments if they are touching
+        // loop through each memory segment
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+
+            // check if the current memory segment is overwriting the another memory segment
+            if (otherSegment.startAddress >= memorySegment.startAddress && otherSegment.startAddress <= currentProgramCounter) {
+                // warn we are starting to overwrite memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << 
+                        memorySegment.prettyStringifyStartAddress() << "," << memorySegment.prettyStringifyEndAddress() << "]");
+            }
+
+            // check if the current memory segment is touching the next memory segment
+            if (otherSegment.startAddress == currentProgramCounter + 1) {
+                // combine the touching memory segments
+                MemorySegment& nextMemorySegment = *(*it).second;
+                memorySegment.bytes.insert(memorySegment.bytes.end(), nextMemorySegment.bytes.begin(), nextMemorySegment.bytes.end());
+                
+                // remove the other memory segment (the one that is following the current memory segment) from the memory map
+                memoryMap.erase(it);
+                break;
+            }
+        }
+
+        // map the last byte of the current memory segment to the memory map
+        memoryMap.insert(std::pair<Word, MemorySegment*>(memorySegment.getEndAddress(), &memorySegment));
+    }
+
+    // wrote one byte to current program counter
+    currentProgramCounter++;
+}
 
 /**
  * Writes two bytes in specified endian order to file
