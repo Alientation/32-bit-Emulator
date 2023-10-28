@@ -19,6 +19,24 @@ u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(u64 min, u64 max) {
 };
 
 /**
+ * Parse the current token as a value and throw an error if it is not a valid value.
+ * 
+ * Does not modify the internal state.
+ * 
+ * @param min The minimum value the parsed value can be.
+ * @param max The maximum value the parsed value can be.
+ * @return The parsed value.
+ */
+u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max) {
+    u64 parsedValue = parseValue(val);
+    if (parsedValue < min || parsedValue > max) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Value: [" << val << "] " 
+        << parsedValue << " must be between " << min << " and " << max);
+    }
+    return parsedValue;
+};
+
+/**
  * Throw an error if there is no operand available for the current token.
  * 
  * The current token is considered to be the one requesting an operand. This means
@@ -40,7 +58,7 @@ void AlienCPUAssembler::EXPECT_OPERAND() {
  */
 void AlienCPUAssembler::EXPECT_NO_OPERAND() {
     if (currentTokenI != tokens.size() - 1 && tokens[currentTokenI + 1].lineNumber == tokens[currentTokenI].lineNumber) {
-        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Too Many Operands");
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Unrecognized Operand");
     }
 };
 
@@ -131,7 +149,8 @@ void AlienCPUAssembler::DIR_OUTFILE() {
     // set the output file, must be a string argument
     outputFile = getStringToken(tokens[currentTokenI].string);
     if (!isValidFilename(outputFile)) {
-        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid filename for .outfile directive: " << outputFile);
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Invalid filename for .outfile directive: " << outputFile);
     }
     parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
@@ -171,12 +190,7 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
     // parse each value, must be a value capable of being evaluated in the parse phase
     // ie, any labels referenced must be already defined and any expressions must be evaluated
     for (std::string& value : splitByComma) {
-        u64 parsedValue = parseValue(value);
-        if (parsedValue >= 1 << (bytes * 8)) {
-            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for " 
-                    << tokens[currentTokenI-1].string << " directive: " << value);
-        }
-
+        u64 parsedValue = EXPECT_PARSEDVALUE(value, 0, (1 << (bytes * 8)) - 1);
         writeBytes(parsedValue, bytes, lowEndian);
     }
 }
@@ -192,7 +206,6 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
 void AlienCPUAssembler::DIR_DB_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 1, true);
 }
 
@@ -206,7 +219,6 @@ void AlienCPUAssembler::DIR_DB_LO() {
 void AlienCPUAssembler::DIR_D2B_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 2, true);
 }
 
@@ -220,7 +232,6 @@ void AlienCPUAssembler::DIR_D2B_LO() {
 void AlienCPUAssembler::DIR_DW_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 4, true);
 }
 
@@ -234,7 +245,6 @@ void AlienCPUAssembler::DIR_DW_LO() {
 void AlienCPUAssembler::DIR_D2W_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 8, true);
 }
 
@@ -248,7 +258,6 @@ void AlienCPUAssembler::DIR_D2W_LO() {
 void AlienCPUAssembler::DIR_DB_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 1, false);
 }
 
@@ -262,7 +271,6 @@ void AlienCPUAssembler::DIR_DB_HI() {
 void AlienCPUAssembler::DIR_D2B_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 2, false);
 }
 
@@ -276,7 +284,6 @@ void AlienCPUAssembler::DIR_D2B_HI() {
 void AlienCPUAssembler::DIR_DW_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 4, false);
 }
 
@@ -290,21 +297,145 @@ void AlienCPUAssembler::DIR_DW_HI() {
 void AlienCPUAssembler::DIR_D2W_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
-
     defineBytes(tokens[currentTokenI].string, 8, false);
 }
 
 
+/**
+ * Advances the current program counter to the specified address.
+ * 
+ * USAGE: .advance address,[filler]
+ * 
+ * The address must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The address must be greater than the current program counter.
+ * The filler must be a valid 1 byte value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_ADVANCE() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+    
+    // no valid address operand
+    if (splitByComma.size() == 0) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing operand for .advance directive: " << tokens[currentTokenI].string);
+    }
+
+    Word targetAddress = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+
+    // cannot advance address backwards
+    if (targetAddress < currentProgramCounter) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Invalid address for .advance directive: " << stringifyHex(targetAddress) 
+                << " must be greater than " << stringifyHex(currentProgramCounter));
+    }
+
+    // check if there is filler argument
+    if (splitByComma.size() > 1) {
+        Byte filler = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 0, 0xFF);
+
+        // fill the space with the filler value
+        for (Word i = currentProgramCounter; i < targetAddress; i++) {
+            writeBytes(filler, 1, true);
+        }
+
+        // too many operands for .advance directive
+        if (splitByComma.size() > 2) {
+            error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                    << "Unrecognized operand for .advance directive: " << tokens[currentTokenI].string);
+        }
+    }
 }
 
+
+/**
+ * Fills a space with bytes. By default, the space is filled with a series of 1 bytes with a value of 0.
+ * 
+ * USAGE: .fill count[,size[,value]]
+ * 
+ * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The size must be a valid 1 byte value capable of being evaluated in the parse phase.
+ * The value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_FILL() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // no valid fillcount operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing operand for .fill directive: " << tokens[currentTokenI].string);
+    }
+
+    Word fillcount = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+    Byte size = 1;
+    u64 value = 0;
+
+    // check for size argument
+    if (splitByComma.size() > 1) {
+        size = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 1, 0xFF);
+
+        // check for value argument
+        if (splitByComma.size() > 2) {
+            value = EXPECT_PARSEDVALUE(splitByComma[2], 0, (1 << (size * 8)) - 1);
+        }
+
+        // too many operands for .fill directive
+        if (splitByComma.size() > 3) {
+            error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                    << "Unrecognized operand for .fill directive: " << tokens[currentTokenI].string);
+        }
+    }
+
+    // fill the space with the filler value
+    for (Word i = 0; i < fillcount; i++) {
+        writeBytes(value, size, true);
+    }
 }
 
+/**
+ * Fills a space with bytes. By default, the space is filled with a series of bytes with a value of 0.
+ * 
+ * USAGE: .space count[,value]
+ * 
+ * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_SPACE() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // no valid count operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing operand for .space directive: " << tokens[currentTokenI].string);
+    }
+
+    Word count = (Word) EXPECT_PARSEDVALUE(splitByComma[0], 0, 0xFFFFFFFF);
+    Byte value = 0;
+
+    // check for value argument
+    if (splitByComma.size() > 1) {
+        value = (Byte) EXPECT_PARSEDVALUE(splitByComma[1], 0, 0xFF);
+
+        // too many operands for .space directive
+        if (splitByComma.size() > 2) {
+            error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                    << "Unrecognized operand for .space directive: " << tokens[currentTokenI].string);
+        }
+    }
+
+    // fill the space with the filler value
+    for (Word i = 0; i < count; i++) {
+        writeBytes(value, 1, true);
+    }
 }
 
 

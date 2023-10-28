@@ -311,6 +311,7 @@ class AlienCPUAssembler {
 
         // token processing
         u64 EXPECT_PARSEDVALUE(u64 min, u64 max);
+        u64 EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max);
         void EXPECT_OPERAND();
         void EXPECT_NO_OPERAND();
         bool HAS_OPERAND(bool requireSameLine = true);
