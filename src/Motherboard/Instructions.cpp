@@ -798,7 +798,7 @@ void AlienCPU::SEC_Instruction(Word address) {
 
 
 // =====================SET=DECIMAL=======================
-// AFFECTS FLAGS: ----1---
+// AFFECTS FLAGS: ----1--- TODO: IMPLEMENT DECIMAL MODE
 //
 //  1 -> D
 //
