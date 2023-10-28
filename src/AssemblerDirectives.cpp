@@ -187,6 +187,14 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
     // split operand by commas
     std::vector<std::string> splitByComma = split(token, ',');
 
+    // check if there is enough memory space to write to
+    if (currentProgramCounter + splitByComma.size() * bytes < currentProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed DEFINEBYTES: Current address " << stringifyHex(currentProgramCounter) 
+                << " plus splitByComma.size() " << stringifyHex(splitByComma.size()) << " times bytes " 
+                << stringifyHex(bytes) << " overflows");
+    }
+
     // parse each value, must be a value capable of being evaluated in the parse phase
     // ie, any labels referenced must be already defined and any expressions must be evaluated
     for (std::string& value : splitByComma) {
@@ -340,20 +348,22 @@ void AlienCPUAssembler::DIR_ADVANCE() {
                 << " must be greater than " << stringifyHex(currentProgramCounter));
     }
 
+    Byte filler = 0;
+
     // check if there is filler argument
     if (splitByComma.size() > 1) {
-        Byte filler = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
-
-        // fill the space with the filler value
-        for (Word i = currentProgramCounter; i < targetAddress; i++) {
-            writeBytes(filler, 1, true);
-        }
+        filler = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
 
         // too many operands for .advance directive
         if (splitByComma.size() > 2) {
             error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
                     << "Unrecognized operand for .advance directive: " << tokens[currentTokenI].string);
         }
+    }
+
+    // fill the space with the filler value
+    for (Word i = currentProgramCounter; i < targetAddress; i++) {
+        writeBytes(filler, 1, true);
     }
 
     parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
@@ -402,6 +412,13 @@ void AlienCPUAssembler::DIR_FILL() {
         }
     }
 
+    // check to make sure that there is enough memory to write to
+    if (currentProgramCounter + fillcount * size < currentProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed FILL: Current address " << stringifyHex(currentProgramCounter) 
+                << " plus fillcount " << stringifyHex(fillcount) << " times size " << stringifyHex(size) << " overflows");
+    }
+
     // fill the space with the filler value
     for (Word i = 0; i < fillcount; i++) {
         writeBytes(value, size, true);
@@ -442,6 +459,13 @@ void AlienCPUAssembler::DIR_SPACE() {
             error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
                     << "Unrecognized operand for .space directive: " << tokens[currentTokenI].string);
         }
+    }
+
+    // check to make sure that there is enough memory to write to
+    if (currentProgramCounter + count < currentProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed SPACE: Current address " << stringifyHex(currentProgramCounter) 
+                << " plus count " << stringifyHex(count) << " overflows");
     }
 
     // fill the space with the filler value
@@ -501,7 +525,7 @@ void AlienCPUAssembler::DIR_DEFINE() {
 
 
 /**
- * Checks the current program counter to make sure it does not overstep a memory boundary
+ * Checks the current program counter to make sure it does not overstep a memory boundary.
  * 
  * USAGE: .checkpc address
  * 
@@ -522,8 +546,32 @@ void AlienCPUAssembler::DIR_CHECKPC() {
     parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
+/**
+ * Aligns the current program counter to the next multiple of the align value.
+ * 
+ * USAGE: .align value
+ * 
+ * The align value must be a value that is capable of being evaluated in the parse phase.
+ * If the align causes the program counter to overflow, an error will be thrown.
+ */
 void AlienCPUAssembler::DIR_ALIGN() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    Word align = (Word) EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
+    Word previousProgramCounter = currentProgramCounter;
+
+    // align the current program counter to the next multiple of the align value
+    currentProgramCounter = (currentProgramCounter + align - 1) & ~(align - 1);
+    
+    // check to make sure we did not go backwards
+    if (currentProgramCounter < previousProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed ALIGN: Current address " << stringifyHex(currentProgramCounter) 
+                << " is less than previous address " << stringifyHex(previousProgramCounter));
+    }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
