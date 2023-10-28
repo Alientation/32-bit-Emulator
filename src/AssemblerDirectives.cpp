@@ -168,7 +168,7 @@ void AlienCPUAssembler::DIR_DB_LO() {
 }
 
 void AlienCPUAssembler::DIR_D2B_LO() {
-
+    EXPECT_OPERAND();
 }
 
 void AlienCPUAssembler::DIR_DW_LO() {
@@ -258,9 +258,12 @@ void AlienCPUAssembler::DIR_REQUIRE() {
  * 
  * This directive is used to start a new scope. A scope has a set of local labels which are only visible
  * within that scope. This is useful for defining labels which are only used within a specific
- * section of code.
+ * section of code. TODO: for parsing values, allow parent scope labels to be referenced from the local scope using
+ * special symbols like '.' or '..' or something.
  */
 void AlienCPUAssembler::DIR_SCOPE() {
+    EXPECT_NO_OPERAND();
+
     // check if first pass
     if (status == PARSING) {
         Scope* localScope = new Scope(currentScope, currentProgramCounter);
@@ -292,6 +295,8 @@ void AlienCPUAssembler::DIR_SCOPE() {
  * If there is no parent scope, this will throw an error.
  */
 void AlienCPUAssembler::DIR_SCEND() {
+    EXPECT_NO_OPERAND();
+
     // check if the current scope has no parent scope. This means we are at the global scope which has
     // no parent scope. This implies that there is more SCEND directives than SCOPE directives at this point.
     if (currentScope->parent == nullptr) {

@@ -30,6 +30,9 @@ int main() {
 
 /**
  * Constructs a new AlienCPUAssembler for the given AlienCPU.
+ * 
+ * @param cpu The AlienCPU to assemble for.
+ * @param debugOn Whether to print debug information.
  */
 AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
@@ -93,6 +96,7 @@ void AlienCPUAssembler::assemble(std::string source) {
     reset();
     sourceCode = source;
     
+    // convert source code into list of tokens
     status = TOKENIZING;
     tokenize();
 
@@ -125,16 +129,18 @@ void AlienCPUAssembler::assemble(std::string source) {
         }
     }
 
-    // assemble the parsed tokens into machine code
+    // assemble the parsed tokens into machine code and evaluate any unevaluated expressions
     status = ASSEMBLING;
     log(LOG_ASSEMBLING, std::stringstream() << BOLD << BOLD_WHITE << "Assembling Tokens" << RESET);
     passTokens();
     log(LOG_ASSEMBLING, std::stringstream() << BOLD << BOLD_GREEN << "Assembled Tokens" << RESET);
 
+    // write to file
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Writing To File" << RESET);
     writeToFile();
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Wrote To File" << RESET);
 
+    // done assembling
     status = ASSEMBLED;
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Successfully Assembled!" << RESET);
 }
@@ -211,6 +217,7 @@ void AlienCPUAssembler::passTokens() {
             // no more tokens to parse that are on the same line
             // so either this has no operands or it is missing operands
             if (!HAS_OPERAND()) {
+                // check if instruction is valid if there are no operands
                 AddressingMode addressingMode = NO_ADDRESSING_MODE;
                 if (validInstruction(token.string, IMPLIED)) {
                     addressingMode = IMPLIED;
@@ -223,9 +230,8 @@ void AlienCPUAssembler::passTokens() {
                     addressingMode = ACCUMULATOR;
                 }
 
-                // check if instruction is valid if there are no operands
+                // invalid instruction
                 if (addressingMode == NO_ADDRESSING_MODE) {
-                    // missing operands
                     error(MISSING_TOKEN_ERROR, token, std::stringstream() << "Missing Instruction Operand");
                 }
                 
@@ -241,9 +247,27 @@ void AlienCPUAssembler::passTokens() {
                 Token& operandToken = tokens[currentTokenI];
                 AddressingMode addressingMode = getAddressingMode(token, operandToken);
 
-                // invalid addressing mode
+                // check if operand could potentially be an expression.
                 if (addressingMode == NO_ADDRESSING_MODE) {
-                    error(INVALID_TOKEN_ERROR, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
+                    // for the first pass, assume it is an expression. Evaluate it in the second pass.
+                    // if it is an expression, the addressing mode would default to IMMEDIATE or 
+                    // RELATIVE depending on what is valid
+                    if (validInstruction(token.string, IMMEDIATE)) {
+                        addressingMode = IMMEDIATE;
+                    }
+
+                    if (validInstruction(token.string, RELATIVE)) {
+                        if (addressingMode != NO_ADDRESSING_MODE) {
+                            error(INTERNAL_ERROR, token, std::stringstream() << "Multiple Possible Addressing Modes");
+                        }
+
+                        addressingMode = RELATIVE;
+                    }
+
+                    // no possible addressing mode that takes in an expression
+                    if (addressingMode == NO_ADDRESSING_MODE) {
+                        error(INVALID_TOKEN_ERROR, operandToken, std::stringstream() << "Invalid Addressing Mode For Instruction " << token.string);
+                    }
                 }
 
                 // valid instruction with operand
@@ -251,9 +275,15 @@ void AlienCPUAssembler::passTokens() {
                 parsedTokens.push_back(ParsedToken(token, TOKEN_INSTRUCTION, currentProgramCounter, addressingMode));
                 writeByte(instructionMap[token.string][addressingMode]);
 
-                // operand
+                // only evaluate the operand bytes if we are in the second pass
                 parsedTokens.push_back(ParsedToken(operandToken, TOKEN_INSTRUCTION_OPERAND, currentProgramCounter));
-                writeBytes(parseValue(operandToken), addressingModeOperandBytes.at(addressingMode));
+                if (status == PARSING) {
+                    writeBytes(0, addressingModeOperandBytes.at(addressingMode));
+                } else if (status == ASSEMBLING) {
+                    writeBytes(parseValue(operandToken), addressingModeOperandBytes.at(addressingMode));
+                } else {
+                    error(INTERNAL_ERROR, token, std::stringstream() << "Invalid Assembler Status");
+                }
 
                 EXPECT_NO_OPERAND();
             }
@@ -274,14 +304,22 @@ void AlienCPUAssembler::passTokens() {
 }
 
 
-
-void AlienCPUAssembler::evaluateExpression(Token token) {
-
+/**
+ * Evaluates an expression of a token operand
+ * 
+ * @param token The token to evaluate the expression of
+ * @return The value of the expression
+ */
+u64 AlienCPUAssembler::evaluateExpression(Token token) {
+    // TODO: complete this please
 }
 
 
 /**
+ * Extracts the value of a token operand
  * 
+ * @param token The token to extract the value from
+ * @return The value of the token operand
  */
 u64 AlienCPUAssembler::parseValue(const Token token) {
     if (token.string.empty()) {
@@ -299,15 +337,8 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
 
     // check if it references a non numeric value
     if (!isHexadecimalNumber(value.substr(1)) && !isNumber(value)) {
-
-
-
-
-
-
-
-
-
+        // evaluate the expression
+        return evaluateExpression(token);
 
         error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
     }

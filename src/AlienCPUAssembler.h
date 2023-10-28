@@ -292,7 +292,7 @@ class AlienCPUAssembler {
         void passTokens();
         u64 parseValue(const Token token);
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
-        void evaluateExpression(Token token);
+        u64 evaluateExpression(Token token);
 
         bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
