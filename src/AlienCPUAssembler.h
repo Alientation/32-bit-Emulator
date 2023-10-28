@@ -290,7 +290,7 @@ class AlienCPUAssembler {
 
         void tokenize();
         void passTokens();
-        u64 parseValue(const Token token);
+        u64 parseValue(const std::string token);
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
         u64 evaluateExpression(Token token);
 
@@ -357,6 +357,9 @@ class AlienCPUAssembler {
         void DIR_PRINT();
         void DIR_PRINTIF();
         void DIR_PRINTNOW();
+
+        // helper directive functions
+        void defineBytes(std::string token, Byte bytes, bool lowEndian);
 
         /**
          * Map of directive types to their respective processing functions.

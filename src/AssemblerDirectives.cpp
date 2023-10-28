@@ -10,7 +10,7 @@
  * @return The parsed value.
  */
 u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(u64 min, u64 max) {
-    u64 parsedValue = parseValue(tokens[currentTokenI]);
+    u64 parsedValue = parseValue(tokens[currentTokenI].string);
     if (parsedValue < min || parsedValue > max) {
         error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Value: " << parsedValue << 
         " must be between " << min << " and " << max);
@@ -137,6 +137,13 @@ void AlienCPUAssembler::DIR_OUTFILE() {
 }
 
 
+/**
+ * Sets the current program counter to the specified value.
+ * 
+ * USAGE: .org value
+ * 
+ * The value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_ORG() {
     EXPECT_OPERAND();
     currentTokenI++;
@@ -148,66 +155,143 @@ void AlienCPUAssembler::DIR_ORG() {
 }
 
 
+
+/**
+ * Helper for .db and related directives.
+ * Defines a series of bytes at the current program counter.
+ * 
+ * @param token The token containing the operand.
+ * @param bytes The number of bytes to define.
+ * @param lowEndian If true, the bytes will be written in little endian order.
+ */
+void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndian) {
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(token, ',');
+
+    // parse each value, must be a value capable of being evaluated in the parse phase
+    // ie, any labels referenced must be already defined and any expressions must be evaluated
+    for (std::string& value : splitByComma) {
+        u64 parsedValue = parseValue(value);
+        if (parsedValue >= 1 << (bytes * 8)) {
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for " 
+                    << tokens[currentTokenI-1].string << " directive: " << value);
+        }
+
+        writeBytes(parsedValue, bytes, lowEndian);
+    }
+}
+
+
+/**
+ * Defines a series of 1 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .db value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_DB_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
 
-    // split operand by commas
-    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
-
-    // parse each value, must be a value capable of being evaluated in the parse phase
-    // ie, any labels referenced must be already defined and any expressions must be evaluated
-    for (std::string& value : splitByComma) {
-        u64 parsedValue = parseValue(tokens[currentTokenI]);
-        if (parsedValue > 0xFF) {
-            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for .db directive: " << value);
-        }
-
-        writeByte((Byte) parsedValue);
-    }
+    defineBytes(tokens[currentTokenI].string, 1, true);
 }
 
+/**
+ * Defines a series of 2 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .d2b value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_D2B_LO() {
     EXPECT_OPERAND();
+    currentTokenI++;
+
+    defineBytes(tokens[currentTokenI].string, 2, true);
 }
 
+/**
+ * Defines a series of 4 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .dw value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_DW_LO() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    defineBytes(tokens[currentTokenI].string, 4, true);
 }
 
+/**
+ * Defines a series of 8 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .d2w value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_D2W_LO() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    defineBytes(tokens[currentTokenI].string, 8, true);
 }
 
+/**
+ * Defines a series of 1 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .dbhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_DB_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
 
-    // split operand by commas
-    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
-
-    // parse each value, must be a value capable of being evaluated in the parse phase
-    // ie, any labels referenced must be already defined and any expressions must be evaluated
-    for (std::string& value : splitByComma) {
-        u64 parsedValue = parseValue(tokens[currentTokenI]);
-        if (parsedValue > 0xFF) {
-            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value for .db directive: " << value);
-        }
-
-        writeByte((Byte) parsedValue);
-    }
+    defineBytes(tokens[currentTokenI].string, 1, false);
 }
 
+/**
+ * Defines a series of 2 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .d2bhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_D2B_HI() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    defineBytes(tokens[currentTokenI].string, 2, false);
 }
 
+/**
+ * Defines a series of 4 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .dwhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_DW_HI() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    defineBytes(tokens[currentTokenI].string, 4, false);
 }
 
+/**
+ * Defines a series of 8 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .d2whi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void AlienCPUAssembler::DIR_D2W_HI() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    defineBytes(tokens[currentTokenI].string, 8, false);
 }
 
 

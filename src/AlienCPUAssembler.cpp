@@ -280,7 +280,7 @@ void AlienCPUAssembler::passTokens() {
                 if (status == PARSING) {
                     writeBytes(0, addressingModeOperandBytes.at(addressingMode));
                 } else if (status == ASSEMBLING) {
-                    writeBytes(parseValue(operandToken), addressingModeOperandBytes.at(addressingMode));
+                    writeBytes(parseValue(operandToken.string), addressingModeOperandBytes.at(addressingMode));
                 } else {
                     error(INTERNAL_ERROR, token, std::stringstream() << "Invalid Assembler Status");
                 }
@@ -312,6 +312,9 @@ void AlienCPUAssembler::passTokens() {
  */
 u64 AlienCPUAssembler::evaluateExpression(Token token) {
     // TODO: complete this please
+
+
+    return 0;
 }
 
 
@@ -321,26 +324,26 @@ u64 AlienCPUAssembler::evaluateExpression(Token token) {
  * @param token The token to extract the value from
  * @return The value of the token operand
  */
-u64 AlienCPUAssembler::parseValue(const Token token) {
-    if (token.string.empty()) {
-        error(INTERNAL_ERROR, token, std::stringstream() << "Invalid empty value to parse: " << token.string);
+u64 AlienCPUAssembler::parseValue(const std::string token) {
+    if (token.empty()) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid empty value to parse: " << token);
     }
 
     // remove the value symbol if it is present
-    std::string value = token.string[0] == '#' ? token.string.substr(1) : token.string;
+    std::string value = token[0] == '#' ? token.substr(1) : token;
     
     // check if value is empty
     if (value.empty()) {
-        error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid value to parse: " << value);
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid value to parse: " << value);
     }
 
 
     // check if it references a non numeric value
     if (!isHexadecimalNumber(value.substr(1)) && !isNumber(value)) {
         // evaluate the expression
-        return evaluateExpression(token);
+        return evaluateExpression(tokens[currentTokenI]);
 
-        error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Unsupported Non-numeric Value: " << value);
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Unsupported Non-numeric Value: " << value);
     }
 
 
@@ -364,7 +367,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Hexadecimal Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Hexadecimal Digit '" << *it << "': " << numericValue);
         }
 
         // proper hexadecimal value
@@ -382,7 +385,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Octal Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Octal Digit '" << *it << "': " << numericValue);
         }
 
         // proper octal value
@@ -400,7 +403,7 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
         
         // contains other characters
         if (it != numericValue.end()) {
-            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Binary Digit '" << *it << "': " << numericValue);
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Binary Digit '" << *it << "': " << numericValue);
         }
 
         // proper binary value
@@ -417,14 +420,14 @@ u64 AlienCPUAssembler::parseValue(const Token token) {
 
         // contains other characters
         if (it != value.end()) {
-            error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Invalid Decimal Digit '" << *it << "': " << value);
+            error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Decimal Digit '" << *it << "': " << value);
         }
 
         // proper decimal value
         return number;
     }
 
-    error(UNRECOGNIZED_TOKEN_ERROR, token, std::stringstream() << "Unsupported Numeric Value: " << value);
+    error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Unsupported Numeric Value: " << value);
     return 0;
 }
 
@@ -575,7 +578,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
     // check if operand is an immediate or relative value
     if (operand[0] == '#') {
-        u64 parsedValue = parseValue(tokenOperand);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFFFFFF) {
             // error(ERROR, tokenOperand, std::stringstream() << "Invalid immediate value: " << operand);
             return NO_ADDRESSING_MODE;
@@ -592,7 +595,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
     // check if operand is zeropage or absolute
     if (operand[0] == '%' || operand[0] == '0' || operand[0] == '$' || isNumber(operand)) {
-        u64 parsedValue = parseValue(tokenOperand);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFFFFFF) {
             return NO_ADDRESSING_MODE;
         }
@@ -614,7 +617,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         Token valueToken = Token(tokenOperand);
         valueToken.string = splitByComma[0];
 
-        u64 parsedValue = parseValue(valueToken);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFFFFFF) {
             return NO_ADDRESSING_MODE;
         }
@@ -637,7 +640,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         Token valueToken = Token(tokenOperand);
         valueToken.string = operand.substr(1,operand.size() - 2);
 
-        u64 parsedValue = parseValue(valueToken);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFFFFFF) {
             return NO_ADDRESSING_MODE;
         }
@@ -652,7 +655,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         Token valueToken = Token(tokenOperand);
         valueToken.string = splitByComma[0].substr(1);
 
-        u64 parsedValue = parseValue(valueToken);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFF) {
             return NO_ADDRESSING_MODE;
         }
@@ -668,7 +671,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
         Token valueToken = Token(tokenOperand);
         valueToken.string = splitByComma[0].substr(1,splitByComma[0].size() - 2);
 
-        u64 parsedValue = parseValue(valueToken);
+        u64 parsedValue = parseValue(operand);
         if (parsedValue > 0xFFFF) {
             return NO_ADDRESSING_MODE;
         }
