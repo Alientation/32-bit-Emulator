@@ -318,17 +318,78 @@ void AlienCPUAssembler::DIR_D2W_HI() {
 
 
 /**
+ * Defines a series of strings at the current program counter.
  * 
+ * USAGE: .ascii "string"[, "string"...]
+ * 
+ * Each string must be a valid string literal.
  */
 void AlienCPUAssembler::DIR_ASCII() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+    std::vector<std::string> strings;
+    Word bytesNeeded = 0;
+    for (std::string str : splitByComma) {
+        strings.push_back(getStringToken(trim(str)));
+        bytesNeeded += strings.back().size();
+    }
+
+    // check if there is enough memory space to write to
+    if (currentProgramCounter + bytesNeeded < currentProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed DEFINESTRINGS: Current address " << stringifyHex(currentProgramCounter) 
+                << " plus bytesNeeded " << stringifyHex(bytesNeeded) << " overflows");
+    }
+
+    // write each string
+    for (std::string str : strings) {
+        for (char c : str) {
+            writeBytes(c, 1, true);
+        }
+    }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 /**
+ * Defines a series of strings at the current program counter with each string followed by a zero byte.
  * 
+ * USAGE: .asciiz "string"[, "string"...]
+ * 
+ * Each string must be a valid string literal.
  */
 void AlienCPUAssembler::DIR_ASCIIZ() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+    std::vector<std::string> strings;
+    Word bytesNeeded = 0;
+    for (std::string str : splitByComma) {
+        strings.push_back(getStringToken(trim(str)));
+        bytesNeeded += strings.back().size() + 1;
+    }
+
+    // check if there is enough memory space to write to
+    if (currentProgramCounter + bytesNeeded < currentProgramCounter) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed DEFINESTRINGS: Current address " << stringifyHex(currentProgramCounter) 
+                << " plus bytesNeeded " << stringifyHex(bytesNeeded) << " overflows");
+    }
+
+    // write each string
+    for (std::string str : strings) {
+        for (char c : str) {
+            writeBytes(c, 1, true);
+        }
+        writeBytes(0, 1, true);
+    }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
 
 
