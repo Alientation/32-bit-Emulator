@@ -78,8 +78,9 @@ class AlienCPUAssembler {
             OUTFILE,
             ORG,
             DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
+            ASCII, ASCIIZ,
             ADVANCE, FILL, SPACE,
-            DEFINE,
+            GLOBAL, EXTERN, DEFINE, SET,
             CHECKPC, ALIGN,
             INCBIN, INCLUDE, REQUIRE, 
             SCOPE, SCEND, 
@@ -95,8 +96,9 @@ class AlienCPUAssembler {
             {".org", ORG},
             {".db_lo", DB_LO}, {".d2b_lo", D2B_LO}, {".dw_lo", DW_LO}, {".d2w_lo", D2W_LO}, 
             {".db_hi", DB_HI}, {".d2b_hi", D2B_HI}, {".dw_hi", DW_HI}, {".d2w_hi", D2W_HI},
+            {".ascii", ASCII}, {".asciiz", ASCIIZ},
             {".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
-            {".define", DEFINE},
+            {".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
             {".checkpc", CHECKPC}, {".align", ALIGN},
             {".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
             {".scope", SCOPE}, {".scend", SCEND},
@@ -248,7 +250,9 @@ class AlienCPUAssembler {
         int currentTokenI;
 
         /**
-         * Scope of the file as a whole
+         * Scope of the file as a whole.
+         * Note, this is not the same as the global directive, which defines
+         * symbols to be used across all linked files.
          */
         Scope* globalScope = new Scope();
 
@@ -294,7 +298,7 @@ class AlienCPUAssembler {
         AddressingMode getAddressingMode(Token tokenInstruction, Token token);
         u64 evaluateExpression(Token token);
 
-        void defineLabel(std::string label, Word value);
+        void defineLabel(std::string label, Word value, bool allowMultipleDefinitions = false);
 
         bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
@@ -322,8 +326,11 @@ class AlienCPUAssembler {
         // assembler directives
         void DIR_DATA();
         void DIR_TEXT();
+
         void DIR_OUTFILE();
+
         void DIR_ORG();
+
         void DIR_DB_LO();
         void DIR_D2B_LO();
         void DIR_DW_LO();
@@ -332,22 +339,35 @@ class AlienCPUAssembler {
         void DIR_D2B_HI();
         void DIR_DW_HI();
         void DIR_D2W_HI();
+
+        void DIR_ASCII();
+        void DIR_ASCIIZ();
+
         void DIR_ADVANCE();
         void DIR_FILL();
         void DIR_SPACE();
+
+        void DIR_GLOBAL();
+        void DIR_EXTERN();
         void DIR_DEFINE();
+        void DIR_SET();
+
         void DIR_CHECKPC();
         void DIR_ALIGN();
+
         void DIR_INCBIN();
         void DIR_INCLUDE();
         void DIR_REQUIRE();
+
         void DIR_REPEAT();
         void DIR_REND();
+
         void DIR_SCOPE();
         void DIR_SCEND();
         void DIR_MACRO();
         void DIR_MACEND();
         void DIR_INVOKE();
+
         void DIR_ASSERT();
         void DIR_ERROR();
         void DIR_ERRORIF();
@@ -378,9 +398,11 @@ class AlienCPUAssembler {
             {DW_LO, &AlienCPUAssembler::DIR_DW_LO}, {D2W_LO, &AlienCPUAssembler::DIR_D2W_LO},
             {DB_HI, &AlienCPUAssembler::DIR_DB_HI}, {D2B_HI, &AlienCPUAssembler::DIR_D2B_HI}, 
             {DW_HI, &AlienCPUAssembler::DIR_DW_HI}, {D2W_HI, &AlienCPUAssembler::DIR_D2W_HI},
+            {ASCII, &AlienCPUAssembler::DIR_ASCII}, {ASCIIZ, &AlienCPUAssembler::DIR_ASCIIZ},
             {ADVANCE, &AlienCPUAssembler::DIR_ADVANCE}, {FILL, &AlienCPUAssembler::DIR_FILL}, 
             {SPACE, &AlienCPUAssembler::DIR_SPACE},
-            {DEFINE, &AlienCPUAssembler::DIR_DEFINE},
+            {GLOBAL, &AlienCPUAssembler::DIR_GLOBAL}, {EXTERN, &AlienCPUAssembler::DIR_EXTERN},
+            {DEFINE, &AlienCPUAssembler::DIR_DEFINE}, {SET, &AlienCPUAssembler::DIR_SET},
             {CHECKPC, &AlienCPUAssembler::DIR_CHECKPC}, {ALIGN, &AlienCPUAssembler::DIR_ALIGN},
             {INCBIN, &AlienCPUAssembler::DIR_INCBIN}, {INCLUDE, &AlienCPUAssembler::DIR_INCLUDE}, 
             {REQUIRE, &AlienCPUAssembler::DIR_REQUIRE},

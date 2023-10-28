@@ -147,16 +147,18 @@ void AlienCPUAssembler::assemble(std::string source) {
 }
 
 
-void AlienCPUAssembler::defineLabel(std::string labelName, Word value) {
+void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allowMultipleDefinitions) {
     // check what scope we are in
     bool isLocal = labelName[0] == '_';
 
     // check if label is already defined in the current scope if we are in the first parsing phase
     // TODO: store more useful information in scope struct to print debug info
-    if (status == PARSING && isLocal && (*currentScope).labels.find(labelName) != (*currentScope).labels.end()) {
-        error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Local Label");
-    } else if (status == PARSING && !isLocal && (*globalScope).labels.find(labelName) != (*globalScope).labels.end()) {
-        error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Global Label");
+    if (!allowMultipleDefinitions) {
+        if (status == PARSING && isLocal && (*currentScope).labels.find(labelName) != (*currentScope).labels.end()) {
+            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Local Label");
+        } else if (status == PARSING && !isLocal && (*globalScope).labels.find(labelName) != (*globalScope).labels.end()) {
+            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Global Label");
+        }
     }
 
     // add label to symbol table

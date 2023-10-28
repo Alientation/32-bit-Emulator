@@ -318,6 +318,21 @@ void AlienCPUAssembler::DIR_D2W_HI() {
 
 
 /**
+ * 
+ */
+void AlienCPUAssembler::DIR_ASCII() {
+
+}
+
+/**
+ * 
+ */
+void AlienCPUAssembler::DIR_ASCIIZ() {
+
+}
+
+
+/**
  * Advances the current program counter to the specified address.
  * 
  * USAGE: .advance address,[filler]
@@ -478,6 +493,20 @@ void AlienCPUAssembler::DIR_SPACE() {
 
 
 /**
+ * 
+ */
+void AlienCPUAssembler::DIR_GLOBAL() {
+
+}
+
+/**
+ * 
+ */
+void AlienCPUAssembler::DIR_EXTERN() {
+
+}
+
+/**
  * Defines a label with a specific value.
  * 
  * USAGE: .define name,value
@@ -518,6 +547,51 @@ void AlienCPUAssembler::DIR_DEFINE() {
     if (splitByComma.size() > 2) {
         error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
                 << "Unrecognized operand for .define directive: " << tokens[currentTokenI].string);
+    }
+
+    parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
+}
+
+/**
+ * Defines a label with a specific value. Will override previously defined label values.
+ * 
+ * USAGE: .set name,value
+ * 
+ * The value must be a valid value capable of being evaluated in the parse phase.
+ */
+void AlienCPUAssembler::DIR_SET() {
+    EXPECT_OPERAND();
+    currentTokenI++;
+
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // no valid name operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing label name operand for .set directive: " << tokens[currentTokenI].string);
+    }
+
+    std::string name = trim(splitByComma[0]);
+
+    if (name.size() == 0) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Invalid label name for .set directive: " << name);
+    }
+
+    if (splitByComma.size() < 2) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing value operand for .set directive: " << tokens[currentTokenI].string);
+    }
+
+    // define label with value
+    Word value = EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFFFFFFFF);
+    defineLabel(name, value);
+
+    // too many operands for .set directive
+    if (splitByComma.size() > 2) {
+        error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Unrecognized operand for .set directive: " << tokens[currentTokenI].string);
     }
 
     parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
@@ -666,6 +740,8 @@ void AlienCPUAssembler::DIR_INVOKE() {
 }
 
 
+
+// STUFF I DON'T REALLY NEED TO FINISH RIGHT NOW BUT ARE NICE TO HAVE
 void AlienCPUAssembler::DIR_ASSERT() {
 
 }
