@@ -339,6 +339,8 @@ class AlienCPUAssembler {
         void DIR_INCBIN();
         void DIR_INCLUDE();
         void DIR_REQUIRE();
+        void DIR_REPEAT();
+        void DIR_REND();
         void DIR_SCOPE();
         void DIR_SCEND();
         void DIR_MACRO();

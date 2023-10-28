@@ -445,7 +445,18 @@ void AlienCPUAssembler::DIR_DEFINE() {
 
 
 void AlienCPUAssembler::DIR_CHECKPC() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // parse checkpc value, must be a value capable of being evaluated in the parse phase
+    // ie, any labels referenced must be already defined and any expressions must be evaluated
+    Word checkpc = (Word) EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
+    
+    if (currentProgramCounter > checkpc) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed CHECKPC: Current address " << stringifyHex(currentProgramCounter) 
+                << " is greater than checkpc " << stringifyHex(checkpc));
+    }
 }
 
 void AlienCPUAssembler::DIR_ALIGN() {
@@ -462,6 +473,16 @@ void AlienCPUAssembler::DIR_INCLUDE() {
 }
 
 void AlienCPUAssembler::DIR_REQUIRE() {
+
+}
+
+
+
+void AlienCPUAssembler::DIR_REPEAT() {
+
+}
+
+void AlienCPUAssembler::DIR_REND() {
 
 }
 
