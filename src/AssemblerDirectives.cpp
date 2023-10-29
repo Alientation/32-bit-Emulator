@@ -724,7 +724,15 @@ void AlienCPUAssembler::DIR_REQUIRE() {
 }
 
 
-
+/**
+ * Starts a new repeat directive.
+ * 
+ * USAGE: .repeat count
+ * 
+ * The count must be a value capable of being evaluated in the parse phase.
+ * All tokens between this directive and the .rend directive will be repeated count times.
+ * This supports stacked repeats, however, all repeats must be ended by a corresponding .rend directive.
+ */
 void AlienCPUAssembler::DIR_REPEAT() {
     // all repeats should be expanded in the parsing phase
     if (status != PARSING) {
@@ -787,6 +795,14 @@ void AlienCPUAssembler::DIR_REPEAT() {
     currentTokenI = firstRepeatedToken;
 }
 
+/**
+ * Ends the current repeat directive.
+ * 
+ * USAGE: .rend
+ * 
+ * This shouldn't ever happen. REPEAT directive will move the token pointer past the end of the repeat definition.
+ * This means that a REND was defined without a preceeding REPEAT definition.
+ */
 void AlienCPUAssembler::DIR_REND() {
     error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
             << "Failed REND: .rend directive was not expanded in parsing phase " << status);
@@ -896,7 +912,7 @@ void AlienCPUAssembler::DIR_MACRO() {
  * USAGE: .macend
  * 
  * This shouldn't ever happen. MACRO directive will move the token pointer past the end of the macro definition.
- * This means that a MACEND was defined without a preceeding MACRO definition
+ * This means that a MACEND was defined without a preceeding MACRO definition.
  */
 void AlienCPUAssembler::DIR_MACEND() {
     error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
@@ -911,7 +927,7 @@ void AlienCPUAssembler::DIR_MACEND() {
  * 
  * All parameters have to be valid values capable of being evaluated in the parse phase.
  * The number of parameters must match the number of parameters defined in the macro definition.
- * This will create a scope block containing only the inlined macro
+ * This will create a scope block containing only the inlined macro.
  */
 void AlienCPUAssembler::DIR_INVOKE() {
     std::string operand;
