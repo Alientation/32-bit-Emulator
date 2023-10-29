@@ -152,7 +152,6 @@ void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allo
     bool isLocal = labelName[0] == '_';
 
     // check if label is already defined in the current scope if we are in the first parsing phase
-    // TODO: store more useful information in scope struct to print debug info
     if (!allowMultipleDefinitions) {
         if (status == PARSING && isLocal && (*currentScope).labels.find(labelName) != (*currentScope).labels.end()) {
             error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() << "Multiple Definition of a Local Label");
@@ -735,6 +734,8 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
 
 /**
  * Throws a compiler error when trying to parse a token
+ * TODO: store more useful information in this. Also add support for various types of errors, some that don't require having
+ * a token.
  * 
  * @param error The type of error to throw
  * @param currentToken The token that caused the error
@@ -771,6 +772,7 @@ void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::str
 
 /**
  * Warns about potential bugs in the code
+ * TODO: complete
  * 
  * @param warn The type of warning to display
  * @param msg The message to display with the warning
@@ -812,18 +814,6 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 
 
 
-
-/**
- * Determines whether the provided token is a string operand
- * 
- * @param token The token to check
- * @return true if the token is a string operand, false otherwise
- */
-bool AlienCPUAssembler::isStringToken(std::string token) {
-    return token.size() >= 2 && token[0] == '\"' && token[token.size() - 1] == '\"';
-}
-
-
 /**
  * Extracts the string oeprand from the token
  * 
@@ -832,7 +822,7 @@ bool AlienCPUAssembler::isStringToken(std::string token) {
  */
 std::string AlienCPUAssembler::getStringToken(std::string token) {
     if (!isStringToken(token)) {
-        error(INTERNAL_ERROR, Token(token, -1, -1), std::stringstream() << "Invalid string token: " << token);
+        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid string token: " << token);
     }
 
     return token.substr(1, token.size() - 2);

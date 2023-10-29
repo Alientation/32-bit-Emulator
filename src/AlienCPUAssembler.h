@@ -355,7 +355,6 @@ class AlienCPUAssembler {
         void startScope();
         void endScope();
 
-        bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
 
         void writeToFile();
@@ -1006,6 +1005,16 @@ static bool isValidFilename(std::string filename) {
     }
 
     return true;
+}
+
+/**
+ * Determines whether the provided token is a string operand
+ * 
+ * @param token The token to check
+ * @return true if the token is a string operand, false otherwise
+ */
+static bool isStringToken(std::string stringtoken) {
+    return stringtoken.size() >= 2 && stringtoken[0] == '"' && stringtoken[stringtoken.size() - 1] == '"';
 }
 
 
