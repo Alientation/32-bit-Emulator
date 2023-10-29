@@ -725,11 +725,59 @@ void AlienCPUAssembler::DIR_REQUIRE() {
 
 
 void AlienCPUAssembler::DIR_REPEAT() {
+    if (status != PARSING) {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Failed REPEAT: .repeat directive was not expanded in parsing phase " << status);
+    }
 
+    EXPECT_OPERAND();
+    currentTokenI++;
+    EXPECT_NO_OPERAND();
+
+    Word repeatCount = EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
+
+    std::vector<Token> repeatedTokens;
+    int repeatI = currentTokenI + 1;
+    while (repeatI < tokens.size() && tokens[repeatI].string != ".rend") {
+        repeatedTokens.push_back(tokens[repeatI]);
+        repeatI++;
+    }
+    
+    // check if we have actually encounted .rend directive
+    if (repeatI == tokens.size()) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing .rend directive for .repeat directive: " << tokens[currentTokenI].string);
+    }
+
+    // ensure .rend directive has no operands
+    int tempCurrentTokenI = currentTokenI;
+    currentTokenI = repeatI;
+    EXPECT_NO_OPERAND();
+    currentTokenI = tempCurrentTokenI;
+
+    // expand the repeated tokens
+    std::vector<Token> expandedTokens;
+    for (int i = 0; i < repeatCount; i++) {
+        for (Token token : repeatedTokens) {
+            expandedTokens.push_back(token);
+        }
+    }
+    
+    // remove the .repeat and .rend directives
+    tokens.erase(tokens.begin() + currentTokenI - 1, tokens.begin() + repeatI + 1);
+
+    // add the repeated tokens at the token index of the repeat directive
+    tokens.insert(tokens.begin() + currentTokenI - 1, expandedTokens.begin(), expandedTokens.end());
+
+    // fix the current token index to point to the token before the first repeated tokens
+    // since the loop will increment the token index, this will make the next iteration of the loop
+    // point to the correct first repeated token
+    currentTokenI -= 2;
 }
 
 void AlienCPUAssembler::DIR_REND() {
-
+    error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+            << "Failed REND: .rend directive was not expanded in parsing phase " << status);
 }
 
 
@@ -782,15 +830,40 @@ void AlienCPUAssembler::DIR_MACRO() {
     // only add to macro map if in the first pass (PARSING phase)
     if (status == PARSING) {
         // check if macro name was already defined
-        // TODO: support overloading macros with different number of parameters
         std::string name = trim(splitByComma[0]);
-        if (macroMap.find(name) != macroMap.end()) {
-            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
-                    << "Macro already defined: " << name);
+        Macro* macro;
+        if ((*currentScope).macros.find(name) != (*currentScope).macros.end()) {
+            // check if this is a unique macro definition by parameter count
+            macro = (*currentScope).macros[name];
+            if (macro->types.find(splitByComma.size() - 1) != macro->types.end()) {
+                error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
+                        << "Macro has already defined with a the specified number of parameters: " << name);
+            }
+        } else {
+            macro = new Macro(name);
+
+            // put macro in map since it has not been defined already
+            (*currentScope).macros[name] = macro;
         }
 
-        // put macro in map
-        macroMap[name] = currentTokenI;
+        // add parameters to macro
+        for (int i = 1; i < splitByComma.size(); i++) {
+            std::string parameter = trim(splitByComma[i]);
+
+            // parameter must be a valid label name
+            if (parameter.size() == 0) {
+                error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                        << "Invalid empty macro parameter name: " << parameter);
+            }
+
+            // all parameters must be local labels
+            if (parameter[0] != '_') {
+                error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                        << "Invalid non-local macro parameter: " << parameter);
+            }
+
+            macro->types[splitByComma.size() - 1].first.push_back(parameter);
+        }
     }
 
     // advance token pointer to end of macro definition
@@ -849,7 +922,7 @@ void AlienCPUAssembler::DIR_INVOKE() {
 
     // check if the macro is a valid macro
     std::string name = trim(splitByComma[0]);
-    if (macroMap.find(name) == macroMap.end()) {
+    if ((*currentScope).macros.find(name) == (*currentScope).macros.end()) {
         error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
                 << "Undefined macro: " << name);
     }

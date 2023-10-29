@@ -128,13 +128,35 @@ class AlienCPUAssembler {
             ASSEMBLED
         };
 
+        struct Macro {
+            std::string name;
+            std::map<int, std::pair<std::vector<std::string>, int>> types;
+
+            Macro(std::string name) : name(name) {}
+        };
+
         /**
          * Represents information of a scope of block of code
          */
         struct Scope {
             Scope* parent;
+
+            /**
+             * Starting address of the scope.
+             */
             Word address;
+            
+            /**
+             * Local label definitions.
+             * Stores the value stored in the label.
+             */
             std::map<std::string, Word> labels;
+            
+            /**
+             * Local macro definitions.
+             * Stores the token index of the MACRO directive.
+             */
+            std::map<std::string,Macro*> macros;
 
             Scope() : parent(nullptr) {}
             Scope(Scope* parent, Word address) : parent(parent), address(address) {}
@@ -260,12 +282,6 @@ class AlienCPUAssembler {
          * Current scope of the assembly process
          */
         Scope* currentScope = globalScope;
-
-        /**
-         * Macro definition maps.
-         * Stores the token index of the MACRO directive.
-         */
-        std::map<std::string,int> macroMap;
 
 
         /**
