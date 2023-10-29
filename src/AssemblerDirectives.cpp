@@ -191,8 +191,15 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
 
     // parse each value, must be a value capable of being evaluated in the parse phase
     // ie, any labels referenced must be already defined and any expressions must be evaluated
+	u64 maxValue = (u64)1 << (bytes * 8);
+	if (maxValue-1 == 0) { // fix for overflow
+		maxValue = 0xFFFFFFFFFFFFFFFFULL;
+	} else {
+		maxValue--;
+	}
+
     for (std::string& value : splitByComma) {
-        u64 parsedValue = EXPECT_PARSEDVALUE(trim(value), 0, (1 << (bytes * 8)) - 1);
+        u64 parsedValue = EXPECT_PARSEDVALUE(trim(value), 0, maxValue);
         writeBytes(parsedValue, bytes, lowEndian);
     }
 }
