@@ -173,6 +173,46 @@ void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allo
 
 
 /**
+ * Creates a new local scope with the current scope being the parent of the new scope.
+ */
+void AlienCPUAssembler::startScope() {
+    // check if first pass
+    if (status == PARSING) {
+        Scope* localScope = new Scope(currentScope, currentProgramCounter);
+        if (scopeMap.find(currentProgramCounter) != scopeMap.end()) {
+            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Scope already defined at program counter: " << currentProgramCounter);
+        }
+        scopeMap.insert(std::pair<Word, Scope*>(currentProgramCounter, localScope));
+        currentScope = localScope;
+    } else if (status == ASSEMBLING) {
+        // scope has to have already been defined
+        if (scopeMap.find(currentProgramCounter) == scopeMap.end()) {
+            error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Scope not defined at program counter: " << currentProgramCounter);
+        }
+
+        currentScope = scopeMap.at(currentProgramCounter);
+    } else {
+        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid assembler status: " << status);
+    }
+}
+
+/**
+ * Ends the current scope and return back to the parent scope.
+ */
+void AlienCPUAssembler::endScope() {
+    // check if the current scope has no parent scope. This means we are at the global scope which has
+    // no parent scope.
+    if (currentScope->parent == nullptr) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Cannot end scope, no parent scope.");
+    }
+
+    currentScope = currentScope->parent;
+}
+
+
+/**
  * Iterates through the tokens list and performs the appropriate task for the current assembler status.
  * 
  * If the assembler's status is PARSING, then any label tokens are added to the symbol table.

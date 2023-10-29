@@ -745,27 +745,7 @@ void AlienCPUAssembler::DIR_REND() {
  */
 void AlienCPUAssembler::DIR_SCOPE() {
     EXPECT_NO_OPERAND();
-
-    // check if first pass
-    if (status == PARSING) {
-        Scope* localScope = new Scope(currentScope, currentProgramCounter);
-        if (scopeMap.find(currentProgramCounter) != scopeMap.end()) {
-            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
-                << "Scope already defined at program counter: " << currentProgramCounter);
-        }
-        scopeMap.insert(std::pair<Word, Scope*>(currentProgramCounter, localScope));
-        currentScope = localScope;
-    } else if (status == ASSEMBLING) {
-        // scope has to have already been defined
-        if (scopeMap.find(currentProgramCounter) == scopeMap.end()) {
-            error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
-                << "Scope not defined at program counter: " << currentProgramCounter);
-        }
-
-        currentScope = scopeMap.at(currentProgramCounter);
-    } else {
-        error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid assembler status: " << status);
-    }
+    startScope();
 }
 
 /**
@@ -778,26 +758,104 @@ void AlienCPUAssembler::DIR_SCOPE() {
  */
 void AlienCPUAssembler::DIR_SCEND() {
     EXPECT_NO_OPERAND();
+    endScope();
+}
 
-    // check if the current scope has no parent scope. This means we are at the global scope which has
-    // no parent scope. This implies that there is more SCEND directives than SCOPE directives at this point.
-    if (currentScope->parent == nullptr) {
-        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Cannot end scope, no parent scope.");
+/**
+ * Defines a macro with a specific name and, optionally, parameters to be passed to the macro.
+ * 
+ * USAGE: .macro name[,param1[,param2...]]
+ */
+void AlienCPUAssembler::DIR_MACRO() {
+    EXPECT_OPERAND();
+    currentTokenI++;
+
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(tokens[currentTokenI].string, ',');
+
+    // no valid name operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing macro name operand for .macro directive: " << tokens[currentTokenI].string);
     }
 
-    currentScope = currentScope->parent;
+    // only add to macro map if in the first pass (PARSING phase)
+    if (status == PARSING) {
+        // check if macro name was already defined
+        // TODO: support overloading macros with different number of parameters
+        std::string name = trim(splitByComma[0]);
+        if (macroMap.find(name) != macroMap.end()) {
+            error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
+                    << "Macro already defined: " << name);
+        }
+
+        // put macro in map
+        macroMap[name] = currentTokenI;
+    }
+
+    // advance token pointer to end of macro definition
+    while (currentTokenI < tokens.size() && tokens[currentTokenI].string != ".macend") {
+        currentTokenI++;
+    }
+
+    // check if macro definition was ended
+    if (currentTokenI == tokens.size()) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing .macend directive for .macro directive: " << tokens[currentTokenI].string);
+    }
 }
 
-void AlienCPUAssembler::DIR_MACRO() {
-
-}
-
+/**
+ * Ends the defined macro.
+ * 
+ * USAGE: .macend
+ * 
+ * This shouldn't ever happen. MACRO directive will move the token pointer past the end of the macro definition.
+ * This means that a MACEND was defined without a preceeding MACRO definition
+ */
 void AlienCPUAssembler::DIR_MACEND() {
-
+    error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
+            << "Failed MACEND: MACRO directive not defined before MACEND directive");
 }
 
+/**
+ * Invokes a defined macro.
+ * 
+ * USAGE: .invoke name[,param1[,param2...]]
+ * USAGE: `name[,param1[,param2...]]
+ * 
+ * All parameters have to be valid values capable of being evaluated in the parse phase.
+ * The number of parameters must match the number of parameters defined in the macro definition.
+ * This will create a scope block containing only the inlined macro
+ */
 void AlienCPUAssembler::DIR_INVOKE() {
+    std::string operand;
+    if (tokens[currentTokenI].string[0] != '`') {
+        EXPECT_OPERAND();
+        currentTokenI++;
+        operand = tokens[currentTokenI].string;
+    } else {
+        operand = tokens[currentTokenI].string.substr(1);
+    }
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(operand, ',');
+
+    // no valid name operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
+                << "Missing macro name operand for .invoke directive: " << tokens[currentTokenI].string);
+    }
+
+    // check if the macro is a valid macro
+    std::string name = trim(splitByComma[0]);
+    if (macroMap.find(name) == macroMap.end()) {
+        error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
+                << "Undefined macro: " << name);
+    }
+
+    // check if the number of parameters matches the number of parameters defined in the macro definition
+    // TODO:
 }
 
 

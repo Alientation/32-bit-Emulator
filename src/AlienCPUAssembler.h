@@ -261,6 +261,12 @@ class AlienCPUAssembler {
          */
         Scope* currentScope = globalScope;
 
+        /**
+         * Macro definition maps.
+         * Stores the token index of the MACRO directive.
+         */
+        std::map<std::string,int> macroMap;
+
 
         /**
          * The type of error to print to the console. 
@@ -299,6 +305,8 @@ class AlienCPUAssembler {
         u64 evaluateExpression(Token token);
 
         void defineLabel(std::string label, Word value, bool allowMultipleDefinitions = false);
+        void startScope();
+        void endScope();
 
         bool isStringToken(std::string token);
         std::string getStringToken(std::string token);
