@@ -73,8 +73,8 @@ void AlienCPUAssembler::writeToFile() {
         
         // print out each byte in segment
         for (int i = 0; i < segment.bytes.size(); i++) {
-            if ((i + 1) % NUMBER_OF_BYTES_PER_LINE == 0) {
-                std::cout << std::endl << "\t";
+            if (i != 0 && i % NUMBER_OF_BYTES_PER_LINE == 0) {
+                std::cout << std::endl << "\t\t\t";
             }
             std::cout << prettyStringifyValue(stringifyHex(segment.bytes[i])) << " ";
         }
