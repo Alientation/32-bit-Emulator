@@ -114,6 +114,9 @@ void AlienCPUAssembler::assembleFile(std::string filename) {
 
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Source Code\n" << RESET << source);
     log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Read File: " << filename << RESET);
+
+	// assemble the source code
+	assemble(source);
 }
 
 

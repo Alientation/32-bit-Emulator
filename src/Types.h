@@ -35,27 +35,58 @@ static const char VALUE_PREFIX = '#';
 static const char BINARY_PREFIX = '%'; // could also be 0b
 static const char HEXADECIMAL_PREFIX = '$'; // could also be 0x
 
-// help to print out hexadecimal numbers with zero padding
-static std::string stringifyHex(u64 hex, int width = 16) {
+
+/**
+ * Converts a value into hexadecimal string representation
+ * 
+ * @param hex the value to convert
+ * @param digits the number of hexadecimal digits to output
+ * @return the hexadecimal string representation of the value
+ */
+static std::string stringifyHex(u64 hex, int digits = 16) {
     std::stringstream stream;
-    stream << HEXADECIMAL_PREFIX << std::setfill('0') << std::setw(width) << std::hex << hex;
+    stream << HEXADECIMAL_PREFIX << std::setfill('0') << std::setw(digits) << std::hex << hex;
     std::string result(stream.str());
     return result;
 }
 
+/**
+ * Converts a 32 bit value into hexadecimal string representation
+ * 
+ * @param hex the value to convert
+ * @return the hexadecimal string representation of the value
+ */
 static std::string stringifyHex(u32 hex) {
     return stringifyHex(hex,8);
 }
 
+/**
+ * Converts a 16 bit value into hexadecimal string representation
+ * 
+ * @param hex the value to convert
+ * @return the hexadecimal string representation of the value
+ */
 static std::string stringifyHex(u16 hex) {
     return stringifyHex(hex,4);
 }
 
+/**
+ * Converts an 8 bit value into hexadecimal string representation
+ * 
+ * @param hex the value to convert
+ * @return the hexadecimal string representation of the value
+ */
 static std::string stringifyHex(u8 hex) {
     return stringifyHex(hex,2);
 }
 
 
+/**
+ * Pretty stringifies a value by bolding the digits and graying out the leading zeros
+ * 
+ * @param string the string to pretty stringify
+ * @return the pretty stringified value
+ */
 static std::string prettyStringifyValue(std::string string) {
     std::string result = GRAY;
     auto iterator = string.begin();
@@ -63,11 +94,13 @@ static std::string prettyStringifyValue(std::string string) {
         iterator++;
     }
 
-    while ((*iterator) == '0') {
+	// gray out any leading zeros except for the last zero
+    while ((*iterator) == '0' && iterator != string.end() - 1) {
         result += *iterator;
         iterator++;
     }
 
+	// bold the remaining digits
     result += BOLD_WHITE;
     while (iterator != string.end()) {
         result += *iterator;
@@ -79,7 +112,12 @@ static std::string prettyStringifyValue(std::string string) {
 }
 
 
-// help to print out binary numbers with zero padding
+/**
+ * Converts a 64 bit value into binary string representation
+ * 
+ * @param bin the value to convert
+ * @return the binary string representation of the value
+ */
 static std::string stringifyBin(u64 bin) {
     std::stringstream stream;
     stream << BINARY_PREFIX << std::bitset<64>(bin);
@@ -87,6 +125,12 @@ static std::string stringifyBin(u64 bin) {
     return result;
 }
 
+/**
+ * Converts a 32 bit value into binary string representation
+ * 
+ * @param bin the value to convert
+ * @return the binary string representation of the value
+ */
 static std::string stringifyBin(u32 bin) {
     std::stringstream stream;
     stream << BINARY_PREFIX << std::bitset<32>(bin);
@@ -94,6 +138,12 @@ static std::string stringifyBin(u32 bin) {
     return result;
 }
 
+/**
+ * Converts a 16 bit value into binary string representation
+ * 
+ * @param bin the value to convert
+ * @return the binary string representation of the value
+ */
 static std::string stringifyBin(u16 bin) {
     std::stringstream stream;
     stream << BINARY_PREFIX << std::bitset<16>(bin);
@@ -101,6 +151,12 @@ static std::string stringifyBin(u16 bin) {
     return result;
 }
 
+/**
+ * Converts an 8 bit value into binary string representation
+ * 
+ * @param bin the value to convert
+ * @return the binary string representation of the value
+ */
 static std::string stringifyBin(u8 bin) {
     std::stringstream stream;
     stream << BINARY_PREFIX << std::bitset<8>(bin);
