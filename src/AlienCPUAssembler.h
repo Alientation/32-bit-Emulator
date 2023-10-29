@@ -79,7 +79,7 @@ class AlienCPUAssembler {
             OUTFILE,
             ORG,
             DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
-            ASCII, ASCIIZ,
+            ASCII, ASCIZ,
             ADVANCE, FILL, SPACE,
             GLOBAL, EXTERN, DEFINE, SET,
             CHECKPC, ALIGN,
@@ -97,7 +97,7 @@ class AlienCPUAssembler {
             {".org", ORG},
             {".db_lo", DB_LO}, {".d2b_lo", D2B_LO}, {".dw_lo", DW_LO}, {".d2w_lo", D2W_LO}, 
             {".db_hi", DB_HI}, {".d2b_hi", D2B_HI}, {".dw_hi", DW_HI}, {".d2w_hi", D2W_HI},
-            {".ascii", ASCII}, {".asciiz", ASCIIZ},
+            {".ascii", ASCII}, {".asciiz", ASCIZ},
             {".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
             {".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
             {".checkpc", CHECKPC}, {".align", ALIGN},
@@ -397,7 +397,7 @@ class AlienCPUAssembler {
         void DIR_D2W_HI();
 
         void DIR_ASCII();
-        void DIR_ASCIIZ();
+        void DIR_ASCIZ();
 
         void DIR_ADVANCE();
         void DIR_FILL();
@@ -454,7 +454,7 @@ class AlienCPUAssembler {
             {DW_LO, &AlienCPUAssembler::DIR_DW_LO}, {D2W_LO, &AlienCPUAssembler::DIR_D2W_LO},
             {DB_HI, &AlienCPUAssembler::DIR_DB_HI}, {D2B_HI, &AlienCPUAssembler::DIR_D2B_HI}, 
             {DW_HI, &AlienCPUAssembler::DIR_DW_HI}, {D2W_HI, &AlienCPUAssembler::DIR_D2W_HI},
-            {ASCII, &AlienCPUAssembler::DIR_ASCII}, {ASCIIZ, &AlienCPUAssembler::DIR_ASCIIZ},
+            {ASCII, &AlienCPUAssembler::DIR_ASCII}, {ASCIZ, &AlienCPUAssembler::DIR_ASCIZ},
             {ADVANCE, &AlienCPUAssembler::DIR_ADVANCE}, {FILL, &AlienCPUAssembler::DIR_FILL}, 
             {SPACE, &AlienCPUAssembler::DIR_SPACE},
             {GLOBAL, &AlienCPUAssembler::DIR_GLOBAL}, {EXTERN, &AlienCPUAssembler::DIR_EXTERN},

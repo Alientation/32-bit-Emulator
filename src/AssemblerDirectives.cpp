@@ -351,11 +351,11 @@ void AlienCPUAssembler::DIR_ASCII() {
 /**
  * Defines a series of strings at the current program counter with each string followed by a zero byte.
  * 
- * USAGE: .asciiz "string"[, "string"...]
+ * USAGE: .asciz "string"[, "string"...]
  * 
  * Each string must be a valid string literal.
  */
-void AlienCPUAssembler::DIR_ASCIIZ() {
+void AlienCPUAssembler::DIR_ASCIZ() {
     EXPECT_OPERAND();
     currentTokenI++;
 
