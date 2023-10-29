@@ -567,6 +567,7 @@ void AlienCPUAssembler::DIR_EXTERN() {
 
 }
 
+
 /**
  * Defines a label with a specific value.
  * 
@@ -725,54 +726,65 @@ void AlienCPUAssembler::DIR_REQUIRE() {
 
 
 void AlienCPUAssembler::DIR_REPEAT() {
+    // all repeats should be expanded in the parsing phase
     if (status != PARSING) {
         error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
                 << "Failed REPEAT: .repeat directive was not expanded in parsing phase " << status);
     }
-
-    EXPECT_OPERAND();
-    currentTokenI++;
-    EXPECT_NO_OPERAND();
-
-    Word repeatCount = EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
-
-    std::vector<Token> repeatedTokens;
-    int repeatI = currentTokenI + 1;
-    while (repeatI < tokens.size() && tokens[repeatI].string != ".rend") {
-        repeatedTokens.push_back(tokens[repeatI]);
-        repeatI++;
-    }
     
-    // check if we have actually encounted .rend directive
-    if (repeatI == tokens.size()) {
-        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream()
-                << "Missing .rend directive for .repeat directive: " << tokens[currentTokenI].string);
-    }
+    // save the current token index to jump back to after parsing all stacked repeats
+    int firstRepeatedToken = currentTokenI;
 
-    // ensure .rend directive has no operands
-    int tempCurrentTokenI = currentTokenI;
-    currentTokenI = repeatI;
-    EXPECT_NO_OPERAND();
-    currentTokenI = tempCurrentTokenI;
-
-    // expand the repeated tokens
-    std::vector<Token> expandedTokens;
-    for (int i = 0; i < repeatCount; i++) {
-        for (Token token : repeatedTokens) {
-            expandedTokens.push_back(token);
+    // parse all stacked (layered) repeats
+    do {
+        // ensure we have not reached the end of the file
+        if (currentTokenI == tokens.size()) {
+            error(MISSING_TOKEN_ERROR, tokens[currentTokenI-1], std::stringstream()
+                    << "Missing .rend directive for .repeat directive: " << tokens[currentTokenI-1].string);
         }
-    }
-    
-    // remove the .repeat and .rend directives
-    tokens.erase(tokens.begin() + currentTokenI - 1, tokens.begin() + repeatI + 1);
 
-    // add the repeated tokens at the token index of the repeat directive
-    tokens.insert(tokens.begin() + currentTokenI - 1, expandedTokens.begin(), expandedTokens.end());
+        // check if we have encountered a .repeat directive
+        if (tokens[currentTokenI].string == ".repeat") {
+            EXPECT_OPERAND();
+            currentTokenI++;
+            EXPECT_NO_OPERAND();
 
-    // fix the current token index to point to the token before the first repeated tokens
-    // since the loop will increment the token index, this will make the next iteration of the loop
-    // point to the correct first repeated token
-    currentTokenI -= 2;
+            // parse the repeat count
+            Word repeatCount = EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
+
+            // delete the repeat directive
+            tokens.erase(tokens.begin() + currentTokenI - 1, tokens.begin() + currentTokenI + 1);
+
+            // iterate and build repeated tokens until we reach the .rend directive that end the current repeat
+            // directive
+            repeatStack.push(Repeat(currentTokenI - 1, repeatCount));
+        } else if (tokens[currentTokenI].string == ".rend") {
+            EXPECT_NO_OPERAND();
+            
+            // close the previous repeat directive
+            Repeat repeat = repeatStack.top();
+            repeatStack.pop();
+
+            // build repeated tokens from the repeat start to repeat end tokens
+            std::vector<Token> repeatedTokens;
+            for (int i = 0; i < repeat.count; i++) {
+                for (int tokenI = repeat.tokenIndex; tokenI < currentTokenI; tokenI++) {
+                    repeatedTokens.push_back(tokens[tokenI]);
+                }
+            }
+
+            // delete the repeat end directive
+            tokens.erase(tokens.begin() + currentTokenI, tokens.begin() + currentTokenI + 1);
+
+            // insert the repeated tokens
+            tokens.insert(tokens.begin() + repeat.tokenIndex, repeatedTokens.begin(), repeatedTokens.end());
+
+            // update the current token index to the end of the expanded tokens
+            currentTokenI += repeatedTokens.size();
+        }
+    } while (!repeatStack.empty());
+
+    currentTokenI = firstRepeatedToken;
 }
 
 void AlienCPUAssembler::DIR_REND() {
@@ -920,14 +932,14 @@ void AlienCPUAssembler::DIR_INVOKE() {
                 << "Missing macro name operand for .invoke directive: " << tokens[currentTokenI].string);
     }
 
-    // check if the macro is a valid macro
+    // check if the macro invoked is a valid macro name
     std::string name = trim(splitByComma[0]);
     if ((*currentScope).macros.find(name) == (*currentScope).macros.end()) {
         error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() 
                 << "Undefined macro: " << name);
     }
 
-    // check if the number of parameters matches the number of parameters defined in the macro definition
+    // check if the number of parameters matches a valid macro definition
     // TODO:
 }
 

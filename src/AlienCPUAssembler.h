@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <set>
+#include <stack>
 
 #include <../src/Motherboard/AlienCPU.h>
 #include <../src/ConsoleColor.h>
@@ -129,10 +130,32 @@ class AlienCPUAssembler {
         };
 
         struct Macro {
+            /**
+             * Name of the macro
+             */
             std::string name;
+
+            /**
+             * Map of definitions by parameter count to their respective label name and
+             * token index of the start of the MACRO definition.
+             */
             std::map<int, std::pair<std::vector<std::string>, int>> types;
 
             Macro(std::string name) : name(name) {}
+        };
+
+        struct Repeat {
+            /**
+             * The token index of the first token to repeat
+             */
+            int tokenIndex;
+
+            /**
+             * The number of times to repeat the tokens
+             */
+            int count;
+
+            Repeat(int tokenIndex, int count) : tokenIndex(tokenIndex), count(count) {}
         };
 
         /**
@@ -282,6 +305,14 @@ class AlienCPUAssembler {
          * Current scope of the assembly process
          */
         Scope* currentScope = globalScope;
+
+        /**
+         * Current repeats that are being processed.
+         * Should only be filled during the parsing phase. All repeat directives
+         * will be removed during the parsing phase so none should remain in
+         * the assembling phase.
+         */
+        std::stack<Repeat> repeatStack;
 
 
         /**
