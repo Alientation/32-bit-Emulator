@@ -140,12 +140,6 @@ void AlienCPUAssembler::DIR_OUTFILE() {
     EXPECT_OPERAND();
     currentTokenI++;
 
-    // check if outfile has already been defined TODO: determine if we should allow multiple outfiles
-    if (!outputFile.empty()) {
-        error(MULTIPLE_DEFINITION_ERROR, tokens[currentTokenI], std::stringstream() 
-                << ".outfile directive cannot be defined multiple times in the same file");
-    }
-
     // set the output file, must be a string argument
     outputFile = getStringToken(tokens[currentTokenI].string);
     if (!isValidFilename(outputFile)) {

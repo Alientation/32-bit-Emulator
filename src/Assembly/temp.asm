@@ -3,7 +3,9 @@
 *;
 
 loadlabel:
-	LDA	#$1234
-	LDA	#$FFEF
+		LDA	#$FFFF
+		LDA	#$1234
+.data
+.outfile	"test"
 
 ; End

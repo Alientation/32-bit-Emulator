@@ -295,7 +295,7 @@ void AlienCPUAssembler::passTokens() {
         if (instructionMap.find(token.string) != instructionMap.end()) {
             // check if in proper segment
             if (segmentType != TEXT_SEGMENT) {
-                error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Instruction must be in the text segment");
+                error(INVALID_TOKEN_ERROR, token, std::stringstream() << "Instruction must be defined in the text segment");
             }
 
             // no more tokens to parse that are on the same line
@@ -544,7 +544,7 @@ void AlienCPUAssembler::tokenize() {
     int currentTokenStart = -1;
 
     // the line the current token is on in the original source code
-    int lineNumber = 0;
+    int lineNumber = 1;
 
     // default true for first column on each line. Every subsequent column should have a preceeding tab character
     bool readyForNextToken = true;
