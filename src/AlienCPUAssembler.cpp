@@ -1,30 +1,34 @@
 #include "AlienCPUAssembler.h"
 
 #include <any>
+#include <iostream>
+#include <fstream>
 
 int main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu, true);
 
-    std::stringstream sourceCode;
-    sourceCode << 
-        "\tLDA\t\t \t#$FFFF\n" << 
-        ";THIS IS A COMMENT\n" << 
-        ";SO IS THIS\n" << 
-        ".org\t%0110\n" <<
-        "\tLDA\t#$FFEF\n" <<
-        "globallabel1:\t;this is a comment\n" <<
-        "_locallabel:\n" <<
-        ".scope\n" <<
-        "globallabel2:\n" <<
-        "_locallabel:\n" <<
-        ".scend\n" <<
-        ".org\t9\n" <<
-        "LDA\t#$AADA\n" <<
-        ".org\t3\n" <<
-        "LDA\t#$1234\n";
+    // std::stringstream sourceCode;
+    // sourceCode << 
+    //     "\tLDA\t\t \t#$FFFF\n" << 
+    //     ";THIS IS A COMMENT\n" << 
+    //     ";SO IS THIS\n" << 
+    //     ".org\t%0110\n" <<
+    //     "\tLDA\t#$FFEF\n" <<
+    //     "globallabel1:\t;this is a comment\n" <<
+    //     "_locallabel:\n" <<
+    //     ".scope\n" <<
+    //     "globallabel2:\n" <<
+    //     "_locallabel:\n" <<
+    //     ".scend\n" <<
+    //     ".org\t9\n" <<
+    //     "LDA\t#$AADA\n" <<
+    //     ".org\t3\n" <<
+    //     "LDA\t#$1234\n";
 
-    assembler.assemble(sourceCode.str());
+    // assembler.assemble(sourceCode.str());
+
+    assembler.assembleFile("..\\src\\Assembly\\temp.asm");
 }
 
 
@@ -83,7 +87,38 @@ void AlienCPUAssembler::writeToFile() {
 
 
 /**
- * Assembles the given assembly source code into machine code and writes to file.
+ * Assembles an assembly file source code into machine code and writes to a binary file.
+ */
+void AlienCPUAssembler::assembleFile(std::string filename) {
+    log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Reading File: " << filename << RESET);
+
+    // read all characters from file to a string
+    if (split(filename, '.').back() != "asm") {
+        error(FILE_ERROR, *NULL_TOKEN, std::stringstream() << "Unrecognized File Extension: " << split(filename, '.').back());
+    }
+
+    std::ifstream file(filename, std::ifstream::in);
+    std::string source;
+
+    // check if file exists
+    if (!file) {
+        error(FILE_ERROR, *NULL_TOKEN, std::stringstream() << "File Does Not Exist: " << filename);
+    }
+
+    char mychar;
+    while (file) {
+        mychar = file.get();
+        source += mychar;
+    }
+    file.close();
+
+    log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Source Code\n" << RESET << source);
+    log(LOG, std::stringstream() << BOLD << BOLD_GREEN << "Read File: " << filename << RESET);
+}
+
+
+/**
+ * Assembles the given assembly source code into machine code and writes to a binary file.
  * 
  * Documentation on the assembly language can be found SOMEWHERE
  * 
@@ -344,7 +379,7 @@ void AlienCPUAssembler::passTokens() {
     // some important checks to ensure user is not doing anything stupid
     if (currentScope != globalScope) {
         // this means we are still in a scope that has not been closed
-        error(MISSING_TOKEN_ERROR, NULL_TOKEN, std::stringstream() << "Scope defined at " 
+        error(MISSING_TOKEN_ERROR, *NULL_TOKEN, std::stringstream() << "Scope defined at " 
                 << (*currentScope).prettyStringifyMemoryAddress() << "is not closed.");
     }
 }
@@ -741,11 +776,14 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
  * @param currentToken The token that caused the error
  * @param msg The message to display with the error
  */
-void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::stringstream msg) {
+void AlienCPUAssembler::error(AssemblerError error, const Token& currentToken, std::stringstream msg) {
     std::string name;
     switch(error) {
         case INVALID_TOKEN_ERROR:
             name = BOLD_RED + "[invalid_token]" + RESET;
+            break;
+        case FILE_ERROR:
+            name = BOLD_RED + "[file_error]" + RESET;
             break;
         case MULTIPLE_DEFINITION_ERROR:
             name = BOLD_RED + "[multiple_definition]" + RESET;
@@ -763,8 +801,14 @@ void AlienCPUAssembler::error(AssemblerError error, Token currentToken, std::str
     }
 
     std::stringstream msgStream;
-    msgStream << name << " " << msg.str() << " at line " << currentToken.lineNumber 
-            << " \"" << currentToken.string << "\"" << std::endl;
+
+    // check if we have a valid token to display information about
+    if (&currentToken == NULL_TOKEN) {
+        msgStream << name << " " << msg.str() << std::endl;
+    } else {
+        msgStream << name << " " << msg.str() << " at line " << currentToken.lineNumber 
+                << " \"" << currentToken.string << "\"" << std::endl;
+    }
 
     throw std::runtime_error(msgStream.str());
 }
@@ -822,7 +866,7 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
  */
 std::string AlienCPUAssembler::getStringToken(std::string token) {
     if (!isStringToken(token)) {
-        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Invalid string token: " << token);
+        error(INTERNAL_ERROR, *NULL_TOKEN, std::stringstream() << "Invalid string token: " << token);
     }
 
     return token.substr(1, token.size() - 2);
@@ -936,7 +980,7 @@ void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
  */
 void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
     if (bytes > 8) {
-        error(INTERNAL_ERROR, NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
+        error(INTERNAL_ERROR, *NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
     } else if (bytes == 0) {
         warn(WARN, std::stringstream() << "Writing 0 bytes");
         return;

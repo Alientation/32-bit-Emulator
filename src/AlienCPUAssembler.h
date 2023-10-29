@@ -32,7 +32,7 @@ class AlienCPUAssembler {
                     string(string), location(location), lineNumber(lineNumber) {}
         };
 
-        Token NULL_TOKEN = Token("NULL", -1, -1);
+        Token* NULL_TOKEN = new Token("NULL", -1, -1);
 
         /**
          * The type of token that has been parsed from the source code.
@@ -204,6 +204,7 @@ class AlienCPUAssembler {
 
         AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
         void assemble(std::string source);
+        void assembleFile(std::string filename);
 
         inline static const std::string DEFAULT_OUTPUT_FILE = "A6502.bin";
         inline static const SegmentType DEFAULT_SEGMENT_TYPE = TEXT_SEGMENT;
@@ -320,6 +321,7 @@ class AlienCPUAssembler {
          */
         enum AssemblerError {
             INTERNAL_ERROR,
+            FILE_ERROR,
             MULTIPLE_DEFINITION_ERROR,
             INVALID_TOKEN_ERROR,
             UNRECOGNIZED_TOKEN_ERROR,
@@ -364,7 +366,7 @@ class AlienCPUAssembler {
         void writeTwoWords(u64 value, bool lowEndian = true);
         void writeBytes(u64 value, Byte bytes, bool lowEndian = true);
 
-        void error(AssemblerError error, Token currentToken, std::stringstream msg);
+        void error(AssemblerError error, const Token& currentToken, std::stringstream msg);
         void warn(AssemblerWarn warn, std::stringstream msg);
         void log(AssemblerLog log, std::stringstream msg);
 
