@@ -819,13 +819,19 @@ void AlienCPUAssembler::error(AssemblerError error, const Token& currentToken, s
 
 /**
  * Warns about potential bugs in the code
- * TODO: complete
  * 
  * @param warn The type of warning to display
  * @param msg The message to display with the warning
  */
 void AlienCPUAssembler::warn(AssemblerWarn warn, std::stringstream msg) {
+	std::string name;
+	switch(warn) {
+		case WARN:
+		default:
+			name = BOLD_YELLOW + "[warn]" + RESET;
+	}
 
+	std::cout << name << " " << msg.str() << std::endl;
 }
 
 
