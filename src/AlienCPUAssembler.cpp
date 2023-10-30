@@ -8,26 +8,6 @@ int main() {
     AlienCPU cpu;
     AlienCPUAssembler assembler(cpu, true);
 
-    // std::stringstream sourceCode;
-    // sourceCode << 
-    //     "\tLDA\t\t \t#$FFFF\n" << 
-    //     ";THIS IS A COMMENT\n" << 
-    //     ";SO IS THIS\n" << 
-    //     ".org\t%0110\n" <<
-    //     "\tLDA\t#$FFEF\n" <<
-    //     "globallabel1:\t;this is a comment\n" <<
-    //     "_locallabel:\n" <<
-    //     ".scope\n" <<
-    //     "globallabel2:\n" <<
-    //     "_locallabel:\n" <<
-    //     ".scend\n" <<
-    //     ".org\t9\n" <<
-    //     "LDA\t#$AADA\n" <<
-    //     ".org\t3\n" <<
-    //     "LDA\t#$1234\n";
-
-    // assembler.assemble(sourceCode.str());
-
     assembler.assembleFile("..\\src\\Assembly\\temp.asm");
 }
 
@@ -121,7 +101,8 @@ void AlienCPUAssembler::assemble(std::string source) {
     tokenize();
 
     // print out each token
-    int curLine = 0;
+	log(LOG, std::stringstream() << BOLD << "Tokens" << RESET << "\n");
+    int curLine = tokens.size() > 0 ? tokens[0].lineNumber : 1;
     for (Token& token : tokens) {
         if (token.lineNumber > curLine) {
             std::cout << std::endl;
@@ -130,6 +111,7 @@ void AlienCPUAssembler::assemble(std::string source) {
         curLine = token.lineNumber;
     }
     std::cout << std::endl;
+	log(LOG, std::stringstream() << BOLD << "END" << RESET);
 
     // parse each token to create label mappings
     status = PARSING;
@@ -881,7 +863,7 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
  * Prints all memory segments in the memory map in ascending order.
  */
 void AlienCPUAssembler::printMemoryMap() {
-	std::cout << std::endl << "Memory Map:" << std::endl;
+	log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Printing Memory Map");
 	
 	// print out each memory segmentsegment
 	const uint16_t NUMBER_OF_BYTES_PER_LINE = 16;
@@ -901,7 +883,7 @@ void AlienCPUAssembler::printMemoryMap() {
         std::cout << std::endl;
     }
 
-    std::cout << "END" << std::endl;
+    log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Done Printing Memory Map");
 }
 
 /**
