@@ -165,15 +165,23 @@ void AlienCPUAssembler::assemble(std::string source) {
  * @param value The value of the label.
  * @param allowMultipleDefinitions Whether to allow multiple definitions of the label.
  * 
- * @throws MULTIPLE_DEFINITION_ERROR if the label is already defined in the current scope and allowMultipleDefinitions is false.
+ * @throws INVALID_TOKEN_ERROR if the label name is invalid.
+ * @throws MULTIPLE_DEFINITION_ERROR if the label is already defined in the current scope.
  */
 void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allowMultipleDefinitions) {
-    // check what scope we are in
+	// check that label name only contains alphanumeric characters and '_' and is not empty
+	if (labelName.empty()) {
+		error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Label Name: " << labelName);
+	}
+
+	for (char c : labelName) {
+		if (!std::isalnum(c) && c != '_') {
+			error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Label Name: " << labelName);
+		}
+	}
+
+	// check what scope we are in
     bool isLocal = labelName[0] == '_';
-
-	// TODO: add checks for restricted characters. characters that are reserved for expressions.
-	// or simply only allow alphanumeric characters and '_' for labels
-
 
     // check if label is already defined in the current scope if we are in the first parsing phase
     if (!allowMultipleDefinitions) {
