@@ -171,6 +171,10 @@ void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allo
     // check what scope we are in
     bool isLocal = labelName[0] == '_';
 
+	// TODO: add checks for restricted characters. characters that are reserved for expressions.
+	// or simply only allow alphanumeric characters and '_' for labels
+
+
     // check if label is already defined in the current scope if we are in the first parsing phase
     if (!allowMultipleDefinitions) {
         if (status == PARSING && isLocal && (*currentScope).labels.find(labelName) != (*currentScope).labels.end()) {
