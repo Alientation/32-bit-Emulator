@@ -8,6 +8,8 @@
  * @param min The minimum value the parsed value can be.
  * @param max The maximum value the parsed value can be.
  * @return The parsed value.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the token is not a valid value.
  */
 u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(u64 min, u64 max) {
     u64 parsedValue = parseValue(tokens[currentTokenI].string);
@@ -26,6 +28,8 @@ u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(u64 min, u64 max) {
  * @param min The minimum value the parsed value can be.
  * @param max The maximum value the parsed value can be.
  * @return The parsed value.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the token is not a valid value.
  */
 u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max) {
     u64 parsedValue = parseValue(val);
@@ -42,6 +46,8 @@ u64 AlienCPUAssembler::EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max) {
  * The current token is considered to be the one requesting an operand. This means
  * the token after this current token is the operand.
  * This does not modify the internal state.
+ * 
+ * @throws MISSING_TOKEN_ERROR If there is no operand available.
  */
 void AlienCPUAssembler::EXPECT_OPERAND() {
     if (currentTokenI == tokens.size() - 1 || tokens[currentTokenI + 1].lineNumber != tokens[currentTokenI].lineNumber) {
@@ -55,10 +61,12 @@ void AlienCPUAssembler::EXPECT_OPERAND() {
  * The current token is considered to be the one which should have no operand. This means
  * the token after this current token is the operand.
  * This does not modify the internal state.
+ * 
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an operand available.
  */
 void AlienCPUAssembler::EXPECT_NO_OPERAND() {
     if (currentTokenI != tokens.size() - 1 && tokens[currentTokenI + 1].lineNumber == tokens[currentTokenI].lineNumber) {
-        error(MISSING_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Unrecognized Operand");
+        error(UNRECOGNIZED_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Unrecognized Operand");
     }
 };
 
@@ -135,6 +143,8 @@ void AlienCPUAssembler::DIR_TEXT() {
  * USAGE: .outfile "filename"
  * 
  * The filename must be a string literal.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the filename is not a valid string literal.
  */
 void AlienCPUAssembler::DIR_OUTFILE() {
     EXPECT_OPERAND();
@@ -176,6 +186,8 @@ void AlienCPUAssembler::DIR_ORG() {
  * @param token The token containing the operand.
  * @param bytes The number of bytes to define.
  * @param lowEndian If true, the bytes will be written in little endian order.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
  */
 void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndian) {
     // split operand by commas
@@ -189,8 +201,12 @@ void AlienCPUAssembler::defineBytes(std::string token, Byte bytes, bool lowEndia
                 << stringifyHex(bytes) << " overflows");
     }
 
-    // parse each value, must be a value capable of being evaluated in the parse phase
-    // ie, any labels referenced must be already defined and any expressions must be evaluated
+    // if on first pass don't parse the value but simply reserve space for the defined bytes
+	if (status == PARSING) {
+		currentProgramCounter += splitByComma.size() * bytes;
+		return;
+	}
+
 	u64 maxValue = (u64)1 << (bytes * 8);
 	if (maxValue-1 == 0) { // fix for overflow
 		maxValue = 0xFFFFFFFFFFFFFFFFULL;
@@ -324,6 +340,8 @@ void AlienCPUAssembler::DIR_D2W_HI() {
  * USAGE: .ascii "string"[, "string"...]
  * 
  * Each string must be a valid string literal.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
  */
 void AlienCPUAssembler::DIR_ASCII() {
     EXPECT_OPERAND();
@@ -361,6 +379,8 @@ void AlienCPUAssembler::DIR_ASCII() {
  * USAGE: .asciz "string"[, "string"...]
  * 
  * Each string must be a valid string literal.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
  */
 void AlienCPUAssembler::DIR_ASCIZ() {
     EXPECT_OPERAND();
@@ -401,7 +421,10 @@ void AlienCPUAssembler::DIR_ASCIZ() {
  * 
  * The address must be a valid 4 byte value capable of being evaluated in the parse phase.
  * The address must be greater than the current program counter.
- * The filler must be a valid 1 byte value capable of being evaluated in the parse phase.
+ * The filler must be a valid 1 byte value, by default is set to 0.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the address is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
  */
 void AlienCPUAssembler::DIR_ADVANCE() {
     EXPECT_OPERAND();
@@ -427,8 +450,8 @@ void AlienCPUAssembler::DIR_ADVANCE() {
 
     Byte filler = 0;
 
-    // check if there is filler argument
-    if (splitByComma.size() > 1) {
+    // check if there is filler argument only if we are assembling
+    if (status == ASSEMBLING && splitByComma.size() > 1) {
         filler = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
 
         // too many operands for .advance directive
@@ -454,7 +477,11 @@ void AlienCPUAssembler::DIR_ADVANCE() {
  * 
  * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
  * The size must be a valid 1 byte value capable of being evaluated in the parse phase.
- * The value must be a valid value capable of being evaluated in the parse phase.
+ * The value must be within the specified size, by default it is set to 0.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the count, size, or value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
  */
 void AlienCPUAssembler::DIR_FILL() {
     EXPECT_OPERAND();
@@ -473,12 +500,12 @@ void AlienCPUAssembler::DIR_FILL() {
     Byte size = 1;
     u64 value = 0;
 
-    // check for size argument
+    // check for size argument 
     if (splitByComma.size() > 1) {
         size = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 1, 0xFF);
 
         // check for value argument
-        if (splitByComma.size() > 2) {
+        if (status == ASSEMBLING && splitByComma.size() > 2) {
             value = EXPECT_PARSEDVALUE(trim(splitByComma[2]), 0, (1 << (size * 8)) - 1);
         }
 
@@ -497,9 +524,9 @@ void AlienCPUAssembler::DIR_FILL() {
     }
 
     // fill the space with the filler value
-    for (Word i = 0; i < fillcount; i++) {
-        writeBytes(value, size, true);
-    }
+	for (Word i = 0; i < fillcount; i++) {
+		writeBytes(value, size, true);
+	}
 
     parsedTokens.push_back(ParsedToken(tokens[currentTokenI], TOKEN_DIRECTIVE_OPERAND));
 }
@@ -510,6 +537,12 @@ void AlienCPUAssembler::DIR_FILL() {
  * USAGE: .space count[,value]
  * 
  * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The value must be a valid 1 byte value, default is set to 0.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the count operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the count or value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
  */
 void AlienCPUAssembler::DIR_SPACE() {
     EXPECT_OPERAND();
@@ -527,8 +560,8 @@ void AlienCPUAssembler::DIR_SPACE() {
     Word count = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
     Byte value = 0;
 
-    // check for value argument
-    if (splitByComma.size() > 1) {
+    // check for value argument if we are in assembling phase
+    if (status == ASSEMBLING && splitByComma.size() > 1) {
         value = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
 
         // too many operands for .space directive
@@ -576,6 +609,10 @@ void AlienCPUAssembler::DIR_EXTERN() {
  * 
  * The name must be a valid label name.
  * The value must be a valid value capable of being evaluated in the parse phase.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the name or value operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the name is not a valid label name or the value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
  */
 void AlienCPUAssembler::DIR_DEFINE() {
     EXPECT_OPERAND();
@@ -621,6 +658,10 @@ void AlienCPUAssembler::DIR_DEFINE() {
  * USAGE: .set name,value
  * 
  * The value must be a valid value capable of being evaluated in the parse phase.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the name or value operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the name is not a valid label name or the value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
  */
 void AlienCPUAssembler::DIR_SET() {
     EXPECT_OPERAND();
@@ -667,6 +708,8 @@ void AlienCPUAssembler::DIR_SET() {
  * USAGE: .checkpc address
  * 
  * The address must be a value capable of being evaluated in the parse phase.
+ * 
+ * @throws INTERNAL_ERROR If the current program counter is greater than the checkpc address.
  */
 void AlienCPUAssembler::DIR_CHECKPC() {
     EXPECT_OPERAND();
@@ -690,6 +733,8 @@ void AlienCPUAssembler::DIR_CHECKPC() {
  * 
  * The align value must be a value that is capable of being evaluated in the parse phase.
  * If the align causes the program counter to overflow, an error will be thrown.
+ * 
+ * @throws INTERNAL_ERROR If the current program counter is greater than the checkpc address.
  */
 void AlienCPUAssembler::DIR_ALIGN() {
     EXPECT_OPERAND();
@@ -733,6 +778,8 @@ void AlienCPUAssembler::DIR_REQUIRE() {
  * The count must be a value capable of being evaluated in the parse phase.
  * All tokens between this directive and the .rend directive will be repeated count times.
  * This supports stacked repeats, however, all repeats must be ended by a corresponding .rend directive.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the count operand is missing.
  */
 void AlienCPUAssembler::DIR_REPEAT() {
     // all repeats should be expanded in the parsing phase
@@ -842,6 +889,14 @@ void AlienCPUAssembler::DIR_SCEND() {
  * Defines a macro with a specific name and, optionally, parameters to be passed to the macro.
  * 
  * USAGE: .macro name[,param1[,param2...]]
+ * 
+ * The name must be a valid macro name.
+ * The parameter count must be unique to the macro name, ie, overloaded macros must have a different number of
+ * parameters.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the name operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the name is not a valid macro name.
+ * @throws MULTIPLE_DEFINITION_ERROR If the macro has already been defined with the specified number of parameters.
  */
 void AlienCPUAssembler::DIR_MACRO() {
     EXPECT_OPERAND();
@@ -914,6 +969,8 @@ void AlienCPUAssembler::DIR_MACRO() {
  * 
  * This shouldn't ever happen. MACRO directive will move the token pointer past the end of the macro definition.
  * This means that a MACEND was defined without a preceeding MACRO definition.
+ * 
+ * @throws INTERNAL_ERROR If the MACRO directive was not defined before the MACEND directive.
  */
 void AlienCPUAssembler::DIR_MACEND() {
     error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() 
@@ -929,6 +986,9 @@ void AlienCPUAssembler::DIR_MACEND() {
  * All parameters have to be valid values capable of being evaluated in the parse phase.
  * The number of parameters must match the number of parameters defined in the macro definition.
  * This will create a scope block containing only the inlined macro.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the name operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the name is not a valid macro name.
  */
 void AlienCPUAssembler::DIR_INVOKE() {
     std::string operand;

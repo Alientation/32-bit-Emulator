@@ -61,26 +61,8 @@ void AlienCPUAssembler::reset() {
  * Writes the tracked bytes to a binary file 
  */
 void AlienCPUAssembler::writeToFile() {
-    const uint16_t NUMBER_OF_BYTES_PER_LINE = 16;
-
     // for now, just print memory map
-    std::cout << std::endl << "Memory Map:" << std::endl;
-    for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
-        // get current segment
-        MemorySegment segment = *(*it).second;
-        std::cout << "[" << segment.prettyStringifyStartAddress() << "," 
-                << segment.prettyStringifyEndAddress() << "]\t";
-        
-        // print out each byte in segment
-        for (int i = 0; i < segment.bytes.size(); i++) {
-            if (i != 0 && i % NUMBER_OF_BYTES_PER_LINE == 0) {
-                std::cout << std::endl << "\t\t\t";
-            }
-            std::cout << prettyStringifyValue(stringifyHex(segment.bytes[i])) << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "END" << std::endl;
+    printMemoryMap();
 
     // write to file
 }
@@ -156,16 +138,7 @@ void AlienCPUAssembler::assemble(std::string source) {
     log(LOG_PARSING, std::stringstream() << BOLD << BOLD_GREEN << "Parsed Tokens" << RESET);
 
     // print out each parsed token and its associated memory address
-    for (ParsedToken& parsedToken : parsedTokens) {
-        if (parsedToken.type == TOKEN_INSTRUCTION) {
-            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string 
-                    << " " << addressingModeNames.at(parsedToken.addressingMode) << std::endl;
-        } else if (parsedToken.type == TOKEN_INSTRUCTION_OPERAND || parsedToken.type == TOKEN_GLOBAL_LABEL || parsedToken.type == TOKEN_LOCAL_LABEL) {
-            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string << std::endl;
-        } else {
-            std::cout << "\t\t" << ITALICS << GRAY << parsedToken.token.string << RESET << std::endl;
-        }
-    }
+    printParsedTokens();
     parsedTokens.clear();
 
     // assemble the parsed tokens into machine code and evaluate any unevaluated expressions
@@ -185,6 +158,15 @@ void AlienCPUAssembler::assemble(std::string source) {
 }
 
 
+/**
+ * Creates a label at the correct scope and map it to the symbol table.
+ * 
+ * @param labelName The name of the label to create.
+ * @param value The value of the label.
+ * @param allowMultipleDefinitions Whether to allow multiple definitions of the label.
+ * 
+ * @throws MULTIPLE_DEFINITION_ERROR if the label is already defined in the current scope and allowMultipleDefinitions is false.
+ */
 void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allowMultipleDefinitions) {
     // check what scope we are in
     bool isLocal = labelName[0] == '_';
@@ -211,6 +193,9 @@ void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allo
 
 /**
  * Creates a new local scope with the current scope being the parent of the new scope.
+ * 
+ * @throws INTERNAL_ERROR if the assembler is not in the parsing phase.
+ * @throws MULTIPLE_DEFINITION_ERROR if the scope is already defined at the current program counter.
  */
 void AlienCPUAssembler::startScope() {
     // check if first pass
@@ -237,6 +222,8 @@ void AlienCPUAssembler::startScope() {
 
 /**
  * Ends the current scope and return back to the parent scope.
+ * 
+ * @throws INVALID_TOKEN_ERROR if the current scope has no parent scope.
  */
 void AlienCPUAssembler::endScope() {
     // check if the current scope has no parent scope. This means we are at the global scope which has
@@ -254,6 +241,11 @@ void AlienCPUAssembler::endScope() {
  * 
  * If the assembler's status is PARSING, then any label tokens are added to the symbol table.
  * If the assembler's status is ASSEMBLING, then everything is written to binary file
+ * 
+ * @throws INTERNAL_ERROR if the assembler is in an invalid state.
+ * @throws UNRECOGNIZED_TOKEN_ERROR if the assembler encounters an unrecognized token.
+ * @throws MISSING_TOKEN_ERROR if the assembler encounters a missing token.
+ * @throws INVALID_TOKEN_ERROR if the assembler encounters an invalid token.
  */
 void AlienCPUAssembler::passTokens() {
     // memory segment currently writing to
@@ -407,6 +399,10 @@ u64 AlienCPUAssembler::evaluateExpression(Token token) {
  * 
  * @param token The token to extract the value from
  * @return The value of the token operand
+ * 
+ * @throws INTERNAL_ERROR if the assembler is not in the parsing phase
+ * @throws INVALID_TOKEN_ERROR if the token operand is invalid
+ * @throws UNRECOGNIZED_TOKEN_ERROR if the token operand is unrecognized
  */
 u64 AlienCPUAssembler::parseValue(const std::string token) {
     if (token.empty()) {
@@ -529,6 +525,9 @@ u64 AlienCPUAssembler::parseValue(const std::string token) {
  * '*;' into a comment.
  * 
  * No further processing is done on the tokens at this point.
+ * 
+ * @throws MISSING_TOKEN_ERROR if a multi line comment is not closed by '*;'
+ * @throws INTERNAL_ERROR if the current token has not been processed
  */
 void AlienCPUAssembler::tokenize() {
     log(LOG_TOKENIZING, std::stringstream() << BOLD << BOLD_WHITE << "Tokenizing Source Code" << RESET);
@@ -862,6 +861,51 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
     }
 
     std::cout << name << " " << msg.str() << std::endl;
+}
+
+
+
+/**
+ * Prints all memory segments in the memory map in ascending order.
+ */
+void AlienCPUAssembler::printMemoryMap() {
+	std::cout << std::endl << "Memory Map:" << std::endl;
+	
+	// print out each memory segmentsegment
+	const uint16_t NUMBER_OF_BYTES_PER_LINE = 16;
+    for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+        // get current segment
+        MemorySegment segment = *(*it).second;
+        std::cout << "[" << segment.prettyStringifyStartAddress() << "," 
+                << segment.prettyStringifyEndAddress() << "]\t";
+        
+        // print out each byte in segment
+        for (int i = 0; i < segment.bytes.size(); i++) {
+            if (i != 0 && i % NUMBER_OF_BYTES_PER_LINE == 0) {
+                std::cout << std::endl << "\t\t\t";
+            }
+            std::cout << stringifyHex(segment.bytes[i]) << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "END" << std::endl;
+}
+
+/**
+ * Prints all parsed tokens and their associated memory address.
+ */
+void AlienCPUAssembler::printParsedTokens() {
+	for (ParsedToken& parsedToken : parsedTokens) {
+        if (parsedToken.type == TOKEN_INSTRUCTION) {
+            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string 
+                    << " " << addressingModeNames.at(parsedToken.addressingMode) << std::endl;
+        } else if (parsedToken.type == TOKEN_INSTRUCTION_OPERAND || parsedToken.type == TOKEN_GLOBAL_LABEL || parsedToken.type == TOKEN_LOCAL_LABEL) {
+            std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string << std::endl;
+        } else {
+            std::cout << "\t\t" << ITALICS << GRAY << parsedToken.token.string << RESET << std::endl;
+        }
+    }
 }
 
 

@@ -206,6 +206,9 @@ class AlienCPUAssembler {
         void assemble(std::string source);
         void assembleFile(std::string filename);
 
+		void printMemoryMap();
+		void printParsedTokens();
+
         inline static const std::string DEFAULT_OUTPUT_FILE = "A6502";
         inline static const SegmentType DEFAULT_SEGMENT_TYPE = TEXT_SEGMENT;
         inline static const Word DEFAULT_STARTING_ADDRESS = 0x0000;
