@@ -588,7 +588,7 @@ void AlienCPUAssembler::DIR_SPACE() {
 
 
 /**
- * 
+ *
  */
 void AlienCPUAssembler::DIR_GLOBAL() {
 

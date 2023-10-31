@@ -2,89 +2,130 @@
 #define ASSEMBLER_H
 
 #include <string>
-#include <map>
+#include <regex>
+#include <sstream>
+#include <vector>
+#include <iostream>
+#include <fstream>
 #include <set>
-#include <stack>
+#include <map>
 
-#include <../src/Motherboard/AlienCPU.h>
 #include <../src/ConsoleColor.h>
+#include <../src/Motherboard/AlienCPU.h>
+
 
 class Assembler;
 
+static std::string validFileNameRegex = "[a-zA-Z0-9_\\-\\(\\)\\,\\.\\*]+";
 
-/**
- * 
- * TODO
- * 
- * Refactor/Rework this assembler so that it converts files into object files
- * Then have a linker that links object files into a binary file that can be executed
- * on the cpu
- * 
- * Thus this means we need a format for the object files that the assembler will assemble into.
- * 
- * Purpose of linking is to resolve any external label references. Therefore, as a workaround, we
- * could parse each source file for global label definitions first. Then as we parse each file, we
- * look up the global label definitions to resolve any external label references.
- * 
- * 
- */
-class Assembler {
-    public:
-        /**
-         * An unparsed token that has been extracted from the source code.
-         */
-        struct Token {
-            std::string string;
-            int location; // number of characters from the first character of the source code
-            int lineNumber;
+// labels cannot start with a numeric character
+static std::string validLabelNameRegex = "[a-zA-Z_][a-zA-Z0-9_]*";
 
-            Token(std::string string, int location, int lineNumber) : 
-                    string(string), location(location), lineNumber(lineNumber) {}
-        };
+enum LoggerType {
+	LOG,
+	LOG_TOKENIZER,
+	LOG_PARSER,
+	LOG_ASSEMBLER,
+	LOG_LINKER
+};
+enum ErrorType {
+	ERROR,
+	INVALID_TOKEN_ERROR,
+	FILE_ERROR,
+	MULTIPLE_DEFINITION_ERROR,
+	UNRECOGNIZED_TOKEN_ERROR,
+	MISSING_TOKEN_ERROR,
+	INTERNAL_ERROR
+};
+enum WarnType {
+	WARN,
+};
 
-        Token* NULL_TOKEN = new Token("NULL", -1, -1);
+struct Token {
+	std::string string;
+	int location; // number of characters from the first character of the source code
+	int lineNumber;
 
-        /**
-         * The type of token that has been parsed from the source code.
-         */
-        enum ParsedTokenType {
-            TOKEN_GLOBAL_LABEL,
-            TOKEN_LOCAL_LABEL,
+	Token(std::string string, int location, int lineNumber) : 
+			string(string), location(location), lineNumber(lineNumber) {}
+	
+	std::string errorstring() {
+		return "\'" + string + "\' at line " + std::to_string(lineNumber);
+	}
+};
 
-            TOKEN_INSTRUCTION,
-            TOKEN_INSTRUCTION_OPERAND,
-
-            TOKEN_DIRECTIVE,
-            TOKEN_DIRECTIVE_OPERAND
-        };
-        
-
-        /**
-         * Base parsed token representing a token that has been parsed from the source code.
-         */
-        struct ParsedToken {
-            Token token;
-            ParsedTokenType type;
-            Word memoryAddress;
-            AddressingMode addressingMode;
-
-            ParsedToken(Token token, ParsedTokenType type) : token(token), type(type) {}
-            ParsedToken(Token token, ParsedTokenType type, Word memoryAddress) : 
-                    token(token), type(type), memoryAddress(memoryAddress) {}
-            ParsedToken(Token token, ParsedTokenType type, Word memoryAddress, AddressingMode addressingMode) : 
-                    token(token), type(type), memoryAddress(memoryAddress), addressingMode(addressingMode) {}
-
-            std::string stringifyMemoryAddress() {
-                return stringifyHex(memoryAddress);
-            }
-
-            std::string prettyStringifyMemoryAddress() {
-                return prettyStringifyValue(stringifyHex(memoryAddress));
-            }
-        };
+enum SegmentType {
+	TEXT,
+	DATA
+};
 
 
-        enum DirectiveType {
+struct Scope {
+	Scope* parent;
+};
+
+
+enum SymbolStatus {
+	SYMBOL_DEFINED_RAW,
+	SYMBOL_DEFINED_EVALUATED,
+	SYMBOL_UNDEFINED
+};
+
+enum SymbolValueType {
+	SYMBOL_VALUE_ABSOLUTE,
+	SYMBOL_VALUE_RELATIVE
+};
+
+struct Symbol {
+	SymbolStatus status;
+	SymbolValueType valuetype;
+	Word value;
+	std::string symbol;
+
+	/**
+	 * Defines a symbol that has a value and is already evaluated
+	 */
+	Symbol(std::string symbol, Word value, SymbolValueType valuetype) {
+		this->symbol = symbol;
+		this->status = SYMBOL_DEFINED_EVALUATED;
+		this->valuetype = valuetype;
+		this->value = value;
+	}
+
+	/**
+	 * Defines a symbol that has a value but is not yet evaluated
+	 */
+	Symbol(std::string symbol, SymbolValueType valuetype) {
+		this->symbol = symbol;
+		this->status = SYMBOL_DEFINED_RAW;
+		this->valuetype = valuetype;
+		this->value = 0;
+	}
+
+	/**
+	 * Defines a symbol that has no value associated with it yet.
+	 */
+	Symbol(std::string symbol) {
+		this->symbol = symbol;
+		this->status = SYMBOL_UNDEFINED;
+		this->valuetype = SYMBOL_VALUE_ABSOLUTE;
+		this->value = 0;
+	}
+};
+
+
+struct ObjectFile {
+	std::vector<Token> tokens;
+
+	std::map<std::string, Symbol> symbols;
+
+	ObjectFile(std::vector<Token> tokens) {
+		this->tokens = tokens;
+	}
+};
+
+
+enum DirectiveType {
             DATA, TEXT,
             OUTFILE,
             ORG,
@@ -120,289 +161,45 @@ class Assembler {
             {".print", PRINT}, {".printif", PRINTIF}, {".printnow", PRINTNOW}
         };
 
-        /**
-         * The type of segment of the program being assembled.
-         */
-        enum SegmentType {
-            DATA_SEGMENT,
-            TEXT_SEGMENT
-        };
 
-        /**
-         * Status of the assembler as it is assembling the source code.
-         */
-        enum AssemblerStatus {
-            STARTING,
-            TOKENIZING,
-            PARSING,
-            ASSEMBLING,
-            ASSEMBLED
-        };
+/**
+ * 
+ * .basm file
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * .binc file
+ * Acts like a header file. Contains information about constants, symbols (such as subroutine labels), and macros.
+ * 
+ * Can either be defined here or in a .basm file that includes this file.
+ * 	- Use * after directive to indicate that it is simply declared here, not defined with any specific value yet.
+ * 		- ex. .macro* add a,b
+ * 	- If a .basm file includes this file and has a definition for some symbol, constant, or macro that is declared
+ * 	  in the .binc file, the value of the definition in the .basm file will be mapped to the symbol, constant, or macro.
+ * 
+ * 
+ * 
+ */
+static bool debugOn = true;
+class Assembler {
+	public:
+		Assembler(std::vector<std::string> files);
 
-        struct Macro {
-            /**
-             * Name of the macro
-             */
-            std::string name;
-
-            /**
-             * Map of definitions by parameter count to their respective label name and
-             * token index of the start of the MACRO definition.
-             */
-            std::map<int, std::pair<std::vector<std::string>, int>> types;
-
-            Macro(std::string name) : name(name) {}
-        };
-
-        struct Repeat {
-            /**
-             * The token index of the first token to repeat
-             */
-            int tokenIndex;
-
-            /**
-             * The number of times to repeat the tokens
-             */
-            int count;
-
-            Repeat(int tokenIndex, int count) : tokenIndex(tokenIndex), count(count) {}
-        };
-
-        /**
-         * Represents information of a scope of block of code
-         */
-        struct Scope {
-            Scope* parent;
-
-            /**
-             * Starting address of the scope.
-             */
-            Word address;
-            
-            /**
-             * Local label definitions.
-             * Stores the value stored in the label.
-             */
-            std::map<std::string, Word> labels;
-            
-            /**
-             * Local macro definitions.
-             * Stores the token index of the MACRO directive.
-             */
-            std::map<std::string,Macro*> macros;
-
-            Scope() : parent(nullptr) {}
-            Scope(Scope* parent, Word address) : parent(parent), address(address) {}
-
-            std::string stringifyMemoryAddress() {
-                return stringifyHex(address);
-            }
-
-            std::string prettyStringifyMemoryAddress() {
-                return prettyStringifyValue(stringifyHex(address));
-            }
-        };
-
-        /**
-         * Store scope information from the previous pass through the tokens
-         * 
-         * Whenever a scope declaration is encountered on the second pass,
-         * the scope information is stored here.
-         */
-        std::map<Word, Scope*> scopeMap;
+	private:
+		std::vector<std::string> files;
+		std::map<std::string, ObjectFile*> objectFilesMap;
 
 
-        Assembler(AlienCPU& cpu, bool debugOn = false);
-        void assemble(std::string source);
-        void assembleFile(std::string filename);
-
-		void printMemoryMap();
-		void printParsedTokens();
-
-        inline static const std::string DEFAULT_OUTPUT_FILE = "A6502";
-        inline static const SegmentType DEFAULT_SEGMENT_TYPE = TEXT_SEGMENT;
-        inline static const Word DEFAULT_STARTING_ADDRESS = 0x0000;
-
-    private:
-        /**
-         * The AlienCPU to assemble the source code for and write the machine code to.
-         */
-        AlienCPU& cpu;
-        bool debugOn;
-
-        /**
-         * Current state of the assembler
-         */
-        AssemblerStatus status;
-
-        /**
-         * The file name to output the assembled binary to. Default is 'A6502.bin'.
-         */
-        std::string outputFile;
-
-        /**
-         * The source code currently or most recently being assembled.
-         */
-        std::string sourceCode;
+		void tokenize(std::string filename);
+		void parse(std::string filename);
+		void linker();
+		void assemble();
 
 
-        /**
-         * Tokenized source code
-         */
-        std::vector<Token> tokens;
-
-        /**
-         * Parsed tokens
-         */
-        std::vector<ParsedToken> parsedTokens;
-
-        /**
-         * Memory segments
-		 * 
-		 * TODO: These are virtual memory locations meaning $0 on the data segment
-		 * is not the same address of $0 on the text segment. The linker will need to
-		 * move these segments to the correct locations and convert the addresses
-		 * to the absolute addresses.
-         */
-        std::string segmentName;
-        SegmentType segmentType;
-        std::map<SegmentType,std::map<std::string,Word>> segments = {
-            {DATA_SEGMENT, {}},
-            {TEXT_SEGMENT, {}}
-        };
-
-        struct MemorySegment {
-            Word startAddress;
-            std::vector<Byte> bytes;
-
-            MemorySegment(Word startAddress) : startAddress(startAddress) {}
-            Word getEndAddress() {
-                return startAddress + bytes.size() - 1;
-            }
-
-            std::string stringifyStartAddress() {
-                return stringifyHex(startAddress);
-            }
-            
-            std::string prettyStringifyStartAddress() {
-                return prettyStringifyValue(stringifyHex(startAddress));
-            }
-
-            std::string stringifyEndAddress() {
-                return stringifyHex(getEndAddress());
-            }
-
-            std::string prettyStringifyEndAddress() {
-                return prettyStringifyValue(stringifyHex(getEndAddress()));
-            }
-        };
-
-        /**
-         * Program memory map. Stores all bytes currently written to memory.
-         * Maps the last written byte to a memory segment which is a continuous
-         * block of bytes ending at the last written byte.
-         */
-        std::map<Word,MemorySegment*> memoryMap;
-
-        /**
-         * Memory address the next bytes of the program will be written to.
-         */
-        Word currentProgramCounter;
-        /**
-         * Current Token being processed
-         */
-        int currentTokenI;
-
-        /**
-         * Scope of the file as a whole.
-         * Note, this is not the same as the global directive, which defines
-         * symbols to be used across all linked files.
-         */
-        Scope* globalScope = new Scope();
-
-        /**
-         * Current scope of the assembly process
-         */
-        Scope* currentScope = globalScope;
-
-		/**
-		 * Labels that have been marked as global.
-		 */
-		std::set<std::string> globalLabels;
-
-        /**
-         * Current repeats that are being processed.
-         * Should only be filled during the parsing phase. All repeat directives
-         * will be removed during the parsing phase so none should remain in
-         * the assembling phase.
-         */
-        std::stack<Repeat> repeatStack;
-
-
-        /**
-         * The type of error to print to the console. 
-         */
-        enum AssemblerError {
-            INTERNAL_ERROR,
-            FILE_ERROR,
-            MULTIPLE_DEFINITION_ERROR,
-            INVALID_TOKEN_ERROR,
-            UNRECOGNIZED_TOKEN_ERROR,
-            MISSING_TOKEN_ERROR,
-        };
-
-        /**
-         * The type of warning to print to the console.
-         */
-        enum AssemblerWarn {
-            WARN,
-        };
-        
-        /**
-         * The type of log message to print to the console.
-         */
-        enum AssemblerLog {
-            LOG,
-            LOG_TOKENIZING,
-            LOG_PARSING,
-            LOG_ASSEMBLING
-        };
-
-        void reset();
-
-        void tokenize();
-        void passTokens();
-        u64 parseValue(const std::string token);
-        AddressingMode getAddressingMode(Token tokenInstruction, Token token);
-        u64 evaluateExpression(Token token);
-
-        void defineLabel(std::string label, Word value, bool allowMultipleDefinitions = false);
-        void startScope();
-        void endScope();
-
-        std::string getStringToken(std::string token);
-
-        void writeToFile();
-        void writeByte(Byte value);
-        void writeTwoBytes(u16 value, bool lowEndian = true);
-        void writeWord(Word value, bool lowEndian = true);
-        void writeTwoWords(u64 value, bool lowEndian = true);
-        void writeBytes(u64 value, Byte bytes, bool lowEndian = true);
-
-        void error(AssemblerError error, const Token& currentToken, std::stringstream msg);
-        void warn(AssemblerWarn warn, std::stringstream msg);
-        void log(AssemblerLog log, std::stringstream msg);
-
-
-        // token processing
-        u64 EXPECT_PARSEDVALUE(u64 min, u64 max);
-        u64 EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max);
-        void EXPECT_OPERAND();
-        void EXPECT_NO_OPERAND();
-        bool HAS_OPERAND(bool requireSameLine = true);
-
-
-        // assembler directives
+		// assembler directives
         void DIR_DATA();
         void DIR_TEXT();
 
@@ -447,21 +244,6 @@ class Assembler {
         void DIR_MACEND();
         void DIR_INVOKE();
 
-        void DIR_ASSERT();
-        void DIR_ERROR();
-        void DIR_ERRORIF();
-        void DIR_IF();
-        void DIR_IFDEF();
-        void DIR_IFNDEF();
-        void DIR_ELSEIF();
-        void DIR_ELSEIFDEF();
-        void DIR_ELSEIFNDEF();
-        void DIR_ELSE();
-        void DIR_ENDIF();
-        void DIR_PRINT();
-        void DIR_PRINTIF();
-        void DIR_PRINTNOW();
-
         // helper directive functions
         void defineBytes(std::string token, Byte bytes, bool lowEndian);
 
@@ -487,17 +269,87 @@ class Assembler {
             {REQUIRE, &Assembler::DIR_REQUIRE},
             {SCOPE, &Assembler::DIR_SCOPE}, {SCEND, &Assembler::DIR_SCEND},
             {MACRO, &Assembler::DIR_MACRO}, {MACEND, &Assembler::DIR_MACEND}, 
-            {INVOKE, &Assembler::DIR_INVOKE},
-            {ASSERT, &Assembler::DIR_ASSERT}, {ERROR, &Assembler::DIR_ERROR}, 
-            {ERRORIF, &Assembler::DIR_ERRORIF},
-            {IFF, &Assembler::DIR_IF}, {IFDEF, &Assembler::DIR_IFDEF}, 
-            {IFNDEF, &Assembler::DIR_IFNDEF}, {ELSEIF, &Assembler::DIR_ELSEIF}, 
-            {ELSEIFDEF, &Assembler::DIR_ELSEIFDEF}, {ELSEIFNDEF, &Assembler::DIR_ELSEIFNDEF},
-            {ELSE, &Assembler::DIR_ELSE}, {ENDIF, &Assembler::DIR_ENDIF},
-            {PRINT, &Assembler::DIR_PRINT}, {PRINTIF, &Assembler::DIR_PRINTIF},
-            {PRINTNOW, &Assembler::DIR_PRINTNOW}
+            {INVOKE, &Assembler::DIR_INVOKE}
         };
 };
+
+
+
+
+/**
+ * 
+ */
+static void log(LoggerType type, std::stringstream msg) {
+	if (!debugOn) {
+        return;
+    }
+
+	std::string prefix;
+	switch(type) {
+        case LOG_TOKENIZER:
+            prefix = BOLD_BLUE + "[tokenizing]" + RESET;
+            break;
+        case LOG_PARSER:
+            prefix = BOLD_GREEN + "[parsing]" + RESET;
+            break;
+        case LOG_ASSEMBLER:
+            prefix = BOLD_MAGENTA + "[assembling]" + RESET;
+            break;
+		case LOG_LINKER:
+			prefix = BOLD_YELLOW + "[linking]" + RESET;
+        default:
+            prefix = BOLD_CYAN + "[log]" + RESET;
+    }
+
+    std::cout << prefix << " " << msg.str() << std::endl;
+}
+
+/**
+ * 
+ */
+static void error(ErrorType type, std::stringstream msg) {
+	std::string name;
+    switch(type) {
+        case INVALID_TOKEN_ERROR:
+            name = BOLD_RED + "[invalid_token]" + RESET;
+            break;
+        case FILE_ERROR:
+            name = BOLD_RED + "[file_error]" + RESET;
+            break;
+        case MULTIPLE_DEFINITION_ERROR:
+            name = BOLD_RED + "[multiple_definition]" + RESET;
+            break;
+        case UNRECOGNIZED_TOKEN_ERROR:
+            name = BOLD_RED + "[unrecognized_token]" + RESET;
+            break;
+        case MISSING_TOKEN_ERROR:
+            name = BOLD_YELLOW + "[missing_token]" + RESET;
+        case INTERNAL_ERROR:
+            name = BOLD_RED + "[internal_error]" + RESET;
+            break;
+        default:
+            name = BOLD_RED + "[error]" + RESET;
+    }
+
+	std::stringstream msgStream;
+	msgStream << name << " " << msg.str() << std::endl;
+	throw std::runtime_error(msgStream.str());
+}
+
+/**
+ * 
+ */
+static void warn(WarnType type, std::stringstream msg) {
+	std::string name;
+	switch(type) {
+		case WARN:
+		default:
+			name = BOLD_YELLOW + "[warn]" + RESET;
+	}
+
+	std::cout << name << " " << msg.str() << std::endl;
+}
+
 
 
 /**
@@ -573,14 +425,23 @@ static std::string tostring(std::vector<std::string>& strings) {
 }
 
 
-static std::string tostring(std::vector<Assembler::Token>& tokens) {
+/**
+ * Converts a vector of tokens into a single string.
+ * 
+ * Formats the string in the following way:
+ * [token1, token2, token3, ...]
+ * 
+ * @param tokens The vector of tokens to convert.
+ * @return A single string containing all of the tokens in the given vector.
+ */
+static std::string tostring(std::vector<Token>& tokens) {
     if (tokens.size() == 0) {
         return "[]";
     }
 
     std::string result = "[";
 
-    for (Assembler::Token token : tokens) {
+    for (Token token : tokens) {
         result += token.string + ", ";
     }
 
@@ -1000,6 +861,144 @@ static bool validInstruction(std::string& instruction, AddressingMode addressing
     return instructionMap.at(instruction).count(addressingMode) > 0;
 }
 
+/**
+ * Gets the addressing mode for the given processor instruction and operand.
+ * 
+ * @param instruction The processor instruction to get the addressing mode for.
+ * @param operand The operand to get the addressing mode for.
+ * @return The addressing mode for the given processor instruction and operand.
+ */
+static AddressingMode getAddressingMode(std::string instruction, std::string operand) {
+    if (operand.empty()) {
+		if (validInstruction(instruction, IMPLIED))
+        	return IMPLIED;
+		if (validInstruction(instruction, ACCUMULATOR))
+			return ACCUMULATOR;
+		return NO_ADDRESSING_MODE;
+    }
+
+	// check for immediate addressing mode
+	// must start with '#'
+	if (std::regex_match(operand, std::regex("#.+"))) {
+		if (validInstruction(instruction, IMMEDIATE)) {
+			return IMMEDIATE;
+		}
+		return NO_ADDRESSING_MODE;
+	}
+	
+
+	// check for indirect addressing mode
+	// must start with '(' and end with ')'
+	if (std::regex_match(operand, std::regex("\\(.+\\)"))) {
+		if (validInstruction(instruction, INDIRECT)) {
+			return INDIRECT;
+		}
+		return NO_ADDRESSING_MODE;
+	}
+
+	// check for x indexed indirect addressing mode
+	// must start with '(' and end with ',x)'
+	if (std::regex_match(operand, std::regex("\\(.+,x\\)"))) {
+		if (validInstruction(instruction, XINDEXED_INDIRECT)) {
+			return XINDEXED_INDIRECT;
+		}
+		return NO_ADDRESSING_MODE;
+	}
+
+	// check for indirect y indexed addressing mode
+	// must start with '(' and end with '),y'
+	if (std::regex_match(operand, std::regex("\\(.+\\),y"))) {
+		if (validInstruction(instruction, INDIRECT_YINDEXED)) {
+			return INDIRECT_YINDEXED;
+		}
+		return NO_ADDRESSING_MODE;
+	}
+
+	// check for zeropage or absolute x or y indexed addressing mode
+	// must end with ',x' or ',y
+	if (std::regex_match(operand, std::regex(".+,x")) || std::regex_match(operand, std::regex(".+,y"))) {
+		// check if we can extract a number from the operand,
+		// otherwise it is by default absolute
+		std::string operandWithoutIndex = operand.substr(0, operand.size() - 2);
+		if (isNumber(operandWithoutIndex)) {
+			// evaluate the number to ensure it is <= 0xFFFF (the zero page boundary)
+			u32 value = parseValue(operandWithoutIndex, false);
+			if (value <= 0xFFFF) {
+				if (operand.back() == 'x' && validInstruction(instruction, ZEROPAGE_XINDEXED)) {
+					return ZEROPAGE_XINDEXED;
+				} else if (operand.back() == 'y' && validInstruction(instruction, ZEROPAGE_YINDEXED)) {
+					return ZEROPAGE_YINDEXED;
+				}
+			}
+		}
+
+		// if the operand was an expression, there is a chance the value could be out of bounds
+		// but that check will happen when we begin assembling.
+		if (operand.back() == 'x' && validInstruction(instruction, ABSOLUTE_XINDEXED)) {
+			return ABSOLUTE_XINDEXED;
+		} else if (operand.back() == 'y' && validInstruction(instruction, ABSOLUTE_YINDEXED)) {
+			return ABSOLUTE_YINDEXED;
+		}
+		return NO_ADDRESSING_MODE;
+	}
+
+	// check for zeropage, absolute, or relative addressing mode
+	if (isNumber(operand)) {
+		// evaluate the number to ensure it is <= 0xFFFF (the zero page boundary)
+		u32 value = parseValue(operand, false);
+		if (value <= 0xFFFF && validInstruction(instruction, ZEROPAGE)) {
+			return ZEROPAGE;
+		}
+	} else if (validInstruction(instruction, RELATIVE)) {
+		return RELATIVE;
+	} else if (validInstruction(instruction, ABSOLUTE)) {
+		return ABSOLUTE;
+	}
+
+	return NO_ADDRESSING_MODE;
+}
+
+
+/**
+ * Extracts the value of a string operand.
+ * 
+ * @param operand The operand to extract the value from.
+ * @param allowExpressions Whether or not to allow expression evaluation in the operand.
+ * @return The value of the string operand.
+ */
+static u64 parseValue(std::string value, bool allowExpressions = true) {
+	if (value.empty()) {
+		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value from empty string");
+	}
+
+	// check if the value is a decimal number
+	if (std::regex_match(value, std::regex("[1-9][0-9]+"))) {
+		return std::stoull(value, nullptr, 10);
+	}
+
+	// check if the value is a hexadecimal number
+	if (std::regex_match(value, std::regex("$[0-9a-fA-F]+"))) {
+		return std::stoull(value.substr(1), nullptr, 16);
+	}
+
+	// check if the value is a binary number
+	if (std::regex_match(value, std::regex("%[01]+"))) {
+		return std::stoull(value.substr(1), nullptr, 2);
+	}
+
+	// check if the value is an octal number
+	if (std::regex_match(value, std::regex("0[0-7]+"))) {
+		return std::stoull(value.substr(1), nullptr, 8);
+	}
+
+	// else, this is an expression
+	if (!allowExpressions) {
+		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value, value is an expression: " << value);
+	}
+
+	// evaluate the expression. TODO:
+}
+
 
 /**
  * Gets the opcode for the given processor instruction and addressing mode.
@@ -1015,21 +1014,23 @@ static u8 getProcessorInstructionOpcode(std::string& instruction, AddressingMode
 
 
 /**
- * Check to make sure the filename only contains letters, numbers, spaces, parenthesis, underscores, 
- * dashes, commas, periods, or stars.
+ * Check to make sure the filename is valid
  * 
  * @param filename The filename to check for validity
  * @return true if the filename is valid, false otherwise
  */
 static bool isValidFilename(std::string filename) {
-    std::set<char> validChars = {' ', '(', ')', '_', '-', ',', '.', '*'};
-    for (char c : filename) {
-        if (!std::isalnum(c) && !validChars.count(c)) {
-            return false;
-        }
-    }
+    return filename.size() > 0 && std::regex_match(filename, std::regex(validFileNameRegex));
+}
 
-    return true;
+/**
+ * Check to make sure the token name is valid
+ * 
+ * @param tokenname The token name to check for validity
+ * @return true if the token name is valid, false otherwise
+ */
+static bool isValidLabelName(std::string tokenname) {
+	return tokenname.size() > 0 && std::regex_match(tokenname, std::regex(validLabelNameRegex));
 }
 
 /**
@@ -1038,9 +1039,17 @@ static bool isValidFilename(std::string filename) {
  * @param token The token to check
  * @return true if the token is a string operand, false otherwise
  */
-static bool isStringToken(std::string stringtoken) {
-    return stringtoken.size() >= 2 && stringtoken[0] == '"' && stringtoken[stringtoken.size() - 1] == '"';
+static bool isStringToken(std::string stringToken) {
+    return stringToken.size() >= 2 && stringToken[0] == '"' && stringToken[stringToken.size() - 1] == '"';
 }
 
+static std::string getStringToken(Token stringToken) {
+	if (!isStringToken(stringToken.string)) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << "Token is not a string token: " 
+				<< stringToken.string << " " << stringToken.errorstring());
+	}
+
+	return stringToken.string.substr(1, stringToken.string.size() - 2);
+}
 
 #endif // ASSEMBLER_H
