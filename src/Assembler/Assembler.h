@@ -55,8 +55,8 @@ struct Token {
 };
 
 enum SegmentType {
-	TEXT,
-	DATA
+	SEGMENT_TEXT,
+	SEGMENT_DATA
 };
 
 
@@ -126,40 +126,33 @@ struct ObjectFile {
 
 
 enum DirectiveType {
-            DATA, TEXT,
-            OUTFILE,
-            ORG,
-            DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
-            ASCII, ASCIZ,
-            ADVANCE, FILL, SPACE,
-            GLOBAL, EXTERN, DEFINE, SET,
-            CHECKPC, ALIGN,
-            INCBIN, INCLUDE, REQUIRE, 
-            SCOPE, SCEND, 
-            MACRO, MACEND, INVOKE,
-            ASSERT, ERROR, ERRORIF, 
-            IFF, IFDEF, IFNDEF, ELSEIF, ELSEIFDEF, ELSEIFNDEF, ELSE, ENDIF,
-            PRINT, PRINTIF, PRINTNOW
-        };
+	DATA, TEXT,
+	OUTFILE,
+	ORG,
+	DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
+	ASCII, ASCIZ,
+	ADVANCE, FILL, SPACE,
+	GLOBAL, EXTERN, DEFINE, SET,
+	CHECKPC, ALIGN,
+	INCBIN, INCLUDE, REQUIRE, 
+	SCOPE, SCEND, 
+	MACRO, MACEND, INVOKE
+};
 
-        std::map<std::string, DirectiveType> directiveMap = {
-            {".data", DATA}, {".text", TEXT},
-            {".outfile", OUTFILE},
-            {".org", ORG},
-            {".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
-            {".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
-            {".ascii", ASCII}, {".asciiz", ASCIZ},
-            {".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
-            {".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
-            {".checkpc", CHECKPC}, {".align", ALIGN},
-            {".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
-            {".scope", SCOPE}, {".scend", SCEND},
-            {".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE},
-            {".assert", ASSERT}, {".error", ERROR}, {".errorif", ERRORIF},
-            {".if", IFF}, {".ifdef", IFDEF}, {".ifndef", IFNDEF}, {".elseif", ELSEIF}, 
-            {".elseifdef", ELSEIFDEF}, {".elseifndef", ELSEIFNDEF}, {".else", ELSE}, {".endif", ENDIF},
-            {".print", PRINT}, {".printif", PRINTIF}, {".printnow", PRINTNOW}
-        };
+static std::map<std::string, DirectiveType> directiveMap = {
+	{".data", DATA}, {".text", TEXT},
+	{".outfile", OUTFILE},
+	{".org", ORG},
+	{".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
+	{".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
+	{".ascii", ASCII}, {".asciiz", ASCIZ},
+	{".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
+	{".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
+	{".checkpc", CHECKPC}, {".align", ALIGN},
+	{".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
+	{".scope", SCOPE}, {".scend", SCEND},
+	{".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE}
+};
 
 
 /**
@@ -861,6 +854,49 @@ static bool validInstruction(std::string& instruction, AddressingMode addressing
     return instructionMap.at(instruction).count(addressingMode) > 0;
 }
 
+
+/**
+ * Extracts the value of a string operand.
+ * 
+ * @param operand The operand to extract the value from.
+ * @param allowExpressions Whether or not to allow expression evaluation in the operand.
+ * @return The value of the string operand.
+ */
+static u64 parseValue(std::string value, bool allowExpressions = true) {
+	if (value.empty()) {
+		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value from empty string");
+	}
+
+	// check if the value is a decimal number
+	if (std::regex_match(value, std::regex("[1-9][0-9]+"))) {
+		return std::stoull(value, nullptr, 10);
+	}
+
+	// check if the value is a hexadecimal number
+	if (std::regex_match(value, std::regex("$[0-9a-fA-F]+"))) {
+		return std::stoull(value.substr(1), nullptr, 16);
+	}
+
+	// check if the value is a binary number
+	if (std::regex_match(value, std::regex("%[01]+"))) {
+		return std::stoull(value.substr(1), nullptr, 2);
+	}
+
+	// check if the value is an octal number
+	if (std::regex_match(value, std::regex("0[0-7]+"))) {
+		return std::stoull(value.substr(1), nullptr, 8);
+	}
+
+	// else, this is an expression
+	if (!allowExpressions) {
+		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value, value is an expression: " << value);
+	}
+
+	// evaluate the expression. TODO:
+	return 0;
+}
+
+
 /**
  * Gets the addressing mode for the given processor instruction and operand.
  * 
@@ -956,47 +992,6 @@ static AddressingMode getAddressingMode(std::string instruction, std::string ope
 	}
 
 	return NO_ADDRESSING_MODE;
-}
-
-
-/**
- * Extracts the value of a string operand.
- * 
- * @param operand The operand to extract the value from.
- * @param allowExpressions Whether or not to allow expression evaluation in the operand.
- * @return The value of the string operand.
- */
-static u64 parseValue(std::string value, bool allowExpressions = true) {
-	if (value.empty()) {
-		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value from empty string");
-	}
-
-	// check if the value is a decimal number
-	if (std::regex_match(value, std::regex("[1-9][0-9]+"))) {
-		return std::stoull(value, nullptr, 10);
-	}
-
-	// check if the value is a hexadecimal number
-	if (std::regex_match(value, std::regex("$[0-9a-fA-F]+"))) {
-		return std::stoull(value.substr(1), nullptr, 16);
-	}
-
-	// check if the value is a binary number
-	if (std::regex_match(value, std::regex("%[01]+"))) {
-		return std::stoull(value.substr(1), nullptr, 2);
-	}
-
-	// check if the value is an octal number
-	if (std::regex_match(value, std::regex("0[0-7]+"))) {
-		return std::stoull(value.substr(1), nullptr, 8);
-	}
-
-	// else, this is an expression
-	if (!allowExpressions) {
-		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value, value is an expression: " << value);
-	}
-
-	// evaluate the expression. TODO:
 }
 
 

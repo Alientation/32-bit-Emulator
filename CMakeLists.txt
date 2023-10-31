@@ -148,6 +148,7 @@ target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library 
 
 # NEW ASSEMBLER EXECUTABLE
 add_executable(Assembler "src/Assembler/Assembler.cpp")
+target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
 
 enable_testing() #to  discover tests in test explorer 
 
