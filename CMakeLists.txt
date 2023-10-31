@@ -22,6 +22,10 @@ file( GLOB ALIENCPU_SOURCES
 
     "src/AlienCPUAssembler.cpp"
     "src/AssemblerDirectives.cpp"
+
+    "src/Assembler/Assembler.cpp"
+    "src/Assembler/Directives.cpp"
+    "src/Assembler/Linker.cpp"
 )
 file (GLOB ALIENCPU_HEADERS 
     "src/AlienCPU/AlienCPU.h"
@@ -42,6 +46,9 @@ file (GLOB ALIENCPU_HEADERS
 
     "src/AlienCPUAssembler.h"
 
+    "src/Assembler/Assembler.h"
+    "src/Assembler/Linker.h"
+    
     "src/ConsoleColor.h"
 )
 

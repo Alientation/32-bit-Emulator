@@ -1,4 +1,4 @@
-#include "AlienCPUAssembler.h"
+#include "Assembler.h"
 
 #include <any>
 #include <iostream>
@@ -6,25 +6,25 @@
 
 int main() {
     AlienCPU cpu;
-    AlienCPUAssembler assembler(cpu, true);
+    Assembler assembler(cpu, true);
 
-    assembler.assembleFile("..\\src\\Assembly\\temp.basm");
+    assembler.assembleFile("..\\src\\Assembly\\temp.asm");
 }
 
 
 /**
- * Constructs a new AlienCPUAssembler for the given AlienCPU.
+ * Constructs a new Assembler for the given AlienCPU.
  * 
  * @param cpu The AlienCPU to assemble for.
  * @param debugOn Whether to print debug information.
  */
-AlienCPUAssembler::AlienCPUAssembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
+Assembler::Assembler(AlienCPU& cpu, bool debugOn) : cpu(cpu), debugOn(debugOn) {}
 
 
 /**
  * Resets the internal state of the assembler.
  */
-void AlienCPUAssembler::reset() {
+void Assembler::reset() {
     status = STARTING;
     outputFile = DEFAULT_OUTPUT_FILE;
     sourceCode.clear();
@@ -40,7 +40,7 @@ void AlienCPUAssembler::reset() {
 /**
  * Writes the tracked bytes to a binary file 
  */
-void AlienCPUAssembler::writeToFile() {
+void Assembler::writeToFile() {
     // for now, just print memory map
     printMemoryMap();
 
@@ -53,11 +53,11 @@ void AlienCPUAssembler::writeToFile() {
  * 
  * @param filename The name of the assembly file to assemble.
  */
-void AlienCPUAssembler::assembleFile(std::string filename) {
+void Assembler::assembleFile(std::string filename) {
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Reading File: " << filename << RESET);
 
     // read all characters from file to a string
-    if (split(filename, '.').back() != "basm") {
+    if (split(filename, '.').back() != "asm") {
         error(FILE_ERROR, *NULL_TOKEN, std::stringstream() << "Unrecognized File Extension: " << split(filename, '.').back());
     }
 
@@ -91,7 +91,7 @@ void AlienCPUAssembler::assembleFile(std::string filename) {
  * 
  * @param source The assembly source code to assemble into machine code.
  */
-void AlienCPUAssembler::assemble(std::string source) {
+void Assembler::assemble(std::string source) {
     log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Assembling..." << RESET);
 
     // reset assembler state to be ready for a new assembly
@@ -152,7 +152,7 @@ void AlienCPUAssembler::assemble(std::string source) {
  * @throws INVALID_TOKEN_ERROR if the label name is invalid.
  * @throws MULTIPLE_DEFINITION_ERROR if the label is already defined in the current scope.
  */
-void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allowMultipleDefinitions) {
+void Assembler::defineLabel(std::string labelName, Word value, bool allowMultipleDefinitions) {
 	// check that label name only contains alphanumeric characters and '_' and is not empty
 	if (labelName.empty()) {
 		error(INVALID_TOKEN_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid Label Name: " << labelName);
@@ -193,7 +193,7 @@ void AlienCPUAssembler::defineLabel(std::string labelName, Word value, bool allo
  * @throws INTERNAL_ERROR if the assembler is not in the parsing phase.
  * @throws MULTIPLE_DEFINITION_ERROR if the scope is already defined at the current program counter.
  */
-void AlienCPUAssembler::startScope() {
+void Assembler::startScope() {
     // check if first pass
     if (status == PARSING) {
         Scope* localScope = new Scope(currentScope, currentProgramCounter);
@@ -221,7 +221,7 @@ void AlienCPUAssembler::startScope() {
  * 
  * @throws INVALID_TOKEN_ERROR if the current scope has no parent scope.
  */
-void AlienCPUAssembler::endScope() {
+void Assembler::endScope() {
     // check if the current scope has no parent scope. This means we are at the global scope which has
     // no parent scope.
     if (currentScope->parent == nullptr) {
@@ -243,7 +243,7 @@ void AlienCPUAssembler::endScope() {
  * @throws MISSING_TOKEN_ERROR if the assembler encounters a missing token.
  * @throws INVALID_TOKEN_ERROR if the assembler encounters an invalid token.
  */
-void AlienCPUAssembler::passTokens() {
+void Assembler::passTokens() {
     // memory segment currently writing to
     segmentName = "";
     segmentType = TEXT_SEGMENT;
@@ -382,7 +382,7 @@ void AlienCPUAssembler::passTokens() {
  * @param token The token to evaluate the expression of
  * @return The value of the expression
  */
-u64 AlienCPUAssembler::evaluateExpression(Token token) {
+u64 Assembler::evaluateExpression(Token token) {
     // TODO: complete this please
 
 
@@ -400,7 +400,7 @@ u64 AlienCPUAssembler::evaluateExpression(Token token) {
  * @throws INVALID_TOKEN_ERROR if the token operand is invalid
  * @throws UNRECOGNIZED_TOKEN_ERROR if the token operand is unrecognized
  */
-u64 AlienCPUAssembler::parseValue(const std::string token) {
+u64 Assembler::parseValue(const std::string token) {
     if (token.empty()) {
         error(INTERNAL_ERROR, tokens[currentTokenI], std::stringstream() << "Invalid empty value to parse: " << token);
     }
@@ -525,7 +525,7 @@ u64 AlienCPUAssembler::parseValue(const std::string token) {
  * @throws MISSING_TOKEN_ERROR if a multi line comment is not closed by '*;'
  * @throws INTERNAL_ERROR if the current token has not been processed
  */
-void AlienCPUAssembler::tokenize() {
+void Assembler::tokenize() {
     log(LOG_TOKENIZING, std::stringstream() << BOLD << BOLD_WHITE << "Tokenizing Source Code" << RESET);
     
     // current token being constructed
@@ -648,7 +648,7 @@ void AlienCPUAssembler::tokenize() {
  * @param tokenOperand The operand to convert.
  * @return The addressing mode of the given operand.
  */
-AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Token tokenOperand) {
+AddressingMode Assembler::getAddressingMode(Token tokenInstruction, Token tokenOperand) {
     std::string operand = tokenOperand.string;
     if (operand.empty()) {
         // error(ERROR, tokenOperand, std::stringstream() << "Invalid operand to convert: " << operand);
@@ -774,7 +774,7 @@ AddressingMode AlienCPUAssembler::getAddressingMode(Token tokenInstruction, Toke
  * @param currentToken The token that caused the error
  * @param msg The message to display with the error
  */
-void AlienCPUAssembler::error(AssemblerError error, const Token& currentToken, std::stringstream msg) {
+void Assembler::error(AssemblerError error, const Token& currentToken, std::stringstream msg) {
     std::string name;
     switch(error) {
         case INVALID_TOKEN_ERROR:
@@ -818,7 +818,7 @@ void AlienCPUAssembler::error(AssemblerError error, const Token& currentToken, s
  * @param warn The type of warning to display
  * @param msg The message to display with the warning
  */
-void AlienCPUAssembler::warn(AssemblerWarn warn, std::stringstream msg) {
+void Assembler::warn(AssemblerWarn warn, std::stringstream msg) {
 	std::string name;
 	switch(warn) {
 		case WARN:
@@ -836,7 +836,7 @@ void AlienCPUAssembler::warn(AssemblerWarn warn, std::stringstream msg) {
  * @param log The type of log to display
  * @param msg The message to display with the log
  */
-void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
+void Assembler::log(AssemblerLog log, std::stringstream msg) {
     if (!debugOn) {
         return;
     }
@@ -864,7 +864,7 @@ void AlienCPUAssembler::log(AssemblerLog log, std::stringstream msg) {
 /**
  * Prints all memory segments in the memory map in ascending order.
  */
-void AlienCPUAssembler::printMemoryMap() {
+void Assembler::printMemoryMap() {
 	log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Printing Memory Map");
 	
 	// print out each memory segmentsegment
@@ -891,7 +891,7 @@ void AlienCPUAssembler::printMemoryMap() {
 /**
  * Prints all parsed tokens and their associated memory address.
  */
-void AlienCPUAssembler::printParsedTokens() {
+void Assembler::printParsedTokens() {
 	for (ParsedToken& parsedToken : parsedTokens) {
         if (parsedToken.type == TOKEN_INSTRUCTION) {
             std::cout << "[" << parsedToken.prettyStringifyMemoryAddress() << "]\t" << parsedToken.token.string 
@@ -913,7 +913,7 @@ void AlienCPUAssembler::printParsedTokens() {
  * @param token The token to extract the string operand from
  * @return The string operand
  */
-std::string AlienCPUAssembler::getStringToken(std::string token) {
+std::string Assembler::getStringToken(std::string token) {
     if (!isStringToken(token)) {
         error(INTERNAL_ERROR, *NULL_TOKEN, std::stringstream() << "Invalid string token: " << token);
     }
@@ -927,7 +927,7 @@ std::string AlienCPUAssembler::getStringToken(std::string token) {
  * 
  * @param value The value to write to the file
  */
-void AlienCPUAssembler::writeByte(Byte value) {
+void Assembler::writeByte(Byte value) {
     // Don't write if not assembling
     if (status != ASSEMBLING) {
         currentProgramCounter++;
@@ -996,7 +996,7 @@ void AlienCPUAssembler::writeByte(Byte value) {
  * @param value The value to write to the file
  * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
  */
-void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
+void Assembler::writeTwoBytes(u16 value, bool lowEndian) {
     writeBytes(value, 2, lowEndian);
 }
 
@@ -1006,7 +1006,7 @@ void AlienCPUAssembler::writeTwoBytes(u16 value, bool lowEndian) {
  * @param value The value to write to the file
  * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
  */
-void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
+void Assembler::writeWord(Word value, bool lowEndian) {
     writeBytes(value, 4, lowEndian);
 }
 
@@ -1016,7 +1016,7 @@ void AlienCPUAssembler::writeWord(Word value, bool lowEndian) {
  * @param value The value to write to the file
  * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
  */
-void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
+void Assembler::writeTwoWords(u64 value, bool lowEndian) {
     writeBytes(value, 8, lowEndian);
 }
 
@@ -1027,7 +1027,7 @@ void AlienCPUAssembler::writeTwoWords(u64 value, bool lowEndian) {
  * @param bytes The number of bytes to write
  * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
  */
-void AlienCPUAssembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
+void Assembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
     if (bytes > 8) {
         error(INTERNAL_ERROR, *NULL_TOKEN, std::stringstream() << "Cannot write more than 8 bytes");
     } else if (bytes == 0) {

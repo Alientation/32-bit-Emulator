@@ -1,5 +1,5 @@
-#ifndef ALIENCPUASSEMBLER_H
-#define ALIENCPUASSEMBLER_H
+#ifndef ASSEMBLER_H
+#define ASSEMBLER_H
 
 #include <string>
 #include <map>
@@ -9,7 +9,7 @@
 #include <../src/Motherboard/AlienCPU.h>
 #include <../src/ConsoleColor.h>
 
-class AlienCPUAssembler;
+class Assembler;
 
 
 /**
@@ -28,7 +28,7 @@ class AlienCPUAssembler;
  * 
  * 
  */
-class AlienCPUAssembler {
+class Assembler {
     public:
         /**
          * An unparsed token that has been extracted from the source code.
@@ -212,7 +212,7 @@ class AlienCPUAssembler {
         std::map<Word, Scope*> scopeMap;
 
 
-        AlienCPUAssembler(AlienCPU& cpu, bool debugOn = false);
+        Assembler(AlienCPU& cpu, bool debugOn = false);
         void assemble(std::string source);
         void assembleFile(std::string filename);
 
@@ -324,6 +324,11 @@ class AlienCPUAssembler {
          * Current scope of the assembly process
          */
         Scope* currentScope = globalScope;
+
+		/**
+		 * Labels that have been marked as global.
+		 */
+		std::set<std::string> globalLabels;
 
         /**
          * Current repeats that are being processed.
@@ -463,34 +468,34 @@ class AlienCPUAssembler {
         /**
          * Map of directive types to their respective processing functions.
          */
-        typedef void (AlienCPUAssembler::*DirectiveFunction)();
+        typedef void (Assembler::*DirectiveFunction)();
         std::map<DirectiveType,DirectiveFunction> processDirective = {
-            {DATA, &AlienCPUAssembler::DIR_DATA}, {TEXT, &AlienCPUAssembler::DIR_TEXT},
-            {OUTFILE, &AlienCPUAssembler::DIR_OUTFILE},
-            {ORG, &AlienCPUAssembler::DIR_ORG},
-            {DB_LO, &AlienCPUAssembler::DIR_DB_LO}, {D2B_LO, &AlienCPUAssembler::DIR_D2B_LO}, 
-            {DW_LO, &AlienCPUAssembler::DIR_DW_LO}, {D2W_LO, &AlienCPUAssembler::DIR_D2W_LO},
-            {DB_HI, &AlienCPUAssembler::DIR_DB_HI}, {D2B_HI, &AlienCPUAssembler::DIR_D2B_HI}, 
-            {DW_HI, &AlienCPUAssembler::DIR_DW_HI}, {D2W_HI, &AlienCPUAssembler::DIR_D2W_HI},
-            {ASCII, &AlienCPUAssembler::DIR_ASCII}, {ASCIZ, &AlienCPUAssembler::DIR_ASCIZ},
-            {ADVANCE, &AlienCPUAssembler::DIR_ADVANCE}, {FILL, &AlienCPUAssembler::DIR_FILL}, 
-            {SPACE, &AlienCPUAssembler::DIR_SPACE},
-            {GLOBAL, &AlienCPUAssembler::DIR_GLOBAL}, {EXTERN, &AlienCPUAssembler::DIR_EXTERN},
-            {DEFINE, &AlienCPUAssembler::DIR_DEFINE}, {SET, &AlienCPUAssembler::DIR_SET},
-            {CHECKPC, &AlienCPUAssembler::DIR_CHECKPC}, {ALIGN, &AlienCPUAssembler::DIR_ALIGN},
-            {INCBIN, &AlienCPUAssembler::DIR_INCBIN}, {INCLUDE, &AlienCPUAssembler::DIR_INCLUDE}, 
-            {REQUIRE, &AlienCPUAssembler::DIR_REQUIRE},
-            {SCOPE, &AlienCPUAssembler::DIR_SCOPE}, {SCEND, &AlienCPUAssembler::DIR_SCEND},
-            {MACRO, &AlienCPUAssembler::DIR_MACRO}, {MACEND, &AlienCPUAssembler::DIR_MACEND}, 
-            {INVOKE, &AlienCPUAssembler::DIR_INVOKE},
-            {ASSERT, &AlienCPUAssembler::DIR_ASSERT}, {ERROR, &AlienCPUAssembler::DIR_ERROR}, 
-            {ERRORIF, &AlienCPUAssembler::DIR_ERRORIF},
-            {IFF, &AlienCPUAssembler::DIR_IF}, {IFDEF, &AlienCPUAssembler::DIR_IFDEF}, 
-            {IFNDEF, &AlienCPUAssembler::DIR_IFNDEF}, {ELSEIF, &AlienCPUAssembler::DIR_ELSEIF}, 
-            {ELSEIFDEF, &AlienCPUAssembler::DIR_ELSEIFDEF}, {ELSEIFNDEF, &AlienCPUAssembler::DIR_ELSEIFNDEF},
-            {ELSE, &AlienCPUAssembler::DIR_ELSE}, {ENDIF, &AlienCPUAssembler::DIR_ENDIF},
-            {PRINT, &AlienCPUAssembler::DIR_PRINT}, {PRINTIF, &AlienCPUAssembler::DIR_PRINTIF},
-            {PRINTNOW, &AlienCPUAssembler::DIR_PRINTNOW}
+            {DATA, &Assembler::DIR_DATA}, {TEXT, &Assembler::DIR_TEXT},
+            {OUTFILE, &Assembler::DIR_OUTFILE},
+            {ORG, &Assembler::DIR_ORG},
+            {DB_LO, &Assembler::DIR_DB_LO}, {D2B_LO, &Assembler::DIR_D2B_LO}, 
+            {DW_LO, &Assembler::DIR_DW_LO}, {D2W_LO, &Assembler::DIR_D2W_LO},
+            {DB_HI, &Assembler::DIR_DB_HI}, {D2B_HI, &Assembler::DIR_D2B_HI}, 
+            {DW_HI, &Assembler::DIR_DW_HI}, {D2W_HI, &Assembler::DIR_D2W_HI},
+            {ASCII, &Assembler::DIR_ASCII}, {ASCIZ, &Assembler::DIR_ASCIZ},
+            {ADVANCE, &Assembler::DIR_ADVANCE}, {FILL, &Assembler::DIR_FILL}, 
+            {SPACE, &Assembler::DIR_SPACE},
+            {GLOBAL, &Assembler::DIR_GLOBAL}, {EXTERN, &Assembler::DIR_EXTERN},
+            {DEFINE, &Assembler::DIR_DEFINE}, {SET, &Assembler::DIR_SET},
+            {CHECKPC, &Assembler::DIR_CHECKPC}, {ALIGN, &Assembler::DIR_ALIGN},
+            {INCBIN, &Assembler::DIR_INCBIN}, {INCLUDE, &Assembler::DIR_INCLUDE}, 
+            {REQUIRE, &Assembler::DIR_REQUIRE},
+            {SCOPE, &Assembler::DIR_SCOPE}, {SCEND, &Assembler::DIR_SCEND},
+            {MACRO, &Assembler::DIR_MACRO}, {MACEND, &Assembler::DIR_MACEND}, 
+            {INVOKE, &Assembler::DIR_INVOKE},
+            {ASSERT, &Assembler::DIR_ASSERT}, {ERROR, &Assembler::DIR_ERROR}, 
+            {ERRORIF, &Assembler::DIR_ERRORIF},
+            {IFF, &Assembler::DIR_IF}, {IFDEF, &Assembler::DIR_IFDEF}, 
+            {IFNDEF, &Assembler::DIR_IFNDEF}, {ELSEIF, &Assembler::DIR_ELSEIF}, 
+            {ELSEIFDEF, &Assembler::DIR_ELSEIFDEF}, {ELSEIFNDEF, &Assembler::DIR_ELSEIFNDEF},
+            {ELSE, &Assembler::DIR_ELSE}, {ENDIF, &Assembler::DIR_ENDIF},
+            {PRINT, &Assembler::DIR_PRINT}, {PRINTIF, &Assembler::DIR_PRINTIF},
+            {PRINTNOW, &Assembler::DIR_PRINTNOW}
         };
 };
 
@@ -568,14 +573,14 @@ static std::string tostring(std::vector<std::string>& strings) {
 }
 
 
-static std::string tostring(std::vector<AlienCPUAssembler::Token>& tokens) {
+static std::string tostring(std::vector<Assembler::Token>& tokens) {
     if (tokens.size() == 0) {
         return "[]";
     }
 
     std::string result = "[";
 
-    for (AlienCPUAssembler::Token token : tokens) {
+    for (Assembler::Token token : tokens) {
         result += token.string + ", ";
     }
 
@@ -1038,4 +1043,4 @@ static bool isStringToken(std::string stringtoken) {
 }
 
 
-#endif // ALIENCPUASSEMBLER_H
+#endif // ASSEMBLER_H
