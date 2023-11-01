@@ -41,6 +41,35 @@ enum WarnType {
 	WARN,
 };
 
+enum DirectiveType {
+	DATA, TEXT,
+	OUTFILE, END,
+	ORG_RELATIVE, ORG_ABSOLUTE,
+	DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
+	ASCII, ASCIZ,
+	ADVANCE, FILL, SPACE,
+	GLOBAL, EXTERN, DEFINE, SET,
+	CHECKPC, ALIGN,
+	INCBIN, INCLUDE, REQUIRE, 
+	SCOPE, SCEND, 
+	MACRO, MACEND, INVOKE
+};
+
+static std::map<std::string, DirectiveType> directiveMap = {
+	{".data", DATA}, {".text", TEXT},
+	{".outfile", OUTFILE}, {".end", END},
+	{".org", ORG_RELATIVE}, {"org*", ORG_ABSOLUTE},
+	{".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
+	{".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
+	{".ascii", ASCII}, {".asciiz", ASCIZ},
+	{".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
+	{".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
+	{".checkpc", CHECKPC}, {".align", ALIGN},
+	{".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
+	{".scope", SCOPE}, {".scend", SCEND},
+	{".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE}
+};
+
 struct Token {
 	std::string string;
 	int location; // number of characters from the first character of the source code
@@ -59,11 +88,28 @@ enum SegmentType {
 	SEGMENT_DATA
 };
 
+struct Segment {
+	SegmentType type;
+	std::string name;
+	Word programCounter;
 
-struct Scope {
-	Scope* parent;
+	Segment(SegmentType type, std::string name) : type(type), name(name), programCounter(0) {}
 };
 
+
+struct Macro {
+	std::string name;
+	std::map<int, std::pair<std::vector<std::string>, int>> macros;
+
+	Macro(std::string name) : name(name) {}
+};
+
+
+enum SymbolType {
+	SYMBOL_CONSTANT,
+	SYMBOL_LABEL,
+	SYMBOL_MACRO
+};
 
 enum SymbolStatus {
 	SYMBOL_DEFINED_RAW,
@@ -77,103 +123,70 @@ enum SymbolValueType {
 };
 
 struct Symbol {
+	std::string symbol;
+	SymbolType type;
 	SymbolStatus status;
 	SymbolValueType valuetype;
 	Word value;
-	std::string symbol;
+	
 
 	/**
 	 * Defines a symbol that has a value and is already evaluated
 	 */
-	Symbol(std::string symbol, Word value, SymbolValueType valuetype) {
-		this->symbol = symbol;
-		this->status = SYMBOL_DEFINED_EVALUATED;
-		this->valuetype = valuetype;
-		this->value = value;
-	}
+	Symbol(std::string symbol, SymbolType type, Word value, SymbolValueType valuetype) : 
+			symbol(symbol), type(type), value(value), valuetype(valuetype), status(SYMBOL_DEFINED_EVALUATED) {}
 
 	/**
 	 * Defines a symbol that has a value but is not yet evaluated
 	 */
-	Symbol(std::string symbol, SymbolValueType valuetype) {
-		this->symbol = symbol;
-		this->status = SYMBOL_DEFINED_RAW;
-		this->valuetype = valuetype;
-		this->value = 0;
-	}
+	Symbol(std::string symbol, SymbolType type, SymbolValueType valuetype) : 
+			symbol(symbol), type(type), valuetype(valuetype), status(SYMBOL_DEFINED_RAW) {}
 
 	/**
 	 * Defines a symbol that has no value associated with it yet.
 	 */
-	Symbol(std::string symbol) {
-		this->symbol = symbol;
-		this->status = SYMBOL_UNDEFINED;
-		this->valuetype = SYMBOL_VALUE_ABSOLUTE;
-		this->value = 0;
+	Symbol(std::string symbol, SymbolType type) : 
+			symbol(symbol), type(type), status(SYMBOL_UNDEFINED) {}
+};
+
+
+struct MemorySegment {
+	Word startAddress;
+	std::vector<Byte> bytes;
+
+	MemorySegment(Word startAddress) : startAddress(startAddress) {}
+	Word getEndAddress() {
+		return startAddress + bytes.size() - 1;
 	}
+};
+
+
+struct Scope {
+	Scope* parent;
+
+	std::map<std::string, Symbol*> symbols;
+	std::map<std::string, Macro*> macros;
+
+	Scope() : parent(nullptr) {}
+	Scope(Scope* parent) : parent(parent) {}
 };
 
 
 struct ObjectFile {
 	std::vector<Token> tokens;
 
-	std::map<std::string, Symbol> symbols;
+	Scope* filescope;
+	std::map<Word, MemorySegment*> relativeMemoryMap;
+	std::map<Word, MemorySegment*> absoluteMemoryMap;
+	std::map<SegmentType, std::map<std::string, Segment*>> segmentMap;
 
-	ObjectFile(std::vector<Token> tokens) {
-		this->tokens = tokens;
+	ObjectFile(std::vector<Token> tokens) : tokens(tokens) {
+		filescope = new Scope();
 	}
 };
 
 
-enum DirectiveType {
-	DATA, TEXT,
-	OUTFILE,
-	ORG,
-	DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
-	ASCII, ASCIZ,
-	ADVANCE, FILL, SPACE,
-	GLOBAL, EXTERN, DEFINE, SET,
-	CHECKPC, ALIGN,
-	INCBIN, INCLUDE, REQUIRE, 
-	SCOPE, SCEND, 
-	MACRO, MACEND, INVOKE
-};
-
-static std::map<std::string, DirectiveType> directiveMap = {
-	{".data", DATA}, {".text", TEXT},
-	{".outfile", OUTFILE},
-	{".org", ORG},
-	{".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
-	{".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
-	{".ascii", ASCII}, {".asciiz", ASCIZ},
-	{".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
-	{".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
-	{".checkpc", CHECKPC}, {".align", ALIGN},
-	{".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
-	{".scope", SCOPE}, {".scend", SCEND},
-	{".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE}
-};
-
-
 /**
- * 
- * .basm file
- * 
- * 
- * 
- * 
- * 
- * 
- * .binc file
- * Acts like a header file. Contains information about constants, symbols (such as subroutine labels), and macros.
- * 
- * Can either be defined here or in a .basm file that includes this file.
- * 	- Use * after directive to indicate that it is simply declared here, not defined with any specific value yet.
- * 		- ex. .macro* add a,b
- * 	- If a .basm file includes this file and has a definition for some symbol, constant, or macro that is declared
- * 	  in the .binc file, the value of the definition in the .basm file will be mapped to the symbol, constant, or macro.
- * 
- * 
  * 
  */
 static bool debugOn = true;
@@ -197,8 +210,10 @@ class Assembler {
         void DIR_TEXT();
 
         void DIR_OUTFILE();
+		void DIR_END();
 
-        void DIR_ORG();
+        void DIR_ORG_RELATIVE();
+		void DIR_ORG_ABSOLUTE();
 
         void DIR_DB_LO();
         void DIR_D2B_LO();
@@ -228,9 +243,6 @@ class Assembler {
         void DIR_INCLUDE();
         void DIR_REQUIRE();
 
-        void DIR_REPEAT();
-        void DIR_REND();
-
         void DIR_SCOPE();
         void DIR_SCEND();
         void DIR_MACRO();
@@ -247,7 +259,7 @@ class Assembler {
         std::map<DirectiveType,DirectiveFunction> processDirective = {
             {DATA, &Assembler::DIR_DATA}, {TEXT, &Assembler::DIR_TEXT},
             {OUTFILE, &Assembler::DIR_OUTFILE},
-            {ORG, &Assembler::DIR_ORG},
+            {ORG_RELATIVE, &Assembler::DIR_ORG_RELATIVE},
             {DB_LO, &Assembler::DIR_DB_LO}, {D2B_LO, &Assembler::DIR_D2B_LO}, 
             {DW_LO, &Assembler::DIR_DW_LO}, {D2W_LO, &Assembler::DIR_D2W_LO},
             {DB_HI, &Assembler::DIR_DB_HI}, {D2B_HI, &Assembler::DIR_D2B_HI}, 

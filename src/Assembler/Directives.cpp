@@ -13,7 +13,32 @@ void Assembler::DIR_OUTFILE() {
 
 }
 
-void Assembler::DIR_ORG() {
+void Assembler::DIR_END() {
+
+}
+
+/**
+ * Sets the current relative program counter to the specified value (relative to the start of the current section).
+ * This means that this section of program memory could be moved around by the linker or loader.
+ * 
+ * USAGE: .org value
+ * 
+ * The value must be either a numeric constant defined in the current file or a label
+ * defined in the current file. The value must be a 32-bit value.
+ */
+void Assembler::DIR_ORG_RELATIVE() {
+
+}
+
+/**
+ * Sets the current absolute program counter to the specified value.
+ * This means that this section of program memory cannot be moved around.
+ * 
+ * USAGE: .org value
+ * 
+ * The value operand must be a 32-bit number. It cannot be a referenced label.
+ */
+void Assembler::DIR_ORG_ABSOLUTE() {
 
 }
 
@@ -106,14 +131,6 @@ void Assembler::DIR_INCLUDE() {
 }
 
 void Assembler::DIR_REQUIRE() {
-
-}
-
-void Assembler::DIR_REPEAT() {
-
-}
-
-void Assembler::DIR_REND() {
 
 }
 
