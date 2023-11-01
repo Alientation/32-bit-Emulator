@@ -43,29 +43,29 @@ enum WarnType {
 
 enum DirectiveType {
 	DATA, TEXT,
-	OUTFILE, END,
+	END,
 	ORG_RELATIVE, ORG_ABSOLUTE,
 	DB_LO, D2B_LO, DW_LO, D2W_LO, DB_HI, D2B_HI, DW_HI, D2W_HI,
 	ASCII, ASCIZ,
 	ADVANCE, FILL, SPACE,
-	GLOBAL, EXTERN, DEFINE, SET,
+	GLOBAL, EXTERN, EQU,
 	CHECKPC, ALIGN,
-	INCBIN, INCLUDE, REQUIRE, 
+	INCLUDE, 
 	SCOPE, SCEND, 
 	MACRO, MACEND, INVOKE
 };
 
 static std::map<std::string, DirectiveType> directiveMap = {
 	{".data", DATA}, {".text", TEXT},
-	{".outfile", OUTFILE}, {".end", END},
+	{".end", END},
 	{".org", ORG_RELATIVE}, {"org*", ORG_ABSOLUTE},
 	{".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
 	{".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
 	{".ascii", ASCII}, {".asciiz", ASCIZ},
 	{".advance", ADVANCE}, {".fill", FILL}, {".space", SPACE},
-	{".global", GLOBAL}, {".extern", EXTERN}, {".define", DEFINE}, {".set", SET},
+	{".global", GLOBAL}, {".extern", EXTERN}, {".define", EQU},
 	{".checkpc", CHECKPC}, {".align", ALIGN},
-	{".incbin", INCBIN}, {".include", INCLUDE}, {".require", REQUIRE},
+	{".include", INCLUDE},
 	{".scope", SCOPE}, {".scend", SCEND},
 	{".macro", MACRO}, {".macend", MACEND}, {".invoke", INVOKE}
 };
@@ -83,6 +83,16 @@ struct Token {
 	}
 };
 
+struct MemorySegment {
+	Word startAddress;
+	std::vector<Byte> bytes;
+
+	MemorySegment(Word startAddress) : startAddress(startAddress) {}
+	Word getEndAddress() {
+		return startAddress + bytes.size() - 1;
+	}
+};
+
 enum SegmentType {
 	SEGMENT_TEXT,
 	SEGMENT_DATA
@@ -92,6 +102,9 @@ struct Segment {
 	SegmentType type;
 	std::string name;
 	Word programCounter;
+
+	std::map<Word, MemorySegment*> relativeMemoryMap;
+	std::map<Word, MemorySegment*> absoluteMemoryMap;
 
 	Segment(SegmentType type, std::string name) : type(type), name(name), programCounter(0) {}
 };
@@ -104,12 +117,6 @@ struct Macro {
 	Macro(std::string name) : name(name) {}
 };
 
-
-enum SymbolType {
-	SYMBOL_CONSTANT,
-	SYMBOL_LABEL,
-	SYMBOL_MACRO
-};
 
 enum SymbolStatus {
 	SYMBOL_DEFINED_RAW,
@@ -124,7 +131,6 @@ enum SymbolValueType {
 
 struct Symbol {
 	std::string symbol;
-	SymbolType type;
 	SymbolStatus status;
 	SymbolValueType valuetype;
 	Word value;
@@ -133,31 +139,20 @@ struct Symbol {
 	/**
 	 * Defines a symbol that has a value and is already evaluated
 	 */
-	Symbol(std::string symbol, SymbolType type, Word value, SymbolValueType valuetype) : 
-			symbol(symbol), type(type), value(value), valuetype(valuetype), status(SYMBOL_DEFINED_EVALUATED) {}
+	Symbol(std::string symbol, Word value, SymbolValueType valuetype) : 
+			symbol(symbol), value(value), valuetype(valuetype), status(SYMBOL_DEFINED_EVALUATED) {}
 
 	/**
 	 * Defines a symbol that has a value but is not yet evaluated
 	 */
-	Symbol(std::string symbol, SymbolType type, SymbolValueType valuetype) : 
-			symbol(symbol), type(type), valuetype(valuetype), status(SYMBOL_DEFINED_RAW) {}
+	Symbol(std::string symbol, SymbolValueType valuetype) : 
+			symbol(symbol), valuetype(valuetype), status(SYMBOL_DEFINED_RAW) {}
 
 	/**
 	 * Defines a symbol that has no value associated with it yet.
 	 */
-	Symbol(std::string symbol, SymbolType type) : 
-			symbol(symbol), type(type), status(SYMBOL_UNDEFINED) {}
-};
-
-
-struct MemorySegment {
-	Word startAddress;
-	std::vector<Byte> bytes;
-
-	MemorySegment(Word startAddress) : startAddress(startAddress) {}
-	Word getEndAddress() {
-		return startAddress + bytes.size() - 1;
-	}
+	Symbol(std::string symbol) : 
+			symbol(symbol), status(SYMBOL_UNDEFINED) {}
 };
 
 
@@ -173,13 +168,18 @@ struct Scope {
 
 
 struct ObjectFile {
+	std::vector<std::string> includedFiles;
 	std::vector<Token> tokens;
 
 	Scope* filescope;
 	std::map<int, Scope*> scopeMap;
-	std::map<Word, MemorySegment*> relativeMemoryMap;
-	std::map<Word, MemorySegment*> absoluteMemoryMap;
 	std::map<SegmentType, std::map<std::string, Segment*>> segmentMap;
+
+	std::set<std::string> markedGlobalSymbols;
+	std::map<std::string,std::set<int>> markedGlobalMacros;
+
+	std::set<std::string> markedExternSymbols;
+	std::map<std::string,std::set<int>> markedExternMacros;
 
 	ObjectFile(std::vector<Token> tokens) : tokens(tokens) {
 		filescope = new Scope();
@@ -217,7 +217,7 @@ class Assembler {
 		void linker();
 		void assemble();
 
-		void defineLabel(std::string labelname);
+		void defineLabel(std::string labelname, Word value);
 		void startScope();
 		void endScope();
 
@@ -234,7 +234,6 @@ class Assembler {
         void DIR_DATA();
         void DIR_TEXT();
 
-        void DIR_OUTFILE();
 		void DIR_END();
 
         void DIR_ORG_RELATIVE();
@@ -258,15 +257,12 @@ class Assembler {
 
         void DIR_GLOBAL();
         void DIR_EXTERN();
-        void DIR_DEFINE();
-        void DIR_SET();
+        void DIR_EQU();
 
         void DIR_CHECKPC();
         void DIR_ALIGN();
 
-        void DIR_INCBIN();
         void DIR_INCLUDE();
-        void DIR_REQUIRE();
 
         void DIR_SCOPE();
         void DIR_SCEND();
@@ -283,7 +279,7 @@ class Assembler {
         typedef void (Assembler::*DirectiveFunction)();
         std::map<DirectiveType,DirectiveFunction> processDirective = {
             {DATA, &Assembler::DIR_DATA}, {TEXT, &Assembler::DIR_TEXT},
-            {OUTFILE, &Assembler::DIR_OUTFILE},
+            {END, &Assembler::DIR_END},
             {ORG_RELATIVE, &Assembler::DIR_ORG_RELATIVE},
             {DB_LO, &Assembler::DIR_DB_LO}, {D2B_LO, &Assembler::DIR_D2B_LO}, 
             {DW_LO, &Assembler::DIR_DW_LO}, {D2W_LO, &Assembler::DIR_D2W_LO},
@@ -293,10 +289,9 @@ class Assembler {
             {ADVANCE, &Assembler::DIR_ADVANCE}, {FILL, &Assembler::DIR_FILL}, 
             {SPACE, &Assembler::DIR_SPACE},
             {GLOBAL, &Assembler::DIR_GLOBAL}, {EXTERN, &Assembler::DIR_EXTERN},
-            {DEFINE, &Assembler::DIR_DEFINE}, {SET, &Assembler::DIR_SET},
+            {EQU, &Assembler::DIR_EQU},
             {CHECKPC, &Assembler::DIR_CHECKPC}, {ALIGN, &Assembler::DIR_ALIGN},
-            {INCBIN, &Assembler::DIR_INCBIN}, {INCLUDE, &Assembler::DIR_INCLUDE}, 
-            {REQUIRE, &Assembler::DIR_REQUIRE},
+            {INCLUDE, &Assembler::DIR_INCLUDE}, 
             {SCOPE, &Assembler::DIR_SCOPE}, {SCEND, &Assembler::DIR_SCEND},
             {MACRO, &Assembler::DIR_MACRO}, {MACEND, &Assembler::DIR_MACEND}, 
             {INVOKE, &Assembler::DIR_INVOKE}

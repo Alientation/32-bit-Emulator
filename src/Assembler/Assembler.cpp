@@ -28,10 +28,26 @@ Assembler::Assembler(std::vector<std::string> files) {
 
 
 /**
+ * Creates a label at the correct scope and maps it to the symbol table.
  * 
+ * @param labelname The name of the label to create.
  */
-void Assembler::defineLabel(std::string labelname) {
+void Assembler::defineLabel(std::string labelname, Word value) {
+	// check if label has already been defined in the current scope
+	Scope& tempScope = *(this->currentScope);
+	while(true) {
+		if (tempScope.symbols.find(labelname) != tempScope.symbols.end()) {
+			error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Label Already Defined: " << labelname);
+		}
 
+		// we are at the filescope and the label has not been defined
+		if (tempScope.parent == nullptr) {
+			break;
+		}
+	}
+
+	// create a new label
+	
 }
 
 
@@ -109,7 +125,7 @@ void Assembler::parse(std::string filename) {
 		if (token.string.back() == ':') {
 			// remove the ':' from the end of the label
 			std::string labelName = token.string.substr(0, token.string.size() - 1);
-			defineLabel(labelName);
+			defineLabel(labelName, currentSegment->programCounter);
 			continue;
 		}
 		
