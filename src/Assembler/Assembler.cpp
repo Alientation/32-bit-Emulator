@@ -110,11 +110,14 @@ void Assembler::parse(std::string filename) {
 	currentObjectFile = objectFilesMap[filename];
 	currentScope = currentObjectFile->filescope;
 	currentSegment = currentObjectFile->segmentMap[SEGMENT_TEXT][""];
+	isRelativeMemory = true;
 
 
 	// iterate through each token in the file
 	for (currentTokenI = 0; currentTokenI < currentObjectFile->tokens.size(); currentTokenI++) {
 		Token& token = currentObjectFile->tokens[currentTokenI];
+
+		log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Token: " << token.string << RESET);
 
 		// Tokens should not be empty. This is a sign of a bug in the tokenizer
 		if (token.string.size() == 0) {
@@ -340,4 +343,130 @@ void Assembler::tokenize(std::string filename) {
 	objectFilesMap[filename] = new ObjectFile(tokens);
 
 	log(LOG_TOKENIZER, std::stringstream() << BOLD << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
+}
+
+
+
+/**
+ * Simulates writing a byte to file by first tracking the byte in the assembler
+ * 
+ * @param value The value to write to the file
+ */
+void Assembler::writeByte(Byte value) {
+	std::map<Word, MemorySegment*>& memoryMap = 
+			isRelativeMemory ? currentSegment->relativeMemoryMap : currentSegment->absoluteMemoryMap;
+
+	// write the byte
+	// check if we are writing to a new memory segment
+	Word currentProgramCounter = currentSegment->programCounter;
+	if (memoryMap.find(currentProgramCounter - 1) == memoryMap.end()) {
+        // check to make sure we are not overwriting other memory segments
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+            if (otherSegment.startAddress <= currentProgramCounter && otherSegment.getEndAddress() >= currentProgramCounter) {
+                // warn we are overwriting memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << prettyStringifyValue(stringifyHex(currentProgramCounter)) << "]");
+            }
+        }
+
+        // create a new memory segment
+        MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
+        (*memorySegment).bytes.push_back(value);
+        memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
+    } else {
+        // get previous memory segment that ends right before the current program counter
+        MemorySegment& memorySegment = *memoryMap.at(currentProgramCounter - 1);
+        memoryMap.erase(memoryMap.find(currentProgramCounter - 1));
+        memorySegment.bytes.push_back(value);
+        
+        // check if we should combine memory segments if they are touching
+        // loop through each memory segment
+        for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
+            MemorySegment& otherSegment = *(*it).second;
+
+            // check if the current memory segment is overwriting the another memory segment
+            if (otherSegment.startAddress >= memorySegment.startAddress && otherSegment.startAddress <= currentProgramCounter) {
+                // warn we are starting to overwrite memory
+                warn(WARN, std::stringstream() << "Overwriting Memory [" << otherSegment.prettyStringifyStartAddress() << "," 
+                        << otherSegment.prettyStringifyEndAddress() << "] with [" << 
+                        memorySegment.prettyStringifyStartAddress() << "," << memorySegment.prettyStringifyEndAddress() << "]");
+            }
+
+            // check if the current memory segment is touching the next memory segment
+            if (otherSegment.startAddress == currentProgramCounter + 1) {
+                // combine the touching memory segments
+                MemorySegment& nextMemorySegment = *(*it).second;
+                memorySegment.bytes.insert(memorySegment.bytes.end(), nextMemorySegment.bytes.begin(), nextMemorySegment.bytes.end());
+                
+                // remove the other memory segment (the one that is following the current memory segment) from the memory map
+                memoryMap.erase(it);
+                break;
+            }
+        }
+
+        // map the last byte of the current memory segment to the memory map
+        memoryMap.insert(std::pair<Word, MemorySegment*>(memorySegment.getEndAddress(), &memorySegment));
+    }
+
+    // wrote one byte to current program counter
+    currentProgramCounter++;
+}
+
+/**
+ * Writes two bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void Assembler::writeTwoBytes(u16 value, bool lowEndian) {
+    writeBytes(value, 2, lowEndian);
+}
+
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void Assembler::writeWord(Word value, bool lowEndian) {
+    writeBytes(value, 4, lowEndian);
+}
+
+/**
+ * Writes four bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void Assembler::writeTwoWords(u64 value, bool lowEndian) {
+    writeBytes(value, 8, lowEndian);
+}
+
+/**
+ * Writes the specified number of bytes in specified endian order to file
+ * 
+ * @param value The value to write to the file
+ * @param bytes The number of bytes to write
+ * @param lowEndian If true, the low byte is written first, otherwise the high byte is written first
+ */
+void Assembler::writeBytes(u64 value, Byte bytes, bool lowEndian) {
+    if (bytes > 8) {
+        error(INTERNAL_ERROR, std::stringstream() << "Cannot write more than 8 bytes");
+    } else if (bytes == 0) {
+        warn(WARN, std::stringstream() << "Writing 0 bytes");
+        return;
+    }
+
+    if (lowEndian) {
+        for (int i = 0; i < bytes; i++) {
+            writeByte(value & 0xFF);
+            value >>= 8;
+        }
+    } else {
+        u64 mask = 0xFF << (8 * (bytes - 1));
+        for (int i = 0; i < bytes; i++) {
+            writeByte((value & mask) >> (8 * (bytes - 1 - i)));
+        }
+    }
 }

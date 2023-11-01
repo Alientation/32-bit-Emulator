@@ -161,7 +161,13 @@ void Assembler::DIR_END() {
  * defined in the current file. The value must be a 32-bit value.
  */
 void Assembler::DIR_ORG_RELATIVE() {
+	EXPECT_OPERAND();
+	currentTokenI++;
 
+	Word value = EXPECT_PARSEDVALUE(0, 0xFFFFFFFF);
+	currentSegment->programCounter = value;
+
+	isRelativeMemory = true;
 }
 
 /**
@@ -173,63 +179,400 @@ void Assembler::DIR_ORG_RELATIVE() {
  * The value operand must be a 32-bit number. It cannot be a referenced label.
  */
 void Assembler::DIR_ORG_ABSOLUTE() {
+	EXPECT_OPERAND();
+	currentTokenI++;
 
+	Word value = parseValue(currentObjectFile->tokens[currentTokenI].string, false);
+	currentSegment->programCounter = value;
+
+	isRelativeMemory = false;
 }
 
+
+/**
+ * Helper for .db and related directives.
+ * Defines a series of bytes at the current program counter.
+ * 
+ * @param token The token containing the operand.
+ * @param bytes The number of bytes to define.
+ * @param lowEndian If true, the bytes will be written in little endian order.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
+ */
 void Assembler::defineBytes(std::string token, Byte bytes, bool lowEndian) {
+	// split operand by commas
+    std::vector<std::string> splitByComma = split(token, ',');
+	Word* currentProgramCounter = &(currentSegment->programCounter);
 
+    // check if there is enough memory space to write to
+    if (currentProgramCounter + splitByComma.size() * bytes < currentProgramCounter) {
+        error(INTERNAL_ERROR, std::stringstream() 
+                << "Failed DEFINEBYTES: Current address " << stringifyHex(*currentProgramCounter) 
+                << " plus splitByComma.size() " << stringifyHex(splitByComma.size()) << " times bytes " 
+                << stringifyHex(bytes) << " overflows");
+    }
+
+	u64 maxValue = (u64)1 << (bytes * 8);
+	if (maxValue-1 == 0) { // fix for overflow
+		maxValue = 0xFFFFFFFFFFFFFFFFULL;
+	} else {
+		maxValue--;
+	}
+
+    for (std::string& value : splitByComma) {
+        u64 parsedValue = EXPECT_PARSEDVALUE(trim(value), 0, maxValue);
+        writeBytes(parsedValue, bytes, lowEndian);
+    }
 }
 
+/**
+ * Defines a series of 1 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .db value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_DB_LO() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 1, true);
 }
 
+/**
+ * Defines a series of 2 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .d2b value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_D2B_LO() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 2, true);
 }
 
+/**
+ * Defines a series of 4 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .dw value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_DW_LO() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 4, true);
 }
 
+/**
+ * Defines a series of 8 byte values at the current program counter, stored in low endian format.
+ * 
+ * USAGE: .d2w value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_D2W_LO() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 8, true);
 }
 
+/**
+ * Defines a series of 1 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .dbhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_DB_HI() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 1, false);
 }
 
+/**
+ * Defines a series of 2 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .d2bhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_D2B_HI() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 2, false);
 }
 
+/**
+ * Defines a series of 4 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .dwhi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_DW_HI() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 4, false);
 }
 
+/**
+ * Defines a series of 8 byte values at the current program counter, stored in high endian format.
+ * 
+ * USAGE: .d2whi value[, value...]
+ * 
+ * Each value must be a valid value capable of being evaluated in the parse phase.
+ */
 void Assembler::DIR_D2W_HI() {
-
+    EXPECT_OPERAND();
+    currentTokenI++;
+    defineBytes(currentObjectFile->tokens[currentTokenI].string, 8, false);
 }
 
+
+/**
+ * Defines a series of strings at the current program counter.
+ * 
+ * USAGE: .ascii "string"[, "string"...]
+ * 
+ * Each string must be a valid string literal.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
+ */
 void Assembler::DIR_ASCII() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(currentObjectFile->tokens[currentTokenI].string, ',');
+    std::vector<std::string> strings;
+    Word bytesNeeded = 0;
+    for (std::string str : splitByComma) {
+        strings.push_back(getStringToken(trim(str)));
+        bytesNeeded += strings.back().size();
+    }
+
+    // check if there is enough memory space to write to
+    if (currentSegment->programCounter + bytesNeeded < currentSegment->programCounter) {
+        error(INTERNAL_ERROR, std::stringstream() 
+                << "Failed DEFINESTRINGS: Current address " << stringifyHex(currentSegment->programCounter) 
+                << " plus bytesNeeded " << stringifyHex(bytesNeeded) << " overflows "
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    // write each string
+    for (std::string str : strings) {
+        for (char c : str) {
+            writeBytes(c, 1, true);
+        }
+    }
 }
 
+/**
+ * Defines a series of strings at the current program counter with each string followed by a zero byte.
+ * 
+ * USAGE: .asciz "string"[, "string"...]
+ * 
+ * Each string must be a valid string literal.
+ * 
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
+ */
 void Assembler::DIR_ASCIZ() {
+    EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(currentObjectFile->tokens[currentTokenI].string, ',');
+    std::vector<std::string> strings;
+    Word bytesNeeded = 0;
+    for (std::string str : splitByComma) {
+        strings.push_back(getStringToken(trim(str)));
+        bytesNeeded += strings.back().size() + 1;
+    }
+
+    // check if there is enough memory space to write to
+    if (currentSegment->programCounter + bytesNeeded < currentSegment->programCounter) {
+        error(INTERNAL_ERROR, std::stringstream() 
+                << "Failed DEFINESTRINGS: Current address " << stringifyHex(currentSegment->programCounter) 
+                << " plus bytesNeeded " << stringifyHex(bytesNeeded) << " overflows "
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    // write each string
+    for (std::string str : strings) {
+        for (char c : str) {
+            writeBytes(c, 1, true);
+        }
+        writeBytes(0, 1, true);
+    }
 }
 
+/**
+ * Advances the current program counter to the specified address.
+ * 
+ * USAGE: .advance address,[filler]
+ * 
+ * The address must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The address must be greater than the current program counter.
+ * The filler must be a valid 1 byte value, by default is set to 0.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the address is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
+ */
 void Assembler::DIR_ADVANCE() {
+	EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(currentObjectFile->tokens[currentTokenI].string, ',');
+    
+    // no valid address operand
+    if (splitByComma.size() == 0) {
+        error(INVALID_TOKEN_ERROR, std::stringstream()
+                << "Missing operand for .advance directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    Word targetAddress = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
+
+    // cannot advance address backwards
+    if (targetAddress < currentSegment->programCounter) {
+        error(INVALID_TOKEN_ERROR, std::stringstream() 
+                << "Invalid address for .advance directive: " << stringifyHex(targetAddress) 
+                << " must be greater than " << stringifyHex(currentSegment->programCounter) << " "
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    Byte filler = 0;
+
+    // check if there is filler argument
+    if (splitByComma.size() > 1) {
+        filler = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
+
+        // too many operands for .advance directive
+        if (splitByComma.size() > 2) {
+            error(UNRECOGNIZED_TOKEN_ERROR, std::stringstream() 
+                    << "Unrecognized operand for .advance directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+        }
+    }
+
+    // fill the space with the filler value
+    for (Word i = currentSegment->programCounter; i < targetAddress; i++) {
+        writeBytes(filler, 1, true);
+    }
 }
 
+/**
+ * Fills a space with bytes. By default, the space is filled with a series of 1 bytes with a value of 0.
+ * 
+ * USAGE: .fill count[,size[,value]]
+ * 
+ * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The size must be a valid 1 byte value capable of being evaluated in the parse phase.
+ * The value must be within the specified size, by default it is set to 0.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the count, size, or value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
+ */
 void Assembler::DIR_FILL() {
+	EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(currentObjectFile->tokens[currentTokenI].string, ',');
+
+    // no valid fillcount operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, std::stringstream()
+                << "Missing operand for .fill directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    Word fillcount = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
+    Byte size = 1;
+    u64 value = 0;
+
+    // check for size argument 
+    if (splitByComma.size() > 1) {
+        size = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 1, 0xFF);
+
+        // check for value argument
+        if (splitByComma.size() > 2) {
+            value = EXPECT_PARSEDVALUE(trim(splitByComma[2]), 0, (1 << (size * 8)) - 1);
+        }
+
+        // too many operands for .fill directive
+        if (splitByComma.size() > 3) {
+            error(UNRECOGNIZED_TOKEN_ERROR, std::stringstream() 
+                    << "Unrecognized operand for .fill directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+        }
+    }
+
+    // check to make sure that there is enough memory to write to
+    if (currentSegment->programCounter + fillcount * size < currentSegment->programCounter) {
+        error(INTERNAL_ERROR, std::stringstream() 
+                << "Failed FILL: Current address " << stringifyHex(currentSegment->programCounter) 
+                << " plus fillcount " << stringifyHex(fillcount) << " times size " << stringifyHex(size) << " overflows "
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    // fill the space with the filler value
+	for (Word i = 0; i < fillcount; i++) {
+		writeBytes(value, size, true);
+	}
 }
 
+/**
+ * Fills a space with bytes. By default, the space is filled with a series of bytes with a value of 0.
+ * 
+ * USAGE: .space count[,value]
+ * 
+ * The count must be a valid 4 byte value capable of being evaluated in the parse phase.
+ * The value must be a valid 1 byte value, default is set to 0.
+ * 
+ * @throws MISSING_TOKEN_ERROR If the count operand is missing.
+ * @throws INVALID_TOKEN_ERROR If the count or value is not a valid value.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an unrecognized operand.
+ * @throws INTERNAL_ERROR If there is not enough memory space to write to.
+ */
 void Assembler::DIR_SPACE() {
+	EXPECT_OPERAND();
+    currentTokenI++;
 
+    // split operand by commas
+    std::vector<std::string> splitByComma = split(currentObjectFile->tokens[currentTokenI].string, ',');
+
+    // no valid count operand
+    if (splitByComma.size() == 0) {
+        error(MISSING_TOKEN_ERROR, std::stringstream()
+                << "Missing operand for .space directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    Word count = (Word) EXPECT_PARSEDVALUE(trim(splitByComma[0]), 0, 0xFFFFFFFF);
+    Byte value = 0;
+
+    // check for value argument if we are in assembling phase
+    if (splitByComma.size() > 1) {
+        value = (Byte) EXPECT_PARSEDVALUE(trim(splitByComma[1]), 0, 0xFF);
+
+        // too many operands for .space directive
+        if (splitByComma.size() > 2) {
+            error(UNRECOGNIZED_TOKEN_ERROR, std::stringstream() 
+                    << "Unrecognized operand for .space directive: " << currentObjectFile->tokens[currentTokenI].errorstring());
+        }
+    }
+
+    // check to make sure that there is enough memory to write to
+    if (currentSegment->programCounter + count < currentSegment->programCounter) {
+        error(INTERNAL_ERROR, std::stringstream() 
+                << "Failed SPACE: Current address " << stringifyHex(currentSegment->programCounter) 
+                << " plus count " << stringifyHex(count) << " overflows " << 
+				currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+
+    // fill the space with the filler value
+    for (Word i = 0; i < count; i++) {
+        writeBytes(value, 1, true);
+    }
 }
 
 /**

@@ -58,7 +58,7 @@ enum DirectiveType {
 static std::map<std::string, DirectiveType> directiveMap = {
 	{".data", DATA}, {".text", TEXT},
 	{".end", END},
-	{".org", ORG_RELATIVE}, {"org*", ORG_ABSOLUTE},
+	{".org", ORG_RELATIVE}, {".org*", ORG_ABSOLUTE},
 	{".db", DB_LO}, {".d2b", D2B_LO}, {".dw", DW_LO}, {".d2w", D2W_LO}, 
 	{".db*", DB_HI}, {".d2b*", D2B_HI}, {".dw*", DW_HI}, {".d2w*", D2W_HI},
 	{".ascii", ASCII}, {".asciiz", ASCIZ},
@@ -90,6 +90,22 @@ struct MemorySegment {
 	MemorySegment(Word startAddress) : startAddress(startAddress) {}
 	Word getEndAddress() {
 		return startAddress + bytes.size() - 1;
+	}
+
+	std::string stringifyStartAddress() {
+		return stringifyHex(startAddress);
+	}
+	
+	std::string prettyStringifyStartAddress() {
+		return prettyStringifyValue(stringifyHex(startAddress));
+	}
+
+	std::string stringifyEndAddress() {
+		return stringifyHex(getEndAddress());
+	}
+
+	std::string prettyStringifyEndAddress() {
+		return prettyStringifyValue(stringifyHex(getEndAddress()));
 	}
 };
 
@@ -210,6 +226,7 @@ class Assembler {
 		Scope* currentScope = nullptr;
 		int currentTokenI = 0;
 		Segment* currentSegment = nullptr;
+		bool isRelativeMemory = true;
 
 
 		void tokenize(std::string filename);
@@ -220,6 +237,13 @@ class Assembler {
 		void defineLabel(std::string labelname, Word value);
 		void startScope();
 		void endScope();
+
+		void writeToFile();
+        void writeByte(Byte value);
+        void writeTwoBytes(u16 value, bool lowEndian = true);
+        void writeWord(Word value, bool lowEndian = true);
+        void writeTwoWords(u64 value, bool lowEndian = true);
+        void writeBytes(u64 value, Byte bytes, bool lowEndian = true);
 
 
 		// token processing
@@ -1070,13 +1094,12 @@ static bool isStringToken(std::string stringToken) {
     return stringToken.size() >= 2 && stringToken[0] == '"' && stringToken[stringToken.size() - 1] == '"';
 }
 
-static std::string getStringToken(Token stringToken) {
-	if (!isStringToken(stringToken.string)) {
-		error(INVALID_TOKEN_ERROR, std::stringstream() << "Token is not a string token: " 
-				<< stringToken.string << " " << stringToken.errorstring());
+static std::string getStringToken(std::string stringToken) {
+	if (!isStringToken(stringToken)) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << "Token is not a string token: " << stringToken);
 	}
 
-	return stringToken.string.substr(1, stringToken.string.size() - 2);
+	return stringToken.substr(1, stringToken.size() - 2);
 }
 
 #endif // ASSEMBLER_H

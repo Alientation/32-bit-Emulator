@@ -12,7 +12,6 @@ loadlabel:
 		LDA	#$FFFF
 		LDA	#$1234
 	.data
-	.outfile	"test"
 
 datalabel:
 	.db		$01, $02, $03, $04
