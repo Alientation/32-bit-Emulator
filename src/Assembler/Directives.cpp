@@ -1,6 +1,100 @@
 #include "Assembler.h"
 
 
+/**
+ * Parse the current token as a value and throw an error if it is not a valid value.
+ * 
+ * Does not modify the internal state.
+ * 
+ * @param min The minimum value the parsed value can be.
+ * @param max The maximum value the parsed value can be.
+ * @return The parsed value.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the token is not a valid value.
+ */
+u64 Assembler::EXPECT_PARSEDVALUE(u64 min, u64 max) {
+    u64 parsedValue = parseValue(currentObjectFile->tokens[currentTokenI].string);
+    if (parsedValue < min || parsedValue > max) {
+        error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Value: " << parsedValue 
+			<< " must be between " << min << " and " << max << " " 
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+    return parsedValue;
+};
+
+/**
+ * Parse the current token as a value and throw an error if it is not a valid value.
+ * 
+ * Does not modify the internal state.
+ * 
+ * @param min The minimum value the parsed value can be.
+ * @param max The maximum value the parsed value can be.
+ * @return The parsed value.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the token is not a valid value.
+ */
+u64 Assembler::EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max) {
+    u64 parsedValue = parseValue(val);
+    if (parsedValue < min || parsedValue > max) {
+        error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Value: [" << val << "] " 
+        	<< parsedValue << " must be between " << min << " and " << max << " " 
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+    return parsedValue;
+};
+
+/**
+ * Throw an error if there is no operand available for the current token.
+ * 
+ * The current token is considered to be the one requesting an operand. This means
+ * the token after this current token is the operand.
+ * This does not modify the internal state.
+ * 
+ * @throws MISSING_TOKEN_ERROR If there is no operand available.
+ */
+void Assembler::EXPECT_OPERAND() {
+    if (currentTokenI == currentObjectFile->tokens.size() - 1 || 
+		currentObjectFile->tokens[currentTokenI + 1].lineNumber != currentObjectFile->tokens[currentTokenI].lineNumber) {
+        error(MISSING_TOKEN_ERROR, std::stringstream() << "Missing Operand " 
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+};
+
+/**
+ * Throw an error if there is an operand available for the current token.
+ * 
+ * The current token is considered to be the one which should have no operand. This means
+ * the token after this current token is the operand.
+ * This does not modify the internal state.
+ * 
+ * @throws UNRECOGNIZED_TOKEN_ERROR If there is an operand available.
+ */
+void Assembler::EXPECT_NO_OPERAND() {
+    if (currentTokenI != currentObjectFile->tokens.size() - 1 && 
+		currentObjectFile->tokens[currentTokenI + 1].lineNumber == currentObjectFile->tokens[currentTokenI].lineNumber) {
+        error(UNRECOGNIZED_TOKEN_ERROR, std::stringstream() << "Unrecognized Operand "
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+    }
+};
+
+/**
+ * Check if there is an operand available for the current token.
+ * 
+ * The current token is considered to be the one which potentially has an operand. This means
+ * the token after this current token is the operand if it exists.
+ * This does not modify the internal state.
+ * 
+ * @param requireSameLine If true, the operand must be on the same line as the current token.
+ * @return True if there is an operand available, false otherwise.
+ */
+bool Assembler::HAS_OPERAND(bool requireSameLine) {
+    return currentTokenI != currentObjectFile->tokens.size() - 1 && (!requireSameLine || 
+		currentObjectFile->tokens[currentTokenI + 1].lineNumber == currentObjectFile->tokens[currentTokenI].lineNumber);
+};
+
+
+
+
 void Assembler::DIR_DATA() {
 
 }

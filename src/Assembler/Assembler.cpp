@@ -19,39 +19,147 @@ Assembler::Assembler(std::vector<std::string> files) {
 		parse(file);
 	}
 
+	// link each file
+	linker();
+
+	// assemble each file
+	assemble();
+}
+
+
+/**
+ * 
+ */
+void Assembler::defineLabel(std::string labelname) {
 
 }
 
 
+/**
+ * Creates a new local scope with the current scope being the parent of the new scope
+ * 
+ * @throws INTERNAL_ERROR If the current token has already been processed. This means we are processing tokens that have already been processed.
+ */
+void Assembler::startScope() {
+	// check if scope has already been defined before. This means we are processing 
+	// tokens that have already been processed.
+	if (currentObjectFile->scopeMap.find(currentTokenI) != currentObjectFile->scopeMap.end()) {
+		error(INTERNAL_ERROR, std::stringstream() << "Scope has already been processed " 
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	// create a new local scope
+	Scope* localScope = new Scope(currentScope);
+	currentObjectFile->scopeMap[currentTokenI] = localScope;
+	currentScope = localScope;
+}
+
+/**
+ * Ends the current scope and returns back to its parent scope.
+ * 
+ * @throws INVALID_TOKEN_ERROR If the current scope has no parent scope. This means we are at the global scope which has
+ * no parent scope.
+ */
+void Assembler::endScope() {
+	// check if the current scope has no parent scope. This means we are at the global scope which has
+    // no parent scope.
+	if (currentScope->parent == nullptr) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << "Scope Mismatch: Scope Not Opened " 
+			<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+	
+	// close out the current scope
+	currentScope = currentScope->parent;
+}
+
+
+/**
+ * First parse through tokens to construct symbol table and memory mappings.
+ * 
+ * 
+ * 
+ * @param filename The name of the file to parse.
+ * 
+ * @throws INTERNAL_ERROR If the file has not been tokenized, a token was empty, or a scope was not closed.
+ * @throws UNRECOGNIZED_TOKEN_ERROR If a token is not a label, directive, or instruction.
+ * @throws INVALID_TOKEN_ERROR If an instruction was defined in a non-text segment or an instruction had an invalid operand.
+ */
 void Assembler::parse(std::string filename) {
+	// ensure file has been tokenized and mapped to an object file
 	if (objectFilesMap.find(filename) == objectFilesMap.end()) {
 		error(INTERNAL_ERROR, std::stringstream() << "File Not Tokenized: " << filename);
 	}
 
-	ObjectFile objectfile = *objectFilesMap[filename];
+	// set tracker variables that allows some processes to be offloaded to other functions
+	currentObjectFile = objectFilesMap[filename];
+	currentScope = currentObjectFile->filescope;
+	currentSegment = currentObjectFile->segmentMap[SEGMENT_TEXT][""];
+
 
 	// iterate through each token in the file
-	for (int i = 0; i < objectfile.tokens.size(); i++) {
-		Token& token = objectfile.tokens[i];
+	for (currentTokenI = 0; currentTokenI < currentObjectFile->tokens.size(); currentTokenI++) {
+		Token& token = currentObjectFile->tokens[currentTokenI];
 
+		// Tokens should not be empty. This is a sign of a bug in the tokenizer
 		if (token.string.size() == 0) {
-			error(INTERNAL_ERROR, std::stringstream() << "Empty Token");
+			error(INTERNAL_ERROR, std::stringstream() << "Empty Token " << token.errorstring());
 		}
 
 		// check if token is a label
 		if (token.string.back() == ':') {
-
-		} else if (directiveMap.find(token.string) != directiveMap.end()) {
-			DirectiveType directiveType = directiveMap[token.string];
-			
-
-		} else if (instructionMap.find(token.string) != instructionMap.end()) {
-			
-
-
-		} else {
-			
+			// remove the ':' from the end of the label
+			std::string labelName = token.string.substr(0, token.string.size() - 1);
+			defineLabel(labelName);
+			continue;
 		}
+		
+		// check if token is a directive
+		if (directiveMap.find(token.string) != directiveMap.end()) {
+			DirectiveType directiveType = directiveMap[token.string];
+
+			// offload to some other function to do
+			(this->*processDirective[directiveType])();
+			
+			// no other tokens should follow a directive in the same line
+			EXPECT_NO_OPERAND();
+			continue;
+		}
+		
+		// check if token is a cpu instruction
+		if (instructionMap.find(token.string) != instructionMap.end()) {
+			// instructions must be in text segment
+			if (currentSegment->type != SEGMENT_TEXT) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Instruction must be defined in a TEXT segment " 
+					<< token.errorstring());
+			}
+
+			// get operand if the instruction has any
+			std::string operand = "";
+			if (HAS_OPERAND()) {
+				operand = currentObjectFile->tokens[++currentTokenI].string;
+			}
+
+			// check if operand is valid
+			AddressingMode addressingMode = getAddressingMode(token.string, operand);
+			if (addressingMode == NO_ADDRESSING_MODE) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Operand Addressing Mode " << token.errorstring());
+			}
+
+			// track instruction in memory somehow TODO:
+
+
+			// instruction should not have any additional operands or tokens following it
+			EXPECT_NO_OPERAND();
+			continue;
+		}
+		
+		
+		error(UNRECOGNIZED_TOKEN_ERROR, std::stringstream() << "Unrecognized Token: " << token.errorstring());
+	}
+
+	// check if all scopes were closed
+	if (currentScope != currentObjectFile->filescope) {
+		error(INTERNAL_ERROR, std::stringstream() << "Scope Mismatch: Scope Not Closed");
 	}
 }
 
@@ -67,6 +175,11 @@ void Assembler::assemble() {
 
 
 
+/**
+ * Tokenize the file and store the tokens in the objectFilesMap.
+ * 
+ * @param filename The name of the file to tokenize.
+ */
 void Assembler::tokenize(std::string filename) {
 	log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Reading File: " << filename << RESET);
 
@@ -204,13 +317,11 @@ void Assembler::tokenize(std::string filename) {
 
     // check if current token has not been processed
     if (currentToken.size() != 0) {
-        error(INTERNAL_ERROR,
-                std::stringstream() << "Current token has not been processed");
+        error(INTERNAL_ERROR, std::stringstream() << "Current token has not been processed");
     }
-
-    log(LOG_TOKENIZER, std::stringstream() << BOLD << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
-
 
 	// add list of tokens to map to filename
 	objectFilesMap[filename] = new ObjectFile(tokens);
+
+	log(LOG_TOKENIZER, std::stringstream() << BOLD << BOLD_GREEN << "Tokenized\t" << RESET << tostring(tokens));
 }

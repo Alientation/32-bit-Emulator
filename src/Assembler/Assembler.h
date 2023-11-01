@@ -176,12 +176,20 @@ struct ObjectFile {
 	std::vector<Token> tokens;
 
 	Scope* filescope;
+	std::map<int, Scope*> scopeMap;
 	std::map<Word, MemorySegment*> relativeMemoryMap;
 	std::map<Word, MemorySegment*> absoluteMemoryMap;
 	std::map<SegmentType, std::map<std::string, Segment*>> segmentMap;
 
 	ObjectFile(std::vector<Token> tokens) : tokens(tokens) {
 		filescope = new Scope();
+
+		segmentMap[SEGMENT_DATA] = std::map<std::string, Segment*>();
+		segmentMap[SEGMENT_TEXT] = std::map<std::string, Segment*>();
+
+		// create default segment
+		segmentMap[SEGMENT_DATA][""] = new Segment(SEGMENT_DATA, "");
+		segmentMap[SEGMENT_TEXT][""] = new Segment(SEGMENT_TEXT, "");
 	}
 };
 
@@ -198,11 +206,28 @@ class Assembler {
 		std::vector<std::string> files;
 		std::map<std::string, ObjectFile*> objectFilesMap;
 
+		ObjectFile* currentObjectFile = nullptr;
+		Scope* currentScope = nullptr;
+		int currentTokenI = 0;
+		Segment* currentSegment = nullptr;
+
 
 		void tokenize(std::string filename);
 		void parse(std::string filename);
 		void linker();
 		void assemble();
+
+		void defineLabel(std::string labelname);
+		void startScope();
+		void endScope();
+
+
+		// token processing
+        u64 EXPECT_PARSEDVALUE(u64 min, u64 max);
+        u64 EXPECT_PARSEDVALUE(std::string val, u64 min, u64 max);
+        void EXPECT_OPERAND();
+        void EXPECT_NO_OPERAND();
+        bool HAS_OPERAND(bool requireSameLine = true);
 
 
 		// assembler directives
