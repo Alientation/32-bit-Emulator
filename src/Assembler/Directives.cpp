@@ -607,12 +607,40 @@ void Assembler::DIR_GLOBAL() {
 			parameters = split(operand, ',');
 		}
 
-		// TODO:
+		// check if the macro was already marked extern
+		if (currentObjectFile->markedExternMacros.find(macroName) != currentObjectFile->markedExternMacros.end()) {
+			if (currentObjectFile->markedExternMacros[macroName].find(parameters.size()) != currentObjectFile->markedExternMacros[macroName].end()) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Macro Already Extern: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+			}
+		}
 
+		// check if the macro was already marked global
+		if (currentObjectFile->markedGlobalMacros.find(macroName) != currentObjectFile->markedGlobalMacros.end()) {
+			if (currentObjectFile->markedGlobalMacros[macroName].find(parameters.size()) != currentObjectFile->markedGlobalMacros[macroName].end()) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Macro Already Global: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+			}
+		}
+
+		// check if the macro was already defined in the filescope
+		if (currentObjectFile->filescope->macros.find(macroName) != currentObjectFile->filescope->macros.end()) {
+			error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Multiple Defined Macros: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+
+		// mark as global macro
+		currentObjectFile->markedGlobalMacros[macroName].insert(parameters.size());
 	} else {
 		// we have a label
 		if (!isValidLabelName(operand)) {
 			error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Label Name: " 
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+
+		// check if the label was already marked extern
+		if (currentObjectFile->markedExternSymbols.find(operand) != currentObjectFile->markedExternSymbols.end()) {
+			error(INVALID_TOKEN_ERROR, std::stringstream() << "Label Already Extern: " 
 					<< currentObjectFile->tokens[currentTokenI].errorstring());
 		}
 
@@ -667,8 +695,30 @@ void Assembler::DIR_EXTERN() {
 			parameters = split(operand, ',');
 		}
 
-		// TODO:
+		// check if the macro was already marked extern
+		if (currentObjectFile->markedExternMacros.find(macroName) != currentObjectFile->markedExternMacros.end()) {
+			if (currentObjectFile->markedExternMacros[macroName].find(parameters.size()) != currentObjectFile->markedExternMacros[macroName].end()) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Macro Already Extern: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+			}
+		}
 
+		// check if the macro was already marked global
+		if (currentObjectFile->markedGlobalMacros.find(macroName) != currentObjectFile->markedGlobalMacros.end()) {
+			if (currentObjectFile->markedGlobalMacros[macroName].find(parameters.size()) != currentObjectFile->markedGlobalMacros[macroName].end()) {
+				error(INVALID_TOKEN_ERROR, std::stringstream() << "Macro Already Global: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+			}
+		}
+
+		// check if the macro was already defined in the filescope
+		if (currentObjectFile->filescope->macros.find(macroName) != currentObjectFile->filescope->macros.end()) {
+			error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Multiple Defined Macros: "
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+
+		// mark as extern macro
+		currentObjectFile->markedExternMacros[macroName].insert(parameters.size());
 	} else {
 		// we have a label
 		if (!isValidLabelName(operand)) {
@@ -676,9 +726,15 @@ void Assembler::DIR_EXTERN() {
 					<< currentObjectFile->tokens[currentTokenI].errorstring());
 		}
 
-		// check if the label was already marked global
+		// check if the label was already marked extern
 		if (currentObjectFile->markedExternSymbols.find(operand) == currentObjectFile->markedExternSymbols.end()) {
 			error(INVALID_TOKEN_ERROR, std::stringstream() << "Label Already Extern: " 
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+
+		// check if the label was already marked global
+		if (currentObjectFile->markedGlobalSymbols.find(operand) != currentObjectFile->markedGlobalSymbols.end()) {
+			error(INVALID_TOKEN_ERROR, std::stringstream() << "Label Already Global: " 
 					<< currentObjectFile->tokens[currentTokenI].errorstring());
 		}
 
