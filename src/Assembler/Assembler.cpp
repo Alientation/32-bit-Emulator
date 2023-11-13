@@ -14,6 +14,8 @@ Assembler::Assembler(std::vector<std::string> files) {
 		tokenize(file);
 	}
 
+	preprocess();
+
 	// parse each file the first time to build symbol table
 	for (std::string file : files) {
 		parse(file);
@@ -47,7 +49,7 @@ void Assembler::defineLabel(std::string labelname, Word value) {
 	}
 
 	// create a new label
-	
+	tempScope.symbols.insert(std::pair<std::string, Symbol*>(labelname, new Symbol(labelname, value, SYMBOL_VALUE_RELATIVE)));
 }
 
 
@@ -89,6 +91,42 @@ void Assembler::endScope() {
 }
 
 
+void Assembler::preprocess() {
+	// expand out macros here before parsing to simplify complexities
+	// therefore it is here that we need to look for included files, marked extern/global macros, and map macros
+	// remove original macro source from source file afterwards
+	
+	for (std::string filename : files) {
+		currentObjectFile = objectFilesMap[filename];
+		currentScope = currentObjectFile->filescope;
+
+		int countNestedScopes = 0;
+
+		// iterate through each token in the file
+		for (currentTokenI = 0; currentTokenI < currentObjectFile->tokens.size(); currentTokenI++) {
+			Token& token = currentObjectFile->tokens[currentTokenI];
+
+			if (token.string == ".scope") {
+				countNestedScopes++;
+			} else if (token.string == ".scend") {
+				countNestedScopes--;
+			} else if (token.string == ".include" || token.string == ".macro" || token.string == ".extern" || token.string == ".global") {
+				if (countNestedScopes > 0) {
+					error(INTERNAL_ERROR, std::stringstream() << token.string << " Defined in Local Scope " << token.errorstring());
+				}
+				(this->*processDirective[directiveMap[token.string]])();
+			}
+		}
+	}
+
+
+	for (std::string filename : files) {
+		// expand out macro definitions
+	}
+
+}
+
+
 /**
  * First parse through tokens to construct symbol table and memory mappings.
  * 
@@ -105,6 +143,7 @@ void Assembler::parse(std::string filename) {
 	if (objectFilesMap.find(filename) == objectFilesMap.end()) {
 		error(INTERNAL_ERROR, std::stringstream() << "File Not Tokenized: " << filename);
 	}
+	status = PARSING;
 
 	// set tracker variables that allows some processes to be offloaded to other functions
 	currentObjectFile = objectFilesMap[filename];
@@ -164,8 +203,9 @@ void Assembler::parse(std::string filename) {
 				error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Operand Addressing Mode " << token.errorstring());
 			}
 
-			// track instruction in memory somehow TODO:
-
+			// track instruction in memory
+			writeByte(instructionMap[token.string][addressingMode]);
+			writeBytes(0, addressingModeOperandBytes[addressingMode]);
 
 			// instruction should not have any additional operands or tokens following it
 			EXPECT_NO_OPERAND();
@@ -184,12 +224,18 @@ void Assembler::parse(std::string filename) {
 
 
 void Assembler::linker() {
-	
+	// fill in values for symbols and macros
+	status = LINKING;
 }
 
 
 void Assembler::assemble() {
-	
+	// write to memory mapping
+	status = ASSEMBLING;
+}
+
+void Assembler::writeToFile() {
+
 }
 
 
@@ -201,6 +247,7 @@ void Assembler::assemble() {
  */
 void Assembler::tokenize(std::string filename) {
 	log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Reading File: " << filename << RESET);
+	status = TOKENIZING;
 
 	// ensure we have not already read this file
 	if (objectFilesMap.find(filename) != objectFilesMap.end()) {
@@ -372,7 +419,7 @@ void Assembler::writeByte(Byte value) {
 
         // create a new memory segment
         MemorySegment* memorySegment = new MemorySegment(currentProgramCounter);
-        (*memorySegment).bytes.push_back(value);
+        memorySegment->bytes.push_back(value);
         memoryMap.insert(std::pair<Word, MemorySegment*>(currentProgramCounter, memorySegment));
     } else {
         // get previous memory segment that ends right before the current program counter
@@ -410,7 +457,7 @@ void Assembler::writeByte(Byte value) {
     }
 
     // wrote one byte to current program counter
-    currentProgramCounter++;
+    currentSegment->programCounter++;
 }
 
 /**

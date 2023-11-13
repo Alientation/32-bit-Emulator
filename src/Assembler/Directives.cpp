@@ -153,7 +153,8 @@ void Assembler::DIR_END() {
 
 /**
  * Sets the current relative program counter to the specified value (relative to the start of the current section).
- * This means that this section of program memory could be moved around by the linker or loader.
+ * This means that this whole section of program memory could be moved around by the linker or loader.
+ * It would simply have a gap in the section caused by the .org directive.
  * 
  * USAGE: .org value
  * 
@@ -588,8 +589,15 @@ void Assembler::DIR_GLOBAL() {
 	EXPECT_OPERAND();
 	currentTokenI++;
 
+	// must be defined in the file scope... this is a requirement for the linker
+	if (currentScope != currentObjectFile->filescope) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << ".global must be defined in filescope: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
 	std::string operand = currentObjectFile->tokens[currentTokenI].string;
 	if (operand == ".macro") {
+		// TODO:
 
 	} else {
 		// we have a label
@@ -628,8 +636,15 @@ void Assembler::DIR_EXTERN() {
 	EXPECT_OPERAND();
 	currentTokenI++;
 
+	// must be defined in the file scope... this is a requirement for the linker
+	if (currentScope != currentObjectFile->filescope) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << ".extern must be defined in filescope: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
 	std::string operand = currentObjectFile->tokens[currentTokenI].string;
 	if (operand == ".macro") {
+		// TODO:
 
 	} else {
 		// we have a label
@@ -761,7 +776,41 @@ void Assembler::DIR_ALIGN() {
 }
 
 void Assembler::DIR_INCLUDE() {
+	EXPECT_OPERAND();
+    currentTokenI++;
 
+	// must be in filescope
+	if (currentScope != currentObjectFile->filescope) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << ".include must be defined in filescope: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	std::string includedFile = getStringToken(currentObjectFile->tokens[currentTokenI].string);
+	
+	// check if file exists
+	bool fileExist = false;
+	for (std::string file : files) {
+		if (file == includedFile) {
+			fileExist = true;
+			break;
+		}
+	}
+
+	if (!fileExist) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << "File does not exist: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	// check if file is already included
+	for (std::string file : currentObjectFile->includedFiles) {
+		if (file == includedFile) {
+			error(INVALID_TOKEN_ERROR, std::stringstream() << "File already included: " 
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+	}
+
+	// include the file
+	currentObjectFile->includedFiles.push_back(includedFile);
 }
 
 /**
@@ -771,8 +820,7 @@ void Assembler::DIR_INCLUDE() {
  * 
  * This directive is used to start a new scope. A scope has a set of local labels which are only visible
  * within that scope. This is useful for defining labels which are only used within a specific
- * section of code. TODO: for parsing values, allow parent scope labels to be referenced from the local scope using
- * special symbols like '.' or '..' or something.
+ * section of code.
  */
 void Assembler::DIR_SCOPE() {
 	startScope();
@@ -792,17 +840,71 @@ void Assembler::DIR_SCEND() {
 
 
 void Assembler::DIR_MACRO() {
+	int firstMacroToken = currentTokenI;
 
+	EXPECT_OPERAND();
+	currentTokenI++;
+
+	// must be in filescope
+	if (currentScope != currentObjectFile->filescope) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << ".macro must be defined in filescope: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	// check if the macro was already defined
+	std::string name = currentObjectFile->tokens[currentTokenI].string;
+	std::vector<std::string> parameters;
+	if (HAS_OPERAND()) {
+		currentTokenI++;
+		std::string operand = currentObjectFile->tokens[currentTokenI].string;
+		parameters = split(operand, ',');
+	}
+	
+	// check if the macro was already defined
+	Macro* macro;
+	if (currentScope->macros.find(name) != currentScope->macros.end()) {
+		if (currentScope->macros.at(name)->macros.find(parameters.size()) != currentScope->macros.at(name)->macros.end()) {
+			error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Multiple Defined Macro: " 
+					<< currentObjectFile->tokens[currentTokenI].errorstring());
+		}
+		
+		macro = currentScope->macros.at(name);
+	} else {
+		// create the new macro
+		macro = new Macro(name);
+		currentScope->macros.insert(std::pair<std::string, Macro*>(name, macro));
+	}
+
+	std::vector<std::string> macroDefinition;
+
+	// parse the macro definition
+	while (currentTokenI < currentObjectFile->tokens.size()) {
+		if (currentObjectFile->tokens[currentTokenI].string == ".macend") {
+			// expect no operands
+			EXPECT_NO_OPERAND();
+
+			break;
+		}
+
+		macroDefinition.push_back(currentObjectFile->tokens[currentTokenI].string);
+		currentTokenI++;
+	}
+
+	// add macro definition
+	macro->macros.insert(std::pair<u64, std::vector<std::string>>(parameters.size(), macroDefinition));
+
+	// remove macro definition from tokens
+	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstMacroToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
 }
 
 void Assembler::DIR_MACEND() {
-
+	// should not ever reach here
 }
 
 /**
  * 
  */
 void Assembler::DIR_INVOKE() {
-	// we need to expand out the macro definition
+	// we need to expand out the macro definition TODO:
 }
 

@@ -128,7 +128,7 @@ struct Segment {
 
 struct Macro {
 	std::string name;
-	std::map<int, std::pair<std::vector<std::string>, int>> macros;
+	std::map<int, std::vector<std::string>> macros; // map the number of parameters to the full macro definition
 
 	Macro(std::string name) : name(name) {}
 };
@@ -150,19 +150,20 @@ struct Symbol {
 	SymbolStatus status;
 	SymbolValueType valuetype;
 	Word value;
+	std::string valueString;
 	
 
 	/**
 	 * Defines a symbol that has a value and is already evaluated
 	 */
 	Symbol(std::string symbol, Word value, SymbolValueType valuetype) : 
-			symbol(symbol), value(value), valuetype(valuetype), status(SYMBOL_DEFINED_EVALUATED) {}
+			symbol(symbol), value(value), valueString(std::to_string(value)), valuetype(valuetype), status(SYMBOL_DEFINED_EVALUATED) {}
 
 	/**
 	 * Defines a symbol that has a value but is not yet evaluated
 	 */
-	Symbol(std::string symbol, SymbolValueType valuetype) : 
-			symbol(symbol), valuetype(valuetype), status(SYMBOL_DEFINED_RAW) {}
+	Symbol(std::string symbol, std::string valueString, SymbolValueType valuetype) : 
+			symbol(symbol), valueString(valueString), valuetype(valuetype), status(SYMBOL_DEFINED_RAW) {}
 
 	/**
 	 * Defines a symbol that has no value associated with it yet.
@@ -180,6 +181,26 @@ struct Scope {
 
 	Scope() : parent(nullptr) {}
 	Scope(Scope* parent) : parent(parent) {}
+
+	Symbol* getSymbol(std::string symbol) {
+		if (symbols.count(symbol) == 0) {
+			if (parent == nullptr) {
+				return nullptr;
+			}
+			return parent->getSymbol(symbol);
+		}
+		return symbols[symbol];
+	}
+
+	Macro* getMacro(std::string macro) {
+		if (macros.count(macro) == 0) {
+			if (parent == nullptr) {
+				return nullptr;
+			}
+			return parent->getMacro(macro);
+		}
+		return macros[macro];
+	}
 };
 
 
@@ -192,7 +213,7 @@ struct ObjectFile {
 	std::map<SegmentType, std::map<std::string, Segment*>> segmentMap;
 
 	std::set<std::string> markedGlobalSymbols;
-	std::map<std::string,std::set<int>> markedGlobalMacros;
+	std::map<std::string,std::set<int>> markedGlobalMacros; // macro name and number of parameters
 
 	std::set<std::string> markedExternSymbols;
 	std::map<std::string,std::set<int>> markedExternMacros;
@@ -219,6 +240,12 @@ class Assembler {
 		Assembler(std::vector<std::string> files);
 
 	private:
+		enum AssemblerStatus {
+			TOKENIZING, PARSING, LINKING, ASSEMBLING
+		};
+		AssemblerStatus status;
+
+
 		std::vector<std::string> files;
 		std::map<std::string, ObjectFile*> objectFilesMap;
 
@@ -230,6 +257,7 @@ class Assembler {
 
 
 		void tokenize(std::string filename);
+		void preprocess();
 		void parse(std::string filename);
 		void linker();
 		void assemble();
@@ -918,7 +946,7 @@ static bool validInstruction(std::string& instruction, AddressingMode addressing
  * @param allowExpressions Whether or not to allow expression evaluation in the operand.
  * @return The value of the string operand.
  */
-static u64 parseValue(std::string value, bool allowExpressions = true) {
+static u64 parseValue(std::string value, bool allowNonConst = true) {
 	if (value.empty()) {
 		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value from empty string");
 	}
@@ -943,12 +971,11 @@ static u64 parseValue(std::string value, bool allowExpressions = true) {
 		return std::stoull(value.substr(1), nullptr, 8);
 	}
 
-	// else, this is an expression
-	if (!allowExpressions) {
-		error(INTERNAL_ERROR, std::stringstream() << "Cannot parse value, value is an expression: " << value);
-	}
+	// else, this is an expression, evaluate the expression.
+	
 
-	// evaluate the expression. TODO:
+
+
 	return 0;
 }
 
