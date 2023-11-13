@@ -110,7 +110,7 @@ void Assembler::preprocess() {
 				countNestedScopes++;
 			} else if (token.string == ".scend") {
 				countNestedScopes--;
-			} else if (token.string == ".include" || token.string == ".macro" || token.string == ".extern" || token.string == ".global") {
+			} else if (token.string == ".include" || token.string == ".macro" || token.string == ".global" || token.string == ".extern") {
 				if (countNestedScopes > 0) {
 					error(INTERNAL_ERROR, std::stringstream() << token.string << " Defined in Local Scope " << token.errorstring());
 				}
@@ -119,9 +119,44 @@ void Assembler::preprocess() {
 		}
 	}
 
+	// fill in extern macros TODO:
+	
 
+	// expand out macros
 	for (std::string filename : files) {
-		// expand out macro definitions
+		currentObjectFile = objectFilesMap[filename];
+		currentScope = currentObjectFile->filescope;
+
+		for (currentTokenI = 0; currentTokenI < currentObjectFile->tokens.size(); currentTokenI++) {
+			Token& token = currentObjectFile->tokens[currentTokenI];
+
+			if (token.string == ".invoke") {
+				int tokenStart = currentTokenI;
+
+				// get macro name
+				std::string macroName = currentObjectFile->tokens[++currentTokenI].string;
+
+				// get macro definition
+				Macro* macro = currentObjectFile->filescope->macros[macroName];
+
+				// get macro arguments
+				std::vector<std::string> arguments;
+				if (HAS_OPERAND()) {
+					currentTokenI++;
+					arguments = split(currentObjectFile->tokens[currentTokenI].string, ',');
+				}
+
+				// check if macro arguments are valid
+				if (macro->macros.find(arguments.size()) == macro->macros.end()) {
+					error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Number of Arguments for Macro " << token.errorstring());
+				}
+
+				// replace macro invocation with macro definition
+				currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + tokenStart, currentObjectFile->tokens.begin() + currentTokenI + 1);
+				currentObjectFile->tokens.insert(currentObjectFile->tokens.begin() + tokenStart, macro->macros.at(arguments.size()).begin(), macro->macros.at(arguments.size()).end());
+				currentTokenI = tokenStart - 1; // move back token index to the start of the expanded macro
+			}
+		}
 	}
 
 }
