@@ -971,7 +971,7 @@ static u64 parseValue(std::string value, bool allowNonConst = true) {
 		return std::stoull(value.substr(1), nullptr, 8);
 	}
 
-	// else, this is an expression, evaluate the expression.
+	// else, this is an expression, evaluate the expression. TODO:
 	
 
 

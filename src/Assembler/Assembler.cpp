@@ -130,24 +130,24 @@ void Assembler::preprocess() {
 				Macro* targetMacro = nullptr;
 				for (std::string includedFile : currentObjectFile->includedFiles) {
 					ObjectFile* includedObjectFile = objectFilesMap[includedFile];
-					if (includedObjectFile->markedGlobalMacros.find(externMacro.first) != includedObjectFile->markedGlobalMacros.end() 
-							&& includedObjectFile->markedGlobalMacros.at(externMacro.first).find(parameterCount) != includedObjectFile->markedGlobalMacros.at(externMacro.first).end()) {
-						if (found) {
-							error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Extern Macro Defined in Multiple Files: " << externMacro.first);
-						}
+					if (includedObjectFile->markedGlobalMacros.find(externMacro.first) == includedObjectFile->markedGlobalMacros.end()) {
+						continue; // macro name not present
+					} else if (includedObjectFile->markedGlobalMacros.at(externMacro.first).find(parameterCount) != includedObjectFile->markedGlobalMacros.at(externMacro.first).end()) {
+						continue; // macro with specified parameter count not present
+					}
 
-						found = true;
-						targetMacro = includedObjectFile->filescope->macros.at(externMacro.first);
+					if (found) {
+						error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Extern Macro Defined in Multiple Files: " << externMacro.first);
+					}
+					found = true;
+					targetMacro = includedObjectFile->filescope->macros.at(externMacro.first);
 
-						// check if target macro exists
-						if (targetMacro == nullptr) {
-							error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Not Defined: " << externMacro.first);
-						}
-
+					// check if target macro exists
+					if (targetMacro == nullptr) {
+						error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Not Defined: " << externMacro.first);
+					} else if (targetMacro->macros.find(parameterCount) == targetMacro->macros.end()) { 
 						// check if target macro has the correct number of parameters
-						if (targetMacro->macros.find(parameterCount) == targetMacro->macros.end()) {
-							error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Parameter Count Mismatch: " << externMacro.first);
-						}
+						error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Parameter Count Mismatch: " << externMacro.first);
 					}
 				}
 
