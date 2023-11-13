@@ -976,7 +976,8 @@ void Assembler::DIR_MACRO() {
 	}
 
 	// add macro definition
-	macro->macros.insert(std::pair<u64, std::vector<std::string>>(parameters.size(), macroDefinition));
+	typedef std::pair<std::vector<std::string>, std::vector<std::string>> MacroExpansion;
+	macro->macros.insert(std::pair<u64, MacroExpansion>(parameters.size(), MacroExpansion(parameters,macroDefinition)));
 
 	// remove macro definition from tokens
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstMacroToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
@@ -990,6 +991,49 @@ void Assembler::DIR_MACEND() {
  * 
  */
 void Assembler::DIR_INVOKE() {
-	// we need to expand out the macro definition TODO:
+	EXPECT_OPERAND();
+	int tokenStart = currentTokenI;
+	currentTokenI++;
+
+	// get macro name
+	std::string macroName = currentObjectFile->tokens[currentTokenI].string;
+
+	// get macro definition
+	Macro* macro = currentObjectFile->filescope->macros[macroName];
+
+	// get macro arguments
+	std::vector<std::string> arguments;
+	if (HAS_OPERAND()) {
+		currentTokenI++;
+		arguments = split(currentObjectFile->tokens[currentTokenI].string, ',');
+	}
+
+	// check if macro arguments are valid
+	if (macro->macros.find(arguments.size()) == macro->macros.end()) {
+		error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Number of Arguments for Macro " << currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	// add scope block to surround the macro
+	// add parameter initialization to the start of the macro
+	std::vector<std::string> macroParameters = macro->macros.at(arguments.size()).first;
+	std::vector<std::string> macroDefinition = macro->macros.at(arguments.size()).second;
+
+	// sanity check
+	if (macroParameters.size() != arguments.size()) {
+		error(INTERNAL_ERROR, std::stringstream() << "Macro Parameter Size Mismatch: " << currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
+	macroDefinition.push_back(".scope");
+	std::vector<std::string> macroInsertParameterDefinitions;
+	for (int i = 0; i < arguments.size(); i++) {
+		macroInsertParameterDefinitions.push_back(".define " + macroParameters[i] + "," + arguments[i]);
+	}
+	macroDefinition.insert(macroDefinition.end(), macroInsertParameterDefinitions.begin(), macroInsertParameterDefinitions.end());
+	macroDefinition.push_back(".scend");
+
+	// replace macro invocation with macro definition
+	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + tokenStart, currentObjectFile->tokens.begin() + currentTokenI + 1);
+	currentObjectFile->tokens.insert(currentObjectFile->tokens.begin() + tokenStart, macroDefinition.begin(), macroDefinition.end());
+	currentTokenI = tokenStart - 1; // move back token index to the start of the expanded macro
 }
 

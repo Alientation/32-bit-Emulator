@@ -121,7 +121,7 @@ void Assembler::preprocess() {
 
 	// fill in extern macros
 	for (std::string filename : files) {
-
+		// TODO:
 	}
 
 
@@ -134,30 +134,7 @@ void Assembler::preprocess() {
 			Token& token = currentObjectFile->tokens[currentTokenI];
 
 			if (token.string == ".invoke") {
-				int tokenStart = currentTokenI;
-
-				// get macro name
-				std::string macroName = currentObjectFile->tokens[++currentTokenI].string;
-
-				// get macro definition
-				Macro* macro = currentObjectFile->filescope->macros[macroName];
-
-				// get macro arguments
-				std::vector<std::string> arguments;
-				if (HAS_OPERAND()) {
-					currentTokenI++;
-					arguments = split(currentObjectFile->tokens[currentTokenI].string, ',');
-				}
-
-				// check if macro arguments are valid
-				if (macro->macros.find(arguments.size()) == macro->macros.end()) {
-					error(INVALID_TOKEN_ERROR, std::stringstream() << "Invalid Number of Arguments for Macro " << token.errorstring());
-				}
-
-				// replace macro invocation with macro definition
-				currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + tokenStart, currentObjectFile->tokens.begin() + currentTokenI + 1);
-				currentObjectFile->tokens.insert(currentObjectFile->tokens.begin() + tokenStart, macro->macros.at(arguments.size()).begin(), macro->macros.at(arguments.size()).end());
-				currentTokenI = tokenStart - 1; // move back token index to the start of the expanded macro
+				(this->*processDirective[directiveMap[token.string]])();
 			}
 		}
 	}
