@@ -993,6 +993,9 @@ void Assembler::DIR_MACEND() {
 void Assembler::DIR_INVOKE() {
 	EXPECT_OPERAND();
 	int tokenStart = currentTokenI;
+	int location = currentObjectFile->tokens[currentTokenI].location;
+	int lineNumber = currentObjectFile->tokens[currentTokenI].lineNumber;
+	
 	currentTokenI++;
 
 	// get macro name
@@ -1023,17 +1026,20 @@ void Assembler::DIR_INVOKE() {
 		error(INTERNAL_ERROR, std::stringstream() << "Macro Parameter Size Mismatch: " << currentObjectFile->tokens[currentTokenI].errorstring());
 	}
 
-	macroDefinition.push_back(".scope");
-	std::vector<std::string> macroInsertParameterDefinitions;
+	std::vector<Token> macroExpansion;
+	macroExpansion.push_back(Token(".scope", location, lineNumber));
 	for (int i = 0; i < arguments.size(); i++) {
-		macroInsertParameterDefinitions.push_back(".define " + macroParameters[i] + "," + arguments[i]);
+		macroExpansion.push_back(Token(".define", location, lineNumber));
+		macroExpansion.push_back(Token(macroParameters[i] + "," + arguments[i], location, lineNumber));
 	}
-	macroDefinition.insert(macroDefinition.end(), macroInsertParameterDefinitions.begin(), macroInsertParameterDefinitions.end());
-	macroDefinition.push_back(".scend");
+	for (std::string token : macroDefinition) {
+		macroExpansion.push_back(Token(token, location, lineNumber));
+	}
+	macroExpansion.push_back(Token(".scend", location, lineNumber));
 
 	// replace macro invocation with macro definition
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + tokenStart, currentObjectFile->tokens.begin() + currentTokenI + 1);
-	currentObjectFile->tokens.insert(currentObjectFile->tokens.begin() + tokenStart, macroDefinition.begin(), macroDefinition.end());
+	currentObjectFile->tokens.insert(currentObjectFile->tokens.begin() + tokenStart, macroExpansion.begin(), macroExpansion.end());
 	currentTokenI = tokenStart - 1; // move back token index to the start of the expanded macro
 }
 
