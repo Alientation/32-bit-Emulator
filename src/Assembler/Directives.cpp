@@ -587,6 +587,7 @@ void Assembler::DIR_SPACE() {
  */
 void Assembler::DIR_GLOBAL() {
 	EXPECT_OPERAND();
+	int firstGlobalToken = currentTokenI;
 	currentTokenI++;
 
 	// must be defined in the file scope... this is a requirement for the linker
@@ -597,6 +598,15 @@ void Assembler::DIR_GLOBAL() {
 
 	std::string operand = currentObjectFile->tokens[currentTokenI].string;
 	if (operand == ".macro") {
+		currentTokenI++;
+		std::string macroName = currentObjectFile->tokens[currentTokenI].string;
+		std::vector<std::string> parameters;
+		if (HAS_OPERAND()) {
+			currentTokenI++;
+			std::string operand = currentObjectFile->tokens[currentTokenI].string;
+			parameters = split(operand, ',');
+		}
+
 		// TODO:
 
 	} else {
@@ -621,6 +631,9 @@ void Assembler::DIR_GLOBAL() {
 		// mark as global label (symbol)
 		currentObjectFile->markedGlobalSymbols.insert(operand);
 	}
+
+	// remove global directive from tokens
+	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstGlobalToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
 }
 
 /**
@@ -634,6 +647,7 @@ void Assembler::DIR_GLOBAL() {
  */
 void Assembler::DIR_EXTERN() {
 	EXPECT_OPERAND();
+	int firstExternToken = currentTokenI;
 	currentTokenI++;
 
 	// must be defined in the file scope... this is a requirement for the linker
@@ -644,6 +658,15 @@ void Assembler::DIR_EXTERN() {
 
 	std::string operand = currentObjectFile->tokens[currentTokenI].string;
 	if (operand == ".macro") {
+		currentTokenI++;
+		std::string macroName = currentObjectFile->tokens[currentTokenI].string;
+		std::vector<std::string> parameters;
+		if (HAS_OPERAND()) {
+			currentTokenI++;
+			std::string operand = currentObjectFile->tokens[currentTokenI].string;
+			parameters = split(operand, ',');
+		}
+
 		// TODO:
 
 	} else {
@@ -668,6 +691,9 @@ void Assembler::DIR_EXTERN() {
 		// mark as global label (symbol)
 		currentObjectFile->markedExternSymbols.insert(operand);
 	}
+
+	// remove extern directive from tokens
+	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstExternToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
 }
 
 /**
@@ -811,6 +837,9 @@ void Assembler::DIR_INCLUDE() {
 
 	// include the file
 	currentObjectFile->includedFiles.push_back(includedFile);
+
+	// remove include directive from tokens
+	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + currentTokenI - 1, currentObjectFile->tokens.begin() + currentTokenI + 1);
 }
 
 /**

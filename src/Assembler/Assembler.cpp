@@ -119,8 +119,11 @@ void Assembler::preprocess() {
 		}
 	}
 
-	// fill in extern macros TODO:
-	
+	// fill in extern macros
+	for (std::string filename : files) {
+
+	}
+
 
 	// expand out macros
 	for (std::string filename : files) {
