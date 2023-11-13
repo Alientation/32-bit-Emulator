@@ -16,6 +16,27 @@ Assembler::Assembler(std::vector<std::string> files) {
 
 	preprocess();
 
+	// print out postprocessed tokens
+	for (std::string file : files) {
+		currentObjectFile = objectFilesMap[file];
+		currentScope = currentObjectFile->filescope;
+
+		log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Postprocessed Tokens: " << file << RESET);
+		int prevLine = currentObjectFile->tokens.size() > 0 ? currentObjectFile->tokens[0].lineNumber : 0;
+		std::stringstream ss;
+		for (Token token : currentObjectFile->tokens) {
+			if (token.lineNumber != prevLine) {
+				ss << "\n";
+				prevLine = token.lineNumber;
+			}
+			ss << token.string << "\t";
+		}
+
+		log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Postprocessed Tokens: " << file << RESET << "\n" << ss.str() 
+				<< "\n" << BOLD << BOLD_WHITE << "End Postprocessed Tokens: " << file << RESET);
+	}
+
+
 	// parse each file the first time to build symbol table
 	for (std::string file : files) {
 		parse(file);

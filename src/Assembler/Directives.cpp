@@ -1041,6 +1041,7 @@ void Assembler::DIR_MACRO() {
 	std::vector<Token> macroDefinition;
 
 	// parse the macro definition
+	currentTokenI++;
 	while (currentTokenI < currentObjectFile->tokens.size()) {
 		if (currentObjectFile->tokens[currentTokenI].string == ".macend") {
 			// expect no operands
@@ -1117,9 +1118,9 @@ void Assembler::DIR_INVOKE() {
 		macroExpansion.push_back(Token(macroParameters[i] + "," + arguments[i], location, lineNumber++));
 	}
 	
-	int offset = macroDefinition.size() > 0 ? macroDefinition[0].location : 0;
+	int offset = macroDefinition.size() > 0 ? macroDefinition[0].lineNumber : 0;
 	for (Token token : macroDefinition) {
-		macroExpansion.push_back(Token(token.string, location, token.lineNumber - offset + lineNumber));
+		macroExpansion.push_back(Token(token.string, location, -(token.lineNumber - offset + lineNumber)));
 	}
 	macroExpansion.push_back(Token(".scend", location, ++lineNumber));
 
