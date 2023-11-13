@@ -36,22 +36,22 @@ Assembler::Assembler(std::vector<std::string> files) {
  */
 void Assembler::defineLabel(std::string labelname, Word value) {
 	// check if label has already been defined in the current scope
-	Scope& tempScope = *(this->currentScope);
+	Scope* tempScope = this->currentScope;
 	while(true) {
-		if (tempScope.symbols.find(labelname) != tempScope.symbols.end()) {
+		if (tempScope->symbols.find(labelname) != tempScope->symbols.end()) {
 			error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Label Already Defined: " << labelname);
 		}
 
 		// we are at the filescope and the label has not been defined
-		if (tempScope.parent == nullptr) {
+		if (tempScope == currentObjectFile->filescope) {
 			break;
 		}
 
-		tempScope = tempScope.parent;
+		tempScope = tempScope->parent;
 	}
 
 	// create a new label
-	tempScope.symbols.insert(std::pair<std::string, Symbol*>(labelname, new Symbol(labelname, value, SYMBOL_VALUE_RELATIVE)));
+	tempScope->symbols.insert(std::pair<std::string, Symbol*>(labelname, new Symbol(labelname, value, SYMBOL_VALUE_RELATIVE)));
 }
 
 
