@@ -11,9 +11,16 @@
 loadlabel:
 		LDA	#$FFFF
 		LDA	#$1234
-	.data
+
+.macro	testmacro	arg1, arg2
+		LDA	#arg1
+		LDA	#arg2
+.macend
+
+.invoke	testmacro	50, 30
 
 datalabel:
+	.data
 	.db		$01, $02, $03, $04
 	.db*		$01, $02, $03, $04
 	.d2b		$1234, $5678

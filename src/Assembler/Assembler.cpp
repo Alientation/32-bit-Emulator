@@ -46,6 +46,8 @@ void Assembler::defineLabel(std::string labelname, Word value) {
 		if (tempScope.parent == nullptr) {
 			break;
 		}
+
+		tempScope = tempScope.parent;
 	}
 
 	// create a new label
@@ -229,9 +231,6 @@ void Assembler::parse(std::string filename) {
 
 			// offload to some other function to do
 			(this->*processDirective[directiveType])();
-			
-			// no other tokens should follow a directive in the same line
-			EXPECT_NO_OPERAND();
 			continue;
 		}
 		

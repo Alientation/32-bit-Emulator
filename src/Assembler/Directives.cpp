@@ -116,6 +116,9 @@ void Assembler::DIR_DATA() {
 	
 	// set the current segment to the requested segment
 	currentSegment = currentObjectFile->segmentMap[SEGMENT_DATA][name];
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -140,6 +143,9 @@ void Assembler::DIR_TEXT() {
 	
 	// set the current segment to the requested segment
 	currentSegment = currentObjectFile->segmentMap[SEGMENT_TEXT][name];
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -149,6 +155,9 @@ void Assembler::DIR_TEXT() {
  */
 void Assembler::DIR_END() {
 	currentTokenI = currentObjectFile->tokens.size() - 1;
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -169,6 +178,9 @@ void Assembler::DIR_ORG_RELATIVE() {
 	currentSegment->programCounter = value;
 
 	isRelativeMemory = true;
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -187,6 +199,9 @@ void Assembler::DIR_ORG_ABSOLUTE() {
 	currentSegment->programCounter = value;
 
 	isRelativeMemory = false;
+	
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 
@@ -224,6 +239,9 @@ void Assembler::defineBytes(std::string token, Byte bytes, bool lowEndian) {
         u64 parsedValue = EXPECT_PARSEDVALUE(trim(value), 0, maxValue);
         writeBytes(parsedValue, bytes, lowEndian);
     }
+	
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -237,6 +255,9 @@ void Assembler::DIR_DB_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 1, true);
+	
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -250,6 +271,9 @@ void Assembler::DIR_D2B_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 2, true);
+	
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -263,6 +287,9 @@ void Assembler::DIR_DW_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 4, true);
+	
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -276,6 +303,8 @@ void Assembler::DIR_D2W_LO() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 8, true);
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -289,6 +318,8 @@ void Assembler::DIR_DB_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 1, false);
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -302,6 +333,8 @@ void Assembler::DIR_D2B_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 2, false);
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -315,6 +348,9 @@ void Assembler::DIR_DW_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 4, false);
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -328,6 +364,9 @@ void Assembler::DIR_D2W_HI() {
     EXPECT_OPERAND();
     currentTokenI++;
     defineBytes(currentObjectFile->tokens[currentTokenI].string, 8, false);
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 
@@ -367,6 +406,9 @@ void Assembler::DIR_ASCII() {
             writeBytes(c, 1, true);
         }
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -406,6 +448,9 @@ void Assembler::DIR_ASCIZ() {
         }
         writeBytes(0, 1, true);
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -460,6 +505,9 @@ void Assembler::DIR_ADVANCE() {
     for (Word i = currentSegment->programCounter; i < targetAddress; i++) {
         writeBytes(filler, 1, true);
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -520,6 +568,9 @@ void Assembler::DIR_FILL() {
 	for (Word i = 0; i < fillcount; i++) {
 		writeBytes(value, size, true);
 	}
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -574,6 +625,9 @@ void Assembler::DIR_SPACE() {
     for (Word i = 0; i < count; i++) {
         writeBytes(value, 1, true);
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -662,6 +716,9 @@ void Assembler::DIR_GLOBAL() {
 
 	// remove global directive from tokens
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstGlobalToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -750,6 +807,9 @@ void Assembler::DIR_EXTERN() {
 
 	// remove extern directive from tokens
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + firstExternToken, currentObjectFile->tokens.begin() + currentTokenI + 1);
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -803,6 +863,9 @@ void Assembler::DIR_EQU() {
                 << "Unrecognized operand for .define directive: " 
 				<< currentObjectFile->tokens[currentTokenI].errorstring());
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -826,6 +889,9 @@ void Assembler::DIR_CHECKPC() {
                 << " is greater than checkpc " << stringifyHex(checkpc) << " " 
 				<< currentObjectFile->tokens[currentTokenI].errorstring());
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -855,6 +921,9 @@ void Assembler::DIR_ALIGN() {
                 << " is less than previous address " << stringifyHex(previousProgramCounter) << " " 
 				<< currentObjectFile->tokens[currentTokenI].errorstring());
     }
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 void Assembler::DIR_INCLUDE() {
@@ -896,6 +965,9 @@ void Assembler::DIR_INCLUDE() {
 
 	// remove include directive from tokens
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + currentTokenI - 1, currentObjectFile->tokens.begin() + currentTokenI + 1);
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -909,6 +981,9 @@ void Assembler::DIR_INCLUDE() {
  */
 void Assembler::DIR_SCOPE() {
 	startScope();
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 /**
@@ -921,6 +996,9 @@ void Assembler::DIR_SCOPE() {
  */
 void Assembler::DIR_SCEND() {
 	endScope();
+
+	// no other tokens should follow a directive in the same line
+	EXPECT_NO_OPERAND();
 }
 
 
@@ -960,7 +1038,7 @@ void Assembler::DIR_MACRO() {
 		currentScope->macros.insert(std::pair<std::string, Macro*>(name, macro));
 	}
 
-	std::vector<std::string> macroDefinition;
+	std::vector<Token> macroDefinition;
 
 	// parse the macro definition
 	while (currentTokenI < currentObjectFile->tokens.size()) {
@@ -971,12 +1049,18 @@ void Assembler::DIR_MACRO() {
 			break;
 		}
 
-		macroDefinition.push_back(currentObjectFile->tokens[currentTokenI].string);
+		macroDefinition.push_back(currentObjectFile->tokens[currentTokenI]);
 		currentTokenI++;
 	}
 
+	// check if we have went past the end of the file
+	if (currentTokenI >= currentObjectFile->tokens.size()) {
+		error(MISSING_TOKEN_ERROR, std::stringstream() << "Missing .macend directive: " 
+				<< currentObjectFile->tokens[currentTokenI].errorstring());
+	}
+
 	// add macro definition
-	typedef std::pair<std::vector<std::string>, std::vector<std::string>> MacroExpansion;
+	typedef std::pair<std::vector<std::string>, std::vector<Token>> MacroExpansion;
 	macro->macros.insert(std::pair<u64, MacroExpansion>(parameters.size(), MacroExpansion(parameters,macroDefinition)));
 
 	// remove macro definition from tokens
@@ -993,7 +1077,7 @@ void Assembler::DIR_MACEND() {
 void Assembler::DIR_INVOKE() {
 	EXPECT_OPERAND();
 	int tokenStart = currentTokenI;
-	int location = currentObjectFile->tokens[currentTokenI].location;
+	int location = -1;
 	int lineNumber = currentObjectFile->tokens[currentTokenI].lineNumber;
 	
 	currentTokenI++;
@@ -1019,7 +1103,7 @@ void Assembler::DIR_INVOKE() {
 	// add scope block to surround the macro
 	// add parameter initialization to the start of the macro
 	std::vector<std::string> macroParameters = macro->macros.at(arguments.size()).first;
-	std::vector<std::string> macroDefinition = macro->macros.at(arguments.size()).second;
+	std::vector<Token> macroDefinition = macro->macros.at(arguments.size()).second;
 
 	// sanity check
 	if (macroParameters.size() != arguments.size()) {
@@ -1027,15 +1111,17 @@ void Assembler::DIR_INVOKE() {
 	}
 
 	std::vector<Token> macroExpansion;
-	macroExpansion.push_back(Token(".scope", location, lineNumber));
+	macroExpansion.push_back(Token(".scope", location, lineNumber++));
 	for (int i = 0; i < arguments.size(); i++) {
 		macroExpansion.push_back(Token(".define", location, lineNumber));
-		macroExpansion.push_back(Token(macroParameters[i] + "," + arguments[i], location, lineNumber));
+		macroExpansion.push_back(Token(macroParameters[i] + "," + arguments[i], location, lineNumber++));
 	}
-	for (std::string token : macroDefinition) {
-		macroExpansion.push_back(Token(token, location, lineNumber));
+	
+	int offset = macroDefinition.size() > 0 ? macroDefinition[0].location : 0;
+	for (Token token : macroDefinition) {
+		macroExpansion.push_back(Token(token.string, location, token.lineNumber - offset + lineNumber));
 	}
-	macroExpansion.push_back(Token(".scend", location, lineNumber));
+	macroExpansion.push_back(Token(".scend", location, ++lineNumber));
 
 	// replace macro invocation with macro definition
 	currentObjectFile->tokens.erase(currentObjectFile->tokens.begin() + tokenStart, currentObjectFile->tokens.begin() + currentTokenI + 1);

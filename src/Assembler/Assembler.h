@@ -128,7 +128,7 @@ struct Segment {
 
 struct Macro {
 	std::string name;
-	std::map<int, std::pair<std::vector<std::string>, std::vector<std::string>>> macros; // map the number of parameters to the macro parameter names and full macro definition
+	std::map<int, std::pair<std::vector<std::string>, std::vector<Token>>> macros; // map the number of parameters to the macro parameter names and full macro definition
 
 	Macro(std::string name) : name(name) {}
 };
