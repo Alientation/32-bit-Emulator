@@ -121,7 +121,44 @@ void Assembler::preprocess() {
 
 	// fill in extern macros
 	for (std::string filename : files) {
-		// TODO:
+		currentObjectFile = objectFilesMap[filename];
+
+		for (std::pair<std::string,std::set<int>> externMacro : currentObjectFile->markedExternMacros) {
+			for (int parameterCount : externMacro.second) {
+				// find the macro definition in one of the included files
+				bool found = false;
+				Macro* targetMacro = nullptr;
+				for (std::string includedFile : currentObjectFile->includedFiles) {
+					ObjectFile* includedObjectFile = objectFilesMap[includedFile];
+					if (includedObjectFile->markedGlobalMacros.find(externMacro.first) != includedObjectFile->markedGlobalMacros.end() 
+							&& includedObjectFile->markedGlobalMacros.at(externMacro.first).find(parameterCount) != includedObjectFile->markedGlobalMacros.at(externMacro.first).end()) {
+						if (found) {
+							error(MULTIPLE_DEFINITION_ERROR, std::stringstream() << "Extern Macro Defined in Multiple Files: " << externMacro.first);
+						}
+
+						found = true;
+						targetMacro = includedObjectFile->filescope->macros.at(externMacro.first);
+
+						// check if target macro exists
+						if (targetMacro == nullptr) {
+							error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Not Defined: " << externMacro.first);
+						}
+
+						// check if target macro has the correct number of parameters
+						if (targetMacro->macros.find(parameterCount) == targetMacro->macros.end()) {
+							error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Parameter Count Mismatch: " << externMacro.first);
+						}
+					}
+				}
+
+				if (!found) {
+					error(INVALID_TOKEN_ERROR, std::stringstream() << "Extern Macro Not Defined: " << externMacro.first);
+				}
+
+				// add the macro to the current object file
+				currentObjectFile->filescope->macros.insert(std::pair<std::string, Macro*>(externMacro.first, targetMacro));
+			}
+		}
 	}
 
 
