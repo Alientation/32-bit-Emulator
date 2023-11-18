@@ -11,4 +11,8 @@ The instructions supported by my processor attempts to emulate the behavior of i
 ## Progress
 All legal instructions have been implemented with around half having been thoroughly tested.
 Currently working on an assembler, aiming for a wide support of various directives.
-Planning on working bit by bit on testing in between development
+Planning on working bit by bit on testing in between development.
+
+## Install
+Build using C++ 13.2 or later
+

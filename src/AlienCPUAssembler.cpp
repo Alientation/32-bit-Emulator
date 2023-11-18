@@ -868,7 +868,7 @@ void AlienCPUAssembler::printMemoryMap() {
 	log(LOG, std::stringstream() << BOLD << BOLD_WHITE << "Printing Memory Map");
 	
 	// print out each memory segmentsegment
-	const uint16_t NUMBER_OF_BYTES_PER_LINE = 16;
+	const u16 NUMBER_OF_BYTES_PER_LINE = 16;
     for (auto it = memoryMap.begin(); it != memoryMap.end(); it++) {
         // get current segment
         MemorySegment segment = *(*it).second;
