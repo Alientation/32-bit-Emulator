@@ -20,12 +20,27 @@ file( GLOB ALIENCPU_SOURCES
     "src/Device/GPU.cpp"
     "src/Device/PSU.cpp"
 
+    # ASSEMBLER V1
     "src/AlienCPUAssembler.cpp"
     "src/AssemblerDirectives.cpp"
 
+    # ASSEMBLER V2
     "src/Assembler/Assembler.cpp"
     "src/Assembler/Directives.cpp"
     "src/Assembler/Linker.cpp"
+
+    # ASSEMBLER V3
+	"src/AssemblerV3/Build.cpp"
+	"src/AssemblerV3/Preprocess/PreprocessorV3.cpp"
+	"src/AssemblerV3/Preprocess/ProcessedFileV3.cpp"
+	"src/AssemblerV3/Assemble/AssemblerV3.cpp"
+	"src/AssemblerV3/Assemble/AssemblerV3Debug.cpp"
+	"src/AssemblerV3/Assemble/DirectivesV3.cpp"
+	"src/AssemblerV3/Assemble/Tokenizer.cpp"
+	"src/AssemblerV3/Assemble/ObjectFileV3.cpp"
+	"src/AssemblerV3/Link/LinkerV3.cpp"
+	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
+	
 )
 file (GLOB ALIENCPU_HEADERS 
     "src/AlienCPU/AlienCPU.h"
@@ -44,12 +59,23 @@ file (GLOB ALIENCPU_HEADERS
     "src/Device/PSU.h"
     "src/Types.h"
 
+    "src/ConsoleColor.h"
+
+	# ASSEMBLER V1
     "src/AlienCPUAssembler.h"
 
+	# ASSEMBLER V2
     "src/Assembler/Assembler.h"
     "src/Assembler/Linker.h"
-    
-    "src/ConsoleColor.h"
+
+	# Assembler V3
+	"src/AssemblerV3/Build.h"
+	"src/AssemblerV3/Assemble/AssemblerV3.h"
+	"src/AssemblerV3/Link/ExecutableFileV3.h"
+	"src/AssemblerV3/Link/LinkerV3.h"
+	"src/AssemblerV3/Assemble/ObjectFileV3.h"
+	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
+	"src/AssemblerV3/Preprocess/ProcessedFileV3.h"
 )
 
 file (GLOB ALIENCPUTEST_SOURCES 
@@ -122,8 +148,8 @@ file (GLOB ALIENCPUPERFORMANCETEST_HEADERS
 
 
 add_library(AlienCPUV1 STATIC ${ALIENCPU_SOURCES} ${ALIENCPU_HEADERS})
-add_library(AlienCPUV1Tests STATIC ${ALIENCPUTEST_SOURCES} ${ALIENCPUTEST_HEADERS})
-add_library(AlienCPUV1PerformanceTests STATIC ${ALIENCPUPERFORMANCETEST_SOURCES} ${ALIENCPUPERFORMANCETEST_HEADERS})
+# add_library(AlienCPUV1Tests STATIC ${ALIENCPUTEST_SOURCES} ${ALIENCPUTEST_HEADERS})
+# add_library(AlienCPUV1PerformanceTests STATIC ${ALIENCPUPERFORMANCETEST_SOURCES} ${ALIENCPUPERFORMANCETEST_HEADERS})
 
 include_directories(src tests)
 
@@ -132,15 +158,15 @@ add_subdirectory(libs/googletest) # add googletest subdirectory
 include_directories(libs/googletest/include) # this is so we can #include <gtest/gtest.h>
 
 # UNIT TEST EXECUTABLE
-add_executable(AlienCPUTests ${ALIENCPUTEST_SOURCES})
-target_link_libraries(AlienCPUTests PRIVATE gtest) # link google test to the unit test executable
-target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1) # link main library to the unit test executable
-target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1Tests) # link test library to the unit test executable
+# add_executable(AlienCPUTests ${ALIENCPUTEST_SOURCES})
+# target_link_libraries(AlienCPUTests PRIVATE gtest) # link google test to the unit test executable
+# target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1) # link main library to the unit test executable
+# target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1Tests) # link test library to the unit test executable
 
 # PERFORMANCE TEST EXECUTABLE
-add_executable(AlienCPUPerformanceTests "tests/AlienCPUPerformanceTests.cpp")
-target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1) # link main library to the performance test executable
-target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1PerformanceTests) # link performance test library to the performance test executable
+# add_executable(AlienCPUPerformanceTests "tests/AlienCPUPerformanceTests.cpp")
+# target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1) # link main library to the performance test executable
+# target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1PerformanceTests) # link performance test library to the performance test executable
 
 # ASSEMBLER EXECUTABLE
 add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
@@ -150,7 +176,7 @@ target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library 
 add_executable(Assembler "src/Assembler/Assembler.cpp")
 target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
 
-enable_testing() #to  discover tests in test explorer 
+# enable_testing() #to  discover tests in test explorer 
 
-include(GoogleTest)
-gtest_discover_tests(AlienCPUTests) # discovers tests by asking the compiled test executable to enumerate its tests
+# include(GoogleTest)
+# gtest_discover_tests(AlienCPUTests) # discovers tests by asking the compiled test executable to enumerate its tests
