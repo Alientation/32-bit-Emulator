@@ -5,7 +5,7 @@
 
 // CHEATY HACK to be able to access private members of another class (for testing purposes)
 #define private public
-#include <../src/Motherboard/AlienCPU.h>
+#include <../src/Emulator/AlienCPU.h>
 #undef private
 
 // registers in cpu that can be tested

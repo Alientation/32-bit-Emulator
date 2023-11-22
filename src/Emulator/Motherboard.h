@@ -2,9 +2,9 @@
 #define MOTHERBOARD_H
 
 #include <Types.h>
-#include <../src/Motherboard/Memory/RAM.h>
-#include <../src/Motherboard/Memory/ROM.h>
-#include <../src/Motherboard/BIOS.h>
+#include <../src/Emulator/Memory/RAM.h>
+#include <../src/Emulator/Memory/ROM.h>
+#include <../src/Emulator/BIOS.h>
 #include <../src/Device/Storage/HDD.h>
 #include <../src/Device/Storage/SSD.h>
 

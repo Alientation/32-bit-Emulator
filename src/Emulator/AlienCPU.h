@@ -2,7 +2,7 @@
 #define ALIENCPU_H
 
 #include <Types.h>
-#include <../src/Motherboard/Motherboard.h>
+#include <../src/Emulator/Motherboard.h>
 #include <string>
 #include <functional>
 

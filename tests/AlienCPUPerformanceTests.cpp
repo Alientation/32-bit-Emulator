@@ -1,7 +1,7 @@
 #include <chrono>
 
 #define private public
-#include <../src/Motherboard/AlienCPU.h>
+#include <../src/Emulator/AlienCPU.h>
 
 void stackTestPushByteToStack_CHAININGMETHODS() {
     std::cout << "Running Stack Test: Push Byte, Chaining Methods" << std::endl;

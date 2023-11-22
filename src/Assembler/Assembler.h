@@ -11,7 +11,7 @@
 #include <map>
 
 #include <../src/ConsoleColor.h>
-#include <../src/Motherboard/AlienCPU.h>
+#include <../src/Emulator/AlienCPU.h>
 
 
 class Assembler;
