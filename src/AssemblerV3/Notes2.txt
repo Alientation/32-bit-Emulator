@@ -1,0 +1,72 @@
+DIRECTIVES
+----------------------------------------------------------------
+.include ["filename"|<filename>]
+	- Inserts the file contents into the current file.
+	- "filename": looks for files located in the current directory.
+	- <filename>: prioritizes files located in the include directory, if not found, looks in the
+				current directory.
+
+
+.global label|macro [symbol] ?: TYPE
+	- Marks the label/macro symbol as a global symbol that is available to any other linked object file through
+	.extern directive.
+
+.extern label|macro [symbol] ?: TYPE
+	- Marks the label/macro symbol as an external symbol that is declared but not yet defined in the 
+	current context.
+
+.define [symbol] [expression] ?: TYPE
+	- Defines a label symbol with the value of the expression.
+	- If a previous declaration of the label symbol has a different TYPE than the current definition
+	an error is thrown.
+
+
+.macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
+	- Defines a macro symbol with n arguments and optionally a return type.
+	- If a return type is specified and the macro definition does not return a value an error is thrown.
+	- There cannot be a macro definition within this macro definition.
+
+.macend
+	- Closes a macro definition.
+	- If a macro is not closed an error is thrown.
+
+.macret [expression]
+	- Stops processing the macro and returns the value of the expression.
+	- If the return value TYPE does not match the macro definition TYPE an error is thrown.
+
+.org [expression]
+	- Moves the current section program counter to the value of the expression.
+
+
+
+EXPRESSIONS
+--------------------------------------------------------------------------------
+TYPES OF EXPRESSIONS
+	- CONSTANT
+		- The expression is made of constant literals that can be evaluated immediately.
+	- RELATIVE
+		- The expression is made of symbols who's values may or may not be known immediately.
+
+RESOLVING RELATIVE EXPRESSIONS
+	- Create a graph such that each node is a symbol and there is a directed edge from node a to
+	node b if and only if the expression that defines node a relies on the value of node b
+	- If the graph contains a cycle, the expressions cannot be evaluated because of circular 
+	dependencies. For example, if (1) depends on (2), (2) depends on (3), but (3) depends on (1),
+	there is no possible way to determine the value of the expression
+
+
+(TYPE)
+	- TYPE CASTS the proceeding label symbol
+
+.
+	- Current program counter
+
+OPERATORS
+( )
+~
+& | ^
+* / %
++ -
+!
+&& ||
+== != >= <= > <

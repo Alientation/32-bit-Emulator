@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(AlienCPU)
 
-file( GLOB ALIENCPU_SOURCES 
+file( GLOB ALIENCPU_SOURCES
+	# Emulator
     "src/AlienCPU/AlienCPU.cpp"
     "src/Device/Input/Keyboard.cpp"
     "src/Device/Input/Mouse.cpp"
@@ -32,7 +33,6 @@ file( GLOB ALIENCPU_SOURCES
     # ASSEMBLER V3
 	"src/AssemblerV3/Build.cpp"
 	"src/AssemblerV3/Preprocess/PreprocessorV3.cpp"
-	"src/AssemblerV3/Preprocess/ProcessedFileV3.cpp"
 	"src/AssemblerV3/Assemble/AssemblerV3.cpp"
 	"src/AssemblerV3/Assemble/AssemblerV3Debug.cpp"
 	"src/AssemblerV3/Assemble/DirectivesV3.cpp"
@@ -40,9 +40,11 @@ file( GLOB ALIENCPU_SOURCES
 	"src/AssemblerV3/Assemble/ObjectFileV3.cpp"
 	"src/AssemblerV3/Link/LinkerV3.cpp"
 	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
+	"src/AssemblerV3/File.cpp"
 	
 )
-file (GLOB ALIENCPU_HEADERS 
+file (GLOB ALIENCPU_HEADERS
+	# Emulator
     "src/AlienCPU/AlienCPU.h"
     "src/Device/Input/Keyboard.h"
     "src/Device/Input/Mouse.h"
@@ -57,9 +59,11 @@ file (GLOB ALIENCPU_HEADERS
     "src/Device/Storage/SSD.h"
     "src/Device/GPU.h"
     "src/Device/PSU.h"
-    "src/Types.h"
 
+	# Contants and Names
+    "src/Types.h"
     "src/ConsoleColor.h"
+	"src/Logger.h"
 
 	# ASSEMBLER V1
     "src/AlienCPUAssembler.h"
@@ -75,7 +79,7 @@ file (GLOB ALIENCPU_HEADERS
 	"src/AssemblerV3/Link/LinkerV3.h"
 	"src/AssemblerV3/Assemble/ObjectFileV3.h"
 	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
-	"src/AssemblerV3/Preprocess/ProcessedFileV3.h"
+	"src/AssemblerV3/File.h"
 )
 
 file (GLOB ALIENCPUTEST_SOURCES 
@@ -146,10 +150,19 @@ file (GLOB ALIENCPUPERFORMANCETEST_HEADERS
 
 )
 
+file (GLOB ASSEMBLERTEST_SOURCES 
+	"tests/AssemblerV3Tests/AssemblerTests.cpp"
+)
+
+file (GLOB ASSEMBLERTEST_HEADERS
+
+)
+
 
 add_library(AlienCPUV1 STATIC ${ALIENCPU_SOURCES} ${ALIENCPU_HEADERS})
 # add_library(AlienCPUV1Tests STATIC ${ALIENCPUTEST_SOURCES} ${ALIENCPUTEST_HEADERS})
 # add_library(AlienCPUV1PerformanceTests STATIC ${ALIENCPUPERFORMANCETEST_SOURCES} ${ALIENCPUPERFORMANCETEST_HEADERS})
+add_library(AssemblerV3Tests STATIC ${ASSEMBLERTEST_SOURCES} ${ASSEMBLERTEST_HEADERS})
 
 include_directories(src tests)
 
@@ -169,12 +182,20 @@ include_directories(libs/googletest/include) # this is so we can #include <gtest
 # target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1PerformanceTests) # link performance test library to the performance test executable
 
 # ASSEMBLER EXECUTABLE
-add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
-target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
+# target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library to the assembler executable
 
 # NEW ASSEMBLER EXECUTABLE
-add_executable(Assembler "src/Assembler/Assembler.cpp")
-target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# add_executable(Assembler "src/Assembler/Assembler.cpp")
+# target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+
+# NEWER ASSEMBLER EXECUTABLE
+add_executable(AssemblerV3 "src/AssemblerV3/Build.cpp")
+target_link_libraries(AssemblerV3 PRIVATE AlienCPUV1) # link main library to the assembler executable
+
+# TEST
+add_executable(AssemblerV3Test "tests/AssemblerV3Tests/AssemblerTests.cpp")
+target_link_libraries(AssemblerV3Test PRIVATE AlienCPUV1) # link google test to the unit test executable
 
 # enable_testing() #to  discover tests in test explorer 
 
