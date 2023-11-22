@@ -183,19 +183,19 @@ include_directories(libs/googletest/include) # this is so we can #include <gtest
 
 # ASSEMBLER EXECUTABLE
 # add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
-# target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1)
 
 # NEW ASSEMBLER EXECUTABLE
 # add_executable(Assembler "src/Assembler/Assembler.cpp")
-# target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# target_link_libraries(Assembler PRIVATE AlienCPUV1)
 
 # NEWER ASSEMBLER EXECUTABLE
 add_executable(AssemblerV3 "src/AssemblerV3/Build.cpp")
-target_link_libraries(AssemblerV3 PRIVATE AlienCPUV1) # link main library to the assembler executable
+target_link_libraries(AssemblerV3 PRIVATE AlienCPUV1)
 
 # TEST
 add_executable(AssemblerV3Test "tests/AssemblerV3Tests/AssemblerTests.cpp")
-target_link_libraries(AssemblerV3Test PRIVATE AlienCPUV1) # link google test to the unit test executable
+target_link_libraries(AssemblerV3Test PRIVATE AlienCPUV1)
 
 # enable_testing() #to  discover tests in test explorer 
 

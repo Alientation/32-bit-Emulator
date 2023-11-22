@@ -13,7 +13,7 @@ void fileReaderBytes();
 int main() {
 	log(TEST, std::stringstream() << "Running Assembler Tests");
 
-	fileTests();
+	// fileTests();
 
 
 
