@@ -78,6 +78,9 @@ std::string File::getFilePath() {
 /**
  * Gets the size of the file in bytes
  * 
+ * NOTE THIS FUNCTION IS BUGGED ON CERTAIN MinGW VERSIONS
+ * https://stackoverflow.com/questions/65180619/stdfilesystemfile-size-send-me-an-incoherent-value
+ * 
  * @return the size of the file in bytes
  */
 uintmax_t File::getFileSize() {
