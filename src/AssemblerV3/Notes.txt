@@ -2,23 +2,12 @@
 # src1.basm
 .include "src1.binc"
 
-.global label SRC1
-.define label SRC1 "src1.basm"
+.global SRC1
+.define SRC1 "src1.basm"
 
 .define MAGIC $FFFC
 .define WHERE "src1.basm"
 .define NUMBER 69 : 2INT 	# OPTIONAL TYPE DECLARING, BUT IF TYPE DECLARED IS DIFFERENT THAT THE SYMBOLS EXISTING TYPE, ERROR
-
-.macro ADD(a,b)
-	LDA	a
-	ADD b
-.macend
-
-.macro SUB(a,b)
-	LDA a
-	SBC b
-.macend
-
 
 ----------------------------------------------------------------
 # src2.basm
@@ -37,15 +26,23 @@
 
 ----------------------------------------------------------------
 #src1.binc
-.extern label MAGIC : 2INT
-.extern label WHERE : STRING
-.extern label NUMBER : 2INT
-.extern macro ADD(a: 2INT, b: 2INT)
-.extern macro SUB(a: 2INT, b: 2INT)
+.extern MAGIC : 2INT
+.extern WHERE : STRING
+.extern NUMBER : 2INT
+
+.macro ADD(a,b)
+	LDA	a
+	ADD b
+.macend
+
+.macro SUB(a,b)
+	LDA a
+	SBC b
+.macend
 
 ----------------------------------------------------------------
 #src2.binc
-.extern label 
+
 
 
 

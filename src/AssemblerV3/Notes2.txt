@@ -7,12 +7,12 @@ DIRECTIVES
 				current directory.
 
 
-.global label|macro [symbol] ?: TYPE
-	- Marks the label/macro symbol as a global symbol that is available to any other linked object file through
+.global symbol ?: TYPE
+	- Marks the label as a global symbol that is available to any other linked object file through
 	.extern directive.
 
-.extern label|macro [symbol] ?: TYPE
-	- Marks the label/macro symbol as an external symbol that is declared but not yet defined in the 
+.extern symbol ?: TYPE
+	- Marks the label as an external symbol that is declared but not yet defined in the 
 	current context.
 
 .define [symbol] [expression] ?: TYPE
