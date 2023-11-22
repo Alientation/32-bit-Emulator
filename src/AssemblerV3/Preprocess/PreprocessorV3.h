@@ -18,7 +18,8 @@ class Preprocessor {
 		void preprocess();
 		State getState();
 	private:
-		File* file;
+		File* inputFile;
+		File* outputFile;
 		State state;
 };
 

@@ -7,7 +7,8 @@
  * @param file the file to preprocess
  */
 Preprocessor::Preprocessor(File file) {
-	this->file = &file;
+	this->inputFile = &file;
+	this->outputFile = new File(file.getFileName(), "i", file.getFileDirectory());
 
 	state = State::UNPROCESSED;
 }
@@ -16,7 +17,7 @@ Preprocessor::Preprocessor(File file) {
  * Destructs a preprocessor object
  */
 Preprocessor::~Preprocessor() {
-	file->~File();
+	inputFile->~File();
 }
 
 /**

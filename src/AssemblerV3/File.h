@@ -11,17 +11,31 @@ class FileReader;
 static const std::string SEPARATOR = "\\";
 
 class File {
+	static bool isValidFileName(const std::string fileName) {
+		return fileName.find_first_of("\\/:*?\"<>|") == std::string::npos && fileName.size() > 0;
+	}
+
+	static bool isValidFileExtension(const std::string fileExtension) {
+		return fileExtension.find_first_of("\\/:*?\"<>|") == std::string::npos && fileExtension.size() > 0;
+	}
+
+	static bool isValidFileDirectory(const std::string directory) {
+		return directory.find_first_of("*?\"<>|") == std::string::npos;
+	}
+
 	public:
-		File(std::string fileName, std::string fileDirectory);
+		File(std::string fileName, std::string fileExtension, std::string fileDirectory);
 		File(std::string filePath);
 		~File();
 		std::string getFileName();
 		std::string getExtension();
 		std::string getFilePath();
+		std::string getFileDirectory();
 		uintmax_t getFileSize();
 	private:
 		void createFileIfNotExist();
 		std::string fileName;
+		std::string fileExtension;
 		std::string fileDirectory;
 		uintmax_t fileSize;
 };

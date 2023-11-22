@@ -10,9 +10,23 @@
  * @param fileName the name of the file
  * @param fileDirectory the directory of the file
  */
-File::File(const std::string fileName, const std::string fileDirectory) {
+File::File(const std::string fileName, const std::string fileExtension, const std::string fileDirectory = "") {
 	this->fileName = fileName;
-	this->fileDirectory = fileDirectory;
+	this->fileExtension = fileExtension;
+
+	if (fileDirectory.empty()) {
+		this->fileDirectory = std::filesystem::current_path().string();
+	} else {
+		this->fileDirectory = fileDirectory;
+	}
+
+	if (!isValidFileName(fileName)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
+	} else if (!isValidFileExtension(fileExtension)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
+	} else if (!isValidFileDirectory(fileDirectory)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
+	}
 
 	createFileIfNotExist();
 }
@@ -23,8 +37,23 @@ File::File(const std::string fileName, const std::string fileDirectory) {
  * @param filePath the path of the file
  */
 File::File(const std::string filePath) {
-	this->fileName = filePath.substr(filePath.find_last_of(SEPARATOR) + 1);
+	std::size_t extensionSeparatorIndex = filePath.find_last_of(".");
+	if (extensionSeparatorIndex == std::string::npos) {
+		log(ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << filePath);
+	}
+
+	std::string fileNameAndExtension = filePath.substr(filePath.find_last_of(SEPARATOR) + 1);
+	this->fileName = fileNameAndExtension.substr(0, fileNameAndExtension.find_last_of("."));
+	this->fileExtension = fileNameAndExtension.substr(fileNameAndExtension.find_last_of(".") + 1);
 	this->fileDirectory = filePath.substr(0, filePath.find_last_of(SEPARATOR));
+
+	if (!isValidFileName(fileName)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
+	} else if (!isValidFileExtension(fileExtension)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
+	} else if (!isValidFileDirectory(fileDirectory)) {
+		log(ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
+	}
 
 	createFileIfNotExist();
 }
@@ -63,7 +92,7 @@ std::string File::getFileName() {
  * @return the extension of the file
  */
 std::string File::getExtension() {
-	return this->fileName.substr(this->fileName.find_last_of(".") + 1);
+	return this->fileExtension;
 }
 
 /**
@@ -72,7 +101,16 @@ std::string File::getExtension() {
  * @return the path of the file
  */
 std::string File::getFilePath() {
-	return this->fileDirectory + SEPARATOR + this->fileName;
+	return this->fileDirectory + SEPARATOR + this->fileName + "." + this->fileExtension;
+}
+
+/**
+ * Returns the directory of the file
+ * 
+ * @return the directory of the file
+ */
+std::string File::getFileDirectory() {
+	return this->fileDirectory;
 }
 
 /**
