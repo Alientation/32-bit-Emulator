@@ -31,13 +31,12 @@ class File {
 		std::string getExtension();
 		std::string getFilePath();
 		std::string getFileDirectory();
-		uintmax_t getFileSize();
+		int getFileSize();
 	private:
 		void createFileIfNotExist();
 		std::string fileName;
 		std::string fileExtension;
 		std::string fileDirectory;
-		uintmax_t fileSize;
 };
 
 class FileWriter {

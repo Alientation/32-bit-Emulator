@@ -25,7 +25,29 @@ Preprocessor::~Preprocessor() {
  */
 void Preprocessor::preprocess() {
 	state = State::PROCESSING;
+	
+	// find each instance of '#' and see if it is a preprocessor directive
+	// if it is, then call the appropriate function
+	FileReader reader = FileReader(inputFile);
+	FileWriter writer = FileWriter(outputFile);
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Returns the state of the preprocessor

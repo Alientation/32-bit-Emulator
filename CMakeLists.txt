@@ -5,6 +5,7 @@ file( GLOB UTIL_HEADERS
 	"src/Types.h"
 	"src/ConsoleColor.h"
 	"src/Logger.h"
+	"src/StringUtil.h"
 )
 
 file( GLOB EMULATOR_SOURCES

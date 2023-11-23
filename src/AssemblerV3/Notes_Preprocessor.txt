@@ -1,0 +1,39 @@
+PREPROCESSOR STATEMENTS
+
+
+#include "filename"|<filename>
+	- Inserts the file contents into the current file.
+	- "filename": looks for files located in the current directory.
+	- <filename>: prioritizes files located in the include directory, if not found, looks in the
+				current directory.
+
+#macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
+	- Defines a macro symbol with n arguments and optionally a return type.
+	- If a return type is specified and the macro definition does not return a value an error is thrown.
+	- There cannot be a macro definition within this macro definition.
+	- Note that the macro symbol is separate from label symbols and will not be pressent after preprocessing.
+
+#macret [expression]
+	- Stops processing the macro and returns the value of the expression.
+	- If the return value TYPE does not match the macro definition TYPE an error is thrown.
+
+#macend
+	- Closes a macro definition.
+	- If a macro is not closed an error is thrown.
+
+#invoke [symbol]([arg1, arg2,..., argn]) [?symbol]
+	- Invokes the macro with the given arguments.
+	- If provided an output symbol, the symbol will be associated with the return value of the macro.
+	- If the macro does not return a value but an output symbol is provided, an error is thrown.
+
+#define [symbol] [?value]
+	- Associates the symbol with the value, if value is not specified, the default is 0
+	- Replaces all instances of symbol with the value
+
+#ifdef [symbol]
+#ifndef [symbol]
+#else
+#elsedef [symbol]
+#elsendef [symbol]
+#endif
+#undef [symbol]

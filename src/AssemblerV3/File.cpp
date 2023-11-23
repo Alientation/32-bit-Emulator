@@ -116,17 +116,17 @@ std::string File::getFileDirectory() {
 /**
  * Gets the size of the file in bytes
  * 
- * NOTE THIS FUNCTION IS BUGGED ON CERTAIN MinGW VERSIONS
- * https://stackoverflow.com/questions/65180619/stdfilesystemfile-size-send-me-an-incoherent-value
- * 
  * @return the size of the file in bytes
  */
-uintmax_t File::getFileSize() {
-	if (fileSize != 0) {
-		return fileSize; // return cached file size
+int File::getFileSize() {
+	int fileSize = 0;
+
+	std::ifstream fileStream = std::ifstream(this->getFilePath(), std::ifstream::in);
+	while (fileStream.peek() != EOF) {
+		fileStream.get();
+		fileSize++;
 	}
 
-	fileSize = std::filesystem::file_size(std::filesystem::path(this->getFilePath()));
 	return fileSize;
 }
 

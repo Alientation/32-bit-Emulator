@@ -1,12 +1,5 @@
 DIRECTIVES
 ----------------------------------------------------------------
-.include ["filename"|<filename>]
-	- Inserts the file contents into the current file.
-	- "filename": looks for files located in the current directory.
-	- <filename>: prioritizes files located in the include directory, if not found, looks in the
-				current directory.
-
-
 .global symbol ?: TYPE
 	- Marks the label as a global symbol that is available to any other linked object file through
 	.extern directive.
@@ -15,24 +8,10 @@ DIRECTIVES
 	- Marks the label as an external symbol that is declared but not yet defined in the 
 	current context.
 
-.define [symbol] [expression] ?: TYPE
+.equ [symbol] [expression] ?: TYPE
 	- Defines a label symbol with the value of the expression.
 	- If a previous declaration of the label symbol has a different TYPE than the current definition
 	an error is thrown.
-
-
-.macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
-	- Defines a macro symbol with n arguments and optionally a return type.
-	- If a return type is specified and the macro definition does not return a value an error is thrown.
-	- There cannot be a macro definition within this macro definition.
-
-.macend
-	- Closes a macro definition.
-	- If a macro is not closed an error is thrown.
-
-.macret [expression]
-	- Stops processing the macro and returns the value of the expression.
-	- If the return value TYPE does not match the macro definition TYPE an error is thrown.
 
 .org [expression]
 	- Moves the current section program counter to the value of the expression.
