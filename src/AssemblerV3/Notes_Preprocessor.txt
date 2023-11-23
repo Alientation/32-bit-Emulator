@@ -4,7 +4,7 @@ PREPROCESSOR STATEMENTS
 #include "filename"|<filename>
 	- Inserts the file contents into the current file.
 	- "filename": looks for files located in the current directory.
-	- <filename>: prioritizes files located in the include directory, if not found, looks in the
+	- <filename>: prioritizes files located in the system file directories, if not found, looks in the
 				current directory.
 
 #macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE

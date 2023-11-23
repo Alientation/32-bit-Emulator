@@ -10,7 +10,7 @@
  * @param fileName the name of the file
  * @param fileDirectory the directory of the file
  */
-File::File(const std::string fileName, const std::string fileExtension, const std::string fileDirectory = "") {
+File::File(const std::string fileName, const std::string fileExtension, const std::string fileDirectory = "", bool createFileIfNotPresent) {
 	this->fileName = fileName;
 	this->fileExtension = fileExtension;
 
@@ -28,7 +28,9 @@ File::File(const std::string fileName, const std::string fileExtension, const st
 		log(ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
 	}
 
-	createFileIfNotExist();
+	if (createFileIfNotPresent && !exists()) {
+		create();
+	}
 }
 
 /**
@@ -36,7 +38,7 @@ File::File(const std::string fileName, const std::string fileExtension, const st
  * 
  * @param filePath the path of the file
  */
-File::File(const std::string filePath) {
+File::File(const std::string filePath, bool createFileIfNotPresent) {
 	std::size_t extensionSeparatorIndex = filePath.find_last_of(".");
 	if (extensionSeparatorIndex == std::string::npos) {
 		log(ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << filePath);
@@ -55,18 +57,8 @@ File::File(const std::string filePath) {
 		log(ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
 	}
 
-	createFileIfNotExist();
-}
-
-/**
- * Creates the file if it does not exist
- */
-void File::createFileIfNotExist() {
-	// check if file exists, if not then create the file
-	std::ifstream file(this->getFilePath());
-	if (!file.good()) {
-		std::ofstream file(this->getFilePath());
-		file.close();
+	if (createFileIfNotPresent && !exists()) {
+		create();
 	}
 }
 
@@ -130,6 +122,22 @@ int File::getFileSize() {
 	return fileSize;
 }
 
+/**
+ * Returns true if the file exists
+ * 
+ * @return true if the file exists
+ */
+bool File::exists() {
+	return std::filesystem::exists(this->getFilePath());
+}
+
+/**
+ * Creates the file
+ */
+void File::create() {
+	std::ofstream file(this->getFilePath());
+	file.close();
+}
 
 
 

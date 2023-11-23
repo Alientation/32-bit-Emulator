@@ -1,4 +1,5 @@
 #include <../src/AssemblerV3/File.h>
+#include <../src/AssemblerV3/Build.h>
 
 #include <string>
 #include <map>
@@ -14,7 +15,7 @@ class Preprocessor {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
 		};
 
-		Preprocessor(File file);					// constructs a preprocessor object with the given file
+		Preprocessor(Process* process, File* file);	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
 		void preprocess();							// preprocesses the file
@@ -33,7 +34,7 @@ class Preprocessor {
 
 			std::string macroBody;
 		};
-
+		Process* process;
 
 		File* inputFile;							// the input file
 		File* outputFile;							// the output file
@@ -42,7 +43,7 @@ class Preprocessor {
 		FileReader* reader;							// reader for the input file
 		FileWriter* writer;							// writer for the output file
 
-		std::string currentPreprocessedToken;		// current token being preproceesed
+		std::string curToken;		// current token being preproceesed
 		std::map<std::string, std::string> symbols;	// defined symbols
 		std::map<std::string, Macro> macros;		// defined macros
 
@@ -60,10 +61,10 @@ class Preprocessor {
 		void _elsedef();
 		void _elsendef();
 		void _endif();
-		void _undef();
+		void _undefine();
 
 		typedef void (Preprocessor::*PreprocessorFunction)();
-		std::map<std::string,PreprocessorFunction> preprocessorDirectives = {
+		std::map<std::string,PreprocessorFunction> directives = {
 			{"#include", &Preprocessor::_include},
 			{"#macro", &Preprocessor::_macro},
 			{"#macret", &Preprocessor::_macret},
@@ -76,7 +77,7 @@ class Preprocessor {
 			{"#elsedef", &Preprocessor::_elsedef},
 			{"#elsendef", &Preprocessor::_elsendef},
 			{"#endif", &Preprocessor::_endif},
-			{"#undef", &Preprocessor::_undef}
+			{"#undefine", &Preprocessor::_undefine}
 		};
 };
 

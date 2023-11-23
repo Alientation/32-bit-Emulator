@@ -77,6 +77,7 @@ file( GLOB ASSEMBLER_V3_SOURCES
 	"src/AssemblerV3/Link/LinkerV3.cpp"
 	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
 	"src/AssemblerV3/File.cpp"
+	"src/AssemblerV3/Directory.cpp"
 	
 )
 file (GLOB ASSEMBLER_V3_HEADERS
@@ -87,6 +88,7 @@ file (GLOB ASSEMBLER_V3_HEADERS
 	"src/AssemblerV3/Assemble/ObjectFileV3.h"
 	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
 	"src/AssemblerV3/File.h"
+	"src/AssemblerV3/Directory.h"
 )
 
 file (GLOB EMULATOR_TEST_SOURCES 
@@ -199,10 +201,6 @@ include_directories(libs/googletest/include) # this is so we can #include <gtest
 # ASSEMBLER V2 EXECUTABLE
 # add_executable(AssemblerV2Exe "src/Assembler/Assembler.cpp")
 # target_link_libraries(AssemblerV2Exe PRIVATE Assembler_V2)
-
-# NEWER ASSEMBLER EXECUTABLE
-add_executable(AssemblerV3Exe "src/AssemblerV3/Build.cpp")
-target_link_libraries(AssemblerV3Exe PRIVATE Assembler_V3)
 
 # TEST
 add_executable(AssemblerV3Test "tests/AssemblerV3Tests/AssemblerTests.cpp")

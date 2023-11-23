@@ -36,11 +36,12 @@ void preprocessorTests() {
 	log(TEST, std::stringstream() << "Running Preprocessor Tests");
 
 	// test creating a file and its attributes
+	Process* process = new Process();
 	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
 	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.i");
 
 	// test preprocessing
-	Preprocessor* preprocessor = new Preprocessor(*file);
+	Preprocessor* preprocessor = new Preprocessor(process, file);
 	preprocessor->preprocess();
 }
 

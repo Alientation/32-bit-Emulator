@@ -24,16 +24,18 @@ class File {
 	}
 
 	public:
-		File(std::string fileName, std::string fileExtension, std::string fileDirectory);
-		File(std::string filePath);
+		File(std::string fileName, std::string fileExtension, std::string fileDirectory, bool createFileIfNotPresent = true);
+		File(std::string filePath, bool createFileIfNotPresent = true);
 		~File();
+
 		std::string getFileName();
 		std::string getExtension();
 		std::string getFilePath();
 		std::string getFileDirectory();
 		int getFileSize();
+		bool exists();
+		void create();
 	private:
-		void createFileIfNotExist();
 		std::string fileName;
 		std::string fileExtension;
 		std::string fileDirectory;
