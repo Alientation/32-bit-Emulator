@@ -59,7 +59,9 @@ class FileReader {
 		~FileReader();
 		std::string readAll();
 		char readByte();
+		char peekByte();
 		char* readBytes(unsigned int numBytes);
+		char* readToken(char tokenDelimiter);
 		bool hasNextByte();
 		void close();
 	private:

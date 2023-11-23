@@ -1,40 +1,74 @@
 #include <vector>
 #include <string>
+#include <regex>
 
 #ifndef STRINGUTIL_H
 #define STRINGUTIL_H
 
 /**
- * Splits a string into a vector of strings separated by the given delimiter.
+ * Trims whitespace from the left side of a string
+ * 
+ * @param str the string to trim
+ * 
+ * @return the trimmed string
+ */
+static std::string leftTrim(std::string str) {
+	str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](unsigned char c) {
+		return !std::isspace(c);
+	}));
+	return str;
+}
+
+/**
+ * Trims whitespace from the right side of a string
+ * 
+ * @param str the string to trim
+ * 
+ * @return the trimmed string
+ */
+static std::string rightTrim(std::string str) {
+	str.erase(std::find_if(str.rbegin(), str.rend(), [](unsigned char c) {
+		return !std::isspace(c);
+	}).base(), str.end());
+	return str;
+}
+
+/**
+ * Trims whitespace from the left and right side of a string
+ * 
+ * @param str the string to trim
+ * 
+ * @return the trimmed string
+ */
+static std::string trimString(std::string str) {
+	return leftTrim(rightTrim(str));
+}
+
+
+/**
+ * Splits a string into a vector of strings separated by the given regex delimiter.
  * 
  * @param str the string to split
- * @param delimiter the delimiter to split the string by
+ * @param delimiter the regex delimiter to split the string by
  * @param trim whether or not to trim each split string
  * 
- * @return a vector of strings separated by the given delimiter
+ * @return a vector of strings separated by the given regex delimiter
  */
-static std::vector<std::string> split(std::string str, std::string delimiter, bool trim = false) {
+static std::vector<std::string> split(std::string str, std::string delimRegex, bool trim = false) {
 	std::vector<std::string> result;
-	size_t pos = 0;
-	std::string token;
-	while ((pos = str.find(delimiter)) != std::string::npos) {
-		token = str.substr(0, pos);
+	std::regex rgx(delimRegex);
+	std::sregex_token_iterator iter(str.begin(), str.end(), rgx, -1);
+	std::sregex_token_iterator end;
 
+	while (iter != end) {
+		std::string token = *iter;
 		if (trim) {
-			token.erase(0, token.find_first_not_of(" \t\n\r\f\v"));
-			token.erase(token.find_last_not_of(" \t\n\r\f\v") + 1);
+			token = trimString(token);
 		}
 
 		result.push_back(token);
-		str.erase(0, pos + delimiter.length());
+		++iter;
 	}
-
-	if (trim) {
-		str.erase(0, str.find_first_not_of(" \t\n\r\f\v"));
-		str.erase(str.find_last_not_of(" \t\n\r\f\v") + 1);
-	}
-
-	result.push_back(str);
 
 	return result;
 }

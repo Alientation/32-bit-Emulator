@@ -241,6 +241,15 @@ char FileReader::readByte() {
 }
 
 /**
+ * Returns the next byte to be read from the file without advancing the file pointer
+ * 
+ * @return the next byte to be read from the file
+ */
+char FileReader::peekByte() {
+	return this->fileStream->peek();
+}
+
+/**
  * Reads a number of bytes from the file
  * 
  * @param numBytes the number of bytes to read
@@ -256,6 +265,22 @@ char* FileReader::readBytes(const unsigned int numBytes) {
 	}
 
 	return bytes;
+}
+
+/**
+ * Reads all bytes from the file till the next token delimiter is encountered
+ * 
+ * @param delimiter the delimiter to stop reading at
+ * 
+ * @return the bytes read from the file
+ */
+char* FileReader::readToken(const char tokenDelimiter) { // TODO: make this take in a regex separator
+	std::string token = "";
+	while (this->fileStream->peek() != tokenDelimiter && this->fileStream->peek() != EOF) {
+		token += this->fileStream->get();
+	}
+
+	return (char*)token.c_str();
 }
 
 /**

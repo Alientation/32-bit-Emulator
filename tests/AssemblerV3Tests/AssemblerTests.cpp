@@ -1,5 +1,6 @@
 #include "Logger.h"
 #include <../src/AssemblerV3/File.h>
+#include <../src/AssemblerV3/Preprocess/PreprocessorV3.h>
 
 #include <sstream>
 #include <fstream>
@@ -9,12 +10,19 @@ void fileReaderAll();
 void fileReaderByte();
 void fileReaderBytes();
 
+void preprocessorTests();
+
+void clearFile(std::string filePath) {
+	std::ofstream file(filePath, std::ofstream::out | std::ofstream::trunc);
+	file.close();
+}
+
 
 int main() {
 	log(TEST, std::stringstream() << "Running Assembler Tests");
 
-	fileTests();
-
+	// fileTests();
+	preprocessorTests();
 
 
 
@@ -23,10 +31,19 @@ int main() {
 	return 0;
 }
 
-void clearFile(std::string filePath) {
-	std::ofstream file(filePath, std::ofstream::out | std::ofstream::trunc);
-	file.close();
+
+void preprocessorTests() {
+	log(TEST, std::stringstream() << "Running Preprocessor Tests");
+
+	// test creating a file and its attributes
+	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
+	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.i");
+
+	// test preprocessing
+	Preprocessor* preprocessor = new Preprocessor(*file);
+	preprocessor->preprocess();
 }
+
 
 void fileTests() {
 	// test creating a file and its attributes
