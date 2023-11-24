@@ -132,6 +132,28 @@ File* Directory::getSubfile(const std::string subfilePath) {
 }
 
 /**
+ * Returns whether or not the subdirectory exists
+ * 
+ * @param subdirectoryPath the path of the subdirectory relative to the current directory
+ * 
+ * @return whether or not the subdirectory exists
+ */
+bool Directory::subdirectoryExists(const std::string subdirectoryPath) {
+	return std::filesystem::exists(dirPath + SEPARATOR + subdirectoryPath);
+}
+
+/**
+ * Returns whether or not the subfile exists
+ * 
+ * @param subfilePath the path of the subfile relative to the current directory
+ * 
+ * @return whether or not the subfile exists
+ */
+bool Directory::subfileExists(const std::string subfilePath) {
+	return std::filesystem::exists(dirPath + SEPARATOR + subfilePath);
+}
+
+/**
  * Returns whether or not the directory exists
  * 
  * @return whether or not the directory exists

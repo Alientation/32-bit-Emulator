@@ -14,7 +14,7 @@ class Directory {
 	}
 
 	public:
-		Directory(const std::string dirPath, bool createDirectoryIfNotPresent = true);
+		Directory(const std::string dirPath, bool createDirectoryIfNotPresent = false);
 		~Directory();
 
 		std::string getDirectoryName();
@@ -24,6 +24,9 @@ class Directory {
 		std::vector<Directory*> getSubdirectories();
 		Directory* getSubdirectory(const std::string subdirectoryPath);
 		File* getSubfile(const std::string subfilePath);
+
+		bool subdirectoryExists(const std::string subdirectoryPath);
+		bool subfileExists(const std::string subfilePath);
 
 		bool exists();
 		void create();
