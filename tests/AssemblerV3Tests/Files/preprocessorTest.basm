@@ -1,12 +1,1 @@
-#define DEBUG
-#undef DEBUG
-
-LDA #$5
-
-
-#ifdef DEBUG
-
-#else
-
-
-#endif
+#include "string"

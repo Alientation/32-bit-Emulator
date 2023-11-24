@@ -1,6 +1,7 @@
 #include "PreprocessorV3.h"
 
 #include "Logger.h"
+#include <regex>
 
 
 /**
@@ -11,7 +12,7 @@
 Preprocessor::Preprocessor(Process* process, File* file) {
 	this->process = process;
 	this->inputFile = file;
-	this->outputFile = new File(file->getFileName(), "i", file->getFileDirectory());
+	this->outputFile = new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory());
 
 	if (!process->isValidSourceFile(inputFile)) {
 		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
@@ -25,20 +26,41 @@ Preprocessor::Preprocessor(Process* process, File* file) {
 
 	// tokenizes the input file
 	std::string tok = "";
+	bool isQuoted = false;
+	char quotedChar = '"';
+
+	// read the file
 	while (reader->hasNextByte()) {
 		char byte = reader->readByte();
-		if (std::isspace(byte)) {
-			tokens.push_back(Token(Token::Type::STRING, tok));
+
+		// handle quotes
+		if (!isQuoted && (byte == '"' || byte == '<')) {
+			isQuoted = true;
+			quotedChar = byte;
+		} else if (isQuoted && byte == quotedChar) {
+			isQuoted = false;
+		}
+
+		if (std::isspace(byte) && !isQuoted) {
+			// whitespace character not surrounded by quotes
+			tokens.push_back(Token(Token::Type::TEXT, tok));
 			tokens.push_back(Token(Token::Type::WHITESPACE, std::string(1, byte)));
 			tok = "";
 		} else if (!reader->hasNextByte()) {
 			tok += byte;
-			tokens.push_back(Token(Token::Type::STRING, tok));
+			tokens.push_back(Token(Token::Type::TEXT, tok));
 		} else {
 			tok += byte;
 		}
 	}
 
+	// unclosed quotes
+	if (isQuoted) {
+		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Unclosed quotes: " << quotedChar);
+		return;
+	}
+
+	// print out tokens
 	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenized file: " << inputFile->getFileName());
 	for (int i = 0; i < tokens.size(); i++) {
 		Token& token = tokens[i];
@@ -80,7 +102,7 @@ void Preprocessor::preprocess() {
 		
 		if (token.type == token.WHITESPACE) {
 			writer->writeString(token.value);
-		} else if (token.type == token.STRING) {
+		} else if (token.type == token.TEXT) {
 			if (token.value[0] == '#' && directives.find(token.value) != directives.end()) {
 				// this is a preprocessor directive
 				(this->*directives[token.value])(i);
@@ -101,16 +123,66 @@ void Preprocessor::preprocess() {
 
 
 /**
+ * Skips tokens that match the given regex.
+ * 
+ * @param regex the regex to match
+ * @param tokenI the index of the current token
+ */
+void Preprocessor::skipTokens(int& tokenI, std::string regex) {
+	while (tokenI < tokens.size() && std::regex_match(tokens[tokenI].value, std::regex(regex))) {
+		tokenI++;
+	}
+}
+
+/**
+ * Expects the next token to exist
+ * 
+ * @param tokenI the index of the expected token
+ * @param errorMsg the error message to throw if the token does not exist
+ */
+void Preprocessor::expectToken(int& tokenI, std::string errorMsg) {
+	if (tokenI >= tokens.size()) {
+		log(ERROR, std::stringstream() << errorMsg);
+	}
+}
+
+
+/**
  * Inserts the file contents into the current file.
  * 
- * USAGE: #include "filename"|<filename>
+ * USAGE: #include "filepath"|<filepath>
  * 
- * "filename": looks for files located in the current directory.
- * <filename>: prioritizes files located in the include directory, if not found, looks in the
+ * "filepath": looks for files located in the current directory.
+ * <filepath>: prioritizes files located in the include directory, if not found, looks in the
  * current directory.
  */
 void Preprocessor::_include(int& tokenI) {
+	tokenI++;
+	skipTokens(tokenI, "[ \t]");
+	expectToken(tokenI, "Preprocessor::_include() - Missing include filename");
 
+	std::string filepath = tokens[tokenI].value;
+
+	if (filepath[0] == '"') {
+		// local include
+		if (filepath.back() != '"') {
+			log(ERROR, std::stringstream() << "Preprocessor::_include() - Unclosed quotes around filepath: " << filepath);
+			return;
+		}
+
+		std::string localFilePath = filepath.substr(1, filepath.find_last_of('"'));
+	} else if (filepath[0] == '<') {
+		// this is a system include
+		if (filepath.back() != '>') {
+			log(ERROR, std::stringstream() << "Preprocessor::_include() - Unclosed angle brackets around filepath: " << filepath);
+			return;
+		}
+
+		std::string systemFilePath = filepath.substr(1, filepath.length() - 2);
+	} else {
+		log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath: " << filepath);
+		return;
+	}
 }
 
 /**

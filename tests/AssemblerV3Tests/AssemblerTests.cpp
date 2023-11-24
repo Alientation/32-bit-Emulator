@@ -36,13 +36,16 @@ int main() {
 }
 
 
+/**
+ * Test the PreprocessorV3 class
+ */
 void preprocessorTests() {
 	log(TEST, std::stringstream() << "Running Preprocessor Tests");
 
 	// test creating a file and its attributes
 	Process* process = new Process("-lib library1 -L ..\\tests\\AssemblerV3Tests\\Files\\libs -I ..\\tests\\AssemblerV3Tests\\Files\\include -o preprocessorTest ..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
-	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
-	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.i");
+	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest" + SOURCE_EXTENSION);
+	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest" + PROCESSED_EXTENSION);
 
 	// test preprocessing
 	Preprocessor* preprocessor = new Preprocessor(process, file);
@@ -50,6 +53,9 @@ void preprocessorTests() {
 }
 
 
+/**
+ * Test the Directory class implementation
+ */
 void directoryTests() {
 	log(TEST, std::stringstream() << "Running Directory Tests");
 
@@ -73,6 +79,9 @@ void directoryTests() {
 }
 
 
+/**
+ * Test the File class implementation
+ */
 void fileTests() {
 	// test creating a file and its attributes
 	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\empty.txt");

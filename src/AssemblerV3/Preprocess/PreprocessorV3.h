@@ -37,7 +37,7 @@ class Preprocessor {
 
 		struct Token {
 			enum Type {
-				STRING, WHITESPACE
+				TEXT, WHITESPACE
 			};
 
 			Type type;
@@ -60,6 +60,9 @@ class Preprocessor {
 
 		std::map<std::string, std::string> symbols;	// defined symbols
 		std::map<std::string, Macro> macros;		// defined macros
+
+		void skipTokens(int& tokenI, std::string regex);
+		void expectToken(int& tokenI, std::string errorMsg);
 
 		void _include(int& tokenI);
 		void _macro(int& tokenI);
