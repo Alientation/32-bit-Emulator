@@ -40,7 +40,7 @@ void preprocessorTests() {
 	log(TEST, std::stringstream() << "Running Preprocessor Tests");
 
 	// test creating a file and its attributes
-	Process* process = new Process("-lib ..\\tests\\AssemblerV3Tests\\Files\\lib -I ..\\tests\\AssemblerV3Tests\\Files\\include -o ..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.bo ..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
+	Process* process = new Process("-lib library1 -L ..\\tests\\AssemblerV3Tests\\Files\\libs -I ..\\tests\\AssemblerV3Tests\\Files\\include -o preprocessorTest ..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
 	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
 	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.i");
 
