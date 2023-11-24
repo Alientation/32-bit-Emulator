@@ -132,7 +132,7 @@ void Process::link() {
  * @param index the index of the flag in the arguments list
  */
 void Process::_version(std::vector<std::string>& args, int& index) {
-
+	std::cout << "Assembler Version: " << ASSEMBLER_VERSION << std::endl;
 }
 
 /**
@@ -144,7 +144,7 @@ void Process::_version(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_compile(std::vector<std::string>& args, int& index) {
-
+	onlyCompile = true;
 }
 
 /**
@@ -156,7 +156,18 @@ void Process::_compile(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_output(std::vector<std::string>& args, int& index) {
+	if (index + 1 >= args.size()) {
+		log(ERROR, std::stringstream() << "Process::_output() - Missing output file name");
+		return;
+	}
 
+	outputFile = args[++index];
+
+	// check if the output file is valid
+	if (!File::isValidFileName(outputFile)) {
+		log(ERROR, std::stringstream() << "Process::_output() - Invalid output file name: " << outputFile);
+		return;
+	}
 }
 
 /**
@@ -165,7 +176,7 @@ void Process::_output(std::vector<std::string>& args, int& index) {
  * USAGE: -o, -optimize [level]
  * 
  * Optimization Levels
- * 0 - no optimization
+ * 0 - no optimization (DEFAULT)
  * 1 - basic optimization
  * 2 - advanced optimization
  * 3 - full optimization
@@ -174,7 +185,18 @@ void Process::_output(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_optimize(std::vector<std::string>& args, int& index) {
+	if (index + 1 >= args.size()) {
+		log(ERROR, std::stringstream() << "Process::_optimize() - Missing optimization level");
+		return;
+	}
 
+	optimizationLevel = std::stoi(args[++index]);
+
+	// check if the optimization level is valid
+	if (optimizationLevel < 0 || optimizationLevel > 3) {
+		log(ERROR, std::stringstream() << "Process::_optimize() - Invalid optimization level: " << optimizationLevel);
+		return;
+	}
 }
 
 /**
@@ -186,7 +208,7 @@ void Process::_optimize(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_optimizeAll(std::vector<std::string>& args, int& index) {
-
+	optimizationLevel = MAX_OPTIMIZATION_LEVEL;
 }
 
 /**
@@ -198,7 +220,7 @@ void Process::_optimizeAll(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_debug(std::vector<std::string>& args, int& index) {
-
+	enableDebugMode = true;
 }
 
 /**
@@ -213,7 +235,18 @@ void Process::_debug(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_warn(std::vector<std::string>& args, int& index) {
+	if (index + 1 >= args.size()) {
+		log(ERROR, std::stringstream() << "Process::_warn() - Missing warning type");
+		return;
+	}
 
+	std::string warningType = args[++index];
+	if (WARNINGS.find(warningType) == WARNINGS.end()) {
+		log(ERROR, std::stringstream() << "Process::_warn() - Invalid warning type: " << warningType);
+		return;
+	}
+
+	enabledWarnings.insert(warningType);
 }
 
 /**
@@ -225,7 +258,9 @@ void Process::_warn(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_warnAll(std::vector<std::string>& args, int& index) {
-
+	for (std::string warningType : WARNINGS) {
+		enabledWarnings.insert(warningType);
+	}
 }
 
 /**
@@ -237,7 +272,7 @@ void Process::_warnAll(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_include(std::vector<std::string>& args, int& index) {
-
+	
 }
 
 /**

@@ -1,15 +1,25 @@
 #include <map>
+#include <set>
 #include <vector>
 #include "File.h"
+#include "Directory.h"
 
 #ifndef BUILD_H
 #define BUILD_H
 
 class Process;
+static const std::string ASSEMBLER_VERSION = "0.0.1";
+static const int MAX_OPTIMIZATION_LEVEL = 3;
+
 static const std::string SOURCE_EXTENSION = "basm";
 static const std::string PROCESSED_EXTENSION = "bi";
 static const std::string OBJECT_EXTENSION = "bo";
 static const std::string EXECUTABLE_EXTENSION = "bexe";
+
+static const std::set<std::string> WARNINGS = {
+	"error",
+};
+static const std::string DEFAULT_OUTPUT_FILE = "a";
 
 class Process {
 	public:
@@ -36,10 +46,18 @@ class Process {
 		void build();
 
 	private:
-		std::vector<File*> systemFiles;
+		bool onlyCompile = false;
+		std::string outputFile = DEFAULT_OUTPUT_FILE;
+		int optimizationLevel;
+		bool enableDebugMode;
+		std::set<std::string> enabledWarnings;
+
+		std::vector<Directory*> systemDirectories;
 		std::vector<File*> sourceFiles;
 
+		std::vector<File*> processedFiles;
 		std::vector<File*> objectFiles;
+		File* executableFile;
 
 		void preprocess();
 		void assemble();
@@ -68,7 +86,7 @@ class Process {
 			{"-c", &Process::_compile},
 			{"-compile", &Process::_compile},
 
-			// specifies the name of the output file
+			// specifies the name of the output file (the executable file)
 			{"-out", &Process::_output},
 			{"-output", &Process::_output},
 
