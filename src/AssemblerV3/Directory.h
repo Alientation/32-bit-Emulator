@@ -9,15 +9,21 @@
 class Directory;
 
 class Directory {
+	static bool isValidDirectoryPath(const std::string dirPath) {
+		return dirPath.find_first_of("*?\"<>|") == std::string::npos;
+	}
+
 	public:
-		Directory(const std::string dirPath);
+		Directory(const std::string dirPath, bool createDirectoryIfNotPresent = true);
 		~Directory();
 
-		std::string path();
-		std::vector<File*> subfiles();
-		std::vector<Directory*> subdirectories();
-		Directory* subdirectory(const std::string subdirectoryPath);
-		File* subfile(const std::string subfilePath);
+		std::string getDirectoryName();
+		std::string getDirectoryPath();
+		int getDirectorySize();
+		std::vector<File*> getSubfiles();
+		std::vector<Directory*> getSubdirectories();
+		Directory* getSubdirectory(const std::string subdirectoryPath);
+		File* getSubfile(const std::string subfilePath);
 
 		bool exists();
 		void create();

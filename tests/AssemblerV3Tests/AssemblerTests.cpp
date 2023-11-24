@@ -1,5 +1,6 @@
 #include "Logger.h"
 #include <../src/AssemblerV3/File.h>
+#include <../src/AssemblerV3/Directory.h>
 #include <../src/AssemblerV3/Preprocess/PreprocessorV3.h>
 
 #include <sstream>
@@ -12,6 +13,8 @@ void fileReaderBytes();
 
 void preprocessorTests();
 
+void directoryTests();
+
 void clearFile(std::string filePath) {
 	std::ofstream file(filePath, std::ofstream::out | std::ofstream::trunc);
 	file.close();
@@ -22,6 +25,7 @@ int main() {
 	log(TEST, std::stringstream() << "Running Assembler Tests");
 
 	// fileTests();
+	// directoryTests();
 	preprocessorTests();
 
 
@@ -46,6 +50,29 @@ void preprocessorTests() {
 }
 
 
+void directoryTests() {
+	log(TEST, std::stringstream() << "Running Directory Tests");
+
+	// test creating a file and its attributes
+	Directory* directory = new Directory("..\\tests\\AssemblerV3Tests\\Files");
+	log(TEST, std::stringstream() << "Directory Name: " << directory->getDirectoryName());
+	log(TEST, std::stringstream() << "Directory Path: " << directory->getDirectoryPath());
+	log(TEST, std::stringstream() << "Directory Size: " << directory->getDirectorySize());
+
+	// test getting files
+	std::vector<File*> files = directory->getSubfiles();
+	for (int i = 0; i < files.size(); i++) {
+		log(TEST, std::stringstream() << "File " << i << ": " << files[i]->getFileName());
+	}
+
+	// test getting directories
+	std::vector<Directory*> directories = directory->getSubdirectories();
+	for (int i = 0; i < directories.size(); i++) {
+		log(TEST, std::stringstream() << "Directory " << i << ": " << directories[i]->getDirectoryName());
+	}
+}
+
+
 void fileTests() {
 	// test creating a file and its attributes
 	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\empty.txt");
@@ -54,7 +81,7 @@ void fileTests() {
 	log(TEST, std::stringstream() << "File Path: " << file->getFilePath());
 	log(TEST, std::stringstream() << "File Size: " << file->getFileSize());
 
-	// fileReaderAll();
+	fileReaderAll();
 	// fileReaderByte();
 	// fileReaderBytes();
 }

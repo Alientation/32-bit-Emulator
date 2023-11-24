@@ -56,6 +56,11 @@ static std::string trimString(std::string str) {
  */
 static std::vector<std::string> split(std::string str, std::string delimRegex, bool trim = false) {
 	std::vector<std::string> result;
+
+	if (str.empty()) {
+		return result;
+	}
+
 	std::regex rgx(delimRegex);
 	std::sregex_token_iterator iter(str.begin(), str.end(), rgx, -1);
 	std::sregex_token_iterator end;
