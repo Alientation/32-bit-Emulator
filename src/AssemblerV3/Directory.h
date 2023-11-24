@@ -9,11 +9,11 @@
 class Directory;
 
 class Directory {
-	static bool isValidDirectoryPath(const std::string dirPath) {
-		return dirPath.find_first_of("*?\"<>|") == std::string::npos;
-	}
-
 	public:
+		static bool isValidDirectoryPath(const std::string dirPath) {
+			return dirPath.find_first_of("*?\"<>|") == std::string::npos;
+		}
+
 		Directory(const std::string dirPath, bool createDirectoryIfNotPresent = false);
 		~Directory();
 
