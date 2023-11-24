@@ -1,58 +1,97 @@
 cmake_minimum_required(VERSION 3.12)
 project(AlienCPU)
 
-file( GLOB ALIENCPU_SOURCES 
+file( GLOB UTIL_HEADERS
+	"src/Types.h"
+	"src/ConsoleColor.h"
+	"src/Logger.h"
+	"src/StringUtil.h"
+)
+
+file( GLOB EMULATOR_SOURCES
     "src/AlienCPU/AlienCPU.cpp"
     "src/Device/Input/Keyboard.cpp"
     "src/Device/Input/Mouse.cpp"
-    "src/Motherboard/Memory/RAM.cpp"
-    "src/Motherboard/Memory/ROM.cpp"
-    "src/Motherboard/AlienCPU.cpp"
-    "src/Motherboard/AddressingModesUtil.cpp"
-    "src/Motherboard/InstructionLinker.cpp"
-    "src/Motherboard/Instructions.cpp"
-    "src/Motherboard/BIOS.cpp"
-    "src/Motherboard/Motherboard.cpp"
+    "src/Emulator/Memory/RAM.cpp"
+    "src/Emulator/Memory/ROM.cpp"
+    "src/Emulator/AlienCPU.cpp"
+    "src/Emulator/AddressingModesUtil.cpp"
+    "src/Emulator/InstructionLinker.cpp"
+    "src/Emulator/Instructions.cpp"
+    "src/Emulator/BIOS.cpp"
+    "src/Emulator/Motherboard.cpp"
     "src/Device/Output/Monitor.cpp"
     "src/Device/Output/Speaker.cpp"
     "src/Device/Storage/HDD.cpp"
     "src/Device/Storage/SSD.cpp"
     "src/Device/GPU.cpp"
     "src/Device/PSU.cpp"
-
-    "src/AlienCPUAssembler.cpp"
-    "src/AssemblerDirectives.cpp"
-
-    "src/Assembler/Assembler.cpp"
-    "src/Assembler/Directives.cpp"
-    "src/Assembler/Linker.cpp"
 )
-file (GLOB ALIENCPU_HEADERS 
+
+file ( GLOB EMULATOR_HEADERS
     "src/AlienCPU/AlienCPU.h"
     "src/Device/Input/Keyboard.h"
     "src/Device/Input/Mouse.h"
-    "src/Motherboard/Memory/RAM.h"
-    "src/Motherboard/Memory/ROM.h"
-    "src/Motherboard/AlienCPU.h"
-    "src/Motherboard/BIOS.h"
-    "src/Motherboard/Motherboard.h"
+    "src/Emulator/Memory/RAM.h"
+    "src/Emulator/Memory/ROM.h"
+    "src/Emulator/AlienCPU.h"
+    "src/Emulator/BIOS.h"
+    "src/Emulator/Motherboard.h"
     "src/Device/Output/Monitor.h"
     "src/Device/Output/Speaker.h"
     "src/Device/Storage/HDD.h"
     "src/Device/Storage/SSD.h"
     "src/Device/GPU.h"
     "src/Device/PSU.h"
-    "src/Types.h"
-
-    "src/AlienCPUAssembler.h"
-
-    "src/Assembler/Assembler.h"
-    "src/Assembler/Linker.h"
-    
-    "src/ConsoleColor.h"
 )
 
-file (GLOB ALIENCPUTEST_SOURCES 
+file( GLOB ASSEMBLER_V1_SOURCES
+	"src/AlienCPUAssembler.cpp"
+	"src/AssemblerDirectives.cpp"
+)
+
+file( GLOB ASSEMBLER_V1_HEADERS
+	"src/AlienCPUAssembler.h"
+)
+
+file( GLOB ASSEMBLER_V2_SOURCES
+	"src/Assembler/Assembler.cpp"
+	"src/Assembler/Directives.cpp"
+	"src/Assembler/Linker.cpp"
+)
+
+file( GLOB ASSEMBLER_V2_HEADERS
+	"src/Assembler/Assembler.h"
+	"src/Assembler/Linker.h"
+)
+
+
+file( GLOB ASSEMBLER_V3_SOURCES
+	"src/AssemblerV3/Build.cpp"
+	"src/AssemblerV3/Preprocess/PreprocessorV3.cpp"
+	"src/AssemblerV3/Assemble/AssemblerV3.cpp"
+	"src/AssemblerV3/Assemble/AssemblerV3Debug.cpp"
+	"src/AssemblerV3/Assemble/DirectivesV3.cpp"
+	"src/AssemblerV3/Assemble/Tokenizer.cpp"
+	"src/AssemblerV3/Assemble/ObjectFileV3.cpp"
+	"src/AssemblerV3/Link/LinkerV3.cpp"
+	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
+	"src/AssemblerV3/File.cpp"
+	"src/AssemblerV3/Directory.cpp"
+	
+)
+file (GLOB ASSEMBLER_V3_HEADERS
+	"src/AssemblerV3/Build.h"
+	"src/AssemblerV3/Assemble/AssemblerV3.h"
+	"src/AssemblerV3/Link/ExecutableFileV3.h"
+	"src/AssemblerV3/Link/LinkerV3.h"
+	"src/AssemblerV3/Assemble/ObjectFileV3.h"
+	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
+	"src/AssemblerV3/File.h"
+	"src/AssemblerV3/Directory.h"
+)
+
+file (GLOB EMULATOR_TEST_SOURCES 
     "tests/AlienCPUTests.cpp"
 
     "tests/InstructionTests/Transfer/LDATest.cpp"
@@ -108,22 +147,34 @@ file (GLOB ALIENCPUTEST_SOURCES
     "tests/PerformanceTests/StackPerformanceTest.cpp"
 )
 
-file (GLOB ALIENCPUTEST_HEADERS 
+file (GLOB EMULATOR_TEST_HEADERS 
     "tests/AlienCPUTest.h"
 )
 
-file (GLOB ALIENCPUPERFORMANCETEST_SOURCES
+file (GLOB EMULATOR_PERFORMANCETEST_SOURCES
     "tests/AlienCPUPerformanceTests.cpp"
 )
 
-file (GLOB ALIENCPUPERFORMANCETEST_HEADERS
+file (GLOB EMULATOR_PERFORMANCETEST_HEADERS
+
+)
+
+file (GLOB ASSEMBLER_TEST_SOURCES 
+	"tests/AssemblerV3Tests/AssemblerTests.cpp"
+)
+
+file (GLOB ASSEMBLER_TEST_HEADERS
 
 )
 
 
-add_library(AlienCPUV1 STATIC ${ALIENCPU_SOURCES} ${ALIENCPU_HEADERS})
-add_library(AlienCPUV1Tests STATIC ${ALIENCPUTEST_SOURCES} ${ALIENCPUTEST_HEADERS})
-add_library(AlienCPUV1PerformanceTests STATIC ${ALIENCPUPERFORMANCETEST_SOURCES} ${ALIENCPUPERFORMANCETEST_HEADERS})
+# add_library(Emulator STATIC ${EMULATOR_SOURCES} ${EMULATOR_HEADERS})
+# add_library(Assembler_V1 STATIC ${ASSEMBLER_V1_SOURCES} ${ASSEMBLER_V1_HEADERS})
+# add_library(Assembler_V2 STATIC ${ASSEMBLER_V2_SOURCES} ${ASSEMBLER_V2_HEADERS})
+add_library(Assembler_V3 STATIC ${ASSEMBLER_V3_SOURCES} ${ASSEMBLER_V3_HEADERS})
+# add_library(EmulatorTests STATIC ${EMULATOR_TEST_SOURCES} ${EMULATOR_TEST_HEADERS})
+# add_library(EmulatorPerformanceTests STATIC ${EMULATOR_PERFORMANCETEST_SOURCES} ${EMULATOR_PERFORMANCETEST_HEADERS})
+add_library(AssemblerTests STATIC ${ASSEMBLER_TEST_SOURCES} ${ASSEMBLER_TEST_HEADERS})
 
 include_directories(src tests)
 
@@ -132,25 +183,30 @@ add_subdirectory(libs/googletest) # add googletest subdirectory
 include_directories(libs/googletest/include) # this is so we can #include <gtest/gtest.h>
 
 # UNIT TEST EXECUTABLE
-add_executable(AlienCPUTests ${ALIENCPUTEST_SOURCES})
-target_link_libraries(AlienCPUTests PRIVATE gtest) # link google test to the unit test executable
-target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1) # link main library to the unit test executable
-target_link_libraries(AlienCPUTests PRIVATE AlienCPUV1Tests) # link test library to the unit test executable
+# add_executable(EmulatorTestExe ${EMULATOR_TEST_SOURCES})
+# target_link_libraries(EmulatorTestExe PRIVATE gtest)
+# target_link_libraries(EmulatorTestExe PRIVATE Emulator)
+# target_link_libraries(EmulatorTestExe PRIVATE EmulatorTests)
 
 # PERFORMANCE TEST EXECUTABLE
-add_executable(AlienCPUPerformanceTests "tests/AlienCPUPerformanceTests.cpp")
-target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1) # link main library to the performance test executable
-target_link_libraries(AlienCPUPerformanceTests PRIVATE AlienCPUV1PerformanceTests) # link performance test library to the performance test executable
+# add_executable(EmulatorPerformanceTestExe "tests/AlienCPUPerformanceTests.cpp")
+# target_link_libraries(EmulatorPerformanceTestExe PRIVATE Emulator)
+# target_link_libraries(EmulatorPerformanceTestExe PRIVATE EmulatorPerformanceTests)
 
-# ASSEMBLER EXECUTABLE
-add_executable(AlienCPUAssembler "src/AlienCPUAssembler.cpp")
-target_link_libraries(AlienCPUAssembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# ASSEMBLER V1 EXECUTABLE
+# add_executable(AssemblerV1Exe "src/AlienCPUAssembler.cpp")
+# target_link_libraries(AssemblerV1Exe PRIVATE Assembler_V1)
+# target_link_libraries(AssemblerV1Exe PRIVATE Emulator)
 
-# NEW ASSEMBLER EXECUTABLE
-add_executable(Assembler "src/Assembler/Assembler.cpp")
-target_link_libraries(Assembler PRIVATE AlienCPUV1) # link main library to the assembler executable
+# ASSEMBLER V2 EXECUTABLE
+# add_executable(AssemblerV2Exe "src/Assembler/Assembler.cpp")
+# target_link_libraries(AssemblerV2Exe PRIVATE Assembler_V2)
 
-enable_testing() #to  discover tests in test explorer 
+# TEST
+add_executable(AssemblerV3Test "tests/AssemblerV3Tests/AssemblerTests.cpp")
+target_link_libraries(AssemblerV3Test PRIVATE Assembler_V3)
 
-include(GoogleTest)
-gtest_discover_tests(AlienCPUTests) # discovers tests by asking the compiled test executable to enumerate its tests
+# enable_testing() #to  discover tests in test explorer 
+
+# include(GoogleTest)
+# gtest_discover_tests(AlienCPUTests) # discovers tests by asking the compiled test executable to enumerate its tests
