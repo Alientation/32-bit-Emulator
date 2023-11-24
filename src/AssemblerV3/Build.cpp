@@ -270,7 +270,7 @@ void Process::_warnAll(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_include(std::vector<std::string>& args, int& index) {
-	if (index + 1 < args.size()) {
+	if (index + 1 >= args.size()) {
 		log(ERROR, std::stringstream() << "Process::_include() - Missing include directory path");
 		return;
 	}
@@ -295,7 +295,7 @@ void Process::_include(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_library(std::vector<std::string>& args, int& index) {
-	if (index + 1 < args.size()) {
+	if (index + 1 >= args.size()) {
 		log(ERROR, std::stringstream() << "Process::_library() - Missing library name");
 		return;
 	}
@@ -318,7 +318,7 @@ void Process::_library(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
-	if (index + 1 < args.size()) {
+	if (index + 1 >= args.size()) {
 		log(ERROR, std::stringstream() << "Process::_libraryDirectory() - Missing library directory path");
 		return;
 	}
@@ -341,7 +341,7 @@ void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_preprocessorFlag(std::vector<std::string>& args, int& index) {
-	if (index + 1 < args.size()) {
+	if (index + 1 >= args.size()) {
 		log(ERROR, std::stringstream() << "Process::_preprocessorFlag() - Missing preprocessor flag");
 		return;
 	}

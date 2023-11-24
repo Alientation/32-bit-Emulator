@@ -90,23 +90,22 @@ class Process {
 			{"-compile", &Process::_compile},
 
 			// specifies the name of the output file (the executable file)
+			{"-o", &Process::_output},
 			{"-out", &Process::_output},
 			{"-output", &Process::_output},
 
 			// turns on optimization
-			{"-o", &Process::_optimize},
+			{"-O", &Process::_optimize},
 			{"-optimize", &Process::_optimize},
 
 			// turns on all optimization
-			{"-O", &Process::_optimizeAll},
 			{"-oall", &Process::_optimizeAll},
 			
 			// turns on warning messages
-			{"-w", &Process::_warn},
+			{"-W", &Process::_warn},
 			{"-warning", &Process::_warn},
 
 			// turns on all warning messages
-			{"-W", &Process::_warnAll},
 			{"-wall", &Process::_warnAll},
 
 			// use given directory for system files
@@ -119,7 +118,7 @@ class Process {
 			{"-lib", &Process::_library},
 			{"-library", &Process::_library},
 
-			// searches for additional libraries in given directory
+			// searches for linked libraries in given directory
 			{"-L", &Process::_libraryDirectory},
 			{"-libdir", &Process::_libraryDirectory},
 			{"-librarydir", &Process::_libraryDirectory},
