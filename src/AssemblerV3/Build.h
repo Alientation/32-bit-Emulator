@@ -45,20 +45,20 @@ class Process {
 
 		std::vector<File*> objectFiles;
 
-		void _version();
-		void _compile();
-		void _output();
-		void _optimize();
-		void _optimizeAll();
-		void _debug();
-		void _warn();
-		void _warnAll();
-		void _obj();
-		void _include();
-		void _library();
-		void _libraryDirectory();
+		void _version(std::vector<std::string>& args, int& index);
+		void _compile(std::vector<std::string>& args, int& index);
+		void _output(std::vector<std::string>& args, int& index);
+		void _optimize(std::vector<std::string>& args, int& index);
+		void _optimizeAll(std::vector<std::string>& args, int& index);
+		void _debug(std::vector<std::string>& args, int& index);
+		void _warn(std::vector<std::string>& args, int& index);
+		void _warnAll(std::vector<std::string>& args, int& index);
+		void _obj(std::vector<std::string>& args, int& index);
+		void _include(std::vector<std::string>& args, int& index);
+		void _library(std::vector<std::string>& args, int& index);
+		void _libraryDirectory(std::vector<std::string>& args, int& index);
 
-		typedef void (Process::*FlagFunction)();
+		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, int& index);
 		std::map<std::string, FlagFunction> flags = {
 			// prints out the version of the assembler
 			{"-v", &Process::_version},
