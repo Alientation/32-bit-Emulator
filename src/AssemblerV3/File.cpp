@@ -232,7 +232,7 @@ FileReader::~FileReader() {
  */
 std::string FileReader::readAll() {
 	std::string fileContents;
-	while (fileStream->good()) {
+	while (fileStream->peek() != EOF) {
 		fileContents += fileStream->get();
 	}
 	close();
