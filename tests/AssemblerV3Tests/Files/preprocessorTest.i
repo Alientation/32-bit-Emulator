@@ -1,15 +1,11 @@
-This is# not ## dodijaowi ### Dowidja#
+ DEBUG
+ DEBUG
+
+LDA #$5
+
+
+ DEBUG
 
 
 
-#undef
 
-
-
-
-
-dodijaowi
-definewdadawd
-g
-egsjefjio
-dawd wdijwdijd oijwoda oijwo		iwkdkw

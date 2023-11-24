@@ -1,15 +1,12 @@
-This is# not ## dodijaowi ### Dowidja#
+#define DEBUG
+#undef DEBUG
 
-#define
-
-#undef
+LDA #$5
 
 
+#ifdef DEBUG
+
+#else
 
 
 #endif
-dodijaowi
-definewdadawd
-g
-egsjefjio
-dawd wdijwdijd oijwoda oijwo		iwkdkwo

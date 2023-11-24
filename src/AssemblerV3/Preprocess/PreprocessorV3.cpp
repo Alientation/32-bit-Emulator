@@ -20,8 +20,37 @@ Preprocessor::Preprocessor(Process* process, File* file) {
 
 	state = State::UNPROCESSED;
 
-	reader = new FileReader(inputFile);
+	FileReader* reader = new FileReader(inputFile);
 	writer = new FileWriter(outputFile);
+
+	// tokenizes the input file
+	std::string tok = "";
+	while (reader->hasNextByte()) {
+		char byte = reader->readByte();
+		if (std::isspace(byte)) {
+			tokens.push_back(Token(Token::Type::STRING, tok));
+			tokens.push_back(Token(Token::Type::WHITESPACE, std::string(1, byte)));
+			tok = "";
+		} else if (!reader->hasNextByte()) {
+			tok += byte;
+			tokens.push_back(Token(Token::Type::STRING, tok));
+		} else {
+			tok += byte;
+		}
+	}
+
+	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenized file: " << inputFile->getFileName());
+	for (int i = 0; i < tokens.size(); i++) {
+		Token& token = tokens[i];
+
+		if (token.type == token.WHITESPACE) {
+			log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]: " << std::to_string(token.value[0]) << " (" << token.type << ")");
+		} else {
+			log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]: " << token.value << " (" << token.type << ")");
+		}
+	}
+
+	reader->close();
 }
 
 /**
@@ -29,51 +58,45 @@ Preprocessor::Preprocessor(Process* process, File* file) {
  */
 Preprocessor::~Preprocessor() {
 	inputFile->~File();
+	outputFile->~File();
+	writer->~FileWriter();
 }
 
 /**
  * Preprocesses the file
  */
 void Preprocessor::preprocess() {
+	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << inputFile->getFileName());
+
 	if (state != State::UNPROCESSED) {
 		log(ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 		return;
 	}
 	state = State::PROCESSING;
 
-	// processes tokens from the input file
-	curToken = "";
-	while (reader->hasNextByte()) {
-		char byte = reader->readByte();
-		if (std::isspace(byte)) {
-			preprocessToken();
-			writer->writeByte(byte);
-		} else if (!reader->hasNextByte()) {
-			preprocessToken();
+	// parses the tokens
+	for (int i = 0; i < tokens.size(); i++) {
+		Token& token = tokens[i];
+		
+		if (token.type == token.WHITESPACE) {
+			writer->writeString(token.value);
+		} else if (token.type == token.STRING) {
+			if (token.value[0] == '#' && directives.find(token.value) != directives.end()) {
+				// this is a preprocessor directive
+				(this->*directives[token.value])(i);
+			} else {
+				// this is not a preprocessor directive
+				writer->writeString(token.value);
+			}
 		} else {
-			curToken += byte;
+			log(ERROR, std::stringstream() << "Preprocessor::preprocess() - Invalid token type: " << token.type);
 		}
 	}
 
 	state = State::PROCESSED_SUCCESS;
 	writer->close();
-	reader->close();
-}
 
-/**
- * Processes a token extracted from the preprocessor. A token is a sequence of characters that
- * is separated by whitespace.
- */
-void Preprocessor::preprocessToken() {
-	if (directives.find(curToken) != directives.end()) {
-		(this->*directives[curToken])();
-	} else if (symbols.find(curToken) != symbols.end()) {
-		writer->writeString(symbols[curToken]);
-	} else {
-		writer->writeString(curToken);
-	}
-
-	curToken.clear();
+	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << inputFile->getFileName());
 }
 
 
@@ -86,7 +109,7 @@ void Preprocessor::preprocessToken() {
  * <filename>: prioritizes files located in the include directory, if not found, looks in the
  * current directory.
  */
-void Preprocessor::_include() {
+void Preprocessor::_include(int& tokenI) {
 
 }
 
@@ -99,7 +122,7 @@ void Preprocessor::_include() {
  * There cannot be a macro definition within this macro definition.
  * Note that the macro symbol is separate from label symbols and will not be pressent after preprocessing.
  */
-void Preprocessor::_macro() {
+void Preprocessor::_macro(int& tokenI) {
 
 }
 
@@ -111,7 +134,7 @@ void Preprocessor::_macro() {
  * If the macro does not have a return type the macret must return nothing.
  * If the macro has a return type the macret must return a value of that type
  */
-void Preprocessor::_macret() {
+void Preprocessor::_macret(int& tokenI) {
 
 }
 
@@ -122,7 +145,7 @@ void Preprocessor::_macret() {
  * 
  * If a macro is not closed an error is thrown.
  */
-void Preprocessor::_macend() {
+void Preprocessor::_macend(int& tokenI) {
 
 }
 
@@ -134,7 +157,7 @@ void Preprocessor::_macend() {
  * If provided an output symbol, the symbol will be associated with the return value of the macro.
  * If the macro does not return a value but an output symbol is provided, an error is thrown.
  */
-void Preprocessor::_invoke() {
+void Preprocessor::_invoke(int& tokenI) {
 
 }
 
@@ -146,7 +169,7 @@ void Preprocessor::_invoke() {
  * Replaces all instances of symbol with the value
  * If value is not specified, the default is 0
  */
-void Preprocessor::_define() {
+void Preprocessor::_define(int& tokenI) {
 
 }
 
@@ -157,7 +180,7 @@ void Preprocessor::_define() {
  * 
  * Must be closed by a #endif
  */
-void Preprocessor::_ifdef() {
+void Preprocessor::_ifdef(int& tokenI) {
 
 }
 
@@ -168,7 +191,7 @@ void Preprocessor::_ifdef() {
  * 
  * Must be closed by a #endif
  */
-void Preprocessor::_ifndef() {
+void Preprocessor::_ifndef(int& tokenI) {
 
 }
 
@@ -180,7 +203,7 @@ void Preprocessor::_ifndef() {
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
  */
-void Preprocessor::_else() {
+void Preprocessor::_else(int& tokenI) {
 
 }
 
@@ -192,7 +215,7 @@ void Preprocessor::_else() {
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
  */
-void Preprocessor::_elsedef() {
+void Preprocessor::_elsedef(int& tokenI) {
 
 }
 
@@ -204,7 +227,7 @@ void Preprocessor::_elsedef() {
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
  */
-void Preprocessor::_elsendef() {
+void Preprocessor::_elsendef(int& tokenI) {
 
 }
 
@@ -215,7 +238,7 @@ void Preprocessor::_elsendef() {
  * 
  * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef
  */
-void Preprocessor::_endif() {
+void Preprocessor::_endif(int& tokenI) {
 
 }
 
@@ -226,7 +249,7 @@ void Preprocessor::_endif() {
  * 
  * This will still work if the symbol was never defined previously
  */
-void Preprocessor::_undefine() {
+void Preprocessor::_undefine(int& tokenI) {
 
 }
 
