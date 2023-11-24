@@ -51,7 +51,10 @@ class Process {
 		int optimizationLevel;
 		bool enableDebugMode;
 		std::set<std::string> enabledWarnings;
+		std::map<std::string,std::string> preprocessorFlags;
 
+		std::vector<std::string> linkedLibraryNames;
+		std::vector<Directory*> libraryDirectories;
 		std::vector<Directory*> systemDirectories;
 		std::vector<File*> sourceFiles;
 

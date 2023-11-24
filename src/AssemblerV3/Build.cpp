@@ -272,7 +272,18 @@ void Process::_warnAll(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_include(std::vector<std::string>& args, int& index) {
-	
+	if (index + 1 < args.size()) {
+		log(ERROR, std::stringstream() << "Process::_include() - Missing include directory path");
+		return;
+	}
+
+	std::string includeDir = args[++index];
+	if (!Directory::isValidDirectoryPath(includeDir)) {
+		log(ERROR, std::stringstream() << "Process::_include() - Invalid include directory path: " << includeDir);
+		return;
+	}
+
+	systemDirectories.push_back(new Directory(includeDir));
 }
 
 /**
@@ -286,7 +297,18 @@ void Process::_include(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_library(std::vector<std::string>& args, int& index) {
+	if (index + 1 < args.size()) {
+		log(ERROR, std::stringstream() << "Process::_library() - Missing library name");
+		return;
+	}
 
+	std::string libraryName = args[++index];
+	if (!File::isValidFileName(libraryName)) {
+		log(ERROR, std::stringstream() << "Process::_library() - Invalid library name: " << libraryName);
+		return;
+	}
+
+	linkedLibraryNames.push_back(libraryName);
 }
 
 /**
@@ -298,7 +320,18 @@ void Process::_library(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
+	if (index + 1 < args.size()) {
+		log(ERROR, std::stringstream() << "Process::_libraryDirectory() - Missing library directory path");
+		return;
+	}
 
+	std::string libraryDir = args[++index];
+	if (!Directory::isValidDirectoryPath(libraryDir)) {
+		log(ERROR, std::stringstream() << "Process::_libraryDirectory() - Invalid library directory path: " << libraryDir);
+		return;
+	}
+
+	libraryDirectories.push_back(new Directory(libraryDir));
 }
 
 /**
@@ -310,5 +343,20 @@ void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_preprocessorFlag(std::vector<std::string>& args, int& index) {
-	
+	if (index + 1 < args.size()) {
+		log(ERROR, std::stringstream() << "Process::_preprocessorFlag() - Missing preprocessor flag");
+		return;
+	}
+
+	std::string flag = args[++index];
+
+	// check if there is a value
+	std::string value = "";
+	if (flag.find('=') != std::string::npos) {
+		// there is a value
+		value = flag.substr(flag.find('=') + 1);
+		flag = flag.substr(0, flag.find('='));
+	}
+
+	preprocessorFlags[flag] = value;
 }
