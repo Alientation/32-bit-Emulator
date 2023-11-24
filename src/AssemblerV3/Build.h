@@ -35,15 +35,15 @@ class Process {
 
 		void build();
 
-		void preprocess();
-		void assemble();
-		void link();
-
 	private:
 		std::vector<File*> systemFiles;
 		std::vector<File*> sourceFiles;
 
 		std::vector<File*> objectFiles;
+
+		void preprocess();
+		void assemble();
+		void link();
 
 		void _version(std::vector<std::string>& args, int& index);
 		void _compile(std::vector<std::string>& args, int& index);
@@ -53,10 +53,10 @@ class Process {
 		void _debug(std::vector<std::string>& args, int& index);
 		void _warn(std::vector<std::string>& args, int& index);
 		void _warnAll(std::vector<std::string>& args, int& index);
-		void _obj(std::vector<std::string>& args, int& index);
 		void _include(std::vector<std::string>& args, int& index);
 		void _library(std::vector<std::string>& args, int& index);
 		void _libraryDirectory(std::vector<std::string>& args, int& index);
+		void _preprocessorFlag(std::vector<std::string>& args, int& index);
 
 		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, int& index);
 		std::map<std::string, FlagFunction> flags = {
@@ -64,9 +64,9 @@ class Process {
 			{"-v", &Process::_version},
 			{"-version", &Process::_version},
 
-			// assembles the source code files to object files and stops
-			{"-a", &Process::_compile},
-			{"-assemble", &Process::_compile},
+			// compiles the source code files to object files and stops
+			{"-c", &Process::_compile},
+			{"-compile", &Process::_compile},
 
 			// specifies the name of the output file
 			{"-out", &Process::_output},
@@ -86,14 +86,14 @@ class Process {
 			
 			// turns on warning messages
 			{"-w", &Process::_warn},
-			{"-warnings", &Process::_warn},
+			{"-warning", &Process::_warn},
 
 			// turns on all warning messages
 			{"-W", &Process::_warnAll},
 			{"-wall", &Process::_warnAll},
 
 			// use given directory for system files
-			{"-i", &Process::_include},
+			{"-I", &Process::_include},
 			{"-inc", &Process::_include},
 			{"-include", &Process::_include},
 
@@ -106,6 +106,9 @@ class Process {
 			{"-L", &Process::_libraryDirectory},
 			{"-libdir", &Process::_libraryDirectory},
 			{"-librarydir", &Process::_libraryDirectory},
+
+			// pass preprocessor flags
+			{"-D", &Process::_preprocessorFlag},
 		};
 
 };
