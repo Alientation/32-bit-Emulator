@@ -1,0 +1,51 @@
+DIRECTIVES
+----------------------------------------------------------------
+.global symbol ?: TYPE
+	- Marks the label as a global symbol that is available to any other linked object file through
+	.extern directive.
+
+.extern symbol ?: TYPE
+	- Marks the label as an external symbol that is declared but not yet defined in the 
+	current context.
+
+.equ [symbol] [expression] ?: TYPE
+	- Defines a label symbol with the value of the expression.
+	- If a previous declaration of the label symbol has a different TYPE than the current definition
+	an error is thrown.
+
+.org [expression]
+	- Moves the current section program counter to the value of the expression.
+
+
+
+EXPRESSIONS
+--------------------------------------------------------------------------------
+TYPES OF EXPRESSIONS
+	- CONSTANT
+		- The expression is made of constant literals that can be evaluated immediately.
+	- RELATIVE
+		- The expression is made of symbols who's values may or may not be known immediately.
+
+RESOLVING RELATIVE EXPRESSIONS
+	- Create a graph such that each node is a symbol and there is a directed edge from node a to
+	node b if and only if the expression that defines node a relies on the value of node b
+	- If the graph contains a cycle, the expressions cannot be evaluated because of circular 
+	dependencies. For example, if (1) depends on (2), (2) depends on (3), but (3) depends on (1),
+	there is no possible way to determine the value of the expression
+
+
+(TYPE)
+	- TYPE CASTS the proceeding label symbol
+
+.
+	- Current program counter
+
+OPERATORS
+( )
+~
+& | ^
+* / %
++ -
+!
+&& ||
+== != >= <= > <
