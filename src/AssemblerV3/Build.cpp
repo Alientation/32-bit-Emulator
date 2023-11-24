@@ -12,55 +12,20 @@
  * 
  * @param compilerArgs the arguments to construct the build process from
  */
-Process::Process(std::string compilerArgs) {
-	log(LOG, std::stringstream() << "Building Process: args(" << compilerArgs << ")\n" 
+Process::Process(std::string assemblerArgs) {
+	log(LOG, std::stringstream() << "Building Process: args(" << assemblerArgs << ")\n" 
 			<< "Current Working Directory: " << std::filesystem::current_path().string());
 
 	// split command args by whitespace unless surrounded by quotes
 	std::vector<std::string> argsList;
-	bool isEscaped = false;
-	bool isQuoted = false;
-	std::string curArg = "";
-	for (int i = 0; i < compilerArgs.length(); i++) {
-		char c = compilerArgs[i];
-		if (c == '\"' && !isEscaped) {
-			// this is a quote that is not escaped
-			isQuoted = !isQuoted;
-		} else if (std::isspace(c) && !isQuoted) {
-			// only add argument if it's not empty
-			if (curArg.length() > 0) {
-				argsList.push_back(curArg);
-				curArg = "";
-			}
-		} else {
-			// check if escape character
-			if (c == '\\') {
-				isEscaped = !isEscaped;
-			} else {
-				isEscaped = false;
-			}
-			curArg += c;
-		}
-	}
-
-	// check if there are any dangling quotes or escape characters
-	if (isQuoted) {
-		log(ERROR, std::stringstream() << "Process::Process() - Missing end quotes: " << compilerArgs);
-	} else if (isEscaped) {
-		log(ERROR, std::stringstream() << "Process::Process() - Dangling escape character: " << compilerArgs);
-	}
-
-	// add the last argument if it's not empty
-	if (curArg.length() > 0) {
-		argsList.push_back(curArg);
-	}
+	parseArgs(assemblerArgs, argsList);
 
 	log(DEBUG, std::stringstream() << "Process::Process() - argsList.size(): " << argsList.size());
 	for (int i = 0; i < argsList.size(); i++) {
 		log(DEBUG, std::stringstream() << "Process::Process() - argsList[" << i << "]: " << argsList[i]);
 	}
 
-	// parse arguments
+	// evaluate arguments
 	for (int i = 0; i < argsList.size(); i++) {
 		log(LOG, std::stringstream() << "arg" << i << ": " << argsList[i]);
 
@@ -91,6 +56,51 @@ Process::Process(std::string compilerArgs) {
  */
 Process::~Process() {
 
+}
+
+/**
+ * Parses the arguments into a list of arguments.
+ * 
+ * @param compilerArgs the arguments to parse
+ * @param argsList the list of arguments to add to
+ */
+void Process::parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList) {
+	bool isEscaped = false;
+	bool isQuoted = false;
+	std::string curArg = "";
+	for (int i = 0; i < assemblerArgs.length(); i++) {
+		char c = assemblerArgs[i];
+		if (c == '\"' && !isEscaped) {
+			// this is a quote that is not escaped
+			isQuoted = !isQuoted;
+		} else if (std::isspace(c) && !isQuoted) {
+			// only add argument if it's not empty
+			if (curArg.length() > 0) {
+				argsList.push_back(curArg);
+				curArg = "";
+			}
+		} else {
+			// check if escape character
+			if (c == '\\') {
+				isEscaped = !isEscaped;
+			} else {
+				isEscaped = false;
+			}
+			curArg += c;
+		}
+	}
+
+	// check if there are any dangling quotes or escape characters
+	if (isQuoted) {
+		log(ERROR, std::stringstream() << "Process::Process() - Missing end quotes: " << assemblerArgs);
+	} else if (isEscaped) {
+		log(ERROR, std::stringstream() << "Process::Process() - Dangling escape character: " << assemblerArgs);
+	}
+
+	// add the last argument if it's not empty
+	if (curArg.length() > 0) {
+		argsList.push_back(curArg);
+	}
 }
 
 
@@ -209,18 +219,6 @@ void Process::_optimize(std::vector<std::string>& args, int& index) {
  */
 void Process::_optimizeAll(std::vector<std::string>& args, int& index) {
 	optimizationLevel = MAX_OPTIMIZATION_LEVEL;
-}
-
-/**
- * Adds debug information to the executable
- * 
- * USAGE: -g, -debug
- * 
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
-void Process::_debug(std::vector<std::string>& args, int& index) {
-	enableDebugMode = true;
 }
 
 /**

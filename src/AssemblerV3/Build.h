@@ -40,7 +40,7 @@ class Process {
 		}
 
 
-		Process(std::string arg = "");
+		Process(std::string assemblerArgs = "");
 		~Process();
 
 		void build();
@@ -49,7 +49,6 @@ class Process {
 		bool onlyCompile = false;
 		std::string outputFile = DEFAULT_OUTPUT_FILE;
 		int optimizationLevel;
-		bool enableDebugMode;
 		std::set<std::string> enabledWarnings;
 		std::map<std::string,std::string> preprocessorFlags;
 
@@ -62,6 +61,8 @@ class Process {
 		std::vector<File*> objectFiles;
 		File* executableFile;
 
+		void parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList);
+
 		void preprocess();
 		void assemble();
 		void link();
@@ -71,7 +72,6 @@ class Process {
 		void _output(std::vector<std::string>& args, int& index);
 		void _optimize(std::vector<std::string>& args, int& index);
 		void _optimizeAll(std::vector<std::string>& args, int& index);
-		void _debug(std::vector<std::string>& args, int& index);
 		void _warn(std::vector<std::string>& args, int& index);
 		void _warnAll(std::vector<std::string>& args, int& index);
 		void _include(std::vector<std::string>& args, int& index);
@@ -100,10 +100,6 @@ class Process {
 			// turns on all optimization
 			{"-O", &Process::_optimizeAll},
 			{"-oall", &Process::_optimizeAll},
-
-			// turns on code generating options for debugging
-			{"-g", &Process::_debug},
-			{"-debug", &Process::_debug},
 			
 			// turns on warning messages
 			{"-w", &Process::_warn},
