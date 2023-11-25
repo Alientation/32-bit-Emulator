@@ -8,10 +8,10 @@ class File;
 class FileWriter;
 class FileReader;
 
-static const std::string SEPARATOR = "\\";
-
 class File {
 	public:
+		inline static const std::string SEPARATOR = "\\";
+
 		static bool isValidFileName(const std::string fileName) {
 			return fileName.find_first_of("\\/:*?\"<>|") == std::string::npos && fileName.size() > 0;
 		}
@@ -22,6 +22,10 @@ class File {
 
 		static bool isValidFileDirectory(const std::string directory) {
 			return directory.find_first_of("*?\"<>|") == std::string::npos;
+		}
+
+		static bool isValidFilePath(const std::string filepath) {
+			return filepath.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
 		File(std::string fileName, std::string fileExtension, std::string fileDirectory, bool createFileIfNotPresent = false);

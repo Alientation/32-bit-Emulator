@@ -2,7 +2,7 @@
 
 #include "Logger.h"
 #include <regex>
-
+#include <fstream>
 
 /**
  * Constructs a preprocessor object with the given file.
@@ -10,17 +10,17 @@
  * @param file the file to preprocess
  */
 Preprocessor::Preprocessor(Process* process, File* file) {
-	this->process = process;
-	this->inputFile = file;
-	this->outputFile = new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory());
+	this->process.reset(process);
+	this->inputFile.reset(file);
+	this->outputFile.reset(new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory()));
 
-	if (!process->isValidSourceFile(inputFile)) {
+	if (!process->isValidSourceFile(inputFile.get())) {
 		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
 		return;
 	}
 
 	state = State::UNPROCESSED;
-	writer = new FileWriter(outputFile);
+	writer.reset(new FileWriter(outputFile.get()));
 
 	tokenize();
 }
@@ -36,7 +36,7 @@ void Preprocessor::tokenize() {
 		return;
 	}
 
-	FileReader* reader = new FileReader(inputFile);
+	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
 
 	// tokenizes the input file
 	std::string tok = "";
@@ -177,6 +177,7 @@ void Preprocessor::_include(int& tokenI) {
 	expectToken(tokenI, "Preprocessor::_include() - Missing include filename");
 
 	std::string filepath = tokens[tokenI].value;
+	std::string fullPathFromWorkingDirectory;
 
 	if (filepath[0] == '"') {
 		// local include
@@ -185,7 +186,13 @@ void Preprocessor::_include(int& tokenI) {
 			return;
 		}
 
-		std::string localFilePath = filepath.substr(1, filepath.find_last_of('"'));
+		std::string localFilePath = filepath.substr(1, filepath.length() - 2);
+		if (!File::isValidFilePath(localFilePath)) {
+			log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath: " << localFilePath);
+			return;		
+		}
+
+		fullPathFromWorkingDirectory = inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
 	} else if (filepath[0] == '<') {
 		// this is a system include
 		if (filepath.back() != '>') {
@@ -194,10 +201,46 @@ void Preprocessor::_include(int& tokenI) {
 		}
 
 		std::string systemFilePath = filepath.substr(1, filepath.length() - 2);
+		
+		// check if the system file path exists relative to any of the system directories passed to the build process
 	} else {
-		log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath: " << filepath);
+		log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath. Missing quotes: " << filepath);
 		return;
 	}
+
+	// process included file
+	File* includeFile = new File(fullPathFromWorkingDirectory);
+	if (!includeFile->exists()) {
+		log(ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
+		return;
+	}
+
+	// copy paste the contents of the file here
+	std::shared_ptr<FileReader> reader(new FileReader(includeFile));
+	writer->writeString(reader->readAll());
+	reader->close();
+
+	// write the rest of tokens to the file and restart preprocessor
+	for (int i = tokenI + 1; i < tokens.size(); i++) {
+		writer->writeString(tokens[i].value);
+	}
+	writer->close();
+
+	// restart preprocessor
+	// copy the contents of the output file into a new input file
+	std::shared_ptr<File> newInputFile(new File(inputFile->getFileName() + ".prep", SOURCE_EXTENSION, inputFile->getFileDirectory()));
+	std::shared_ptr<FileReader> newReader(new FileReader(outputFile.get()));
+	std::shared_ptr<FileWriter> newWriter(new FileWriter(newInputFile.get()));
+
+	while (newReader->hasNextByte()) {
+		newWriter->writeByte(newReader->readByte());
+	}
+
+	newReader->close();
+	newWriter->close();
+
+	std::shared_ptr<Preprocessor> newPreprocessor(new Preprocessor(process.get(), newInputFile.get()));
+	newPreprocessor->preprocess();
 }
 
 /**

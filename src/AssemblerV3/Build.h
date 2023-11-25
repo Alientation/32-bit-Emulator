@@ -1,8 +1,11 @@
+#include "File.h"
+#include "Directory.h"
+
 #include <map>
 #include <set>
 #include <vector>
-#include "File.h"
-#include "Directory.h"
+#include <memory>
+
 
 #ifndef BUILD_H
 #define BUILD_H
@@ -53,13 +56,13 @@ class Process {
 		std::map<std::string,std::string> preprocessorFlags;
 
 		std::vector<std::string> linkedLibraryNames;
-		std::vector<Directory*> libraryDirectories;
-		std::vector<Directory*> systemDirectories;
-		std::vector<File*> sourceFiles;
+		std::vector<std::shared_ptr<Directory>> libraryDirectories;
+		std::vector<std::shared_ptr<Directory>> systemDirectories;
+		std::vector<std::shared_ptr<File>> sourceFiles;
 
-		std::vector<File*> processedFiles;
-		std::vector<File*> objectFiles;
-		File* executableFile;
+		std::vector<std::shared_ptr<File>> processedFiles;
+		std::vector<std::shared_ptr<File>> objectFiles;
+		std::shared_ptr<File> executableFile;
 
 		void parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList);
 		void evaluateArgs(std::vector<std::string>& argsList);

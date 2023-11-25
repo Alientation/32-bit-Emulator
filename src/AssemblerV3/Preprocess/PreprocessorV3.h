@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <memory>
 #include <functional>
 
 #ifndef PREPROCESSORV3_H
@@ -49,14 +50,14 @@ class Preprocessor {
 			}
 		};
 
-		Process* process;
+		std::shared_ptr<Process> process;
 
-		File* inputFile;							// the input file
-		File* outputFile;							// the output file
+		std::shared_ptr<File> inputFile;							// the input file
+		std::shared_ptr<File> outputFile;							// the output file
 		State state;								// the state of the preprocessor
 		std::vector<Token> tokens;					// the tokens of the input file
 
-		FileWriter* writer;							// writer for the output file
+		std::shared_ptr<FileWriter> writer;			// writer for the output file
 
 		std::map<std::string, std::string> symbols;	// defined symbols
 		std::map<std::string, Macro> macros;		// defined macros

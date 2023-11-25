@@ -31,7 +31,7 @@ Directory::~Directory() {
  * @return the name of the directory
  */
 std::string Directory::getDirectoryName() {
-	return dirPath.substr(dirPath.find_last_of(SEPARATOR) + 1);
+	return dirPath.substr(dirPath.find_last_of(File::SEPARATOR) + 1);
 }
 
 /**
@@ -139,7 +139,7 @@ File* Directory::getSubfile(const std::string subfilePath) {
  * @return whether or not the subdirectory exists
  */
 bool Directory::subdirectoryExists(const std::string subdirectoryPath) {
-	return std::filesystem::exists(dirPath + SEPARATOR + subdirectoryPath);
+	return std::filesystem::exists(dirPath + File::SEPARATOR + subdirectoryPath);
 }
 
 /**
@@ -150,7 +150,7 @@ bool Directory::subdirectoryExists(const std::string subdirectoryPath) {
  * @return whether or not the subfile exists
  */
 bool Directory::subfileExists(const std::string subfilePath) {
-	return std::filesystem::exists(dirPath + SEPARATOR + subfilePath);
+	return std::filesystem::exists(dirPath + File::SEPARATOR + subfilePath);
 }
 
 /**

@@ -93,7 +93,7 @@ void Process::evaluateArgs(std::vector<std::string>& argsList) {
 			(this->*flags[arg])(argsList, i);
 		} else {
 			// this should be a file
-			File* file = new File(arg);
+			std::shared_ptr<File> file(new File(arg));
 
 			// check the extension
 			if (file->getExtension() != SOURCE_EXTENSION) {
@@ -290,7 +290,7 @@ void Process::_include(std::vector<std::string>& args, int& index) {
 		return;
 	}
 
-	systemDirectories.push_back(new Directory(includeDir));
+	systemDirectories.push_back(std::shared_ptr<Directory>(new Directory(includeDir)));
 }
 
 /**
@@ -338,7 +338,7 @@ void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
 		return;
 	}
 
-	libraryDirectories.push_back(new Directory(libraryDir));
+	libraryDirectories.push_back(std::shared_ptr<Directory>(new Directory(libraryDir)));
 }
 
 /**
