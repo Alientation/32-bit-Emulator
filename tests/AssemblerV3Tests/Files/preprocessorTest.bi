@@ -1,9 +1,7 @@
-This is an included file
+ INCLUDE_BINC
+ INCLUDE_BINC
 
- FILEPATH_BINC
- FILEPATH_BINC
-
-#12345
+LDA #$1200
 
 
 

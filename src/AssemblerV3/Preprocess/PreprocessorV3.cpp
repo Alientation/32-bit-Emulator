@@ -215,41 +215,17 @@ void Preprocessor::_include(int& tokenI) {
 	}
 
 	// process included file
-	File* includeFile = new File(fullPathFromWorkingDirectory);
+	std::shared_ptr<File> includeFile(new File(fullPathFromWorkingDirectory));
 	if (!includeFile->exists()) {
 		log(ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 		return;
 	}
 
-	// copy paste the contents of the file here
-	std::shared_ptr<FileReader> reader(new FileReader(includeFile));
-	writer->writeString(reader->readAll());
-	reader->close();
-
-	// write the rest of tokens to the file and restart preprocessor
-	for (int i = tokenI + 1; i < tokens.size(); i++) {
-		writer->writeString(tokens[i].value);
-	}
-	writer->close();
-
-	// restart preprocessor
-	// copy the contents of the output file into a new temporary input file
-	std::shared_ptr<File> newInputFile(new File(inputFile->getFileName() + ".prep", SOURCE_EXTENSION, inputFile->getFileDirectory()));
-	std::shared_ptr<FileReader> newReader(new FileReader(outputFile.get()));
-	std::shared_ptr<FileWriter> newWriter(new FileWriter(newInputFile.get()));
-
-	while (newReader->hasNextByte()) {
-		newWriter->writeByte(newReader->readByte());
-	}
-	newReader->close();
-	newWriter->close();
-
-	// run the new preprocessor
-	std::shared_ptr<Preprocessor> newPreprocessor(new Preprocessor(process.get(), newInputFile.get(), outputFile->getFilePath()));
-	newPreprocessor->preprocess();
-
-	// delete the new temporary input file
-	std::filesystem::remove(newInputFile->getFilePath());
+	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
+	Preprocessor includedPreprocessor = Preprocessor(process.get(), includeFile.get(), outputFile->getFilePath());
+	
+	// yoink the tokens from the included file and insert
+	tokens.insert(tokens.begin() + tokenI + 1, includedPreprocessor.tokens.begin(), includedPreprocessor.tokens.end());
 }
 
 /**

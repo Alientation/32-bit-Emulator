@@ -15,6 +15,7 @@ static const std::string ASSEMBLER_VERSION = "0.0.1";
 static const int MAX_OPTIMIZATION_LEVEL = 3;
 
 static const std::string SOURCE_EXTENSION = "basm";
+static const std::string INCLUDE_EXTENSION = "binc";
 static const std::string PROCESSED_EXTENSION = "bi";
 static const std::string OBJECT_EXTENSION = "bo";
 static const std::string EXECUTABLE_EXTENSION = "bexe";
@@ -27,7 +28,7 @@ static const std::string DEFAULT_OUTPUT_FILE = "a";
 class Process {
 	public:
 		static bool isValidSourceFile(File* file) {
-			return file->getExtension() == SOURCE_EXTENSION;
+			return file->getExtension() == SOURCE_EXTENSION || file->getExtension() == INCLUDE_EXTENSION;
 		}
 
 		static bool isValidProcessedFile(File* file) {
