@@ -31,7 +31,7 @@ class Preprocessor {
 		 */
 		struct Token {
 			enum Type {
-				TEXT, WHITESPACE, 
+				TEXT, WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE, WHITESPACE,
 
 				// PREPROCESSOR DIRECTIVES
 				PREPROCESSOR_INCLUDE, 
@@ -53,7 +53,7 @@ class Preprocessor {
 			};
 
 			inline static const std::map<Type, std::string> TYPE_NAME = {
-				{TEXT, "TEXT"}, {WHITESPACE, "WHITESPACE"},
+				{TEXT, "TEXT"}, {WHITESPACE_SPACE, "WHITESPACE_SPACE"}, {WHITESPACE_TAB, "WHITE_SPACE_TAB"}, {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
 
 				{PREPROCESSOR_INCLUDE, "PREPROCESSOR_INCLUDE"},
 				{PREPROCESSOR_MACRO, "PREPROCESSOR_MACRO"}, {PREPROCESSOR_MACRET, "PREPROCESSOR_MACRET"}, 
@@ -85,7 +85,7 @@ class Preprocessor {
 			}
 
 			std::string toString() {
-				if (type == WHITESPACE) {
+				if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE) {
 					std::string toString = TYPE_NAME.at(type) + ":";
 					for (auto i = 0; i < value.length(); i++) {
 						toString += " " + std::to_string(value[i]);
@@ -98,7 +98,8 @@ class Preprocessor {
 		};
 
 		inline static const std::vector<std::pair<std::string, Token::Type>> TOKEN_SPEC = {
-			{"^\\s+", Token::WHITESPACE},
+			{"^ ", Token::WHITESPACE_SPACE}, {"^\\t", Token::WHITESPACE_TAB}, {"^\\n", Token::WHITESPACE_NEWLINE},
+			{"^[\\s^[ \n\t]]+", Token::WHITESPACE},
 			{"^\\{", Token::OPEN_BRACE}, 		{"^\\}", Token::CLOSE_BRACE},
 			{"^\\[", Token::OPEN_BRACKET}, 	{"^\\]", Token::CLOSE_BRACKET},
 			{"^\\(", Token::OPEN_PARANTHESIS},{"^\\)", Token::CLOSE_PARANTHESIS},
@@ -119,7 +120,7 @@ class Preprocessor {
 			{"^#endif(?=\\s)", Token::PREPROCESSOR_ENDIF},
 
 			{"^\\.equ(?=\\s)", Token::ASSEMBLER_EQU},
-			{"^\\.org(?=\\s)", Token::ASSEMBLER_ORG},
+			{"^\\.org(?=\\s)", Token::ASSEMBLER_ORG},			
 
 			{"^#?[%|0|$]?[0-9a-fA-F]+", Token::LITERAL_NUMBER},
 			{"^\".*\"", Token::LITERAL_STRING},
