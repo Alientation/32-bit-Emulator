@@ -16,7 +16,7 @@ class Preprocessor {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
 		};
 
-		Preprocessor(Process* process, File* file);	// constructs a preprocessor object with the given file
+		Preprocessor(Process* process, File* file, std::string outputFilePath = "");	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
 		void preprocess();							// preprocesses the file

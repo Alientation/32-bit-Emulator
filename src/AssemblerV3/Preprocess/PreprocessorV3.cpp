@@ -1,18 +1,24 @@
 #include "PreprocessorV3.h"
-
 #include "Logger.h"
+
 #include <regex>
 #include <fstream>
+#include <filesystem>
 
 /**
  * Constructs a preprocessor object with the given file.
  * 
  * @param file the file to preprocess
  */
-Preprocessor::Preprocessor(Process* process, File* file) {
+Preprocessor::Preprocessor(Process* process, File* file, std::string outputFilePath) {
 	this->process.reset(process);
 	this->inputFile.reset(file);
-	this->outputFile.reset(new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory()));
+
+	if (outputFilePath.empty()) {
+		this->outputFile.reset(new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory()));
+	} else {
+		this->outputFile.reset(new File(outputFilePath));
+	}
 
 	if (!process->isValidSourceFile(inputFile.get())) {
 		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
@@ -227,7 +233,7 @@ void Preprocessor::_include(int& tokenI) {
 	writer->close();
 
 	// restart preprocessor
-	// copy the contents of the output file into a new input file
+	// copy the contents of the output file into a new temporary input file
 	std::shared_ptr<File> newInputFile(new File(inputFile->getFileName() + ".prep", SOURCE_EXTENSION, inputFile->getFileDirectory()));
 	std::shared_ptr<FileReader> newReader(new FileReader(outputFile.get()));
 	std::shared_ptr<FileWriter> newWriter(new FileWriter(newInputFile.get()));
@@ -235,12 +241,15 @@ void Preprocessor::_include(int& tokenI) {
 	while (newReader->hasNextByte()) {
 		newWriter->writeByte(newReader->readByte());
 	}
-
 	newReader->close();
 	newWriter->close();
 
-	std::shared_ptr<Preprocessor> newPreprocessor(new Preprocessor(process.get(), newInputFile.get()));
+	// run the new preprocessor
+	std::shared_ptr<Preprocessor> newPreprocessor(new Preprocessor(process.get(), newInputFile.get(), outputFile->getFilePath()));
 	newPreprocessor->preprocess();
+
+	// delete the new temporary input file
+	std::filesystem::remove(newInputFile->getFilePath());
 }
 
 /**
