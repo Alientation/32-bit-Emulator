@@ -3,6 +3,7 @@
 #include <../src/AssemblerV3/Directory.h>
 #include <../src/AssemblerV3/Preprocess/PreprocessorV3.h>
 
+#include <filesystem>
 #include <sstream>
 #include <fstream>
 
@@ -16,6 +17,11 @@ void preprocessorTests();
 void directoryTests();
 
 void clearFile(std::string filePath) {
+	// don't clear nonexistent files
+	if (!std::filesystem::exists(filePath)) {
+		return;
+	}
+
 	std::ofstream file(filePath, std::ofstream::out | std::ofstream::trunc);
 	file.close();
 }
@@ -44,8 +50,8 @@ void preprocessorTests() {
 
 	// test creating a file and its attributes
 	Process* process = new Process("-lib library1 -L ..\\tests\\AssemblerV3Tests\\Files\\libs -I ..\\tests\\AssemblerV3Tests\\Files\\include -o preprocessorTest ..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest.basm");
-	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest" + SOURCE_EXTENSION);
-	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest" + PROCESSED_EXTENSION);
+	File* file = new File("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest." + SOURCE_EXTENSION);
+	clearFile("..\\tests\\AssemblerV3Tests\\Files\\preprocessorTest." + PROCESSED_EXTENSION);
 
 	// test preprocessing
 	Preprocessor* preprocessor = new Preprocessor(process, file);
