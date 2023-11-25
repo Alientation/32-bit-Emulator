@@ -89,6 +89,7 @@ file (GLOB ASSEMBLER_V3_HEADERS
 	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
 	"src/AssemblerV3/File.h"
 	"src/AssemblerV3/Directory.h"
+	"src/AssemblerV3/AssemblyType.h"
 )
 
 file (GLOB EMULATOR_TEST_SOURCES 

@@ -1,4 +1,5 @@
 #include "include.binc"
 
+.org $FFFF
 
 #12334567890

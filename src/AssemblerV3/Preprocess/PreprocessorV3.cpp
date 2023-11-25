@@ -8,7 +8,9 @@
 /**
  * Constructs a preprocessor object with the given file.
  * 
+ * @param process the build process object
  * @param file the file to preprocess
+ * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension
  */
 Preprocessor::Preprocessor(Process* process, File* file, std::string outputFilePath) {
 	this->process.reset(process);
@@ -28,7 +30,53 @@ Preprocessor::Preprocessor(Process* process, File* file, std::string outputFileP
 	state = State::UNPROCESSED;
 	writer.reset(new FileWriter(outputFile.get()));
 
-	tokenize();
+	// tokenize();
+	new_tokenize();
+}
+
+/**
+ * Newer tokenizer
+ */
+void Preprocessor::new_tokenize() {
+	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenizing file: " << inputFile->getFileName());
+	if (state != State::UNPROCESSED) {
+		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Preprocessor is not in the UNPROCESSED state");
+		return;
+	}
+	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
+	std::string source_code = reader->readAll();
+	reader->close();
+
+	tokens.clear();
+	while (source_code.size() > 0) {
+		// try to match regex
+		bool matched = false;
+		for (std::pair<std::string, Token::Type> regexPair : TOKEN_SPEC) {
+			std::string regex = regexPair.first;
+			Token::Type type = regexPair.second;
+			std::regex token_regex(regex);
+			std::smatch match;
+			if (std::regex_search(source_code, match, token_regex)) {
+				// matched regex
+				std::string token_value = match.str();
+				tokens.push_back(Token(type, token_value));
+				source_code = match.suffix();
+				matched = true;
+				break;
+			}
+		}
+
+		if (!matched) {
+			log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Could not match regex to source code: " << source_code);
+			return;
+		}
+	}
+
+	// print out tokens
+	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenized file: " << inputFile->getFileName());
+	for (int i = 0; i < tokens.size(); i++) {
+		log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]=" << tokens[i].toString());
+	}
 }
 
 /**
@@ -54,7 +102,7 @@ void Preprocessor::tokenize() {
 		char byte = reader->readByte();
 
 		// handle quotes
-		if (!isQuoted && (byte == '"' || byte == '<')) {
+		if (!isQuoted && (byte == '"' || byte == '<')) { // NOTE: this does not work with escape characters
 			isQuoted = true;
 			quotedChar = byte;
 		} else if (isQuoted && byte == quotedChar) {
@@ -176,6 +224,8 @@ void Preprocessor::expectToken(int& tokenI, std::string errorMsg) {
  * "filepath": looks for files located in the current directory.
  * <filepath>: prioritizes files located in the include directory, if not found, looks in the
  * current directory.
+ * 
+ * @param tokenI the index of the include token
  */
 void Preprocessor::_include(int& tokenI) {
 	tokenI++;
@@ -236,9 +286,18 @@ void Preprocessor::_include(int& tokenI) {
  * If a return type is specified and the macro definition does not return a value an error is thrown.
  * There cannot be a macro definition within this macro definition.
  * Note that the macro symbol is separate from label symbols and will not be pressent after preprocessing.
+ * 
+ * @param tokenI The index of the macro token
  */
 void Preprocessor::_macro(int& tokenI) {
+	tokenI++;
+	skipTokens(tokenI, "[ \t]");
+	expectToken(tokenI, "Preprocessor::_macro() - Missing macro name");
+	std::string macroName = tokens[tokenI].value;
 
+	tokenI++;
+	skipTokens(tokenI, "[ \t\n]");
+	expectToken(tokenI, "Preprocessor::_macro() - Missing macro arguments");
 }
 
 /**
@@ -248,6 +307,8 @@ void Preprocessor::_macro(int& tokenI) {
  * 
  * If the macro does not have a return type the macret must return nothing.
  * If the macro has a return type the macret must return a value of that type
+ * 
+ * @param tokenI The index of the macro return token
  */
 void Preprocessor::_macret(int& tokenI) {
 
@@ -259,6 +320,8 @@ void Preprocessor::_macret(int& tokenI) {
  * USAGE: #macend
  * 
  * If a macro is not closed an error is thrown.
+ * 
+ * @param tokenI The index of the macro end token
  */
 void Preprocessor::_macend(int& tokenI) {
 
@@ -271,6 +334,8 @@ void Preprocessor::_macend(int& tokenI) {
  * 
  * If provided an output symbol, the symbol will be associated with the return value of the macro.
  * If the macro does not return a value but an output symbol is provided, an error is thrown.
+ * 
+ * @param tokenI The index of the invoke token
  */
 void Preprocessor::_invoke(int& tokenI) {
 
@@ -283,6 +348,8 @@ void Preprocessor::_invoke(int& tokenI) {
  * 
  * Replaces all instances of symbol with the value
  * If value is not specified, the default is 0
+ * 
+ * @param tokenI The index of the define token
  */
 void Preprocessor::_define(int& tokenI) {
 
@@ -294,6 +361,8 @@ void Preprocessor::_define(int& tokenI) {
  * USAGE: #ifdef [symbol]
  * 
  * Must be closed by a #endif
+ * 
+ * @param tokenI The index of the ifdef token
  */
 void Preprocessor::_ifdef(int& tokenI) {
 
@@ -305,6 +374,8 @@ void Preprocessor::_ifdef(int& tokenI) {
  * USAGE: #ifndef [symbol]
  * 
  * Must be closed by a #endif
+ * 
+ * @param tokenI The index of the ifndef token
  */
 void Preprocessor::_ifndef(int& tokenI) {
 
@@ -317,6 +388,8 @@ void Preprocessor::_ifndef(int& tokenI) {
  * USAGE: #else
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * 
+ * @param tokenI The index of the else token
  */
 void Preprocessor::_else(int& tokenI) {
 
@@ -329,6 +402,8 @@ void Preprocessor::_else(int& tokenI) {
  * USAGE: #elsedef [symbol]
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * 
+ * @param tokenI The index of the elsedef token
  */
 void Preprocessor::_elsedef(int& tokenI) {
 
@@ -341,6 +416,8 @@ void Preprocessor::_elsedef(int& tokenI) {
  * USAGE: #elsendef [symbol]
  * 
  * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * 
+ * @param tokenI The index of the elsendef token
  */
 void Preprocessor::_elsendef(int& tokenI) {
 
@@ -352,6 +429,8 @@ void Preprocessor::_elsendef(int& tokenI) {
  * USAGE: #endif
  * 
  * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef
+ * 
+ * @param tokenI The index of the endif token
  */
 void Preprocessor::_endif(int& tokenI) {
 
@@ -363,6 +442,8 @@ void Preprocessor::_endif(int& tokenI) {
  * USAGE: #undefine [symbol]
  * 
  * This will still work if the symbol was never defined previously
+ * 
+ * @param tokenI The index of the undefine token
  */
 void Preprocessor::_undefine(int& tokenI) {
 
