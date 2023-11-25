@@ -61,6 +61,7 @@ class Preprocessor {
 		std::map<std::string, std::string> symbols;	// defined symbols
 		std::map<std::string, Macro> macros;		// defined macros
 
+		void tokenize();
 		void skipTokens(int& tokenI, std::string regex);
 		void expectToken(int& tokenI, std::string errorMsg);
 

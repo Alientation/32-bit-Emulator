@@ -20,9 +20,23 @@ Preprocessor::Preprocessor(Process* process, File* file) {
 	}
 
 	state = State::UNPROCESSED;
+	writer = new FileWriter(outputFile);
+
+	tokenize();
+}
+
+/**
+ * Tokenizes the input file. This is an internal function.
+ */
+void Preprocessor::tokenize() {
+	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenizing file: " << inputFile->getFileName());
+
+	if (state != State::UNPROCESSED) {
+		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Preprocessor is not in the UNPROCESSED state");
+		return;
+	}
 
 	FileReader* reader = new FileReader(inputFile);
-	writer = new FileWriter(outputFile);
 
 	// tokenizes the input file
 	std::string tok = "";
@@ -74,6 +88,7 @@ Preprocessor::Preprocessor(Process* process, File* file) {
 
 	reader->close();
 }
+
 
 /**
  * Destructs a preprocessor object

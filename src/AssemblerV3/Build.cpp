@@ -25,41 +25,11 @@ Process::Process(std::string assemblerArgs) {
 		log(DEBUG, std::stringstream() << "Process::Process() - argsList[" << i << "]: " << argsList[i]);
 	}
 
-	// evaluate arguments
-	for (int i = 0; i < argsList.size(); i++) {
-		log(LOG, std::stringstream() << "arg" << i << ": " << argsList[i]);
-
-		std::string& arg = argsList[i];
-		if (arg[0] == '-') {
-			// this is a flag
-			if (flags.find(arg) == flags.end()) {
-				log(ERROR, std::stringstream() << "Process::Process() - Invalid flag: " << arg);
-			}
-
-			(this->*flags[arg])(argsList, i);
-		} else {
-			// this should be a file
-			File* file = new File(arg);
-
-			// check the extension
-			if (file->getExtension() != SOURCE_EXTENSION) {
-				log(ERROR, std::stringstream() << "Process::Process() - Invalid file extension: " << file->getExtension());
-			}
-
-			sourceFiles.push_back(file);
-		}
-	}
+	evaluateArgs(argsList);
 }
 
 /**
- * Destructs a build process.
- */
-Process::~Process() {
-
-}
-
-/**
- * Parses the arguments into a list of arguments.
+ * Parses the arguments into a list of arguments. This is an internal function.
  * 
  * @param compilerArgs the arguments to parse
  * @param argsList the list of arguments to add to
@@ -101,6 +71,45 @@ void Process::parseArgs(std::string assemblerArgs, std::vector<std::string>& arg
 	if (curArg.length() > 0) {
 		argsList.push_back(curArg);
 	}
+}
+
+/**
+ * Processes the arguments. This is an internal function.
+ * 
+ * @param argsList the list of arguments to process
+ */
+void Process::evaluateArgs(std::vector<std::string>& argsList) {
+	// evaluate arguments
+	for (int i = 0; i < argsList.size(); i++) {
+		log(LOG, std::stringstream() << "arg" << i << ": " << argsList[i]);
+
+		std::string& arg = argsList[i];
+		if (arg[0] == '-') {
+			// this is a flag
+			if (flags.find(arg) == flags.end()) {
+				log(ERROR, std::stringstream() << "Process::Process() - Invalid flag: " << arg);
+			}
+
+			(this->*flags[arg])(argsList, i);
+		} else {
+			// this should be a file
+			File* file = new File(arg);
+
+			// check the extension
+			if (file->getExtension() != SOURCE_EXTENSION) {
+				log(ERROR, std::stringstream() << "Process::Process() - Invalid file extension: " << file->getExtension());
+			}
+
+			sourceFiles.push_back(file);
+		}
+	}
+}
+
+/**
+ * Destructs a build process.
+ */
+Process::~Process() {
+
 }
 
 

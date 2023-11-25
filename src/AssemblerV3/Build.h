@@ -62,6 +62,7 @@ class Process {
 		File* executableFile;
 
 		void parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList);
+		void evaluateArgs(std::vector<std::string>& argsList);
 
 		void preprocess();
 		void assemble();

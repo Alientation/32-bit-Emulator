@@ -13,8 +13,8 @@ loadlabel:
 		LDA	#$1234
 
 .macro	testmacro	arg1, arg2
-		LDA	#arg1
-		LDA	#arg2
+		LDA	arg1
+		LDA	arg2
 .macend
 
 .invoke	testmacro	50, 30
