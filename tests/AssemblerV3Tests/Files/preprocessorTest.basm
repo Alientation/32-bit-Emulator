@@ -1,3 +1,17 @@
+        
+{}[](),:;
+
+#include #macro #macret #macend #invoke #define #undef #ifdef #ifndef #else #elsedef #elsendef #endif
+.equ .org
+#
+%010111 @0137 0123456789 $0123456789aAbBcCdDeEfF
+' ' "bced"
+abcdef
++-*/%||&&<<>>^&|~!==<=>=<>
+
+
+
+
 #include "include.binc"
 
 .org $FFFF

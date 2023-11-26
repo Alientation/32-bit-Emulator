@@ -38,9 +38,9 @@ Preprocessor::Preprocessor(Process* process, File* file, std::string outputFileP
  * Newer tokenizer
  */
 void Preprocessor::new_tokenize() {
-	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenizing file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Tokenizing file: " << inputFile->getFileName());
 	if (state != State::UNPROCESSED) {
-		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Preprocessor is not in the UNPROCESSED state");
+		log(ERROR, std::stringstream() << "Preprocessor::new_tokenize() - Preprocessor is not in the UNPROCESSED state");
 		return;
 	}
 	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
@@ -62,20 +62,22 @@ void Preprocessor::new_tokenize() {
 				tokens.push_back(Token(type, token_value));
 				source_code = match.suffix();
 				matched = true;
+
+                log(LOG, std::stringstream() << "Preprocessor::new_tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
 				break;
 			}
 		}
 
 		if (!matched) {
-			log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Could not match regex to source code: " << source_code);
+			log(ERROR, std::stringstream() << "Preprocessor::new_tokenize() - Could not match regex to source code: " << source_code);
 			return;
 		}
 	}
 
 	// print out tokens
-	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenized file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Tokenized file: " << inputFile->getFileName());
 	for (int i = 0; i < tokens.size(); i++) {
-		log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]=" << tokens[i].toString());
+		log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Token[" << i << "]=" << tokens[i].toString());
 	}
 }
 
@@ -83,10 +85,10 @@ void Preprocessor::new_tokenize() {
  * Tokenizes the input file. This is an internal function.
  */
 void Preprocessor::tokenize() {
-	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenizing file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenizing file: " << inputFile->getFileName());
 
 	if (state != State::UNPROCESSED) {
-		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Preprocessor is not in the UNPROCESSED state");
+		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Preprocessor is not in the UNPROCESSED state");
 		return;
 	}
 
@@ -124,19 +126,19 @@ void Preprocessor::tokenize() {
 
 	// unclosed quotes
 	if (isQuoted) {
-		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Unclosed quotes: " << quotedChar);
+		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Unclosed quotes: " << quotedChar);
 		return;
 	}
 
 	// print out tokens
-	log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Tokenized file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenized file: " << inputFile->getFileName());
 	for (int i = 0; i < tokens.size(); i++) {
 		Token& token = tokens[i];
 
 		if (token.type == token.WHITESPACE) {
-			log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]: " << std::to_string(token.value[0]) << " (" << token.type << ")");
+			log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Token[" << i << "]: " << std::to_string(token.value[0]) << " (" << token.type << ")");
 		} else {
-			log(DEBUG, std::stringstream() << "Preprocessor::Preprocessor() - Token[" << i << "]: " << token.value << " (" << token.type << ")");
+			log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Token[" << i << "]: " << token.value << " (" << token.type << ")");
 		}
 	}
 
