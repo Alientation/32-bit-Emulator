@@ -7,7 +7,7 @@
 #include <stack>
 
 #include <../src/Emulator/AlienCPU.h>
-#include <../src/ConsoleColor.h>
+#include <../src/util/ConsoleColor.h>
 
 class AlienCPUAssembler;
 

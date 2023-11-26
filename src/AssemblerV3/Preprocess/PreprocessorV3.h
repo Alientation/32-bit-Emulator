@@ -1,6 +1,6 @@
-#include <../src/AssemblerV3/File.h>
+#include <../src/util/File.h>
 #include <../src/AssemblerV3/Build.h>
-#include "../AssemblyType.h"
+#include "../src/util/AssemblyType.h"
 
 #include <string>
 #include <map>

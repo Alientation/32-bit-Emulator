@@ -1,7 +1,7 @@
 #ifndef MOTHERBOARD_H
 #define MOTHERBOARD_H
 
-#include <Types.h>
+#include <../src/util/Types.h>
 #include <../src/Emulator/Memory/RAM.h>
 #include <../src/Emulator/Memory/ROM.h>
 #include <../src/Emulator/BIOS.h>

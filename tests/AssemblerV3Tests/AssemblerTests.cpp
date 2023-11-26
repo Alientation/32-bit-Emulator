@@ -1,6 +1,6 @@
-#include "Logger.h"
-#include <../src/AssemblerV3/File.h>
-#include <../src/AssemblerV3/Directory.h>
+#include <../src/util/Logger.h>
+#include <../src/util/File.h>
+#include <../src/util/Directory.h>
 #include <../src/AssemblerV3/Preprocess/PreprocessorV3.h>
 
 #include <filesystem>

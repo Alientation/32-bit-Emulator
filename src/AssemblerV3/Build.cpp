@@ -1,6 +1,6 @@
 #include "Build.h"
-#include "StringUtil.h"
-#include "Logger.h"
+#include <../src/util/StringUtil.h>
+#include <../src/util/Logger.h>
 
 #include <iostream>
 #include <vector>

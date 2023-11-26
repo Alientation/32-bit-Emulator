@@ -10,7 +10,7 @@
 #include <set>
 #include <map>
 
-#include <../src/ConsoleColor.h>
+#include <../src/util/ConsoleColor.h>
 #include <../src/Emulator/AlienCPU.h>
 
 

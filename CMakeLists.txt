@@ -2,10 +2,18 @@ cmake_minimum_required(VERSION 3.12)
 project(AlienCPU)
 
 file( GLOB UTIL_HEADERS
-	"src/Types.h"
-	"src/ConsoleColor.h"
-	"src/Logger.h"
-	"src/StringUtil.h"
+    "src/util/Types.h"
+	"src/util/ConsoleColor.h"
+	"src/util/Logger.h"
+	"src/util/StringUtil.h"
+	"src/util/File.h"
+	"src/util/Directory.h"
+    "src/AssemblerV3/AssemblyType.h"
+)
+
+file ( GLOB UTIL_SOURCES
+	"src/util/File.cpp"
+	"src/util/Directory.cpp"
 )
 
 file( GLOB EMULATOR_SOURCES
@@ -76,8 +84,6 @@ file( GLOB ASSEMBLER_V3_SOURCES
 	"src/AssemblerV3/Assemble/ObjectFileV3.cpp"
 	"src/AssemblerV3/Link/LinkerV3.cpp"
 	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
-	"src/AssemblerV3/File.cpp"
-	"src/AssemblerV3/Directory.cpp"
 	
 )
 file (GLOB ASSEMBLER_V3_HEADERS
@@ -87,9 +93,6 @@ file (GLOB ASSEMBLER_V3_HEADERS
 	"src/AssemblerV3/Link/LinkerV3.h"
 	"src/AssemblerV3/Assemble/ObjectFileV3.h"
 	"src/AssemblerV3/Preprocess/PreprocessorV3.h"
-	"src/AssemblerV3/File.h"
-	"src/AssemblerV3/Directory.h"
-	"src/AssemblerV3/AssemblyType.h"
 )
 
 file (GLOB EMULATOR_TEST_SOURCES 
@@ -176,6 +179,7 @@ add_library(Assembler_V3 STATIC ${ASSEMBLER_V3_SOURCES} ${ASSEMBLER_V3_HEADERS})
 # add_library(EmulatorTests STATIC ${EMULATOR_TEST_SOURCES} ${EMULATOR_TEST_HEADERS})
 # add_library(EmulatorPerformanceTests STATIC ${EMULATOR_PERFORMANCETEST_SOURCES} ${EMULATOR_PERFORMANCETEST_HEADERS})
 add_library(AssemblerTests STATIC ${ASSEMBLER_TEST_SOURCES} ${ASSEMBLER_TEST_HEADERS})
+add_library(Util STATIC  ${UTIL_HEADERS} ${UTIL_SOURCES})
 
 include_directories(src tests)
 
@@ -188,24 +192,29 @@ include_directories(libs/googletest/include) # this is so we can #include <gtest
 # target_link_libraries(EmulatorTestExe PRIVATE gtest)
 # target_link_libraries(EmulatorTestExe PRIVATE Emulator)
 # target_link_libraries(EmulatorTestExe PRIVATE EmulatorTests)
+# target_link_libraries(EmulatorTestExe PRIVATE Util)
 
 # PERFORMANCE TEST EXECUTABLE
 # add_executable(EmulatorPerformanceTestExe "tests/AlienCPUPerformanceTests.cpp")
 # target_link_libraries(EmulatorPerformanceTestExe PRIVATE Emulator)
 # target_link_libraries(EmulatorPerformanceTestExe PRIVATE EmulatorPerformanceTests)
+# target_link_libraries(EmulatorPerformanceTestExe PRIVATE Util)
 
 # ASSEMBLER V1 EXECUTABLE
 # add_executable(AssemblerV1Exe "src/AlienCPUAssembler.cpp")
 # target_link_libraries(AssemblerV1Exe PRIVATE Assembler_V1)
 # target_link_libraries(AssemblerV1Exe PRIVATE Emulator)
+# target_link_libraries(AssemblerV1Exe PRIVATE Util)
 
 # ASSEMBLER V2 EXECUTABLE
 # add_executable(AssemblerV2Exe "src/Assembler/Assembler.cpp")
 # target_link_libraries(AssemblerV2Exe PRIVATE Assembler_V2)
+# target_link_libraries(AssemblerV2Exe PRIVATE Util)
 
 # TEST
 add_executable(AssemblerV3Test "tests/AssemblerV3Tests/AssemblerTests.cpp")
 target_link_libraries(AssemblerV3Test PRIVATE Assembler_V3)
+target_link_libraries(AssemblerV3Test PRIVATE Util)
 
 # enable_testing() #to  discover tests in test explorer 
 

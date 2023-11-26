@@ -7,13 +7,13 @@
 #include <iostream>
 #include <iomanip>
 #include <bitset>
-#include <../src/ConsoleColor.h>
+#include <../src/util/ConsoleColor.h>
 #define private public
 #else
 #include <iostream>
 #include <iomanip>
 #include <bitset>
-#include <../src/ConsoleColor.h>
+#include <../src/util/ConsoleColor.h>
 #endif
 
 using Byte = unsigned char;
