@@ -4,7 +4,6 @@
 #include <map>
 #include <set>
 #include <vector>
-#include <memory>
 
 
 #ifndef BUILD_H
@@ -49,6 +48,21 @@ class Process {
 
 		void build();
 
+        bool doOnlyCompile();
+        std::string getOutputFile();
+        int getOptimizationLevel();
+        std::set<std::string> getEnabledWarnings();
+        std::map<std::string,std::string> getPreprocessorFlags();
+
+        std::vector<std::string> getLinkedLibraryNames();
+        std::vector<Directory*> getLibraryDirectories();
+        std::vector<Directory*> getSystemDirectories();
+        std::vector<File*> getSourceFiles();
+
+        std::vector<File*> getProcessedFiles();
+        std::vector<File*> getObjectFiles();
+        File* getExecutableFile();
+        
 	private:
 		bool onlyCompile = false;
 		std::string outputFile = DEFAULT_OUTPUT_FILE;
@@ -57,13 +71,13 @@ class Process {
 		std::map<std::string,std::string> preprocessorFlags;
 
 		std::vector<std::string> linkedLibraryNames;
-		std::vector<std::shared_ptr<Directory>> libraryDirectories;
-		std::vector<std::shared_ptr<Directory>> systemDirectories;
-		std::vector<std::shared_ptr<File>> sourceFiles;
+		std::vector<Directory*> libraryDirectories;
+		std::vector<Directory*> systemDirectories;
+		std::vector<File*> sourceFiles;
 
-		std::vector<std::shared_ptr<File>> processedFiles;
-		std::vector<std::shared_ptr<File>> objectFiles;
-		std::shared_ptr<File> executableFile;
+		std::vector<File*> processedFiles;
+		std::vector<File*> objectFiles;
+		File* executableFile;
 
 		void parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList);
 		void evaluateArgs(std::vector<std::string>& argsList);

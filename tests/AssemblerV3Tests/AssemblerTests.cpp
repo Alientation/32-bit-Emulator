@@ -55,7 +55,7 @@ void preprocessorTests() {
 
 	// test preprocessing
 	Preprocessor* preprocessor = new Preprocessor(process, file);
-	// preprocessor->preprocess();
+	preprocessor->preprocess();
 }
 
 

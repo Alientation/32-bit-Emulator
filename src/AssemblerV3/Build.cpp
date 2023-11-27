@@ -93,7 +93,7 @@ void Process::evaluateArgs(std::vector<std::string>& argsList) {
 			(this->*flags[arg])(argsList, i);
 		} else {
 			// this should be a file
-			std::shared_ptr<File> file(new File(arg));
+			File* file = new File(arg);
 
 			// check the extension
 			if (file->getExtension() != SOURCE_EXTENSION) {
@@ -109,7 +109,25 @@ void Process::evaluateArgs(std::vector<std::string>& argsList) {
  * Destructs a build process.
  */
 Process::~Process() {
+    // delete all the files
+    for (File* file : sourceFiles) {
+        delete file;
+    }
+    for (File* file : processedFiles) {
+        delete file;
+    }
+    for (File* file : objectFiles) {
+        delete file;
+    }
+    delete executableFile;
 
+    // delete all the directories
+    for (Directory* directory : libraryDirectories) {
+        delete directory;
+    }
+    for (Directory* directory : systemDirectories) {
+        delete directory;
+    }
 }
 
 
@@ -290,7 +308,7 @@ void Process::_include(std::vector<std::string>& args, int& index) {
 		return;
 	}
 
-	systemDirectories.push_back(std::shared_ptr<Directory>(new Directory(includeDir)));
+	systemDirectories.push_back(new Directory(includeDir));
 }
 
 /**
@@ -338,7 +356,7 @@ void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
 		return;
 	}
 
-	libraryDirectories.push_back(std::shared_ptr<Directory>(new Directory(libraryDir)));
+	libraryDirectories.push_back(new Directory(libraryDir));
 }
 
 /**
@@ -366,4 +384,54 @@ void Process::_preprocessorFlag(std::vector<std::string>& args, int& index) {
 	}
 
 	preprocessorFlags[flag] = value;
+}
+
+
+// FOR NOW getters
+bool Process::doOnlyCompile() {
+    return onlyCompile;
+}
+
+std::string Process::getOutputFile() {
+    return outputFile;
+}
+
+int Process::getOptimizationLevel() {
+    return optimizationLevel;
+}
+
+std::set<std::string> Process::getEnabledWarnings() {
+    return enabledWarnings;
+}
+
+std::map<std::string,std::string> Process::getPreprocessorFlags() {
+    return preprocessorFlags;
+}
+
+std::vector<std::string> Process::getLinkedLibraryNames() {
+    return linkedLibraryNames;
+}
+
+std::vector<Directory*> Process::getLibraryDirectories() {
+    return libraryDirectories;
+}
+
+std::vector<Directory*> Process::getSystemDirectories() {
+    return systemDirectories;
+}
+
+std::vector<File*> Process::getSourceFiles() {
+    return sourceFiles;
+}
+
+std::vector<File*> Process::getProcessedFiles() {
+    return processedFiles;
+}
+
+std::vector<File*> Process::getObjectFiles() {
+    return objectFiles;
+}
+
+File* Process::getExecutableFile() {
+    return executableFile;
 }

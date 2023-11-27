@@ -14,7 +14,7 @@ abcdef
 
 
 #include "include.binc"
-
+;*
 .org $FFFF
 
 #macro add (a: DBYTE, b: DBYTE) : DBYTE
@@ -33,3 +33,4 @@ abcdef
 #macend
 
 #12334567890
+*;

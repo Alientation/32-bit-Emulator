@@ -12,23 +12,22 @@
  * @param file the file to preprocess
  * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension
  */
-Preprocessor::Preprocessor(Process* process, File* file, std::string outputFilePath) {
-	this->process.reset(process);
-	this->inputFile.reset(file);
+Preprocessor::Preprocessor(Process* process, File* inputFile, std::string outputFilePath) {
+    this->process = process;
+    this->inputFile = inputFile;
 
 	if (outputFilePath.empty()) {
-		this->outputFile.reset(new File(file->getFileName(), PROCESSED_EXTENSION, file->getFileDirectory()));
+        outputFile = new File(inputFile->getFileName(), PROCESSED_EXTENSION, inputFile->getFileDirectory(), true);
 	} else {
-		this->outputFile.reset(new File(outputFilePath));
+        outputFile = new File(outputFilePath, true);
 	}
 
-	if (!process->isValidSourceFile(inputFile.get())) {
+	if (!process->isValidSourceFile(inputFile)) {
 		log(ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
 		return;
 	}
 
 	state = State::UNPROCESSED;
-	writer.reset(new FileWriter(outputFile.get()));
 
 	tokenize();
 }
@@ -42,9 +41,9 @@ void Preprocessor::tokenize() {
 		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Preprocessor is not in the UNPROCESSED state");
 		return;
 	}
-	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
-	std::string source_code = reader->readAll();
-	reader->close();
+	FileReader reader(inputFile);
+	std::string source_code = reader.readAll();
+	reader.close();
 
 	tokens.clear();
 	while (source_code.size() > 0) {
@@ -62,7 +61,7 @@ void Preprocessor::tokenize() {
 				source_code = match.suffix();
 				matched = true;
 
-                log(LOG, std::stringstream() << "Preprocessor::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
+                // log(LOG, std::stringstream() << "Preprocessor::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
 				break;
 			}
 		}
@@ -85,9 +84,7 @@ void Preprocessor::tokenize() {
  * Destructs a preprocessor object
  */
 Preprocessor::~Preprocessor() {
-	inputFile->~File();
-	outputFile->~File();
-	writer->~FileWriter();
+    delete outputFile;
 }
 
 /**
@@ -102,22 +99,23 @@ void Preprocessor::preprocess() {
 	}
 	state = State::PROCESSING;
 
+    // clearing output file
+    std::ofstream ofs;
+    ofs.open(outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
+    ofs.close();
+
+    // create writer
+    writer = new FileWriter(outputFile);
+
 	// parses the tokens
-	for (int i = 0; i < tokens.size(); i++) {
+	for (int i = 0; i < tokens.size(); ) {
 		Token& token = tokens[i];
+        log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
 		
-		if (token.type == token.WHITESPACE) {
-			writer->writeString(token.value);
-		} else if (token.type == token.TEXT) {
-			if (directives.find(token.value) != directives.end()) {
-				// this is a preprocessor directive
-				(this->*directives[token.value])(i);
-			} else {
-				// this is not a preprocessor directive
-				writer->writeString(token.value);
-			}
+		if (directives.find(token.type) != directives.end()) {
+			(this->*directives[token.type])(i);
 		} else {
-			log(ERROR, std::stringstream() << "Preprocessor::preprocess() - Invalid token type: " << token.type);
+			writer->writeString(consume(i));
 		}
 	}
 
@@ -152,6 +150,36 @@ void Preprocessor::expectToken(int& tokenI, std::string errorMsg) {
 	}
 }
 
+/**
+ * Consumes the current token
+ * 
+ * @param tokenI the index of the current token
+ * @param errorMsg the error message to throw if the token does not exist
+ * 
+ * @returns the value of the consumed token
+ */
+std::string Preprocessor::consume(int& tokenI, std::string errorMsg) {
+    expectToken(tokenI, errorMsg);
+    return tokens[tokenI++].value;
+}
+
+/**
+ * Consumes the current token and checks it matches the given types
+ * 
+ * @param tokenI the index of the current token
+ * @param expectedTypes the expected types of the token
+ * @param errorMsg the error message to throw if the token does not have the expected type
+ * 
+ * @returns the value of the consumed token
+ */
+std::string Preprocessor::consume(int& tokenI, std::set<Token::Type> expectedTypes, std::string errorMsg) {
+    expectToken(tokenI, errorMsg);
+    if (expectedTypes.find(tokens[tokenI].type) == expectedTypes.end()) {
+        log(ERROR, std::stringstream() << errorMsg);
+    }
+    return tokens[tokenI++].value;
+}
+
 
 /**
  * Inserts the file contents into the current file.
@@ -169,50 +197,40 @@ void Preprocessor::_include(int& tokenI) {
 	skipTokens(tokenI, "[ \t]");
 	expectToken(tokenI, "Preprocessor::_include() - Missing include filename");
 
-	std::string filepath = tokens[tokenI].value;
 	std::string fullPathFromWorkingDirectory;
 
-	if (filepath[0] == '"') {
-		// local include
-		if (filepath.back() != '"') {
-			log(ERROR, std::stringstream() << "Preprocessor::_include() - Unclosed quotes around filepath: " << filepath);
-			return;
-		}
-
-		std::string localFilePath = filepath.substr(1, filepath.length() - 2);
-		if (!File::isValidFilePath(localFilePath)) {
-			log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath: " << localFilePath);
-			return;		
-		}
-
+    if (tokens[tokenI].type == Token::LITERAL_STRING) {
+        // local include
+        std::string localFilePath = tokens[tokenI].value.substr(1, tokens[tokenI].value.length() - 2);
 		fullPathFromWorkingDirectory = inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
-	} else if (filepath[0] == '<') {
-		// this is a system include
-		if (filepath.back() != '>') {
-			log(ERROR, std::stringstream() << "Preprocessor::_include() - Unclosed angle brackets around filepath: " << filepath);
-			return;
-		}
+    } else {
+        // expect <"...">
+        consume(tokenI, {Token::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing <");
+        std::string systemFilePath = consume(tokenI, {Token::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename");
+        consume(tokenI, {Token::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing >");
 
-		std::string systemFilePath = filepath.substr(1, filepath.length() - 2);
-		
-		// check if the system file path exists relative to any of the system directories passed to the build process
-	} else {
-		log(ERROR, std::stringstream() << "Preprocessor::_include() - Invalid include filepath. Missing quotes: " << filepath);
-		return;
+        // check if file exists in system include directories
+        for (Directory* directory : process->getSystemDirectories()) {
+            if (directory->subfileExists(systemFilePath)) {
+                fullPathFromWorkingDirectory = directory->getDirectoryPath() + File::SEPARATOR + systemFilePath;
+                break;
+            }
+        }
 	}
 
 	// process included file
-	std::shared_ptr<File> includeFile(new File(fullPathFromWorkingDirectory));
+	File* includeFile = new File(fullPathFromWorkingDirectory);
 	if (!includeFile->exists()) {
 		log(ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 		return;
 	}
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
-	Preprocessor includedPreprocessor = Preprocessor(process.get(), includeFile.get(), outputFile->getFilePath());
+	Preprocessor includedPreprocessor(process, includeFile, outputFile->getFilePath());
+    delete includeFile;
 	
 	// yoink the tokens from the included file and insert
-	tokens.insert(tokens.begin() + tokenI + 1, includedPreprocessor.tokens.begin(), includedPreprocessor.tokens.end());
+	tokens.insert(tokens.begin() + tokenI, includedPreprocessor.tokens.begin(), includedPreprocessor.tokens.end());
 }
 
 /**

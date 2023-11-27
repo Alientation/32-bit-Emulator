@@ -4,7 +4,6 @@
 
 #include <string>
 #include <map>
-#include <memory>
 #include <functional>
 
 #ifndef PREPROCESSORV3_H
@@ -17,7 +16,7 @@ class Preprocessor {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
 		};
 
-		Preprocessor(Process* process, File* file, std::string outputFilePath = "");	// constructs a preprocessor object with the given file
+		Preprocessor(Process* process, File* inputFile, std::string outputFilePath = "");	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
 		void preprocess();							// preprocesses the file
@@ -188,14 +187,14 @@ class Preprocessor {
 			std::vector<Token> macroBody;
 		};
 
-		std::shared_ptr<Process> process;			// the build process
+		Process* process;			// the build process
 
-		std::shared_ptr<File> inputFile;			// the input file
-		std::shared_ptr<File> outputFile;			// the output file
+		File* inputFile;			// the input file
+		File* outputFile;			// the output file
 		State state;								// the state of the preprocessor
 		std::vector<Token> tokens;					// the tokens of the input file
 
-		std::shared_ptr<FileWriter> writer;			// writer for the output file
+		FileWriter* writer;			// writer for the output file
 
 		std::map<std::string, std::string> symbols;	// defined symbols
 		std::map<std::string, Macro> macros;		// defined macros
@@ -203,6 +202,8 @@ class Preprocessor {
 		void tokenize();
 		void skipTokens(int& tokenI, std::string regex);
 		void expectToken(int& tokenI, std::string errorMsg);
+        std::string consume(int& tokenI, std::string errorMsg = "Preprocessor::consume() - Unexpected end of file");
+        std::string consume(int& tokenI, std::set<Token::Type> expectedTypes, std::string errorMsg = "Preprocessor::consume() - Unexpected token");
 
 		void _include(int& tokenI);
 		void _macro(int& tokenI);
@@ -219,20 +220,20 @@ class Preprocessor {
 		void _undefine(int& tokenI);
 
 		typedef void (Preprocessor::*PreprocessorFunction)(int& tokenI);
-		std::map<std::string,PreprocessorFunction> directives = {
-			{"#include", &Preprocessor::_include},
-			{"#macro", &Preprocessor::_macro},
-			{"#macret", &Preprocessor::_macret},
-			{"#macend", &Preprocessor::_macend},
-			{"#invoke", &Preprocessor::_invoke},
-			{"#define", &Preprocessor::_define},
-			{"#ifdef", &Preprocessor::_ifdef},
-			{"#ifndef", &Preprocessor::_ifndef},
-			{"#else", &Preprocessor::_else},
-			{"#elsedef", &Preprocessor::_elsedef},
-			{"#elsendef", &Preprocessor::_elsendef},
-			{"#endif", &Preprocessor::_endif},
-			{"#undef", &Preprocessor::_undefine}
+		std::map<Token::Type,PreprocessorFunction> directives = {
+			{Token::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
+			{Token::PREPROCESSOR_MACRO, &Preprocessor::_macro},
+			{Token::PREPROCESSOR_MACRET, &Preprocessor::_macret},
+			{Token::PREPROCESSOR_MACEND, &Preprocessor::_macend},
+			{Token::PREPROCESSOR_INVOKE, &Preprocessor::_invoke},
+			{Token::PREPROCESSOR_DEFINE, &Preprocessor::_define},
+			{Token::PREPROCESSOR_IFDEF, &Preprocessor::_ifdef},
+			{Token::PREPROCESSOR_IFNDEF, &Preprocessor::_ifndef},
+			{Token::PREPROCESSOR_ELSE, &Preprocessor::_else},
+			{Token::PREPROCESSOR_ELSEDEF, &Preprocessor::_elsedef},
+			{Token::PREPROCESSOR_ELSENDEF, &Preprocessor::_elsendef},
+			{Token::PREPROCESSOR_ENDIF, &Preprocessor::_endif},
+			{Token::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}
 		};
 };
 
