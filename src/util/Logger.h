@@ -51,9 +51,11 @@ static void log(LogType logType, std::stringstream msg) {
 			std::cout << "[" << logTypeStr << "] " << msg.str() << std::endl;
 			break;
 		case ERROR:
-			std::stringstream msgStream;
-			msgStream << "[" << logTypeStr << "] " << msg.str();
-			throw std::runtime_error(msgStream.str());
+			// std::stringstream msgStream;
+			// msgStream << "[" << logTypeStr << "] " << msg.str();
+			// throw std::runtime_error(msgStream.str());
+            std::cerr << "[" << logTypeStr << "] " << msg.str() << std::endl;
+            exit(EXIT_FAILURE);
 	}
 }
 
