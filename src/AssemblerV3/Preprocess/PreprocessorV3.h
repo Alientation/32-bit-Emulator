@@ -31,7 +31,8 @@ class Preprocessor {
 		 */
 		struct Token {
 			enum Type {
-				TEXT, WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE, WHITESPACE,
+				TEXT, WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE, WHITESPACE, 
+                COMMENT_SINGLE_LINE, COMMENT_MULTI_LINE,
 
 				// PREPROCESSOR DIRECTIVES
 				PREPROCESSOR_INCLUDE, 
@@ -56,15 +57,17 @@ class Preprocessor {
                 OPERATOR_ADDITION, OPERATOR_SUBTRACTION, OPERATOR_MULTIPLICATION, OPERATOR_DIVISION, OPERATOR_MODULUS,
                 OPERATOR_BITWISE_LEFT_SHIFT, OPERATOR_BITWISE_RIGHT_SHIFT, 
                 OPERATOR_BITWISE_XOR, OPERATOR_BITWISE_AND, OPERATOR_BITWISE_OR, OPERATOR_BITWISE_COMPLEMENT,
-                OPERATOR_LOGICAL_NOT, OPERATOR_LOGICAL_EQUAL, 
+                OPERATOR_LOGICAL_NOT, OPERATOR_LOGICAL_EQUAL, OPERATOR_LOGICAL_NOT_EQUAL,
                 OPERATOR_LOGICAL_LESS_THAN, OPERATOR_LOGICAL_GREATER_THAN, 
                 OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL,
                 OPERATOR_LOGICAL_OR, OPERATOR_LOGICAL_AND,
 			};
 
 			inline static const std::map<Type, std::string> TYPE_NAME = {
-				{TEXT, "TEXT"}, {WHITESPACE_SPACE, "WHITESPACE_SPACE"}, {WHITESPACE_TAB, "WHITE_SPACE_TAB"}, {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
+				{TEXT, "TEXT"}, 
+                {WHITESPACE_SPACE, "WHITESPACE_SPACE"}, {WHITESPACE_TAB, "WHITE_SPACE_TAB"}, {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
                 {WHITESPACE, "WHITESPACE"},
+                {COMMENT_SINGLE_LINE, "COMMENT_SINGLE_LINE"}, {COMMENT_MULTI_LINE, "COMMENT_MULTI_LINE"},
 
 				{PREPROCESSOR_INCLUDE, "PREPROCESSOR_INCLUDE"},
 				{PREPROCESSOR_MACRO, "PREPROCESSOR_MACRO"}, {PREPROCESSOR_MACRET, "PREPROCESSOR_MACRET"}, 
@@ -94,7 +97,7 @@ class Preprocessor {
                 {OPERATOR_BITWISE_RIGHT_SHIFT, "OPERATOR_BITWISE_RIGHT_SHIFT"}, {OPERATOR_BITWISE_XOR, "OPERATOR_BITWISE_XOR"},
                 {OPERATOR_BITWISE_AND, "OPERATOR_BITWISE_AND"}, {OPERATOR_BITWISE_OR, "OPERATOR_BITWISE_OR"},
                 {OPERATOR_BITWISE_COMPLEMENT, "OPERATOR_BITWISE_COMPLEMENT"}, {OPERATOR_LOGICAL_NOT, "OPERATOR_LOGICAL_NOT"},
-                {OPERATOR_LOGICAL_EQUAL, "OPERATOR_LOGICAL_EQUAL"},
+                {OPERATOR_LOGICAL_EQUAL, "OPERATOR_LOGICAL_EQUAL"}, {OPERATOR_LOGICAL_NOT_EQUAL, "OPERATOR_LOGICAL_NOT_EQUAL"},
                 {OPERATOR_LOGICAL_LESS_THAN, "OPERATOR_LOGICAL_LESS_THAN"}, {OPERATOR_LOGICAL_GREATER_THAN, "OPERATOR_LOGICAL_GREATER_THAN"},
                 {OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, "OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL"}, {OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL, "OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL"},
                 {OPERATOR_LOGICAL_OR, "OPERATOR_LOGICAL_OR"}, {OPERATOR_LOGICAL_AND, "OPERATOR_LOGICAL_AND"},
@@ -115,7 +118,9 @@ class Preprocessor {
 						toString += " " + std::to_string(value[i]);
 					}
 					return toString;
-				}
+				} else if (type == COMMENT_SINGLE_LINE || type == COMMENT_MULTI_LINE) {
+                    return TYPE_NAME.at(type);
+                }
 
 				return TYPE_NAME.at(type) + ": " + value;
 			}
@@ -123,8 +128,9 @@ class Preprocessor {
 
 		inline static const std::vector<std::pair<std::string, Token::Type>> TOKEN_SPEC = {
 			{"^ ", Token::WHITESPACE_SPACE}, {"^\\t", Token::WHITESPACE_TAB}, {"^\\n", Token::WHITESPACE_NEWLINE},
-			{"^[\\s^[ \n\t]]+", Token::WHITESPACE},
-			{"^\\{", Token::OPEN_BRACE}, 		{"^\\}", Token::CLOSE_BRACE},
+			{"^[\\s^[ \\n\\t]]+", Token::WHITESPACE},
+            {"^;\\*[^*]*\\*+(?:[^;*][^*]*\\*+)*;", Token::COMMENT_MULTI_LINE}, {"^;.*", Token::COMMENT_SINGLE_LINE},
+			{"^\\{", Token::OPEN_BRACE}, {"^\\}", Token::CLOSE_BRACE},
 			{"^\\[", Token::OPEN_BRACKET}, 	{"^\\]", Token::CLOSE_BRACKET},
 			{"^\\(", Token::OPEN_PARANTHESIS},{"^\\)", Token::CLOSE_PARANTHESIS},
 			{"^,", Token::COMMA}, {"^:", Token::COLON}, {"^;", Token::SEMICOLON},
@@ -163,7 +169,7 @@ class Preprocessor {
 			{"^\\<\\<", Token::OPERATOR_BITWISE_LEFT_SHIFT}, {"^\\>\\>", Token::OPERATOR_BITWISE_RIGHT_SHIFT},
 			{"^\\^", Token::OPERATOR_BITWISE_XOR}, {"^\\&", Token::OPERATOR_BITWISE_AND}, 
             {"^\\|", Token::OPERATOR_BITWISE_OR}, {"^~", Token::OPERATOR_BITWISE_COMPLEMENT},
-            {"^==", Token::OPERATOR_LOGICAL_EQUAL},
+            {"^==", Token::OPERATOR_LOGICAL_EQUAL}, {"^!=", Token::OPERATOR_LOGICAL_NOT_EQUAL},
 			{"^!", Token::OPERATOR_LOGICAL_NOT}, 
             {"^\\<=", Token::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL}, {"^\\>=", Token::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL},
             {"^\\<", Token::OPERATOR_LOGICAL_LESS_THAN}, {"^\\>", Token::OPERATOR_LOGICAL_GREATER_THAN},
@@ -195,7 +201,6 @@ class Preprocessor {
 		std::map<std::string, Macro> macros;		// defined macros
 
 		void tokenize();
-		void new_tokenize();
 		void skipTokens(int& tokenI, std::string regex);
 		void expectToken(int& tokenI, std::string errorMsg);
 

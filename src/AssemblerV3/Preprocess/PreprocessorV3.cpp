@@ -30,17 +30,16 @@ Preprocessor::Preprocessor(Process* process, File* file, std::string outputFileP
 	state = State::UNPROCESSED;
 	writer.reset(new FileWriter(outputFile.get()));
 
-	// tokenize();
-	new_tokenize();
+	tokenize();
 }
 
 /**
- * Newer tokenizer
+ * Tokenizes the input file into a list of tokens
  */
-void Preprocessor::new_tokenize() {
-	log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Tokenizing file: " << inputFile->getFileName());
+void Preprocessor::tokenize() {
+	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenizing file: " << inputFile->getFileName());
 	if (state != State::UNPROCESSED) {
-		log(ERROR, std::stringstream() << "Preprocessor::new_tokenize() - Preprocessor is not in the UNPROCESSED state");
+		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Preprocessor is not in the UNPROCESSED state");
 		return;
 	}
 	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
@@ -63,86 +62,22 @@ void Preprocessor::new_tokenize() {
 				source_code = match.suffix();
 				matched = true;
 
-                log(LOG, std::stringstream() << "Preprocessor::new_tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
+                log(LOG, std::stringstream() << "Preprocessor::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
 				break;
 			}
 		}
 
 		if (!matched) {
-			log(ERROR, std::stringstream() << "Preprocessor::new_tokenize() - Could not match regex to source code: " << source_code);
+			log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Could not match regex to source code: " << source_code);
 			return;
 		}
 	}
 
 	// print out tokens
-	log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Tokenized file: " << inputFile->getFileName());
-	for (int i = 0; i < tokens.size(); i++) {
-		log(DEBUG, std::stringstream() << "Preprocessor::new_tokenize() - Token[" << i << "]=" << tokens[i].toString());
-	}
-}
-
-/**
- * Tokenizes the input file. This is an internal function.
- */
-void Preprocessor::tokenize() {
-	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenizing file: " << inputFile->getFileName());
-
-	if (state != State::UNPROCESSED) {
-		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Preprocessor is not in the UNPROCESSED state");
-		return;
-	}
-
-	std::shared_ptr<FileReader> reader(new FileReader(inputFile.get()));
-
-	// tokenizes the input file
-	std::string tok = "";
-	bool isQuoted = false;
-	char quotedChar = '"';
-
-	// read the file
-	while (reader->hasNextByte()) {
-		char byte = reader->readByte();
-
-		// handle quotes
-		if (!isQuoted && (byte == '"' || byte == '<')) { // NOTE: this does not work with escape characters
-			isQuoted = true;
-			quotedChar = byte;
-		} else if (isQuoted && byte == quotedChar) {
-			isQuoted = false;
-		}
-
-		if (std::isspace(byte) && !isQuoted) {
-			// whitespace character not surrounded by quotes
-			tokens.push_back(Token(Token::Type::TEXT, tok));
-			tokens.push_back(Token(Token::Type::WHITESPACE, std::string(1, byte)));
-			tok = "";
-		} else if (!reader->hasNextByte()) {
-			tok += byte;
-			tokens.push_back(Token(Token::Type::TEXT, tok));
-		} else {
-			tok += byte;
-		}
-	}
-
-	// unclosed quotes
-	if (isQuoted) {
-		log(ERROR, std::stringstream() << "Preprocessor::tokenize() - Unclosed quotes: " << quotedChar);
-		return;
-	}
-
-	// print out tokens
 	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenized file: " << inputFile->getFileName());
 	for (int i = 0; i < tokens.size(); i++) {
-		Token& token = tokens[i];
-
-		if (token.type == token.WHITESPACE) {
-			log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Token[" << i << "]: " << std::to_string(token.value[0]) << " (" << token.type << ")");
-		} else {
-			log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Token[" << i << "]: " << token.value << " (" << token.type << ")");
-		}
+		log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Token[" << i << "]=" << tokens[i].toString());
 	}
-
-	reader->close();
 }
 
 
@@ -174,7 +109,7 @@ void Preprocessor::preprocess() {
 		if (token.type == token.WHITESPACE) {
 			writer->writeString(token.value);
 		} else if (token.type == token.TEXT) {
-			if (token.value[0] == '#' && directives.find(token.value) != directives.end()) {
+			if (directives.find(token.value) != directives.end()) {
 				// this is a preprocessor directive
 				(this->*directives[token.value])(i);
 			} else {
