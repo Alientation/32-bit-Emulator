@@ -1,6 +1,5 @@
 #include <../src/util/File.h>
 #include <../src/AssemblerV3/Build.h>
-#include "../src/util/AssemblyType.h"
 
 #include <string>
 #include <map>
@@ -30,6 +29,8 @@ class Preprocessor {
 		 */
 		struct Token {
 			enum Type {
+                UNKNOWN,
+
 				TEXT, WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE, WHITESPACE, 
                 COMMENT_SINGLE_LINE, COMMENT_MULTI_LINE,
 
@@ -40,6 +41,11 @@ class Preprocessor {
 				PREPROCESSOR_IFDEF, PREPROCESSOR_IFNDEF, 
 				PREPROCESSOR_ELSE, PREPROCESSOR_ELSEDEF, PREPROCESSOR_ELSENDEF, 
 				PREPROCESSOR_ENDIF,
+
+                // VARIABLE TYPES
+                VARIABLE_TYPE_BYTE, VARIABLE_TYPE_DBYTE, VARIABLE_TYPE_WORD, VARIABLE_TYPE_DWORD,
+                VARIABLE_TYPE_CHAR, VARIABLE_TYPE_STRING, VARIABLE_TYPE_FLOAT, VARIABLE_TYPE_DOUBLE,
+                VARIABLE_TYPE_BOOLEAN,
 
 				// ASSEMBLER DIRECTIVES
 				ASSEMBLER_EQU, // TODO:
@@ -63,9 +69,10 @@ class Preprocessor {
 			};
 
 			inline static const std::map<Type, std::string> TYPE_NAME = {
+                {UNKNOWN, "UNKNOWN"},
+
 				{TEXT, "TEXT"}, 
                 {WHITESPACE_SPACE, "WHITESPACE_SPACE"}, {WHITESPACE_TAB, "WHITE_SPACE_TAB"}, {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
-                {WHITESPACE, "WHITESPACE"},
                 {COMMENT_SINGLE_LINE, "COMMENT_SINGLE_LINE"}, {COMMENT_MULTI_LINE, "COMMENT_MULTI_LINE"},
 
 				{PREPROCESSOR_INCLUDE, "PREPROCESSOR_INCLUDE"},
@@ -76,6 +83,12 @@ class Preprocessor {
 				{PREPROCESSOR_ELSE, "PREPROCESSOR_ELSE"}, {PREPROCESSOR_ELSEDEF, "PREPROCESSOR_ELSEDEF"}, 
 				{PREPROCESSOR_ELSENDEF, "PREPROCESSOR_ELSENDEF"},
 				{PREPROCESSOR_ENDIF, "PREPROCESSOR_ENDIF"},
+
+                {VARIABLE_TYPE_BYTE, "VARIABLE_TYPE_BYTE"}, {VARIABLE_TYPE_DBYTE, "VARIABLE_TYPE_DBYTE"},
+                {VARIABLE_TYPE_WORD, "VARIABLE_TYPE_WORD"}, {VARIABLE_TYPE_DWORD, "VARIABLE_TYPE_DWORD"},
+                {VARIABLE_TYPE_CHAR, "VARIABLE_TYPE_CHAR"}, {VARIABLE_TYPE_STRING, "VARIABLE_TYPE_STRING"},
+                {VARIABLE_TYPE_FLOAT, "VARIABLE_TYPE_FLOAT"}, {VARIABLE_TYPE_DOUBLE, "VARIABLE_TYPE_DOUBLE"},
+                {VARIABLE_TYPE_BOOLEAN, "VARIABLE_TYPE_BOOLEAN"},
 
 				{ASSEMBLER_EQU, "ASSEMBLER_EQU"},
 				{ASSEMBLER_ORG, "ASSEMBLER_ORG"},
@@ -100,6 +113,48 @@ class Preprocessor {
                 {OPERATOR_LOGICAL_LESS_THAN, "OPERATOR_LOGICAL_LESS_THAN"}, {OPERATOR_LOGICAL_GREATER_THAN, "OPERATOR_LOGICAL_GREATER_THAN"},
                 {OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, "OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL"}, {OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL, "OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL"},
                 {OPERATOR_LOGICAL_OR, "OPERATOR_LOGICAL_OR"}, {OPERATOR_LOGICAL_AND, "OPERATOR_LOGICAL_AND"},
+            };
+
+            inline static const std::set<Type> WHITESPACES = {
+                WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE
+            };
+
+            inline static const std::set<Type> COMMENTS = {
+                COMMENT_SINGLE_LINE, COMMENT_MULTI_LINE
+            };
+
+            inline static const std::set<Type> PREPROCESSOR_DIRECTIVES = {
+                PREPROCESSOR_INCLUDE, PREPROCESSOR_MACRO, PREPROCESSOR_MACRET, PREPROCESSOR_MACEND, PREPROCESSOR_INVOKE, 
+                PREPROCESSOR_DEFINE, PREPROCESSOR_UNDEF, PREPROCESSOR_IFDEF, PREPROCESSOR_IFNDEF, PREPROCESSOR_ELSE, 
+                PREPROCESSOR_ELSEDEF, PREPROCESSOR_ELSENDEF, PREPROCESSOR_ENDIF
+            };
+
+            inline static const std::set<Type> VARIABLE_TYPES = {
+                VARIABLE_TYPE_BYTE, VARIABLE_TYPE_DBYTE, VARIABLE_TYPE_WORD, VARIABLE_TYPE_DWORD,
+                VARIABLE_TYPE_CHAR, VARIABLE_TYPE_STRING, VARIABLE_TYPE_FLOAT, VARIABLE_TYPE_DOUBLE,
+                VARIABLE_TYPE_BOOLEAN
+            };
+
+            inline static const std::set<Type> ASSEMBLER_DIRECTIVES = {
+                ASSEMBLER_EQU, ASSEMBLER_ORG
+            };
+
+            inline static const std::set<Type> LITERAL_NUMBERS = {
+                LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL, LITERAL_NUMBER_HEXADECIMAL
+            };
+
+            inline static const std::set<Type> LITERAL_VALUES = {
+                LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL, LITERAL_NUMBER_HEXADECIMAL,
+                LITERAL_CHAR, LITERAL_STRING
+            };
+
+            inline static const std::set<Type> OPERATORS = {
+                OPERATOR_ADDITION, OPERATOR_SUBTRACTION, OPERATOR_MULTIPLICATION, OPERATOR_DIVISION, OPERATOR_MODULUS,
+                OPERATOR_BITWISE_LEFT_SHIFT, OPERATOR_BITWISE_RIGHT_SHIFT, OPERATOR_BITWISE_XOR, OPERATOR_BITWISE_AND, 
+                OPERATOR_BITWISE_OR, OPERATOR_BITWISE_COMPLEMENT, OPERATOR_LOGICAL_NOT, OPERATOR_LOGICAL_EQUAL, 
+                OPERATOR_LOGICAL_NOT_EQUAL, OPERATOR_LOGICAL_LESS_THAN, OPERATOR_LOGICAL_GREATER_THAN, 
+                OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL, OPERATOR_LOGICAL_OR, 
+                OPERATOR_LOGICAL_AND
             };
 
 			Type type;
@@ -148,6 +203,9 @@ class Preprocessor {
 			{"^#elsendef(?=\\s)", Token::PREPROCESSOR_ELSENDEF},
 			{"^#endif(?=\\s)", Token::PREPROCESSOR_ENDIF},
 
+            {"^BYTE(?=\\s)", Token::VARIABLE_TYPE_BYTE}, {"^DBYTE(?=\\s)", Token::VARIABLE_TYPE_DBYTE},
+            {"^WORD(?=\\s)", Token::VARIABLE_TYPE_WORD}, {"^DWORD(?=\\s)", Token::VARIABLE_TYPE_DWORD},
+
 			{"^\\.equ(?=\\s)", Token::ASSEMBLER_EQU},
 			{"^\\.org(?=\\s)", Token::ASSEMBLER_ORG},
 
@@ -174,17 +232,32 @@ class Preprocessor {
             {"^\\<", Token::OPERATOR_LOGICAL_LESS_THAN}, {"^\\>", Token::OPERATOR_LOGICAL_GREATER_THAN},
 		};
 
+        struct Argument {
+            std::string name;
+            Token::Type type;
+
+            Argument(std::string name, Token::Type type) {
+                this->name = name;
+                this->type = type;
+            }
+
+            Argument(std::string name) {
+                this->name = name;
+                this->type = Token::UNKNOWN;
+            }
+        };
+
 		struct Macro {
-			struct Argument {
-				std::string argName;
-				VariableType argType;
-			};
+            std::string name;
+            std::vector<Argument> arguments;
+            Token::Type returnType;
 
-			std::string macroName;
-			std::vector<Argument> macroArguments;
-			VariableType returnType;
+            std::vector<Token> definition;
 
-			std::vector<Token> macroBody;
+            Macro(std::string name) {
+                this->name = name;
+                this->returnType = Token::UNKNOWN;
+            }
 		};
 
 		Process* process;			// the build process
@@ -200,10 +273,13 @@ class Preprocessor {
 		std::map<std::string, Macro> macros;		// defined macros
 
 		void tokenize();
-		void skipTokens(int& tokenI, std::string regex);
-		void expectToken(int& tokenI, std::string errorMsg);
-        std::string consume(int& tokenI, std::string errorMsg = "Preprocessor::consume() - Unexpected end of file");
-        std::string consume(int& tokenI, std::set<Token::Type> expectedTypes, std::string errorMsg = "Preprocessor::consume() - Unexpected token");
+		void skipTokens(int& tokenI, const std::string& regex);
+        void skipTokens(int& tokenI, const std::set<Token::Type>& tokenTypes);
+		bool expectToken(int& tokenI, const std::string& errorMsg);
+        bool expectToken(int& tokenI, const std::set<Token::Type>& tokenTypes, const std::string& errorMsg);
+        bool isToken(int& tokenI, const std::set<Token::Type>& tokenTypes, const std::string& errorMsg = "Preprocessor::isToken() - Unexpected end of file");
+        Token& consume(int& tokenI, const std::string& errorMsg = "Preprocessor::consume() - Unexpected end of file");
+        Token& consume(int& tokenI, const std::set<Token::Type>& expectedTypes, const std::string& errorMsg = "Preprocessor::consume() - Unexpected token");
 
 		void _include(int& tokenI);
 		void _macro(int& tokenI);

@@ -8,9 +8,9 @@
 /**
  * Constructs a preprocessor object with the given file.
  * 
- * @param process the build process object
- * @param file the file to preprocess
- * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension
+ * @param process the build process object.
+ * @param file the file to preprocess.
+ * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
  */
 Preprocessor::Preprocessor(Process* process, File* inputFile, std::string outputFilePath) {
     this->process = process;
@@ -33,7 +33,7 @@ Preprocessor::Preprocessor(Process* process, File* inputFile, std::string output
 }
 
 /**
- * Tokenizes the input file into a list of tokens
+ * Tokenizes the input file into a list of tokens.
  */
 void Preprocessor::tokenize() {
 	log(DEBUG, std::stringstream() << "Preprocessor::tokenize() - Tokenizing file: " << inputFile->getFileName());
@@ -81,14 +81,14 @@ void Preprocessor::tokenize() {
 
 
 /**
- * Destructs a preprocessor object
+ * Destructs a preprocessor object.
  */
 Preprocessor::~Preprocessor() {
     delete outputFile;
 }
 
 /**
- * Preprocesses the file
+ * Preprocesses the file.
  */
 void Preprocessor::preprocess() {
 	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << inputFile->getFileName());
@@ -115,7 +115,7 @@ void Preprocessor::preprocess() {
 		if (directives.find(token.type) != directives.end()) {
 			(this->*directives[token.type])(i);
 		} else {
-			writer->writeString(consume(i));
+			writer->writeString(consume(i).value);
 		}
 	}
 
@@ -129,55 +129,90 @@ void Preprocessor::preprocess() {
 /**
  * Skips tokens that match the given regex.
  * 
- * @param regex the regex to match
- * @param tokenI the index of the current token
+ * @param regex the regex to match.
+ * @param tokenI the index of the current token.
  */
-void Preprocessor::skipTokens(int& tokenI, std::string regex) {
+void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
 	while (tokenI < tokens.size() && std::regex_match(tokens[tokenI].value, std::regex(regex))) {
 		tokenI++;
 	}
 }
 
 /**
- * Expects the next token to exist
+ * Skips tokens that match the given types.
  * 
- * @param tokenI the index of the expected token
- * @param errorMsg the error message to throw if the token does not exist
+ * @param tokenI the index of the current token.
+ * @param tokenTypes the types to match.
  */
-void Preprocessor::expectToken(int& tokenI, std::string errorMsg) {
+void Preprocessor::skipTokens(int& tokenI, const std::set<Token::Type>& tokenTypes) {
+    while (tokenI < tokens.size() && tokenTypes.find(tokens[tokenI].type) != tokenTypes.end()) {
+        tokenI++;
+    }
+}
+
+/**
+ * Expects the current token to exist.
+ * 
+ * @param tokenI the index of the expected token.
+ * @param errorMsg the error message to throw if the token does not exist.
+ */
+bool Preprocessor::expectToken(int& tokenI, const std::string& errorMsg) {
 	if (tokenI >= tokens.size()) {
 		log(ERROR, std::stringstream() << errorMsg);
 	}
+    return true;
+}
+
+bool Preprocessor::expectToken(int& tokenI, const std::set<Token::Type>& expectedTypes, const std::string& errorMsg) {
+    if (tokenI >= tokens.size()) {
+        log(ERROR, std::stringstream() << errorMsg);
+    } else if (expectedTypes.find(tokens[tokenI].type) == expectedTypes.end()) {
+        log(ERROR, std::stringstream() << errorMsg);
+    }
+    return true;
 }
 
 /**
- * Consumes the current token
+ * Returns whether the current token matches the given types.
  * 
- * @param tokenI the index of the current token
- * @param errorMsg the error message to throw if the token does not exist
+ * @param tokenI the index of the current token.
+ * @param tokenTypes the types to match.
  * 
- * @returns the value of the consumed token
+ * @return true if the current token matches the given types.
  */
-std::string Preprocessor::consume(int& tokenI, std::string errorMsg) {
+bool Preprocessor::isToken(int& tokenI, const std::set<Token::Type>& tokenTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-    return tokens[tokenI++].value;
+    return tokenTypes.find(tokens[tokenI].type) != tokenTypes.end();
 }
 
 /**
- * Consumes the current token and checks it matches the given types
+ * Consumes the current token.
  * 
- * @param tokenI the index of the current token
- * @param expectedTypes the expected types of the token
- * @param errorMsg the error message to throw if the token does not have the expected type
+ * @param tokenI the index of the current token.
+ * @param errorMsg the error message to throw if the token does not exist.
  * 
- * @returns the value of the consumed token
+ * @returns the value of the consumed token.
  */
-std::string Preprocessor::consume(int& tokenI, std::set<Token::Type> expectedTypes, std::string errorMsg) {
+Preprocessor::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg) {
+    expectToken(tokenI, errorMsg);
+    return tokens[tokenI++];
+}
+
+/**
+ * Consumes the current token and checks it matches the given types.
+ * 
+ * @param tokenI the index of the current token.
+ * @param expectedTypes the expected types of the token.
+ * @param errorMsg the error message to throw if the token does not have the expected type.
+ * 
+ * @returns the value of the consumed token.
+ */
+Preprocessor::Token& Preprocessor::consume(int& tokenI, const std::set<Token::Type>& expectedTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
     if (expectedTypes.find(tokens[tokenI].type) == expectedTypes.end()) {
         log(ERROR, std::stringstream() << errorMsg);
     }
-    return tokens[tokenI++].value;
+    return tokens[tokenI++];
 }
 
 
@@ -190,12 +225,12 @@ std::string Preprocessor::consume(int& tokenI, std::set<Token::Type> expectedTyp
  * <filepath>: prioritizes files located in the include directory, if not found, looks in the
  * current directory.
  * 
- * @param tokenI the index of the include token
+ * @param tokenI the index of the include token.
  */
 void Preprocessor::_include(int& tokenI) {
-	tokenI++;
+	consume(tokenI);
 	skipTokens(tokenI, "[ \t]");
-	expectToken(tokenI, "Preprocessor::_include() - Missing include filename");
+	expectToken(tokenI, "Preprocessor::_include() - Missing include filename.");
 
 	std::string fullPathFromWorkingDirectory;
 
@@ -205,9 +240,9 @@ void Preprocessor::_include(int& tokenI) {
 		fullPathFromWorkingDirectory = inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
     } else {
         // expect <"...">
-        consume(tokenI, {Token::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing <");
-        std::string systemFilePath = consume(tokenI, {Token::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename");
-        consume(tokenI, {Token::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing >");
+        consume(tokenI, {Token::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
+        std::string systemFilePath = consume(tokenI, {Token::LITERAL_STRING}, "Preprocessor::_include() - Expected string literal.").value;
+        consume(tokenI, {Token::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing '>'.");
 
         // check if file exists in system include directories
         for (Directory* directory : process->getSystemDirectories()) {
@@ -242,17 +277,59 @@ void Preprocessor::_include(int& tokenI) {
  * There cannot be a macro definition within this macro definition.
  * Note that the macro symbol is separate from label symbols and will not be pressent after preprocessing.
  * 
- * @param tokenI The index of the macro token
+ * @param tokenI The index of the macro token.
  */
 void Preprocessor::_macro(int& tokenI) {
-	tokenI++;
+	consume(tokenI);
 	skipTokens(tokenI, "[ \t]");
-	expectToken(tokenI, "Preprocessor::_macro() - Missing macro name");
-	std::string macroName = tokens[tokenI].value;
+	std::string macroName = consume(tokenI, {Token::SYMBOL}, "Preprocessor::_macro() - Expected macro name.").value;
+    Macro macro = Macro(macroName);
 
-	tokenI++;
 	skipTokens(tokenI, "[ \t\n]");
-	expectToken(tokenI, "Preprocessor::_macro() - Missing macro arguments");
+	consume(tokenI, {Token::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
+
+    // parse arguments
+    while (!isToken(tokenI, {Token::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected argument.")) {
+        skipTokens(tokenI, "[ \t\n]");
+        std::string argName = consume(tokenI, {Token::SYMBOL}, "Preprocessor::_macro() - Expected argument name.").value;
+
+        // parse argument type if there is one
+        skipTokens(tokenI, "[ \t\n]");
+        if (isToken(tokenI, {Token::COLON})) {
+            consume(tokenI);
+            macro.arguments.push_back(Argument(argName, consume(tokenI, Token::VARIABLE_TYPES, "Preprocessor::_macro() - Expected argument type").type));
+        } else {
+            macro.arguments.push_back(Argument(argName));
+        }
+
+        // parse comma or expect closing parenthesis
+        skipTokens(tokenI, "[ \t\n]");
+        if (isToken(tokenI, {Token::COMMA})) {
+            consume(tokenI);
+        } else {
+            expectToken(tokenI, {Token::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
+            break;
+        }
+    }
+
+    // consume the closing parenthesis
+    consume(tokenI, {Token::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
+    skipTokens(tokenI, "[ \t\n]");
+
+    // parse return type if there is one
+    if (isToken(tokenI, {Token::COLON})) {
+        consume(tokenI);
+        skipTokens(tokenI, "[ \t\n]");
+        macro.returnType = consume(tokenI, Token::VARIABLE_TYPES, "Preprocessor::_macro() - Expected return type.").type;
+    }
+
+    // parse macro definition
+    skipTokens(tokenI, "[ \t\n]");
+    while (!isToken(tokenI, {Token::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected macro definition." )) {
+        macro.definition.push_back(consume(tokenI));
+    }
+
+    consume(tokenI, {Token::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
 }
 
 /**
@@ -266,7 +343,7 @@ void Preprocessor::_macro(int& tokenI) {
  * @param tokenI The index of the macro return token
  */
 void Preprocessor::_macret(int& tokenI) {
-
+    
 }
 
 /**
@@ -279,7 +356,8 @@ void Preprocessor::_macret(int& tokenI) {
  * @param tokenI The index of the macro end token
  */
 void Preprocessor::_macend(int& tokenI) {
-
+    // should never reach this. This should be consumed by the _macro function.
+    log(ERROR, std::stringstream() << "Preprocessor::_macend() - Unexpected macro end token.");
 }
 
 /**
@@ -301,36 +379,36 @@ void Preprocessor::_invoke(int& tokenI) {
  * 
  * USAGE: #define [symbol] [?value]
  * 
- * Replaces all instances of symbol with the value
- * If value is not specified, the default is 0
+ * Replaces all instances of symbol with the value.
+ * If value is not specified, the default is 0.
  * 
- * @param tokenI The index of the define token
+ * @param tokenI The index of the define token.
  */
 void Preprocessor::_define(int& tokenI) {
 
 }
 
 /**
- * Determines whether to include the following text based on whether the symbol is defined
+ * Determines whether to include the following text based on whether the symbol is defined.
  * 
  * USAGE: #ifdef [symbol]
  * 
  * Must be closed by a #endif
  * 
- * @param tokenI The index of the ifdef token
+ * @param tokenI The index of the ifdef token.
  */
 void Preprocessor::_ifdef(int& tokenI) {
 
 }
 
 /**
- * Determines whether to include the following text based on whether the symbol is not defined
+ * Determines whether to include the following text based on whether the symbol is not defined.
  * 
  * USAGE: #ifndef [symbol]
  * 
- * Must be closed by a #endif
+ * Must be closed by a #endif.
  * 
- * @param tokenI The index of the ifndef token
+ * @param tokenI The index of the ifndef token.
  */
 void Preprocessor::_ifndef(int& tokenI) {
 
@@ -338,13 +416,13 @@ void Preprocessor::_ifndef(int& tokenI) {
 
 /**
  * Counterpart to #ifdef and #ifndef, only includes the following text if the previous #ifdef or #ifndef
- * was not included
+ * was not included.
  * 
  * USAGE: #else
  * 
- * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * Must be preceded by a #ifdef or #ifndef and closed by a #endif.
  * 
- * @param tokenI The index of the else token
+ * @param tokenI The index of the else token.
  */
 void Preprocessor::_else(int& tokenI) {
 
@@ -352,13 +430,13 @@ void Preprocessor::_else(int& tokenI) {
 
 /**
  * Counterpart to #ifdef and #ifndef, only includes the following text if the previous #ifdef or #ifndef
- * was not included and the symbol is defined
+ * was not included and the symbol is defined.
  * 
  * USAGE: #elsedef [symbol]
  * 
- * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * Must be preceded by a #ifdef or #ifndef and closed by a #endif.
  * 
- * @param tokenI The index of the elsedef token
+ * @param tokenI The index of the elsedef token.
  */
 void Preprocessor::_elsedef(int& tokenI) {
 
@@ -366,39 +444,39 @@ void Preprocessor::_elsedef(int& tokenI) {
 
 /**
  * Counterpart to #ifdef and #ifndef, only includes the following text if the previous #ifdef or #ifndef
- * was not included and the symbol is not defined
+ * was not included and the symbol is not defined.
  * 
  * USAGE: #elsendef [symbol]
  * 
- * Must be preceded by a #ifdef or #ifndef and closed by a #endif
+ * Must be preceded by a #ifdef or #ifndef and closed by a #endif.
  * 
- * @param tokenI The index of the elsendef token
+ * @param tokenI The index of the elsendef token.
  */
 void Preprocessor::_elsendef(int& tokenI) {
 
 }
 
 /**
- * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef
+ * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
  * 
  * USAGE: #endif
  * 
- * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef
+ * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
  * 
- * @param tokenI The index of the endif token
+ * @param tokenI The index of the endif token.
  */
 void Preprocessor::_endif(int& tokenI) {
 
 }
 
 /**
- * Undefines a symbol defined by #define
+ * Undefines a symbol defined by #define.
  * 
  * USAGE: #undefine [symbol]
  * 
- * This will still work if the symbol was never defined previously
+ * This will still work if the symbol was never defined previously.
  * 
- * @param tokenI The index of the undefine token
+ * @param tokenI The index of the undefine token.
  */
 void Preprocessor::_undefine(int& tokenI) {
 
@@ -406,9 +484,9 @@ void Preprocessor::_undefine(int& tokenI) {
 
 
 /**
- * Returns the state of the preprocessor
+ * Returns the state of the preprocessor.
  * 
- * @return the state of the preprocessor
+ * @return the state of the preprocessor.
  */
 Preprocessor::State Preprocessor::getState() {
 	return state;

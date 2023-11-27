@@ -1,8 +1,9 @@
 #ifndef ASSEMBLYTYPE_H
 #define ASSEMBLYTYPE_H
 
+// UNUSED, TODO: remove
+
 enum VariableType {
-	VOID,
 	UNKNOWN,
 	BYTE,
 	DBYTE,
@@ -10,7 +11,9 @@ enum VariableType {
 	DWORD,
 	STRING,
 	DOUBLE,
-	FLOAT,
+	FLOAT
 };
+
+
 
 #endif
