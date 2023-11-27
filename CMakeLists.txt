@@ -76,11 +76,11 @@ file( GLOB ASSEMBLER_V2_HEADERS
 
 file( GLOB ASSEMBLER_V3_SOURCES
 	"src/AssemblerV3/Build.cpp"
+    "src/AssemblerV3/Tokenizer.cpp"
 	"src/AssemblerV3/Preprocess/PreprocessorV3.cpp"
 	"src/AssemblerV3/Assemble/AssemblerV3.cpp"
 	"src/AssemblerV3/Assemble/AssemblerV3Debug.cpp"
 	"src/AssemblerV3/Assemble/DirectivesV3.cpp"
-	"src/AssemblerV3/Assemble/Tokenizer.cpp"
 	"src/AssemblerV3/Assemble/ObjectFileV3.cpp"
 	"src/AssemblerV3/Link/LinkerV3.cpp"
 	"src/AssemblerV3/Link/ExecutableFileV3.cpp"
@@ -88,6 +88,7 @@ file( GLOB ASSEMBLER_V3_SOURCES
 )
 file (GLOB ASSEMBLER_V3_HEADERS
 	"src/AssemblerV3/Build.h"
+    "src/AssemblerV3/Tokenizer.h"
 	"src/AssemblerV3/Assemble/AssemblerV3.h"
 	"src/AssemblerV3/Link/ExecutableFileV3.h"
 	"src/AssemblerV3/Link/LinkerV3.h"
