@@ -119,7 +119,8 @@ Process::~Process() {
     for (File* file : objectFiles) {
         delete file;
     }
-    delete executableFile;
+
+    // elete executableFile;
 
     // delete all the directories
     for (Directory* directory : libraryDirectories) {

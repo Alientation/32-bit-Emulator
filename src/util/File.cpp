@@ -195,7 +195,7 @@ void FileWriter::writeBytes(char* bytes) {
  */
 void FileWriter::close() {
 	if (!this->closed) {
-		this->fileStream->close();
+		delete fileStream;
 		this->closed = true;
 	}
 }
@@ -305,7 +305,7 @@ bool FileReader::hasNextByte() {
  */
 void FileReader::close() {
 	if (!this->closed) {
-		this->fileStream->close();
+		delete fileStream;
 		this->closed = true;
 	}
 }
