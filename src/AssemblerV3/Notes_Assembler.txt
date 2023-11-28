@@ -1,21 +1,119 @@
 DIRECTIVES
 ----------------------------------------------------------------
-.global symbol ?: TYPE
-	- Marks the label as a global symbol that is available to any other linked object file through
+.global [symbol] ?[: TYPE]
+    - [identifier], [TYPE]
+	- Marks the label [identifier] as a global symbol that is available to any other linked object file through
 	.extern directive.
 
-.extern symbol ?: TYPE
-	- Marks the label as an external symbol that is declared but not yet defined in the 
+.extern [symbol] ?[: TYPE]
+    - [identifier], [TYPE]
+	- Marks the label [identifier] as an external symbol that is declared but not yet defined in the 
 	current context.
+    - If a previous declaration of the label symbol has a different TYPE than the current definition
+	  an error is thrown
 
-.equ [symbol] [expression] ?: TYPE
-	- Defines a label symbol with the value of the expression.
+.equ [symbol], [expression] ?[: TYPE]
+    - [identifier], [value], [TYPE]
+	- Defines a label [identifier] with a value [value].
 	- If a previous declaration of the label symbol has a different TYPE than the current definition
-	an error is thrown.
+	  an error is thrown
 
 .org [expression]
-	- Moves the current section program counter to the value of the expression.
+    - [address]
+	- Moves the current section program counter to [address]
+    - This value can be altered depending on the positions of the different sections
 
+.scope
+    - Creates a new scope
+
+.scend
+    - Ends the previous scope
+
+.db [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 1 byte of the respective [value]
+
+.ddb [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 2 bytes of the respective [value] converted to low endian
+
+.ddb* [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 2 bytes of the respective [value] kept in high endian
+
+.dw [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 4 bytes of the respective [value] converted to low endian
+
+.dw* [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 4 bytes of the respective [value] kept in high endian
+
+.ddw [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 8 bytes of the respective [value] converted to low endian
+
+.ddw* [expression], [expression],..., [expression]
+    - [value], [value],...,[value]
+    - Defines a series of 8 bytes of the respective [value] kept in high endian
+
+.ascii [string], [string],..., [string]
+    - [string], [string],..., [string]
+    - Defines a series of strings of the respective [string]
+
+.asciz [string], [string],..., [string]
+    - [string], [string],..., [string]
+    - Defines a series of strings of the respective [string] with each string followed by a zero byte
+
+.advance [expression], [expression]
+    - [address], [filler]
+    - Fills 1 byte with [filler], repeated until current section program counter reaches
+      [address]
+
+.fill [expression], [expression], [expression]
+    - [count], [size], [value]
+    - Fills [size] bytes with [value], repeated [count] times
+
+.space [expression], [expression]
+    - [count], [value]
+    - Fills 4 bytes with [value], repeated [count] times
+
+.checkpc [expression] ?[, string]
+    - [address], [errMsg]
+    - Throws [errMsg], default msg if not defined, if current section program counter is greater than [address]
+
+.align [expression]
+    - [value]
+    - Aligns the current section program counter to [value]
+
+.bss ?[symbol]
+    - [name]
+    - Creates a new bss section of identifier [name], default section if [name] is not defined
+    - contain data initialized to 0
+
+.bss* [symbol], [expression]
+    - [name], [addresss]
+    - Creates a new bss section of identifier [name], with the starting address at [address]
+
+.data ?[symbol]
+    - [name]
+    - Creates a new data section of identifier [name], default section if [name] is not defined
+    - contain data not initialized to 0
+
+.data* [symbol], [expression]
+    - [name], [addresss]
+    - Creates a new data section of identifier [name], with the starting address at [address]
+
+.code ?[symbol]
+    - [name]
+    - Creates a new code section of identifier [name], default section if [name] is not defined
+
+.code* [symbol], [expression]
+    - [name], [addresss]
+    - Creates a new code section of identifier [name], with the starting address at [address]
+
+.stop 
+    - Stops the assembler from assembling further
 
 
 EXPRESSIONS
