@@ -56,8 +56,8 @@ class Tokenizer {
             ASSEMBLER_BSS_ABSOLUTE,
             ASSEMBLER_DATA,
             ASSEMBLER_DATA_ABSOLUTE,
-            ASSEMBLER_CODE,
-            ASSEMBLER_CODE_ABSOLUTE,
+            ASSEMBLER_TEXT,
+            ASSEMBLER_TEXT_ABSOLUTE,
             ASSEMBLER_STOP,
 
             NUMBER_SIGN,
@@ -123,8 +123,8 @@ class Tokenizer {
             {ASSEMBLER_BSS_ABSOLUTE, "ASSEMBLER_BSS_ABSOLUTE"},
             {ASSEMBLER_DATA, "ASSEMBLER_DATA"},
             {ASSEMBLER_DATA_ABSOLUTE, "ASSEMBLER_DATA_ABSOLUTE"},
-            {ASSEMBLER_CODE, "ASSEMBLER_CODE"},
-            {ASSEMBLER_CODE_ABSOLUTE, "ASSEMBLER_CODE_ABSOLUTE"},
+            {ASSEMBLER_TEXT, "ASSEMBLER_TEXT"},
+            {ASSEMBLER_TEXT_ABSOLUTE, "ASSEMBLER_TEXT_ABSOLUTE"},
             {ASSEMBLER_STOP, "ASSEMBLER_STOP"},
 
             {NUMBER_SIGN, "NUMBER_SIGN"},
@@ -216,6 +216,9 @@ class Tokenizer {
 
             {"^BYTE(?=[\\s,\\)])", VARIABLE_TYPE_BYTE}, {"^DBYTE(?=[\\s,\\)])", VARIABLE_TYPE_DBYTE},
             {"^WORD(?=[\\s,\\)])", VARIABLE_TYPE_WORD}, {"^DWORD(?=[\\s,\\)])", VARIABLE_TYPE_DWORD},
+            {"^CHAR(?=[\\s,\\)])", VARIABLE_TYPE_CHAR}, {"^STRING(?=[\\s,\\)])", VARIABLE_TYPE_STRING},
+            {"^FLOAT(?=[\\s,\\)])", VARIABLE_TYPE_FLOAT}, {"^DOUBLE(?=[\\s,\\)])", VARIABLE_TYPE_DOUBLE},
+            {"^BOOLEAN(?=[\\s,\\)])", VARIABLE_TYPE_BOOLEAN},
 
             {"^\\.global(?=\\s)", ASSEMBLER_GLOBAL},
             {"^\\.extern(?=\\s)", ASSEMBLER_EXTERN},
@@ -241,8 +244,8 @@ class Tokenizer {
             {"^\\.bss\\*(?=\\s)", ASSEMBLER_BSS_ABSOLUTE},
             {"^\\.data(?=\\s)", ASSEMBLER_DATA},
             {"^\\.data\\*(?=\\s)", ASSEMBLER_DATA_ABSOLUTE},
-            {"^\\.code(?=\\s)", ASSEMBLER_CODE},
-            {"^\\.code\\*(?=\\s)", ASSEMBLER_CODE_ABSOLUTE},
+            {"^\\.text(?=\\s)", ASSEMBLER_TEXT},
+            {"^\\.text\\*(?=\\s)", ASSEMBLER_TEXT_ABSOLUTE},
             {"^\\.stop(?=\\s)", ASSEMBLER_STOP},
 
             {"^#", NUMBER_SIGN},

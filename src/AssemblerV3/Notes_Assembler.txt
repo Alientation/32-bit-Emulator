@@ -18,10 +18,12 @@ DIRECTIVES
 	- If a previous declaration of the label symbol has a different TYPE than the current definition
 	  an error is thrown
 
+
 .org [expression]
     - [address]
 	- Moves the current section program counter to [address]
     - This value can be altered depending on the positions of the different sections
+
 
 .scope
     - Creates a new scope
@@ -29,53 +31,60 @@ DIRECTIVES
 .scend
     - Ends the previous scope
 
-.db [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 1 byte of the respective [value]
 
-.ddb [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 2 bytes of the respective [value] converted to low endian
+.byte | .sbyte [?: symbol] [expression...]
+    - [?label] [values]
+    - unsigned/signed 1 byte [values]
+    - label if defined marks the address of the first byte of the defined data
 
-.ddb* [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 2 bytes of the respective [value] kept in high endian
+.dbyte | .sdbyte | .dbyte* | .sdbyte* [?: symbol] [expression...]
+    - [?label] [values]
+    - unsigned/signed 2 byte [values] in low/high endian
 
-.dw [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 4 bytes of the respective [value] converted to low endian
+.word | .sword | .word* | .sword* [?: symbol] [expression...]
+    - [?label] [values]
+    - unsigned/signed 4 byte [values] in low/high endian
 
-.dw* [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 4 bytes of the respective [value] kept in high endian
+.dword | .sdword | .dword* | .sdword* [?: symbol] [expression...]
+    - [?label] [values]
+    - unsigned/signed 8 byte [values] in low/high endian
 
-.ddw [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 8 bytes of the respective [value] converted to low endian
+.char [?: symbol] [character...]
+    - [?label] [characters]
+    - Defines a series of bytes of [characters]
 
-.ddw* [expression], [expression],..., [expression]
-    - [value], [value],...,[value]
-    - Defines a series of 8 bytes of the respective [value] kept in high endian
+.ascii [?: symbol] [string...]
+    - [?label] [strings]
+    - Defines a series of [strings]
 
-.ascii [string], [string],..., [string]
-    - [string], [string],..., [string]
-    - Defines a series of strings of the respective [string]
+.asciz [?: symbol] [string...]
+    - [?label] [strings]
+    - Defines a series of [strings] with each string followed by a null zero byte
 
-.asciz [string], [string],..., [string]
-    - [string], [string],..., [string]
-    - Defines a series of strings of the respective [string] with each string followed by a zero byte
+.float [?: symbol] [expression...]
+    - [?label] [values]
+    - Defines a series of floats of [values]
 
-.advance [expression], [expression]
-    - [address], [filler]
+.double [?: symbol] [expression...]
+    - [?label] [values]
+    - Defines a series of doubles of [values]
+
+.boolean [?: symbol] [expression...]
+    - [?label] [values]
+    - Defines a series of booleans of [values]
+
+
+.advance [?: symbol] [expression], [expression]
+    - [?label] [address], [filler]
     - Fills 1 byte with [filler], repeated until current section program counter reaches
       [address]
 
-.fill [expression], [expression], [expression]
-    - [count], [size], [value]
+.fill [?: symbol] [expression], [expression], [expression]
+    - [?label] [count], [size], [value]
     - Fills [size] bytes with [value], repeated [count] times
 
-.space [expression], [expression]
-    - [count], [value]
+.space [?: symbol] [expression], [expression]
+    - [?label] [count], [value]
     - Fills 4 bytes with [value], repeated [count] times
 
 .checkpc [expression] ?[, string]
@@ -86,31 +95,33 @@ DIRECTIVES
     - [value]
     - Aligns the current section program counter to [value]
 
+
 .bss ?[symbol]
-    - [name]
+    - [?name]
     - Creates a new bss section of identifier [name], default section if [name] is not defined
     - contain data initialized to 0
 
 .bss* [symbol], [expression]
-    - [name], [addresss]
+    - [?name], [addresss]
     - Creates a new bss section of identifier [name], with the starting address at [address]
 
 .data ?[symbol]
-    - [name]
+    - [?name]
     - Creates a new data section of identifier [name], default section if [name] is not defined
     - contain data not initialized to 0
 
 .data* [symbol], [expression]
-    - [name], [addresss]
+    - [?name], [addresss]
     - Creates a new data section of identifier [name], with the starting address at [address]
 
-.code ?[symbol]
-    - [name]
-    - Creates a new code section of identifier [name], default section if [name] is not defined
+.text ?[symbol]
+    - [?name]
+    - Creates a new text section of identifier [name], default section if [name] is not defined
 
-.code* [symbol], [expression]
-    - [name], [addresss]
-    - Creates a new code section of identifier [name], with the starting address at [address]
+.text* [symbol], [expression]
+    - [?name], [addresss]
+    - Creates a new text section of identifier [name], with the starting address at [address]
+
 
 .stop 
     - Stops the assembler from assembling further
