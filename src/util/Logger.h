@@ -59,5 +59,31 @@ static void log(LogType logType, std::stringstream msg) {
 	}
 }
 
+/**
+ * Checks if the condition is true, otherwises logs the message
+ * 
+ * @param condition The condition to check
+ * @param logType The log type to output if the condition if false
+ * @param msg The message to output if the condition is false
+ */
+static void EXPECT_TRUE(bool condition, LogType logType, std::stringstream msg) {
+	if (!condition) {
+		log(logType, std::stringstream() << msg.str());
+	}
+}
+
+/**
+ * Checks if the condition is false, otherwises logs the message
+ * 
+ * @param condition The condition to check
+ * @param logType The log type to output if the condition if true
+ * @param msg The message to output if the condition is true
+ */
+static void EXPECT_FALSE(bool condition, LogType logType, std::stringstream msg) {
+	if (condition) {
+		log(logType, std::stringstream() << msg.str());
+	}
+}
+
 
 #endif

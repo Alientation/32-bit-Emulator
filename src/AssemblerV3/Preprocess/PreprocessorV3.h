@@ -114,7 +114,7 @@ class Preprocessor {
 		void _undefine(int& tokenI);
 
 		typedef void (Preprocessor::*PreprocessorFunction)(int& tokenI);
-		std::map<Tokenizer::Type,PreprocessorFunction> directives = {
+		std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {
 			{Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
 			{Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},
 			{Tokenizer::PREPROCESSOR_MACRET, &Preprocessor::_macret},

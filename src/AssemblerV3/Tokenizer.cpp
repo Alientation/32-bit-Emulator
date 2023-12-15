@@ -32,10 +32,8 @@ void Tokenizer::tokenize(File* srcFile, std::vector<Tokenizer::Token>& tokens) {
 			}
 		}
 
-		if (!matched) {
-			log(ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
-			return;
-		}
+		// check if regex matched
+		EXPECT_TRUE(matched, ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
 
 	// print out tokens
