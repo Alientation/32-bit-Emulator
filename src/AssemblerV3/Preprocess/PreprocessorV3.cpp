@@ -27,7 +27,7 @@ Preprocessor::Preprocessor(Process* process, File* inputFile, std::string output
 
 	state = State::UNPROCESSED;
 
-	Tokenizer::tokenize(inputFile, tokens);
+	tokens = Tokenizer::tokenize(inputFile);
 }
 
 /**
@@ -400,16 +400,9 @@ void Preprocessor::_invoke(int& tokenI) {
 	
 	// check if the macro returns something, if so add a equate statement to store the output
 	if (hasOutput) {
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_EQU, ".equ"));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::SYMBOL, outputSymbol));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::LITERAL_NUMBER_DECIMAL, "0"));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::COLON, ":"));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(macro->returnType, Tokenizer::TYPE_TO_NAME_MAP.at(macro->returnType)));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+		std::stringstream delcare_output_statement = std::stringstream() << ".equ " << outputSymbol << " 0 : " << Tokenizer::TYPE_TO_NAME_MAP.at(macro->returnType);
+		std::vector<Tokenizer::Token> tokens = Tokenizer::tokenize(delcare_output_statement.str());
+		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
 	}
 
 	// append a new '.scope' symbol to the tokens list
@@ -418,16 +411,15 @@ void Preprocessor::_invoke(int& tokenI) {
 
 	// then for each argument, add an '.equ argname argval' statement
 	for (int i = 0; i < arguments.size(); i++) {
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_EQU, ".equ"));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::SYMBOL, macro->arguments[i].name));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
+		std::stringstream argument_statement = std::stringstream() << ".equ " << macro->arguments[i].name << " ";
+		std::vector<Tokenizer::Token> tokens = Tokenizer::tokenize(argument_statement.str());
+		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
+
 		macroDefinition.insert(macroDefinition.end(), arguments[i].begin(), arguments[i].end());
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::COLON, ":"));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_SPACE, " "));
-		macroDefinition.push_back(Tokenizer::Token(macro->arguments[i].type, Tokenizer::TYPE_TO_NAME_MAP.at(macro->arguments[i].type)));
-		macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+
+		argument_statement = std::stringstream() << " : " << Tokenizer::TYPE_TO_NAME_MAP.at(macro->arguments[i].type) << "\n";
+		tokens = Tokenizer::tokenize(argument_statement.str());
+		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
 	}
 
 	// then append the macro definition

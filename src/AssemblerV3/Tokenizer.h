@@ -302,7 +302,8 @@ class Tokenizer {
 		};
 
 
-        static void tokenize(File* srcFile, std::vector<Token>&);
+        static std::vector<Token>& tokenize(File* srcFile);
+		static std::vector<Token>& tokenize(std::string source_code);
 };
 
 

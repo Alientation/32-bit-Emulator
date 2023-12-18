@@ -3,7 +3,13 @@
 
 #include <regex>
 
-void Tokenizer::tokenize(File* srcFile, std::vector<Tokenizer::Token>& tokens) {
+/**
+ * Converts the source file contents into a list of tokens
+ * 
+ * @param srcFile The source file to tokenize
+ * @return A list of tokens
+ */
+std::vector<Tokenizer::Token>& Tokenizer::tokenize(File* srcFile) {
     log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile->getFileName());
 	FileReader reader(srcFile);
 
@@ -11,7 +17,19 @@ void Tokenizer::tokenize(File* srcFile, std::vector<Tokenizer::Token>& tokens) {
 	std::string source_code = reader.readAll() + "\n";
 	reader.close();
 
-	tokens.clear();
+	std::vector<Token>& tokens = tokenize(source_code);
+	log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile->getFileName());
+	return tokens;
+}
+
+/**
+ * Converts the source code into a list of tokens
+ * 
+ * @param source_code The source code to tokenize
+ * @return A list of tokens
+ */
+std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
+	std::vector<Token>* tokens = new std::vector<Token>();
 	while (source_code.size() > 0) {
 		// try to match regex
 		bool matched = false;
@@ -23,7 +41,7 @@ void Tokenizer::tokenize(File* srcFile, std::vector<Tokenizer::Token>& tokens) {
 			if (std::regex_search(source_code, match, token_regex)) {
 				// matched regex
 				std::string token_value = match.str();
-				tokens.push_back(Token(type, token_value));
+				tokens->push_back(Token(type, token_value));
 				source_code = match.suffix();
 				matched = true;
 
@@ -37,8 +55,9 @@ void Tokenizer::tokenize(File* srcFile, std::vector<Tokenizer::Token>& tokens) {
 	}
 
 	// print out tokens
-	log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile->getFileName());
-	for (int i = 0; i < tokens.size(); i++) {
-		log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens[i].toString());
+	for (int i = 0; i < tokens->size(); i++) {
+		log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).toString());
 	}
+
+	return *tokens;
 }
