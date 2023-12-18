@@ -1,4 +1,7 @@
 # ALIEN CPU - A 16 bit 6502-like Processor
+## Inspiration and Purpose
+In the summer of 2023 I came across this [fabulous series](https://www.youtube.com/watch?v=qJgsuQoy9bc&list=PLLwK93hM93Z13TRzPx9JqTIn33feefl37) by Dave Poo on emulating a 6502 cpu which really reminded me of this [video](https://www.youtube.com/watch?v=QZwneRb-zqA) by Sebastian Lague. Long had I seen others create computers in games like Minecraft and I once had the same ambition (which never came to fruition because at just 12 years old, I just don't think I had the necessary expertise and knowledge to pull that off). I figured this project would help knock a few of my goals: learn c++, understand how computers work at a lower level, and just simply explore more. I have so much more in vision for this project than just a simple emulator (build an assembler, use the assembler to make an OS, develop a compiler for a high level language, ...)
+
 ## Details
 My 16 bit processor emulator attempts to capture the 6502 feel - including behavior, available instructions, and more. My plan is to design a fully emulated computer using the 6502 (with a simple OS and custom programming language)
 
@@ -10,8 +13,8 @@ The instructions supported by my processor attempts to emulate the behavior of i
 
 ## Progress
 All legal instructions have been implemented with around half having been thoroughly tested.
-Currently working on an assembler, aiming for a wide support of various directives.
-Planning on working bit by bit on testing in between development.
+Currently working on an assembler, aiming for a wide support of various directives and linking between assembly files. (Assembler is already on its 3rd iteration, though it is looking far more promising than the previous versions). So far have finished developing and testing some preprocessors like #DEFINE and #MACRO.
+Planning on working bit by bit on improving test coverage in between development.
 
 ## Install
 Build using C++ 13.2 or later
