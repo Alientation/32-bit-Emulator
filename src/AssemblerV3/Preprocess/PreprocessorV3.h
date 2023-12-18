@@ -3,6 +3,7 @@
 #include <../src/AssemblerV3/Tokenizer.h>
 
 #include <string>
+#include <stack>
 #include <map>
 #include <functional>
 
@@ -79,17 +80,21 @@ class Preprocessor {
             }
 		};
 
-		Process* process;			// the build process
+		Process* process;										// the build process
 
-		File* inputFile;			// the input file
-		File* outputFile;			// the output file
-		State state;								// the state of the preprocessor
+		File* inputFile;										// the .basm or .binc file being preprocessed
+		File* outputFile;										// the output file of the processed file, usually a .bi file
+		State state;											// the state of the preprocessor
 		std::vector<Tokenizer::Token> tokens;					// the tokens of the input file
 
-		FileWriter* writer;			// writer for the output file
+		std::stack<std::pair<std::string, Macro*>> macroStack;	// the current processing macro stack with the output symbol and macro
 
-		std::map<std::string, std::string> symbols;	// defined symbols
-		std::map<std::string, Macro> macros;		// defined macros
+		FileWriter* writer;										// writer for the output file
+
+		std::map<std::string, std::string> symbols;				// defined symbols
+		std::map<std::string, Macro*> macros;					// defined macros
+
+		std::vector<Macro*> macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments);
 
 		void skipTokens(int& tokenI, const std::string& regex);
         void skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes);
