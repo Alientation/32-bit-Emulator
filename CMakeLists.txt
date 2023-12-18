@@ -6,6 +6,7 @@ file( GLOB UTIL_HEADERS
 	"src/util/ConsoleColor.h"
 	"src/util/Logger.h"
 	"src/util/StringUtil.h"
+	"src/util/VectorUtil.h"
 	"src/util/File.h"
 	"src/util/Directory.h"
     "src/AssemblerV3/AssemblyType.h"

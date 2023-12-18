@@ -149,6 +149,14 @@ class Tokenizer {
             {OPERATOR_LOGICAL_OR, "OPERATOR_LOGICAL_OR"}, {OPERATOR_LOGICAL_AND, "OPERATOR_LOGICAL_AND"},
         };
 
+		inline static const std::map<Type,std::string> VARIABLE_TYPE_TO_NAME_MAP = {
+			{VARIABLE_TYPE_BYTE, "BYTE"}, {VARIABLE_TYPE_DBYTE, "DBYTE"},
+            {VARIABLE_TYPE_WORD, "WORD"}, {VARIABLE_TYPE_DWORD, "DWORD"},
+            {VARIABLE_TYPE_CHAR, "CHAR"}, {VARIABLE_TYPE_STRING, "STRING"},
+            {VARIABLE_TYPE_FLOAT, "FLOAT"}, {VARIABLE_TYPE_DOUBLE, "DOUBLE"},
+            {VARIABLE_TYPE_BOOLEAN, "BOOLEAN"},
+		};
+
         inline static const std::set<Type> WHITESPACES = {
             WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE
         };

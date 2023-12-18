@@ -1,5 +1,7 @@
 #include "PreprocessorV3.h"
 #include <../src/util/Logger.h>
+#include <../src/util/StringUtil.h>
+#include <../src/util/VectorUtil.h>
 
 #include <regex>
 #include <fstream>
@@ -180,7 +182,7 @@ Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg
  */
 Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-	EXPECT_TRUE(expectedTypes.find(tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream(errorMsg) << " - Unexpected end of file.");
+	EXPECT_TRUE(expectedTypes.find(tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
     return tokens[tokenI++];
 }
 
@@ -197,15 +199,15 @@ Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::T
  * @param tokenI the index of the include token.
  */
 void Preprocessor::_include(int& tokenI) {
-	consume(tokenI);
+	consume(tokenI); // '#include'
 	skipTokens(tokenI, "[ \t]");
-	expectToken(tokenI, "Preprocessor::_include() - Missing include filename.");
 
+	// the path to the included file
 	std::string fullPathFromWorkingDirectory;
 
-    if (tokens[tokenI].type == Tokenizer::LITERAL_STRING) {
+    if (isToken(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename.")) {
         // local include
-        std::string localFilePath = tokens[tokenI].value.substr(1, tokens[tokenI].value.length() - 2);
+        std::string localFilePath = tokens[tokenI].value.substr(1, tokens[tokenI].value.length() - 2); // extract the string from the quotes
 		fullPathFromWorkingDirectory = inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
     } else {
         // expect <"...">
@@ -214,12 +216,22 @@ void Preprocessor::_include(int& tokenI) {
         consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing '>'.");
 
         // check if file exists in system include directories
+		bool foundSystemFile = false;
         for (Directory* directory : process->getSystemDirectories()) {
             if (directory->subfileExists(systemFilePath)) {
+				if (foundSystemFile) {
+					// already found file
+					log(ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
+				}
+
                 fullPathFromWorkingDirectory = directory->getDirectoryPath() + File::SEPARATOR + systemFilePath;
-                break;
-            }
+				foundSystemFile = true;
+			}
         }
+
+		if (!foundSystemFile) {
+			log(ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << systemFilePath);
+		}
 	}
 
 	// process included file
@@ -241,17 +253,19 @@ void Preprocessor::_include(int& tokenI) {
  * 
  * If a return type is specified and the macro definition does not return a value an error is thrown.
  * There cannot be a macro definition within this macro definition.
- * Note that the macro symbol is separate from label symbols and will not be pressent after preprocessing.
+ * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
  * 
  * @param tokenI The index of the macro token.
  */
 void Preprocessor::_macro(int& tokenI) {
-	consume(tokenI);
+	consume(tokenI); // '#macro'
 	skipTokens(tokenI, "[ \t]");
+
+	// parse macro name
 	std::string macroName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected macro name.").value;
     Macro* macro = new Macro(macroName);
 
-    // start of declaration arguments
+    // start of invoked arguments
 	skipTokens(tokenI, "[ \t\n]");
 	consume(tokenI, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
 
@@ -274,9 +288,6 @@ void Preprocessor::_macro(int& tokenI) {
         skipTokens(tokenI, "[ \t\n]");
         if (isToken(tokenI, {Tokenizer::COMMA})) {
             consume(tokenI);
-        } else {
-            expectToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
-            break;
         }
     }
 
@@ -357,27 +368,24 @@ void Preprocessor::_invoke(int& tokenI) {
 	std::string macroName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected macro name.").value;
 	
 	// parse arguments
-	skipTokens(tokenI, "[ \t]");
+	skipTokens(tokenI, "[ \t\n]");
 	consume(tokenI, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_invoke() - Expected '('.");
 	std::vector<std::vector<Tokenizer::Token>> arguments;
 	while (!isToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.")) {
-		skipTokens(tokenI, "[ \t]");
+		skipTokens(tokenI, "[ \t\n]");
 		
-		std::vector<Tokenizer::Token> argumentValue;
+		std::vector<Tokenizer::Token> argumentValues;
 		while (!isToken(tokenI, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS, Tokenizer::WHITESPACE_NEWLINE}, "Preprocessor::_invoke() - Expected ')'.")) {
-			argumentValue.push_back(consume(tokenI));
+			argumentValues.push_back(consume(tokenI));
 		}
-		arguments.push_back(argumentValue);
+		arguments.push_back(argumentValues);
 
 		if (isToken(tokenI, {Tokenizer::COMMA})) {
 			consume(tokenI);
-		} else {
-			expectToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
-			break;
 		}
 	}
 	consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
-	skipTokens(tokenI, "[ \t]");
+	skipTokens(tokenI, "[ \t\n]");
 
 	// parse the output symbol if there is one
 	bool hasOutput = isToken(tokenI, {Tokenizer::SYMBOL});
@@ -396,44 +404,43 @@ void Preprocessor::_invoke(int& tokenI) {
 	Macro* macro = possibleMacros[0];
 
 	// replace the '_invoke symbol(arg1, arg2,..., argn) ?symbol' with the macro definition
-	std::vector<Tokenizer::Token> macroDefinition;
+	std::vector<Tokenizer::Token> expanded_macro_invoke;
 	
 	// check if the macro returns something, if so add a equate statement to store the output
 	if (hasOutput) {
-		std::stringstream delcare_output_statement = std::stringstream() << ".equ " << outputSymbol << " 0 : " << Tokenizer::TYPE_TO_NAME_MAP.at(macro->returnType);
-		std::vector<Tokenizer::Token> tokens = Tokenizer::tokenize(delcare_output_statement.str());
-		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} 0 : {}\n", outputSymbol, Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macro->returnType))));
 	}
 
 	// append a new '.scope' symbol to the tokens list
-	macroDefinition.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCOPE, ".scope"));
-	macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCOPE, ".scope"));
+	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
 
 	// then for each argument, add an '.equ argname argval' statement
 	for (int i = 0; i < arguments.size(); i++) {
-		std::stringstream argument_statement = std::stringstream() << ".equ " << macro->arguments[i].name << " ";
-		std::vector<Tokenizer::Token> tokens = Tokenizer::tokenize(argument_statement.str());
-		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
-
-		macroDefinition.insert(macroDefinition.end(), arguments[i].begin(), arguments[i].end());
-
-		argument_statement = std::stringstream() << " : " << Tokenizer::TYPE_TO_NAME_MAP.at(macro->arguments[i].type) << "\n";
-		tokens = Tokenizer::tokenize(argument_statement.str());
-		macroDefinition.insert(macroDefinition.end(), tokens.begin(), tokens.end());
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} ", macro->arguments[i].name)));
+		vector_util::append(expanded_macro_invoke, arguments[i]);
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macro->arguments[i].type))));
 	}
 
 	// then append the macro definition
-	macroDefinition.insert(macroDefinition.end(), macro->definition.begin(), macro->definition.end());
+	expanded_macro_invoke.insert(expanded_macro_invoke.end(), macro->definition.begin(), macro->definition.end());
 
 	// finally end with a '.scend' symbol
-	macroDefinition.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
-	macroDefinition.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCEND, ".scend"));
+	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCEND, ".scend"));
 
 	// push the macro and output symbol if any onto the macro stack
 	macroStack.push(std::pair<std::string, Macro*>(outputSymbol, macro));
 
-	// insert macroDefinition into the tokens list
-	tokens.insert(tokens.begin() + tokenI, macroDefinition.begin(), macroDefinition.end());
+	// print out expanded macro
+	std::stringstream ss;
+	for (Tokenizer::Token& token : expanded_macro_invoke) {
+		ss << token.value;
+	}
+	log(DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
+
+	// insert into the tokens list
+	tokens.insert(tokens.begin() + tokenI, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
 }
 
 /**
