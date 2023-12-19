@@ -60,7 +60,7 @@ void Preprocessor::preprocess() {
 	for (int i = 0; i < tokens.size(); ) {
 		Tokenizer::Token& token = tokens[i];
         log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
-		
+
 		// if token is valid preprocessor, call the preprocessor function
 		if (preprocessors.find(token.type) != preprocessors.end()) {
 			(this->*preprocessors[token.type])(i);
@@ -326,14 +326,55 @@ void Preprocessor::_macro(int& tokenI) {
  * @param tokenI The index of the macro return token
  */
 void Preprocessor::_macret(int& tokenI) {
-	// replace '#macret expression' with '.equ current_macro_output_symbol expression' in the tokens list
-	// remove all the tokens after this till the end of the current macro's definition
+	consume(tokenI); // '#macret'
+	skipTokens(tokenI, "[ \t]");
+
+	std::vector<Tokenizer::Token> return_value;
+	if (macroStack.empty()) {
+		log(ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
+	}
+
+	// macro contains a return value
+	bool doesMacroReturn = macroStack.top().second->returnType != Tokenizer::UNKNOWN;
+	if (doesMacroReturn) {
+		while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+			return_value.push_back(consume(tokenI));
+		}
+	}
+
+	// skip all the tokens after this till the end of the current macro's definition
 	// we can achieve this by counting the number of scope levels, incrementing if we reach a .scope token and decrementing
 	// if we reach a .scend token. If we reach 0, we know we have reached the end of the macro definition.
-	// remove all the tokens before this current .scend token to the token after the .equ statement
+	
+	int currentRelativeScopeLevel = 0;
+	while (tokenI < tokens.size()) {
+		if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCOPE})) {
+			currentRelativeScopeLevel++;
+		} else if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCEND})) {
+			currentRelativeScopeLevel--;
+		}
+		consume(tokenI);
 
+		if (currentRelativeScopeLevel == 0) {
+			break;
+		}
+	}
 
-	log(ERROR, std::stringstream() << "macret");
+	if (currentRelativeScopeLevel != 0) {
+		log(ERROR, std::stringstream() << "Preprocessor::_macret() - Unclosed scope.");
+	}
+
+	// add'.equ current_macro_output_symbol expression' to tokens
+	if (doesMacroReturn) {
+		std::vector<Tokenizer::Token> set_return_statement;
+		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", macroStack.top().first)));
+		vector_util::append(set_return_statement, return_value);
+		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macroStack.top().second->returnType))));
+		tokens.insert(tokens.begin() + tokenI, set_return_statement.begin(), set_return_statement.end());
+	}
+
+	// pop the macro from the stack
+	macroStack.pop();
 }
 
 /**

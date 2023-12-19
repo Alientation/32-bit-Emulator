@@ -87,6 +87,7 @@ class Preprocessor {
 		State state;											// the state of the preprocessor
 		std::vector<Tokenizer::Token> tokens;					// the tokens of the input file
 
+		int currentIdentLevel;									// number of tabs since the previous new line character
 		std::stack<std::pair<std::string, Macro*>> macroStack;	// the current processing macro stack with the output symbol and macro
 
 		FileWriter* writer;										// writer for the output file
