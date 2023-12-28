@@ -15,67 +15,66 @@
  * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
  */
 Preprocessor::Preprocessor(Process* process, File* inputFile, std::string outputFilePath) {
-    this->process = process;
-    this->inputFile = inputFile;
+    m_process = process;
+    m_inputFile = inputFile;
 
 	// default output file path if not supplied in the constructor
 	if (outputFilePath.empty()) {
-        outputFile = new File(inputFile->getFileName(), PROCESSED_EXTENSION, inputFile->getFileDirectory(), true);
+        m_outputFile = new File(inputFile->getFileName(), PROCESSED_EXTENSION, inputFile->getFileDirectory(), true);
 	} else {
-        outputFile = new File(outputFilePath, true);
+        m_outputFile = new File(outputFilePath, true);
 	}
 
-	EXPECT_TRUE(process->isValidSourceFile(inputFile), ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
+	EXPECT_TRUE(m_process->isValidSourceFile(inputFile), ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
 
-	state = State::UNPROCESSED;
-
-	tokens = Tokenizer::tokenize(inputFile);
+	m_state = State::UNPROCESSED;
+	m_tokens = Tokenizer::tokenize(inputFile);
 }
 
 /**
  * Destructs a preprocessor object.
  */
 Preprocessor::~Preprocessor() {
-    delete outputFile;
+    delete m_outputFile;
 }
 
 /**
  * Preprocesses the file.
  */
 void Preprocessor::preprocess() {
-	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile->getFileName());
 
-	EXPECT_TRUE(state == State::UNPROCESSED, ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
-	state = State::PROCESSING;
+	EXPECT_TRUE(m_state == State::UNPROCESSED, ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
+	m_state = State::PROCESSING;
 
     // clearing output file
     std::ofstream ofs;
-    ofs.open(outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
     // create writer
-    writer = new FileWriter(outputFile);
+    m_writer = new FileWriter(m_outputFile);
 
 	// parses the tokens
-	for (int i = 0; i < tokens.size(); ) {
-		Tokenizer::Token& token = tokens[i];
+	for (int i = 0; i < m_tokens.size(); ) {
+		Tokenizer::Token& token = m_tokens[i];
         log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
 
 		// if token is valid preprocessor, call the preprocessor function
 		if (preprocessors.find(token.type) != preprocessors.end()) {
 			(this->*preprocessors[token.type])(i);
 		} else {
-			writer->writeString(consume(i).value);
+			m_writer->writeString(consume(i).value);
 		}
 	}
 
-	state = State::PROCESSED_SUCCESS;
-	writer->close();
+	m_state = State::PROCESSED_SUCCESS;
+	m_writer->close();
 
-	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << inputFile->getFileName());
+	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile->getFileName());
 
     // log macros
-    for (std::pair<std::string, Macro*> macroPair : macros) {
+    for (std::pair<std::string, Macro*> macroPair : m_macros) {
         log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macroPair.second->toString());
     }
 }
@@ -95,7 +94,7 @@ void Preprocessor::preprocess() {
  */
 std::vector<Preprocessor::Macro*> Preprocessor::macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments) {
 	std::vector<Macro*> possibleMacros;
-	for (std::pair<std::string, Macro*> macroPair : macros) {
+	for (std::pair<std::string, Macro*> macroPair : m_macros) {
 		if (macroPair.second->name == macroName && macroPair.second->arguments.size() == arguments.size()) {
 			possibleMacros.push_back(macroPair.second);
 		}
@@ -111,7 +110,7 @@ std::vector<Preprocessor::Macro*> Preprocessor::macrosWithHeader(std::string mac
  * @param tokenI the index of the current token.
  */
 void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
-	while (tokenI < tokens.size() && std::regex_match(tokens[tokenI].value, std::regex(regex))) {
+	while (tokenI < m_tokens.size() && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
 		tokenI++;
 	}
 }
@@ -123,7 +122,7 @@ void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
  * @param tokenTypes the types to match.
  */
 void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes) {
-    while (tokenI < tokens.size() && tokenTypes.find(tokens[tokenI].type) != tokenTypes.end()) {
+    while (tokenI < m_tokens.size() && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
         tokenI++;
     }
 }
@@ -135,13 +134,13 @@ void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& toke
  * @param errorMsg the error message to throw if the token does not exist.
  */
 bool Preprocessor::expectToken(int& tokenI, const std::string& errorMsg) {
-	EXPECT_TRUE(tokenI < tokens.size(), ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(tokenI < m_tokens.size(), ERROR, std::stringstream(errorMsg));
     return true;
 }
 
 bool Preprocessor::expectToken(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	EXPECT_TRUE(tokenI < tokens.size(), ERROR, std::stringstream(errorMsg));
-	EXPECT_TRUE(expectedTypes.find(tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(tokenI < m_tokens.size(), ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream(errorMsg));
     return true;
 }
 
@@ -155,7 +154,7 @@ bool Preprocessor::expectToken(int& tokenI, const std::set<Tokenizer::Type>& exp
  */
 bool Preprocessor::isToken(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-    return tokenTypes.find(tokens[tokenI].type) != tokenTypes.end();
+    return tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end();
 }
 
 /**
@@ -168,7 +167,7 @@ bool Preprocessor::isToken(int& tokenI, const std::set<Tokenizer::Type>& tokenTy
  */
 Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-    return tokens[tokenI++];
+    return m_tokens[tokenI++];
 }
 
 /**
@@ -182,8 +181,8 @@ Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg
  */
 Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-	EXPECT_TRUE(expectedTypes.find(tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
-    return tokens[tokenI++];
+	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
+    return m_tokens[tokenI++];
 }
 
 
@@ -207,8 +206,9 @@ void Preprocessor::_include(int& tokenI) {
 
     if (isToken(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename.")) {
         // local include
-        std::string localFilePath = tokens[tokenI].value.substr(1, tokens[tokenI].value.length() - 2); // extract the string from the quotes
-		fullPathFromWorkingDirectory = inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
+		std::string localFilePath = consume(tokenI).value;
+		localFilePath = localFilePath.substr(1, localFilePath.length() - 2);
+        fullPathFromWorkingDirectory = m_inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
     } else {
         // expect <"...">
         consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
@@ -217,7 +217,7 @@ void Preprocessor::_include(int& tokenI) {
 
         // check if file exists in system include directories
 		bool foundSystemFile = false;
-        for (Directory* directory : process->getSystemDirectories()) {
+        for (Directory* directory : m_process->getSystemDirectories()) {
             if (directory->subfileExists(systemFilePath)) {
 				if (foundSystemFile) {
 					// already found file
@@ -239,11 +239,11 @@ void Preprocessor::_include(int& tokenI) {
 	EXPECT_TRUE(includeFile->exists(), ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
-	Preprocessor includedPreprocessor(process, includeFile, outputFile->getFilePath());
+	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile->getFilePath());
     delete includeFile;
 	
 	// yoink the tokens from the included file and insert
-	tokens.insert(tokens.begin() + tokenI, includedPreprocessor.tokens.begin(), includedPreprocessor.tokens.end());
+	m_tokens.insert(m_tokens.begin() + tokenI, includedPreprocessor.m_tokens.begin(), includedPreprocessor.m_tokens.end());
 }
 
 /**
@@ -309,10 +309,10 @@ void Preprocessor::_macro(int& tokenI) {
     consume(tokenI, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
 
     // check if macro declaration is unique
-	EXPECT_TRUE(macros.find(macro->header()) == macros.end(), ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
+	EXPECT_TRUE(m_macros.find(macro->header()) == m_macros.end(), ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
 
     // add macro to list of macros
-    macros.insert(std::pair<std::string,Macro*>(macro->header(), macro));
+    m_macros.insert(std::pair<std::string,Macro*>(macro->header(), macro));
 }
 
 /**
@@ -330,12 +330,12 @@ void Preprocessor::_macret(int& tokenI) {
 	skipTokens(tokenI, "[ \t]");
 
 	std::vector<Tokenizer::Token> return_value;
-	if (macroStack.empty()) {
+	if (m_macroStack.empty()) {
 		log(ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
 	}
 
 	// macro contains a return value
-	bool doesMacroReturn = macroStack.top().second->returnType != Tokenizer::UNKNOWN;
+	bool doesMacroReturn = m_macroStack.top().second->returnType != Tokenizer::UNKNOWN;
 	if (doesMacroReturn) {
 		while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
 			return_value.push_back(consume(tokenI));
@@ -347,7 +347,7 @@ void Preprocessor::_macret(int& tokenI) {
 	// if we reach a .scend token. If we reach 0, we know we have reached the end of the macro definition.
 	
 	int currentRelativeScopeLevel = 0;
-	while (tokenI < tokens.size()) {
+	while (tokenI < m_tokens.size()) {
 		if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCOPE})) {
 			currentRelativeScopeLevel++;
 		} else if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCEND})) {
@@ -367,14 +367,14 @@ void Preprocessor::_macret(int& tokenI) {
 	// add'.equ current_macro_output_symbol expression' to tokens
 	if (doesMacroReturn) {
 		std::vector<Tokenizer::Token> set_return_statement;
-		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", macroStack.top().first)));
+		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", m_macroStack.top().first)));
 		vector_util::append(set_return_statement, return_value);
-		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macroStack.top().second->returnType))));
-		tokens.insert(tokens.begin() + tokenI, set_return_statement.begin(), set_return_statement.end());
+		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(m_macroStack.top().second->returnType))));
+		m_tokens.insert(m_tokens.begin() + tokenI, set_return_statement.begin(), set_return_statement.end());
 	}
 
 	// pop the macro from the stack
-	macroStack.pop();
+	m_macroStack.pop();
 }
 
 /**
@@ -471,7 +471,7 @@ void Preprocessor::_invoke(int& tokenI) {
 	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCEND, ".scend"));
 
 	// push the macro and output symbol if any onto the macro stack
-	macroStack.push(std::pair<std::string, Macro*>(outputSymbol, macro));
+	m_macroStack.push(std::pair<std::string, Macro*>(outputSymbol, macro));
 
 	// print out expanded macro
 	std::stringstream ss;
@@ -481,7 +481,7 @@ void Preprocessor::_invoke(int& tokenI) {
 	log(DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
 
 	// insert into the tokens list
-	tokens.insert(tokens.begin() + tokenI, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
+	m_tokens.insert(m_tokens.begin() + tokenI, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
 }
 
 /**
@@ -602,5 +602,5 @@ void Preprocessor::_undefine(int& tokenI) {
  * @return the state of the preprocessor.
  */
 Preprocessor::State Preprocessor::getState() {
-	return state;
+	return m_state;
 }

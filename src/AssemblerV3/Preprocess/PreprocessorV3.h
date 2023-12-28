@@ -80,20 +80,20 @@ class Preprocessor {
             }
 		};
 
-		Process* process;										// the build process
+		Process* m_process;										// the build process
 
-		File* inputFile;										// the .basm or .binc file being preprocessed
-		File* outputFile;										// the output file of the processed file, usually a .bi file
-		State state;											// the state of the preprocessor
-		std::vector<Tokenizer::Token> tokens;					// the tokens of the input file
+		File* m_inputFile;										// the .basm or .binc file being preprocessed
+		File* m_outputFile;										// the output file of the processed file, usually a .bi file
+		State m_state;											// the state of the preprocessor
+		std::vector<Tokenizer::Token> m_tokens;					// the tokens of the input file
 
-		int currentIdentLevel;									// number of tabs since the previous new line character
-		std::stack<std::pair<std::string, Macro*>> macroStack;	// the current processing macro stack with the output symbol and macro
+		int m_currentIdentLevel;									// number of tabs since the previous new line character
+		std::stack<std::pair<std::string, Macro*>> m_macroStack;	// the current processing macro stack with the output symbol and macro
 
-		FileWriter* writer;										// writer for the output file
+		FileWriter* m_writer;										// writer for the output file
 
-		std::map<std::string, std::string> symbols;				// defined symbols
-		std::map<std::string, Macro*> macros;					// defined macros
+		std::map<std::string, std::string> m_symbols;				// defined symbols
+		std::map<std::string, Macro*> m_macros;					// defined macros
 
 		std::vector<Macro*> macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments);
 
