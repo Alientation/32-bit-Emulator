@@ -47,24 +47,57 @@ void Preprocessor::preprocess() {
 	EXPECT_TRUE(m_state == State::UNPROCESSED, ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
-    // clearing output file
+    // clearing intermediate output file
     std::ofstream ofs;
     ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
-    // create writer
+    // create writer for intermediate output file
     m_writer = new FileWriter(m_outputFile);
 
 	// parses the tokens
+	int currentIndentLevel = 0;
+	int targetIndentLevel = 0;
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
+        // log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
+		log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.toString());
+
+		// update current indent level
+		if (token.type == Tokenizer::WHITESPACE_TAB) {
+			currentIndentLevel++;
+		} else if (token.type == Tokenizer::WHITESPACE_NEWLINE) {
+			currentIndentLevel = 0;
+		}
+
+		// update target indent level
+		if (token.type == Tokenizer::ASSEMBLER_SCEND) {
+			targetIndentLevel--;
+		}
+
+		// format the output with improved indents
+		if (currentIndentLevel < targetIndentLevel && token.type == Tokenizer::WHITESPACE_SPACE) {
+			// don't output whitespaces if a tab is expected
+			continue;
+		} else if (currentIndentLevel < targetIndentLevel 
+				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE) {
+			// append tabs
+			while (currentIndentLevel < targetIndentLevel) {
+				m_writer->writeString("\t");
+				currentIndentLevel++;
+			}
+		}
 
 		// if token is valid preprocessor, call the preprocessor function
 		if (preprocessors.find(token.type) != preprocessors.end()) {
 			(this->*preprocessors[token.type])(i);
 		} else {
 			m_writer->writeString(consume(i).value);
+		}
+
+		// update target indent level
+		if (token.type == Tokenizer::ASSEMBLER_SCOPE) {
+			targetIndentLevel++;
 		}
 	}
 

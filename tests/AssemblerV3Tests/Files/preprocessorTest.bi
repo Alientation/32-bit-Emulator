@@ -4,7 +4,7 @@
 LDA #$1200
 
 ; #endif
-"include.binc"
+
 
 .org $FFFF
 
@@ -16,14 +16,14 @@ LDA #$1200
 
 .equ output 0 : DBYTE
 .scope
-.equ a 300 : DBYTE
-.equ b 300 : DBYTE
+	.equ a 300 : DBYTE
+	.equ b 300 : DBYTE
 
 	.equ _c a * b
 	.equ output _c : DBYTE
 
 .scend
-;
+
 ;.equ output 0 : DBYTE
 ;.scope
 ;	.equ a 300 : DBYTE
