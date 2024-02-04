@@ -63,6 +63,12 @@ void Preprocessor::preprocess() {
         // log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
 		log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.toString());
 
+        // skip back to back newlines
+        if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
+            i++;
+            continue;
+        }
+
 		// update current indent level
 		if (token.type == Tokenizer::WHITESPACE_TAB) {
 			currentIndentLevel++;
@@ -336,6 +342,7 @@ void Preprocessor::_macro(int& tokenI) {
     }
 
     // parse macro definition
+    skipTokens(tokenI, "[ \t\n]");
     while (!isToken(tokenI, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected macro definition." )) {
         macro->definition.push_back(consume(tokenI));
     }

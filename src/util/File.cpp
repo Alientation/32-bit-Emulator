@@ -170,6 +170,10 @@ FileWriter::~FileWriter() {
  */
 void FileWriter::writeString(const std::string text) {
 	(*this->fileStream) << text;
+
+    for (int i = 0; i < text.size(); i++) {
+        this->bytes_written.push_back(text[i]);
+    }
 }
 
 /**
@@ -179,6 +183,8 @@ void FileWriter::writeString(const std::string text) {
  */
 void FileWriter::writeByte(const char byte) {
 	(*this->fileStream) << byte;
+
+    this->bytes_written.push_back(byte);
 }
 
 /**
@@ -188,7 +194,31 @@ void FileWriter::writeByte(const char byte) {
  */
 void FileWriter::writeBytes(char* bytes) {
 	(*this->fileStream) << bytes;
+
+    int size = sizeof(bytes);
+    for (int i = 0; i < size; i++) {
+        this->bytes_written.push_back(bytes[i]);
+    }
 }
+
+
+char FileWriter::lastByteWritten() {
+    if (this->bytes_written.size() > 0) {
+        return this->bytes_written.back();
+    }
+    return '\0';
+}
+
+char* FileWriter::lastBytesWritten(unsigned int numBytes) {
+    char* bytes = new char[numBytes];
+
+    for (int i = std::max(0ULL, numBytes - bytes_written.size()); i < numBytes; i++) {
+        bytes[i] = this->bytes_written[this->bytes_written.size() - numBytes + i];
+    }
+
+    return bytes;
+}
+
 
 /**
  * Closes the file writer

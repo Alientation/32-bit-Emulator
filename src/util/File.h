@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include <cstdint>
 
 #ifndef FILE_H
@@ -52,9 +53,12 @@ class FileWriter {
 		void writeString(std::string text);
 		void writeByte(char byte);
 		void writeBytes(char* bytes);
+        char lastByteWritten();
+        char* lastBytesWritten(unsigned int numBytes);
 		void close();
 	private:
 		File* file;
+        std::vector<char> bytes_written;
 		std::ofstream* fileStream;
 		bool closed;
 };
