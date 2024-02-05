@@ -45,6 +45,18 @@ namespace string_util {
 		return leftTrim(rightTrim(str));
 	}
 
+    /**
+     * Trims whitespace from the left and right side of a string
+     * 
+     * @param str the string to trim
+     * @param leftTrim the number of characters to trim from the left side of the string
+     * @param rightTrim the number of characters to trim from the right side of the string
+     * 
+     * @return the trimmed string
+     */
+    static std::string trimString(std::string str, int leftTrim, int rightTrim) {
+        return str.substr(leftTrim, str.length() - rightTrim);
+    }
 
 	/**
 	 * Splits a string into a vector of strings separated by the given regex delimiter.
