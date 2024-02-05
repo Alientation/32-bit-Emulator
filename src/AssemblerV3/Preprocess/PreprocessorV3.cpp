@@ -62,7 +62,7 @@ void Preprocessor::preprocess() {
 		Tokenizer::Token& token = m_tokens[i];
         // log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
 		log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.toString());
-
+        
         // skip back to back newlines
         if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
             i++;
@@ -98,7 +98,14 @@ void Preprocessor::preprocess() {
 		if (preprocessors.find(token.type) != preprocessors.end()) {
 			(this->*preprocessors[token.type])(i);
 		} else {
-			m_writer->writeString(consume(i).value);
+            // check if this is a defined symbol
+            if (token.type == Tokenizer::SYMBOL && m_symbols.find(token.value) != m_symbols.end()) {
+                // replace symbol with value
+                consume(i);
+                m_tokens.insert(m_tokens.begin() + i, m_symbols[token.value].begin(), m_symbols[token.value].end());
+            } else {
+                m_writer->writeString(consume(i).value);
+            }
 		}
 
 		// update target indent level
@@ -530,12 +537,82 @@ void Preprocessor::_invoke(int& tokenI) {
  * USAGE: #define [symbol] [?value]
  * 
  * Replaces all instances of symbol with the value.
- * If value is not specified, the default is 0.
+ * If value is not specified, the default is empty.
  * 
  * @param tokenI The index of the define token.
  */
 void Preprocessor::_define(int& tokenI) {
+    consume(tokenI); // '#define'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    // value
+    std::vector<Tokenizer::Token> tokens;
+    if (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+            tokens.push_back(consume(tokenI));
+        }
+    }
+    
+    // add to symbols mapping
+    m_symbols.insert(std::pair<std::string, std::vector<Tokenizer::Token>>(symbol, tokens));
+}
+
+
+void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
+    int relativeScopeLevel = 0;
+    int currentTokenI = tokenI;
+    int nextBlockTokenI = -1;
+    int endIfTokenI = -1;
+    while (currentTokenI < m_tokens.size()) {
+        std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
+
+        if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
+            endIfTokenI = currentTokenI;
+            break;
+        } else if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF, Tokenizer::PREPROCESSOR_ELSENDEF})) {
+            if (nextBlockTokenI == -1) {
+                nextBlockTokenI = currentTokenI;
+            }
+
+            // start of next conditional block that should be checked if the current conditional block was
+            // not entered
+            if (!conditionMet) {
+                break;
+            }
+        }
+
+        if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF})) {
+            relativeScopeLevel++;
+        } else if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
+            relativeScopeLevel--;
+        }
+        currentTokenI++;
+    }
+
+    if ((conditionMet && endIfTokenI == -1) || (!conditionMet && nextBlockTokenI == -1)) {
+        log(DEBUG, std::stringstream() << "condition=" << conditionMet << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
+        log(ERROR, std::stringstream() << "Preprocessor::_ifdef() - Unclosed ifdef block." );
+    }
+
+    if (conditionMet) {
+        log(DEBUG, std::stringstream() << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
+        
+        if (nextBlockTokenI != -1) {
+            // remove all tokens from the next block to the endif
+            m_tokens.erase(m_tokens.begin() + nextBlockTokenI, m_tokens.begin() + endIfTokenI);
+        } else { // assert, endIfTokenI != -1
+            // don't need to do anything, because there are no linked conditional blocks after this
+        }
+        
+        m_tokens.insert(m_tokens.begin() + tokenI, Tokenizer::Token(Tokenizer::COMMENT_SINGLE_LINE, "; conditional"));
+    } else {
+        // move token index to the start of the next conditional block (or endif)
+        tokenI = nextBlockTokenI;
+    }
 }
 
 /**
@@ -543,12 +620,20 @@ void Preprocessor::_define(int& tokenI) {
  * 
  * USAGE: #ifdef [symbol]
  * 
- * Must be closed by a #endif
+ * Must be closed by a #endif or #else, #elsedef, #elsendef.
  * 
  * @param tokenI The index of the ifdef token.
  */
 void Preprocessor::_ifdef(int& tokenI) {
+    consume(tokenI); // '#ifdef'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifdef() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    bool isDefined = m_symbols.find(symbol) != m_symbols.end();
+    conditionalBlock(tokenI, isDefined);
 }
 
 /**
@@ -556,12 +641,20 @@ void Preprocessor::_ifdef(int& tokenI) {
  * 
  * USAGE: #ifndef [symbol]
  * 
- * Must be closed by a #endif.
+ * Must be closed by a #endif or #else, #elsedef, #elsendef.
  * 
  * @param tokenI The index of the ifndef token.
  */
 void Preprocessor::_ifndef(int& tokenI) {
+    consume(tokenI); // '#ifndef'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifndef() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    bool isNotDefined = m_symbols.find(symbol) == m_symbols.end();
+    conditionalBlock(tokenI, isNotDefined);
 }
 
 /**
@@ -575,7 +668,8 @@ void Preprocessor::_ifndef(int& tokenI) {
  * @param tokenI The index of the else token.
  */
 void Preprocessor::_else(int& tokenI) {
-
+    consume(tokenI); // '#else'
+    skipTokens(tokenI, "[ \t]");
 }
 
 /**
@@ -589,7 +683,15 @@ void Preprocessor::_else(int& tokenI) {
  * @param tokenI The index of the elsedef token.
  */
 void Preprocessor::_elsedef(int& tokenI) {
+    consume(tokenI); // '#elsedef'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsedef() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    bool isDefined = m_symbols.find(symbol) != m_symbols.end();
+    conditionalBlock(tokenI, isDefined);
 }
 
 /**
@@ -603,7 +705,15 @@ void Preprocessor::_elsedef(int& tokenI) {
  * @param tokenI The index of the elsendef token.
  */
 void Preprocessor::_elsendef(int& tokenI) {
+    consume(tokenI); // '#elsendef'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsendef() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    bool isNotDefined = m_symbols.find(symbol) == m_symbols.end();
+    conditionalBlock(tokenI, isNotDefined);
 }
 
 /**
@@ -616,7 +726,8 @@ void Preprocessor::_elsendef(int& tokenI) {
  * @param tokenI The index of the endif token.
  */
 void Preprocessor::_endif(int& tokenI) {
-
+    consume(tokenI); // '#endif'
+    skipTokens(tokenI, "[ \t]");
 }
 
 /**
@@ -629,12 +740,16 @@ void Preprocessor::_endif(int& tokenI) {
  * @param tokenI The index of the undefine token.
  */
 void Preprocessor::_undefine(int& tokenI) {
+    consume(tokenI); // '#define'
+    skipTokens(tokenI, "[ \t]");
 
+    // symbol
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
+    skipTokens(tokenI, "[ \t]");
+
+    // remove from symbols mapping
+    m_symbols.erase(symbol);
 }
-
-
-
-
 
 /**
  * Returns the state of the preprocessor.

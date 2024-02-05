@@ -80,19 +80,19 @@ class Preprocessor {
             }
 		};
 
-		Process* m_process;										// the build process
+		Process* m_process;										    // the build process
 
-		File* m_inputFile;										// the .basm or .binc file being preprocessed
-		File* m_outputFile;										// the output file of the processed file, usually a .bi file
-		State m_state;											// the state of the preprocessor
-		std::vector<Tokenizer::Token> m_tokens;					// the tokens of the input file
+		File* m_inputFile;										    // the .basm or .binc file being preprocessed
+		File* m_outputFile;										    // the output file of the processed file, usually a .bi file
+		State m_state;											    // the state of the preprocessor
+		std::vector<Tokenizer::Token> m_tokens;					    // the tokens of the input file
 
-		std::stack<std::pair<std::string, Macro*>> m_macroStack;	// the current processing macro stack with the output symbol and macro
+		std::stack<std::pair<std::string, Macro*>> m_macroStack;    // the current processing macro stack with the output symbol and macro
 
-		FileWriter* m_writer;										// writer for the output file
+		FileWriter* m_writer;									    // writer for the output file
 
-		std::map<std::string, std::string> m_symbols;				// defined symbols
-		std::map<std::string, Macro*> m_macros;					// defined macros
+		std::map<std::string, std::vector<Tokenizer::Token>> m_symbols;		// defined symbols
+		std::map<std::string, Macro*> m_macros;					    // defined macros
 
 		std::vector<Macro*> macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments);
 
@@ -117,6 +117,8 @@ class Preprocessor {
 		void _elsendef(int& tokenI);
 		void _endif(int& tokenI);
 		void _undefine(int& tokenI);
+
+        void conditionalBlock(int& tokenI, bool conditionMet);
 
 		typedef void (Preprocessor::*PreprocessorFunction)(int& tokenI);
 		std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {
