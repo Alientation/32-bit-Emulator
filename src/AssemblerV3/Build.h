@@ -86,6 +86,7 @@ class Process {
 		void assemble();
 		void link();
 
+        void _ignore(std::vector<std::string>& args, int& index);
 		void _version(std::vector<std::string>& args, int& index);
 		void _compile(std::vector<std::string>& args, int& index);
 		void _output(std::vector<std::string>& args, int& index);
@@ -100,6 +101,8 @@ class Process {
 
 		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, int& index);
 		std::map<std::string, FlagFunction> flags = {
+            {"--", &Process::_ignore},
+
 			// prints out the version of the assembler
 			{"-v", &Process::_version},
 			{"-version", &Process::_version},

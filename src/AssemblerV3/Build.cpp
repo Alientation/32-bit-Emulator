@@ -154,6 +154,11 @@ void Process::link() {
 }
 
 
+void Process::_ignore(std::vector<std::string>& args, int& index) {
+    // jumps index to the end of args
+    index = args.size();
+}
+
 /**
  * Prints out the version of the assembler
  * 
