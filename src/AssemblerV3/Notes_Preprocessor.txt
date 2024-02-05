@@ -31,6 +31,10 @@ PREPROCESSOR STATEMENTS
 	- Replaces all instances of symbol with the value
     - Note this symbol will be discarded after preprocessing
 
+
+PREPROCESSOR CONDITIONALS
+    - Controls which sections of the input files are ignored by the preprocessor.
+
 #ifdef [symbol]
 #ifndef [symbol]
 #ifequ [symbol] [value]

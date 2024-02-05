@@ -571,9 +571,15 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
         std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
 
         if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
+            if (nextBlockTokenI == -1) {
+                nextBlockTokenI = currentTokenI;
+            }
+
             endIfTokenI = currentTokenI;
             break;
-        } else if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF, Tokenizer::PREPROCESSOR_ELSENDEF})) {
+        } else if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF, Tokenizer::PREPROCESSOR_ELSENDEF,
+                                                        Tokenizer::PREPROCESSOR_ELSEEQU, Tokenizer::PREPROCESSOR_ELSENEQU, 
+                                                        Tokenizer::PREPROCESSOR_ELSELESS, Tokenizer::PREPROCESSOR_ELSEMORE})) {
             if (nextBlockTokenI == -1) {
                 nextBlockTokenI = currentTokenI;
             }
@@ -585,7 +591,8 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
             }
         }
 
-        if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF})) {
+        if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF, 
+                Tokenizer::PREPROCESSOR_IFEQU, Tokenizer::PREPROCESSOR_IFNEQU, Tokenizer::PREPROCESSOR_IFLESS, Tokenizer::PREPROCESSOR_IFMORE})) {
             relativeScopeLevel++;
         } else if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
             relativeScopeLevel--;
@@ -595,7 +602,7 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
 
     if ((conditionMet && endIfTokenI == -1) || (!conditionMet && nextBlockTokenI == -1)) {
         log(DEBUG, std::stringstream() << "condition=" << conditionMet << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
-        log(ERROR, std::stringstream() << "Preprocessor::_ifdef() - Unclosed ifdef block." );
+        log(ERROR, std::stringstream() << "Preprocessor::conditionalBlock() - Unclosed conditional block." );
     }
 
     if (conditionMet) {
@@ -667,7 +674,6 @@ void Preprocessor::_ifndef(int& tokenI) {
  * USAGE: #ifequ [symbol] [value]
  * 
  * The conditional block must be closed by a lower conditional block or an #endif.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the ifequ token.
  */
@@ -688,10 +694,12 @@ void Preprocessor::_ifequ(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_ifequ() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isEqual = string_util::trimString(value, 1, 1) == symbolValue;
+    bool isEqual = value == symbolValue;
     conditionalBlock(tokenI, isEqual);
 }
 
@@ -703,7 +711,6 @@ void Preprocessor::_ifequ(int& tokenI) {
  * USAGE: #ifnequ [symbol] [value]
  * 
  * The conditional block must be closed by a lower conditional block or an #endif.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the ifnequ token.
  */
@@ -724,10 +731,12 @@ void Preprocessor::_ifnequ(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_ifnequ() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isNotEqual = string_util::trimString(value, 1, 1) != symbolValue;
+    bool isNotEqual = value != symbolValue;
     conditionalBlock(tokenI, isNotEqual);
 }
 
@@ -739,7 +748,6 @@ void Preprocessor::_ifnequ(int& tokenI) {
  * USAGE: #ifless [symbol] [value]
  * 
  * The conditional block must be closed by a lower conditional block or an #endif.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the ifless token.
  */
@@ -760,10 +768,12 @@ void Preprocessor::_ifless(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_ifless() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isLess = symbolValue < string_util::trimString(value, 1, 1);
+    bool isLess = symbolValue < value;
     conditionalBlock(tokenI, isLess);
 }
 
@@ -775,7 +785,6 @@ void Preprocessor::_ifless(int& tokenI) {
  * USAGE: #ifmore [symbol] [value]
  * 
  * The conditional block must be closed by a lower conditional block or an #endif.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the ifmore token.
  */
@@ -796,10 +805,12 @@ void Preprocessor::_ifmore(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_ifmore() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isMore = symbolValue > string_util::trimString(value, 1, 1);
+    bool isMore = symbolValue > value;
     conditionalBlock(tokenI, isMore);
 }
 
@@ -877,7 +888,6 @@ void Preprocessor::_elsendef(int& tokenI) {
  * 
  * Must be preceded by a top or inner conditional block.
  * Must be proceeded by an inner conditional block or closure.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the elseequ token.
  */
@@ -898,10 +908,12 @@ void Preprocessor::_elseequ(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_elseequ() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isEqual = string_util::trimString(value, 1, 1) == symbolValue;
+    bool isEqual = value == symbolValue;
     conditionalBlock(tokenI, isEqual);
 }
 
@@ -915,7 +927,6 @@ void Preprocessor::_elseequ(int& tokenI) {
  * 
  * Must be preceded by a top or inner conditional block.
  * Must be proceeded by an inner conditional block or closure.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the elsenequ token.
  */
@@ -936,10 +947,12 @@ void Preprocessor::_elsenequ(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_elsenequ() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isNotEqual = string_util::trimString(value, 1, 1) != symbolValue;
+    bool isNotEqual = value != symbolValue;
     conditionalBlock(tokenI, isNotEqual);
 }
 
@@ -953,7 +966,6 @@ void Preprocessor::_elsenequ(int& tokenI) {
  * 
  * Must be preceded by a top or inner conditional block.
  * Must be proceeded by an inner conditional block or closure.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the elseless token.
  */
@@ -974,10 +986,12 @@ void Preprocessor::_elseless(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_elseless() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isLess = symbolValue < string_util::trimString(value, 1, 1);
+    bool isLess = symbolValue < value;
     conditionalBlock(tokenI, isLess);
 }
 
@@ -991,7 +1005,6 @@ void Preprocessor::_elseless(int& tokenI) {
  * 
  * Must be preceded by a top or inner conditional block.
  * Must be proceeded by an inner conditional block or closure.
- * The value must be a string literal.
  * 
  * @param tokenI The index of the elsemore token.
  */
@@ -1012,10 +1025,12 @@ void Preprocessor::_elsemore(int& tokenI) {
     }
 
     // value
-    std::string value = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_elsemore() - Expected value.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string value;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+        value += consume(tokenI).value;
+    }
 
-    bool isMore = symbolValue > string_util::trimString(value, 1, 1);
+    bool isMore = symbolValue > value;
     conditionalBlock(tokenI, isMore);
 }
 
