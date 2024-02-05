@@ -27,13 +27,22 @@ PREPROCESSOR STATEMENTS
 	- If the macro does not return a value but an output symbol is provided, an error is thrown.
 
 #define [symbol] [?value]
-	- Associates the symbol with the value, if value is not specified, the default is 0
+	- Associates the symbol with the value, if value is not specified, the default is empty
 	- Replaces all instances of symbol with the value
+    - Note this symbol will be discarded after preprocessing
 
 #ifdef [symbol]
 #ifndef [symbol]
+#ifequ [symbol] [value]
+#ifnequ [symbol] [value] --- note these are string comparisons
+#ifless [symbol] [value] -- if symbol is lexicographically less than value
+#ifmore [symbol] [value] -- if symbol is lexicographically more than value
 #else
 #elsedef [symbol]
 #elsendef [symbol]
+#elseequ [symbol] [value]
+#elsenequ [symbol] [value]
+#elseless [symbol] [value]
+#elsemore [symbol] [value]
 #endif
 #undef [symbol]
