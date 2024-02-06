@@ -102,7 +102,7 @@ DIRECTIVES
     - contain data initialized to 0
 
 .bss* [symbol], [expression]
-    - [?name], [addresss]
+    - [name], [addresss]
     - Creates a new bss section of identifier [name], with the starting address at [address]
 
 .data ?[symbol]
@@ -111,7 +111,7 @@ DIRECTIVES
     - contain data not initialized to 0
 
 .data* [symbol], [expression]
-    - [?name], [addresss]
+    - [name], [addresss]
     - Creates a new data section of identifier [name], with the starting address at [address]
 
 .text ?[symbol]
@@ -119,7 +119,7 @@ DIRECTIVES
     - Creates a new text section of identifier [name], default section if [name] is not defined
 
 .text* [symbol], [expression]
-    - [?name], [addresss]
+    - [name], [addresss]
     - Creates a new text section of identifier [name], with the starting address at [address]
 
 

@@ -156,7 +156,7 @@ std::vector<Preprocessor::Macro*> Preprocessor::macrosWithHeader(std::string mac
  * @param tokenI the index of the current token.
  */
 void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
-	while (tokenI < m_tokens.size() && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
+	while (inBounds(tokenI) && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
 		tokenI++;
 	}
 }
@@ -168,7 +168,7 @@ void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
  * @param tokenTypes the types to match.
  */
 void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes) {
-    while (tokenI < m_tokens.size() && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
+    while (inBounds(tokenI) && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
         tokenI++;
     }
 }
@@ -179,13 +179,13 @@ void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& toke
  * @param tokenI the index of the expected token.
  * @param errorMsg the error message to throw if the token does not exist.
  */
-bool Preprocessor::expectToken(int& tokenI, const std::string& errorMsg) {
-	EXPECT_TRUE(tokenI < m_tokens.size(), ERROR, std::stringstream(errorMsg));
+bool Preprocessor::expectToken(int tokenI, const std::string& errorMsg) {
+	EXPECT_TRUE(inBounds(tokenI), ERROR, std::stringstream(errorMsg));
     return true;
 }
 
-bool Preprocessor::expectToken(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	EXPECT_TRUE(tokenI < m_tokens.size(), ERROR, std::stringstream(errorMsg));
+bool Preprocessor::expectToken(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
+	EXPECT_TRUE(inBounds(tokenI), ERROR, std::stringstream(errorMsg));
 	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), ERROR, std::stringstream(errorMsg));
     return true;
 }
@@ -198,9 +198,20 @@ bool Preprocessor::expectToken(int& tokenI, const std::set<Tokenizer::Type>& exp
  * 
  * @return true if the current token matches the given types.
  */
-bool Preprocessor::isToken(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
+bool Preprocessor::isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
     return tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end();
+}
+
+/**
+ * Returns whether the current token index is within the bounds of the tokens list.
+ * 
+ * @param tokenI the index of the current token
+ * 
+ * @return true if the token index is within the bounds of the tokens list.
+ */
+bool Preprocessor::inBounds(int tokenI) {
+    return tokenI < m_tokens.size();
 }
 
 /**
@@ -394,7 +405,7 @@ void Preprocessor::_macret(int& tokenI) {
 	// if we reach a .scend token. If we reach 0, we know we have reached the end of the macro definition.
 	
 	int currentRelativeScopeLevel = 0;
-	while (tokenI < m_tokens.size()) {
+	while (inBounds(tokenI)) {
 		if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCOPE})) {
 			currentRelativeScopeLevel++;
 		} else if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCEND})) {
@@ -551,9 +562,18 @@ void Preprocessor::_define(int& tokenI) {
 
     // value
     std::vector<Tokenizer::Token> tokens;
-    if (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-            tokens.push_back(consume(tokenI));
+    bool readNextLine = false;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) || readNextLine) {
+        readNextLine = false;
+        tokens.push_back(consume(tokenI));
+
+        // check if we should read the nextline provided the next token is a newline
+        // and the previous token read was a '\' character
+        if (isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) && tokens.back().type == Tokenizer::BACK_SLASH) {
+            readNextLine = true;
+
+            // remove the '\' character
+            tokens.pop_back();
         }
     }
     
@@ -567,7 +587,7 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
     int currentTokenI = tokenI;
     int nextBlockTokenI = -1;
     int endIfTokenI = -1;
-    while (currentTokenI < m_tokens.size()) {
+    while (inBounds(currentTokenI)) {
         std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
 
         if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {

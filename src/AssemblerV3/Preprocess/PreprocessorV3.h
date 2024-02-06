@@ -98,9 +98,10 @@ class Preprocessor {
 
 		void skipTokens(int& tokenI, const std::string& regex);
         void skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes);
-		bool expectToken(int& tokenI, const std::string& errorMsg);
-        bool expectToken(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
-        bool isToken(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Preprocessor::isToken() - Unexpected end of file");
+		bool expectToken(int tokenI, const std::string& errorMsg);
+        bool expectToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
+        bool isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Preprocessor::isToken() - Unexpected end of file");
+        bool inBounds(int tokenI);
         Tokenizer::Token& consume(int& tokenI, const std::string& errorMsg = "Preprocessor::consume() - Unexpected end of file");
         Tokenizer::Token& consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "Preprocessor::consume() - Unexpected token");
 

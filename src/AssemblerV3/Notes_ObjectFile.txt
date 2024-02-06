@@ -1,0 +1,33 @@
+Object Files
+
+
+Symbol Table Size - number of possible entries (32 bit integer)
+N Entries where
+Entry
+- symbol name, type, 
+
+
+
+
+
+
+
+
+
+a.bo
+
+    NAME    |   TYPE    |   SCOPE
+
+
+
+
+
+b.bo
+
+
+
+
+
+
+
+
