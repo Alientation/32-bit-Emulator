@@ -1,3 +1,15 @@
 #define func(a) a+2
 
 func(3)
+
+
+#define LINE this is a line
+
+LINE
+
+
+#define MULTIPLE_LINE this is a multiple line \
+this is a multiple line \
+this is a multiple line
+
+MULTIPLE_LINE

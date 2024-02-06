@@ -125,22 +125,12 @@ class Preprocessor {
 		void _macend(int& tokenI);
 		void _invoke(int& tokenI);
 		void _define(int& tokenI);
-		void _ifdef(int& tokenI);
-		void _ifndef(int& tokenI);
-        void _ifequ(int& tokenI);
-        void _ifnequ(int& tokenI);
-        void _ifless(int& tokenI);
-        void _ifmore(int& tokenI);
+        void _conditionalOnDefinition(int& tokenI);
+        void _conditionalOnValue(int& tokenI);
 		void _else(int& tokenI);
-		void _elsedef(int& tokenI);
-		void _elsendef(int& tokenI);
-        void _elseequ(int& tokenI);
-        void _elsenequ(int& tokenI);
-        void _elseless(int& tokenI);
-        void _elsemore(int& tokenI);
 		void _endif(int& tokenI);
 		void _undefine(int& tokenI);
-
+        
         void conditionalBlock(int& tokenI, bool conditionMet);
         bool isDefinitionSymbolDefined(std::string symbolName, int numParameters);
 
@@ -152,19 +142,25 @@ class Preprocessor {
 			{Tokenizer::PREPROCESSOR_MACEND, &Preprocessor::_macend},
 			{Tokenizer::PREPROCESSOR_INVOKE, &Preprocessor::_invoke},
 			{Tokenizer::PREPROCESSOR_DEFINE, &Preprocessor::_define},
-			{Tokenizer::PREPROCESSOR_IFDEF, &Preprocessor::_ifdef},
-			{Tokenizer::PREPROCESSOR_IFNDEF, &Preprocessor::_ifndef},
-            {Tokenizer::PREPROCESSOR_IFEQU, &Preprocessor::_ifequ},
-            {Tokenizer::PREPROCESSOR_IFNEQU, &Preprocessor::_ifnequ},
-            {Tokenizer::PREPROCESSOR_IFLESS, &Preprocessor::_ifless},
-            {Tokenizer::PREPROCESSOR_IFMORE, &Preprocessor::_ifmore},
+
+			{Tokenizer::PREPROCESSOR_IFDEF, &Preprocessor::_conditionalOnDefinition},
+			{Tokenizer::PREPROCESSOR_IFNDEF, &Preprocessor::_conditionalOnDefinition},
+
+            {Tokenizer::PREPROCESSOR_IFEQU, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_IFNEQU, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_IFLESS, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_IFMORE, &Preprocessor::_conditionalOnValue},
+
 			{Tokenizer::PREPROCESSOR_ELSE, &Preprocessor::_else},
-			{Tokenizer::PREPROCESSOR_ELSEDEF, &Preprocessor::_elsedef},
-			{Tokenizer::PREPROCESSOR_ELSENDEF, &Preprocessor::_elsendef},
-            {Tokenizer::PREPROCESSOR_ELSEEQU, &Preprocessor::_elseequ},
-            {Tokenizer::PREPROCESSOR_ELSENEQU, &Preprocessor::_elsenequ},
-            {Tokenizer::PREPROCESSOR_ELSELESS, &Preprocessor::_elseless},
-            {Tokenizer::PREPROCESSOR_ELSEMORE, &Preprocessor::_elsemore},
+
+			{Tokenizer::PREPROCESSOR_ELSEDEF, &Preprocessor::_conditionalOnDefinition},
+			{Tokenizer::PREPROCESSOR_ELSENDEF, &Preprocessor::_conditionalOnDefinition},
+
+            {Tokenizer::PREPROCESSOR_ELSEEQU, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_ELSENEQU, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_ELSELESS, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_ELSEMORE, &Preprocessor::_conditionalOnValue},
+
 			{Tokenizer::PREPROCESSOR_ENDIF, &Preprocessor::_endif},
 			{Tokenizer::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}
 		};

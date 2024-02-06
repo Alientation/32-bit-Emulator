@@ -633,10 +633,11 @@ void Preprocessor::_define(int& tokenI) {
                 expectToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
             }
         }
-    }
 
-    // expect ')'
-    consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+        // expect ')'
+        consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+        skipTokens(tokenI, "[ \t]");
+    }
 
     // value
     std::vector<Tokenizer::Token> tokens;
@@ -733,64 +734,53 @@ bool Preprocessor::isDefinitionSymbolDefined(std::string symbolName, int numPara
 }
 
 /**
- * Begins a top conditional block. 
- * Determines whether to include the following text block if the symbol is defined.
+ * Begins a conditional block.
+ * Determines whether to include the following text block depending on whether the symbol is defined.
  * 
- * USAGE: #ifdef [symbol]
+ * USAGE: #ifdef [symbol], #ifndef [symbol] (top conditional blocks)
+ * USAGE: #elsedef [symbol], #elsendef [symbol] (lower conditional blocks)
  * 
- * The conditional block must be closed by a lower conditional block or an #endif.
+ * The top conditional block must be closed by a lower conditional block or an #endif.
+ * The lower conditional block must be closed by an #endif.
  * 
- * @param tokenI The index of the ifdef token.
+ * @param tokenI The index of the conditional token.
  */
-void Preprocessor::_ifdef(int& tokenI) {
-    consume(tokenI); // '#ifdef'
+void Preprocessor::_conditionalOnDefinition(int& tokenI) {
+    Tokenizer::Token conditionalToken = consume(tokenI);
     skipTokens(tokenI, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifdef() - Expected symbol.").value;
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_" + conditionalToken.value.substr(1) + "() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
+    if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFDEF || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEDEF) {
+        conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
+    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFNDEF || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
+        conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
+    } else {
+        log(ERROR, std::stringstream() << "Preprocessor::_conditionalOnDefinition() - Unexpected conditional token: " << conditionalToken.value);
+    }
 }
 
 /**
- * Begins a top conditional block. 
- * Determines whether to include the following text block if the symbol is not defined.
+ * Begins a conditional block.
+ * Determines whether to include the following text block based on the symbol's value 
+ * lexicographically ordering to a value.
  * 
- * USAGE: #ifndef [symbol]
+ * USAGE: #ifequ [symbol] [value], #ifnequ [symbol] [value], #ifless [symbol] [value], #ifmore [symbol] [value]
+ * USAGE: #elseequ [symbol] [value], #elsenequ [symbol] [value], #elseless [symbol] [value], #elsemore [symbol] [value]
  * 
- * The conditional block must be closed by a lower conditional block or an #endif.
+ * The top conditional block must be closed by a lower conditional block or an #endif.
+ * The lower conditional block must be closed by an #endif.
  * 
- * @param tokenI The index of the ifndef token.
+ * @param tokenI The index of the conditional token.
  */
-void Preprocessor::_ifndef(int& tokenI) {
-    consume(tokenI); // '#ifndef'
+void Preprocessor::_conditionalOnValue(int& tokenI) {
+    Tokenizer::Token conditionalToken = consume(tokenI);
     skipTokens(tokenI, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifndef() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
-}
-
-/**
- * Begins a top conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically equal to a value.
- * 
- * USAGE: #ifequ [symbol] [value]
- * 
- * The conditional block must be closed by a lower conditional block or an #endif.
- * 
- * @param tokenI The index of the ifequ token.
- */
-void Preprocessor::_ifequ(int& tokenI) {
-    consume(tokenI); // '#ifequ'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifequ() - Expected symbol.").value;
+    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_" + conditionalToken.value.substr(1) + "() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
     // extract symbol's string value
@@ -807,119 +797,17 @@ void Preprocessor::_ifequ(int& tokenI) {
         value += consume(tokenI).value;
     }
 
-    bool isEqual = value == symbolValue;
-    conditionalBlock(tokenI, isEqual);
-}
-
-/**
- * Begins a top conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically not equal to a value.
- * 
- * USAGE: #ifnequ [symbol] [value]
- * 
- * The conditional block must be closed by a lower conditional block or an #endif.
- * 
- * @param tokenI The index of the ifnequ token.
- */
-void Preprocessor::_ifnequ(int& tokenI) {
-    consume(tokenI); // '#ifnequ'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifnequ() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
+    if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFEQU || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEEQU) {
+        conditionalBlock(tokenI, value == symbolValue);
+    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFNEQU || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSENEQU) {
+        conditionalBlock(tokenI, value != symbolValue);
+    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFLESS || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSELESS) {
+        conditionalBlock(tokenI, symbolValue < value);
+    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFMORE || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
+        conditionalBlock(tokenI, symbolValue > value);
+    } else {
+        log(ERROR, std::stringstream() << "Preprocessor::_conditionalOnValue() - Unexpected conditional token: " << conditionalToken.value);
     }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isNotEqual = value != symbolValue;
-    conditionalBlock(tokenI, isNotEqual);
-}
-
-/**
- * Begins a top conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically less than a value.
- * 
- * USAGE: #ifless [symbol] [value]
- * 
- * The conditional block must be closed by a lower conditional block or an #endif.
- * 
- * @param tokenI The index of the ifless token.
- */
-void Preprocessor::_ifless(int& tokenI) {
-    consume(tokenI); // '#ifless'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifless() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isLess = symbolValue < value;
-    conditionalBlock(tokenI, isLess);
-}
-
-/**
- * Begins a top conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically greater than a value.
- * 
- * USAGE: #ifmore [symbol] [value]
- * 
- * The conditional block must be closed by a lower conditional block or an #endif.
- * 
- * @param tokenI The index of the ifmore token.
- */
-void Preprocessor::_ifmore(int& tokenI) {
-    consume(tokenI); // '#ifmore'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifmore() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isMore = symbolValue > value;
-    conditionalBlock(tokenI, isMore);
 }
 
 /**
@@ -936,208 +824,6 @@ void Preprocessor::_ifmore(int& tokenI) {
 void Preprocessor::_else(int& tokenI) {
     consume(tokenI); // '#else'
     skipTokens(tokenI, "[ \t]");
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol is defined and all previous
- * top or inner conditional blocks were not included.
- * 
- * USAGE: #elsedef [symbol]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elsedef token.
- */
-void Preprocessor::_elsedef(int& tokenI) {
-    consume(tokenI); // '#elsedef'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsedef() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol is not defined and all previous
- * top or inner conditional blocks were not included.
- * 
- * USAGE: #elsendef [symbol]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elsendef token.
- */
-void Preprocessor::_elsendef(int& tokenI) {
-    consume(tokenI); // '#elsendef'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsendef() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically equal to the value and all previous top or inner conditional blocks 
- * were not included.
- * 
- * USAGE: #elseequ [symbol] [value]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elseequ token.
- */
-void Preprocessor::_elseequ(int& tokenI) {
-    consume(tokenI); // '#elseequ'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elseequ() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isEqual = value == symbolValue;
-    conditionalBlock(tokenI, isEqual);
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically not equal to the value and all previous top or inner conditional blocks 
- * were not included.
- * 
- * USAGE: #elsenequ [symbol] [value]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elsenequ token.
- */
-void Preprocessor::_elsenequ(int& tokenI) {
-    consume(tokenI); // '#elsenequ'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsenequ() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isNotEqual = value != symbolValue;
-    conditionalBlock(tokenI, isNotEqual);
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically less than the value and all previous top or inner conditional blocks 
- * were not included.
- * 
- * USAGE: #elseless [symbol] [value]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elseless token.
- */
-void Preprocessor::_elseless(int& tokenI) {
-    consume(tokenI); // '#elseless'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elseless() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isLess = symbolValue < value;
-    conditionalBlock(tokenI, isLess);
-}
-
-/**
- * Begins an inner conditional block.
- * Determines whether to include the following text block if the symbol's value is 
- * lexicographically greater than the value and all previous top or inner conditional blocks 
- * were not included.
- * 
- * USAGE: #elsemore [symbol] [value]
- * 
- * Must be preceded by a top or inner conditional block.
- * Must be proceeded by an inner conditional block or closure.
- * 
- * @param tokenI The index of the elsemore token.
- */
-void Preprocessor::_elsemore(int& tokenI) {
-    consume(tokenI); // '#elsemore'
-    skipTokens(tokenI, "[ \t]");
-
-    // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsemore() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
-
-    // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
-        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
-        }
-    }
-
-    // value
-    std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-        value += consume(tokenI).value;
-    }
-
-    bool isMore = symbolValue > value;
-    conditionalBlock(tokenI, isMore);
 }
 
 /**
