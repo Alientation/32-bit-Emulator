@@ -80,6 +80,19 @@ class Preprocessor {
             }
 		};
 
+        struct Symbol {
+            std::string name;
+            std::vector<std::string> parameters;
+            std::vector<Tokenizer::Token> value;
+
+            Symbol(std::string name, std::vector<std::string> parameters, std::vector<Tokenizer::Token> value) {
+                this->name = name;
+                this->parameters = parameters;
+                this->value = value;
+            }
+        };
+
+
 		Process* m_process;										    // the build process
 
 		File* m_inputFile;										    // the .basm or .binc file being preprocessed
@@ -92,6 +105,7 @@ class Preprocessor {
 		FileWriter* m_writer;									    // writer for the output file
 
 		std::map<std::string, std::vector<Tokenizer::Token>> m_symbols;		// defined symbols
+        std::map<std::string, std::map<int, Symbol>> m_definedSymbols;      // defined symbols NEW
 		std::map<std::string, Macro*> m_macros;					    // defined macros
 
 		std::vector<Macro*> macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments);
@@ -128,6 +142,7 @@ class Preprocessor {
 		void _undefine(int& tokenI);
 
         void conditionalBlock(int& tokenI, bool conditionMet);
+        bool isDefinitionSymbolDefined(std::string symbolName, int numParameters);
 
 		typedef void (Preprocessor::*PreprocessorFunction)(int& tokenI);
 		std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {

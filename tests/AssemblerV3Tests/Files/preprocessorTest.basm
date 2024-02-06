@@ -1,4 +1,3 @@
-#define LINES line1 \
-line2
+#define func(a) a+2
 
-LINES
+func(3)

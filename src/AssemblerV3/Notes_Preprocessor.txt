@@ -27,13 +27,13 @@ PREPROCESSOR STATEMENTS
 	- If provided an output symbol, the symbol will be associated with the return value of the macro.
 	- If the macro does not return a value but an output symbol is provided, an error is thrown.
 
-#define [symbol] [?value] [?\]
+#define [symbol](param1, param2,..., paramn) [?value] [?\]
 	- Associates the symbol with the value, if value is not specified, the default is empty
+    - If parameters are defined, all definitions will be mapped if possible to the parameter value of the calling symbol.
 	- Replaces all instances of symbol with the value
     - Note this symbol will be discarded after preprocessing
     - [\] allows for multiline values given that the character '\' is proceeded by a newline
       will only read the rest of the tokens on this line as the value
-    - TODO: perhaps allow parameters to be passed and used, sort of like the C macro
 
 PREPROCESSOR CONDITIONALS
     - Controls which sections of the input files are ignored by the preprocessor.

@@ -36,6 +36,10 @@ Preprocessor::Preprocessor(Process* process, File* inputFile, std::string output
  */
 Preprocessor::~Preprocessor() {
     delete m_outputFile;
+
+    for (std::pair<std::string, Macro*> macroPair : m_macros) {
+        delete macroPair.second;
+    }
 }
 
 /**
@@ -99,10 +103,54 @@ void Preprocessor::preprocess() {
 			(this->*preprocessors[token.type])(i);
 		} else {
             // check if this is a defined symbol
-            if (token.type == Tokenizer::SYMBOL && m_symbols.find(token.value) != m_symbols.end()) {
+            if (token.type == Tokenizer::SYMBOL && m_definedSymbols.find(token.value) != m_definedSymbols.end()) {
                 // replace symbol with value
+                std::string symbol = token.value;
                 consume(i);
-                m_tokens.insert(m_tokens.begin() + i, m_symbols[token.value].begin(), m_symbols[token.value].end());
+                skipTokens(i, "[ \t]");
+
+                // check if the symbol has parameters
+                std::vector<std::vector<Tokenizer::Token>> parameters;
+                if (isToken(i, {Tokenizer::OPEN_PARANTHESIS})) {
+                    consume(i); // '('
+                    while (!isToken(i, {Tokenizer::CLOSE_PARANTHESIS})) {
+                        std::vector<Tokenizer::Token> parameter;
+                        while (!isToken(i, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS})) {
+                            parameter.push_back(consume(i));
+                        }
+                        parameters.push_back(parameter);
+                        if (isToken(i, {Tokenizer::COMMA})) {
+                            consume(i);
+                        } else {
+                            expectToken(i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')' in symbol parameters.");
+                        }
+                    }
+                    consume(i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')'.");
+                }
+
+                // check if the symbol has a definition with the same number of parameters
+                if (m_definedSymbols.at(symbol).find(parameters.size()) == m_definedSymbols.at(symbol).end()) {
+                    log(ERROR, std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
+                }
+
+                // replace all occurances of a parameter with the value passed in as the parameter
+                std::vector<Tokenizer::Token> definition = m_definedSymbols.at(symbol).at(parameters.size()).value;
+                for (int j = 0; j < definition.size(); j++) {
+                    if (definition[j].type == Tokenizer::SYMBOL) {
+                        // check if the symbol is a parameter
+                        for (int k = 0; k < parameters.size(); k++) {
+                            if (definition[j].value == m_definedSymbols.at(symbol).at(parameters.size()).parameters[k]) {
+                                // replace the symbol with the parameter value
+                                definition.erase(definition.begin() + j);
+                                definition.insert(definition.begin() + j, parameters[k].begin(), parameters[k].end());
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // insert the definition into the tokens list
+                m_tokens.insert(m_tokens.begin() + i, definition.begin(), definition.end());
             } else {
                 m_writer->writeString(consume(i).value);
             }
@@ -116,6 +164,7 @@ void Preprocessor::preprocess() {
 
 	m_state = State::PROCESSED_SUCCESS;
 	m_writer->close();
+    delete m_writer;
 
 	log(DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile->getFileName());
 
@@ -560,6 +609,35 @@ void Preprocessor::_define(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
+    // check for parameter declaration
+    std::vector<std::string> parameters;
+    std::set<std::string> ensureUniqueParameters;
+    if (isToken(tokenI, {Tokenizer::OPEN_PARANTHESIS})) {
+        consume(tokenI); // '('
+
+        // parse parameters
+        while (!isToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS})) {
+            skipTokens(tokenI, "[ \t]");
+            std::string parameter = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.").value;
+            
+            // ensure the parameter symbol has not been used before in this definition parameters
+            EXPECT_TRUE(ensureUniqueParameters.find(parameter) == ensureUniqueParameters.end(), ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);            
+            parameters.push_back(parameter);
+            ensureUniqueParameters.insert(parameter);
+
+            // parse comma or expect closing parenthesis
+            skipTokens(tokenI, "[ \t]");
+            if (isToken(tokenI, {Tokenizer::COMMA})) {
+                consume(tokenI);
+            } else {
+                expectToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+            }
+        }
+    }
+
+    // expect ')'
+    consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+
     // value
     std::vector<Tokenizer::Token> tokens;
     bool readNextLine = false;
@@ -578,10 +656,15 @@ void Preprocessor::_define(int& tokenI) {
     }
     
     // add to symbols mapping
-    m_symbols.insert(std::pair<std::string, std::vector<Tokenizer::Token>>(symbol, tokens));
+    if (m_definedSymbols.find(symbol) == m_definedSymbols.end()) {
+        m_definedSymbols.insert(std::pair<std::string, std::map<int, Symbol>>(symbol, std::map<int, Symbol>()));
+    }
+    m_definedSymbols.at(symbol).insert(std::pair<int, Symbol>(parameters.size(), Symbol(symbol, parameters, tokens)));
 }
 
-
+/**
+ * 
+ */
 void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
     int relativeScopeLevel = 0;
     int currentTokenI = tokenI;
@@ -643,6 +726,13 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
 }
 
 /**
+ * 
+ */
+bool Preprocessor::isDefinitionSymbolDefined(std::string symbolName, int numParameters) {
+    return m_definedSymbols.find(symbolName) != m_definedSymbols.end() && m_definedSymbols.at(symbolName).find(numParameters) != m_definedSymbols.at(symbolName).end();
+}
+
+/**
  * Begins a top conditional block. 
  * Determines whether to include the following text block if the symbol is defined.
  * 
@@ -660,8 +750,7 @@ void Preprocessor::_ifdef(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifdef() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    bool isDefined = m_symbols.find(symbol) != m_symbols.end();
-    conditionalBlock(tokenI, isDefined);
+    conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
 }
 
 /**
@@ -682,8 +771,7 @@ void Preprocessor::_ifndef(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_ifndef() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    bool isNotDefined = m_symbols.find(symbol) == m_symbols.end();
-    conditionalBlock(tokenI, isNotDefined);
+    conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
 }
 
 /**
@@ -707,8 +795,8 @@ void Preprocessor::_ifequ(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -744,8 +832,8 @@ void Preprocessor::_ifnequ(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -781,8 +869,8 @@ void Preprocessor::_ifless(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -818,8 +906,8 @@ void Preprocessor::_ifmore(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -870,8 +958,7 @@ void Preprocessor::_elsedef(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsedef() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    bool isDefined = m_symbols.find(symbol) != m_symbols.end();
-    conditionalBlock(tokenI, isDefined);
+    conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
 }
 
 /**
@@ -894,8 +981,7 @@ void Preprocessor::_elsendef(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_elsendef() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    bool isNotDefined = m_symbols.find(symbol) == m_symbols.end();
-    conditionalBlock(tokenI, isNotDefined);
+    conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
 }
 
 /**
@@ -921,8 +1007,8 @@ void Preprocessor::_elseequ(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -960,8 +1046,8 @@ void Preprocessor::_elsenequ(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -999,8 +1085,8 @@ void Preprocessor::_elseless(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -1038,8 +1124,8 @@ void Preprocessor::_elsemore(int& tokenI) {
 
     // extract symbol's string value
     std::string symbolValue;
-    if (m_symbols.find(symbol) != m_symbols.end()) {
-        for (Tokenizer::Token& token : m_symbols[symbol]) {
+    if (isDefinitionSymbolDefined(symbol, 0)) {
+        for (Tokenizer::Token& token : m_definedSymbols.at(symbol).at(0).value) {
             symbolValue += token.value;
         }
     }
@@ -1085,8 +1171,13 @@ void Preprocessor::_undefine(int& tokenI) {
     std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
     skipTokens(tokenI, "[ \t]");
 
-    // remove from symbols mapping
-    m_symbols.erase(symbol);
+    // if a number of parameters was specified, remove that definition otherwise remove all definitions
+    if (isToken(tokenI, {Tokenizer::LITERAL_NUMBER_DECIMAL})) {
+        int numParameters = std::stoi(consume(tokenI, {Tokenizer::LITERAL_NUMBER_DECIMAL}, "Preprocessor::_undefine() - Expected number of parameters.").value);
+        m_definedSymbols[symbol].erase(numParameters);
+    } else {
+        m_definedSymbols.erase(symbol);
+    }
 }
 
 /**
