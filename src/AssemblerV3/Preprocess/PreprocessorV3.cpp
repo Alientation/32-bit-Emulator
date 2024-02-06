@@ -793,8 +793,19 @@ void Preprocessor::_conditionalOnValue(int& tokenI) {
 
     // value
     std::string value;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+    bool readNextLine = false;
+    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) || readNextLine) {
+        readNextLine = false;
         value += consume(tokenI).value;
+
+        // check if we should read the nextline provided the next token is a newline
+        // and the previous token read was a '\' character
+        if (isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) && value.back() == '\\') {
+            readNextLine = true;
+
+            // remove the '\' character
+            value.pop_back();
+        }
     }
 
     if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFEQU || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEEQU) {
