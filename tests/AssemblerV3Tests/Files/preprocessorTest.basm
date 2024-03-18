@@ -3,3 +3,11 @@
 #ifequ CONSTANT constant2
 	; this is included
 #endif
+
+;*
+
+*;
+
+#include "this"
+
+"string"
