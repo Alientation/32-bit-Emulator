@@ -1,6 +1,7 @@
 #include "AlienCPU.h"
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 
 const std::string AlienCPU::VERSION = "0.1";

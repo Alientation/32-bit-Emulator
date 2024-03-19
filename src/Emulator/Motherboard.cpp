@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <assert.h>
+#include <sstream>
 
 
 void Motherboard::reset() {

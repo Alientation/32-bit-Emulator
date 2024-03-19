@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <stack>
+#include <sstream>
 
 #include <../src/Emulator/AlienCPU.h>
 #include <../src/util/ConsoleColor.h>

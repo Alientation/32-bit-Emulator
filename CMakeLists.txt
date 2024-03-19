@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
-project(AlienCPU)
+project(AlienCPU LANGUAGES CXX)
+
+
+
 
 file( GLOB UTIL_HEADERS
     "src/util/Types.h"
