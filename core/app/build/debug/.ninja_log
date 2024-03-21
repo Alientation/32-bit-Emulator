@@ -1,0 +1,8 @@
+# ninja log v5
+87	228	7327654417619566	emulator-app.exe	751abb4773d2cacd
+203	2158	7327679808584002	CMakeFiles/emulator-app.dir/main.cpp.obj	5cc2508040b7804f
+25	154	0	CMakeFiles/version	e293d3c476f02b30
+25	154	0	C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/debug/CMakeFiles/version	e293d3c476f02b30
+18	143	0	CMakeFiles/version	e293d3c476f02b30
+18	143	0	C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/debug/CMakeFiles/version	e293d3c476f02b30
+144	1427	7327681616553132	emulator-app.exe	639a26b0e8d61c8e

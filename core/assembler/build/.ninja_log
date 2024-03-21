@@ -1,0 +1,15 @@
+# ninja log v5
+3564	5784	7327680742044975	libassembler.a	b638afa4ac4ca327
+28	881	7327678577578949	CMakeFiles/assembler.dir/src/File.cpp.obj	8db5a0ecf2e61b02
+20	118	7327678569953861	CMakeFiles/assembler.dir/src/Directives.cpp.obj	45d712fc05b9f957
+12	111	7327678569881451	CMakeFiles/assembler.dir/src/Assembler.cpp.obj	9b7d0fe92ca59e6b
+35	3856	7327679294872277	CMakeFiles/assembler.dir/src/Tokenizer.cpp.obj	25e7ca1baf0864be
+35	130	7327678570067361	CMakeFiles/assembler.dir/src/ObjectFile.cpp.obj	6cc0a51192d00ed7
+27	4780	7327679629138997	CMakeFiles/assembler.dir/src/Preprocessor.cpp.obj	9b174e72b709270d
+32	130	7327678570081383	CMakeFiles/assembler.dir/src/Linker.cpp.obj	c8a3dcdf2cef53c2
+24	127	7327678570027359	CMakeFiles/assembler.dir/src/ExecutableFile.cpp.obj	c8409cc82d316c4e
+5784	5853	0	CMakeFiles/install.util	bf41e7a86c6aa2e7
+21	3564	7327680719780425	CMakeFiles/assembler.dir/src/Build.cpp.obj	d15e363a1b918bce
+30	767	7327681419244189	CMakeFiles/assembler.dir/src/Directory.cpp.obj	f63dda25a05389a2
+768	3050	7327681442074346	libassembler.a	4bf3b16c066ac450
+3050	3137	0	CMakeFiles/install.util	bf41e7a86c6aa2e7
