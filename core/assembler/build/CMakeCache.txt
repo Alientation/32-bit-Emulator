@@ -273,6 +273,26 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
+//Directory under which to collect all populated content
+FETCHCONTENT_BASE_DIR:PATH=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps
+
+//Disables all attempts to download or update content and assumes
+// source dirs already exist
+FETCHCONTENT_FULLY_DISCONNECTED:BOOL=OFF
+
+//Enables QUIET option for all content population
+FETCHCONTENT_QUIET:BOOL=ON
+
+//When not empty, overrides where to find pre-populated content
+// for util
+FETCHCONTENT_SOURCE_DIR_UTIL:PATH=
+
+//Enables UPDATE_DISCONNECTED behavior for all content population
+FETCHCONTENT_UPDATES_DISCONNECTED:BOOL=OFF
+
+//Enables UPDATE_DISCONNECTED behavior just for population of util
+FETCHCONTENT_UPDATES_DISCONNECTED_UTIL:BOOL=OFF
+
 //Value Computed by CMake
 assembler_BINARY_DIR:STATIC=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build
 
@@ -281,6 +301,18 @@ assembler_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 assembler_SOURCE_DIR:STATIC=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler
+
+//Value Computed by CMake
+util_BINARY_DIR:STATIC=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build
+
+//The directory containing a CMake configuration file for util.
+util_DIR:PATH=util_DIR-NOTFOUND
+
+//Value Computed by CMake
+util_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+util_SOURCE_DIR:STATIC=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util
 
 
 ########################
@@ -401,7 +433,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=1
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=2
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

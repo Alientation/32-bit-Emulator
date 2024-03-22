@@ -42,65 +42,53 @@ cmake_ninja_workdir = C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++Computer
 #############################################
 # Order-only phony target for assembler
 
-build cmake_object_order_depends_target_assembler: phony || CMakeFiles/assembler.dir
+build cmake_object_order_depends_target_assembler: phony || cmake_object_order_depends_target_util
 
 build CMakeFiles/assembler.dir/src/Assembler.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Assembler.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Assembler.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/Build.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Build.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Build.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/Directives.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Directives.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Directives.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
-  OBJECT_DIR = CMakeFiles\assembler.dir
-  OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
-
-build CMakeFiles/assembler.dir/src/Directory.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Directory.cpp || cmake_object_order_depends_target_assembler
-  DEP_FILE = CMakeFiles\assembler.dir\src\Directory.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/ExecutableFile.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/ExecutableFile.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\ExecutableFile.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
-  OBJECT_DIR = CMakeFiles\assembler.dir
-  OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
-
-build CMakeFiles/assembler.dir/src/File.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/File.cpp || cmake_object_order_depends_target_assembler
-  DEP_FILE = CMakeFiles\assembler.dir\src\File.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/Linker.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Linker.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Linker.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/ObjectFile.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/ObjectFile.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\ObjectFile.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/Preprocessor.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Preprocessor.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Preprocessor.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
 build CMakeFiles/assembler.dir/src/Tokenizer.cpp.obj: CXX_COMPILER__assembler_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/src/Tokenizer.cpp || cmake_object_order_depends_target_assembler
   DEP_FILE = CMakeFiles\assembler.dir\src\Tokenizer.cpp.obj.d
-  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/include -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
   OBJECT_DIR = CMakeFiles\assembler.dir
   OBJECT_FILE_DIR = CMakeFiles\assembler.dir\src
 
@@ -112,7 +100,7 @@ build CMakeFiles/assembler.dir/src/Tokenizer.cpp.obj: CXX_COMPILER__assembler_un
 #############################################
 # Link the static library libassembler.a
 
-build libassembler.a: CXX_STATIC_LIBRARY_LINKER__assembler_ CMakeFiles/assembler.dir/src/Assembler.cpp.obj CMakeFiles/assembler.dir/src/Build.cpp.obj CMakeFiles/assembler.dir/src/Directives.cpp.obj CMakeFiles/assembler.dir/src/Directory.cpp.obj CMakeFiles/assembler.dir/src/ExecutableFile.cpp.obj CMakeFiles/assembler.dir/src/File.cpp.obj CMakeFiles/assembler.dir/src/Linker.cpp.obj CMakeFiles/assembler.dir/src/ObjectFile.cpp.obj CMakeFiles/assembler.dir/src/Preprocessor.cpp.obj CMakeFiles/assembler.dir/src/Tokenizer.cpp.obj
+build libassembler.a: CXX_STATIC_LIBRARY_LINKER__assembler_ CMakeFiles/assembler.dir/src/Assembler.cpp.obj CMakeFiles/assembler.dir/src/Build.cpp.obj CMakeFiles/assembler.dir/src/Directives.cpp.obj CMakeFiles/assembler.dir/src/ExecutableFile.cpp.obj CMakeFiles/assembler.dir/src/Linker.cpp.obj CMakeFiles/assembler.dir/src/ObjectFile.cpp.obj CMakeFiles/assembler.dir/src/Preprocessor.cpp.obj CMakeFiles/assembler.dir/src/Tokenizer.cpp.obj || _deps/util-build/libutil.a
   OBJECT_DIR = CMakeFiles\assembler.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -185,9 +173,119 @@ build CMakeFiles/install/strip.util: CUSTOM_COMMAND all
 build install/strip: phony CMakeFiles/install/strip.util
 
 # =============================================================================
+# Write statements declared in CMakeLists.txt:
+# C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/CMakeLists.txt
+# =============================================================================
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target util
+
+
+#############################################
+# Order-only phony target for util
+
+build cmake_object_order_depends_target_util: phony || _deps/util-build/CMakeFiles/util.dir
+
+build _deps/util-build/CMakeFiles/util.dir/src/Directory.cpp.obj: CXX_COMPILER__util_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/src/Directory.cpp || cmake_object_order_depends_target_util
+  DEP_FILE = _deps\util-build\CMakeFiles\util.dir\src\Directory.cpp.obj.d
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
+  OBJECT_DIR = _deps\util-build\CMakeFiles\util.dir
+  OBJECT_FILE_DIR = _deps\util-build\CMakeFiles\util.dir\src
+
+build _deps/util-build/CMakeFiles/util.dir/src/File.cpp.obj: CXX_COMPILER__util_unscanned_ C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/src/File.cpp || cmake_object_order_depends_target_util
+  DEP_FILE = _deps\util-build\CMakeFiles\util.dir\src\File.cpp.obj.d
+  INCLUDES = -IC:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/include
+  OBJECT_DIR = _deps\util-build\CMakeFiles\util.dir
+  OBJECT_FILE_DIR = _deps\util-build\CMakeFiles\util.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target util
+
+
+#############################################
+# Link the static library _deps\util-build\libutil.a
+
+build _deps/util-build/libutil.a: CXX_STATIC_LIBRARY_LINKER__util_ _deps/util-build/CMakeFiles/util.dir/src/Directory.cpp.obj _deps/util-build/CMakeFiles/util.dir/src/File.cpp.obj
+  OBJECT_DIR = _deps\util-build\CMakeFiles\util.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = _deps\util-build\libutil.a
+  TARGET_PDB = util.a.dbg
+
+
+#############################################
+# Utility command for edit_cache
+
+build _deps/util-build/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = cmd.exe /C "cd /D C:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build\_deps\util-build && C:\mingw64\bin\cmake.exe -E echo "No interactive CMake dialog available.""
+  DESC = No interactive CMake dialog available...
+  restat = 1
+
+build _deps/util-build/edit_cache: phony _deps/util-build/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build _deps/util-build/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = cmd.exe /C "cd /D C:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build\_deps\util-build && C:\mingw64\bin\cmake.exe --regenerate-during-build -SC:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler -BC:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build _deps/util-build/rebuild_cache: phony _deps/util-build/CMakeFiles/rebuild_cache.util
+
+
+#############################################
+# Utility command for list_install_components
+
+build _deps/util-build/list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build _deps/util-build/CMakeFiles/install.util: CUSTOM_COMMAND _deps/util-build/all
+  COMMAND = cmd.exe /C "cd /D C:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build\_deps\util-build && C:\mingw64\bin\cmake.exe -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build _deps/util-build/install: phony _deps/util-build/CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build _deps/util-build/CMakeFiles/install/local.util: CUSTOM_COMMAND _deps/util-build/all
+  COMMAND = cmd.exe /C "cd /D C:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build\_deps\util-build && C:\mingw64\bin\cmake.exe -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build _deps/util-build/install/local: phony _deps/util-build/CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build _deps/util-build/CMakeFiles/install/strip.util: CUSTOM_COMMAND _deps/util-build/all
+  COMMAND = cmd.exe /C "cd /D C:\Users\mcpir\OneDrive\Documents\FunProjects\C++ComputerEmulator\core\assembler\build\_deps\util-build && C:\mingw64\bin\cmake.exe -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build _deps/util-build/install/strip: phony _deps/util-build/CMakeFiles/install/strip.util
+
+# =============================================================================
 # Target aliases.
 
 build assembler: phony libassembler.a
+
+build libutil.a: phony _deps/util-build/libutil.a
+
+build util: phony _deps/util-build/libutil.a
 
 # =============================================================================
 # Folder targets.
@@ -197,7 +295,14 @@ build assembler: phony libassembler.a
 #############################################
 # Folder: C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build
 
-build all: phony libassembler.a
+build all: phony libassembler.a _deps/util-build/all
+
+# =============================================================================
+
+#############################################
+# Folder: C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build
+
+build _deps/util-build/all: phony _deps/util-build/libutil.a
 
 # =============================================================================
 # Built-in targets
@@ -206,14 +311,14 @@ build all: phony libassembler.a
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja: RERUN_CMAKE | C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/CMakeLists.txt C$:/mingw64/share/cmake-3.27/Modules/CMakeCXXInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeCommonLanguageInclude.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeGenericSystem.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeInitializeConfigs.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeLanguageInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeRCInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInitialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/GNUInstallDirs.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-Initialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-windres.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.27.2/CMakeCXXCompiler.cmake CMakeFiles/3.27.2/CMakeRCCompiler.cmake CMakeFiles/3.27.2/CMakeSystem.cmake
+build build.ninja: RERUN_CMAKE | C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/CMakeLists.txt C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/CMakeLists.txt C$:/mingw64/share/cmake-3.27/Modules/CMakeCXXInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeCommonLanguageInclude.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeGenericSystem.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeInitializeConfigs.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeLanguageInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeRCInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInitialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/ExternalProject/shared_internal_commands.cmake C$:/mingw64/share/cmake-3.27/Modules/FetchContent.cmake C$:/mingw64/share/cmake-3.27/Modules/FetchContent/CMakeLists.cmake.in C$:/mingw64/share/cmake-3.27/Modules/GNUInstallDirs.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-Initialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-windres.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.27.2/CMakeCXXCompiler.cmake CMakeFiles/3.27.2/CMakeRCCompiler.cmake CMakeFiles/3.27.2/CMakeSystem.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/CMakeLists.txt C$:/mingw64/share/cmake-3.27/Modules/CMakeCXXInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeCommonLanguageInclude.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeGenericSystem.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeInitializeConfigs.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeLanguageInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeRCInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInitialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/GNUInstallDirs.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-Initialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-windres.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.27.2/CMakeCXXCompiler.cmake CMakeFiles/3.27.2/CMakeRCCompiler.cmake CMakeFiles/3.27.2/CMakeSystem.cmake: phony
+build C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/CMakeLists.txt C$:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/util/CMakeLists.txt C$:/mingw64/share/cmake-3.27/Modules/CMakeCXXInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeCommonLanguageInclude.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeGenericSystem.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeInitializeConfigs.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeLanguageInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeRCInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInformation.cmake C$:/mingw64/share/cmake-3.27/Modules/CMakeSystemSpecificInitialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Compiler/GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/ExternalProject/shared_internal_commands.cmake C$:/mingw64/share/cmake-3.27/Modules/FetchContent.cmake C$:/mingw64/share/cmake-3.27/Modules/FetchContent/CMakeLists.cmake.in C$:/mingw64/share/cmake-3.27/Modules/GNUInstallDirs.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU-CXX.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-GNU.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-Initialize.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows-windres.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/Windows.cmake C$:/mingw64/share/cmake-3.27/Modules/Platform/WindowsPaths.cmake CMakeCache.txt CMakeFiles/3.27.2/CMakeCXXCompiler.cmake CMakeFiles/3.27.2/CMakeRCCompiler.cmake CMakeFiles/3.27.2/CMakeSystem.cmake: phony
 
 
 #############################################

@@ -226,7 +226,7 @@ emulator-app_IS_TOP_LEVEL:STATIC=ON
 emulator-app_SOURCE_DIR:STATIC=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app
 
 //The directory containing a CMake configuration file for util.
-util_DIR:PATH=util_DIR-NOTFOUND
+util_DIR:PATH=C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/install/lib/cmake/util
 
 
 ########################

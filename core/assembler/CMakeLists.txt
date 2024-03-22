@@ -11,14 +11,18 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/Assembler.cpp
     src/Build.cpp
     src/Directives.cpp
-    src/Directory.cpp
     src/ExecutableFile.cpp
-    src/File.cpp
     src/Linker.cpp
     src/ObjectFile.cpp
     src/Preprocessor.cpp
     src/Tokenizer.cpp
 )
+
+include (FetchContent)
+FetchContent_Declare(
+    util
+    SOURCE_DIR ../../util)
+FetchContent_MakeAvailable(util)
 
 include(GNUInstallDirs)
 
@@ -31,6 +35,9 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_link_libraries(${PROJECT_NAME} PUBLIC util)
 
 # this command will append "d" to the name of the debug version of
 # the library - this is very helpful when installing as it ensures

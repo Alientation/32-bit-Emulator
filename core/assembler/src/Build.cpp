@@ -1,7 +1,7 @@
 #include "assembler/Build.h"
-#include "assembler/util/Directory.h"
-#include "assembler/util/StringUtil.h"
-#include "assembler/util/Logger.h"
+#include "util/Directory.h"
+#include "util/StringUtil.h"
+#include "util/Logger.h"
 
 #include <iostream>
 #include <vector>

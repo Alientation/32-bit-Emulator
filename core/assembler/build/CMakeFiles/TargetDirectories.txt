@@ -5,3 +5,10 @@ C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler
 C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/CMakeFiles/install.dir
 C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/CMakeFiles/install/local.dir
 C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/CMakeFiles/install/strip.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/util.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/edit_cache.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/rebuild_cache.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/list_install_components.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/install.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/install/local.dir
+C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/assembler/build/_deps/util-build/CMakeFiles/install/strip.dir

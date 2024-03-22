@@ -1,7 +1,7 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#include "assembler/util/File.h"
+#include "util/File.h"
 
 #include <vector>
 #include <string>

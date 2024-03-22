@@ -1,7 +1,7 @@
 #include "assembler/Preprocessor.h"
-#include "assembler/util/Logger.h"
-#include "assembler/util/StringUtil.h"
-#include "assembler/util/VectorUtil.h"
+#include "util/Logger.h"
+#include "util/StringUtil.h"
+#include "util/VectorUtil.h"
 
 #include <regex>
 #include <fstream>

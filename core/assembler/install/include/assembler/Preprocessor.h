@@ -1,6 +1,6 @@
 #include "assembler/Build.h"
 #include "assembler/Tokenizer.h"
-#include "assembler/util/File.h"
+#include "util/File.h"
 
 #include <string>
 #include <stack>
