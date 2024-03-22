@@ -1,12 +1,10 @@
+#include "util/Types.h"
+#include "Memory/RAM.h"
+#include "Memory/ROM.h"
+
 #ifndef MOTHERBOARD_H
 #define MOTHERBOARD_H
 
-#include <../src/util/Types.h>
-#include <../src/Emulator/Memory/RAM.h>
-#include <../src/Emulator/Memory/ROM.h>
-#include <../src/Emulator/BIOS.h>
-#include <../src/Device/Storage/HDD.h>
-#include <../src/Device/Storage/SSD.h>
 
 class Motherboard;
 

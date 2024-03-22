@@ -1,6 +1,6 @@
 #include "Motherboard.h"
+#include "Memory/RAM.h"
 
-#include <../src/Emulator/Memory/RAM.h>
 #include <iostream>
 #include <iomanip>
 #include <assert.h>

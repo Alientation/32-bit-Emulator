@@ -1,7 +1,7 @@
 #ifndef ROM_H
 #define ROM_H
 
-#include <../src/util/Types.h>
+#include "util/Types.h"
 
 // Read Only Memory
 // Hardcoded program by computer manufacturer and cannot be changed or

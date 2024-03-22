@@ -1,4 +1,4 @@
-#include "AlienCPU.h"
+#include "emulator6502/AlienCPU.h"
 
 void AlienCPU::initInstructions() {
     // null out instructions to catch errors

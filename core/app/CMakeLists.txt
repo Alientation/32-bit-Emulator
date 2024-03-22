@@ -9,12 +9,12 @@ add_custom_target(version
 
 find_package(util REQUIRED CONFIG)
 find_package(assembler REQUIRED CONFIG)
-# find_package(emulator6502 REQUIRED CONFIG)
+find_package(emulator6502 REQUIRED CONFIG)
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE main.cpp)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC util::util assembler::assembler) #emulator6502::emulator6502
+target_link_libraries(${PROJECT_NAME} PUBLIC util::util assembler::assembler emulator6502::emulator6502)
 add_dependencies(${PROJECT_NAME} version)
 
 

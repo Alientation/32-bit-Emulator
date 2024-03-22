@@ -1,7 +1,7 @@
 #ifndef RAM_H
 #define RAM_H
 
-#include <../src/util/Types.h>
+#include "util/Types.h"
 
 // Random Access Memory
 class RAM;

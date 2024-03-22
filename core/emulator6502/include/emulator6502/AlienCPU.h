@@ -1,10 +1,11 @@
-#ifndef ALIENCPU_H
-#define ALIENCPU_H
+#include "util/Types.h"
+#include "..\src\Motherboard.h"
 
-#include <../src/util/Types.h>
-#include <../src/Emulator/Motherboard.h>
 #include <string>
 #include <functional>
+
+#ifndef ALIENCPU_H
+#define ALIENCPU_H
 
 class AlienCPU; //forward declaration (!!)
 
