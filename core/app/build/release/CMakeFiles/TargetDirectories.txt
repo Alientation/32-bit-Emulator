@@ -1,4 +1,0 @@
-C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/release/CMakeFiles/version.dir
-C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/release/CMakeFiles/emulator-app.dir
-C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/release/CMakeFiles/edit_cache.dir
-C:/Users/mcpir/OneDrive/Documents/FunProjects/C++ComputerEmulator/core/app/build/release/CMakeFiles/rebuild_cache.dir
