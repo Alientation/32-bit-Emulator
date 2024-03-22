@@ -12,4 +12,4 @@ rmdir "%cd%/build" /s /q
 
 
 REM Configure and install the application
-call configure-and-build-all.bat
+call build.bat
