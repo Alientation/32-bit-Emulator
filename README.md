@@ -16,6 +16,6 @@ All legal instructions have been implemented with around half having been thorou
 Currently working on an assembler, aiming for a wide support of various directives and linking between assembly files. (Assembler is already on its 3rd iteration, though it is looking far more promising than the previous versions). So far have finished developing and testing some preprocessors like #DEFINE and #MACRO.
 Planning on working bit by bit on improving test coverage in between development.
 
-## Install
-Build using C++ 13.2 or later
+## How to build
+Run the build.bat or build.sh script located in the app subdirectory which will configure and build the project
 
