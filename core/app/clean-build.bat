@@ -11,5 +11,5 @@ rmdir "../util/install" /s /q
 rmdir "build" /s /q
 
 
-REM Configure and install the application
+REM Configure and build the application
 call build.bat

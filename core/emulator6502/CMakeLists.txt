@@ -10,13 +10,11 @@ add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
     src/Memory/RAM.cpp
     src/Memory/ROM.cpp
-    src/Memory/RAM.h
-    src/Memory/ROM.h
     src/AddressingModesUtil.cpp
     src/AlienCPU.cpp
     src/InstructionLinker.cpp
+    src/Instructions.cpp
     src/Motherboard.cpp
-    src/Motherboard.h
 )
 
 include (FetchContent)

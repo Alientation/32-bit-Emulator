@@ -1,5 +1,5 @@
-#include "Motherboard.h"
-#include "Memory/RAM.h"
+#include "emulator6502/Motherboard.h"
+#include "emulator6502/RAM.h"
 
 #include <iostream>
 #include <iomanip>

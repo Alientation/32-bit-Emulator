@@ -1,5 +1,5 @@
 #include "util/Types.h"
-#include "..\src\Motherboard.h"
+#include "emulator6502/Motherboard.h"
 
 #include <string>
 #include <functional>
