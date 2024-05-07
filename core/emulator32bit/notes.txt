@@ -1,0 +1,108 @@
+Simplified ARM-like instruction set
+32 bit Instructions
+30 General Purpose registers
+	- x0, x1, ..., x29
+	- SP, XZR, PSTATE
+	- FPCR https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpcr--floating-point-control-register
+	- FPSR https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register
+
+Arithmetic Instructions
+ADD{S} xd, xn, arg
+SUB{S} xd, xn, arg
+RSB{S} xd, xm, arg
+ADC{S} xd, xn, arg
+SBC{S} xd, xn, arg
+RSC{S} xd, xm, arg
+MUL{S} xd, xn, xm
+UMULL{S} xlo, xhi, xn, xm
+SMULL{S} xlo, xhi, xn, xm
+
+Floating Point Instructions
+VABS.F32 xd, xn
+VNEG.F32 xd, xn
+VSQRT.F32 xd, xn
+VADD.F32 xd, xn, xm
+VSUB.F32 xd, xn, xm
+VDIV.F32 xd, xn, xm
+VMUL.F32 xd, xn, xm
+VCMP.F32 xn, {xm|0}
+VSEL.cond.F32 xd, xn, xm
+VCINT.{u32|s32}.F32 xd, xn
+VCFLO.{u32|s32}.F32 xd, xn
+VMOV.F32 xd, {xn|#fimm}
+
+Bitwise Instructions
+AND{S} xd, xn, arg
+ORR{S} xd, xn, arg
+EOR{S} xd, xn, arg
+BIC{S} xd, xn, arg
+LSL{S} xd, xn, {xm|#imm5}
+LSR{S} xd, xn, {xm|#imm5}
+ASR{S} xd, xn, {xm|#imm5}
+ROR{S} xd, xn, {xm|#imm5}
+
+Comparison Instructions
+CMP xn, arg
+CMN xn, arg
+TST xn, arg
+TEQ xn, arg
+
+Data Movement Instructions
+MOV{S} xd, arg
+MVN{S} xd, arg
+
+Memory Access Instructions
+LDR{B|H} xd, mem
+STR{B|H} xn, mem
+SWP{B|H} xd, xn, [xm]
+
+Branching Instructions
+B{CD} imm24
+BL{CD} imm24
+BX{CD} xd
+BLX{CD} xd
+SWI{CD} imm24
+
+Condition Codes
+AL {1} 
+EQ {Z=1}
+NE {Z=0}
+CS, HS {C=1}
+CC, LO {C=0}
+MI {N=1}
+PL {N=0}
+VS {V=1}
+VC {V=0}
+HI {C=1 AND Z=0}
+LS {C=0 OR Z=1}
+GE {N=V}
+LT {N!=V}
+GT {Z=0 AND N=V}
+LE {Z=1 OR N!=V}
+
+arg: right-hand argument
+#imm8
+xn
+xn, shift
+
+shift: shift register value
+LSL #imm5
+LSR #imm5
+ASR #imm5
+ROR #imm5
+RRX
+LSL xn
+LSR xn
+ASR xn
+ROR xn
+
+mem: memory address
+[reg, #simm12]
+[reg, reg]
+[rega, regb, shift]
+[reg, #simm12]!
+[rega, regb]!
+[rega, regb, shift]!
+[reg], #simm12
+[rega], regb
+[rega], regb, shift
