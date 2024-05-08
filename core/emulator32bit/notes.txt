@@ -6,64 +6,216 @@ Simplified ARM-like instruction set
 	- FPCR https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpcr--floating-point-control-register
 	- FPSR https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register
 
-Arithmetic Instructions
-ADD{S} xd, xn, arg
-SUB{S} xd, xn, arg
-RSB{S} xd, xm, arg
-ADC{S} xd, xn, arg
-SBC{S} xd, xn, arg
-RSC{S} xd, xm, arg
-MUL{S} xd, xn, xm
-UMULL{S} xlo, xhi, xn, xm
-SMULL{S} xlo, xhi, xn, xm
+INSTRUCTION SET ARCHITECTURE
+	- Attempted to make these instruction encodings be as realistic as possible 
+	(keep specific register encoding locations constant)
 
-Floating Point Instructions
-VABS.F32 xd, xn
-VNEG.F32 xd, xn
-VSQRT.F32 xd, xn
-VADD.F32 xd, xn, xm
-VSUB.F32 xd, xn, xm
-VDIV.F32 xd, xn, xm
-VMUL.F32 xd, xn, xm
-VCMP.F32 xn, {xm|0}
-VSEL.cond.F32 xd, xn, xm
-VCINT.{u32|s32}.F32 xd, xn
-VCFLO.{u32|s32}.F32 xd, xn
-VMOV.F32 xd, {xn|#fimm}
+O Type Instruction
+----------------------------------------------------------------
+OP{S} xd, xn, arg
+000000 | 0 | 00000 | 00000 | 1 | 00000000000000
+opcode	 S    xd      xn   ?imm       imm14
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 00 | 00000 | 00
+opcode   S    xd      xn   ?imm   xm    shift  imm5   --
 
-Bitwise Instructions
-AND{S} xd, xn, arg
-ORR{S} xd, xn, arg
-EOR{S} xd, xn, arg
-BIC{S} xd, xn, arg
-LSL{S} xd, xn, {xm|#imm5}
-LSR{S} xd, xn, {xm|#imm5}
-ASR{S} xd, xn, {xm|#imm5}
-ROR{S} xd, xn, {xm|#imm5}
+O2 Type Instruction
+OP{S} xlo, xhi, xn, xm
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 00000 | 0000
+opcode   S    xlo     xhi    -    xn      xm     ----
 
-Comparison Instructions
-CMP xn, arg
-CMN xn, arg
-TST xn, arg
-TEQ xn, arg
 
-Data Movement Instructions
-MOV{S} xd, arg
-MVN{S} xd, arg
+F Type Instruction
+----------------------------------------------------------------
+OP.F32 xd, xn
+000000 | 0 | 00000 | 00000 | 000000000000000
+opcode   -    xd      xn     ---------------
 
-Memory Access Instructions
-LDR{B|H} xd, mem
-STR{B|H} xn, mem
-SWP{B|H} xd, xn, [xm]
+F1 Type Instruction
+OP.F32 xd, xn, xm
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
+opcode   -    xd      xn     -    xm     ---------
 
-Branching Instructions
+F2 Type Instruction
+OP.F32 xn, {xm|0}
+000000 | 1 | 00000 | 000000000000000000000
+opcode ?fimm  xn     fimm, significand = 14, exponent = 7
+000000 | 0 | 00000 | 00000 | 0000000000000000
+opcode ?fimm  xn      xm     ----------------
+
+
+M Type Instruction
+----------------------------------------------------------------
+adr
+00: simple/offset
+01: preindexed
+10: postindexed
+
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 00 | 00000 | 00
+opcode   -    xt      xn   ?simm  xm    shift  imm5  adr
+
+000000 | 0 | 00000 | 00000 | 1 | 000000000000 | 00
+opcode   -    xt      xn   ?simm   simm12      adr
+
+M1 Type Instruction
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
+opcode   -    xd      xn     -    xm     ---------
+
+
+B Type Instruction
+----------------------------------------------------------------
 B{CD} imm24
 BL{CD} imm24
 BX{CD} xd
 BLX{CD} xd
 SWI{CD} imm24
 
-Condition Codes
+000000 | 0000 | 0000000000000000000000
+opcode   cond    simm22 (scale by 4)
+
+000000 | 0000 | 00000 | 00000000000000000
+opcode   cond    xd     -----------------
+
+
+Miscellaneous Instructions (2)
+HLT
+	- Stops program execution
+	- op: 000000
+
+NOP
+	- Does nothing
+	- op: 111111
+
+Arithmetic Instructions (9)
+ADD{S} xd, xn, arg (O)
+	- adds xn and arg and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000001
+
+SUB{S} xd, xn, arg (O)
+	- subtracts arg from xn and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000010
+
+RSB{S} xd, xm, arg (O)
+	- subtracts xm from arg and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000011
+
+ADC{S} xd, xn, arg (O)
+	- adds xn and arg with the current state's carry flag and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000100
+
+SBC{S} xd, xn, arg (O)
+	- subtracts arg from xn with the current state's carrry flag and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000101
+
+RSC{S} xd, xm, arg (O)
+	- subtracts xm from arg with the current state's carry flag and stores in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000110
+
+MUL{S} xd, xn, arg (O)
+	- multiplies xn and arg and stores the lower 32 bits in xd
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 000111
+
+UMULL{S} xlo, xhi, xn, xm (O2)
+	- multiplies unsigned xn and xm and stores the result into {xhi, xlo}
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 001000
+
+SMULL{S} xlo, xhi, xn, xm (O2)
+	- multiplies signed xn and xm and stores the result into {xhi, xlo}
+	- {S} specifies whether the NZCV flags are updated as a result of the operation
+	- op: 001001
+
+Floating Point Instructions (12)
+VABS.F32 xd, xn (F)
+	- op: 001010
+VNEG.F32 xd, xn (F)
+	- op: 001011
+VSQRT.F32 xd, xn (F)
+	- op: 001100
+VADD.F32 xd, xn, xm (F1)
+	- op: 001101
+VSUB.F32 xd, xn, xm (F1)
+	- op: 001110
+VDIV.F32 xd, xn, xm (F1)
+	- op: 001111
+VMUL.F32 xd, xn, xm (F1)
+	- op: 010000
+VCMP.F32 xn, {xm|0} (F1)
+	- op: 010001
+VSEL.cond.F32 xd, xn, xm (F1)
+	- op: 010010
+VCINT.{u32|s32}.F32 xd, xn (F)
+	- op: 010011
+VCFLO.{u32|s32}.F32 xd, xn (F)
+	- op: 010100
+VMOV.F32 xd, {xn|#fimm} (F2)
+	- op: 010101
+
+Bitwise Instructions (8)
+AND{S} xd, xn, arg (O)
+	- op: 010110
+ORR{S} xd, xn, arg (O)
+	- op: 010111
+EOR{S} xd, xn, arg (O)
+	- op: 011000
+BIC{S} xd, xn, arg (O)
+	- op: 011001
+LSL{S} xd, xn, {xm|#imm5} (O)
+	- op: 011010
+LSR{S} xd, xn, {xm|#imm5} (O)
+	- op: 011011
+ASR{S} xd, xn, {xm|#imm5} (O)
+	- op: 011100
+ROR{S} xd, xn, {xm|#imm5} (O)
+	- op: 011101
+
+Comparison Instructions (4)
+CMP xn, arg (O)
+	- op: 011110
+CMN xn, arg (O)
+	- op: 011111
+TST xn, arg (O)
+	- op: 100000
+TEQ xn, arg (O)
+	- op: 100001
+
+Data Movement Instructions (2)
+MOV{S} xd, arg (O)
+	- op: 100010
+MVN{S} xd, arg (O)
+	- op: 100011
+
+Memory Access Instructions (3)
+LDR{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
+	- op: 100100 (regular), 100101 (Byte), 100110 (Half-Word)
+STR{B|H} xt, mem (M)
+	- op: 100111 (regular), 101000 (Byte), 101001 (Half-Word)
+SWP{B|H} xd, xn, [xm] (M1)
+	- op: 101010 (regular), 101011 (Byte), 101100 (Half-Word)
+
+Branching Instructions (5)
+B{CD} imm24 (B)
+	- op: 101101
+BL{CD} imm24 (B)
+	- op: 101110
+BX{CD} xd (B)
+	- op: 101111
+BLX{CD} xd (B)
+	- op: 110000
+SWI{CD} imm24 (B)
+	- op: 110001
+
+AVAILABLE OPCODES
+	110010, 110011, 110100, 110101, 110110, 110111,
+	111000, 111001, 111010, 111011, 111100, 111101, 111110
+
+Condition Codes (15)
 AL {1} 
 EQ {Z=1}
 NE {Z=0}
@@ -90,11 +242,6 @@ LSL #imm5
 LSR #imm5
 ASR #imm5
 ROR #imm5
-RRX
-LSL xn
-LSR xn
-ASR xn
-ROR xn
 
 mem: memory address
 [reg, #simm12]
