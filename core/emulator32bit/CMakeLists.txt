@@ -9,16 +9,18 @@ project(
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
 	# source files (.cpp)
+	src/Emulator32bit.cpp
+	src/Memory.cpp
+	src/SystemBus.cpp
 )
 
-# include util library
-include (FetchContent)
+# rest is boilerplate to set up the build
+include(FetchContent)
 FetchContent_Declare(
-    util
-    SOURCE_DIR ../../util)
+	util
+	SOURCE_DIR ../../util)
 FetchContent_MakeAvailable(util)
 
-# rest is boilerplate to set up the build
 include(GNUInstallDirs)
 
 # sets the search paths for the include files after installation
