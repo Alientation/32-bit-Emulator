@@ -6,6 +6,8 @@
 #include "iostream"
 
 int main() {
+	lgr::Logger logger = lgr::create_logger("test_logger", true, true);
+	logger.log(lgr::Logger::LogType::INFO, "this is a message", "test_logger");
 
 	std::cout << "creating memory" << std::endl;
 	RAM* ram = new RAM(1024, 0, 1023);

@@ -60,13 +60,13 @@ namespace lgr {
 
 					std::string to_string() {
 						std::stringstream ss;
-						ss << "[" << std::put_time(std::localtime(&timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
+						ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
 						return ss.str();
 					}
 
 					std::string to_print_string() {
 						std::stringstream ss;
-						ss << "[" << std::put_time(std::localtime(&timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
+						ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
 						return ss.str();
 					}
 			};
