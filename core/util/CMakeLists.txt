@@ -10,6 +10,7 @@ add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
     src/Directory.cpp
     src/File.cpp
+	src/Logger.cpp
 )
 
 

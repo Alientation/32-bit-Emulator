@@ -10,7 +10,7 @@
  * @return A list of tokens
  */
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(File* srcFile) {
-    log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile->getFileName());
+    log(LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile->getFileName());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -18,7 +18,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File* srcFile) {
 	reader.close();
 
 	std::vector<Token>& tokens = tokenize(source_code);
-	log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile->getFileName());
+	log(LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile->getFileName());
 	return tokens;
 }
 
@@ -45,18 +45,18 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 				source_code = match.suffix();
 				matched = true;
 
-                // log(LOG, std::stringstream() << "Tokenizer::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
+                // log(LogType::Log, std::stringstream() << "Tokenizer::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
 				break;
 			}
 		}
 
 		// check if regex matched
-		EXPECT_TRUE(matched, ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
+		EXPECT_TRUE(matched, LogType::ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
 
 	// print out tokens
 	for (int i = 0; i < tokens->size(); i++) {
-		log(DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).toString());
+		log(LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).toString());
 	}
 
 	return *tokens;

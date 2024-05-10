@@ -10,7 +10,7 @@ Directory::Directory(std::string dirPath, bool createDirectoryIfNotPresent) {
 	this->dirPath = dirPath;
 
 	if (!isValidDirectoryPath(dirPath)) {
-		log(ERROR, std::stringstream() << "Directory::Directory() - Invalid directory path: " << dirPath);
+		log(LogType::ERROR, std::stringstream() << "Directory::Directory() - Invalid directory path: " << dirPath);
 	}
 
 	if (createDirectoryIfNotPresent && !exists()) {

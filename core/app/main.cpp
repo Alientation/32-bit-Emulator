@@ -19,7 +19,7 @@ void clearFile(std::string filePath) {
 }
 
 int main() {
-    log(TEST, std::stringstream() << "Testing Preprocessor");
+    log(LogType::TEST, std::stringstream() << "Testing Preprocessor");
 
     // test creating a file and its attributes
 	Process process = Process("-lib library1 -L .\\tests\\libs -I .\\tests\\include -o preprocessorTest .\\tests\\src\\preprocessorTest.basm");
