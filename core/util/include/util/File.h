@@ -2,9 +2,10 @@
 #ifndef FILE_H
 #define FILE_H
 
+#include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 class File;
 class FileWriter;
@@ -13,7 +14,7 @@ class FileReader;
 // TODO probably best to add some form of thread safe locking to the file operations
 class File {
 	public:
-		inline static const std::string SEPARATOR = "\\"; // todo prolly better to use std::filesystem::path::preferred_separator
+		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator); 
 
 		static bool isValidFileName(const std::string fileName) {
 			return fileName.find_first_of("\\/:*?\"<>|") == std::string::npos && fileName.size() > 0;

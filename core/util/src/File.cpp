@@ -2,7 +2,6 @@
 #include "util/Logger.h"
 
 #include <fstream>
-#include <filesystem>
 
 /**
  * Constructs a file object with the given file name and directory.
