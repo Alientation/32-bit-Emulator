@@ -6,6 +6,7 @@
 #include "util/File.h"
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -24,45 +25,9 @@ namespace lgr {
 	
 	class Logger {
 		public:
-			/**
-			 * Hold configuration information about a specific logger.
-			 */
-			class CONFIG {
-				friend class Logger;
-				public:
-					CONFIG();
-					~CONFIG();
-
-					CONFIG* output_file(std::string output_file);
-					CONFIG* print_logs(bool print_logs = true);
-					CONFIG* throw_on_error(bool throw_on_error = true);
-				private:
-					std::string _output_file;
-					bool _print_logs;
-					bool _throw_on_error;
-			};
-
 			enum class LogType {
 				LOG, ERROR, WARN, INFO, DEBUG, TEST
 			};
-			static std::string LOGTYPE_TO_STRING(Logger::LogType log_type);
-			static std::string LOGTYPE_TO_PRINT(Logger::LogType log_type);
-
-			Logger(CONFIG config);
-			~Logger();
-
-			void log(Logger::LogType logType, std::string msg, std::string group = "");
-			void EXPECT_TRUE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
-			void EXPECT_FALSE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
-			void dump(FileWriter &writer, const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
-			
-			static void dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids = {},
-					const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
-
-		private:
-			FileWriter* file_writer;
-			File* log_file;
-			CONFIG _config;
 
 			class LogMessage {
 				public:
@@ -87,7 +52,46 @@ namespace lgr {
 						return ss.str();
 					}
 			};
+
+			/**
+			 * Hold configuration information about a specific logger.
+			 */
+			class CONFIG {
+				friend class Logger;
+				public:
+					CONFIG();
+					~CONFIG();
+
+					CONFIG& output_file(std::string output_file);
+					CONFIG& print_logs(bool print_logs = true, std::function<std::string(Logger::LogMessage)> print_log_func = {});
+					CONFIG& throw_on_error(bool throw_on_error = true);
+				private:
+					std::string _output_file;
+					bool _print_logs;
+					bool _throw_on_error;
+
+					std::function<std::string(Logger::LogMessage)> _print_log_func;
+			};
+
+			static std::string LOGTYPE_TO_STRING(Logger::LogType log_type);
+			static std::string LOGTYPE_TO_PRINT(Logger::LogType log_type);
+
+			Logger(CONFIG config);
+			~Logger();
+
+			void log(Logger::LogType logType, std::string msg, std::string group = "");
+			void EXPECT_TRUE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
+			void EXPECT_FALSE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
+			void dump(FileWriter &writer, const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
 			
+			static void dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids = {},
+					const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
+
+		private:
+			FileWriter* file_writer;
+			File* log_file;
+			CONFIG _config;
+
 			std::vector<LogMessage> logs;
 	};
 

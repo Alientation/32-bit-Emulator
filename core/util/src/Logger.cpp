@@ -17,19 +17,20 @@ namespace lgr {
 
 	}
 
-	Logger::CONFIG* Logger::CONFIG::output_file(std::string output_file) {
+	Logger::CONFIG& Logger::CONFIG::output_file(std::string output_file) {
 		this->_output_file = output_file;
-		return this;
+		return *this;
 	}
 
-	Logger::CONFIG* Logger::CONFIG::print_logs(bool print_logs) {
+	Logger::CONFIG& Logger::CONFIG::print_logs(bool print_logs, std::function<std::string(Logger::LogMessage)> print_log_func) {
 		this->_print_logs = print_logs;
-		return this;
+		this->_print_log_func = print_log_func;
+		return *this;
 	}
 
-	Logger::CONFIG* Logger::CONFIG::throw_on_error(bool throw_on_error) {
+	Logger::CONFIG& Logger::CONFIG::throw_on_error(bool throw_on_error) {
 		this->_throw_on_error = throw_on_error;
-		return this;
+		return *this;
 	}
 
 	std::map<std::string, Logger*> loggers;
@@ -152,7 +153,11 @@ namespace lgr {
 		}
 
 		if (this->_config._print_logs) {
-			std::cout << log.to_print_string() << std::endl;
+			if (this->_config._print_log_func) {
+				std::cout << (this->_config._print_log_func)(log);
+			} else {
+				std::cout << log.to_print_string() << std::endl;
+			}
 		}
 	}
 
