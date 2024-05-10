@@ -89,7 +89,7 @@ static std::string stringifyHex(u8 hex) {
  * @return the pretty stringified value
  */
 static std::string prettyStringifyValue(std::string string) {
-    std::string result = GRAY;
+    std::string result = ccolor::GRAY;
     auto iterator = string.begin();
     if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#') {
         iterator++;
@@ -102,13 +102,13 @@ static std::string prettyStringifyValue(std::string string) {
     }
 
 	// bold the remaining digits
-    result += BOLD_WHITE;
+    result += ccolor::BOLD_WHITE;
     while (iterator != string.end()) {
         result += *iterator;
         iterator++;
     }
 
-    result += RESET;
+    result += ccolor::RESET;
     return result;
 }
 

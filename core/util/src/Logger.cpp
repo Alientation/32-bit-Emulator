@@ -29,7 +29,7 @@ namespace lgr {
 
 	std::string Logger::LOGTYPE_TO_PRINT(Logger::LogType log_type) {
 		std::string log_name = Logger::LOGTYPE_TO_STRING(log_type);
-
+		using namespace ccolor;
 		switch(log_type) {
 			case Logger::LogType::LOG:
 				return BOLD + WHITE + log_name + RESET;

@@ -78,6 +78,7 @@ enum class LogType {
  */
 static void log(LogType logType, std::stringstream msg) {
 	// construct the log header
+	using namespace ccolor;
 	std::string logTypeStr;
 	switch (logType) {
 	case LogType::LOG:
