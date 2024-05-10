@@ -88,6 +88,11 @@ namespace lgr {
 			file_writer->writeString(ss.str());
 		}
 
+		if (this->throw_on_error && log_type == Logger::LogType::ERROR) {
+			std::cerr << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(log_type) << "]: " << msg << std::endl;
+			exit(EXIT_FAILURE);
+		}
+
 		if (this->print_logs) {
 			std::cout << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(log_type) << "]: " << msg << std::endl;
 		}
