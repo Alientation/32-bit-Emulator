@@ -24,13 +24,31 @@ namespace lgr {
 	
 	class Logger {
 		public:
+			/**
+			 * Hold configuration information about a specific logger.
+			 */
+			class CONFIG {
+				friend class Logger;
+				public:
+					CONFIG();
+					~CONFIG();
+
+					CONFIG* output_file(std::string output_file);
+					CONFIG* print_logs(bool print_logs = true);
+					CONFIG* throw_on_error(bool throw_on_error = true);
+				private:
+					std::string _output_file;
+					bool _print_logs;
+					bool _throw_on_error;
+			};
+
 			enum class LogType {
 				LOG, ERROR, WARN, INFO, DEBUG, TEST
 			};
 			static std::string LOGTYPE_TO_STRING(Logger::LogType log_type);
 			static std::string LOGTYPE_TO_PRINT(Logger::LogType log_type);
 
-			Logger(bool print_logs, bool throw_on_error, const std::string &log_file_path);
+			Logger(CONFIG config);
 			~Logger();
 
 			void log(Logger::LogType logType, std::string msg, std::string group = "");
@@ -44,8 +62,7 @@ namespace lgr {
 		private:
 			FileWriter* file_writer;
 			File* log_file;
-			bool print_logs;
-			bool throw_on_error;
+			CONFIG _config;
 
 			class LogMessage {
 				public:
@@ -74,9 +91,8 @@ namespace lgr {
 			std::vector<LogMessage> logs;
 	};
 
-	Logger get_logger(const std::string &logger_id);
-	Logger create_logger(const std::string &logger_id, bool print_logs, bool throw_on_error, const std::string &log_file_path = "");
-	
+	Logger* get_logger(const std::string &logger_id);
+	Logger* create_logger(const std::string &logger_id, Logger::CONFIG config);
 };
 
 

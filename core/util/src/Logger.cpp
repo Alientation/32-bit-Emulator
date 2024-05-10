@@ -7,6 +7,31 @@
 #include <map>
 
 namespace lgr {
+	Logger::CONFIG::CONFIG() {
+		this->_output_file = "";
+		this->_print_logs = true;
+		this->_throw_on_error = true;
+	}
+
+	Logger::CONFIG::~CONFIG() {
+
+	}
+
+	Logger::CONFIG* Logger::CONFIG::output_file(std::string output_file) {
+		this->_output_file = output_file;
+		return this;
+	}
+
+	Logger::CONFIG* Logger::CONFIG::print_logs(bool print_logs) {
+		this->_print_logs = print_logs;
+		return this;
+	}
+
+	Logger::CONFIG* Logger::CONFIG::throw_on_error(bool throw_on_error) {
+		this->_throw_on_error = throw_on_error;
+		return this;
+	}
+
 	std::map<std::string, Logger*> loggers;
 
 	std::string Logger::LOGTYPE_TO_STRING(Logger::LogType log_type) {
@@ -49,17 +74,17 @@ namespace lgr {
 		}
 	}
 
-	Logger get_logger(const std::string &logger_id) {
+	Logger* get_logger(const std::string &logger_id) {
 		if (loggers.find(logger_id) == loggers.end()) {
-			create_logger(logger_id, true, true);
+			create_logger(logger_id, Logger::CONFIG());
 		}
-		return *loggers.at(logger_id);
+		return loggers.at(logger_id);
 	}
 
-	Logger create_logger(const std::string &logger_id, bool print_logs, bool throw_on_error, const std::string &log_file_path) {
-		Logger* logger = new Logger(print_logs, throw_on_error, log_file_path);
+	Logger* create_logger(const std::string &logger_id, Logger::CONFIG config) {
+		Logger *logger = new Logger(config);
 		loggers[logger_id] = logger;
-		return *logger;
+		return logger;
 	}
 
 	void Logger::dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids, 
@@ -96,14 +121,14 @@ namespace lgr {
 		}
 	}
 
-	Logger::Logger(bool print_logs, bool throw_on_error, const std::string &log_file_path) {
-		this->print_logs = print_logs;
-		this->throw_on_error = throw_on_error;
-		if (log_file_path.empty()) {
+	Logger::Logger(CONFIG config) {
+		this->_config = config;
+
+		if (this->_config._output_file.empty()) {
 			file_writer = nullptr;
 			log_file = nullptr;
 		} else {
-			log_file = new File(log_file_path);
+			log_file = new File(this->_config._output_file);
 			file_writer = new FileWriter(log_file);
 		}
 	}
@@ -121,12 +146,12 @@ namespace lgr {
 			file_writer->writeString(log.to_string() + "\n");
 		}
 
-		if (this->throw_on_error && log_type == Logger::LogType::ERROR) {
+		if (this->_config._throw_on_error && log_type == Logger::LogType::ERROR) {
 			std::cerr << log.to_print_string() << std::endl;
 			exit(EXIT_FAILURE);
 		}
 
-		if (this->print_logs) {
+		if (this->_config._print_logs) {
 			std::cout << log.to_print_string() << std::endl;
 		}
 	}
