@@ -37,6 +37,9 @@ namespace lgr {
 			void EXPECT_TRUE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
 			void EXPECT_FALSE(bool condition, Logger::LogType logType, std::string msg, std::string group = "");
 			void dump(FileWriter &writer, const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
+			
+			static void dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids = {},
+					const std::set<Logger::LogType> &queried_log_types = {}, const std::set<std::string> &queried_log_groups = {});
 
 		private:
 			FileWriter* file_writer;
@@ -46,14 +49,26 @@ namespace lgr {
 
 			class LogMessage {
 				public:
-					const Logger::LogType logType;
-					const std::string group;
-					const std::string msg;
-					const std::time_t timestamp;
+					Logger::LogType logType;
+					std::string group;
+					std::string msg;
+					std::time_t timestamp;
 
 					LogMessage(Logger::LogType logType, std::string msg, std::string group) : logType(logType), msg(msg), 
 							timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())),
 							group(group) {}
+
+					std::string to_string() {
+						std::stringstream ss;
+						ss << "[" << std::put_time(std::localtime(&timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
+						return ss.str();
+					}
+
+					std::string to_print_string() {
+						std::stringstream ss;
+						ss << "[" << std::put_time(std::localtime(&timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
+						return ss.str();
+					}
 			};
 			
 			std::vector<LogMessage> logs;
@@ -61,6 +76,7 @@ namespace lgr {
 
 	Logger get_logger(const std::string &logger_id);
 	Logger create_logger(const std::string &logger_id, bool print_logs, bool throw_on_error, const std::string &log_file_path = "");
+	
 };
 
 

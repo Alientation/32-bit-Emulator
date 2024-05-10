@@ -1,6 +1,7 @@
 #include "util/Logger.h"
 #include "util/File.h"
 
+#include <algorithm>
 #include <format>
 #include <iomanip>
 #include <map>
@@ -61,6 +62,40 @@ namespace lgr {
 		return *logger;
 	}
 
+	void Logger::dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids, 
+			const std::set<Logger::LogType> &queried_log_types, const std::set<std::string> &queried_log_groups) {
+		std::vector<Logger::LogMessage> sorted_logs;
+
+		for (const std::string& log_id : queried_log_ids) {
+			if (loggers.find(log_id) == loggers.end()) {
+				continue;
+			}
+
+			for (Logger::LogMessage& log : loggers.at(log_id)->logs) {
+				if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
+					(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
+					sorted_logs.push_back(log);
+				}
+			}
+		}
+
+		std::sort(sorted_logs.begin(), sorted_logs.end(), [](const Logger::LogMessage& lhs, const Logger::LogMessage& rhs) {
+			if (lhs.timestamp != rhs.timestamp) {
+				return std::difftime(lhs.timestamp, rhs.timestamp) < 0;
+			} else if (lhs.group != rhs.group) {
+				return lhs.group.compare(rhs.group) < 0;
+			} else if (lhs.logType != rhs.logType) {
+				return lhs.logType < rhs.logType;
+			} else {
+				return true;
+			}
+		});
+
+		for (LogMessage log : sorted_logs) {
+			writer.writeString(log.to_string() + "\n");
+		}
+	}
+
 	Logger::Logger(bool print_logs, bool throw_on_error, const std::string &log_file_path) {
 		this->print_logs = print_logs;
 		this->throw_on_error = throw_on_error;
@@ -83,18 +118,16 @@ namespace lgr {
 		logs.push_back(log);
 
 		if (file_writer != nullptr) {
-			std::stringstream ss;
-			ss << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(log_type) << "]: " << msg << std::endl;
-			file_writer->writeString(ss.str());
+			file_writer->writeString(log.to_string() + "\n");
 		}
 
 		if (this->throw_on_error && log_type == Logger::LogType::ERROR) {
-			std::cerr << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(log_type) << "]: " << msg << std::endl;
+			std::cerr << log.to_print_string() << std::endl;
 			exit(EXIT_FAILURE);
 		}
 
 		if (this->print_logs) {
-			std::cout << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(log_type) << "]: " << msg << std::endl;
+			std::cout << log.to_print_string() << std::endl;
 		}
 	}
 
@@ -115,9 +148,7 @@ namespace lgr {
 		for (LogMessage log : logs) {
 			if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
 				(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
-				std::stringstream ss;
-				ss << "[" << std::put_time(std::localtime(&log.timestamp), "%T") << "] [" << log.group << ":" << Logger::LOGTYPE_TO_STRING(log.logType) << "]: " << log.msg << std::endl;
-				writer.writeString(ss.str());
+				writer.writeString(log.to_string() + "\n");
 			}
 		}
 	}

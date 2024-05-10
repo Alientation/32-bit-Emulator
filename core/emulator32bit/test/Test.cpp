@@ -6,7 +6,6 @@
 #include "iostream"
 
 int main() {
-	lgr::Logger logger = lgr::Logger("");
 
 	std::cout << "creating memory" << std::endl;
 	RAM* ram = new RAM(1024, 0, 1023);
