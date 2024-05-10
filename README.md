@@ -18,4 +18,5 @@ Planning on working bit by bit on improving test coverage in between development
 
 ## How to build
 Run the build.bat or build.sh script located in the app subdirectory which will configure and build the project
+*Uses Ninja and C++17 to build
 
