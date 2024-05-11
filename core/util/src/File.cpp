@@ -1,5 +1,5 @@
-#include "util/File.h"
-#include "util/Logger.h"
+#include <util/File.h>
+#include <util/Logger.h>
 
 #include <fstream>
 
@@ -168,8 +168,11 @@ FileWriter::~FileWriter() {
  * @param text the string to write
  */
 void FileWriter::writeString(const std::string text) {
+	if (this->closed) {
+		exit(EXIT_FAILURE);
+	}
+	
 	(*this->fileStream) << text;
-
     for (int i = 0; i < text.size(); i++) {
         this->bytes_written.push_back(text[i]);
     }
@@ -181,6 +184,10 @@ void FileWriter::writeString(const std::string text) {
  * @param byte the byte to write
  */
 void FileWriter::writeByte(const char byte) {
+	if (this->closed) {
+		exit(EXIT_FAILURE);
+	}
+
 	(*this->fileStream) << byte;
 
     this->bytes_written.push_back(byte);
@@ -192,6 +199,10 @@ void FileWriter::writeByte(const char byte) {
  * @param bytes the byte array to write
  */
 void FileWriter::writeBytes(char* bytes) {
+	if (this->closed) {
+		exit(EXIT_FAILURE);
+	}
+
 	(*this->fileStream) << bytes;
 
     int size = sizeof(bytes);
@@ -216,6 +227,15 @@ char* FileWriter::lastBytesWritten(unsigned int numBytes) {
     }
 
     return bytes;
+}
+
+void FileWriter::flush() {
+	if (this->closed) {
+		// error
+		exit(EXIT_FAILURE);
+	}
+
+	fileStream->flush();
 }
 
 

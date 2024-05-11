@@ -1,5 +1,5 @@
-#include "util/Logger.h"
-#include "util/File.h"
+#include <util/Logger.h>
+#include <util/File.h>
 
 #include <algorithm>
 #include <format>
@@ -7,32 +7,6 @@
 #include <map>
 
 namespace lgr {
-	Logger::CONFIG::CONFIG() {
-		this->_output_file = "";
-		this->_print_logs = true;
-		this->_throw_on_error = true;
-	}
-
-	Logger::CONFIG::~CONFIG() {
-
-	}
-
-	Logger::CONFIG& Logger::CONFIG::output_file(std::string output_file) {
-		this->_output_file = output_file;
-		return *this;
-	}
-
-	Logger::CONFIG& Logger::CONFIG::print_logs(bool print_logs, std::function<std::string(Logger::LogMessage)> print_log_func) {
-		this->_print_logs = print_logs;
-		this->_print_log_func = print_log_func;
-		return *this;
-	}
-
-	Logger::CONFIG& Logger::CONFIG::throw_on_error(bool throw_on_error) {
-		this->_throw_on_error = throw_on_error;
-		return *this;
-	}
-
 	std::map<std::string, Logger*> loggers;
 
 	std::string Logger::LOGTYPE_TO_STRING(Logger::LogType log_type) {
@@ -75,6 +49,39 @@ namespace lgr {
 		}
 	}
 
+
+	Logger::CONFIG::CONFIG() {
+		this->_output_file = "";
+		this->_print_logs = true;
+		this->_throw_on_error = true;
+	}
+
+	Logger::CONFIG::~CONFIG() {
+
+	}
+
+	Logger::CONFIG& Logger::CONFIG::output_file(std::string output_file) {
+		this->_output_file = output_file;
+		return *this;
+	}
+
+	Logger::CONFIG& Logger::CONFIG::print_logs(bool print_logs, std::function<std::string(Logger::LogMessage)> print_log_func) {
+		this->_print_logs = print_logs;
+		this->_print_log_func = print_log_func;
+		return *this;
+	}
+
+	Logger::CONFIG& Logger::CONFIG::throw_on_error(bool throw_on_error) {
+		this->_throw_on_error = throw_on_error;
+		return *this;
+	}
+
+	Logger::CONFIG& Logger::CONFIG::flush_every_log(bool flush_every_log) {
+		this->_flush_every_log = flush_every_log;
+		return *this;
+	}
+
+
 	Logger* get_logger(const std::string &logger_id) {
 		if (loggers.find(logger_id) == loggers.end()) {
 			create_logger(logger_id, Logger::CONFIG());
@@ -83,8 +90,17 @@ namespace lgr {
 	}
 
 	Logger* create_logger(const std::string &logger_id, Logger::CONFIG config) {
-		Logger *logger = new Logger(config);
+		Logger *logger = new Logger(logger_id, config);
 		loggers[logger_id] = logger;
+		return logger;
+	}
+
+	Logger* remove_logger(const std::string &logger_id) {
+		if (loggers.find(logger_id) == loggers.end()) {
+			return nullptr;
+		}
+		Logger* logger = loggers.at(logger_id);
+		loggers.erase(logger_id);
 		return logger;
 	}
 
@@ -97,7 +113,7 @@ namespace lgr {
 				continue;
 			}
 
-			for (Logger::LogMessage& log : loggers.at(log_id)->logs) {
+			for (Logger::LogMessage& log : loggers.at(log_id)->_logs) {
 				if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
 					(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
 					sorted_logs.push_back(log);
@@ -122,29 +138,37 @@ namespace lgr {
 		}
 	}
 
-	Logger::Logger(CONFIG config) {
-		this->_config = config;
 
-		if (this->_config._output_file.empty()) {
-			file_writer = nullptr;
-			log_file = nullptr;
+	Logger::Logger(std::string logger_id, CONFIG config) {
+		_logger_id = logger_id;
+		_config = config;
+
+		if (_config._output_file.empty()) {
+			_file_writer = nullptr;
+			_log_file = nullptr;
 		} else {
-			log_file = new File(this->_config._output_file);
-			file_writer = new FileWriter(log_file);
+			_log_file = new File(_config._output_file);
+			_file_writer = new FileWriter(_log_file);
 		}
 	}
 
 	Logger::~Logger() {
-		delete file_writer;
-		delete log_file;
-	}
+		loggers.erase(_logger_id);
 
+		delete _file_writer;
+		delete _log_file;
+	}
+	
+	
 	void Logger::log(Logger::LogType log_type, std::string msg, std::string group) {
 		Logger::LogMessage log(log_type, msg, group);
-		logs.push_back(log);
+		_logs.push_back(log);
 
-		if (file_writer != nullptr) {
-			file_writer->writeString(log.to_string() + "\n");
+		if (_file_writer != nullptr) {
+			_file_writer->writeString(log.to_string() + "\n");
+			if (_config._flush_every_log) {
+				_file_writer->flush();
+			}
 		}
 
 		if (this->_config._throw_on_error && log_type == Logger::LogType::ERROR) {
@@ -173,9 +197,15 @@ namespace lgr {
 		}
 	}
 
+	void Logger::flush() {
+		if (_file_writer) {
+			_file_writer->flush();
+		}
+	}
+
 	void Logger::dump(FileWriter &writer, const std::set<Logger::LogType> &queried_log_types, 
 			const std::set<std::string> &queried_log_groups) {
-		for (LogMessage log : logs) {
+		for (LogMessage log : _logs) {
 			if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
 				(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
 				writer.writeString(log.to_string() + "\n");

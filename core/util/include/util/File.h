@@ -58,6 +58,7 @@ class FileWriter {
 		void writeBytes(char* bytes);
         char lastByteWritten();
         char* lastBytesWritten(unsigned int numBytes);
+		void flush();
 		void close();
 	private:
 		File* file;

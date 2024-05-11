@@ -8,7 +8,7 @@
 int main() {
 	lgr::Logger *logger = lgr::create_logger("test_logger", lgr::Logger::CONFIG().print_logs(true, [](lgr::Logger::LogMessage log) {
 		return "[log] " + log.msg + "\n";
-	}));
+	}).output_file(".\\files\\test_logger.log"));
 	logger->log(lgr::Logger::LogType::INFO, "this is a message", "test_logger");
 
 	std::cout << "creating memory" << std::endl;
