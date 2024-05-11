@@ -54,6 +54,7 @@ namespace lgr {
 		this->_output_file = "";
 		this->_print_logs = true;
 		this->_throw_on_error = true;
+		this->_flush_every_log = true;
 	}
 
 	Logger::CONFIG::~CONFIG() {
