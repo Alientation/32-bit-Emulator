@@ -25,7 +25,7 @@ Preprocessor::Preprocessor(Process* process, File* inputFile, std::string output
         m_outputFile = new File(outputFilePath, true);
 	}
 
-	EXPECT_TRUE(m_process->isValidSourceFile(inputFile), LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
+	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
 
 	m_state = State::UNPROCESSED;
 	m_tokens = Tokenizer::tokenize(inputFile);
@@ -46,9 +46,9 @@ Preprocessor::~Preprocessor() {
  * Preprocesses the file.
  */
 void Preprocessor::preprocess() {
-	log(LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile->getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile->getFileName());
 
-	EXPECT_TRUE(m_state == State::UNPROCESSED, LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
+	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
     // clearing intermediate output file
@@ -64,8 +64,8 @@ void Preprocessor::preprocess() {
 	int targetIndentLevel = 0;
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        // log(LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
-		log(LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.toString());
+        // lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.toString());
         
         // skip back to back newlines
         if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
@@ -130,7 +130,7 @@ void Preprocessor::preprocess() {
 
                 // check if the symbol has a definition with the same number of parameters
                 if (m_definedSymbols.at(symbol).find(parameters.size()) == m_definedSymbols.at(symbol).end()) {
-                    log(LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
+                    lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
                 }
 
                 // replace all occurances of a parameter with the value passed in as the parameter
@@ -166,11 +166,11 @@ void Preprocessor::preprocess() {
 	m_writer->close();
     delete m_writer;
 
-	log(LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile->getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile->getFileName());
 
     // log macros
     for (std::pair<std::string, Macro*> macroPair : m_macros) {
-        log(LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macroPair.second->toString());
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macroPair.second->toString());
     }
 }
 
@@ -229,13 +229,13 @@ void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& toke
  * @param errorMsg the error message to throw if the token does not exist.
  */
 bool Preprocessor::expectToken(int tokenI, const std::string& errorMsg) {
-	EXPECT_TRUE(inBounds(tokenI), LogType::ERROR, std::stringstream(errorMsg));
+	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
 
 bool Preprocessor::expectToken(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	EXPECT_TRUE(inBounds(tokenI), LogType::ERROR, std::stringstream(errorMsg));
-	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), LogType::ERROR, std::stringstream(errorMsg));
+	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
+	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
 
@@ -287,7 +287,7 @@ Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg
  */
 Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
+	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
     return m_tokens[tokenI++];
 }
 
@@ -327,7 +327,7 @@ void Preprocessor::_include(int& tokenI) {
             if (directory->subfileExists(systemFilePath)) {
 				if (foundSystemFile) {
 					// already found file
-					log(LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
+					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
 				}
 
                 fullPathFromWorkingDirectory = directory->getDirectoryPath() + File::SEPARATOR + systemFilePath;
@@ -336,13 +336,13 @@ void Preprocessor::_include(int& tokenI) {
         }
 
 		if (!foundSystemFile) {
-			log(LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << systemFilePath);
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << systemFilePath);
 		}
 	}
 
 	// process included file
 	File* includeFile = new File(fullPathFromWorkingDirectory);
-	EXPECT_TRUE(includeFile->exists(), LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
+	lgr::EXPECT_TRUE(includeFile->exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
 	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile->getFilePath());
@@ -416,7 +416,7 @@ void Preprocessor::_macro(int& tokenI) {
     consume(tokenI, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
 
     // check if macro declaration is unique
-	EXPECT_TRUE(m_macros.find(macro->header()) == m_macros.end(), LogType::ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
+	lgr::EXPECT_TRUE(m_macros.find(macro->header()) == m_macros.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
 
     // add macro to list of macros
     m_macros.insert(std::pair<std::string,Macro*>(macro->header(), macro));
@@ -438,7 +438,7 @@ void Preprocessor::_macret(int& tokenI) {
 
 	std::vector<Tokenizer::Token> return_value;
 	if (m_macroStack.empty()) {
-		log(LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
 	}
 
 	// macro contains a return value
@@ -468,7 +468,7 @@ void Preprocessor::_macret(int& tokenI) {
 	}
 
 	if (currentRelativeScopeLevel != 0) {
-		log(LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unclosed scope.");
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unclosed scope.");
 	}
 
 	// add'.equ current_macro_output_symbol expression' to tokens
@@ -495,7 +495,7 @@ void Preprocessor::_macret(int& tokenI) {
  */
 void Preprocessor::_macend(int& tokenI) {
     // should never reach this. This should be consumed by the _macro function.
-    log(LogType::ERROR, std::stringstream() << "Preprocessor::_macend() - Unexpected macro end token.");
+    lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macend() - Unexpected macro end token.");
 }
 
 /**
@@ -545,9 +545,9 @@ void Preprocessor::_invoke(int& tokenI) {
 	// check if macro exists
 	std::vector<Macro*> possibleMacros = macrosWithHeader(macroName, arguments);
 	if (possibleMacros.size() == 0) {
-		log(LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macroName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macroName);
 	} else if (possibleMacros.size() > 1) {
-		log(LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macroName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macroName);
 	}
 	Macro* macro = possibleMacros[0];
 
@@ -585,7 +585,7 @@ void Preprocessor::_invoke(int& tokenI) {
 	for (Tokenizer::Token& token : expanded_macro_invoke) {
 		ss << token.value;
 	}
-	log(LogType::DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
 
 	// insert into the tokens list
 	m_tokens.insert(m_tokens.begin() + tokenI, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
@@ -621,7 +621,7 @@ void Preprocessor::_define(int& tokenI) {
             std::string parameter = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.").value;
             
             // ensure the parameter symbol has not been used before in this definition parameters
-            EXPECT_TRUE(ensureUniqueParameters.find(parameter) == ensureUniqueParameters.end(), LogType::ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);            
+            lgr::EXPECT_TRUE(ensureUniqueParameters.find(parameter) == ensureUniqueParameters.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);            
             parameters.push_back(parameter);
             ensureUniqueParameters.insert(parameter);
 
@@ -705,12 +705,12 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
     }
 
     if ((conditionMet && endIfTokenI == -1) || (!conditionMet && nextBlockTokenI == -1)) {
-        log(LogType::DEBUG, std::stringstream() << "condition=" << conditionMet << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
-        log(LogType::ERROR, std::stringstream() << "Preprocessor::conditionalBlock() - Unclosed conditional block." );
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "condition=" << conditionMet << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::conditionalBlock() - Unclosed conditional block." );
     }
 
     if (conditionMet) {
-        log(LogType::DEBUG, std::stringstream() << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
         
         if (nextBlockTokenI != -1) {
             // remove all tokens from the next block to the endif
@@ -758,7 +758,7 @@ void Preprocessor::_conditionalOnDefinition(int& tokenI) {
     } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFNDEF || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
         conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
     } else {
-        log(LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnDefinition() - Unexpected conditional token: " << conditionalToken.value);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnDefinition() - Unexpected conditional token: " << conditionalToken.value);
     }
 }
 
@@ -817,7 +817,7 @@ void Preprocessor::_conditionalOnValue(int& tokenI) {
     } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFMORE || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
         conditionalBlock(tokenI, symbolValue > value);
     } else {
-        log(LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnValue() - Unexpected conditional token: " << conditionalToken.value);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnValue() - Unexpected conditional token: " << conditionalToken.value);
     }
 }
 

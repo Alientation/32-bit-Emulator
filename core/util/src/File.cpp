@@ -20,11 +20,11 @@ File::File(const std::string fileName, const std::string fileExtension, const st
 	}
 
 	if (!isValidFileName(fileName)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
 	} else if (!isValidFileExtension(fileExtension)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
 	} else if (!isValidFileDirectory(fileDirectory)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
 	}
 
 	if (createFileIfNotPresent && !exists()) {
@@ -40,7 +40,7 @@ File::File(const std::string fileName, const std::string fileExtension, const st
 File::File(const std::string filePath, bool createFileIfNotPresent) {
 	std::size_t extensionSeparatorIndex = filePath.find_last_of(".");
 	if (extensionSeparatorIndex == std::string::npos) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << filePath);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << filePath);
 	}
 
 	std::string fileNameAndExtension = filePath.substr(filePath.find_last_of(SEPARATOR) + 1);
@@ -49,11 +49,11 @@ File::File(const std::string filePath, bool createFileIfNotPresent) {
 	this->fileDirectory = filePath.substr(0, filePath.find_last_of(SEPARATOR));
 
 	if (!isValidFileName(fileName)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
 	} else if (!isValidFileExtension(fileExtension)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
 	} else if (!isValidFileDirectory(fileDirectory)) {
-		log(LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
 	}
 
 	if (createFileIfNotPresent && !exists()) {
@@ -151,7 +151,7 @@ FileWriter::FileWriter(File* file) {
 	this->closed = false;
 
 	if (!this->fileStream->good()) {
-		log(LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file->getFilePath());
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file->getFilePath());
 	}
 }
 
@@ -263,7 +263,7 @@ FileReader::FileReader(File* file) {
 	this->closed = false;
 
 	if (!this->fileStream->good()) {
-		log(LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << file->getFilePath());
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << file->getFilePath());
 	}
 }
 
@@ -317,7 +317,7 @@ char* FileReader::readBytes(const unsigned int numBytes) {
 	this->fileStream->read(bytes, numBytes);
 
 	if (fileStream->fail()) {
-		log(LogType::ERROR, std::stringstream() << "FileReader::readBytes() - Failed to read " << 
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::readBytes() - Failed to read " << 
 				numBytes << " bytes from file: " << this->file->getFilePath());
 	}
 

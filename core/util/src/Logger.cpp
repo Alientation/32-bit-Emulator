@@ -119,6 +119,22 @@ namespace lgr {
 		return logger;
 	}
 
+	void log(Logger::LogType log_type, const std::string& msg, const std::string& group) {
+		get_logger("")->log(log_type, msg, group);
+	}
+
+	void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->log(log_type, msg, group);
+	}
+
+	void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->EXPECT_TRUE(condition, logType, msg, group);
+	}
+
+	void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->EXPECT_FALSE(condition, logType, msg, group);
+	}
+
 	void Logger::dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids, 
 			const std::set<Logger::LogType> &queried_log_types, const std::set<std::string> &queried_log_groups) {
 		std::vector<Logger::LogMessage> sorted_logs;
@@ -175,7 +191,7 @@ namespace lgr {
 	}
 	
 	
-	void Logger::log(Logger::LogType log_type, std::string msg, std::string group) {
+	void Logger::log(Logger::LogType log_type, const std::string& msg, const std::string& group) {
 		Logger::LogMessage log(log_type, msg, group);
 		_logs.push_back(log);
 
@@ -200,13 +216,17 @@ namespace lgr {
 		}
 	}
 
-	void Logger::EXPECT_TRUE(bool condition, Logger::LogType logType, std::string msg, std::string group) {
+	void Logger::log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
+		this->log(log_type, msg.str(), group);
+	}
+
+	void Logger::EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
 		if (!condition) {
 			log(logType, msg, group);
 		}
 	}
 
-	void Logger::EXPECT_FALSE(bool condition, Logger::LogType logType, std::string msg, std::string group) {
+	void Logger::EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
 		if (condition) {
 			log(logType, msg, group);
 		}
