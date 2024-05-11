@@ -40,17 +40,8 @@ namespace lgr {
 							timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())),
 							group(group) {}
 
-					std::string to_string() {
-						std::stringstream ss;
-						ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
-						return ss.str();
-					}
-
-					std::string to_print_string() {
-						std::stringstream ss;
-						ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
-						return ss.str();
-					}
+					std::string to_string();
+					std::string to_print_string();
 			};
 
 			/**

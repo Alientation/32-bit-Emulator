@@ -49,6 +49,18 @@ namespace lgr {
 		}
 	}
 
+	std::string Logger::LogMessage::to_string() {
+		std::stringstream ss;
+		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
+		return ss.str();
+	}
+
+	std::string Logger::LogMessage::to_print_string() {
+		std::stringstream ss;
+		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" << group << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
+		return ss.str();
+	}
+
 
 	Logger::CONFIG::CONFIG() {
 		this->_output_file = "";
