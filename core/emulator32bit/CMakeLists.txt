@@ -10,6 +10,7 @@ add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
 	# source files (.cpp)
 	src/Emulator32bit.cpp
+	src/Instructions.cpp
 	src/Memory.cpp
 	src/SystemBus.cpp
 )

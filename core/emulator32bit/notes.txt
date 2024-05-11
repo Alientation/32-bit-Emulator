@@ -206,6 +206,7 @@ B{CD} imm24 (B)
 BL{CD} imm24 (B)
 	- op: 101110
 BX{CD} xd (B)
+	- BX 29 equivalent to ret
 	- op: 101111
 BLX{CD} xd (B)
 	- op: 110000

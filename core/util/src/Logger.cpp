@@ -6,6 +6,10 @@
 #include <iomanip>
 #include <map>
 
+#undef log
+#undef EXPECT_TRUE
+#undef EXPECT_FALSE
+
 namespace lgr {
 	std::map<std::string, Logger*> loggers;
 
@@ -14,17 +18,17 @@ namespace lgr {
 			case Logger::LogType::LOG:
 				return "LOG";
 			case Logger::LogType::ERROR:
-				return "ERROR";
+				return "ERR";
 			case Logger::LogType::WARN:
-				return "WARN";
+				return "WRN";
 			case Logger::LogType::INFO:
-				return "INFO";
+				return "INF";
 			case Logger::LogType::DEBUG:
-				return "DEBUG";
+				return "DBG";
 			case Logger::LogType::TEST:
-				return "TEST";
+				return "TST";
 			default:
-				return "UNKNOWN";
+				return "UNK";
 		}
 	}
 
@@ -51,8 +55,8 @@ namespace lgr {
 
 	std::string Logger::LogMessage::to_string() {
 		std::stringstream ss;
-		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] [" 
-			<< group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
+		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] ["
+			<< file << ":" << line_num << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
 		return ss.str();
 	}
 
@@ -119,34 +123,39 @@ namespace lgr {
 		return logger;
 	}
 
-	void log(Logger::LogType log_type, const std::string& msg, const std::string& group) {
-		get_logger("")->log(log_type, msg, group);
+	void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group) {
+		get_logger("")->log_f(file, func, line_num, log_type, msg, group);
 	}
 
-	void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->log(log_type, msg, group);
+	void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->log_f(file, func, line_num, log_type, msg, group);
 	}
 
-	void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->EXPECT_TRUE(condition, logType, msg, group);
+	void EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->EXPECT_TRUE_f(file, func, line_num, condition, logType, msg, group);
 	}
 
-	void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->EXPECT_FALSE(condition, logType, msg, group);
+	void EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+		get_logger("")->EXPECT_FALSE_f(file, func, line_num, condition, logType, msg, group);
 	}
 
-	void Logger::dump_all(FileWriter &writer, const std::set<std::string> &queried_log_ids, 
-			const std::set<Logger::LogType> &queried_log_types, const std::set<std::string> &queried_log_groups) {
+	void Logger::dump_all(FileWriter &writer, LOG_DUMP log_dump_query) {
 		std::vector<Logger::LogMessage> sorted_logs;
 
-		for (const std::string& log_id : queried_log_ids) {
+		if (log_dump_query._logger_ids.empty()) {
+			// add all loggers to the list
+			for (std::pair<std::string, Logger*> pair : loggers) {
+				log_dump_query._logger_ids.insert(pair.first);
+			}
+		}
+
+		for (const std::string& log_id : log_dump_query._logger_ids) {
 			if (loggers.find(log_id) == loggers.end()) {
 				continue;
 			}
 
 			for (Logger::LogMessage& log : loggers.at(log_id)->_logs) {
-				if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
-					(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
+				if (log_dump_query.evaluate(log)) {
 					sorted_logs.push_back(log);
 				}
 			}
@@ -191,8 +200,8 @@ namespace lgr {
 	}
 	
 	
-	void Logger::log(Logger::LogType log_type, const std::string& msg, const std::string& group) {
-		Logger::LogMessage log(log_type, msg, group);
+	void Logger::log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group) {
+		Logger::LogMessage log = Logger::LogMessage(file, func, line_num, log_type, msg, group);
 		_logs.push_back(log);
 
 		if (_file_writer != nullptr) {
@@ -216,19 +225,19 @@ namespace lgr {
 		}
 	}
 
-	void Logger::log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
-		this->log(log_type, msg.str(), group);
+	void Logger::log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
+		this->log_f(file, func, line_num, log_type, msg.str(), group);
 	}
 
-	void Logger::EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+	void Logger::EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
 		if (!condition) {
-			log(logType, msg, group);
+			log_f(file, func, line_num, logType, msg, group);
 		}
 	}
 
-	void Logger::EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
+	void Logger::EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
 		if (condition) {
-			log(logType, msg, group);
+			log_f(file, func, line_num, logType, msg, group);
 		}
 	}
 
@@ -238,13 +247,60 @@ namespace lgr {
 		}
 	}
 
-	void Logger::dump(FileWriter &writer, const std::set<Logger::LogType> &queried_log_types, 
-			const std::set<std::string> &queried_log_groups) {
-		for (LogMessage log : _logs) {
-			if ((queried_log_types.empty() || queried_log_types.find(log.logType) != queried_log_types.end()) &&
-				(queried_log_groups.empty() || queried_log_groups.find(log.group) != queried_log_groups.end())) {
+	void Logger::dump(FileWriter &writer, Logger::LOG_DUMP log_dump_query) {
+		for (LogMessage& log : _logs) {
+			if (log_dump_query.evaluate(log)) {
 				writer.writeString(log.to_string() + "\n");
 			}
 		}
+	}
+
+
+
+	Logger::LOG_DUMP::LOG_DUMP() {
+
+	}
+
+	Logger::LOG_DUMP::~LOG_DUMP() {
+
+	}
+
+	bool Logger::LOG_DUMP::evaluate(const Logger::LogMessage& log) {
+		#define _CHECK(set,value) (set.empty() || set.find(value) != set.end())
+		return _CHECK(_log_types,log.logType) &&
+				_CHECK(_groups, log.group) &&
+				_CHECK(_files, log.file) &&
+				_CHECK(_lines, log.line_num) &&
+				_CHECK(_funcs, log.func);
+		#undef _CHECK
+	}
+
+	Logger::LOG_DUMP& Logger::LOG_DUMP::files(std::set<std::string> files) {
+		_files = files;
+		return *this;
+	}
+
+	Logger::LOG_DUMP& Logger::LOG_DUMP::funcs(std::set<std::string> funcs) {
+		_funcs = funcs;
+		return *this;
+	}
+	
+	Logger::LOG_DUMP& Logger::LOG_DUMP::lines(std::set<int> lines) {
+		_lines = lines;
+		return *this;
+	}
+
+	Logger::LOG_DUMP& Logger::LOG_DUMP::groups(std::set<std::string> groups) {
+		_groups = groups;
+		return *this;
+	}
+	Logger::LOG_DUMP& Logger::LOG_DUMP::log_types(std::set<Logger::LogType> log_types) {
+		_log_types = log_types;
+		return *this;
+	}
+
+	Logger::LOG_DUMP& Logger::LOG_DUMP::logger_ids(std::set<std::string> logger_ids) {
+		_logger_ids = logger_ids;
+		return *this;
 	}
 };
