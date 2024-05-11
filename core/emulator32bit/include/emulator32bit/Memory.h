@@ -1,45 +1,49 @@
 #pragma once
 #ifndef RAM_H
 
-#include "typeinfo"
 #include "emulator32bit/Emulator32bitUtil.h"
 
 class Memory {
 	public:
-		Memory(const word mem_size, const word lo_addr, const word hi_addr);
+		Memory(word mem_size, word lo_addr, word hi_addr);
 		virtual ~Memory();
 
 		struct MemoryReadException {
-			enum MemoryReadExceptionType {
+			enum class Type {
 				AOK,
 				OUT_OF_BOUNDS_ADDRESS,
 				ACCESS_DENIED
 			};
 
-			MemoryReadExceptionType type = AOK;
+			Type type = Type::AOK;
 			word address = 0;
 		};
 
 		struct MemoryWriteException {
-			enum MemoryWriteExceptionType {
+			enum class Type {
 				AOK,
 				OUT_OF_BOUNDS_ADDRESS,
 				ACCESS_DENIED
 			};
 
-			MemoryWriteExceptionType type = AOK;
+			Type type = Type::AOK;
 			word address = 0;
-		};	
+			word value = 0;
+			int num_bytes = 0;
+		};
 
-		virtual byte readByte(const word address, MemoryReadException *exception);
-		virtual hword readHalfWord(const word address, MemoryReadException *exception);
-		virtual word readWord(const word address, MemoryReadException *exception);
+		virtual word read(word address, MemoryReadException &exception, int num_bytes = 4);
+		virtual void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4);
 
-		virtual void writeByte(const word address, const byte data, MemoryWriteException *exception);
-		virtual void writeHalfWord(const word address, const hword data, MemoryWriteException *exception);
-		virtual void writeWord(const word address, const word data, MemoryWriteException *exception);
+		byte readByte(word address, MemoryReadException &exception);
+		hword readHalfWord(word address, MemoryReadException &exception);
+		word readWord(word address, MemoryReadException &exception);
 
-		virtual bool in_bounds(const word address);
+		void writeByte(word address, byte data, MemoryWriteException &exception);
+		void writeHalfWord(word address, hword data, MemoryWriteException &exception);
+		void writeWord(word address, word data, MemoryWriteException &exception);
+
+		virtual bool in_bounds(word address);
 	
 	protected:
 		word mem_size;
@@ -51,120 +55,14 @@ class Memory {
 
 class RAM : public Memory {
 	public:
-		RAM(const word mem_size, const word lo_addr, const word hi_addr) : Memory(mem_size, lo_addr, hi_addr) {}
-
-		/**
-		 * Read a byte from the RAM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The byte read from the address
-		 */
-		byte readByte(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Read a half word from the RAM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The half word read from the address
-		 */
-		hword readHalfWord(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Read a word from the RAM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The word read from the address
-		 */
-		word readWord(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Write a byte to the RAM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The byte to write
-		 */
-		void writeByte(const word address, const byte data, MemoryWriteException *exception) override;
-
-		/**
-		 * Write a half word to the RAM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The half word to write
-		 */
-		void writeHalfWord(const word address, const hword data, MemoryWriteException *exception) override;
-
-		/**
-		 * Write a word to the RAM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The word to write
-		 */
-		void writeWord(const word address, const word data, MemoryWriteException *exception) override;
+		RAM(word mem_size, word lo_addr, word hi_addr);
 };
 
 class ROM : public Memory {
 	public:
-		ROM(const byte rom_data[], const word lo_addr, const word hi_addr);
+		ROM(byte (&rom_data)[], word lo_addr, word hi_addr);
 
-		/**
-		 * Read a byte from the ROM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The byte read from the address
-		 */
-		byte readByte(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Read a half word from the ROM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The half word read from the address
-		 */
-		hword readHalfWord(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Read a word from the ROM
-		 * 
-		 * @param address The address to read from
-		 * @param exception The exception raised by the read operation
-		 * @return The word read from the address
-		 */
-		word readWord(const word address, MemoryReadException *exception) override;
-
-		/**
-		 * Write a byte to the ROM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The byte to write
-		 */
-		void writeByte(const word address, const byte data, MemoryWriteException *exception) override;
-
-		/**
-		 * Write a half word to the ROM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The half word to write
-		 */
-		void writeHalfWord(const word address, const hword data, MemoryWriteException *exception) override;
-
-		/**
-		 * Write a word to the ROM
-		 * 
-		 * @param address The address to write to
-		 * @param exception The exception raised by the write operation
-		 * @param data The word to write
-		 */
-		void writeWord(const word address, const word data, MemoryWriteException *exception) override;
+		void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4) override;
 };
 
 

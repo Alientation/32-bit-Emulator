@@ -22,7 +22,7 @@ int main() {
 	for (int i = 0; i < sizeof(rom_data); i++) {
 		SystemBus::SystemBusException bus_exception;
 		Memory::MemoryReadException mem_exception;
-		byte data = bus.readByte(1024 + i, &bus_exception, &mem_exception);
+		byte data = bus.readByte(1024 + i, bus_exception, mem_exception);
 		if (bus_exception.type != SystemBus::SystemBusException::AOK) {
 			std::cout << "error reading from memory" << std::endl;
 			return 1;

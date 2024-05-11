@@ -1,9 +1,8 @@
 #include "emulator32bit/Memory.h"
 #include "assert.h"
-#include "typeinfo"
 #include "iostream"
 
-Memory::Memory(const word mem_size, const word lo_addr, const word hi_addr) {
+Memory::Memory(word mem_size, word lo_addr, word hi_addr) {
 	assert(lo_addr >= 0 && hi_addr >= lo_addr);
 	assert(mem_size == hi_addr - lo_addr + 1);
 
@@ -18,186 +17,85 @@ Memory::~Memory() {
 	delete[] this->data;
 }
 
-bool Memory::in_bounds(const word address) {
+bool Memory::in_bounds(word address) {
 	return address >= this->lo_addr && address <= this->hi_addr;
 }
 
-byte Memory::readByte(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-	
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr >= mem_size) {
-		exception->type = MemoryReadException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
+word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
+	if (!in_bounds(address) || !in_bounds(address + num_bytes - 1)) {
+		exception.type = MemoryReadException::Type::OUT_OF_BOUNDS_ADDRESS;
+		exception.address = address;
 		return 0;
 	}
 
-	return this->data[address - lo_addr];
-}
-
-hword Memory::readHalfWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-	
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr + 1 >= mem_size) {
-		exception->type = MemoryReadException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
-		return 0;
+	word value = 0;
+	for (int i = 0; i < num_bytes; i++) {
+		value <<= 8;
+		value += this->data[(word) (address + i)];
 	}
-
-	return bytes_to_hword(this->data[address - lo_addr], this->data[address - lo_addr + 1]);
+	return value;
 }
 
-word Memory::readWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-	
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr + 3 >= mem_size) {
-		exception->type = MemoryReadException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
-		return 0;
-	}
-
-	return bytes_to_word(this->data[address - lo_addr], this->data[address - lo_addr + 1],
-		this->data[address - lo_addr + 2], this->data[address - lo_addr + 3]);
-}
-
-void Memory::writeByte(const word address, const byte data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-	
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr >= mem_size) {
-		exception->type = MemoryWriteException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
+void Memory::write(word address, word value, MemoryWriteException &exception, int num_bytes) {
+	if (!in_bounds(address) || !in_bounds(address + num_bytes - 1)) {
+		exception.type = MemoryWriteException::Type::OUT_OF_BOUNDS_ADDRESS;
+		exception.address = address;
+		exception.value = value;
+		exception.num_bytes = num_bytes;
 		return;
 	}
 
-	this->data[address - lo_addr] = data;
+	for (int i = 0; i < num_bytes; i++) {
+		this->data[(word) (address + i)] = value & 0xFF;
+		value >>= 8;
+	}
 }
 
-void Memory::writeHalfWord(const word address, const hword data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-	
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr + 1 >= mem_size) {
-		exception->type = MemoryWriteException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
-		return;
-	}
 
-	this->data[address - lo_addr] = byte_from_word(data, 0);
-	this->data[address - lo_addr + 1] = byte_from_word(data, 1);
+byte Memory::readByte(word address, MemoryReadException &exception) {
+	return this->read(address, exception, 1);
 }
 
-void Memory::writeWord(const word address, const word data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
+hword Memory::readHalfWord(word address, MemoryReadException &exception) {
+	return this->read(address, exception, 2);
+}
 
-	if (address < this->lo_addr || address > this->hi_addr
-		|| address - lo_addr + 3 >= mem_size) {
-		exception->type = MemoryWriteException::OUT_OF_BOUNDS_ADDRESS;
-		exception->address = address;
-		return;
-	}
+word Memory::readWord(word address, MemoryReadException &exception) {
+	return this->read(address, exception, 4);
+}
 
-	this->data[address - lo_addr] = byte_from_word(data, 0);
-	this->data[address - lo_addr + 1] = byte_from_word(data, 1);
-	this->data[address - lo_addr + 2] = byte_from_word(data, 2);
-	this->data[address - lo_addr + 3] = byte_from_word(data, 3);
+void Memory::writeByte(word address, byte data, MemoryWriteException &exception) {
+	this->write(address, data, exception);
+}
+
+void Memory::writeHalfWord(word address, hword data, MemoryWriteException &exception) {
+	this->write(address, data, exception);
+}
+
+void Memory::writeWord(word address, word data, MemoryWriteException &exception) {
+	this->write(address, data, exception);
 }
 
 
 /*
 	RAM
 */
-
-byte RAM::readByte(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-
-	// Read a byte from the RAM
-	return Memory::readByte(address, exception);
-}
-
-hword RAM::readHalfWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-	
-	// Read a half word from the RAM
-	return Memory::readHalfWord(address, exception);
-}
-
-word RAM::readWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-	
-	// Read a word from the RAM
-	return Memory::readWord(address, exception);
-}
-
-void RAM::writeByte(const word address, const byte data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	// Write a byte to the RAM
-	Memory::writeByte(address, data, exception);
-}
-
-void RAM::writeHalfWord(const word address, const hword data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	// Write a half word to the RAM
-	Memory::writeHalfWord(address, data, exception);
-}
-
-void RAM::writeWord(const word address, const word data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	// Write a word to the RAM
-	Memory::writeWord(address, data, exception);
-}
+RAM::RAM(word mem_size, word lo_addr, word hi_addr) : Memory(mem_size, lo_addr, hi_addr) {}
 
 
 /*
 	ROM
 */
 
-ROM::ROM(const byte rom_data[], const word lo_addr, const word hi_addr) : Memory(hi_addr - lo_addr + 1, lo_addr, hi_addr) {
+ROM::ROM(byte (&rom_data)[], word lo_addr, word hi_addr) : Memory(hi_addr - lo_addr + 1, lo_addr, hi_addr) {
 	for (word i = 0; i < mem_size; i++) {
 		this->data[i] = rom_data[i];
 	}
 }
 
-byte ROM::readByte(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-
-	// Read a byte from the ROM
-	return Memory::readByte(address, exception);
-}
-
-hword ROM::readHalfWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-
-	// Read a half word from the ROM
-	return Memory::readHalfWord(address, exception);
-}
-
-word ROM::readWord(const word address, MemoryReadException *exception) {
-	assert(exception != nullptr);
-
-	// Read a word from the ROM
-	return Memory::readWord(address, exception);
-}
-
-void ROM::writeByte(const word address, const byte data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	exception->type = MemoryWriteException::MemoryWriteExceptionType::ACCESS_DENIED;
-}
-
-void ROM::writeHalfWord(const word address, const hword data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	exception->type = MemoryWriteException::MemoryWriteExceptionType::ACCESS_DENIED;
-}
-
-void ROM::writeWord(const word address, const word data, MemoryWriteException *exception) {
-	assert(exception != nullptr);
-
-	exception->type = MemoryWriteException::MemoryWriteExceptionType::ACCESS_DENIED;
+void ROM::write(word address, word value, MemoryWriteException &exception, int num_bytes) {
+	exception.type = MemoryWriteException::Type::ACCESS_DENIED;
+	exception.address = address;
+	exception.value = value;
+	exception.num_bytes = num_bytes;
 }
