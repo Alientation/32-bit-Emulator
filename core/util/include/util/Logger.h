@@ -16,9 +16,14 @@
 #define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of("util") - 3)
 
 // append some extra logging information when calling the function
-#define log(args...) log_f(__FILE__, __func__, __LINE__, ##args)
-#define EXPECT_TRUE(args...) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, ##args)
-#define EXPECT_FALSE(args...) EXPECT_FALSE_f(__FILE__, __func__, __LINE__, ##args)
+#define log(log_type, msg) log_f(__FILE__, __func__, __LINE__, log_type, msg, "")
+// todo COMMENTED OUT BECAUSE MACROS CANNOT BE OVERLOADED
+// #define log(log_type, msg, group) log_f(__FILE__, __func__, __LINE__, log_type, msg, group)
+#define EXPECT_TRUE(cond, log_type, msg) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, "")
+// #define EXPECT_TRUE(cond, log_type, msg, group) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, group)
+#define EXPECT_FALSE(cond, log_type, msg) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, "")
+// #define EXPECT_FALSE(cond, log_type, msg, group) EXPECT_FALSE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, group)
+
 /**
  * IDEA
  * 
@@ -105,20 +110,21 @@ class Logger {
 		Logger(std::string logger_id, CONFIG config);
 		~Logger();
 
+		// todo macros overshadow these functions, fix please
 		// dummy functions to help see the log api functions that will be routed to the macro instead
-		#pragma push_macro("log")
-		#pragma push_macro("EXPECT_TRUE")
-		#pragma push_macro("EXPECT_FALSE")
-		#undef log
-		#undef EXPECT_TRUE
-		#undef EXPECT_FALSE
-		void log(Logger::LogType log_type, const std::string& msg, const std::string& group = "");
-		void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
-		void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
-		void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
-		#pragma pop_macro("log")
-		#pragma pop_macro("EXPECT_TRUE")
-		#pragma pop_macro("EXPECT_FALSE")
+		// #pragma push_macro("log")
+		// #pragma push_macro("EXPECT_TRUE")
+		// #pragma push_macro("EXPECT_FALSE")
+		// #undef log
+		// #undef EXPECT_TRUE
+		// #undef EXPECT_FALSE
+		// void log(Logger::LogType log_type, const std::string& msg, const std::string& group = "");
+		// void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
+		// void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
+		// void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
+		// #pragma pop_macro("log")
+		// #pragma pop_macro("EXPECT_TRUE")
+		// #pragma pop_macro("EXPECT_FALSE")
 
 		void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group = "");
 		void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
@@ -148,20 +154,21 @@ void log_f(std::string file, std::string func, int line_num, Logger::LogType log
 void EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");	
 void EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
 
+// todo macros overshadow these functions, fix please
 // dummy functions to help see the log api functions that will be routed to the macro instead
-#pragma push_macro("log")
-#pragma push_macro("EXPECT_TRUE")
-#pragma push_macro("EXPECT_FALSE")
-#undef log
-#undef EXPECT_TRUE
-#undef EXPECT_FALSE
-void log(Logger::LogType log_type, const std::string& msg, const std::string& group = "");
-void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
-void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
-void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
-#pragma pop_macro("log")
-#pragma pop_macro("EXPECT_TRUE")
-#pragma pop_macro("EXPECT_FALSE")
+// #pragma push_macro("log")
+// #pragma push_macro("EXPECT_TRUE")
+// #pragma push_macro("EXPECT_FALSE")
+// #undef log
+// #undef EXPECT_TRUE
+// #undef EXPECT_FALSE
+// void log(Logger::LogType log_type, const std::string& msg, const std::string& group = "");
+// void log(Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
+// void EXPECT_TRUE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
+// void EXPECT_FALSE(bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
+// #pragma pop_macro("log")
+// #pragma pop_macro("EXPECT_TRUE")
+// #pragma pop_macro("EXPECT_FALSE")
 };
 
 #endif
