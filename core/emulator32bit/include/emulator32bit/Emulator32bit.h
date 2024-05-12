@@ -3,6 +3,7 @@
 #define Emulator32bit_H
 
 #include <emulator32bit/Emulator32bitUtil.h>
+#include <emulator32bit/SystemBus.h>
 
 #include <functional>
 
@@ -16,23 +17,29 @@ class Emulator32bit {
 
 		struct EmulatorException {
 			enum class Type {
-				INSTRUCTION
+				AOK,
+				INSTRUCTION,
+				HALT
 			};
 			
-			Type type;
-
-			
+			Type type = Type::AOK;
 		};
 
 		struct InstructionException {
 			enum class Type {
+				AOK,
 				INVALID_INSTRUCTION
 			};
 
-			Type type;
+			Type type = Type::AOK;
 			word instruction;
 		};
-		
+
+		static const word RAM_MEM_SIZE;
+		static const word RAM_MEM_START;
+		static const word ROM_MEM_SIZE;
+		static const word ROM_MEM_START;
+		static const byte ROM_DATA[];
 
 		/**
 		 * Run the emulator for a given number of instructions
@@ -49,6 +56,8 @@ class Emulator32bit {
 		word _sp;
 		word _pstate;
 
+		SystemBus _system_bus;
+
 		// todo determine if fp registers are needed
 		// word fpcr;
 		// word fpsr;
@@ -62,6 +71,9 @@ class Emulator32bit {
 		
 
 		void execute(word instr, EmulatorException &exception);
+
+		word read_reg(byte reg, EmulatorException &exception);
+		word write_reg(byte reg, word val, EmulatorException &exception);
 
 		// instruction handling
 		_INSTR(hlt, 0b000000)

@@ -5,7 +5,7 @@
 
 class Memory {
 	public:
-		Memory(word mem_size, word lo_addr, word hi_addr);
+		Memory(word mem_size, word lo_addr);
 		virtual ~Memory();
 
 		struct MemoryReadException {
@@ -50,17 +50,16 @@ class Memory {
 		byte* data;
 		
 		word lo_addr;
-		word hi_addr;
 };
 
 class RAM : public Memory {
 	public:
-		RAM(word mem_size, word lo_addr, word hi_addr);
+		RAM(word mem_size, word lo_addr);
 };
 
 class ROM : public Memory {
 	public:
-		ROM(byte (&rom_data)[], word lo_addr, word hi_addr);
+		ROM(const byte (&rom_data)[], word mem_size, word lo_addr);
 
 		void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4) override;
 };

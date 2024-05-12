@@ -28,9 +28,9 @@ void test_logger() {
 void test_bus() {
 	lgr::log(lgr::Logger::LogType::INFO, "testing bus", "test_bus");
 	lgr::log(lgr::Logger::LogType::LOG, "creating memory", "test_bus");
-	RAM* ram = new RAM(1024, 0, 1023);
-	byte rom_data[] = {1,2,3,4,5,6,7,8};
-	ROM* rom = new ROM(rom_data, 1024, 1031);
+	RAM* ram = new RAM(1024, 0);
+	const byte rom_data[] = {1,2,3,4,5,6,7,8};
+	ROM* rom = new ROM(rom_data, 8, 1024);
 	SystemBus bus(ram, rom);
 
 	lgr::log(lgr::Logger::LogType::LOG, "reading from memory", "test_bus");

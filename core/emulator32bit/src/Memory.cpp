@@ -2,15 +2,10 @@
 #include "assert.h"
 #include "iostream"
 
-Memory::Memory(word mem_size, word lo_addr, word hi_addr) {
-	assert(lo_addr >= 0 && hi_addr >= lo_addr);
-	assert(mem_size == hi_addr - lo_addr + 1);
-
+Memory::Memory(word mem_size, word lo_addr) {
 	this->mem_size = mem_size;
 	this->data = new byte[mem_size];
-
 	this->lo_addr = lo_addr;
-	this->hi_addr = hi_addr;
 }
 
 Memory::~Memory() {
@@ -18,7 +13,7 @@ Memory::~Memory() {
 }
 
 bool Memory::in_bounds(word address) {
-	return address >= this->lo_addr && address <= this->hi_addr;
+	return address >= this->lo_addr && address < this->lo_addr + this->mem_size;
 }
 
 word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
@@ -82,14 +77,14 @@ void Memory::writeWord(word address, word data, MemoryWriteException &exception)
 /*
 	RAM
 */
-RAM::RAM(word mem_size, word lo_addr, word hi_addr) : Memory(mem_size, lo_addr, hi_addr) {}
+RAM::RAM(word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {}
 
 
 /*
 	ROM
 */
 
-ROM::ROM(byte (&rom_data)[], word lo_addr, word hi_addr) : Memory(hi_addr - lo_addr + 1, lo_addr, hi_addr) {
+ROM::ROM(const byte (&rom_data)[], word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {
 	for (word i = 0; i < mem_size; i++) {
 		this->data[i] = rom_data[i];
 	}
