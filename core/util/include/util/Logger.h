@@ -21,7 +21,7 @@
 // #define log(log_type, msg, group) log_f(__FILE__, __func__, __LINE__, log_type, msg, group)
 #define EXPECT_TRUE(cond, log_type, msg) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, "")
 // #define EXPECT_TRUE(cond, log_type, msg, group) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, group)
-#define EXPECT_FALSE(cond, log_type, msg) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, "")
+#define EXPECT_FALSE(cond, log_type, msg) EXPECT_FALSE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, "")
 // #define EXPECT_FALSE(cond, log_type, msg, group) EXPECT_FALSE_f(__FILE__, __func__, __LINE__, cond, log_type, msg, group)
 
 /**
