@@ -179,7 +179,7 @@ namespace lgr {
 		});
 
 		for (LogMessage log : sorted_logs) {
-			writer.writeString(log.to_string() + "\n");
+			writer.write(log.to_string() + "\n");
 		}
 	}
 
@@ -210,7 +210,9 @@ namespace lgr {
 		_logs.push_back(log);
 
 		if (_file_writer != nullptr) {
-			_file_writer->writeString(log.to_string() + "\n");
+			*_file_writer << log.to_string() << "\n";
+
+			// _file_writer->write(log.to_string() + "\n");
 			if (_config._flush_every_log) {
 				_file_writer->flush();
 			}
@@ -255,7 +257,7 @@ namespace lgr {
 	void Logger::dump(FileWriter &writer, Logger::LOG_DUMP log_dump_query) {
 		for (LogMessage& log : _logs) {
 			if (log_dump_query.evaluate(log)) {
-				writer.writeString(log.to_string() + "\n");
+				writer.write(log.to_string() + "\n");
 			}
 		}
 	}

@@ -120,7 +120,7 @@ void fileReaderAll() {
 
 	// write to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));
-	writer.writeString(fileContents);
+	writer.write(fileContents);
 	writer.close();
 }
 
@@ -144,7 +144,7 @@ void fileReaderByte() {
 	// write bye one by one to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));
 	for (int i = 0; i < fileContents.length(); i++) {
-		writer.writeByte(fileContents[i]);
+		writer.write(fileContents[i]);
 	}
 	writer.close();
 }
@@ -178,7 +178,7 @@ void fileReaderBytes() {
 	// write bye one by one to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));
 	for (int i = 0; i < fileContents.length(); i++) {
-		writer.writeByte(fileContents[i]);
+		writer.write(fileContents[i]);
 	}
 	writer.close();
 }

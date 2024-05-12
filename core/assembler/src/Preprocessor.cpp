@@ -93,7 +93,7 @@ void Preprocessor::preprocess() {
 				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE) {
 			// append tabs
 			while (currentIndentLevel < targetIndentLevel) {
-				m_writer->writeString("\t");
+				m_writer->write("\t");
 				currentIndentLevel++;
 			}
 		}
@@ -152,7 +152,7 @@ void Preprocessor::preprocess() {
                 // insert the definition into the tokens list
                 m_tokens.insert(m_tokens.begin() + i, definition.begin(), definition.end());
             } else {
-                m_writer->writeString(consume(i).value);
+                m_writer->write(consume(i).value);
             }
 		}
 

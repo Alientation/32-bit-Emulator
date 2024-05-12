@@ -53,9 +53,13 @@ class FileWriter {
 	public:
 		FileWriter(File* file);
 		~FileWriter();
-		void writeString(std::string text);
-		void writeByte(char byte);
-		void writeBytes(char* bytes);
+		FileWriter& operator<<(std::string);
+		FileWriter& operator<<(char byte);
+		FileWriter& operator<<(const char* bytes);
+
+		void write(std::string text);
+		void write(char byte);
+		void write(const char* bytes);
         char lastByteWritten();
         char* lastBytesWritten(unsigned int numBytes);
 		void flush();

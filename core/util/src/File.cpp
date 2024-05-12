@@ -162,12 +162,27 @@ FileWriter::~FileWriter() {
 	this->close();
 }
 
+FileWriter& FileWriter::operator<<(std::string str) {
+	this->write(str);
+	return *this;
+}
+
+FileWriter& FileWriter::operator<<(char byte) {
+	this->write(byte);
+	return *this;
+}
+
+FileWriter& FileWriter::operator<<(const char* str) {
+	this->write(str);
+	return *this;
+}
+
 /**
  * Writes a string to the file
  * 
  * @param text the string to write
  */
-void FileWriter::writeString(const std::string text) {
+void FileWriter::write(const std::string text) {
 	if (this->closed) {
 		exit(EXIT_FAILURE);
 	}
@@ -183,7 +198,7 @@ void FileWriter::writeString(const std::string text) {
  * 
  * @param byte the byte to write
  */
-void FileWriter::writeByte(const char byte) {
+void FileWriter::write(const char byte) {
 	if (this->closed) {
 		exit(EXIT_FAILURE);
 	}
@@ -198,7 +213,7 @@ void FileWriter::writeByte(const char byte) {
  * 
  * @param bytes the byte array to write
  */
-void FileWriter::writeBytes(char* bytes) {
+void FileWriter::write(const char* bytes) {
 	if (this->closed) {
 		exit(EXIT_FAILURE);
 	}
