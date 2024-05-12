@@ -5,8 +5,13 @@
 
 #include <iostream>
 
+// forward declare
+void test_logger();
+void test_bus();
+
+
 int main() {
-	
+	test_bus();	
 	return 0;
 };
 

@@ -6,6 +6,16 @@
 #define STRINGUTIL_H
 
 namespace string_util {
+	static std::string replaceFirst(std::string str, const std::string& match, const std::string& replacement) {
+		size_t index = str.find_first_of(match);
+		if (index == std::string::npos) {
+			return str;
+		}
+
+		return str.replace(index, match.length(), replacement);
+	}
+
+
 	/**
 	 * Trims whitespace from the left side of a string
 	 * 

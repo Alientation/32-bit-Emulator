@@ -12,6 +12,9 @@
 #include <sstream>
 #include <string>
 
+// helps to trim off the size of printed file paths in logs
+#define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of("util") - 3)
+
 // append some extra logging information when calling the function
 #define log(args...) log_f(__FILE__, __func__, __LINE__, ##args)
 #define EXPECT_TRUE(args...) EXPECT_TRUE_f(__FILE__, __func__, __LINE__, ##args)

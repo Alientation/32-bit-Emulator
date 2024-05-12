@@ -1,5 +1,6 @@
 #include <util/Logger.h>
 #include <util/File.h>
+#include <util/StringUtil.h>
 
 #include <algorithm>
 #include <format>
@@ -62,8 +63,12 @@ namespace lgr {
 
 	std::string Logger::LogMessage::to_print_string() {
 		std::stringstream ss;
-		ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] [" 
-		<< ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
+		// ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] [" 
+		// << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
+
+		ss << "[" << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "] ["
+		<< ccolor::BLUE << string_util::replaceFirst(file,PROJECT_ROOT_DIRECTORY,"") << ccolor::RESET  << ":" << ccolor::MAGENTA 
+		<< line_num << ccolor::RESET << "] [" << ccolor::YELLOW << func << ccolor::RESET << "]: " << msg;
 		return ss.str();
 	}
 
