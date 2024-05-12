@@ -31,7 +31,7 @@ void clearFile(std::string filePath) {
 
 
 int main() {
-	log(LogType:TEST, std::stringstream() << "Running Assembler Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running Assembler Tests");
 
 	// fileTests();
 	// directoryTests();
@@ -49,7 +49,7 @@ int main() {
  * Test the PreprocessorV3 class
  */
 void preprocessorTests() {
-	log(LogType:TEST, std::stringstream() << "Running Preprocessor Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running Preprocessor Tests");
 
 	// test creating a file and its attributes
 	Process process = Process("-lib library1 -L " + REL_PATH_TO_FILES_FOLDER + "libs -I " + REL_PATH_TO_FILES_FOLDER + "include -o preprocessorTest " + REL_PATH_TO_FILES_FOLDER + "preprocessorTest.basm");
@@ -66,24 +66,24 @@ void preprocessorTests() {
  * Test the Directory class implementation
  */
 void directoryTests() {
-	log(LogType:TEST, std::stringstream() << "Running Directory Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running Directory Tests");
 
 	// test creating a file and its attributes
 	Directory* directory = new Directory(REL_PATH_TO_FILES_FOLDER);
-	log(LogType:TEST, std::stringstream() << "Directory Name: " << directory->getDirectoryName());
-	log(LogType:TEST, std::stringstream() << "Directory Path: " << directory->getDirectoryPath());
-	log(LogType:TEST, std::stringstream() << "Directory Size: " << directory->getDirectorySize());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Name: " << directory->getDirectoryName());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Path: " << directory->getDirectoryPath());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Size: " << directory->getDirectorySize());
 
 	// test getting files
 	std::vector<File*> files = directory->getSubfiles();
 	for (int i = 0; i < files.size(); i++) {
-		log(LogType:TEST, std::stringstream() << "File " << i << ": " << files[i]->getFileName());
+		log(lgr::Logger::LogType::TEST, std::stringstream() << "File " << i << ": " << files[i]->getFileName());
 	}
 
 	// test getting directories
 	std::vector<Directory*> directories = directory->getSubdirectories();
 	for (int i = 0; i < directories.size(); i++) {
-		log(LogType:TEST, std::stringstream() << "Directory " << i << ": " << directories[i]->getDirectoryName());
+		log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory " << i << ": " << directories[i]->getDirectoryName());
 	}
 }
 
@@ -94,10 +94,10 @@ void directoryTests() {
 void fileTests() {
 	// test creating a file and its attributes
 	File* file = new File(REL_PATH_TO_FILES_FOLDER + "empty.txt");
-	log(LogType:TEST, std::stringstream() << "File Name: " << file->getFileName());
-	log(LogType:TEST, std::stringstream() << "File Extension: " << file->getExtension());
-	log(LogType:TEST, std::stringstream() << "File Path: " << file->getFilePath());
-	log(LogType:TEST, std::stringstream() << "File Size: " << file->getFileSize());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Name: " << file->getFileName());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Extension: " << file->getExtension());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Path: " << file->getFilePath());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Size: " << file->getFileSize());
 
 	fileReaderAll();
 	// fileReaderByte();
@@ -108,7 +108,7 @@ void fileTests() {
  * Test reading all bytes from file
  */
 void fileReaderAll() {
-	log(LogType:TEST, std::stringstream() << "Running File:READ_ALL Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running File:READ_ALL Tests");
 	// clear write to file
 	clearFile(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt");
 
@@ -116,7 +116,7 @@ void fileReaderAll() {
 	FileReader reader = FileReader(new File(REL_PATH_TO_FILES_FOLDER + "readFromFile.txt"));
 	std::string fileContents = reader.readAll();
 	reader.close();
-	log(LogType:TEST, std::stringstream() << "File Contents: \n" << fileContents);
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);
 
 	// write to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));
@@ -128,7 +128,7 @@ void fileReaderAll() {
  * Test reading individual bytes at a time
  */
 void fileReaderByte() {
-	log(LogType:TEST, std::stringstream() << "Running File:READ_BYTE Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running File:READ_BYTE Tests");
 	// clear write to file
 	clearFile(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt");
 
@@ -139,7 +139,7 @@ void fileReaderByte() {
 		fileContents += reader.readByte();
 	}
 	reader.close();
-	log(LogType:TEST, std::stringstream() << "File Contents: \n" << fileContents);
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);
 
 	// write bye one by one to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));
@@ -153,7 +153,7 @@ void fileReaderByte() {
  * Test reading chunks of bytes at a time
  */
 void fileReaderBytes() {
-	log(LogType:TEST, std::stringstream() << "Running File:READ_BYTES Tests");
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Running File:READ_BYTES Tests");
 	// clear write to file
 	clearFile(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt");
 
@@ -173,7 +173,7 @@ void fileReaderBytes() {
 		fileContents += reader.readByte();
 	}
 	reader.close();
-	log(LogType:TEST, std::stringstream() << "File Contents: \n" << fileContents);
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);
 
 	// write bye one by one to test file
 	FileWriter writer = FileWriter(new File(REL_PATH_TO_FILES_FOLDER + "writeToFile.txt"));

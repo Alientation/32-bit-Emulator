@@ -13,7 +13,7 @@
 #include <string>
 
 // helps to trim off the size of printed file paths in logs
-#define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of("util") - 3)
+#define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 
 // append some extra logging information when calling the function
 #define log(log_type, msg) log_f(__FILE__, __func__, __LINE__, log_type, msg, "")

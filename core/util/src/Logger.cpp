@@ -56,8 +56,11 @@ namespace lgr {
 
 	std::string Logger::LogMessage::to_string() {
 		std::stringstream ss;
+		
+		std::string group_str = group.empty() ? "" : group + ":";
+		
 		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] ["
-			<< file << ":" << line_num << "] [" << group << ":" << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
+			<< file << ":" << line_num << "] [" << group_str << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
 		return ss.str();
 	}
 
@@ -66,7 +69,9 @@ namespace lgr {
 		// ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] [" 
 		// << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
 
-		ss << "[" << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "] ["
+		std::string group_str = group.empty() ? "" : ccolor::CYAN + group + ccolor::RESET + ":";
+
+		ss << "[" << group_str << Logger::LOGTYPE_TO_PRINT(logType) << "] ["
 		<< ccolor::BLUE << string_util::replaceFirst(file,PROJECT_ROOT_DIRECTORY,"") << ccolor::RESET  << ":" << ccolor::MAGENTA 
 		<< line_num << ccolor::RESET << "] [" << ccolor::YELLOW << func << ccolor::RESET << "]: " << msg;
 		return ss.str();
