@@ -28,6 +28,7 @@ word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
 		return 0;
 	}
 
+	address -= lo_addr;
 	word value = 0;
 	for (int i = 0; i < num_bytes; i++) {
 		value <<= 8;
@@ -44,7 +45,8 @@ void Memory::write(word address, word value, MemoryWriteException &exception, in
 		exception.num_bytes = num_bytes;
 		return;
 	}
-
+	
+	address -= lo_addr;
 	for (int i = 0; i < num_bytes; i++) {
 		this->data[(word) (address + i)] = value & 0xFF;
 		value >>= 8;
@@ -65,15 +67,15 @@ word Memory::readWord(word address, MemoryReadException &exception) {
 }
 
 void Memory::writeByte(word address, byte data, MemoryWriteException &exception) {
-	this->write(address, data, exception);
+	this->write(address, data, exception, 1);
 }
 
 void Memory::writeHalfWord(word address, hword data, MemoryWriteException &exception) {
-	this->write(address, data, exception);
+	this->write(address, data, exception, 2);
 }
 
 void Memory::writeWord(word address, word data, MemoryWriteException &exception) {
-	this->write(address, data, exception);
+	this->write(address, data, exception, 4);
 }
 
 
