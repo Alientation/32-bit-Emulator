@@ -3,12 +3,18 @@
 #define Emulator32bit_H
 
 #include <emulator32bit/Emulator32bitUtil.h>
+#include <emulator32bit/Memory.h>
 #include <emulator32bit/SystemBus.h>
 
 #include <functional>
 
-#define XZR 30
-#define SP 31
+#define SP 30
+#define XZR 31
+
+#define N_FLAG 0
+#define Z_FLAG 1
+#define C_FLAG 2
+#define V_FLAG 3
 
 class Emulator32bit {
 	public:
@@ -18,21 +24,18 @@ class Emulator32bit {
 		struct EmulatorException {
 			enum class Type {
 				AOK,
-				INSTRUCTION,
-				HALT
+				BAD_INSTR,
+				HALT, 
+				BAD_REG
 			};
 			
 			Type type = Type::AOK;
-		};
+			word instr;
+			SystemBus::SystemBusException sys_bus_exception;
+			Memory::MemoryReadException mem_read_exception;
+			Memory::MemoryWriteException mem_write_exception;
 
-		struct InstructionException {
-			enum class Type {
-				AOK,
-				INVALID_INSTRUCTION
-			};
-
-			Type type = Type::AOK;
-			word instruction;
+			bool isOK();
 		};
 
 		static const word RAM_MEM_SIZE;
@@ -40,7 +43,9 @@ class Emulator32bit {
 		static const word ROM_MEM_SIZE;
 		static const word ROM_MEM_START;
 		static const byte ROM_DATA[];
-
+		
+		SystemBus system_bus;
+		
 		/**
 		 * Run the emulator for a given number of instructions
 		 * 
@@ -49,22 +54,24 @@ class Emulator32bit {
 		 */
 		void run(unsigned int instructions, EmulatorException &exception);
 
-	private:
+
+
 		// general purpose registers
-		word _x[30];
-		const word _xzr = 0;
-		word _sp;
+		word _x[31];
+		word _pc;
 		word _pstate;
 
-		SystemBus _system_bus;
+		
 
 		// todo determine if fp registers are needed
 		// word fpcr;
 		// word fpsr;
 
+	private:
 		static const int _num_instructions = 51;
 		std::function<void(word, EmulatorException&)> _instructions[_num_instructions];
 
+		// note, stringstreams cannot use the static const for some reason
 		#define _INSTR(func_name, opcode) \
 		void _##func_name(word instr, EmulatorException& exception); \
 		static const byte _op_##func_name = opcode;
@@ -73,7 +80,9 @@ class Emulator32bit {
 		void execute(word instr, EmulatorException &exception);
 
 		word read_reg(byte reg, EmulatorException &exception);
-		word write_reg(byte reg, word val, EmulatorException &exception);
+		void write_reg(byte reg, word val, EmulatorException &exception);
+		void handle_exception(EmulatorException &exception);
+		void set_NZCV(bool N, bool Z, bool C, bool V); 
 
 		// instruction handling
 		_INSTR(hlt, 0b000000)
@@ -150,7 +159,15 @@ class Emulator32bit {
 
 		_INSTR(nop, 0b111111)
 
-		#undef _INSTR	
+		#undef _INSTR
+
+	public:
+		// help assemble instructions
+		static word asm_hlt();
+		static word asm_add(bool s, int xd, int xn, int imm14);
+		static word asm_add(bool s, int xd, int xn, int xm, int shift, int imm5);
+
+		static word asm_nop();
 };
 
 #endif

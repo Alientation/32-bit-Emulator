@@ -240,10 +240,10 @@ xn
 xn, shift
 
 shift: shift register value
-LSL #imm5
-LSR #imm5
-ASR #imm5
-ROR #imm5
+00: LSL #imm5
+01: LSR #imm5
+10: ASR #imm5
+11: ROR #imm5
 
 mem: memory address
 [reg, #simm12]

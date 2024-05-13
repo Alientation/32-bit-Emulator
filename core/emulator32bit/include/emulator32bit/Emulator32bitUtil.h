@@ -1,6 +1,9 @@
 #pragma once
 #ifndef Emulator32bitUtil_H
 
+#define test_bit(val, bit_i) (val & (1 << bit_i))
+#define set_bit(val, bit_i, to) ((val & ~(1 << bit_i)) | (to << bit_i))
+
 #define bitfield_u32(val, i, len) ((((unsigned int) val) >> i) & (1 << len - 1))
 #define bitfield_s32(val, i, len) ((signed int)(((((unsigned int) val) >> i) & (1 << len - 1)) << (32 - len)))
 
@@ -14,5 +17,10 @@ typedef unsigned long dword;
 typedef unsigned int word;
 typedef unsigned short hword;
 typedef unsigned char byte;
+
+const int DWORD_BITS = sizeof(dword) << 3;
+const int WORD_BITS = sizeof(word) << 3;
+const int HWORD_BITS = sizeof(hword) << 3;
+const int BYTE_BITS = sizeof(byte) << 3;
 
 #endif

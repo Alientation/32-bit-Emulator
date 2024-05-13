@@ -8,7 +8,7 @@
 #include <fstream>
 
 // quick work around to the issue with the current working directory being the binary directory and not the source directory
-static std::string REL_PATH_TO_FILES_FOLDER = "..\\..\\assembler_tests\\files\\";
+static const std::string REL_PATH_TO_FILES_FOLDER = "..\\..\\assembler_tests\\files\\";
 
 void fileTests();
 void fileReaderAll();

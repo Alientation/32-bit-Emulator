@@ -62,8 +62,8 @@ void Process::parseArgs(std::string assemblerArgs, std::vector<std::string>& arg
 	}
 
 	// check if there are any dangling quotes or escape characters
-	lgr::EXPECT_FALSE(isQuoted, lgr::Logger::LogType::ERROR, std::stringstream("Process::Process() - Missing end quotes: ") << assemblerArgs);
-	lgr::EXPECT_FALSE(isEscaped, lgr::Logger::LogType::ERROR, std::stringstream("Process::Process() - Dangling escape character: ") << assemblerArgs);
+	lgr::EXPECT_FALSE(isQuoted, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Missing end quotes: " << assemblerArgs);
+	lgr::EXPECT_FALSE(isEscaped, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Dangling escape character: " << assemblerArgs);
 
 	// add the last argument if it's not empty
 	if (curArg.length() > 0) {
