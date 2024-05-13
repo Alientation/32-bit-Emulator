@@ -27,6 +27,7 @@ target_sources(emulator32bit_tests PRIVATE
 	# add test source files here
 	./Emulator32bitTest.cpp
 
+	./InstructionTests/hlt_test.cpp
 	./InstructionTests/add_test.cpp
 )
 
@@ -40,3 +41,18 @@ target_link_libraries(emulator32bit_tests PUBLIC util::util emulator32bit::emula
 
 include(GoogleTest)
 gtest_discover_tests(emulator32bit_tests)
+
+
+
+add_executable(quick_test)
+target_sources(quick_test PRIVATE
+	./Test.cpp
+)
+
+target_include_directories(
+	quick_test
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(quick_test PUBLIC util::util emulator32bit::emulator32bit)

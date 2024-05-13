@@ -69,7 +69,9 @@ class Emulator32bit {
 
 	private:
 		static const int _num_instructions = 51;
-		std::function<void(word, EmulatorException&)> _instructions[_num_instructions];
+		// std::function<void(word, EmulatorException&)> _instructions[_num_instructions];
+		typedef void (Emulator32bit::*InstructionFunction)(word, EmulatorException&);
+		InstructionFunction _instructions[_num_instructions];
 
 		// note, stringstreams cannot use the static const for some reason
 		#define _INSTR(func_name, opcode) \

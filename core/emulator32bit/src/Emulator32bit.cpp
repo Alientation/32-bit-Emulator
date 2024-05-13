@@ -9,7 +9,9 @@ const word Emulator32bit::ROM_MEM_START = 1024;
 Emulator32bit::Emulator32bit() : system_bus(new RAM(RAM_MEM_SIZE, RAM_MEM_START), new ROM(ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START)) {
 	// Constructor
 	// fill out instruction functions
-	#define _INSTR(op) _instructions[_op_##op] = std::bind(&Emulator32bit::_##op, this, std::placeholders::_1, std::placeholders::_2);
+	// #define _INSTR(op) _instructions[_op_##op] = std::bind(&Emulator32bit::_##op, this, std::placeholders::_1, std::placeholders::_2);
+	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
+	
 	_INSTR(hlt)
 
 	_INSTR(add)
@@ -122,7 +124,7 @@ void Emulator32bit::execute(word instr, EmulatorException &exception) {
 		return;
 	}
 
-	_instructions[opcode](instr, exception);
+	(this->*_instructions[opcode])(instr, exception);
 }
 
 word Emulator32bit::read_reg(byte reg, EmulatorException &exception) {
