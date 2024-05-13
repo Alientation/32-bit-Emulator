@@ -43,6 +43,8 @@ class Memory {
 		void writeHalfWord(word address, hword data, MemoryWriteException &exception);
 		void writeWord(word address, word data, MemoryWriteException &exception);
 
+		void reset();
+
 		virtual bool in_bounds(word address);
 	
 	protected:

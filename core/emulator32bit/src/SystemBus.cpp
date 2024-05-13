@@ -1,5 +1,6 @@
-#include "emulator32bit/SystemBus.h"
-#include "assert.h"
+#include <emulator32bit/SystemBus.h>
+
+#include <assert.h>
 
 SystemBus::SystemBus(RAM *ram, ROM *rom) {
 	// Constructor
@@ -12,7 +13,7 @@ SystemBus::SystemBus(RAM *ram, ROM *rom) {
 SystemBus::~SystemBus() {
 	// Destructor
 	for (int i = 0; i < mems.size(); i++) {
-		mems[i]->~Memory();
+		delete mems[i];
 	}
 }
 
@@ -83,5 +84,11 @@ void SystemBus::writeWord(word address, word data, SystemBusException &bus_excep
 	Memory *target = route_memory(address, bus_exception);
 	if (bus_exception.type == SystemBusException::AOK) {
 		target->writeWord(address, data, mem_exception);
+	}
+}
+
+void SystemBus::reset() {
+	for (Memory *mem : mems) {
+		mem->reset();
 	}
 }

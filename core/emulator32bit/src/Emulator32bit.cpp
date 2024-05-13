@@ -87,7 +87,7 @@ Emulator32bit::Emulator32bit() : system_bus(new RAM(RAM_MEM_SIZE, RAM_MEM_START)
 }
 
 Emulator32bit::~Emulator32bit() {
-	// Destructor
+	
 }
 
 void Emulator32bit::run(unsigned int instructions, EmulatorException &exception) {
@@ -102,6 +102,16 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 	if (!exception.isOK()) {
 		handle_exception(exception);
 	}
+}
+
+void Emulator32bit::reset() {
+	system_bus.reset();
+	for (int i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) {
+		_x[i] = 0;
+	}
+	_pstate = 0;
+	_pc = 0;
+
 }
 
 void Emulator32bit::execute(word instr, EmulatorException &exception) {

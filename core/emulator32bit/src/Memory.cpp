@@ -73,6 +73,13 @@ void Memory::writeWord(word address, word data, MemoryWriteException &exception)
 	this->write(address, data, exception, 4);
 }
 
+void Memory::reset() {
+	for (word addr = lo_addr; addr < lo_addr + mem_size; addr++) {
+		MemoryWriteException exception;
+		Memory::writeByte(addr, 0, exception);
+	}
+}
+
 
 /*
 	RAM

@@ -54,7 +54,7 @@ class Emulator32bit {
 		 */
 		void run(unsigned int instructions, EmulatorException &exception);
 
-
+		void reset();
 
 		// general purpose registers
 		word _x[31];

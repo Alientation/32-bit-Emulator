@@ -44,6 +44,8 @@ class SystemBus {
 		void writeHalfWord(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
 		void writeWord(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
 
+		void reset();
+
 	private:
 		std::vector<Memory*> mems;
 		RAM *ram;
