@@ -10,8 +10,8 @@ cmake -S ../ ../build -G Ninja -DCMAKE_INSTALL_PREFIX=../install
 cmake --build ../build --target install
 
 REM Configure and build the core application
-cmake -S . -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=../../util/install;../install
-cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=../../util/install;../install 
+cmake -S . -B build/test -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=../../util/install;../install
 
-cmake --build build/debug
-cmake --build build/release
+cmake --build build/test
+
+cd build/test && ctest
