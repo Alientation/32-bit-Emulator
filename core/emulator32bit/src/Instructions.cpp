@@ -79,6 +79,7 @@ word Emulator32bit::asm_nop() {
 void Emulator32bit::_add(word instr, EmulatorException& exception) {
 	word xd = _X1(instr);
 	word xn = _X2(instr);
+	word xn_val = read_reg(xn, exception);
 	word add = 0;
 	if (test_bit(instr, 14)) { // ?imm
 		// imm
@@ -87,7 +88,7 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 		add = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
 	}
 
-	word val = add + read_reg(xn, exception);
+	word val = add + xn_val;
 
 	std::cout << "_ADD: " << val << "\n";
 
@@ -95,8 +96,8 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 	if (test_bit(instr, 25)) { // ?S
 		bool N = test_bit(val, 31);
 		bool Z = val == 0;
-		bool C = val + add < val;
-		bool V = C != test_bit((set_bit(val, 31, 0) + set_bit(add, 31, 0)), 31);
+		bool C = (xn_val + add) < val;
+		bool V = C != test_bit((set_bit(xn_val, 31, 0) + set_bit(add, 31, 0)), 31);
 
 		set_NZCV(N, Z, C, V);
 	}

@@ -61,7 +61,7 @@ class RAM : public Memory {
 
 class ROM : public Memory {
 	public:
-		ROM(const byte (&rom_data)[], word mem_size, word lo_addr);
+		ROM(const byte* data, word mem_size, word lo_addr);
 
 		void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4) override;
 };

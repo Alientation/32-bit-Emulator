@@ -91,7 +91,7 @@ RAM::RAM(word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {}
 	ROM
 */
 
-ROM::ROM(const byte (&rom_data)[], word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {
+ROM::ROM(const byte* rom_data, word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {
 	for (word i = 0; i < mem_size; i++) {
 		this->data[i] = rom_data[i];
 	}

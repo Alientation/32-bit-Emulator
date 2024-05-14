@@ -1,7 +1,7 @@
 #pragma once
 #ifndef Emulator32bitUtil_H
 
-#define test_bit(val, bit_i) (val & (1 << bit_i))
+#define test_bit(val, bit_i) (((val & (1 << bit_i)) >> bit_i) & 1)
 #define set_bit(val, bit_i, to) ((val & ~(1 << bit_i)) | (to << bit_i))
 
 #define bitfield_u32(val, i, len) ((((unsigned int) val) >> i) & ((1 << len) - 1))

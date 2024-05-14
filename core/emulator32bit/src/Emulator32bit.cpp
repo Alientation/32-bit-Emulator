@@ -6,7 +6,7 @@ const byte Emulator32bit::ROM_DATA[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 const word Emulator32bit::ROM_MEM_SIZE = 1024;
 const word Emulator32bit::ROM_MEM_START = 1024;
 
-Emulator32bit::Emulator32bit() : system_bus(new RAM(RAM_MEM_SIZE, RAM_MEM_START), new ROM(ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START)) {
+Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start) : system_bus(new RAM(ram_mem_size, ram_mem_start), new ROM(rom_data, rom_mem_size, rom_mem_start)) {
 	// Constructor
 	// fill out instruction functions
 	// #define _INSTR(op) _instructions[_op_##op] = std::bind(&Emulator32bit::_##op, this, std::placeholders::_1, std::placeholders::_2);
@@ -89,6 +89,8 @@ Emulator32bit::Emulator32bit() : system_bus(new RAM(RAM_MEM_SIZE, RAM_MEM_START)
 
 	reset();
 }
+
+Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
 
 Emulator32bit::~Emulator32bit() {
 	
