@@ -96,8 +96,8 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 	if (test_bit(instr, 25)) { // ?S
 		bool N = test_bit(val, 31);
 		bool Z = val == 0;
-		bool C = (xn_val + add) < val;
-		bool V = C != test_bit((set_bit(xn_val, 31, 0) + set_bit(add, 31, 0)), 31);
+		bool C = 1 < (test_bit(add, 31) + test_bit(xn_val,31) + test_bit(set_bit(add, 31, 0) + set_bit(xn_val, 31, 0), 31));
+		bool V = C != test_bit(set_bit(add, 31, 0) + set_bit(xn_val, 31, 0), 31);
 
 		set_NZCV(N, Z, C, V);
 	}
