@@ -89,6 +89,8 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 
 	word val = add + read_reg(xn, exception);
 
+	std::cout << "_ADD: " << val << "\n";
+
 	// check to update NZCV
 	if (test_bit(instr, 25)) { // ?S
 		bool N = test_bit(val, 31);

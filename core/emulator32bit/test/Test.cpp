@@ -104,7 +104,6 @@ void test_bus() {
 	log(lgr::Logger::LogType::LOG, data_stream);
 
 	log(lgr::Logger::LogType::LOG, "cleaning up memory");
-	bus.~SystemBus();
 	delete ram;
 	delete rom;
 	log(lgr::Logger::LogType::LOG, "finished testing bus");

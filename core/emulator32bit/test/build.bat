@@ -14,4 +14,4 @@ cmake -S . -B build/test -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREF
 
 cmake --build build/test
 
-cd build/test && ctest -V
+cd build/test && ctest --output-on-failure

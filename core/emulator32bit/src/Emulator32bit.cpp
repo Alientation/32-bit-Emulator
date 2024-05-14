@@ -86,6 +86,8 @@ Emulator32bit::Emulator32bit() : system_bus(new RAM(RAM_MEM_SIZE, RAM_MEM_START)
 
 	_INSTR(nop)
 	#undef _INSTR
+
+	reset();
 }
 
 Emulator32bit::~Emulator32bit() {
@@ -117,7 +119,7 @@ void Emulator32bit::reset() {
 }
 
 void Emulator32bit::execute(word instr, EmulatorException &exception) {
-	byte opcode = (instr) & ~((1 << 26) - 1);
+	byte opcode = bitfield_u32(instr, 26, 6);
 
 	if (!_instructions[opcode]) {
 		exception.type = EmulatorException::Type::BAD_INSTR;

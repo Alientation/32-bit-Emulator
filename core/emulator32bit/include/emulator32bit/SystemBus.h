@@ -30,8 +30,11 @@ class SystemBus {
 		 * @return The byte read from the address
 		 */
 		byte readByte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		byte readByte(word address);
 		hword readHalfWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		hword readHalfWord(word address);
 		word readWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		word readWord(word address);
 
 		/**
 		 * Write a byte to the system bus
@@ -41,8 +44,11 @@ class SystemBus {
 		 * @param data The byte to write
 		 */
 		void writeByte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void writeByte(word address, byte data);
 		void writeHalfWord(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void writeHalfWord(word address, hword data);
 		void writeWord(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void writeWord(word address, word data);
 
 		void reset();
 

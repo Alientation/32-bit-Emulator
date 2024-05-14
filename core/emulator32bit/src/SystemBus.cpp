@@ -45,6 +45,12 @@ byte SystemBus::readByte(word address, SystemBusException &bus_exception, Memory
 	return 0;
 }
 
+byte SystemBus::readByte(word address) {
+	SystemBusException bus_exception;
+	Memory::MemoryReadException mem_exception;
+	return readByte(address, bus_exception, mem_exception);
+}
+
 hword SystemBus::readHalfWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
 	// Read a half word from the system bus
 	Memory *target = route_memory(address, bus_exception);
@@ -52,6 +58,12 @@ hword SystemBus::readHalfWord(word address, SystemBusException &bus_exception, M
 		return target->readHalfWord(address, mem_exception);
 	}
 	return 0;
+}
+
+hword SystemBus::readHalfWord(word address) {
+	SystemBusException bus_exception;
+	Memory::MemoryReadException mem_exception;
+	return readHalfWord(address, bus_exception, mem_exception);
 }
 
 word SystemBus::readWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
@@ -63,12 +75,24 @@ word SystemBus::readWord(word address, SystemBusException &bus_exception, Memory
 	return 0;
 }
 
+word SystemBus::readWord(word address) {
+	SystemBusException bus_exception;
+	Memory::MemoryReadException mem_exception;
+	return readWord(address, bus_exception, mem_exception);
+}
+
 void SystemBus::writeByte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
 	// Write a byte to the system bus
 	Memory *target = route_memory(address, bus_exception);
 	if (bus_exception.type == SystemBusException::AOK) {
 		target->writeByte(address, data, mem_exception);
 	}
+}
+
+void SystemBus::writeByte(word address, byte data) {
+	SystemBusException bus_exception;
+	Memory::MemoryWriteException mem_exception;
+	writeByte(address, data, bus_exception, mem_exception);
 }
 
 void SystemBus::writeHalfWord(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
@@ -79,12 +103,24 @@ void SystemBus::writeHalfWord(word address, hword data, SystemBusException &bus_
 	}
 }
 
+void SystemBus::writeHalfWord(word address, hword data) {
+	SystemBusException bus_exception;
+	Memory::MemoryWriteException mem_exception;
+	writeHalfWord(address, data, bus_exception, mem_exception);
+}
+
 void SystemBus::writeWord(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
 	// Write a word to the system bus
 	Memory *target = route_memory(address, bus_exception);
 	if (bus_exception.type == SystemBusException::AOK) {
 		target->writeWord(address, data, mem_exception);
 	}
+}
+
+void SystemBus::writeWord(word address, word data) {
+	SystemBusException bus_exception;
+	Memory::MemoryWriteException mem_exception;
+	writeWord(address, data, bus_exception, mem_exception);
 }
 
 void SystemBus::reset() {

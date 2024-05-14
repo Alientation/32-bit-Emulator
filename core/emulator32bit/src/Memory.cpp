@@ -4,7 +4,7 @@
 
 Memory::Memory(word mem_size, word lo_addr) {
 	this->mem_size = mem_size;
-	this->data = new byte[mem_size];
+	this->data = new byte[mem_size]();
 	this->lo_addr = lo_addr;
 }
 
@@ -25,7 +25,7 @@ word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
 
 	address -= lo_addr;
 	word value = 0;
-	for (int i = 0; i < num_bytes; i++) {
+	for (int i = num_bytes - 1; i >= 0; i--) {
 		value <<= 8;
 		value += this->data[(word) (address + i)];
 	}
