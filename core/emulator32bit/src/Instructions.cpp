@@ -111,7 +111,7 @@ word Emulator32bit::asm_add(bool s, int xd, int xn, int imm14) {
 }
 
 word Emulator32bit::asm_add(bool s, int xd, int xn, int xm, int shift, int imm5) {
-	return Joiner() << (6, _op_add) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 0) << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
+	return Joiner() << JPart(6, _op_add) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 0) << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
 }
 
 void Emulator32bit::_sub(word instr, EmulatorException& exception) {

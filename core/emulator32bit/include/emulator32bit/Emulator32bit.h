@@ -53,6 +53,7 @@ class Emulator32bit {
 		 * @param exception The exception raised by the run operation
 		 */
 		void run(unsigned int instructions, EmulatorException &exception);
+		void run(unsigned int instructions);
 
 		void reset();
 

@@ -27,6 +27,8 @@ target_sources(emulator32bit_tests PRIVATE
 	# add test source files here
 	./Emulator32bitTest.cpp
 
+	./EmulatorTests/emulator_test.cpp
+
 	./InstructionTests/hlt_test.cpp
 	./InstructionTests/add_test.cpp
 )

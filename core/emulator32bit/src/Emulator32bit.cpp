@@ -101,11 +101,17 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 		exception.instr = instr;
 		execute(instr, exception);
 		_pc += 4;
+		instructions--;
 	}
 
 	if (!exception.isOK()) {
 		handle_exception(exception);
 	}
+}
+
+void Emulator32bit::run(unsigned int instructions) {
+	EmulatorException exception;
+	run(instructions, exception);
 }
 
 void Emulator32bit::reset() {
