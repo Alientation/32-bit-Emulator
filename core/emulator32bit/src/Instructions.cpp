@@ -38,6 +38,28 @@ static inline word calc_shift(word val, byte shift_type, byte imm5) {
 	return val;
 }
 
+// yoinked from https://github.com/unicorn-engine/ because I could not figure out carry/overflow for subtraction
+static inline bool get_c_flag_add(word op1, word op2) {
+	word dst_val = op1 + op2;
+	return dst_val < op1;
+}
+
+static inline bool get_v_flag_add(word op1, word op2) {
+	word dst_val = op1 + op2;
+	return (op1 ^ op2 ^ -1) & (op1 ^ dst_val) & (1U << 31);
+}
+
+static inline bool get_c_flag_sub(word op1, word op2) {
+	word dst_val = op1 - op2;
+	return (((~op1 & op2) | (dst_val & (~op1 | op2))) & (1U << 31));
+}
+
+static inline bool get_v_flag_sub(word op1, word op2) {
+	word dst_val = op1 - op2;
+	return (((op1 ^ op2) & (op1 ^ dst_val)) & (1U << 31));
+}
+
+
 struct JPart {
 	JPart(int bits, word val = 0) : bits(bits), val(val) {}
 	int bits;
@@ -59,6 +81,15 @@ class Joiner {
 
 		operator word() const { return val; }
 };
+
+word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int imm14) {
+	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 1) << JPart(14, imm14);
+}
+
+word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5) {
+	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 0) << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
+}
+
 
 void Emulator32bit::_hlt(word instr, EmulatorException& exception) {
 	exception.type = EmulatorException::Type::HALT;
@@ -88,38 +119,49 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 		add = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
 	}
 
-	word val = add + xn_val;
-
-	std::cout << "_ADD: " << val << "\n";
+	word dst_val = add + xn_val;
 
 	// check to update NZCV
 	if (test_bit(instr, 25)) { // ?S
-		bool N = test_bit(val, 31);
-		bool Z = val == 0;
-		bool C = 1 < (test_bit(add, 31) + test_bit(xn_val,31) + test_bit(set_bit(add, 31, 0) + set_bit(xn_val, 31, 0), 31));
-		bool V = C != test_bit(set_bit(add, 31, 0) + set_bit(xn_val, 31, 0), 31);
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_add(xn_val, add);
+		bool V = get_v_flag_add(xn_val, add);
 
 		set_NZCV(N, Z, C, V);
 	}
 
-	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "add " << std::to_string(add) << " " << std::to_string(read_reg(xn, exception)) << " = " << std::to_string(val) << "\n");
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "add " << std::to_string(add) << " " << std::to_string(read_reg(xn, exception)) << " = " << std::to_string(dst_val) << "\n");
 
-	write_reg(xd, val, exception);
-}
-
-word Emulator32bit::asm_add(bool s, int xd, int xn, int imm14) {
-	return Joiner() << JPart(6, _op_add) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 1) << JPart(14, imm14);
-}
-
-word Emulator32bit::asm_add(bool s, int xd, int xn, int xm, int shift, int imm5) {
-	return Joiner() << JPart(6, _op_add) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 0) << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
+	write_reg(xd, dst_val, exception);
 }
 
 void Emulator32bit::_sub(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn = _X2(instr);
+	word xn_val = read_reg(xn, exception);
+	word sub = 0;
+	if (test_bit(instr, 14)) { // ?imm
+		// imm
+		sub = bitfield_u32(instr, 0, 14);
+	} else {
+		sub = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+	}
+	word dst_val = xn_val - sub;
 
+	// check to update NZCV
+	if (test_bit(instr, 25)) { // ?S
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_sub(xn_val, sub);
+		bool V = get_v_flag_sub(xn_val, sub);
 
+		set_NZCV(N, Z, C, V);
+	}
 
-	// check to update NZCV	
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sub " << std::to_string(sub) << " " << std::to_string(read_reg(xn, exception)) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xd, dst_val, exception);
 }
 
 void Emulator32bit::_rsb(word instr, EmulatorException& exception) {}

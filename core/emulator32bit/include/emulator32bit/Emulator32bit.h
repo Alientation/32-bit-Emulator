@@ -77,8 +77,8 @@ class Emulator32bit {
 
 		// note, stringstreams cannot use the static const for some reason
 		#define _INSTR(func_name, opcode) \
-		void _##func_name(word instr, EmulatorException& exception); \
-		static const byte _op_##func_name = opcode;
+		private: void _##func_name(word instr, EmulatorException& exception); \
+		public: static const byte _op_##func_name = opcode;
 		
 
 		void execute(word instr, EmulatorException &exception);
@@ -168,8 +168,8 @@ class Emulator32bit {
 	public:
 		// help assemble instructions
 		static word asm_hlt();
-		static word asm_add(bool s, int xd, int xn, int imm14);
-		static word asm_add(bool s, int xd, int xn, int xm, int shift, int imm5);
+		static word asm_format_o(byte opcode, bool s, int xd, int xn, int imm14);
+		static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5);
 
 		static word asm_nop();
 };
