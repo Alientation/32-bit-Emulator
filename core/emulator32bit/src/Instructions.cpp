@@ -111,27 +111,27 @@ void Emulator32bit::_add(word instr, EmulatorException& exception) {
 	word xd = _X1(instr);
 	word xn = _X2(instr);
 	word xn_val = read_reg(xn, exception);
-	word add = 0;
+	word add_val = 0;
 	if (test_bit(instr, 14)) { // ?imm
 		// imm
-		add = bitfield_u32(instr, 0, 14);
+		add_val = bitfield_u32(instr, 0, 14);
 	} else {
-		add = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+		add_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
 	}
 
-	word dst_val = add + xn_val;
+	word dst_val = add_val + xn_val;
 
 	// check to update NZCV
 	if (test_bit(instr, 25)) { // ?S
 		bool N = test_bit(dst_val, 31);
 		bool Z = dst_val == 0;
-		bool C = get_c_flag_add(xn_val, add);
-		bool V = get_v_flag_add(xn_val, add);
+		bool C = get_c_flag_add(xn_val, add_val);
+		bool V = get_v_flag_add(xn_val, add_val);
 
 		set_NZCV(N, Z, C, V);
 	}
 
-	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "add " << std::to_string(add) << " " << std::to_string(read_reg(xn, exception)) << " = " << std::to_string(dst_val) << "\n");
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "add " << std::to_string(add_val) << " " << std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
 
 	write_reg(xd, dst_val, exception);
 }
@@ -140,34 +140,146 @@ void Emulator32bit::_sub(word instr, EmulatorException& exception) {
 	word xd = _X1(instr);
 	word xn = _X2(instr);
 	word xn_val = read_reg(xn, exception);
-	word sub = 0;
+	word sub_val = 0;
 	if (test_bit(instr, 14)) { // ?imm
 		// imm
-		sub = bitfield_u32(instr, 0, 14);
+		sub_val = bitfield_u32(instr, 0, 14);
 	} else {
-		sub = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+		sub_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
 	}
-	word dst_val = xn_val - sub;
+	word dst_val = xn_val - sub_val;
 
 	// check to update NZCV
 	if (test_bit(instr, 25)) { // ?S
 		bool N = test_bit(dst_val, 31);
 		bool Z = dst_val == 0;
-		bool C = get_c_flag_sub(xn_val, sub);
-		bool V = get_v_flag_sub(xn_val, sub);
+		bool C = get_c_flag_sub(xn_val, sub_val);
+		bool V = get_v_flag_sub(xn_val, sub_val);
 
 		set_NZCV(N, Z, C, V);
 	}
 
-	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sub " << std::to_string(sub) << " " << std::to_string(read_reg(xn, exception)) << " = " << std::to_string(dst_val) << "\n");
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sub " << std::to_string(sub_val) << " " << std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
 
 	write_reg(xd, dst_val, exception);
 }
 
-void Emulator32bit::_rsb(word instr, EmulatorException& exception) {}
-void Emulator32bit::_adc(word instr, EmulatorException& exception) {}
-void Emulator32bit::_sbc(word instr, EmulatorException& exception) {}
-void Emulator32bit::_rsc(word instr, EmulatorException& exception) {}
+void Emulator32bit::_rsb(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word sub = _X2(instr);
+	word sub_val = read_reg(sub, exception);
+	word xn_val = 0;
+	if (test_bit(instr, 14)) { // ?imm
+		// imm
+		xn_val = bitfield_u32(instr, 0, 14);
+	} else {
+		xn_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+	}
+	word dst_val = xn_val - sub_val;
+
+	// check to update NZCV
+	if (test_bit(instr, 25)) { // ?S
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_sub(xn_val, sub_val);
+		bool V = get_v_flag_sub(xn_val, sub_val);
+
+		set_NZCV(N, Z, C, V);
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "rsb " << std::to_string(xn_val) << " " << std::to_string(sub_val) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xd, dst_val, exception);
+}
+
+void Emulator32bit::_adc(word instr, EmulatorException& exception) {
+	bool c = test_bit(_pstate, C_FLAG);
+	word xd = _X1(instr);
+	word xn = _X2(instr);
+	word xn_val = read_reg(xn, exception);
+	word add_val = 0;
+	if (test_bit(instr, 14)) { // ?imm
+		// imm
+		add_val = bitfield_u32(instr, 0, 14);
+	} else {
+		add_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+	}
+
+	word dst_val = add_val + xn_val + c;
+
+	// check to update NZCV
+	if (test_bit(instr, 25)) { // ?S
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_add(xn_val + c, add_val) | get_c_flag_add(xn_val, c);
+		bool V = get_v_flag_add(xn_val + c, add_val) | get_v_flag_add(xn_val, c);
+
+		set_NZCV(N, Z, C, V);
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "adc " << std::to_string(add_val) << " " << std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xd, dst_val, exception);
+}
+
+void Emulator32bit::_sbc(word instr, EmulatorException& exception) {
+	bool borrow = test_bit(_pstate, C_FLAG);
+	word xd = _X1(instr);
+	word xn = _X2(instr);
+	word xn_val = read_reg(xn, exception);
+	word sub_val = 0;
+	if (test_bit(instr, 14)) { // ?imm
+		// imm
+		sub_val = bitfield_u32(instr, 0, 14);
+	} else {
+		sub_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+	}
+	word dst_val = xn_val - sub_val - borrow;
+
+	// check to update NZCV
+	if (test_bit(instr, 25)) { // ?S
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow);
+		bool V = get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow);
+
+		set_NZCV(N, Z, C, V);
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sbc " << std::to_string(sub_val) << " " << std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xd, dst_val, exception);
+}
+
+void Emulator32bit::_rsc(word instr, EmulatorException& exception) {
+	bool borrow = test_bit(_pstate, C_FLAG);
+	word xd = _X1(instr);
+	word sub = _X2(instr);
+	word sub_val = read_reg(sub, exception);
+	word xn_val = 0;
+	if (test_bit(instr, 14)) { // ?imm
+		// imm
+		xn_val = bitfield_u32(instr, 0, 14);
+	} else {
+		xn_val = calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2));		
+	}
+	word dst_val = xn_val - sub_val - borrow;
+
+	// check to update NZCV
+	if (test_bit(instr, 25)) { // ?S
+		bool N = test_bit(dst_val, 31);
+		bool Z = dst_val == 0;
+		bool C = get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow);
+		bool V = get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow);
+
+		set_NZCV(N, Z, C, V);
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "rsc " << std::to_string(xn_val) << " " << std::to_string(sub_val) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xd, dst_val, exception);
+}
+
 void Emulator32bit::_mul(word instr, EmulatorException& exception) {}
 void Emulator32bit::_umull(word instr, EmulatorException& exception) {}
 void Emulator32bit::_smull(word instr, EmulatorException& exception) {}

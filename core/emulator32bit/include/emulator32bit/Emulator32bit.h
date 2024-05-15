@@ -6,8 +6,6 @@
 #include <emulator32bit/Memory.h>
 #include <emulator32bit/SystemBus.h>
 
-#include <functional>
-
 #define SP 30
 #define XZR 31
 
@@ -57,6 +55,7 @@ class Emulator32bit {
 		void run(unsigned int instructions);
 
 		void reset();
+		void set_NZCV(bool N, bool Z, bool C, bool V); 
 
 		// general purpose registers
 		word _x[31];
@@ -86,7 +85,6 @@ class Emulator32bit {
 		word read_reg(byte reg, EmulatorException &exception);
 		void write_reg(byte reg, word val, EmulatorException &exception);
 		void handle_exception(EmulatorException &exception);
-		void set_NZCV(bool N, bool Z, bool C, bool V); 
 
 		// instruction handling
 		_INSTR(hlt, 0b000000)
