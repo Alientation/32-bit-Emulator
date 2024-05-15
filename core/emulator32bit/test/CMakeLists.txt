@@ -36,6 +36,7 @@ target_sources(emulator32bit_tests PRIVATE
 	./InstructionTests/adc_test.cpp
 	./InstructionTests/sbc_test.cpp
 	./InstructionTests/rsc_test.cpp
+	./InstructionTests/mul_test.cpp
 )
 
 target_include_directories(

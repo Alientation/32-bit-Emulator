@@ -50,7 +50,7 @@ TEST(add, register_add_register_shifted) {
 	// add x0, x1, x2, lsl #3
 	// x1: 1
 	// x2: 2
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 1, 2, 0, 3));
+	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 1, 2, LSL, 3));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 2;

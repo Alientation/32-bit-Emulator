@@ -14,6 +14,11 @@
 #define C_FLAG 2
 #define V_FLAG 3
 
+#define LSL 0
+#define LSR 1
+#define ASR 2
+#define ROR 3
+
 class Emulator32bit {
 	public:
 		Emulator32bit();
