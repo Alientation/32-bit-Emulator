@@ -8,8 +8,7 @@
 
 class SystemBus {
 	public:
-		SystemBus(RAM *ram, ROM *rom);
-		~SystemBus();
+		SystemBus(RAM ram, ROM rom);
 
 		struct SystemBusException {
 			enum SystemBusExceptionType {
@@ -54,8 +53,8 @@ class SystemBus {
 
 	private:
 		std::vector<Memory*> mems;
-		RAM *ram;
-		ROM *rom;
+		RAM ram;
+		ROM rom;
 
 		Memory* route_memory(const word address, SystemBusException &bus_exception);
 };

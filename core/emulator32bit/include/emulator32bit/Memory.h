@@ -6,6 +6,7 @@
 class Memory {
 	public:
 		Memory(word mem_size, word lo_addr);
+		Memory(Memory& other);
 		virtual ~Memory();
 
 		struct MemoryReadException {

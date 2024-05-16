@@ -2,19 +2,10 @@
 
 #include <assert.h>
 
-SystemBus::SystemBus(RAM *ram, ROM *rom) {
+SystemBus::SystemBus(RAM ram, ROM rom) : ram(ram), rom(rom) {
 	// Constructor
-	mems.push_back(ram);
-	mems.push_back(rom);
-	this->ram = ram;
-	this->rom = rom;
-}
-
-SystemBus::~SystemBus() {
-	// Destructor
-	for (int i = 0; i < mems.size(); i++) {
-		delete mems[i];
-	}
+	mems.push_back(&this->ram);
+	mems.push_back(&this->rom);
 }
 
 Memory* SystemBus::route_memory(word address, SystemBusException &bus_exception) {

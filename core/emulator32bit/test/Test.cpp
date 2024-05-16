@@ -11,6 +11,7 @@ void test_bus();
 
 
 int main() {
+	test_bus();
 	return 0;
 };
 
@@ -27,9 +28,9 @@ void test_logger() {
 void test_bus() {
 	log(lgr::Logger::LogType::INFO, "testing bus");
 	log(lgr::Logger::LogType::LOG, "creating memory");
-	RAM* ram = new RAM(1024, 0);
+	RAM ram = RAM(1024, 0);
 	const byte rom_data[] = {1,2,3,4,5,6,7,8};
-	ROM* rom = new ROM(rom_data, 8, 1024);
+	ROM rom = ROM(rom_data, 8, 1024);
 	SystemBus bus(ram, rom);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");
@@ -46,7 +47,5 @@ void test_bus() {
 	log(lgr::Logger::LogType::LOG, data_stream);
 
 	log(lgr::Logger::LogType::LOG, "cleaning up memory");
-	delete ram;
-	delete rom;
 	log(lgr::Logger::LogType::LOG, "finished testing bus");
 }

@@ -15,6 +15,8 @@
 // helps to trim off the size of printed file paths in logs
 #define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 
+// todo if in RELEASE mode, make these macros EMPTY (will have to replace with dummy line because of ';')
+
 // append some extra logging information when calling the function
 #define log(log_type, msg) log_f(__FILE__, __func__, __LINE__, log_type, msg, "")
 // todo COMMENTED OUT BECAUSE MACROS CANNOT BE OVERLOADED

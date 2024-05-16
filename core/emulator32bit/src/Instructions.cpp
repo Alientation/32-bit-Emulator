@@ -234,7 +234,7 @@ void Emulator32bit::_mul(word instr, EmulatorException& exception) {
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
-		// according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
+		// according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/smull
 		// arm's MUL instruction does not set carry or overflow flags
 		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 	}
@@ -254,7 +254,7 @@ void Emulator32bit::_umull(word instr, EmulatorException& exception) {
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
-		// according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
+		// according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/umull
 		// arm's UMULL instruction does not set carry or overflow flags
 		set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 	}
@@ -302,22 +302,94 @@ void Emulator32bit::_vcflo_f32(word instr, EmulatorException& exception) {}
 void Emulator32bit::_vmov_f32(word instr, EmulatorException& exception) {}
 
 void Emulator32bit::_and(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word and_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = and_val & xn_val;
 
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		// https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
+		// N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
+		// but will ignore for now
+		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "and " << std::to_string(and_val) << " " 
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+	write_reg(xd, dst_val, exception);
 }
 
-void Emulator32bit::_orr(word instr, EmulatorException& exception) {}
-void Emulator32bit::_eor(word instr, EmulatorException& exception) {}
-void Emulator32bit::_bic(word instr, EmulatorException& exception) {}
+void Emulator32bit::_orr(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word or_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = or_val | xn_val;
+
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		// https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
+		// N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
+		// but will ignore for now
+		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "orr " << std::to_string(or_val) << " " 
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+	write_reg(xd, dst_val, exception);
+}
+
+void Emulator32bit::_eor(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word eor_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = eor_val ^ xn_val;
+
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		// https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
+		// N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
+		// but will ignore for now
+		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "eor " << std::to_string(eor_val) << " " 
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+	write_reg(xd, dst_val, exception);
+}
+
+void Emulator32bit::_bic(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word bic_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = (~bic_val) & xn_val;
+
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		// https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
+		// N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
+		// but will ignore for now
+		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "bic " << std::to_string(bic_val) << " " 
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+	write_reg(xd, dst_val, exception);
+}
+
 void Emulator32bit::_lsl(word instr, EmulatorException& exception) {}
 void Emulator32bit::_lsr(word instr, EmulatorException& exception) {}
 void Emulator32bit::_asr(word instr, EmulatorException& exception) {}
 void Emulator32bit::_ror(word instr, EmulatorException& exception) {}
+
 void Emulator32bit::_cmp(word instr, EmulatorException& exception) {}
 void Emulator32bit::_cmn(word instr, EmulatorException& exception) {}
 void Emulator32bit::_tst(word instr, EmulatorException& exception) {}
 void Emulator32bit::_teq(word instr, EmulatorException& exception) {}
+
 void Emulator32bit::_mov(word instr, EmulatorException& exception) {}
 void Emulator32bit::_mvn(word instr, EmulatorException& exception) {}
+
 void Emulator32bit::_ldr(word instr, EmulatorException& exception) {}
 void Emulator32bit::_ldrb(word instr, EmulatorException& exception) {}
 void Emulator32bit::_ldrh(word instr, EmulatorException& exception) {}
@@ -327,6 +399,7 @@ void Emulator32bit::_strh(word instr, EmulatorException& exception) {}
 void Emulator32bit::_swp(word instr, EmulatorException& exception) {}
 void Emulator32bit::_swpb(word instr, EmulatorException& exception) {}
 void Emulator32bit::_swph(word instr, EmulatorException& exception) {}
+
 void Emulator32bit::_b(word instr, EmulatorException& exception) {}
 void Emulator32bit::_bl(word instr, EmulatorException& exception) {}
 void Emulator32bit::_bx(word instr, EmulatorException& exception) {}

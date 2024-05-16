@@ -8,8 +8,18 @@ Memory::Memory(word mem_size, word lo_addr) {
 	this->lo_addr = lo_addr;
 }
 
+Memory::Memory(Memory& other) {
+	this->mem_size = other.mem_size;
+	this->data = new byte[mem_size];
+	for (int i = 0; i < mem_size; i++) {
+		this->data[i] = other.data[i];
+	}
+	this->lo_addr = other.lo_addr;
+}
+
 Memory::~Memory() {
-	delete[] this->data;
+	if (this->data)
+		delete[] this->data;
 }
 
 bool Memory::in_bounds(word address) {
