@@ -14,6 +14,8 @@
 #define C_FLAG 2
 #define V_FLAG 3
 
+#define S_BIT 25
+
 #define LSL 0
 #define LSR 1
 #define ASR 2
@@ -173,6 +175,7 @@ class Emulator32bit {
 		static word asm_hlt();
 		static word asm_format_o(byte opcode, bool s, int xd, int xn, int imm14);
 		static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5);
+		static word asm_format_o2(byte opcode, bool s, int xlo, int xhi, int xn, int xm);
 
 		static word asm_nop();
 };
