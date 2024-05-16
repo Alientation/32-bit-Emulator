@@ -262,14 +262,29 @@ void Emulator32bit::_umull(word instr, EmulatorException& exception) {
 	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "mul " << std::to_string(xn_val) << " " 
 			<< std::to_string(xm_val) << " = " << std::to_string(dst_val) << "\n");
 
-	std::cout << " (up32) dst_vall=" << (dst_val >> 1) << "\n";
-
 	write_reg(xlo, (word) dst_val, exception);
 	write_reg(xhi, (word) (dst_val >> 32), exception);
 }
 
 void Emulator32bit::_smull(word instr, EmulatorException& exception) {
+	byte xlo = _X1(instr);
+	byte xhi = _X2(instr);
+	signed long long xn_val = ((signed long long) read_reg(_X3(instr), exception)) << 32 >> 32;
+	signed long long xm_val = ((signed long long) read_reg(_X4(instr), exception)) << 32 >> 32;
+	signed long long dst_val = xn_val * xm_val;
 
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		// according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
+		// arm's UMULL instruction does not set carry or overflow flags
+		set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "mul " << std::to_string(xn_val) << " " 
+			<< std::to_string(xm_val) << " = " << std::to_string(dst_val) << "\n");
+
+	write_reg(xlo, (word) dst_val, exception);
+	write_reg(xhi, (word) (dst_val >> 32), exception);
 }
 
 // todo WILL DO LATER JUST NOT NOW
