@@ -45,6 +45,8 @@ target_sources(emulator32bit_tests PRIVATE
 	./InstructionTests/bic_test.cpp
 	./InstructionTests/lsl_test.cpp
 	./InstructionTests/lsr_test.cpp
+	./InstructionTests/asr_test.cpp
+	./InstructionTests/ror_test.cpp
 )
 
 target_include_directories(
@@ -57,8 +59,6 @@ target_link_libraries(emulator32bit_tests PUBLIC util::util emulator32bit::emula
 
 include(GoogleTest)
 gtest_discover_tests(emulator32bit_tests)
-
-
 
 add_executable(quick_test)
 target_sources(quick_test PRIVATE

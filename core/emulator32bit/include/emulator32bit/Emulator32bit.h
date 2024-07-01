@@ -35,7 +35,7 @@ class Emulator32bit {
 			};
 
 			Type type = Type::AOK;
-			word instr;
+			word instr = 0;
 			SystemBus::SystemBusException sys_bus_exception;
 			Memory::MemoryReadException mem_read_exception;
 			Memory::MemoryWriteException mem_write_exception;
@@ -74,7 +74,7 @@ class Emulator32bit {
 		// word fpsr;
 
 	private:
-		static const int _num_instructions = 51;
+		static const int _num_instructions = 64;
 		// std::function<void(word, EmulatorException&)> _instructions[_num_instructions];
 		typedef void (Emulator32bit::*InstructionFunction)(word, EmulatorException&);
 		InstructionFunction _instructions[_num_instructions];
