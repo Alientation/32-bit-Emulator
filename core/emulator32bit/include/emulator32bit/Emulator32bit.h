@@ -30,10 +30,10 @@ class Emulator32bit {
 			enum class Type {
 				AOK,
 				BAD_INSTR,
-				HALT, 
+				HALT,
 				BAD_REG
 			};
-			
+
 			Type type = Type::AOK;
 			word instr;
 			SystemBus::SystemBusException sys_bus_exception;
@@ -48,12 +48,12 @@ class Emulator32bit {
 		static const word ROM_MEM_SIZE;
 		static const word ROM_MEM_START;
 		static const byte ROM_DATA[];
-		
+
 		SystemBus system_bus;
-		
+
 		/**
 		 * Run the emulator for a given number of instructions
-		 * 
+		 *
 		 * @param instructions The number of instructions to run, if 0 run until HLT instruction
 		 * @param exception The exception raised by the run operation
 		 */
@@ -61,14 +61,13 @@ class Emulator32bit {
 		void run(unsigned int instructions);
 
 		void reset();
-		void set_NZCV(bool N, bool Z, bool C, bool V); 
+		void set_NZCV(bool N, bool Z, bool C, bool V);
 
 		// general purpose registers
 		word _x[31];
 		word _pc;
 		word _pstate;
 
-		
 
 		// todo determine if fp registers are needed
 		// word fpcr;
@@ -84,7 +83,6 @@ class Emulator32bit {
 		#define _INSTR(func_name, opcode) \
 		private: void _##func_name(word instr, EmulatorException& exception); \
 		public: static const byte _op_##func_name = opcode;
-		
 
 		void execute(word instr, EmulatorException &exception);
 
@@ -131,10 +129,10 @@ class Emulator32bit {
 		_INSTR(cmn, 0b011111)
 		_INSTR(tst, 0b100000)
 		_INSTR(teq, 0b100001)
-		
+
 		_INSTR(mov, 0b100010)
 		_INSTR(mvn, 0b100011)
-		
+
 		_INSTR(ldr, 0b100100)
 		_INSTR(ldrb, 0b100101)
 		_INSTR(ldrh, 0b100110)
@@ -144,13 +142,11 @@ class Emulator32bit {
 		_INSTR(swp, 0b101010)
 		_INSTR(swpb, 0b101011)
 		_INSTR(swph, 0b101100)
-		
 		_INSTR(b, 0b101101)
 		_INSTR(bl, 0b101110)
 		_INSTR(bx, 0b101111)
 		_INSTR(blx, 0b110000)
 		_INSTR(swi, 0b110001)
-		
 		// _INSTR(nop_, 0b110010)
 		// _INSTR(nop_, 0b110011)
 		// _INSTR(nop_, 0b110100)
@@ -174,7 +170,9 @@ class Emulator32bit {
 		static word asm_hlt();
 		static word asm_format_o(byte opcode, bool s, int xd, int xn, int imm14);
 		static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5);
+		static word asm_format_o1(byte opcode, int xd, int xn, bool imm, int xm, int imm5);
 		static word asm_format_o2(byte opcode, bool s, int xlo, int xhi, int xn, int xm);
+
 
 		static word asm_nop();
 };

@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(FetchContent)
 FetchContent_Declare(
   googletest
+  DOWNLOAD_EXTRACT_TIMESTAMP OFF
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
@@ -22,7 +23,7 @@ find_package(emulator6502 REQUIRED CONFIG)
 # Link gtest to the tests.
 enable_testing()
 add_executable(emulator6502_tests)
-target_sources(emulator6502_tests PRIVATE 
+target_sources(emulator6502_tests PRIVATE
     ./emulator6502_tests/AlienCPUTests.cpp
 
     # instruction tests
@@ -91,7 +92,7 @@ target_include_directories(
 target_link_libraries(emulator6502_tests PUBLIC util::util assembler::assembler emulator6502::emulator6502 GTest::gtest_main)
 
 add_executable(assembler_tests)
-target_sources(assembler_tests PRIVATE 
+target_sources(assembler_tests PRIVATE
     ./assembler_tests/AssemblerTests.cpp
 )
 target_include_directories(

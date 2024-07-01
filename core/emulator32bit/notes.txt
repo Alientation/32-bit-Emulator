@@ -7,7 +7,7 @@ Simplified ARM-like instruction set
 	- FPSR https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register
 
 INSTRUCTION SET ARCHITECTURE
-	- Attempted to make these instruction encodings be as realistic as possible 
+	- Attempted to make these instruction encodings be as realistic as possible
 	(keep specific register encoding locations constant)
 
 O Type Instruction
@@ -167,7 +167,7 @@ EOR{S} xd, xn, arg (O)
 	- op: 011000
 BIC{S} xd, xn, arg (O)
 	- op: 011001
-LSL{S} xd, xn, {xm|#imm5} (O)
+LSL{S} xd, xn, {xm|#imm5} (O)	-- NOTE, #imm5 refers to the same one if ?imm was unset
 	- op: 011010
 LSR{S} xd, xn, {xm|#imm5} (O)
 	- op: 011011
@@ -218,7 +218,7 @@ AVAILABLE OPCODES
 	111000, 111001, 111010, 111011, 111100, 111101, 111110
 
 Condition Codes (15)
-AL {1} 
+AL {1}
 EQ {Z=1}
 NE {Z=0}
 CS, HS {C=1}

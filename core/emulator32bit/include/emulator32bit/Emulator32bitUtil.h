@@ -18,6 +18,8 @@ typedef unsigned int word;
 typedef unsigned short hword;
 typedef unsigned char byte;
 
+typedef signed int sword;
+
 const int DWORD_BITS = sizeof(dword) << 3;
 const int WORD_BITS = sizeof(word) << 3;
 const int HWORD_BITS = sizeof(hword) << 3;

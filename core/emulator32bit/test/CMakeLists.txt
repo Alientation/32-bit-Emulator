@@ -43,6 +43,8 @@ target_sources(emulator32bit_tests PRIVATE
 	./InstructionTests/orr_test.cpp
 	./InstructionTests/eor_test.cpp
 	./InstructionTests/bic_test.cpp
+	./InstructionTests/lsl_test.cpp
+	./InstructionTests/lsr_test.cpp
 )
 
 target_include_directories(
