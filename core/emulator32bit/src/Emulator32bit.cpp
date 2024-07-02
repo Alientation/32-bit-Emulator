@@ -11,7 +11,7 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 	// fill out instruction functions
 	// #define _INSTR(op) _instructions[_op_##op] = std::bind(&Emulator32bit::_##op, this, std::placeholders::_1, std::placeholders::_2);
 	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
-	
+
 	_INSTR(hlt)
 
 	_INSTR(add)
@@ -50,10 +50,10 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 	_INSTR(cmn)
 	_INSTR(tst)
 	_INSTR(teq)
-	
+
 	_INSTR(mov)
 	_INSTR(mvn)
-	
+
 	_INSTR(ldr)
 	_INSTR(ldrb)
 	_INSTR(ldrh)
@@ -63,13 +63,13 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 	_INSTR(swp)
 	_INSTR(swpb)
 	_INSTR(swph)
-	
+
 	_INSTR(b)
 	_INSTR(bl)
 	_INSTR(bx)
 	_INSTR(blx)
 	_INSTR(swi)
-	
+
 	// _INSTR(nop_)
 	// _INSTR(nop_)
 	// _INSTR(nop_)
@@ -95,7 +95,7 @@ Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_
 void Emulator32bit::run(unsigned int instructions, EmulatorException &exception) {
 	// Run the emulator for a given number of instructions
 	while (instructions > 0 && exception.isOK()) {
-		word instr = system_bus.readWord(_pc, exception.sys_bus_exception, exception.mem_read_exception);
+		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
 		exception.instr = instr;
 		execute(instr, exception);
 		_pc += 4;

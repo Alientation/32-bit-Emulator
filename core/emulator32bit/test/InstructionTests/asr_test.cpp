@@ -2,7 +2,7 @@
 
 TEST(asr, imm5_shift_pos) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;
 	cpu->set_NZCV(1, 0, 0, 1);
@@ -22,7 +22,7 @@ TEST(asr, imm5_shift_pos) {
 
 TEST(asr, imm5_shift_neg) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
 	cpu->_pc = 0;
 	cpu->_x[1] = -32;
 	cpu->set_NZCV(1, 0, 0, 1);
@@ -42,7 +42,7 @@ TEST(asr, imm5_shift_neg) {
 
 TEST(asr, reg_shift) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;
 	cpu->_x[2] = 5;
@@ -64,7 +64,7 @@ TEST(asr, reg_shift) {
 
 TEST(asr, reg_shift_low_byte) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;
 	cpu->_x[2] = 5 + ~((word) 0xFF);

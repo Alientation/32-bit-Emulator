@@ -5,7 +5,7 @@ TEST(bic, register_and_register) {
 	// bic x0, x1, x2
 	// x1: 0b0011
 	// x2: ~0b1010
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 0b0011;
 	cpu->_x[2] = ~0b1010;
@@ -30,7 +30,7 @@ TEST(bic, negative_flag) {
 	// bic x0, x1, x2
 	// x1: ~0
 	// x2: ~(1<<31)
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = ~0;
 	cpu->_x[2] = ~(1U<<31);
@@ -55,7 +55,7 @@ TEST(bic, zero_flag) {
 	// bic x0, x1, x2
 	// x1: ~0
 	// x2: ~0
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_bic, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = ~0;
 	cpu->_x[2] = ~0;

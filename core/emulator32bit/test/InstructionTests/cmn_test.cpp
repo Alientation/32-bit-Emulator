@@ -71,7 +71,7 @@ TEST(cmn, negative_flag) {
 	// cmn x0, x1, x2
 	// x1: -2
 	// x2: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, false, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -2;
 	cpu->_x[2] = 1;
@@ -95,7 +95,7 @@ TEST(cmn, zero_flag) {
 	// cmn x0, x1, x2
 	// x1: 0
 	// x2: 0
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, false, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 0;
 	cpu->_x[2] = 0;
@@ -118,7 +118,7 @@ TEST(cmn, carry_flag_1) {
 	// cmn x0, x1, x2
 	// x1: 0
 	// x2: 0
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -1;
 	cpu->_x[2] = -1;
@@ -141,7 +141,7 @@ TEST(cmn, carry_flag_2) {
 	// cmn x0, x1, x2
 	// x1: 0
 	// x2: 0
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -4;
 	cpu->_x[2] = -4;
@@ -164,7 +164,7 @@ TEST(cmn, overflow_flag__neg_to_pos) {
 	// cmn x0, x1, x2
 	// x1: 1<<31
 	// x2: 1<<31
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1U << 31;
 	cpu->_x[2] = 1U << 31;
@@ -187,7 +187,7 @@ TEST(cmn, overflow_flag__pos_to_neg) {
 	// cmn x0, x1, x2
 	// x1: (1<<31) - 1
 	// x2: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = (1U << 31) - 1;
 	cpu->_x[2] = 1;

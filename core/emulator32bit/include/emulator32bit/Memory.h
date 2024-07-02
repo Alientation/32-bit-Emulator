@@ -36,22 +36,22 @@ class Memory {
 		virtual word read(word address, MemoryReadException &exception, int num_bytes = 4);
 		virtual void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4);
 
-		byte readByte(word address, MemoryReadException &exception);
-		hword readHalfWord(word address, MemoryReadException &exception);
-		word readWord(word address, MemoryReadException &exception);
+		byte read_byte(word address, MemoryReadException &exception);
+		hword read_hword(word address, MemoryReadException &exception);
+		word read_word(word address, MemoryReadException &exception);
 
-		void writeByte(word address, byte data, MemoryWriteException &exception);
-		void writeHalfWord(word address, hword data, MemoryWriteException &exception);
-		void writeWord(word address, word data, MemoryWriteException &exception);
+		void write_byte(word address, byte data, MemoryWriteException &exception);
+		void write_hword(word address, hword data, MemoryWriteException &exception);
+		void write_word(word address, word data, MemoryWriteException &exception);
 
 		void reset();
 
 		virtual bool in_bounds(word address);
-	
+
 	protected:
 		word mem_size;
 		byte* data;
-		
+
 		word lo_addr;
 };
 

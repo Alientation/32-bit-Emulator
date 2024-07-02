@@ -6,21 +6,41 @@
 #include <emulator32bit/Memory.h>
 #include <emulator32bit/SystemBus.h>
 
-#define SP 30
-#define XZR 31
+/**
+ * @brief					IDs for special registers
+ *
+ */
+#define SP 30				/* Stack Pointer*/
+#define XZR 31				/* Zero Register */
 
-#define N_FLAG 0
-#define Z_FLAG 1
-#define C_FLAG 2
-#define V_FLAG 3
+/**
+ * @brief 					Flag bit locations in _pstate register
+ *
+ */
+#define N_FLAG 0			/* Negative Flag */
+#define Z_FLAG 1			/* Zero Flag */
+#define C_FLAG 2			/* Carry Flag */
+#define V_FLAG 3			/* Overflow Flag */
 
-#define S_BIT 25
+/**
+ * @brief					Which bit of the instruction determines whether flags will be updated
+ *
+ */
+#define S_BIT 25			/* Update Flag Bit */
 
-#define LSL 0
-#define LSR 1
-#define ASR 2
-#define ROR 3
+/**
+ * @brief					Shift codes
+ *
+ */
+#define LSL 0				/* Logical Shift Left */
+#define LSR 1				/* Logical Shift Right */
+#define ASR 2				/* Arithmetic Shift Right */
+#define ROR 3				/* Rotate Right */
 
+/**
+ * @brief 					State of Emulator
+ *
+ */
 class Emulator32bit {
 	public:
 		Emulator32bit();
@@ -41,6 +61,25 @@ class Emulator32bit {
 			Memory::MemoryWriteException mem_write_exception;
 
 			bool isOK();
+		};
+
+		enum class ConditionCode {
+			EQ = 0,						/* Equal		: Z==1 */
+			NE = 1,						/* Not Equal	: Z==0 */
+			CS = 2, HS = 2,				/* Unsigned higher or same	: C==1 */
+			CC = 3, LO = 3,				/* Unsigned lower			: C==0 */
+			MI = 4,						/* Negative		: N==1 */
+			PL = 5,						/* Nonnegative	: N==0 */
+			VS = 6,						/* Signed overflow 			: V==1 */
+			VC = 7,						/* No signed overflow		: V==0 */
+			HI = 8,						/* Unsigned higher			: (C==1) && (Z==0) */
+			LS = 9,						/* Unsigned lower or same 	: (C==0) || (Z==0) */
+			GE = 10,					/* Signed greater than or equal	: N==V */
+			LT = 11,					/* Signed less than				: N!=V */
+			GT = 12,					/* Signed greater than			: (Z==0) && (N==V) */
+			LE = 13,					/* Signed less than or equal 	: (Z==1) || (N!=V) */
+			AL = 14,					/* Always Executed				: NONE */
+			NV = 15,					/* Never Executed 				: NONE */
 		};
 
 		static const word RAM_MEM_SIZE;
@@ -86,8 +125,10 @@ class Emulator32bit {
 
 		void execute(word instr, EmulatorException &exception);
 
+		bool check_cond(word pstate, byte cond);
+
 		word read_reg(byte reg, EmulatorException &exception);
-		word calc_mem_addr(word xn, word offset, byte addr_mode, EmulatorException& exception);
+		word calc_mem_addr(word xn, sword offset, byte addr_mode, EmulatorException& exception);
 		void write_reg(byte reg, word val, EmulatorException &exception);
 		void handle_exception(EmulatorException &exception);
 
@@ -176,6 +217,8 @@ class Emulator32bit {
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr);
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr);
 		static word asm_format_m1(byte opcode, int xd, int xn, int xm);
+		static word asm_format_b1(byte opcode, ConditionCode cond, sword simm22);
+		static word asm_format_b2(byte opcode, ConditionCode cond, int xd);
 
 		static word asm_nop();
 };

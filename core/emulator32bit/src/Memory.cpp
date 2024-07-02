@@ -50,7 +50,7 @@ void Memory::write(word address, word value, MemoryWriteException &exception, in
 		exception.num_bytes = num_bytes;
 		return;
 	}
-	
+
 	address -= lo_addr;
 	for (int i = 0; i < num_bytes; i++) {
 		this->data[(word) (address + i)] = value & 0xFF;
@@ -59,34 +59,34 @@ void Memory::write(word address, word value, MemoryWriteException &exception, in
 }
 
 
-byte Memory::readByte(word address, MemoryReadException &exception) {
+byte Memory::read_byte(word address, MemoryReadException &exception) {
 	return this->read(address, exception, 1);
 }
 
-hword Memory::readHalfWord(word address, MemoryReadException &exception) {
+hword Memory::read_hword(word address, MemoryReadException &exception) {
 	return this->read(address, exception, 2);
 }
 
-word Memory::readWord(word address, MemoryReadException &exception) {
+word Memory::read_word(word address, MemoryReadException &exception) {
 	return this->read(address, exception, 4);
 }
 
-void Memory::writeByte(word address, byte data, MemoryWriteException &exception) {
+void Memory::write_byte(word address, byte data, MemoryWriteException &exception) {
 	this->write(address, data, exception, 1);
 }
 
-void Memory::writeHalfWord(word address, hword data, MemoryWriteException &exception) {
+void Memory::write_hword(word address, hword data, MemoryWriteException &exception) {
 	this->write(address, data, exception, 2);
 }
 
-void Memory::writeWord(word address, word data, MemoryWriteException &exception) {
+void Memory::write_word(word address, word data, MemoryWriteException &exception) {
 	this->write(address, data, exception, 4);
 }
 
 void Memory::reset() {
 	for (word addr = lo_addr; addr < lo_addr + mem_size; addr++) {
 		MemoryWriteException exception;
-		Memory::writeByte(addr, 0, exception);
+		Memory::write_byte(addr, 0, exception);
 	}
 }
 

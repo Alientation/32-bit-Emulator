@@ -38,7 +38,7 @@ void test_bus() {
 	for (int i = 0; i < sizeof(rom_data); i++) {
 		SystemBus::SystemBusException bus_exception;
 		Memory::MemoryReadException mem_exception;
-		byte data = bus.readByte(1024 + i, bus_exception, mem_exception);
+		byte data = bus.read_byte(1024 + i, bus_exception, mem_exception);
 		if (bus_exception.type != SystemBus::SystemBusException::AOK) {
 			log(lgr::Logger::LogType::ERROR, "error reading from memory");
 		}

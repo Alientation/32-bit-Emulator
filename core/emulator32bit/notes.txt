@@ -63,18 +63,19 @@ opcode   -     xt      xn    -     xm    ---------
 
 B Type Instruction
 ----------------------------------------------------------------
-B{CD} imm24
-BL{CD} imm24
+B{CD} simm22
+BL{CD} simm22
 BX{CD} xd
 BLX{CD} xd
-SWI{CD} imm24
+SWI{CD} -
 
+B1 Type Instruction
 000000 | 0000 | 0000000000000000000000
 opcode   cond    simm22 (scale by 4)
 
+B2 Type Instruction
 000000 | 0000 | 00000 | 00000000000000000
 opcode   cond    xd     -----------------
-
 
 Miscellaneous Instructions (2)
 HLT
@@ -201,16 +202,16 @@ SWP{S}{B|H} xd, xn, [xm] (M1)
 	- op: 101010 (regular), 101011 (Byte), 101100 (Half-Word)
 
 Branching Instructions (5)
-B{CD} imm24 (B)
+B{CD} simm22 (B1)
 	- op: 101101
-BL{CD} imm24 (B)
+BL{CD} simm22 (B1)
 	- op: 101110
-BX{CD} xd (B)
+BX{CD} xd (B2)
 	- BX 29 equivalent to ret
 	- op: 101111
-BLX{CD} xd (B)
+BLX{CD} xd (B2)
 	- op: 110000
-SWI{CD} imm24 (B)
+SWI{CD} simm22 (B1)
 	- op: 110001
 
 AVAILABLE OPCODES

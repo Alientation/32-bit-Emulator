@@ -5,7 +5,7 @@ TEST(rsc, register_rsc_immediate) {
 	// rsc x0, x1, #11
 	// x1: 9
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, false, 0, 1, 11));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, false, 0, 1, 11));
 	cpu->_pc = 0;
 	cpu->_x[1] = 9;
 	cpu->set_NZCV(0, 0, 1, 0);
@@ -29,7 +29,7 @@ TEST(rsc, register_rsc_register) {
 	// x1: 9
 	// x2: 11
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, false, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 9;
 	cpu->_x[2] = 11;
@@ -55,7 +55,7 @@ TEST(rsc, negative_flag) {
 	// x1: 2
 	// x2: 2
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 2;
 	cpu->_x[2] = 2;
@@ -81,7 +81,7 @@ TEST(rsc, zero_flag) {
 	// x1: 1
 	// x2: 2
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 2;
@@ -107,7 +107,7 @@ TEST(rsc, carry_flag_1) {
 	// x1: -2
 	// x2: -2
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -2;
 	cpu->_x[2] = -2;
@@ -133,7 +133,7 @@ TEST(rsc, carry_flag_2) {
 	// x1: -2
 	// x2: 2
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -2;
 	cpu->_x[2] = 2;
@@ -153,13 +153,13 @@ TEST(rsc, carry_flag_2) {
 	delete cpu;
 }
 
-TEST(rsc, overflow_flag__positive_to_negative) { 
+TEST(rsc, overflow_flag__positive_to_negative) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
 	// rsc x0, x1, x2
 	// x1: -2
 	// x2: (1<<31)-1
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -2;
 	cpu->_x[2] = (1U<<31)-1;
@@ -185,7 +185,7 @@ TEST(rsc, overflow_flag__negative_to_positive) {
 	// x1: 0
 	// x2: 1<<31
 	// carry: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_rsc, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 0;
 	cpu->_x[2] = 1U<<31;

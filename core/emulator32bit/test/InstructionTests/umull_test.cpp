@@ -5,7 +5,7 @@ TEST(umull, register_umull_register) {
 	// umull x0, x1, x2, x3
 	// x2: 2
 	// x3: 4
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, false, 0, 1, 2, 3));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, false, 0, 1, 2, 3));
 	cpu->_pc = 0;
 	cpu->_x[2] = 2;
 	cpu->_x[3] = 4;
@@ -30,7 +30,7 @@ TEST(umull, negative_flag) {
 	// umull x0, x1, x2, x3
 	// x2: 1<<31
 	// x3: 1<<31
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, true, 0, 1, 2, 3));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, true, 0, 1, 2, 3));
 	cpu->_pc = 0;
 	cpu->_x[2] = ~0;
 	cpu->_x[3] = ~0;
@@ -49,13 +49,13 @@ TEST(umull, negative_flag) {
 	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
- 
+
 TEST(umull, zero_flag) {
 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
 	// umull x0, x1, x2, x3
 	// x2: 0
 	// x3: 4
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, true, 0, 1, 2, 3));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, true, 0, 1, 2, 3));
 	cpu->_pc = 0;
 	cpu->_x[2] = 0;
 	cpu->_x[3] = 4;

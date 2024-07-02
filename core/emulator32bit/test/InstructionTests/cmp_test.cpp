@@ -48,7 +48,7 @@ TEST(cmp, negative_flag) {
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: 2
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 2;
@@ -71,7 +71,7 @@ TEST(cmp, zero_flag) {
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 1;
@@ -94,7 +94,7 @@ TEST(cmp, carry_flag_1) {
 	// cmp x0, x1, x2
 	// x1: -3
 	// x2: -2
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -3;
 	cpu->_x[2] = -2;
@@ -117,7 +117,7 @@ TEST(cmp, carry_flag_2) {
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: -2
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = -2;
@@ -140,7 +140,7 @@ TEST(cmp, overflow_flag__positive_to_negative) {
 	// cmp x0, x1, x2
 	// x1: (1<<31)-1
 	// x2: -1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = (1U<<31) - 1;
 	cpu->_x[2] = -1;
@@ -163,7 +163,7 @@ TEST(cmp, overflow_flag__negative_to_positive) {
 	// cmp x0, x1, x2
 	// x1: 1U<<31
 	// x2: 1
-	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, true, 0, 1, 2, 0, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1U<<31;
 	cpu->_x[2] = 1;

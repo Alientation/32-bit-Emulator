@@ -23,31 +23,31 @@ class SystemBus {
 
 		/**
 		 * Read a byte from the system bus
-		 * 
+		 *
 		 * @param address The address to read from
 		 * @param exception The exception raised by the read operation
 		 * @return The byte read from the address
 		 */
-		byte readByte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
-		byte readByte(word address);
-		hword readHalfWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
-		hword readHalfWord(word address);
-		word readWord(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
-		word readWord(word address);
+		byte read_byte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		byte read_byte(word address);
+		hword read_hword(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		hword read_hword(word address);
+		word read_word(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+		word read_word(word address);
 
 		/**
 		 * Write a byte to the system bus
-		 * 
+		 *
 		 * @param address The address to write to
 		 * @param exception The exception raised by the write operation
 		 * @param data The byte to write
 		 */
-		void writeByte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
-		void writeByte(word address, byte data);
-		void writeHalfWord(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
-		void writeHalfWord(word address, hword data);
-		void writeWord(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
-		void writeWord(word address, word data);
+		void write_byte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void write_byte(word address, byte data);
+		void write_hword(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void write_hword(word address, hword data);
+		void write_word(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
+		void write_word(word address, word data);
 
 		void reset();
 
