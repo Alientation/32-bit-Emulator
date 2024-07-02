@@ -47,6 +47,10 @@ target_sources(emulator32bit_tests PRIVATE
 	./InstructionTests/lsr_test.cpp
 	./InstructionTests/asr_test.cpp
 	./InstructionTests/ror_test.cpp
+	./InstructionTests/cmp_test.cpp
+	./InstructionTests/cmn_test.cpp
+	./InstructionTests/tst_test.cpp
+	./InstructionTests/teq_test.cpp
 )
 
 target_include_directories(

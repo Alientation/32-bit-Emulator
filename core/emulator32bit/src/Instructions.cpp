@@ -425,10 +425,60 @@ void Emulator32bit::_ror(word instr, EmulatorException& exception) {
 	write_reg(xd, dst_val, exception);
 }
 
-void Emulator32bit::_cmp(word instr, EmulatorException& exception) {}
-void Emulator32bit::_cmn(word instr, EmulatorException& exception) {}
-void Emulator32bit::_tst(word instr, EmulatorException& exception) {}
-void Emulator32bit::_teq(word instr, EmulatorException& exception) {}
+// alias to subs
+void Emulator32bit::_cmp(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word cmp_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = xn_val - cmp_val;
+
+	set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, cmp_val),
+				get_v_flag_sub(xn_val, cmp_val));
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "cmp " << std::to_string(cmp_val) << " "
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+}
+
+// alias to adds
+void Emulator32bit::_cmn(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word cmn_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = cmn_val + xn_val;
+
+	set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_add(xn_val, cmn_val),
+			get_v_flag_add(xn_val, cmn_val));
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "cmn " << std::to_string(cmn_val) << " "
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+}
+
+// alias to ands
+void Emulator32bit::_tst(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word tst_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = tst_val & xn_val;
+
+	set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "tst " << std::to_string(tst_val) << " "
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+}
+
+// alias to eors
+void Emulator32bit::_teq(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	word xn_val = read_reg(_X2(instr), exception);
+	word teq_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = teq_val ^ xn_val;
+
+	set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "teq " << std::to_string(teq_val) << " "
+			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
+}
+
 
 void Emulator32bit::_mov(word instr, EmulatorException& exception) {}
 void Emulator32bit::_mvn(word instr, EmulatorException& exception) {}
