@@ -58,7 +58,7 @@ opcode ?sign   xt      xn  ?simm   simm12      adr
 
 M1 Type Instruction
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
-opcode ?sign   xd      xn    -     xm    ---------
+opcode   -     xt      xn    -     xm    ---------
 
 
 B Type Instruction
