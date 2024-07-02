@@ -105,6 +105,18 @@ word Emulator32bit::asm_format_o2(byte opcode, bool s, int xlo, int xhi, int xn,
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi) << 1 << JPart(5, xn) << JPart(5, xm) << 4;
 }
 
+word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr) {
+	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << 1 << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << JPart(2, adr);
+}
+
+word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr) {
+	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << JPart(1, 1) << JPart(12, simm12) << JPart(2, adr);
+}
+
+word Emulator32bit::asm_format_m1(byte opcode, bool sign, int xd, int xn, int xm) {
+	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xd) << JPart(5, xn) << 1 << JPart(5, xm) << 9;
+}
+
 
 void Emulator32bit::_hlt(word instr, EmulatorException& exception) {
 	exception.type = EmulatorException::Type::HALT;
@@ -479,19 +491,106 @@ void Emulator32bit::_teq(word instr, EmulatorException& exception) {
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
 }
 
+// TODO this is inefficient.. XN_VAL is not used, make a separate format for mov and mvn
+void Emulator32bit::_mov(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	// word xn_val = read_reg(_X2(instr), exception);
+	word mov_val = FORMAT_O__get_arg(instr, exception);
 
-void Emulator32bit::_mov(word instr, EmulatorException& exception) {}
-void Emulator32bit::_mvn(word instr, EmulatorException& exception) {}
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		set_NZCV(test_bit(mov_val, 31), mov_val == 0, 0, test_bit(_pstate, V_FLAG));
+	}
 
-void Emulator32bit::_ldr(word instr, EmulatorException& exception) {}
-void Emulator32bit::_ldrb(word instr, EmulatorException& exception) {}
-void Emulator32bit::_ldrh(word instr, EmulatorException& exception) {}
-void Emulator32bit::_str(word instr, EmulatorException& exception) {}
-void Emulator32bit::_strb(word instr, EmulatorException& exception) {}
-void Emulator32bit::_strh(word instr, EmulatorException& exception) {}
-void Emulator32bit::_swp(word instr, EmulatorException& exception) {}
-void Emulator32bit::_swpb(word instr, EmulatorException& exception) {}
-void Emulator32bit::_swph(word instr, EmulatorException& exception) {}
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "mov " << std::to_string(xd) << " "
+			<< std::to_string(mov_val) << "\n");
+	write_reg(xd, mov_val, exception);
+}
+
+void Emulator32bit::_mvn(word instr, EmulatorException& exception) {
+	word xd = _X1(instr);
+	// word xn_val = read_reg(_X2(instr), exception);
+	word mvn_val = FORMAT_O__get_arg(instr, exception);
+	word dst_val = ~mvn_val;
+
+	// check to update NZCV
+	if (test_bit(instr, S_BIT)) { // ?S
+		set_NZCV(test_bit(mvn_val, 31), mvn_val == 0, 0, test_bit(_pstate, V_FLAG));
+	}
+
+	log(lgr::Logger::LogType::DEBUG, std::stringstream() << "mvn " << std::to_string(xd) << " "
+			<< std::to_string(mvn_val) << " = " << std::to_string(dst_val) << "\n");
+	write_reg(xd, dst_val, exception);
+}
+
+
+void Emulator32bit::_ldr(word instr, EmulatorException& exception) {
+	word xt = _X1(instr);
+	word xn = _X2(instr);
+	word xn_val = read_reg(xn, exception);
+	bool simm = test_bit(instr, 14);
+	word offset = 0;
+	if (simm) {
+		offset = bitfield_u32(instr, 2, 12);
+	} else {
+		offset = FORMAT_O__get_arg(instr, exception);
+	}
+
+	byte address_mode = bitfield_u32(instr, 0, 2);
+	word mem_addr = 0;
+	if (address_mode == 0) {
+
+	} else if (address_mode == 1) {
+
+	} else if (address_mode == 2) {
+
+	} else {
+		exception.type = EmulatorException::Type::BAD_INSTR;
+		return;
+	}
+
+	if (address_mode == 0) {
+		log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]\n");
+	} else if (address_mode == 1) {
+		log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]!\n");
+	} else {
+		log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << "], " << offset << "\n");
+	}
+	write_reg(xt, system_bus.readWord(mem_addr, exception.sys_bus_exception, exception.mem_read_exception), exception);
+}
+
+void Emulator32bit::_ldrb(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_ldrh(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_str(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_strb(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_strh(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_swp(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_swpb(word instr, EmulatorException& exception) {
+
+}
+
+void Emulator32bit::_swph(word instr, EmulatorException& exception) {
+
+}
+
 
 void Emulator32bit::_b(word instr, EmulatorException& exception) {}
 void Emulator32bit::_bl(word instr, EmulatorException& exception) {}

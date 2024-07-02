@@ -51,14 +51,14 @@ adr
 10: postindexed
 
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 00 | 00000 | 00
-opcode   -    xt      xn   ?simm  xm    shift  imm5  adr
+opcode ?sign   xt      xn  ?simm  xm    shift  imm5  adr
 
 000000 | 0 | 00000 | 00000 | 1 | 000000000000 | 00
-opcode   -    xt      xn   ?simm   simm12      adr
+opcode ?sign   xt      xn  ?simm   simm12      adr
 
 M1 Type Instruction
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
-opcode   -    xd      xn     -    xm     ---------
+opcode ?sign   xd      xn    -     xm    ---------
 
 
 B Type Instruction
@@ -193,11 +193,11 @@ MVN{S} xd, arg (O)
 	- op: 100011
 
 Memory Access Instructions (3)
-LDR{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
+LDR{S}{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
 	- op: 100100 (regular), 100101 (Byte), 100110 (Half-Word)
-STR{B|H} xt, mem (M)
+STR{S}{B|H} xt, mem (M)
 	- op: 100111 (regular), 101000 (Byte), 101001 (Half-Word)
-SWP{B|H} xd, xn, [xm] (M1)
+SWP{S}{B|H} xd, xn, [xm] (M1)
 	- op: 101010 (regular), 101011 (Byte), 101100 (Half-Word)
 
 Branching Instructions (5)
