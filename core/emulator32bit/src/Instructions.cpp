@@ -523,6 +523,23 @@ void Emulator32bit::_mvn(word instr, EmulatorException& exception) {
 	write_reg(xd, dst_val, exception);
 }
 
+word Emulator32bit::calc_mem_addr(word xn, word offset, byte addr_mode, EmulatorException& exception) {
+	word mem_addr = 0;
+	word xn_val = read_reg(xn, exception);
+	if (addr_mode == 0) {
+		mem_addr = xn_val + offset;
+	} else if (addr_mode == 1) {
+		mem_addr = xn_val + offset;
+		write_reg(xn, mem_addr, exception);
+	} else if (addr_mode == 2) {
+		mem_addr = xn_val;
+		write_reg(xn, xn_val + offset, exception);
+	} else {
+		exception.type = EmulatorException::Type::BAD_INSTR;
+	}
+	return mem_addr;
+}
+
 void Emulator32bit::_ldr(word instr, EmulatorException& exception) {
 	word xt = _X1(instr);
 	word xn = _X2(instr);
@@ -536,19 +553,7 @@ void Emulator32bit::_ldr(word instr, EmulatorException& exception) {
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = 0;
-	if (address_mode == 0) {
-		mem_addr = xn_val + offset;
-	} else if (address_mode == 1) {
-		mem_addr = xn_val + offset;
-		write_reg(xn, mem_addr, exception);
-	} else if (address_mode == 2) {
-		mem_addr = xn_val;
-		write_reg(xn, xn_val + offset, exception);
-	} else {
-		exception.type = EmulatorException::Type::BAD_INSTR;
-		return;
-	}
+	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
 
 	if (address_mode == 0) {
 		log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]\n");
@@ -574,19 +579,7 @@ void Emulator32bit::_ldrb(word instr, EmulatorException& exception) {
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = 0;
-	if (address_mode == 0) {
-		mem_addr = xn_val + offset;
-	} else if (address_mode == 1) {
-		mem_addr = xn_val + offset;
-		write_reg(xn, mem_addr, exception);
-	} else if (address_mode == 2) {
-		mem_addr = xn_val;
-		write_reg(xn, xn_val + offset, exception);
-	} else {
-		exception.type = EmulatorException::Type::BAD_INSTR;
-		return;
-	}
+	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
 	word read_val = system_bus.readByte(mem_addr, exception.sys_bus_exception, exception.mem_read_exception);
 	if (sign) {
 		read_val = (sword) ((byte) read_val);
@@ -616,19 +609,7 @@ void Emulator32bit::_ldrh(word instr, EmulatorException& exception) {
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = 0;
-	if (address_mode == 0) {
-		mem_addr = xn_val + offset;
-	} else if (address_mode == 1) {
-		mem_addr = xn_val + offset;
-		write_reg(xn, mem_addr, exception);
-	} else if (address_mode == 2) {
-		mem_addr = xn_val;
-		write_reg(xn, xn_val + offset, exception);
-	} else {
-		exception.type = EmulatorException::Type::BAD_INSTR;
-		return;
-	}
+	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
 	word read_val = system_bus.readHalfWord(mem_addr, exception.sys_bus_exception, exception.mem_read_exception);
 	if (sign) {
 		read_val = (sword) ((hword) read_val);

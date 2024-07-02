@@ -87,6 +87,7 @@ class Emulator32bit {
 		void execute(word instr, EmulatorException &exception);
 
 		word read_reg(byte reg, EmulatorException &exception);
+		word calc_mem_addr(word xn, word offset, byte addr_mode, EmulatorException& exception);
 		void write_reg(byte reg, word val, EmulatorException &exception);
 		void handle_exception(EmulatorException &exception);
 
@@ -175,9 +176,6 @@ class Emulator32bit {
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr);
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr);
 		static word asm_format_m1(byte opcode, bool sign, int xd, int xn, int xm);
-
-
-
 
 		static word asm_nop();
 };
