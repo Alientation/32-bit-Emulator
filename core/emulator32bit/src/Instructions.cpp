@@ -551,7 +551,7 @@ void Emulator32bit::_mov(word instr, EmulatorException& exception) {
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
-		set_NZCV(test_bit(mov_val, 31), mov_val == 0, 0, test_bit(_pstate, V_FLAG));
+		set_NZCV(test_bit(mov_val, 31), mov_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 	}
 
 	log(Logger::LogType::DEBUG, std::stringstream() << "mov " << std::to_string(xd) << " "
@@ -567,7 +567,7 @@ void Emulator32bit::_mvn(word instr, EmulatorException& exception) {
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
-		set_NZCV(test_bit(mvn_val, 31), mvn_val == 0, 0, test_bit(_pstate, V_FLAG));
+		set_NZCV(test_bit(mvn_val, 31), mvn_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 	}
 
 	log(Logger::LogType::DEBUG, std::stringstream() << "mvn " << std::to_string(xd) << " "
