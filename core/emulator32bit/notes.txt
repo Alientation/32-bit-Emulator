@@ -23,6 +23,14 @@ OP{S} xlo, xhi, xn, xm
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 00000 | 0000
 opcode   S    xlo     xhi    -    xn      xm     ----
 
+O3 Type Instruction
+OP{S} xd, arg
+000000 | 0 | 00000 | 1 | 0000000000000000000
+opcode   S    xd   ?imm         imm19
+
+000000 | 0 | 00000 | 0 | 00000 | 0000000000000
+opcode   S    xd   ?imm   xn		 imm14
+
 
 F Type Instruction
 ----------------------------------------------------------------
@@ -188,9 +196,9 @@ TEQ xn, arg (O)
 	- op: 100001
 
 Data Movement Instructions (2)
-MOV{S} xd, arg (O)
+MOV{S} xd, arg (O3)
 	- op: 100010
-MVN{S} xd, arg (O)
+MVN{S} xd, arg (O3)
 	- op: 100011
 
 Memory Access Instructions (3)

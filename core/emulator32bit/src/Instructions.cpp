@@ -150,6 +150,14 @@ word Emulator32bit::asm_format_o2(byte opcode, bool s, int xlo, int xhi, int xn,
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi) << 1 << JPart(5, xn) << JPart(5, xm) << 4;
 }
 
+word Emulator32bit::asm_format_o3(byte opcode, bool s, int xd, int imm19) {
+	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(1, 1) << JPart(19, imm19);
+}
+
+word Emulator32bit::asm_format_o3(byte opcode, bool s, int xd, int xn, int imm14) {
+	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << 0 << JPart(5, xn) << JPart(14, imm14);
+}
+
 word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr) {
 	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << 1 << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << JPart(2, adr);
 }
@@ -543,11 +551,14 @@ void Emulator32bit::_teq(word instr, EmulatorException& exception) {
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val) << "\n");
 }
 
-// TODO this is memory inefficient.. XN_VAL is not used, make a separate format for mov and mvn to make use of extra space
 void Emulator32bit::_mov(word instr, EmulatorException& exception) {
 	byte xd = _X1(instr);
-	// word xn_val = read_reg(_X2(instr), exception);
-	word mov_val = FORMAT_O__get_arg(instr, exception);
+	word mov_val = 0;
+	if (test_bit(instr, 19)) {
+		mov_val = bitfield_u32(instr, 0, 19);
+	} else {
+		mov_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5), exception);
+	}
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
@@ -562,12 +573,18 @@ void Emulator32bit::_mov(word instr, EmulatorException& exception) {
 void Emulator32bit::_mvn(word instr, EmulatorException& exception) {
 	byte xd = _X1(instr);
 	// word xn_val = read_reg(_X2(instr), exception);
-	word mvn_val = FORMAT_O__get_arg(instr, exception);
+	word mvn_val = 0;
+	if (test_bit(instr, 19)) {
+		mvn_val = bitfield_u32(instr, 0, 19);
+	} else {
+		mvn_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5), exception);
+	}
+
 	word dst_val = ~mvn_val;
 
 	// check to update NZCV
 	if (test_bit(instr, S_BIT)) { // ?S
-		set_NZCV(test_bit(mvn_val, 31), mvn_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+		set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 	}
 
 	log(Logger::LogType::DEBUG, std::stringstream() << "mvn " << std::to_string(xd) << " "
