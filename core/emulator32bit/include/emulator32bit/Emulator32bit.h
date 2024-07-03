@@ -38,7 +38,8 @@
 #define ROR 3				/* Rotate Right */
 
 /**
- * @brief 					State of Emulator
+ * @brief 					32 bit Emulator
+ * @paragraph				Modeled off of the ARM architecture with many simplifications. A software simulated processor.
  *
  */
 class Emulator32bit {
@@ -46,40 +47,48 @@ class Emulator32bit {
 		Emulator32bit();
 		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);
 
+		/**
+		 * @brief			Exception state of emulator
+		 *
+		 */
 		struct EmulatorException {
+			/**
+			 * @brief 		Type of emulator exception
+			 *
+			 */
 			enum class Type {
-				AOK,
-				BAD_INSTR,
-				HALT,
-				BAD_REG
+				AOK,									/* No exception, emulator is in an OK state */
+				BAD_INSTR,								/* Bad instruction opcode or invalid parameters */
+				HALT,									/* Execution is halted */
+				BAD_REG									/* Register read/write is invalid */
 			};
 
-			Type type = Type::AOK;
-			word instr = 0;
-			SystemBus::SystemBusException sys_bus_exception;
-			Memory::MemoryReadException mem_read_exception;
-			Memory::MemoryWriteException mem_write_exception;
+			Type type = Type::AOK;						/* Type of emulator exception */
+			word instr = 0;								/* Instruction the exception occured during the execution of */
+			SystemBus::SystemBusException sys_bus_exception;	/* Exception in reading/writing to the system bus */
+			Memory::MemoryReadException mem_read_exception;		/* Exception in reading from memory */
+			Memory::MemoryWriteException mem_write_exception;	/* Exception in writing to memory */
 
 			bool isOK();
 		};
 
 		enum class ConditionCode {
-			EQ = 0,						/* Equal						: Z==1 */
-			NE = 1,						/* Not Equal					: Z==0 */
-			CS = 2, HS = 2,				/* Unsigned higher or same		: C==1 */
-			CC = 3, LO = 3,				/* Unsigned lower				: C==0 */
-			MI = 4,						/* Negative						: N==1 */
-			PL = 5,						/* Nonnegative					: N==0 */
-			VS = 6,						/* Signed overflow 				: V==1 */
-			VC = 7,						/* No signed overflow			: V==0 */
-			HI = 8,						/* Unsigned higher				: (C==1) && (Z==0) */
-			LS = 9,						/* Unsigned lower or same 		: (C==0) || (Z==0) */
-			GE = 10,					/* Signed greater than or equal	: N==V */
-			LT = 11,					/* Signed less than				: N!=V */
-			GT = 12,					/* Signed greater than			: (Z==0) && (N==V) */
-			LE = 13,					/* Signed less than or equal 	: (Z==1) || (N!=V) */
-			AL = 14,					/* Always Executed				: NONE */
-			NV = 15,					/* Never Executed 				: NONE */
+			EQ = 0,										/* Equal						: Z==1 */
+			NE = 1,										/* Not Equal					: Z==0 */
+			CS = 2, HS = 2,								/* Unsigned higher or same		: C==1 */
+			CC = 3, LO = 3,								/* Unsigned lower				: C==0 */
+			MI = 4,										/* Negative						: N==1 */
+			PL = 5,										/* Nonnegative					: N==0 */
+			VS = 6,										/* Signed overflow 				: V==1 */
+			VC = 7,										/* No signed overflow			: V==0 */
+			HI = 8,										/* Unsigned higher				: (C==1) && (Z==0) */
+			LS = 9,										/* Unsigned lower or same 		: (C==0) || (Z==0) */
+			GE = 10,									/* Signed greater than or equal	: N==V */
+			LT = 11,									/* Signed less than				: N!=V */
+			GT = 12,									/* Signed greater than			: (Z==0) && (N==V) */
+			LE = 13,									/* Signed less than or equal 	: (Z==1) || (N!=V) */
+			AL = 14,									/* Always Executed				: NONE */
+			NV = 15,									/* Never Executed 				: NONE */
 		};
 
 		static const word RAM_MEM_SIZE;
@@ -102,10 +111,10 @@ class Emulator32bit {
 		void reset();
 		void set_NZCV(bool N, bool Z, bool C, bool V);
 
-		// general purpose registers
-		word _x[31];
-		word _pc;
-		word _pstate;
+
+		word _x[31];									/* General purpose registers, x0-x29, and SP. x29 is the link register */
+		word _pc;										/* Program counter */
+		word _pstate;									/* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
 
 		// todo determine if fp registers are needed
@@ -114,7 +123,6 @@ class Emulator32bit {
 
 	private:
 		static const int _num_instructions = 64;
-		// std::function<void(word, EmulatorException&)> _instructions[_num_instructions];
 		typedef void (Emulator32bit::*InstructionFunction)(word, EmulatorException&);
 		InstructionFunction _instructions[_num_instructions];
 

@@ -234,19 +234,31 @@ bool Emulator32bit::check_cond(word pstate, byte cond) {
 }
 
 /**
- * @brief
+ * @brief					Constructs instructions of format O with an imm14 operand
  *
- * @param opcode
- * @param s
- * @param xd
- * @param xn
- * @param imm14
- * @return word
+ * @param 					opcode: 6 bit identifier of a format O instruction
+ * @param 					s: whether condition flags are set
+ * @param 					xd: 5 bit destination register identifier
+ * @param 					xn: 5 bit operand register identifier
+ * @param 					imm14: 14 bit immediate value
+ * @return 					instruction word
  */
 word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int imm14) {
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 1) << JPart(14, imm14);
 }
 
+/**
+ * @brief 					Constructs instructions of format O with an arg operand
+ *
+ * @param 					opcode: 6 bit identifier of a format O instruction
+ * @param 					s: whether condition flags are set
+ * @param 					xd: 5 bit destination register identifier
+ * @param 					xn: 5 bit operand register identifier
+ * @param 					xm: 5 bit operand register identifier
+ * @param 					shift: shift type to be applied on the value in the xm register
+ * @param 					imm5: shift amount
+ * @return 					instruction word
+ */
 word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5) {
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << 1 << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
 }
