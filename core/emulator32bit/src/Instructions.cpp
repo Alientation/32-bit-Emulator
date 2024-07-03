@@ -5,92 +5,191 @@
 
 using namespace lgr;
 
-// useful macros
-// bits 20 to 24
-#define _X1(instr) (bitfield_u32(instr, 20, 5))
-// bits 15 to 19
-#define _X2(instr) (bitfield_u32(instr, 15, 5))
-// bits 9 to 14
-#define _X3(instr) (bitfield_u32(instr, 9, 5))
-// bits 4 to 9
-#define _X4(instr) (bitfield_u32(instr, 4, 5))
+/**
+ * @internal
+ * @brief 					Useful macros to extract information from instruction bits
+ * @hideinitializer
+ *
+ */
+#define _X1(instr) (bitfield_u32(instr, 20, 5))				/* bits 20 to 24 */
+#define _X2(instr) (bitfield_u32(instr, 15, 5))				/* bits 15 to 19 */
+#define _X3(instr) (bitfield_u32(instr, 9, 5))				/* bits 9 to 14 */
+#define _X4(instr) (bitfield_u32(instr, 4, 5))				/* bits 4 to 9 */
 
-// helper functions
+/**
+ * @internal
+ * @brief 					Calculates the new value after applying the specified shift
+ *
+ * @param 					val: value to shift
+ * @param 					shift_type: shift specified by the instruction
+ * @param 					imm5: shift amount
+ * @return 					shifted value
+ *
+ */
 static word calc_shift(word val, byte shift_type, byte imm5) {
 	switch(shift_type) {
-		case 0b00: // LSL
+		case 0b00:											/* LSL */
 			log(Logger::LogType::DEBUG, std::stringstream() << "LSL " << std::to_string((word)imm5) << "\n");
 			val <<= imm5;
 			break;
-		case 0b01: // LSR
+		case 0b01:											/* LSR */
 			log(Logger::LogType::DEBUG, std::stringstream() << "LSR " << std::to_string((word)imm5) << "\n");
 			val >>= imm5;
 			break;
-		case 0b10: // ASR
+		case 0b10: 											/* ASR */
 			log(Logger::LogType::DEBUG, std::stringstream() << "ASR " << std::to_string((word)imm5) << "\n");
 			val = ((signed int) val) >> imm5;
 			break;
-		case 0b11: // ROR
+		case 0b11: 											/* ROR */
 		{
 			log(Logger::LogType::DEBUG, std::stringstream() << "ROR " << std::to_string((word)imm5) << "\n");
 			word rot_bits = val & ((1 << imm5) - 1);
 			rot_bits <<= (WORD_BITS - imm5);
 			val >>= imm5;
-			val &= (1 << (WORD_BITS - imm5)) - 1; // to be safe and remove bits that will be replaced
+			val &= (1 << (WORD_BITS - imm5)) - 1; 			/* to be safe and remove bits that will be replaced */
 			val |= rot_bits;
 			break;
 		}
-		default: // error
+		default:											/* Invalid shift */
 			log(Logger::LogType::ERROR, "Invalid shift: " + val);
 	}
 	return val;
 }
 
-// yoinked from https://github.com/unicorn-engine/ because I could not figure out carry/overflow for subtraction
+/**
+ * @internal
+ * @brief 					Get the carry flag after adding two values
+ * @details					yoinked from https://github.com/unicorn-engine/ because I could not
+ * 								figure out carry/overflow for subtraction
+ *
+ * @param[in]				op1: operand 1
+ * @param[in]				op2: operand 2
+ * @return 					carry flag
+ *
+ */
 static bool get_c_flag_add(word op1, word op2) {
 	word dst_val = op1 + op2;
 	return dst_val < op1;
 }
 
+/**
+ * @internal
+ * @brief 					Get the overflow flag after adding two values
+ * @details					yoinked from https://github.com/unicorn-engine/ because I could not
+ * 								figure out carry/overflow for subtraction
+ *
+ * @param[in]				op1: operand 1
+ * @param[in]				op2: operand 2
+ * @return 					overflow flag
+ *
+ */
 static bool get_v_flag_add(word op1, word op2) {
 	word dst_val = op1 + op2;
 	return (op1 ^ op2 ^ -1) & (op1 ^ dst_val) & (1U << 31);
 }
 
+/**
+ * @internal
+ * @brief 					Get the carry flag after subtracting two values
+ * @details					yoinked from https://github.com/unicorn-engine/ because I could not
+ * 								figure out carry/overflow for subtraction
+ *
+ * @param[in]				op1: operand 1
+ * @param[in]				op2: operand 2
+ * @return 					carry flag
+ *
+ */
 static bool get_c_flag_sub(word op1, word op2) {
 	word dst_val = op1 - op2;
 	return (((~op1 & op2) | (dst_val & (~op1 | op2))) & (1U << 31));
 }
 
+/**
+ * @internal
+ * @brief 					Get the overflow flag after subtracting two values
+ * @details					yoinked from https://github.com/unicorn-engine/ because I could not
+ * 								figure out carry/overflow for subtraction
+ *
+ * @param[in]				op1: operand 1
+ * @param[in]				op2: operand 2
+ * @return 					overflow flag
+ *
+ */
 static bool get_v_flag_sub(word op1, word op2) {
 	word dst_val = op1 - op2;
 	return (((op1 ^ op2) & (op1 ^ dst_val)) & (1U << 31));
 }
 
+/**
+ * @internal
+ * @brief					Parse the value of the argument for instruction format O
+ * @details					Also used to parse value of argument for some other instruction format like format M which conveniently has a similar structure
+ * @hideinitializer
+ *
+ */
 #define FORMAT_O__get_arg(instr, exception) (test_bit(instr, 14) ? bitfield_u32(instr, 0, 14) : calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2)))
 
+/**
+ * @internal
+ * @brief					A sequence of bits to add to a @ref Joiner
+ *
+ */
 struct JPart {
 	JPart(int bits, word val = 0) : bits(bits), val(val) {}
-	int bits;
-	word val;
+	int bits;											/* Number of bits stored in this part */
+	word val;											/* Contents of the bits stored in this part, stored with the first bit in the most significant bit */
 };
+
+/**
+ * @internal
+ * @brief					A value that is formed by joining @ref JPart
+ *
+ */
 class Joiner {
 	public:
-		word val = 0;
+		word val = 0;									/* Content stored so far */
+
+		/**
+		 * @internal
+		 * @brief			Add a new @ref JPart
+		 *
+		 * @param			p: @ref JPart to add
+		 * @return 			Reference to this object
+		 */
 		Joiner& operator<<(JPart p) {
 			val <<= p.bits;
 			val += p.val;
 			return *this;
 		}
 
+		/**
+		 * @internal
+		 * @brief			Add filler bits all set to 0
+		 *
+		 * @param 			bits: Number of bits to add
+		 * @return 			Reference to this object
+		 */
 		Joiner& operator<<(int bits) {
 			val <<= bits;
 			return *this;
 		}
 
+		/**
+		 * @internal
+		 * @brief 			Extract the value of this object
+		 *
+		 * @return 			word
+		 */
 		operator word() const { return val; }
 };
 
+/**
+ * @brief					Check whether the condition code is met
+ *
+ * @param 					pstate: state of the processor
+ * @param 					cond: condition to check
+ * @return 					Whether the condition was met
+ */
 bool Emulator32bit::check_cond(word pstate, byte cond) {
 	bool N = test_bit(pstate, N_FLAG);
 	bool Z = test_bit(pstate, Z_FLAG);
@@ -98,42 +197,52 @@ bool Emulator32bit::check_cond(word pstate, byte cond) {
 	bool V = test_bit(pstate, V_FLAG);
 
 	switch((ConditionCode) cond) {
-		case ConditionCode::EQ:
+		case ConditionCode::EQ:							/* EQUAL */
 			return Z;
-		case ConditionCode::NE:
+		case ConditionCode::NE:							/* NOT EQUAL */
 			return !Z;
-		case ConditionCode::CS:
+		case ConditionCode::CS:							/* CARRY SET */
 			return C;
-		case ConditionCode::CC:
+		case ConditionCode::CC:							/* CARRY CLEAR */
 			return !C;
-		case ConditionCode::MI:
+		case ConditionCode::MI:							/* NEGATIVE */
 			return N;
-		case ConditionCode::PL:
+		case ConditionCode::PL:							/* NONNEGATIVE */
 			return !N;
-		case ConditionCode::VS:
+		case ConditionCode::VS:							/* OVERFLOW SET */
 			return V;
-		case ConditionCode::VC:
+		case ConditionCode::VC:							/* OVERFLOW CLEAR */
 			return !V;
-		case ConditionCode::HI:
+		case ConditionCode::HI:							/* UNSIGNED HIGHER */
 			return C && !Z;
-		case ConditionCode::LS:
-			return !C && !Z;
-		case ConditionCode::GE:
+		case ConditionCode::LS:							/* UNSIGNED LOWER OR EQUAL */
+			return !C || !Z;
+		case ConditionCode::GE:							/* SIGNED GREATER OR EQUAL */
 			return N==V;
-		case ConditionCode::LT:
+		case ConditionCode::LT:							/* SIGNED LOWER */
 			return N!=V;
-		case ConditionCode::GT:
+		case ConditionCode::GT:							/* SIGNED GREATER */
 			return !Z && (N==V);
-		case ConditionCode::LE:
+		case ConditionCode::LE:							/* SIGNED LOWER OR EQUAL */
 			return Z && (N!=V);
-		case ConditionCode::AL:
+		case ConditionCode::AL:							/* ALWAYS */
 			return true;
-		case ConditionCode::NV:
+		case ConditionCode::NV:							/* NEVER */
 			return false;
 	}
-	return false;
+	return false;										/* Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
 }
 
+/**
+ * @brief
+ *
+ * @param opcode
+ * @param s
+ * @param xd
+ * @param xn
+ * @param imm14
+ * @return word
+ */
 word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int imm14) {
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << JPart(1, 1) << JPart(14, imm14);
 }

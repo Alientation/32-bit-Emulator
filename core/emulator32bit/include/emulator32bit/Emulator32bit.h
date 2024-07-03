@@ -64,16 +64,16 @@ class Emulator32bit {
 		};
 
 		enum class ConditionCode {
-			EQ = 0,						/* Equal		: Z==1 */
-			NE = 1,						/* Not Equal	: Z==0 */
-			CS = 2, HS = 2,				/* Unsigned higher or same	: C==1 */
-			CC = 3, LO = 3,				/* Unsigned lower			: C==0 */
-			MI = 4,						/* Negative		: N==1 */
-			PL = 5,						/* Nonnegative	: N==0 */
-			VS = 6,						/* Signed overflow 			: V==1 */
-			VC = 7,						/* No signed overflow		: V==0 */
-			HI = 8,						/* Unsigned higher			: (C==1) && (Z==0) */
-			LS = 9,						/* Unsigned lower or same 	: (C==0) || (Z==0) */
+			EQ = 0,						/* Equal						: Z==1 */
+			NE = 1,						/* Not Equal					: Z==0 */
+			CS = 2, HS = 2,				/* Unsigned higher or same		: C==1 */
+			CC = 3, LO = 3,				/* Unsigned lower				: C==0 */
+			MI = 4,						/* Negative						: N==1 */
+			PL = 5,						/* Nonnegative					: N==0 */
+			VS = 6,						/* Signed overflow 				: V==1 */
+			VC = 7,						/* No signed overflow			: V==0 */
+			HI = 8,						/* Unsigned higher				: (C==1) && (Z==0) */
+			LS = 9,						/* Unsigned lower or same 		: (C==0) || (Z==0) */
 			GE = 10,					/* Signed greater than or equal	: N==V */
 			LT = 11,					/* Signed less than				: N!=V */
 			GT = 12,					/* Signed greater than			: (Z==0) && (N==V) */
