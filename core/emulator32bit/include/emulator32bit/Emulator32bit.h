@@ -10,32 +10,32 @@
  * @brief					IDs for special registers
  *
  */
-#define SP 30				/* Stack Pointer*/
-#define XZR 31				/* Zero Register */
+#define SP 30											/*! Stack Pointer*/
+#define XZR 31											/*! Zero Register */
 
 /**
  * @brief 					Flag bit locations in _pstate register
  *
  */
-#define N_FLAG 0			/* Negative Flag */
-#define Z_FLAG 1			/* Zero Flag */
-#define C_FLAG 2			/* Carry Flag */
-#define V_FLAG 3			/* Overflow Flag */
+#define N_FLAG 0										/*! Negative Flag */
+#define Z_FLAG 1										/*! Zero Flag */
+#define C_FLAG 2										/*! Carry Flag */
+#define V_FLAG 3										/*! Overflow Flag */
 
 /**
  * @brief					Which bit of the instruction determines whether flags will be updated
  *
  */
-#define S_BIT 25			/* Update Flag Bit */
+#define S_BIT 25										/*! Update Flag Bit */
 
 /**
  * @brief					Shift codes
  *
  */
-#define LSL 0				/* Logical Shift Left */
-#define LSR 1				/* Logical Shift Right */
-#define ASR 2				/* Arithmetic Shift Right */
-#define ROR 3				/* Rotate Right */
+#define LSL 0											/*! Logical Shift Left */
+#define LSR 1											/*! Logical Shift Right */
+#define ASR 2											/*! Arithmetic Shift Right */
+#define ROR 3											/*! Rotate Right */
 
 /**
  * @brief 					32 bit Emulator
@@ -57,67 +57,86 @@ class Emulator32bit {
 			 *
 			 */
 			enum class Type {
-				AOK,									/* No exception, emulator is in an OK state */
-				BAD_INSTR,								/* Bad instruction opcode or invalid parameters */
-				HALT,									/* Execution is halted */
-				BAD_REG									/* Register read/write is invalid */
+				AOK,									/*! No exception, emulator is in an OK state */
+				BAD_INSTR,								/*! Bad instruction opcode or invalid parameters */
+				HALT,									/*! Execution is halted */
+				BAD_REG									/*! Register read/write is invalid */
 			};
 
-			Type type = Type::AOK;						/* Type of emulator exception */
-			word instr = 0;								/* Instruction the exception occured during the execution of */
-			SystemBus::SystemBusException sys_bus_exception;	/* Exception in reading/writing to the system bus */
-			Memory::MemoryReadException mem_read_exception;		/* Exception in reading from memory */
-			Memory::MemoryWriteException mem_write_exception;	/* Exception in writing to memory */
+			Type type = Type::AOK;						/*! Type of emulator exception */
+			word instr = 0;								/*! Instruction the exception occured during the execution of */
+			SystemBus::SystemBusException sys_bus_exception;	/*! Exception in reading/writing to the system bus */
+			Memory::MemoryReadException mem_read_exception;		/*! Exception in reading from memory */
+			Memory::MemoryWriteException mem_write_exception;	/*! Exception in writing to memory */
 
 			bool isOK();
 		};
 
 		enum class ConditionCode {
-			EQ = 0,										/* Equal						: Z==1 */
-			NE = 1,										/* Not Equal					: Z==0 */
-			CS = 2, HS = 2,								/* Unsigned higher or same		: C==1 */
-			CC = 3, LO = 3,								/* Unsigned lower				: C==0 */
-			MI = 4,										/* Negative						: N==1 */
-			PL = 5,										/* Nonnegative					: N==0 */
-			VS = 6,										/* Signed overflow 				: V==1 */
-			VC = 7,										/* No signed overflow			: V==0 */
-			HI = 8,										/* Unsigned higher				: (C==1) && (Z==0) */
-			LS = 9,										/* Unsigned lower or same 		: (C==0) || (Z==0) */
-			GE = 10,									/* Signed greater than or equal	: N==V */
-			LT = 11,									/* Signed less than				: N!=V */
-			GT = 12,									/* Signed greater than			: (Z==0) && (N==V) */
-			LE = 13,									/* Signed less than or equal 	: (Z==1) || (N!=V) */
-			AL = 14,									/* Always Executed				: NONE */
-			NV = 15,									/* Never Executed 				: NONE */
+			EQ = 0,										/*! Equal						: Z==1 */
+			NE = 1,										/*! Not Equal					: Z==0 */
+			CS = 2, HS = 2,								/*! Unsigned higher or same		: C==1 */
+			CC = 3, LO = 3,								/*! Unsigned lower				: C==0 */
+			MI = 4,										/*! Negative						: N==1 */
+			PL = 5,										/*! Nonnegative					: N==0 */
+			VS = 6,										/*! Signed overflow 				: V==1 */
+			VC = 7,										/*! No signed overflow			: V==0 */
+			HI = 8,										/*! Unsigned higher				: (C==1) && (Z==0) */
+			LS = 9,										/*! Unsigned lower or same 		: (C==0) || (Z==0) */
+			GE = 10,									/*! Signed greater than or equal	: N==V */
+			LT = 11,									/*! Signed less than				: N!=V */
+			GT = 12,									/*! Signed greater than			: (Z==0) && (N==V) */
+			LE = 13,									/*! Signed less than or equal 	: (Z==1) || (N!=V) */
+			AL = 14,									/*! Always Executed				: NONE */
+			NV = 15,									/*! Never Executed 				: NONE */
 		};
 
-		static const word RAM_MEM_SIZE;
-		static const word RAM_MEM_START;
-		static const word ROM_MEM_SIZE;
-		static const word ROM_MEM_START;
-		static const byte ROM_DATA[];
+		static const word RAM_MEM_SIZE;					/*! Default size of RAM memory in bytes */
+		static const word RAM_MEM_START;				/*! Default 32 bit start address of RAM memory */
+		static const word ROM_MEM_SIZE;					/*! Default size of ROM memory in bytes */
+		static const word ROM_MEM_START;				/*! Default 32 bit start address of ROM memory */
+		static const byte ROM_DATA[];					/*! Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
 
-		SystemBus system_bus;
+		SystemBus system_bus;							/*!  */
 
 		/**
-		 * Run the emulator for a given number of instructions
+		 * @brief			Run the emulator for a given number of instructions
 		 *
-		 * @param instructions The number of instructions to run, if 0 run until HLT instruction
-		 * @param exception The exception raised by the run operation
+		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
+		 * @param 			exception: Exception raised by the run operation
 		 */
 		void run(unsigned int instructions, EmulatorException &exception);
+
+		/**
+		 * @brief			Run the emulator a given number of instructions wrapping out the @ref EmulatorException
+		 *
+		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
+		 */
 		void run(unsigned int instructions);
 
+		/**
+		 * @brief			Resets the processor state
+		 *
+		 */
 		void reset();
+
+		/**
+		 * @brief 			Sets the @ref _pstate NZCV flags
+		 *
+		 * @param 			N: Negative flag
+		 * @param 			Z: Zero flag
+		 * @param 			C: Carry flag
+		 * @param 			V: Overflow flag
+		 */
 		void set_NZCV(bool N, bool Z, bool C, bool V);
 
 
-		word _x[31];									/* General purpose registers, x0-x29, and SP. x29 is the link register */
-		word _pc;										/* Program counter */
-		word _pstate;									/* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
+		word _x[31];									/*! General purpose registers, x0-x29, and SP. x29 is the link register */
+		word _pc;										/*! Program counter */
+		word _pstate;									/*! Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
 
-		// todo determine if fp registers are needed
+		/*! @todo determine if fp registers are needed */
 		// word fpcr;
 		// word fpsr;
 

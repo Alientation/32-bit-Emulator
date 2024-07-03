@@ -11,10 +11,10 @@ using namespace lgr;
  * @hideinitializer
  *
  */
-#define _X1(instr) (bitfield_u32(instr, 20, 5))				/* bits 20 to 24 */
-#define _X2(instr) (bitfield_u32(instr, 15, 5))				/* bits 15 to 19 */
-#define _X3(instr) (bitfield_u32(instr, 9, 5))				/* bits 9 to 14 */
-#define _X4(instr) (bitfield_u32(instr, 4, 5))				/* bits 4 to 9 */
+#define _X1(instr) (bitfield_u32(instr, 20, 5))				/*! bits 20 to 24 */
+#define _X2(instr) (bitfield_u32(instr, 15, 5))				/*! bits 15 to 19 */
+#define _X3(instr) (bitfield_u32(instr, 9, 5))				/*! bits 9 to 14 */
+#define _X4(instr) (bitfield_u32(instr, 4, 5))				/*! bits 4 to 9 */
 
 /**
  * @internal
@@ -28,29 +28,29 @@ using namespace lgr;
  */
 static word calc_shift(word val, byte shift_type, byte imm5) {
 	switch(shift_type) {
-		case 0b00:											/* LSL */
+		case 0b00:											/*! LSL */
 			log(Logger::LogType::DEBUG, std::stringstream() << "LSL " << std::to_string((word)imm5) << "\n");
 			val <<= imm5;
 			break;
-		case 0b01:											/* LSR */
+		case 0b01:											/*! LSR */
 			log(Logger::LogType::DEBUG, std::stringstream() << "LSR " << std::to_string((word)imm5) << "\n");
 			val >>= imm5;
 			break;
-		case 0b10: 											/* ASR */
+		case 0b10: 											/*! ASR */
 			log(Logger::LogType::DEBUG, std::stringstream() << "ASR " << std::to_string((word)imm5) << "\n");
 			val = ((signed int) val) >> imm5;
 			break;
-		case 0b11: 											/* ROR */
+		case 0b11: 											/*! ROR */
 		{
 			log(Logger::LogType::DEBUG, std::stringstream() << "ROR " << std::to_string((word)imm5) << "\n");
 			word rot_bits = val & ((1 << imm5) - 1);
 			rot_bits <<= (WORD_BITS - imm5);
 			val >>= imm5;
-			val &= (1 << (WORD_BITS - imm5)) - 1; 			/* to be safe and remove bits that will be replaced */
+			val &= (1 << (WORD_BITS - imm5)) - 1; 			/*! to be safe and remove bits that will be replaced */
 			val |= rot_bits;
 			break;
 		}
-		default:											/* Invalid shift */
+		default:											/*! Invalid shift */
 			log(Logger::LogType::ERROR, "Invalid shift: " + val);
 	}
 	return val;
@@ -136,8 +136,8 @@ static bool get_v_flag_sub(word op1, word op2) {
  */
 struct JPart {
 	JPart(int bits, word val = 0) : bits(bits), val(val) {}
-	int bits;											/* Number of bits stored in this part */
-	word val;											/* Contents of the bits stored in this part, stored with the first bit in the most significant bit */
+	int bits;											/*! Number of bits stored in this part */
+	word val;											/*! Contents of the bits stored in this part, stored with the first bit in the most significant bit */
 };
 
 /**
@@ -147,7 +147,7 @@ struct JPart {
  */
 class Joiner {
 	public:
-		word val = 0;									/* Content stored so far */
+		word val = 0;									/*! Content stored so far */
 
 		/**
 		 * @internal
@@ -197,40 +197,40 @@ bool Emulator32bit::check_cond(word pstate, byte cond) {
 	bool V = test_bit(pstate, V_FLAG);
 
 	switch((ConditionCode) cond) {
-		case ConditionCode::EQ:							/* EQUAL */
+		case ConditionCode::EQ:							/*! EQUAL */
 			return Z;
-		case ConditionCode::NE:							/* NOT EQUAL */
+		case ConditionCode::NE:							/*! NOT EQUAL */
 			return !Z;
-		case ConditionCode::CS:							/* CARRY SET */
+		case ConditionCode::CS:							/*! CARRY SET */
 			return C;
-		case ConditionCode::CC:							/* CARRY CLEAR */
+		case ConditionCode::CC:							/*! CARRY CLEAR */
 			return !C;
-		case ConditionCode::MI:							/* NEGATIVE */
+		case ConditionCode::MI:							/*! NEGATIVE */
 			return N;
-		case ConditionCode::PL:							/* NONNEGATIVE */
+		case ConditionCode::PL:							/*! NONNEGATIVE */
 			return !N;
-		case ConditionCode::VS:							/* OVERFLOW SET */
+		case ConditionCode::VS:							/*! OVERFLOW SET */
 			return V;
-		case ConditionCode::VC:							/* OVERFLOW CLEAR */
+		case ConditionCode::VC:							/*! OVERFLOW CLEAR */
 			return !V;
-		case ConditionCode::HI:							/* UNSIGNED HIGHER */
+		case ConditionCode::HI:							/*! UNSIGNED HIGHER */
 			return C && !Z;
-		case ConditionCode::LS:							/* UNSIGNED LOWER OR EQUAL */
+		case ConditionCode::LS:							/*! UNSIGNED LOWER OR EQUAL */
 			return !C || !Z;
-		case ConditionCode::GE:							/* SIGNED GREATER OR EQUAL */
+		case ConditionCode::GE:							/*! SIGNED GREATER OR EQUAL */
 			return N==V;
-		case ConditionCode::LT:							/* SIGNED LOWER */
+		case ConditionCode::LT:							/*! SIGNED LOWER */
 			return N!=V;
-		case ConditionCode::GT:							/* SIGNED GREATER */
+		case ConditionCode::GT:							/*! SIGNED GREATER */
 			return !Z && (N==V);
-		case ConditionCode::LE:							/* SIGNED LOWER OR EQUAL */
+		case ConditionCode::LE:							/*! SIGNED LOWER OR EQUAL */
 			return Z && (N!=V);
-		case ConditionCode::AL:							/* ALWAYS */
+		case ConditionCode::AL:							/*! ALWAYS */
 			return true;
-		case ConditionCode::NV:							/* NEVER */
+		case ConditionCode::NV:							/*! NEVER */
 			return false;
 	}
-	return false;										/* Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
+	return false;										/*! Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
 }
 
 /**
