@@ -24,6 +24,11 @@ Memory* SystemBus::route_memory(word address, SystemBusException &bus_exception)
 		target = mems[i];
 	}
 
+	if (target == nullptr) {
+		bus_exception.address = address;
+		bus_exception.type = SystemBusException::INVALID_ADDRESS;
+	}
+
 	return target;
 }
 

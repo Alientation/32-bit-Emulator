@@ -625,11 +625,11 @@ void Emulator32bit::_ldr(word instr, EmulatorException& exception) {
 	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
 
 	if (address_mode == 0) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]\n");
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << std::to_string(offset) << "]\n");
 	} else if (address_mode == 1) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]!\n");
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << std::to_string(offset) << "]!\n");
 	} else {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << "], " << offset << "\n");
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << "], " << std::to_string(offset) << "\n");
 	}
 	write_reg(xt, system_bus.read_word(mem_addr, exception.sys_bus_exception, exception.mem_read_exception), exception);
 }
