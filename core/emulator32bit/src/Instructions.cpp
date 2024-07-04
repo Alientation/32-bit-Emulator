@@ -291,6 +291,10 @@ word Emulator32bit::asm_format_m1(byte opcode, int xt, int xn, int xm) {
 	return Joiner() << JPart(6, opcode) << 1 << JPart(5, xt) << JPart(5, xn) << 1 << JPart(5, xm) << 9;
 }
 
+word Emulator32bit::asm_format_m2(byte opcode, int xd, int imm20) {
+	return Joiner() << JPart(6, opcode) << 1 << JPart(5, xd) << JPart(20, imm20);
+}
+
 word Emulator32bit::asm_format_b1(byte opcode, ConditionCode cond, sword simm22) {
 	return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(22, simm22);
 }
@@ -982,4 +986,11 @@ void Emulator32bit::_swi(word instr, EmulatorException& exception) {
 		// software interrupts.. perfect to add functionality to this like console print,
 		// file operations, ports, etc
 	}
+}
+
+void Emulator32bit::_adrp(word instr, EmulatorException& exception) {
+	byte xd = _X1(instr);
+	word imm20 = bitfield_u32(instr, 0, 20) << 12;
+
+	write_reg(xd, imm20, exception);
 }

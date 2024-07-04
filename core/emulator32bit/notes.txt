@@ -68,6 +68,10 @@ M1 Type Instruction
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
 opcode   -     xt      xn    -     xm    ---------
 
+M2 Type Instruction
+000000 | 0 | 00000 | 00000000000000000000
+opcode   -	   xd            imm20
+
 
 B Type Instruction
 ----------------------------------------------------------------
@@ -224,8 +228,12 @@ SWI{CD} - (B1)
 	- operation depends on value of the remaining bits in the instructions and state of machine
 	- TODO
 
+Addressing Instructions (1)
+ADRP imm20 (M2)
+	- op: 110010
+
 AVAILABLE OPCODES
-	110010, 110011, 110100, 110101, 110110, 110111,
+	110011, 110100, 110101, 110110, 110111,
 	111000, 111001, 111010, 111011, 111100, 111101, 111110
 
 Condition Codes (15)

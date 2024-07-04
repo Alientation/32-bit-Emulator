@@ -32,6 +32,14 @@ void Assembler::_align(int& tokenI) {
 
 }
 
+void Assembler::_section(int& tokenI) {
+
+}
+
+void Assembler::_text(int& tokenI) {
+
+}
+
 void Assembler::_data(int& tokenI) {
 
 }

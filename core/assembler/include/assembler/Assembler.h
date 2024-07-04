@@ -48,6 +48,8 @@ class Assembler {
 		void _scend(int& tokenI);
 		void _advance(int& tokenI);
 		void _align(int& tokenI);
+		void _section(int& tokenI);
+		void _text(int& tokenI);
 		void _data(int& tokenI);
 		void _bss(int& tokenI);
 		void _stop(int& tokenI);
@@ -115,6 +117,8 @@ class Assembler {
 			{Tokenizer::ASSEMBLER_SCEND, &Assembler::_scend},
 			{Tokenizer::ASSEMBLER_ADVANCE, &Assembler::_advance},
 			{Tokenizer::ASSEMBLER_ALIGN, &Assembler::_align},
+			{Tokenizer::ASSEMBLER_SECTION, &Assembler::_section},
+			{Tokenizer::ASSEMBLER_TEXT, &Assembler::_text},
 			{Tokenizer::ASSEMBLER_DATA, &Assembler::_data},
 			{Tokenizer::ASSEMBLER_BSS, &Assembler::_bss},
 			{Tokenizer::ASSEMBLER_STOP, &Assembler::_stop},

@@ -216,7 +216,9 @@ class Emulator32bit {
 		_INSTR(bx, 0b101111)
 		_INSTR(blx, 0b110000)
 		_INSTR(swi, 0b110001)
-		// _INSTR(nop_, 0b110010)
+
+		_INSTR(adrp, 0b110011)
+
 		// _INSTR(nop_, 0b110011)
 		// _INSTR(nop_, 0b110100)
 		// _INSTR(nop_, 0b110101)
@@ -246,6 +248,7 @@ class Emulator32bit {
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr);
 		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr);
 		static word asm_format_m1(byte opcode, int xd, int xn, int xm);
+		static word asm_format_m2(byte opcode, int xd, int imm20);
 		static word asm_format_b1(byte opcode, ConditionCode cond, sword simm22);
 		static word asm_format_b2(byte opcode, ConditionCode cond, int xd);
 
