@@ -52,6 +52,59 @@ class Assembler {
 		void _bss(int& tokenI);
 		void _stop(int& tokenI);
 
+		void _add(int& tokenI);
+		void _sub(int& tokenI);
+		void _rsb(int& tokenI);
+		void _adc(int& tokenI);
+		void _sbc(int& tokenI);
+		void _rsc(int& tokenI);
+		void _mul(int& tokenI);
+		void _umull(int& tokenI);
+		void _smull(int& tokenI);
+		void _vabs_f32(int& tokenI);
+		void _vneg_f32(int& tokenI);
+		void _vsqrt_f32(int& tokenI);
+		void _vadd_f32(int& tokenI);
+		void _vsub_f32(int& tokenI);
+		void _vdiv_f32(int& tokenI);
+		void _vmul_f32(int& tokenI);
+		void _vcmp_f32(int& tokenI);
+		void _vsel_f32(int& tokenI);
+		void _vcint_u32_f32(int& tokenI);
+		void _vcint_s32_f32(int& tokenI);
+		void _vcflo_u32_f32(int& tokenI);
+		void _vcflo_s32_f32(int& tokenI);
+		void _vmov_f32(int& tokenI);
+		void _and(int& tokenI);
+		void _orr(int& tokenI);
+		void _eor(int& tokenI);
+		void _bic(int& tokenI);
+		void _lsl(int& tokenI);
+		void _lsr(int& tokenI);
+		void _asr(int& tokenI);
+		void _ror(int& tokenI);
+		void _cmp(int& tokenI);
+		void _cmn(int& tokenI);
+		void _tst(int& tokenI);
+		void _teq(int& tokenI);
+		void _mov(int& tokenI);
+		void _mvn(int& tokenI);
+		void _ldr(int& tokenI);
+		void _str(int& tokenI);
+		void _swp(int& tokenI);
+		void _ldrb(int& tokenI);
+		void _strb(int& tokenI);
+		void _swpb(int& tokenI);
+		void _ldrh(int& tokenI);
+		void _strh(int& tokenI);
+		void _swph(int& tokenI);
+		void _b(int& tokenI);
+		void _bl(int& tokenI);
+		void _bx(int& tokenI);
+		void _blx(int& tokenI);
+		void _swi(int& tokenI);
+
+
 		typedef void (Assembler::*DirectiveFunction)(int& tokenI);
 		std::map<Tokenizer::Type,DirectiveFunction> directives = {
 			{Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
@@ -68,7 +121,57 @@ class Assembler {
 		};
 		typedef void (Assembler::*InstructionFunction)(int& tokenI);
 		std::map<Tokenizer::Type,InstructionFunction> instructions = {
-
+			{Tokenizer::INSTRUCTION_ADD, &Assembler::_add},
+			{Tokenizer::INSTRUCTION_SUB, &Assembler::_sub},
+			{Tokenizer::INSTRUCTION_RSB, &Assembler::_rsb},
+			{Tokenizer::INSTRUCTION_ADC, &Assembler::_adc},
+			{Tokenizer::INSTRUCTION_SBC, &Assembler::_sbc},
+			{Tokenizer::INSTRUCTION_RSC, &Assembler::_rsc},
+			{Tokenizer::INSTRUCTION_MUL, &Assembler::_mul},
+			{Tokenizer::INSTRUCTION_UMULL, &Assembler::_umull},
+			{Tokenizer::INSTRUCTION_SMULL, &Assembler::_smull},
+			{Tokenizer::INSTRUCTION_VABS_F32, &Assembler::_vabs_f32},
+			{Tokenizer::INSTRUCTION_VNEG_F32, &Assembler::_vneg_f32},
+			{Tokenizer::INSTRUCTION_VSQRT_F32, &Assembler::_vsqrt_f32},
+			{Tokenizer::INSTRUCTION_VADD_F32, &Assembler::_vadd_f32},
+			{Tokenizer::INSTRUCTION_VSUB_F32, &Assembler::_vsub_f32},
+			{Tokenizer::INSTRUCTION_VDIV_F32, &Assembler::_vdiv_f32},
+			{Tokenizer::INSTRUCTION_VMUL_F32, &Assembler::_vmul_f32},
+			{Tokenizer::INSTRUCTION_VCMP_F32, &Assembler::_vcmp_f32},
+			{Tokenizer::INSTRUCTION_VSEL_F32, &Assembler::_vsel_f32},
+			{Tokenizer::INSTRUCTION_VCINT_U32_F32, &Assembler::_vcint_u32_f32},
+			{Tokenizer::INSTRUCTION_VCINT_S32_F32, &Assembler::_vcint_s32_f32},
+			{Tokenizer::INSTRUCTION_VCFLO_U32_F32, &Assembler::_vcflo_u32_f32},
+			{Tokenizer::INSTRUCTION_VCFLO_S32_F32, &Assembler::_vcflo_s32_f32},
+			{Tokenizer::INSTRUCTION_VMOV_F32, &Assembler::_vmov_f32},
+			{Tokenizer::INSTRUCTION_AND, &Assembler::_and},
+			{Tokenizer::INSTRUCTION_ORR, &Assembler::_orr},
+			{Tokenizer::INSTRUCTION_EOR, &Assembler::_eor},
+			{Tokenizer::INSTRUCTION_BIC, &Assembler::_bic},
+			{Tokenizer::INSTRUCTION_LSL, &Assembler::_lsl},
+			{Tokenizer::INSTRUCTION_LSR, &Assembler::_lsr},
+			{Tokenizer::INSTRUCTION_ASR, &Assembler::_asr},
+			{Tokenizer::INSTRUCTION_ROR, &Assembler::_ror},
+			{Tokenizer::INSTRUCTION_CMP, &Assembler::_cmp},
+			{Tokenizer::INSTRUCTION_CMN, &Assembler::_cmn},
+			{Tokenizer::INSTRUCTION_TST, &Assembler::_tst},
+			{Tokenizer::INSTRUCTION_TEQ, &Assembler::_teq},
+			{Tokenizer::INSTRUCTION_MOV, &Assembler::_mov},
+			{Tokenizer::INSTRUCTION_MVN, &Assembler::_mvn},
+			{Tokenizer::INSTRUCTION_LDR, &Assembler::_ldr},
+			{Tokenizer::INSTRUCTION_STR, &Assembler::_str},
+			{Tokenizer::INSTRUCTION_SWP, &Assembler::_swp},
+			{Tokenizer::INSTRUCTION_LDRB, &Assembler::_ldrb},
+			{Tokenizer::INSTRUCTION_STRB, &Assembler::_strb},
+			{Tokenizer::INSTRUCTION_SWPB, &Assembler::_swpb},
+			{Tokenizer::INSTRUCTION_LDRH, &Assembler::_ldrh},
+			{Tokenizer::INSTRUCTION_STRH, &Assembler::_strh},
+			{Tokenizer::INSTRUCTION_SWPH, &Assembler::_swph},
+			{Tokenizer::INSTRUCTION_B, &Assembler::_b},
+			{Tokenizer::INSTRUCTION_BL, &Assembler::_bl},
+			{Tokenizer::INSTRUCTION_BX, &Assembler::_bx},
+			{Tokenizer::INSTRUCTION_BLX, &Assembler::_blx},
+			{Tokenizer::INSTRUCTION_SWI, &Assembler::_swi},
 		};
 };
 
