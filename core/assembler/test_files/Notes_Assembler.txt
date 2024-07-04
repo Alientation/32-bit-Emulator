@@ -1,3 +1,37 @@
+SIMPLIFIED DIRECTIVES
+----------------------------------------------------------------
+.global [symbol]
+.extern [symbol]
+.equ [symbol] [expression]
+.org [expression]
+.scope
+.scend
+.advance [expression], [expression]
+.align [expression]
+.data
+.bss
+.stop
+
+[symbol]:
+[.byte | .dbyte | .word | .dword] expression, ...
+[.sbyte | .sdbyte | .sword | .sdword] expression, ...
+.char character, ...
+.ascii string
+.asciz string
+
+expression
+#ddd #%bbb #@ooo #$xxx
+( )
+~ ^ & |
+* /
++ - %
+
+
+// IN FUTURE
+.float expression, ...
+.dfloat expression, ...
+
+
 DIRECTIVES
 ----------------------------------------------------------------
 .global [symbol] ?[: TYPE]
@@ -7,7 +41,7 @@ DIRECTIVES
 
 .extern [symbol] ?[: TYPE]
     - [identifier], [TYPE]
-	- Marks the label [identifier] as an external symbol that is declared but not yet defined in the 
+	- Marks the label [identifier] as an external symbol that is declared but not yet defined in the
 	current context.
     - If a previous declaration of the label symbol has a different TYPE than the current definition
 	  an error is thrown
@@ -22,7 +56,7 @@ DIRECTIVES
 .org [expression]
     - [address]
 	- Moves the current section program counter to [address]
-    - This value can be altered depending on the positions of the different sections
+	- Can only move forward, not backwards
 
 
 .scope
@@ -32,7 +66,7 @@ DIRECTIVES
     - Ends the previous scope
 
 
-.byte | .sbyte [?: symbol] [expression...]
+[?symbol:] .byte | .sbyte [expression...]
     - [?label] [values]
     - unsigned/signed 1 byte [values]
     - label if defined marks the address of the first byte of the defined data
@@ -123,7 +157,7 @@ DIRECTIVES
     - Creates a new text section of identifier [name], with the starting address at [address]
 
 
-.stop 
+.stop
     - Stops the assembler from assembling further
 
 
@@ -138,7 +172,7 @@ TYPES OF EXPRESSIONS
 RESOLVING RELATIVE EXPRESSIONS
 	- Create a graph such that each node is a symbol and there is a directed edge from node a to
 	node b if and only if the expression that defines node a relies on the value of node b
-	- If the graph contains a cycle, the expressions cannot be evaluated because of circular 
+	- If the graph contains a cycle, the expressions cannot be evaluated because of circular
 	dependencies. For example, if (1) depends on (2), (2) depends on (3), but (3) depends on (1),
 	there is no possible way to determine the value of the expression
 

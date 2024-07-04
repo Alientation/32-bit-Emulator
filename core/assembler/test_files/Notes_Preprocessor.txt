@@ -7,6 +7,7 @@ PREPROCESSOR STATEMENTS
 	- <filename>: prioritizes files located in the system file directories, if not found, looks in the
 				current directory.
 
+--[[ TODO rethink how macros work, for now, avoid
 #macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
 	- Defines a macro symbol with n arguments and optionally a return type.
 	- If a return type is specified and the macro definition does not return a value an error is thrown.
@@ -26,6 +27,7 @@ PREPROCESSOR STATEMENTS
 	- Invokes the macro with the given arguments.
 	- If provided an output symbol, the symbol will be associated with the return value of the macro.
 	- If the macro does not return a value but an output symbol is provided, an error is thrown.
+--]]
 
 #define [symbol](param1, param2,..., paramn) [?value] [?\]
 	- Associates the symbol with the value, if value is not specified, the default is empty
@@ -73,5 +75,3 @@ OPERATORS
 !
 && ||
 == != >= <= > <
-
-

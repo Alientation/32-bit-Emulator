@@ -5,7 +5,7 @@
 
 /**
  * Converts the source file contents into a list of tokens
- * 
+ *
  * @param srcFile The source file to tokenize
  * @return A list of tokens
  */
@@ -24,7 +24,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File* srcFile) {
 
 /**
  * Converts the source code into a list of tokens
- * 
+ *
  * @param source_code The source code to tokenize
  * @return A list of tokens
  */
@@ -56,7 +56,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 
 	// print out tokens
 	for (int i = 0; i < tokens->size(); i++) {
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).toString());
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).to_string());
 	}
 
 	return *tokens;

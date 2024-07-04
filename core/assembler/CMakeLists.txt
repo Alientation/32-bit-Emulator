@@ -11,6 +11,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/Assembler.cpp
     src/Build.cpp
     src/Directives.cpp
+    src/Instructions.cpp
     src/ExecutableFile.cpp
     src/Linker.cpp
     src/ObjectFile.cpp
@@ -49,7 +50,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 # set the export name <name>-config (does not need to match target name)
 # also specify where the .lib file should be installed
 install(
-    TARGETS ${PROJECT_NAME} 
+    TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-config
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

@@ -1,9 +1,7 @@
 
 ;*
-
+	COMMENT
 *;
-; #ifndef INCLUDE_BINC
-; #define INCLUDE_BINC
+; conditional
 LDA #$1200
-; #endif
 "string"

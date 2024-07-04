@@ -1,11 +1,11 @@
 #define CONSTANT constant
 
 #ifequ CONSTANT constant2
-	; this is included
+	; this should not be included
 #endif
 
 ;*
-
+	COMMENT
 *;
 
 #include "include.binc"
