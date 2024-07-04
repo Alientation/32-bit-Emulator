@@ -6,7 +6,7 @@
 #include "util/File.h"
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 class Assembler {
 	public:
@@ -106,7 +106,7 @@ class Assembler {
 
 
 		typedef void (Assembler::*DirectiveFunction)(int& tokenI);
-		std::map<Tokenizer::Type,DirectiveFunction> directives = {
+		std::unordered_map<Tokenizer::Type,DirectiveFunction> directives = {
 			{Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
 			{Tokenizer::ASSEMBLER_EXTERN, &Assembler::_extern},
 			{Tokenizer::ASSEMBLER_EQU, &Assembler::_equ},
@@ -120,7 +120,7 @@ class Assembler {
 			{Tokenizer::ASSEMBLER_STOP, &Assembler::_stop},
 		};
 		typedef void (Assembler::*InstructionFunction)(int& tokenI);
-		std::map<Tokenizer::Type,InstructionFunction> instructions = {
+		std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {
 			{Tokenizer::INSTRUCTION_ADD, &Assembler::_add},
 			{Tokenizer::INSTRUCTION_SUB, &Assembler::_sub},
 			{Tokenizer::INSTRUCTION_RSB, &Assembler::_rsb},

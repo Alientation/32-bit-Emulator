@@ -1,33 +1,50 @@
+https://refspecs.linuxbase.org/elf/gabi4+/ch4.symtab.html
 Object Files
+B ELF Header
+Section 1
+Section 2
+...
+Section N
+...
+Section header table
+
+File Header (34 bytes)
+00-03: 'BELF' (#66, #69, #76, #70)
+04-15: Unused Padding Bytes (#0)
+16-17: Object File Type (#00=UNKNOWN, #01=RELOCATABLE FILE)
+18-19: Target Machine (#00=UNKNOWN, #01=32bitemulator)
+20-21: Flags
+22-29: File offset of the start of section header table
+30-31: Section header size
+32-33: Number of entries in section header table
+
+Section header (28 bytes)
+00-07: Section header name (index into string table)
+08-11: Section type (0=UNDEFINED,1=text,2=data,3=bss,4=symtab,5=rel.text,6=rel.data,7=debug,8=strtab)
+12-19: Section size in bytes
+20-27: For fixed size entries like symtab, size in bytes of each Entry
+
+String table: contains list of null terminated strings
+
+Symbol table Entry (26 bytes)
+00-07: symbol name (index into string table)
+08-15: symbol value
+16-17: symbol binding info (0=local,1=global,2=weak)
+18-25: section where symbol is defined in
+
+Relocation Entry
+00-07: offset location from beginning of section to the symbol to apply relocation action
+08-15: symbol table index
+16-23: addend constant to be added to the value and stored in the relocatable field
+
+text section
 
 
-Symbol Table Size - number of possible entries (32 bit integer)
-N Entries where
-Entry
-- symbol name, type, 
+data section
 
 
+bss section
 
 
-
-
-
-
-
-a.bo
-
-    NAME    |   TYPE    |   SCOPE
-
-
-
-
-
-b.bo
-
-
-
-
-
-
-
-
+debug section
+-- in future, not needed now

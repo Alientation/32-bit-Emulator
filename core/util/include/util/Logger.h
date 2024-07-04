@@ -12,6 +12,8 @@
 #include <sstream>
 #include <string>
 
+// todo REDO WHOLE LOGGER SYSTEM. MAKE IT USE PRINTF AND FORWARD ARGS
+
 // helps to trim off the size of printed file paths in logs
 #define PROJECT_ROOT_DIRECTORY std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 
@@ -28,7 +30,7 @@
 
 /**
  * IDEA
- * 
+ *
  * global list of loggers so that it remains persistent across the program.
  * access the logger by getting that specific instance by name (creates if does not exist)
  * create logger
@@ -50,8 +52,8 @@ class Logger {
 				std::string msg;
 				std::time_t timestamp;
 
-				LogMessage(std::string file, std::string func, int line_num, Logger::LogType logType, std::string msg, std::string group) 
-						: file(file), func(func), line_num(line_num), logType(logType), msg(msg), 
+				LogMessage(std::string file, std::string func, int line_num, Logger::LogType logType, std::string msg, std::string group)
+						: file(file), func(func), line_num(line_num), logType(logType), msg(msg),
 						timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())),
 						group(group) {}
 
@@ -74,7 +76,7 @@ class Logger {
 				CONFIG& flush_every_log(bool flush_every_log = true);
 			private:
 				std::string _output_file;
-				bool _print_logs; 
+				bool _print_logs;
 				std::function<std::string(Logger::LogMessage)> _print_log_func;
 				bool _throw_on_error;
 
@@ -153,7 +155,7 @@ Logger* remove_logger(const std::string &logger_id);
 // todo see if we can replace these with macros that will append get_logger("") instead of having this bloat of a mess
 void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group = "");
 void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group = "");
-void EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");	
+void EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
 void EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group = "");
 
 // todo macros overshadow these functions, fix please

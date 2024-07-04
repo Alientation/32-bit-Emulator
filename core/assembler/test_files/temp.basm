@@ -4,30 +4,37 @@
 	TODO
 	- Increase capability of syntax highlighting
 	- add code snippets and tab-complete
-	- add code folding
 *;
+.global _start
 
-.org		$1000
-loadlabel:
-		LDA	#$FFFF
-		LDA	#$1234
+_start:
+		add	x1, x2, $1234
+		sub	x1, x3, $1234
 
-.macro	testmacro	arg1, arg2
-		LDA	arg1
-		LDA	arg2
-.macend
+#macro	testmacro(arg1, arg2)
+		add	x1, x2, arg1
+		sub	x1, x3, arg2
+#macend
 
-.invoke	testmacro	50, 30
+#invoke	testmacro(50, 30)
 
-datalabel:
-	.data
-	.db		$01, $02, $03, $04
-	.db*		$01, $02, $03, $04
-	.d2b		$1234, $5678
-	.d2b*		$3412, $7856
-	.dw		$12345678,
-	.dw*		$78563412,
-	.d2w		$0123456789abcdef,
-	.d2w*		$efcdab8967452301,
+datalabel: .data
+	.byte		$01, $02, $03, $04
+	.dbyte		$1234, $5678
+	.word		$12345678,
+	.dword		$0123456789abcdef,
 
 ; End
+
+;*
+temp.o		file format belf32-littleemu32
+
+SYMBOL TABLE:
+0000000000000000 g	.text		0000000000000008 _start
+0000000000000000 g
+
+
+
+
+
+*;

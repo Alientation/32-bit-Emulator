@@ -4,6 +4,7 @@
 #include <fstream>
 #include <regex>
 
+using namespace lgr;
 
 Assembler::Assembler(Process *process, File *processed_file, std::string output_path) {
 	m_process = process;
@@ -15,7 +16,7 @@ Assembler::Assembler(Process *process, File *processed_file, std::string output_
 		m_outputFile = new File(output_path, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->isValidProcessedFile(processed_file), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file->getExtension());
+	EXPECT_TRUE(m_process->isValidProcessedFile(processed_file), Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file->getExtension());
 
 	m_state = State::NOT_ASSEMBLED;
 	m_tokens = Tokenizer::tokenize(processed_file);
@@ -26,9 +27,9 @@ Assembler::~Assembler() {
 }
 
 void Assembler::assemble() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
+	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
 
-	lgr::EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
+	EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
 	m_state = State::ASSEMBLING;
 
 	// clearing object file
@@ -44,8 +45,8 @@ void Assembler::assemble() {
 	int targetIndentLevel = 0;
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        // lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.toString());
-		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Indent Level: " << currentIndentLevel << " " << token.toString());
+        log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
+		// log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip back to back newlines
         if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
@@ -79,7 +80,15 @@ void Assembler::assemble() {
 		}
 
 		// perform logic on current token
-
+		if (instructions.find(token.type) != instructions.end()) {
+			(this->*instructions[token.type])(i);
+		} else if (directives.find(token.type) != directives.end()) {
+			(this->*directives[token.type])(i);
+		} else {
+			log(Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Cannot parse token " << i << " " << token.to_string());
+			m_state = State::ASSEMBLER_ERROR;
+			break;
+		}
 
 		// update target indent level
 		if (token.type == Tokenizer::ASSEMBLER_SCOPE) {
@@ -87,11 +96,13 @@ void Assembler::assemble() {
 		}
 	}
 
-	m_state = State::ASSEMBLED;
 	m_writer->close();
     delete m_writer;
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
+	if (m_state == State::ASSEMBLING) {
+		m_state = State::ASSEMBLED;
+		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
+	}
 }
 
 
@@ -126,13 +137,13 @@ void Assembler::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTy
  * @param errorMsg the error message to throw if the token does not exist.
  */
 bool Assembler::expectToken(int tokenI, const std::string& errorMsg) {
-	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(inBounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
 
 bool Assembler::expectToken(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
-	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(inBounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
+	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
 
@@ -184,6 +195,6 @@ Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg) {
  */
 Tokenizer::Token& Assembler::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expectToken(tokenI, errorMsg);
-	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
+	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
     return m_tokens[tokenI++];
 }

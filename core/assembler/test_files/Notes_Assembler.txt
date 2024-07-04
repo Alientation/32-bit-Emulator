@@ -31,6 +31,11 @@ expression
 .float expression, ...
 .dfloat expression, ...
 
+.org can only be used to reference an address in the future and whose value must be able to be
+simplified to a constant value, reference to previously defined symbol, or offset added to the previously defined symbol
+similar constraints apply to .equ, .advance, and .align
+
+
 
 DIRECTIVES
 ----------------------------------------------------------------
