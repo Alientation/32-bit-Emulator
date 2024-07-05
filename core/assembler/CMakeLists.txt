@@ -25,6 +25,12 @@ FetchContent_Declare(
     SOURCE_DIR ../../util)
 FetchContent_MakeAvailable(util)
 
+FetchContent_Declare(
+	emulator32bit
+	SOURCE_DIR ../../emulator32bit
+)
+FetchContent_MakeAvailable(emulator32bit)
+
 include(GNUInstallDirs)
 
 # sets the search paths for the include files after installation
@@ -38,7 +44,7 @@ target_include_directories(
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
-target_link_libraries(${PROJECT_NAME} PUBLIC util)
+target_link_libraries(${PROJECT_NAME} PUBLIC util emulator32bit)
 
 # this command will append "d" to the name of the debug version of
 # the library - this is very helpful when installing as it ensures

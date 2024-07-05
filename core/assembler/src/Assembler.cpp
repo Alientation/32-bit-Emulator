@@ -26,6 +26,10 @@ Assembler::~Assembler() {
 	delete m_outputFile;
 }
 
+Assembler::State Assembler::get_state() {
+	return this->m_state;
+}
+
 void Assembler::assemble() {
 	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
 
@@ -37,12 +41,7 @@ void Assembler::assemble() {
 	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
-	// create writer for object file
-	m_writer = new FileWriter(m_outputFile);
-
 	// parse tokens
-	int currentIndentLevel = 0;
-	int targetIndentLevel = 0;
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
@@ -54,31 +53,6 @@ void Assembler::assemble() {
             continue;
         }
 
-		// update current indent level
-		if (token.type == Tokenizer::WHITESPACE_TAB) {
-			currentIndentLevel++;
-		} else if (token.type == Tokenizer::WHITESPACE_NEWLINE) {
-			currentIndentLevel = 0;
-		}
-
-		// update target indent level
-		if (token.type == Tokenizer::ASSEMBLER_SCEND) {
-			targetIndentLevel--;
-		}
-
-		// format the output with improved indents
-		if (currentIndentLevel < targetIndentLevel && token.type == Tokenizer::WHITESPACE_SPACE) {
-			// don't output whitespaces if a tab is expected
-			continue;
-		} else if (currentIndentLevel < targetIndentLevel
-				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE) {
-			// append tabs
-			while (currentIndentLevel < targetIndentLevel) {
-				m_writer->write("\t");
-				currentIndentLevel++;
-			}
-		}
-
 		// perform logic on current token
 		if (instructions.find(token.type) != instructions.end()) {
 			(this->*instructions[token.type])(i);
@@ -89,12 +63,29 @@ void Assembler::assemble() {
 			m_state = State::ASSEMBLER_ERROR;
 			break;
 		}
-
-		// update target indent level
-		if (token.type == Tokenizer::ASSEMBLER_SCOPE) {
-			targetIndentLevel++;
-		}
 	}
+
+
+	// create writer for object file
+	m_writer = new FileWriter(m_outputFile);
+
+	/* BELF Header */
+
+	/* Data Section and Header */
+
+	/* Text Section and Header */
+
+	/* BSS Section and Header */
+
+	/* rel.data Section and Header */
+
+	/* rel.text Section and Header */
+
+	/* rel.bss Section and Header */
+
+	/* Symbol Table */
+
+	/* String Table */
 
 	m_writer->close();
     delete m_writer;

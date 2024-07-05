@@ -4,6 +4,7 @@
 #include "assembler/Build.h"
 #include "assembler/Tokenizer.h"
 #include "util/File.h"
+#include "emulator32bit/Emulator32bitUtil.h"
 
 #include <string>
 #include <unordered_map>
@@ -11,7 +12,7 @@
 class Assembler {
 	public:
 		enum State {
-			NOT_ASSEMBLED, ASSEMBLING, ASSEMBLED, ASSEMBLER_ERROR,
+			NOT_ASSEMBLED, ASSEMBLING, ASSEMBLED, ASSEMBLER_ERROR, ASSEMBLER_WARNING,
 		};
 
 		Assembler(Process *process, File *processed_file, std::string output_path = "");
@@ -21,14 +22,69 @@ class Assembler {
 		State get_state();
 
 	private:
-		Process *m_process;										    // the build process
+		Process *m_process;										    /* the build process */
 
-		File *m_inputFile;										    // the .bi file being assembled
-		File *m_outputFile;										    // the object file, a .bo file
-		State m_state;											    // the state of the assembler
-		std::vector<Tokenizer::Token> m_tokens;					    // the tokens of the input processed file
+		File *m_inputFile;										    /* the .bi file being assembled */
+		File *m_outputFile;										    /* the object file, a .bo file */
+		State m_state;											    /* the state of the assembler */
+		std::vector<Tokenizer::Token> m_tokens;					    /* the tokens of the input processed file */
 
-		FileWriter *m_writer;									    // writer for the output file
+		FileWriter *m_writer;									    /* writer for the output file */
+
+		/**
+		 * @brief 					Symbols defined in this unit
+		 *
+		 */
+		struct SymbolTableEntry {
+			int symbol_name;										/* index into string table */
+			word symbol_value;										/* value of symbol */
+			enum class BindingInfo {
+				LOCAL=0, GLOBAL=1, WEAK=2
+			} binding_info;											/* type of symbol */
+			int section;											/* index into section table, -1 indicates no section */
+		};
+
+		struct SectionHeader {
+			int section_name;										/* index into string table */
+			enum class Type {
+				UNDEFINED, TEXT, DATA, BSS, SYMTAB, REL_TEXT, REL_DATA, REL_BSS, DEBUG, STRTAB,
+			} type;													/* type of section */
+			word section_size;										/* size of section in bytes */
+			word entry_size;										/* size of entry in section */
+		};
+
+		struct RelocationEntry {
+			word offset;											/* offset from beginning of section to the symbol */
+			int symbol;												/* index into symbol table */
+			enum class Type {
+				UNDEFINED,
+				R_EMU32_O_LO12, R_EMU32_ADRP_HI20,
+				R_EMU32_MOV_LO19, R_EMU32_MOV_HI13,
+			} type;													/* type of relocation */
+			word shift;												/* constant to be added to the value of the symbol */
+		};
+
+		std::vector<std::string> strings;							/* stores all strings */
+		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table */
+		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
+		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
+		std::vector<RelocationEntry> rel_data;
+		std::vector<RelocationEntry> rel_bss;
+		std::unordered_map<int, SectionHeader> sections;			/* maps section name to section header */
+
+		std::vector<byte> data_section;								/* data stored in .data section */
+		word bss_section;											/* size of .bss section */
+		std::vector<word> text_section;								/* instructions stored in .text section */
+
+		enum class Section {
+			NONE, DATA, BSS, TEXT
+		} current_section = Section::NONE;							/* Which section is being assembled currently */
+
+		std::vector<int> scope_token_indices;						/* Nested scopes */
+
+
+		void add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
+		word parse_expression(int& tokenI);
 
 		// these are the same as the preprocessor helper methods.. see if we can use tokenizer instead to store these duplicate methods
 		void skipTokens(int& tokenI, const std::string& regex);
@@ -42,7 +98,6 @@ class Assembler {
 
 		void _global(int& tokenI);
 		void _extern(int& tokenI);
-		void _equ(int& tokenI);
 		void _org(int& tokenI);
 		void _scope(int& tokenI);
 		void _scend(int& tokenI);
@@ -111,7 +166,6 @@ class Assembler {
 		std::unordered_map<Tokenizer::Type,DirectiveFunction> directives = {
 			{Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
 			{Tokenizer::ASSEMBLER_EXTERN, &Assembler::_extern},
-			{Tokenizer::ASSEMBLER_EQU, &Assembler::_equ},
 			{Tokenizer::ASSEMBLER_ORG, &Assembler::_org},
 			{Tokenizer::ASSEMBLER_SCOPE, &Assembler::_scope},
 			{Tokenizer::ASSEMBLER_SCEND, &Assembler::_scend},

@@ -994,7 +994,3 @@ void Emulator32bit::_adrp(word instr, EmulatorException& exception) {
 
 	write_reg(xd, imm20, exception);
 }
-
-void Emulator32bit::_hlt(word instr, EmulatorException& exception) {
-	exception.type = EmulatorException::Type::HALT;
-}

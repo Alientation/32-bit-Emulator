@@ -14,7 +14,7 @@ class FileReader;
 // TODO probably best to add some form of thread safe locking to the file operations
 class File {
 	public:
-		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator); 
+		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator);
 
 		static bool isValidFileName(const std::string fileName) {
 			return fileName.find_first_of("\\/:*?\"<>|") == std::string::npos && fileName.size() > 0;
@@ -47,6 +47,19 @@ class File {
 		std::string fileName;
 		std::string fileExtension;
 		std::string fileDirectory;
+};
+
+class ByteWriter {
+	public:
+		ByteWriter(FileWriter *filewriter);
+		struct Data {
+			unsigned long value;
+			int num_bytes;
+		};
+
+		ByteWriter& operator<<(Data data);
+	private:
+		FileWriter *filewriter;
 };
 
 class FileWriter {

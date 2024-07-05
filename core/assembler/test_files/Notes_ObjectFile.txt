@@ -20,7 +20,7 @@ File Header (34 bytes)
 
 Section header (28 bytes)
 00-07: Section header name (index into string table)
-08-11: Section type (0=UNDEFINED,1=text,2=data,3=bss,4=symtab,5=rel.text,6=rel.data,7=debug,8=strtab)
+08-11: Section type (0=UNDEFINED,1=text,2=data,3=bss,4=symtab,5=rel.text,6=rel.data,7=rel.bss,8=debug,9=strtab)
 12-19: Section size in bytes
 20-27: For fixed size entries like symtab, size in bytes of each Entry
 
@@ -32,10 +32,11 @@ Symbol table Entry (26 bytes)
 16-17: symbol binding info (0=local,1=global,2=weak)
 18-25: section where symbol is defined in
 
-Relocation Entry
+Relocation Entry (28 bytes)
 00-07: offset location from beginning of section to the symbol to apply relocation action
 08-15: symbol table index
-16-23: addend constant to be added to the value and stored in the relocatable field
+16-19: relocation type
+20-27: addend constant to be added to the value and stored in the relocatable field
 
 text section
 

@@ -5,7 +5,7 @@
 
 /**
  * Constructs a file object with the given file name and directory.
- * 
+ *
  * @param fileName the name of the file
  * @param fileDirectory the directory of the file
  */
@@ -34,7 +34,7 @@ File::File(const std::string fileName, const std::string fileExtension, const st
 
 /**
  * Constructs a file object with the given file path.
- * 
+ *
  * @param filePath the path of the file
  */
 File::File(const std::string filePath, bool createFileIfNotPresent) {
@@ -65,12 +65,12 @@ File::File(const std::string filePath, bool createFileIfNotPresent) {
  * Destructs a file object
  */
 File::~File() {
-	
+
 }
 
 /**
  * Returns the name of the file
- * 
+ *
  * @return the name of the file
  */
 std::string File::getFileName() {
@@ -79,7 +79,7 @@ std::string File::getFileName() {
 
 /**
  * Returns the extension of the file
- * 
+ *
  * @return the extension of the file
  */
 std::string File::getExtension() {
@@ -88,7 +88,7 @@ std::string File::getExtension() {
 
 /**
  * Returns the path of the file
- * 
+ *
  * @return the path of the file
  */
 std::string File::getFilePath() {
@@ -97,7 +97,7 @@ std::string File::getFilePath() {
 
 /**
  * Returns the directory of the file
- * 
+ *
  * @return the directory of the file
  */
 std::string File::getFileDirectory() {
@@ -106,7 +106,7 @@ std::string File::getFileDirectory() {
 
 /**
  * Gets the size of the file in bytes
- * 
+ *
  * @return the size of the file in bytes
  */
 int File::getFileSize() {
@@ -123,7 +123,7 @@ int File::getFileSize() {
 
 /**
  * Returns true if the file exists
- * 
+ *
  * @return true if the file exists
  */
 bool File::exists() {
@@ -142,7 +142,7 @@ void File::create() {
 
 /**
  * Constructs a file writer object with the given file
- * 
+ *
  * @param file the file to write to
  */
 FileWriter::FileWriter(File* file) {
@@ -179,23 +179,34 @@ FileWriter& FileWriter::operator<<(const char* str) {
 
 /**
  * Writes a string to the file
- * 
+ *
  * @param text the string to write
  */
 void FileWriter::write(const std::string text) {
 	if (this->closed) {
 		exit(EXIT_FAILURE);
 	}
-	
+
 	(*this->fileStream) << text;
     for (int i = 0; i < text.size(); i++) {
         this->bytes_written.push_back(text[i]);
     }
 }
 
+
+ByteWriter::ByteWriter(FileWriter *filewriter) {
+	this->filewriter = filewriter;
+}
+
+ByteWriter& ByteWriter::operator<<(Data data) {
+	for (int i = 0; i < data.num_bytes; i++) {
+		filewriter->write(data.value & (0xFF << (8 * (data.num_bytes-1-i))));
+	}
+}
+
 /**
  * Writes a byte to the file
- * 
+ *
  * @param byte the byte to write
  */
 void FileWriter::write(const char byte) {
@@ -210,7 +221,7 @@ void FileWriter::write(const char byte) {
 
 /**
  * Writes a byte array to the file
- * 
+ *
  * @param bytes the byte array to write
  */
 void FileWriter::write(const char* bytes) {
@@ -258,7 +269,7 @@ void FileWriter::flush() {
  * Closes the file writer
  */
 void FileWriter::close() {
-	if (!this->closed) {	
+	if (!this->closed) {
 		this->closed = true;
 		delete fileStream;
 	}
@@ -269,7 +280,7 @@ void FileWriter::close() {
 
 /**
  * Constructs a file reader object with the given file
- * 
+ *
  * @param file the file to read from
  */
 FileReader::FileReader(File* file) {
@@ -291,7 +302,7 @@ FileReader::~FileReader() {
 
 /**
  * Reads the entire file and returns it as a string
- * 
+ *
  * @return the entire file as a string
  */
 std::string FileReader::readAll() {
@@ -305,7 +316,7 @@ std::string FileReader::readAll() {
 
 /**
  * Reads a byte from the file
- * 
+ *
  * @return the byte read from the file
  */
 char FileReader::readByte() {
@@ -314,7 +325,7 @@ char FileReader::readByte() {
 
 /**
  * Returns the next byte to be read from the file without advancing the file pointer
- * 
+ *
  * @return the next byte to be read from the file
  */
 char FileReader::peekByte() {
@@ -323,7 +334,7 @@ char FileReader::peekByte() {
 
 /**
  * Reads a number of bytes from the file
- * 
+ *
  * @param numBytes the number of bytes to read
  * @return the bytes read from the file
  */
@@ -332,7 +343,7 @@ char* FileReader::readBytes(const unsigned int numBytes) {
 	this->fileStream->read(bytes, numBytes);
 
 	if (fileStream->fail()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::readBytes() - Failed to read " << 
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::readBytes() - Failed to read " <<
 				numBytes << " bytes from file: " << this->file->getFilePath());
 	}
 
@@ -341,9 +352,9 @@ char* FileReader::readBytes(const unsigned int numBytes) {
 
 /**
  * Reads all bytes from the file till the next token delimiter is encountered
- * 
+ *
  * @param delimiter the delimiter to stop reading at
- * 
+ *
  * @return the bytes read from the file
  */
 char* FileReader::readToken(const char tokenDelimiter) { // TODO: make this take in a regex separator
@@ -357,7 +368,7 @@ char* FileReader::readToken(const char tokenDelimiter) { // TODO: make this take
 
 /**
  * Returns true if there is another byte to read
- * 
+ *
  * @return true if there is another byte to read
  */
 bool FileReader::hasNextByte() {
