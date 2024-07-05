@@ -219,7 +219,8 @@ class Emulator32bit {
 
 		_INSTR(adrp, 0b110011)
 
-		// _INSTR(nop_, 0b110011)
+		_INSTR(hlt, 0b110011)
+
 		// _INSTR(nop_, 0b110100)
 		// _INSTR(nop_, 0b110101)
 		// _INSTR(nop_, 0b110110)

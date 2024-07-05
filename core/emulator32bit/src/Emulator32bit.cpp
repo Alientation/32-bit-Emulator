@@ -71,7 +71,8 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 
 	_INSTR(adrp)
 
-	// _INSTR(nop_)
+	_INSTR(hlt)
+
 	// _INSTR(nop_)
 	// _INSTR(nop_)
 	// _INSTR(nop_)
