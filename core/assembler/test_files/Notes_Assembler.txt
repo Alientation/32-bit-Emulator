@@ -7,10 +7,10 @@ SIMPLIFIED DIRECTIVES
 .scend
 .advance [expression], [expression]
 .align [expression]
-.section [symbol]
-.text [equivalent to .section .text]
-.data [equivalent to .section .data]
-.bss [equivalent to .section .bss]
+.section [string]
+.text [equivalent to .section text]
+.data [equivalent to .section data]
+.bss [equivalent to .section bss]
 .stop
 
 [symbol]:

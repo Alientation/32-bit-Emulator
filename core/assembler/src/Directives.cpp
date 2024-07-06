@@ -98,6 +98,7 @@ word Assembler::parse_expression(int& tokenI) {
 
 /**
  * @brief 					Declares a symbol to be global outside this compilation unit. Must be declared outside any defined sections like .text, .bss, and .data.
+ * USAGE:					.global <symbol>
  *
  * @param 					tokenI: reference to current token index
  */
@@ -118,6 +119,7 @@ void Assembler::_global(int& tokenI) {
 /**
  * @brief					Declares a symbol to exist in another compilation unit but not defined here. Symbol's binding info will be marked as weak.
  * 								Must be declared outside any defined sections like .text, .bss, and .data.
+ * USAGE:					.extern <symbol>
  *
  * @param 					tokenI: reference to current token index
  */
@@ -137,6 +139,7 @@ void Assembler::_extern(int& tokenI) {
 
 /**
  * @brief 					Moves where the assembler is in a section. Can only move forward, not backward.
+ * USAGE:					.org <expression>
  *
  * @param 					tokenI: reference to current token index
  */
@@ -204,6 +207,7 @@ void Assembler::_org(int& tokenI) {
 /**
  * @brief 					Defines a local scope. Any symbol defined inside will be marked as local and will not be able to be marked as global.
  * 								Symbols defined here will be postfixed with a special identifier <symbol>:<scope_token_index>
+ * USAGE:					.scope
  *
  * @param 					tokenI: Reference to current token index
  */
@@ -214,6 +218,7 @@ void Assembler::_scope(int& tokenI) {
 
 /**
  * @brief 					Ends a local scope.
+ * USAGE:					.scend
  *
  * @param 					tokenI: Reference to current token index
  */
@@ -230,6 +235,7 @@ void Assembler::_scend(int& tokenI) {
 
 /**
  * @brief 					Moves where the assembler is in a section forward by a certain amount of bytes.
+ * USAGE:					.advance <expression>
  *
  * @param 					tokenI: Reference to current token index
  */
@@ -278,6 +284,7 @@ void Assembler::_advance(int& tokenI) {
 /**
  * @brief 					Aligns where the assembler is in the current section.
  * @note					This is useless unless we can specify in the program header of the object file the alignment of the whole program
+ * USAGE:					.align <expression>
  *
  * @param 					tokenI: Reference to the current token index
  */
@@ -324,46 +331,64 @@ void Assembler::_align(int& tokenI) {
 
 /**
  * @brief 					Creates a new section.
- * @warning					Currently only supports creating one of each type of section (.text, .bss, .data)
+ * @warning					Not implemented yet.
+ * USAGE:					.section <string>, <flags>
  *
  * @param 					tokenI: Reference to the current token index
  */
 void Assembler::_section(int& tokenI) {
+	consume(tokenI);
+	skipTokens(tokenI, Tokenizer::WHITESPACES);
 
+	expectToken(tokenI, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a string argument to follow.");
+
+	lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_section() - .section directive is not implemented yet.");
+	m_state = State::ASSEMBLER_ERROR;
+	return;
 }
 
 /**
  * @brief					Creates a new text section.
- * @warning					Currently will simply add on to the previously defined text section if it exists
+ * @warning					Currently will simply add on to the previously defined text section if it exists.
+ * USAGE:					.text
  *
  * @param 					tokenI: Reference to the current token index
  */
 void Assembler::_text(int& tokenI) {
+	consume(tokenI);
 
+	current_section = Section::TEXT;
 }
 
 /**
  * @brief					Creates a new data section.
  * @warning					Currently will simply add on to the previously defined data section if it exists
+ * USAGE:					.data
  *
  * @param 					tokenI: Reference to the current token index
  */
 void Assembler::_data(int& tokenI) {
+	consume(tokenI);
 
+	current_section = Section::DATA;
 }
 
 /**
  * @brief					Creates a new bss section.
  * @warning					Currently will simply add on to the previously defined bss section if it exists
+ * USAGE:					.bss
  *
  * @param 					tokenI: Reference to the current token index
  */
 void Assembler::_bss(int& tokenI) {
+	consume(tokenI);
 
+	current_section = Section::BSS;
 }
 
 /**
  * @brief 					Stops assembling
+ * USAGE:					.stop
  *
  * @param 					tokenI: Reference to the current token index
  */
