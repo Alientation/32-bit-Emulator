@@ -70,21 +70,28 @@ class Assembler {
 		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
 		std::vector<RelocationEntry> rel_data;
 		std::vector<RelocationEntry> rel_bss;
-		std::unordered_map<int, SectionHeader> sections;			/* maps section name to section header */
+		std::vector<SectionHeader> section_table;					/* section headers */
 
+		std::vector<word> text_section;								/* instructions stored in .text section */
 		std::vector<byte> data_section;								/* data stored in .data section */
 		word bss_section;											/* size of .bss section */
-		std::vector<word> text_section;								/* instructions stored in .text section */
 
 		enum class Section {
 			NONE, DATA, BSS, TEXT
 		} current_section = Section::NONE;							/* Which section is being assembled currently */
+		int current_section_index = 0;								/* Index into section table */
 
 		std::vector<int> scope_token_indices;						/* Nested scopes */
 
 
 		void add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
 		word parse_expression(int& tokenI);
+		byte parse_register(int& tokenI);
+
+		word parse_format_o(int& tokenI, byte opcode);
+		word parse_format_o1(int& tokenI, byte opcode);
+		word parse_format_o2(int& tokenI, byte opcode);
+		word parse_format_o3(int& tokenI, byte opcode);
 
 		// these are the same as the preprocessor helper methods.. see if we can use tokenizer instead to store these duplicate methods
 		void skipTokens(int& tokenI, const std::string& regex);

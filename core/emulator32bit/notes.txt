@@ -18,6 +18,11 @@ opcode	 S    xd      xn   ?imm       imm14
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 00 | 00000 | 00
 opcode   S    xd      xn   ?imm   xm    shift  imm5   --
 
+O1 Type Instruction
+OP xd, xn, [imm5 | xm]
+000000 | 0 | 00000 | 00000 | 0 | 00000 | 00 | 00000 | 00
+opcode   -     xd      xn  ?imm    xm    --    imm5   --
+
 O2 Type Instruction
 OP{S} xlo, xhi, xn, xm
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 00000 | 0000
@@ -180,13 +185,13 @@ EOR{S} xd, xn, arg (O)
 	- op: 011000
 BIC{S} xd, xn, arg (O)
 	- op: 011001
-LSL{S} xd, xn, {xm|#imm5} (O)	-- NOTE, #imm5 refers to the same one if ?imm was unset
+LSL{S} xd, xn, {xm|#imm5} (O1)	-- NOTE, #imm5 refers to the same one if ?imm was unset
 	- op: 011010
-LSR{S} xd, xn, {xm|#imm5} (O)
+LSR{S} xd, xn, {xm|#imm5} (O1)
 	- op: 011011
-ASR{S} xd, xn, {xm|#imm5} (O)
+ASR{S} xd, xn, {xm|#imm5} (O1)
 	- op: 011100
-ROR{S} xd, xn, {xm|#imm5} (O)
+ROR{S} xd, xn, {xm|#imm5} (O1)
 	- op: 011101
 
 Comparison Instructions (4)

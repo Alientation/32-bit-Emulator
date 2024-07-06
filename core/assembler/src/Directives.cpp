@@ -28,8 +28,8 @@ void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::Bin
 			symbol_entry.symbol_value = value;
 		} else if (symbol_entry.section != -1 && section != -1) {
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_symbol() - Multiple definition of symbol "
-					<< symbol << " at sections " << strings[sections[section].section_name] << " and "
-					<< strings[sections[symbol_entry.section].section_name] << ".");
+					<< symbol << " at sections " << strings[section_table[section].section_name] << " and "
+					<< strings[section_table[symbol_entry.section].section_name] << ".");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
 		} else if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
@@ -358,6 +358,7 @@ void Assembler::_text(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::TEXT;
+	current_section_index = 0;
 }
 
 /**
@@ -371,6 +372,7 @@ void Assembler::_data(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::DATA;
+	current_section_index = 1;
 }
 
 /**
@@ -384,6 +386,7 @@ void Assembler::_bss(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::BSS;
+	current_section_index = 2;
 }
 
 /**

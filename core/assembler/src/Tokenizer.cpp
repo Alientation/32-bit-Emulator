@@ -65,6 +65,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP = {
 	{UNKNOWN, "UNKNOWN"},
 
+	{LABEL, "LABEL"},
 	{TEXT, "TEXT"},
 	{WHITESPACE_SPACE, "WHITESPACE_SPACE"}, {WHITESPACE_TAB, "WHITE_SPACE_TAB"}, {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
 	{COMMENT_SINGLE_LINE, "COMMENT_SINGLE_LINE"}, {COMMENT_MULTI_LINE, "COMMENT_MULTI_LINE"},
@@ -337,6 +338,7 @@ const std::vector<std::pair<std::string, Tokenizer::Type>> Tokenizer::TOKEN_SPEC
 	{"^x28", REGISTER_X28}, {"^x29", REGISTER_X29},
 	{"^xzr", REGISTER_XZR}, {"^sp", REGISTER_SP},
 
+	{"^[a-zA-Z_][a-zA-Z0-9_]*:", LABEL},
 	{"^ ", WHITESPACE_SPACE}, {"^\\t", WHITESPACE_TAB}, {"^\\n", WHITESPACE_NEWLINE},
 	{"^[\\s^[ \\n\\t]]+", WHITESPACE},
 	{"^;\\*[^*]*\\*+(?:[^;*][^*]*\\*+)*;", COMMENT_MULTI_LINE}, {"^;.*", COMMENT_SINGLE_LINE},

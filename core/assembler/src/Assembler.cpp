@@ -41,20 +41,65 @@ void Assembler::assemble() {
 	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
+	section_table.push_back((SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::TEXT,
+		.section_size = 0,
+		.entry_size = 0,
+	});
+	string_table[".text"] = string_table.size();
+
+	section_table.push_back((SectionHeader) {
+		.section_name = 1,
+		.type = SectionHeader::Type::DATA,
+		.section_size = 0,
+		.entry_size = 0,
+	});
+	string_table[".data"] = string_table.size();
+
+	section_table.push_back((SectionHeader) {
+		.section_name = 2,
+		.type = SectionHeader::Type::BSS,
+		.section_size = 0,
+		.entry_size = 0,
+	});
+	string_table[".bss"] = string_table.size();
+
 	// parse tokens
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
 		// log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
-        // skip back to back newlines
-        if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
+        // skip non code or directives
+        if (isToken(i, Tokenizer::WHITESPACES) || isToken(i, Tokenizer::COMMENTS)) {
             i++;
             continue;
         }
 
 		// perform logic on current token
-		if (instructions.find(token.type) != instructions.end()) {
+		if (token.type == Tokenizer::LABEL) {
+			if (current_section == Section::NONE) {
+				log(Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Label must be located in a section.");
+				m_state = State::ASSEMBLER_ERROR;
+				break;
+			}
+
+			std::string symbol = token.value + (scope_token_indices.empty() ? "" : "::SCOPE:" + std::to_string(scope_token_indices.back()));
+			if (current_section == Section::TEXT) {
+				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 0);
+			} else if (current_section == Section::DATA) {
+				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 1);
+			} else if (current_section == Section::BSS) {
+				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 2);
+			}
+
+		} else if (instructions.find(token.type) != instructions.end()) {
+			if (current_section != Section::TEXT) {
+				log(Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Code must be located in .text section.");
+				m_state = State::ASSEMBLER_ERROR;
+				break;
+			}
 			(this->*instructions[token.type])(i);
 		} else if (directives.find(token.type) != directives.end()) {
 			(this->*directives[token.type])(i);
