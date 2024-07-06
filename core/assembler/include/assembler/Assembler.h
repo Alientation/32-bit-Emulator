@@ -109,6 +109,7 @@ class Assembler {
 		void _bss(int& tokenI);
 		void _stop(int& tokenI);
 
+		void _hlt(int& tokenI);
 		void _add(int& tokenI);
 		void _sub(int& tokenI);
 		void _rsb(int& tokenI);
@@ -179,6 +180,7 @@ class Assembler {
 		};
 		typedef void (Assembler::*InstructionFunction)(int& tokenI);
 		std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {
+			{Tokenizer::INSTRUCTION_HLT, & Assembler::_hlt},
 			{Tokenizer::INSTRUCTION_ADD, &Assembler::_add},
 			{Tokenizer::INSTRUCTION_SUB, &Assembler::_sub},
 			{Tokenizer::INSTRUCTION_RSB, &Assembler::_rsb},

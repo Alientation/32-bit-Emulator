@@ -1,21 +1,49 @@
 #include <assembler/Assembler.h>
 
+
+
+
+/**
+ * @brief
+ *
+ * @param 						tokenI: Reference to current token index
+ */
 void Assembler::_add(int& tokenI) {
 
 }
 
+/**
+ * @brief
+ *
+ * @param 						tokenI: Reference to current token index
+ */
 void Assembler::_sub(int& tokenI) {
 
 }
 
+/**
+ * @brief
+ *
+ * @param 						tokenI: Reference to current token index
+ */
 void Assembler::_rsb(int& tokenI) {
 
 }
 
+/**
+ * @brief
+ *
+ * @param 						tokenI: Reference to current token index
+ */
 void Assembler::_adc(int& tokenI) {
 
 }
 
+/**
+ * @brief
+ *
+ * @param 						tokenI: Reference to current token index
+ */
 void Assembler::_sbc(int& tokenI) {
 
 }

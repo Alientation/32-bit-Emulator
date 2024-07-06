@@ -44,8 +44,8 @@ void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::Bin
  * @brief
  * @todo					Implement full expression parser
  *
- * @param tokenI
- * @return word
+ * @param 					tokenI: Reference to current token index
+ * @return 					value of expression
  */
 word Assembler::parse_expression(int& tokenI) {
 	/* For now, only parse expressions sequentially, without care of precedence */
