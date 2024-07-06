@@ -1,14 +1,24 @@
 #include <assembler/Assembler.h>
 
+#include <emulator32bit/Emulator32bit.h>
+#include <emulator32bit/Emulator32bitUtil.h>
+#include <util/Logger.h>
 
-
+#include <string>
 
 /**
  * @brief
  *
+ * add x1, x2, x3
+ * add x1, x2, #40
+ * add x1, x2, x3, lsl 4
+ * add x1, x2, :lo12:symbol
+ * add x1, x2, :lo12:symbol + 4
+ *
  * @param 						tokenI: Reference to current token index
  */
 void Assembler::_add(int& tokenI) {
+	consume(tokenI);
 
 }
 
