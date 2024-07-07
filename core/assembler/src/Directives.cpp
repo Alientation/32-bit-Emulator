@@ -206,14 +206,15 @@ void Assembler::_org(int& tokenI) {
 
 /**
  * @brief 					Defines a local scope. Any symbol defined inside will be marked as local and will not be able to be marked as global.
- * 								Symbols defined here will be postfixed with a special identifier <symbol>:<scope_token_index>
+ * 								Symbols defined here will be postfixed with a special identifier <symbol>:<scope_id>. Local symbols defined at
+ * 								current scope level or above will have higher precedence over globally defined symbols.
  * USAGE:					.scope
  *
  * @param 					tokenI: Reference to current token index
  */
 void Assembler::_scope(int& tokenI) {
-	scope_token_indices.push_back(tokenI);
 	consume(tokenI);
+	scopes.push_back(total_scopes++);
 }
 
 /**
@@ -223,13 +224,13 @@ void Assembler::_scope(int& tokenI) {
  * @param 					tokenI: Reference to current token index
  */
 void Assembler::_scend(int& tokenI) {
-	if (scope_token_indices.empty()) {
+	if (scopes.empty()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_scend() - .scend directive must have a matching .scope directive.");
 		m_state = State::ASSEMBLER_ERROR;
 		return;
 	}
 
-	scope_token_indices.pop_back();
+	scopes.pop_back();
 	consume(tokenI);
 }
 

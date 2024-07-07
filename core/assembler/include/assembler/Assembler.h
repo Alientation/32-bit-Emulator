@@ -58,8 +58,9 @@ class Assembler {
 			int symbol;												/* index into symbol table */
 			enum class Type {
 				UNDEFINED,
-				R_EMU32_O_LO12, R_EMU32_ADRP_HI20,
-				R_EMU32_MOV_LO19, R_EMU32_MOV_HI13,
+				R_EMU32_O_LO12, R_EMU32_ADRP_HI20,					/* Format O instructions and ADRP */
+				R_EMU32_MOV_LO19, R_EMU32_MOV_HI13,					/* MOV/MVN instructions */
+				R_EMU32_B_OFFSET22,									/* Branch offset, +/- 24 bit value (last 2 bits are 0) */
 			} type;													/* type of relocation */
 			word shift;												/* constant to be added to the value of the symbol */
 		};
@@ -81,17 +82,25 @@ class Assembler {
 		} current_section = Section::NONE;							/* Which section is being assembled currently */
 		int current_section_index = 0;								/* Index into section table */
 
-		std::vector<int> scope_token_indices;						/* Nested scopes */
-
+		int total_scopes = 0;
+		std::vector<int> scopes;									/* Nested scopes */
 
 		void add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
 		word parse_expression(int& tokenI);
 		byte parse_register(int& tokenI);
+		void parse_shift(int& tokenI, int& shift, int& shift_amt);
 
 		word parse_format_o(int& tokenI, byte opcode);
 		word parse_format_o1(int& tokenI, byte opcode);
 		word parse_format_o2(int& tokenI, byte opcode);
 		word parse_format_o3(int& tokenI, byte opcode);
+
+		word parse_format_m(int& tokenI, byte opcode);
+		word parse_format_m1(int& tokenI, byte opcode);
+		word parse_format_m2(int& tokenI, byte opcode);
+
+		word parse_format_b1(int& tokenI, byte opcode);
+		word parse_format_b2(int& tokenI, byte opcode);
 
 		// these are the same as the preprocessor helper methods.. see if we can use tokenizer instead to store these duplicate methods
 		void skipTokens(int& tokenI, const std::string& regex);
@@ -169,6 +178,9 @@ class Assembler {
 		void _blx(int& tokenI);
 		void _swi(int& tokenI);
 
+		void _adrp(int& tokenI);
+
+		void _ret(int& tokenI);
 
 		typedef void (Assembler::*DirectiveFunction)(int& tokenI);
 		std::unordered_map<Tokenizer::Type,DirectiveFunction> directives = {
@@ -239,6 +251,8 @@ class Assembler {
 			{Tokenizer::INSTRUCTION_BX, &Assembler::_bx},
 			{Tokenizer::INSTRUCTION_BLX, &Assembler::_blx},
 			{Tokenizer::INSTRUCTION_SWI, &Assembler::_swi},
+			{Tokenizer::INSTRUCTION_ADRP, &Assembler::_adrp},
+			{Tokenizer::INSTRUCTION_RET, &Assembler::_ret},
 		};
 };
 

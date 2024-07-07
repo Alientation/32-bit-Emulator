@@ -37,6 +37,12 @@
 #define ASR 2											/*! Arithmetic Shift Right */
 #define ROR 3											/*! Rotate Right */
 
+#define M_OFFSET 0
+#define M_PRE 1
+#define M_POST 2
+
+
+
 /**
  * @brief 					32 bit Emulator
  * @paragraph				Modeled off of the ARM architecture with many simplifications. A software simulated processor.

@@ -30,6 +30,7 @@ Assembler::State Assembler::get_state() {
 	return this->m_state;
 }
 
+// todo, filter out all spaces and tabs
 void Assembler::assemble() {
 	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
 
@@ -69,7 +70,6 @@ void Assembler::assemble() {
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
-		// log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip non code or directives
         if (isToken(i, Tokenizer::WHITESPACES) || isToken(i, Tokenizer::COMMENTS)) {
@@ -85,7 +85,7 @@ void Assembler::assemble() {
 				break;
 			}
 
-			std::string symbol = token.value + (scope_token_indices.empty() ? "" : "::SCOPE:" + std::to_string(scope_token_indices.back()));
+			std::string symbol = token.value + (scopes.empty() ? "" : "::SCOPE:" + std::to_string(scopes.back()));
 			if (current_section == Section::TEXT) {
 				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 0);
 			} else if (current_section == Section::DATA) {
@@ -109,6 +109,9 @@ void Assembler::assemble() {
 			break;
 		}
 	}
+
+	/* Parse through second time to fill in local symbol values */
+
 
 
 	// create writer for object file

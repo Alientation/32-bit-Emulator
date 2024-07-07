@@ -224,7 +224,7 @@ B{CD} simm22 (B1)
 BL{CD} simm22 (B1)
 	- op: 101110
 BX{CD} xd (B2)
-	- BX 29 equivalent to ret
+	- BX X29 equivalent to ret
 	- op: 101111
 BLX{CD} xd (B2)
 	- op: 110000
