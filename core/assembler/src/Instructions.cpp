@@ -40,7 +40,7 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 	Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
 	if (isToken(tokenI, {Tokenizer::PERIOD})) {
 		consume(tokenI);
-		expectToken(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1 - Expected condition code to follow period.");
+		expectToken(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
 		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
 	}
 
@@ -58,8 +58,8 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 		});
 	} else {
 		word imm = parse_expression(tokenI);
-		EXPECT_TRUE(imm < (1 << 24), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_format_b1 - Expected immediate to be 24 bits");
-		EXPECT_TRUE((imm & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_format_b1 - Expected immediate to be 4 byte aligned");
+		EXPECT_TRUE(imm < (1 << 24), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_format_b1() - Expected immediate to be 24 bits");
+		EXPECT_TRUE((imm & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned");
 		value = bitfield_s32(imm, 0, 24) >> 2;
 	}
 
@@ -67,13 +67,39 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 }
 
 word Assembler::parse_format_b2(int& tokenI, byte opcode) {
+	consume(tokenI);
 
+	Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
+	if (isToken(tokenI, {Tokenizer::PERIOD})) {
+		consume(tokenI);
+		expectToken(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
+		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
+	}
+	skipTokens(tokenI, "[ \t]");
+
+	byte reg = parse_register(tokenI);
+	return Emulator32bit::asm_format_b2(opcode, condition, reg);
 }
 
 word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 	consume(tokenI);
+	skipTokens(tokenI, "[ \t]");
 
-	/* ADRP, check relocation */
+	byte reg = parse_register(tokenI);
+	skipTokens(tokenI, "[ \t]");
+
+	expectToken(tokenI, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
+	std::string symbol = consume(tokenI).value;
+	add_symbol(symbol, 0, SymbolTableEntry::BindingInfo::WEAK, -1);
+
+	rel_text.push_back((RelocationEntry) {
+		.offset = (word) (text_section.size() * 4),
+		.symbol = string_table[symbol],
+		.type = RelocationEntry::Type::R_EMU32_ADRP_HI20,
+		.shift = 0,												/* Support shift in future */
+	});
+
+	return Emulator32bit::asm_format_m2(opcode, reg, 0);
 }
 
 word Assembler::parse_format_m1(int& tokenI, byte opcode) {

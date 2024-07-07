@@ -66,11 +66,11 @@ class Assembler {
 		};
 
 		std::vector<std::string> strings;							/* stores all strings */
-		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table */
+		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
 		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
 		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
-		std::vector<RelocationEntry> rel_data;
-		std::vector<RelocationEntry> rel_bss;
+		std::vector<RelocationEntry> rel_data;						/* For now, no purpose */
+		std::vector<RelocationEntry> rel_bss;						/* For now, no purpose */
 		std::vector<SectionHeader> section_table;					/* section headers */
 
 		std::vector<word> text_section;								/* instructions stored in .text section */
@@ -101,6 +101,8 @@ class Assembler {
 
 		word parse_format_b1(int& tokenI, byte opcode);
 		word parse_format_b2(int& tokenI, byte opcode);
+
+		void fill_local();
 
 		// these are the same as the preprocessor helper methods.. see if we can use tokenizer instead to store these duplicate methods
 		void skipTokens(int& tokenI, const std::string& regex);

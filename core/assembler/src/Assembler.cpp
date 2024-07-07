@@ -111,8 +111,7 @@ void Assembler::assemble() {
 	}
 
 	/* Parse through second time to fill in local symbol values */
-
-
+	fill_local();
 
 	// create writer for object file
 	m_writer = new FileWriter(m_outputFile);
@@ -141,6 +140,66 @@ void Assembler::assemble() {
 	if (m_state == State::ASSEMBLING) {
 		m_state = State::ASSEMBLED;
 		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
+	}
+}
+
+
+void Assembler::fill_local() {
+	int tokenI = 0;
+
+	std::vector<int> local_scope;
+	int local_count_scope = 0;
+	for (int i = 0; i < rel_text.size(); i++) {
+		RelocationEntry &rel = rel_text.at(i);
+
+		while (tokenI < rel.offset/4) {
+			if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCOPE) {
+				local_scope.push_back(local_count_scope++);
+			} else if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCEND) {
+				local_scope.pop_back();
+			}
+
+			tokenI++;
+		}
+
+		// first find if symbol is defined in local scope
+		SymbolTableEntry symbol_entry;
+		bool found_local = false;
+		std::string symbol = strings[symbol_table[rel.symbol].symbol_name];
+		for (int scopeI = local_scope.size()-1; scopeI >= 0; scopeI--) {
+			std::string local_symbol_name = symbol + "::SCOPE:" + std::to_string(local_scope.back());
+			if (string_table.find(local_symbol_name) == string_table.end()) {
+				continue;
+			}
+
+			symbol_entry = symbol_table[string_table[local_symbol_name]];
+			break;
+		}
+
+		if (!found_local) {
+			if (symbol_table.at(rel.symbol).binding_info != SymbolTableEntry::BindingInfo::WEAK) {
+				symbol_entry = symbol_table.at(rel.symbol);
+			} else {
+				continue;
+			}
+		}
+
+		// todo, update relocation
+		switch (rel.type) {
+			case RelocationEntry::Type::R_EMU32_O_LO12:
+				break;
+			case RelocationEntry::Type::R_EMU32_ADRP_HI20:
+				break;
+			case RelocationEntry::Type::R_EMU32_MOV_LO19:
+				break;
+			case RelocationEntry::Type::R_EMU32_MOV_HI13:
+				break;
+			case RelocationEntry::Type::R_EMU32_B_OFFSET22:
+				break;
+			case RelocationEntry::Type::UNDEFINED:
+			default:
+				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
+		}
 	}
 }
 
