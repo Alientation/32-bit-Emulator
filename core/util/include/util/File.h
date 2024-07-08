@@ -55,6 +55,25 @@ class ByteWriter {
 		struct Data {
 			unsigned long value;
 			int num_bytes;
+			Data(unsigned long value, int num_bytes) : value(value), num_bytes(num_bytes) {}
+			Data(unsigned long value, int num_bytes, bool little_endian) {
+				if (little_endian) {
+					this->value = value;
+				} else {
+					for (int i = 0; i < num_bytes; i+=8) {
+						this->value <<= 8;
+						this->value += value & 0xFF;
+						value >>= 8;
+					}
+
+					int remainder = 8 - (num_bytes % 8);
+					if (remainder == 8) {
+						remainder = 0;
+					}
+					this->value >>= remainder;
+				}
+				this->num_bytes = num_bytes;
+			}
 		};
 
 		ByteWriter& operator<<(Data data);

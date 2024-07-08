@@ -9,6 +9,9 @@
 #include <string>
 #include <unordered_map>
 
+#define RELOCATABLE_FILE_TYPE 1
+#define EMU_32BIT_MACHINE_ID 1
+
 class Assembler {
 	public:
 		enum State {
@@ -49,6 +52,7 @@ class Assembler {
 			enum class Type {
 				UNDEFINED, TEXT, DATA, BSS, SYMTAB, REL_TEXT, REL_DATA, REL_BSS, DEBUG, STRTAB,
 			} type;													/* type of section */
+			word section_start;										/* start offset of section */
 			word section_size;										/* size of section in bytes */
 			word entry_size;										/* size of entry in section */
 		};
@@ -65,13 +69,16 @@ class Assembler {
 			word shift;												/* constant to be added to the value of the symbol */
 		};
 
+		/* Possbly in future add separate string table for section headers */
+		/* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
 		std::vector<std::string> strings;							/* stores all strings */
 		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
 		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
 		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
 		std::vector<RelocationEntry> rel_data;						/* For now, no purpose */
 		std::vector<RelocationEntry> rel_bss;						/* For now, no purpose */
-		std::vector<SectionHeader> section_table;					/* section headers */
+		std::vector<SectionHeader> sections;						/* section headers */
+		std::unordered_map<std::string, int> section_table; 		/* map section name to index in sections */
 
 		std::vector<word> text_section;								/* instructions stored in .text section */
 		std::vector<byte> data_section;								/* data stored in .data section */
@@ -86,6 +93,8 @@ class Assembler {
 		std::vector<int> scopes;									/* Nested scopes */
 
 		void add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
+		int add_section(const std::string section_name, SectionHeader header);
+		int add_string(const std::string string);
 		word parse_expression(int& tokenI);
 		byte parse_register(int& tokenI);
 		void parse_shift(int& tokenI, int& shift, int& shift_amt);
@@ -126,6 +135,17 @@ class Assembler {
 		void _data(int& tokenI);
 		void _bss(int& tokenI);
 		void _stop(int& tokenI);
+		void _byte(int& tokenI);
+		void _dbyte(int& tokenI);
+		void _word(int& tokenI);
+		void _dword(int& tokenI);
+		void _sbyte(int& tokenI);
+		void _sdbyte(int& tokenI);
+		void _sword(int& tokenI);
+		void _sdword(int& tokenI);
+		void _char(int& tokenI);
+		void _ascii(int& tokenI);
+		void _asciz(int& tokenI);
 
 		void _hlt(int& tokenI);
 		void _add(int& tokenI);

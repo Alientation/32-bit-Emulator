@@ -10,7 +10,7 @@ byte Assembler::parse_register(int& tokenI) {
 	expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier.");
 	Tokenizer::Type type = consume(tokenI).type;
 
-	return type - Tokenizer::Type::REGISTER_X0;							/* register order is assumed to be x0-x29, sp, xzr */
+	return type - Tokenizer::Type::REGISTER_X0;							/*! register order is assumed to be x0-x29, sp, xzr */
 }
 
 void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
@@ -29,7 +29,7 @@ void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
 	skipTokens(tokenI, "[ \t]");
 	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_shift() - Expected numeric argument.");
 	consume(tokenI);
-	shift_amt = parse_expression(tokenI);								/* note, in future, we could change this to create relocation record instead */
+	shift_amt = parse_expression(tokenI);								/*! note, in future, we could change this to create relocation record instead */
 
 	EXPECT_TRUE(shift_amt < (1<<5), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: " << shift_amt);
 }
@@ -54,7 +54,7 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 			.offset = (word) (text_section.size() * 4),
 			.symbol = string_table[symbol],
 			.type = RelocationEntry::Type::R_EMU32_B_OFFSET22,
-			.shift = 0,												/* Support shift in future */
+			.shift = 0,													/*! Support shift in future */
 		});
 	} else {
 		word imm = parse_expression(tokenI);
@@ -87,6 +87,14 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 
 	byte reg = parse_register(tokenI);
 	skipTokens(tokenI, "[ \t]");
+	expectToken(tokenI, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
+	consume(tokenI);
+
+	skipTokens(tokenI, "[ \t]");
+	if (isToken(tokenI, {Tokenizer::RELOCATION_EMU32_ADRP_HI20})) {
+		consume(tokenI);
+		skipTokens(tokenI, "[ \t]");
+	}
 
 	expectToken(tokenI, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
 	std::string symbol = consume(tokenI).value;
@@ -96,7 +104,7 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 		.offset = (word) (text_section.size() * 4),
 		.symbol = string_table[symbol],
 		.type = RelocationEntry::Type::R_EMU32_ADRP_HI20,
-		.shift = 0,												/* Support shift in future */
+		.shift = 0,														/*! Support shift in future */
 	});
 
 	return Emulator32bit::asm_format_m2(opcode, reg, 0);
@@ -128,29 +136,29 @@ word Assembler::parse_format_m1(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_m(int& tokenI, byte opcode) {
 	std::string op = consume(tokenI).value;
-	bool sign = op.size() > 3 ? op.at(3) == 's' : false;				/* ex: whether the value to be loaded/stored should be interpreted as signed */
+	bool sign = op.size() > 3 ? op.at(3) == 's' : false;				/*! ex: whether the value to be loaded/stored should be interpreted as signed */
 	skipTokens(tokenI, "[ \t]");
 
-	byte reg_t = parse_register(tokenI);								/* target register. For reads, stores read value; for writes, stores write value */
+	byte reg_t = parse_register(tokenI);								/*! target register. For reads, stores read value; for writes, stores write value */
 	skipTokens(tokenI, "[ \t]");
 
 	expectToken(tokenI, {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m() - Expected open bracket");
 	skipTokens(tokenI, "[ \t]");
 
-	byte reg_a = parse_register(tokenI);								/* register that contains memory address */
+	byte reg_a = parse_register(tokenI);								/*! register that contains memory address */
 	skipTokens(tokenI, "[ \t]");
 
-	int addressing_mode = -1;											/* parse the address mode, -1 indicates invalid address mode */
-	if (isToken(tokenI, {Tokenizer::CLOSE_BRACKET})) {					/* post indexed, offset is applied to value at register after accessing */
+	int addressing_mode = -1;											/*! parse the address mode, -1 indicates invalid address mode */
+	if (isToken(tokenI, {Tokenizer::CLOSE_BRACKET})) {					/*! post indexed, offset is applied to value at register after accessing */
 		consume(tokenI);
 		skipTokens(tokenI, "[ \t]");
 		addressing_mode = M_POST;
 	}
 
-	if (isToken(tokenI, {Tokenizer::COMMA})) {							/* check for offset */
+	if (isToken(tokenI, {Tokenizer::COMMA})) {							/*! check for offset */
 		consume(tokenI);
 		skipTokens(tokenI, "[ \t]");
-		if (isToken(tokenI, {Tokenizer::NUMBER_SIGN})) {				/* offset begins with the '#' symbol */
+		if (isToken(tokenI, {Tokenizer::NUMBER_SIGN})) {				/*! offset begins with the '#' symbol */
 			consume(tokenI);
 			skipTokens(tokenI, "[ \t]");
 			word offset = parse_expression(tokenI);
@@ -160,14 +168,14 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 			expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
 			consume(tokenI);
 
-			if (addressing_mode == -1) {								/* only update addressing mode if not yet determined.
+			if (addressing_mode == -1) {								/*! only update addressing mode if not yet determined.
 																		   This reduces code repetition, since the way offsets are calculated
 																		   are the same for all addressing modes, but differ soley in arrangement */
 				if (isToken(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 					consume(tokenI);
-					addressing_mode = M_PRE;							/* preindexed, offset is applied to value at register before accessing */
+					addressing_mode = M_PRE;							/*! preindexed, offset is applied to value at register before accessing */
 				} else {
-					addressing_mode = M_OFFSET;							/* simple offset */
+					addressing_mode = M_OFFSET;							/*! simple offset */
 				}
 			}
 
@@ -175,11 +183,11 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 		}
 
 		expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_format_m() - Expected register argument.");
-		byte reg_b = parse_register(tokenI);							/* since there is a comma, there is another argument that is not the above checked offset */
+		byte reg_b = parse_register(tokenI);							/*! since there is a comma, there is another argument that is not the above checked offset */
 		int shift = 0;
 		int shift_amount = 0;
 		skipTokens(tokenI, "[ \t]");
-		if (isToken(tokenI, {Tokenizer::COMMA})) {						/* shift argument */
+		if (isToken(tokenI, {Tokenizer::COMMA})) {						/*! shift argument */
 			skipTokens(tokenI, "[ \t]");
 			parse_shift(tokenI, shift, shift_amount);
 		}
@@ -188,12 +196,12 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 		expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
 		consume(tokenI);
 
-		if (addressing_mode == -1) {									/* same logic as above, only update addressing mode if not yet determined */
+		if (addressing_mode == -1) {									/*! same logic as above, only update addressing mode if not yet determined */
 			if (isToken(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 				consume(tokenI);
-				addressing_mode = M_PRE;								/* preindexed */
+				addressing_mode = M_PRE;								/*! preindexed */
 			} else {
-				addressing_mode = M_OFFSET;								/* simple offset */
+				addressing_mode = M_OFFSET;								/*! simple offset */
 			}
 		}
 
@@ -217,7 +225,7 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 	consume(tokenI);
 	skipTokens(tokenI, "[ \t]");
 
-	if (isToken(tokenI, {Tokenizer::REGISTERS})) {						/* In future, support relocation for immediate value */
+	if (isToken(tokenI, {Tokenizer::REGISTERS})) {						/*! In future, support relocation for immediate value */
 		byte operand_reg = parse_register(tokenI);
 		skipTokens(tokenI, "[ \t]");
 
@@ -240,7 +248,7 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 				.offset = (word) (text_section.size() * 4),
 				.symbol = string_table[symbol],
 				.type = (relocation == Tokenizer::RELOCATION_EMU32_MOV_HI13 ? RelocationEntry::Type::R_EMU32_MOV_HI13 : RelocationEntry::Type::R_EMU32_MOV_LO19),
-				.shift = 0,												/* Support shift in future */
+				.shift = 0,												/*! Support shift in future */
 			});
 
 			return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
@@ -364,7 +372,7 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 				.offset = (word) (text_section.size() * 4),
 				.symbol = string_table[symbol],
 				.type = RelocationEntry::Type::R_EMU32_O_LO12,
-				.shift = 0,													/* Support shift in future */
+				.shift = 0,													/*! Support shift in future */
 			});
 
 		} else if (isToken(tokenI, Tokenizer::LITERAL_NUMBERS)) {
@@ -681,5 +689,12 @@ void Assembler::_ret(int& tokenI) {
 }
 
 void Assembler::_adrp(int& tokenI) {
+	word instruction = parse_format_m2(tokenI, Emulator32bit::_op_adrp);
+	text_section.push_back(instruction);
+}
 
+void Assembler::_hlt(int& tokenI) {
+	consume(tokenI);
+	word instruction = Emulator32bit::asm_hlt();
+	text_section.push_back(instruction);
 }

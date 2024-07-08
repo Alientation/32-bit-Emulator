@@ -198,10 +198,18 @@ ByteWriter::ByteWriter(FileWriter *filewriter) {
 	this->filewriter = filewriter;
 }
 
+/**
+ * @brief 					Writes sequence of bytes in little endian order
+ *
+ * @param 					data: contains bytes to write and length
+ * @return 					reference to byte writer
+ */
 ByteWriter& ByteWriter::operator<<(Data data) {
 	for (int i = 0; i < data.num_bytes; i++) {
-		filewriter->write(data.value & (0xFF << (8 * (data.num_bytes-1-i))));
+		filewriter->write(data.value & 0xFF);
+		data.value >>= 8;
 	}
+	return (*this);
 }
 
 /**

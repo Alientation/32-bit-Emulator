@@ -8,21 +8,20 @@ Section N
 ...
 Section header table
 
-File Header (34 bytes)
+File Header (24 bytes)
 00-03: 'BELF' (#66, #69, #76, #70)
 04-15: Unused Padding Bytes (#0)
 16-17: Object File Type (#00=UNKNOWN, #01=RELOCATABLE FILE)
 18-19: Target Machine (#00=UNKNOWN, #01=32bitemulator)
 20-21: Flags
-22-29: File offset of the start of section header table
-30-31: Section header size
-32-33: Number of entries in section header table
+22-23: Number of entries in section header table
 
-Section header (28 bytes)
+Section header (36 bytes)
 00-07: Section header name (index into string table)
 08-11: Section type (0=UNDEFINED,1=text,2=data,3=bss,4=symtab,5=rel.text,6=rel.data,7=rel.bss,8=debug,9=strtab)
-12-19: Section size in bytes
-20-27: For fixed size entries like symtab, size in bytes of each Entry
+12-19: Section start as offset byte
+20-27: Section size in bytes
+28-35: For fixed size entries like symtab, size in bytes of each Entry
 
 String table: contains list of null terminated strings
 

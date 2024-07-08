@@ -12,7 +12,7 @@
  * @param section 			section it is defined in. -1 if not defined in a section
  */
 void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section) {
-	if (string_table.find(symbol) == string_table.end()) {			/* If symbol does not exist yet, create it */
+	if (string_table.find(symbol) == string_table.end()) {				/*! If symbol does not exist yet, create it */
 		string_table[symbol] = strings.size();
 		strings.push_back(symbol);
 		symbol_table[string_table[symbol]] = (SymbolTableEntry) {
@@ -28,8 +28,8 @@ void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::Bin
 			symbol_entry.symbol_value = value;
 		} else if (symbol_entry.section != -1 && section != -1) {
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_symbol() - Multiple definition of symbol "
-					<< symbol << " at sections " << strings[section_table[section].section_name] << " and "
-					<< strings[section_table[symbol_entry.section].section_name] << ".");
+					<< symbol << " at sections " << strings[sections[section].section_name] << " and "
+					<< strings[sections[symbol_entry.section].section_name] << ".");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
 		} else if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
@@ -398,4 +398,49 @@ void Assembler::_bss(int& tokenI) {
  */
 void Assembler::_stop(int& tokenI) {
 	tokenI = m_tokens.size();
+}
+
+/* TODO */
+void Assembler::_byte(int& tokenI) {
+
+}
+
+void Assembler::_dbyte(int& tokenI) {
+
+}
+
+void Assembler::_word(int& tokenI) {
+
+}
+
+void Assembler::_dword(int& tokenI) {
+
+}
+
+void Assembler::_sbyte(int& tokenI) {
+
+}
+
+void Assembler::_sdbyte(int& tokenI) {
+
+}
+
+void Assembler::_sword(int& tokenI) {
+
+}
+
+void Assembler::_sdword(int& tokenI) {
+
+}
+
+void Assembler::_char(int& tokenI) {
+
+}
+
+void Assembler::_ascii(int& tokenI) {
+
+}
+
+void Assembler::_asciz(int& tokenI) {
+
 }

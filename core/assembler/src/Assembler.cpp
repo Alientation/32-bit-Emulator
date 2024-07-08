@@ -30,6 +30,25 @@ Assembler::State Assembler::get_state() {
 	return this->m_state;
 }
 
+
+int Assembler::add_section(const std::string section_name, SectionHeader header) {
+	EXPECT_TRUE(section_table.find(section_name) == section_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_section() - Section name exists in section table");
+
+	header.section_name = add_string(section_name);
+	section_table[section_name] = sections.size();
+	sections.push_back(header);
+
+	return sections.size() - 1;
+}
+
+int Assembler::add_string(const std::string string) {
+	EXPECT_TRUE(string_table.find(string) == string_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_string() - String name exists in string table");
+
+	string_table[string] = string_table.size();
+	strings.push_back(string);
+	return strings.size()-1;
+}
+
 // todo, filter out all spaces and tabs
 void Assembler::assemble() {
 	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
@@ -42,29 +61,70 @@ void Assembler::assemble() {
 	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
-	section_table.push_back((SectionHeader) {
+	add_section(".text", (SectionHeader) {
 		.section_name = 0,
 		.type = SectionHeader::Type::TEXT,
+		.section_start = 0,
 		.section_size = 0,
-		.entry_size = 0,
+		.entry_size = 4,
 	});
-	string_table[".text"] = string_table.size();
 
-	section_table.push_back((SectionHeader) {
-		.section_name = 1,
+	add_section(".data", (SectionHeader) {
+		.section_name = 0,
 		.type = SectionHeader::Type::DATA,
+		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 0,
 	});
-	string_table[".data"] = string_table.size();
 
-	section_table.push_back((SectionHeader) {
-		.section_name = 2,
+	add_section(".bss", (SectionHeader) {
+		.section_name = 0,
 		.type = SectionHeader::Type::BSS,
+		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 0,
 	});
-	string_table[".bss"] = string_table.size();
+
+	add_section(".symtab", (SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::REL_TEXT,
+		.section_start = 0,
+		.section_size = 0,
+		.entry_size = 26,
+	});
+
+	add_section(".rel.text", (SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::REL_TEXT,
+		.section_start = 0,
+		.section_size = 0,
+		.entry_size = 28,
+	});
+
+	add_section(".rel.data", (SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::REL_DATA,
+		.section_start = 0,
+		.section_size = 0,
+		.entry_size = 28,
+	});
+
+	add_section(".rel.bss", (SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::REL_BSS,
+		.section_start = 0,
+		.section_size = 0,
+		.entry_size = 28,
+	});
+
+	add_section(".strtab", (SectionHeader) {
+		.section_name = 0,
+		.type = SectionHeader::Type::STRTAB,
+		.section_start = 0,
+		.section_size = 0,
+		.entry_size = 0,
+	});
+
 
 	// parse tokens
 	for (int i = 0; i < m_tokens.size(); ) {
@@ -116,23 +176,107 @@ void Assembler::assemble() {
 	// create writer for object file
 	m_writer = new FileWriter(m_outputFile);
 
+	ByteWriter byte_writer(m_writer);
+	int current_byte = 0;
+
 	/* BELF Header */
+	m_writer->write("BELF");											/*! BELF magic number header */
+	byte_writer << ByteWriter::Data(0, 12);								/*! Unused padding */
+	byte_writer << ByteWriter::Data(RELOCATABLE_FILE_TYPE, 2);			/*! Object file type */
+	byte_writer << ByteWriter::Data(EMU_32BIT_MACHINE_ID, 2);			/*! Target machine */
+	byte_writer << ByteWriter::Data(0, 2);								/*! Flags */
+	byte_writer << ByteWriter::Data(8, 2);								/*! Number of sections */
+	current_byte += 24;
 
-	/* Data Section and Header */
+	/* Text Section */
+	for (int i = 0; i < text_section.size(); i++) {
+		byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
+	}
+	sections[section_table[".text"]].section_size = text_section.size() * 4;
+	sections[section_table[".text"]].section_start = current_byte;
+	current_byte += text_section.size() * 4;
 
-	/* Text Section and Header */
+	/* Data Section */
+	for (int i = 0; i < data_section.size(); i++) {
+		byte_writer << ByteWriter::Data(data_section.at(i), 1);
+	}
+	sections[section_table[".data"]].section_size = data_section.size();
+	sections[section_table[".data"]].section_start = current_byte;
+	current_byte += data_section.size();
 
-	/* BSS Section and Header */
-
-	/* rel.data Section and Header */
-
-	/* rel.text Section and Header */
-
-	/* rel.bss Section and Header */
+	/* BSS Section */
+	byte_writer << ByteWriter::Data(0, bss_section);
+	sections[section_table[".bss"]].section_size = bss_section;
+	sections[section_table[".bss"]].section_start = current_byte;
+	current_byte += bss_section;
 
 	/* Symbol Table */
+	const int SYMBOL_TABLE_ENTRY_SIZE = 26;
+	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
+		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
+		byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
+		byte_writer << ByteWriter::Data((int) symbol.second.binding_info, 2);
+		byte_writer << ByteWriter::Data(symbol.second.section, 8);
+	}
+	sections[section_table[".symtab"]].section_size = symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
+	sections[section_table[".symtab"]].section_start = current_byte;
+	current_byte += symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
+
+	const int RELOCATION_ENTRY_SIZE = 28;
+	/* rel.text Section */
+	for (int i = 0; i < rel_text.size(); i++) {
+		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
+		byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
+		byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
+		byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
+	}
+	sections[section_table[".rel.text"]].section_size = rel_text.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.text"]].section_start = current_byte;
+	current_byte += rel_text.size() * RELOCATION_ENTRY_SIZE;
+
+	/* rel.data Section */
+	for (int i = 0; i < rel_data.size(); i++) {
+		byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
+		byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
+		byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
+		byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
+	}
+	sections[section_table[".rel.data"]].section_size = rel_data.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.data"]].section_start = current_byte;
+	current_byte += rel_data.size() * RELOCATION_ENTRY_SIZE;
+
+	/* rel.bss Section */
+	for (int i = 0; i < rel_bss.size(); i++) {
+		byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
+		byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
+		byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
+		byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
+	}
+	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.bss"]].section_start = current_byte;
+	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
 
 	/* String Table */
+	int size = 0;
+	for (int i = 0; i < strings.size(); i++) {
+		m_writer->write(strings[i]);
+		byte_writer << ByteWriter::Data(0, 1);							/* Null terminated string */
+		size += strings[i].size() + 1;
+	}
+	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.bss"]].section_start = current_byte;
+	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
+
+	/* Section header */
+	const int SECTION_HEADER_SIZE = 36;
+	for (int i = 0; i < sections.size(); i++) {
+		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
+		byte_writer << ByteWriter::Data((int) sections[i].type, 4);
+		byte_writer << ByteWriter::Data(sections[i].section_start, 8);
+		byte_writer << ByteWriter::Data(sections[i].section_size, 8);
+		byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
+	}
+	current_byte += sections.size() * SECTION_HEADER_SIZE;
 
 	m_writer->close();
     delete m_writer;
@@ -173,6 +317,7 @@ void Assembler::fill_local() {
 			}
 
 			symbol_entry = symbol_table[string_table[local_symbol_name]];
+			found_local = true;
 			break;
 		}
 
@@ -184,22 +329,30 @@ void Assembler::fill_local() {
 			}
 		}
 
-		// todo, update relocation
 		switch (rel.type) {
 			case RelocationEntry::Type::R_EMU32_O_LO12:
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
 				break;
 			case RelocationEntry::Type::R_EMU32_ADRP_HI20:
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
 				break;
 			case RelocationEntry::Type::R_EMU32_MOV_LO19:
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
 				break;
 			case RelocationEntry::Type::R_EMU32_MOV_HI13:
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
 				break;
 			case RelocationEntry::Type::R_EMU32_B_OFFSET22:
+				EXPECT_TRUE(symbol_entry.symbol_value & 0b11 == 0, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned.");
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(symbol_entry.symbol_value, 2, 22);
 				break;
 			case RelocationEntry::Type::UNDEFINED:
 			default:
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 		}
+
+		rel_text.erase(rel_text.begin() + i);							/*! For now, simply delete from vector. In future look to optimize */
+		i--;															/*! Offset the for loop increment */
 	}
 }
 
