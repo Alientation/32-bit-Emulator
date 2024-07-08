@@ -25,8 +25,8 @@ void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
 	} else if (isToken(tokenI, {Tokenizer::INSTRUCTION_ROR})) {
 		shift = ROR;
 	}
-
 	skipTokens(tokenI, "[ \t]");
+
 	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_shift() - Expected numeric argument.");
 	consume(tokenI);
 	shift_amt = parse_expression(tokenI);								/*! note, in future, we could change this to create relocation record instead */
