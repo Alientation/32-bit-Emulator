@@ -7,7 +7,7 @@
 #include <string>
 
 byte Assembler::parse_register(int& tokenI) {
-	expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier.");
+	expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier. Got " + m_tokens[tokenI].value);
 	Tokenizer::Type type = consume(tokenI).type;
 
 	return type - Tokenizer::Type::REGISTER_X0;							/*! register order is assumed to be x0-x29, sp, xzr */
@@ -87,6 +87,11 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 
 	byte reg = parse_register(tokenI);
 	skipTokens(tokenI, "[ \t]");
+
+	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m2() - Expected second argument.");
+	consume(tokenI);
+	skipTokens(tokenI, "[ \t]");
+
 	expectToken(tokenI, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
 	consume(tokenI);
 
@@ -119,6 +124,7 @@ word Assembler::parse_format_m1(int& tokenI, byte opcode) {
 
 	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m1() - Expected second argument.");
 	consume(tokenI);
+	skipTokens(tokenI, "[ \t]");
 	byte reg_n = parse_register(tokenI);
 	skipTokens(tokenI, "[ \t]");
 
@@ -142,7 +148,12 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 	byte reg_t = parse_register(tokenI);								/*! target register. For reads, stores read value; for writes, stores write value */
 	skipTokens(tokenI, "[ \t]");
 
+	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m() - Expected second argument.");
+	consume(tokenI);
+	skipTokens(tokenI, "[ \t]");
+
 	expectToken(tokenI, {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m() - Expected open bracket");
+	consume(tokenI);
 	skipTokens(tokenI, "[ \t]");
 
 	byte reg_a = parse_register(tokenI);								/*! register that contains memory address */
@@ -663,11 +674,13 @@ void Assembler::_bl(int& tokenI) {
 }
 
 void Assembler::_bx(int& tokenI) {
-
+	word instruction = parse_format_b2(tokenI, Emulator32bit::_op_bx);
+	text_section.push_back(instruction);
 }
 
 void Assembler::_blx(int& tokenI) {
-
+	word instruction = parse_format_b2(tokenI, Emulator32bit::_op_blx);
+	text_section.push_back(instruction);
 }
 
 void Assembler::_swi(int& tokenI) {

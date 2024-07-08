@@ -45,7 +45,7 @@ Preprocessor::~Preprocessor() {
 /**
  * Preprocesses the file.
  */
-void Preprocessor::preprocess() {
+File* Preprocessor::preprocess() {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile->getFileName());
 
 	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
@@ -172,6 +172,8 @@ void Preprocessor::preprocess() {
     for (std::pair<std::string, Macro*> macroPair : m_macros) {
         lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macroPair.second->to_string());
     }
+
+	return m_outputFile;
 }
 
 

@@ -21,7 +21,7 @@ class Assembler {
 		Assembler(Process *process, File *processed_file, std::string output_path = "");
 		~Assembler();
 
-		void assemble();
+		File* assemble();
 		State get_state();
 
 	private:
@@ -82,7 +82,7 @@ class Assembler {
 
 		std::vector<word> text_section;								/* instructions stored in .text section */
 		std::vector<byte> data_section;								/* data stored in .data section */
-		word bss_section;											/* size of .bss section */
+		word bss_section = 0;											/* size of .bss section */
 
 		enum class Section {
 			NONE, DATA, BSS, TEXT

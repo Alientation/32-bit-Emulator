@@ -32,7 +32,9 @@ void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::Bin
 					<< strings[sections[symbol_entry.section].section_name] << ".");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
-		} else if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
+		}
+
+		if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
 				|| (binding_info == SymbolTableEntry::BindingInfo::LOCAL &&
 				symbol_entry.binding_info == SymbolTableEntry::BindingInfo::WEAK)) {
 			symbol_entry.binding_info = binding_info;
@@ -59,11 +61,11 @@ word Assembler::parse_expression(int& tokenI) {
 		if (token.type == Tokenizer::LITERAL_NUMBER_DECIMAL) {
 			value = std::stoi(token.value);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_HEXADECIMAL) {
-			value = std::stoi(token.value, nullptr, 16);
+			value = std::stoi(token.value.substr(1), nullptr, 16);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_BINARY) {
-			value = std::stoi(token.value, nullptr, 2);
+			value = std::stoi(token.value.substr(1), nullptr, 2);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_OCTAL) {
-			value = std::stoi(token.value, nullptr, 8);
+			value = std::stoi(token.value.substr(1), nullptr, 8);
 		}
 
 		if (operator_token != nullptr) {
@@ -103,7 +105,7 @@ word Assembler::parse_expression(int& tokenI) {
  * @param 					tokenI: reference to current token index
  */
 void Assembler::_global(int& tokenI) {
-	if (current_section == Section::NONE) {
+	if (current_section != Section::NONE) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_global() - Cannot declare symbol as global inside a section. Must be declared outside of .text, .bss, and .data.");
 		m_state = State::ASSEMBLER_ERROR;
 		return;
@@ -124,7 +126,7 @@ void Assembler::_global(int& tokenI) {
  * @param 					tokenI: reference to current token index
  */
 void Assembler::_extern(int& tokenI) {
-	if (current_section == Section::NONE) {
+	if (current_section != Section::NONE) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_extern() - Cannot declare symbol as extern inside a section. Must be declared outside of .text, .bss, and .data.");
 		m_state = State::ASSEMBLER_ERROR;
 		return;

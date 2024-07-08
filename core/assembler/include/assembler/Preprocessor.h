@@ -20,7 +20,7 @@ class Preprocessor {
 		Preprocessor(Process *process, File *inputFile, std::string outputFilePath = "");	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
-		void preprocess();							// preprocesses the file
+		File* preprocess();							// preprocesses the file
 		State get_state();							// returns the state of the preprocessor
 
 	private:

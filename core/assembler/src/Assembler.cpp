@@ -50,7 +50,7 @@ int Assembler::add_string(const std::string string) {
 }
 
 // todo, filter out all spaces and tabs
-void Assembler::assemble() {
+File* Assembler::assemble() {
 	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
 
 	EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
@@ -127,6 +127,7 @@ void Assembler::assemble() {
 
 
 	// parse tokens
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Parsing tokens.");
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
@@ -145,7 +146,7 @@ void Assembler::assemble() {
 				break;
 			}
 
-			std::string symbol = token.value + (scopes.empty() ? "" : "::SCOPE:" + std::to_string(scopes.back()));
+			std::string symbol = token.value.substr(0, token.value.size()-1) + (scopes.empty() ? "" : "::SCOPE:" + std::to_string(scopes.back()));
 			if (current_section == Section::TEXT) {
 				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 0);
 			} else if (current_section == Section::DATA) {
@@ -153,7 +154,7 @@ void Assembler::assemble() {
 			} else if (current_section == Section::BSS) {
 				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 2);
 			}
-
+			i++;
 		} else if (instructions.find(token.type) != instructions.end()) {
 			if (current_section != Section::TEXT) {
 				log(Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Code must be located in .text section.");
@@ -169,10 +170,12 @@ void Assembler::assemble() {
 			break;
 		}
 	}
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Finished parsing tokens.");
 
 	/* Parse through second time to fill in local symbol values */
 	fill_local();
 
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing to object file.");
 	// create writer for object file
 	m_writer = new FileWriter(m_outputFile);
 
@@ -180,6 +183,7 @@ void Assembler::assemble() {
 	int current_byte = 0;
 
 	/* BELF Header */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing BELF header.");
 	m_writer->write("BELF");											/*! BELF magic number header */
 	byte_writer << ByteWriter::Data(0, 12);								/*! Unused padding */
 	byte_writer << ByteWriter::Data(RELOCATABLE_FILE_TYPE, 2);			/*! Object file type */
@@ -189,6 +193,7 @@ void Assembler::assemble() {
 	current_byte += 24;
 
 	/* Text Section */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .text section.");
 	for (int i = 0; i < text_section.size(); i++) {
 		byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
 	}
@@ -197,6 +202,7 @@ void Assembler::assemble() {
 	current_byte += text_section.size() * 4;
 
 	/* Data Section */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .data section.");
 	for (int i = 0; i < data_section.size(); i++) {
 		byte_writer << ByteWriter::Data(data_section.at(i), 1);
 	}
@@ -205,12 +211,14 @@ void Assembler::assemble() {
 	current_byte += data_section.size();
 
 	/* BSS Section */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .bss section. Size " << bss_section << " bytes.");
 	byte_writer << ByteWriter::Data(0, bss_section);
 	sections[section_table[".bss"]].section_size = bss_section;
 	sections[section_table[".bss"]].section_start = current_byte;
 	current_byte += bss_section;
 
 	/* Symbol Table */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .symtab section.");
 	const int SYMBOL_TABLE_ENTRY_SIZE = 26;
 	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
 		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
@@ -222,8 +230,9 @@ void Assembler::assemble() {
 	sections[section_table[".symtab"]].section_start = current_byte;
 	current_byte += symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
 
-	const int RELOCATION_ENTRY_SIZE = 28;
 	/* rel.text Section */
+	const int RELOCATION_ENTRY_SIZE = 28;
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.text section.");
 	for (int i = 0; i < rel_text.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
@@ -235,6 +244,7 @@ void Assembler::assemble() {
 	current_byte += rel_text.size() * RELOCATION_ENTRY_SIZE;
 
 	/* rel.data Section */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.data section.");
 	for (int i = 0; i < rel_data.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
@@ -246,6 +256,7 @@ void Assembler::assemble() {
 	current_byte += rel_data.size() * RELOCATION_ENTRY_SIZE;
 
 	/* rel.bss Section */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.bss section.");
 	for (int i = 0; i < rel_bss.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
@@ -257,6 +268,7 @@ void Assembler::assemble() {
 	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
 
 	/* String Table */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .strtab section.");
 	int size = 0;
 	for (int i = 0; i < strings.size(); i++) {
 		m_writer->write(strings[i]);
@@ -268,6 +280,7 @@ void Assembler::assemble() {
 	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
 
 	/* Section header */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing Section headers.");
 	const int SECTION_HEADER_SIZE = 36;
 	for (int i = 0; i < sections.size(); i++) {
 		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
@@ -285,16 +298,45 @@ void Assembler::assemble() {
 		m_state = State::ASSEMBLED;
 		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
 	}
+
+	/* Print object file */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Printing object file.");
+	printf("%s:\tfile format %s\n\n", (m_outputFile->getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
+	printf("SYMBOL TABLE:\n");
+	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
+		char visibility = ' ';
+		if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::GLOBAL) {
+			visibility = 'g';
+		} else if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::LOCAL) {
+			visibility = 'l';
+		}
+
+		std::string section_name = "*UND*";
+		if (symbol.second.section != -1) {
+			section_name = strings[sections[symbol.second.section].section_name];
+		}
+
+		printf("%.16hlx %c\t %s\t\t %.16hlx %s\n", symbol.second.symbol_value, visibility, section_name.c_str(), 0, strings[symbol.second.symbol_name].c_str());
+	}
+	printf("\nContents of section .data:\n");
+	/* TODO */
+
+
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Finished printing object file.");
+	return m_outputFile;
 }
 
 
 void Assembler::fill_local() {
 	int tokenI = 0;
 
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Parsing relocation entries to fill in known values.");
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
 	for (int i = 0; i < rel_text.size(); i++) {
 		RelocationEntry &rel = rel_text.at(i);
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Evaluating relocation entry " << strings[symbol_table[rel.symbol].symbol_name]);
 
 		while (tokenI < rel.offset/4) {
 			if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCOPE) {
@@ -343,7 +385,9 @@ void Assembler::fill_local() {
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
 				break;
 			case RelocationEntry::Type::R_EMU32_B_OFFSET22:
-				EXPECT_TRUE(symbol_entry.symbol_value & 0b11 == 0, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned.");
+				EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
+						<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
+						<< symbol_entry.symbol_value);
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(symbol_entry.symbol_value, 2, 22);
 				break;
 			case RelocationEntry::Type::UNDEFINED:
@@ -354,6 +398,8 @@ void Assembler::fill_local() {
 		rel_text.erase(rel_text.begin() + i);							/*! For now, simply delete from vector. In future look to optimize */
 		i--;															/*! Offset the for loop increment */
 	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Finished parsing relocation entries.");
 }
 
 

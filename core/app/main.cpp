@@ -1,5 +1,6 @@
 #include <assembler/Build.h>
 #include <assembler/Preprocessor.h>
+#include <assembler/Assembler.h>
 #include <util/Logger.h>
 #include <util/File.h>
 #include <util/Directory.h>
@@ -22,11 +23,14 @@ int main() {
     lgr::log(lgr::Logger::LogType::TEST, "Testing Preprocessor");
 
     // test creating a file and its attributes
-	Process process = Process("-lib library1 -L .\\tests\\libs -I .\\tests\\include -o preprocessorTest .\\tests\\src\\preprocessorTest.basm");
-	File* file = new File(".\\tests\\src\\preprocessorTest." + SOURCE_EXTENSION);
+	Process process = Process("-lib library1 -L .\\tests\\libs -I .\\tests\\include -o preprocessorTest .\\tests\\src\\preprocessorTest." + SOURCE_EXTENSION);
+	File file = File(".\\tests\\src\\preprocessorTest." + SOURCE_EXTENSION);
 	clearFile(".\\tests\\src\\preprocessorTest." + PROCESSED_EXTENSION);
 
 	// test preprocessing
-	Preprocessor* preprocessor = new Preprocessor(&process, file);
-	preprocessor->preprocess();
+	Preprocessor preprocessor = Preprocessor(&process, &file);
+	File* processed_file = preprocessor.preprocess();
+
+	Assembler assembler = Assembler(&process, processed_file);
+	File* output_file = assembler.assemble();
 }

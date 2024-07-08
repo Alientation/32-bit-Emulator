@@ -5,14 +5,14 @@
 *;
 .global _start
 
-.section .text
+.text
 		add	x1, x2, #123			; this code will never run
 _start:
 		add	x1, x2, #$1234
 		sub	x1, x3, #$1234
 
 		adrp	x0, #datalabel		; equivalent to adrp x1, #datalabel
-		add	x0, #:lo12:datalabel
+		add	x0, x0, #:lo12:datalabel
 		ldr	x0, [x0]
 
 		bl 	func
@@ -30,7 +30,7 @@ func:
 #invoke	testmacro(50, 30)*;
 
 ;* NOT YET IMPLEMENTED
-.section .data
+.data
 datalabel:
 	.byte		$01, $02, $03, $04
 	.dbyte		$1234, $5678
