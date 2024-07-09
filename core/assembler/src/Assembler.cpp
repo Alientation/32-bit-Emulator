@@ -316,12 +316,52 @@ File* Assembler::assemble() {
 			section_name = strings[sections[symbol.second.section].section_name];
 		}
 
-		printf("%.16hlx %c\t %s\t\t %.16hlx %s\n", symbol.second.symbol_value, visibility, section_name.c_str(), 0, strings[symbol.second.symbol_name].c_str());
+		printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
 	}
-	printf("\nContents of section .data:\n");
-	/* TODO */
 
+	printf("\nContents of section .data:");
+	int data_address_width = std::__bit_width(data_section.size() / 16);
+	if (data_address_width < 4) {
+		data_address_width = 4;
+	}
+	std::string data_address_format = "\n%." + std::to_string(data_address_width) + "hx ";
+	for (int i = 0; i < data_section.size(); i++) {
+		if (i % 16 == 0) {
+			printf(data_address_format.c_str(), i);
+		}
+		printf("%hhx", data_section[i]);
+	}
 
+	printf("\n\nDisassembly of section .text:\n");
+	std::unordered_map<int, int> label_map;
+	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
+		if (sections[symbol.second.section].type != SectionHeader::Type::TEXT) {
+			continue;
+		}
+
+		label_map[symbol.second.symbol_value] = symbol.second.symbol_name;
+	}
+
+	if (label_map.find(0) == label_map.end()) {
+		printf("%.16llx:", (dword) 0);
+	}
+
+	int text_address_width = std::__bit_width(text_section.size() / 4);
+	if (text_address_width < 4) {
+		text_address_width = 4;
+	}
+	std::string text_address_format = "\n%" + std::to_string(text_address_width) + "hx";
+	for (int i = 0; i < text_section.size(); i++) {
+		if (label_map.find(i*4) != label_map.end()) {
+			if (i != 0) {
+				printf("\n");
+			}
+			printf("\n%.16llx <%s>:", (dword) i*4, strings[label_map[i*4]].c_str());
+		}
+		printf(text_address_format.c_str(), i*4);
+		printf(":\t%.8lx\t%.12s\t%s", text_section[i], "instruction", "<TODO>");
+	}
+	printf("\n");
 
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Finished printing object file.");
 	return m_outputFile;
