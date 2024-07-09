@@ -399,6 +399,11 @@ File* Assembler::assemble() {
 		label_map[symbol.second.symbol_value] = symbol.second.symbol_name;
 	}
 
+	std::unordered_map<int, RelocationEntry> rel_text_map;
+	for (int i = 0; i < rel_text.size(); i++) {
+		rel_text_map[rel_text[i].offset] = rel_text[i];
+	}
+
 	if (label_map.find(0) == label_map.end()) {
 		printf("%.16llx:", (dword) 0);
 	}
@@ -408,12 +413,15 @@ File* Assembler::assemble() {
 		text_address_width = 4;
 	}
 	std::string text_address_format = "\n%" + std::to_string(text_address_width) + "hx";
+	std::string relocation_spacing = "\n%" + std::to_string(text_address_width) + "s";
+	std::string current_label = "";
 	for (int i = 0; i < text_section.size(); i++) {
 		if (label_map.find(i*4) != label_map.end()) {
 			if (i != 0) {
 				printf("\n");
 			}
-			printf("\n%.16llx <%s>:", (dword) i*4, strings[label_map[i*4]].c_str());
+			current_label = strings[label_map[i*4]];
+			printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
 		}
 		std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
 		printf(text_address_format.c_str(), i*4);
@@ -422,8 +430,43 @@ File* Assembler::assemble() {
 			std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
 			std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
 			printf(":\t%.8lx\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
+			switch (bitfield_u32(text_section[i], 26, 6)) {
+				case Emulator32bit::_op_b:
+				case Emulator32bit::_op_bl:
+					printf(" <%s+0x%hx>", current_label.c_str(), bitfield_s32(text_section[i], 0, 22)*4);
+			}
 		} else {
 			printf(":\t%.8lx\t%.12s", text_section[i], disassembly.c_str());
+		}
+
+		/* Check if there is a relocation record here */
+		if (rel_text_map.find(i*4) != rel_text_map.end()) {
+			printf(relocation_spacing.c_str(), "");
+			printf(" \t%hx: ", (dword) i*4);
+
+			RelocationEntry entry = rel_text_map[i*4];
+			switch (entry.type) {
+				case RelocationEntry::Type::R_EMU32_O_LO12:
+					printf("R_EMU32_O_LO12 ");
+					break;
+				case RelocationEntry::Type::R_EMU32_ADRP_HI20:
+					printf("R_EMU32_ADRP_HI20 ");
+					break;
+				case RelocationEntry::Type::R_EMU32_MOV_LO19:
+					printf("R_EMU32_MOV_LO19 ");
+					break;
+				case RelocationEntry::Type::R_EMU32_MOV_HI13:
+					printf("R_EMU32_MOV_HI13 ");
+					break;
+				case RelocationEntry::Type::R_EMU32_B_OFFSET22:
+					printf("R_EMU32_B_OFFSET22 ");
+					break;
+				case RelocationEntry::Type::UNDEFINED:
+					printf("<ERROR> ");
+					break;
+			}
+
+			printf("%s", strings[symbol_table[entry.symbol].symbol_name].c_str());
 		}
 	}
 	printf("\n");
@@ -493,7 +536,7 @@ void Assembler::fill_local() {
 				EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
 						<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
 						<< symbol_entry.symbol_value);
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(symbol_entry.symbol_value, 2, 22);
+				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
 				break;
 			case RelocationEntry::Type::UNDEFINED:
 			default:
