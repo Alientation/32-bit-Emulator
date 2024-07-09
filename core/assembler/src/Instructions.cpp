@@ -362,7 +362,9 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 		// shift
 		int shift = 0;
 		int shift_amt = 0;
-		if (isToken(tokenI, {Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR, Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR})) {
+		if (isToken(tokenI, {Tokenizer::COMMA})) {
+			consume(tokenI);
+			skipTokens(tokenI, "[ \t]");
 			parse_shift(tokenI, shift, shift_amt);
 		}
 
@@ -397,6 +399,256 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 	}
 }
 
+std::string disassemble_register(int reg) {
+	if (reg == SP) {
+		return "sp";
+	} else if (reg == XZR) {
+		return "xzr";
+	} else {
+		return "x" + std::to_string(reg);
+	}
+}
+
+std::string disassemble_shift(word instruction) {
+	std::string disassemble;
+	switch (bitfield_u32(instruction, 7, 2)) {
+		case LSL:
+			disassemble = "lsl #";
+			break;
+		case LSR:
+			disassemble = "lsr #";
+			break;
+		case ASR:
+			disassemble = "asr #";
+			break;
+		case ROR:
+			disassemble = "ror #";
+			break;
+	}
+
+	disassemble += std::to_string(bitfield_u32(instruction, 2, 5));
+	return disassemble;
+}
+std::string disassemble_condition(Emulator32bit::ConditionCode condition) {
+	switch(condition) {
+		case Emulator32bit::ConditionCode::EQ:
+			return "eq";
+		case Emulator32bit::ConditionCode::NE:
+			return "ne";
+		case Emulator32bit::ConditionCode::CS:
+			return "cs";
+		case Emulator32bit::ConditionCode::CC:
+			return "cc";
+		case Emulator32bit::ConditionCode::MI:
+			return "mi";
+		case Emulator32bit::ConditionCode::PL:
+			return "pl";
+		case Emulator32bit::ConditionCode::VS:
+			return "vs";
+		case Emulator32bit::ConditionCode::VC:
+			return "vc";
+		case Emulator32bit::ConditionCode::HI:
+			return "hi";
+		case Emulator32bit::ConditionCode::LS:
+			return "ls";
+		case Emulator32bit::ConditionCode::GE:
+			return "ge";
+		case Emulator32bit::ConditionCode::LT:
+			return "lt";
+		case Emulator32bit::ConditionCode::GT:
+			return "gt";
+		case Emulator32bit::ConditionCode::LE:
+			return "le";
+		case Emulator32bit::ConditionCode::AL:
+			return "al";
+		case Emulator32bit::ConditionCode::NV:
+			return "nv";
+	}
+	return "INVALID";
+}
+
+std::string disassemble_format_b2(word instruction, std::string op) {
+	std::string disassemble = op;
+	Emulator32bit::ConditionCode condition = (Emulator32bit::ConditionCode) bitfield_u32(instruction, 22, 4);
+	if (condition != Emulator32bit::ConditionCode::AL) {
+		disassemble += "." + disassemble_condition(condition);
+	}
+
+	if (bitfield_u32(instruction, 17, 5) == 29) {
+		disassemble = "ret";
+	} else {
+		disassemble += " " + disassemble_register(bitfield_u32(instruction, 17, 5));
+	}
+
+	return disassemble;
+}
+
+std::string disassemble_format_b1(word instruction, std::string op) {
+	std::string disassemble = op;
+	Emulator32bit::ConditionCode condition = (Emulator32bit::ConditionCode) bitfield_u32(instruction, 22, 4);
+	if (condition != Emulator32bit::ConditionCode::AL) {
+		disassemble += "." + disassemble_condition(condition);
+	}
+	disassemble += " #" + std::to_string(bitfield_s32(instruction, 0, 22));
+	return disassemble;
+}
+
+std::string disassemble_format_m2(word instruction, std::string op) {
+	std::string disassemble = op + " ";
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+	disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 20));
+	return disassemble;
+}
+
+std::string disassemble_format_m1(word instruction, std::string op) {
+	std::string disassemble = op + " ";
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
+	disassemble += ", [";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
+	disassemble += "]";
+	return disassemble;
+}
+
+std::string disassemble_format_m(word instruction, std::string op) {
+	std::string disassemble = op;
+
+	if (test_bit(instruction, 25)) {
+		disassemble.insert(disassemble.begin() + 3, 's');
+	}
+	disassemble += " ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	disassemble += "[";
+	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
+	int adr_mode = bitfield_u32(instruction, 0, 2);
+	if (adr_mode != M_PRE && adr_mode != M_OFFSET && adr_mode != M_POST) {
+		EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream()
+				<< "Assembler::disassemble_format_m() - Invalid addressing mode in the disassembly of instruction ("
+				<< op << ") " << instruction);
+	}
+
+	if (test_bit(instruction, 14)) {
+		int simm12 = bitfield_s32(instruction, 2, 12);
+		if (simm12 == 0 ){
+			disassemble += "]";
+		}else if (adr_mode == M_PRE) {
+			disassemble += ", #" + std::to_string(simm12) + "]!";
+		} else if (adr_mode == M_OFFSET) {
+			disassemble += ", #" + std::to_string(simm12) + "]";
+		} else if (adr_mode == M_POST) {
+			disassemble += "], #" + std::to_string(simm12);
+		}
+	} else {
+		std::string reg = disassemble_register(bitfield_u32(instruction, 9, 5));
+		std::string shift = "";
+		if (bitfield_u32(instruction, 2, 5) > 0) {
+			shift = ", " + disassemble_shift(instruction);
+		}
+
+		if (adr_mode == M_PRE) {
+			disassemble += ", " + reg + ", " + shift + "]!";
+		} else if (adr_mode == M_OFFSET) {
+			disassemble += ", " + reg + ", " + shift + "]";
+		} else if (adr_mode == M_POST) {
+			disassemble += "], " + reg + ", " + shift;
+		}
+	}
+	return disassemble;
+}
+
+std::string disassemble_format_o3(word instruction, std::string op) {
+	std::string disassemble = op;
+	if (test_bit(instruction, 25)) {
+		disassemble += "s";
+	}
+	disassemble += " ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	if (test_bit(instruction, 19)) {
+		disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 19));
+	} else {
+		disassemble += disassemble_register(bitfield_u32(instruction, 14, 5));
+		if (bitfield_u32(instruction, 0, 14) > 0) {
+			disassemble += " " + std::to_string(bitfield_u32(instruction, 0, 14));
+		}
+	}
+	return disassemble;
+}
+
+std::string disassemble_format_o2(word instruction, std::string op) {
+	std::string disassemble = op;
+	if (test_bit(instruction, 25)) {
+		disassemble += "s";
+	}
+	disassemble += " ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 4, 5));
+	disassemble += ", ";
+
+	return disassemble;
+}
+
+std::string disassemble_format_o1(word instruction, std::string op) {
+	std::string disassemble = op + " ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
+	disassemble += ", ";
+
+	if (test_bit(instruction, 14)) {
+		disassemble += "#";
+		disassemble += std::to_string(bitfield_u32(instruction, 0, 14));
+	} else {
+		disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
+	}
+	return disassemble;
+}
+
+std::string disassemble_format_o(word instruction, std::string op) {
+	std::string disassemble = op;
+	if (test_bit(instruction, 25)) {
+		disassemble += "s";
+	}
+	disassemble += " ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
+	disassemble += ", ";
+
+	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
+	disassemble += ", ";
+
+	if (test_bit(instruction, 14)) {
+		disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 14));
+	} else {
+		disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
+
+		if (bitfield_u32(instruction, 2, 5) > 0) {
+			disassemble += ", " + disassemble_shift(instruction);
+		}
+	}
+	return disassemble;
+}
+
 
 /**
  * @brief
@@ -414,6 +666,10 @@ void Assembler::_add(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_add(word instruction) {
+	return disassemble_format_o(instruction, "add");
+}
+
 /**
  * @brief
  *
@@ -422,6 +678,10 @@ void Assembler::_add(int& tokenI) {
 void Assembler::_sub(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_sub);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_sub(word instruction) {
+	return disassemble_format_o(instruction, "sub");
 }
 
 /**
@@ -434,6 +694,10 @@ void Assembler::_rsb(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_rsb(word instruction) {
+	return disassemble_format_o(instruction, "rsb");
+}
+
 /**
  * @brief
  *
@@ -442,6 +706,10 @@ void Assembler::_rsb(int& tokenI) {
 void Assembler::_adc(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_adc);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_adc(word instruction) {
+	return disassemble_format_o(instruction, "adc");
 }
 
 /**
@@ -454,9 +722,17 @@ void Assembler::_sbc(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_sbc(word instruction) {
+	return disassemble_format_o(instruction, "sbc");
+}
+
 void Assembler::_rsc(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_rsc);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_rsc(word instruction) {
+	return disassemble_format_o(instruction, "rsc");
 }
 
 void Assembler::_mul(int& tokenI) {
@@ -464,9 +740,17 @@ void Assembler::_mul(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_mul(word instruction) {
+	return disassemble_format_o(instruction, "mul");
+}
+
 void Assembler::_umull(int& tokenI) {
 	word instruction = parse_format_o2(tokenI, Emulator32bit::_op_umull);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_umull(word instruction) {
+	return disassemble_format_o2(instruction, "umull");
 }
 
 void Assembler::_smull(int& tokenI) {
@@ -474,60 +758,120 @@ void Assembler::_smull(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_smull(word instruction) {
+	return disassemble_format_o2(instruction, "smull");
+}
+
 void Assembler::_vabs_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vabs_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vabs_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vneg_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vneg_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vneg_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vsqrt_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vsqrt_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vsqrt_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vadd_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vadd_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vadd_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vsub_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vsub_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vsub_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vdiv_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vdiv_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vdiv_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vmul_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vmul_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vmul_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vcmp_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vcmp_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vcmp_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vsel_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vsel_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vsel_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vcint_u32_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vcint_u32_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vcint_u32_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vcint_s32_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vcint_s32_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vcint_s32_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_vcflo_u32_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vcflo_u32_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vcflo_u32_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vcflo_s32_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vcflo_s32_f32() - Instruction not implemented yet.");
 }
 
+std::string Assembler::disassemble_vcflo_s32_f32(word instruction) {
+	return "UNIMPLEMENTED";
+}
+
 void Assembler::_vmov_f32(int& tokenI) {
 	EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_vmov_f32() - Instruction not implemented yet.");
+}
+
+std::string Assembler::disassemble_vmov_f32(word instruction) {
+	return "UNIMPLEMENTED";
 }
 
 void Assembler::_and(int& tokenI) {
@@ -535,9 +879,17 @@ void Assembler::_and(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_and(word instruction) {
+	return disassemble_format_o(instruction, "and");
+}
+
 void Assembler::_orr(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_orr);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_orr(word instruction) {
+	return disassemble_format_o(instruction, "orr");
 }
 
 void Assembler::_eor(int& tokenI) {
@@ -545,9 +897,17 @@ void Assembler::_eor(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_eor(word instruction) {
+	return disassemble_format_o(instruction, "eor");
+}
+
 void Assembler::_bic(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_bic);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_bic(word instruction) {
+	return disassemble_format_o(instruction, "bic");
 }
 
 void Assembler::_lsl(int& tokenI) {
@@ -555,9 +915,17 @@ void Assembler::_lsl(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_lsl(word instruction) {
+	return disassemble_format_o1(instruction, "lsl");
+}
+
 void Assembler::_lsr(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_lsr);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_lsr(word instruction) {
+	return disassemble_format_o1(instruction, "lsr");
 }
 
 void Assembler::_asr(int& tokenI) {
@@ -565,9 +933,17 @@ void Assembler::_asr(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_asr(word instruction) {
+	return disassemble_format_o1(instruction, "asr");
+}
+
 void Assembler::_ror(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_ror);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_ror(word instruction) {
+	return disassemble_format_o1(instruction, "ror");
 }
 
 void insert_xzr(std::vector<Tokenizer::Token> tokens, int pos) {
@@ -587,11 +963,21 @@ void Assembler::_cmp(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_cmp(word instruction) {
+	std::string disassemble = disassemble_format_o(instruction, "cmp");
+	return "cmp" + disassemble.substr(disassemble.find_first_of("xzr")+4);
+}
+
 void Assembler::_cmn(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_cmn);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_cmn(word instruction) {
+	std::string disassemble = disassemble_format_o(instruction, "cmn");
+	return "cmn" + disassemble.substr(disassemble.find_first_of("xzr")+4);
 }
 
 void Assembler::_tst(int& tokenI) {
@@ -601,6 +987,11 @@ void Assembler::_tst(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_tst(word instruction) {
+	std::string disassemble = disassemble_format_o(instruction, "tst");
+	return "tst" + disassemble.substr(disassemble.find_first_of("xzr")+4);
+}
+
 void Assembler::_teq(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
@@ -608,9 +999,18 @@ void Assembler::_teq(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_teq(word instruction) {
+	std::string disassemble = disassemble_format_o(instruction, "teq");
+	return "teq" + disassemble.substr(disassemble.find_first_of("xzr")+4);
+}
+
 void Assembler::_mov(int& tokenI) {
 	word instruction = parse_format_o3(tokenI, Emulator32bit::_op_mov);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_mov(word instruction) {
+	return disassemble_format_o3(instruction, "mov");
 }
 
 void Assembler::_mvn(int& tokenI) {
@@ -618,9 +1018,17 @@ void Assembler::_mvn(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_mvn(word instruction) {
+	return disassemble_format_o3(instruction, "mvn");
+}
+
 void Assembler::_ldr(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_ldr);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_ldr(word instruction) {
+	return disassemble_format_m(instruction, "ldr");
 }
 
 void Assembler::_str(int& tokenI) {
@@ -628,9 +1036,17 @@ void Assembler::_str(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_str(word instruction) {
+	return disassemble_format_m(instruction, "str");
+}
+
 void Assembler::_swp(int& tokenI) {
 	word instruction = parse_format_m1(tokenI, Emulator32bit::_op_swp);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_swp(word instruction) {
+	return disassemble_format_m1(instruction, "swp");
 }
 
 void Assembler::_ldrb(int& tokenI) {
@@ -638,9 +1054,17 @@ void Assembler::_ldrb(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_ldrb(word instruction) {
+	return disassemble_format_m(instruction, "ldrb");
+}
+
 void Assembler::_strb(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_strb);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_strb(word instruction) {
+	return disassemble_format_m(instruction, "strb");
 }
 
 void Assembler::_swpb(int& tokenI) {
@@ -648,9 +1072,17 @@ void Assembler::_swpb(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_swpb(word instruction) {
+	return disassemble_format_m1(instruction, "swpb");
+}
+
 void Assembler::_ldrh(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_ldrh);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_ldrh(word instruction) {
+	return disassemble_format_m(instruction, "ldrh");
 }
 
 void Assembler::_strh(int& tokenI) {
@@ -658,9 +1090,17 @@ void Assembler::_strh(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_strh(word instruction) {
+	return disassemble_format_m(instruction, "strh");
+}
+
 void Assembler::_swph(int& tokenI) {
 	word instruction = parse_format_m1(tokenI, Emulator32bit::_op_swph);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_swph(word instruction) {
+	return disassemble_format_m1(instruction, "swph");
 }
 
 void Assembler::_b(int& tokenI) {
@@ -668,9 +1108,17 @@ void Assembler::_b(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_b(word instruction) {
+	return disassemble_format_b1(instruction, "b");
+}
+
 void Assembler::_bl(int& tokenI) {
 	word instruction = parse_format_b1(tokenI, Emulator32bit::_op_bl);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_bl(word instruction) {
+	return disassemble_format_b1(instruction, "bl");
 }
 
 void Assembler::_bx(int& tokenI) {
@@ -678,14 +1126,26 @@ void Assembler::_bx(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_bx(word instruction) {
+	return disassemble_format_b2(instruction, "bx");
+}
+
 void Assembler::_blx(int& tokenI) {
 	word instruction = parse_format_b2(tokenI, Emulator32bit::_op_blx);
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_blx(word instruction) {
+	return disassemble_format_b2(instruction, "blx");
+}
+
 void Assembler::_swi(int& tokenI) {
 	word instruction = parse_format_b1(tokenI, Emulator32bit::_op_swi);
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_swi(word instruction) {
+	return disassemble_format_b1(instruction, "swi");
 }
 
 
@@ -706,8 +1166,16 @@ void Assembler::_adrp(int& tokenI) {
 	text_section.push_back(instruction);
 }
 
+std::string Assembler::disassemble_adrp(word instruction) {
+	return disassemble_format_m2(instruction, "adrp");
+}
+
 void Assembler::_hlt(int& tokenI) {
 	consume(tokenI);
 	word instruction = Emulator32bit::asm_hlt();
 	text_section.push_back(instruction);
+}
+
+std::string Assembler::disassemble_hlt(word instruction) {
+	return "hlt";
 }

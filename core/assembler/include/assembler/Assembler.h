@@ -204,6 +204,67 @@ class Assembler {
 
 		void _ret(int& tokenI);
 
+		/* convert instruction bytes into string representation */
+		std::string disassemble_hlt(word instruction);
+		std::string disassemble_add(word instruction);
+		std::string disassemble_sub(word instruction);
+		std::string disassemble_rsb(word instruction);
+		std::string disassemble_adc(word instruction);
+		std::string disassemble_sbc(word instruction);
+		std::string disassemble_rsc(word instruction);
+		std::string disassemble_mul(word instruction);
+		std::string disassemble_umull(word instruction);
+		std::string disassemble_smull(word instruction);
+		std::string disassemble_vabs_f32(word instruction);
+		std::string disassemble_vneg_f32(word instruction);
+		std::string disassemble_vsqrt_f32(word instruction);
+		std::string disassemble_vadd_f32(word instruction);
+		std::string disassemble_vsub_f32(word instruction);
+		std::string disassemble_vdiv_f32(word instruction);
+		std::string disassemble_vmul_f32(word instruction);
+		std::string disassemble_vcmp_f32(word instruction);
+		std::string disassemble_vsel_f32(word instruction);
+		std::string disassemble_vcint_u32_f32(word instruction);
+		std::string disassemble_vcint_s32_f32(word instruction);
+		std::string disassemble_vcflo_u32_f32(word instruction);
+		std::string disassemble_vcflo_s32_f32(word instruction);
+		std::string disassemble_vmov_f32(word instruction);
+		std::string disassemble_and(word instruction);
+		std::string disassemble_orr(word instruction);
+		std::string disassemble_eor(word instruction);
+		std::string disassemble_bic(word instruction);
+		std::string disassemble_lsl(word instruction);
+		std::string disassemble_lsr(word instruction);
+		std::string disassemble_asr(word instruction);
+		std::string disassemble_ror(word instruction);
+		std::string disassemble_cmp(word instruction);
+		std::string disassemble_cmn(word instruction);
+		std::string disassemble_tst(word instruction);
+		std::string disassemble_teq(word instruction);
+		std::string disassemble_mov(word instruction);
+		std::string disassemble_mvn(word instruction);
+		std::string disassemble_ldr(word instruction);
+		std::string disassemble_str(word instruction);
+		std::string disassemble_swp(word instruction);
+		std::string disassemble_ldrb(word instruction);
+		std::string disassemble_strb(word instruction);
+		std::string disassemble_swpb(word instruction);
+		std::string disassemble_ldrh(word instruction);
+		std::string disassemble_strh(word instruction);
+		std::string disassemble_swph(word instruction);
+		std::string disassemble_b(word instruction);
+		std::string disassemble_bl(word instruction);
+		std::string disassemble_bx(word instruction);
+		std::string disassemble_blx(word instruction);
+		std::string disassemble_swi(word instruction);
+
+		std::string disassemble_adrp(word instruction);
+
+		std::string disassemble_ret(word instruction);
+
+		typedef std::string (Assembler::*DisassemblerFunction)(word);
+		DisassemblerFunction _disassembler_instructions[64];
+
 		typedef void (Assembler::*DirectiveFunction)(int& tokenI);
 		std::unordered_map<Tokenizer::Type,DirectiveFunction> directives = {
 			{Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},

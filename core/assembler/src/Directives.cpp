@@ -84,6 +84,8 @@ word Assembler::parse_expression(int& tokenI) {
 					break;
 			}
 			operator_token = nullptr;
+		} else {
+			exp_value = value;
 		}
 		skipTokens(tokenI, "[ \t]");
 
@@ -93,7 +95,7 @@ word Assembler::parse_expression(int& tokenI) {
 		} else {
 			break;
 		}
-	} while(isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}));
+	} while(!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}));
 
 	return exp_value;
 }

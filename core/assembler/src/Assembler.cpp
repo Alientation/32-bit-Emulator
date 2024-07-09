@@ -1,4 +1,5 @@
 #include "assembler/Assembler.h"
+#include "emulator32bit/Emulator32bit.h"
 #include "util/Logger.h"
 
 #include <fstream>
@@ -20,6 +21,62 @@ Assembler::Assembler(Process *process, File *processed_file, std::string output_
 
 	m_state = State::NOT_ASSEMBLED;
 	m_tokens = Tokenizer::tokenize(processed_file);
+
+	/* construct disassembler instruction mapping */
+	_disassembler_instructions[Emulator32bit::_op_hlt] = disassemble_hlt;
+	_disassembler_instructions[Emulator32bit::_op_add] = disassemble_add;
+	_disassembler_instructions[Emulator32bit::_op_sub] = disassemble_sub;
+	_disassembler_instructions[Emulator32bit::_op_rsb] = disassemble_rsb;
+	_disassembler_instructions[Emulator32bit::_op_adc] = disassemble_adc;
+	_disassembler_instructions[Emulator32bit::_op_sbc] = disassemble_sbc;
+	_disassembler_instructions[Emulator32bit::_op_rsc] = disassemble_rsc;
+	_disassembler_instructions[Emulator32bit::_op_mul] = disassemble_mul;
+	_disassembler_instructions[Emulator32bit::_op_umull] = disassemble_umull;
+	_disassembler_instructions[Emulator32bit::_op_smull] = disassemble_smull;
+	_disassembler_instructions[Emulator32bit::_op_vabs_f32] = disassemble_vabs_f32;
+	_disassembler_instructions[Emulator32bit::_op_vneg_f32] = disassemble_vneg_f32;
+	_disassembler_instructions[Emulator32bit::_op_vsqrt_f32] = disassemble_vsqrt_f32;
+	_disassembler_instructions[Emulator32bit::_op_vadd_f32] = disassemble_vadd_f32;
+	_disassembler_instructions[Emulator32bit::_op_vsub_f32] = disassemble_vsub_f32;
+	_disassembler_instructions[Emulator32bit::_op_vdiv_f32] = disassemble_vdiv_f32;
+	_disassembler_instructions[Emulator32bit::_op_vmul_f32] = disassemble_vmul_f32;
+	_disassembler_instructions[Emulator32bit::_op_vcmp_f32] = disassemble_vcmp_f32;
+	_disassembler_instructions[Emulator32bit::_op_vsel_f32] = disassemble_vsel_f32;
+	// _disassembler_instructions[Emulator32bit::_op_vcint_u32_f32] = disassemble_vcint_u32_f32;	/* slight discrepency with the emulator. check later */
+	// _disassembler_instructions[Emulator32bit::_op_vcint_s32_f32] = disassemble_vcint_s32_f32;
+	// _disassembler_instructions[Emulator32bit::_op_vcflo_u32_f32] = disassemble_vcflo_u32_f32;
+	// _disassembler_instructions[Emulator32bit::_op_vcflo_s32_f32] = disassemble_vcflo_s32_f32;
+	_disassembler_instructions[Emulator32bit::_op_vmov_f32] = disassemble_vmov_f32;
+	_disassembler_instructions[Emulator32bit::_op_and] = disassemble_and;
+	_disassembler_instructions[Emulator32bit::_op_orr] = disassemble_orr;
+	_disassembler_instructions[Emulator32bit::_op_eor] = disassemble_eor;
+	_disassembler_instructions[Emulator32bit::_op_bic] = disassemble_bic;
+	_disassembler_instructions[Emulator32bit::_op_lsl] = disassemble_lsl;
+	_disassembler_instructions[Emulator32bit::_op_lsr] = disassemble_lsr;
+	_disassembler_instructions[Emulator32bit::_op_asr] = disassemble_asr;
+	_disassembler_instructions[Emulator32bit::_op_ror] = disassemble_ror;
+	_disassembler_instructions[Emulator32bit::_op_cmp] = disassemble_cmp;
+	_disassembler_instructions[Emulator32bit::_op_cmn] = disassemble_cmn;
+	_disassembler_instructions[Emulator32bit::_op_tst] = disassemble_tst;
+	_disassembler_instructions[Emulator32bit::_op_teq] = disassemble_teq;
+	_disassembler_instructions[Emulator32bit::_op_mov] = disassemble_mov;
+	_disassembler_instructions[Emulator32bit::_op_mvn] = disassemble_mvn;
+	_disassembler_instructions[Emulator32bit::_op_ldr] = disassemble_ldr;
+	_disassembler_instructions[Emulator32bit::_op_str] = disassemble_str;
+	_disassembler_instructions[Emulator32bit::_op_swp] = disassemble_swp;
+	_disassembler_instructions[Emulator32bit::_op_ldrb] = disassemble_ldrb;
+	_disassembler_instructions[Emulator32bit::_op_strb] = disassemble_strb;
+	_disassembler_instructions[Emulator32bit::_op_swpb] = disassemble_swpb;
+	_disassembler_instructions[Emulator32bit::_op_ldrh] = disassemble_ldrh;
+	_disassembler_instructions[Emulator32bit::_op_strh] = disassemble_strh;
+	_disassembler_instructions[Emulator32bit::_op_swph] = disassemble_swph;
+	_disassembler_instructions[Emulator32bit::_op_b] = disassemble_b;
+	_disassembler_instructions[Emulator32bit::_op_bl] = disassemble_bl;
+	_disassembler_instructions[Emulator32bit::_op_bx] = disassemble_bx;
+	_disassembler_instructions[Emulator32bit::_op_blx] = disassemble_blx;
+	_disassembler_instructions[Emulator32bit::_op_swi] = disassemble_swi;
+
+	_disassembler_instructions[Emulator32bit::_op_adrp] = disassemble_adrp;
 }
 
 Assembler::~Assembler() {
@@ -358,8 +415,16 @@ File* Assembler::assemble() {
 			}
 			printf("\n%.16llx <%s>:", (dword) i*4, strings[label_map[i*4]].c_str());
 		}
+		std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
 		printf(text_address_format.c_str(), i*4);
-		printf(":\t%.8lx\t%.12s\t%s", text_section[i], "instruction", "<TODO>");
+
+		if (disassembly.find_first_of(' ') != std::string::npos) {
+			std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
+			std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
+			printf(":\t%.8lx\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
+		} else {
+			printf(":\t%.8lx\t%.12s", text_section[i], disassembly.c_str());
+		}
 	}
 	printf("\n");
 
