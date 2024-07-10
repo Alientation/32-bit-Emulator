@@ -4,12 +4,16 @@
 	Start of file
 *;
 .global _start
+.extern array
 .text
-		add	x1, x2, #123			; this code will never run
 _start:
-		add	x1, x2, #$1234
-		sub	x1, x3, #$1234
-		adrp	x0, #datalabel		; equivalent to adrp x1, #datalabel
+		add	x2, xzr, #0
+.scope
+	array:
+		adrp	x1, #array
+		add	x1, x1, #:lo12:array
+.scend
+		adrp	x0, #datalabel
 		add	x0, x0, #:lo12:datalabel
 		ldr	x0, [x0]
 		bl 	func

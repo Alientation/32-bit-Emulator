@@ -55,6 +55,7 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 			.symbol = string_table[symbol],
 			.type = RelocationEntry::Type::R_EMU32_B_OFFSET22,
 			.shift = 0,													/*! Support shift in future */
+			.token = tokenI
 		});
 	} else {
 		word imm = parse_expression(tokenI);
@@ -110,6 +111,7 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 		.symbol = string_table[symbol],
 		.type = RelocationEntry::Type::R_EMU32_ADRP_HI20,
 		.shift = 0,														/*! Support shift in future */
+		.token = tokenI,
 	});
 
 	return Emulator32bit::asm_format_m2(opcode, reg, 0);
@@ -260,6 +262,7 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 				.symbol = string_table[symbol],
 				.type = (relocation == Tokenizer::RELOCATION_EMU32_MOV_HI13 ? RelocationEntry::Type::R_EMU32_MOV_HI13 : RelocationEntry::Type::R_EMU32_MOV_LO19),
 				.shift = 0,												/*! Support shift in future */
+				.token = tokenI,
 			});
 
 			return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
@@ -386,6 +389,7 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 				.symbol = string_table[symbol],
 				.type = RelocationEntry::Type::R_EMU32_O_LO12,
 				.shift = 0,													/*! Support shift in future */
+				.token = tokenI,
 			});
 
 		} else if (isToken(tokenI, Tokenizer::LITERAL_NUMBERS)) {

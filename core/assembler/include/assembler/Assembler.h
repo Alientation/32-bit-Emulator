@@ -67,6 +67,7 @@ class Assembler {
 				R_EMU32_B_OFFSET22,									/* Branch offset, +/- 24 bit value (last 2 bits are 0) */
 			} type;													/* type of relocation */
 			word shift;												/* constant to be added to the value of the symbol */
+			int token;												/* token index that the relocation entry is used on. Used to fill local symbols */
 		};
 
 		/* Possbly in future add separate string table for section headers */
@@ -82,7 +83,7 @@ class Assembler {
 
 		std::vector<word> text_section;								/* instructions stored in .text section */
 		std::vector<byte> data_section;								/* data stored in .data section */
-		word bss_section = 0;											/* size of .bss section */
+		word bss_section = 0;										/* size of .bss section */
 
 		enum class Section {
 			NONE, DATA, BSS, TEXT
@@ -257,10 +258,7 @@ class Assembler {
 		std::string disassemble_bx(word instruction);
 		std::string disassemble_blx(word instruction);
 		std::string disassemble_swi(word instruction);
-
 		std::string disassemble_adrp(word instruction);
-
-		std::string disassemble_ret(word instruction);
 
 		typedef std::string (Assembler::*DisassemblerFunction)(word);
 		DisassemblerFunction _disassembler_instructions[64];

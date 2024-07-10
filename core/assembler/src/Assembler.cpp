@@ -397,7 +397,7 @@ File* Assembler::assemble() {
 	printf("\n\nDisassembly of section .text:\n");
 	std::unordered_map<int, int> label_map;
 	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
-		if (sections[symbol.second.section].type != SectionHeader::Type::TEXT) {
+		if (sections[symbol.second.section].type != SectionHeader::Type::TEXT || strings[symbol.second.symbol_name].find("::SCOPE") != std::string::npos) {
 			continue;
 		}
 
@@ -424,7 +424,7 @@ File* Assembler::assemble() {
 	for (int i = 0; i < text_section.size(); i++) {
 		if (label_map.find(i*4) != label_map.end()) {
 			if (i != 0) {
-				printf("\n");
+				printf("\n\n");
 			}
 			current_label = strings[label_map[i*4]];
 			// printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
@@ -493,7 +493,7 @@ void Assembler::fill_local() {
 		RelocationEntry &rel = rel_text.at(i);
 		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Evaluating relocation entry " << strings[symbol_table[rel.symbol].symbol_name]);
 
-		while (tokenI < rel.offset/4) {
+		while (tokenI < rel.token && tokenI < m_tokens.size()) {
 			if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCOPE) {
 				local_scope.push_back(local_count_scope++);
 			} else if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCEND) {
@@ -508,7 +508,7 @@ void Assembler::fill_local() {
 		bool found_local = false;
 		std::string symbol = strings[symbol_table[rel.symbol].symbol_name];
 		for (int scopeI = local_scope.size()-1; scopeI >= 0; scopeI--) {
-			std::string local_symbol_name = symbol + "::SCOPE:" + std::to_string(local_scope.back());
+			std::string local_symbol_name = symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);
 			if (string_table.find(local_symbol_name) == string_table.end()) {
 				continue;
 			}
