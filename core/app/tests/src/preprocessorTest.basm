@@ -21,6 +21,7 @@ array:
 
 		bl 	func
 		hlt
+.stop
 
 func:
 		mul	x3, x1, x2
