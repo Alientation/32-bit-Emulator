@@ -327,7 +327,7 @@ void Assembler::_align(int& tokenI) {
 				return;
 			}
 
-			while (data_section.size() * 4 % val != 0) {
+			while (text_section.size() * 4 % val != 0) {
 				text_section.push_back(0);
 			}
 			break;

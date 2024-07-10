@@ -9,7 +9,6 @@
 .text
 _start:
 		add	x2, xzr, #0
-
 .scope
 array:
 		adrp	x1, #array
