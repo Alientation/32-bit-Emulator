@@ -1,6 +1,7 @@
 #include "assembler/Assembler.h"
 #include "emulator32bit/Emulator32bit.h"
 #include "util/Logger.h"
+#include "util/Types.h"
 
 #include <fstream>
 #include <regex>
@@ -373,7 +374,11 @@ File* Assembler::assemble() {
 			section_name = strings[sections[symbol.second.section].section_name];
 		}
 
-		printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
+		// printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
+		std::cout << prettyStringifyValue(stringifyHex((dword) symbol.second.symbol_value))
+				<< " " << visibility << "\t " << section_name << "\t\t " <<
+				prettyStringifyValue(stringifyHex((dword) 0)) << " " << strings[symbol.second.symbol_name]
+				<< "\n";
 	}
 
 	printf("\nContents of section .data:");
@@ -405,7 +410,8 @@ File* Assembler::assemble() {
 	}
 
 	if (label_map.find(0) == label_map.end()) {
-		printf("%.16llx:", (dword) 0);
+		// printf("%.16llx:", (dword) 0);
+		std::cout << prettyStringifyValue(stringifyHex((dword) 0)) << ":";
 	}
 
 	int text_address_width = std::__bit_width(text_section.size() / 4);
@@ -421,7 +427,8 @@ File* Assembler::assemble() {
 				printf("\n");
 			}
 			current_label = strings[label_map[i*4]];
-			printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
+			// printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
+			std::cout << prettyStringifyValue(stringifyHex((dword) i*4)) << " <" << current_label << ">:";
 		}
 		std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
 		printf(text_address_format.c_str(), i*4);

@@ -26,7 +26,7 @@ using Word = unsigned int; // 4 bytes
 using u8 = unsigned char;
 using u16 = unsigned short;
 using u32 = unsigned int;
-using u64 = unsigned long long; 
+using u64 = unsigned long long;
 
 // static constants
 static const u8 BITS_IN_BYTE = 8;
@@ -39,7 +39,7 @@ static const char HEXADECIMAL_PREFIX = '$'; // could also be 0x
 
 /**
  * Converts a value into hexadecimal string representation
- * 
+ *
  * @param hex the value to convert
  * @param digits the number of hexadecimal digits to output
  * @return the hexadecimal string representation of the value
@@ -53,7 +53,7 @@ static std::string stringifyHex(u64 hex, int digits = 16) {
 
 /**
  * Converts a 32 bit value into hexadecimal string representation
- * 
+ *
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
@@ -63,7 +63,7 @@ static std::string stringifyHex(u32 hex) {
 
 /**
  * Converts a 16 bit value into hexadecimal string representation
- * 
+ *
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
@@ -73,7 +73,7 @@ static std::string stringifyHex(u16 hex) {
 
 /**
  * Converts an 8 bit value into hexadecimal string representation
- * 
+ *
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
@@ -84,14 +84,14 @@ static std::string stringifyHex(u8 hex) {
 
 /**
  * Pretty stringifies a value by bolding the digits and graying out the leading zeros
- * 
+ *
  * @param string the string to pretty stringify
  * @return the pretty stringified value
  */
 static std::string prettyStringifyValue(std::string string) {
     std::string result = ccolor::GRAY;
     auto iterator = string.begin();
-    if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#') {
+    if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#' || (*iterator) == '@') {
         iterator++;
     }
 
@@ -115,7 +115,7 @@ static std::string prettyStringifyValue(std::string string) {
 
 /**
  * Converts a 64 bit value into binary string representation
- * 
+ *
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
@@ -128,7 +128,7 @@ static std::string stringifyBin(u64 bin) {
 
 /**
  * Converts a 32 bit value into binary string representation
- * 
+ *
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
@@ -141,7 +141,7 @@ static std::string stringifyBin(u32 bin) {
 
 /**
  * Converts a 16 bit value into binary string representation
- * 
+ *
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
@@ -154,7 +154,7 @@ static std::string stringifyBin(u16 bin) {
 
 /**
  * Converts an 8 bit value into binary string representation
- * 
+ *
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
