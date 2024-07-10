@@ -1,4 +1,4 @@
-# ALIEN CPU - A 16 bit 6502-like Processor
+# 32 bit emulator (with assembler and linker)
 ## Inspiration and Purpose
 todo
 
