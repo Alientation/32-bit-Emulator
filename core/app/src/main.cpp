@@ -1,6 +1,7 @@
 #include <assembler/Build.h>
 #include <assembler/Preprocessor.h>
 #include <assembler/Assembler.h>
+#include <assembler/ObjectFile.h>
 #include <util/Logger.h>
 #include <util/File.h>
 #include <util/Directory.h>
@@ -33,4 +34,6 @@ int main() {
 
 	Assembler assembler = Assembler(&process, processed_file);
 	File* output_file = assembler.assemble();
+
+	ObjectFile object_file = ObjectFile(output_file);
 }

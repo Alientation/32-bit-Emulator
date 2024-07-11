@@ -6,6 +6,7 @@
 
 ObjectFile::ObjectFile(File* object_file) {
 	this->m_file = object_file;
+	this->m_state = State::PRE_DISASSEMBLING;
 
 	/* construct disassembler instruction mapping */
 	_disassembler_instructions[Emulator32bit::_op_hlt] = disassemble_hlt;
@@ -64,23 +65,180 @@ ObjectFile::ObjectFile(File* object_file) {
 	_disassembler_instructions[Emulator32bit::_op_adrp] = disassemble_adrp;
 
 	disassemble();
+
+	/* since errors in disassemble will early return before setting state to success, check for early return */
+	if (m_state == State::DISASSEMBLING) {
+		m_state = State::DISASSEMBLED_ERROR;
+	}
+
 	print();
 }
 
 void ObjectFile::disassemble() {
-	FileReader reader(m_file);
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling");
+	m_state = State::DISASSEMBLING;
+	FileReader file_reader(m_file, std::ios::in | std::ios::binary);
 
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading bytes");
 	std::vector<byte> bytes;
-	while (reader.hasNextByte()) {
-		bytes.push_back(reader.readByte());
+	while (file_reader.hasNextByte()) {
+		bytes.push_back(file_reader.readByte());
 	}
 
-	//TODO
+	ByteReader reader(bytes);
+
+	/* BELF Header */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading BELF Header");
+	byte expected[4] = {'B','E','L','F'};							/* 0-3 */
+	for (int i = 0; i < sizeof(expected)/sizeof(expected[0]); i++) {
+		if (expected[i] != reader.read_byte()) {
+			// todo logger
+			return;
+		}
+	}
+	reader.skip_bytes(12);											/* 4-15 */
+	file_type = reader.read_hword();								/* 16-17 */
+	target_machine = reader.read_hword();							/* 18-19 */
+	flags = reader.read_hword();									/* 20-21 */
+	n_sections = reader.read_hword();								/* 22-23 */
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Belf Header = (filetype=" <<
+		std::to_string(file_type) << ", target_machine=" << std::to_string(target_machine)
+		<< ", flags=" << std::to_string(flags) << ", n_sections=" << n_sections << ")");
+
+	/* Section headers */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading section headers");
+	ByteReader section_headers_reader(bytes);
+	ByteReader section_headers_start_reader(bytes);
+	section_headers_start_reader.skip_bytes(bytes.size() - 8);
+	dword section_header_start = section_headers_start_reader.read_dword();
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Section Header Start = " << std::to_string(section_header_start));
+	section_headers_reader.skip_bytes(section_header_start);
+	for (int i = 0; i < n_sections; i++) {
+		SectionHeader section_header;
+		section_header.section_name = section_headers_reader.read_dword();
+		section_header.type = (SectionHeader::Type) section_headers_reader.read_word();
+		section_header.section_start = section_headers_reader.read_dword();
+		section_header.section_size = section_headers_reader.read_dword();
+		section_header.entry_size = section_headers_reader.read_dword();
+
+		sections.push_back(section_header);
+
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading section " << i
+				<< " (name=" << std::to_string(section_header.section_name) << ", type=" << std::to_string((int)section_header.type)
+				<< ", section_start=" << std::to_string(section_header.section_start) << ", section_size="
+				<< std::to_string(section_header.section_size) << ", entry_size=" << std::to_string(section_header.entry_size) << ")");
+	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading " << n_sections << " sections");
+	for (int section_i = 0; section_i < n_sections; section_i++) {
+		SectionHeader &section_header = sections[section_i];
+		switch(section_header.type) {
+			case SectionHeader::Type::TEXT:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Text Section");
+				for (int i = 0; i < section_header.section_size; i+=4) {
+					text_section.push_back(reader.read_word(false));
+				}
+				break;
+			case SectionHeader::Type::DATA:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Data Section");
+				for (int i = 0; i < section_header.section_size; i++) {
+					data_section.push_back(reader.read_byte());
+				}
+				break;
+			case SectionHeader::Type::BSS:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling BSS Section");
+				bss_section = reader.read_dword();
+				break;
+			case SectionHeader::Type::SYMTAB:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Symbol Table Section");
+				for (int i = 0; i < section_header.section_size; i += SYMBOL_TABLE_ENTRY_SIZE) {
+					SymbolTableEntry symbol;
+					symbol.symbol_name = reader.read_dword();
+					symbol.symbol_value = reader.read_dword();
+					symbol.binding_info = (SymbolTableEntry::BindingInfo) reader.read_hword();
+					symbol.section = reader.read_dword();
+
+					symbol_table[symbol.symbol_name] = symbol;
+					lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Symbol entry = (symbol_name="
+							<< std::to_string(symbol.symbol_name) << ", symbol_value=" << std::to_string(symbol.symbol_value) << ", binding_info="
+							<< std::to_string((int) symbol.binding_info) << ", section=" << std::to_string(symbol.section));
+				}
+				break;
+			case SectionHeader::Type::REL_TEXT:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Rel.Text Section");
+				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+					RelocationEntry rel;
+					rel.offset = reader.read_dword();
+					rel.symbol = reader.read_dword();
+					rel.type = (RelocationEntry::Type) reader.read_word();
+					rel.shift = reader.read_dword();
+					rel_text.push_back(rel);
+				}
+				break;
+			case SectionHeader::Type::REL_DATA:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Rel.Data Section");
+				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+					RelocationEntry rel;
+					rel.offset = reader.read_dword();
+					rel.symbol = reader.read_dword();
+					rel.type = (RelocationEntry::Type) reader.read_word();
+					rel.shift = reader.read_dword();
+					rel_data.push_back(rel);
+				}
+				break;
+			case SectionHeader::Type::REL_BSS:
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling Rel.BSS Section");
+				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+					RelocationEntry rel;
+					rel.offset = reader.read_dword();
+					rel.symbol = reader.read_dword();
+					rel.type = (RelocationEntry::Type) reader.read_word();
+					rel.shift = reader.read_dword();
+					rel_bss.push_back(rel);
+				}
+				break;
+			case SectionHeader::Type::STRTAB: {
+				lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling String Table section");
+				std::string current_string;
+				for (int i = 0; i < section_header.section_size; i++) {
+					byte b = reader.read_byte();
+					if (b == '\0') {
+						string_table[current_string] = strings.size();
+						strings.push_back(current_string);
+						current_string = "";
+					} else {
+						current_string += b;
+					}
+				}
+				break;
+			}
+			default:
+				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "ObjectFile::disassemble() - Invalid Section Type");
+				return;
+		}
+	}
+
+	/* Fill in section table */
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Filling in Section table");
+	for (int i = 0; i < sections.size(); i++) {
+		section_table[strings[sections[i].section_name]] = i;
+	}
+
+	m_state = State::DISASSEMBLED_SUCCESS;
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Finished disassembling");
 }
 
 void ObjectFile::print() {
 	/* Print object file */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "assemble() - Printing object file.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::print() - Printing object file.");
+
+	/* Don't print object files that could not be disassembled */
+	if (m_state != State::DISASSEMBLED_SUCCESS) {
+		printf("ERROR: Cannot print object file. Disassembly failed.");
+		return;
+	}
+
 	printf("%s:\tfile format %s\n\n", (m_file->getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
 	printf("SYMBOL TABLE:\n");
 	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {

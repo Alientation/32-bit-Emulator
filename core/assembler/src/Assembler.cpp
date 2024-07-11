@@ -89,7 +89,7 @@ File* Assembler::assemble() {
 
 	add_section(".symtab", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = ObjectFile::SectionHeader::Type::REL_TEXT,
+		.type = ObjectFile::SectionHeader::Type::SYMTAB,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 26,
@@ -179,7 +179,7 @@ File* Assembler::assemble() {
 
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing to object file.");
 	// create writer for object file
-	m_writer = new FileWriter(m_outputFile);
+	m_writer = new FileWriter(m_outputFile, std::ios::in | std::ios::binary);
 
 	ByteWriter byte_writer(m_writer);
 	int current_byte = 0;
@@ -191,8 +191,8 @@ File* Assembler::assemble() {
 	byte_writer << ByteWriter::Data(RELOCATABLE_FILE_TYPE, 2);			/*! Object file type */
 	byte_writer << ByteWriter::Data(EMU_32BIT_MACHINE_ID, 2);			/*! Target machine */
 	byte_writer << ByteWriter::Data(0, 2);								/*! Flags */
-	byte_writer << ByteWriter::Data(8, 2);								/*! Number of sections */
-	current_byte += 24;
+	byte_writer << ByteWriter::Data(sections.size(), 2);				/*! Number of sections */
+	current_byte += ObjectFile::BELF_HEADER_SIZE;
 
 	/* Text Section */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .text section.");
@@ -214,26 +214,28 @@ File* Assembler::assemble() {
 
 	/* BSS Section */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .bss section. Size " << bss_section << " bytes.");
-	byte_writer << ByteWriter::Data(0, bss_section);
+	byte_writer << ByteWriter::Data(bss_section, ObjectFile::BSS_SECTION_SIZE);
 	sections[section_table[".bss"]].section_size = bss_section;
 	sections[section_table[".bss"]].section_start = current_byte;
-	current_byte += bss_section;
+	current_byte += ObjectFile::BSS_SECTION_SIZE;
 
 	/* Symbol Table */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .symtab section.");
-	const int SYMBOL_TABLE_ENTRY_SIZE = 26;
 	for (std::pair<int, ObjectFile::SymbolTableEntry> symbol : symbol_table) {
 		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
 		byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
-		byte_writer << ByteWriter::Data((int) symbol.second.binding_info, 2);
+		byte_writer << ByteWriter::Data((short) symbol.second.binding_info, 2);
 		byte_writer << ByteWriter::Data(symbol.second.section, 8);
+
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - symbol " <<
+				strings[symbol.second.symbol_name] << " = " << std::to_string(symbol.second.symbol_value)
+				<< " (" << std::to_string((int)symbol.second.binding_info) << ")[" << std::to_string(symbol.second.section) << "]");
 	}
-	sections[section_table[".symtab"]].section_size = symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
+	sections[section_table[".symtab"]].section_size = symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
 	sections[section_table[".symtab"]].section_start = current_byte;
-	current_byte += symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
+	current_byte += symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
 
 	/* rel.text Section */
-	const int RELOCATION_ENTRY_SIZE = 28;
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.text section.");
 	for (int i = 0; i < rel_text.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
@@ -241,9 +243,9 @@ File* Assembler::assemble() {
 		byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
 	}
-	sections[section_table[".rel.text"]].section_size = rel_text.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.text"]].section_size = rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.text"]].section_start = current_byte;
-	current_byte += rel_text.size() * RELOCATION_ENTRY_SIZE;
+	current_byte += rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 
 	/* rel.data Section */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.data section.");
@@ -253,9 +255,9 @@ File* Assembler::assemble() {
 		byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
 	}
-	sections[section_table[".rel.data"]].section_size = rel_data.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.data"]].section_size = rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.data"]].section_start = current_byte;
-	current_byte += rel_data.size() * RELOCATION_ENTRY_SIZE;
+	current_byte += rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 
 	/* rel.bss Section */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.bss section.");
@@ -265,9 +267,9 @@ File* Assembler::assemble() {
 		byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
 	}
-	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.bss"]].section_start = current_byte;
-	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
+	current_byte += rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
 
 	/* String Table */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .strtab section.");
@@ -277,13 +279,12 @@ File* Assembler::assemble() {
 		byte_writer << ByteWriter::Data(0, 1);							/* Null terminated string */
 		size += strings[i].size() + 1;
 	}
-	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
-	sections[section_table[".rel.bss"]].section_start = current_byte;
-	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
+	sections[section_table[".strtab"]].section_size = size;
+	sections[section_table[".strtab"]].section_start = current_byte;
+	current_byte += size;
 
-	/* Section header */
+	/* Section headers */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing Section headers.");
-	const int SECTION_HEADER_SIZE = 36;
 	for (int i = 0; i < sections.size(); i++) {
 		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
 		byte_writer << ByteWriter::Data((int) sections[i].type, 4);
@@ -291,7 +292,12 @@ File* Assembler::assemble() {
 		byte_writer << ByteWriter::Data(sections[i].section_size, 8);
 		byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
 	}
-	current_byte += sections.size() * SECTION_HEADER_SIZE;
+	/* For easy access */
+	byte_writer << ByteWriter::Data(current_byte, 8);
+	current_byte += 8;
+	current_byte += sections.size() * ObjectFile::SECTION_HEADER_SIZE;
+
+
 
 	m_writer->close();
     delete m_writer;

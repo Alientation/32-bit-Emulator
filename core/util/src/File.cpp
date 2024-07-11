@@ -155,6 +155,16 @@ FileWriter::FileWriter(File* file) {
 	}
 }
 
+FileWriter::FileWriter(File* file, std::_Ios_Openmode flags) {
+	this->file = file;
+	this->fileStream = new std::ofstream(file->getFilePath(), flags);
+	this->closed = false;
+
+	if (!this->fileStream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file->getFilePath());
+	}
+}
+
 /**
  * Destructs a file writer object
  */
@@ -285,6 +295,51 @@ void FileWriter::close() {
 
 
 
+ByteReader& ByteReader::operator>>(ByteReader::Data &data) {
+	if (data.little_endian) {
+		for (int i = data.num_bytes-1; i >= 0; i--) {
+			data.val <<= 8;
+			data.val += bytes.at(cur_byte + i);
+		}
+		cur_byte += data.num_bytes;
+	} else {
+		for (int i = data.num_bytes-1; i >= 0; i--) {
+			data.val += ((unsigned long long) bytes.at(cur_byte)) << (8 * i);
+			cur_byte++;
+		}
+	}
+
+	return (*this);
+}
+
+unsigned char ByteReader::read_byte(bool little_endian) {
+	ByteReader::Data data(1, little_endian);
+	(*this) >> data;
+	return data.val;
+}
+
+unsigned short ByteReader::read_hword(bool little_endian) {
+	ByteReader::Data data(2, little_endian);
+	(*this) >> data;
+	return data.val;
+}
+
+unsigned int ByteReader::read_word(bool little_endian) {
+	ByteReader::Data data(4, little_endian);
+	(*this) >> data;
+	return data.val;
+}
+
+unsigned long long ByteReader::read_dword(bool little_endian) {
+	ByteReader::Data data(8, little_endian);
+	(*this) >> data;
+	return data.val;
+}
+
+void ByteReader::skip_bytes(int num_bytes) {
+	cur_byte += num_bytes;
+}
+
 
 /**
  * Constructs a file reader object with the given file
@@ -300,6 +355,18 @@ FileReader::FileReader(File* file) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << file->getFilePath());
 	}
 }
+
+
+FileReader::FileReader(File* file, std::_Ios_Openmode flags) {
+	this->file = file;
+	this->fileStream = new std::ifstream(file->getFilePath(), flags);
+	this->closed = false;
+
+	if (!this->fileStream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << file->getFilePath());
+	}
+}
+
 
 /**
  * Destructs a file reader object

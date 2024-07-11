@@ -15,7 +15,7 @@ find_package(assembler REQUIRED CONFIG)
 
 # create final executable
 add_executable(${PROJECT_NAME})
-target_sources(${PROJECT_NAME} PRIVATE main.cpp)
+target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
 
 # link libraries
 target_link_libraries(${PROJECT_NAME} PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)

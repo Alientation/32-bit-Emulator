@@ -53,24 +53,18 @@ class ByteWriter {
 	public:
 		ByteWriter(FileWriter *filewriter);
 		struct Data {
-			unsigned long value;
+			unsigned long long value;
 			int num_bytes;
-			Data(unsigned long value, int num_bytes) : value(value), num_bytes(num_bytes) {}
-			Data(unsigned long value, int num_bytes, bool little_endian) {
+			Data(unsigned long long value, int num_bytes) : value(value), num_bytes(num_bytes) {}
+			Data(unsigned long long value, int num_bytes, bool little_endian) {
 				if (little_endian) {
 					this->value = value;
 				} else {
-					for (int i = 0; i < num_bytes; i+=8) {
+					for (int i = 0; i < num_bytes; i++) {
 						this->value <<= 8;
 						this->value += value & 0xFF;
 						value >>= 8;
 					}
-
-					int remainder = 8 - (num_bytes % 8);
-					if (remainder == 8) {
-						remainder = 0;
-					}
-					this->value >>= remainder;
 				}
 				this->num_bytes = num_bytes;
 			}
@@ -84,6 +78,7 @@ class ByteWriter {
 class FileWriter {
 	public:
 		FileWriter(File* file);
+		FileWriter(File* file, std::_Ios_Openmode flags);
 		~FileWriter();
 		FileWriter& operator<<(std::string);
 		FileWriter& operator<<(char byte);
@@ -103,9 +98,32 @@ class FileWriter {
 		bool closed;
 };
 
+class ByteReader {
+	public:
+		ByteReader(std::vector<unsigned char> &bytes) : bytes(bytes) {};
+		struct Data {
+			unsigned long long val = 0;
+			int num_bytes = 0;
+			bool little_endian = true;
+			Data(int num_bytes) : num_bytes(num_bytes) {};
+			Data(int num_bytes, bool little_endian) : num_bytes(num_bytes), little_endian(little_endian) {};
+		};
+
+		ByteReader& operator>>(Data &data);
+		unsigned char read_byte(bool little_endian = true);
+		unsigned short read_hword(bool little_endian = true);
+		unsigned int read_word(bool little_endian = true);
+		unsigned long long read_dword(bool little_endian = true);
+		void skip_bytes(int num_bytes);
+	private:
+		std::vector<unsigned char> &bytes;
+		int cur_byte = 0;
+};
+
 class FileReader {
 	public:
 		FileReader(File* file);
+		FileReader(File* file, std::_Ios_Openmode flags);
 		~FileReader();
 		std::string readAll();
 		char readByte();

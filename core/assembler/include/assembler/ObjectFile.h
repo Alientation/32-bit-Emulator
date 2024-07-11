@@ -35,7 +35,7 @@ class ObjectFile {
 			} type;													/* type of section */
 			word section_start;										/* start offset of section */
 			word section_size;										/* size of section in bytes */
-			word entry_size;										/* size of entry in section */
+			word entry_size;										/* size of entry in section, todo this has not use imo, figure out why ELF has it listed */
 		};
 
 		struct RelocationEntry {
@@ -51,21 +51,37 @@ class ObjectFile {
 			int token;												/* token index that the relocation entry is used on. Used to fill local symbols */
 		};
 
+		static const int BELF_HEADER_SIZE = 24;
+		static const int SECTION_HEADER_SIZE = 36;
+		static const int BSS_SECTION_SIZE = 8;
+		static const int RELOCATION_ENTRY_SIZE = 28;
+		static const int SYMBOL_TABLE_ENTRY_SIZE = 26;
+
 	private:
-		File *m_file;										    		/* the .bo file */
+		enum class State {
+			PRE_DISASSEMBLING, DISASSEMBLING, DISASSEMBLED_SUCCESS, DISASSEMBLED_ERROR,
+		};
 
-		std::vector<std::string> strings;								/* stores all strings */
-		std::unordered_map<std::string, int> string_table;				/* maps strings to index in the table*/
-		std::unordered_map<int, SymbolTableEntry> symbol_table;	/* maps string index to symbol */
-		std::vector<RelocationEntry> rel_text;				/* references to symbols that need to be relocated */
-		std::vector<RelocationEntry> rel_data;				/* For now, no purpose */
-		std::vector<RelocationEntry> rel_bss;				/* For now, no purpose, this won't ever be used, get rid of this */
-		std::vector<SectionHeader> sections;					/* section headers */
-		std::unordered_map<std::string, int> section_table; 			/* map section name to index in sections */
+		File *m_file;										    	/* the .bo file */
+		State m_state;												/* state of the disassembly */
 
-		std::vector<word> text_section;									/* instructions stored in .text section */
-		std::vector<byte> data_section;									/* data stored in .data section */
-		word bss_section = 0;											/* size of .bss section */
+		hword file_type;
+		hword target_machine;
+		hword flags;
+		hword n_sections;
+
+		std::vector<std::string> strings;							/* stores all strings */
+		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
+		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
+		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
+		std::vector<RelocationEntry> rel_data;						/* For now, no purpose */
+		std::vector<RelocationEntry> rel_bss;						/* For now, no purpose, this won't ever be used, get rid of this */
+		std::vector<SectionHeader> sections;						/* section headers */
+		std::unordered_map<std::string, int> section_table; 		/* map section name to index in sections */
+
+		std::vector<word> text_section;								/* instructions stored in .text section */
+		std::vector<byte> data_section;								/* data stored in .data section */
+		word bss_section = 0;										/* size of .bss section */
 
 		std::string disassemble_hlt(word instruction);
 		std::string disassemble_add(word instruction);
