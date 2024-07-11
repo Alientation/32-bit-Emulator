@@ -382,15 +382,9 @@ void Preprocessor::_macro(int& tokenI) {
         skipTokens(tokenI, "[ \t\n]");
         std::string argName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected argument name.").value;
 
-        // parse argument type if there is one
         skipTokens(tokenI, "[ \t\n]");
-        if (isToken(tokenI, {Tokenizer::COLON})) {
-            consume(tokenI);
-            skipTokens(tokenI, "[ \t\n]");
-            macro->arguments.push_back(Argument(argName, consume(tokenI, Tokenizer::VARIABLE_TYPES, "Preprocessor::_macro() - Expected argument type").type));
-        } else {
-            macro->arguments.push_back(Argument(argName));
-        }
+        macro->arguments.push_back(Argument(argName));
+
 
         // parse comma or expect closing parenthesis
         skipTokens(tokenI, "[ \t\n]");
@@ -402,13 +396,6 @@ void Preprocessor::_macro(int& tokenI) {
     // consume the closing parenthesis
     consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
     skipTokens(tokenI, "[ \t\n]");
-
-    // parse return type if there is one
-    if (isToken(tokenI, {Tokenizer::COLON})) {
-        consume(tokenI);
-        skipTokens(tokenI, "[ \t\n]");
-        macro->returnType = consume(tokenI, Tokenizer::VARIABLE_TYPES, "Preprocessor::_macro() - Expected return type.").type;
-    }
 
     // parse macro definition
     skipTokens(tokenI, "[ \t\n]");
@@ -478,7 +465,6 @@ void Preprocessor::_macret(int& tokenI) {
 		std::vector<Tokenizer::Token> set_return_statement;
 		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", m_macroStack.top().first)));
 		vector_util::append(set_return_statement, return_value);
-		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(m_macroStack.top().second->returnType))));
 		m_tokens.insert(m_tokens.begin() + tokenI, set_return_statement.begin(), set_return_statement.end());
 	}
 
@@ -558,7 +544,7 @@ void Preprocessor::_invoke(int& tokenI) {
 
 	// check if the macro returns something, if so add a equate statement to store the output
 	if (hasOutput) {
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} 0 : {}\n", outputSymbol, Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macro->returnType))));
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} 0\n", outputSymbol)));
 	}
 
 	// append a new '.scope' symbol to the tokens list
@@ -569,7 +555,6 @@ void Preprocessor::_invoke(int& tokenI) {
 	for (int i = 0; i < arguments.size(); i++) {
 		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} ", macro->arguments[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(" : {}\n", Tokenizer::VARIABLE_TYPE_TO_NAME_MAP.at(macro->arguments[i].type))));
 	}
 
 	// then append the macro definition

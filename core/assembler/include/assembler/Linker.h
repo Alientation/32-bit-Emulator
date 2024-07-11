@@ -5,7 +5,11 @@
 #include "assembler/ObjectFile.h"
 
 class Linker {
+	public:
+		Linker(std::vector<ObjectFile> obj_files);
 
+	private:
+		std::vector<ObjectFile> m_obj_files;
 };
 
 

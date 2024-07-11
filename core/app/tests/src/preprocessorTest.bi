@@ -27,14 +27,12 @@ func:
 #macend
 
 #invoke	testmacro(50, 30)*;
-;* NOT YET IMPLEMENTED
 .data
 datalabel:
 	.byte		$01, $02, $03, $04
 	.dbyte		$1234, $5678
 	.word		$12345678,
 	.dword		$0123456789abcdef,
-*;
 ;*
 	End of file
 *;

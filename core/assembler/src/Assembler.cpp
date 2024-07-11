@@ -152,9 +152,9 @@ File* Assembler::assemble() {
 			if (current_section == Section::TEXT) {
 				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
 			} else if (current_section == Section::DATA) {
-				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
+				add_symbol(symbol, data_section.size(), ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
 			} else if (current_section == Section::BSS) {
-				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
+				add_symbol(symbol, bss_section, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
 			}
 			i++;
 		} else if (instructions.find(token.type) != instructions.end()) {
@@ -346,7 +346,8 @@ void Assembler::fill_local() {
 		}
 
 		if (!found_local) {
-			if (symbol_table.at(rel.symbol).binding_info != ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
+			if (symbol_table.at(rel.symbol).binding_info != ObjectFile::SymbolTableEntry::BindingInfo::WEAK
+				&& symbol_table.at(rel.symbol).section == section_table[".text"]) {
 				symbol_entry = symbol_table.at(rel.symbol);
 			} else {
 				continue;

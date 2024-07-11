@@ -12,6 +12,7 @@
 #define EMU_32BIT_MACHINE_ID 1
 
 class ObjectFile {
+	friend class Linker;
 	public:
 		ObjectFile(File *object_file);
 

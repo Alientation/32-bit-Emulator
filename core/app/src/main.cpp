@@ -1,7 +1,8 @@
-#include <assembler/Build.h>
-#include <assembler/Preprocessor.h>
 #include <assembler/Assembler.h>
+#include <assembler/Build.h>
+#include <assembler/Linker.h>
 #include <assembler/ObjectFile.h>
+#include <assembler/Preprocessor.h>
 #include <util/Logger.h>
 #include <util/File.h>
 #include <util/Directory.h>
@@ -36,4 +37,6 @@ int main() {
 	File* output_file = assembler.assemble();
 
 	ObjectFile object_file = ObjectFile(output_file);
+
+	Linker linker({object_file});
 }

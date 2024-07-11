@@ -49,23 +49,23 @@ void Assembler::add_symbol(std::string symbol, word value, ObjectFile::SymbolTab
  * @param 					tokenI: Reference to current token index
  * @return 					value of expression
  */
-word Assembler::parse_expression(int& tokenI) {
+dword Assembler::parse_expression(int& tokenI) {
 	/* For now, only parse expressions sequentially, without care of precedence */
-	word exp_value = 0;
+	dword exp_value = 0;
 	skipTokens(tokenI, "[ \t]");
 	Tokenizer::Token *operator_token = nullptr;
 	do {
 		Tokenizer::Token token = consume(tokenI);
 
-		word value = 0;
+		dword value = 0;
 		if (token.type == Tokenizer::LITERAL_NUMBER_DECIMAL) {
-			value = std::stoi(token.value);
+			value = std::stoull(token.value);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_HEXADECIMAL) {
-			value = std::stoi(token.value.substr(1), nullptr, 16);
+			value = std::stoull(token.value.substr(1), nullptr, 16);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_BINARY) {
-			value = std::stoi(token.value.substr(1), nullptr, 2);
+			value = std::stoull(token.value.substr(1), nullptr, 2);
 		} else if (token.type == Tokenizer::LITERAL_NUMBER_OCTAL) {
-			value = std::stoi(token.value.substr(1), nullptr, 8);
+			value = std::stoull(token.value.substr(1), nullptr, 8);
 		}
 
 		if (operator_token != nullptr) {
@@ -95,7 +95,7 @@ word Assembler::parse_expression(int& tokenI) {
 		} else {
 			break;
 		}
-	} while(!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}));
+	} while(!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
 
 	return exp_value;
 }
@@ -363,7 +363,7 @@ void Assembler::_text(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::TEXT;
-	current_section_index = 0;
+	current_section_index = section_table[".text"];
 }
 
 /**
@@ -377,7 +377,7 @@ void Assembler::_data(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::DATA;
-	current_section_index = 1;
+	current_section_index = section_table[".data"];
 }
 
 /**
@@ -391,7 +391,7 @@ void Assembler::_bss(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::BSS;
-	current_section_index = 2;
+	current_section_index = section_table[".bss"];
 }
 
 /**
@@ -404,47 +404,149 @@ void Assembler::_stop(int& tokenI) {
 	tokenI = m_tokens.size();
 }
 
-/* TODO */
-void Assembler::_byte(int& tokenI) {
 
+std::vector<dword> Assembler::parse_arguments(int& tokenI) {
+	skipTokens(tokenI, "[ \t]");
+
+	std::vector<dword> args;
+	while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+		args.push_back(parse_expression(tokenI));
+		skipTokens(tokenI, "[ \t]");
+		if (isToken(tokenI, {Tokenizer::COMMA})) {
+			consume(tokenI);
+			skipTokens(tokenI, "[ \t]");
+		} else {
+			break;
+		}
+	}
+	return args;
+}
+
+std::vector<byte> convert_little_endian(std::vector<dword> data, int n_bytes) {
+	std::vector<byte> little_endian_data;
+
+	for (int i = 0; i < data.size(); i++) {
+		for (int j = 0; j < n_bytes; j++) {
+			little_endian_data.push_back(data.at(i) & 0xFF);
+			data.at(i) >>= 8;
+		}
+	}
+
+	return little_endian_data;
+}
+
+void Assembler::_byte(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_byte() - Can only define data in .data section.");
+
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_dbyte(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_dbyte() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_word(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_word() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_dword(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_dword() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
+/* this is pointless, same as .byte */
 void Assembler::_sbyte(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_sbyte() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
+/* todo, figure out why signed versions of these data defining directives are needed */
 void Assembler::_sdbyte(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_sdbyte() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_sword(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_sword() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_sdword(int& tokenI) {
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_sdword() - Can only define data in .data section.");
 
+	consume(tokenI);
+
+	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
+	for (int i = 0; i < data.size(); i++) {
+		data_section.push_back(data.at(i));
+	}
 }
 
 void Assembler::_char(int& tokenI) {
-
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_char() - Can only define data in .data section.");
+	// todo
 }
 
 void Assembler::_ascii(int& tokenI) {
-
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_ascii() - Can only define data in .data section.");
+	// todo
 }
 
 void Assembler::_asciz(int& tokenI) {
-
+	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Assembler::_asciz() - Can only define data in .data section.");
+	// todo
 }

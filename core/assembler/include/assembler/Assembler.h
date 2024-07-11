@@ -58,7 +58,8 @@ class Assembler {
 		void add_symbol(std::string symbol, word value, ObjectFile::SymbolTableEntry::BindingInfo binding_info, int section);
 		int add_section(const std::string section_name, ObjectFile::SectionHeader header);
 		int add_string(const std::string string);
-		word parse_expression(int& tokenI);
+		dword parse_expression(int& tokenI);
+		std::vector<dword> parse_arguments(int& tokenI);
 		byte parse_register(int& tokenI);
 		void parse_shift(int& tokenI, int& shift, int& shift_amt);
 
@@ -181,6 +182,14 @@ class Assembler {
 			{Tokenizer::ASSEMBLER_DATA, &Assembler::_data},
 			{Tokenizer::ASSEMBLER_BSS, &Assembler::_bss},
 			{Tokenizer::ASSEMBLER_STOP, &Assembler::_stop},
+			{Tokenizer::ASSEMBLER_BYTE, &Assembler::_byte},
+			{Tokenizer::ASSEMBLER_DBYTE, &Assembler::_dbyte},
+			{Tokenizer::ASSEMBLER_WORD, &Assembler::_word},
+			{Tokenizer::ASSEMBLER_DWORD, &Assembler::_dword},
+			{Tokenizer::ASSEMBLER_SBYTE, &Assembler::_sbyte},
+			{Tokenizer::ASSEMBLER_SDBYTE, &Assembler::_sdbyte},
+			{Tokenizer::ASSEMBLER_SWORD, &Assembler::_sword},
+			{Tokenizer::ASSEMBLER_SDWORD, &Assembler::_sdword},
 		};
 		typedef void (Assembler::*InstructionFunction)(int& tokenI);
 		std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {
