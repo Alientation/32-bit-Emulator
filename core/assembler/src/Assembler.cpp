@@ -22,62 +22,6 @@ Assembler::Assembler(Process *process, File *processed_file, std::string output_
 
 	m_state = State::NOT_ASSEMBLED;
 	m_tokens = Tokenizer::tokenize(processed_file);
-
-	/* construct disassembler instruction mapping */
-	_disassembler_instructions[Emulator32bit::_op_hlt] = disassemble_hlt;
-	_disassembler_instructions[Emulator32bit::_op_add] = disassemble_add;
-	_disassembler_instructions[Emulator32bit::_op_sub] = disassemble_sub;
-	_disassembler_instructions[Emulator32bit::_op_rsb] = disassemble_rsb;
-	_disassembler_instructions[Emulator32bit::_op_adc] = disassemble_adc;
-	_disassembler_instructions[Emulator32bit::_op_sbc] = disassemble_sbc;
-	_disassembler_instructions[Emulator32bit::_op_rsc] = disassemble_rsc;
-	_disassembler_instructions[Emulator32bit::_op_mul] = disassemble_mul;
-	_disassembler_instructions[Emulator32bit::_op_umull] = disassemble_umull;
-	_disassembler_instructions[Emulator32bit::_op_smull] = disassemble_smull;
-	_disassembler_instructions[Emulator32bit::_op_vabs_f32] = disassemble_vabs_f32;
-	_disassembler_instructions[Emulator32bit::_op_vneg_f32] = disassemble_vneg_f32;
-	_disassembler_instructions[Emulator32bit::_op_vsqrt_f32] = disassemble_vsqrt_f32;
-	_disassembler_instructions[Emulator32bit::_op_vadd_f32] = disassemble_vadd_f32;
-	_disassembler_instructions[Emulator32bit::_op_vsub_f32] = disassemble_vsub_f32;
-	_disassembler_instructions[Emulator32bit::_op_vdiv_f32] = disassemble_vdiv_f32;
-	_disassembler_instructions[Emulator32bit::_op_vmul_f32] = disassemble_vmul_f32;
-	_disassembler_instructions[Emulator32bit::_op_vcmp_f32] = disassemble_vcmp_f32;
-	_disassembler_instructions[Emulator32bit::_op_vsel_f32] = disassemble_vsel_f32;
-	// _disassembler_instructions[Emulator32bit::_op_vcint_u32_f32] = disassemble_vcint_u32_f32;	/* slight discrepency with the emulator. check later */
-	// _disassembler_instructions[Emulator32bit::_op_vcint_s32_f32] = disassemble_vcint_s32_f32;
-	// _disassembler_instructions[Emulator32bit::_op_vcflo_u32_f32] = disassemble_vcflo_u32_f32;
-	// _disassembler_instructions[Emulator32bit::_op_vcflo_s32_f32] = disassemble_vcflo_s32_f32;
-	_disassembler_instructions[Emulator32bit::_op_vmov_f32] = disassemble_vmov_f32;
-	_disassembler_instructions[Emulator32bit::_op_and] = disassemble_and;
-	_disassembler_instructions[Emulator32bit::_op_orr] = disassemble_orr;
-	_disassembler_instructions[Emulator32bit::_op_eor] = disassemble_eor;
-	_disassembler_instructions[Emulator32bit::_op_bic] = disassemble_bic;
-	_disassembler_instructions[Emulator32bit::_op_lsl] = disassemble_lsl;
-	_disassembler_instructions[Emulator32bit::_op_lsr] = disassemble_lsr;
-	_disassembler_instructions[Emulator32bit::_op_asr] = disassemble_asr;
-	_disassembler_instructions[Emulator32bit::_op_ror] = disassemble_ror;
-	_disassembler_instructions[Emulator32bit::_op_cmp] = disassemble_cmp;
-	_disassembler_instructions[Emulator32bit::_op_cmn] = disassemble_cmn;
-	_disassembler_instructions[Emulator32bit::_op_tst] = disassemble_tst;
-	_disassembler_instructions[Emulator32bit::_op_teq] = disassemble_teq;
-	_disassembler_instructions[Emulator32bit::_op_mov] = disassemble_mov;
-	_disassembler_instructions[Emulator32bit::_op_mvn] = disassemble_mvn;
-	_disassembler_instructions[Emulator32bit::_op_ldr] = disassemble_ldr;
-	_disassembler_instructions[Emulator32bit::_op_str] = disassemble_str;
-	_disassembler_instructions[Emulator32bit::_op_swp] = disassemble_swp;
-	_disassembler_instructions[Emulator32bit::_op_ldrb] = disassemble_ldrb;
-	_disassembler_instructions[Emulator32bit::_op_strb] = disassemble_strb;
-	_disassembler_instructions[Emulator32bit::_op_swpb] = disassemble_swpb;
-	_disassembler_instructions[Emulator32bit::_op_ldrh] = disassemble_ldrh;
-	_disassembler_instructions[Emulator32bit::_op_strh] = disassemble_strh;
-	_disassembler_instructions[Emulator32bit::_op_swph] = disassemble_swph;
-	_disassembler_instructions[Emulator32bit::_op_b] = disassemble_b;
-	_disassembler_instructions[Emulator32bit::_op_bl] = disassemble_bl;
-	_disassembler_instructions[Emulator32bit::_op_bx] = disassemble_bx;
-	_disassembler_instructions[Emulator32bit::_op_blx] = disassemble_blx;
-	_disassembler_instructions[Emulator32bit::_op_swi] = disassemble_swi;
-
-	_disassembler_instructions[Emulator32bit::_op_adrp] = disassemble_adrp;
 }
 
 Assembler::~Assembler() {
@@ -89,7 +33,7 @@ Assembler::State Assembler::get_state() {
 }
 
 
-int Assembler::add_section(const std::string section_name, SectionHeader header) {
+int Assembler::add_section(const std::string section_name, ObjectFile::SectionHeader header) {
 	EXPECT_TRUE(section_table.find(section_name) == section_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_section() - Section name exists in section table");
 
 	header.section_name = add_string(section_name);
@@ -119,65 +63,65 @@ File* Assembler::assemble() {
 	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
-	add_section(".text", (SectionHeader) {
+	add_section(".text", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::TEXT,
+		.type = ObjectFile::SectionHeader::Type::TEXT,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 4,
 	});
 
-	add_section(".data", (SectionHeader) {
+	add_section(".data", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::DATA,
+		.type = ObjectFile::SectionHeader::Type::DATA,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 0,
 	});
 
-	add_section(".bss", (SectionHeader) {
+	add_section(".bss", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::BSS,
+		.type = ObjectFile::SectionHeader::Type::BSS,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 0,
 	});
 
-	add_section(".symtab", (SectionHeader) {
+	add_section(".symtab", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::REL_TEXT,
+		.type = ObjectFile::SectionHeader::Type::REL_TEXT,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 26,
 	});
 
-	add_section(".rel.text", (SectionHeader) {
+	add_section(".rel.text", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::REL_TEXT,
+		.type = ObjectFile::SectionHeader::Type::REL_TEXT,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 28,
 	});
 
-	add_section(".rel.data", (SectionHeader) {
+	add_section(".rel.data", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::REL_DATA,
+		.type = ObjectFile::SectionHeader::Type::REL_DATA,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 28,
 	});
 
-	add_section(".rel.bss", (SectionHeader) {
+	add_section(".rel.bss", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::REL_BSS,
+		.type = ObjectFile::SectionHeader::Type::REL_BSS,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 28,
 	});
 
-	add_section(".strtab", (SectionHeader) {
+	add_section(".strtab", (ObjectFile::SectionHeader) {
 		.section_name = 0,
-		.type = SectionHeader::Type::STRTAB,
+		.type = ObjectFile::SectionHeader::Type::STRTAB,
 		.section_start = 0,
 		.section_size = 0,
 		.entry_size = 0,
@@ -206,11 +150,11 @@ File* Assembler::assemble() {
 
 			std::string symbol = token.value.substr(0, token.value.size()-1) + (scopes.empty() ? "" : "::SCOPE:" + std::to_string(scopes.back()));
 			if (current_section == Section::TEXT) {
-				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 0);
+				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
 			} else if (current_section == Section::DATA) {
-				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 1);
+				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
 			} else if (current_section == Section::BSS) {
-				add_symbol(symbol, text_section.size() * 4, SymbolTableEntry::BindingInfo::LOCAL, 2);
+				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
 			}
 			i++;
 		} else if (instructions.find(token.type) != instructions.end()) {
@@ -278,7 +222,7 @@ File* Assembler::assemble() {
 	/* Symbol Table */
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .symtab section.");
 	const int SYMBOL_TABLE_ENTRY_SIZE = 26;
-	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
+	for (std::pair<int, ObjectFile::SymbolTableEntry> symbol : symbol_table) {
 		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
 		byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
 		byte_writer << ByteWriter::Data((int) symbol.second.binding_info, 2);
@@ -356,129 +300,6 @@ File* Assembler::assemble() {
 		m_state = State::ASSEMBLED;
 		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
 	}
-
-	/* Print object file */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Printing object file.");
-	printf("%s:\tfile format %s\n\n", (m_outputFile->getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
-	printf("SYMBOL TABLE:\n");
-	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
-		char visibility = ' ';
-		if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::GLOBAL) {
-			visibility = 'g';
-		} else if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::LOCAL) {
-			visibility = 'l';
-		}
-
-		std::string section_name = "*UND*";
-		if (symbol.second.section != -1) {
-			section_name = strings[sections[symbol.second.section].section_name];
-		}
-
-		// printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
-		std::cout << prettyStringifyValue(stringifyHex((dword) symbol.second.symbol_value))
-				<< " " << visibility << "\t " << section_name << "\t\t " <<
-				prettyStringifyValue(stringifyHex((dword) 0)) << " " << strings[symbol.second.symbol_name]
-				<< "\n";
-	}
-
-	printf("\nContents of section .data:");
-	int data_address_width = std::__bit_width(data_section.size() / 16);
-	if (data_address_width < 4) {
-		data_address_width = 4;
-	}
-	std::string data_address_format = "\n%." + std::to_string(data_address_width) + "hx ";
-	for (int i = 0; i < data_section.size(); i++) {
-		if (i % 16 == 0) {
-			printf(data_address_format.c_str(), i);
-		}
-		printf("%hhx", data_section[i]);
-	}
-
-	printf("\n\nDisassembly of section .text:\n");
-	std::unordered_map<int, int> label_map;
-	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
-		if (sections[symbol.second.section].type != SectionHeader::Type::TEXT || strings[symbol.second.symbol_name].find("::SCOPE") != std::string::npos) {
-			continue;
-		}
-
-		label_map[symbol.second.symbol_value] = symbol.second.symbol_name;
-	}
-
-	std::unordered_map<int, RelocationEntry> rel_text_map;
-	for (int i = 0; i < rel_text.size(); i++) {
-		rel_text_map[rel_text[i].offset] = rel_text[i];
-	}
-
-	if (label_map.find(0) == label_map.end()) {
-		// printf("%.16llx:", (dword) 0);
-		std::cout << prettyStringifyValue(stringifyHex((dword) 0)) << ":";
-	}
-
-	int text_address_width = std::__bit_width(text_section.size() / 4);
-	if (text_address_width < 4) {
-		text_address_width = 4;
-	}
-	std::string text_address_format = "\n%" + std::to_string(text_address_width) + "hx";
-	std::string relocation_spacing = "\n%" + std::to_string(text_address_width) + "s";
-	std::string current_label = "";
-	for (int i = 0; i < text_section.size(); i++) {
-		if (label_map.find(i*4) != label_map.end()) {
-			if (i != 0) {
-				printf("\n\n");
-			}
-			current_label = strings[label_map[i*4]];
-			// printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
-			std::cout << prettyStringifyValue(stringifyHex((dword) i*4)) << " <" << current_label << ">:";
-		}
-		std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
-		printf(text_address_format.c_str(), i*4);
-
-		if (disassembly.find_first_of(' ') != std::string::npos) {
-			std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
-			std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
-			printf(":\t%.8lx\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
-			switch (bitfield_u32(text_section[i], 26, 6)) {
-				case Emulator32bit::_op_b:
-				case Emulator32bit::_op_bl:
-					printf(" <%s+0x%hx>", current_label.c_str(), bitfield_s32(text_section[i], 0, 22)*4);
-			}
-		} else {
-			printf(":\t%.8lx\t%.12s", text_section[i], disassembly.c_str());
-		}
-
-		/* Check if there is a relocation record here */
-		if (rel_text_map.find(i*4) != rel_text_map.end()) {
-			printf(relocation_spacing.c_str(), "");
-			printf(" \t%hx: ", (dword) i*4);
-
-			RelocationEntry entry = rel_text_map[i*4];
-			switch (entry.type) {
-				case RelocationEntry::Type::R_EMU32_O_LO12:
-					printf("R_EMU32_O_LO12 ");
-					break;
-				case RelocationEntry::Type::R_EMU32_ADRP_HI20:
-					printf("R_EMU32_ADRP_HI20 ");
-					break;
-				case RelocationEntry::Type::R_EMU32_MOV_LO19:
-					printf("R_EMU32_MOV_LO19 ");
-					break;
-				case RelocationEntry::Type::R_EMU32_MOV_HI13:
-					printf("R_EMU32_MOV_HI13 ");
-					break;
-				case RelocationEntry::Type::R_EMU32_B_OFFSET22:
-					printf("R_EMU32_B_OFFSET22 ");
-					break;
-				case RelocationEntry::Type::UNDEFINED:
-					printf("<ERROR> ");
-					break;
-			}
-
-			printf("%s", strings[symbol_table[entry.symbol].symbol_name].c_str());
-		}
-	}
-	printf("\n");
-
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Finished printing object file.");
 	return m_outputFile;
 }
 
@@ -490,7 +311,7 @@ void Assembler::fill_local() {
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
 	for (int i = 0; i < rel_text.size(); i++) {
-		RelocationEntry &rel = rel_text.at(i);
+		ObjectFile::RelocationEntry &rel = rel_text.at(i);
 		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Evaluating relocation entry " << strings[symbol_table[rel.symbol].symbol_name]);
 
 		while (tokenI < rel.token && tokenI < m_tokens.size()) {
@@ -504,7 +325,7 @@ void Assembler::fill_local() {
 		}
 
 		// first find if symbol is defined in local scope
-		SymbolTableEntry symbol_entry;
+		ObjectFile::SymbolTableEntry symbol_entry;
 		bool found_local = false;
 		std::string symbol = strings[symbol_table[rel.symbol].symbol_name];
 		for (int scopeI = local_scope.size()-1; scopeI >= 0; scopeI--) {
@@ -519,7 +340,7 @@ void Assembler::fill_local() {
 		}
 
 		if (!found_local) {
-			if (symbol_table.at(rel.symbol).binding_info != SymbolTableEntry::BindingInfo::WEAK) {
+			if (symbol_table.at(rel.symbol).binding_info != ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
 				symbol_entry = symbol_table.at(rel.symbol);
 			} else {
 				continue;
@@ -527,25 +348,25 @@ void Assembler::fill_local() {
 		}
 
 		switch (rel.type) {
-			case RelocationEntry::Type::R_EMU32_O_LO12:
+			case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
 				break;
-			case RelocationEntry::Type::R_EMU32_ADRP_HI20:
+			case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
 				break;
-			case RelocationEntry::Type::R_EMU32_MOV_LO19:
+			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
 				break;
-			case RelocationEntry::Type::R_EMU32_MOV_HI13:
+			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
 				break;
-			case RelocationEntry::Type::R_EMU32_B_OFFSET22:
+			case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
 				EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
 						<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
 						<< symbol_entry.symbol_value);
 				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
 				break;
-			case RelocationEntry::Type::UNDEFINED:
+			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 		}

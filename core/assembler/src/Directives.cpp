@@ -11,18 +11,18 @@
  * @param binding_info 		visiblity of the symbol
  * @param section 			section it is defined in. -1 if not defined in a section
  */
-void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section) {
+void Assembler::add_symbol(std::string symbol, word value, ObjectFile::SymbolTableEntry::BindingInfo binding_info, int section) {
 	if (string_table.find(symbol) == string_table.end()) {				/*! If symbol does not exist yet, create it */
 		string_table[symbol] = strings.size();
 		strings.push_back(symbol);
-		symbol_table[string_table[symbol]] = (SymbolTableEntry) {
+		symbol_table[string_table[symbol]] = (ObjectFile::SymbolTableEntry) {
 			.symbol_name = string_table[symbol],
 			.symbol_value = value,
 			.binding_info = binding_info,
 			.section = section,
 		};
 	} else {
-		SymbolTableEntry &symbol_entry = symbol_table[string_table[symbol]];
+		ObjectFile::SymbolTableEntry &symbol_entry = symbol_table[string_table[symbol]];
 		if (symbol_entry.section == -1 && section != -1) {
 			symbol_entry.section = section;
 			symbol_entry.symbol_value = value;
@@ -34,9 +34,9 @@ void Assembler::add_symbol(std::string symbol, word value, SymbolTableEntry::Bin
 			return;
 		}
 
-		if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
-				|| (binding_info == SymbolTableEntry::BindingInfo::LOCAL &&
-				symbol_entry.binding_info == SymbolTableEntry::BindingInfo::WEAK)) {
+		if (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL
+				|| (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL &&
+				symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)) {
 			symbol_entry.binding_info = binding_info;
 		}
 	}
@@ -117,7 +117,7 @@ void Assembler::_global(int& tokenI) {
 	skipTokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
-	add_symbol(symbol, 0, SymbolTableEntry::BindingInfo::GLOBAL, -1);
+	add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, -1);
 }
 
 /**
@@ -138,7 +138,7 @@ void Assembler::_extern(int& tokenI) {
 	skipTokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
-	add_symbol(symbol, 0, SymbolTableEntry::BindingInfo::WEAK, -1);
+	add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 }
 
 /**

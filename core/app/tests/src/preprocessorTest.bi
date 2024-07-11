@@ -8,7 +8,6 @@
 .text
 _start:
 		add	x2, xzr, #0
-.align 8
 .scope
 	array:
 		adrp	x1, #array
