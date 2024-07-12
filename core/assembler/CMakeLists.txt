@@ -12,7 +12,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/Build.cpp
     src/Directives.cpp
     src/Instructions.cpp
-    src/ExecutableFile.cpp
+    src/LoadExecutable.cpp
     src/Linker.cpp
     src/ObjectFile.cpp
     src/Preprocessor.cpp

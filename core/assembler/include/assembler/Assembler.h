@@ -31,21 +31,7 @@ class Assembler {
 		std::vector<Tokenizer::Token> m_tokens;					    /* the tokens of the input processed file */
 
 		FileWriter *m_writer;									    /* writer for the output file */
-
-		/* Possbly in future add separate string table for section headers */
-		/* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
-		std::vector<std::string> strings;							/* stores all strings */
-		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
-		std::unordered_map<int, ObjectFile::SymbolTableEntry> symbol_table;		/* maps string index to symbol */
-		std::vector<ObjectFile::RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
-		std::vector<ObjectFile::RelocationEntry> rel_data;						/* For now, no purpose */
-		std::vector<ObjectFile::RelocationEntry> rel_bss;						/* For now, no purpose, this won't ever be used, get rid of this */
-		std::vector<ObjectFile::SectionHeader> sections;						/* section headers */
-		std::unordered_map<std::string, int> section_table; 		/* map section name to index in sections */
-
-		std::vector<word> text_section;								/* instructions stored in .text section */
-		std::vector<byte> data_section;								/* data stored in .data section */
-		word bss_section = 0;										/* size of .bss section */
+		ObjectFile m_obj;
 
 		enum class Section {
 			NONE, DATA, BSS, TEXT
@@ -55,9 +41,6 @@ class Assembler {
 		int total_scopes = 0;
 		std::vector<int> scopes;									/* Nested scopes */
 
-		void add_symbol(std::string symbol, word value, ObjectFile::SymbolTableEntry::BindingInfo binding_info, int section);
-		int add_section(const std::string section_name, ObjectFile::SectionHeader header);
-		int add_string(const std::string string);
 		dword parse_expression(int& tokenI);
 		std::vector<dword> parse_arguments(int& tokenI);
 		byte parse_register(int& tokenI);

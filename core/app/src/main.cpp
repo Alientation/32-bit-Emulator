@@ -36,7 +36,8 @@ int main() {
 	Assembler assembler = Assembler(&process, processed_file);
 	File* output_file = assembler.assemble();
 
-	ObjectFile object_file = ObjectFile(output_file);
+	ObjectFile object_file = ObjectFile();
+	object_file.read_object_file(output_file);
 
-	Linker linker({object_file});
+	// Linker linker({object_file});
 }

@@ -48,11 +48,11 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 	skipTokens(tokenI, "[ \t]");
 	if (isToken(tokenI, {Tokenizer::SYMBOL})) {
 		std::string symbol = consume(tokenI).value;
-		add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+		m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
-		rel_text.push_back((ObjectFile::RelocationEntry) {
-			.offset = (word) (text_section.size() * 4),
-			.symbol = string_table[symbol],
+		m_obj.rel_text.push_back((ObjectFile::RelocationEntry) {
+			.offset = (word) (m_obj.text_section.size() * 4),
+			.symbol = m_obj.string_table[symbol],
 			.type = ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22,
 			.shift = 0,													/*! Support shift in future */
 			.token = tokenI
@@ -104,11 +104,11 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 
 	expectToken(tokenI, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
 	std::string symbol = consume(tokenI).value;
-	add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
-	rel_text.push_back((ObjectFile::RelocationEntry) {
-		.offset = (word) (text_section.size() * 4),
-		.symbol = string_table[symbol],
+	m_obj.rel_text.push_back((ObjectFile::RelocationEntry) {
+		.offset = (word) (m_obj.text_section.size() * 4),
+		.symbol = m_obj.string_table[symbol],
 		.type = ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
 		.shift = 0,														/*! Support shift in future */
 		.token = tokenI,
@@ -255,11 +255,11 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 			skipTokens(tokenI, "[ \t]");
 			expectToken(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
 			std::string symbol = consume(tokenI).value;
-			add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+			m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
-			rel_text.push_back((ObjectFile::RelocationEntry) {
-				.offset = (word) (text_section.size() * 4),
-				.symbol = string_table[symbol],
+			m_obj.rel_text.push_back((ObjectFile::RelocationEntry) {
+				.offset = (word) (m_obj.text_section.size() * 4),
+				.symbol = m_obj.string_table[symbol],
 				.type = (relocation == Tokenizer::RELOCATION_EMU32_MOV_HI13 ? ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13 : ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19),
 				.shift = 0,												/*! Support shift in future */
 				.token = tokenI,
@@ -382,11 +382,11 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 			skipTokens(tokenI, "[ \t]");
 			expectToken(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
 			std::string symbol = consume(tokenI).value;
-			add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+			m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
-			rel_text.push_back((ObjectFile::RelocationEntry) {
-				.offset = (word) (text_section.size() * 4),
-				.symbol = string_table[symbol],
+			m_obj.rel_text.push_back((ObjectFile::RelocationEntry) {
+				.offset = (word) (m_obj.text_section.size() * 4),
+				.symbol = m_obj.string_table[symbol],
 				.type = ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12,
 				.shift = 0,													/*! Support shift in future */
 				.token = tokenI,
@@ -416,7 +416,7 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
  */
 void Assembler::_add(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_add);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 /**
@@ -426,7 +426,7 @@ void Assembler::_add(int& tokenI) {
  */
 void Assembler::_sub(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_sub);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 /**
@@ -436,7 +436,7 @@ void Assembler::_sub(int& tokenI) {
  */
 void Assembler::_rsb(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_rsb);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 /**
@@ -446,7 +446,7 @@ void Assembler::_rsb(int& tokenI) {
  */
 void Assembler::_adc(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_adc);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 /**
@@ -456,27 +456,27 @@ void Assembler::_adc(int& tokenI) {
  */
 void Assembler::_sbc(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_sbc);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_rsc(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_rsc);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_mul(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_mul);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_umull(int& tokenI) {
 	word instruction = parse_format_o2(tokenI, Emulator32bit::_op_umull);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_smull(int& tokenI) {
 	word instruction = parse_format_o2(tokenI, Emulator32bit::_op_smull);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_vabs_f32(int& tokenI) {
@@ -537,42 +537,42 @@ void Assembler::_vmov_f32(int& tokenI) {
 
 void Assembler::_and(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_and);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_orr(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_orr);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_eor(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_eor);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_bic(int& tokenI) {
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_bic);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_lsl(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_lsl);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_lsr(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_lsr);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_asr(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_asr);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ror(int& tokenI) {
 	word instruction = parse_format_o1(tokenI, Emulator32bit::_op_ror);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void insert_xzr(std::vector<Tokenizer::Token> tokens, int pos) {
@@ -589,108 +589,108 @@ void Assembler::_cmp(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_cmp);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_cmn(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_cmn);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_tst(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_tst);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_teq(int& tokenI) {
 	insert_xzr(m_tokens, tokenI+1);
 
 	word instruction = parse_format_o(tokenI, Emulator32bit::_op_teq);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_mov(int& tokenI) {
 	word instruction = parse_format_o3(tokenI, Emulator32bit::_op_mov);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_mvn(int& tokenI) {
 	word instruction = parse_format_o3(tokenI, Emulator32bit::_op_mvn);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldr(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_ldr);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_str(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_str);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swp(int& tokenI) {
 	word instruction = parse_format_m1(tokenI, Emulator32bit::_op_swp);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldrb(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_ldrb);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_strb(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_strb);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swpb(int& tokenI) {
 	word instruction = parse_format_m1(tokenI, Emulator32bit::_op_swpb);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldrh(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_ldrh);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_strh(int& tokenI) {
 	word instruction = parse_format_m(tokenI, Emulator32bit::_op_strh);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swph(int& tokenI) {
 	word instruction = parse_format_m1(tokenI, Emulator32bit::_op_swph);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_b(int& tokenI) {
 	word instruction = parse_format_b1(tokenI, Emulator32bit::_op_b);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_bl(int& tokenI) {
 	word instruction = parse_format_b1(tokenI, Emulator32bit::_op_bl);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_bx(int& tokenI) {
 	word instruction = parse_format_b2(tokenI, Emulator32bit::_op_bx);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_blx(int& tokenI) {
 	word instruction = parse_format_b2(tokenI, Emulator32bit::_op_blx);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swi(int& tokenI) {
 	word instruction = parse_format_b1(tokenI, Emulator32bit::_op_swi);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ret(int& tokenI) {
@@ -707,11 +707,11 @@ void Assembler::_ret(int& tokenI) {
 
 void Assembler::_adrp(int& tokenI) {
 	word instruction = parse_format_m2(tokenI, Emulator32bit::_op_adrp);
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_hlt(int& tokenI) {
 	consume(tokenI);
 	word instruction = Emulator32bit::asm_hlt();
-	text_section.push_back(instruction);
+	m_obj.text_section.push_back(instruction);
 }

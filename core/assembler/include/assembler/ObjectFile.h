@@ -4,17 +4,23 @@
 
 #include "emulator32bit/Emulator32bitUtil.h"
 #include "util/File.h"
+#include "util/Logger.h"
 
 #include <unordered_map>
 #include <vector>
 
 #define RELOCATABLE_FILE_TYPE 1
+#define EXECUTABLE_FILE_TYPE 2
+// todo #define SHARED_OBJECT_FILE_TYPE 3
 #define EMU_32BIT_MACHINE_ID 1
 
 class ObjectFile {
 	friend class Linker;
 	public:
-		ObjectFile(File *object_file);
+		ObjectFile();
+
+		void read_object_file(File *object_file);
+		void write_object_file(File *object_file);
 
 		/**
 		 * @brief 					Symbols defined in this unit
@@ -58,19 +64,13 @@ class ObjectFile {
 		static const int RELOCATION_ENTRY_SIZE = 28;
 		static const int SYMBOL_TABLE_ENTRY_SIZE = 26;
 
-	private:
-		enum class State {
-			PRE_DISASSEMBLING, DISASSEMBLING, DISASSEMBLED_SUCCESS, DISASSEMBLED_ERROR,
-		};
-
-		File *m_file;										    	/* the .bo file */
-		State m_state;												/* state of the disassembly */
-
 		hword file_type;
 		hword target_machine;
 		hword flags;
 		hword n_sections;
 
+		/* Possbly in future add separate string table for section headers */
+		/* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
 		std::vector<std::string> strings;							/* stores all strings */
 		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
 		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
@@ -83,6 +83,20 @@ class ObjectFile {
 		std::vector<word> text_section;								/* instructions stored in .text section */
 		std::vector<byte> data_section;								/* data stored in .data section */
 		word bss_section = 0;										/* size of .bss section */
+
+		int add_section(const std::string& section_name, SectionHeader header);
+		int add_string(const std::string& string);
+		void add_symbol(const std::string& symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
+
+	private:
+		enum class State {
+			NO_STATE,
+			DISASSEMBLING, DISASSEMBLED_SUCCESS, DISASSEMBLED_ERROR,
+			WRITING, WRITING_SUCCESS, WRITING_ERROR,
+		};
+
+		State m_state;												/* state of the disassembly */
+		File *m_obj_file;
 
 		std::string disassemble_hlt(word instruction);
 		std::string disassemble_add(word instruction);

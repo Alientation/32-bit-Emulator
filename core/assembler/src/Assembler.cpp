@@ -32,25 +32,6 @@ Assembler::State Assembler::get_state() {
 	return this->m_state;
 }
 
-
-int Assembler::add_section(const std::string section_name, ObjectFile::SectionHeader header) {
-	EXPECT_TRUE(section_table.find(section_name) == section_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_section() - Section name exists in section table");
-
-	header.section_name = add_string(section_name);
-	section_table[section_name] = sections.size();
-	sections.push_back(header);
-
-	return sections.size() - 1;
-}
-
-int Assembler::add_string(const std::string string) {
-	EXPECT_TRUE(string_table.find(string) == string_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_string() - String name exists in string table");
-
-	string_table[string] = string_table.size();
-	strings.push_back(string);
-	return strings.size()-1;
-}
-
 // todo, filter out all spaces and tabs
 File* Assembler::assemble() {
 	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
@@ -63,7 +44,7 @@ File* Assembler::assemble() {
 	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
-	add_section(".text", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".text", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::TEXT,
 		.section_start = 0,
@@ -71,7 +52,7 @@ File* Assembler::assemble() {
 		.entry_size = 4,
 	});
 
-	add_section(".data", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".data", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::DATA,
 		.section_start = 0,
@@ -79,7 +60,7 @@ File* Assembler::assemble() {
 		.entry_size = 0,
 	});
 
-	add_section(".bss", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".bss", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::BSS,
 		.section_start = 0,
@@ -87,7 +68,7 @@ File* Assembler::assemble() {
 		.entry_size = 0,
 	});
 
-	add_section(".symtab", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".symtab", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::SYMTAB,
 		.section_start = 0,
@@ -95,7 +76,7 @@ File* Assembler::assemble() {
 		.entry_size = 26,
 	});
 
-	add_section(".rel.text", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".rel.text", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::REL_TEXT,
 		.section_start = 0,
@@ -103,7 +84,7 @@ File* Assembler::assemble() {
 		.entry_size = 28,
 	});
 
-	add_section(".rel.data", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".rel.data", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::REL_DATA,
 		.section_start = 0,
@@ -111,7 +92,7 @@ File* Assembler::assemble() {
 		.entry_size = 28,
 	});
 
-	add_section(".rel.bss", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".rel.bss", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::REL_BSS,
 		.section_start = 0,
@@ -119,7 +100,7 @@ File* Assembler::assemble() {
 		.entry_size = 28,
 	});
 
-	add_section(".strtab", (ObjectFile::SectionHeader) {
+	m_obj.add_section(".strtab", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::STRTAB,
 		.section_start = 0,
@@ -150,11 +131,11 @@ File* Assembler::assemble() {
 
 			std::string symbol = token.value.substr(0, token.value.size()-1) + (scopes.empty() ? "" : "::SCOPE:" + std::to_string(scopes.back()));
 			if (current_section == Section::TEXT) {
-				add_symbol(symbol, text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
+				m_obj.add_symbol(symbol, m_obj.text_section.size() * 4, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
 			} else if (current_section == Section::DATA) {
-				add_symbol(symbol, data_section.size(), ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
+				m_obj.add_symbol(symbol, m_obj.data_section.size(), ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
 			} else if (current_section == Section::BSS) {
-				add_symbol(symbol, bss_section, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
+				m_obj.add_symbol(symbol, m_obj.bss_section, ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
 			}
 			i++;
 		} else if (instructions.find(token.type) != instructions.end()) {
@@ -177,130 +158,7 @@ File* Assembler::assemble() {
 	/* Parse through second time to fill in local symbol values */
 	fill_local();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing to object file.");
-	// create writer for object file
-	m_writer = new FileWriter(m_outputFile, std::ios::in | std::ios::binary);
-
-	ByteWriter byte_writer(m_writer);
-	int current_byte = 0;
-
-	/* BELF Header */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing BELF header.");
-	m_writer->write("BELF");											/*! BELF magic number header */
-	byte_writer << ByteWriter::Data(0, 12);								/*! Unused padding */
-	byte_writer << ByteWriter::Data(RELOCATABLE_FILE_TYPE, 2);			/*! Object file type */
-	byte_writer << ByteWriter::Data(EMU_32BIT_MACHINE_ID, 2);			/*! Target machine */
-	byte_writer << ByteWriter::Data(0, 2);								/*! Flags */
-	byte_writer << ByteWriter::Data(sections.size(), 2);				/*! Number of sections */
-	current_byte += ObjectFile::BELF_HEADER_SIZE;
-
-	/* Text Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .text section.");
-	for (int i = 0; i < text_section.size(); i++) {
-		byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
-	}
-	sections[section_table[".text"]].section_size = text_section.size() * 4;
-	sections[section_table[".text"]].section_start = current_byte;
-	current_byte += text_section.size() * 4;
-
-	/* Data Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .data section.");
-	for (int i = 0; i < data_section.size(); i++) {
-		byte_writer << ByteWriter::Data(data_section.at(i), 1);
-	}
-	sections[section_table[".data"]].section_size = data_section.size();
-	sections[section_table[".data"]].section_start = current_byte;
-	current_byte += data_section.size();
-
-	/* BSS Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .bss section. Size " << bss_section << " bytes.");
-	byte_writer << ByteWriter::Data(bss_section, ObjectFile::BSS_SECTION_SIZE);
-	sections[section_table[".bss"]].section_size = bss_section;
-	sections[section_table[".bss"]].section_start = current_byte;
-	current_byte += ObjectFile::BSS_SECTION_SIZE;
-
-	/* Symbol Table */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .symtab section.");
-	for (std::pair<int, ObjectFile::SymbolTableEntry> symbol : symbol_table) {
-		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
-		byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
-		byte_writer << ByteWriter::Data((short) symbol.second.binding_info, 2);
-		byte_writer << ByteWriter::Data(symbol.second.section, 8);
-
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - symbol " <<
-				strings[symbol.second.symbol_name] << " = " << std::to_string(symbol.second.symbol_value)
-				<< " (" << std::to_string((int)symbol.second.binding_info) << ")[" << std::to_string(symbol.second.section) << "]");
-	}
-	sections[section_table[".symtab"]].section_size = symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
-	sections[section_table[".symtab"]].section_start = current_byte;
-	current_byte += symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
-
-	/* rel.text Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.text section.");
-	for (int i = 0; i < rel_text.size(); i++) {
-		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
-		byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
-		byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
-		byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
-	}
-	sections[section_table[".rel.text"]].section_size = rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-	sections[section_table[".rel.text"]].section_start = current_byte;
-	current_byte += rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-
-	/* rel.data Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.data section.");
-	for (int i = 0; i < rel_data.size(); i++) {
-		byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
-		byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
-		byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
-		byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
-	}
-	sections[section_table[".rel.data"]].section_size = rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-	sections[section_table[".rel.data"]].section_start = current_byte;
-	current_byte += rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-
-	/* rel.bss Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.bss section.");
-	for (int i = 0; i < rel_bss.size(); i++) {
-		byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
-		byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
-		byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
-		byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
-	}
-	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-	sections[section_table[".rel.bss"]].section_start = current_byte;
-	current_byte += rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
-
-	/* String Table */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .strtab section.");
-	int size = 0;
-	for (int i = 0; i < strings.size(); i++) {
-		m_writer->write(strings[i]);
-		byte_writer << ByteWriter::Data(0, 1);							/* Null terminated string */
-		size += strings[i].size() + 1;
-	}
-	sections[section_table[".strtab"]].section_size = size;
-	sections[section_table[".strtab"]].section_start = current_byte;
-	current_byte += size;
-
-	/* Section headers */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing Section headers.");
-	for (int i = 0; i < sections.size(); i++) {
-		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
-		byte_writer << ByteWriter::Data((int) sections[i].type, 4);
-		byte_writer << ByteWriter::Data(sections[i].section_start, 8);
-		byte_writer << ByteWriter::Data(sections[i].section_size, 8);
-		byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
-	}
-	/* For easy access */
-	byte_writer << ByteWriter::Data(current_byte, 8);
-	current_byte += 8;
-	current_byte += sections.size() * ObjectFile::SECTION_HEADER_SIZE;
-
-
-
-	m_writer->close();
-    delete m_writer;
+	m_obj.write_object_file(m_outputFile);
 
 	if (m_state == State::ASSEMBLING) {
 		m_state = State::ASSEMBLED;
@@ -316,9 +174,9 @@ void Assembler::fill_local() {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Parsing relocation entries to fill in known values.");
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
-	for (int i = 0; i < rel_text.size(); i++) {
-		ObjectFile::RelocationEntry &rel = rel_text.at(i);
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Evaluating relocation entry " << strings[symbol_table[rel.symbol].symbol_name]);
+	for (int i = 0; i < m_obj.rel_text.size(); i++) {
+		ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::file_local() - Evaluating relocation entry " << m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
 		while (tokenI < rel.token && tokenI < m_tokens.size()) {
 			if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCOPE) {
@@ -333,52 +191,57 @@ void Assembler::fill_local() {
 		// first find if symbol is defined in local scope
 		ObjectFile::SymbolTableEntry symbol_entry;
 		bool found_local = false;
-		std::string symbol = strings[symbol_table[rel.symbol].symbol_name];
+		std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
 		for (int scopeI = local_scope.size()-1; scopeI >= 0; scopeI--) {
 			std::string local_symbol_name = symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);
-			if (string_table.find(local_symbol_name) == string_table.end()) {
+			if (m_obj.string_table.find(local_symbol_name) == m_obj.string_table.end()) {
 				continue;
 			}
 
-			symbol_entry = symbol_table[string_table[local_symbol_name]];
+			symbol_entry = m_obj.symbol_table[m_obj.string_table[local_symbol_name]];
 			found_local = true;
 			break;
 		}
 
 		if (!found_local) {
-			if (symbol_table.at(rel.symbol).binding_info != ObjectFile::SymbolTableEntry::BindingInfo::WEAK
-				&& symbol_table.at(rel.symbol).section == section_table[".text"]) {
-				symbol_entry = symbol_table.at(rel.symbol);
+			if (m_obj.symbol_table.at(rel.symbol).binding_info != ObjectFile::SymbolTableEntry::BindingInfo::WEAK
+				&& m_obj.symbol_table.at(rel.symbol).section == m_obj.section_table[".text"]) {
+				symbol_entry = m_obj.symbol_table.at(rel.symbol);
 			} else {
 				continue;
 			}
+		} else {
+			rel.symbol = symbol_entry.symbol_name;
+			continue;
 		}
 
+		/* Only fixes relative offsets, we cannot fix absolute references since that must be done when the executable is loaded into memory */
 		switch (rel.type) {
 			case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
-				break;
+				// text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
+				// break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
-				break;
+				// text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
+				// break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
-				break;
+				// text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
+				// break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
-				break;
+				// text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
+				// break;
+				continue;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
 				EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
 						<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
 						<< symbol_entry.symbol_value);
-				text_section[rel.offset/4] = mask_0(text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
+				m_obj.text_section[rel.offset/4] = mask_0(m_obj.text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
 				break;
 			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 		}
 
-		rel_text.erase(rel_text.begin() + i);							/*! For now, simply delete from vector. In future look to optimize */
+		m_obj.rel_text.erase(m_obj.rel_text.begin() + i);							/*! For now, simply delete from vector. In future look to optimize */
 		i--;															/*! Offset the for loop increment */
 	}
 

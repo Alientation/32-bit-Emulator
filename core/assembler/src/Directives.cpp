@@ -4,45 +4,6 @@
 #include <string>
 
 /**
- * @brief 					Adds a symbol to the symbol table
- *
- * @param symbol 			symbol string
- * @param value 			value of the symbol if it is defined
- * @param binding_info 		visiblity of the symbol
- * @param section 			section it is defined in. -1 if not defined in a section
- */
-void Assembler::add_symbol(std::string symbol, word value, ObjectFile::SymbolTableEntry::BindingInfo binding_info, int section) {
-	if (string_table.find(symbol) == string_table.end()) {				/*! If symbol does not exist yet, create it */
-		string_table[symbol] = strings.size();
-		strings.push_back(symbol);
-		symbol_table[string_table[symbol]] = (ObjectFile::SymbolTableEntry) {
-			.symbol_name = string_table[symbol],
-			.symbol_value = value,
-			.binding_info = binding_info,
-			.section = section,
-		};
-	} else {
-		ObjectFile::SymbolTableEntry &symbol_entry = symbol_table[string_table[symbol]];
-		if (symbol_entry.section == -1 && section != -1) {
-			symbol_entry.section = section;
-			symbol_entry.symbol_value = value;
-		} else if (symbol_entry.section != -1 && section != -1) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_symbol() - Multiple definition of symbol "
-					<< symbol << " at sections " << strings[sections[section].section_name] << " and "
-					<< strings[sections[symbol_entry.section].section_name] << ".");
-			m_state = State::ASSEMBLER_ERROR;
-			return;
-		}
-
-		if (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL
-				|| (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL &&
-				symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)) {
-			symbol_entry.binding_info = binding_info;
-		}
-	}
-}
-
-/**
  * @brief
  * @todo					Implement full expression parser
  *
@@ -117,7 +78,7 @@ void Assembler::_global(int& tokenI) {
 	skipTokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
-	add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, -1);
+	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, -1);
 }
 
 /**
@@ -138,7 +99,7 @@ void Assembler::_extern(int& tokenI) {
 	skipTokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
-	add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 }
 
 /**
@@ -167,29 +128,29 @@ void Assembler::_org(int& tokenI) {
 
 	switch (current_section) {
 		case Section::BSS:
-			if (val < bss_section) {
+			if (val < m_obj.bss_section) {
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_org() - .org directive cannot move assembler pc backwards. Expected >= "
-						<< std::to_string(bss_section) << ". Got " << val << ".");
+						<< std::to_string(m_obj.bss_section) << ". Got " << val << ".");
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
-			bss_section = val;
+			m_obj.bss_section = val;
 			break;
 		case Section::DATA:
-			if (val < data_section.size()) {
+			if (val < m_obj.data_section.size()) {
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_org() - .org directive cannot move assembler pc backwards. Expected >= "
-						<< std::to_string(data_section.size()) << ". Got " << val << ".");
+						<< std::to_string(m_obj.data_section.size()) << ". Got " << val << ".");
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
-			for (int i = data_section.size(); i < val; i++) {
-				data_section.push_back(0);
+			for (int i = m_obj.data_section.size(); i < val; i++) {
+				m_obj.data_section.push_back(0);
 			}
 			break;
 		case Section::TEXT:											/* It is likely not very useful to allow .org to move pc in a text section, comparatively to .data and .bss */
-			if (val < text_section.size() * 4) {
+			if (val < m_obj.text_section.size() * 4) {
 				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_org() - .org directive cannot move assembler pc backwards. Expected >= "
-						<< std::to_string(text_section.size() * 4) << ". Got " << val << ".");
+						<< std::to_string(m_obj.text_section.size() * 4) << ". Got " << val << ".");
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -201,8 +162,8 @@ void Assembler::_org(int& tokenI) {
 				return;
 			}
 
-			for (int i = text_section.size() * 4; i < val; i += 4) {
-				text_section.push_back(0);
+			for (int i = m_obj.text_section.size() * 4; i < val; i += 4) {
+				m_obj.text_section.push_back(0);
 			}
 			break;
 	}
@@ -264,11 +225,11 @@ void Assembler::_advance(int& tokenI) {
 
 	switch (current_section) {
 		case Section::BSS:
-			bss_section += val;
+			m_obj.bss_section += val;
 			break;
 		case Section::DATA:
 			for (int i = 0; i < val; i++) {
-				data_section.push_back(0);
+				m_obj.data_section.push_back(0);
 			}
 			break;
 		case Section::TEXT:											/* It is likely not very useful to allow .org to move pc in a text section, comparatively to .data and .bss */
@@ -280,7 +241,7 @@ void Assembler::_advance(int& tokenI) {
 			}
 
 			for (int i = 0; i < val; i += 4) {
-				text_section.push_back(0);
+				m_obj.text_section.push_back(0);
 			}
 			break;
 	}
@@ -312,11 +273,11 @@ void Assembler::_align(int& tokenI) {
 
 	switch (current_section) {
 		case Section::BSS:
-			bss_section += (val - (bss_section%val)) % val;
+			m_obj.bss_section += (val - (m_obj.bss_section%val)) % val;
 			break;
 		case Section::DATA:
-			while (data_section.size() % val != 0) {
-				data_section.push_back(0);
+			while (m_obj.data_section.size() % val != 0) {
+				m_obj.data_section.push_back(0);
 			}
 			break;
 		case Section::TEXT:											/*! It is likely not very useful to allow .org to move pc in a text section, comparatively to .data and .bss */
@@ -327,8 +288,8 @@ void Assembler::_align(int& tokenI) {
 				return;
 			}
 
-			while (text_section.size() * 4 % val != 0) {
-				text_section.push_back(0);
+			while (m_obj.text_section.size() * 4 % val != 0) {
+				m_obj.text_section.push_back(0);
 			}
 			break;
 	}
@@ -363,7 +324,7 @@ void Assembler::_text(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::TEXT;
-	current_section_index = section_table[".text"];
+	current_section_index = m_obj.section_table[".text"];
 }
 
 /**
@@ -377,7 +338,7 @@ void Assembler::_data(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::DATA;
-	current_section_index = section_table[".data"];
+	current_section_index = m_obj.section_table[".data"];
 }
 
 /**
@@ -391,7 +352,7 @@ void Assembler::_bss(int& tokenI) {
 	consume(tokenI);
 
 	current_section = Section::BSS;
-	current_section_index = section_table[".bss"];
+	current_section_index = m_obj.section_table[".bss"];
 }
 
 /**
@@ -443,7 +404,7 @@ void Assembler::_byte(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -455,7 +416,7 @@ void Assembler::_dbyte(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -467,7 +428,7 @@ void Assembler::_word(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -479,7 +440,7 @@ void Assembler::_dword(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -492,7 +453,7 @@ void Assembler::_sbyte(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -505,7 +466,7 @@ void Assembler::_sdbyte(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -517,7 +478,7 @@ void Assembler::_sword(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
@@ -529,7 +490,7 @@ void Assembler::_sdword(int& tokenI) {
 
 	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
 	for (int i = 0; i < data.size(); i++) {
-		data_section.push_back(data.at(i));
+		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
