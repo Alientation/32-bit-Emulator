@@ -66,7 +66,7 @@ ObjectFile::ObjectFile() {
 	_disassembler_instructions[Emulator32bit::_op_adrp] = disassemble_adrp;
 }
 
-void ObjectFile::read_object_file(File *obj_file) {
+void ObjectFile::read_object_file(File obj_file) {
 	m_obj_file = obj_file;
 	disassemble();
 
@@ -295,20 +295,20 @@ void ObjectFile::add_symbol(const std::string& symbol, word value, SymbolTableEn
 	}
 }
 
-void ObjectFile::write_object_file(File *obj_file) {
+void ObjectFile::write_object_file(File obj_file) {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing to object file.");
 	m_state = State::WRITING;
 	m_obj_file = obj_file;
 
 	// clearing object file
 	std::ofstream ofs;
-	ofs.open(obj_file->getFilePath(), std::ofstream::out | std::ofstream::trunc);
+	ofs.open(obj_file.getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
 	// create writer for object file
 	FileWriter m_writer = FileWriter(obj_file, std::ios::in | std::ios::binary);
 
-	ByteWriter byte_writer(&m_writer);
+	ByteWriter byte_writer(m_writer);
 	int current_byte = 0;
 
 	/* BELF Header */
@@ -439,7 +439,7 @@ void ObjectFile::print() {
 		return;
 	}
 
-	printf("%s:\tfile format %s\n\n", (m_obj_file->getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
+	printf("%s:\tfile format %s\n\n", (m_obj_file.getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
 	printf("SYMBOL TABLE:\n");
 	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
 		char visibility = ' ';

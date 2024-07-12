@@ -14,18 +14,15 @@
  * @param file the file to preprocess.
  * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
  */
-Preprocessor::Preprocessor(Process* process, File* inputFile, std::string outputFilePath) {
-    m_process = process;
-    m_inputFile = inputFile;
-
+Preprocessor::Preprocessor(Process* process, const File& inputFile, const std::string& outputFilePath) : m_process(process), m_inputFile(inputFile) {
 	// default output file path if not supplied in the constructor
 	if (outputFilePath.empty()) {
-        m_outputFile = new File(inputFile->getFileName(), PROCESSED_EXTENSION, inputFile->getFileDirectory(), true);
+        m_outputFile = File(m_inputFile.getFileName(), PROCESSED_EXTENSION, m_inputFile.getFileDirectory(), true);
 	} else {
-        m_outputFile = new File(outputFilePath, true);
+        m_outputFile = File(outputFilePath, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile->getExtension());
+	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.getExtension());
 
 	m_state = State::UNPROCESSED;
 	m_tokens = Tokenizer::tokenize(inputFile);
@@ -35,8 +32,6 @@ Preprocessor::Preprocessor(Process* process, File* inputFile, std::string output
  * Destructs a preprocessor object.
  */
 Preprocessor::~Preprocessor() {
-    delete m_outputFile;
-
     for (std::pair<std::string, Macro*> macroPair : m_macros) {
         delete macroPair.second;
     }
@@ -45,19 +40,19 @@ Preprocessor::~Preprocessor() {
 /**
  * Preprocesses the file.
  */
-File* Preprocessor::preprocess() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile->getFileName());
+File Preprocessor::preprocess() {
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile.getFileName());
 
 	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
     // clearing intermediate output file
     std::ofstream ofs;
-    ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(m_outputFile.getFilePath(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
     // create writer for intermediate output file
-    m_writer = new FileWriter(m_outputFile);
+    FileWriter writer = FileWriter(m_outputFile);
 
 	// parses the tokens
 	int currentIndentLevel = 0;
@@ -68,7 +63,7 @@ File* Preprocessor::preprocess() {
 		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip back to back newlines
-        if (token.type == Tokenizer::WHITESPACE_NEWLINE && m_writer->lastByteWritten() == '\n') {
+        if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.lastByteWritten() == '\n') {
             i++;
             continue;
         }
@@ -93,7 +88,7 @@ File* Preprocessor::preprocess() {
 				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE) {
 			// append tabs
 			while (currentIndentLevel < targetIndentLevel) {
-				m_writer->write("\t");
+				writer.write("\t");
 				currentIndentLevel++;
 			}
 		}
@@ -152,7 +147,7 @@ File* Preprocessor::preprocess() {
                 // insert the definition into the tokens list
                 m_tokens.insert(m_tokens.begin() + i, definition.begin(), definition.end());
             } else {
-                m_writer->write(consume(i).value);
+                writer.write(consume(i).value);
             }
 		}
 
@@ -163,10 +158,9 @@ File* Preprocessor::preprocess() {
 	}
 
 	m_state = State::PROCESSED_SUCCESS;
-	m_writer->close();
-    delete m_writer;
+	writer.close();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile->getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile.getFileName());
 
     // log macros
     for (std::pair<std::string, Macro*> macroPair : m_macros) {
@@ -316,7 +310,7 @@ void Preprocessor::_include(int& tokenI) {
         // local include
 		std::string localFilePath = consume(tokenI).value;
 		localFilePath = localFilePath.substr(1, localFilePath.length() - 2);
-        fullPathFromWorkingDirectory = m_inputFile->getFileDirectory() + File::SEPARATOR + localFilePath;
+        fullPathFromWorkingDirectory = m_inputFile.getFileDirectory() + File::SEPARATOR + localFilePath;
     } else {
         // expect <"...">
         consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
@@ -343,12 +337,11 @@ void Preprocessor::_include(int& tokenI) {
 	}
 
 	// process included file
-	File* includeFile = new File(fullPathFromWorkingDirectory);
-	lgr::EXPECT_TRUE(includeFile->exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
+	File includeFile = File(fullPathFromWorkingDirectory);
+	lgr::EXPECT_TRUE(includeFile.exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
-	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile->getFilePath());
-    delete includeFile;
+	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile.getFilePath());
 
 	// yoink the tokens from the included file and insert
 	m_tokens.insert(m_tokens.begin() + tokenI, includedPreprocessor.m_tokens.begin(), includedPreprocessor.m_tokens.end());

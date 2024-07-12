@@ -19,8 +19,8 @@ class ObjectFile {
 	public:
 		ObjectFile();
 
-		void read_object_file(File *object_file);
-		void write_object_file(File *object_file);
+		void read_object_file(File object_file);
+		void write_object_file(File object_file);
 
 		/**
 		 * @brief 					Symbols defined in this unit
@@ -96,7 +96,7 @@ class ObjectFile {
 		};
 
 		State m_state;												/* state of the disassembly */
-		File *m_obj_file;
+		File m_obj_file;
 
 		std::string disassemble_hlt(word instruction);
 		std::string disassemble_add(word instruction);

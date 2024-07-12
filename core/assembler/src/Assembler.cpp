@@ -8,24 +8,17 @@
 
 using namespace lgr;
 
-Assembler::Assembler(Process *process, File *processed_file, std::string output_path) {
-	m_process = process;
-	m_inputFile = processed_file;
-
+Assembler::Assembler(Process *process, File processed_file, const std::string& output_path) : m_process(process), m_inputFile(processed_file) {
 	if (output_path.empty()) {
-		m_outputFile = new File(m_inputFile->getFileName(), OBJECT_EXTENSION, processed_file->getFileDirectory(), true);
+		m_outputFile = File(m_inputFile.getFileName(), OBJECT_EXTENSION, processed_file.getFileDirectory(), true);
 	} else {
-		m_outputFile = new File(output_path, true);
+		m_outputFile = File(output_path, true);
 	}
 
-	EXPECT_TRUE(m_process->isValidProcessedFile(processed_file), Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file->getExtension());
+	EXPECT_TRUE(m_process->isValidProcessedFile(processed_file), Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file.getExtension());
 
 	m_state = State::NOT_ASSEMBLED;
 	m_tokens = Tokenizer::tokenize(processed_file);
-}
-
-Assembler::~Assembler() {
-	delete m_outputFile;
 }
 
 Assembler::State Assembler::get_state() {
@@ -33,15 +26,15 @@ Assembler::State Assembler::get_state() {
 }
 
 // todo, filter out all spaces and tabs
-File* Assembler::assemble() {
-	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile->getFileName());
+File Assembler::assemble() {
+	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile.getFileName());
 
 	EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
 	m_state = State::ASSEMBLING;
 
 	// clearing object file
 	std::ofstream ofs;
-	ofs.open(m_outputFile->getFilePath(), std::ofstream::out | std::ofstream::trunc);
+	ofs.open(m_outputFile.getFilePath(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
 	m_obj.add_section(".text", (ObjectFile::SectionHeader) {
@@ -162,7 +155,7 @@ File* Assembler::assemble() {
 
 	if (m_state == State::ASSEMBLING) {
 		m_state = State::ASSEMBLED;
-		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile->getFileName());
+		log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembled file: " << m_inputFile.getFileName());
 	}
 	return m_outputFile;
 }

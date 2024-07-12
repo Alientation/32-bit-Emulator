@@ -30,11 +30,11 @@ int main() {
 	clearFile(".\\tests\\src\\preprocessorTest." + PROCESSED_EXTENSION);
 
 	// test preprocessing
-	Preprocessor preprocessor = Preprocessor(&process, &file);
-	File* processed_file = preprocessor.preprocess();
+	Preprocessor preprocessor = Preprocessor(&process, file);
+	File processed_file = preprocessor.preprocess();
 
 	Assembler assembler = Assembler(&process, processed_file);
-	File* output_file = assembler.assemble();
+	File output_file = assembler.assemble();
 
 	ObjectFile object_file = ObjectFile();
 	object_file.read_object_file(output_file);

@@ -122,30 +122,18 @@ class Tokenizer {
 
         static const std::unordered_map<Type, std::string> TYPE_TO_NAME_MAP;
 
-        static const std::set<Type> WHITESPACES;
-
+		static const std::set<Type> WHITESPACES;
         static const std::set<Type> COMMENTS;
-
         static const std::set<Type> PREPROCESSOR_DIRECTIVES;
-
         static const std::set<Type> VARIABLE_TYPES;
-
         static const std::set<Type> ASSEMBLER_DIRECTIVES;
-
 		static const std::set<Type> RELOCATIONS;
-
 		static const std::set<Type> REGISTERS;
-
 		static const std::set<Type> INSTRUCTIONS;
-
 		static const std::set<Type> CONDITIONS;
-
         static const std::set<Type> LITERAL_NUMBERS;
-
         static const std::set<Type> LITERAL_VALUES;
-
         static const std::set<Type> OPERATORS;
-
         static const std::vector<std::pair<std::string, Type>> TOKEN_SPEC;
 
         /**
@@ -179,7 +167,7 @@ class Tokenizer {
 		};
 
 
-        static std::vector<Token>& tokenize(File* srcFile);
+        static std::vector<Token>& tokenize(File srcFile);
 		static std::vector<Token>& tokenize(std::string source_code);
 };
 

@@ -26,20 +26,20 @@ static const std::string DEFAULT_OUTPUT_FILE = "a";
 
 class Process {
 	public:
-		static bool isValidSourceFile(File* file) {
-			return file->getExtension() == SOURCE_EXTENSION || file->getExtension() == INCLUDE_EXTENSION;
+		static bool isValidSourceFile(const File& file) {
+			return file.getExtension() == SOURCE_EXTENSION || file.getExtension() == INCLUDE_EXTENSION;
 		}
 
-		static bool isValidProcessedFile(File* file) {
-			return file->getExtension() == PROCESSED_EXTENSION;
+		static bool isValidProcessedFile(const File& file) {
+			return file.getExtension() == PROCESSED_EXTENSION;
 		}
 
-		static bool isValidObjectFile(File* file) {
-			return file->getExtension() == OBJECT_EXTENSION;
+		static bool isValidObjectFile(const File& file) {
+			return file.getExtension() == OBJECT_EXTENSION;
 		}
 
-		static bool isValidExecutableFile(File* file) {
-			return file->getExtension() == EXECUTABLE_EXTENSION;
+		static bool isValidExecutableFile(const File& file) {
+			return file.getExtension() == EXECUTABLE_EXTENSION;
 		}
 
 
@@ -62,7 +62,7 @@ class Process {
         std::vector<File*> getProcessedFiles();
         std::vector<File*> getObjectFiles();
         File* getExecutableFile();
-        
+
 	private:
 		bool onlyCompile = false;
 		std::string outputFile = DEFAULT_OUTPUT_FILE;
@@ -122,7 +122,7 @@ class Process {
 
 			// turns on all optimization
 			{"-oall", &Process::_optimizeAll},
-			
+
 			// turns on warning messages
 			{"-W", &Process::_warn},
 			{"-warning", &Process::_warn},

@@ -17,10 +17,10 @@ class Preprocessor {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
 		};
 
-		Preprocessor(Process *process, File *inputFile, std::string outputFilePath = "");	// constructs a preprocessor object with the given file
+		Preprocessor(Process *process, const File& inputFile, const std::string& outputFilePath = "");	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
-		File* preprocess();							// preprocesses the file
+		File preprocess();							// preprocesses the file
 		State get_state();							// returns the state of the preprocessor
 
 	private:
@@ -95,14 +95,12 @@ class Preprocessor {
 
 		Process *m_process;										    // the build process
 
-		File *m_inputFile;										    // the .basm or .binc file being preprocessed
-		File *m_outputFile;										    // the output file of the processed file, usually a .bi file
+		File m_inputFile;										    // the .basm or .binc file being preprocessed
+		File m_outputFile;										    // the output file of the processed file, usually a .bi file
 		State m_state;											    // the state of the preprocessor
 		std::vector<Tokenizer::Token> m_tokens;					    // the tokens of the input file
 
 		std::stack<std::pair<std::string, Macro*>> m_macroStack;    // the current processing macro stack with the output symbol and macro
-
-		FileWriter *m_writer;									    // writer for the output file
 
         std::map<std::string, std::map<int, Symbol>> m_def_symbols; // defined symbols
 		std::map<std::string, Macro*> m_macros;					    // defined macros

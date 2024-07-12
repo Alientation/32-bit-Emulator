@@ -10,6 +10,8 @@ class Linker {
 
 	private:
 		std::vector<ObjectFile> m_obj_files;
+
+		ObjectFile m_obj_File;
 };
 
 

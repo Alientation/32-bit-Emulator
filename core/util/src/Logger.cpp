@@ -56,9 +56,9 @@ namespace lgr {
 
 	std::string Logger::LogMessage::to_string() {
 		std::stringstream ss;
-		
+
 		std::string group_str = group.empty() ? "" : group + ":";
-		
+
 		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] ["
 			<< file << ":" << line_num << "] [" << group_str << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
 		return ss.str();
@@ -66,13 +66,13 @@ namespace lgr {
 
 	std::string Logger::LogMessage::to_print_string() {
 		std::stringstream ss;
-		// ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] [" 
+		// ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] ["
 		// << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
 
 		std::string group_str = group.empty() ? "" : ccolor::CYAN + group + ccolor::RESET + ":";
 
 		ss << "[" << group_str << Logger::LOGTYPE_TO_PRINT(logType) << "] ["
-		<< ccolor::BLUE << string_util::replaceFirst(file,PROJECT_ROOT_DIRECTORY,"") << ccolor::RESET  << ":" << ccolor::MAGENTA 
+		<< ccolor::BLUE << string_util::replaceFirst(file,PROJECT_ROOT_DIRECTORY,"") << ccolor::RESET  << ":" << ccolor::MAGENTA
 		<< line_num << ccolor::RESET << "] [" << ccolor::YELLOW << func << ccolor::RESET << "]: " << msg;
 		return ss.str();
 	}
@@ -198,7 +198,7 @@ namespace lgr {
 			_log_file = nullptr;
 		} else {
 			_log_file = new File(_config._output_file);
-			_file_writer = new FileWriter(_log_file);
+			_file_writer = new FileWriter(*_log_file);
 		}
 	}
 
@@ -208,8 +208,8 @@ namespace lgr {
 		delete _file_writer;
 		delete _log_file;
 	}
-	
-	
+
+
 	void Logger::log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group) {
 		Logger::LogMessage log = Logger::LogMessage(file, func, line_num, log_type, msg, group);
 		_logs.push_back(log);
@@ -296,7 +296,7 @@ namespace lgr {
 		_funcs = funcs;
 		return *this;
 	}
-	
+
 	Logger::LOG_DUMP& Logger::LOG_DUMP::lines(std::set<int> lines) {
 		_lines = lines;
 		return *this;

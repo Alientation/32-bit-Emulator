@@ -16,21 +16,19 @@ class Assembler {
 			NOT_ASSEMBLED, ASSEMBLING, ASSEMBLED, ASSEMBLER_ERROR, ASSEMBLER_WARNING,
 		};
 
-		Assembler(Process *process, File *processed_file, std::string output_path = "");
-		~Assembler();
+		Assembler(Process *process, File processed_file, const std::string& output_path = "");
 
-		File* assemble();
+		File assemble();
 		State get_state();
 
 	private:
 		Process *m_process;										    /* the build process */
 
-		File *m_inputFile;										    /* the .bi file being assembled */
-		File *m_outputFile;										    /* the object file, a .bo file */
+		File m_inputFile;										    /* the .bi file being assembled */
+		File m_outputFile;										    /* the object file, a .bo file */
 		State m_state;											    /* the state of the assembler */
 		std::vector<Tokenizer::Token> m_tokens;					    /* the tokens of the input processed file */
 
-		FileWriter *m_writer;									    /* writer for the output file */
 		ObjectFile m_obj;
 
 		enum class Section {

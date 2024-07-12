@@ -34,24 +34,48 @@ class File {
 
 		File(std::string fileName, std::string fileExtension, std::string fileDirectory, bool createFileIfNotPresent = false);
 		File(std::string filePath, bool createFileIfNotPresent = false);
+		File();
 		~File();
 
-		std::string getFileName();
-		std::string getExtension();
-		std::string getFilePath();
-		std::string getFileDirectory();
-		int getFileSize();
-		bool exists();
-		void create();
+		std::string getFileName() const;
+		std::string getExtension() const;
+		std::string getFilePath() const;
+		std::string getFileDirectory() const;
+		int getFileSize() const;
+		bool exists() const;
+		void create() const;
 	private:
-		std::string fileName;
-		std::string fileExtension;
-		std::string fileDirectory;
+		std::string m_fileName;
+		std::string m_fileExtension;
+		std::string m_fileDirectory;
+};
+
+class FileWriter {
+	public:
+		FileWriter(const File& file);
+		FileWriter(const File& file, std::_Ios_Openmode flags);
+		~FileWriter();
+		FileWriter& operator<<(std::string);
+		FileWriter& operator<<(char byte);
+		FileWriter& operator<<(const char* bytes);
+
+		void write(std::string text);
+		void write(char byte);
+		void write(const char* bytes);
+        char lastByteWritten();
+        char* lastBytesWritten(unsigned int numBytes);
+		void flush();
+		void close();
+	private:
+		File m_file;
+        std::vector<char> m_bytes_written;
+		std::ofstream* m_fileStream;
+		bool m_closed;
 };
 
 class ByteWriter {
 	public:
-		ByteWriter(FileWriter *filewriter);
+		ByteWriter(FileWriter& filewriter);
 		struct Data {
 			unsigned long long value;
 			int num_bytes;
@@ -72,35 +96,30 @@ class ByteWriter {
 
 		ByteWriter& operator<<(Data data);
 	private:
-		FileWriter *filewriter;
+		FileWriter& m_filewriter;
 };
 
-class FileWriter {
+class FileReader {
 	public:
-		FileWriter(File* file);
-		FileWriter(File* file, std::_Ios_Openmode flags);
-		~FileWriter();
-		FileWriter& operator<<(std::string);
-		FileWriter& operator<<(char byte);
-		FileWriter& operator<<(const char* bytes);
-
-		void write(std::string text);
-		void write(char byte);
-		void write(const char* bytes);
-        char lastByteWritten();
-        char* lastBytesWritten(unsigned int numBytes);
-		void flush();
+		FileReader(const File& file);
+		FileReader(const File& file, std::_Ios_Openmode flags);
+		~FileReader();
+		std::string readAll();
+		char readByte();
+		char peekByte();
+		char* readBytes(unsigned int numBytes);
+		char* readToken(char tokenDelimiter);
+		bool hasNextByte();
 		void close();
 	private:
-		File* file;
-        std::vector<char> bytes_written;
-		std::ofstream* fileStream;
-		bool closed;
+		File m_file;
+		std::ifstream* m_fileStream;
+		bool m_closed;
 };
 
 class ByteReader {
 	public:
-		ByteReader(std::vector<unsigned char> &bytes) : bytes(bytes) {};
+		ByteReader(std::vector<unsigned char> &bytes) : m_bytes(bytes) {};
 		struct Data {
 			unsigned long long val = 0;
 			int num_bytes = 0;
@@ -116,26 +135,8 @@ class ByteReader {
 		unsigned long long read_dword(bool little_endian = true);
 		void skip_bytes(int num_bytes);
 	private:
-		std::vector<unsigned char> &bytes;
-		int cur_byte = 0;
-};
-
-class FileReader {
-	public:
-		FileReader(File* file);
-		FileReader(File* file, std::_Ios_Openmode flags);
-		~FileReader();
-		std::string readAll();
-		char readByte();
-		char peekByte();
-		char* readBytes(unsigned int numBytes);
-		char* readToken(char tokenDelimiter);
-		bool hasNextByte();
-		void close();
-	private:
-		File* file;
-		std::ifstream* fileStream;
-		bool closed;
+		std::vector<unsigned char>& m_bytes;
+		int m_cur_byte = 0;
 };
 
 
