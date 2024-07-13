@@ -25,22 +25,31 @@ int main() {
     lgr::log(lgr::Logger::LogType::TEST, "Testing Preprocessor");
 
     // test creating a file and its attributes
-	Process process = Process("-lib library1 -L .\\tests\\libs -I .\\tests\\include -o preprocessorTest .\\tests\\src\\preprocessorTest." + SOURCE_EXTENSION);
-	File file = File(".\\tests\\src\\preprocessorTest." + SOURCE_EXTENSION);
-	clearFile(".\\tests\\src\\preprocessorTest." + PROCESSED_EXTENSION);
+	Process process = Process("-lib library1 -L .\\tests\\libs -I .\\tests\\include -o preprocessorTest .\\tests\\src\\preprocessorTest.basm .\\tests\\src\\otherFile.basm");
+	File src_file_1 = File(".\\tests\\src\\preprocessorTest.basm");
+	File src_file_2 = File(".\\tests\\src\\otherFile.basm");
 
 	// test preprocessing
-	Preprocessor preprocessor = Preprocessor(&process, file);
-	File processed_file = preprocessor.preprocess();
+	Preprocessor preprocessor_1 = Preprocessor(&process, src_file_1);
+	File processed_file_1 = preprocessor_1.preprocess();
 
-	Assembler assembler = Assembler(&process, processed_file);
-	File output_file = assembler.assemble();
+	Preprocessor preprocessor_2 = Preprocessor(&process, src_file_2);
+	File processed_file_2 = preprocessor_2.preprocess();
 
-	ObjectFile object_file = ObjectFile();
-	object_file.read_object_file(output_file);
+	Assembler assembler1 = Assembler(&process, processed_file_1);
+	File output_file1 = assembler1.assemble();
 
-	File exe_file = File(".\\tests\\preprocessorTest." + EXECUTABLE_EXTENSION);
-	Linker linker({object_file}, exe_file);
+	Assembler assembler_2 = Assembler(&process, processed_file_2);
+	File output_file_2 = assembler_2.assemble();
+
+	ObjectFile obj_file_1 = ObjectFile();
+	obj_file_1.read_object_file(output_file1);
+
+	ObjectFile obj_file_2 = ObjectFile();
+	obj_file_2.read_object_file(output_file_2);
+
+	File exe_file = File(".\\tests\\preprocessorTest.bexe");
+	Linker linker({obj_file_1, obj_file_2}, exe_file);
 
 	ObjectFile exe_obj_file = ObjectFile();
 	exe_obj_file.read_object_file(exe_file);
