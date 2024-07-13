@@ -240,17 +240,17 @@ void ObjectFile::disassemble() {
 }
 
 int ObjectFile::add_section(const std::string& section_name, SectionHeader header) {
-	EXPECT_TRUE(section_table.find(section_name) == section_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_section() - Section name exists in section table");
+	EXPECT_TRUE(section_table.find(section_name) == section_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "ObjectFile::add_section() - Section name exists in section table");
 
 	header.section_name = add_string(section_name);
 	section_table[section_name] = sections.size();
 	sections.push_back(header);
-
+	n_sections++;
 	return sections.size() - 1;
 }
 
 int ObjectFile::add_string(const std::string& string) {
-	EXPECT_TRUE(string_table.find(string) == string_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_string() - String name exists in string table");
+	EXPECT_TRUE(string_table.find(string) == string_table.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "ObjectFile::add_string() - String name exists in string table");
 
 	string_table[string] = string_table.size();
 	strings.push_back(string);
@@ -281,22 +281,22 @@ void ObjectFile::add_symbol(const std::string& symbol, word value, SymbolTableEn
 			symbol_entry.section = section;
 			symbol_entry.symbol_value = value;
 		} else if (symbol_entry.section != -1 && section != -1) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::add_symbol() - Multiple definition of symbol "
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "ObjectFile::add_symbol() - Multiple definition of symbol "
 					<< symbol << " at sections " << strings[sections[section].section_name] << " and "
 					<< strings[sections[symbol_entry.section].section_name] << ".");
 			return;
 		}
 
-		if (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL
-				|| (binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL &&
-				symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)) {
+		if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
+				|| (binding_info == SymbolTableEntry::BindingInfo::LOCAL &&
+				symbol_entry.binding_info == SymbolTableEntry::BindingInfo::WEAK)) {
 			symbol_entry.binding_info = binding_info;
 		}
 	}
 }
 
 void ObjectFile::write_object_file(File obj_file) {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing to object file.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing to object file.");
 	m_state = State::WRITING;
 	m_obj_file = obj_file;
 
@@ -312,17 +312,17 @@ void ObjectFile::write_object_file(File obj_file) {
 	int current_byte = 0;
 
 	/* BELF Header */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing BELF header.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_objectFile() - Writing BELF header.");
 	m_writer.write("BELF");												/*! BELF magic number header */
 	byte_writer << ByteWriter::Data(0, 12);								/*! Unused padding */
 	byte_writer << ByteWriter::Data(file_type, 2);						/*! Object file type */
 	byte_writer << ByteWriter::Data(target_machine, 2);					/*! Target machine */
 	byte_writer << ByteWriter::Data(0, 2);								/*! Flags */
 	byte_writer << ByteWriter::Data(sections.size(), 2);				/*! Number of sections */
-	current_byte += ObjectFile::BELF_HEADER_SIZE;
+	current_byte += BELF_HEADER_SIZE;
 
 	/* Text Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .text section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .text section.");
 	for (int i = 0; i < text_section.size(); i++) {
 		byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
 	}
@@ -331,7 +331,7 @@ void ObjectFile::write_object_file(File obj_file) {
 	current_byte += text_section.size() * 4;
 
 	/* Data Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .data section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .data section.");
 	for (int i = 0; i < data_section.size(); i++) {
 		byte_writer << ByteWriter::Data(data_section.at(i), 1);
 	}
@@ -340,66 +340,66 @@ void ObjectFile::write_object_file(File obj_file) {
 	current_byte += data_section.size();
 
 	/* BSS Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .bss section. Size " << bss_section << " bytes.");
-	byte_writer << ByteWriter::Data(bss_section, ObjectFile::BSS_SECTION_SIZE);
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .bss section. Size " << bss_section << " bytes.");
+	byte_writer << ByteWriter::Data(bss_section, BSS_SECTION_SIZE);
 	sections[section_table[".bss"]].section_size = bss_section;
 	sections[section_table[".bss"]].section_start = current_byte;
-	current_byte += ObjectFile::BSS_SECTION_SIZE;
+	current_byte += BSS_SECTION_SIZE;
 
 	/* Symbol Table */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .symtab section.");
-	for (std::pair<int, ObjectFile::SymbolTableEntry> symbol : symbol_table) {
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .symtab section.");
+	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
 		byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
 		byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
 		byte_writer << ByteWriter::Data((short) symbol.second.binding_info, 2);
 		byte_writer << ByteWriter::Data(symbol.second.section, 8);
 
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - symbol " <<
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - symbol " <<
 				strings[symbol.second.symbol_name] << " = " << std::to_string(symbol.second.symbol_value)
 				<< " (" << std::to_string((int)symbol.second.binding_info) << ")[" << std::to_string(symbol.second.section) << "]");
 	}
-	sections[section_table[".symtab"]].section_size = symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
+	sections[section_table[".symtab"]].section_size = symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
 	sections[section_table[".symtab"]].section_start = current_byte;
-	current_byte += symbol_table.size() * ObjectFile::SYMBOL_TABLE_ENTRY_SIZE;
+	current_byte += symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
 
 	/* rel.text Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.text section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .rel.text section.");
 	for (int i = 0; i < rel_text.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
 	}
-	sections[section_table[".rel.text"]].section_size = rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.text"]].section_size = rel_text.size() * RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.text"]].section_start = current_byte;
-	current_byte += rel_text.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	current_byte += rel_text.size() * RELOCATION_ENTRY_SIZE;
 
 	/* rel.data Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.data section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .rel.data section.");
 	for (int i = 0; i < rel_data.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
 	}
-	sections[section_table[".rel.data"]].section_size = rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.data"]].section_size = rel_data.size() * RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.data"]].section_start = current_byte;
-	current_byte += rel_data.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	current_byte += rel_data.size() * RELOCATION_ENTRY_SIZE;
 
 	/* rel.bss Section */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .rel.bss section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .rel.bss section.");
 	for (int i = 0; i < rel_bss.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
 		byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
 	}
-	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
 	sections[section_table[".rel.bss"]].section_start = current_byte;
-	current_byte += rel_bss.size() * ObjectFile::RELOCATION_ENTRY_SIZE;
+	current_byte += rel_bss.size() * RELOCATION_ENTRY_SIZE;
 
 	/* String Table */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing .strtab section.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing .strtab section.");
 	int size = 0;
 	for (int i = 0; i < strings.size(); i++) {
 		m_writer.write(strings[i]);
@@ -411,7 +411,7 @@ void ObjectFile::write_object_file(File obj_file) {
 	current_byte += size;
 
 	/* Section headers */
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Writing Section headers.");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::write_object_file() - Writing Section headers.");
 	for (int i = 0; i < sections.size(); i++) {
 		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
 		byte_writer << ByteWriter::Data((int) sections[i].type, 4);
@@ -422,7 +422,7 @@ void ObjectFile::write_object_file(File obj_file) {
 	/* For easy access */
 	byte_writer << ByteWriter::Data(current_byte, 8);
 	current_byte += 8;
-	current_byte += sections.size() * ObjectFile::SECTION_HEADER_SIZE;
+	current_byte += sections.size() * SECTION_HEADER_SIZE;
 
 	m_writer.close();
 

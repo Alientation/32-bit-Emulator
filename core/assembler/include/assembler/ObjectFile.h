@@ -69,20 +69,19 @@ class ObjectFile {
 		hword flags;
 		hword n_sections;
 
-		/* Possbly in future add separate string table for section headers */
-		/* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
-		std::vector<std::string> strings;							/* stores all strings */
-		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
+		std::vector<word> text_section;								/* instructions stored in .text section */
+		std::vector<byte> data_section;								/* data stored in .data section */
+		word bss_section = 0;										/* size of .bss section */
 		std::unordered_map<int, SymbolTableEntry> symbol_table;		/* maps string index to symbol */
 		std::vector<RelocationEntry> rel_text;						/* references to symbols that need to be relocated */
 		std::vector<RelocationEntry> rel_data;						/* For now, no purpose */
 		std::vector<RelocationEntry> rel_bss;						/* For now, no purpose, this won't ever be used, get rid of this */
+		/* Possbly in future add separate string table for section headers */
+		/* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
+		std::vector<std::string> strings;							/* stores all strings */
+		std::unordered_map<std::string, int> string_table;			/* maps strings to index in the table*/
 		std::vector<SectionHeader> sections;						/* section headers */
 		std::unordered_map<std::string, int> section_table; 		/* map section name to index in sections */
-
-		std::vector<word> text_section;								/* instructions stored in .text section */
-		std::vector<byte> data_section;								/* data stored in .data section */
-		word bss_section = 0;										/* size of .bss section */
 
 		int add_section(const std::string& section_name, SectionHeader header);
 		int add_string(const std::string& string);

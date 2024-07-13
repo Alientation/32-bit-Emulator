@@ -39,5 +39,9 @@ int main() {
 	ObjectFile object_file = ObjectFile();
 	object_file.read_object_file(output_file);
 
-	// Linker linker({object_file});
+	File exe_file = File(".\\tests\\preprocessorTest." + EXECUTABLE_EXTENSION);
+	Linker linker({object_file}, exe_file);
+
+	ObjectFile exe_obj_file = ObjectFile();
+	exe_obj_file.read_object_file(exe_file);
 }
