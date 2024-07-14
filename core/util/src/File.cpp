@@ -6,26 +6,26 @@
 /**
  * Constructs a file object with the given file name and directory.
  *
- * @param fileName the name of the file
- * @param fileDirectory the directory of the file
+ * @param name the name of the file
+ * @param dir the directory of the file
  */
-File::File(const std::string fileName, const std::string fileExtension, const std::string fileDirectory = "", bool createFileIfNotPresent)
-		: m_fileName(fileName), m_fileExtension(fileExtension) {
-	if (fileDirectory.empty()) {
-		m_fileDirectory = std::filesystem::current_path().string();
+File::File(const std::string& name, const std::string& extension, const std::string& dir, bool create_if_not_present)
+		: m_name(name), m_extension(extension) {
+	if (dir.empty()) {
+		m_dir = std::filesystem::current_path().string();
 	} else {
-		m_fileDirectory = fileDirectory;
+		m_dir = dir;
 	}
 
-	if (!isValidFileName(fileName)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << fileName);
-	} else if (!isValidFileExtension(fileExtension)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << fileExtension);
-	} else if (!isValidFileDirectory(fileDirectory)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << fileDirectory);
+	if (!valid_name(name)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << name);
+	} else if (!valid_extension(extension)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << extension);
+	} else if (!valid_dir(dir)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << dir);
 	}
 
-	if (createFileIfNotPresent && !exists()) {
+	if (create_if_not_present && !exists()) {
 		create();
 	}
 }
@@ -33,33 +33,33 @@ File::File(const std::string fileName, const std::string fileExtension, const st
 /**
  * Constructs a file object with the given file path.
  *
- * @param filePath the path of the file
+ * @param path the path of the file
  */
-File::File(const std::string filePath, bool createFileIfNotPresent) {
-	std::size_t extensionSeparatorIndex = filePath.find_last_of(".");
-	if (extensionSeparatorIndex == std::string::npos) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << filePath);
+File::File(const std::string& path, bool create_if_not_present) {
+	std::size_t extension_separator_index = path.find_last_of(".");
+	if (extension_separator_index == std::string::npos) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << path);
 	}
 
-	std::string fileNameAndExtension = filePath.substr(filePath.find_last_of(SEPARATOR) + 1);
-	m_fileName = fileNameAndExtension.substr(0, fileNameAndExtension.find_last_of("."));
-	m_fileExtension = fileNameAndExtension.substr(fileNameAndExtension.find_last_of(".") + 1);
-	m_fileDirectory = filePath.substr(0, filePath.find_last_of(SEPARATOR));
+	std::string name_and_extension = path.substr(path.find_last_of(SEPARATOR) + 1);
+	m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
+	m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
+	m_dir = path.substr(0, path.find_last_of(SEPARATOR));
 
-	if (!isValidFileName(m_fileName)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << m_fileName);
-	} else if (!isValidFileExtension(m_fileExtension)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << m_fileExtension);
-	} else if (!isValidFileDirectory(m_fileDirectory)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << m_fileDirectory);
+	if (!valid_name(m_name)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << m_name);
+	} else if (!valid_extension(m_extension)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file extension: " << m_extension);
+	} else if (!valid_dir(m_dir)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file directory: " << m_dir);
 	}
 
-	if (createFileIfNotPresent && !exists()) {
+	if (create_if_not_present && !exists()) {
 		create();
 	}
 }
 
-File::File() : m_fileName(""), m_fileDirectory(""), m_fileExtension("") { }
+File::File() : m_name(""), m_dir(""), m_extension("") { }
 
 /**
  * Destructs a file object
@@ -73,8 +73,8 @@ File::~File() {
  *
  * @return the name of the file
  */
-std::string File::getFileName() const {
-	return m_fileName;
+std::string File::get_name() const {
+	return m_name;
 }
 
 /**
@@ -82,8 +82,8 @@ std::string File::getFileName() const {
  *
  * @return the extension of the file
  */
-std::string File::getExtension() const {
-	return m_fileExtension;
+std::string File::get_extension() const {
+	return m_extension;
 }
 
 /**
@@ -91,8 +91,8 @@ std::string File::getExtension() const {
  *
  * @return the path of the file
  */
-std::string File::getFilePath() const {
-	return m_fileDirectory + SEPARATOR + m_fileName + "." + m_fileExtension;
+std::string File::get_path() const {
+	return m_dir + SEPARATOR + m_name + "." + m_extension;
 }
 
 /**
@@ -100,8 +100,8 @@ std::string File::getFilePath() const {
  *
  * @return the directory of the file
  */
-std::string File::getFileDirectory() const {
-	return m_fileDirectory;
+std::string File::get_dir() const {
+	return m_dir;
 }
 
 /**
@@ -109,12 +109,12 @@ std::string File::getFileDirectory() const {
  *
  * @return the size of the file in bytes
  */
-int File::getFileSize() const {
+int File::get_size() const {
 	int fileSize = 0;
 
-	std::ifstream fileStream = std::ifstream(this->getFilePath(), std::ifstream::in);
-	while (fileStream.peek() != EOF) {
-		fileStream.get();
+	std::ifstream file_stream = std::ifstream(this->get_path(), std::ifstream::in);
+	while (file_stream.peek() != EOF) {
+		file_stream.get();
 		fileSize++;
 	}
 
@@ -127,14 +127,14 @@ int File::getFileSize() const {
  * @return true if the file exists
  */
 bool File::exists() const {
-	return std::filesystem::exists(this->getFilePath());
+	return std::filesystem::exists(this->get_path());
 }
 
 /**
  * Creates the file
  */
 void File::create() const {
-	std::ofstream file(this->getFilePath());
+	std::ofstream file(this->get_path());
 	file.close();
 }
 
@@ -146,20 +146,20 @@ void File::create() const {
  * @param file the file to write to
  */
 FileWriter::FileWriter(const File& file) : m_file(file) {
-	m_fileStream = new std::ofstream(file.getFilePath(), std::ifstream::out);
+	m_file_stream = new std::ofstream(file.get_path(), std::ifstream::out);
 	m_closed = false;
 
-	if (!m_fileStream->good()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.getFilePath());
+	if (!m_file_stream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.get_path());
 	}
 }
 
 FileWriter::FileWriter(const File& file, std::_Ios_Openmode flags) : m_file(file) {
-	m_fileStream = new std::ofstream(file.getFilePath(), flags);
+	m_file_stream = new std::ofstream(file.get_path(), flags);
 	m_closed = false;
 
-	if (!m_fileStream->good()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.getFilePath());
+	if (!m_file_stream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.get_path());
 	}
 }
 
@@ -195,12 +195,28 @@ void FileWriter::write(const std::string text) {
 		exit(EXIT_FAILURE);
 	}
 
-	(*m_fileStream) << text;
+	(*m_file_stream) << text;
     for (int i = 0; i < text.size(); i++) {
         m_bytes_written.push_back(text[i]);
     }
 }
 
+ByteWriter::Data::Data(unsigned long long value, int num_bytes) : value(value), num_bytes(num_bytes) {
+
+}
+
+ByteWriter::Data::Data(unsigned long long value, int num_bytes, bool little_endian) {
+	if (little_endian) {
+		this->value = value;
+	} else {
+		for (int i = 0; i < num_bytes; i++) {
+			this->value <<= 8;
+			this->value += value & 0xFF;
+			value >>= 8;
+		}
+	}
+	this->num_bytes = num_bytes;
+}
 
 ByteWriter::ByteWriter(FileWriter& filewriter) : m_filewriter(filewriter) { }
 
@@ -228,7 +244,7 @@ void FileWriter::write(const char byte) {
 		exit(EXIT_FAILURE);
 	}
 
-	(*m_fileStream) << byte;
+	(*m_file_stream) << byte;
 
     m_bytes_written.push_back(byte);
 }
@@ -243,7 +259,7 @@ void FileWriter::write(const char* bytes) {
 		exit(EXIT_FAILURE);
 	}
 
-	(*m_fileStream) << bytes;
+	(*m_file_stream) << bytes;
 
     int size = sizeof(bytes);
     for (int i = 0; i < size; i++) {
@@ -252,18 +268,18 @@ void FileWriter::write(const char* bytes) {
 }
 
 
-char FileWriter::lastByteWritten() {
+char FileWriter::last_byte_written() {
     if (m_bytes_written.size() > 0) {
         return m_bytes_written.back();
     }
     return '\0';
 }
 
-char* FileWriter::lastBytesWritten(unsigned int numBytes) {
-    char* bytes = new char[numBytes];
+char* FileWriter::last_bytes_written(unsigned int num_bytes) {
+    char* bytes = new char[num_bytes];
 
-    for (int i = std::max(0ULL, numBytes - m_bytes_written.size()); i < numBytes; i++) {
-        bytes[i] = m_bytes_written[m_bytes_written.size() - numBytes + i];
+    for (int i = std::max(0ULL, num_bytes - m_bytes_written.size()); i < num_bytes; i++) {
+        bytes[i] = m_bytes_written[m_bytes_written.size() - num_bytes + i];
     }
 
     return bytes;
@@ -275,7 +291,7 @@ void FileWriter::flush() {
 		exit(EXIT_FAILURE);
 	}
 
-	m_fileStream->flush();
+	m_file_stream->flush();
 }
 
 
@@ -285,11 +301,12 @@ void FileWriter::flush() {
 void FileWriter::close() {
 	if (!m_closed) {
 		m_closed = true;
-		delete m_fileStream;
+		delete m_file_stream;
 	}
 }
 
-
+ByteReader::Data::Data(int num_bytes) : num_bytes(num_bytes) { };
+ByteReader::Data::Data(int num_bytes, bool little_endian) : num_bytes(num_bytes), little_endian(little_endian) { };
 
 ByteReader& ByteReader::operator>>(ByteReader::Data &data) {
 	if (data.little_endian) {
@@ -343,21 +360,21 @@ void ByteReader::skip_bytes(int num_bytes) {
  * @param file the file to read from
  */
 FileReader::FileReader(const File& file) : m_file(file) {
-	m_fileStream = new std::ifstream(m_file.getFilePath(), std::ifstream::in);
+	m_file_stream = new std::ifstream(m_file.get_path(), std::ifstream::in);
 	m_closed = false;
 
-	if (!m_fileStream->good()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.getFilePath());
+	if (!m_file_stream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.get_path());
 	}
 }
 
 
 FileReader::FileReader(const File& file, std::_Ios_Openmode flags) : m_file(file) {
-	m_fileStream = new std::ifstream(m_file.getFilePath(), flags);
+	m_file_stream = new std::ifstream(m_file.get_path(), flags);
 	m_closed = false;
 
-	if (!m_fileStream->good()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.getFilePath());
+	if (!m_file_stream->good()) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.get_path());
 	}
 }
 
@@ -374,10 +391,10 @@ FileReader::~FileReader() {
  *
  * @return the entire file as a string
  */
-std::string FileReader::readAll() {
+std::string FileReader::read_all() {
 	std::string fileContents;
-	while (m_fileStream->peek() != EOF) {
-		fileContents += m_fileStream->get();
+	while (m_file_stream->peek() != EOF) {
+		fileContents += m_file_stream->get();
 	}
 	close();
 	return fileContents;
@@ -388,8 +405,8 @@ std::string FileReader::readAll() {
  *
  * @return the byte read from the file
  */
-char FileReader::readByte() {
-	return m_fileStream->get();;
+char FileReader::read_byte() {
+	return m_file_stream->get();;
 }
 
 /**
@@ -397,23 +414,23 @@ char FileReader::readByte() {
  *
  * @return the next byte to be read from the file
  */
-char FileReader::peekByte() {
-	return m_fileStream->peek();
+char FileReader::peek_byte() {
+	return m_file_stream->peek();
 }
 
 /**
  * Reads a number of bytes from the file
  *
- * @param numBytes the number of bytes to read
+ * @param num_bytes the number of bytes to read
  * @return the bytes read from the file
  */
-char* FileReader::readBytes(const unsigned int numBytes) {
-	char* bytes = new char[numBytes];
-	m_fileStream->read(bytes, numBytes);
+char* FileReader::read_bytes(const unsigned int num_bytes) {
+	char* bytes = new char[num_bytes];
+	m_file_stream->read(bytes, num_bytes);
 
-	if (m_fileStream->fail()) {
+	if (m_file_stream->fail()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "FileReader::readBytes() - Failed to read " <<
-				numBytes << " bytes from file: " << m_file.getFilePath());
+				num_bytes << " bytes from file: " << m_file.get_path());
 	}
 
 	return bytes;
@@ -426,10 +443,10 @@ char* FileReader::readBytes(const unsigned int numBytes) {
  *
  * @return the bytes read from the file
  */
-char* FileReader::readToken(const char tokenDelimiter) { // TODO: make this take in a regex separator
+char* FileReader::read_token(const char token_delimiter) { // TODO: make this take in a regex separator
 	std::string token = "";
-	while (m_fileStream->peek() != tokenDelimiter && m_fileStream->peek() != EOF) {
-		token += m_fileStream->get();
+	while (m_file_stream->peek() != token_delimiter && m_file_stream->peek() != EOF) {
+		token += m_file_stream->get();
 	}
 
 	return (char*)token.c_str();
@@ -440,8 +457,8 @@ char* FileReader::readToken(const char tokenDelimiter) { // TODO: make this take
  *
  * @return true if there is another byte to read
  */
-bool FileReader::hasNextByte() {
-	return m_fileStream->peek() != EOF;
+bool FileReader::has_next_byte() {
+	return m_file_stream->peek() != EOF;
 }
 
 /**
@@ -449,7 +466,7 @@ bool FileReader::hasNextByte() {
  */
 void FileReader::close() {
 	if (!m_closed) {
-		delete m_fileStream;
+		delete m_file_stream;
 		m_closed = true;
 	}
 }

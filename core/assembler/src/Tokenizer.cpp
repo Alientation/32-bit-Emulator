@@ -10,15 +10,15 @@
  * @return A list of tokens
  */
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile) {
-    lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile.getFileName());
+    lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile.get_name());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
-	std::string source_code = reader.readAll() + "\n";
+	std::string source_code = reader.read_all() + "\n";
 	reader.close();
 
 	std::vector<Token>& tokens = tokenize(source_code);
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile.getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile.get_name());
 	return tokens;
 }
 

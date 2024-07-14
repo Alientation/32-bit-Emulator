@@ -10,29 +10,29 @@ class Directory;
 
 class Directory {
 	public:
-		static bool isValidDirectoryPath(const std::string dirPath) {
-			return dirPath.find_first_of("*?\"<>|") == std::string::npos;
+		static bool valid_path(const std::string& path) {
+			return path.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
-		Directory(const std::string dirPath, bool createDirectoryIfNotPresent = false);
+		Directory(const std::string& path, bool create_if_not_present = false);
 		~Directory();
 
-		std::string getDirectoryName();
-		std::string getDirectoryPath();
-		int getDirectorySize();
-		std::vector<File*> getSubfiles();
-		std::vector<Directory*> getSubdirectories();
-		Directory* getSubdirectory(const std::string subdirectoryPath);
-		File* getSubfile(const std::string subfilePath);
+		std::string get_name();
+		std::string get_path();
+		int get_size();
+		std::vector<File*> get_subfiles();
+		std::vector<Directory*> get_subdirs();
+		Directory* get_subdir(const std::string& subdir_path);
+		File* get_subfile(const std::string& subfile_path);
 
-		bool subdirectoryExists(const std::string subdirectoryPath);
-		bool subfileExists(const std::string subfilePath);
+		bool subdir_exists(const std::string& subdir_path);
+		bool subfile_exists(const std::string& subfile_path);
 
 		bool exists();
 		void create();
 
 	private:
-		std::string dirPath;
+		std::string m_dir_path;
 
 };
 

@@ -16,38 +16,38 @@ class File {
 	public:
 		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator);
 
-		static bool isValidFileName(const std::string fileName) {
-			return fileName.find_first_of("\\/:*?\"<>|") == std::string::npos && fileName.size() > 0;
+		static bool valid_name(const std::string& name) {
+			return name.find_first_of("\\/:*?\"<>|") == std::string::npos && name.size() > 0;
 		}
 
-		static bool isValidFileExtension(const std::string fileExtension) {
-			return fileExtension.find_first_of("\\/:*?\"<>|") == std::string::npos && fileExtension.size() > 0;
+		static bool valid_extension(const std::string& extension) {
+			return extension.find_first_of("\\/:*?\"<>|") == std::string::npos && extension.size() > 0;
 		}
 
-		static bool isValidFileDirectory(const std::string directory) {
-			return directory.find_first_of("*?\"<>|") == std::string::npos;
+		static bool valid_dir(const std::string& dir) {
+			return dir.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
-		static bool isValidFilePath(const std::string filepath) {
-			return filepath.find_first_of("*?\"<>|") == std::string::npos;
+		static bool valid_path(const std::string& path) {
+			return path.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
-		File(std::string fileName, std::string fileExtension, std::string fileDirectory, bool createFileIfNotPresent = false);
-		File(std::string filePath, bool createFileIfNotPresent = false);
+		File(const std::string& name, const std::string& extension, const std::string& dir = "", bool create_if_not_present = false);
+		File(const std::string& path, bool create_if_not_present = false);
 		File();
 		~File();
 
-		std::string getFileName() const;
-		std::string getExtension() const;
-		std::string getFilePath() const;
-		std::string getFileDirectory() const;
-		int getFileSize() const;
+		std::string get_name() const;
+		std::string get_extension() const;
+		std::string get_path() const;
+		std::string get_dir() const;
+		int get_size() const;
 		bool exists() const;
 		void create() const;
 	private:
-		std::string m_fileName;
-		std::string m_fileExtension;
-		std::string m_fileDirectory;
+		std::string m_name;
+		std::string m_extension;
+		std::string m_dir;
 };
 
 class FileWriter {
@@ -62,14 +62,14 @@ class FileWriter {
 		void write(std::string text);
 		void write(char byte);
 		void write(const char* bytes);
-        char lastByteWritten();
-        char* lastBytesWritten(unsigned int numBytes);
+        char last_byte_written();
+        char* last_bytes_written(unsigned int numBytes);
 		void flush();
 		void close();
 	private:
 		File m_file;
         std::vector<char> m_bytes_written;
-		std::ofstream* m_fileStream;
+		std::ofstream* m_file_stream;
 		bool m_closed;
 };
 
@@ -79,19 +79,8 @@ class ByteWriter {
 		struct Data {
 			unsigned long long value;
 			int num_bytes;
-			Data(unsigned long long value, int num_bytes) : value(value), num_bytes(num_bytes) {}
-			Data(unsigned long long value, int num_bytes, bool little_endian) {
-				if (little_endian) {
-					this->value = value;
-				} else {
-					for (int i = 0; i < num_bytes; i++) {
-						this->value <<= 8;
-						this->value += value & 0xFF;
-						value >>= 8;
-					}
-				}
-				this->num_bytes = num_bytes;
-			}
+			Data(unsigned long long value, int num_bytes);
+			Data(unsigned long long value, int num_bytes, bool little_endian);
 		};
 
 		ByteWriter& operator<<(Data data);
@@ -104,16 +93,16 @@ class FileReader {
 		FileReader(const File& file);
 		FileReader(const File& file, std::_Ios_Openmode flags);
 		~FileReader();
-		std::string readAll();
-		char readByte();
-		char peekByte();
-		char* readBytes(unsigned int numBytes);
-		char* readToken(char tokenDelimiter);
-		bool hasNextByte();
+		std::string read_all();
+		char read_byte();
+		char peek_byte();
+		char* read_bytes(unsigned int num_bytes);
+		char* read_token(char token_delimiter);
+		bool has_next_byte();
 		void close();
 	private:
 		File m_file;
-		std::ifstream* m_fileStream;
+		std::ifstream* m_file_stream;
 		bool m_closed;
 };
 
@@ -124,8 +113,8 @@ class ByteReader {
 			unsigned long long val = 0;
 			int num_bytes = 0;
 			bool little_endian = true;
-			Data(int num_bytes) : num_bytes(num_bytes) {};
-			Data(int num_bytes, bool little_endian) : num_bytes(num_bytes), little_endian(little_endian) {};
+			Data(int num_bytes);
+			Data(int num_bytes, bool little_endian);
 		};
 
 		ByteReader& operator>>(Data &data);

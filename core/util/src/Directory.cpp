@@ -6,14 +6,14 @@
 /**
  * Constructs a directory with the given path
  */
-Directory::Directory(std::string dirPath, bool createDirectoryIfNotPresent) {
-	this->dirPath = dirPath;
+Directory::Directory(const std::string& path, bool create_if_not_present) {
+	this->m_dir_path = path;
 
-	if (!isValidDirectoryPath(dirPath)) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Directory::Directory() - Invalid directory path: " << dirPath);
+	if (!valid_path(path)) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Directory::Directory() - Invalid directory path: " << path);
 	}
 
-	if (createDirectoryIfNotPresent && !exists()) {
+	if (create_if_not_present && !exists()) {
 		create();
 	}
 }
@@ -27,25 +27,25 @@ Directory::~Directory() {
 
 /**
  * Returns the name of the directory
- * 
+ *
  * @return the name of the directory
  */
-std::string Directory::getDirectoryName() {
-	return dirPath.substr(dirPath.find_last_of(File::SEPARATOR) + 1);
+std::string Directory::get_name() {
+	return m_dir_path.substr(m_dir_path.find_last_of(File::SEPARATOR) + 1);
 }
 
 /**
  * Returns the size of the directory, including all subdirectories and their contents
- * 
+ *
  * @return the size of the directory
  */
-int Directory::getDirectorySize() {
+int Directory::get_size() {
 	int size = 0;
 
-	for (const auto & entry : std::filesystem::directory_iterator(dirPath)) {
+	for (const auto & entry : std::filesystem::directory_iterator(m_dir_path)) {
 		if (entry.is_directory()) {
 			Directory* subdir = new Directory(entry.path().string());
-			size += subdir->getDirectorySize();
+			size += subdir->get_size();
 		} else if (entry.is_regular_file()) {
 			size += std::filesystem::file_size(entry.path());
 		}
@@ -57,23 +57,23 @@ int Directory::getDirectorySize() {
 
 /**
  * Returns the path of the directory
- * 
+ *
  * @return the path of the directory
  */
-std::string Directory::getDirectoryPath() {
-	return dirPath;
+std::string Directory::get_path() {
+	return m_dir_path;
 }
 
 /**
  * Returns the subfiles of the directory, not including any subdirectories or its contents
- * 
+ *
  * @return the subfiles of the directory
  */
-std::vector<File*> Directory::getSubfiles() {
+std::vector<File*> Directory::get_subfiles() {
 	std::vector<File*> subfiles;
 
 	// get the contents of this directory
-	for (const auto & entry : std::filesystem::directory_iterator(dirPath)) {
+	for (const auto & entry : std::filesystem::directory_iterator(m_dir_path)) {
 		if (!entry.is_regular_file()) {
 			continue;
 		}
@@ -86,14 +86,14 @@ std::vector<File*> Directory::getSubfiles() {
 
 /**
  * Returns the subdirectories of the directory, not including any subfiles
- * 
+ *
  * @return the subdirectories of the directory
  */
-std::vector<Directory*> Directory::getSubdirectories() {
+std::vector<Directory*> Directory::get_subdirs() {
 	std::vector<Directory*> subdirs;
 
 	// get the contents of the directory
-	for (const auto & entry : std::filesystem::directory_iterator(dirPath)) {
+	for (const auto & entry : std::filesystem::directory_iterator(m_dir_path)) {
 		if (!entry.is_directory()) {
 			continue;
 		}
@@ -107,12 +107,12 @@ std::vector<Directory*> Directory::getSubdirectories() {
 
 /**
  * Returns the subdirectory of a path relative to the current directory
- * 
- * @param subdirectoryPath the path of the subdirectory relative to the current directory
- * 
+ *
+ * @param subdir_path the path of the subdirectory relative to the current directory
+ *
  * @return the subdirectory of a path relative path
  */
-Directory* Directory::getSubdirectory(const std::string subdirectoryPath) {
+Directory* Directory::get_subdir(const std::string& subdir_path) {
 	Directory* subdir;
 
 	return subdir;
@@ -120,12 +120,12 @@ Directory* Directory::getSubdirectory(const std::string subdirectoryPath) {
 
 /**
  * Returns the subfile of a path relative to the current directory
- * 
- * @param subfilePath the path of the subfile relative to the current directory
- * 
+ *
+ * @param subfile_path the path of the subfile relative to the current directory
+ *
  * @return the subfile of a path relative path
  */
-File* Directory::getSubfile(const std::string subfilePath) {
+File* Directory::get_subfile(const std::string& subfile_path) {
 	File* subfile;
 
 	return subfile;
@@ -133,38 +133,38 @@ File* Directory::getSubfile(const std::string subfilePath) {
 
 /**
  * Returns whether or not the subdirectory exists
- * 
- * @param subdirectoryPath the path of the subdirectory relative to the current directory
- * 
+ *
+ * @param subdir_path the path of the subdirectory relative to the current directory
+ *
  * @return whether or not the subdirectory exists
  */
-bool Directory::subdirectoryExists(const std::string subdirectoryPath) {
-	return std::filesystem::exists(dirPath + File::SEPARATOR + subdirectoryPath);
+bool Directory::subdir_exists(const std::string& subdir_path) {
+	return std::filesystem::exists(m_dir_path + File::SEPARATOR + subdir_path);
 }
 
 /**
  * Returns whether or not the subfile exists
- * 
- * @param subfilePath the path of the subfile relative to the current directory
- * 
+ *
+ * @param subfile_path the path of the subfile relative to the current directory
+ *
  * @return whether or not the subfile exists
  */
-bool Directory::subfileExists(const std::string subfilePath) {
-	return std::filesystem::exists(dirPath + File::SEPARATOR + subfilePath);
+bool Directory::subfile_exists(const std::string& subfile_path) {
+	return std::filesystem::exists(m_dir_path + File::SEPARATOR + subfile_path);
 }
 
 /**
  * Returns whether or not the directory exists
- * 
+ *
  * @return whether or not the directory exists
  */
 bool Directory::exists() {
-	return std::filesystem::exists(dirPath);
+	return std::filesystem::exists(m_dir_path);
 }
 
 /**
  * Creates the directory
  */
 void Directory::create() {
-	std::filesystem::create_directories(dirPath);
+	std::filesystem::create_directories(m_dir_path);
 }

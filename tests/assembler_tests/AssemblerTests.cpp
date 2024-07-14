@@ -70,20 +70,20 @@ void directoryTests() {
 
 	// test creating a file and its attributes
 	Directory* directory = new Directory(REL_PATH_TO_FILES_FOLDER);
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Name: " << directory->getDirectoryName());
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Path: " << directory->getDirectoryPath());
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Size: " << directory->getDirectorySize());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Name: " << directory->get_name());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Path: " << directory->get_path());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory Size: " << directory->get_size());
 
 	// test getting files
-	std::vector<File*> files = directory->getSubfiles();
+	std::vector<File*> files = directory->get_subfiles();
 	for (int i = 0; i < files.size(); i++) {
-		log(lgr::Logger::LogType::TEST, std::stringstream() << "File " << i << ": " << files[i]->getFileName());
+		log(lgr::Logger::LogType::TEST, std::stringstream() << "File " << i << ": " << files[i]->get_name());
 	}
 
 	// test getting directories
-	std::vector<Directory*> directories = directory->getSubdirectories();
+	std::vector<Directory*> directories = directory->get_subdirs();
 	for (int i = 0; i < directories.size(); i++) {
-		log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory " << i << ": " << directories[i]->getDirectoryName());
+		log(lgr::Logger::LogType::TEST, std::stringstream() << "Directory " << i << ": " << directories[i]->get_name());
 	}
 }
 
@@ -94,10 +94,10 @@ void directoryTests() {
 void fileTests() {
 	// test creating a file and its attributes
 	File* file = new File(REL_PATH_TO_FILES_FOLDER + "empty.txt");
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Name: " << file->getFileName());
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Extension: " << file->getExtension());
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Path: " << file->getFilePath());
-	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Size: " << file->getFileSize());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Name: " << file->get_name());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Extension: " << file->get_extension());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Path: " << file->get_path());
+	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Size: " << file->get_size());
 
 	fileReaderAll();
 	// fileReaderByte();
@@ -114,7 +114,7 @@ void fileReaderAll() {
 
 	// read from test file
 	FileReader reader = FileReader(new File(REL_PATH_TO_FILES_FOLDER + "readFromFile.txt"));
-	std::string fileContents = reader.readAll();
+	std::string fileContents = reader.read_all();
 	reader.close();
 	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);
 
@@ -135,8 +135,8 @@ void fileReaderByte() {
 	// read byte one by one from test file
 	FileReader reader = FileReader(new File(REL_PATH_TO_FILES_FOLDER + "readFromFile.txt"));
 	std::string fileContents;
-	while (reader.hasNextByte()) {
-		fileContents += reader.readByte();
+	while (reader.has_next_byte()) {
+		fileContents += reader.read_byte();
 	}
 	reader.close();
 	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);
@@ -163,14 +163,14 @@ void fileReaderBytes() {
 	std::string fileContents;
 
 	// first reach in chunks of 8 bytes
-	int sizeLeft = file->getFileSize();
+	int sizeLeft = file->get_size();
 	while (sizeLeft >= 8) {
-		fileContents += reader.readBytes(8);
+		fileContents += reader.read_bytes(8);
 	}
 
 	// read the remaining bytes in the file
-	while (reader.hasNextByte()) {
-		fileContents += reader.readByte();
+	while (reader.has_next_byte()) {
+		fileContents += reader.read_byte();
 	}
 	reader.close();
 	log(lgr::Logger::LogType::TEST, std::stringstream() << "File Contents: \n" << fileContents);

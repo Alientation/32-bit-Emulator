@@ -11,6 +11,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/Directory.cpp
     src/File.cpp
 	src/Logger.cpp
+	src/Types.cpp
 )
 
 
@@ -36,7 +37,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 # set the export name <name>-config (does not need to match target name)
 # also specify where the .lib file should be installed
 install(
-    TARGETS ${PROJECT_NAME} 
+    TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-config
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

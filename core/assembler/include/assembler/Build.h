@@ -27,19 +27,19 @@ static const std::string DEFAULT_OUTPUT_FILE = "a";
 class Process {
 	public:
 		static bool isValidSourceFile(const File& file) {
-			return file.getExtension() == SOURCE_EXTENSION || file.getExtension() == INCLUDE_EXTENSION;
+			return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
 		}
 
 		static bool isValidProcessedFile(const File& file) {
-			return file.getExtension() == PROCESSED_EXTENSION;
+			return file.get_extension() == PROCESSED_EXTENSION;
 		}
 
 		static bool isValidObjectFile(const File& file) {
-			return file.getExtension() == OBJECT_EXTENSION;
+			return file.get_extension() == OBJECT_EXTENSION;
 		}
 
 		static bool isValidExecutableFile(const File& file) {
-			return file.getExtension() == EXECUTABLE_EXTENSION;
+			return file.get_extension() == EXECUTABLE_EXTENSION;
 		}
 
 

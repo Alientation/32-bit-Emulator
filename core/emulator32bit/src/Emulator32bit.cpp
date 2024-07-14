@@ -1,5 +1,6 @@
 #include "emulator32bit/Emulator32bit.h"
 #include "util/Logger.h"
+#include "util/Types.h"
 
 #include <stdio.h>
 
@@ -98,9 +99,9 @@ Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_
 
 void Emulator32bit::print() {
 	printf("32 bit emulator\nRegisters:\n");
-	printf("pc: %.8x\nsp: %.8x\n", _pc, _x[SP]);
+	printf(" pc: %s\n sp: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(_x[SP]).c_str());
 	for (int i = 0; i < SP; i++) {
-		printf("x%d: %.8x\n", i, _x[i]);
+		printf("x%.2d: %s\n", i, to_color_hex_str(_x[i]).c_str());
 	}
 
 	printf("\nMemory Dump: TODO");

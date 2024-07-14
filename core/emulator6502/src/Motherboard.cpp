@@ -40,7 +40,7 @@ Byte& Motherboard::operator[](Word address) {
 
     // throw out of bounds memory address error
     std::stringstream stream;
-    stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
+    stream << "Error: Out of bounds memory address " << to_hex_str(address) << std::endl;
     return ram[0]; // default return reference to first byte of ram
 }
 
@@ -58,6 +58,6 @@ const Byte& Motherboard::operator[](Word address) const {
 
     // throw out of bounds memory address error
     std::stringstream stream;
-    stream << "Error: Out of bounds memory address " << stringifyHex(address) << std::endl;
+    stream << "Error: Out of bounds memory address " << to_hex_str(address) << std::endl;
     return ram[0]; // default return reference to first byte of ram
 }

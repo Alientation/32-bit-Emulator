@@ -33,8 +33,8 @@ void ObjectFile::disassemble() {
 
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading bytes");
 	std::vector<byte> bytes;
-	while (file_reader.hasNextByte()) {
-		bytes.push_back(file_reader.readByte());
+	while (file_reader.has_next_byte()) {
+		bytes.push_back(file_reader.read_byte());
 	}
 
 	ByteReader reader(bytes);
@@ -254,7 +254,7 @@ void ObjectFile::write_object_file(File obj_file) {
 
 	// clearing object file
 	std::ofstream ofs;
-	ofs.open(obj_file.getFilePath(), std::ofstream::out | std::ofstream::trunc);
+	ofs.open(obj_file.get_path(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
 
 	// create writer for object file
@@ -391,7 +391,7 @@ void ObjectFile::print() {
 		return;
 	}
 
-	printf("%s:\tfile format %s\n\n", (m_obj_file.getFileName() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
+	printf("%s:\tfile format %s\n\n", (m_obj_file.get_name() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
 	printf("SYMBOL TABLE:\n");
 	for (std::pair<int, SymbolTableEntry> symbol : symbol_table) {
 		char visibility = ' ';
@@ -407,9 +407,9 @@ void ObjectFile::print() {
 		}
 
 		// printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
-		std::cout << prettyStringifyValue(stringifyHex((dword) symbol.second.symbol_value))
+		std::cout << color_val_str(to_hex_str((dword) symbol.second.symbol_value))
 				<< " " << visibility << "\t " << section_name << "\t\t " <<
-				prettyStringifyValue(stringifyHex((dword) 0)) << " " << strings[symbol.second.symbol_name]
+				color_val_str(to_hex_str((dword) 0)) << " " << strings[symbol.second.symbol_name]
 				<< "\n";
 	}
 
@@ -446,7 +446,7 @@ void ObjectFile::print() {
 
 	if (label_map.find(0) == label_map.end()) {
 		// printf("%.16llx:", (dword) 0);
-		std::cout << prettyStringifyValue(stringifyHex((dword) 0)) << ":";
+		std::cout << color_val_str(to_hex_str((dword) 0)) << ":";
 	}
 
 	int text_address_width = std::__bit_width(text_section.size() / 4);
@@ -463,7 +463,7 @@ void ObjectFile::print() {
 			}
 			current_label = strings[label_map[i*4]];
 			// printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
-			std::cout << prettyStringifyValue(stringifyHex((dword) i*4)) << " <" << current_label << ">:";
+			std::cout << color_val_str(to_hex_str((dword) i*4)) << " <" << current_label << ">:";
 		}
 		// std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
 		std::string disassembly = disassemble_instr(text_section[i]);

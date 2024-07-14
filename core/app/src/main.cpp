@@ -49,7 +49,6 @@ int main() {
 
 	File exe_file = File(".\\tests\\preprocessorTest.bexe");
 	Linker linker({obj_file_1, obj_file_2}, exe_file);
-	// ObjectFile exe_obj_file(exe_file);
 
 	Emulator32bit emulator;
 	LoadExecutable loader(emulator, exe_file);

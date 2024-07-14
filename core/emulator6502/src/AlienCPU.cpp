@@ -18,7 +18,7 @@ AlienCPU::AlienCPU() {
 
 /**
  * Stops the CPU from continuing to execute the next instruction.
- * 
+ *
  * NOTE this does not guarantee an immediate termination of the CPU process. The
  * currently being executed instruction will be completed before halting
  */
@@ -29,17 +29,17 @@ void AlienCPU::stop() {
 
 /**
  * Resets the CPU to its initial state
- * 
+ *
  * Calling this will automatically initiate the termination of the CPU process and bring
  * the CPU back to the default state.
- * 
+ *
  * @param resetMotherboard whether to reset the motherboard. Defaults to false unless specified otherwise.
  */
 void AlienCPU::reset(bool resetMotherboard) {
     // realistically, reset actually randomizes values for memory and registers
     // should also technically perform the 7 cycle reset sequence, which would require
     // fixing all the tests
-    
+
     if (isRunning) {
         stop();
     }
@@ -68,7 +68,7 @@ void AlienCPU::reset(bool resetMotherboard) {
 
 /**
  * Initiates the reset process for the CPU to bring it to a state so that it can process instructions
- * 
+ *
  * This is not the same as a resetting the CPU to its initial state. This is the process that occurs
  * when the CPU is turned on.
  */
@@ -115,10 +115,10 @@ void AlienCPU::start() {
 
 /**
  * Run the CPU for a certain number of cycles.
- * 
+ *
  * This will not gaurantee that the CPU will execute the exact number of cycles specified.
  * It only gaurantees that the CPU will execute at least the number of cycles specified.
- * 
+ *
  * @param maxCycles the maximum number of cycles to run the CPU for
  */
 void AlienCPU::startCycles(u64 maxCycles) {
@@ -128,7 +128,7 @@ void AlienCPU::startCycles(u64 maxCycles) {
     }
 
     processReset();
-    
+
     // Fetch, Decode, Execute Cycle loop
     while (isRunning) {
         // Halt execution because max cycles has been reached
@@ -158,7 +158,7 @@ void AlienCPU::startCycles(u64 maxCycles) {
 
 /**
  * Run the CPU for a specified number of instructions.
- * 
+ *
  * @param instructions the maximum number of instructions to run the CPU for
  */
 void AlienCPU::startInstructions(u64 maxInstructions) {
@@ -168,7 +168,7 @@ void AlienCPU::startInstructions(u64 maxInstructions) {
     }
 
     processReset();
-    
+
     // Fetch, Decode, Execute Cycle loop
     while (isRunning) {
         // Halt execution because max instructions has been reached
@@ -198,18 +198,18 @@ void AlienCPU::startInstructions(u64 maxInstructions) {
 
 /**
  * Executes the specified instruction opcode
- * 
+ *
  * This will throw an exception if the opcode is invalid
- * 
+ *
  * @param instruction the instruction to execute
  */
 void AlienCPU::executeInstruction(u16 instruction) {
     if (!isValidInstruction(instruction)) {
         // TODO: create better error logger that stores information about the cpu
         std::stringstream stream;
-        stream << std::endl << "Error: Invalid instruction " << stringifyHex(instruction) 
-                << std::endl << "PC=[" + stringifyHex(PC) << "]" << std::endl;
-        
+        stream << std::endl << "Error: Invalid instruction " << to_hex_str(instruction)
+                << std::endl << "PC=[" + to_hex_str(PC) << "]" << std::endl;
+
         std::throw_with_nested(std::invalid_argument(stream.str()));
         return;
     }
@@ -222,7 +222,7 @@ void AlienCPU::executeInstruction(u16 instruction) {
 
 /**
  * Checks if the instruction is a valid instruction to execute.
- * 
+ *
  * @param instruction the instruction to check
  */
 bool AlienCPU::isValidInstruction(u16 instruction) {
@@ -232,7 +232,7 @@ bool AlienCPU::isValidInstruction(u16 instruction) {
 
 /**
  * Clear the specified flag from processor status register. The flag bit will be set to 0.
- * 
+ *
  * @param flag the flag to clear
  */
 void AlienCPU::clearFlag(StatusFlag flag) {
@@ -241,7 +241,7 @@ void AlienCPU::clearFlag(StatusFlag flag) {
 
 /**
  * Sets the specified flag from processor status register. The flag bit will be set to 1.
- * 
+ *
  * @param bit the flag to set
  */
 void AlienCPU::setFlag(StatusFlag flag, bool isSet) {
@@ -250,7 +250,7 @@ void AlienCPU::setFlag(StatusFlag flag, bool isSet) {
 
 /**
  * Gets the status of the specified flag from processor status register.
- * 
+ *
  * @param bit the flag to get
  * @return the status of the specified flag
  */
@@ -261,14 +261,14 @@ bool AlienCPU::getFlag(StatusFlag flag) {
 
 /**
  * Converts a two byte high endian value to a two byte low endian value
- * 
+ *
  * High endian representation of a value is when the left most byte is the highest valued byte and
  * the right most byte is the lowest valued byte. Likewise, low endian representation is where the
  * left most byte if the lowest valued byte and the right most byte is the highest valued byte.
- * 
+ *
  * For example, the high endian representation of the value 0x1234 is [0x12 0x34] and the low endian
  * representation of the value 0x1234 is [0x34 0x12]
- * 
+ *
  * @param highEndianTwoBytes the high endian two byte value to convert
  * @return the low endian two byte value
  */
@@ -279,7 +279,7 @@ u16 AlienCPU::convertToLowEndianTwoBytes(u16 highEndianTwoBytes) {
 
 /**
  * Converts a two byte low endian value to a two byte high endian value
- * 
+ *
  * @param lowEndianTwoBytes the low endian two byte value to convert
  * @return the high endian two byte value
  */
@@ -290,33 +290,33 @@ u16 AlienCPU::convertToHighEndianTwoBytes(u16 lowEndianTwoBytes) {
 
 /**
  * Converts a four byte high endian value to a four byte low endian value. In this CPU, a word is 4 bytes.
- * 
+ *
  * @param highEndianWord the high endian four byte value to convert
  * @return the low endian four byte value
  */
 Word AlienCPU::convertToLowEndianWord(Word highEndianWord) {
-    return (highEndianWord >> 24) | ((highEndianWord >> 8) & 0xFF00) | 
+    return (highEndianWord >> 24) | ((highEndianWord >> 8) & 0xFF00) |
             ((highEndianWord << 8) & 0xFF0000) | (highEndianWord << 24);
 }
 
 
 /**
  * Converts a four byte low endian value to a four byte high endian value. In this CPU, a word is 4 bytes.
- * 
+ *
  * @param lowEndianWord the low endian four byte value to convert
  * @return the high endian four byte value
  */
 Word AlienCPU::convertToHighEndianWord(Word lowEndianWord) {
-    return (lowEndianWord << 24) | ((lowEndianWord << 8) & 0xFF0000) | 
+    return (lowEndianWord << 24) | ((lowEndianWord << 8) & 0xFF0000) |
             ((lowEndianWord >> 8) & 0xFF00) | (lowEndianWord >> 24);
 }
 
 
 /**
  * Reads a byte at a high endian memory address
- * 
+ *
  * This process will take 1 simulated cycle to read
- * 
+ *
  * @param highEndianAddress the high endian address to read from
  * @return the byte read from memory
  */
@@ -328,9 +328,9 @@ Byte AlienCPU::readByte(Word highEndianAddress) {
 
 /**
  * Reads the next 2 low endian bytes at a high endian memory address and converts to high endian.
- * 
+ *
  * This process will take 2 simulated cycles to read.
- * 
+ *
  * @param highEndianAddress the high endian address to read from
  * @return the 2 byte value read from memory
  */
@@ -346,9 +346,9 @@ u16 AlienCPU::readTwoBytes(Word highEndianAddress) {
 
 /**
  * Reads the next 4 low endian bytes at a high endian memory address and converts to high endian.
- * 
+ *
  * This process will take 4 simulated cycles to read.
- * 
+ *
  * @param highEndianAddress the high endian address to read from
  * @return the 4 byte value read from memory
  */
@@ -366,9 +366,9 @@ Word AlienCPU::readWord(Word highEndianAddress) {
 
 /**
  * Reads the next byte in memory pointed to by the program counter
- * 
+ *
  * This process will take 1 simulated cycle to read and increment PC
- * 
+ *
  * @return the byte read from memory
  */
 Byte AlienCPU::fetchNextByte() {
@@ -381,9 +381,9 @@ Byte AlienCPU::fetchNextByte() {
 
 /**
  * Reads the next two low endian bytes in memory and converts to high endian.
- * 
+ *
  * This process will take 2 simulated cycle to read and increment PC by 2
- * 
+ *
  * @return the two byte value read from memory
  */
 u16 AlienCPU::fetchNextTwoBytes() {
@@ -398,9 +398,9 @@ u16 AlienCPU::fetchNextTwoBytes() {
 
 /**
  * Reads the next 4 low endian bytes in memory and converts to high endian.
- * 
+ *
  * This process will take 4 simulated cycle to read and increment PC by 4
- * 
+ *
  * @return the 4 byte value read from memory
  */
 Word AlienCPU::fetchNextWord() {
@@ -417,9 +417,9 @@ Word AlienCPU::fetchNextWord() {
 
 /**
  * Write byte to the specified high endian address in memory
- * 
+ *
  * This process will take 1 simulated cycle to write.
- * 
+ *
  * @param highEndianAddress the high endian writable address to write to
  * @param value the byte value to write
  */
@@ -432,9 +432,9 @@ void AlienCPU::writeByte(Word highEndianAddress, Byte value) {
 
 /**
  * Write two bytes to the specified high endian address in memory
- * 
+ *
  * This process will take 2 simulated cycles to write.
- * 
+ *
  * @param highEndianAddress the high endian writable address to write to
  * @param highEndianValue the two byte high endian value to write
  */
@@ -448,9 +448,9 @@ void AlienCPU::writeTwoBytes(Word highEndianAddress, u16 highEndianValue) {
 
 /**
  * Write four bytes to the specified high endian address in memory
- * 
+ *
  * This process will take 4 simulated cycles to write.
- * 
+ *
  * @param highEndianAddress the high endian writable address to write to
  * @param highEndianValue the four byte high endian value to write
  */

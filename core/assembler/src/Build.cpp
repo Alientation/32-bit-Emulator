@@ -10,11 +10,11 @@
 
 /**
  * Constructs a build process from the specified arguments.
- * 
+ *
  * @param compilerArgs the arguments to construct the build process from
  */
 Process::Process(std::string assemblerArgs) {
-	lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "Building Process: args(" << assemblerArgs << ")\n" 
+	lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "Building Process: args(" << assemblerArgs << ")\n"
 			<< "Current Working Directory: " << std::filesystem::current_path().string());
 
 	// split command args by whitespace unless surrounded by quotes
@@ -31,7 +31,7 @@ Process::Process(std::string assemblerArgs) {
 
 /**
  * Parses the arguments into a list of arguments. This is an internal function.
- * 
+ *
  * @param compilerArgs the arguments to parse
  * @param argsList the list of arguments to add to
  */
@@ -73,7 +73,7 @@ void Process::parseArgs(std::string assemblerArgs, std::vector<std::string>& arg
 
 /**
  * Processes the arguments. This is an internal function.
- * 
+ *
  * @param argsList the list of arguments to process
  */
 void Process::evaluateArgs(std::vector<std::string>& argsList) {
@@ -92,7 +92,7 @@ void Process::evaluateArgs(std::vector<std::string>& argsList) {
 			File* file = new File(arg);
 
 			// check the extension
-			lgr::EXPECT_TRUE(file->getExtension() == SOURCE_EXTENSION, lgr::Logger::LogType::ERROR, std::stringstream("Process::Process() - Invalid file extension: ") << file->getExtension());
+			lgr::EXPECT_TRUE(file->get_extension() == SOURCE_EXTENSION, lgr::Logger::LogType::ERROR, std::stringstream("Process::Process() - Invalid file extension: ") << file->get_extension());
 
 			sourceFiles.push_back(file);
 		}
@@ -162,9 +162,9 @@ void Process::_ignore(std::vector<std::string>& args, int& index) {
 
 /**
  * Prints out the version of the assembler
- * 
+ *
  * USAGE: -v, -version
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -174,9 +174,9 @@ void Process::_version(std::vector<std::string>& args, int& index) {
 
 /**
  * Compiles the source code files to object files and stops
- * 
+ *
  * USAGE: -c, -compile
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -186,9 +186,9 @@ void Process::_compile(std::vector<std::string>& args, int& index) {
 
 /**
  * Sets the output file
- * 
+ *
  * USAGE: -o, -output [filename]
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -197,20 +197,20 @@ void Process::_output(std::vector<std::string>& args, int& index) {
 	outputFile = args[++index];
 
 	// check if the output file is valid
-	lgr::EXPECT_TRUE(File::isValidFileName(outputFile), lgr::Logger::LogType::ERROR, std::stringstream("Process::_output() - Invalid output file name: ") << outputFile);
+	lgr::EXPECT_TRUE(File::valid_name(outputFile), lgr::Logger::LogType::ERROR, std::stringstream("Process::_output() - Invalid output file name: ") << outputFile);
 }
 
 /**
  * Sets the optimization level
- * 
+ *
  * USAGE: -o, -optimize [level]
- * 
+ *
  * Optimization Levels
  * 0 - no optimization (DEFAULT)
  * 1 - basic optimization
  * 2 - advanced optimization
  * 3 - full optimization
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -224,9 +224,9 @@ void Process::_optimize(std::vector<std::string>& args, int& index) {
 
 /**
  * Sets the highest optimization level
- * 
+ *
  * USAGE: -O, -oall
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -236,12 +236,12 @@ void Process::_optimizeAll(std::vector<std::string>& args, int& index) {
 
 /**
  * Turns on warning messages
- * 
+ *
  * USAGE: -w, -warning [type]
- * 
+ *
  * Warning Types
  * error - turns warnings into errors
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -256,9 +256,9 @@ void Process::_warn(std::vector<std::string>& args, int& index) {
 
 /**
  * Turns on all warning messages
- * 
+ *
  * USAGE: -W, -wall
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -270,9 +270,9 @@ void Process::_warnAll(std::vector<std::string>& args, int& index) {
 
 /**
  * Adds directory to the list of system directories to search for included files
- * 
+ *
  * USAGE: -I, -inc, -include [directory path]
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -281,17 +281,17 @@ void Process::_include(std::vector<std::string>& args, int& index) {
 	std::string includeDir = args[++index];
 
 	// check if the include directory is valid
-	lgr::EXPECT_TRUE(Directory::isValidDirectoryPath(includeDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_include() - Invalid include directory path: ") << includeDir);
+	lgr::EXPECT_TRUE(Directory::valid_path(includeDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_include() - Invalid include directory path: ") << includeDir);
 	systemDirectories.push_back(new Directory(includeDir));
 }
 
 /**
  * Adds shared library to be linked with the compiled object files
- * 
+ *
  * USAGE: -l, -lib, -library [library name]
- * 
+ *
  * Specifically, it links to the shared library [library name].so
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -300,15 +300,15 @@ void Process::_library(std::vector<std::string>& args, int& index) {
 	std::string libraryName = args[++index];
 
 	// check if the library name is valid
-	lgr::EXPECT_TRUE(File::isValidFileName(libraryName), lgr::Logger::LogType::ERROR, std::stringstream("Process::_library() - Invalid library name: ") << libraryName);
+	lgr::EXPECT_TRUE(File::valid_name(libraryName), lgr::Logger::LogType::ERROR, std::stringstream("Process::_library() - Invalid library name: ") << libraryName);
 	linkedLibraryNames.push_back(libraryName);
 }
 
 /**
  * Adds directory to the list of directories to search for shared libraries
- * 
+ *
  * USAGE: -L, -libdir, -librarydir [directory path]
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
@@ -317,15 +317,15 @@ void Process::_libraryDirectory(std::vector<std::string>& args, int& index) {
 	std::string libraryDir = args[++index];
 
 	// check if the library directory is valid
-	lgr::EXPECT_TRUE(Directory::isValidDirectoryPath(libraryDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_libraryDirectory() - Invalid library directory path: ") << libraryDir);
+	lgr::EXPECT_TRUE(Directory::valid_path(libraryDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_libraryDirectory() - Invalid library directory path: ") << libraryDir);
 	libraryDirectories.push_back(new Directory(libraryDir));
 }
 
 /**
  * Adds a preprocessor flag
- * 
+ *
  * USAGE: -D [flag name?=value]
- * 
+ *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */

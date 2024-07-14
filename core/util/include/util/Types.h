@@ -1,7 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-// SUPER BAD CHEATY WAY BUT IT WORKS
+// SUPER BAD CHEATY WAY BUT IT WORKS  //todo help now, i forgot what this does, to scared to delete it, guess i will keep this
 #ifdef private
 #undef private
 #include <iostream>
@@ -44,12 +44,7 @@ static const char HEXADECIMAL_PREFIX = '$'; // could also be 0x
  * @param digits the number of hexadecimal digits to output
  * @return the hexadecimal string representation of the value
  */
-static std::string stringifyHex(u64 hex, int digits = 16) {
-    std::stringstream stream;
-    stream << HEXADECIMAL_PREFIX << std::setfill('0') << std::setw(digits) << std::hex << hex;
-    std::string result(stream.str());
-    return result;
-}
+std::string to_hex_str(u64 hex, int digits = 16);
 
 /**
  * Converts a 32 bit value into hexadecimal string representation
@@ -57,9 +52,7 @@ static std::string stringifyHex(u64 hex, int digits = 16) {
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-static std::string stringifyHex(u32 hex) {
-    return stringifyHex(hex,8);
-}
+std::string to_hex_str(u32 hex);
 
 /**
  * Converts a 16 bit value into hexadecimal string representation
@@ -67,9 +60,7 @@ static std::string stringifyHex(u32 hex) {
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-static std::string stringifyHex(u16 hex) {
-    return stringifyHex(hex,4);
-}
+std::string to_hex_str(u16 hex);
 
 /**
  * Converts an 8 bit value into hexadecimal string representation
@@ -77,9 +68,7 @@ static std::string stringifyHex(u16 hex) {
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-static std::string stringifyHex(u8 hex) {
-    return stringifyHex(hex,2);
-}
+std::string to_hex_str(u8 hex);
 
 
 /**
@@ -88,30 +77,12 @@ static std::string stringifyHex(u8 hex) {
  * @param string the string to pretty stringify
  * @return the pretty stringified value
  */
-static std::string prettyStringifyValue(std::string string) {
-    std::string result = ccolor::GRAY;
-    auto iterator = string.begin();
-    if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#' || (*iterator) == '@') {
-        iterator++;
-    }
+std::string color_val_str(std::string string);
 
-	// gray out any leading zeros except for the last zero
-    while ((*iterator) == '0' && iterator != string.end() - 1) {
-        result += *iterator;
-        iterator++;
-    }
-
-	// bold the remaining digits
-    result += ccolor::BOLD_WHITE;
-    while (iterator != string.end()) {
-        result += *iterator;
-        iterator++;
-    }
-
-    result += ccolor::RESET;
-    return result;
-}
-
+std::string to_color_hex_str(u64 hex, int digits = 16);
+std::string to_color_hex_str(u32 hex);
+std::string to_color_hex_str(u16 hex);
+std::string to_color_hex_str(u8 hex);
 
 /**
  * Converts a 64 bit value into binary string representation
@@ -119,12 +90,7 @@ static std::string prettyStringifyValue(std::string string) {
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-static std::string stringifyBin(u64 bin) {
-    std::stringstream stream;
-    stream << BINARY_PREFIX << std::bitset<64>(bin);
-    std::string result(stream.str());
-    return result;
-}
+std::string to_bin_str(u64 bin);
 
 /**
  * Converts a 32 bit value into binary string representation
@@ -132,12 +98,7 @@ static std::string stringifyBin(u64 bin) {
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-static std::string stringifyBin(u32 bin) {
-    std::stringstream stream;
-    stream << BINARY_PREFIX << std::bitset<32>(bin);
-    std::string result(stream.str());
-    return result;
-}
+std::string to_bin_str(u32 bin);
 
 /**
  * Converts a 16 bit value into binary string representation
@@ -145,12 +106,7 @@ static std::string stringifyBin(u32 bin) {
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-static std::string stringifyBin(u16 bin) {
-    std::stringstream stream;
-    stream << BINARY_PREFIX << std::bitset<16>(bin);
-    std::string result(stream.str());
-    return result;
-}
+std::string to_bin_str(u16 bin);
 
 /**
  * Converts an 8 bit value into binary string representation
@@ -158,11 +114,6 @@ static std::string stringifyBin(u16 bin) {
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-static std::string stringifyBin(u8 bin) {
-    std::stringstream stream;
-    stream << BINARY_PREFIX << std::bitset<8>(bin);
-    std::string result(stream.str());
-    return result;
-}
+std::string to_bin_str(u8 bin);
 
 #endif // TYPES_H

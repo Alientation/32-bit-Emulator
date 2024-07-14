@@ -17,12 +17,12 @@
 Preprocessor::Preprocessor(Process* process, const File& inputFile, const std::string& outputFilePath) : m_process(process), m_inputFile(inputFile) {
 	// default output file path if not supplied in the constructor
 	if (outputFilePath.empty()) {
-        m_outputFile = File(m_inputFile.getFileName(), PROCESSED_EXTENSION, m_inputFile.getFileDirectory(), true);
+        m_outputFile = File(m_inputFile.get_name(), PROCESSED_EXTENSION, m_inputFile.get_dir(), true);
 	} else {
         m_outputFile = File(outputFilePath, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.getExtension());
+	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.get_extension());
 
 	m_state = State::UNPROCESSED;
 	m_tokens = Tokenizer::tokenize(inputFile);
@@ -41,14 +41,14 @@ Preprocessor::~Preprocessor() {
  * Preprocesses the file.
  */
 File Preprocessor::preprocess() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile.getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile.get_name());
 
 	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
     // clearing intermediate output file
     std::ofstream ofs;
-    ofs.open(m_outputFile.getFilePath(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(m_outputFile.get_path(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
     // create writer for intermediate output file
@@ -63,7 +63,7 @@ File Preprocessor::preprocess() {
 		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip back to back newlines
-        if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.lastByteWritten() == '\n') {
+        if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.last_byte_written() == '\n') {
             i++;
             continue;
         }
@@ -160,7 +160,7 @@ File Preprocessor::preprocess() {
 	m_state = State::PROCESSED_SUCCESS;
 	writer.close();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile.getFileName());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile.get_name());
 
     // log macros
     for (std::pair<std::string, Macro*> macroPair : m_macros) {
@@ -310,7 +310,7 @@ void Preprocessor::_include(int& tokenI) {
         // local include
 		std::string localFilePath = consume(tokenI).value;
 		localFilePath = localFilePath.substr(1, localFilePath.length() - 2);
-        fullPathFromWorkingDirectory = m_inputFile.getFileDirectory() + File::SEPARATOR + localFilePath;
+        fullPathFromWorkingDirectory = m_inputFile.get_dir() + File::SEPARATOR + localFilePath;
     } else {
         // expect <"...">
         consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
@@ -320,13 +320,13 @@ void Preprocessor::_include(int& tokenI) {
         // check if file exists in system include directories
 		bool foundSystemFile = false;
         for (Directory* directory : m_process->getSystemDirectories()) {
-            if (directory->subfileExists(systemFilePath)) {
+            if (directory->subfile_exists(systemFilePath)) {
 				if (foundSystemFile) {
 					// already found file
 					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
 				}
 
-                fullPathFromWorkingDirectory = directory->getDirectoryPath() + File::SEPARATOR + systemFilePath;
+                fullPathFromWorkingDirectory = directory->get_path() + File::SEPARATOR + systemFilePath;
 				foundSystemFile = true;
 			}
         }
@@ -341,7 +341,7 @@ void Preprocessor::_include(int& tokenI) {
 	lgr::EXPECT_TRUE(includeFile.exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
-	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile.getFilePath());
+	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile.get_path());
 
 	// yoink the tokens from the included file and insert
 	m_tokens.insert(m_tokens.begin() + tokenI, includedPreprocessor.m_tokens.begin(), includedPreprocessor.m_tokens.end());
