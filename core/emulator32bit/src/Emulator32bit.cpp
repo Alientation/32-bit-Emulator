@@ -1,14 +1,17 @@
-#include <emulator32bit/Emulator32bit.h>
+#include "emulator32bit/Emulator32bit.h"
+#include "util/Logger.h"
+
+#include <stdio.h>
 
 const word Emulator32bit::RAM_MEM_SIZE = 1024;
 const word Emulator32bit::RAM_MEM_START = 0;
-const byte Emulator32bit::ROM_DATA[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+const byte Emulator32bit::ROM_DATA[1024] = {};
 const word Emulator32bit::ROM_MEM_SIZE = 1024;
 const word Emulator32bit::ROM_MEM_START = 1024;
 
-Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start) : system_bus(RAM(ram_mem_size, ram_mem_start), ROM(rom_data, rom_mem_size, rom_mem_start)) {
-	// Constructor
-	// fill out instruction functions
+Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start)
+		: system_bus(RAM(ram_mem_size, ram_mem_start), ROM(rom_data, rom_mem_size, rom_mem_start)) {
+	/* fill out instruction functions and construct disassembler instruction mapping */
 	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
 
 	_INSTR(hlt)
@@ -93,6 +96,16 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 
 Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
 
+void Emulator32bit::print() {
+	printf("32 bit emulator\nRegisters:\n");
+	printf("pc: %.8x\nsp: %.8x\n", _pc, _x[SP]);
+	for (int i = 0; i < SP; i++) {
+		printf("x%d: %.8x\n", i, _x[i]);
+	}
+
+	printf("\nMemory Dump: TODO");
+}
+
 void Emulator32bit::run(unsigned int instructions, EmulatorException &exception) {
 	// Run the emulator for a given number of instructions
 	while (instructions > 0 && exception.isOK()) {
@@ -158,6 +171,7 @@ void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception) 
 
 void Emulator32bit::handle_exception(EmulatorException &exception) {
 	// todo later
+	lgr::log(lgr::Logger::LogType::INFO, std::stringstream() << "Emulator32bit exception at " << disassemble_instr(exception.instr));
 }
 
 void Emulator32bit::set_NZCV(bool N, bool Z, bool C, bool V) {

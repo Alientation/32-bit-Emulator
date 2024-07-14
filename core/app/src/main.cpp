@@ -1,11 +1,13 @@
-#include <assembler/Assembler.h>
-#include <assembler/Build.h>
-#include <assembler/Linker.h>
-#include <assembler/ObjectFile.h>
-#include <assembler/Preprocessor.h>
-#include <util/Logger.h>
-#include <util/File.h>
-#include <util/Directory.h>
+#include "assembler/Assembler.h"
+#include "assembler/Build.h"
+#include "assembler/Linker.h"
+#include "assembler/ObjectFile.h"
+#include "assembler/Preprocessor.h"
+#include "assembler/LoadExecutable.h"
+#include "emulator32bit/Emulator32bit.h"
+#include "util/Logger.h"
+#include "util/File.h"
+#include "util/Directory.h"
 
 #include <filesystem>
 #include <sstream>
@@ -37,20 +39,21 @@ int main() {
 	File processed_file_2 = preprocessor_2.preprocess();
 
 	Assembler assembler1 = Assembler(&process, processed_file_1);
-	File output_file1 = assembler1.assemble();
+	File output_file_1 = assembler1.assemble();
 
 	Assembler assembler_2 = Assembler(&process, processed_file_2);
 	File output_file_2 = assembler_2.assemble();
 
-	ObjectFile obj_file_1 = ObjectFile();
-	obj_file_1.read_object_file(output_file1);
-
-	ObjectFile obj_file_2 = ObjectFile();
-	obj_file_2.read_object_file(output_file_2);
+	ObjectFile obj_file_1(output_file_1);
+	ObjectFile obj_file_2(output_file_2);
 
 	File exe_file = File(".\\tests\\preprocessorTest.bexe");
 	Linker linker({obj_file_1, obj_file_2}, exe_file);
+	// ObjectFile exe_obj_file(exe_file);
 
-	ObjectFile exe_obj_file = ObjectFile();
-	exe_obj_file.read_object_file(exe_file);
+	Emulator32bit emulator;
+	LoadExecutable loader(emulator, exe_file);
+
+	emulator.run(100);
+	emulator.print();
 }

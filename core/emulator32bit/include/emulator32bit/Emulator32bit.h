@@ -2,9 +2,11 @@
 #ifndef Emulator32bit_H
 #define Emulator32bit_H
 
-#include <emulator32bit/Emulator32bitUtil.h>
-#include <emulator32bit/Memory.h>
-#include <emulator32bit/SystemBus.h>
+#include "emulator32bit/Emulator32bitUtil.h"
+#include "emulator32bit/Memory.h"
+#include "emulator32bit/SystemBus.h"
+
+#include <string>
 
 /**
  * @brief					IDs for special registers
@@ -41,7 +43,7 @@
 #define M_PRE 1
 #define M_POST 2
 
-
+std::string disassemble_instr(word instr);
 
 /**
  * @brief 					32 bit Emulator
@@ -52,6 +54,7 @@ class Emulator32bit {
 	public:
 		Emulator32bit();
 		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);
+		void print();
 
 		/**
 		 * @brief			Exception state of emulator
@@ -240,6 +243,7 @@ class Emulator32bit {
 		_INSTR(nop, 0b111111)
 
 		#undef _INSTR
+
 
 	public:
 		// help assemble instructions

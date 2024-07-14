@@ -15,13 +15,14 @@ _start:
 .scend
 		adrp	x2, #array
 		add	x2, x2, #:lo12:array
+		ldr	x2, [x2]
 		adrp	x0, #datalabel
 		add	x0, x0, #:lo12:datalabel
 		ldr	x0, [x0]
 		bl 	func
 		hlt
 func:
-		mul	x3, x1, x2
+		mul	x0, x0, x2
 		ret
 ;*#macro	testmacro(arg1, arg2)
 		add	x1, x2, arg1
