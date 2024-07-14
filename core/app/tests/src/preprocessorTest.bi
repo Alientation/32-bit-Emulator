@@ -13,6 +13,8 @@ _start:
 		adrp	x1, #array
 		add	x1, x1, #:lo12:array
 .scend
+		adrp	x2, #array
+		add	x2, x2, #:lo12:array
 		adrp	x0, #datalabel
 		add	x0, x0, #:lo12:datalabel
 		ldr	x0, [x0]

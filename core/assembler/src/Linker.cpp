@@ -94,9 +94,9 @@ void Linker::link() {
 	}
 
 	/* .symtab section */
-	word offset_text = 0;
-	word offset_data = exe_obj_file.text_section.size() * 4;
-	word offset_bss = offset_data + exe_obj_file.bss_section;
+	word offset_text = 0;												/* bytes from the start of exe file text section */
+	word offset_data = exe_obj_file.text_section.size() * 4;			/* Same as above */
+	word offset_bss = offset_data + exe_obj_file.bss_section;			/* Same as above, sections are ordered like this. text->data->bss */
 	for (int i = 0; i < m_obj_files.size(); i++) {
 		ObjectFile& obj_file = m_obj_files.at(i);
 		for (auto& pair : obj_file.symbol_table) {
@@ -116,6 +116,8 @@ void Linker::link() {
 			}
 
 			exe_obj_file.add_symbol(symbol_name, val, pair.second.binding_info, pair.second.section);
+			/* Updated current obj file symbol table (pair is passed as reference), this will be used to assist with
+				relocation by mapping this symbol to the corresponding symbol in the exe file */
 			pair.second.symbol_name = exe_obj_file.string_table.at(symbol_name);
 			pair.second.symbol_value = val;
 			pair.second.binding_info = exe_obj_file.symbol_table[pair.second.symbol_name].binding_info;
@@ -130,37 +132,46 @@ void Linker::link() {
 	offset_text = 0;
 	for (ObjectFile& obj_file : m_obj_files) {
 		for (ObjectFile::RelocationEntry& rel : obj_file.rel_text) {
-			ObjectFile::SymbolTableEntry symbol_entry = obj_file.symbol_table.at(rel.symbol);
+			/* exe file's symbol table contains the most recent updated version of the symbol across all obj files.
+				Since all obj file symbols have been converted to point towards the exe file symbol table, we have to find the symbol located
+				in this obj file which the symbol name will be the index into the combined string table. */
+			ObjectFile::SymbolTableEntry symbol_entry = exe_obj_file.symbol_table.at(obj_file.symbol_table.at(rel.symbol).symbol_name);
 
+			/* all symbols should have a corresponding definition */
 			if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-
+				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Linker::link() - Error, symbol definition is not found.");
 				continue;
 			}
 
-			word instr_i = offset_text + rel.offset/4;
-			switch (rel.type) {
+			word instr_i = (offset_text + rel.offset)/4;
+			switch (rel.type) {											/* Only fill in relocations that are relative offsets since we do not know where the exe file will be in memory */
 				case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
-					break;
+					// exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
 				case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
-					break;
+					// exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
 				case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
-					break;
+					// exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
 				case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
+					// exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
 					break;
 				case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
 					EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
 							<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
 							<< symbol_entry.symbol_value);
 					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - instr_i, 0, 22);
-					break;
+					continue;
 				case ObjectFile::RelocationEntry::Type::UNDEFINED:
 				default:
 					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 			}
+
+			/* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */
+			exe_obj_file.rel_text.push_back((ObjectFile::RelocationEntry) {
+				.offset = rel.offset + offset_text,
+				.symbol = obj_file.symbol_table.at(rel.symbol).symbol_name,
+				.type = rel.type,
+				.shift = rel.shift,
+			});
 		}
 
 		offset_text += 4 * obj_file.text_section.size();

@@ -87,6 +87,8 @@ class ObjectFile {
 		int add_string(const std::string& string);
 		void add_symbol(const std::string& symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section);
 
+		std::string get_symbol_name(int symbol);
+
 	private:
 		enum class State {
 			NO_STATE,

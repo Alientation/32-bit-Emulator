@@ -257,6 +257,10 @@ int ObjectFile::add_string(const std::string& string) {
 	return strings.size()-1;
 }
 
+std::string ObjectFile::get_symbol_name(int symbol) {
+	return strings[symbol_table[symbol].symbol_name];
+}
+
 /**
  * @brief 					Adds a symbol to the symbol table
  *
