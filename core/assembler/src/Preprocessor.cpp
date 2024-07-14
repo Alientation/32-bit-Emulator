@@ -22,7 +22,7 @@ Preprocessor::Preprocessor(Process* process, const File& inputFile, const std::s
         m_outputFile = File(outputFilePath, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->isValidSourceFile(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.get_extension());
+	lgr::EXPECT_TRUE(m_process->valid_src_file(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.get_extension());
 
 	m_state = State::UNPROCESSED;
 	m_tokens = Tokenizer::tokenize(inputFile);
@@ -60,7 +60,7 @@ File Preprocessor::preprocess() {
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         // lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.to_string());
+		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip back to back newlines
         if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.last_byte_written() == '\n') {
@@ -319,14 +319,14 @@ void Preprocessor::_include(int& tokenI) {
 
         // check if file exists in system include directories
 		bool foundSystemFile = false;
-        for (Directory* directory : m_process->getSystemDirectories()) {
-            if (directory->subfile_exists(systemFilePath)) {
+        for (Directory directory : m_process->get_system_dirs()) {
+            if (directory.subfile_exists(systemFilePath)) {
 				if (foundSystemFile) {
 					// already found file
 					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
 				}
 
-                fullPathFromWorkingDirectory = directory->get_path() + File::SEPARATOR + systemFilePath;
+                fullPathFromWorkingDirectory = directory.get_path() + File::SEPARATOR + systemFilePath;
 				foundSystemFile = true;
 			}
         }
@@ -652,7 +652,7 @@ void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
     int nextBlockTokenI = -1;
     int endIfTokenI = -1;
     while (inBounds(currentTokenI)) {
-        std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
+        // std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
 
         if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
             if (nextBlockTokenI == -1) {

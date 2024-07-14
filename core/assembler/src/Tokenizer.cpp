@@ -55,9 +55,9 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 	}
 
 	// print out tokens
-	for (int i = 0; i < tokens->size(); i++) {
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).to_string());
-	}
+	// for (int i = 0; i < tokens->size(); i++) {
+	// 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).to_string());
+	// }
 
 	return *tokens;
 }

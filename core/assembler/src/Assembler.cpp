@@ -15,7 +15,7 @@ Assembler::Assembler(Process *process, File processed_file, const std::string& o
 		m_outputFile = File(output_path, true);
 	}
 
-	EXPECT_TRUE(m_process->isValidProcessedFile(processed_file), Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file.get_extension());
+	EXPECT_TRUE(m_process->valid_processed_file(processed_file), Logger::LogType::ERROR, std::stringstream() << "Assembler::Assembler() - Invalid processed file: " << processed_file.get_extension());
 
 	m_state = State::NOT_ASSEMBLED;
 	m_tokens = Tokenizer::tokenize(processed_file);
@@ -106,7 +106,7 @@ File Assembler::assemble() {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Parsing tokens.");
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
+        // log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
 
         // skip non code or directives
         if (isToken(i, Tokenizer::WHITESPACES) || isToken(i, Tokenizer::COMMENTS)) {

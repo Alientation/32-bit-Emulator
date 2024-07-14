@@ -41,10 +41,11 @@ File::File(const std::string& path, bool create_if_not_present) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - File path does not contain an extension: " << path);
 	}
 
-	std::string name_and_extension = path.substr(path.find_last_of(SEPARATOR) + 1);
+	bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
+	std::string name_and_extension = has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
 	m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
 	m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
-	m_dir = path.substr(0, path.find_last_of(SEPARATOR));
+	m_dir = has_dir ? "" : path.substr(0, path.find_last_of(SEPARATOR));
 
 	if (!valid_name(m_name)) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << m_name);
@@ -92,6 +93,9 @@ std::string File::get_extension() const {
  * @return the path of the file
  */
 std::string File::get_path() const {
+	if (m_dir.size() == 0) {
+		return m_name + "." + m_extension;
+	}
 	return m_dir + SEPARATOR + m_name + "." + m_extension;
 }
 

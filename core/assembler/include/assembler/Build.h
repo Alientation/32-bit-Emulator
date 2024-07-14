@@ -26,61 +26,60 @@ static const std::string DEFAULT_OUTPUT_FILE = "a";
 
 class Process {
 	public:
-		static bool isValidSourceFile(const File& file) {
+		static bool valid_src_file(const File& file) {
 			return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
 		}
 
-		static bool isValidProcessedFile(const File& file) {
+		static bool valid_processed_file(const File& file) {
 			return file.get_extension() == PROCESSED_EXTENSION;
 		}
 
-		static bool isValidObjectFile(const File& file) {
+		static bool valid_obj_file(const File& file) {
 			return file.get_extension() == OBJECT_EXTENSION;
 		}
 
-		static bool isValidExecutableFile(const File& file) {
+		static bool valid_exe_file(const File& file) {
 			return file.get_extension() == EXECUTABLE_EXTENSION;
 		}
 
 
-		Process(std::string assemblerArgs = "");
-		~Process();
+		Process(std::string assembler_args = "");
 
 		void build();
 
-        bool doOnlyCompile();
-        std::string getOutputFile();
-        int getOptimizationLevel();
-        std::set<std::string> getEnabledWarnings();
-        std::map<std::string,std::string> getPreprocessorFlags();
+        bool do_only_compile();
+        std::string get_output_file();
+        int get_optimization_level();
+        std::set<std::string> get_enabled_warnings();
+        std::map<std::string,std::string> get_preprocessor_flags();
 
-        std::vector<std::string> getLinkedLibraryNames();
-        std::vector<Directory*> getLibraryDirectories();
-        std::vector<Directory*> getSystemDirectories();
-        std::vector<File*> getSourceFiles();
+        std::vector<std::string> get_linked_lib_names();
+        std::vector<Directory> get_lib_dirs();
+        std::vector<Directory> get_system_dirs();
+        std::vector<File> get_src_files();
 
-        std::vector<File*> getProcessedFiles();
-        std::vector<File*> getObjectFiles();
-        File* getExecutableFile();
+        std::vector<File> get_processed_files();
+        std::vector<File> get_obj_files();
+        File get_exe_file();
 
 	private:
-		bool onlyCompile = false;
-		std::string outputFile = DEFAULT_OUTPUT_FILE;
-		int optimizationLevel;
-		std::set<std::string> enabledWarnings;
-		std::map<std::string,std::string> preprocessorFlags;
+		bool m_only_compile = false;
+		std::string m_output_file = DEFAULT_OUTPUT_FILE;
+		int m_optimization_level;
+		std::set<std::string> m_enabled_warnings;
+		std::map<std::string,std::string> m_preprocessor_flags;
 
-		std::vector<std::string> linkedLibraryNames;
-		std::vector<Directory*> libraryDirectories;
-		std::vector<Directory*> systemDirectories;
-		std::vector<File*> sourceFiles;
+		std::vector<std::string> m_linked_lib_names;
+		std::vector<Directory> m_library_dirs;
+		std::vector<Directory> m_system_dirs;
+		std::vector<File> m_src_files;
 
-		std::vector<File*> processedFiles;
-		std::vector<File*> objectFiles;
-		File* executableFile;
+		std::vector<File> m_processed_files;
+		std::vector<File> m_obj_files;
+		File exe_file;
 
-		void parseArgs(std::string assemblerArgs, std::vector<std::string>& argsList);
-		void evaluateArgs(std::vector<std::string>& argsList);
+		void parse_args(std::string assembler_args, std::vector<std::string>& args_list);
+		void evaluate_args(std::vector<std::string>& args_list);
 
 		void preprocess();
 		void assemble();
@@ -91,13 +90,13 @@ class Process {
 		void _compile(std::vector<std::string>& args, int& index);
 		void _output(std::vector<std::string>& args, int& index);
 		void _optimize(std::vector<std::string>& args, int& index);
-		void _optimizeAll(std::vector<std::string>& args, int& index);
+		void _optimize_all(std::vector<std::string>& args, int& index);
 		void _warn(std::vector<std::string>& args, int& index);
-		void _warnAll(std::vector<std::string>& args, int& index);
+		void _warn_all(std::vector<std::string>& args, int& index);
 		void _include(std::vector<std::string>& args, int& index);
 		void _library(std::vector<std::string>& args, int& index);
-		void _libraryDirectory(std::vector<std::string>& args, int& index);
-		void _preprocessorFlag(std::vector<std::string>& args, int& index);
+		void _library_directory(std::vector<std::string>& args, int& index);
+		void _preprocessor_flag(std::vector<std::string>& args, int& index);
 
 		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, int& index);
 		std::map<std::string, FlagFunction> flags = {
@@ -121,14 +120,14 @@ class Process {
 			{"-optimize", &Process::_optimize},
 
 			// turns on all optimization
-			{"-oall", &Process::_optimizeAll},
+			{"-oall", &Process::_optimize_all},
 
 			// turns on warning messages
 			{"-W", &Process::_warn},
 			{"-warning", &Process::_warn},
 
 			// turns on all warning messages
-			{"-wall", &Process::_warnAll},
+			{"-wall", &Process::_warn_all},
 
 			// use given directory for system files
 			{"-I", &Process::_include},
@@ -141,12 +140,12 @@ class Process {
 			{"-library", &Process::_library},
 
 			// searches for linked libraries in given directory
-			{"-L", &Process::_libraryDirectory},
-			{"-libdir", &Process::_libraryDirectory},
-			{"-librarydir", &Process::_libraryDirectory},
+			{"-L", &Process::_library_directory},
+			{"-libdir", &Process::_library_directory},
+			{"-librarydir", &Process::_library_directory},
 
 			// pass preprocessor flags
-			{"-D", &Process::_preprocessorFlag},
+			{"-D", &Process::_preprocessor_flag},
 		};
 
 };
