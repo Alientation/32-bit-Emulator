@@ -25,18 +25,7 @@ Assembler::State Assembler::get_state() {
 	return this->m_state;
 }
 
-// todo, filter out all spaces and tabs
-File Assembler::assemble() {
-	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile.get_name());
-
-	EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
-	m_state = State::ASSEMBLING;
-
-	// clearing object file
-	std::ofstream ofs;
-	ofs.open(m_outputFile.get_path(), std::ofstream::out | std::ofstream::trunc);
-	ofs.close();
-
+void add_sections(ObjectFile& m_obj) {
 	m_obj.add_section(".text", (ObjectFile::SectionHeader) {
 		.section_name = 0,
 		.type = ObjectFile::SectionHeader::Type::TEXT,
@@ -100,7 +89,21 @@ File Assembler::assemble() {
 		.section_size = 0,
 		.entry_size = 0,
 	});
+}
 
+// todo, filter out all spaces and tabs
+File Assembler::assemble() {
+	log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile.get_name());
+
+	EXPECT_TRUE(m_state == State::NOT_ASSEMBLED, Logger::LogType::ERROR, std::stringstream() << "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
+	m_state = State::ASSEMBLING;
+
+	// clearing object file
+	std::ofstream ofs;
+	ofs.open(m_outputFile.get_path(), std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
+
+	add_sections(m_obj);
 
 	// parse tokens
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Parsing tokens.");
