@@ -99,7 +99,7 @@ Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_
 
 void Emulator32bit::print() {
 	printf("32 bit emulator\nRegisters:\n");
-	printf(" pc: %s\n sp: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(_x[SP]).c_str());
+	printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(_x[SP]).c_str(), to_color_hex_str((word)0).c_str());
 	for (int i = 0; i < SP; i++) {
 		printf("x%.2d: %s\n", i, to_color_hex_str(_x[i]).c_str());
 	}

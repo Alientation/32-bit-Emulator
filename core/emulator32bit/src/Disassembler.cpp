@@ -491,9 +491,9 @@ DisassemblerFunction _disassembler_instructions[64] = {
 	disassemble_vcmp_f32,
 	disassemble_vsel_f32,
 	disassemble_vcint_u32_f32,								/* slight discrepency with the emulator. check later */
-	disassemble_vcint_s32_f32,								/* slight discrepency with the emulator. check later */
+	// disassemble_vcint_s32_f32,								/* slight discrepency with the emulator. check later */
 	disassemble_vcflo_u32_f32,								/* slight discrepency with the emulator. check later */
-	disassemble_vcflo_s32_f32,								/* slight discrepency with the emulator. check later */
+	// disassemble_vcflo_s32_f32,								/* slight discrepency with the emulator. check later */
 	disassemble_vmov_f32,
 	disassemble_and,
 	disassemble_orr,
@@ -510,13 +510,13 @@ DisassemblerFunction _disassembler_instructions[64] = {
 	disassemble_mov,
 	disassemble_mvn,
 	disassemble_ldr,
-	disassemble_str,
-	disassemble_swp,
 	disassemble_ldrb,
-	disassemble_strb,
-	disassemble_swpb,
 	disassemble_ldrh,
+	disassemble_str,
+	disassemble_strb,
 	disassemble_strh,
+	disassemble_swp,
+	disassemble_swpb,
 	disassemble_swph,
 	disassemble_b,
 	disassemble_bl,

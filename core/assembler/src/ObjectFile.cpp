@@ -485,30 +485,32 @@ void ObjectFile::print() {
 		/* Check if there is a relocation record here */
 		if (rel_text_map.find(i*4) != rel_text_map.end()) {
 			printf(relocation_spacing.c_str(), "");
-			printf(" \t%hx: ", (dword) i*4);
 
 			RelocationEntry entry = rel_text_map[i*4];
+			std::string print_str = "";
 			switch (entry.type) {
 				case RelocationEntry::Type::R_EMU32_O_LO12:
-					printf("R_EMU32_O_LO12 ");
+					print_str = "R_EMU32_O_LO12";
 					break;
 				case RelocationEntry::Type::R_EMU32_ADRP_HI20:
-					printf("R_EMU32_ADRP_HI20 ");
+					print_str = "R_EMU32_ADRP_HI20";
 					break;
 				case RelocationEntry::Type::R_EMU32_MOV_LO19:
-					printf("R_EMU32_MOV_LO19 ");
+					print_str = "R_EMU32_MOV_LO19";
 					break;
 				case RelocationEntry::Type::R_EMU32_MOV_HI13:
-					printf("R_EMU32_MOV_HI13 ");
+					print_str = "R_EMU32_MOV_HI13";
 					break;
 				case RelocationEntry::Type::R_EMU32_B_OFFSET22:
-					printf("R_EMU32_B_OFFSET22 ");
+					print_str = "R_EMU32_B_OFFSET22";
 					break;
 				case RelocationEntry::Type::UNDEFINED:
-					printf("<ERROR> ");
+					print_str = "<ERROR>";
 					break;
 			}
 
+			int print_str_width = 29 - std::__bit_width(i / 4);
+			printf((" \t%hx: %-" + std::to_string(print_str_width) + "s").c_str(), (dword) i*4, print_str.c_str());
 			printf("%s", strings[symbol_table[entry.symbol].symbol_name].c_str());
 		}
 	}
