@@ -34,6 +34,49 @@ void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
 	EXPECT_TRUE(shift_amt < (1<<5), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: " << shift_amt);
 }
 
+Emulator32bit::ConditionCode get_cond_code(Tokenizer::Type type) {
+	switch(type) {
+		case Tokenizer::Type::CONDITION_EQ:
+			return Emulator32bit::ConditionCode::EQ;
+		case Tokenizer::Type::CONDITION_NE:
+			return Emulator32bit::ConditionCode::NE;
+		case Tokenizer::Type::CONDITION_CS:
+			return Emulator32bit::ConditionCode::CS;
+		case Tokenizer::Type::CONDITION_HS:
+			return Emulator32bit::ConditionCode::HS;
+		case Tokenizer::Type::CONDITION_CC:
+			return Emulator32bit::ConditionCode::CC;
+		case Tokenizer::Type::CONDITION_LO:
+			return Emulator32bit::ConditionCode::LO;
+		case Tokenizer::Type::CONDITION_MI:
+			return Emulator32bit::ConditionCode::MI;
+		case Tokenizer::Type::CONDITION_PL:
+			return Emulator32bit::ConditionCode::PL;
+		case Tokenizer::Type::CONDITION_VS:
+			return Emulator32bit::ConditionCode::VS;
+		case Tokenizer::Type::CONDITION_VC:
+			return Emulator32bit::ConditionCode::VC;
+		case Tokenizer::Type::CONDITION_HI:
+			return Emulator32bit::ConditionCode::HI;
+		case Tokenizer::Type::CONDITION_LS:
+			return Emulator32bit::ConditionCode::LS;
+		case Tokenizer::Type::CONDITION_GE:
+			return Emulator32bit::ConditionCode::GE;
+		case Tokenizer::Type::CONDITION_LT:
+			return Emulator32bit::ConditionCode::LT;
+		case Tokenizer::Type::CONDITION_GT:
+			return Emulator32bit::ConditionCode::GT;
+		case Tokenizer::Type::CONDITION_LE:
+			return Emulator32bit::ConditionCode::LE;
+		case Tokenizer::Type::CONDITION_AL:
+			return Emulator32bit::ConditionCode::AL;
+		case Tokenizer::Type::CONDITION_NV:
+			return Emulator32bit::ConditionCode::NV;
+		default:
+			return Emulator32bit::ConditionCode::NV;
+	}
+}
+
 word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 	consume(tokenI);
 
@@ -41,7 +84,7 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 	if (is_token(tokenI, {Tokenizer::PERIOD})) {
 		consume(tokenI);
 		expect_token(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
-		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
+		condition = (Emulator32bit::ConditionCode) get_cond_code(consume(tokenI).type);
 	}
 
 	sword value = 0;
@@ -74,7 +117,7 @@ word Assembler::parse_format_b2(int& tokenI, byte opcode) {
 	if (is_token(tokenI, {Tokenizer::PERIOD})) {
 		consume(tokenI);
 		expect_token(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
-		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
+		condition = (Emulator32bit::ConditionCode) get_cond_code(consume(tokenI).type);
 	}
 	skip_tokens(tokenI, "[ \t]");
 

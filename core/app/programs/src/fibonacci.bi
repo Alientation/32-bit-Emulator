@@ -11,4 +11,5 @@ loop_begin:
 		add 	x1, x2, #0
 		add 	x2, x2, x3
 		sub	x0, x0, #1
+		b	loop_begin
 loop_end:

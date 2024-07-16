@@ -476,7 +476,12 @@ void ObjectFile::print() {
 			switch (bitfield_u32(text_section[i], 26, 6)) {
 				case Emulator32bit::_op_b:
 				case Emulator32bit::_op_bl:
-					printf(" <%s+0x%hx>", current_label.c_str(), bitfield_s32(text_section[i], 0, 22)*4);
+					sword offset = bitfield_s32(text_section[i], 0, 22) * 4;
+					if (offset < 0) {
+						printf(" <%s-0x%hx>", current_label.c_str(), -offset);
+					} else {
+						printf(" <%s+0x%hx>", current_label.c_str(), offset);
+					}
 			}
 		} else {
 			printf(":\t%.8lx\t%.12s", text_section[i], disassembly.c_str());

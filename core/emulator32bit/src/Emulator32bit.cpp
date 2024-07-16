@@ -113,6 +113,10 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
 		exception.instr = instr;
 		execute(instr, exception);
+
+		// print flags
+		// printf("flags %d %d %d %d\n", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG), test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+
 		_pc += 4;
 		instructions--;
 	}
