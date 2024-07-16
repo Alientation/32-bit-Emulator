@@ -6,7 +6,6 @@ LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), 
 	load();
 }
 
-
 void LoadExecutable::load(word start_addr) {											/* For now load starting at address 0 */
 	ObjectFile obj(m_exe_file);
 
@@ -15,7 +14,7 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 
 		/* all symbols should have a corresponding definition */
 		if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Linker::link() - Error, symbol definition is not found.");
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Linker::link() - Undefined symbol " << obj.strings.at(symbol_entry.symbol_name));
 			continue;
 		}
 
@@ -23,20 +22,20 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 		word new_abs_value = symbol_entry.symbol_value + start_addr;
 		switch (rel.type) {
 			case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-				obj.text_section[instr_i] = mask_0(obj.text_section[rel.offset/4], 0, 14) + bitfield_u32(new_abs_value, 0, 12);
+				obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 14) + bitfield_u32(new_abs_value, 0, 12);
 				break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-				obj.text_section[instr_i] = mask_0(obj.text_section[rel.offset/4], 0, 20) + bitfield_u32(new_abs_value, 12, 20);
+				obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 20) + bitfield_u32(new_abs_value, 12, 20);
 				break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-				obj.text_section[instr_i] = mask_0(obj.text_section[rel.offset/4], 0, 19) + bitfield_u32(new_abs_value, 0, 19);
+				obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 19) + bitfield_u32(new_abs_value, 0, 19);
 				break;
 			case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-				obj.text_section[instr_i] = mask_0(obj.text_section[rel.offset/4], 0, 19) + bitfield_u32(new_abs_value, 19, 13);
+				obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 19) + bitfield_u32(new_abs_value, 19, 13);
 				break;
 			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
-				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
+				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type (" << std::to_string((int)rel.type) << ")");
 		}
 	}
 
@@ -56,4 +55,10 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 		m_emu.system_bus.write_byte(cur_addr, 0);
 		cur_addr++;
 	}
+
+	/* start program at _start label */
+	if (obj.string_table.find("_start") == obj.string_table.end()) {
+		lgr::log(lgr::Logger::LogType::ERROR, "LoadExecutable::load() - Missing required _start entry point of program.");
+	}
+	m_emu._pc = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value + start_addr;
 };

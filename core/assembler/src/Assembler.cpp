@@ -335,5 +335,5 @@ Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg) {
 Tokenizer::Token& Assembler::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expect_token(tokenI, errorMsg);
 	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
-    return m_tokens[tokenI++];
+    return m_tokens.at(tokenI++);
 }

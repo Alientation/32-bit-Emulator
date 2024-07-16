@@ -18,7 +18,7 @@ _start:
 		ldr	x2, [x2]
 		adrp	x0, #datalabel
 		add	x0, x0, #:lo12:datalabel
-		ldr	x0, [x0]
+		ldr	x0, [x0, #4]
 		bl 	func
 		hlt
 func:

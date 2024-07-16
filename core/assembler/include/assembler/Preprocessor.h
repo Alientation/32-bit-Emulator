@@ -77,7 +77,7 @@ class Preprocessor {
         Tokenizer::Token& consume(int& tok_i, const std::string& error_msg = "Preprocessor::consume() - Unexpected end of file");
         Tokenizer::Token& consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg = "Preprocessor::consume() - Unexpected token");
 
-		void _include(int& tok_i);
+		void _include(int& tok_i);		// todo, make angled brackets <...> capture everything inside as a token to not have to surround inside with a string
 		void _macro(int& tok_i);
 		void _macret(int& tok_i);
 		void _macend(int& tok_i);

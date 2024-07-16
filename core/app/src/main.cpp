@@ -13,10 +13,21 @@
 #include <sstream>
 #include <fstream>
 
+/*
+TODO
+
+* Fix local relative includes
+Figure out libraries, system libraries, and share object files
+* Create tests with the assembler to run longer pieces of code
+* Implement software interrupts
+Figure out IO, Disk, ports, etc
+Add more relocation types, directives, preprocessors and build flags as needed
+*/
+
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = "-lib library1 -L .\\tests\\libs -I .\\tests\\include -o .\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
+	std::string build_command = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";
