@@ -12,14 +12,84 @@
 #include <sstream>
 #include <vector>
 
+bool Process::valid_src_file(const File& file) {
+	return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
+}
+
+bool Process::valid_processed_file(const File& file) {
+	return file.get_extension() == PROCESSED_EXTENSION;
+}
+
+bool Process::valid_obj_file(const File& file) {
+	return file.get_extension() == OBJECT_EXTENSION;
+}
+
+bool Process::valid_exe_file(const File& file) {
+	return file.get_extension() == EXECUTABLE_EXTENSION;
+}
+
+
 /**
  * Constructs a build process from the specified arguments.
  *
  * @param compilerArgs the arguments to construct the build process from
  */
-Process::Process(std::string assemblerArgs) {
+Process::Process(const std::string& assemblerArgs) {
 	lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "Building Process: args(" << assemblerArgs << ")\n"
 			<< "Current Working Directory: " << std::filesystem::current_path().string());
+
+	flags = {
+		{"--", &Process::_ignore},
+
+		// prints out the version of the assembler
+		{"-v", &Process::_version},
+		{"-version", &Process::_version},
+
+		// compiles the source code files to object files and stops
+		{"-c", &Process::_compile},
+		{"-compile", &Process::_compile},
+
+		// specifies the name of the output file (the executable file)
+		{"-o", &Process::_output},
+		{"-out", &Process::_output},
+		{"-output", &Process::_output},
+
+		{"-outdir", &Process::_outdir},
+
+		// turns on optimization
+		{"-O", &Process::_optimize},
+		{"-optimize", &Process::_optimize},
+
+		// turns on all optimization
+		{"-oall", &Process::_optimize_all},
+
+		// turns on warning messages
+		{"-W", &Process::_warn},
+		{"-warning", &Process::_warn},
+
+		// turns on all warning messages
+		{"-wall", &Process::_warn_all},
+
+		// use given directory for system files
+		{"-I", &Process::_include},
+		{"-inc", &Process::_include},
+		{"-include", &Process::_include},
+
+		// links given library into program
+		{"-l", &Process::_library},
+		{"-lib", &Process::_library},
+		{"-library", &Process::_library},
+
+		// searches for linked libraries in given directory
+		{"-L", &Process::_library_directory},
+		{"-libdir", &Process::_library_directory},
+		{"-librarydir", &Process::_library_directory},
+
+		// pass preprocessor flags
+		{"-D", &Process::_preprocessor_flag},
+
+		{"-kp", &Process::_keep_processed_files},
+	};
 
 	// split command args by whitespace unless surrounded by quotes
 	std::vector<std::string> argsList;
@@ -31,6 +101,7 @@ Process::Process(std::string assemblerArgs) {
 	}
 
 	evaluate_args(argsList);
+	build();
 }
 
 /**
@@ -111,6 +182,10 @@ void Process::evaluate_args(std::vector<std::string>& argsList) {
 void Process::build() {
 	preprocess();
 	assemble();
+
+	if (m_only_compile) {											/* Only compiles object files */
+		return;
+	}
 	link();
 }
 
@@ -131,8 +206,15 @@ void Process::preprocess() {
 void Process::assemble() {
 	m_obj_files.clear();
 	for (File file : m_processed_files) {
-		Assembler assembler(this, file);
-		m_obj_files.push_back(assembler.assemble());
+		if (m_has_output_dir) {
+    		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "FILE NAME = " << file.get_name());
+			Assembler assembler(this, file, m_output_dir + File::SEPARATOR + file.get_name() + "." + OBJECT_EXTENSION);
+			m_obj_files.push_back(assembler.assemble());
+		} else {
+			Assembler assembler(this, file);
+			m_obj_files.push_back(assembler.assemble());
+		}
+		// todo, delete intermediate processed file afterwards if not specified to keep it
 	}
 }
 
@@ -144,9 +226,9 @@ void Process::link() {
 	for (File file : m_obj_files) {
 		objects.push_back(ObjectFile(file));
 	}
-	exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::link() - output file name: " << exe_file.get_path());
-	Linker linker(objects, exe_file);
+	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::link() - output file name: " << m_exe_file.get_path());
+	Linker linker(objects, m_exe_file);
 }
 
 
@@ -193,6 +275,22 @@ void Process::_output(std::vector<std::string>& args, int& index) {
 
 	// check if the output file is valid
 	lgr::EXPECT_TRUE(File::valid_path(m_output_file), lgr::Logger::LogType::ERROR, std::stringstream("Process::_output() - Invalid output file path: ") << m_output_file);
+}
+
+/**
+ * Sets the output directory for all object files generated
+ *
+ * USAGE: -outdir [filename]
+ *
+ * @param args the arguments passed to the build process
+ * @param index the index of the flag in the arguments list
+ */
+void Process::_outdir(std::vector<std::string>& args, int& index) {
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_outdir() - Missing output file name"));
+	m_output_dir = args[++index];
+	m_has_output_dir = true;
+	// check if the output file is valid
+	lgr::EXPECT_TRUE(Directory::valid_path(m_output_dir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_outdir() - Invalid output directory path: ") << m_output_file);
 }
 
 /**
@@ -339,52 +437,64 @@ void Process::_preprocessor_flag(std::vector<std::string>& args, int& index) {
 	m_preprocessor_flags[flag] = value;
 }
 
+/**
+ * Don't delete processed files after preprocessing
+ *
+ * USAGE: -kp
+ *
+ * @param args the arguments passed to the build process
+ * @param index the index of the flag in the arguments list
+ */
+void Process::_keep_processed_files(std::vector<std::string>& args, int& index) {
+	keep_proccessed_files = true;
+}
+
 
 // FOR NOW getters
-bool Process::do_only_compile() {
+bool Process::do_only_compile() const {
     return m_only_compile;
 }
 
-std::string Process::get_output_file() {
+std::string Process::get_output_file() const {
     return m_output_file;
 }
 
-int Process::get_optimization_level() {
+int Process::get_optimization_level() const {
     return m_optimization_level;
 }
 
-std::set<std::string> Process::get_enabled_warnings() {
+std::set<std::string> Process::get_enabled_warnings() const {
     return m_enabled_warnings;
 }
 
-std::map<std::string,std::string> Process::get_preprocessor_flags() {
+std::map<std::string,std::string> Process::get_preprocessor_flags() const {
     return m_preprocessor_flags;
 }
 
-std::vector<std::string> Process::get_linked_lib_names() {
+std::vector<std::string> Process::get_linked_lib_names() const {
     return m_linked_lib_names;
 }
 
-std::vector<Directory> Process::get_lib_dirs() {
+std::vector<Directory> Process::get_lib_dirs() const {
     return m_library_dirs;
 }
 
-std::vector<Directory> Process::get_system_dirs() {
+std::vector<Directory> Process::get_system_dirs() const {
     return m_system_dirs;
 }
 
-std::vector<File> Process::get_src_files() {
+std::vector<File> Process::get_src_files() const {
     return m_src_files;
 }
 
-std::vector<File> Process::get_processed_files() {
+std::vector<File> Process::get_processed_files() const {
     return m_processed_files;
 }
 
-std::vector<File> Process::get_obj_files() {
+std::vector<File> Process::get_obj_files() const {
     return m_obj_files;
 }
 
-File Process::get_exe_file() {
-    return exe_file;
+File Process::get_exe_file() const {
+    return m_exe_file;
 }
