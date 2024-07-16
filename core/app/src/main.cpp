@@ -17,6 +17,8 @@
 TODO
 
 * Fix local relative includes
+* improve vscode extension for basm language like autocomplete, syntax highlighting, etc
+* 		- File icon theme in vscode extension
 Figure out libraries, system libraries, and share object files
 * Create tests with the assembler to run longer pieces of code
 * Implement software interrupts
@@ -24,10 +26,14 @@ Figure out IO, Disk, ports, etc
 Add more relocation types, directives, preprocessors and build flags as needed
 */
 
+const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
+const std::string build_fibonacci = "-I .\\programs\\include -o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm -outdir .\\programs\\build";
+
+
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
+	std::string build_command = build_fibonacci;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";

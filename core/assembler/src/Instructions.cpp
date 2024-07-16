@@ -575,7 +575,7 @@ void Assembler::_ror(int& tokenI) {
 	m_obj.text_section.push_back(instruction);
 }
 
-void insert_xzr(std::vector<Tokenizer::Token> tokens, int pos) {
+void insert_xzr(std::vector<Tokenizer::Token>& tokens, int pos) {
 	std::vector<Tokenizer::Token> insert = {
 		Tokenizer::Token(Tokenizer::Type::WHITESPACE_SPACE, " "),
 		Tokenizer::Token(Tokenizer::Type::REGISTER_XZR, "xzr"),

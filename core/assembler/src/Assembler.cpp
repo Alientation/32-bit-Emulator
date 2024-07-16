@@ -109,7 +109,7 @@ File Assembler::assemble() {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Parsing tokens.");
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        // log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
+        log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
 
         // skip non code or directives
         if (is_token(i, Tokenizer::WHITESPACES) || is_token(i, Tokenizer::COMMENTS)) {
@@ -335,5 +335,5 @@ Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg) {
 Tokenizer::Token& Assembler::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
     expect_token(tokenI, errorMsg);
 	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
-    return m_tokens.at(tokenI++);
+	return m_tokens.at(tokenI++);
 }
