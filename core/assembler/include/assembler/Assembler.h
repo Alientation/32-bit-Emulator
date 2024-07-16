@@ -59,12 +59,12 @@ class Assembler {
 		void fill_local();
 
 		// these are the same as the preprocessor helper methods.. see if we can use tokenizer instead to store these duplicate methods
-		void skipTokens(int& tokenI, const std::string& regex);
-        void skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes);
-		bool expectToken(int tokenI, const std::string& errorMsg);
-        bool expectToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
-        bool isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Assembler::isToken() - Unexpected end of file");
-        bool inBounds(int tokenI);
+		void skip_tokens(int& tokenI, const std::string& regex);
+        void skip_tokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes);
+		bool expect_token(int tokenI, const std::string& errorMsg);
+        bool expect_token(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
+        bool is_token(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Assembler::is_token() - Unexpected end of file");
+        bool in_bounds(int tokenI);
         Tokenizer::Token& consume(int& tokenI, const std::string& errorMsg = "Assembler::assemble() - Unexpected end of file");
         Tokenizer::Token& consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "Assembler::consume() - Unexpected token");
 

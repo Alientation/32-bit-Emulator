@@ -17,7 +17,7 @@ class Preprocessor {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
 		};
 
-		Preprocessor(Process *process, const File& inputFile, const std::string& outputFilePath = "");	// constructs a preprocessor object with the given file
+		Preprocessor(Process *process, const File& input_file, const std::string& output_file_path = "");	// constructs a preprocessor object with the given file
 		~Preprocessor();							// destructs a preprocessor object
 
 		File preprocess();							// preprocesses the file
@@ -28,56 +28,21 @@ class Preprocessor {
             std::string name;
             Tokenizer::Type type;
 
-            Argument(std::string name, Tokenizer::Type type) {
-                this->name = name;
-                this->type = type;
-            }
-
-            Argument(std::string name) {
-                this->name = name;
-                this->type = Tokenizer::UNKNOWN;
-            }
+            Argument(std::string name, Tokenizer::Type type);
+            Argument(std::string name);
         };
 
 		struct Macro {
             std::string name;
-            std::vector<Argument> arguments;
-            Tokenizer::Type returnType;
+            std::vector<Argument> args;
+            Tokenizer::Type return_type;
 
             std::vector<Tokenizer::Token> definition;
 
-            Macro(std::string name) {
-                this->name = name;
-                this->returnType = Tokenizer::UNKNOWN;
-            }
+            Macro(std::string name);
 
-            std::string to_string() {
-                std::string toString = header() + "\n";
-                for (auto i = 0; i < arguments.size(); i++) {
-                    toString += "[" + std::to_string(i) + "]: " + arguments[i].name + ": " + Tokenizer::TYPE_TO_NAME_MAP.at(arguments[i].type);
-                }
-                toString += "-> " + Tokenizer::TYPE_TO_NAME_MAP.at(returnType) + "\n{\n";
-
-                for (int i = 0; i < definition.size(); i++) {
-                    toString += definition[i].value;
-                }
-
-                return toString + "\n}";
-            }
-
-            std::string header() {
-                std::string header;
-                header += name + "@(";
-
-                for (auto i = 0; i < arguments.size(); i++) {
-                    header += Tokenizer::TYPE_TO_NAME_MAP.at(arguments[i].type);
-                    if (i < arguments.size() - 1) {
-                        header += ",";
-                    }
-                }
-
-                return header + "):" + Tokenizer::TYPE_TO_NAME_MAP.at(returnType);
-            }
+            std::string to_string();
+            std::string header();
 		};
 
         struct Symbol {
@@ -85,53 +50,49 @@ class Preprocessor {
             std::vector<std::string> parameters;
             std::vector<Tokenizer::Token> value;
 
-            Symbol(std::string name, std::vector<std::string> parameters, std::vector<Tokenizer::Token> value) {
-                this->name = name;
-                this->parameters = parameters;
-                this->value = value;
-            }
+            Symbol(std::string name, std::vector<std::string> parameters, std::vector<Tokenizer::Token> value);
         };
 
 
 		Process *m_process;										    // the build process
 
-		File m_inputFile;										    // the .basm or .binc file being preprocessed
-		File m_outputFile;										    // the output file of the processed file, usually a .bi file
+		File m_input_file;										    // the .basm or .binc file being preprocessed
+		File m_output_file;										    // the output file of the processed file, usually a .bi file
 		State m_state;											    // the state of the preprocessor
 		std::vector<Tokenizer::Token> m_tokens;					    // the tokens of the input file
 
-		std::stack<std::pair<std::string, Macro*>> m_macroStack;    // the current processing macro stack with the output symbol and macro
+		std::stack<std::pair<std::string, Macro*>> m_macro_stack;    // the current processing macro stack with the output symbol and macro
 
         std::map<std::string, std::map<int, Symbol>> m_def_symbols; // defined symbols
 		std::map<std::string, Macro*> m_macros;					    // defined macros
 
-		std::vector<Macro*> macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments);
+		std::vector<Macro*> macros_with_header(std::string macro_name, std::vector<std::vector<Tokenizer::Token>> args);
 
-		void skipTokens(int& tokenI, const std::string& regex);
-        void skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes);
-		bool expectToken(int tokenI, const std::string& errorMsg);
-        bool expectToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
-        bool isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Preprocessor::isToken() - Unexpected end of file");
-        bool inBounds(int tokenI);
-        Tokenizer::Token& consume(int& tokenI, const std::string& errorMsg = "Preprocessor::consume() - Unexpected end of file");
-        Tokenizer::Token& consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "Preprocessor::consume() - Unexpected token");
+		void skip_tokens(int& tok_i, const std::string& regex);
+        void skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types);
+		bool expect_token(int tok_i, const std::string& error_msg);
+        bool expect_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg);
+        bool is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg = "Preprocessor::is_token() - Unexpected end of file");
+        bool in_bounds(int tok_i);
+        Tokenizer::Token& consume(int& tok_i, const std::string& error_msg = "Preprocessor::consume() - Unexpected end of file");
+        Tokenizer::Token& consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg = "Preprocessor::consume() - Unexpected token");
 
-		void _include(int& tokenI);
-		void _macro(int& tokenI);
-		void _macret(int& tokenI);
-		void _macend(int& tokenI);
-		void _invoke(int& tokenI);
-		void _define(int& tokenI);
-        void _conditionalOnDefinition(int& tokenI);
-        void _conditionalOnValue(int& tokenI);
-		void _else(int& tokenI);
-		void _endif(int& tokenI);
-		void _undefine(int& tokenI);
+		void _include(int& tok_i);
+		void _macro(int& tok_i);
+		void _macret(int& tok_i);
+		void _macend(int& tok_i);
+		void _invoke(int& tok_i);
+		void _define(int& tok_i);
+        void _cond_on_def(int& tok_i);
+        void _cond_on_value(int& tok_i);
+		void _else(int& tok_i);
+		void _endif(int& tok_i);
+		void _undefine(int& tok_i);
 
-        void conditionalBlock(int& tokenI, bool conditionMet);
-        bool isDefinitionSymbolDefined(std::string symbolName, int numParameters);
+        void cond_block(int& tok_i, bool cond_met);
+        bool is_symbol_def(std::string symbol_name, int num_params);
 
-		typedef void (Preprocessor::*PreprocessorFunction)(int& tokenI);
+		typedef void (Preprocessor::*PreprocessorFunction)(int& tok_i);
 		std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {
 			{Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
 			{Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},
@@ -140,23 +101,23 @@ class Preprocessor {
 			{Tokenizer::PREPROCESSOR_INVOKE, &Preprocessor::_invoke},
 			{Tokenizer::PREPROCESSOR_DEFINE, &Preprocessor::_define},
 
-			{Tokenizer::PREPROCESSOR_IFDEF, &Preprocessor::_conditionalOnDefinition},
-			{Tokenizer::PREPROCESSOR_IFNDEF, &Preprocessor::_conditionalOnDefinition},
+			{Tokenizer::PREPROCESSOR_IFDEF, &Preprocessor::_cond_on_def},
+			{Tokenizer::PREPROCESSOR_IFNDEF, &Preprocessor::_cond_on_def},
 
-            {Tokenizer::PREPROCESSOR_IFEQU, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_IFNEQU, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_IFLESS, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_IFMORE, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_IFEQU, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_IFNEQU, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_IFLESS, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_IFMORE, &Preprocessor::_cond_on_value},
 
 			{Tokenizer::PREPROCESSOR_ELSE, &Preprocessor::_else},
 
-			{Tokenizer::PREPROCESSOR_ELSEDEF, &Preprocessor::_conditionalOnDefinition},
-			{Tokenizer::PREPROCESSOR_ELSENDEF, &Preprocessor::_conditionalOnDefinition},
+			{Tokenizer::PREPROCESSOR_ELSEDEF, &Preprocessor::_cond_on_def},
+			{Tokenizer::PREPROCESSOR_ELSENDEF, &Preprocessor::_cond_on_def},
 
-            {Tokenizer::PREPROCESSOR_ELSEEQU, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_ELSENEQU, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_ELSELESS, &Preprocessor::_conditionalOnValue},
-            {Tokenizer::PREPROCESSOR_ELSEMORE, &Preprocessor::_conditionalOnValue},
+            {Tokenizer::PREPROCESSOR_ELSEEQU, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_ELSENEQU, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_ELSELESS, &Preprocessor::_cond_on_value},
+            {Tokenizer::PREPROCESSOR_ELSEMORE, &Preprocessor::_cond_on_value},
 
 			{Tokenizer::PREPROCESSOR_ENDIF, &Preprocessor::_endif},
 			{Tokenizer::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}

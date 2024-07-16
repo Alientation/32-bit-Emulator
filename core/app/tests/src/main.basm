@@ -1,4 +1,4 @@
-#include "include.binc"
+#include <"include.binc">
 
 ;*
 	Start of file

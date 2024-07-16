@@ -7,6 +7,41 @@
 #include <fstream>
 #include <filesystem>
 
+Preprocessor::Argument::Argument(std::string name, Tokenizer::Type type) : name(name), type(type) { }
+Preprocessor::Argument::Argument(std::string name) : name(name), type(Tokenizer::UNKNOWN) { }
+
+Preprocessor::Macro::Macro(std::string name) : name(name), return_type(Tokenizer::UNKNOWN) { }
+std::string Preprocessor::Macro::to_string() {
+	std::string toString = header() + "\n";
+	for (auto i = 0; i < args.size(); i++) {
+		toString += "[" + std::to_string(i) + "]: " + args[i].name + ": " + Tokenizer::TYPE_TO_NAME_MAP.at(args[i].type);
+	}
+	toString += "-> " + Tokenizer::TYPE_TO_NAME_MAP.at(return_type) + "\n{\n";
+
+	for (int i = 0; i < definition.size(); i++) {
+		toString += definition[i].value;
+	}
+
+	return toString + "\n}";
+}
+
+std::string Preprocessor::Macro::header() {
+	std::string header;
+	header += name + "@(";
+
+	for (auto i = 0; i < args.size(); i++) {
+		header += Tokenizer::TYPE_TO_NAME_MAP.at(args[i].type);
+		if (i < args.size() - 1) {
+			header += ",";
+		}
+	}
+
+	return header + "):" + Tokenizer::TYPE_TO_NAME_MAP.at(return_type);
+}
+
+Preprocessor::Symbol::Symbol(std::string name, std::vector<std::string> params, std::vector<Tokenizer::Token> value)
+	: name(name), parameters(params), value(value) {  }
+
 /**
  * Constructs a preprocessor object with the given file.
  *
@@ -14,26 +49,28 @@
  * @param file the file to preprocess.
  * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
  */
-Preprocessor::Preprocessor(Process* process, const File& inputFile, const std::string& outputFilePath) : m_process(process), m_inputFile(inputFile) {
+Preprocessor::Preprocessor(Process* process, const File& input_file, const std::string& output_file_path)
+		: m_process(process), m_input_file(input_file) {
 	// default output file path if not supplied in the constructor
-	if (outputFilePath.empty()) {
-        m_outputFile = File(m_inputFile.get_name(), PROCESSED_EXTENSION, m_inputFile.get_dir(), true);
+	if (output_file_path.empty()) {
+        m_output_file = File(m_input_file.get_name(), PROCESSED_EXTENSION, m_input_file.get_dir(), true);
 	} else {
-        m_outputFile = File(outputFilePath, true);
+        m_output_file = File(output_file_path, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->valid_src_file(inputFile), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: " << inputFile.get_extension());
+	lgr::EXPECT_TRUE(m_process->valid_src_file(input_file), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Preprocessor::Preprocessor() - Invalid source file: " << input_file.get_extension());
 
 	m_state = State::UNPROCESSED;
-	m_tokens = Tokenizer::tokenize(inputFile);
+	m_tokens = Tokenizer::tokenize(input_file);
 }
 
 /**
  * Destructs a preprocessor object.
  */
 Preprocessor::~Preprocessor() {
-    for (std::pair<std::string, Macro*> macroPair : m_macros) {
-        delete macroPair.second;
+    for (std::pair<std::string, Macro*> macro_pair : m_macros) {
+        delete macro_pair.second;
     }
 }
 
@@ -41,26 +78,26 @@ Preprocessor::~Preprocessor() {
  * Preprocesses the file.
  */
 File Preprocessor::preprocess() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: " << m_inputFile.get_name());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: "
+			<< m_input_file.get_name());
 
-	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
+	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
     // clearing intermediate output file
     std::ofstream ofs;
-    ofs.open(m_outputFile.get_path(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(m_output_file.get_path(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
     // create writer for intermediate output file
-    FileWriter writer = FileWriter(m_outputFile);
+    FileWriter writer = FileWriter(m_output_file);
 
 	// parses the tokens
-	int currentIndentLevel = 0;
-	int targetIndentLevel = 0;
+	int cur_indent_level = 0;
+	int target_indent_level = 0;
 	for (int i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        // lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Processing token " << i << ": " << token.toString());
-		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Indent Level: " << currentIndentLevel << " " << token.to_string());
 
         // skip back to back newlines
         if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.last_byte_written() == '\n') {
@@ -70,26 +107,26 @@ File Preprocessor::preprocess() {
 
 		// update current indent level
 		if (token.type == Tokenizer::WHITESPACE_TAB) {
-			currentIndentLevel++;
+			cur_indent_level++;
 		} else if (token.type == Tokenizer::WHITESPACE_NEWLINE) {
-			currentIndentLevel = 0;
+			cur_indent_level = 0;
 		}
 
 		// update target indent level
 		if (token.type == Tokenizer::ASSEMBLER_SCEND) {
-			targetIndentLevel--;
+			target_indent_level--;
 		}
 
 		// format the output with improved indents
-		if (currentIndentLevel < targetIndentLevel && token.type == Tokenizer::WHITESPACE_SPACE) {
+		if (cur_indent_level < target_indent_level && token.type == Tokenizer::WHITESPACE_SPACE) {
 			// don't output whitespaces if a tab is expected
 			continue;
-		} else if (currentIndentLevel < targetIndentLevel
+		} else if (cur_indent_level < target_indent_level
 				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE) {
 			// append tabs
-			while (currentIndentLevel < targetIndentLevel) {
+			while (cur_indent_level < target_indent_level) {
 				writer.write("\t");
-				currentIndentLevel++;
+				cur_indent_level++;
 			}
 		}
 
@@ -102,22 +139,22 @@ File Preprocessor::preprocess() {
                 // replace symbol with value
                 std::string symbol = token.value;
                 consume(i);
-                skipTokens(i, "[ \t]");
+                skip_tokens(i, "[ \t]");
 
                 // check if the symbol has parameters
                 std::vector<std::vector<Tokenizer::Token>> parameters;
-                if (isToken(i, {Tokenizer::OPEN_PARANTHESIS})) {
+                if (is_token(i, {Tokenizer::OPEN_PARANTHESIS})) {
                     consume(i); // '('
-                    while (!isToken(i, {Tokenizer::CLOSE_PARANTHESIS})) {
+                    while (!is_token(i, {Tokenizer::CLOSE_PARANTHESIS})) {
                         std::vector<Tokenizer::Token> parameter;
-                        while (!isToken(i, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS})) {
+                        while (!is_token(i, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS})) {
                             parameter.push_back(consume(i));
                         }
                         parameters.push_back(parameter);
-                        if (isToken(i, {Tokenizer::COMMA})) {
+                        if (is_token(i, {Tokenizer::COMMA})) {
                             consume(i);
                         } else {
-                            expectToken(i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')' in symbol parameters.");
+                            expect_token(i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')' in symbol parameters.");
                         }
                     }
                     consume(i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')'.");
@@ -153,28 +190,28 @@ File Preprocessor::preprocess() {
 
 		// update target indent level
 		if (token.type == Tokenizer::ASSEMBLER_SCOPE) {
-			targetIndentLevel++;
+			target_indent_level++;
 		}
 	}
 
 	m_state = State::PROCESSED_SUCCESS;
 	writer.close();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_inputFile.get_name());
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_input_file.get_name());
 
     // log macros
-    for (std::pair<std::string, Macro*> macroPair : m_macros) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macroPair.second->to_string());
+    for (std::pair<std::string, Macro*> macro_pair : m_macros) {
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macro_pair.second->to_string());
     }
 
-	return m_outputFile;
+	return m_output_file;
 }
 
 
 /**
  * Returns the macros that match the given macro name and arguments list.
  *
- * @param macroName the name of the macro.
+ * @param macro_name the name of the macro.
  * @param arguments the arguments passed to the macro.
  *
  * TODO: possibly in the future should consider filtering for macros that have the same order of argument types.
@@ -183,14 +220,14 @@ File Preprocessor::preprocess() {
  *
  * @return the macros with the given name and number of arguments.
  */
-std::vector<Preprocessor::Macro*> Preprocessor::macrosWithHeader(std::string macroName, std::vector<std::vector<Tokenizer::Token>> arguments) {
-	std::vector<Macro*> possibleMacros;
-	for (std::pair<std::string, Macro*> macroPair : m_macros) {
-		if (macroPair.second->name == macroName && macroPair.second->arguments.size() == arguments.size()) {
-			possibleMacros.push_back(macroPair.second);
+std::vector<Preprocessor::Macro*> Preprocessor::macros_with_header(std::string macro_name, std::vector<std::vector<Tokenizer::Token>> args) {
+	std::vector<Macro*> possible_macros;
+	for (std::pair<std::string, Macro*> macro_pair : m_macros) {
+		if (macro_pair.second->name == macro_name && macro_pair.second->args.size() == args.size()) {
+			possible_macros.push_back(macro_pair.second);
 		}
 	}
-	return possibleMacros;
+	return possible_macros;
 }
 
 
@@ -198,93 +235,93 @@ std::vector<Preprocessor::Macro*> Preprocessor::macrosWithHeader(std::string mac
  * Skips tokens that match the given regex.
  *
  * @param regex matches tokens to skip.
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  */
-void Preprocessor::skipTokens(int& tokenI, const std::string& regex) {
-	while (inBounds(tokenI) && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
-		tokenI++;
+void Preprocessor::skip_tokens(int& tok_i, const std::string& regex) {
+	while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].value, std::regex(regex))) {
+		tok_i++;
 	}
 }
 
 /**
  * Skips tokens that match the given types.
  *
- * @param tokenI the index of the current token.
- * @param tokenTypes the types to match.
+ * @param tok_i the index of the current token.
+ * @param tok_types the types to match.
  */
-void Preprocessor::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes) {
-    while (inBounds(tokenI) && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
-        tokenI++;
+void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types) {
+    while (in_bounds(tok_i) && tok_types.find(m_tokens[tok_i].type) != tok_types.end()) {
+        tok_i++;
     }
 }
 
 /**
  * Expects the current token to exist.
  *
- * @param tokenI the index of the expected token.
- * @param errorMsg the error message to throw if the token does not exist.
+ * @param tok_i the index of the expected token.
+ * @param error_msg the error message to throw if the token does not exist.
  */
-bool Preprocessor::expectToken(int tokenI, const std::string& errorMsg) {
-	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
+bool Preprocessor::expect_token(int tok_i, const std::string& error_msg) {
+	lgr::EXPECT_TRUE(in_bounds(tok_i), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
     return true;
 }
 
-bool Preprocessor::expectToken(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	lgr::EXPECT_TRUE(inBounds(tokenI), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
-	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream(errorMsg));
+bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg) {
+	lgr::EXPECT_TRUE(in_bounds(tok_i), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
+	lgr::EXPECT_TRUE(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
     return true;
 }
 
 /**
  * Returns whether the current token matches the given types.
  *
- * @param tokenI the index of the current token.
- * @param tokenTypes the types to match.
+ * @param tok_i the index of the current token.
+ * @param tok_types the types to match.
  *
  * @return true if the current token matches the given types.
  */
-bool Preprocessor::isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
-    return tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end();
+bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg) {
+    expect_token(tok_i, error_msg);
+    return tok_types.find(m_tokens[tok_i].type) != tok_types.end();
 }
 
 /**
  * Returns whether the current token index is within the bounds of the tokens list.
  *
- * @param tokenI the index of the current token
+ * @param tok_i the index of the current token
  *
  * @return true if the token index is within the bounds of the tokens list.
  */
-bool Preprocessor::inBounds(int tokenI) {
-    return tokenI < m_tokens.size();
+bool Preprocessor::in_bounds(int tok_i) {
+    return tok_i < m_tokens.size();
 }
 
 /**
  * Consumes the current token.
  *
- * @param tokenI the index of the current token.
- * @param errorMsg the error message to throw if the token does not exist.
+ * @param tok_i the index of the current token.
+ * @param error_msg the error message to throw if the token does not exist.
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
-    return m_tokens[tokenI++];
+Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg) {
+    expect_token(tok_i, error_msg);
+    return m_tokens[tok_i++];
 }
 
 /**
  * Consumes the current token and checks it matches the given types.
  *
- * @param tokenI the index of the current token.
- * @param expectedTypes the expected types of the token.
- * @param errorMsg the error message to throw if the token does not have the expected type.
+ * @param tok_i the index of the current token.
+ * @param expected_types the expected types of the token.
+ * @param error_msg the error message to throw if the token does not have the expected type.
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
-	lgr::EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), lgr::Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
-    return m_tokens[tokenI++];
+Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg) {
+    expect_token(tok_i, error_msg);
+	lgr::EXPECT_TRUE(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), lgr::Logger::LogType::ERROR, std::stringstream() << error_msg << " - Unexpected end of file.");
+    return m_tokens[tok_i++];
 }
 
 
@@ -297,54 +334,73 @@ Tokenizer::Token& Preprocessor::consume(int& tokenI, const std::set<Tokenizer::T
  * <filepath>: prioritizes files located in the include directory, if not found, looks in the
  * current directory.
  *
- * @param tokenI the index of the include token.
+ * @param tok_i the index of the include token.
  */
-void Preprocessor::_include(int& tokenI) {
-	consume(tokenI); // '#include'
-	skipTokens(tokenI, "[ \t]");
+void Preprocessor::_include(int& tok_i) {
+	consume(tok_i); // '#include'
+	skip_tokens(tok_i, "[ \t]");
 
 	// the path to the included file
-	std::string fullPathFromWorkingDirectory;
+	std::string full_path_from_working_dir;
 
-    if (isToken(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename.")) {
+    if (is_token(tok_i, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename.")) {
         // local include
-		std::string localFilePath = consume(tokenI).value;
-		localFilePath = localFilePath.substr(1, localFilePath.length() - 2);
-        fullPathFromWorkingDirectory = m_inputFile.get_dir() + File::SEPARATOR + localFilePath;
-    } else {
-        // expect <"...">
-        consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
-        std::string systemFilePath = consume(tokenI, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Expected string literal.").value;
-        consume(tokenI, {Tokenizer::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing '>'.");
+		// todo, first search local relative path (fix when creating path from file whenver something like ./tests/../xxxxx happens it doesnt account for the ..)
+		// todo, next, search system dirs DO NOT SEARCH LIB DIRS
+		std::string local_file_path = consume(tok_i).value;
+		local_file_path = local_file_path.substr(1, local_file_path.length() - 2);
 
-        // check if file exists in system include directories
-		bool foundSystemFile = false;
-        for (Directory directory : m_process->get_system_dirs()) {
-            if (directory.subfile_exists(systemFilePath)) {
-				if (foundSystemFile) {
-					// already found file
-					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << systemFilePath);
+		bool found_local_file = false;
+		for (Directory dir : m_process->get_lib_dirs()) {
+			if (dir.subfile_exists(local_file_path)) {
+				if (found_local_file) {
+					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in local include directories: " << local_file_path);
 				}
 
-                fullPathFromWorkingDirectory = directory.get_path() + File::SEPARATOR + systemFilePath;
-				foundSystemFile = true;
+				full_path_from_working_dir = dir.get_path() + File::SEPARATOR + local_file_path;
+				found_local_file = true;
+			}
+		}
+
+		if (!found_local_file) {
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in local include directories: " << local_file_path);
+		}
+    } else {
+        // expect <"...">
+        consume(tok_i, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
+        std::string sys_file_path = consume(tok_i, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Expected string literal.").value;
+		sys_file_path = sys_file_path.substr(1, sys_file_path.length() - 2);
+        consume(tok_i, {Tokenizer::OPERATOR_LOGICAL_GREATER_THAN}, "Preprocessor::_include() - Missing '>'.");
+
+        // check if file exists in system include directories
+		bool found_sys_file = false;
+        for (Directory dir : m_process->get_system_dirs()) {
+            if (dir.subfile_exists(sys_file_path)) {
+				if (found_sys_file) {
+					// already found file
+					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << sys_file_path);
+				}
+
+                full_path_from_working_dir = dir.get_path() + File::SEPARATOR + sys_file_path;
+				found_sys_file = true;
 			}
         }
 
-		if (!foundSystemFile) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << systemFilePath);
+		if (!found_sys_file) {
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << sys_file_path);
 		}
 	}
 
 	// process included file
-	File includeFile = File(fullPathFromWorkingDirectory);
-	lgr::EXPECT_TRUE(includeFile.exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << fullPathFromWorkingDirectory);
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::_include() - include path: " << full_path_from_working_dir);
+	File include_file = File(full_path_from_working_dir);
+	lgr::EXPECT_TRUE(include_file.exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << full_path_from_working_dir);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
-	Preprocessor includedPreprocessor(m_process, includeFile, m_outputFile.get_path());
+	Preprocessor included_preprocessor(m_process, include_file, m_output_file.get_path());
 
 	// yoink the tokens from the included file and insert
-	m_tokens.insert(m_tokens.begin() + tokenI, includedPreprocessor.m_tokens.begin(), includedPreprocessor.m_tokens.end());
+	m_tokens.insert(m_tokens.begin() + tok_i, included_preprocessor.m_tokens.begin(), included_preprocessor.m_tokens.end());
 }
 
 /**
@@ -356,46 +412,46 @@ void Preprocessor::_include(int& tokenI) {
  * There cannot be a macro definition within this macro definition.
  * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
  *
- * @param tokenI The index of the macro token.
+ * @param tok_i The index of the macro token.
  */
-void Preprocessor::_macro(int& tokenI) {
-	consume(tokenI); // '#macro'
-	skipTokens(tokenI, "[ \t]");
+void Preprocessor::_macro(int& tok_i) {
+	consume(tok_i); // '#macro'
+	skip_tokens(tok_i, "[ \t]");
 
 	// parse macro name
-	std::string macroName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected macro name.").value;
-    Macro* macro = new Macro(macroName);
+	std::string macro_name = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected macro name.").value;
+    Macro* macro = new Macro(macro_name);
 
     // start of invoked arguments
-	skipTokens(tokenI, "[ \t\n]");
-	consume(tokenI, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
+	skip_tokens(tok_i, "[ \t\n]");
+	consume(tok_i, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
 
     // parse arguments
-    while (!isToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected macro header.")) {
-        skipTokens(tokenI, "[ \t\n]");
-        std::string argName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected argument name.").value;
+    while (!is_token(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected macro header.")) {
+        skip_tokens(tok_i, "[ \t\n]");
+        std::string argName = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected argument name.").value;
 
-        skipTokens(tokenI, "[ \t\n]");
-        macro->arguments.push_back(Argument(argName));
+        skip_tokens(tok_i, "[ \t\n]");
+        macro->args.push_back(Argument(argName));
 
 
         // parse comma or expect closing parenthesis
-        skipTokens(tokenI, "[ \t\n]");
-        if (isToken(tokenI, {Tokenizer::COMMA})) {
-            consume(tokenI);
+        skip_tokens(tok_i, "[ \t\n]");
+        if (is_token(tok_i, {Tokenizer::COMMA})) {
+            consume(tok_i);
         }
     }
 
     // consume the closing parenthesis
-    consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
-    skipTokens(tokenI, "[ \t\n]");
+    consume(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
+    skip_tokens(tok_i, "[ \t\n]");
 
     // parse macro definition
-    skipTokens(tokenI, "[ \t\n]");
-    while (!isToken(tokenI, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected macro definition." )) {
-        macro->definition.push_back(consume(tokenI));
+    skip_tokens(tok_i, "[ \t\n]");
+    while (!is_token(tok_i, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected macro definition." )) {
+        macro->definition.push_back(consume(tok_i));
     }
-    consume(tokenI, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
+    consume(tok_i, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
 
     // check if macro declaration is unique
 	lgr::EXPECT_TRUE(m_macros.find(macro->header()) == m_macros.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
@@ -412,22 +468,22 @@ void Preprocessor::_macro(int& tokenI) {
  * If the macro does not have a return type the macret must return nothing.
  * If the macro has a return type the macret must return a value of that type
  *
- * @param tokenI The index of the macro return token
+ * @param tok_i The index of the macro return token
  */
-void Preprocessor::_macret(int& tokenI) {
-	consume(tokenI); // '#macret'
-	skipTokens(tokenI, "[ \t]");
+void Preprocessor::_macret(int& tok_i) {
+	consume(tok_i); // '#macret'
+	skip_tokens(tok_i, "[ \t]");
 
 	std::vector<Tokenizer::Token> return_value;
-	if (m_macroStack.empty()) {
+	if (m_macro_stack.empty()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
 	}
 
 	// macro contains a return value
-	bool doesMacroReturn = m_macroStack.top().second->returnType != Tokenizer::UNKNOWN;
-	if (doesMacroReturn) {
-		while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-			return_value.push_back(consume(tokenI));
+	bool does_macro_return = m_macro_stack.top().second->return_type != Tokenizer::UNKNOWN;
+	if (does_macro_return) {
+		while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE})) {
+			return_value.push_back(consume(tok_i));
 		}
 	}
 
@@ -435,34 +491,34 @@ void Preprocessor::_macret(int& tokenI) {
 	// we can achieve this by counting the number of scope levels, incrementing if we reach a .scope token and decrementing
 	// if we reach a .scend token. If we reach 0, we know we have reached the end of the macro definition.
 
-	int currentRelativeScopeLevel = 0;
-	while (inBounds(tokenI)) {
-		if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCOPE})) {
-			currentRelativeScopeLevel++;
-		} else if (isToken(tokenI, {Tokenizer::ASSEMBLER_SCEND})) {
-			currentRelativeScopeLevel--;
+	int cur_rel_scope_level = 0;
+	while (in_bounds(tok_i)) {
+		if (is_token(tok_i, {Tokenizer::ASSEMBLER_SCOPE})) {
+			cur_rel_scope_level++;
+		} else if (is_token(tok_i, {Tokenizer::ASSEMBLER_SCEND})) {
+			cur_rel_scope_level--;
 		}
-		consume(tokenI);
+		consume(tok_i);
 
-		if (currentRelativeScopeLevel == 0) {
+		if (cur_rel_scope_level == 0) {
 			break;
 		}
 	}
 
-	if (currentRelativeScopeLevel != 0) {
+	if (cur_rel_scope_level != 0) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unclosed scope.");
 	}
 
 	// add'.equ current_macro_output_symbol expression' to tokens
-	if (doesMacroReturn) {
+	if (does_macro_return) {
 		std::vector<Tokenizer::Token> set_return_statement;
-		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", m_macroStack.top().first)));
+		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ", m_macro_stack.top().first)));
 		vector_util::append(set_return_statement, return_value);
-		m_tokens.insert(m_tokens.begin() + tokenI, set_return_statement.begin(), set_return_statement.end());
+		m_tokens.insert(m_tokens.begin() + tok_i, set_return_statement.begin(), set_return_statement.end());
 	}
 
 	// pop the macro from the stack
-	m_macroStack.pop();
+	m_macro_stack.pop();
 }
 
 /**
@@ -472,9 +528,9 @@ void Preprocessor::_macret(int& tokenI) {
  *
  * If a macro is not closed an error is thrown.
  *
- * @param tokenI The index of the macro end token
+ * @param tok_i The index of the macro end token
  */
-void Preprocessor::_macend(int& tokenI) {
+void Preprocessor::_macend(int& tok_i) {
     // should never reach this. This should be consumed by the _macro function.
     lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macend() - Unexpected macro end token.");
 }
@@ -487,48 +543,48 @@ void Preprocessor::_macend(int& tokenI) {
  * If provided an output symbol, the symbol will be associated with the return value of the macro.
  * If the macro does not return a value but an output symbol is provided, an error is thrown.
  *
- * @param tokenI The index of the invoke token
+ * @param tok_i The index of the invoke token
  */
-void Preprocessor::_invoke(int& tokenI) {
-	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+void Preprocessor::_invoke(int& tok_i) {
+	consume(tok_i);
+	skip_tokens(tok_i, "[ \t]");
 
 	// parse macro name
-	std::string macroName = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected macro name.").value;
+	std::string macro_name = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected macro name.").value;
 
 	// parse arguments
-	skipTokens(tokenI, "[ \t\n]");
-	consume(tokenI, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_invoke() - Expected '('.");
+	skip_tokens(tok_i, "[ \t\n]");
+	consume(tok_i, {Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_invoke() - Expected '('.");
 	std::vector<std::vector<Tokenizer::Token>> arguments;
-	while (!isToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.")) {
-		skipTokens(tokenI, "[ \t\n]");
+	while (!is_token(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.")) {
+		skip_tokens(tok_i, "[ \t\n]");
 
 		std::vector<Tokenizer::Token> argumentValues;
-		while (!isToken(tokenI, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS, Tokenizer::WHITESPACE_NEWLINE}, "Preprocessor::_invoke() - Expected ')'.")) {
-			argumentValues.push_back(consume(tokenI));
+		while (!is_token(tok_i, {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS, Tokenizer::WHITESPACE_NEWLINE}, "Preprocessor::_invoke() - Expected ')'.")) {
+			argumentValues.push_back(consume(tok_i));
 		}
 		arguments.push_back(argumentValues);
 
-		if (isToken(tokenI, {Tokenizer::COMMA})) {
-			consume(tokenI);
+		if (is_token(tok_i, {Tokenizer::COMMA})) {
+			consume(tok_i);
 		}
 	}
-	consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
-	skipTokens(tokenI, "[ \t\n]");
+	consume(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
+	skip_tokens(tok_i, "[ \t\n]");
 
 	// parse the output symbol if there is one
-	bool hasOutput = isToken(tokenI, {Tokenizer::SYMBOL});
-	std::string outputSymbol = "";
-	if (hasOutput) {
-		outputSymbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected output symbol.").value;
+	bool has_output = is_token(tok_i, {Tokenizer::SYMBOL});
+	std::string output_symbol = "";
+	if (has_output) {
+		output_symbol = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected output symbol.").value;
 	}
 
 	// check if macro exists
-	std::vector<Macro*> possibleMacros = macrosWithHeader(macroName, arguments);
+	std::vector<Macro*> possibleMacros = macros_with_header(macro_name, arguments);
 	if (possibleMacros.size() == 0) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macroName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macro_name);
 	} else if (possibleMacros.size() > 1) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macroName);
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macro_name);
 	}
 	Macro* macro = possibleMacros[0];
 
@@ -536,8 +592,8 @@ void Preprocessor::_invoke(int& tokenI) {
 	std::vector<Tokenizer::Token> expanded_macro_invoke;
 
 	// check if the macro returns something, if so add a equate statement to store the output
-	if (hasOutput) {
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} 0\n", outputSymbol)));
+	if (has_output) {
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} 0\n", output_symbol)));
 	}
 
 	// append a new '.scope' symbol to the tokens list
@@ -546,7 +602,7 @@ void Preprocessor::_invoke(int& tokenI) {
 
 	// then for each argument, add an '.equ argname argval' statement
 	for (int i = 0; i < arguments.size(); i++) {
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} ", macro->arguments[i].name)));
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} ", macro->args[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
 	}
 
@@ -558,7 +614,7 @@ void Preprocessor::_invoke(int& tokenI) {
 	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCEND, ".scend"));
 
 	// push the macro and output symbol if any onto the macro stack
-	m_macroStack.push(std::pair<std::string, Macro*>(outputSymbol, macro));
+	m_macro_stack.push(std::pair<std::string, Macro*>(output_symbol, macro));
 
 	// print out expanded macro
 	std::stringstream ss;
@@ -568,7 +624,7 @@ void Preprocessor::_invoke(int& tokenI) {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
 
 	// insert into the tokens list
-	m_tokens.insert(m_tokens.begin() + tokenI, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
+	m_tokens.insert(m_tokens.begin() + tok_i, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
 }
 
 /**
@@ -579,57 +635,57 @@ void Preprocessor::_invoke(int& tokenI) {
  * Replaces all instances of symbol with the value.
  * If value is not specified, the default is empty.
  *
- * @param tokenI The index of the define token.
+ * @param tok_i The index of the define token.
  */
-void Preprocessor::_define(int& tokenI) {
-    consume(tokenI); // '#define'
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_define(int& tok_i) {
+    consume(tok_i); // '#define'
+    skip_tokens(tok_i, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string symbol = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
+    skip_tokens(tok_i, "[ \t]");
 
     // check for parameter declaration
     std::vector<std::string> parameters;
-    std::set<std::string> ensureUniqueParameters;
-    if (isToken(tokenI, {Tokenizer::OPEN_PARANTHESIS})) {
-        consume(tokenI); // '('
+    std::set<std::string> ensure_unique_params;
+    if (is_token(tok_i, {Tokenizer::OPEN_PARANTHESIS})) {
+        consume(tok_i); // '('
 
         // parse parameters
-        while (!isToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS})) {
-            skipTokens(tokenI, "[ \t]");
-            std::string parameter = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.").value;
+        while (!is_token(tok_i, {Tokenizer::CLOSE_PARANTHESIS})) {
+            skip_tokens(tok_i, "[ \t]");
+            std::string parameter = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.").value;
 
             // ensure the parameter symbol has not been used before in this definition parameters
-            lgr::EXPECT_TRUE(ensureUniqueParameters.find(parameter) == ensureUniqueParameters.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);
+            lgr::EXPECT_TRUE(ensure_unique_params.find(parameter) == ensure_unique_params.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);
             parameters.push_back(parameter);
-            ensureUniqueParameters.insert(parameter);
+            ensure_unique_params.insert(parameter);
 
             // parse comma or expect closing parenthesis
-            skipTokens(tokenI, "[ \t]");
-            if (isToken(tokenI, {Tokenizer::COMMA})) {
-                consume(tokenI);
+            skip_tokens(tok_i, "[ \t]");
+            if (is_token(tok_i, {Tokenizer::COMMA})) {
+                consume(tok_i);
             } else {
-                expectToken(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+                expect_token(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
             }
         }
 
         // expect ')'
-        consume(tokenI, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
-        skipTokens(tokenI, "[ \t]");
+        consume(tok_i, {Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_define() - Expected ')'.");
+        skip_tokens(tok_i, "[ \t]");
     }
 
     // value
     std::vector<Tokenizer::Token> tokens;
-    bool readNextLine = false;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) || readNextLine) {
-        readNextLine = false;
-        tokens.push_back(consume(tokenI));
+    bool read_next_line = false;
+    while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE}) || read_next_line) {
+        read_next_line = false;
+        tokens.push_back(consume(tok_i));
 
         // check if we should read the nextline provided the next token is a newline
         // and the previous token read was a '\' character
-        if (isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) && tokens.back().type == Tokenizer::BACK_SLASH) {
-            readNextLine = true;
+        if (is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE}) && tokens.back().type == Tokenizer::BACK_SLASH) {
+            read_next_line = true;
 
             // remove the '\' character
             tokens.pop_back();
@@ -646,71 +702,71 @@ void Preprocessor::_define(int& tokenI) {
 /**
  *
  */
-void Preprocessor::conditionalBlock(int& tokenI, bool conditionMet) {
-    int relativeScopeLevel = 0;
-    int currentTokenI = tokenI;
-    int nextBlockTokenI = -1;
-    int endIfTokenI = -1;
-    while (inBounds(currentTokenI)) {
-        // std::cout << relativeScopeLevel << " " << m_tokens[currentTokenI].value << std::endl;
+void Preprocessor::cond_block(int& tok_i, bool cond_met) {
+    int rel_scope_level = 0;
+    int cur_tok_i = tok_i;
+    int next_block_tok_i = -1;
+    int end_if_tok_i = -1;
+    while (in_bounds(cur_tok_i)) {
+        // std::cout << rel_scope_level << " " << m_tokens[cur_tok_i].value << std::endl;
 
-        if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
-            if (nextBlockTokenI == -1) {
-                nextBlockTokenI = currentTokenI;
+        if (rel_scope_level == 0 && is_token(cur_tok_i, {Tokenizer::PREPROCESSOR_ENDIF})) {
+            if (next_block_tok_i == -1) {
+                next_block_tok_i = cur_tok_i;
             }
 
-            endIfTokenI = currentTokenI;
+            end_if_tok_i = cur_tok_i;
             break;
-        } else if (relativeScopeLevel == 0 && isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF, Tokenizer::PREPROCESSOR_ELSENDEF,
+        } else if (rel_scope_level == 0 && is_token(cur_tok_i, {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF, Tokenizer::PREPROCESSOR_ELSENDEF,
                                                         Tokenizer::PREPROCESSOR_ELSEEQU, Tokenizer::PREPROCESSOR_ELSENEQU,
                                                         Tokenizer::PREPROCESSOR_ELSELESS, Tokenizer::PREPROCESSOR_ELSEMORE})) {
-            if (nextBlockTokenI == -1) {
-                nextBlockTokenI = currentTokenI;
+            if (next_block_tok_i == -1) {
+                next_block_tok_i = cur_tok_i;
             }
 
             // start of next conditional block that should be checked if the current conditional block was
             // not entered
-            if (!conditionMet) {
+            if (!cond_met) {
                 break;
             }
         }
 
-        if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF,
+        if (is_token(cur_tok_i, {Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF,
                 Tokenizer::PREPROCESSOR_IFEQU, Tokenizer::PREPROCESSOR_IFNEQU, Tokenizer::PREPROCESSOR_IFLESS, Tokenizer::PREPROCESSOR_IFMORE})) {
-            relativeScopeLevel++;
-        } else if (isToken(currentTokenI, {Tokenizer::PREPROCESSOR_ENDIF})) {
-            relativeScopeLevel--;
+            rel_scope_level++;
+        } else if (is_token(cur_tok_i, {Tokenizer::PREPROCESSOR_ENDIF})) {
+            rel_scope_level--;
         }
-        currentTokenI++;
+        cur_tok_i++;
     }
 
-    if ((conditionMet && endIfTokenI == -1) || (!conditionMet && nextBlockTokenI == -1)) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "condition=" << conditionMet << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::conditionalBlock() - Unclosed conditional block." );
+    if ((cond_met && end_if_tok_i == -1) || (!cond_met && next_block_tok_i == -1)) {
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "condition=" << cond_met << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::cond_block() - Unclosed conditional block." );
     }
 
-    if (conditionMet) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << " | endIf=" << endIfTokenI << " | nextBlockTokenI=" << nextBlockTokenI);
+    if (cond_met) {
+        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
 
-        if (nextBlockTokenI != -1) {
+        if (next_block_tok_i != -1) {
             // remove all tokens from the next block to the endif
-            m_tokens.erase(m_tokens.begin() + nextBlockTokenI, m_tokens.begin() + endIfTokenI);
-        } else { // assert, endIfTokenI != -1
+            m_tokens.erase(m_tokens.begin() + next_block_tok_i, m_tokens.begin() + end_if_tok_i);
+        } else { // assert, end_if_tok_i != -1
             // don't need to do anything, because there are no linked conditional blocks after this
         }
 
-        // m_tokens.insert(m_tokens.begin() + tokenI, Tokenizer::Token(Tokenizer::COMMENT_SINGLE_LINE, "; conditional"));
+        // m_tokens.insert(m_tokens.begin() + tok_i, Tokenizer::Token(Tokenizer::COMMENT_SINGLE_LINE, "; conditional"));
     } else {
         // move token index to the start of the next conditional block (or endif)
-        tokenI = nextBlockTokenI;
+        tok_i = next_block_tok_i;
     }
 }
 
 /**
  *
  */
-bool Preprocessor::isDefinitionSymbolDefined(std::string symbolName, int numParameters) {
-    return m_def_symbols.find(symbolName) != m_def_symbols.end() && m_def_symbols.at(symbolName).find(numParameters) != m_def_symbols.at(symbolName).end();
+bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params) {
+    return m_def_symbols.find(symbol_name) != m_def_symbols.end() && m_def_symbols.at(symbol_name).find(num_params) != m_def_symbols.at(symbol_name).end();
 }
 
 /**
@@ -723,22 +779,22 @@ bool Preprocessor::isDefinitionSymbolDefined(std::string symbolName, int numPara
  * The top conditional block must be closed by a lower conditional block or an #endif.
  * The lower conditional block must be closed by an #endif.
  *
- * @param tokenI The index of the conditional token.
+ * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_conditionalOnDefinition(int& tokenI) {
-    Tokenizer::Token conditionalToken = consume(tokenI);
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_cond_on_def(int& tok_i) {
+    Tokenizer::Token cond_tok = consume(tok_i);
+    skip_tokens(tok_i, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_" + conditionalToken.value.substr(1) + "() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string symbol = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_" + cond_tok.value.substr(1) + "() - Expected symbol.").value;
+    skip_tokens(tok_i, "[ \t]");
 
-    if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFDEF || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEDEF) {
-        conditionalBlock(tokenI, isDefinitionSymbolDefined(symbol, 0));
-    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFNDEF || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
-        conditionalBlock(tokenI, !isDefinitionSymbolDefined(symbol, 0));
+    if (cond_tok.type == Tokenizer::PREPROCESSOR_IFDEF || cond_tok.type == Tokenizer::PREPROCESSOR_ELSEDEF) {
+        cond_block(tok_i, is_symbol_def(symbol, 0));
+    } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFNDEF || cond_tok.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
+        cond_block(tok_i, !is_symbol_def(symbol, 0));
     } else {
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnDefinition() - Unexpected conditional token: " << conditionalToken.value);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_cond_on_def() - Unexpected conditional token: " << cond_tok.value);
     }
 }
 
@@ -753,51 +809,51 @@ void Preprocessor::_conditionalOnDefinition(int& tokenI) {
  * The top conditional block must be closed by a lower conditional block or an #endif.
  * The lower conditional block must be closed by an #endif.
  *
- * @param tokenI The index of the conditional token.
+ * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_conditionalOnValue(int& tokenI) {
-    Tokenizer::Token conditionalToken = consume(tokenI);
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_cond_on_value(int& tok_i) {
+    Tokenizer::Token cond_tok = consume(tok_i);
+    skip_tokens(tok_i, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_" + conditionalToken.value.substr(1) + "() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string symbol = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_" + cond_tok.value.substr(1) + "() - Expected symbol.").value;
+    skip_tokens(tok_i, "[ \t]");
 
     // extract symbol's string value
-    std::string symbolValue;
-    if (isDefinitionSymbolDefined(symbol, 0)) {
+    std::string symbol_val;
+    if (is_symbol_def(symbol, 0)) {
         for (Tokenizer::Token& token : m_def_symbols.at(symbol).at(0).value) {
-            symbolValue += token.value;
+            symbol_val += token.value;
         }
     }
 
     // value
     std::string value;
-    bool readNextLine = false;
-    while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) || readNextLine) {
-        readNextLine = false;
-        value += consume(tokenI).value;
+    bool read_next_line = false;
+    while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE}) || read_next_line) {
+        read_next_line = false;
+        value += consume(tok_i).value;
 
         // check if we should read the nextline provided the next token is a newline
         // and the previous token read was a '\' character
-        if (isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE}) && value.back() == '\\') {
-            readNextLine = true;
+        if (is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE}) && value.back() == '\\') {
+            read_next_line = true;
 
             // remove the '\' character
             value.pop_back();
         }
     }
 
-    if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFEQU || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEEQU) {
-        conditionalBlock(tokenI, value == symbolValue);
-    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFNEQU || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSENEQU) {
-        conditionalBlock(tokenI, value != symbolValue);
-    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFLESS || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSELESS) {
-        conditionalBlock(tokenI, symbolValue < value);
-    } else if (conditionalToken.type == Tokenizer::PREPROCESSOR_IFMORE || conditionalToken.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
-        conditionalBlock(tokenI, symbolValue > value);
+    if (cond_tok.type == Tokenizer::PREPROCESSOR_IFEQU || cond_tok.type == Tokenizer::PREPROCESSOR_ELSEEQU) {
+        cond_block(tok_i, value == symbol_val);
+    } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFNEQU || cond_tok.type == Tokenizer::PREPROCESSOR_ELSENEQU) {
+        cond_block(tok_i, value != symbol_val);
+    } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFLESS || cond_tok.type == Tokenizer::PREPROCESSOR_ELSELESS) {
+        cond_block(tok_i, symbol_val < value);
+    } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFMORE || cond_tok.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
+        cond_block(tok_i, symbol_val > value);
     } else {
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_conditionalOnValue() - Unexpected conditional token: " << conditionalToken.value);
+        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_cond_on_value() - Unexpected conditional token: " << cond_tok.value);
     }
 }
 
@@ -810,11 +866,11 @@ void Preprocessor::_conditionalOnValue(int& tokenI) {
  * Must be preceded by a top or inner conditional block.
  * Must not be proceeded by an inner conditional block or closure.
  *
- * @param tokenI The index of the else token.
+ * @param tok_i The index of the else token.
  */
-void Preprocessor::_else(int& tokenI) {
-    consume(tokenI); // '#else'
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_else(int& tok_i) {
+    consume(tok_i); // '#else'
+    skip_tokens(tok_i, "[ \t]");
 }
 
 /**
@@ -824,11 +880,11 @@ void Preprocessor::_else(int& tokenI) {
  *
  * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
  *
- * @param tokenI The index of the endif token.
+ * @param tok_i The index of the endif token.
  */
-void Preprocessor::_endif(int& tokenI) {
-    consume(tokenI); // '#endif'
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_endif(int& tok_i) {
+    consume(tok_i); // '#endif'
+    skip_tokens(tok_i, "[ \t]");
 }
 
 /**
@@ -838,20 +894,20 @@ void Preprocessor::_endif(int& tokenI) {
  *
  * This will still work if the symbol was never defined previously.
  *
- * @param tokenI The index of the undefine token.
+ * @param tok_i The index of the undefine token.
  */
-void Preprocessor::_undefine(int& tokenI) {
-    consume(tokenI); // '#define'
-    skipTokens(tokenI, "[ \t]");
+void Preprocessor::_undefine(int& tok_i) {
+    consume(tok_i); // '#define'
+    skip_tokens(tok_i, "[ \t]");
 
     // symbol
-    std::string symbol = consume(tokenI, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
-    skipTokens(tokenI, "[ \t]");
+    std::string symbol = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
+    skip_tokens(tok_i, "[ \t]");
 
     // if a number of parameters was specified, remove that definition otherwise remove all definitions
-    if (isToken(tokenI, {Tokenizer::LITERAL_NUMBER_DECIMAL})) {
-        int numParameters = std::stoi(consume(tokenI, {Tokenizer::LITERAL_NUMBER_DECIMAL}, "Preprocessor::_undefine() - Expected number of parameters.").value);
-        m_def_symbols[symbol].erase(numParameters);
+    if (is_token(tok_i, {Tokenizer::LITERAL_NUMBER_DECIMAL})) {
+        int num_params = std::stoi(consume(tok_i, {Tokenizer::LITERAL_NUMBER_DECIMAL}, "Preprocessor::_undefine() - Expected number of parameters.").value);
+        m_def_symbols[symbol].erase(num_params);
     } else {
         m_def_symbols.erase(symbol);
     }

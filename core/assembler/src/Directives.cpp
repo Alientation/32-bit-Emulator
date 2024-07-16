@@ -13,7 +13,7 @@
 dword Assembler::parse_expression(int& tokenI) {
 	/* For now, only parse expressions sequentially, without care of precedence */
 	dword exp_value = 0;
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 	Tokenizer::Token *operator_token = nullptr;
 	do {
 		Tokenizer::Token token = consume(tokenI);
@@ -48,15 +48,15 @@ dword Assembler::parse_expression(int& tokenI) {
 		} else {
 			exp_value = value;
 		}
-		skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
 
 		/* Temporary only support 4 operations */
-		if (isToken(tokenI, {Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION, Tokenizer::OPERATOR_MULTIPLICATION, Tokenizer::OPERATOR_SUBTRACTION})) {
+		if (is_token(tokenI, {Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION, Tokenizer::OPERATOR_MULTIPLICATION, Tokenizer::OPERATOR_SUBTRACTION})) {
 			operator_token = &consume(tokenI);
 		} else {
 			break;
 		}
-	} while(!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
+	} while(!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
 
 	return exp_value;
 }
@@ -75,7 +75,7 @@ void Assembler::_global(int& tokenI) {
 	}
 
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
 	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, -1);
@@ -96,7 +96,7 @@ void Assembler::_extern(int& tokenI) {
 	}
 
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
 	std::string symbol = consume(tokenI).value;
 	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
@@ -116,7 +116,7 @@ void Assembler::_org(int& tokenI) {
 	}
 
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
 	word val = parse_expression(tokenI);
 
@@ -213,7 +213,7 @@ void Assembler::_advance(int& tokenI) {
 	}
 
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
 	word val = parse_expression(tokenI);
 
@@ -262,7 +262,7 @@ void Assembler::_align(int& tokenI) {
 	}
 
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
 	word val = parse_expression(tokenI);
 	if (val >= 0xffff) {											/*! Safety exit. Likely unintentional behavior */
@@ -304,9 +304,9 @@ void Assembler::_align(int& tokenI) {
  */
 void Assembler::_section(int& tokenI) {
 	consume(tokenI);
-	skipTokens(tokenI, Tokenizer::WHITESPACES);
+	skip_tokens(tokenI, Tokenizer::WHITESPACES);
 
-	expectToken(tokenI, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a string argument to follow.");
+	expect_token(tokenI, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a string argument to follow.");
 
 	lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::_section() - .section directive is not implemented yet.");
 	m_state = State::ASSEMBLER_ERROR;
@@ -367,15 +367,15 @@ void Assembler::_stop(int& tokenI) {
 
 
 std::vector<dword> Assembler::parse_arguments(int& tokenI) {
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	std::vector<dword> args;
-	while (!isToken(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
 		args.push_back(parse_expression(tokenI));
-		skipTokens(tokenI, "[ \t]");
-		if (isToken(tokenI, {Tokenizer::COMMA})) {
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::COMMA})) {
 			consume(tokenI);
-			skipTokens(tokenI, "[ \t]");
+			skip_tokens(tokenI, "[ \t]");
 		} else {
 			break;
 		}

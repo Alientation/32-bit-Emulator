@@ -70,7 +70,7 @@ Process::Process(const std::string& assemblerArgs) {
 		// turns on all warning messages
 		{"-wall", &Process::_warn_all},
 
-		// use given directory for system files
+		// use given directory for system files //todo, have system and local include files
 		{"-I", &Process::_include},
 		{"-inc", &Process::_include},
 		{"-include", &Process::_include},

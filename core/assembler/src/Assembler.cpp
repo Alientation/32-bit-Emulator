@@ -112,7 +112,7 @@ File Assembler::assemble() {
         // log(Logger::LogType::DEBUG, std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": " << token.to_string());
 
         // skip non code or directives
-        if (isToken(i, Tokenizer::WHITESPACES) || isToken(i, Tokenizer::COMMENTS)) {
+        if (is_token(i, Tokenizer::WHITESPACES) || is_token(i, Tokenizer::COMMENTS)) {
             i++;
             continue;
         }
@@ -251,8 +251,8 @@ void Assembler::fill_local() {
  * @param regex matches tokens to skip.
  * @param tokenI the index of the current token.
  */
-void Assembler::skipTokens(int& tokenI, const std::string& regex) {
-	while (inBounds(tokenI) && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
+void Assembler::skip_tokens(int& tokenI, const std::string& regex) {
+	while (in_bounds(tokenI) && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
 		tokenI++;
 	}
 }
@@ -263,8 +263,8 @@ void Assembler::skipTokens(int& tokenI, const std::string& regex) {
  * @param tokenI the index of the current token.
  * @param tokenTypes the types to match.
  */
-void Assembler::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes) {
-    while (inBounds(tokenI) && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
+void Assembler::skip_tokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes) {
+    while (in_bounds(tokenI) && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
         tokenI++;
     }
 }
@@ -275,13 +275,13 @@ void Assembler::skipTokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTy
  * @param tokenI the index of the expected token.
  * @param errorMsg the error message to throw if the token does not exist.
  */
-bool Assembler::expectToken(int tokenI, const std::string& errorMsg) {
-	EXPECT_TRUE(inBounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
+bool Assembler::expect_token(int tokenI, const std::string& errorMsg) {
+	EXPECT_TRUE(in_bounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
 
-bool Assembler::expectToken(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-	EXPECT_TRUE(inBounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
+bool Assembler::expect_token(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
+	EXPECT_TRUE(in_bounds(tokenI), Logger::LogType::ERROR, std::stringstream(errorMsg));
 	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream(errorMsg));
     return true;
 }
@@ -294,8 +294,8 @@ bool Assembler::expectToken(int tokenI, const std::set<Tokenizer::Type>& expecte
  *
  * @return true if the current token matches the given types.
  */
-bool Assembler::isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
+bool Assembler::is_token(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg) {
+    expect_token(tokenI, errorMsg);
     return tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end();
 }
 
@@ -306,7 +306,7 @@ bool Assembler::isToken(int tokenI, const std::set<Tokenizer::Type>& tokenTypes,
  *
  * @return true if the token index is within the bounds of the tokens list.
  */
-bool Assembler::inBounds(int tokenI) {
+bool Assembler::in_bounds(int tokenI) {
     return tokenI < m_tokens.size();
 }
 
@@ -319,7 +319,7 @@ bool Assembler::inBounds(int tokenI) {
  * @returns the value of the consumed token.
  */
 Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
+    expect_token(tokenI, errorMsg);
     return m_tokens[tokenI++];
 }
 
@@ -333,7 +333,7 @@ Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg) {
  * @returns the value of the consumed token.
  */
 Tokenizer::Token& Assembler::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg) {
-    expectToken(tokenI, errorMsg);
+    expect_token(tokenI, errorMsg);
 	EXPECT_TRUE(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), Logger::LogType::ERROR, std::stringstream() << errorMsg << " - Unexpected end of file.");
     return m_tokens[tokenI++];
 }

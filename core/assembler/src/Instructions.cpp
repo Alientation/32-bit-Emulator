@@ -7,27 +7,27 @@
 #include <string>
 
 byte Assembler::parse_register(int& tokenI) {
-	expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier. Got " + m_tokens[tokenI].value);
+	expect_token(tokenI, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier. Got " + m_tokens[tokenI].value);
 	Tokenizer::Type type = consume(tokenI).type;
 
 	return type - Tokenizer::Type::REGISTER_X0;							/*! register order is assumed to be x0-x29, sp, xzr */
 }
 
 void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
-	expectToken(tokenI, {Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR, Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR}, "Assembler::parse_shift() - Expected shift.");
+	expect_token(tokenI, {Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR, Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR}, "Assembler::parse_shift() - Expected shift.");
 
-	if (isToken(tokenI, {Tokenizer::INSTRUCTION_LSL})) {
+	if (is_token(tokenI, {Tokenizer::INSTRUCTION_LSL})) {
 		shift = LSL;
-	} else if (isToken(tokenI, {Tokenizer::INSTRUCTION_LSR})) {
+	} else if (is_token(tokenI, {Tokenizer::INSTRUCTION_LSR})) {
 		shift = LSR;
-	} else if (isToken(tokenI, {Tokenizer::INSTRUCTION_ASR})) {
+	} else if (is_token(tokenI, {Tokenizer::INSTRUCTION_ASR})) {
 		shift = ASR;
-	} else if (isToken(tokenI, {Tokenizer::INSTRUCTION_ROR})) {
+	} else if (is_token(tokenI, {Tokenizer::INSTRUCTION_ROR})) {
 		shift = ROR;
 	}
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_shift() - Expected numeric argument.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_shift() - Expected numeric argument.");
 	consume(tokenI);
 	shift_amt = parse_expression(tokenI);								/*! note, in future, we could change this to create relocation record instead */
 
@@ -38,15 +38,15 @@ word Assembler::parse_format_b1(int& tokenI, byte opcode) {
 	consume(tokenI);
 
 	Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
-	if (isToken(tokenI, {Tokenizer::PERIOD})) {
+	if (is_token(tokenI, {Tokenizer::PERIOD})) {
 		consume(tokenI);
-		expectToken(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
+		expect_token(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
 		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
 	}
 
 	sword value = 0;
-	skipTokens(tokenI, "[ \t]");
-	if (isToken(tokenI, {Tokenizer::SYMBOL})) {
+	skip_tokens(tokenI, "[ \t]");
+	if (is_token(tokenI, {Tokenizer::SYMBOL})) {
 		std::string symbol = consume(tokenI).value;
 		m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
@@ -71,12 +71,12 @@ word Assembler::parse_format_b2(int& tokenI, byte opcode) {
 	consume(tokenI);
 
 	Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
-	if (isToken(tokenI, {Tokenizer::PERIOD})) {
+	if (is_token(tokenI, {Tokenizer::PERIOD})) {
 		consume(tokenI);
-		expectToken(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
+		expect_token(tokenI, Tokenizer::CONDITIONS, "Assembler::parse_format_b1() - Expected condition code to follow period.");
 		condition = (Emulator32bit::ConditionCode) (consume(tokenI).type - Tokenizer::CONDITION_EQ);
 	}
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg = parse_register(tokenI);
 	return Emulator32bit::asm_format_b2(opcode, condition, reg);
@@ -84,25 +84,25 @@ word Assembler::parse_format_b2(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m2() - Expected second argument.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m2() - Expected second argument.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
+	expect_token(tokenI, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
 	consume(tokenI);
 
-	skipTokens(tokenI, "[ \t]");
-	if (isToken(tokenI, {Tokenizer::RELOCATION_EMU32_ADRP_HI20})) {
+	skip_tokens(tokenI, "[ \t]");
+	if (is_token(tokenI, {Tokenizer::RELOCATION_EMU32_ADRP_HI20})) {
 		consume(tokenI);
-		skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
 	}
 
-	expectToken(tokenI, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
+	expect_token(tokenI, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
 	std::string symbol = consume(tokenI).value;
 	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
@@ -119,24 +119,24 @@ word Assembler::parse_format_m2(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_m1(int& tokenI, byte opcode) {
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg_t = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m1() - Expected second argument.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m1() - Expected second argument.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 	byte reg_n = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m1() - Expected third argument.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m1() - Expected third argument.");
 	consume(tokenI);
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m1() - Expected open bracket.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m1() - Expected open bracket.");
 	consume(tokenI);
 	byte reg_m = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m1() - Expected close bracket.");
+	skip_tokens(tokenI, "[ \t]");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m1() - Expected close bracket.");
 	consume(tokenI);
 
 	return Emulator32bit::asm_format_m1(opcode, reg_t, reg_n, reg_m);
@@ -145,46 +145,46 @@ word Assembler::parse_format_m1(int& tokenI, byte opcode) {
 word Assembler::parse_format_m(int& tokenI, byte opcode) {
 	std::string op = consume(tokenI).value;
 	bool sign = op.size() > 3 ? op.at(3) == 's' : false;				/*! ex: whether the value to be loaded/stored should be interpreted as signed */
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg_t = parse_register(tokenI);								/*! target register. For reads, stores read value; for writes, stores write value */
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m() - Expected second argument.");
+	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}, "Assembler::parse_format_m() - Expected second argument.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m() - Expected open bracket");
+	expect_token(tokenI, {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_m() - Expected open bracket");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg_a = parse_register(tokenI);								/*! register that contains memory address */
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	int addressing_mode = -1;											/*! parse the address mode, -1 indicates invalid address mode */
-	if (isToken(tokenI, {Tokenizer::CLOSE_BRACKET})) {					/*! post indexed, offset is applied to value at register after accessing */
+	if (is_token(tokenI, {Tokenizer::CLOSE_BRACKET})) {					/*! post indexed, offset is applied to value at register after accessing */
 		consume(tokenI);
-		skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
 		addressing_mode = M_POST;
 	}
 
-	if (isToken(tokenI, {Tokenizer::COMMA})) {							/*! check for offset */
+	if (is_token(tokenI, {Tokenizer::COMMA})) {							/*! check for offset */
 		consume(tokenI);
-		skipTokens(tokenI, "[ \t]");
-		if (isToken(tokenI, {Tokenizer::NUMBER_SIGN})) {				/*! offset begins with the '#' symbol */
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::NUMBER_SIGN})) {				/*! offset begins with the '#' symbol */
 			consume(tokenI);
-			skipTokens(tokenI, "[ \t]");
+			skip_tokens(tokenI, "[ \t]");
 			word offset = parse_expression(tokenI);
 			EXPECT_TRUE(offset < (1<<12), lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::parse_format_m() - Offset must be 12 bit value.");
 
-			skipTokens(tokenI, "[ \t]");
-			expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
+			skip_tokens(tokenI, "[ \t]");
+			expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
 			consume(tokenI);
 
 			if (addressing_mode == -1) {								/*! only update addressing mode if not yet determined.
 																		   This reduces code repetition, since the way offsets are calculated
 																		   are the same for all addressing modes, but differ soley in arrangement */
-				if (isToken(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
+				if (is_token(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 					consume(tokenI);
 					addressing_mode = M_PRE;							/*! preindexed, offset is applied to value at register before accessing */
 				} else {
@@ -195,22 +195,22 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 			return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, addressing_mode);
 		}
 
-		expectToken(tokenI, Tokenizer::REGISTERS, "Assembler::parse_format_m() - Expected register argument.");
+		expect_token(tokenI, Tokenizer::REGISTERS, "Assembler::parse_format_m() - Expected register argument.");
 		byte reg_b = parse_register(tokenI);							/*! since there is a comma, there is another argument that is not the above checked offset */
 		int shift = 0;
 		int shift_amount = 0;
-		skipTokens(tokenI, "[ \t]");
-		if (isToken(tokenI, {Tokenizer::COMMA})) {						/*! shift argument */
-			skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::COMMA})) {						/*! shift argument */
+			skip_tokens(tokenI, "[ \t]");
 			parse_shift(tokenI, shift, shift_amount);
 		}
 
-		skipTokens(tokenI, "[ \t]");
-		expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
+		skip_tokens(tokenI, "[ \t]");
+		expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
 		consume(tokenI);
 
 		if (addressing_mode == -1) {									/*! same logic as above, only update addressing mode if not yet determined */
-			if (isToken(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
+			if (is_token(tokenI, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 				consume(tokenI);
 				addressing_mode = M_PRE;								/*! preindexed */
 			} else {
@@ -229,31 +229,31 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 	// todo, make sure to handle relocation
 	bool s = consume(tokenI).value.back() == 's';
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg1 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o3() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o3() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	if (isToken(tokenI, {Tokenizer::REGISTERS})) {						/*! In future, support relocation for immediate value */
+	if (is_token(tokenI, {Tokenizer::REGISTERS})) {						/*! In future, support relocation for immediate value */
 		byte operand_reg = parse_register(tokenI);
-		skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
 
 		word value = 0;
-		if (isToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN})) {
+		if (is_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN})) {
 			consume(tokenI);
 			value = parse_expression(tokenI);
 		}
 
 		return Emulator32bit::asm_format_o3(opcode, s, reg1, operand_reg, value);
 	} else {
-		if (isToken(tokenI, {Tokenizer::RELOCATION_EMU32_MOV_HI13, Tokenizer::RELOCATION_EMU32_MOV_LO19})) {
+		if (is_token(tokenI, {Tokenizer::RELOCATION_EMU32_MOV_HI13, Tokenizer::RELOCATION_EMU32_MOV_LO19})) {
 			Tokenizer::Type relocation = consume(tokenI).type;
-			skipTokens(tokenI, "[ \t]");
-			expectToken(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
+			skip_tokens(tokenI, "[ \t]");
+			expect_token(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
 			std::string symbol = consume(tokenI).value;
 			m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
@@ -267,7 +267,7 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 
 			return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
 		} else {
-			expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o() - Expected numeric argument.");
+			expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o() - Expected numeric argument.");
 			consume(tokenI);
 			word imm = parse_expression(tokenI);
 
@@ -281,28 +281,28 @@ word Assembler::parse_format_o3(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_o2(int& tokenI, byte opcode) {
 	bool s = consume(tokenI).value.back() == 's';
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg1 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg2 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte operand_reg1 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte operand_reg2 = parse_register(tokenI);
 
@@ -311,27 +311,27 @@ word Assembler::parse_format_o2(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_o1(int& tokenI, byte opcode) {
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg1 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg2 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	if (isToken(tokenI, Tokenizer::REGISTERS)) {
+	if (is_token(tokenI, Tokenizer::REGISTERS)) {
 		byte operand_reg = parse_register(tokenI);
 		return Emulator32bit::asm_format_o1(opcode, reg1, reg2, false, operand_reg, 0);
 	} else {
-		expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o1() - Expected numeric argument.");
+		expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o1() - Expected numeric argument.");
 		consume(tokenI);
 
 		int shift_amt = parse_expression(tokenI);
@@ -342,45 +342,45 @@ word Assembler::parse_format_o1(int& tokenI, byte opcode) {
 
 word Assembler::parse_format_o(int& tokenI, byte opcode) {
 	bool s = consume(tokenI).value.back() == 's';
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg1 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
 	byte reg2 = parse_register(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	expectToken(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
+	expect_token(tokenI, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
 	consume(tokenI);
-	skipTokens(tokenI, "[ \t]");
+	skip_tokens(tokenI, "[ \t]");
 
-	if (isToken(tokenI, Tokenizer::REGISTERS)) {
+	if (is_token(tokenI, Tokenizer::REGISTERS)) {
 		byte operand_reg = parse_register(tokenI);
-		skipTokens(tokenI, "[ \t]");
+		skip_tokens(tokenI, "[ \t]");
 
 		// shift
 		int shift = 0;
 		int shift_amt = 0;
-		if (isToken(tokenI, {Tokenizer::COMMA})) {
+		if (is_token(tokenI, {Tokenizer::COMMA})) {
 			consume(tokenI);
-			skipTokens(tokenI, "[ \t]");
+			skip_tokens(tokenI, "[ \t]");
 			parse_shift(tokenI, shift, shift_amt);
 		}
 
 		return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand_reg, shift, shift_amt);
 	} else {
 		word operand = 0;
-		expectToken(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o() - Expected numeric argument.");
+		expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_o() - Expected numeric argument.");
 		consume(tokenI);
 
-		if (isToken(tokenI, {Tokenizer::RELOCATION_EMU32_O_LO12})) {
+		if (is_token(tokenI, {Tokenizer::RELOCATION_EMU32_O_LO12})) {
 			consume(tokenI);
-			skipTokens(tokenI, "[ \t]");
-			expectToken(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
+			skip_tokens(tokenI, "[ \t]");
+			expect_token(tokenI, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL}, "Assembler::parse_format_o() - Expected symbol to follow relocation.");
 			std::string symbol = consume(tokenI).value;
 			m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
@@ -392,7 +392,7 @@ word Assembler::parse_format_o(int& tokenI, byte opcode) {
 				.token = tokenI,
 			});
 
-		} else if (isToken(tokenI, Tokenizer::LITERAL_NUMBERS)) {
+		} else if (is_token(tokenI, Tokenizer::LITERAL_NUMBERS)) {
 			operand = parse_expression(tokenI);
 		} else {
 			m_state = Assembler::State::ASSEMBLER_ERROR;
