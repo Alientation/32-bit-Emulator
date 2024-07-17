@@ -22,6 +22,7 @@ len_loop_begin:
 		cmp	x4, #0
 		b.eq	len_loop_end			; end loop if null terminator
 		add	x3, x3, #1			; inc string length
+		b	len_loop_begin
 len_loop_end:
 		add	x4, xzr, #0			; start of string
 		sub	x5, x3, #1			; end of string
@@ -30,8 +31,8 @@ pal_check_loop_begin:
 		cmp 	x4, x5
 		b.ge 	pal_check_loop_end		; while first pointer is before the second pointer
 
-		ldrb	x6, [x4]			; get characters
-		ldrb	x7, [x5]
+		ldrb	x6, [x2, x4]			; get characters
+		ldrb	x7, [x2, x5]
 
 		cmp 	x6, x7
 		b.ne	pal_check_fail
@@ -52,8 +53,8 @@ pal_check_loop_end:
 loop_end:
 		ldrb 	x10, [x9]
 		ldrb	x11, [x9, #1]
-
+		hlt
 .data
-string: .asciz "aacbcaa", "abd"
+string: .asciz "aacbcaa", "abda"
 n_strings: .word 2
 result: .advance 2

@@ -455,7 +455,7 @@ const std::vector<std::pair<std::string, Tokenizer::Type>> Tokenizer::TOKEN_SPEC
 	{"^[0-9]+", LITERAL_NUMBER_DECIMAL},
 	{"^\\$[0-9a-fA-F]+", LITERAL_NUMBER_HEXADECIMAL},
 
-	{"^\'.\'", LITERAL_CHAR}, {"^\".*\"", LITERAL_STRING},
+	{"^\'.\'", LITERAL_CHAR}, {"^\"([^\"\\\\]|\\\\.)*\"", LITERAL_STRING},
 	{"^[a-zA-Z_][a-zA-Z0-9_]*", SYMBOL},
 
 	{"^,", COMMA}, {"^:", COLON}, {"^\\.", PERIOD}, {"^;", SEMICOLON},

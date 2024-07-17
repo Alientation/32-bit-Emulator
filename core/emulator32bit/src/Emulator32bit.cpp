@@ -164,6 +164,7 @@ word Emulator32bit::read_reg(byte reg, EmulatorException &exception) {
 }
 
 void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception) {
+	lgr::log(lgr::Logger::LogType::INFO, std::stringstream() << "WRITING " << std::to_string(val) << " to reg " << std::to_string((word)reg));
 	if (reg == XZR) {
 		return;
 	} else if (reg < (sizeof(_x) / sizeof(word))) {

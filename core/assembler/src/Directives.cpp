@@ -499,12 +499,11 @@ void Assembler::_char(int& tokenI) {
 			<< "Assembler::_char() - Can only define data in .data section.");
 	consume(tokenI);
 
-	std::vector<byte> data;
 	skip_tokens(tokenI, "[ \t]");
 
 	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
 		expect_token(tokenI, {Tokenizer::Type::LITERAL_CHAR}, "Assembler::_char() - Expected literal char. Got " + m_tokens.at(tokenI).value);
-		data.push_back(consume(tokenI).value.at(1));
+		m_obj.data_section.push_back(consume(tokenI).value.at(1));
 		skip_tokens(tokenI, "[ \t]");
 		if (is_token(tokenI, {Tokenizer::COMMA})) {
 			consume(tokenI);
@@ -520,15 +519,16 @@ void Assembler::_ascii(int& tokenI) {
 			<< "Assembler::_ascii() - Can only define data in .data section.");
 	consume(tokenI);
 
-	std::vector<byte> data;
 	skip_tokens(tokenI, "[ \t]");
 
 	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
 		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected literal string. Got " + m_tokens.at(tokenI).value);
 
-		for (char c : consume(tokenI).value) {
-			data.push_back(c);
+		std::string str = consume(tokenI).value;
+		for (int i = 1; i < str.size() - 1; i++) {
+			m_obj.data_section.push_back(str[i]);
 		}
+		m_obj.data_section.push_back('\0');
 
 		skip_tokens(tokenI, "[ \t]");
 		if (is_token(tokenI, {Tokenizer::COMMA})) {
@@ -545,16 +545,16 @@ void Assembler::_asciz(int& tokenI) {
 			<< "Assembler::_asciz() - Can only define data in .data section.");
 	consume(tokenI);
 
-	std::vector<byte> data;
 	skip_tokens(tokenI, "[ \t]");
 
 	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
 		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected literal string. Got " + m_tokens.at(tokenI).value);
 
-		for (char c : consume(tokenI).value) {
-			data.push_back(c);
+		std::string str = consume(tokenI).value;
+		for (int i = 1; i < str.size() - 1; i++) {
+			m_obj.data_section.push_back(str[i]);
 		}
-		data.push_back('\0');
+		m_obj.data_section.push_back('\0');
 
 		skip_tokens(tokenI, "[ \t]");
 		if (is_token(tokenI, {Tokenizer::COMMA})) {
