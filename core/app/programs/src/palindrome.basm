@@ -18,7 +18,7 @@ loop_begin:
 
 		add	x3, xzr, #0			; length of string
 len_loop_begin:
-		ldr	x4, [x2, x3]			; get character
+		ldrb	x4, [x2, x3]			; get character
 		cmp	x4, #0
 		b.eq	len_loop_end			; end loop if null terminator
 		add	x3, x3, #1			; inc string length
@@ -30,8 +30,8 @@ pal_check_loop_begin:
 		cmp 	x4, x5
 		b.ge 	pal_check_loop_end		; while first pointer is before the second pointer
 
-		ldr	x6, [x4]			; get characters
-		ldr	x7, [x5]
+		ldrb	x6, [x4]			; get characters
+		ldrb	x7, [x5]
 
 		cmp 	x6, x7
 		b.ne	pal_check_fail
@@ -42,7 +42,7 @@ pal_check_loop_begin:
 pal_check_fail:
 		add	x8, xzr, #0			; set flag to invalid palindrome
 pal_check_loop_end:
-		str	x8, [x9, x1, lsl #2]
+		strb	x8, [x9, x1]
 
 		add	x2, x2, x3
 		add	x2, x2, #1			; move pointer to the next position after the null terminator
@@ -50,10 +50,10 @@ pal_check_loop_end:
 		add	x1, x1, #1
 		b	loop_begin
 loop_end:
-		ldr 	x10, [x9]
-		ldr	x11, [x10, #1]
+		ldrb 	x10, [x9]
+		ldrb	x11, [x9, #1]
 
 .data
 string: .asciz "aacbcaa", "abd"
 n_strings: .word 2
-result: .advance 8
+result: .advance 2

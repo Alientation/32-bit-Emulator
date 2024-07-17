@@ -782,9 +782,9 @@ void Emulator32bit::_ldrb(word instr, EmulatorException& exception) {
 	if (address_mode == 0) {
 		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sb " : "b ") << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]");
 	} else if (address_mode == 1) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
 	} else {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], " << offset);
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], " << offset);
 	}
 	write_reg(xt, read_val, exception);
 }
@@ -812,9 +812,9 @@ void Emulator32bit::_ldrh(word instr, EmulatorException& exception) {
 	if (address_mode == 0) {
 		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sh " : "h ") << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]");
 	} else if (address_mode == 1) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
 	} else {
-		log(Logger::LogType::DEBUG, std::stringstream() << "ldr " << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], " << offset);
+		log(Logger::LogType::DEBUG, std::stringstream() << "ldr" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], " << offset);
 	}
 	write_reg(xt, read_val, exception);
 }
@@ -867,9 +867,9 @@ void Emulator32bit::_strb(word instr, EmulatorException& exception) {
 	if (address_mode == 0) {
 		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sb " : "b ") << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]");
 	} else if (address_mode == 1) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "str " << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
+		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
 	} else {
-		log(Logger::LogType::DEBUG, std::stringstream() << "str " << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], " << offset);
+		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], " << offset);
 	}
 	system_bus.write_byte(mem_addr, write_val, exception.sys_bus_exception, exception.mem_write_exception);
 }
@@ -897,9 +897,9 @@ void Emulator32bit::_strh(word instr, EmulatorException& exception) {
 	if (address_mode == 0) {
 		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sh " : "h ") << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << offset << "]");
 	} else if (address_mode == 1) {
-		log(Logger::LogType::DEBUG, std::stringstream() << "str " << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
+		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << ", " << offset << "]!");
 	} else {
-		log(Logger::LogType::DEBUG, std::stringstream() << "str " << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], " << offset);
+		log(Logger::LogType::DEBUG, std::stringstream() << "str" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], " << offset);
 	}
 	system_bus.write_hword(mem_addr, write_val, exception.sys_bus_exception, exception.mem_write_exception);
 }

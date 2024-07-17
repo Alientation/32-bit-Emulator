@@ -191,7 +191,6 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 				source_code = match.suffix();
 				matched = true;
 
-                // lgr::log(lgr::Logger::LogType::Log, std::stringstream() << "Tokenizer::tokenize() - Token " << tokens.size()-1 << ": " << tokens.back().toString());
 				break;
 			}
 		}
@@ -199,11 +198,6 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 		// check if regex matched
 		lgr::EXPECT_TRUE(matched, lgr::Logger::LogType::ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
-
-	// print out tokens
-	// for (int i = 0; i < tokens->size(); i++) {
-	// 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Token[" << i << "]=" << tokens->at(i).to_string());
-	// }
 
 	return *tokens;
 }
