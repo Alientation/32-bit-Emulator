@@ -214,7 +214,14 @@ void Process::assemble() {
 			Assembler assembler(this, file);
 			m_obj_files.push_back(assembler.assemble());
 		}
-		// todo, delete intermediate processed file afterwards if not specified to keep it
+
+		try {
+			if (!std::filesystem::remove(file.get_path())) {
+				std::cout << "file " << file.get_path() << " not found.\n";
+			}
+		} catch (const std::filesystem::filesystem_error& err) {
+			std::cout << "filesystem error: " << err.what() << "\n";
+		}
 	}
 }
 
