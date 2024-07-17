@@ -497,17 +497,71 @@ void Assembler::_sdword(int& tokenI) {
 void Assembler::_char(int& tokenI) {
 	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Assembler::_char() - Can only define data in .data section.");
-	// todo
+	consume(tokenI);
+
+	std::vector<byte> data;
+	skip_tokens(tokenI, "[ \t]");
+
+	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tokenI, {Tokenizer::Type::LITERAL_CHAR}, "Assembler::_char() - Expected literal char. Got " + m_tokens.at(tokenI).value);
+		data.push_back(consume(tokenI).value.at(1));
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::COMMA})) {
+			consume(tokenI);
+			skip_tokens(tokenI, "[ \t]");
+		} else {
+			break;
+		}
+	}
 }
 
 void Assembler::_ascii(int& tokenI) {
 	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Assembler::_ascii() - Can only define data in .data section.");
-	// todo
+	consume(tokenI);
+
+	std::vector<byte> data;
+	skip_tokens(tokenI, "[ \t]");
+
+	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected literal string. Got " + m_tokens.at(tokenI).value);
+
+		for (char c : consume(tokenI).value) {
+			data.push_back(c);
+		}
+
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::COMMA})) {
+			consume(tokenI);
+			skip_tokens(tokenI, "[ \t]");
+		} else {
+			break;
+		}
+	}
 }
 
 void Assembler::_asciz(int& tokenI) {
 	EXPECT_TRUE(current_section == Section::DATA, lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Assembler::_asciz() - Can only define data in .data section.");
-	// todo
+	consume(tokenI);
+
+	std::vector<byte> data;
+	skip_tokens(tokenI, "[ \t]");
+
+	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected literal string. Got " + m_tokens.at(tokenI).value);
+
+		for (char c : consume(tokenI).value) {
+			data.push_back(c);
+		}
+		data.push_back('\0');
+
+		skip_tokens(tokenI, "[ \t]");
+		if (is_token(tokenI, {Tokenizer::COMMA})) {
+			consume(tokenI);
+			skip_tokens(tokenI, "[ \t]");
+		} else {
+			break;
+		}
+	}
 }

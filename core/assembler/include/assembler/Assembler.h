@@ -171,6 +171,9 @@ class Assembler {
 			{Tokenizer::ASSEMBLER_SDBYTE, &Assembler::_sdbyte},
 			{Tokenizer::ASSEMBLER_SWORD, &Assembler::_sword},
 			{Tokenizer::ASSEMBLER_SDWORD, &Assembler::_sdword},
+			{Tokenizer::ASSEMBLER_CHAR, &Assembler::_char},
+			{Tokenizer::ASSEMBLER_ASCII, &Assembler::_ascii},
+			{Tokenizer::ASSEMBLER_ASCIZ, &Assembler::_asciz},
 		};
 		typedef void (Assembler::*InstructionFunction)(int& tokenI);
 		std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {

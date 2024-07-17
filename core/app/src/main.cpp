@@ -28,12 +28,13 @@ Add more relocation types, directives, preprocessors and build flags as needed
 
 const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
 const std::string build_fibonacci = "-I .\\programs\\include -o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm -outdir .\\programs\\build";
+const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
 
 
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = build_fibonacci;
+	std::string build_command = build_palindrome;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";
@@ -51,6 +52,6 @@ int main(int argc, char* argv[]) {
 	Emulator32bit emulator;
 	LoadExecutable loader(emulator, process.get_exe_file());
 
-	emulator.run(100);
+	emulator.run(1000);
 	emulator.print();
 }

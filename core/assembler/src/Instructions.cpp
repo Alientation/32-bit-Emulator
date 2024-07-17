@@ -25,6 +25,7 @@ void Assembler::parse_shift(int& tokenI, int& shift, int& shift_amt) {
 	} else if (is_token(tokenI, {Tokenizer::INSTRUCTION_ROR})) {
 		shift = ROR;
 	}
+	consume(tokenI);
 	skip_tokens(tokenI, "[ \t]");
 
 	expect_token(tokenI, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN}, "Assembler::parse_shift() - Expected numeric argument.");
@@ -244,6 +245,7 @@ word Assembler::parse_format_m(int& tokenI, byte opcode) {
 		int shift_amount = 0;
 		skip_tokens(tokenI, "[ \t]");
 		if (is_token(tokenI, {Tokenizer::COMMA})) {						/*! shift argument */
+			consume(tokenI);
 			skip_tokens(tokenI, "[ \t]");
 			parse_shift(tokenI, shift, shift_amount);
 		}
