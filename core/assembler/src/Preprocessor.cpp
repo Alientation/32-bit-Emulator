@@ -343,29 +343,16 @@ void Preprocessor::_include(int& tok_i) {
 	// the path to the included file
 	std::string full_path_from_working_dir;
 
+	bool found_file = false;
     if (is_token(tok_i, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Missing include filename.")) {
         // local include
-		// todo, first search local relative path (fix when creating path from file whenver something like ./tests/../xxxxx happens it doesnt account for the ..)
-		// todo, next, search system dirs DO NOT SEARCH LIB DIRS
 		std::string local_file_path = consume(tok_i).value;
-		local_file_path = local_file_path.substr(1, local_file_path.length() - 2);
+		local_file_path = m_input_file.get_dir() + File::SEPARATOR + local_file_path.substr(1, local_file_path.length() - 2);
+		full_path_from_working_dir = trim_dir_path(local_file_path);
+		found_file = true;
+    }
 
-		bool found_local_file = false;
-		for (Directory dir : m_process->get_lib_dirs()) {
-			if (dir.subfile_exists(local_file_path)) {
-				if (found_local_file) {
-					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in local include directories: " << local_file_path);
-				}
-
-				full_path_from_working_dir = dir.get_path() + File::SEPARATOR + local_file_path;
-				found_local_file = true;
-			}
-		}
-
-		if (!found_local_file) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in local include directories: " << local_file_path);
-		}
-    } else {
+	if (!found_file) {
         // expect <"...">
         consume(tok_i, {Tokenizer::OPERATOR_LOGICAL_LESS_THAN}, "Preprocessor::_include() - Missing '<'.");
         std::string sys_file_path = consume(tok_i, {Tokenizer::LITERAL_STRING}, "Preprocessor::_include() - Expected string literal.").value;

@@ -11,6 +11,8 @@ class File;
 class FileWriter;
 class FileReader;
 
+std::string trim_dir_path(const std::string& str);
+
 // TODO probably best to add some form of thread safe locking to the file operations
 class File {
 	public:
@@ -35,7 +37,6 @@ class File {
 		File(const std::string& name, const std::string& extension, const std::string& dir = "", bool create_if_not_present = false);
 		File(const std::string& path, bool create_if_not_present = false);
 		File();
-		~File();
 
 		std::string get_name() const;
 		std::string get_extension() const;

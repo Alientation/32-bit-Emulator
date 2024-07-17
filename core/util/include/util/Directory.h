@@ -15,7 +15,6 @@ class Directory {
 		}
 
 		Directory(const std::string& path, bool create_if_not_present = false);
-		~Directory();
 
 		std::string get_name();
 		std::string get_path();

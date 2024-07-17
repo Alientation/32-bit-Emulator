@@ -14,6 +14,7 @@
  */
 #define SP 30											/*! Stack Pointer*/
 #define XZR 31											/*! Zero Register */
+#define LINKR 29										/*! Link Register */
 
 /**
  * @brief 					Flag bit locations in _pstate register

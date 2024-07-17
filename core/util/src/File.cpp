@@ -3,6 +3,43 @@
 
 #include <fstream>
 
+std::string trim_dir_path(const std::string& str) {
+	std::vector<std::string> segments;
+	int i = 0;
+	while(i < str.size()) {
+		int end = str.find("\\", i);
+		if (end == std::string::npos) {
+			end = str.size();
+		}
+		int other_separator_end = str.find("/", i);
+		if (other_separator_end == std::string::npos) {
+			other_separator_end = str.size();
+		}
+		end = end < other_separator_end ? end : other_separator_end;
+
+		segments.push_back(str.substr(i, end - i));
+		i = end+1;
+
+		if (segments.back() == ".") {
+			segments.pop_back();
+		} else if (segments.back() == "..") {
+			segments.pop_back();
+			if (segments.size() > 0) {
+				segments.pop_back();
+			}
+		}
+	}
+
+	std::string res;
+	for (int i = 0; i < segments.size(); i++) {
+		res += segments[i];
+		if (i + 1 < segments.size()) {
+			res += File::SEPARATOR;
+		}
+	}
+	return res;
+}
+
 /**
  * Constructs a file object with the given file name and directory.
  *
@@ -14,7 +51,7 @@ File::File(const std::string& name, const std::string& extension, const std::str
 	if (dir.empty()) {
 		m_dir = std::filesystem::current_path().string();
 	} else {
-		m_dir = dir;
+		m_dir = trim_dir_path(dir);
 	}
 
 	if (!valid_name(name)) {
@@ -45,7 +82,7 @@ File::File(const std::string& path, bool create_if_not_present) {
 	std::string name_and_extension = has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
 	m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
 	m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
-	m_dir = has_dir ? "" : path.substr(0, path.find_last_of(SEPARATOR));
+	m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
 
 	if (!valid_name(m_name)) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "File::File() - Invalid file name: " << m_name);
@@ -61,13 +98,6 @@ File::File(const std::string& path, bool create_if_not_present) {
 }
 
 File::File() : m_name(""), m_dir(""), m_extension("") { }
-
-/**
- * Destructs a file object
- */
-File::~File() {
-
-}
 
 /**
  * Returns the name of the file

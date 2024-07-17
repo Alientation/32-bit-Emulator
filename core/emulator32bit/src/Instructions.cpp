@@ -981,7 +981,7 @@ void Emulator32bit::_b(word instr, EmulatorException& exception) {
 void Emulator32bit::_bl(word instr, EmulatorException& exception) {
 	byte cond = bitfield_u32(instr, 22, 4);
 	if (check_cond(_pstate, cond)) {
-		write_reg(_x[29], _pc+4, exception);
+		write_reg(LINKR, _pc+4, exception);
 		_pc += (bitfield_s32(instr, 0, 22) << 2) - 4;
 	}
 	log(Logger::LogType::DEBUG, std::stringstream() << "bl " << std::to_string(cond));
@@ -989,19 +989,21 @@ void Emulator32bit::_bl(word instr, EmulatorException& exception) {
 
 void Emulator32bit::_bx(word instr, EmulatorException& exception) {
 	byte cond = bitfield_u32(instr, 22, 4);
+	byte reg = bitfield_u32(instr, 17, 5);
 	if (check_cond(_pstate, cond)) {
-		_pc += (sword) read_reg(bitfield_u32(instr, 17, 5), exception) - 4;
+		_pc = (sword) read_reg(reg, exception) - 4;
 	}
-	log(Logger::LogType::DEBUG, std::stringstream() << "bx " << std::to_string(cond));
+	log(Logger::LogType::DEBUG, std::stringstream() << "bx " << std::to_string(reg) << " (" << std::to_string(cond) << ")");
 }
 
 void Emulator32bit::_blx(word instr, EmulatorException& exception) {
 	byte cond = bitfield_u32(instr, 22, 4);
+	byte reg = bitfield_u32(instr, 17, 5);
 	if (check_cond(_pstate, cond)) {
-		write_reg(_x[29], _pc+4, exception);
-		_pc += (sword) read_reg(bitfield_u32(instr, 17, 5), exception) - 4;
+		write_reg(LINKR, _pc+4, exception);
+		_pc = (sword) read_reg(reg, exception) - 4;
 	}
-	log(Logger::LogType::DEBUG, std::stringstream() << "blx " << std::to_string(cond));
+	log(Logger::LogType::DEBUG, std::stringstream() << "blx " << std::to_string(reg) << "(" << std::to_string(cond) << ")");
 }
 
 void Emulator32bit::_swi(word instr, EmulatorException& exception) {

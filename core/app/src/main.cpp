@@ -34,7 +34,7 @@ const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\bu
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = build_palindrome;
+	std::string build_command = build_test;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";

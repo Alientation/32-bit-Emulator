@@ -1,4 +1,5 @@
 #include "util/Directory.h"
+#include "util/File.h"
 #include "util/Logger.h"
 
 #include <filesystem>
@@ -7,7 +8,7 @@
  * Constructs a directory with the given path
  */
 Directory::Directory(const std::string& path, bool create_if_not_present) {
-	this->m_dir_path = path;
+	this->m_dir_path = trim_dir_path(path);
 
 	if (!valid_path(path)) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Directory::Directory() - Invalid directory path: " << path);
@@ -16,13 +17,6 @@ Directory::Directory(const std::string& path, bool create_if_not_present) {
 	if (create_if_not_present && !exists()) {
 		create();
 	}
-}
-
-/**
- * Destructs a directory
- */
-Directory::~Directory() {
-
 }
 
 /**
