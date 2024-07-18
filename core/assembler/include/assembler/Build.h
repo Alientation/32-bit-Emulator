@@ -54,7 +54,7 @@ class Process {
 		std::set<std::string> m_enabled_warnings;
 		std::map<std::string,std::string> m_preprocessor_flags;
 
-		std::vector<std::string> m_linked_lib_names;
+		std::vector<File> m_linked_lib;
 		std::vector<Directory> m_library_dirs;
 		std::vector<Directory> m_system_dirs;
 		std::vector<File> m_src_files;

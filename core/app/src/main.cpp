@@ -18,7 +18,7 @@ TODO
 
 * improve vscode extension for basm language like autocomplete, syntax highlighting, etc
 * 		- File icon theme in vscode extension
-Figure out libraries, system libraries, and share object files
+Figure share object files/dynamically linked libraries
 * Create tests with the assembler to run longer pieces of code
 * Implement software interrupts
 *		- Print, logdump (print processor state)

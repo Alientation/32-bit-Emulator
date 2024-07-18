@@ -36,8 +36,8 @@ bool Process::valid_exe_file(const File& file) {
  *
  * @param compilerArgs the arguments to construct the build process from
  */
-Process::Process(const std::string& assemblerArgs) {
-	lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "Building Process: args(" << assemblerArgs << ")\n"
+Process::Process(const std::string& assembler_args) {
+	lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "Building Process: args(" << assembler_args << ")\n"
 			<< "Current Working Directory: " << std::filesystem::current_path().string());
 
 	flags = {
@@ -86,15 +86,15 @@ Process::Process(const std::string& assemblerArgs) {
 	};
 
 	// split command args by whitespace unless surrounded by quotes
-	std::vector<std::string> argsList;
-	parse_args(assemblerArgs, argsList);
+	std::vector<std::string> args_list;
+	parse_args(assembler_args, args_list);
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::Process() - argsList.size(): " << argsList.size());
-	for (int i = 0; i < argsList.size(); i++) {
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::Process() - argsList[" << i << "]: " << argsList[i]);
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::Process() - args_list.size(): " << args_list.size());
+	for (int i = 0; i < args_list.size(); i++) {
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::Process() - args_list[" << i << "]: " << args_list[i]);
 	}
 
-	evaluate_args(argsList);
+	evaluate_args(args_list);
 	build();
 }
 
@@ -102,60 +102,60 @@ Process::Process(const std::string& assemblerArgs) {
  * @brief Parses the arguments into a list of arguments.
  *
  * @param compilerArgs the arguments to parse
- * @param argsList the list of arguments to add to
+ * @param args_list the list of arguments to add to
  */
-void Process::parse_args(std::string assemblerArgs, std::vector<std::string>& argsList) {
-	bool isEscaped = false;
-	bool isQuoted = false;
-	std::string curArg = "";
-	for (int i = 0; i < assemblerArgs.length(); i++) {
-		char c = assemblerArgs[i];
-		if (c == '\"' && !isEscaped) {
+void Process::parse_args(std::string assembler_args, std::vector<std::string>& args_list) {
+	bool is_escaped = false;
+	bool is_quoted = false;
+	std::string cur_arg = "";
+	for (int i = 0; i < assembler_args.length(); i++) {
+		char c = assembler_args[i];
+		if (c == '\"' && !is_escaped) {
 			// this is a quote that is not escaped
-			isQuoted = !isQuoted;
-		} else if (std::isspace(c) && !isQuoted) {
+			is_quoted = !is_quoted;
+		} else if (std::isspace(c) && !is_quoted) {
 			// only add argument if it's not empty
-			if (curArg.length() > 0) {
-				argsList.push_back(curArg);
-				curArg = "";
+			if (cur_arg.length() > 0) {
+				args_list.push_back(cur_arg);
+				cur_arg = "";
 			}
 		} else {
 			// check if escape character
 			if (c == '\\') {
-				isEscaped = !isEscaped;
+				is_escaped = !is_escaped;
 			} else {
-				isEscaped = false;
+				is_escaped = false;
 			}
-			curArg += c;
+			cur_arg += c;
 		}
 	}
 
 	// check if there are any dangling quotes or escape characters
-	lgr::EXPECT_FALSE(isQuoted, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Missing end quotes: " << assemblerArgs);
-	lgr::EXPECT_FALSE(isEscaped, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Dangling escape character: " << assemblerArgs);
+	lgr::EXPECT_FALSE(is_quoted, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Missing end quotes: " << assembler_args);
+	lgr::EXPECT_FALSE(is_escaped, lgr::Logger::LogType::ERROR, std::stringstream() << "Process::Process() - Dangling escape character: " << assembler_args);
 
 	// add the last argument if it's not empty
-	if (curArg.length() > 0) {
-		argsList.push_back(curArg);
+	if (cur_arg.length() > 0) {
+		args_list.push_back(cur_arg);
 	}
 }
 
 /**
  * @brief Processes the arguments. This is an internal function.
  *
- * @param argsList the list of arguments to process
+ * @param args_list the list of arguments to process
  */
-void Process::evaluate_args(std::vector<std::string>& argsList) {
+void Process::evaluate_args(std::vector<std::string>& args_list) {
 	// evaluate arguments
-	for (int i = 0; i < argsList.size(); i++) {
-		lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "arg" << i << ": " << argsList[i]);
+	for (int i = 0; i < args_list.size(); i++) {
+		lgr::log(lgr::Logger::LogType::LOG, std::stringstream() << "arg" << i << ": " << args_list[i]);
 
-		std::string& arg = argsList[i];
+		std::string& arg = args_list[i];
 		if (arg[0] == '-') {
 			// this is a flag
 			lgr::EXPECT_TRUE(flags.find(arg) != flags.end(), lgr::Logger::LogType::ERROR, std::stringstream("Process::Process() - Invalid flag: ") << arg);
 
-			(this->*flags[arg])(argsList, i);
+			(this->*flags[arg])(args_list, i);
 		} else {
 			// this should be a file
 			File file(arg);
@@ -369,12 +369,12 @@ void Process::_optimize_all(std::vector<std::string>& args, int& index) {
  */
 void Process::_warn(std::vector<std::string>& args, int& index) {
 	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream() << "Process::_warn() - Missing warning type");
-	std::string warningType = args[++index];
+	std::string warning_type = args[++index];
 
 	// check if the warning type is valid
-	lgr::EXPECT_TRUE(WARNINGS.find(warningType) != WARNINGS.end(), lgr::Logger::LogType::ERROR, std::stringstream()
-			<< "Process::_warn() - Invalid warning type: " << warningType);
-	m_enabled_warnings.insert(warningType);
+	lgr::EXPECT_TRUE(WARNINGS.find(warning_type) != WARNINGS.end(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_warn() - Invalid warning type: " << warning_type);
+	m_enabled_warnings.insert(warning_type);
 }
 
 /**
@@ -386,8 +386,8 @@ void Process::_warn(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_warn_all(std::vector<std::string>& args, int& index) {
-	for (std::string warningType : WARNINGS) {
-		m_enabled_warnings.insert(warningType);
+	for (std::string warning_type : WARNINGS) {
+		m_enabled_warnings.insert(warning_type);
 	}
 }
 
@@ -402,12 +402,12 @@ void Process::_warn_all(std::vector<std::string>& args, int& index) {
 void Process::_include(std::vector<std::string>& args, int& index) {
 	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Process::_include() - Missing include directory path");
-	std::string includeDir = args[++index];
+	std::string include_dir = args[++index];
 
 	// check if the include directory is valid
-	lgr::EXPECT_TRUE(Directory::valid_path(includeDir), lgr::Logger::LogType::ERROR, std::stringstream()
-			<< "Process::_include() - Invalid include directory path: " << includeDir);
-	m_system_dirs.push_back(Directory(includeDir));
+	lgr::EXPECT_TRUE(Directory::valid_path(include_dir), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_include() - Invalid include directory path: " << include_dir);
+	m_system_dirs.push_back(Directory(include_dir));
 }
 
 /**
@@ -423,12 +423,12 @@ void Process::_include(std::vector<std::string>& args, int& index) {
 void Process::_library(std::vector<std::string>& args, int& index) {
 	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Process::_library() - Missing library name");
-	std::string libraryName = args[++index];
+	std::string lib_path = args[++index];
 
 	// check if the library name is valid
-	lgr::EXPECT_TRUE(File::valid_name(libraryName), lgr::Logger::LogType::ERROR, std::stringstream()
-			<< "Process::_library() - Invalid library name: " << libraryName);
-	m_linked_lib_names.push_back(libraryName);
+	lgr::EXPECT_TRUE(File::valid_path(lib_path), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_library() - Invalid library path: " << lib_path);
+	m_linked_lib.push_back(File(lib_path));
 }
 
 /**
@@ -442,12 +442,12 @@ void Process::_library(std::vector<std::string>& args, int& index) {
 void Process::_library_directory(std::vector<std::string>& args, int& index) {
 	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
 			<< "Process::_libraryDirectory() - Missing library directory path");
-	std::string libraryDir = args[++index];
+	std::string lib_dir = args[++index];
 
 	// check if the library directory is valid
-	lgr::EXPECT_TRUE(Directory::valid_path(libraryDir), lgr::Logger::LogType::ERROR, std::stringstream()
-			<< "Process::_libraryDirectory() - Invalid library directory path: " << libraryDir);
-	m_library_dirs.push_back(Directory(libraryDir));
+	lgr::EXPECT_TRUE(Directory::valid_path(lib_dir), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_libraryDirectory() - Invalid library directory path: " << lib_dir);
+	m_library_dirs.push_back(Directory(lib_dir));
 }
 
 /**
