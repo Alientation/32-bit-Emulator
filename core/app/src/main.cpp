@@ -30,12 +30,15 @@ Implement .section directive and fix much of the hardcodedness of the assembler/
 const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
 const std::string build_fibonacci = "-I .\\programs\\include -o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm -outdir .\\programs\\build";
 const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
+const std::string build_library = "-o .\\programs\\build\\libtest -makelib .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
+const std::string build_exe_from_library = "todo";
 
+#define MAX_EXECUTED_INSTRUCTIONS 1000
 
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = build_palindrome;
+	std::string build_command = build_exe_from_library;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";
@@ -47,12 +50,13 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// TODO, there is some weird segfault that happened here, but now it disappeared
 	Process process = Process(build_command);
 
-	Emulator32bit emulator;
-	LoadExecutable loader(emulator, process.get_exe_file());
+	if (process.does_create_exe()) {
+		Emulator32bit emulator;
+		LoadExecutable loader(emulator, process.get_exe_file());
 
-	emulator.run(1000);
-	emulator.print();
+		emulator.run(MAX_EXECUTED_INSTRUCTIONS);
+		emulator.print();
+	}
 }

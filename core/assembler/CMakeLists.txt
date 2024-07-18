@@ -15,6 +15,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/LoadExecutable.cpp
     src/Linker.cpp
     src/ObjectFile.cpp
+    src/StaticLibrary.cpp
     src/Preprocessor.cpp
     src/Tokenizer.cpp
 )

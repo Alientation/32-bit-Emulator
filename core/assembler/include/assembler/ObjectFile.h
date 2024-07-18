@@ -21,6 +21,7 @@ class ObjectFile {
 		ObjectFile(File obj_file);
 
 		void read_object_file(File object_file);
+		void read_object_file(std::vector<byte>& bytes);
 		void write_object_file(File object_file);
 
 		/**
@@ -100,7 +101,7 @@ class ObjectFile {
 		State m_state;												/* state of the disassembly */
 		File m_obj_file;
 
-		void disassemble();
+		void disassemble(std::vector<byte>& bytes);
 		void print();
 };
 

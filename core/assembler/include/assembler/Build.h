@@ -18,6 +18,7 @@ static const std::string INCLUDE_EXTENSION = "binc";
 static const std::string PROCESSED_EXTENSION = "bi";
 static const std::string OBJECT_EXTENSION = "bo";
 static const std::string EXECUTABLE_EXTENSION = "bexe";
+static const std::string STATIC_LIBRARY_EXTENSION = "ba";
 
 static const std::set<std::string> WARNINGS = {
 	"error",
@@ -33,6 +34,7 @@ class Process {
 
 		Process(const std::string& assembler_args = "");
 
+		bool does_create_exe() const;
         int get_optimization_level() const;
         std::set<std::string> get_enabled_warnings() const;
         std::map<std::string,std::string> get_preprocessor_flags() const;
@@ -45,8 +47,7 @@ class Process {
 
 	private:
 		/* process flags */
-		bool make_lib = false;
-		std::string make_lib_dir;
+		bool m_make_lib = false;
 		bool m_only_compile = false;
 		std::string m_output_file = DEFAULT_OUTPUT_FILE;
 		int m_optimization_level = 0;

@@ -14,9 +14,26 @@ ObjectFile::ObjectFile(File obj_file) : ObjectFile() {
 	read_object_file(obj_file);
 }
 
+void ObjectFile::read_object_file(std::vector<byte>& bytes) {
+	// m_obj_file will not be set
+	// this is way for static libraries to be decomposed into a list of object files easily
+	disassemble(bytes);
+
+	print();
+}
+
 void ObjectFile::read_object_file(File obj_file) {
 	m_obj_file = obj_file;
-	disassemble();
+
+	FileReader file_reader(m_obj_file, std::ios::in | std::ios::binary);
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::read_object_file() - Reading bytes");
+	std::vector<byte> bytes;
+	while (file_reader.has_next_byte()) {
+		bytes.push_back(file_reader.read_byte());
+	}
+
+	disassemble(bytes);
 
 	/* since errors in disassemble will early return before setting state to success, check for early return */
 	if (m_state == State::DISASSEMBLING) {
@@ -26,17 +43,9 @@ void ObjectFile::read_object_file(File obj_file) {
 	print();
 }
 
-void ObjectFile::disassemble() {
+void ObjectFile::disassemble(std::vector<byte>& bytes) {
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Disassembling");
 	m_state = State::DISASSEMBLING;
-	FileReader file_reader(m_obj_file, std::ios::in | std::ios::binary);
-
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "ObjectFile::disassemble() - Reading bytes");
-	std::vector<byte> bytes;
-	while (file_reader.has_next_byte()) {
-		bytes.push_back(file_reader.read_byte());
-	}
-
 	ByteReader reader(bytes);
 
 	/* BELF Header */
@@ -258,7 +267,7 @@ void ObjectFile::write_object_file(File obj_file) {
 	ofs.close();
 
 	// create writer for object file
-	FileWriter m_writer = FileWriter(obj_file, std::ios::in | std::ios::binary);
+	FileWriter m_writer = FileWriter(obj_file, std::ios::out | std::ios::binary);
 
 	ByteWriter byte_writer(m_writer);
 	int current_byte = 0;

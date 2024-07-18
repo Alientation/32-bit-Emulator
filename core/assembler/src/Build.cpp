@@ -4,6 +4,7 @@
 #include "assembler/Linker.h"
 #include "assembler/ObjectFile.h"
 #include "assembler/Preprocessor.h"
+#include "assembler/StaticLibrary.h"
 #include "util/Directory.h"
 #include "util/Logger.h"
 #include "util/StringUtil.h"
@@ -177,6 +178,11 @@ void Process::build() {
 	preprocess();
 	assemble();
 
+	if (m_make_lib) {
+		WriteStaticLibrary(m_obj_files, File(m_output_file + "." + STATIC_LIBRARY_EXTENSION, true));
+		return;
+	}
+
 	if (m_only_compile) {											/* Only compiles object files */
 		return;
 	}
@@ -265,7 +271,7 @@ void Process::_version(std::vector<std::string>& args, int& index) {
  * @param index
  */
 void Process::_makelib(std::vector<std::string>& args, int& index) {
-
+	m_make_lib = true;
 }
 
 /**
@@ -482,6 +488,10 @@ void Process::_keep_processed_files(std::vector<std::string>& args, int& index) 
 
 
 // FOR NOW getters
+bool Process::does_create_exe() const {
+	return !m_make_lib && !m_only_compile;
+}
+
 int Process::get_optimization_level() const {
     return m_optimization_level;
 }
