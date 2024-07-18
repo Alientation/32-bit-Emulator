@@ -1,14 +1,15 @@
 #include "assembler/Build.h"
-#include "assembler/Preprocessor.h"
-#include "assembler/Assembler.h"
-#include "assembler/ObjectFile.h"
-#include "assembler/Linker.h"
-#include "util/Directory.h"
-#include "util/StringUtil.h"
-#include "util/Logger.h"
 
-#include <iostream>
+#include "assembler/Assembler.h"
+#include "assembler/Linker.h"
+#include "assembler/ObjectFile.h"
+#include "assembler/Preprocessor.h"
+#include "util/Directory.h"
+#include "util/Logger.h"
+#include "util/StringUtil.h"
+
 #include <filesystem>
+#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -30,7 +31,7 @@ bool Process::valid_exe_file(const File& file) {
 
 
 /**
- * Constructs a build process from the specified arguments.
+ * @brief Constructs a build process from the specified arguments.
  *
  * @param compilerArgs the arguments to construct the build process from
  */
@@ -41,54 +42,46 @@ Process::Process(const std::string& assemblerArgs) {
 	flags = {
 		{"--", &Process::_ignore},
 
-		// prints out the version of the assembler
-		{"-v", &Process::_version},
+		{"-v", &Process::_version},										/* Prints version of assembler */
 		{"-version", &Process::_version},
 
-		// compiles the source code files to object files and stops
-		{"-c", &Process::_compile},
+		{"-makelib", &Process::_makelib},								/* Instead of building an executable, create a collection of
+																			object files and package into a single library file (.ba) */
+
+		{"-c", &Process::_compile},										/* Only compiles the src code files into object files */
 		{"-compile", &Process::_compile},
 
-		// specifies the name of the output file (the executable file)
-		{"-o", &Process::_output},
+		{"-o", &Process::_output},										/* Path to output file (executable for builds, library files for makelib) */
 		{"-out", &Process::_output},
 		{"-output", &Process::_output},
 
-		{"-outdir", &Process::_outdir},
+		{"-outdir", &Process::_outdir},									/* Directory where all object files will be stored */
 
-		// turns on optimization
-		{"-O", &Process::_optimize},
+		{"-O", &Process::_optimize},									/* Turns on optimization level *unimplemented* */
 		{"-optimize", &Process::_optimize},
 
-		// turns on all optimization
-		{"-oall", &Process::_optimize_all},
+		{"-oall", &Process::_optimize_all},								/* Highest optimization level *unimplemented* */
 
-		// turns on warning messages
-		{"-W", &Process::_warn},
+		{"-W", &Process::_warn},										/* Turns on warning level *unimplemented* */
 		{"-warning", &Process::_warn},
 
-		// turns on all warning messages
-		{"-wall", &Process::_warn_all},
+		{"-wall", &Process::_warn_all},									/* Highest warning level *unimplemented* */
 
-		// use given directory for system files //todo, have system and local include files
-		{"-I", &Process::_include},
+		{"-I", &Process::_include},										/* Adds directory to search for system files */
 		{"-inc", &Process::_include},
 		{"-include", &Process::_include},
 
-		// links given library into program
-		{"-l", &Process::_library},
+		{"-l", &Process::_library},										/* Links given library file to program */
 		{"-lib", &Process::_library},
 		{"-library", &Process::_library},
 
-		// searches for linked libraries in given directory
-		{"-L", &Process::_library_directory},
+		{"-L", &Process::_library_directory},							/* Searches for all libraries in given directory and links */
 		{"-libdir", &Process::_library_directory},
 		{"-librarydir", &Process::_library_directory},
 
-		// pass preprocessor flags
-		{"-D", &Process::_preprocessor_flag},
+		{"-D", &Process::_preprocessor_flag},							/* Passes preprocessor flags into the program */
 
-		{"-kp", &Process::_keep_processed_files},
+		{"-kp", &Process::_keep_processed_files},						/* Don't delete intermediate files */
 	};
 
 	// split command args by whitespace unless surrounded by quotes
@@ -105,7 +98,7 @@ Process::Process(const std::string& assemblerArgs) {
 }
 
 /**
- * Parses the arguments into a list of arguments. This is an internal function.
+ * @brief Parses the arguments into a list of arguments.
  *
  * @param compilerArgs the arguments to parse
  * @param argsList the list of arguments to add to
@@ -147,7 +140,7 @@ void Process::parse_args(std::string assemblerArgs, std::vector<std::string>& ar
 }
 
 /**
- * Processes the arguments. This is an internal function.
+ * @brief Processes the arguments. This is an internal function.
  *
  * @param argsList the list of arguments to process
  */
@@ -177,7 +170,8 @@ void Process::evaluate_args(std::vector<std::string>& argsList) {
 
 
 /**
- * Builds the executable from the compile arguments
+ * @brief
+ *
  */
 void Process::build() {
 	preprocess();
@@ -190,7 +184,8 @@ void Process::build() {
 }
 
 /**
- * Only preprocesses any source files
+ * @brief
+ *
  */
 void Process::preprocess() {
 	m_processed_files.clear();
@@ -201,7 +196,8 @@ void Process::preprocess() {
 }
 
 /**
- * Only assembles any processed files
+ * @brief
+ *
  */
 void Process::assemble() {
 	m_obj_files.clear();
@@ -226,7 +222,8 @@ void Process::assemble() {
 }
 
 /**
- * Only links any object files
+ * @brief
+ *
  */
 void Process::link() {
 	std::vector<ObjectFile> objects;
@@ -238,14 +235,19 @@ void Process::link() {
 	Linker linker(objects, m_exe_file);
 }
 
-
+/**
+ * @brief
+ *
+ * @param args
+ * @param index
+ */
 void Process::_ignore(std::vector<std::string>& args, int& index) {
     // jumps index to the end of args
     index = args.size();
 }
 
 /**
- * Prints out the version of the assembler
+ * @brief Prints out the version of the assembler
  *
  * USAGE: -v, -version
  *
@@ -257,7 +259,17 @@ void Process::_version(std::vector<std::string>& args, int& index) {
 }
 
 /**
- * Compiles the source code files to object files and stops
+ * @brief
+ *
+ * @param args
+ * @param index
+ */
+void Process::_makelib(std::vector<std::string>& args, int& index) {
+
+}
+
+/**
+ * @brief Compiles the source code files to object files and stops
  *
  * USAGE: -c, -compile
  *
@@ -269,7 +281,7 @@ void Process::_compile(std::vector<std::string>& args, int& index) {
 }
 
 /**
- * Sets the output file
+ * @brief Sets the output file
  *
  * USAGE: -o, -output [filename]
  *
@@ -277,15 +289,17 @@ void Process::_compile(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_output(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_output() - Missing output file name"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_output() - Missing output file name");
 	m_output_file = args[++index];
 
 	// check if the output file is valid
-	lgr::EXPECT_TRUE(File::valid_path(m_output_file), lgr::Logger::LogType::ERROR, std::stringstream("Process::_output() - Invalid output file path: ") << m_output_file);
+	lgr::EXPECT_TRUE(File::valid_path(m_output_file), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_output() - Invalid output file path: " << m_output_file);
 }
 
 /**
- * Sets the output directory for all object files generated
+ * @brief Sets the output directory for all object files generated
  *
  * USAGE: -outdir [filename]
  *
@@ -293,15 +307,16 @@ void Process::_output(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_outdir(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_outdir() - Missing output file name"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream() << "Process::_outdir() - Missing output file name");
 	m_output_dir = args[++index];
 	m_has_output_dir = true;
 	// check if the output file is valid
-	lgr::EXPECT_TRUE(Directory::valid_path(m_output_dir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_outdir() - Invalid output directory path: ") << m_output_file);
+	lgr::EXPECT_TRUE(Directory::valid_path(m_output_dir), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_outdir() - Invalid output directory path: " << m_output_file);
 }
 
 /**
- * Sets the optimization level
+ * @brief Sets the optimization level
  *
  * USAGE: -o, -optimize [level]
  *
@@ -315,15 +330,16 @@ void Process::_outdir(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_optimize(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_optimize() - Missing optimization level"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream() << "Process::_optimize() - Missing optimization level");
 	m_optimization_level = std::stoi(args[++index]);
 
 	// check if the optimization level is valid
-	lgr::EXPECT_TRUE(0 <= m_optimization_level && m_optimization_level <= 3, lgr::Logger::LogType::ERROR, std::stringstream("Process::_optimize() - Invalid optimization level: ") << m_optimization_level);
+	lgr::EXPECT_TRUE(0 <= m_optimization_level && m_optimization_level <= 3, lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_optimize() - Invalid optimization level: " << m_optimization_level);
 }
 
 /**
- * Sets the highest optimization level
+ * @brief Sets the highest optimization level
  *
  * USAGE: -O, -oall
  *
@@ -335,7 +351,7 @@ void Process::_optimize_all(std::vector<std::string>& args, int& index) {
 }
 
 /**
- * Turns on warning messages
+ * @brief Turns on warning messages
  *
  * USAGE: -w, -warning [type]
  *
@@ -346,16 +362,17 @@ void Process::_optimize_all(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_warn(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_warn() - Missing warning type"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream() << "Process::_warn() - Missing warning type");
 	std::string warningType = args[++index];
 
 	// check if the warning type is valid
-	lgr::EXPECT_TRUE(WARNINGS.find(warningType) != WARNINGS.end(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_warn() - Invalid warning type: ") << warningType);
+	lgr::EXPECT_TRUE(WARNINGS.find(warningType) != WARNINGS.end(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_warn() - Invalid warning type: " << warningType);
 	m_enabled_warnings.insert(warningType);
 }
 
 /**
- * Turns on all warning messages
+ * @brief Turns on all warning messages
  *
  * USAGE: -W, -wall
  *
@@ -369,7 +386,7 @@ void Process::_warn_all(std::vector<std::string>& args, int& index) {
 }
 
 /**
- * Adds directory to the list of system directories to search for included files
+ * @brief Adds directory to the list of system directories to search for included files
  *
  * USAGE: -I, -inc, -include [directory path]
  *
@@ -377,16 +394,18 @@ void Process::_warn_all(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_include(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_include() - Missing include directory path"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_include() - Missing include directory path");
 	std::string includeDir = args[++index];
 
 	// check if the include directory is valid
-	lgr::EXPECT_TRUE(Directory::valid_path(includeDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_include() - Invalid include directory path: ") << includeDir);
+	lgr::EXPECT_TRUE(Directory::valid_path(includeDir), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_include() - Invalid include directory path: " << includeDir);
 	m_system_dirs.push_back(Directory(includeDir));
 }
 
 /**
- * Adds shared library to be linked with the compiled object files
+ * @brief Adds shared library to be linked with the compiled object files
  *
  * USAGE: -l, -lib, -library [library name]
  *
@@ -396,16 +415,18 @@ void Process::_include(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_library(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_library() - Missing library name"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_library() - Missing library name");
 	std::string libraryName = args[++index];
 
 	// check if the library name is valid
-	lgr::EXPECT_TRUE(File::valid_name(libraryName), lgr::Logger::LogType::ERROR, std::stringstream("Process::_library() - Invalid library name: ") << libraryName);
+	lgr::EXPECT_TRUE(File::valid_name(libraryName), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_library() - Invalid library name: " << libraryName);
 	m_linked_lib_names.push_back(libraryName);
 }
 
 /**
- * Adds directory to the list of directories to search for shared libraries
+ * @brief Adds directory to the list of directories to search for shared libraries
  *
  * USAGE: -L, -libdir, -librarydir [directory path]
  *
@@ -413,16 +434,18 @@ void Process::_library(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_library_directory(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_libraryDirectory() - Missing library directory path"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_libraryDirectory() - Missing library directory path");
 	std::string libraryDir = args[++index];
 
 	// check if the library directory is valid
-	lgr::EXPECT_TRUE(Directory::valid_path(libraryDir), lgr::Logger::LogType::ERROR, std::stringstream("Process::_libraryDirectory() - Invalid library directory path: ") << libraryDir);
+	lgr::EXPECT_TRUE(Directory::valid_path(libraryDir), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_libraryDirectory() - Invalid library directory path: " << libraryDir);
 	m_library_dirs.push_back(Directory(libraryDir));
 }
 
 /**
- * Adds a preprocessor flag
+ * @brief Adds a preprocessor flag
  *
  * USAGE: -D [flag name?=value]
  *
@@ -430,7 +453,8 @@ void Process::_library_directory(std::vector<std::string>& args, int& index) {
  * @param index the index of the flag in the arguments list
  */
 void Process::_preprocessor_flag(std::vector<std::string>& args, int& index) {
-	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream("Process::_preprocessorFlag() - Missing preprocessor flag"));
+	lgr::EXPECT_TRUE(index + 1 < args.size(), lgr::Logger::LogType::ERROR, std::stringstream()
+			<< "Process::_preprocessorFlag() - Missing preprocessor flag");
 	std::string flag = args[++index];
 
 	// check if there is a value
@@ -445,7 +469,7 @@ void Process::_preprocessor_flag(std::vector<std::string>& args, int& index) {
 }
 
 /**
- * Don't delete processed files after preprocessing
+ * @brief Don't delete processed files after preprocessing
  *
  * USAGE: -kp
  *
@@ -458,14 +482,6 @@ void Process::_keep_processed_files(std::vector<std::string>& args, int& index) 
 
 
 // FOR NOW getters
-bool Process::do_only_compile() const {
-    return m_only_compile;
-}
-
-std::string Process::get_output_file() const {
-    return m_output_file;
-}
-
 int Process::get_optimization_level() const {
     return m_optimization_level;
 }
@@ -478,20 +494,8 @@ std::map<std::string,std::string> Process::get_preprocessor_flags() const {
     return m_preprocessor_flags;
 }
 
-std::vector<std::string> Process::get_linked_lib_names() const {
-    return m_linked_lib_names;
-}
-
-std::vector<Directory> Process::get_lib_dirs() const {
-    return m_library_dirs;
-}
-
 std::vector<Directory> Process::get_system_dirs() const {
     return m_system_dirs;
-}
-
-std::vector<File> Process::get_src_files() const {
-    return m_src_files;
 }
 
 std::vector<File> Process::get_processed_files() const {

@@ -33,16 +33,11 @@ class Process {
 
 		Process(const std::string& assembler_args = "");
 
-        bool do_only_compile() const;
-        std::string get_output_file() const;
         int get_optimization_level() const;
         std::set<std::string> get_enabled_warnings() const;
         std::map<std::string,std::string> get_preprocessor_flags() const;
 
-        std::vector<std::string> get_linked_lib_names() const;
-        std::vector<Directory> get_lib_dirs() const;
         std::vector<Directory> get_system_dirs() const;
-        std::vector<File> get_src_files() const;
 
         std::vector<File> get_processed_files() const;
         std::vector<File> get_obj_files() const;
@@ -50,6 +45,8 @@ class Process {
 
 	private:
 		/* process flags */
+		bool make_lib = false;
+		std::string make_lib_dir;
 		bool m_only_compile = false;
 		std::string m_output_file = DEFAULT_OUTPUT_FILE;
 		int m_optimization_level = 0;
@@ -80,6 +77,7 @@ class Process {
         void _ignore(std::vector<std::string>& args, int& index);
 		void _version(std::vector<std::string>& args, int& index);
 		void _compile(std::vector<std::string>& args, int& index);
+		void _makelib(std::vector<std::string>& args, int& index);
 		void _output(std::vector<std::string>& args, int& index);
 		void _outdir(std::vector<std::string>& args, int& index);
 		void _optimize(std::vector<std::string>& args, int& index);

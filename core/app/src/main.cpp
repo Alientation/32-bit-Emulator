@@ -21,8 +21,10 @@ TODO
 Figure out libraries, system libraries, and share object files
 * Create tests with the assembler to run longer pieces of code
 * Implement software interrupts
+*		- Print, logdump (print processor state)
 Figure out IO, Disk, ports, etc
 Add more relocation types, directives, preprocessors and build flags as needed
+Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
 */
 
 const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
