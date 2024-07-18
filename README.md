@@ -50,6 +50,7 @@ to build different executables~~ ***Added 7/16/24***
 * Support dynamically linked libraries
 * Simple compiled language (like C)
 * System libraries
+* Documentation!
 
 ## How to run
 Run the `build.bat` or `build.sh` script located in the app subdirectory which will configure and build the entire project
