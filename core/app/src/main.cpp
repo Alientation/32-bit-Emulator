@@ -23,6 +23,7 @@ Figure share object files/dynamically linked libraries
 * Implement software interrupts
 *		- Print, logdump (print processor state)
 Figure out IO, Disk, ports, etc
+Add flag to set source dirs
 Add more relocation types, directives, preprocessors and build flags as needed
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
 */
@@ -31,7 +32,7 @@ const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\
 const std::string build_fibonacci = "-I .\\programs\\include -o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm -outdir .\\programs\\build";
 const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
 const std::string build_library = "-o .\\programs\\build\\libtest -makelib .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
-const std::string build_exe_from_library = "todo";
+const std::string build_exe_from_library = "-lib .\\programs\\build\\libtest.ba -o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
 
 #define MAX_EXECUTED_INSTRUCTIONS 1000
 

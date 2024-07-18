@@ -236,6 +236,11 @@ void Process::link() {
 	for (File file : m_obj_files) {
 		objects.push_back(ObjectFile(file));
 	}
+
+	for (File lib : m_linked_lib) {
+		ReadStaticLibrary(objects, lib);
+	}
+
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Process::link() - output file name: " << m_exe_file.get_path());
 	Linker linker(objects, m_exe_file);
