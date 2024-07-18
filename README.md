@@ -47,6 +47,9 @@ to build different executables~~ ***Added 7/16/24***
 * add floating point instructions, flesh out more relocation entry types, and add section directives to help partition code
 * ~~test emulator with simple and fun programs~~ ***Added fibonacci and palindrome example programs 7/17/24***
 * create simple OS with a CLI
+* Support dynamically linked libraries
+* Simple compiled language (like C)
+* System libraries
 
 ## How to run
 Run the `build.bat` or `build.sh` script located in the app subdirectory which will configure and build the entire project
