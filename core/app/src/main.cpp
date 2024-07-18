@@ -16,7 +16,6 @@
 /*
 TODO
 
-* Fix local relative includes
 * improve vscode extension for basm language like autocomplete, syntax highlighting, etc
 * 		- File icon theme in vscode extension
 Figure out libraries, system libraries, and share object files
@@ -34,7 +33,7 @@ const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\bu
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = build_test;
+	std::string build_command = build_palindrome;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";
