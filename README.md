@@ -8,7 +8,8 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
 * supports **preprocessors** and **assembler directives**
 
 <p align="center">
-  <img src="./img/objdump.PNG" alt="Objdump of assembled code" width = "500">
+  <img src="./img/objdump.PNG" alt="Objdump of assembled code" width = "45% style="display: inline-block; margin: 0 10px;">
+  <img src="./img/fibonacci_example.PNG" alt="Fibonacci example basm code" width = "45% style="display: inline-block; margin: 0 10px;">
 </p>
 
 ## How it works
