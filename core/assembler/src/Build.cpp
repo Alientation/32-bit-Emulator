@@ -237,8 +237,18 @@ void Process::link() {
 		objects.push_back(ObjectFile(file));
 	}
 
+	/* Link all included libraries */
 	for (File lib : m_linked_lib) {
 		ReadStaticLibrary(objects, lib);
+	}
+
+	/* Link all libraries found in the provided directories */
+	for (Directory lib_dir : m_library_dirs) {
+		for (File lib : lib_dir.get_all_subfiles()) {
+			if (lib.get_extension() == STATIC_LIBRARY_EXTENSION) {
+				ReadStaticLibrary(objects, lib);
+			}
+		}
 	}
 
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);

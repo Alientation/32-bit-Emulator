@@ -18,7 +18,7 @@ TODO
 
 * improve vscode extension for basm language like autocomplete, syntax highlighting, etc
 * 		- File icon theme in vscode extension
-Figure share object files/dynamically linked libraries
+Figure shared object files/dynamically linked libraries
 * Create tests with the assembler to run longer pieces of code
 * Implement software interrupts
 *		- Print, logdump (print processor state)
@@ -33,13 +33,14 @@ const std::string build_fibonacci = "-I .\\programs\\include -o .\\programs\\bui
 const std::string build_palindrome = "-I .\\programs\\include -o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
 const std::string build_library = "-o .\\programs\\build\\libtest -makelib .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
 const std::string build_exe_from_library = "-lib .\\programs\\build\\libtest.ba -o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
+const std::string build_exe_from_library_dir = "-libdir .\\programs\\build -o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
 
 #define MAX_EXECUTED_INSTRUCTIONS 1000
 
 int main(int argc, char* argv[]) {
     lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
-	std::string build_command = build_exe_from_library;
+	std::string build_command = build_exe_from_library_dir;
 	if (argc > 1) {
    	 lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
 		build_command = "";

@@ -19,10 +19,11 @@ class Directory {
 		std::string get_name();
 		std::string get_path();
 		int get_size();
-		std::vector<File*> get_subfiles();
-		std::vector<Directory*> get_subdirs();
-		Directory* get_subdir(const std::string& subdir_path);
-		File* get_subfile(const std::string& subfile_path);
+		std::vector<File> get_subfiles();
+		std::vector<File> get_all_subfiles();
+		std::vector<Directory> get_subdirs();
+		Directory get_subdir(const std::string& subdir_path);
+		File get_subfile(const std::string& subfile_path);
 
 		bool subdir_exists(const std::string& subdir_path);
 		bool subfile_exists(const std::string& subfile_path);

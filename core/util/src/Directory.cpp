@@ -63,8 +63,8 @@ std::string Directory::get_path() {
  *
  * @return the subfiles of the directory
  */
-std::vector<File*> Directory::get_subfiles() {
-	std::vector<File*> subfiles;
+std::vector<File> Directory::get_subfiles() {
+	std::vector<File> subfiles;
 
 	// get the contents of this directory
 	for (const auto & entry : std::filesystem::directory_iterator(m_dir_path)) {
@@ -72,19 +72,35 @@ std::vector<File*> Directory::get_subfiles() {
 			continue;
 		}
 
-		subfiles.push_back(new File(entry.path().string()));
+		subfiles.push_back(File(entry.path().string()));
 	}
 
 	return subfiles;
 }
 
 /**
+ * @brief 					Returns all files located underneath this directory
+ *
+ * @return 					List of subfiles
+ */
+std::vector<File> Directory::get_all_subfiles() {
+	std::vector<File> all_subfiles;
+	for (const auto & entry : std::filesystem::recursive_directory_iterator(m_dir_path)) {
+		if (entry.is_regular_file()) {
+			all_subfiles.push_back(File(entry.path().string()));
+		}
+	}
+	return all_subfiles;
+}
+
+
+/**
  * Returns the subdirectories of the directory, not including any subfiles
  *
  * @return the subdirectories of the directory
  */
-std::vector<Directory*> Directory::get_subdirs() {
-	std::vector<Directory*> subdirs;
+std::vector<Directory> Directory::get_subdirs() {
+	std::vector<Directory> subdirs;
 
 	// get the contents of the directory
 	for (const auto & entry : std::filesystem::directory_iterator(m_dir_path)) {
@@ -93,7 +109,7 @@ std::vector<Directory*> Directory::get_subdirs() {
 		}
 
 		std::string path = entry.path().string();
-		subdirs.push_back(new Directory(path));
+		subdirs.push_back(Directory(path));
 	}
 
 	return subdirs;
@@ -106,10 +122,8 @@ std::vector<Directory*> Directory::get_subdirs() {
  *
  * @return the subdirectory of a path relative path
  */
-Directory* Directory::get_subdir(const std::string& subdir_path) {
-	Directory* subdir;
-
-	return subdir;
+Directory Directory::get_subdir(const std::string& subdir_path) {
+	return Directory(m_dir_path + File::SEPARATOR + m_dir_path);
 }
 
 /**
@@ -119,10 +133,8 @@ Directory* Directory::get_subdir(const std::string& subdir_path) {
  *
  * @return the subfile of a path relative path
  */
-File* Directory::get_subfile(const std::string& subfile_path) {
-	File* subfile;
-
-	return subfile;
+File Directory::get_subfile(const std::string& subfile_path) {
+	return File(m_dir_path + File::SEPARATOR + subfile_path);
 }
 
 /**
