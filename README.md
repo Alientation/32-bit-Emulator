@@ -54,12 +54,20 @@ to build different executables~~ ***Added 7/16/24***
 
 ## How to run
 Run the `build.bat` or `build.sh` script located in the app subdirectory which will configure and build the entire project
-* make sure to run it at the directory the .bat/.sh script is located
+* make sure to run it from the directory the .bat/.sh script is located  (***core/app***)
 * Run the executable which will be located in the `build/debug` and `build/release` directory
 * Uses **Ninja** and **C++17** to build \**have not tested with other versions\**
 
 ## Usage
-*todo*
+To build a specific program, pass a build argument to the executable
+Note, currently the build process argument parser is extremely rudimentary so options that take an argument must have a space inbetween 
+*Example:* `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`
+Some useful options
+* -o <path>: output file path relative to the *app* subdirectory (output file is an executable `.bexe` unless otherwise specified)
+* -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
+* -l <path>: links given library file `.ba` to the rest of the code in the linker phase
+* -makedir: instead of an executable file output, create a `.ba` library file to link with in the future
+#### More options can be found in the source code
 
 ## Documentation
 *todo*
