@@ -15,6 +15,7 @@
 #define SP 30											/*! Stack Pointer*/
 #define XZR 31											/*! Zero Register */
 #define LINKR 29										/*! Link Register */
+#define NR 8											/*! Number register for syscalls */
 
 /**
  * @brief 					Flag bit locations in _pstate register
@@ -245,6 +246,14 @@ class Emulator32bit {
 
 		#undef _INSTR
 
+		/* Software Interrupt Handling */
+		void _emu_print(EmulatorException& exception);
+		void _emu_printr(byte reg_id, EmulatorException& exception);
+		void _emu_printm(word mem_addr, byte size, bool little_endian, EmulatorException& exception);
+		void _emu_printp(EmulatorException& exception);
+		void _emu_assertr(byte reg_id, word min_value, word max_value, EmulatorException& exception);
+		void _emu_assertm(word mem_addr, byte size, bool little_endian, word min_value, word max_value, EmulatorException& exception);
+		void _emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception);
 
 	public:
 		// help assemble instructions
@@ -264,5 +273,6 @@ class Emulator32bit {
 
 		static word asm_nop();
 };
+
 
 #endif

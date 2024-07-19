@@ -1006,16 +1006,6 @@ void Emulator32bit::_blx(word instr, EmulatorException& exception) {
 	log(Logger::LogType::DEBUG, std::stringstream() << "blx " << std::to_string(reg) << "(" << std::to_string(cond) << ")");
 }
 
-void Emulator32bit::_swi(word instr, EmulatorException& exception) {
-	byte cond = bitfield_u32(instr, 22, 4);
-	if (check_cond(_pstate, cond)) {
-		// software interrupts.. perfect to add functionality to this like console print,
-		// file operations, ports, etc
-	}
-
-	log(Logger::LogType::DEBUG, std::stringstream() << "swi " << std::to_string(cond));
-}
-
 void Emulator32bit::_adrp(word instr, EmulatorException& exception) {
 	byte xd = _X1(instr);
 	word imm20 = bitfield_u32(instr, 0, 20) << 12;

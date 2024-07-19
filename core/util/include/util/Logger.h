@@ -38,6 +38,8 @@
 namespace lgr {
 class Logger {
 	public:
+		// todo, move out of the class, it causes long naming
+		// todo, add way to use printf instead since stringstream or string concat can cause very large lines
 		enum class LogType {
 			LOG, ERROR, WARN, INFO, DEBUG, TEST
 		};

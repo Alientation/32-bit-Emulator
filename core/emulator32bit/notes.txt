@@ -230,8 +230,9 @@ BLX{CD} xd (B2)
 	- op: 110000
 SWI{CD} - (B1)
 	- op: 110001
-	- operation depends on value of the remaining bits in the instructions and state of machine
-	- TODO
+	- operation depends on the value of register x8 which gives the syscall identifier
+	- operation, if returning anything, writes to x0
+	- registers x0 through x5 can be used as arguments
 
 Addressing Instructions (1)
 ADRP imm20 (M2)

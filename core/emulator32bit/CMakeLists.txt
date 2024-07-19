@@ -12,6 +12,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/Emulator32bit.cpp
 	src/Disassembler.cpp
 	src/Instructions.cpp
+	src/SoftwareInterrupt.cpp
 	src/Memory.cpp
 	src/SystemBus.cpp
 )
