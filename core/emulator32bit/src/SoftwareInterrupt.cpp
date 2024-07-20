@@ -62,6 +62,25 @@ void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value, EmulatorE
 			std::to_string(p_state_id) << " to be " << std::to_string(expected_value) << ". Got " << std::to_string(val));
 }
 
+void Emulator32bit::_emu_log(word str, EmulatorException& exception) {
+	std::string msg;
+	while (system_bus.read_byte(str, exception.sys_bus_exception, exception.mem_read_exception) != '\0') {
+		msg += (char) system_bus.read_byte(str, exception.sys_bus_exception, exception.mem_read_exception);
+		str++;
+	}
+
+	std::cout << msg << "\n";
+}
+
+void Emulator32bit::_emu_err(word err, EmulatorException& exception) {
+	std::string msg;
+	while (system_bus.read_byte(err, exception.sys_bus_exception, exception.mem_read_exception) != '\0') {
+		msg += (char) system_bus.read_byte(err, exception.sys_bus_exception, exception.mem_read_exception);
+		err++;
+	}
+
+	std::cerr << msg << "\n";
+}
 
 /**
  * @brief					System Calls
@@ -90,7 +109,9 @@ void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value, EmulatorE
  * |1012: emu_assertp		byte p_state_id			bool expected_val		-						-							-										-
  * |	- halts execution if the specified p_state is not the expected val
  * |1020: emu_log			char* str				-						-						-							-										-
+ * |	- prints message to console
  * |1021: emu_error			char* err				-						-						-							-										-
+ * |	- prints merror to console and halts program
  * |
  * |======================= I/O Operations ==========================
  * |
@@ -172,7 +193,7 @@ void Emulator32bit::_swi(word instr, EmulatorException& exception) {
 			_emu_assertm(arg0, arg1, arg2, arg3, arg4, exception);
 			break;
 		case 1012:
-			_emu_assertr(arg0, arg1, arg2, exception);
+			_emu_assertp(arg0, arg1, exception);
 			break;
 		default:
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "INVALID SYSCALL NUMBER: " << std::to_string(id));

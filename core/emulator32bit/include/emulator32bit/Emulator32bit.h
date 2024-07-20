@@ -254,6 +254,9 @@ class Emulator32bit {
 		void _emu_assertr(byte reg_id, word min_value, word max_value, EmulatorException& exception);
 		void _emu_assertm(word mem_addr, byte size, bool little_endian, word min_value, word max_value, EmulatorException& exception);
 		void _emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception);
+		void _emu_log(word str, EmulatorException& exception);
+		void _emu_err(word err, EmulatorException& exception);
+
 
 	public:
 		// help assemble instructions

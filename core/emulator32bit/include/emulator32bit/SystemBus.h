@@ -3,12 +3,16 @@
 
 #include "emulator32bit/Emulator32bitUtil.h"
 #include "emulator32bit/Memory.h"
+#include "emulator32bit/VirtualMemory.h"
 
-#include "vector"
+#include <vector>
 
 class SystemBus {
 	public:
 		SystemBus(RAM ram, ROM rom);
+
+		/* expose since we want syscalls to be able to control the virtual memory management */
+		VirtualMemory mmu;
 
 		struct SystemBusException {
 			enum SystemBusExceptionType {
@@ -35,6 +39,8 @@ class SystemBus {
 		word read_word(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
 		word read_word(word address);
 
+		dword read_val(word address, int n_bytes, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception);
+
 		/**
 		 * Write a byte to the system bus
 		 *
@@ -48,6 +54,8 @@ class SystemBus {
 		void write_hword(word address, hword data);
 		void write_word(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
 		void write_word(word address, word data);
+
+		void write_val(word address, dword val, int n_bytes, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception);
 
 		void reset();
 

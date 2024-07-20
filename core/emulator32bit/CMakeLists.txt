@@ -14,6 +14,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/Instructions.cpp
 	src/SoftwareInterrupt.cpp
 	src/Memory.cpp
+	src/VirtualMemory.cpp
 	src/SystemBus.cpp
 )
 

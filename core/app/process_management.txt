@@ -1,0 +1,26 @@
+Process memory layout
+
+each process needs to have information about its memory location (the kernel should store these information)
+
+so things like where the stack begins, very top of the memory block allocated to the process etc
+
+ === High Address ===
+- Command line args and environment variables
+- Stack Bottom
+- Stack Pointer (stack top)
+- Free Space
+- Heap Top
+- Heap Bottom
+- BSS Section
+- Data Section
+- Text Section
+ === Low Address ===
+
+
+Stack will grow down and heap grows upwards
+We will have to use memory mappings to have virtual memory and support dynamically growing heap or stack
+if free space runs out
+
+
+
+Virtual memory
