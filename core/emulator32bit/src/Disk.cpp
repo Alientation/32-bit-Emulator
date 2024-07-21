@@ -29,15 +29,17 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 }
 
 Disk::~Disk() {
+	write_all();
 	delete[] this->m_cache;
 }
 
 dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
-	word p_addr = bitfield_u32(address + n_bytes - 1, 12, 20);
-	word offset = bitfield_u32(address + n_bytes - 1, 0, 12);
+	address += n_bytes - 1;
+	word p_addr = address >> DISK_PAGE_PSIZE;
+	word offset = address & (DISK_PAGE_SIZE - 1);
 	dword val = 0;
 	CachePage& cpage = get_cpage(p_addr);
-	for (int i = n_bytes-1; i >= 0; i--) {
+	for (int i = 0; i < n_bytes; i++) {
 		if (offset == -1) {
 			offset = DISK_PAGE_SIZE - 1;
 			p_addr--;
@@ -62,14 +64,16 @@ word Disk::read_word(word address, ReadException &exception) {
 }
 
 void Disk::write_val(word address, dword val, int n_bytes, WriteException &exception) {
-	word p_addr = bitfield_u32(address, 12, 20);
-	word offset = bitfield_u32(address, 0, 12);
+	word p_addr = address >> DISK_PAGE_PSIZE;
+	word offset = address & (DISK_PAGE_SIZE - 1);
 	CachePage& cpage = get_cpage(p_addr);
-	for (int i = n_bytes-1; i >= 0; i--) {
+	cpage.dirty = true;
+	for (int i = 0; i < n_bytes; i++) {
 		if (offset == DISK_PAGE_SIZE) {
 			offset = 0;
 			p_addr++;
 			cpage = get_cpage(p_addr);
+			cpage.dirty = true;
 		}
 
 		cpage.data[offset] = val & 0xFF;
@@ -79,21 +83,21 @@ void Disk::write_val(word address, dword val, int n_bytes, WriteException &excep
 }
 
 void Disk::write_byte(word address, byte data, WriteException &exception) {
-	write_val(address, 1, data, exception);
+	write_val(address, data, 1, exception);
 }
 void Disk::write_hword(word address, hword data, WriteException &exception) {
-	write_val(address, 2, data, exception);
+	write_val(address, data, 2, exception);
 }
 void Disk::write_word(word address, word data, WriteException &exception) {
-	write_val(address, 4, data, exception);
+	write_val(address, data, 4, exception);
 }
 
 
 Disk::CachePage& Disk::get_cpage(word p_addr) {
-	CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
+	// CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
+	CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) % DISK_CACHE_SIZE];
 
 	cpage.last_acc = n_acc++;
-
 	if (cpage.valid && cpage.p_addr == p_addr) {
 		return cpage;
 	}
@@ -105,6 +109,7 @@ Disk::CachePage& Disk::get_cpage(word p_addr) {
 	cpage.valid = true;
 	cpage.p_addr = p_addr;
 	read_cpage(cpage, p_addr);
+	return cpage;
 }
 
 void Disk::write_cpage(CachePage& cpage) {
@@ -132,16 +137,25 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 	std::ifstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in);
     if (!file.is_open()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
+		return;
     }
 
 	file.seekg(cpage.p_addr * DISK_PAGE_SIZE);
 	if (!file) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
+		return;
 	}
 
 	std::vector<char> buffer(DISK_PAGE_SIZE);
 	file.read(buffer.data(), DISK_PAGE_SIZE);
+
+	if (!file) {
+		file.close();
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error reading from disk file");
+		return;
+	}
+
 	for (int i = 0; i < DISK_PAGE_SIZE; i++) {
 		cpage.data[i] = buffer[i];
 	}
@@ -152,14 +166,15 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 /* When the program ends, we want to save all the pages to disk. Instead of
 	creating many I/O streams, just create one and write all pages to disk */
 void Disk::write_all() {
-	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::out);
+	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
 	if (!file.is_open()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
-    }
+		return;
+	}
 
 	for (int i = 0; i < DISK_CACHE_SIZE; i++) {
 		CachePage& cpage = m_cache[i];
-		if (!m_cache->dirty || !m_cache->valid) {
+		if (!cpage.dirty || !cpage.valid) {
 			continue;
 		}
 
@@ -167,6 +182,7 @@ void Disk::write_all() {
 		if (!file) {
 			file.close();
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
+			return;
 		}
 
 		std::vector<char> data;
@@ -174,6 +190,12 @@ void Disk::write_all() {
 			data.push_back(cpage.data[i]);
 		}
 		file.write(data.data(), DISK_PAGE_SIZE);
+
+		if (!file) {
+			file.close();
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error writing to disk file");
+			return;
+		}
 	}
 	file.close();
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully wrote dirty cache pages to disk");

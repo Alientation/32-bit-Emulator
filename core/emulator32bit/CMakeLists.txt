@@ -16,6 +16,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/Memory.cpp
 	src/VirtualMemory.cpp
 	src/SystemBus.cpp
+	src/Disk.cpp
 )
 
 # rest is boilerplate to set up the build
