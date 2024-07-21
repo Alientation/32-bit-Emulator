@@ -4,6 +4,7 @@
 
 #include "emulator32bit/Emulator32bitUtil.h"
 
+#define VM_PAGESIZE 4096
 class VirtualMemory {
 	public:
 		VirtualMemory();
@@ -20,7 +21,9 @@ class VirtualMemory {
 		word map_address(word address, Exception& exception);
 
 	private:
+		struct MemoryMap {
 
+		};
 };
 
 

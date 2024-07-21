@@ -24,3 +24,16 @@ if free space runs out
 
 
 Virtual memory
+Page table (~2 MiB)
+maps each page of virtual memory to a page in physical memory
+first 20 bits are the key into the page table, last 12 bits offset into the resulting physical page
+Each entry in page table needs a dirty flag and disk flag
+If page is in disk, OS will need to load the corresponding page from disk (respective to the current process id)
+The OS should have a page map from virtual page index to disk page index
+	- ~8 MiB
+	- should think about spliting virtual page index into chunks
+
+Disk memory
+A single file containing binary data
+32 bit memory access
+split into chunks and pages (4096 bytes => page, 4096 pages => chunk)
