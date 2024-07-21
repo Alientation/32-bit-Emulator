@@ -90,7 +90,7 @@ void Disk::write_word(word address, word data, WriteException &exception) {
 
 
 Disk::CachePage& Disk::get_cpage(word p_addr) {
-	CachePage& cpage = m_cache[p_addr & ((1 << DISK_CACHE_SIZE) - 1)];
+	CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
 
 	cpage.last_acc = n_acc++;
 
@@ -113,7 +113,7 @@ void Disk::write_cpage(CachePage& cpage) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
     }
 
-	file.seekp(cpage.p_addr << DISK_CACHE_SIZE);
+	file.seekp(cpage.p_addr * DISK_PAGE_SIZE);
 	if (!file) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
@@ -134,7 +134,7 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
     }
 
-	file.seekg(cpage.p_addr << DISK_CACHE_SIZE);
+	file.seekg(cpage.p_addr * DISK_PAGE_SIZE);
 	if (!file) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
@@ -157,13 +157,13 @@ void Disk::write_all() {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
     }
 
-	for (int i = 0; i < (1 << DISK_CACHE_SIZE); i++) {
+	for (int i = 0; i < DISK_CACHE_SIZE; i++) {
 		CachePage& cpage = m_cache[i];
 		if (!m_cache->dirty || !m_cache->valid) {
 			continue;
 		}
 
-		file.seekp(cpage.p_addr << DISK_CACHE_SIZE);
+		file.seekp(cpage.p_addr * DISK_PAGE_SIZE);
 		if (!file) {
 			file.close();
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");

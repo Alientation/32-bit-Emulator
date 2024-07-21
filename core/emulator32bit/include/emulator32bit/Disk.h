@@ -7,8 +7,10 @@
 
 #include <fstream>
 
-#define DISK_CACHE_SIZE 5						/* 2^5 */
-#define DISK_PAGE_SIZE 4096
+#define DISK_CACHE_PSIZE 5
+#define DISK_CACHE_SIZE (1 << DISK_CACHE_PSIZE)
+#define DISK_PAGE_PSIZE 12
+#define DISK_PAGE_SIZE (1 << DISK_PAGE_PSIZE)
 
 class Disk {
 	public:
