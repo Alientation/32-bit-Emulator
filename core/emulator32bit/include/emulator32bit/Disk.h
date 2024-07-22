@@ -14,8 +14,8 @@
 
 class Disk {
 	public:
-		Disk(File diskfile, std::streamsize npages = 128);
-		~Disk();
+		Disk(File diskfile, std::streamsize npages = 4096);
+		virtual ~Disk();
 
 		struct ReadException {
 			enum class Type {
@@ -38,14 +38,17 @@ class Disk {
 			long long last_acc;
 		};
 
-		byte read_byte(word address, ReadException &exception);
-		hword read_hword(word address, ReadException &exception);
-		word read_word(word address, ReadException &exception);
+		// todo read_page()
+		virtual byte read_byte(word address, ReadException &exception);
+		virtual hword read_hword(word address, ReadException &exception);
+		virtual word read_word(word address, ReadException &exception);
 
-		void write_byte(word address, byte data, WriteException &exception);
-		void write_hword(word address, hword data, WriteException &exception);
-		void write_word(word address, word data, WriteException &exception);
+		// todo write_page()
+		virtual void write_byte(word address, byte data, WriteException &exception);
+		virtual void write_hword(word address, hword data, WriteException &exception);
+		virtual void write_word(word address, word data, WriteException &exception);
 
+		virtual void write_all();
 	private:
 		File m_diskfile;
 		std::streamsize m_npages;
@@ -59,7 +62,23 @@ class Disk {
 		CachePage& get_cpage(word p_addr);
 		void write_cpage(CachePage& cpage);
 		void read_cpage(CachePage& cpage, word p_addr);
-		void write_all();
+};
+
+class MockDisk : public Disk {
+	public:
+		MockDisk();
+
+		// todo read_page()
+		byte read_byte(word address, ReadException &exception) override;
+		hword read_hword(word address, ReadException &exception) override;
+		word read_word(word address, ReadException &exception) override;
+
+		// todo write_page()
+		void write_byte(word address, byte data, WriteException &exception) override;
+		void write_hword(word address, hword data, WriteException &exception) override;
+		void write_word(word address, word data, WriteException &exception) override;
+
+		void write_all() override;
 };
 
 #endif /* DISK_H */

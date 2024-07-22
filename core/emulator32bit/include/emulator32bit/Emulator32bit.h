@@ -2,6 +2,7 @@
 #ifndef Emulator32bit_H
 #define Emulator32bit_H
 
+#include "emulator32bit/Disk.h"
 #include "emulator32bit/Emulator32bitUtil.h"
 #include "emulator32bit/Memory.h"
 #include "emulator32bit/SystemBus.h"
@@ -56,6 +57,8 @@ class Emulator32bit {
 	public:
 		Emulator32bit();
 		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);
+		Emulator32bit(SystemBus sysbus, Disk disk, VirtualMemory mmu);
+		~Emulator32bit();
 		void print();
 
 		/**
@@ -108,6 +111,8 @@ class Emulator32bit {
 		static const word ROM_MEM_START;				/*! Default 32 bit start address of ROM memory */
 		static const byte ROM_DATA[];					/*! Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
 
+		Disk* disk;
+		VirtualMemory* mmu;
 		SystemBus system_bus;							/*!  */
 
 		/**
@@ -160,6 +165,8 @@ class Emulator32bit {
 		#define _INSTR(func_name, opcode) \
 		private: void _##func_name(word instr, EmulatorException& exception); \
 		public: static const byte _op_##func_name = opcode;
+		void fill_out_instructions();
+
 
 		void execute(word instr, EmulatorException &exception);
 

@@ -9,11 +9,7 @@
 
 class SystemBus {
 	public:
-		SystemBus(RAM ram, ROM rom);
-
-		/* expose since we want syscalls to be able to control the virtual memory management */
-		VirtualMemory mmu;
-
+		SystemBus(RAM ram, ROM rom, VirtualMemory& mmu);
 		struct SystemBusException {
 			enum SystemBusExceptionType {
 				AOK,
@@ -63,6 +59,7 @@ class SystemBus {
 		std::vector<Memory*> mems;
 		RAM ram;
 		ROM rom;
+		VirtualMemory& mmu;
 
 		Memory* route_memory(const word address, SystemBusException &bus_exception);
 };

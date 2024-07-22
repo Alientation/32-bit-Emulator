@@ -62,16 +62,4 @@ int main(int argc, char* argv[]) {
 		emulator.run(MAX_EXECUTED_INSTRUCTIONS);
 		emulator.print();
 	}
-
-	// testing disk memory
-	Disk disk(File(".\\tests\\disk.bin", true));
-
-	Disk::WriteException w_exception;
-	Disk::ReadException r_exception;
-	word val = 0x12345678;
-	disk.write_word(0, val, w_exception);
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "wrote to disk");
-
-	EXPECT_TRUE(disk.read_word(0, r_exception) == val, lgr::Logger::LogType::ERROR, std::stringstream() << "Disk memory test failed.");
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "finished disk test");
 }

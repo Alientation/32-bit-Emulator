@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-SystemBus::SystemBus(RAM ram, ROM rom) : ram(ram), rom(rom) {
+SystemBus::SystemBus(RAM ram, ROM rom, VirtualMemory& mmu) : ram(ram), rom(rom), mmu(mmu) {
 	// Constructor
 	mems.push_back(&this->ram);
 	mems.push_back(&this->rom);

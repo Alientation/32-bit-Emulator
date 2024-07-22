@@ -7,6 +7,10 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 	this->m_npages = npages;
 	this->m_cache = new CachePage[DISK_CACHE_SIZE];
 
+	if (npages == 0) {
+		return;
+	}
+
 	/* set up disk memory */
 	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::ate | std::ios::out);
     if (!file.is_open()) {
@@ -29,7 +33,6 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 }
 
 Disk::~Disk() {
-	write_all();
 	delete[] this->m_cache;
 }
 
@@ -166,6 +169,8 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 /* When the program ends, we want to save all the pages to disk. Instead of
 	creating many I/O streams, just create one and write all pages to disk */
 void Disk::write_all() {
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sm1");
+
 	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
 	if (!file.is_open()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
@@ -199,4 +204,32 @@ void Disk::write_all() {
 	}
 	file.close();
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully wrote dirty cache pages to disk");
+}
+
+MockDisk::MockDisk() : Disk(File(".\\shouldnotmakethisfilepls.bin"), static_cast<std::streamsize>(0)) {
+
+}
+
+byte MockDisk::read_byte(word address, ReadException &exception) {
+	return 0;
+}
+hword MockDisk::read_hword(word address, ReadException &exception) {
+	return 0;
+}
+word MockDisk::read_word(word address, ReadException &exception) {
+	return 0;
+}
+
+void MockDisk::write_byte(word address, byte data, WriteException &exception) {
+
+}
+void MockDisk::write_hword(word address, hword data, WriteException &exception) {
+
+}
+void MockDisk::write_word(word address, word data, WriteException &exception) {
+
+}
+
+void MockDisk::write_all() {
+
 }

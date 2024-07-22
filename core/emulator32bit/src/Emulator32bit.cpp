@@ -1,4 +1,5 @@
 #include "emulator32bit/Emulator32bit.h"
+#include "emulator32bit/VirtualMemory.h"
 #include "util/Logger.h"
 #include "util/Types.h"
 
@@ -11,7 +12,26 @@ const word Emulator32bit::ROM_MEM_SIZE = 1024;
 const word Emulator32bit::ROM_MEM_START = 1024;
 
 Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start)
-		: system_bus(RAM(ram_mem_size, ram_mem_start), ROM(rom_data, rom_mem_size, rom_mem_start)) {
+		: disk(new MockDisk()), mmu(new MockVirtualMemory()),
+		system_bus(RAM(ram_mem_size, ram_mem_start), ROM(rom_data, rom_mem_size, rom_mem_start), *mmu) {
+	fill_out_instructions();
+	reset();
+}
+
+Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
+
+Emulator32bit::Emulator32bit(SystemBus sysbus, Disk disk, VirtualMemory mmu) : system_bus(sysbus), disk(new Disk(disk)), mmu(new VirtualMemory(mmu)) {
+	fill_out_instructions();
+	reset();
+}
+
+Emulator32bit::~Emulator32bit() {
+	disk->write_all();
+	delete disk;
+	delete mmu;
+}
+
+void Emulator32bit::fill_out_instructions() {
 	/* fill out instruction functions and construct disassembler instruction mapping */
 	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
 
@@ -91,11 +111,7 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 
 	_INSTR(nop)
 	#undef _INSTR
-
-	reset();
 }
-
-Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
 
 void Emulator32bit::print() {
 	printf("32 bit emulator\nRegisters:\n");

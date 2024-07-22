@@ -14,6 +14,7 @@ class FileReader;
 std::string trim_dir_path(const std::string& str);
 
 // TODO probably best to add some form of thread safe locking to the file operations
+// todo, automatically convert separators
 class File {
 	public:
 		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator);
