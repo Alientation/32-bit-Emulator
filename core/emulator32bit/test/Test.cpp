@@ -31,7 +31,8 @@ void test_bus() {
 	RAM ram = RAM(1024, 0);
 	const byte rom_data[] = {1,2,3,4,5,6,7,8};
 	ROM rom = ROM(rom_data, 8, 1024);
-	SystemBus bus(ram, rom);
+	MockVirtualMemory mock_vm;
+	SystemBus bus(ram, rom, mock_vm);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");
 	std::stringstream data_stream;
