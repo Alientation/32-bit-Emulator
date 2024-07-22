@@ -4,6 +4,7 @@
 
 Disk::Disk(File diskfile, std::streamsize npages) {
 	this->m_diskfile = diskfile;
+	this->m_diskfile_manager = File(diskfile.get_path() + ".info", true);
 	this->m_npages = npages;
 	this->m_cache = new CachePage[DISK_CACHE_SIZE];
 
@@ -34,6 +35,14 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 
 Disk::~Disk() {
 	delete[] this->m_cache;
+}
+
+word Disk::get_free_page() {
+	return 0;
+}
+
+void Disk::return_page(word p_addr) {
+
 }
 
 dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
@@ -205,6 +214,14 @@ void Disk::write_all() {
 }
 
 MockDisk::MockDisk() : Disk(File(".\\shouldnotmakethisfilepls.bin"), static_cast<std::streamsize>(0)) {
+
+}
+
+word MockDisk::get_free_page() {
+	return 0;
+}
+
+void MockDisk::return_page(word p_addr) {
 
 }
 

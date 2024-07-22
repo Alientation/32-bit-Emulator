@@ -12,6 +12,8 @@
 #define DISK_PAGE_PSIZE 12
 #define DISK_PAGE_SIZE (1 << DISK_PAGE_PSIZE)
 
+/* todo, disk manager to determine which pages are in use and which are not */
+
 class Disk {
 	public:
 		Disk(File diskfile, std::streamsize npages = 4096);
@@ -38,6 +40,9 @@ class Disk {
 			long long last_acc;
 		};
 
+		virtual word get_free_page();
+		virtual void return_page(word p_addr);
+
 		// todo read_page()
 		virtual byte read_byte(word address, ReadException &exception);
 		virtual hword read_hword(word address, ReadException &exception);
@@ -51,6 +56,7 @@ class Disk {
 		virtual void write_all();
 	private:
 		File m_diskfile;
+		File m_diskfile_manager;
 		std::streamsize m_npages;
 		CachePage* m_cache;
 
@@ -67,6 +73,9 @@ class Disk {
 class MockDisk : public Disk {
 	public:
 		MockDisk();
+
+		word get_free_page() override;
+		void return_page(word p_addr) override;
 
 		// todo read_page()
 		byte read_byte(word address, ReadException &exception) override;

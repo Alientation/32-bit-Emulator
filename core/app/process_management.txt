@@ -33,7 +33,11 @@ The OS should have a page map from virtual page index to disk page index
 	- ~8 MiB
 	- should think about spliting virtual page index into chunks
 
+File system
+
+
 Disk memory
 A single file containing binary data
 32 bit memory access
 split into chunks and pages (4096 bytes => page, 4096 pages => chunk)
+for now, just pages (perhaps different chunks can have different associated disk files)
