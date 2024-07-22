@@ -169,8 +169,6 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 /* When the program ends, we want to save all the pages to disk. Instead of
 	creating many I/O streams, just create one and write all pages to disk */
 void Disk::write_all() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "sm1");
-
 	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
 	if (!file.is_open()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");

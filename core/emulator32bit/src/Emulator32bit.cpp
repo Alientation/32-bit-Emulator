@@ -20,7 +20,7 @@ Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte r
 
 Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
 
-Emulator32bit::Emulator32bit(SystemBus sysbus, Disk disk, VirtualMemory mmu) : system_bus(sysbus), disk(new Disk(disk)), mmu(new VirtualMemory(mmu)) {
+Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) : disk(disk), mmu(new VirtualMemory(*disk)), system_bus(ram, rom, *mmu) {
 	fill_out_instructions();
 	reset();
 }
