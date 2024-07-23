@@ -12,8 +12,7 @@
 #define DISK_PAGE_PSIZE 12
 #define DISK_PAGE_SIZE (1 << DISK_PAGE_PSIZE)
 
-/* todo, disk manager to determine which pages are in use and which are not */
-
+/* todo allow allocating multiple pages at times, also add helper to check if the disk can allocate suck amount */
 class Disk {
 	public:
 		Disk(File diskfile, std::streamsize npages = 4096);

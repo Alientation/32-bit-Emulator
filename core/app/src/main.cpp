@@ -27,6 +27,8 @@ Figure out IO, Disk, ports, etc
 Add flag to set source dirs
 Add more relocation types, directives, preprocessors and build flags as needed
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
+Rework logger to not throw on errors, improve the way it is called to reduce length of the log
+Rework exception handling, try to safely except as much as possible
 */
 
 const std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test .\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";

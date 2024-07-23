@@ -37,10 +37,11 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 
 	if (!freader.has_next_byte()) {
 		/* set up page managment */
-		m_freehead = new FreePage();
-		m_freehead->p_addr = 0;
-		m_freehead->len = npages;
-		m_freehead->next = nullptr;
+		m_freehead = new FreePage {
+			.p_addr = 0,
+			.len = (word) npages,
+			.next = nullptr,
+		};
 
 		freader.close();
 		return;
@@ -57,10 +58,11 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 		word p_addr = reader.read_word();
 		word len = reader.read_word();
 
-		FreePage *next = new FreePage();
-		next->p_addr = p_addr;
-		next->len = len;
-		next->next = nullptr;
+		FreePage *next = new FreePage{
+			.p_addr = p_addr,
+			.len = len,
+			.next = nullptr,
+		};
 
 		if (prev) {
 			prev->next = next;
@@ -125,20 +127,22 @@ void Disk::return_page(word p_addr, PageManagementException& exception) {
 
 	/* If the free list is empty */
 	if (m_freehead == nullptr) {
-		m_freehead = new FreePage();
-		m_freehead->p_addr = p_addr;
-		m_freehead->len = 1;
-		m_freehead->next = nullptr;
+		m_freehead = new FreePage {
+			.p_addr = p_addr,
+			.len = 1,
+			.next = nullptr,
+		};
 		m_prevreturn = m_freehead;
 		return;
 	}
 
 	/* If the freed page is before the free list */
 	if (p_addr < m_freehead->p_addr) {
-		FreePage *new_head = new FreePage();
-		new_head->p_addr = p_addr;
-		new_head->len = 1;
-		new_head->next = m_freehead;
+		FreePage *new_head = new FreePage {
+			.p_addr = p_addr,
+			.len = 1,
+			.next = m_freehead,
+		};
 		m_freehead = new_head;
 		coalesce(m_freehead);
 		m_prevreturn = m_freehead;
@@ -163,10 +167,11 @@ void Disk::return_page(word p_addr, PageManagementException& exception) {
 		printf("at block %x, len=%x\n", cur->p_addr, cur->len);
 
 		/* The next page  */
-		FreePage *new_next = new FreePage();
-		new_next->p_addr = p_addr;
-		new_next->len = 1;
-		new_next->next = cur->next;
+		FreePage *new_next = new FreePage {
+			.p_addr = p_addr,
+			.len = 1,
+			.next = cur->next,
+		};
 		cur->next = new_next;
 		m_prevreturn = cur->next;
 
@@ -190,10 +195,11 @@ void Disk::return_all_pages() {
 		cur = next;
 	}
 
-	m_freehead = new FreePage();
-	m_freehead->p_addr = 0;
-	m_freehead->len = m_npages;
-	m_freehead->next = nullptr;
+	m_freehead = new FreePage {
+		.p_addr = 0,
+		.len = (word) m_npages,
+		.next = nullptr,
+	};
 }
 
 void Disk::return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception) {
