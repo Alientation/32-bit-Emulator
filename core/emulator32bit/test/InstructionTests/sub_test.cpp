@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(sub, register_sub_immediate) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, #10
 	// x1: 11
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_sub, false, 0, 1, 10));
@@ -22,7 +22,7 @@ TEST(sub, register_sub_immediate) {
 }
 
 TEST(sub, register_sub_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: 11
 	// x2: 10
@@ -46,7 +46,7 @@ TEST(sub, register_sub_register) {
 }
 
 TEST(sub, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: 1
 	// x2: 2
@@ -70,7 +70,7 @@ TEST(sub, negative_flag) {
 }
 
 TEST(sub, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: 1
 	// x2: 1
@@ -94,7 +94,7 @@ TEST(sub, zero_flag) {
 }
 
 TEST(sub, carry_flag_1) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: -3
 	// x2: -2
@@ -118,7 +118,7 @@ TEST(sub, carry_flag_1) {
 }
 
 TEST(sub, carry_flag_2) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: 1
 	// x2: -2
@@ -142,7 +142,7 @@ TEST(sub, carry_flag_2) {
 }
 
 TEST(sub, overflow_flag__positive_to_negative) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: (1<<31)-1
 	// x2: -1
@@ -166,7 +166,7 @@ TEST(sub, overflow_flag__positive_to_negative) {
 }
 
 TEST(sub, overflow_flag__negative_to_positive) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// sub x0, x1, x2
 	// x1: 1U<<31
 	// x2: 1

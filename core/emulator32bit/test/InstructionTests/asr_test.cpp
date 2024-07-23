@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(asr, imm5_shift_pos) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;
@@ -21,7 +21,7 @@ TEST(asr, imm5_shift_pos) {
 }
 
 TEST(asr, imm5_shift_neg) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, true, 2, 5));
 	cpu->_pc = 0;
 	cpu->_x[1] = -32;
@@ -41,7 +41,7 @@ TEST(asr, imm5_shift_neg) {
 }
 
 TEST(asr, reg_shift) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;
@@ -63,7 +63,7 @@ TEST(asr, reg_shift) {
 }
 
 TEST(asr, reg_shift_low_byte) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 0, 1, false, 2, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 32;

@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(mul, register_mul_immediate) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// mul x0, x1, #9
 	// x1: 2
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 9));
@@ -22,7 +22,7 @@ TEST(mul, register_mul_immediate) {
 }
 
 TEST(mul, register_mul_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// mul x0, x1, x2
 	// x1: 2
 	// x2: 4
@@ -46,7 +46,7 @@ TEST(mul, register_mul_register) {
 }
 
 TEST(mul, register_mul_register_shift) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// mul x0, x1, x2, lsr #1
 	// x1: 2
 	// x2: 4
@@ -70,7 +70,7 @@ TEST(mul, register_mul_register_shift) {
 }
 
 TEST(mul, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// mul x0, x1, x2
 	// x1: -2
 	// x2: 4
@@ -94,7 +94,7 @@ TEST(mul, negative_flag) {
 }
 
 TEST(mul, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// mul x0, x1, x2
 	// x1: 0
 	// x2: 4

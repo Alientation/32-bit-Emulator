@@ -9,8 +9,6 @@
 
 #define DISK_CACHE_PSIZE 5
 #define DISK_CACHE_SIZE (1 << DISK_CACHE_PSIZE)
-#define DISK_PAGE_PSIZE 12
-#define DISK_PAGE_SIZE (1 << DISK_PAGE_PSIZE)
 
 /* todo allow allocating multiple pages at times, also add helper to check if the disk can allocate suck amount */
 class Disk {
@@ -33,7 +31,7 @@ class Disk {
 		};
 		struct CachePage {
 			word p_addr;
-			byte data[DISK_PAGE_SIZE];
+			byte data[PAGE_SIZE];
 			bool dirty = false;
 			bool valid = false;
 			long long last_acc;

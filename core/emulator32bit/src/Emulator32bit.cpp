@@ -5,22 +5,23 @@
 
 #include <stdio.h>
 
-const word Emulator32bit::RAM_MEM_SIZE = 1024;
+const word Emulator32bit::RAM_MEM_SIZE = 16;
 const word Emulator32bit::RAM_MEM_START = 0;
-const byte Emulator32bit::ROM_DATA[1024] = {};
-const word Emulator32bit::ROM_MEM_SIZE = 1024;
-const word Emulator32bit::ROM_MEM_START = 1024;
+const byte Emulator32bit::ROM_DATA[16 << PAGE_PSIZE] = {};
+const word Emulator32bit::ROM_MEM_SIZE = 16;
+const word Emulator32bit::ROM_MEM_START = 16;
 
-Emulator32bit::Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start)
-		: disk(new MockDisk()), mmu(new MockVirtualMemory()),
-		system_bus(RAM(ram_mem_size, ram_mem_start), ROM(rom_data, rom_mem_size, rom_mem_start), *mmu) {
+Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte rom_data[], word rom_mem_psize, word rom_mem_pstart)
+		: disk(new MockDisk()), mmu(new MockVirtualMemory(ram_mem_pstart, ram_mem_pstart + ram_mem_psize)),
+		system_bus(RAM(ram_mem_psize, ram_mem_pstart), ROM(rom_data, rom_mem_psize, rom_mem_pstart), *mmu) {
 	fill_out_instructions();
 	reset();
 }
 
 Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
 
-Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) : disk(disk), mmu(new VirtualMemory(*disk)), system_bus(ram, rom, *mmu) {
+Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) : disk(disk),
+		mmu(new VirtualMemory(ram.get_lo_page(), ram.get_hi_page(), *disk)), system_bus(ram, rom, *mmu) {
 	fill_out_instructions();
 	reset();
 }

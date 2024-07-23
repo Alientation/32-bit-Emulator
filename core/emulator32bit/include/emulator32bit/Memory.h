@@ -5,7 +5,7 @@
 
 class Memory {
 	public:
-		Memory(word mem_size, word lo_addr);
+		Memory(word mem_pages, word lo_page);
 		Memory(Memory& other);
 		virtual ~Memory();
 
@@ -46,23 +46,26 @@ class Memory {
 
 		void reset();
 
+		word get_mem_pages();
+		word get_lo_page();
+		word get_hi_page();
+
 		virtual bool in_bounds(word address);
 
 	protected:
-		word mem_size;
+		word mem_pages;
+		word lo_page;
 		byte* data;
-
-		word lo_addr;
 };
 
 class RAM : public Memory {
 	public:
-		RAM(word mem_size, word lo_addr);
+		RAM(word mem_pages, word lo_page);
 };
 
 class ROM : public Memory {
 	public:
-		ROM(const byte* data, word mem_size, word lo_addr);
+		ROM(const byte* data, word mem_pages, word lo_page);
 
 		void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4) override;
 };

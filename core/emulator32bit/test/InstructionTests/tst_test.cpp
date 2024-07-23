@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(tst, register_tst_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// tst x0, x1, x2
 	// x1: 0b0011
 	// x2: 0b1010
@@ -25,7 +25,7 @@ TEST(tst, register_tst_register) {
 }
 
 TEST(tst, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// tst x0, x1, x2
 	// x1: ~0
 	// x2: 1<<31
@@ -49,7 +49,7 @@ TEST(tst, negative_flag) {
 }
 
 TEST(tst, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// tst x0, x1, x2
 	// x1: ~0
 	// x2: 0

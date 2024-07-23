@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(add, register_add_immediate) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, #10
 	// x1: 1
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 1, 10));
@@ -22,7 +22,7 @@ TEST(add, register_add_immediate) {
 }
 
 TEST(add, register_add_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: 1
 	// x2: 10
@@ -46,7 +46,7 @@ TEST(add, register_add_register) {
 }
 
 TEST(add, register_add_register_shifted) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2, lsl #3
 	// x1: 1
 	// x2: 2
@@ -70,7 +70,7 @@ TEST(add, register_add_register_shifted) {
 }
 
 TEST(add, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: -2
 	// x2: 1
@@ -95,7 +95,7 @@ TEST(add, negative_flag) {
 }
 
 TEST(add, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: 0
 	// x2: 0
@@ -119,7 +119,7 @@ TEST(add, zero_flag) {
 }
 
 TEST(add, carry_flag_1) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: 0
 	// x2: 0
@@ -143,7 +143,7 @@ TEST(add, carry_flag_1) {
 }
 
 TEST(add, carry_flag_2) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: 0
 	// x2: 0
@@ -167,7 +167,7 @@ TEST(add, carry_flag_2) {
 }
 
 TEST(add, overflow_flag__neg_to_pos) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: 1<<31
 	// x2: 1<<31
@@ -191,7 +191,7 @@ TEST(add, overflow_flag__neg_to_pos) {
 }
 
 TEST(add, overflow_flag__pos_to_neg) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// add x0, x1, x2
 	// x1: (1<<31) - 1
 	// x2: 1

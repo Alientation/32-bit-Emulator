@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 // TEST(cmp, register_cmp_immediate) {
-// 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+// 	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 // 	// cmp x0, x1, #10
 // 	// x1: 11
 // 	cpu->system_bus.writeWord(0, Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, 0, 1, 10));
@@ -21,7 +21,7 @@
 // }
 
 // TEST(cmp, register_cmp_register) {
-// 	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+// 	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 // 	// cmp x0, x1, x2
 // 	// x1: 11
 // 	// x2: 10
@@ -44,7 +44,7 @@
 // }
 
 TEST(cmp, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: 2
@@ -67,7 +67,7 @@ TEST(cmp, negative_flag) {
 }
 
 TEST(cmp, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: 1
@@ -90,7 +90,7 @@ TEST(cmp, zero_flag) {
 }
 
 TEST(cmp, carry_flag_1) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: -3
 	// x2: -2
@@ -113,7 +113,7 @@ TEST(cmp, carry_flag_1) {
 }
 
 TEST(cmp, carry_flag_2) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: 1
 	// x2: -2
@@ -136,7 +136,7 @@ TEST(cmp, carry_flag_2) {
 }
 
 TEST(cmp, overflow_flag__positive_to_negative) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: (1<<31)-1
 	// x2: -1
@@ -159,7 +159,7 @@ TEST(cmp, overflow_flag__positive_to_negative) {
 }
 
 TEST(cmp, overflow_flag__negative_to_positive) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// cmp x0, x1, x2
 	// x1: 1U<<31
 	// x2: 1

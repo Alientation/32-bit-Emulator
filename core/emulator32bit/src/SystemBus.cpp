@@ -12,6 +12,7 @@ Memory* SystemBus::route_memory(word address, SystemBusException &bus_exception)
 	Memory *target = nullptr;
 	for (int i = 0; i < mems.size(); i++) {
 		if (!mems[i]->in_bounds(address)) {
+			printf("%x -> %x - %x\n", address, mems[i]->get_lo_page(), mems[i]->get_hi_page());
 			continue;
 		}
 
@@ -94,6 +95,7 @@ void SystemBus::write_val(word address, dword val, int n_bytes, SystemBusExcepti
 		word real_adr = map_write_address(mmu, address + i, bus_exception, mem_exception);
 		Memory *target = route_memory(real_adr, bus_exception);
 		if (bus_exception.type != SystemBusException::AOK) {
+			printf("bus write val state not AOK warning\n");
 			return;
 		}
 		target->write_byte(real_adr, val & 0xFF, mem_exception);

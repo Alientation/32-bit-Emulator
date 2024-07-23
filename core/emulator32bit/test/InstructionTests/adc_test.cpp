@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(adc, register_adc_immediate) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, #9
 	// x1: 1
 	// carry: 1
@@ -24,7 +24,7 @@ TEST(adc, register_adc_immediate) {
 }
 
 TEST(adc, register_adc_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: 1
 	// x2: 9
@@ -50,7 +50,7 @@ TEST(adc, register_adc_register) {
 }
 
 TEST(adc, register_adc_register_shifted) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2, lsl #3
 	// x1: 1
 	// x2: 1
@@ -76,7 +76,7 @@ TEST(adc, register_adc_register_shifted) {
 }
 
 TEST(adc, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: -3
 	// x2: 1
@@ -103,7 +103,7 @@ TEST(adc, negative_flag) {
 }
 
 TEST(adc, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: -1
 	// x2: 0
@@ -129,7 +129,7 @@ TEST(adc, zero_flag) {
 }
 
 TEST(adc, carry_flag_1) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: -1
 	// x2: -2
@@ -155,7 +155,7 @@ TEST(adc, carry_flag_1) {
 }
 
 TEST(adc, carry_flag_2) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: -4
 	// x2: -5
@@ -181,7 +181,7 @@ TEST(adc, carry_flag_2) {
 }
 
 TEST(adc, overflow_flag__neg_to_pos) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: 1<<31
 	// x2: 1<<31
@@ -207,7 +207,7 @@ TEST(adc, overflow_flag__neg_to_pos) {
 }
 
 TEST(adc, overflow_flag__pos_to_neg) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// adc x0, x1, x2
 	// x1: (1<<31) - 1
 	// x2: 0

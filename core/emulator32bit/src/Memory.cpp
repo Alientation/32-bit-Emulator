@@ -2,19 +2,19 @@
 #include "assert.h"
 #include "iostream"
 
-Memory::Memory(word mem_size, word lo_addr) {
-	this->mem_size = mem_size;
-	this->data = new byte[mem_size]();
-	this->lo_addr = lo_addr;
+Memory::Memory(word mem_pages, word lo_page) {
+	this->mem_pages = mem_pages;
+	this->lo_page = lo_page;
+	this->data = new byte[(mem_pages << PAGE_PSIZE)]();
 }
 
 Memory::Memory(Memory& other) {
-	this->mem_size = other.mem_size;
-	this->data = new byte[mem_size];
-	for (int i = 0; i < mem_size; i++) {
+	this->mem_pages = other.mem_pages;
+	this->data = new byte[(mem_pages << PAGE_PSIZE)];
+	for (int i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
 		this->data[i] = other.data[i];
 	}
-	this->lo_addr = other.lo_addr;
+	this->lo_page = other.lo_page;
 }
 
 Memory::~Memory() {
@@ -22,8 +22,20 @@ Memory::~Memory() {
 		delete[] this->data;
 }
 
+word Memory::get_mem_pages() {
+	return mem_pages;
+}
+
+word Memory::get_lo_page() {
+	return lo_page;
+}
+
+word Memory::get_hi_page() {
+	return lo_page + mem_pages - 1;
+}
+
 bool Memory::in_bounds(word address) {
-	return address >= this->lo_addr && address < this->lo_addr + this->mem_size;
+	return address >= (this->lo_page << PAGE_PSIZE) && address < (this->get_hi_page() << PAGE_PSIZE);
 }
 
 word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
@@ -33,7 +45,7 @@ word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
 		return 0;
 	}
 
-	address -= lo_addr;
+	address -= lo_page << PAGE_PSIZE;
 	word value = 0;
 	for (int i = num_bytes - 1; i >= 0; i--) {
 		value <<= 8;
@@ -51,7 +63,7 @@ void Memory::write(word address, word value, MemoryWriteException &exception, in
 		return;
 	}
 
-	address -= lo_addr;
+	address -= lo_page << PAGE_PSIZE;
 	for (int i = 0; i < num_bytes; i++) {
 		this->data[(word) (address + i)] = value & 0xFF;
 		value >>= 8;
@@ -84,7 +96,7 @@ void Memory::write_word(word address, word data, MemoryWriteException &exception
 }
 
 void Memory::reset() {
-	for (word addr = lo_addr; addr < lo_addr + mem_size; addr++) {
+	for (word addr = lo_page << PAGE_PSIZE; addr < get_hi_page() << PAGE_PSIZE; addr++) {
 		MemoryWriteException exception;
 		Memory::write_byte(addr, 0, exception);
 	}
@@ -94,15 +106,15 @@ void Memory::reset() {
 /*
 	RAM
 */
-RAM::RAM(word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {}
+RAM::RAM(word mem_pages, word lo_page) : Memory(mem_pages, lo_page) {}
 
 
 /*
 	ROM
 */
 
-ROM::ROM(const byte* rom_data, word mem_size, word lo_addr) : Memory(mem_size, lo_addr) {
-	for (word i = 0; i < mem_size; i++) {
+ROM::ROM(const byte* rom_data, word mem_pages, word lo_page) : Memory(mem_pages, lo_page) {
+	for (word i = 0; i < mem_pages << PAGE_PSIZE; i++) {
 		this->data[i] = rom_data[i];
 	}
 }

@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(ldr, offset) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0,(const byte[]) {9U, 0U, 0U, 0U}, 4, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0,(const byte[PAGE_SIZE]) {9U, 0U, 0U, 0U}, 1, 1);
 	// ldr x0, [x1, #3]
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, 0));
 	cpu->_pc = 0;
@@ -22,7 +22,7 @@ TEST(ldr, offset) {
 }
 
 TEST(ldr, pre_indexed) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0,(const byte[]) {9U, 0U, 0U, 0U}, 4, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0,(const byte[PAGE_SIZE]) {9U, 0U, 0U, 0U}, 1, 1);
 	// ldr x0, [x1, #3]!
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, 1));
 	cpu->_pc = 0;
@@ -43,7 +43,7 @@ TEST(ldr, pre_indexed) {
 }
 
 TEST(ldr, post_indexed) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0,(const byte[]) {9U, 0U, 0U, 0U}, 4, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0,(const byte[PAGE_SIZE]) {9U, 0U, 0U, 0U}, 1, 1);
 	// ldr x0, [x1, #3]!
 	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, 2));
 	cpu->_pc = 0;

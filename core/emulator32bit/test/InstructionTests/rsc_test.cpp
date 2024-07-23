@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(rsc, register_rsc_immediate) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, #11
 	// x1: 9
 	// carry: 1
@@ -24,7 +24,7 @@ TEST(rsc, register_rsc_immediate) {
 }
 
 TEST(rsc, register_rsc_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: 9
 	// x2: 11
@@ -50,7 +50,7 @@ TEST(rsc, register_rsc_register) {
 }
 
 TEST(rsc, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: 2
 	// x2: 2
@@ -76,7 +76,7 @@ TEST(rsc, negative_flag) {
 }
 
 TEST(rsc, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: 1
 	// x2: 2
@@ -102,7 +102,7 @@ TEST(rsc, zero_flag) {
 }
 
 TEST(rsc, carry_flag_1) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: -2
 	// x2: -2
@@ -128,7 +128,7 @@ TEST(rsc, carry_flag_1) {
 }
 
 TEST(rsc, carry_flag_2) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: -2
 	// x2: 2
@@ -154,7 +154,7 @@ TEST(rsc, carry_flag_2) {
 }
 
 TEST(rsc, overflow_flag__positive_to_negative) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: -2
 	// x2: (1<<31)-1
@@ -180,7 +180,7 @@ TEST(rsc, overflow_flag__positive_to_negative) {
 }
 
 TEST(rsc, overflow_flag__negative_to_positive) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// rsc x0, x1, x2
 	// x1: 0
 	// x2: 1<<31

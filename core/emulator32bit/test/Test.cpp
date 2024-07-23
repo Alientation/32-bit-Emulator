@@ -28,10 +28,10 @@ void test_logger() {
 void test_bus() {
 	log(lgr::Logger::LogType::INFO, "testing bus");
 	log(lgr::Logger::LogType::LOG, "creating memory");
-	RAM ram = RAM(1024, 0);
-	const byte rom_data[] = {1,2,3,4,5,6,7,8};
-	ROM rom = ROM(rom_data, 8, 1024);
-	MockVirtualMemory mock_vm;
+	RAM ram = RAM(1, 0);
+	const byte rom_data[PAGE_SIZE] = {1,2,3,4,5,6,7,8};
+	ROM rom = ROM(rom_data, 1, 1);
+	MockVirtualMemory mock_vm(ram.get_lo_page(), ram.get_hi_page());
 	SystemBus bus(ram, rom, mock_vm);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");

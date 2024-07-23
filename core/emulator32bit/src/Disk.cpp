@@ -4,7 +4,7 @@
 
 Disk::Disk(File diskfile, std::streamsize npages) {
 	this->m_diskfile = diskfile;
-	this->m_diskfile_manager = File(diskfile.get_path() + ".info", true);
+	this->m_diskfile_manager = File(diskfile.get_path() + ".info", diskfile.exists());
 	this->m_npages = npages;
 	this->m_cache = new CachePage[DISK_CACHE_SIZE];
 
@@ -19,14 +19,14 @@ Disk::Disk(File diskfile, std::streamsize npages) {
     }
 
 	std::streamsize size = file.tellp();
-	if (size == npages * DISK_PAGE_SIZE) {
+	if (size == npages * PAGE_SIZE) {
 		return;
-	} else if (size > npages * DISK_PAGE_SIZE) {
+	} else if (size > npages * PAGE_SIZE) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Disk file is larger than what is specified");
 	}
 
-	std::streamsize padding_size = npages * DISK_PAGE_SIZE - size;
+	std::streamsize padding_size = npages * PAGE_SIZE - size;
 	std::vector<char> padding(padding_size, 0);
 	file.write(padding.data(), padding_size);
 	file.close();
@@ -216,13 +216,13 @@ void Disk::return_pages(word p_addr_lo, word p_addr_hi, PageManagementException&
 
 dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
 	address += n_bytes - 1;
-	word p_addr = address >> DISK_PAGE_PSIZE;
-	word offset = address & (DISK_PAGE_SIZE - 1);
+	word p_addr = address >> PAGE_PSIZE;
+	word offset = address & (PAGE_SIZE - 1);
 	dword val = 0;
 	CachePage& cpage = get_cpage(p_addr);
 	for (int i = 0; i < n_bytes; i++) {
 		if (offset == -1) {
-			offset = DISK_PAGE_SIZE - 1;
+			offset = PAGE_SIZE - 1;
 			p_addr--;
 			cpage = get_cpage(p_addr);
 		}
@@ -245,12 +245,12 @@ word Disk::read_word(word address, ReadException &exception) {
 }
 
 void Disk::write_val(word address, dword val, int n_bytes, WriteException &exception) {
-	word p_addr = address >> DISK_PAGE_PSIZE;
-	word offset = address & (DISK_PAGE_SIZE - 1);
+	word p_addr = address >> PAGE_PSIZE;
+	word offset = address & (PAGE_SIZE - 1);
 	CachePage& cpage = get_cpage(p_addr);
 	cpage.dirty = true;
 	for (int i = 0; i < n_bytes; i++) {
-		if (offset == DISK_PAGE_SIZE) {
+		if (offset == PAGE_SIZE) {
 			offset = 0;
 			p_addr++;
 			cpage = get_cpage(p_addr);
@@ -275,8 +275,8 @@ void Disk::write_word(word address, word data, WriteException &exception) {
 
 
 Disk::CachePage& Disk::get_cpage(word p_addr) {
-	// CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
-	CachePage& cpage = m_cache[(p_addr >> DISK_PAGE_PSIZE) % DISK_CACHE_SIZE];
+	// CachePage& cpage = m_cache[(p_addr >> PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
+	CachePage& cpage = m_cache[(p_addr >> PAGE_PSIZE) % DISK_CACHE_SIZE];
 
 	cpage.last_acc = n_acc++;
 	if (cpage.valid && cpage.p_addr == p_addr) {
@@ -299,17 +299,17 @@ void Disk::write_cpage(CachePage& cpage) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
     }
 
-	file.seekp(cpage.p_addr * DISK_PAGE_SIZE);
+	file.seekp(cpage.p_addr * PAGE_SIZE);
 	if (!file) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
 	}
 
 	std::vector<char> data;
-	for (int i = 0; i < DISK_PAGE_SIZE; i++) {
+	for (int i = 0; i < PAGE_SIZE; i++) {
 		data.push_back(cpage.data[i]);
 	}
-	file.write(data.data(), DISK_PAGE_SIZE);
+	file.write(data.data(), PAGE_SIZE);
 	file.close();
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully wrote page " << std::to_string(cpage.p_addr) << " to disk");
 }
@@ -321,15 +321,15 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 		return;
     }
 
-	file.seekg(cpage.p_addr * DISK_PAGE_SIZE);
+	file.seekg(cpage.p_addr * PAGE_SIZE);
 	if (!file) {
 		file.close();
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
 		return;
 	}
 
-	std::vector<char> buffer(DISK_PAGE_SIZE);
-	file.read(buffer.data(), DISK_PAGE_SIZE);
+	std::vector<char> buffer(PAGE_SIZE);
+	file.read(buffer.data(), PAGE_SIZE);
 
 	if (!file) {
 		file.close();
@@ -337,7 +337,7 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 		return;
 	}
 
-	for (int i = 0; i < DISK_PAGE_SIZE; i++) {
+	for (int i = 0; i < PAGE_SIZE; i++) {
 		cpage.data[i] = buffer[i];
 	}
 	file.close();
@@ -359,7 +359,7 @@ void Disk::write_all() {
 			continue;
 		}
 
-		file.seekp(cpage.p_addr * DISK_PAGE_SIZE);
+		file.seekp(cpage.p_addr * PAGE_SIZE);
 		if (!file) {
 			file.close();
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
@@ -367,10 +367,10 @@ void Disk::write_all() {
 		}
 
 		std::vector<char> data;
-		for (int i = 0; i < DISK_PAGE_SIZE; i++) {
+		for (int i = 0; i < PAGE_SIZE; i++) {
 			data.push_back(cpage.data[i]);
 		}
-		file.write(data.data(), DISK_PAGE_SIZE);
+		file.write(data.data(), PAGE_SIZE);
 
 		if (!file) {
 			file.close();

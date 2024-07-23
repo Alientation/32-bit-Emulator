@@ -14,6 +14,9 @@
 #define byte_from_word(val, byte_i) ((byte) (val >> (byte_i << 3)))
 #define hword_from_word(val, hword_i) ((hword) (val >> (hword_i << 4)))
 
+#define PAGE_PSIZE 12
+#define PAGE_SIZE (1 << PAGE_PSIZE)
+
 typedef unsigned long long dword;
 typedef unsigned int word;
 typedef unsigned short hword;

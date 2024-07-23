@@ -1,7 +1,7 @@
 #include <emulator32bit_test/Emulator32bitTest.h>
 
 TEST(smull, register_smull_register) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// smull x0, x1, x2, x3
 	// x2: 2
 	// x3: 4
@@ -26,7 +26,7 @@ TEST(smull, register_smull_register) {
 }
 
 TEST(smull, negative_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// smull x0, x1, x2, x3
 	// x2: -2
 	// x3: 4
@@ -51,7 +51,7 @@ TEST(smull, negative_flag) {
 }
 
 TEST(smull, zero_flag) {
-	Emulator32bit *cpu = new Emulator32bit(4, 0, {}, 0, 4);
+	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// smull x0, x1, x2, x3
 	// x2: 0
 	// x3: 4
