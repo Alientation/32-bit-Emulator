@@ -197,7 +197,15 @@ void Disk::return_all_pages() {
 }
 
 void Disk::return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception) {
-	// todo
+	// for now, this probably isn't too inefficent because of the cached block
+	for (; p_addr_lo <= p_addr_hi && exception.type == PageManagementException::Type::AOK; p_addr_lo++) {
+		return_page(p_addr_lo, exception);
+
+		/* ignore any double free, this just clears all used pages in the range and ignores the rest */
+		if (exception.type == PageManagementException::Type::DOUBLE_FREE) {
+			exception.type = PageManagementException::Type::AOK;
+		}
+	}
 }
 
 dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
