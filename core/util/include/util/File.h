@@ -120,6 +120,7 @@ class ByteReader {
 		};
 
 		ByteReader& operator>>(Data &data);
+		bool has_next();
 		unsigned char read_byte(bool little_endian = true);
 		unsigned short read_hword(bool little_endian = true);
 		unsigned int read_word(bool little_endian = true);

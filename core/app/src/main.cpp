@@ -57,7 +57,8 @@ int main(int argc, char* argv[]) {
 
 	byte data[4] = {0, 1, 2, 3};
 	if (process.does_create_exe()) {
-		Emulator32bit emulator(RAM(1024, 0), ROM(data, 4, 1024), new Disk(File("..\\tests\\disk.bin", true), 4096));
+		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4096);
+		Emulator32bit emulator(RAM(1024, 0), ROM(data, 4, 1024), disk);
 		LoadExecutable loader(emulator, process.get_exe_file());
 
 		emulator.run(MAX_EXECUTED_INSTRUCTIONS);

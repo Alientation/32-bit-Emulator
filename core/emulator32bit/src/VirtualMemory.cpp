@@ -20,12 +20,13 @@ void VirtualMemory::begin_process(long long pid, word alloc_mem_begin, word allo
 	};
 
 	for (; page_begin <= page_end; page_begin++) {
+		Disk::PageManagementException exception;
 		new_pagetable->entries.at(page_begin) = (PageTableEntry) {
 			.vpage = page_begin,
 			.ppage = 0,
 			.dirty = false,
 			.disk = true,
-			.diskpage = m_disk.get_free_page(),
+			.diskpage = m_disk.get_free_page(exception),
 		};
 	}
 
@@ -45,7 +46,8 @@ void VirtualMemory::end_process(long long pid) {
 	}
 
 	for (std::pair<const word, PageTableEntry>& pair : m_ptable_map.at(pid)->entries) {
-		m_disk.return_page(pair.second.diskpage);
+		Disk::PageManagementException exception;
+		m_disk.return_page(pair.second.diskpage, exception);
 	}
 	m_ptable_map.erase(pid);
 }

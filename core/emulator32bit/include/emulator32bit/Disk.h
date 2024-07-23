@@ -40,8 +40,23 @@ class Disk {
 			long long last_acc;
 		};
 
-		virtual word get_free_page();
-		virtual void return_page(word p_addr);
+		struct PageManagementException {
+			enum class Type {
+				AOK, NOT_ENOUGH_SPACE, DOUBLE_FREE, INVALID_PADDR,
+			} type = Type::AOK;
+			word p_addr;
+		};
+		struct FreePage {
+			word p_addr = 0;
+			word len = 0;
+			FreePage *next = nullptr;
+		};
+
+
+		virtual word get_free_page(PageManagementException& exception);
+		virtual void return_page(word p_addr, PageManagementException& exception);
+		virtual void return_all_pages();
+		virtual void return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception);
 
 		// todo read_page()
 		virtual byte read_byte(word address, ReadException &exception);
@@ -62,6 +77,9 @@ class Disk {
 
 		long long n_acc = 0;
 
+		FreePage *m_freehead = nullptr;
+		FreePage *m_prevreturn = nullptr;
+
 		dword read_val(word address, int n_bytes, ReadException &exception);
 		void write_val(word address, dword val, int n_bytes, WriteException &exception);
 
@@ -74,8 +92,10 @@ class MockDisk : public Disk {
 	public:
 		MockDisk();
 
-		word get_free_page() override;
-		void return_page(word p_addr) override;
+		word get_free_page(PageManagementException& exception) override;
+		void return_page(word p_addr, PageManagementException& exception) override;
+		void return_all_pages() override;
+		void return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception) override;
 
 		// todo read_page()
 		byte read_byte(word address, ReadException &exception) override;

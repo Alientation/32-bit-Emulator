@@ -359,6 +359,10 @@ ByteReader& ByteReader::operator>>(ByteReader::Data &data) {
 	return (*this);
 }
 
+bool ByteReader::has_next() {
+	return m_cur_byte < m_bytes.size();
+}
+
 unsigned char ByteReader::read_byte(bool little_endian) {
 	ByteReader::Data data(1, little_endian);
 	(*this) >> data;
