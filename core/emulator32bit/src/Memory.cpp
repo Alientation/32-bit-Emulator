@@ -35,7 +35,7 @@ word Memory::get_hi_page() {
 }
 
 bool Memory::in_bounds(word address) {
-	return address >= (this->lo_page << PAGE_PSIZE) && address < (this->get_hi_page() << PAGE_PSIZE);
+	return address >= (this->lo_page << PAGE_PSIZE) && address < ((this->get_hi_page()+1) << PAGE_PSIZE);
 }
 
 word Memory::read(word address, MemoryReadException &exception, int num_bytes) {
