@@ -168,7 +168,12 @@ bool File::exists() const {
  * Creates the file
  */
 void File::create() const {
-	std::ofstream file(this->get_path());
+	std::filesystem::path fs_path(get_path());
+
+    // Create all necessary directories
+    std::filesystem::create_directories(fs_path.parent_path());
+
+	std::ofstream file(get_path());
 	file.close();
 }
 
