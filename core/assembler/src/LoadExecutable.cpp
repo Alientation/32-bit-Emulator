@@ -42,17 +42,23 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 	// text -> data -> bss
 	word cur_addr = start_addr;
 	for (word instr : obj.text_section) {
-		m_emu.system_bus.write_word(cur_addr, instr);
+		SystemBus::SystemBusException sys_bus_exception;
+		Memory::MemoryWriteException mem_write_exception;
+		m_emu.system_bus.write_word(cur_addr, instr, sys_bus_exception, mem_write_exception);
 		cur_addr += 4;
 	}
 
 	for (byte data : obj.data_section) {
-		m_emu.system_bus.write_byte(cur_addr, data);
+		SystemBus::SystemBusException sys_bus_exception;
+		Memory::MemoryWriteException mem_write_exception;
+		m_emu.system_bus.write_byte(cur_addr, data, sys_bus_exception, mem_write_exception);
 		cur_addr++;
 	}
 
 	for (int i = 0; i < obj.bss_section; i++) {
-		m_emu.system_bus.write_byte(cur_addr, 0);
+		SystemBus::SystemBusException sys_bus_exception;
+		Memory::MemoryWriteException mem_write_exception;
+		m_emu.system_bus.write_byte(cur_addr, 0, sys_bus_exception, mem_write_exception);
 		cur_addr++;
 	}
 
@@ -60,5 +66,7 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 	if (obj.string_table.find("_start") == obj.string_table.end()) {
 		lgr::log(lgr::Logger::LogType::ERROR, "LoadExecutable::load() - Missing required _start entry point of program.");
 	}
-	m_emu._pc = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value + start_addr;
+
+	VirtualMemory::Exception vm_exception;
+	m_emu._pc = m_emu.mmu->map_address(obj.symbol_table.at(obj.string_table.at("_start")).symbol_value + start_addr, vm_exception);
 };

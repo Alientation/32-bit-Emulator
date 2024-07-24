@@ -45,11 +45,14 @@ word map_write_address(VirtualMemory& mmu, word address, SystemBus::SystemBusExc
 	return mmu.map_address(address, vm_exception);
 }
 
-dword SystemBus::read_val(word address, int n_bytes, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
+dword SystemBus::read_val(word address, int n_bytes, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped) {
 	dword val = 0;
 	for (int i = 0; i < n_bytes; i++) {
 		val <<= 8;
-		word real_adr = map_read_address(mmu, address + n_bytes - i - 1, bus_exception, mem_exception);
+		word real_adr = address;
+		if (memory_mapped) {
+			real_adr = map_read_address(mmu, address + n_bytes - i - 1, bus_exception, mem_exception);
+		}
 		Memory *target = route_memory(real_adr, bus_exception);
 		if (bus_exception.type != SystemBusException::AOK) {
 			return 0;
@@ -59,40 +62,25 @@ dword SystemBus::read_val(word address, int n_bytes, SystemBusException &bus_exc
 	return val;
 }
 
-byte SystemBus::read_byte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
-	return read_val(address, 1, bus_exception, mem_exception);
+byte SystemBus::read_byte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped) {
+	return read_val(address, 1, bus_exception, mem_exception, memory_mapped);
 }
 
-byte SystemBus::read_byte(word address) {
-	SystemBusException bus_exception;
-	Memory::MemoryReadException mem_exception;
-	return read_byte(address, bus_exception, mem_exception);
+hword SystemBus::read_hword(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped) {
+	return read_val(address, 2, bus_exception, mem_exception, memory_mapped);
 }
 
-hword SystemBus::read_hword(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
-	return read_val(address, 2, bus_exception, mem_exception);
+word SystemBus::read_word(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped) {
+	return read_val(address, 4, bus_exception, mem_exception, memory_mapped);
 }
 
-hword SystemBus::read_hword(word address) {
-	SystemBusException bus_exception;
-	Memory::MemoryReadException mem_exception;
-	return read_hword(address, bus_exception, mem_exception);
-}
-
-word SystemBus::read_word(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception) {
-	return read_val(address, 4, bus_exception, mem_exception);
-}
-
-word SystemBus::read_word(word address) {
-	SystemBusException bus_exception;
-	Memory::MemoryReadException mem_exception;
-	return read_word(address, bus_exception, mem_exception);
-}
-
-void SystemBus::write_val(word address, dword val, int n_bytes, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
+void SystemBus::write_val(word address, dword val, int n_bytes, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped) {
 	dword copy = val;
 	for (int i = 0; i < n_bytes; i++) {
-		word real_adr = map_write_address(mmu, address + i, bus_exception, mem_exception);
+		word real_adr = address;
+		if (memory_mapped) {
+			real_adr = map_write_address(mmu, address + i, bus_exception, mem_exception);
+		}
 		Memory *target = route_memory(real_adr, bus_exception);
 		if (bus_exception.type != SystemBusException::AOK) {
 			printf("bus write val state not AOK warning\n");
@@ -106,34 +94,16 @@ void SystemBus::write_val(word address, dword val, int n_bytes, SystemBusExcepti
 	dword r_val = read_val(address, n_bytes, bus_exception, read_exception);
 }
 
-void SystemBus::write_byte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
-	write_val(address, data, 1, bus_exception, mem_exception);
+void SystemBus::write_byte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped) {
+	write_val(address, data, 1, bus_exception, mem_exception, memory_mapped);
 }
 
-void SystemBus::write_byte(word address, byte data) {
-	SystemBusException bus_exception;
-	Memory::MemoryWriteException mem_exception;
-	write_byte(address, data, bus_exception, mem_exception);
+void SystemBus::write_hword(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped) {
+	write_val(address, data, 2, bus_exception, mem_exception, memory_mapped);
 }
 
-void SystemBus::write_hword(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
-	write_val(address, data, 2, bus_exception, mem_exception);
-}
-
-void SystemBus::write_hword(word address, hword data) {
-	SystemBusException bus_exception;
-	Memory::MemoryWriteException mem_exception;
-	write_hword(address, data, bus_exception, mem_exception);
-}
-
-void SystemBus::write_word(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception) {
-	write_val(address, data, 4, bus_exception, mem_exception);
-}
-
-void SystemBus::write_word(word address, word data) {
-	SystemBusException bus_exception;
-	Memory::MemoryWriteException mem_exception;
-	write_word(address, data, bus_exception, mem_exception);
+void SystemBus::write_word(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped) {
+	write_val(address, data, 4, bus_exception, mem_exception, memory_mapped);
 }
 
 void SystemBus::reset() {

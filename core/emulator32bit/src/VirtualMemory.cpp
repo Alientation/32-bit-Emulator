@@ -147,11 +147,12 @@ word VirtualMemory::map_address(word address, Exception& exception) {
 	if (m_cur_ptable == nullptr) {
 		lgr::log(lgr::Logger::LogType::WARN, std::stringstream()
 				<< "There is no associated PID to map address " << std::to_string(address) << ".");
-		return address;		/* for now, just warn about it */
+		return address;		/* for now, just warn about it, should not have to call this method if its the OS managing memory */
 	}
 
-
 	word vpage = address >> PAGE_PSIZE;
+
+	// todo
 
 	return address;
 }
