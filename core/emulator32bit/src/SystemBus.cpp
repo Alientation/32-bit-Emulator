@@ -2,6 +2,10 @@
 
 #include <assert.h>
 
+SystemBus::SystemBusException SystemBus::hide_sys_bus_exception;
+Memory::MemoryReadException SystemBus::hide_mem_read_exception;
+Memory::MemoryWriteException SystemBus::hide_mem_write_exception;
+
 SystemBus::SystemBus(RAM ram, ROM rom, VirtualMemory& mmu) : ram(ram), rom(rom), mmu(mmu) {
 	// Constructor
 	mems.push_back(&this->ram);

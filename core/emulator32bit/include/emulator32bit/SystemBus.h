@@ -6,7 +6,6 @@
 #include "emulator32bit/VirtualMemory.h"
 
 #include <vector>
-
 class SystemBus {
 	public:
 		SystemBus(RAM ram, ROM rom, VirtualMemory& mmu);
@@ -21,6 +20,10 @@ class SystemBus {
 			word address = 0;
 		};
 
+		static SystemBusException hide_sys_bus_exception;
+		static Memory::MemoryReadException hide_mem_read_exception;
+		static Memory::MemoryWriteException hide_mem_write_exception;
+
 		/**
 		 * Read a byte from the system bus
 		 *
@@ -28,11 +31,15 @@ class SystemBus {
 		 * @param exception The exception raised by the read operation
 		 * @return The byte read from the address
 		 */
-		byte read_byte(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped = true);
-		hword read_hword(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped = true);
-		word read_word(word address, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped = true);
+		byte read_byte(word address, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
+		hword read_hword(word address, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
+		word read_word(word address, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
 
-		dword read_val(word address, int n_bytes, SystemBusException &bus_exception, Memory::MemoryReadException &mem_exception, bool memory_mapped = true);
+		dword read_val(word address, int n_bytes, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
 
 		/**
 		 * Write a byte to the system bus
@@ -41,11 +48,15 @@ class SystemBus {
 		 * @param exception The exception raised by the write operation
 		 * @param data The byte to write
 		 */
-		void write_byte(word address, byte data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped = true);
-		void write_hword(word address, hword data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped = true);
-		void write_word(word address, word data, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped = true);
+		void write_byte(word address, byte data, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryWriteException &mem_exception = hide_mem_write_exception, bool memory_mapped = true);
+		void write_hword(word address, hword data, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryWriteException &mem_exception = hide_mem_write_exception, bool memory_mapped = true);
+		void write_word(word address, word data, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryWriteException &mem_exception = hide_mem_write_exception, bool memory_mapped = true);
 
-		void write_val(word address, dword val, int n_bytes, SystemBusException &bus_exception, Memory::MemoryWriteException &mem_exception, bool memory_mapped = true);
+		void write_val(word address, dword val, int n_bytes, SystemBusException &bus_exception = hide_sys_bus_exception,
+				Memory::MemoryWriteException &mem_exception = hide_mem_write_exception, bool memory_mapped = true);
 
 		void reset();
 
