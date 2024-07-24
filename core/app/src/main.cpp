@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
 
 	byte data[PAGE_SIZE] = {1, 2, 3, 4};
 	if (process.does_create_exe()) {
-		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4096);
+		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
 		Emulator32bit emulator(RAM(16, 0), ROM(data, 1, 16), disk);
 		// Emulator32bit emulator(16, 0, data, 1, 16);
 		LoadExecutable loader(emulator, process.get_exe_file());

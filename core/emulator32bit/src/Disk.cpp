@@ -2,7 +2,9 @@
 
 #include "util/Logger.h"
 
-Disk::Disk(File diskfile, std::streamsize npages) {
+#define MAGIC_HEADER 0x4b534944
+
+Disk::Disk(File diskfile, std::streamsize npages) : m_free_list(0, npages, false) {
 	this->m_diskfile = diskfile;
 	this->m_diskfile_manager = File(diskfile.get_path() + ".info", diskfile.exists());
 	this->m_npages = npages;
@@ -34,42 +36,39 @@ Disk::Disk(File diskfile, std::streamsize npages) {
 
 	/* set up disk free page management */
 	FileReader freader(m_diskfile_manager, std::ios::binary | std::ios::in);
-
-	if (!freader.has_next_byte()) {
-		/* set up page managment */
-		m_freehead = new FreePage {
-			.p_addr = 0,
-			.len = (word) npages,
-			.next = nullptr,
-		};
-
-		freader.close();
-		return;
-	}
-
 	std::vector<byte> bytes;
 	while (freader.has_next_byte()) {
 		bytes.push_back(freader.read_byte());
 	}
 	ByteReader reader(bytes);
 
-	FreePage *prev = nullptr;
+	/* No valid header */
+	if (!reader.has_next() || reader.read_word() != MAGIC_HEADER) {
+		/* set up page managment */
+		FreeBlockList::Exception exception;
+		m_free_list.return_block(0, npages, exception);
+
+		if (exception.type != FreeBlockList::Exception::Type::AOK) {
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
+					<< "Failed to create default free block list for disk management for "
+					<< std::to_string(npages) << " pages.");
+		}
+
+		freader.close();
+		return;
+	}
+
 	while (reader.has_next()) {
 		word p_addr = reader.read_word();
 		word len = reader.read_word();
 
-		FreePage *next = new FreePage{
-			.p_addr = p_addr,
-			.len = len,
-			.next = nullptr,
-		};
+		FreeBlockList::Exception exception;
+		m_free_list.return_block(p_addr, len, exception);
 
-		if (prev) {
-			prev->next = next;
-		} else {
-			m_freehead = next;
+		if (exception.type != FreeBlockList::Exception::Type::AOK) {
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
+					<< "Failed to create free block list from disk management file.");
 		}
-		prev = next;
 	}
 	freader.close();
 }
@@ -78,138 +77,38 @@ Disk::~Disk() {
 	delete[] this->m_cache;
 }
 
-word Disk::get_free_page(PageManagementException& exception) {
-	if (m_freehead == nullptr) {
-		exception.type = PageManagementException::Type::NOT_ENOUGH_SPACE;
-		return 0;
+word Disk::get_free_page(FreeBlockList::Exception& exception) {
+	word addr = m_free_list.get_free_block(1, exception);
+
+	if (exception.type != FreeBlockList::Exception::Type::AOK) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
+				<< "Not enough space to get a free block from disk.");
 	}
 
-	word p_addr = m_freehead->p_addr;
-	m_freehead->p_addr++;
-	m_freehead->len--;
-
-	if (m_freehead->len == 0) {
-		FreePage *prev = m_freehead;
-		m_freehead = m_freehead->next;
-		delete prev;
-	}
-
-	return p_addr;
+	return addr;
 }
 
-bool coalesce(Disk::FreePage *block) {
-	/* Check if coalescing is necessary */
-	if (block->next == nullptr || block->next->p_addr != block->p_addr + block->len) {
-		return false;
+void Disk::return_page(word p_addr, FreeBlockList::Exception& exception) {
+	m_free_list.return_block(p_addr, 1, exception);
+
+	if (exception.type != FreeBlockList::Exception::Type::AOK) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
+				<< "Failed to return page to disk.");
 	}
-
-	block->len += block->next->len;
-	Disk::FreePage *prev = block->next;
-	block->next = block->next->next;
-	delete prev;
-	return true;
-}
-
-void Disk::return_page(word p_addr, PageManagementException& exception) {
-	/* Invalid address, there is not that many pages */
-	if (p_addr >= m_npages) {
-		exception.p_addr = p_addr;
-		exception.type = PageManagementException::Type::INVALID_PADDR;
-		return;
-	}
-
-	/* If the cached block the previous freed page entered is what we want */
-	if (m_prevreturn != nullptr && m_prevreturn->p_addr + m_prevreturn->len == p_addr) {
-		m_prevreturn->len++;
-		coalesce(m_prevreturn);
-		return;
-	}
-
-	/* If the free list is empty */
-	if (m_freehead == nullptr) {
-		m_freehead = new FreePage {
-			.p_addr = p_addr,
-			.len = 1,
-			.next = nullptr,
-		};
-		m_prevreturn = m_freehead;
-		return;
-	}
-
-	/* If the freed page is before the free list */
-	if (p_addr < m_freehead->p_addr) {
-		FreePage *new_head = new FreePage {
-			.p_addr = p_addr,
-			.len = 1,
-			.next = m_freehead,
-		};
-		m_freehead = new_head;
-		coalesce(m_freehead);
-		m_prevreturn = m_freehead;
-		return;
-	}
-
-	FreePage *cur = m_freehead;
-	while (cur != nullptr) {
-		/* Check if the page address is already inside a free block, exception if it is */
-		if (p_addr >= cur->p_addr && p_addr < cur->p_addr + cur->len) {
-			exception.p_addr = p_addr;
-			exception.type = PageManagementException::Type::DOUBLE_FREE;
-			return;
-		}
-
-		/* If the next block page address is before the returned page, keep going */
-		if (cur->next != nullptr && cur->next->p_addr <= p_addr) {	/* note, if equal, this is an error, will be caught in the next iteration in the check above */
-			cur = cur->next;
-			continue;
-		}
-
-		printf("at block %x, len=%x\n", cur->p_addr, cur->len);
-
-		/* The next page  */
-		FreePage *new_next = new FreePage {
-			.p_addr = p_addr,
-			.len = 1,
-			.next = cur->next,
-		};
-		cur->next = new_next;
-		m_prevreturn = cur->next;
-
-		coalesce(cur->next);
-		if (coalesce(cur)) {	/* Since the free block that the freed page was inserted into has to have been
-									joined with the current block, update cached pointer */
-			m_prevreturn = cur;
-		}
-		return;
-	}
-
-	exception.type = PageManagementException::Type::INVALID_PADDR;
-	exception.p_addr = p_addr;
 }
 
 void Disk::return_all_pages() {
-	FreePage *cur = m_freehead;
-	while (cur != nullptr) {
-		FreePage *next = cur->next;
-		delete(cur);
-		cur = next;
-	}
-
-	m_freehead = new FreePage {
-		.p_addr = 0,
-		.len = (word) m_npages,
-		.next = nullptr,
-	};
+	m_free_list.return_all();
 }
 
-void Disk::return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception) {
+void Disk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) {
 	// for now, this probably isn't too inefficent because of the cached block
-	for (; p_addr_lo <= p_addr_hi && exception.type == PageManagementException::Type::AOK; p_addr_lo++) {
+	for (; p_addr_lo <= p_addr_hi && exception.type == FreeBlockList::Exception::Type::AOK; p_addr_lo++) {
 		return_page(p_addr_lo, exception);
 
 		/* ignore any double free, this just clears all used pages in the range and ignores the rest */
-		if (exception.type == PageManagementException::Type::DOUBLE_FREE) {
-			exception.type = PageManagementException::Type::AOK;
+		if (exception.type == FreeBlockList::Exception::Type::DOUBLE_FREE) {
+			exception.type = FreeBlockList::Exception::Type::AOK;
 		}
 	}
 }
@@ -385,12 +284,13 @@ void Disk::write_all() {
 	FileWriter fwriter(m_diskfile_manager, std::ios::binary | std::ios::out);
 	ByteWriter writer(fwriter);
 
-	FreePage *cur = m_freehead;
-	while (cur != nullptr) {
-		writer << ByteWriter::Data(cur->p_addr, 4);
-		writer << ByteWriter::Data(cur->len, 4);
-		cur = cur->next;
+	std::vector<std::pair<word,word>> blocks = m_free_list.get_blocks();
+	writer << ByteWriter::Data(MAGIC_HEADER, 4);
+	for (std::pair<word,word> block : blocks) {
+		writer << ByteWriter::Data(block.first, 4);
+		writer << ByteWriter::Data(block.second, 4);
 	}
+
 	fwriter.close();
 }
 
@@ -398,11 +298,11 @@ MockDisk::MockDisk() : Disk(File(".\\shouldnotmakethisfilepls.bin"), static_cast
 
 }
 
-word MockDisk::get_free_page(PageManagementException& exception) {
+word MockDisk::get_free_page(FreeBlockList::Exception& exception) {
 	return 0;
 }
 
-void MockDisk::return_page(word p_addr, PageManagementException& exception) {
+void MockDisk::return_page(word p_addr, FreeBlockList::Exception& exception) {
 
 }
 
@@ -410,7 +310,7 @@ void MockDisk::return_all_pages() {
 
 }
 
-void MockDisk::return_pages(word p_addr_lo, word p_addr_hi, PageManagementException& exception) {
+void MockDisk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) {
 
 }
 

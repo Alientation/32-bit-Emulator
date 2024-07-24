@@ -2,7 +2,7 @@
 #include "util/Logger.h"
 
 VirtualMemory::VirtualMemory(word ram_start_page, word ram_end_page, Disk& disk)
-		: m_disk(disk), m_ram_start_page(ram_start_page), m_ram_end_page(ram_end_page) {
+		: m_disk(disk), m_ram_start_page(ram_start_page), m_ram_end_page(ram_end_page), m_freelist(ram_start_page, ram_end_page - ram_start_page + 1) {
 
 }
 
@@ -17,7 +17,7 @@ void VirtualMemory::set_process(long long pid) {
 }
 
 void VirtualMemory::add_page(word vpage) {
-	Disk::PageManagementException exception;
+	FreeBlockList::Exception exception;
 
 	if (m_cur_ptable == nullptr) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
@@ -55,16 +55,25 @@ void VirtualMemory::remove_page(word vpage) {
 
 	PageTableEntry& entry = m_cur_ptable->entries.at(vpage);
 	if (entry.disk) {
-		Disk::PageManagementException exception;
+		FreeBlockList::Exception exception;
 		m_disk.return_page(entry.diskpage, exception);
 
-		if (exception.type != Disk::PageManagementException::Type::AOK) {
+		if (exception.type != FreeBlockList::Exception::Type::AOK) {
 			lgr::log(lgr::Logger::LogType::WARN, std::stringstream() << "Failed to return virtual page "
 					<< std::to_string(vpage) << " at disk page " << std::to_string(entry.diskpage) << ".");
 			return;
 		}
 	} else {
 		m_physical_memory_map.erase(entry.ppage);
+
+		/* add back to free list */
+		FreeBlockList::Exception exception;
+		m_freelist.return_block(entry.ppage, 1, exception);
+
+		if (exception.type != FreeBlockList::Exception::Type::AOK) {
+			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Failed to return physical page "
+					<< std::to_string(entry.ppage) << " to free list.");
+		}
 	}
 }
 
@@ -85,7 +94,11 @@ word VirtualMemory::access_page(word vpage) {
 	}
 
 	/* Bring page from disk onto RAM */
-
+	FreeBlockList::Exception exception;
+	m_freelist.get_free_block(1, exception);
+	if (exception.type != FreeBlockList::Exception::Type::AOK) {
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Failed to retrieve physical page from free list.");
+	}
 
 	return 0;
 }

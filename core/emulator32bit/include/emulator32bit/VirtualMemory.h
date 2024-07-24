@@ -4,6 +4,7 @@
 
 #include "emulator32bit/Emulator32bitUtil.h"
 #include "emulator32bit/Disk.h"
+#include "emulator32bit/FreeBlockList.h"
 
 #include <unordered_map>
 
@@ -44,12 +45,7 @@ class VirtualMemory {
 		std::unordered_map<long long, PageTable*> m_process_ptable_map;
 		std::unordered_map<word, PageTableEntry*> m_physical_memory_map;
 
-		struct FreePhysicalPage {
-			word paddr;
-			word len;
-			FreePhysicalPage *next;
-		};
-		FreePhysicalPage *head;
+		FreeBlockList m_freelist;
 
 		PageTable *m_cur_ptable = nullptr;
 
