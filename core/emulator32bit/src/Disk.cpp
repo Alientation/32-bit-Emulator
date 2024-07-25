@@ -10,7 +10,7 @@ Disk::Disk(File diskfile, std::streamsize npages) : m_free_list(0, npages, false
 	this->m_npages = npages;
 	this->m_cache = new CachePage[DISK_CACHE_SIZE];
 
-	if (npages == 0) {
+	if (npages == 0) { // todo, this should clear the files perhaps
 		return;
 	}
 
@@ -29,10 +29,11 @@ Disk::Disk(File diskfile, std::streamsize npages) : m_free_list(0, npages, false
 	}
 
 	std::streamsize padding_size = npages * PAGE_SIZE - size;
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Padding disk file of size " << std::to_string(size) << " bytes with " << std::to_string(padding_size) << " bytes.");
 	std::vector<char> padding(padding_size, 0);
 	file.write(padding.data(), padding_size);
 	file.close();
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully created disk file");
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully created disk file of size " << std::to_string(npages) << " pages");
 
 	/* set up disk free page management */
 	FileReader freader(m_diskfile_manager, std::ios::binary | std::ios::in);
@@ -113,7 +114,7 @@ void Disk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception
 	}
 }
 
-dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
+dword Disk::read_val(word address, int n_bytes, ReadException& exception) {
 	address += n_bytes - 1;
 	word p_addr = address >> PAGE_PSIZE;
 	word offset = address & (PAGE_SIZE - 1);
@@ -133,17 +134,27 @@ dword Disk::read_val(word address, int n_bytes, ReadException &exception) {
 	return val;
 }
 
-byte Disk::read_byte(word address, ReadException &exception) {
+std::vector<byte> Disk::read_page(word p_addr, ReadException& exception) {
+	CachePage& cpage = get_cpage(p_addr);
+
+	std::vector<byte> data;
+	for (int i = 0; i < PAGE_SIZE; i++) {
+		data.push_back(cpage.data[i]);
+	}
+	return std::move(data);
+}
+
+byte Disk::read_byte(word address, ReadException& exception) {
 	return read_val(address, 1, exception);
 }
-hword Disk::read_hword(word address, ReadException &exception) {
+hword Disk::read_hword(word address, ReadException& exception) {
 	return read_val(address, 2, exception);
 }
-word Disk::read_word(word address, ReadException &exception) {
+word Disk::read_word(word address, ReadException& exception) {
 	return read_val(address, 4, exception);
 }
 
-void Disk::write_val(word address, dword val, int n_bytes, WriteException &exception) {
+void Disk::write_val(word address, dword val, int n_bytes, WriteException& exception) {
 	word p_addr = address >> PAGE_PSIZE;
 	word offset = address & (PAGE_SIZE - 1);
 	CachePage& cpage = get_cpage(p_addr);
@@ -162,20 +173,39 @@ void Disk::write_val(word address, dword val, int n_bytes, WriteException &excep
 	}
 }
 
-void Disk::write_byte(word address, byte data, WriteException &exception) {
+void Disk::write_page(word p_addr, std::vector<byte> data, WriteException& exception) {
+	if (data.size() != PAGE_SIZE) {
+		exception.type = WriteException::Type::INVALID_PAGEDATA_SIZE;
+		exception.address = p_addr << PAGE_PSIZE;
+		exception.data_length = data.size();
+		// warn here
+		return;
+	}
+
+	CachePage& cpage = get_cpage(p_addr);
+	cpage.dirty = true;
+	for (int i = 0; i < PAGE_SIZE; i++) {
+		cpage.data[i] = data.at(i);
+	}
+}
+
+void Disk::write_byte(word address, byte data, WriteException& exception) {
 	write_val(address, data, 1, exception);
 }
-void Disk::write_hword(word address, hword data, WriteException &exception) {
+void Disk::write_hword(word address, hword data, WriteException& exception) {
 	write_val(address, data, 2, exception);
 }
-void Disk::write_word(word address, word data, WriteException &exception) {
+void Disk::write_word(word address, word data, WriteException& exception) {
 	write_val(address, data, 4, exception);
 }
 
 
 Disk::CachePage& Disk::get_cpage(word p_addr) {
-	// CachePage& cpage = m_cache[(p_addr >> PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
-	CachePage& cpage = m_cache[(p_addr >> PAGE_PSIZE) % DISK_CACHE_SIZE];
+	if (p_addr >= m_npages) {
+		// todo, should handle case where p_addr is invalid.
+	}
+
+	CachePage& cpage = m_cache[(p_addr >> PAGE_PSIZE) & (DISK_CACHE_SIZE - 1)];
 
 	cpage.last_acc = n_acc++;
 	if (cpage.valid && cpage.p_addr == p_addr) {
@@ -193,7 +223,7 @@ Disk::CachePage& Disk::get_cpage(word p_addr) {
 }
 
 void Disk::write_cpage(CachePage& cpage) {
-	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::out);
+	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::out | std::ios::in);
     if (!file.is_open()) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
     }
@@ -223,7 +253,7 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 	file.seekg(cpage.p_addr * PAGE_SIZE);
 	if (!file) {
 		file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position in disk file");
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error seeking position of page " << std::to_string(cpage.p_addr) << "in disk file");
 		return;
 	}
 
@@ -232,7 +262,7 @@ void Disk::read_cpage(CachePage& cpage, word p_addr) {
 
 	if (!file) {
 		file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error reading from disk file");
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error reading page " << std::to_string(cpage.p_addr) << " from disk file");
 		return;
 	}
 
@@ -314,23 +344,31 @@ void MockDisk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Excep
 
 }
 
-byte MockDisk::read_byte(word address, ReadException &exception) {
+std::vector<byte> MockDisk::read_page(word p_addr, ReadException& exception) {
+	return std::vector<byte>();
+}
+
+byte MockDisk::read_byte(word address, ReadException& exception) {
 	return 0;
 }
-hword MockDisk::read_hword(word address, ReadException &exception) {
+hword MockDisk::read_hword(word address, ReadException& exception) {
 	return 0;
 }
-word MockDisk::read_word(word address, ReadException &exception) {
+word MockDisk::read_word(word address, ReadException& exception) {
 	return 0;
 }
 
-void MockDisk::write_byte(word address, byte data, WriteException &exception) {
+void MockDisk::write_page(word p_addr, std::vector<byte> data, WriteException& exception) {
 
 }
-void MockDisk::write_hword(word address, hword data, WriteException &exception) {
+
+void MockDisk::write_byte(word address, byte data, WriteException& exception) {
 
 }
-void MockDisk::write_word(word address, word data, WriteException &exception) {
+void MockDisk::write_hword(word address, hword data, WriteException& exception) {
+
+}
+void MockDisk::write_word(word address, word data, WriteException& exception) {
 
 }
 

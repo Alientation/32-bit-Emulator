@@ -26,9 +26,10 @@ class Disk {
 
 		struct WriteException {
 			enum class Type {
-				AOK, INVALID_ADDRESS,
+				AOK, INVALID_ADDRESS, INVALID_PAGEDATA_SIZE,
 			} type = Type::AOK;
 			word address = 0;
+			word data_length = 0;
 		};
 		struct CachePage {
 			word p_addr;
@@ -43,15 +44,15 @@ class Disk {
 		virtual void return_all_pages();
 		virtual void return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception);
 
-		// todo read_page()
-		virtual byte read_byte(word address, ReadException &exception);
-		virtual hword read_hword(word address, ReadException &exception);
-		virtual word read_word(word address, ReadException &exception);
+		virtual std::vector<byte> read_page(word p_addr, ReadException& exception);
+		virtual byte read_byte(word address, ReadException& exception);
+		virtual hword read_hword(word address, ReadException& exception);
+		virtual word read_word(word address, ReadException& exception);
 
-		// todo write_page()
-		virtual void write_byte(word address, byte data, WriteException &exception);
-		virtual void write_hword(word address, hword data, WriteException &exception);
-		virtual void write_word(word address, word data, WriteException &exception);
+		virtual void write_page(word p_addr, std::vector<byte>, WriteException& exception);
+		virtual void write_byte(word address, byte data, WriteException& exception);
+		virtual void write_hword(word address, hword data, WriteException& exception);
+		virtual void write_word(word address, word data, WriteException& exception);
 
 		virtual void write_all();
 	private:
@@ -81,12 +82,12 @@ class MockDisk : public Disk {
 		void return_all_pages() override;
 		void return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) override;
 
-		// todo read_page()
+		std::vector<byte> read_page(word p_addr, ReadException& exception) override;
 		byte read_byte(word address, ReadException &exception) override;
 		hword read_hword(word address, ReadException &exception) override;
 		word read_word(word address, ReadException &exception) override;
 
-		// todo write_page()
+		void write_page(word p_addr, std::vector<byte>, WriteException& exception) override;
 		void write_byte(word address, byte data, WriteException &exception) override;
 		void write_hword(word address, hword data, WriteException &exception) override;
 		void write_word(word address, word data, WriteException &exception) override;
