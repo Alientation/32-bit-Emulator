@@ -39,7 +39,9 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
   * Ultimately transitioned project to focus on an ARM-like emulator
 * June '24 - July '24
   * Near MVP, with most functionality operational
-  * Happy with the state the project for now
+* July '24 - Present
+  * Added Disk memory with cache system
+  * Added virtual memory - simulated in c++ but planning on porting over to a program ran on the emulator
 
 ## Future Goals
 * ~~forward arguments passed into the executable to the assembler build process so that recompilation of the project is not necessary
@@ -50,6 +52,10 @@ to build different executables~~ ***Added 7/16/24***
 * Support dynamically linked libraries
 * Simple compiled language (like C)
 * System libraries
+* ~~Disk Memory~~ ***Added 7/21/24***
+* ~~Virtual Memory~~ ***Added 7/25/24***
+* File System
+* Clean up and HEAVILY refactor code :~)
 * Documentation!
 
 ## How to run
