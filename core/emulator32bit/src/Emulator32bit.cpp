@@ -206,7 +206,7 @@ void Emulator32bit::set_NZCV(bool N, bool Z, bool C, bool V) {
 
 
 bool Emulator32bit::EmulatorException::isOK() {
-	return type == EmulatorException::Type::AOK && sys_bus_exception.type == SystemBus::SystemBusException::AOK
-		&& mem_read_exception.type == Memory::MemoryReadException::Type::AOK
-		&& mem_write_exception.type == Memory::MemoryWriteException::Type::AOK;
+	return type == EmulatorException::Type::AOK && sys_bus_exception.type == SystemBus::Exception::Type::AOK
+		&& mem_read_exception.type == Memory::ReadException::Type::AOK
+		&& mem_write_exception.type == Memory::WriteException::Type::AOK;
 }

@@ -4,3 +4,4 @@ install/
 /.VSCodeCounter
 
 *.bin
+*.info

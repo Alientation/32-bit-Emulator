@@ -1,5 +1,7 @@
 #include "emulator32bit/FreeBlockList.h"
 
+#include "util/Logger.h"
+
 FreeBlockList::FreeBlockList(word begin, word len, bool init) : m_begin(begin), m_len(len) {
 	if (init) {
 		m_head = new FreeBlock{
@@ -7,6 +9,7 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) : m_begin(begin), 
 			.len = len,
 		};
 	}
+	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Initializing Free Block List");
 }
 
 FreeBlockList::~FreeBlockList() {
@@ -16,6 +19,7 @@ FreeBlockList::~FreeBlockList() {
 		delete(cur);
 		cur = next;
 	}
+	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Destroying Free Block List");
 }
 
 word FreeBlockList::get_free_block(word length, Exception& exception) {
@@ -47,11 +51,14 @@ word FreeBlockList::get_free_block(word length, Exception& exception) {
 			}
 		}
 
+		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting free block " << std::to_string(addr)
+				// << " to fit " << std::to_string(length));
 		return addr;
 	}
 
 	exception.type = Exception::Type::NOT_ENOUGH_SPACE;
 	exception.length = length;
+	// lgr::log(lgr::Logger::LogType::WARN, std::stringstream() << "Not enough space to fit " << std::to_string(length));
 	return 0;
 }
 
@@ -60,6 +67,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 		exception.type = Exception::Type::INVALID_ADDR;
 		exception.addr = addr;
 		exception.length = length;
+		// lgr::log(lgr::Logger::LogType::WARN, std::stringstream() << "Returning block with invalid address "
+				// << std::to_string(addr) << " and length " << std::to_string(length));
 		return;
 	}
 
@@ -68,6 +77,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 			.addr = addr,
 			.len = length,
 		};
+		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning block "
+				// << std::to_string(addr) << " of length " << std::to_string(length) << " to empty list");
 		return;
 	}
 
@@ -80,6 +91,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 		m_head->prev = new_head;
 		m_head = new_head;
 		coalesce(m_head);
+		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning block " << std::to_string(addr)
+				// << " of length " << std::to_string(length) << " to beginning of list");
 		return;
 	}
 
@@ -90,6 +103,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 			exception.type = Exception::Type::DOUBLE_FREE;
 			exception.addr = addr;
 			exception.length = length;
+			// lgr::log(lgr::Logger::LogType::WARN, std::stringstream() << "Returning block " << std::to_string(addr)
+					// << " of length " << std::to_string(length) << " which overlaps free block in list.");
 			return;
 		}
 
@@ -111,6 +126,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 		cur->next = next;
 		coalesce(cur->next);
 		coalesce(cur);
+		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning block " << std::to_string(addr)
+				// << " of length " << std::to_string(length) << " to the list.");
 		return;
 	}
 }
@@ -127,6 +144,7 @@ void FreeBlockList::return_all() {
 		.addr = m_begin,
 		.len = m_len,
 	};
+	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning all.");
 }
 
 std::vector<std::pair<word,word>> FreeBlockList::get_blocks() {
@@ -136,6 +154,7 @@ std::vector<std::pair<word,word>> FreeBlockList::get_blocks() {
 		blocks.push_back(std::pair<word,word>(cur->addr, cur->len));
 		cur = cur->next;
 	}
+	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting all blocks");
 	return blocks;
 }
 
@@ -162,10 +181,12 @@ bool FreeBlockList::can_fit(word length) {
 	FreeBlock* cur = m_head;
 	while (cur != nullptr) {
 		if (cur->len >= length) {
+			// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Can fit " << std::to_string(length));
 			return true;
 		}
 
 		cur = cur->next;
 	}
+	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Cannot fit " << std::to_string(length));
 	return false;
 }

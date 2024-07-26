@@ -37,10 +37,10 @@ void test_bus() {
 	log(lgr::Logger::LogType::LOG, "reading from memory");
 	std::stringstream data_stream;
 	for (int i = 0; i < sizeof(rom_data); i++) {
-		SystemBus::SystemBusException bus_exception;
-		Memory::MemoryReadException mem_exception;
+		SystemBus::Exception bus_exception;
+		Memory::ReadException mem_exception;
 		byte data = bus.read_byte(1024 + i, bus_exception, mem_exception);
-		if (bus_exception.type != SystemBus::SystemBusException::AOK) {
+		if (bus_exception.type != SystemBus::Exception::Type::AOK) {
 			log(lgr::Logger::LogType::ERROR, "error reading from memory");
 		}
 		data_stream << (int) data << " ";

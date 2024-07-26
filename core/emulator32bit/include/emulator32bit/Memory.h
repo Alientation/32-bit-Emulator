@@ -9,7 +9,7 @@ class Memory {
 		Memory(Memory& other);
 		virtual ~Memory();
 
-		struct MemoryReadException {
+		struct ReadException {
 			enum class Type {
 				AOK,
 				OUT_OF_BOUNDS_ADDRESS,
@@ -20,7 +20,7 @@ class Memory {
 			word address = 0;
 		};
 
-		struct MemoryWriteException {
+		struct WriteException {
 			enum class Type {
 				AOK,
 				OUT_OF_BOUNDS_ADDRESS,
@@ -33,16 +33,16 @@ class Memory {
 			int num_bytes = 0;
 		};
 
-		virtual word read(word address, MemoryReadException &exception, int num_bytes = 4);
-		virtual void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4);
+		virtual word read(word address, ReadException &exception, int num_bytes = 4);
+		virtual void write(word address, word data, WriteException &exception, int num_bytes = 4);
 
-		byte read_byte(word address, MemoryReadException &exception);
-		hword read_hword(word address, MemoryReadException &exception);
-		word read_word(word address, MemoryReadException &exception);
+		byte read_byte(word address, ReadException &exception);
+		hword read_hword(word address, ReadException &exception);
+		word read_word(word address, ReadException &exception);
 
-		void write_byte(word address, byte data, MemoryWriteException &exception);
-		void write_hword(word address, hword data, MemoryWriteException &exception);
-		void write_word(word address, word data, MemoryWriteException &exception);
+		void write_byte(word address, byte data, WriteException &exception);
+		void write_hword(word address, hword data, WriteException &exception);
+		void write_word(word address, word data, WriteException &exception);
 
 		void reset();
 
@@ -67,7 +67,7 @@ class ROM : public Memory {
 	public:
 		ROM(const byte* data, word mem_pages, word lo_page);
 
-		void write(word address, word data, MemoryWriteException &exception, int num_bytes = 4) override;
+		void write(word address, word data, WriteException &exception, int num_bytes = 4) override;
 };
 
 

@@ -86,6 +86,7 @@ word Disk::get_free_page(FreeBlockList::Exception& exception) {
 				<< "Not enough space to get a free block from disk.");
 	}
 
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting free disk page " << std::to_string(addr));
 	return addr;
 }
 
@@ -96,10 +97,15 @@ void Disk::return_page(word p_addr, FreeBlockList::Exception& exception) {
 		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
 				<< "Failed to return page to disk.");
 	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning disk page "
+			<< std::to_string(p_addr) << " back to disk");
 }
 
 void Disk::return_all_pages() {
 	m_free_list.return_all();
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning all disk pages back to disk");
 }
 
 void Disk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) {
@@ -112,6 +118,9 @@ void Disk::return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception
 			exception.type = FreeBlockList::Exception::Type::AOK;
 		}
 	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returned all disk pages from " << std::to_string(p_addr_lo)
+			<< " to " << std::to_string(p_addr_hi) << " back to disk");
 }
 
 dword Disk::read_val(word address, int n_bytes, ReadException& exception) {
@@ -141,6 +150,9 @@ std::vector<byte> Disk::read_page(word p_addr, ReadException& exception) {
 	for (int i = 0; i < PAGE_SIZE; i++) {
 		data.push_back(cpage.data[i]);
 	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Reading disk page "
+			<< std::to_string(p_addr));
 	return std::move(data);
 }
 
@@ -178,7 +190,8 @@ void Disk::write_page(word p_addr, std::vector<byte> data, WriteException& excep
 		exception.type = WriteException::Type::INVALID_PAGEDATA_SIZE;
 		exception.address = p_addr << PAGE_PSIZE;
 		exception.data_length = data.size();
-		// warn here
+		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Tried to write to disk invalid number of bytes. Expected "
+				<< std::to_string(PAGE_SIZE) << ". Got " << std::to_string(data.size()));
 		return;
 	}
 
@@ -187,6 +200,9 @@ void Disk::write_page(word p_addr, std::vector<byte> data, WriteException& excep
 	for (int i = 0; i < PAGE_SIZE; i++) {
 		cpage.data[i] = data.at(i);
 	}
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Writing to disk page "
+			<< std::to_string(cpage.p_addr));
 }
 
 void Disk::write_byte(word address, byte data, WriteException& exception) {
@@ -219,6 +235,8 @@ Disk::CachePage& Disk::get_cpage(word p_addr) {
 	cpage.valid = true;
 	cpage.p_addr = p_addr;
 	read_cpage(cpage, p_addr);
+
+	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting cached page " << std::to_string(cpage.p_addr));
 	return cpage;
 }
 
@@ -306,6 +324,9 @@ void Disk::write_all() {
 			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error writing to disk file");
 			return;
 		}
+
+		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "WRITING CACHE PAGE TO DISK "
+				<< std::to_string(cpage.p_addr));
 	}
 	file.close();
 	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully wrote dirty cache pages to disk");

@@ -53,6 +53,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC util emulator32bit)
 # same location and will not conflict (overwrite each other)
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	add_compile_options(-g)
+endif()
+
 # specify the target to install (calculator-static library defined above)
 # set the export name <name>-config (does not need to match target name)
 # also specify where the .lib file should be installed

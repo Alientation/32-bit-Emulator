@@ -79,9 +79,9 @@ class Emulator32bit {
 
 			Type type = Type::AOK;						/*! Type of emulator exception */
 			word instr = 0;								/*! Instruction the exception occured during the execution of */
-			SystemBus::SystemBusException sys_bus_exception;	/*! Exception in reading/writing to the system bus */
-			Memory::MemoryReadException mem_read_exception;		/*! Exception in reading from memory */
-			Memory::MemoryWriteException mem_write_exception;	/*! Exception in writing to memory */
+			SystemBus::Exception sys_bus_exception;	/*! Exception in reading/writing to the system bus */
+			Memory::ReadException mem_read_exception;		/*! Exception in reading from memory */
+			Memory::WriteException mem_write_exception;	/*! Exception in writing to memory */
 
 			bool isOK();
 		};
