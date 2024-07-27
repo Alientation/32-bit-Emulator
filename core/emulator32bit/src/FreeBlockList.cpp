@@ -2,7 +2,10 @@
 
 #include "util/Logger.h"
 
-FreeBlockList::FreeBlockList(word begin, word len, bool init) : m_begin(begin), m_len(len) {
+FreeBlockList::FreeBlockList(word begin, word len, bool init) :
+	m_begin(begin),
+	m_len(len)
+{
 	if (init) {
 		/* Only initializes all blocks to be free if specified. */
 		m_head = new FreeBlock{
@@ -13,7 +16,8 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) : m_begin(begin), 
 	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Initializing Free Block List");
 }
 
-FreeBlockList::~FreeBlockList() {
+FreeBlockList::~FreeBlockList()
+{
 	FreeBlock *cur = m_head;
 	while (cur != nullptr) {
 		FreeBlock *next = cur->next;
@@ -23,7 +27,8 @@ FreeBlockList::~FreeBlockList() {
 	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Destroying Free Block List");
 }
 
-word FreeBlockList::get_free_block(word length, Exception& exception) {
+word FreeBlockList::get_free_block(word length, Exception& exception)
+{
 	FreeBlock* freeblock = find(length);
 
 	if (!freeblock) {
@@ -51,7 +56,8 @@ word FreeBlockList::get_free_block(word length, Exception& exception) {
 	return addr;
 }
 
-FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length) {
+FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length)
+{
 	if (!m_head || addr < m_head->addr) {
 		m_head = new FreeBlock {
 			.addr = addr,
@@ -82,7 +88,8 @@ FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length) {
 	return next;
 }
 
-void FreeBlockList::return_block(word addr, word length, Exception& exception) {
+void FreeBlockList::return_block(word addr, word length, Exception& exception)
+{
 	if (addr < m_begin || addr + length > m_begin + m_len) {
 		exception.type = Exception::Type::INVALID_ADDR;
 		exception.addr = addr;
@@ -111,7 +118,8 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 	coalesce(ret_block->prev);
 }
 
-void FreeBlockList::return_all() {
+void FreeBlockList::return_all()
+{
 	FreeBlock *cur = m_head;
 	while (cur) {
 		FreeBlock *next = cur->next;
@@ -126,7 +134,8 @@ void FreeBlockList::return_all() {
 	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning all.");
 }
 
-std::vector<std::pair<word,word>> FreeBlockList::get_blocks() {
+std::vector<std::pair<word,word>> FreeBlockList::get_blocks()
+{
 	std::vector<std::pair<word,word>> blocks;
 	FreeBlock *cur = m_head;
 	while (cur) {
@@ -137,18 +146,21 @@ std::vector<std::pair<word,word>> FreeBlockList::get_blocks() {
 	return std::move(blocks);
 }
 
-void FreeBlockList::print_blocks() {
+void FreeBlockList::print_blocks()
+{
 	std::vector<std::pair<word,word>> blocks = get_blocks();
 	for (auto pair : blocks) {
 		printf("Block {addr=%x, len=%x}\n", pair.first, pair.second);
 	}
 }
 
-bool FreeBlockList::can_fit(word length) {
+bool FreeBlockList::can_fit(word length)
+{
 	return find(length) != nullptr;
 }
 
-FreeBlockList::FreeBlock* FreeBlockList::find(word length) {
+FreeBlockList::FreeBlock* FreeBlockList::find(word length)
+{
 	FreeBlock* cur = m_head;
 	while (cur) {
 		if (cur->len >= length) {
@@ -159,7 +171,8 @@ FreeBlockList::FreeBlock* FreeBlockList::find(word length) {
 	return cur;
 }
 
-void FreeBlockList::remove(FreeBlock *node) {
+void FreeBlockList::remove(FreeBlock *node)
+{
 	if (node->prev) {
 		node->prev->next = node->next;
 	} else {
@@ -173,7 +186,8 @@ void FreeBlockList::remove(FreeBlock *node) {
 	delete node;
 }
 
-void FreeBlockList::coalesce(FreeBlock *first) {
+void FreeBlockList::coalesce(FreeBlock *first)
+{
 	if (!first || !first->next) {
 		return;
 	}

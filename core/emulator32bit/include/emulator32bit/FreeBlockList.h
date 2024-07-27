@@ -17,7 +17,8 @@
  * 					store allocated memory into a list to then be used when creating new FreeBlock
  * 					nodes.
  */
-class FreeBlockList {
+class FreeBlockList
+{
 	public:
 		/**
 		 * @brief 			Construct a new Free Block List object.
