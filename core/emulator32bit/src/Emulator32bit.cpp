@@ -27,7 +27,7 @@ Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) : disk(disk),
 }
 
 Emulator32bit::~Emulator32bit() {
-	disk->write_all();
+	disk->save();
 	delete disk;
 	delete mmu;
 }
