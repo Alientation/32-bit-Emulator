@@ -1,5 +1,5 @@
-#include "emulator32bit/SystemBus.h"
-#include "util/Logger.h"
+#include "emulator32bit/system_bus.h"
+#include "util/logger.h"
 
 SystemBus::Exception SystemBus::hide_sys_bus_exception;
 Memory::ReadException SystemBus::hide_mem_read_exception;

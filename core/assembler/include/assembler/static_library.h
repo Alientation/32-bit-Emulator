@@ -1,12 +1,13 @@
 #pragma once
-#ifndef STATICLIBRARY_H
-#define STATICLIBRARY_H
-#include "assembler/ObjectFile.h"
-#include "util/File.h"
+#ifndef STATIC_LIBRARY_H
+#define STATIC_LIBRARY_H
+
+#include "assembler/object_file.h"
+#include "util/file.h"
 
 #include <vector>
 
 void WriteStaticLibrary(std::vector<File>& objs, File out);
 void ReadStaticLibrary(std::vector<ObjectFile>& objs, File in);
 
-#endif /* STATICLIBRARY_H */
+#endif /* STATIC_LIBRARY_H */

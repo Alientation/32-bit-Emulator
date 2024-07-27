@@ -1,5 +1,5 @@
-#include "assembler/Assembler.h"
-#include "util/Logger.h"
+#include "assembler/assembler.h"
+#include "util/logger.h"
 
 #include <string>
 

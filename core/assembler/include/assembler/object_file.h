@@ -1,10 +1,10 @@
 #pragma once
-#ifndef OBJECTFILE_H
-#define OBJECTFILE_H
+#ifndef OBJECT_FILE_H
+#define OBJECT_FILE_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
-#include "util/File.h"
-#include "util/Logger.h"
+#include "emulator32bit/emulator32bit_util.h"
+#include "util/file.h"
+#include "util/logger.h"
 
 #include <unordered_map>
 #include <vector>
@@ -105,9 +105,4 @@ class ObjectFile {
 		void print();
 };
 
-
-
-
-
-
-#endif /* OBJECTFILE_H */
+#endif /* OBJECT_FILE_H */

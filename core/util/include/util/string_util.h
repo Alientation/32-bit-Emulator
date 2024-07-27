@@ -1,9 +1,10 @@
+#pragma once
+#ifndef STRING_UTIL_H
+#define STRING_UTIL_H
+
 #include <vector>
 #include <string>
 #include <regex>
-
-#ifndef STRINGUTIL_H
-#define STRINGUTIL_H
 
 namespace string_util {
 	static std::string replaceFirst(std::string str, const std::string& match, const std::string& replacement) {
@@ -18,9 +19,9 @@ namespace string_util {
 
 	/**
 	 * Trims whitespace from the left side of a string
-	 * 
+	 *
 	 * @param str the string to trim
-	 * 
+	 *
 	 * @return the trimmed string
 	 */
 	static std::string leftTrim(std::string str) {
@@ -32,9 +33,9 @@ namespace string_util {
 
 	/**
 	 * Trims whitespace from the right side of a string
-	 * 
+	 *
 	 * @param str the string to trim
-	 * 
+	 *
 	 * @return the trimmed string
 	 */
 	static std::string rightTrim(std::string str) {
@@ -46,9 +47,9 @@ namespace string_util {
 
 	/**
 	 * Trims whitespace from the left and right side of a string
-	 * 
+	 *
 	 * @param str the string to trim
-	 * 
+	 *
 	 * @return the trimmed string
 	 */
 	static std::string trimString(std::string str) {
@@ -57,11 +58,11 @@ namespace string_util {
 
     /**
      * Trims whitespace from the left and right side of a string
-     * 
+     *
      * @param str the string to trim
      * @param leftTrim the number of characters to trim from the left side of the string
      * @param rightTrim the number of characters to trim from the right side of the string
-     * 
+     *
      * @return the trimmed string
      */
     static std::string trimString(std::string str, int leftTrim, int rightTrim) {
@@ -70,11 +71,11 @@ namespace string_util {
 
 	/**
 	 * Splits a string into a vector of strings separated by the given regex delimiter.
-	 * 
+	 *
 	 * @param str the string to split
 	 * @param delimiter the regex delimiter to split the string by
 	 * @param trim whether or not to trim each split string
-	 * 
+	 *
 	 * @return a vector of strings separated by the given regex delimiter
 	 */
 	static std::vector<std::string> split(std::string str, std::string delimRegex, bool trim = false) {
@@ -120,4 +121,4 @@ namespace string_util {
 	}
 }
 
-#endif
+#endif /* STRING_UTIL_H */

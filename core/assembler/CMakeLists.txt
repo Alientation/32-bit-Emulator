@@ -8,16 +8,16 @@ project(
 
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
-    src/Assembler.cpp
-    src/Build.cpp
-    src/Directives.cpp
-    src/Instructions.cpp
-    src/LoadExecutable.cpp
-    src/Linker.cpp
-    src/ObjectFile.cpp
-    src/StaticLibrary.cpp
-    src/Preprocessor.cpp
-    src/Tokenizer.cpp
+    src/assembler.cpp
+    src/build.cpp
+    src/directives.cpp
+    src/instructions.cpp
+    src/load_executable.cpp
+    src/linker.cpp
+    src/object_file.cpp
+    src/static_library.cpp
+    src/preprocessor.cpp
+    src/tokenizer.cpp
 )
 
 include (FetchContent)

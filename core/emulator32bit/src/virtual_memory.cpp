@@ -1,5 +1,5 @@
-#include "emulator32bit/VirtualMemory.h"
-#include "util/Logger.h"
+#include "emulator32bit/virtual_memory.h"
+#include "util/logger.h"
 
 #include <unordered_set>
 

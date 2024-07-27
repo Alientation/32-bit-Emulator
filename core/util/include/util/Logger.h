@@ -2,8 +2,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <util/ConsoleColor.h>
-#include <util/File.h>
+#include <util/console_color.h>
+#include <util/file.h>
 
 #include <chrono>
 #include <functional>
@@ -177,4 +177,4 @@ void EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condi
 // #pragma pop_macro("EXPECT_FALSE")
 };
 
-#endif
+#endif /* LOGGER_H */

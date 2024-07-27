@@ -1,7 +1,8 @@
+#pragma once
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#include "util/File.h"
+#include "util/file.h"
 
 #include <vector>
 #include <string>
@@ -171,4 +172,4 @@ class Tokenizer {
 		static std::vector<Token>& tokenize(std::string source_code);
 };
 
-#endif
+#endif /* TOKENIZER_H */

@@ -1,5 +1,6 @@
-#ifndef VECTORUTIL_H
-#define VECTORUTIL_H
+#pragma once
+#ifndef VECTOR_UTIL_H
+#define VECTOR_UTIL_H
 
 namespace vector_util {
 	template<typename T>
@@ -8,4 +9,4 @@ namespace vector_util {
 	}
 };
 
-#endif // VECTORUTIL_H
+#endif // VECTOR_UTIL_H

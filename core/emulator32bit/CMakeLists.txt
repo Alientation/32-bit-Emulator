@@ -9,15 +9,15 @@ project(
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
 	# source files (.cpp)
-	src/Emulator32bit.cpp
-	src/Disassembler.cpp
-	src/Instructions.cpp
-	src/SoftwareInterrupt.cpp
-	src/Memory.cpp
-	src/VirtualMemory.cpp
-	src/SystemBus.cpp
-	src/Disk.cpp
-	src/FreeBlockList.cpp
+	src/emulator32bit.cpp
+	src/disassembler.cpp
+	src/instructions.cpp
+	src/software_interrupt.cpp
+	src/memory.cpp
+	src/virtual_memory.cpp
+	src/system_bus.cpp
+	src/disk.cpp
+	src/fbl.cpp
 )
 
 # rest is boilerplate to set up the build

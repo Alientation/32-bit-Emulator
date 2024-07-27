@@ -1,0 +1,2 @@
+#pragma once
+#define AEMU_VERSION "@AEMU_VERSION@"

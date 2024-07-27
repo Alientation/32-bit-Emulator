@@ -1,6 +1,5 @@
-#include "emulator32bit/FreeBlockList.h"
-
-#include "util/Logger.h"
+#include "emulator32bit/fbl.h"
+#include "util/logger.h"
 
 FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 	m_begin(begin),

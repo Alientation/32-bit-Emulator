@@ -1,6 +1,5 @@
-#include "emulator32bit/Disk.h"
-
-#include "util/Logger.h"
+#include "emulator32bit/disk.h"
+#include "util/logger.h"
 
 /*
  * Located at the beginning of disk and the disk page management files
@@ -156,7 +155,7 @@ void Disk::return_all_pages()
 void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception)
 {
 	/*
-	 * TODO: This is really inefficient, as each returned page needs, the FBL needs to
+	 * TODO: This is really inefficient, as each returned page needs the FBL to
 	 * traverse the linked list from the beginning.
 	 */
 	for (; page_lo <= page_hi && exception.type == FreeBlockList::Exception::Type::AOK; page_lo++) {

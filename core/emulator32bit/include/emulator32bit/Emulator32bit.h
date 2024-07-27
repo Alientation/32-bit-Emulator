@@ -1,11 +1,11 @@
 #pragma once
-#ifndef Emulator32bit_H
-#define Emulator32bit_H
+#ifndef EMULATOR32BIT_H
+#define EMULATOR32BIT_H
 
-#include "emulator32bit/Disk.h"
-#include "emulator32bit/Emulator32bitUtil.h"
-#include "emulator32bit/Memory.h"
-#include "emulator32bit/SystemBus.h"
+#include "emulator32bit/disk.h"
+#include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/memory.h"
+#include "emulator32bit/system_bus.h"
 
 #include <string>
 
@@ -285,4 +285,4 @@ class Emulator32bit {
 };
 
 
-#endif
+#endif /* EMULATOR32BIT_H */

@@ -1,8 +1,9 @@
 #pragma once
-#ifndef LOADEXECUTABLE_H
+#ifndef LOAD_EXECUTABLE_H
+#define LOAD_EXECUTABLE_H
 
-#include "emulator32bit/Emulator32bit.h"
-#include "util/File.h"
+#include "emulator32bit/emulator32bit.h"
+#include "util/file.h"
 
 class LoadExecutable {
 	public:
@@ -17,4 +18,4 @@ class LoadExecutable {
 
 
 
-#endif /* LOADEXECUTABLE_H */
+#endif /* LOAD_EXECUTABLE_H */

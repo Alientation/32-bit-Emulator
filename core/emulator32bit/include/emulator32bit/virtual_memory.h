@@ -1,10 +1,10 @@
 #pragma once
-#ifndef VIRTUALMEMORY_H
-#define VIRTUALMEMORY_H
+#ifndef VIRTUAL_MEMORY_H
+#define VIRTUAL_MEMORY_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
-#include "emulator32bit/Disk.h"
-#include "emulator32bit/FreeBlockList.h"
+#include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/disk.h"
+#include "emulator32bit/fbl.h"
 
 #include <unordered_map>
 
@@ -88,4 +88,4 @@ class MockVirtualMemory : public VirtualMemory {
 		MockDisk mockdisk;
 };
 
-#endif /* VIRTUALMEMORY_H */
+#endif /* VIRTUAL_MEMORY_H */

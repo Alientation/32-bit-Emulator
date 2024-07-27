@@ -1,5 +1,6 @@
-#ifndef CONSOLECOLOR_H
-#define CONSOLECOLOR_H
+#pragma once
+#ifndef CONSOLE_COLOR_H
+#define CONSOLE_COLOR_H
 
 #include <string>
 
@@ -36,4 +37,4 @@ namespace ccolor {
 	static const std::string BOLD_WHITE = "\033[97m";
 }
 
-#endif // CONSOLECOLOR_H
+#endif // CONSOLE_COLOR_H

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef TYPES_H
 #define TYPES_H
 
@@ -7,13 +8,13 @@
 #include <iostream>
 #include <iomanip>
 #include <bitset>
-#include <util/ConsoleColor.h>
+#include <util/console_color.h>
 #define private public
 #else
 #include <iostream>
 #include <iomanip>
 #include <bitset>
-#include <util/ConsoleColor.h>
+#include <util/console_color.h>
 #include <sstream>
 #endif
 

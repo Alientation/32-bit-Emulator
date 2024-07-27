@@ -1,7 +1,8 @@
 #pragma once
-#ifndef RAM_H
+#ifndef MEMORY_H
+#define MEMORY_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
+#include "emulator32bit/emulator32bit_util.h"
 
 class Memory {
 	public:
@@ -70,5 +71,4 @@ class ROM : public Memory {
 		void write(word address, word data, WriteException &exception, int num_bytes = 4) override;
 };
 
-
-#endif
+#endif /* MEMORY_H */

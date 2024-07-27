@@ -1,7 +1,7 @@
-#include <util/Logger.h>
-#include <util/File.h>
-#include <util/Directory.h>
-#include <assembler/Preprocessor.h>
+#include <util/logger.h>
+#include <util/file.h>
+#include <util/directory.h>
+#include <assembler/preprocessor.h>
 
 #include <filesystem>
 #include <sstream>

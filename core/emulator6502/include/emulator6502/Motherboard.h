@@ -1,4 +1,4 @@
-#include "util/Types.h"
+#include "util/types.h"
 #include "emulator6502/RAM.h"
 #include "emulator6502/ROM.h"
 
@@ -23,7 +23,7 @@ class Motherboard {
 
         // overload subscript operator to read from ram
         const Byte& operator[](Word address) const;
-        
+
 };
 
 #endif // MOTHERBOARD_H

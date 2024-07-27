@@ -2,9 +2,9 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
-#include "emulator32bit/FreeBlockList.h"
-#include "util/File.h"
+#include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/fbl.h"
+#include "util/file.h"
 
 #include <fstream>
 

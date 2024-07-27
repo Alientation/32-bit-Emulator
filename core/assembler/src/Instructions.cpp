@@ -1,8 +1,8 @@
-#include <assembler/Assembler.h>
+#include <assembler/assembler.h>
 
-#include <emulator32bit/Emulator32bit.h>
-#include <emulator32bit/Emulator32bitUtil.h>
-#include <util/Logger.h>
+#include <emulator32bit/emulator32bit.h>
+#include <emulator32bit/emulator32bit_util.h>
+#include <util/logger.h>
 
 #include <string>
 

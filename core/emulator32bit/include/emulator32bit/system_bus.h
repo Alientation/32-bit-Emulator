@@ -1,9 +1,9 @@
 #pragma once
-#ifndef SystemBus_H
+#ifndef SYSTEM_BUS_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
-#include "emulator32bit/Memory.h"
-#include "emulator32bit/VirtualMemory.h"
+#include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/memory.h"
+#include "emulator32bit/virtual_memory.h"
 
 #include <vector>
 class SystemBus {
@@ -70,4 +70,4 @@ class SystemBus {
 		Memory* route_memory(const word address, Exception &bus_exception);
 };
 
-#endif
+#endif /* SYSTEM_BUS */

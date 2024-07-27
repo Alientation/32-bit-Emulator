@@ -1,13 +1,13 @@
-#include "util/File.h"
-#include "util/Directory.h"
+#pragma once
+#ifndef BUILD_H
+#define BUILD_H
+
+#include "util/file.h"
+#include "util/directory.h"
 
 #include <map>
 #include <set>
 #include <vector>
-
-
-#ifndef BUILD_H
-#define BUILD_H
 
 class Process;
 static const std::string ASSEMBLER_VERSION = "0.0.1";

@@ -1,10 +1,10 @@
 #pragma once
-#ifndef PREPROCESSORV3_H
-#define PREPROCESSORV3_H
+#ifndef PREPROCESSOR_H
+#define PREPROCESSOR_H
 
-#include "assembler/Build.h"
-#include "assembler/Tokenizer.h"
-#include "util/File.h"
+#include "assembler/build.h"
+#include "assembler/tokenizer.h"
+#include "util/file.h"
 
 #include <string>
 #include <stack>
@@ -125,4 +125,4 @@ class Preprocessor {
 };
 
 
-#endif
+#endif /* PREPROCESSOR_H */

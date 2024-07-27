@@ -1,5 +1,5 @@
-#include "assembler/Tokenizer.h"
-#include "util/Logger.h"
+#include "assembler/tokenizer.h"
+#include "util/logger.h"
 
 #include <regex>
 

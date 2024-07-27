@@ -2,7 +2,7 @@
 #ifndef LINKER_H
 #define LINKER_H
 
-#include "assembler/ObjectFile.h"
+#include "assembler/object_file.h"
 
 class Linker {
 	public:

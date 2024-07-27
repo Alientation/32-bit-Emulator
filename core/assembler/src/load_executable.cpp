@@ -1,6 +1,6 @@
-#include "assembler/LoadExecutable.h"
-#include "assembler/ObjectFile.h"
-#include "util/Logger.h"
+#include "assembler/load_executable.h"
+#include "assembler/object_file.h"
+#include "util/logger.h"
 
 LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), m_exe_file(exe_file) {
 	load();

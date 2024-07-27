@@ -1,5 +1,5 @@
-#include "assembler/Linker.h"
-#include "util/Logger.h"
+#include "assembler/linker.h"
+#include "util/logger.h"
 
 Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) : m_obj_files(obj_files), m_exe_file(exe_file) {
 	link();

@@ -1,13 +1,13 @@
-#include "assembler/Build.h"
+#include "assembler/build.h"
 
-#include "assembler/Assembler.h"
-#include "assembler/Linker.h"
-#include "assembler/ObjectFile.h"
-#include "assembler/Preprocessor.h"
-#include "assembler/StaticLibrary.h"
-#include "util/Directory.h"
-#include "util/Logger.h"
-#include "util/StringUtil.h"
+#include "assembler/assembler.h"
+#include "assembler/linker.h"
+#include "assembler/object_file.h"
+#include "assembler/preprocessor.h"
+#include "assembler/static_library.h"
+#include "util/directory.h"
+#include "util/logger.h"
+#include "util/string_util.h"
 
 #include <filesystem>
 #include <iostream>

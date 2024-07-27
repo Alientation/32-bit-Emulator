@@ -1,7 +1,7 @@
-#include "assembler/Assembler.h"
-#include "emulator32bit/Emulator32bit.h"
-#include "util/Logger.h"
-#include "util/Types.h"
+#include "assembler/assembler.h"
+#include "emulator32bit/emulator32bit.h"
+#include "util/logger.h"
+#include "util/types.h"
 
 #include <fstream>
 #include <regex>

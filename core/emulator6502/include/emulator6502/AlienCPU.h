@@ -1,4 +1,4 @@
-#include "util/Types.h"
+#include "util/types.h"
 #include "emulator6502/Motherboard.h"
 
 #include <string>
@@ -15,8 +15,8 @@ enum StatusFlag {
 
 enum AddressingMode {
     NO_ADDRESSING_MODE,
-    ACCUMULATOR, IMPLIED, IMMEDIATE, RELATIVE, INDIRECT, 
-    ABSOLUTE, ABSOLUTE_XINDEXED, ABSOLUTE_YINDEXED, 
+    ACCUMULATOR, IMPLIED, IMMEDIATE, RELATIVE, INDIRECT,
+    ABSOLUTE, ABSOLUTE_XINDEXED, ABSOLUTE_YINDEXED,
     XINDEXED_INDIRECT, INDIRECT_YINDEXED, ZEROPAGE, ZEROPAGE_XINDEXED, ZEROPAGE_YINDEXED
 };
 
@@ -40,7 +40,7 @@ enum AddressingMode {
 //          - BIOS STORED HERE
 //      - Memory mappings to other hardware devices (Monitor,Speaker,Keyboard,Mouse,GPU,HDD,SSD,etc)
 //
-// 6502 
+// 6502
 //  - 8 bit CPU
 //  - 64 Kb of memory (addressable via 16 bit address bus : 0x0000 - 0xFFFF)
 //      - 0x0000 to 0x00FF : Zero page, first 256 bytes
@@ -50,7 +50,7 @@ enum AddressingMode {
 //      - 0xFFFA to 0xFFFF : special reserved memory
 //          * 0xFFFA/B : interrupt handler
 //          * 0xFFFC/D : power on reset location
-//          * 0xFFFE/F : BRK / Interrupt Request (IRQ) handler  
+//          * 0xFFFE/F : BRK / Interrupt Request (IRQ) handler
 //  - little endian (lowest bytes stored first in memory)
 //      - for example in big endian mode 0x12345678 would be stored as 12 34 56 78 (from byte 1 to byte 4)
 //        however in little endian, that same number would be stored as 78 56 34 12 (from byte 4 to byte 1)
@@ -89,12 +89,12 @@ class AlienCPU {
 
         // should never exceed 0x000FFFFF (high endian)
         static constexpr Word PC_INIT = POWER_ON_RESET_VECTOR;
-        
+
         static constexpr u16 // (high endian)
             // stored as an offset from 0x00010000 so start of stack is at 0x0001FFFF
             SP_INIT = 0xFFFF,
 
-            A_INIT = 0x0000, 
+            A_INIT = 0x0000,
             X_INIT = 0x0000,
             Y_INIT = 0x0000;
 
@@ -120,13 +120,13 @@ class AlienCPU {
 
         // System Memory
         // 0x00100000 total memory (0x00000000 - 0x000FFFFF)
-        // 
+        //
         // 0x00010000 Pages memory (0x000N0000 - 0x000NFFFF)
         //
         // 0x00000000 - 0x000000FF : Reserved for boot process
         // 0x00000100 - 0x0000FFFF : Zero Page memory
         // 0x00010000 - 0x0001FFFF : Stack memory
-        // 0x00020000 - 0x000FFFFF : General purpose memory 
+        // 0x00020000 - 0x000FFFFF : General purpose memory
         Motherboard motherboard;
 
         // Number of cycles till the next Interrupt should be processed
@@ -144,14 +144,14 @@ class AlienCPU {
         //    stored as [high byte, mid high byte, mid low byte, low byte]
         //  - can be modified by the execution of a jump, subroutine (function) call, or branches (if/else)
         //    or by returning from a subroutine or interrupt
-        Word PC; 
+        Word PC;
 
         // =======================STACK=POINTER=REGISTER========================
         //  - high endian memory address of the first empty byte of the call stack (located in first page)
         //    stored as [high byte, low byte]
         //  - represents an offset from the start of the stack page, therefore to reference the stack
         //    memory, the stack pointer must be converted to the correct address
-        //  - every stack element is 4 bytes big so to add elements to the stack, 
+        //  - every stack element is 4 bytes big so to add elements to the stack,
         //    the stack pointer is decremented by 4 (TODO figure out stack element sizes)
         //      - [SP]   = empty stack element
         //      - [SP+1] = byte 0
@@ -199,9 +199,9 @@ class AlienCPU {
         //
         // - B (Break) https://en.wikipedia.org/wiki/Interrupts_in_65xx_processors
         //      Distinguishes software (BRK) interrupts from hardware (IRQ or NMI) interrupts
-        //      Always set except when the P register is pushed to the stack when processing a 
+        //      Always set except when the P register is pushed to the stack when processing a
         //      hardware interrupt
-        //      (0) hardware interrupt 
+        //      (0) hardware interrupt
         //          RESET: Reset signal, resets the CPU
         //          NMI: Non-maskable interrupt, must be immediately handled
         //          IRQ: Interrupt request, can be enabled/disabled
@@ -213,7 +213,7 @@ class AlienCPU {
         //
         // - I (Interrupt Disable)
         //      If set, the CPU will ignore all IRQ interrupts and prevent jumping to the IRQ handler vector
-        //      Set after CPU processes an interrupt request 
+        //      Set after CPU processes an interrupt request
         //
         // - Z (Zero)
         //      Set if the result of the last operation was zero
@@ -224,7 +224,7 @@ class AlienCPU {
         //      Reset if the last operation did not result in a carry or borrow
         Byte P;
 
-        
+
     public:
         AlienCPU();
 
@@ -236,7 +236,7 @@ class AlienCPU {
 
         std::stringstream cpustate();
         std::stringstream memdump();
-    
+
     private:
         void processReset();
 
@@ -330,8 +330,8 @@ class AlienCPU {
         void TXA_Instruction(Word address);
         void TXS_Instruction(Word address);
         void TYA_Instruction(Word address);
-        
-        
+
+
         // ============================STACK=============================
         // | PHA    :   Push Accumulator onto stack
         // | PHP    :   Push Processor Status register onto stack (sets break flag)
@@ -356,7 +356,7 @@ class AlienCPU {
         void INC_Instruction(Word address);
         void INX_Instruction(Word address);
         void INY_Instruction(Word address);
-        
+
 
         // =====================ARITHMETIC=OPERATIONS=====================
         // | https://www.masswerk.at/6502/6502_instruction_set.html#arithmetic
@@ -364,7 +364,7 @@ class AlienCPU {
         // | SBC    :   Subtract with carry (prepare by SEC)
         void ADC_Instruction(Word address);
         void SBC_Instruction(Word address);
-        
+
         // ======================LOGICAL=OPERATIONS=======================
         // | AND    :   And (with Accumulator)
         // | EOR    :   Exclusive or (with Accumulator)
@@ -409,7 +409,7 @@ class AlienCPU {
         void CMP_Instruction(Word address);
         void CPX_Instruction(Word address);
         void CPY_Instruction(Word address);
-        
+
 
         // ======================CONDITIONAL=BRANCH=======================
         // | BCC    :   Branch if carry clear
@@ -456,20 +456,20 @@ class AlienCPU {
         void NOP_Illegal_Instruction(Word address);
 
         // =============================ILLEGAL=============================
-        // | ALR    :   
-        // | ANC    : 
-        // | ANE    :   
+        // | ALR    :
+        // | ANC    :
+        // | ANE    :
         // | ARR    :
-        // | DCP    :   
-        // | ISC    :   
-        // | LAS    :   
-        // | LAX    :   
+        // | DCP    :
+        // | ISC    :
+        // | LAS    :
+        // | LAX    :
         // | LXA    :
-        // | JAM    :   
+        // | JAM    :
         // | RLA    :
         // | RRA    :
-        // | SAX    :   
-        // | SBX    :   
+        // | SAX    :
+        // | SBX    :
         // | SHA    :
         // | SHX    :
         // | SHY    :
@@ -506,7 +506,7 @@ class AlienCPU {
         void TAS_Illegal_Instruction(Word address);
         void USBC_Illegal_Instruction(Word address);
 
-        
+
 
         // ============================ADDRESS=MODES============================
         // | https://www.masswerk.at/6502/6502_instruction_set.html#modes
@@ -530,7 +530,7 @@ class AlienCPU {
         // |    N   Decimal
         // |    $N  Hexadecimal     Hexadecimal without literal value operator represents a memory address
         // |    #   Literal value
-        // |    
+        // |
         // |
         // |    *   32-bit address words are little endian, low bytes first, follwowed by high bytes
         // |        ie $HHxxxxLL is stored as $LL $xx $xx $HH
@@ -543,8 +543,8 @@ class AlienCPU {
         // |    *** Branch offsets are signed 16 bit values, -32768 to 32767, negative offsets in two's complement
         // |        Page transitions may occur and add an extra cycle to execution
         // |
-        
-        
+
+
         public:
             // Instruction opcodes (1 byte)
             // https://en.wikipedia.org/wiki/X86_instruction_listings#Added_as_instruction_set_extensions

@@ -1,11 +1,12 @@
+#pragma once
 #ifndef ASSEMBLER_H
 #define ASSEMBLER_H
 
-#include "assembler/ObjectFile.h"
-#include "assembler/Build.h"
-#include "assembler/Tokenizer.h"
-#include "util/File.h"
-#include "emulator32bit/Emulator32bitUtil.h"
+#include "assembler/object_file.h"
+#include "assembler/build.h"
+#include "assembler/tokenizer.h"
+#include "util/file.h"
+#include "emulator32bit/emulator32bit_util.h"
 
 #include <string>
 #include <unordered_map>

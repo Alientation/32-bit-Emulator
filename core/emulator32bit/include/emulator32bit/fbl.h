@@ -1,8 +1,8 @@
 #pragma once
-#ifndef FREEBLOCKLIST_H
-#define FREEBLOCKLIST_H
+#ifndef FBL_H
+#define FBL_H
 
-#include "emulator32bit/Emulator32bitUtil.h"
+#include "emulator32bit/emulator32bit_util.h"
 
 #include <vector>
 
@@ -155,4 +155,4 @@ class FreeBlockList
 		void remove(FreeBlock *node);
 };
 
-#endif /* FREEBLOCKLIST_H */
+#endif /* FBL_H */

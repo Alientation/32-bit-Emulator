@@ -1,12 +1,11 @@
-#include <string>
-#include <vector>
-#include "File.h"
-
+#pragma once
 #ifndef DIRECTORY_H
 #define DIRECTORY_H
 
+#include "util/file.h"
 
-class Directory;
+#include <string>
+#include <vector>
 
 class Directory {
 	public:
@@ -36,4 +35,4 @@ class Directory {
 
 };
 
-#endif
+#endif /* DIRECTORY_H */

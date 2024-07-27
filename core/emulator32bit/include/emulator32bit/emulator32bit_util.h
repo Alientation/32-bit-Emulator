@@ -1,5 +1,6 @@
 #pragma once
-#ifndef Emulator32bitUtil_H
+#ifndef EMULATOR32BIT_UTIL_H
+#define EMULATOR32BIT_UTIL_H
 
 #define test_bit(val, bit_i) (((val & (1ULL << bit_i)) >> bit_i) & 1)
 #define set_bit(val, bit_i, to) ((val & ~(1ULL << bit_i)) | (to << bit_i))
@@ -29,4 +30,4 @@ const int WORD_BITS = sizeof(word) << 3;
 const int HWORD_BITS = sizeof(hword) << 3;
 const int BYTE_BITS = sizeof(byte) << 3;
 
-#endif
+#endif /* EMULATOR32BIT_UTIL_H */

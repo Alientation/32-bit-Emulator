@@ -1,7 +1,7 @@
 #ifndef RAM_H
 #define RAM_H
 
-#include "util/Types.h"
+#include "util/types.h"
 
 // Random Access Memory
 class RAM;
@@ -10,7 +10,7 @@ class RAM;
 //
 // 0x00000000 - 0x000000FF : Reserved for boot process
 // 0x00000100 - 0x000100FF : Stack memory
-// 0x00010100 - 0x000FFFFF : General purpose memory 
+// 0x00010100 - 0x000FFFFF : General purpose memory
 //
 // SOLVED figure out whether we should store addresses to a word or byte
 // ie whether we should group memory into cells of 4 bytes and have addresses
@@ -31,7 +31,7 @@ class RAM {
 
     private:
         Byte* data = new Byte[MEMORY_SIZE];
-    
+
     public:
         RAM();
         ~RAM();

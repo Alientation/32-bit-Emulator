@@ -1,4 +1,4 @@
-#include "assembler/StaticLibrary.h"
+#include "assembler/static_library.h"
 
 #include <fstream>
 

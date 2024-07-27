@@ -1,6 +1,4 @@
-#include "emulator32bit/Memory.h"
-#include "assert.h"
-#include "iostream"
+#include "emulator32bit/memory.h"
 
 Memory::Memory(word mem_pages, word lo_page) {
 	this->mem_pages = mem_pages;

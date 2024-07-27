@@ -7,10 +7,6 @@
 #include <string>
 #include <vector>
 
-class File;
-class FileWriter;
-class FileReader;
-
 std::string trim_dir_path(const std::string& str);
 
 // TODO probably best to add some form of thread safe locking to the file operations
@@ -132,4 +128,4 @@ class ByteReader {
 };
 
 
-#endif
+#endif /* FILE_H */

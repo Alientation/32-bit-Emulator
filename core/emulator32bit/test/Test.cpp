@@ -1,7 +1,7 @@
-#include <emulator32bit/Emulator32bit.h>
-#include <emulator32bit/SystemBus.h>
-#include <emulator32bit/Memory.h>
-#include <util/Logger.h>
+#include <emulator32bit/emulator32bit.h>
+#include <emulator32bit/system_bus.h>
+#include <emulator32bit/memory.h>
+#include <util/logger.h>
 
 #include <iostream>
 

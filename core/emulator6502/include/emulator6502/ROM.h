@@ -1,7 +1,7 @@
 #ifndef ROM_H
 #define ROM_H
 
-#include "util/Types.h"
+#include "util/types.h"
 
 // Read Only Memory
 // Hardcoded program by computer manufacturer and cannot be changed or
@@ -14,7 +14,7 @@ class ROM {
 
     private:
         Byte* data = new Byte[MEMORY_SIZE];
-    
+
     public:
         ROM();
         ~ROM();

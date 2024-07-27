@@ -1,8 +1,8 @@
-#include "assembler/ObjectFile.h"
-#include "assembler/Build.h"
-#include "emulator32bit/Emulator32bit.h"
-#include "util/Logger.h"
-#include "util/Types.h"
+#include "assembler/object_file.h"
+#include "assembler/build.h"
+#include "emulator32bit/emulator32bit.h"
+#include "util/logger.h"
+#include "util/types.h"
 
 #include <fstream>
 

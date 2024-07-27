@@ -3,8 +3,8 @@ project(emulator-app LANGUAGES CXX)
 
 # get project version from git
 add_custom_target(version
-    ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/Version.h.in
-                        -D DST=${CMAKE_SOURCE_DIR}/Version.h
+    ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/src/version.h.in
+                        -D DST=${CMAKE_SOURCE_DIR}/src/version.h
                         -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
 )
 
