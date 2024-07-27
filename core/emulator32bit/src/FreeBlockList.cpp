@@ -4,6 +4,7 @@
 
 FreeBlockList::FreeBlockList(word begin, word len, bool init) : m_begin(begin), m_len(len) {
 	if (init) {
+		/* Only initializes all blocks to be free if specified. */
 		m_head = new FreeBlock{
 			.addr = begin,
 			.len = len,
@@ -33,10 +34,14 @@ word FreeBlockList::get_free_block(word length, Exception& exception) {
 		return 0;
 	}
 
+	/*
+	 * Split the block, front part is the returned free block.
+	 */
 	word addr = freeblock->addr;
 	freeblock->len -= length;
 	freeblock->addr += length;
 
+	/* Remove the block if empty. */
 	if (freeblock->len == 0) {
 		remove(freeblock);
 	}
@@ -82,8 +87,9 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 		exception.type = Exception::Type::INVALID_ADDR;
 		exception.addr = addr;
 		exception.length = length;
-		// lgr::log(lgr::Logger::LogType::WARN, std::stringstream() << "Returning block with invalid address "
-				// << std::to_string(addr) << " and length " << std::to_string(length));
+		// lgr::log(lgr::Logger::LogType::WARN, std::stringstream()
+		//			<< "Returning block with invalid address "
+		//			<< std::to_string(addr) << " and length " << std::to_string(length));
 		return;
 	}
 
@@ -96,7 +102,7 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception) {
 		exception.addr = addr;
 		exception.length = length;
 
-		/* Undo state change so that the caller can cleanly handle the exception */
+		/* Undo state change so that the caller can cleanly handle the exception. */
 		remove(ret_block);
 		return;
 	}

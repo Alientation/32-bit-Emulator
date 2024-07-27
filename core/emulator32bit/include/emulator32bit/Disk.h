@@ -276,7 +276,8 @@ class Disk
 		 *
 		 * @param address 	Address to read from.
 		 * @param n_bytes 	Number of bytes to read.
-		 * @param exception ReadException thrown if read fails.
+		 * @param exception ReadException thrown if read fails. TODO: Specify what
+		 * 					exceptions can occur.
 		 * @return 			value read.
 		 */
 		dword read_val(word address, int n_bytes, ReadException &exception);
@@ -293,7 +294,8 @@ class Disk
 		 * @param address 	Address to write to.
 		 * @param val 		Value to write.
 		 * @param n_bytes 	Number of bytes to write.
-		 * @param exception WriteException thrown if write fails.
+		 * @param exception WriteException thrown if write fails. TODO: Specify what
+		 * 					exceptions can occur.
 		 */
 		void write_val(word address, dword val, int n_bytes, WriteException &exception);
 

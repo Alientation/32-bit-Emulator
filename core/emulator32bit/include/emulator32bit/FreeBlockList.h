@@ -55,99 +55,103 @@ class FreeBlockList {
 		};
 
 		/**
-		 * @brief Get the free block object
+		 * @brief 			Get a free block of the specified length.
 		 *
-		 * @param length
-		 * @param exception
-		 * @return word
+		 * @param length	Length of the block needed.
+		 * @param exception	Exception if the operation fails. TODO: Specify what
+		 * 					exceptions can occur.
+		 * @return 			Address of the start of free block.
 		 */
 		word get_free_block(word length, Exception& exception);
 
 		/**
-		 * @brief
+		 * @brief			Returns a block back to the list.
 		 *
-		 * @param addr
-		 * @param length
-		 * @param exception
+		 * @param addr		Address of the start of block.
+		 * @param length	Length of the block.
+		 * @param exception	Exception if the operation fails. TODO: Specify what
+		 * 					exceptions can occur.
 		 */
 		void return_block(word addr, word length, Exception& exception);
 
 		/**
-		 * @brief
+		 * @brief			Resets the list back to a clean state.
 		 *
+		 * @details			All blocks will be considered free.
 		 */
 		void return_all();
 
 		/**
-		 * @brief
+		 * @brief			Check if a block of a certain length can be taken out of the list.
 		 *
-		 * @param length
-		 * @return true
-		 * @return false
+		 * @param length	Length of the block.
+		 * @return 			True if the block can fit.
+		 * @return 			False otherwise.
 		 */
 		bool can_fit(word length);
 
 		/**
-		 * @brief Get the blocks object
+		 * @brief 			Get all free blocks in the list.
 		 *
-		 * @return std::vector<std::pair<word,word>>
+		 * @return 			Returns a vector of pairs representing the free blocks in
+		 * 					ascending order, the first element is the address, and the second
+		 * 					is the length of the block.
 		 */
 		std::vector<std::pair<word,word>> get_blocks();
 
 		/**
-		 * @brief
-		 *
+		 * @brief			Prints all free blocks in the list.
 		 */
 		void print_blocks();
 	private:
 		/**
-		 * @brief
-		 *
+		 * @brief			Represents a free block node in the doubly linked list.
 		 */
 		struct FreeBlock {
-			word addr = 0;					///<
-			word len = 0;					///<
-			FreeBlock *next = nullptr;		///<
-			FreeBlock *prev = nullptr;		///<
+			word addr = 0;					///< Address of the start of the block
+			word len = 0;					///< Length of the block
+			FreeBlock *next = nullptr;		///< Next block in the list
+			FreeBlock *prev = nullptr;		///< Previous block in the list
 		};
 
-		word m_begin;						///<
-		word m_len;							///<
-		FreeBlock *m_head = nullptr;		///<
+		word m_begin;						///< Start of the range of blocks represented by list
+		word m_len;							///< Length of the range of blocks represented by list
+		FreeBlock *m_head = nullptr;		///< Start of list
 
 		/**
-		 * @brief
+		 * @brief			Joins the given block with the next block if possible.
 		 *
-		 * @param first
+		 * @param first		Block to be joined with it's next neighbor.
 		 */
 		void coalesce(FreeBlock *first);
 
 		/**
-		 * @brief
+		 * @brief			Returns a block that can fit the requested length.
 		 *
-		 * @param length
-		 * @return FreeBlock*
+		 * @param length	Length of block to query.
+		 * @return 			Pointer to the free block that satisfies the request, nullptr if no
+		 * 					block can be found.
 		 */
 		FreeBlock* find(word length);
 
 		/**
-		 * @brief
+		 * @brief			Inserts a new free block into the list in sorted order.
+		 * @note			This will insert a new block regardless of whether it is a valid block
+		 * 					to insert back into the list to maintain no intersections. It is up to
+		 * 					the caller to handle this.
 		 *
-		 * @param addr
-		 * @param length
-		 * @return FreeBlock*
+		 * @param addr		Address of the start of the new block.
+		 * @param length	Length of the new block.
+		 * @return 			Pointer to the new block.
 		 */
 		FreeBlock* insert(word addr, word length);
 
 		/**
-		 * @brief
+		 * @brief			Remove a block from the list.
 		 *
-		 * @param node
+		 * @param node		The block to remove.
 		 */
 		void remove(FreeBlock *node);
 };
-
-
-
 
 #endif /* FREEBLOCKLIST_H */

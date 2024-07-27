@@ -1,2 +1,2 @@
 #pragma once
-#define ALIENEMULATOR_VERSION "v0.7.2-7-g629ea1d-dirty"
+#define ALIENEMULATOR_VERSION "v0.7.2-8-g297f468-dirty"
