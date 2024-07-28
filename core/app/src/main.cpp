@@ -66,7 +66,7 @@ const static std::string build_exe_from_library_dir = "-libdir .\\programs\\buil
 
 int main(int argc, char* argv[])
 {
-    // lgr::log(lgr::Logger::LogType::INFO, "Running Build");
+    lgr::log(lgr::Logger::LogType::INFO, "Running Build");
 
 	// std::string build_command = build_exe_from_library_dir;
 	// if (argc > 1) {
@@ -92,5 +92,5 @@ int main(int argc, char* argv[])
 	// 	emulator.print();
 	// }
 
-	logger::log_debug(std::stringstream() << "this is a log");
+	logger::log_debug_ss(std::stringstream() << "this is a log");
 }

@@ -15,7 +15,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/types.cpp
 )
 
-
 include(GNUInstallDirs)
 
 # sets the search paths for the include files after installation
@@ -37,6 +36,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_compile_options(-g)
 endif()
+
+add_compile_options(-Winline)
 
 # specify the target to install (library defined above)
 # set the export name <name>-config (does not need to match target name)
