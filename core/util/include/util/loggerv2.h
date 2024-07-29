@@ -44,26 +44,26 @@ what i want for a logger
 #define PRINT_ENABLED true
 #endif /* PRINT_DISABLED */
 
-#ifdef _WIN32
-    #define FILE_SEPARATOR '\\'
-#else
-    #define FILE_SEPARATOR '/'
-#endif /* _WIN32 */
-
 #ifndef PROJECT_ROOT_DIR
 	#define PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 #endif /* PROJECT_ROOT_DIR */
 
 namespace logger
 {
-	inline void print_header(const std::string& header, const char* file, int line, const char* func) {
+	void track(const std::string& header, const char* format, const char* file, int line,
+			   const char* func, ...);
+
+	inline void print_header(const std::string& header, const char* file, int line,
+							 const char* func)
+	{
 		std::cout << "[" << ccolor::BOLD << header << ccolor::RESET << "] ["
 				<< ccolor::BLUE << string_util::replaceFirst(file, PROJECT_ROOT_DIR, "")
 				<< ccolor::RESET << ":" << ccolor::MAGENTA << line << ccolor::RESET << "] ["
 				<< ccolor::YELLOW << func << ccolor::RESET << "]: ";
 	}
 
-	inline void log_debug(const char* format, const char* file, int line, const char* func, ...) {
+	inline void log_debug(const char* format, const char* file, int line, const char* func, ...)
+	{
 		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 			print_header(ccolor::MAGENTA + "DBG", file, line, func);
 
@@ -79,7 +79,8 @@ namespace logger
 		}
 	}
 
-	inline void log_info(const char* format, const char* file, int line, const char* func, ...) {
+	inline void log_info(const char* format, const char* file, int line, const char* func, ...)
+	{
 		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 			print_header(ccolor::BLUE + "INF", file, line, func);
 
@@ -95,7 +96,8 @@ namespace logger
 		}
 	}
 
-	inline void log_warn(const char* format, const char* file, int line, const char* func, ...) {
+	inline void log_warn(const char* format, const char* file, int line, const char* func, ...)
+	{
 		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 			print_header(ccolor::YELLOW + "WRN", file, line, func);
 
@@ -111,7 +113,8 @@ namespace logger
 		}
 	}
 
-	inline void log_error(const char* format, const char* file, int line, const char* func, ...) {
+	inline void log_error(const char* format, const char* file, int line, const char* func, ...)
+	{
 		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 			print_header(ccolor::RED + "ERR", file, line, func);
 
