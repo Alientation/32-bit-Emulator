@@ -92,5 +92,5 @@ int main(int argc, char* argv[])
 	// 	emulator.print();
 	// }
 
-	logger::log_debug("this is a log");
+	DEBUG("this is a log");
 }

@@ -5,25 +5,20 @@
 #include "util/console_color.h"
 #include "util/string_util.h"
 
-#include <cstdarg>
 #include <iostream>
-#include <stdio.h>
-#include <string>
-#include <sstream>
 
 /*
+	what i want for a logger
 
-what i want for a logger
-
-// - 	toggleable logs (levels + each unit that uses a log has the ability to easily disable logs in that file)
-- 	print + noprint, dump to file with filters, query logs
-// - 	color print
-// - 	automatically detect the line and file a log occurs in, this means a macro. problem with macros is
-	// they do not show types well
--	ability to use printf to log (so pass variadic args to printf), also can use std::stringstream, though
-	problem with this is how do we capture the result of printf to save to file when needed??
-// -	fast, but not a high concern as for performance we can disable all low level logs
-
+	// - 	toggleable logs (levels + each unit that uses a log has the ability to easily disable logs in that file)
+	// - 	print + noprint
+	-	dump to file with filters, query logs
+	// - 	color print
+	// - 	automatically detect the line and file a log occurs in, this means a macro. problem with macros is
+		// they do not show types well
+	// -	ability to use printf to log (so pass variadic args to printf), also can use std::stringstream, though
+		// problem with this is how do we capture the result of printf to save to file when needed??
+	// -	fast, but not a high concern as for performance we can disable all low level logs
 */
 
 #define LOG_DEBUG 4
@@ -50,98 +45,194 @@ what i want for a logger
 
 namespace logger
 {
-	void track(const std::string& header, const char* format, const char* file, int line,
+	/**
+	 * @brief			Tracks a log into memory.
+	 *
+	 * @param type 		The type of log stringified.
+	 * @param format 	Format of the string. (passed into printf)
+	 * @param file		The file the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 * @param ...		Any extra arguments used with the supplied format to construct the log.
+	 */
+	void track(const std::string& type, const char* format, const char* file, int line,
 			   const char* func, ...);
 
-	inline void print_header(const std::string& header, const char* file, int line,
+	/* TODO: query logs, dump to file, etc */
+
+	/**
+	 * @brief 			Prints the formated header.
+	 *
+	 * @param type		Type of log.
+	 * @param file		File the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 */
+	inline void print_header(const std::string& type, const char* file, int line,
 							 const char* func)
 	{
-		std::cout << "[" << ccolor::BOLD << header << ccolor::RESET << "] ["
+		std::cout << "[" << ccolor::BOLD << type << ccolor::RESET << "] ["
 				<< ccolor::BLUE << string_util::replaceFirst(file, PROJECT_ROOT_DIR, "")
 				<< ccolor::RESET << ":" << ccolor::MAGENTA << line << ccolor::RESET << "] ["
 				<< ccolor::YELLOW << func << ccolor::RESET << "]: ";
 	}
 
-	inline void log_debug(const char* format, const char* file, int line, const char* func, ...)
+	/**
+	 * @brief 			Debug log.
+	 *
+	 * @tparam Args		Variadic arguments to be passed into printf.
+	 * @param format	Format of the printf.
+	 * @param file		File the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 * @param args		Arguments passed into printf.
+	 */
+	template <typename... Args>
+	inline void log_debug(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
-			print_header(ccolor::MAGENTA + "DBG", file, line, func);
-
-			va_list args;
-			va_start(args, func);
-			vprintf(format, args);
-			va_end(args);
-			std::cout << "\n";
-		}
-
 		if (LOG_ENABLED) {
-			/*TODO: track log */
+			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+				print_header(ccolor::MAGENTA + "DBG", file, line, func);
+				printf(format, args...);
+				std::cout << "\n";
+			}
+
+			track("DBG", format, file, line, func, args...);
 		}
 	}
 
-	inline void log_info(const char* format, const char* file, int line, const char* func, ...)
+	/**
+	 * @brief 			Info log.
+	 *
+	 * @tparam Args		Variadic arguments to be passed into printf.
+	 * @param format	Format of the printf.
+	 * @param file		File the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 * @param args		Arguments passed into printf.
+	 */
+	template <typename... Args>
+	inline void log_info(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
-			print_header(ccolor::BLUE + "INF", file, line, func);
-
-			va_list args;
-			va_start(args, func);
-			vprintf(format, args);
-			va_end(args);
-			std::cout << "\n";
-		}
-
 		if (LOG_ENABLED) {
-			/*TODO: track log */
+			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+				print_header(ccolor::BLUE + "INF", file, line, func);
+				printf(format, args...);
+				std::cout << "\n";
+			}
+
+			track("INF", format, file, line, func, args...);
 		}
 	}
 
-	inline void log_warn(const char* format, const char* file, int line, const char* func, ...)
+	/**
+	 * @brief 			Warn log.
+	 *
+	 * @tparam Args		Variadic arguments to be passed into printf.
+	 * @param format	Format of the printf.
+	 * @param file		File the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 * @param args		Arguments passed into printf.
+	 */
+	template <typename... Args>
+	inline void log_warn(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
-			print_header(ccolor::YELLOW + "WRN", file, line, func);
-
-			va_list args;
-			va_start(args, func);
-			vprintf(format, args);
-			va_end(args);
-			std::cout << "\n";
-		}
-
 		if (LOG_ENABLED) {
-			/*TODO: track log */
+			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+				print_header(ccolor::YELLOW + "WRN", file, line, func);
+				vprintf(format, args...);
+				std::cout << "\n";
+			}
+
+			track("WRN", format, file, line, func, args...);
 		}
 	}
 
-	inline void log_error(const char* format, const char* file, int line, const char* func, ...)
+	/**
+	 * @brief 			Error log.
+	 * @note			This will not terminate the program.
+	 *
+	 * @tparam Args		Variadic arguments to be passed into printf.
+	 * @param format	Format of the printf.
+	 * @param file		File the log occured in.
+	 * @param line		Line of code the log occured in.
+	 * @param func		Function name the log occured in.
+	 * @param args		Arguments passed into printf.
+	 */
+	template <typename... Args>
+	inline void log_error(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (PRINT_ENABLED && LOG_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
-			print_header(ccolor::RED + "ERR", file, line, func);
-
-			va_list args;
-			va_start(args, func);
-			vprintf(format, args);
-			va_end(args);
-			std::cout << "\n";
-		}
-
 		if (LOG_ENABLED) {
-			/*TODO: track log */
+			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+				print_header(ccolor::RED + "ERR", file, line, func);
+				vprintf(format, args...);
+				std::cout << "\n";
+			}
+
+			track("ERR", format, file, line, func, args...);
 		}
 	}
 
+	/**
+	 * @def				DEBUG(format, ...)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param format	The format string.
+	 * @param ...		Additional arguments for the format string.
+	 */
+	#define DEBUG(format, ...) logger::log_debug(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-	#define log_debug(format, ...) log_debug(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-	#define log_debug_ss(msg) log_debug((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	/**
+	 * @def				DEBUG_SS(msg)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param msg		stringstream log.
+	 */
+	#define DEBUG_SS(msg) logger::log_debug((msg).str().c_str(), __FILE__, __LINE__, __func__)
 
-	#define log_info(format, ...) log_info(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-	#define log_info_ss(msg) log_info((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	/**
+	 * @def				INFO(format, ...)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param format	The format string.
+	 * @param ...		Additional arguments for the format string.
+	 */
+	#define INFO(format, ...) logger::log_info(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-	#define log_warn(format, ...) log_warn(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-	#define log_warn_ss(msg) log_warn((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	/**
+	 * @def				INFO_SS(msg)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param msg		stringstream log.
+	 */
+	#define INFO_SS(msg) logger::log_info((msg).str().c_str(), __FILE__, __LINE__, __func__)
 
-	#define log_error(format, ...) log_error(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-	#define log_error_ss(msg) log_error((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	/**
+	 * @def				WARN(format, ...)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param format	The format string.
+	 * @param ...		Additional arguments for the format string.
+	 */
+	#define WARN(format, ...) logger::log_warn(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
+	/**
+	 * @def				WARN_SS(msg)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param msg		stringstream log.
+	 */
+	#define WARN_SS(msg) logger::log_warn((msg).str().c_str(), __FILE__, __LINE__, __func__)
+
+	/**
+	 * @def				ERROR(format, ...)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param format	The format string.
+	 * @param ...		Additional arguments for the format string.
+	 */
+	#define ERROR(format, ...) logger::log_error(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
+	/**
+	 * @def				ERROR_SS(msg)
+	 * @brief 			Wrap log to gather information like file, LOC, and function name.
+	 * @param msg		stringstream log.
+	 */
+	#define ERROR_SS(msg) logger::log_error((msg).str().c_str(), __FILE__, __LINE__, __func__)
 };
 
 #endif /* LOGGERV2_H */
