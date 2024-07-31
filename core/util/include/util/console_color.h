@@ -4,7 +4,8 @@
 
 #include <string>
 
-namespace ccolor {
+namespace ccolor
+{
 	static const std::string RESET = "\033[0m";
 	static const std::string BOLD = "\033[1m";
 	static const std::string DARK = "\033[2m";

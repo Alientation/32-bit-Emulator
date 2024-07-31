@@ -4,7 +4,8 @@
 
 #include "emulator32bit/emulator32bit_util.h"
 
-class Memory {
+class Memory
+{
 	public:
 		Memory(word mem_pages, word lo_page);
 		Memory(Memory& other);
@@ -59,12 +60,14 @@ class Memory {
 		byte* data;
 };
 
-class RAM : public Memory {
+class RAM : public Memory
+{
 	public:
 		RAM(word mem_pages, word lo_page);
 };
 
-class ROM : public Memory {
+class ROM : public Memory
+{
 	public:
 		ROM(const byte* data, word mem_pages, word lo_page);
 

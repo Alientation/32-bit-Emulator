@@ -25,7 +25,8 @@ static const std::set<std::string> WARNINGS = {
 };
 static const std::string DEFAULT_OUTPUT_FILE = "a";
 
-class Process {
+class Process
+{
 	public:
 		static bool valid_src_file(const File& file);
 		static bool valid_processed_file(const File& file);

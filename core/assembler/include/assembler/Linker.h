@@ -4,7 +4,8 @@
 
 #include "assembler/object_file.h"
 
-class Linker {
+class Linker
+{
 	public:
 		Linker(std::vector<ObjectFile> obj_files, File exe_file);
 

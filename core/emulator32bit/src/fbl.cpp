@@ -1,5 +1,5 @@
 #include "emulator32bit/fbl.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
 FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 	m_begin(begin),
@@ -12,7 +12,7 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 			.len = len,
 		};
 	}
-	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Initializing Free Block List");
+	// DEBUG("Initializing Free Block List");
 }
 
 FreeBlockList::~FreeBlockList()
@@ -23,7 +23,7 @@ FreeBlockList::~FreeBlockList()
 		delete(cur);
 		cur = next;
 	}
-	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Destroying Free Block List");
+	// DEBUG("Destroying Free Block List");
 }
 
 word FreeBlockList::get_free_block(word length, Exception& exception)
@@ -33,8 +33,8 @@ word FreeBlockList::get_free_block(word length, Exception& exception)
 	if (!freeblock) {
 		exception.type = Exception::Type::NOT_ENOUGH_SPACE;
 		exception.length = length;
-		// lgr::log(lgr::Logger::LogType::WARN, std::stringstream()
-		//		<< "Not enough space to retrieve free block of length " << std::to_string(length));
+		// WARN_SS(std::stringstream() << "Not enough space to retrieve free block of length "
+		//		<< std::to_string(length));
 		return 0;
 	}
 
@@ -50,7 +50,7 @@ word FreeBlockList::get_free_block(word length, Exception& exception)
 		remove(freeblock);
 	}
 
-	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting free block "
+	// DEBUG_SS(std::stringstream() << "Getting free block "
 	//			<< std::to_string(addr) << " to fit " << std::to_string(length));
 	return addr;
 }
@@ -64,7 +64,7 @@ FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length)
 			.next = m_head,
 		};
 
-		// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Initializing Free Block List");
+		// DEBUG("Initializing Free Block List");
 		return m_head;
 	}
 
@@ -93,8 +93,7 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception)
 		exception.type = Exception::Type::INVALID_ADDR;
 		exception.addr = addr;
 		exception.length = length;
-		// lgr::log(lgr::Logger::LogType::WARN, std::stringstream()
-		//			<< "Returning block with invalid address "
+		// WARN_SS(std::stringstream() << "Returning block with invalid address "
 		//			<< std::to_string(addr) << " and length " << std::to_string(length));
 		return;
 	}
@@ -130,7 +129,7 @@ void FreeBlockList::return_all()
 		.addr = m_begin,
 		.len = m_len,
 	};
-	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning all.");
+	// DEBUG("Returning all.");
 }
 
 std::vector<std::pair<word,word>> FreeBlockList::get_blocks()
@@ -141,7 +140,7 @@ std::vector<std::pair<word,word>> FreeBlockList::get_blocks()
 		blocks.push_back(std::pair<word,word>(cur->addr, cur->len));
 		cur = cur->next;
 	}
-	// lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting all blocks");
+	// DEBUG("Getting all blocks");
 	return std::move(blocks);
 }
 

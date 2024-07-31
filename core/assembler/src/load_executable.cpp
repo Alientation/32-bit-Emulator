@@ -1,12 +1,14 @@
 #include "assembler/load_executable.h"
 #include "assembler/object_file.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
-LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), m_exe_file(exe_file) {
+LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), m_exe_file(exe_file)
+{
 	load();
 }
 
-void LoadExecutable::load(word start_addr) {											/* For now load starting at address 0 */
+void LoadExecutable::load(word start_addr)
+{											/* For now load starting at address 0 */
 	ObjectFile obj(m_exe_file);
 
 	for (ObjectFile::RelocationEntry& rel : obj.rel_text) {
@@ -14,7 +16,7 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 
 		/* all symbols should have a corresponding definition */
 		if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Linker::link() - Undefined symbol " << obj.strings.at(symbol_entry.symbol_name));
+			ERROR_SS(std::stringstream() << "Linker::link() - Undefined symbol " << obj.strings.at(symbol_entry.symbol_name));
 			continue;
 		}
 
@@ -35,7 +37,7 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 				break;
 			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
-				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type (" << std::to_string((int)rel.type) << ")");
+				ERROR_SS(std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type (" << std::to_string((int)rel.type) << ")");
 		}
 	}
 
@@ -64,7 +66,7 @@ void LoadExecutable::load(word start_addr) {											/* For now load starting 
 
 	/* start program at _start label */
 	if (obj.string_table.find("_start") == obj.string_table.end()) {
-		lgr::log(lgr::Logger::LogType::ERROR, "LoadExecutable::load() - Missing required _start entry point of program.");
+		ERROR("LoadExecutable::load() - Missing required _start entry point of program.");
 	}
 
 	VirtualMemory::Exception vm_exception;

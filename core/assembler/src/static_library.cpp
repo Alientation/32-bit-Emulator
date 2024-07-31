@@ -3,7 +3,8 @@
 #include <fstream>
 
 
-void WriteStaticLibrary(std::vector<File>& objs, File out) {
+void WriteStaticLibrary(std::vector<File>& objs, File out)
+{
 	// clearing library file
 	std::ofstream ofs;
 	ofs.open(out.get_path(), std::ofstream::out | std::ofstream::trunc);
@@ -33,7 +34,8 @@ void WriteStaticLibrary(std::vector<File>& objs, File out) {
 	writer.close();
 }
 
-void ReadStaticLibrary(std::vector<ObjectFile>& objs, File in) {
+void ReadStaticLibrary(std::vector<ObjectFile>& objs, File in)
+{
 	FileReader reader = FileReader(in, std::ios::in | std::ios::binary);
 
 	std::vector<byte> bytes;

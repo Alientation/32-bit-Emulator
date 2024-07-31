@@ -6,7 +6,8 @@
 #include "emulator32bit/virtual_memory.h"
 
 #include <vector>
-class SystemBus {
+class SystemBus
+{
 	public:
 		SystemBus(RAM ram, ROM rom, VirtualMemory& mmu);
 		struct Exception {

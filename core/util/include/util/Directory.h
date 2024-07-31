@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
-class Directory {
+class Directory
+{
 	public:
-		static bool valid_path(const std::string& path) {
+		static bool valid_path(const std::string& path)
+		{
 			return path.find_first_of("*?\"<>|") == std::string::npos;
 		}
 

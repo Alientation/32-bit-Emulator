@@ -11,7 +11,8 @@
 
 
 // TODO create a macro that will generate the token spec
-class Tokenizer {
+class Tokenizer
+{
     public:
         enum Type {
             UNKNOWN,

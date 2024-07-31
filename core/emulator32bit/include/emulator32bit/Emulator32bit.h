@@ -53,7 +53,8 @@ std::string disassemble_instr(word instr);
  * @paragraph				Modeled off of the ARM architecture with many simplifications. A software simulated processor.
  *
  */
-class Emulator32bit {
+class Emulator32bit
+{
 	public:
 		Emulator32bit();
 		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);

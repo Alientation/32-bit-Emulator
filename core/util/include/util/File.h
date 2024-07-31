@@ -11,23 +11,28 @@ std::string trim_dir_path(const std::string& str);
 
 // TODO probably best to add some form of thread safe locking to the file operations
 // todo, automatically convert separators
-class File {
+class File
+{
 	public:
 		inline static const std::string SEPARATOR = std::string(1, std::filesystem::path::preferred_separator);
 
-		static bool valid_name(const std::string& name) {
+		static bool valid_name(const std::string& name)
+		{
 			return name.find_first_of("\\/:*?\"<>|") == std::string::npos && name.size() > 0;
 		}
 
-		static bool valid_extension(const std::string& extension) {
+		static bool valid_extension(const std::string& extension)
+		{
 			return extension.find_first_of("\\/:*?\"<>|") == std::string::npos && extension.size() > 0;
 		}
 
-		static bool valid_dir(const std::string& dir) {
+		static bool valid_dir(const std::string& dir)
+		{
 			return dir.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
-		static bool valid_path(const std::string& path) {
+		static bool valid_path(const std::string& path)
+		{
 			return path.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
@@ -48,7 +53,8 @@ class File {
 		std::string m_dir;
 };
 
-class FileWriter {
+class FileWriter
+{
 	public:
 		FileWriter(const File& file);
 		FileWriter(const File& file, std::_Ios_Openmode flags);
@@ -71,10 +77,12 @@ class FileWriter {
 		bool m_closed;
 };
 
-class ByteWriter {
+class ByteWriter
+{
 	public:
 		ByteWriter(FileWriter& filewriter);
-		struct Data {
+		struct Data
+		{
 			unsigned long long value;
 			int num_bytes;
 			Data(unsigned long long value, int num_bytes);
@@ -86,7 +94,8 @@ class ByteWriter {
 		FileWriter& m_filewriter;
 };
 
-class FileReader {
+class FileReader
+{
 	public:
 		FileReader(const File& file);
 		FileReader(const File& file, std::_Ios_Openmode flags);
@@ -104,10 +113,12 @@ class FileReader {
 		bool m_closed;
 };
 
-class ByteReader {
+class ByteReader
+{
 	public:
 		ByteReader(std::vector<unsigned char> &bytes) : m_bytes(bytes) {};
-		struct Data {
+		struct Data
+		{
 			unsigned long long val = 0;
 			int num_bytes = 0;
 			bool little_endian = true;

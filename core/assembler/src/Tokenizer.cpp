@@ -1,5 +1,5 @@
 #include "assembler/tokenizer.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
 #include <regex>
 
@@ -9,8 +9,9 @@
  * @param srcFile The source file to tokenize
  * @return A list of tokens
  */
-std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile) {
-    lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile.get_name());
+std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
+{
+    DEBUG_SS(std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile.get_name());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -18,7 +19,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile) {
 	reader.close();
 
 	std::vector<Token>& tokens = tokenize(source_code);
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile.get_name());
+	DEBUG_SS(std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile.get_name());
 	return tokens;
 }
 
@@ -28,7 +29,8 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile) {
  * @param source_code The source code to tokenize
  * @return A list of tokens
  */
-std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
+std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
+{
 	std::vector<Token>* tokens = new std::vector<Token>();
 	auto is_alphanumeric = [](char c, int index){
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '.' && index == 0) || (c == '_') || (c == '#' && index == 0);
@@ -196,7 +198,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code) {
 		}
 
 		// check if regex matched
-		lgr::EXPECT_TRUE(matched, lgr::Logger::LogType::ERROR, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
+		EXPECT_TRUE_SS(matched, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
 
 	return *tokens;

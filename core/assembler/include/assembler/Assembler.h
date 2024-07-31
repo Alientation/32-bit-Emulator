@@ -11,7 +11,8 @@
 #include <string>
 #include <unordered_map>
 
-class Assembler {
+class Assembler
+{
 	public:
 		enum State {
 			NOT_ASSEMBLED, ASSEMBLING, ASSEMBLED, ASSEMBLER_ERROR, ASSEMBLER_WARNING,

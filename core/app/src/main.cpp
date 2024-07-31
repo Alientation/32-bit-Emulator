@@ -8,7 +8,6 @@
 #include "emulator32bit/disk.h"
 #include "util/directory.h"
 #include "util/file.h"
-#include "util/logger.h"
 #include "util/loggerv2.h"
 
 #include <filesystem>
@@ -42,7 +41,8 @@ Figure out IO, Disk, ports, etc
 Add flag to set source dirs
 Add more relocation types, directives, preprocessors and build flags as needed
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
-* Rework logger to not throw on errors, improve the way it is called to reduce length of the log
+// * Rework logger to not throw on errors, improve the way it is called to reduce length of the log
+* Update all logs to use new logger
 * Rework exception handling, try to safely except as much as possible, use error codes whenever
 Add syscalls for virtual memory management, but for now, they will be controlled in c++ land
 */
@@ -66,31 +66,29 @@ const static std::string build_exe_from_library_dir = "-libdir .\\programs\\buil
 
 int main(int argc, char* argv[])
 {
-    lgr::log(lgr::Logger::LogType::INFO, "Running Build");
+    INFO("Running Build");
 
-	// std::string build_command = build_exe_from_library_dir;
-	// if (argc > 1) {
-   	// 	lgr::log(lgr::Logger::LogType::INFO, "Parsing command arguments");
-	// 	build_command = "";
-	// 	for (int i = 1; i < argc; i++) {
-	// 		build_command += std::string(argv[i]);
-	// 		if (i+1 < argc) {
-	// 			build_command += " ";
-	// 		}
-	// 	}
-	// }
+	std::string build_command = build_exe_from_library_dir;
+	if (argc > 1) {
+   		INFO("Parsing command arguments");
+		build_command = "";
+		for (int i = 1; i < argc; i++) {
+			build_command += std::string(argv[i]);
+			if (i+1 < argc) {
+				build_command += " ";
+			}
+		}
+	}
 
-	// Process process = Process(build_command);
+	Process process = Process(build_command);
 
-	// byte data[PAGE_SIZE] = {1, 2, 3, 4};
-	// if (process.does_create_exe()) {
-	// 	Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
-	// 	Emulator32bit emulator(RAM(16, 0), ROM(data, 1, 16), disk);
-	// 	LoadExecutable loader(emulator, process.get_exe_file());
+	byte data[PAGE_SIZE] = {1, 2, 3, 4};
+	if (process.does_create_exe()) {
+		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
+		Emulator32bit emulator(RAM(16, 0), ROM(data, 1, 16), disk);
+		LoadExecutable loader(emulator, process.get_exe_file());
 
-	// 	emulator.run(AEMU_MAX_EXEC_INSTR);
-	// 	emulator.print();
-	// }
-
-	DEBUG("this is a log");
+		emulator.run(AEMU_MAX_EXEC_INSTR);
+		emulator.print();
+	}
 }

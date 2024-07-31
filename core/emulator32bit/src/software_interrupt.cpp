@@ -1,43 +1,55 @@
 #include "emulator32bit/emulator32bit.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
-void Emulator32bit::_emu_print(EmulatorException& exception) {
+void Emulator32bit::_emu_print(EmulatorException& exception)
+{
 	print();
 }
 
-void Emulator32bit::_emu_printr(byte reg_id, EmulatorException& exception) {
+void Emulator32bit::_emu_printr(byte reg_id, EmulatorException& exception)
+{
 	printf("REG: %d = %x\n", reg_id, read_reg(reg_id, exception));
 }
 
-void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian, EmulatorException& exception) {
+void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian,
+								EmulatorException& exception)
+{
 	word val = 0;
 	if (little_endian) {
 		for (byte i = 0; i < size; i++) {
 			val <<= 8;
-			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception, exception.mem_read_exception);
+			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception,
+										exception.mem_read_exception);
 		}
 	} else {
 		for (byte i = size - 1; i >= 0; i--) {
 			val <<= 8;
-			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception, exception.mem_read_exception);
+			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception,
+										exception.mem_read_exception);
 		}
 	}
 
 	printf("MEM: %x = %.2x", mem_addr, val);
 }
 
-void Emulator32bit::_emu_printp(EmulatorException& exception) {
-	printf("PSTATE: N=%i,Z=%i,C=%i,V=%i", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG), test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+void Emulator32bit::_emu_printp(EmulatorException& exception)
+{
+	printf("PSTATE: N=%i,Z=%i,C=%i,V=%i", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG),
+		   test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 }
 
-void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value, EmulatorException& exception) {
+void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value,
+								 EmulatorException& exception) {
 	word val = read_reg(reg_id, exception);
-	EXPECT_TRUE(val >= min_value && val <= max_value, lgr::Logger::LogType::ERROR, std::stringstream() << "Expected register " <<
-			std::to_string(reg_id) << " to be between " << std::to_string(min_value) << " and " << std::to_string(max_value) << ". Got "
+	EXPECT_TRUE_SS(val >= min_value && val <= max_value, std::stringstream()
+			<< "Expected register " << std::to_string(reg_id) << " to be between "
+			<< std::to_string(min_value) << " and " << std::to_string(max_value) << ". Got "
 			<< std::to_string(val));
 }
 
-void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, word min_value, word max_value, EmulatorException& exception) {
+void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, word min_value,
+								 word max_value, EmulatorException& exception)
+{
 	word val = 0;
 	if (little_endian) {
 		for (byte i = 0; i < size; i++) {
@@ -50,18 +62,22 @@ void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, w
 			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception, exception.mem_read_exception);
 		}
 	}
-	EXPECT_TRUE(val >= min_value && val <= max_value, lgr::Logger::LogType::ERROR, std::stringstream() << "Expected value at memory address " <<
-			std::to_string(mem_addr) << " to be between " << std::to_string(min_value) << " and " << std::to_string(max_value) << ". Got "
+	EXPECT_TRUE_SS(val >= min_value && val <= max_value, std::stringstream()
+			<< "Expected value at memory address " << std::to_string(mem_addr) << " to be between "
+			<< std::to_string(min_value) << " and " << std::to_string(max_value) << ". Got "
 			<< std::to_string(val));
 }
 
-void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception) {
+void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception)
+{
 	bool val = test_bit(_pstate, p_state_id);
-	EXPECT_TRUE(val == expected_value, lgr::Logger::LogType::ERROR, std::stringstream() << "Expected PSTATE " <<
-			std::to_string(p_state_id) << " to be " << std::to_string(expected_value) << ". Got " << std::to_string(val));
+	EXPECT_TRUE_SS(val == expected_value, std::stringstream() << "Expected PSTATE " <<
+			std::to_string(p_state_id) << " to be " << std::to_string(expected_value) << ". Got "
+			<< std::to_string(val));
 }
 
-void Emulator32bit::_emu_log(word str, EmulatorException& exception) {
+void Emulator32bit::_emu_log(word str, EmulatorException& exception)
+{
 	std::string msg;
 	while (system_bus.read_byte(str, exception.sys_bus_exception, exception.mem_read_exception) != '\0') {
 		msg += (char) system_bus.read_byte(str, exception.sys_bus_exception, exception.mem_read_exception);
@@ -71,7 +87,8 @@ void Emulator32bit::_emu_log(word str, EmulatorException& exception) {
 	std::cout << msg << "\n";
 }
 
-void Emulator32bit::_emu_err(word err, EmulatorException& exception) {
+void Emulator32bit::_emu_err(word err, EmulatorException& exception)
+{
 	std::string msg;
 	while (system_bus.read_byte(err, exception.sys_bus_exception, exception.mem_read_exception) != '\0') {
 		msg += (char) system_bus.read_byte(err, exception.sys_bus_exception, exception.mem_read_exception);
@@ -154,9 +171,10 @@ void Emulator32bit::_emu_err(word err, EmulatorException& exception) {
  * @param instr
  * @param exception
  */
-void Emulator32bit::_swi(word instr, EmulatorException& exception) {
+void Emulator32bit::_swi(word instr, EmulatorException& exception)
+{
 	byte cond = bitfield_u32(instr, 22, 4);
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "swi " << std::to_string(cond));
+	DEBUG_SS(std::stringstream() << "swi " << std::to_string(cond));
 
 	if (!check_cond(_pstate, cond)) {
 		return;
@@ -195,6 +213,6 @@ void Emulator32bit::_swi(word instr, EmulatorException& exception) {
 			_emu_assertp(arg0, arg1, exception);
 			break;
 		default:
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "INVALID SYSCALL NUMBER: " << std::to_string(id));
+			ERROR_SS(std::stringstream() << "INVALID SYSCALL NUMBER: " << std::to_string(id));
 	}
 }

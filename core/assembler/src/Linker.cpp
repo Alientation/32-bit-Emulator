@@ -1,13 +1,15 @@
 #include "assembler/linker.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
-Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) : m_obj_files(obj_files), m_exe_file(exe_file) {
+Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) : m_obj_files(obj_files), m_exe_file(exe_file)
+{
 	link();
 }
 
 
 
-void Linker::link() {
+void Linker::link()
+{
 	ObjectFile exe_obj_file;
 
 	exe_obj_file.file_type = EXECUTABLE_FILE_TYPE;
@@ -139,7 +141,7 @@ void Linker::link() {
 
 			/* all symbols should have a corresponding definition */
 			if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-				lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Linker::link() - Error, symbol definition is not found.");
+				ERROR_SS(std::stringstream() << "Linker::link() - Error, symbol definition is not found.");
 				continue;
 			}
 
@@ -155,14 +157,14 @@ void Linker::link() {
 					// exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
 					break;
 				case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
-					EXPECT_TRUE((symbol_entry.symbol_value & 0b11) == 0, lgr::Logger::LogType::ERROR, std::stringstream()
+					EXPECT_TRUE_SS((symbol_entry.symbol_value & 0b11) == 0, std::stringstream()
 							<< "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
 							<< symbol_entry.symbol_value);
 					exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - instr_i, 0, 22);
 					continue;
 				case ObjectFile::RelocationEntry::Type::UNDEFINED:
 				default:
-					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
+					ERROR_SS(std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 			}
 
 			/* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */

@@ -11,7 +11,8 @@
 #include <map>
 #include <functional>
 
-class Preprocessor {
+class Preprocessor
+{
 	public:
 		enum State {
 			UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR

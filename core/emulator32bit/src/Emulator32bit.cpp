@@ -1,6 +1,6 @@
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 #include "util/types.h"
 
 #include <stdio.h>
@@ -11,28 +11,40 @@ const byte Emulator32bit::ROM_DATA[16 << PAGE_PSIZE] = {};
 const word Emulator32bit::ROM_MEM_SIZE = 16;
 const word Emulator32bit::ROM_MEM_START = 16;
 
-Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte rom_data[], word rom_mem_psize, word rom_mem_pstart)
-		: disk(new MockDisk()), mmu(new MockVirtualMemory(ram_mem_pstart, ram_mem_pstart + ram_mem_psize)),
-		system_bus(RAM(ram_mem_psize, ram_mem_pstart), ROM(rom_data, rom_mem_psize, rom_mem_pstart), *mmu) {
+Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte rom_data[],
+		word rom_mem_psize, word rom_mem_pstart) :
+	disk(new MockDisk()),
+	mmu(new MockVirtualMemory(ram_mem_pstart, ram_mem_pstart + ram_mem_psize)),
+	system_bus(RAM(ram_mem_psize, ram_mem_pstart), ROM(rom_data, rom_mem_psize, rom_mem_pstart), *mmu)
+{
 	fill_out_instructions();
 	reset();
 }
 
-Emulator32bit::Emulator32bit() : Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START) { }
+Emulator32bit::Emulator32bit() :
+	Emulator32bit(RAM_MEM_SIZE, RAM_MEM_START, ROM_DATA, ROM_MEM_SIZE, ROM_MEM_START)
+{
 
-Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) : disk(disk),
-		mmu(new VirtualMemory(ram.get_lo_page(), ram.get_hi_page(), *disk)), system_bus(ram, rom, *mmu) {
+}
+
+Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) :
+	disk(disk),
+	mmu(new VirtualMemory(ram.get_lo_page(), ram.get_hi_page(), *disk)),
+	system_bus(ram, rom, *mmu)
+{
 	fill_out_instructions();
 	reset();
 }
 
-Emulator32bit::~Emulator32bit() {
+Emulator32bit::~Emulator32bit()
+{
 	disk->save();
 	delete disk;
 	delete mmu;
 }
 
-void Emulator32bit::fill_out_instructions() {
+void Emulator32bit::fill_out_instructions()
+{
 	/* fill out instruction functions and construct disassembler instruction mapping */
 	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
 
@@ -114,7 +126,8 @@ void Emulator32bit::fill_out_instructions() {
 	#undef _INSTR
 }
 
-void Emulator32bit::print() {
+void Emulator32bit::print()
+{
 	printf("32 bit emulator\nRegisters:\n");
 	printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(_x[SP]).c_str(), to_color_hex_str((word)0).c_str());
 	for (int i = 0; i < SP; i++) {
@@ -124,7 +137,8 @@ void Emulator32bit::print() {
 	printf("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run(unsigned int instructions, EmulatorException &exception) {
+void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
+{
 	// Run the emulator for a given number of instructions
 	while (instructions > 0 && exception.isOK()) {
 		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
@@ -143,12 +157,14 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 	}
 }
 
-void Emulator32bit::run(unsigned int instructions) {
+void Emulator32bit::run(unsigned int instructions)
+{
 	EmulatorException exception;
 	run(instructions, exception);
 }
 
-void Emulator32bit::reset() {
+void Emulator32bit::reset()
+{
 	system_bus.reset();
 	for (int i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) {
 		_x[i] = 0;
@@ -158,7 +174,8 @@ void Emulator32bit::reset() {
 
 }
 
-void Emulator32bit::execute(word instr, EmulatorException &exception) {
+void Emulator32bit::execute(word instr, EmulatorException &exception)
+{
 	byte opcode = bitfield_u32(instr, 26, 6);
 
 	if (!_instructions[opcode]) {
@@ -169,7 +186,8 @@ void Emulator32bit::execute(word instr, EmulatorException &exception) {
 	(this->*_instructions[opcode])(instr, exception);
 }
 
-word Emulator32bit::read_reg(byte reg, EmulatorException &exception) {
+word Emulator32bit::read_reg(byte reg, EmulatorException &exception)
+{
 	if (reg == XZR) {
 		return 0;
 	} else if (reg < (sizeof(_x) / sizeof(word))) {
@@ -180,8 +198,10 @@ word Emulator32bit::read_reg(byte reg, EmulatorException &exception) {
 	return 0;
 }
 
-void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception) {
-	lgr::log(lgr::Logger::LogType::INFO, std::stringstream() << "WRITING " << std::to_string(val) << " to reg " << std::to_string((word)reg));
+void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception)
+{
+	INFO_SS(std::stringstream() << "WRITING " << std::to_string(val) << " to reg "
+			<< std::to_string((word)reg));
 	if (reg == XZR) {
 		return;
 	} else if (reg < (sizeof(_x) / sizeof(word))) {
@@ -192,9 +212,11 @@ void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception) 
 	exception.type = EmulatorException::Type::BAD_REG;
 }
 
-void Emulator32bit::handle_exception(EmulatorException &exception) {
+void Emulator32bit::handle_exception(EmulatorException &exception)
+{
 	// todo later
-	lgr::log(lgr::Logger::LogType::INFO, std::stringstream() << "Emulator32bit exception at " << disassemble_instr(exception.instr));
+	INFO_SS(std::stringstream() << "Emulator32bit exception at "
+			<< disassemble_instr(exception.instr));
 }
 
 void Emulator32bit::set_NZCV(bool N, bool Z, bool C, bool V) {
@@ -205,8 +227,10 @@ void Emulator32bit::set_NZCV(bool N, bool Z, bool C, bool V) {
 }
 
 
-bool Emulator32bit::EmulatorException::isOK() {
-	return type == EmulatorException::Type::AOK && sys_bus_exception.type == SystemBus::Exception::Type::AOK
+bool Emulator32bit::EmulatorException::isOK()
+{
+	return type == EmulatorException::Type::AOK
+		&& sys_bus_exception.type == SystemBus::Exception::Type::AOK
 		&& mem_read_exception.type == Memory::ReadException::Type::AOK
 		&& mem_write_exception.type == Memory::WriteException::Type::AOK;
 }

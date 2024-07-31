@@ -1,8 +1,9 @@
 #include "emulator32bit/emulator32bit.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
 
-std::string disassemble_register(int reg) {
+std::string disassemble_register(int reg)
+{
 	if (reg == SP) {
 		return "sp";
 	} else if (reg == XZR) {
@@ -12,7 +13,8 @@ std::string disassemble_register(int reg) {
 	}
 }
 
-std::string disassemble_shift(word instruction) {
+std::string disassemble_shift(word instruction)
+{
 	std::string disassemble;
 	switch (bitfield_u32(instruction, 7, 2)) {
 		case LSL:
@@ -32,7 +34,8 @@ std::string disassemble_shift(word instruction) {
 	disassemble += std::to_string(bitfield_u32(instruction, 2, 5));
 	return disassemble;
 }
-std::string disassemble_condition(Emulator32bit::ConditionCode condition) {
+std::string disassemble_condition(Emulator32bit::ConditionCode condition)
+{
 	switch(condition) {
 		case Emulator32bit::ConditionCode::EQ:
 			return "eq";
@@ -70,7 +73,8 @@ std::string disassemble_condition(Emulator32bit::ConditionCode condition) {
 	return "INVALID";
 }
 
-std::string disassemble_format_b2(word instruction, std::string op) {
+std::string disassemble_format_b2(word instruction, std::string op)
+{
 	std::string disassemble = op;
 	Emulator32bit::ConditionCode condition = (Emulator32bit::ConditionCode) bitfield_u32(instruction, 22, 4);
 	if (condition != Emulator32bit::ConditionCode::AL) {
@@ -86,7 +90,8 @@ std::string disassemble_format_b2(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_b1(word instruction, std::string op) {
+std::string disassemble_format_b1(word instruction, std::string op)
+{
 	std::string disassemble = op;
 	Emulator32bit::ConditionCode condition = (Emulator32bit::ConditionCode) bitfield_u32(instruction, 22, 4);
 	if (condition != Emulator32bit::ConditionCode::AL) {
@@ -96,7 +101,8 @@ std::string disassemble_format_b1(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_m2(word instruction, std::string op) {
+std::string disassemble_format_m2(word instruction, std::string op)
+{
 	std::string disassemble = op + " ";
 	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
 	disassemble += ", ";
@@ -104,7 +110,8 @@ std::string disassemble_format_m2(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_m1(word instruction, std::string op) {
+std::string disassemble_format_m1(word instruction, std::string op)
+{
 	std::string disassemble = op + " ";
 	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
 	disassemble += ", ";
@@ -117,7 +124,8 @@ std::string disassemble_format_m1(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_m(word instruction, std::string op) {
+std::string disassemble_format_m(word instruction, std::string op)
+{
 	std::string disassemble = op;
 
 	if (test_bit(instruction, 25)) {
@@ -132,9 +140,8 @@ std::string disassemble_format_m(word instruction, std::string op) {
 	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
 	int adr_mode = bitfield_u32(instruction, 0, 2);
 	if (adr_mode != M_PRE && adr_mode != M_OFFSET && adr_mode != M_POST) {
-		EXPECT_TRUE(false, lgr::Logger::LogType::ERROR, std::stringstream()
-				<< "disassemble_format_m() - Invalid addressing mode in the disassembly of instruction ("
-				<< op << ") " << instruction);
+		ERROR_SS(std::stringstream() << "disassemble_format_m() - Invalid addressing mode "
+				"in the disassembly of instruction (" << op << ") " << instruction);
 	}
 
 	if (test_bit(instruction, 14)) {
@@ -166,7 +173,8 @@ std::string disassemble_format_m(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_o3(word instruction, std::string op) {
+std::string disassemble_format_o3(word instruction, std::string op)
+{
 	std::string disassemble = op;
 	if (test_bit(instruction, 25)) {
 		disassemble += "s";
@@ -187,7 +195,8 @@ std::string disassemble_format_o3(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_o2(word instruction, std::string op) {
+std::string disassemble_format_o2(word instruction, std::string op)
+{
 	std::string disassemble = op;
 	if (test_bit(instruction, 25)) {
 		disassemble += "s";
@@ -209,7 +218,8 @@ std::string disassemble_format_o2(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_o1(word instruction, std::string op) {
+std::string disassemble_format_o1(word instruction, std::string op)
+{
 	std::string disassemble = op + " ";
 
 	disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
@@ -227,7 +237,8 @@ std::string disassemble_format_o1(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_format_o(word instruction, std::string op) {
+std::string disassemble_format_o(word instruction, std::string op)
+{
 	std::string disassemble = op;
 	if (test_bit(instruction, 25)) {
 		disassemble += "s";
@@ -252,225 +263,279 @@ std::string disassemble_format_o(word instruction, std::string op) {
 	return disassemble;
 }
 
-std::string disassemble_add(word instruction) {
+std::string disassemble_add(word instruction)
+{
 	return disassemble_format_o(instruction, "add");
 }
 
-std::string disassemble_sub(word instruction) {
+std::string disassemble_sub(word instruction)
+{
 	return disassemble_format_o(instruction, "sub");
 }
 
-std::string disassemble_rsb(word instruction) {
+std::string disassemble_rsb(word instruction)
+{
 	return disassemble_format_o(instruction, "rsb");
 }
 
-std::string disassemble_adc(word instruction) {
+std::string disassemble_adc(word instruction)
+{
 	return disassemble_format_o(instruction, "adc");
 }
 
-std::string disassemble_sbc(word instruction) {
+std::string disassemble_sbc(word instruction)
+{
 	return disassemble_format_o(instruction, "sbc");
 }
 
-std::string disassemble_rsc(word instruction) {
+std::string disassemble_rsc(word instruction)
+{
 	return disassemble_format_o(instruction, "rsc");
 }
 
-std::string disassemble_mul(word instruction) {
+std::string disassemble_mul(word instruction)
+{
 	return disassemble_format_o(instruction, "mul");
 }
 
-std::string disassemble_umull(word instruction) {
+std::string disassemble_umull(word instruction)
+{
 	return disassemble_format_o2(instruction, "umull");
 }
 
-std::string disassemble_smull(word instruction) {
+std::string disassemble_smull(word instruction)
+{
 	return disassemble_format_o2(instruction, "smull");
 }
 
-std::string disassemble_vabs_f32(word instruction) {
+std::string disassemble_vabs_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vneg_f32(word instruction) {
+std::string disassemble_vneg_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vsqrt_f32(word instruction) {
+std::string disassemble_vsqrt_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vadd_f32(word instruction) {
+std::string disassemble_vadd_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vsub_f32(word instruction) {
+std::string disassemble_vsub_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vdiv_f32(word instruction) {
+std::string disassemble_vdiv_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vmul_f32(word instruction) {
+std::string disassemble_vmul_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vcmp_f32(word instruction) {
+std::string disassemble_vcmp_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vsel_f32(word instruction) {
+std::string disassemble_vsel_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vcint_u32_f32(word instruction) {
+std::string disassemble_vcint_u32_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vcint_s32_f32(word instruction) {
+std::string disassemble_vcint_s32_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vcflo_u32_f32(word instruction) {
+std::string disassemble_vcflo_u32_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vcflo_s32_f32(word instruction) {
+std::string disassemble_vcflo_s32_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_vmov_f32(word instruction) {
+std::string disassemble_vmov_f32(word instruction)
+{
 	return "UNIMPLEMENTED";
 }
 
-std::string disassemble_and(word instruction) {
+std::string disassemble_and(word instruction)
+{
 	return disassemble_format_o(instruction, "and");
 }
 
-std::string disassemble_orr(word instruction) {
+std::string disassemble_orr(word instruction)
+{
 	return disassemble_format_o(instruction, "orr");
 }
 
-std::string disassemble_eor(word instruction) {
+std::string disassemble_eor(word instruction)
+{
 	return disassemble_format_o(instruction, "eor");
 }
 
-std::string disassemble_bic(word instruction) {
+std::string disassemble_bic(word instruction)
+{
 	return disassemble_format_o(instruction, "bic");
 }
 
-std::string disassemble_lsl(word instruction) {
+std::string disassemble_lsl(word instruction)
+{
 	return disassemble_format_o1(instruction, "lsl");
 }
 
-std::string disassemble_lsr(word instruction) {
+std::string disassemble_lsr(word instruction)
+{
 	return disassemble_format_o1(instruction, "lsr");
 }
 
-std::string disassemble_asr(word instruction) {
+std::string disassemble_asr(word instruction)
+{
 	return disassemble_format_o1(instruction, "asr");
 }
 
-std::string disassemble_ror(word instruction) {
+std::string disassemble_ror(word instruction)
+{
 	return disassemble_format_o1(instruction, "ror");
 }
 
-std::string disassemble_cmp(word instruction) {
+std::string disassemble_cmp(word instruction)
+{
 	std::string disassemble = disassemble_format_o(instruction, "cmp");
 	return "cmp" + disassemble.substr(disassemble.find_first_of("xzr")+4);
 }
 
-std::string disassemble_cmn(word instruction) {
+std::string disassemble_cmn(word instruction)
+{
 	std::string disassemble = disassemble_format_o(instruction, "cmn");
 	return "cmn" + disassemble.substr(disassemble.find_first_of("xzr")+4);
 }
 
-std::string disassemble_tst(word instruction) {
+std::string disassemble_tst(word instruction)
+{
 	std::string disassemble = disassemble_format_o(instruction, "tst");
 	return "tst" + disassemble.substr(disassemble.find_first_of("xzr")+4);
 }
 
-std::string disassemble_teq(word instruction) {
+std::string disassemble_teq(word instruction)
+{
 	std::string disassemble = disassemble_format_o(instruction, "teq");
 	return "teq" + disassemble.substr(disassemble.find_first_of("xzr")+4);
 }
 
-std::string disassemble_mov(word instruction) {
+std::string disassemble_mov(word instruction)
+{
 	return disassemble_format_o3(instruction, "mov");
 }
 
-std::string disassemble_mvn(word instruction) {
+std::string disassemble_mvn(word instruction)
+{
 	return disassemble_format_o3(instruction, "mvn");
 }
 
-std::string disassemble_ldr(word instruction) {
+std::string disassemble_ldr(word instruction)
+{
 	return disassemble_format_m(instruction, "ldr");
 }
 
-std::string disassemble_str(word instruction) {
+std::string disassemble_str(word instruction)
+{
 	return disassemble_format_m(instruction, "str");
 }
 
-std::string disassemble_swp(word instruction) {
+std::string disassemble_swp(word instruction)
+{
 	return disassemble_format_m1(instruction, "swp");
 }
 
-std::string disassemble_ldrb(word instruction) {
+std::string disassemble_ldrb(word instruction)
+{
 	return disassemble_format_m(instruction, "ldrb");
 }
 
-std::string disassemble_strb(word instruction) {
+std::string disassemble_strb(word instruction)
+{
 	return disassemble_format_m(instruction, "strb");
 }
 
-std::string disassemble_swpb(word instruction) {
+std::string disassemble_swpb(word instruction)
+{
 	return disassemble_format_m1(instruction, "swpb");
 }
 
-std::string disassemble_ldrh(word instruction) {
+std::string disassemble_ldrh(word instruction)
+{
 	return disassemble_format_m(instruction, "ldrh");
 }
 
-std::string disassemble_strh(word instruction) {
+std::string disassemble_strh(word instruction)
+{
 	return disassemble_format_m(instruction, "strh");
 }
 
-std::string disassemble_swph(word instruction) {
+std::string disassemble_swph(word instruction)
+{
 	return disassemble_format_m1(instruction, "swph");
 }
 
-std::string disassemble_b(word instruction) {
+std::string disassemble_b(word instruction)
+{
 	return disassemble_format_b1(instruction, "b");
 }
 
-std::string disassemble_bl(word instruction) {
+std::string disassemble_bl(word instruction)
+{
 	return disassemble_format_b1(instruction, "bl");
 }
 
-std::string disassemble_bx(word instruction) {
+std::string disassemble_bx(word instruction)
+{
 	return disassemble_format_b2(instruction, "bx");
 }
 
-std::string disassemble_blx(word instruction) {
+std::string disassemble_blx(word instruction)
+{
 	return disassemble_format_b2(instruction, "blx");
 }
 
-std::string disassemble_swi(word instruction) {
+std::string disassemble_swi(word instruction)
+{
 	return disassemble_format_b1(instruction, "swi");
 }
 
-std::string disassemble_adrp(word instruction) {
+std::string disassemble_adrp(word instruction)
+{
 	return disassemble_format_m2(instruction, "adrp");
 }
 
-std::string disassemble_hlt(word instruction) {
+std::string disassemble_hlt(word instruction)
+{
 	return "hlt";
 }
 
 /* construct disassembler instruction mapping */
 typedef std::string (*DisassemblerFunction)(word);
-DisassemblerFunction _disassembler_instructions[64] = {
+DisassemblerFunction _disassembler_instructions[64] =
+{
 	disassemble_hlt,
 	disassemble_add,
 	disassemble_sub,
@@ -527,6 +592,7 @@ DisassemblerFunction _disassembler_instructions[64] = {
 	disassemble_adrp,
 };
 
-std::string disassemble_instr(word instr) {
+std::string disassemble_instr(word instr)
+{
 	return (*_disassembler_instructions[bitfield_u32(instr, 26, 6)])(instr);
 }

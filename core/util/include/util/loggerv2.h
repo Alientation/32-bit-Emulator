@@ -39,6 +39,10 @@
 #define PRINT_ENABLED true
 #endif /* PRINT_DISABLED */
 
+#ifndef EXCEPT_ON_ERROR
+#define EXCEPT_ON_ERROR true
+#endif /* EXCEPT_ON_ERROR */
+
 #ifndef PROJECT_ROOT_DIR
 	#define PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 #endif /* PROJECT_ROOT_DIR */
@@ -141,7 +145,7 @@ namespace logger
 		if (LOG_ENABLED) {
 			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 				print_header(ccolor::YELLOW + "WRN", file, line, func);
-				vprintf(format, args...);
+				printf(format, args...);
 				std::cout << "\n";
 			}
 
@@ -166,11 +170,51 @@ namespace logger
 		if (LOG_ENABLED) {
 			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
 				print_header(ccolor::RED + "ERR", file, line, func);
-				vprintf(format, args...);
+				printf(format, args...);
 				std::cout << "\n";
 			}
 
 			track("ERR", format, file, line, func, args...);
+		}
+
+		if (EXCEPT_ON_ERROR) {
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	template <typename... Args>
+	inline void expect_true(bool condition, const char* format, const char* file, int line,
+							const char* func, Args&&... args)
+	{
+		if (!condition) {
+			log_error(format, file, line, func, args...);
+		}
+	}
+
+	template <typename... Args>
+	inline void expect_false(bool condition, const char* format, const char* file, int line,
+							 const char* func, Args&&... args)
+	{
+		if (condition) {
+			log_error(format, file, line, func, args...);
+		}
+	}
+
+	template <typename T1, typename T2, typename... Args>
+	inline void expect_equal(T1 t1, T2 t2, const char* format, const char* file, int line,
+							 const char* func, Args&&... args)
+	{
+		if (t1 != t2) {
+			log_error(format, file, line, func, args...);
+		}
+	}
+
+	template <typename T1, typename T2, typename... Args>
+	inline void expect_not_equal(T1 t1, T2 t2, const char* format, const char* file, int line,
+								 const char* func, Args&&... args)
+	{
+		if (t1 == t2) {
+			log_error(format, file, line, func, args...);
 		}
 	}
 
@@ -233,6 +277,15 @@ namespace logger
 	 * @param msg		stringstream log.
 	 */
 	#define ERROR_SS(msg) logger::log_error((msg).str().c_str(), __FILE__, __LINE__, __func__)
+
+	#define EXPECT_TRUE(condition, format, ...) logger::expect_true(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#define EXPECT_TRUE_SS(condition, msg) logger::expect_true(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#define EXPECT_FALSE(condition, format, ...) logger::expect_false(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#define EXPECT_FALSE_SS(condition, msg) logger::expect_false(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#define EXPECT_EQUAL(t1, t2, format, ...) logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#define EXPECT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#define EXPECT_NOT_EQUAL(t1, t2, format, ...) logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#define EXPECT_NOT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
 };
 
 #endif /* LOGGERV2_H */

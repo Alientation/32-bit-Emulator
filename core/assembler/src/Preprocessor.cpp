@@ -1,5 +1,5 @@
 #include "assembler/preprocessor.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 #include "util/string_util.h"
 #include "util/vector_util.h"
 
@@ -7,11 +7,28 @@
 #include <fstream>
 #include <filesystem>
 
-Preprocessor::Argument::Argument(std::string name, Tokenizer::Type type) : name(name), type(type) { }
-Preprocessor::Argument::Argument(std::string name) : name(name), type(Tokenizer::UNKNOWN) { }
+Preprocessor::Argument::Argument(std::string name, Tokenizer::Type type) :
+	name(name),
+	type(type)
+{
 
-Preprocessor::Macro::Macro(std::string name) : name(name), return_type(Tokenizer::UNKNOWN) { }
-std::string Preprocessor::Macro::to_string() {
+}
+Preprocessor::Argument::Argument(std::string name) :
+	name(name),
+	type(Tokenizer::UNKNOWN)
+{
+
+}
+
+Preprocessor::Macro::Macro(std::string name) :
+	name(name),
+	return_type(Tokenizer::UNKNOWN)
+{
+
+}
+
+std::string Preprocessor::Macro::to_string()
+{
 	std::string toString = header() + "\n";
 	for (auto i = 0; i < args.size(); i++) {
 		toString += "[" + std::to_string(i) + "]: " + args[i].name + ": " + Tokenizer::TYPE_TO_NAME_MAP.at(args[i].type);
@@ -25,7 +42,8 @@ std::string Preprocessor::Macro::to_string() {
 	return toString + "\n}";
 }
 
-std::string Preprocessor::Macro::header() {
+std::string Preprocessor::Macro::header()
+{
 	std::string header;
 	header += name + "@(";
 
@@ -39,8 +57,13 @@ std::string Preprocessor::Macro::header() {
 	return header + "):" + Tokenizer::TYPE_TO_NAME_MAP.at(return_type);
 }
 
-Preprocessor::Symbol::Symbol(std::string name, std::vector<std::string> params, std::vector<Tokenizer::Token> value)
-	: name(name), parameters(params), value(value) {  }
+Preprocessor::Symbol::Symbol(std::string name, std::vector<std::string> params, std::vector<Tokenizer::Token> value) :
+	name(name),
+	parameters(params),
+	value(value)
+{
+
+}
 
 /**
  * Constructs a preprocessor object with the given file.
@@ -49,8 +72,10 @@ Preprocessor::Symbol::Symbol(std::string name, std::vector<std::string> params, 
  * @param file the file to preprocess.
  * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
  */
-Preprocessor::Preprocessor(Process* process, const File& input_file, const std::string& output_file_path)
-		: m_process(process), m_input_file(input_file) {
+Preprocessor::Preprocessor(Process* process, const File& input_file, const std::string& output_file_path) :
+	m_process(process),
+	m_input_file(input_file)
+{
 	// default output file path if not supplied in the constructor
 	if (output_file_path.empty()) {
         m_output_file = File(m_input_file.get_name(), PROCESSED_EXTENSION, m_input_file.get_dir(), true);
@@ -58,7 +83,7 @@ Preprocessor::Preprocessor(Process* process, const File& input_file, const std::
         m_output_file = File(output_file_path, true);
 	}
 
-	lgr::EXPECT_TRUE(m_process->valid_src_file(input_file), lgr::Logger::LogType::ERROR, std::stringstream()
+	EXPECT_TRUE_SS(m_process->valid_src_file(input_file), std::stringstream()
 			<< "Preprocessor::Preprocessor() - Invalid source file: " << input_file.get_extension());
 
 	m_state = State::UNPROCESSED;
@@ -68,7 +93,8 @@ Preprocessor::Preprocessor(Process* process, const File& input_file, const std::
 /**
  * Destructs a preprocessor object.
  */
-Preprocessor::~Preprocessor() {
+Preprocessor::~Preprocessor()
+{
     for (std::pair<std::string, Macro*> macro_pair : m_macros) {
         delete macro_pair.second;
     }
@@ -77,11 +103,12 @@ Preprocessor::~Preprocessor() {
 /**
  * Preprocesses the file.
  */
-File Preprocessor::preprocess() {
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: "
+File Preprocessor::preprocess()
+{
+	DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: "
 			<< m_input_file.get_name());
 
-	lgr::EXPECT_TRUE(m_state == State::UNPROCESSED, lgr::Logger::LogType::ERROR, std::stringstream()
+	EXPECT_TRUE_SS(m_state == State::UNPROCESSED, std::stringstream()
 			<< "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
 	m_state = State::PROCESSING;
 
@@ -162,7 +189,7 @@ File Preprocessor::preprocess() {
 
                 // check if the symbol has a definition with the same number of parameters
                 if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end()) {
-                    lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
+                    ERROR_SS(std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
                 }
 
                 // replace all occurances of a parameter with the value passed in as the parameter
@@ -197,11 +224,11 @@ File Preprocessor::preprocess() {
 	m_state = State::PROCESSED_SUCCESS;
 	writer.close();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_input_file.get_name());
+	DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_input_file.get_name());
 
     // log macros
     for (std::pair<std::string, Macro*> macro_pair : m_macros) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::preprocess() - Macro: " << macro_pair.second->to_string());
+        DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Macro: " << macro_pair.second->to_string());
     }
 
 	return m_output_file;
@@ -220,7 +247,8 @@ File Preprocessor::preprocess() {
  *
  * @return the macros with the given name and number of arguments.
  */
-std::vector<Preprocessor::Macro*> Preprocessor::macros_with_header(std::string macro_name, std::vector<std::vector<Tokenizer::Token>> args) {
+std::vector<Preprocessor::Macro*> Preprocessor::macros_with_header(std::string macro_name, std::vector<std::vector<Tokenizer::Token>> args)
+{
 	std::vector<Macro*> possible_macros;
 	for (std::pair<std::string, Macro*> macro_pair : m_macros) {
 		if (macro_pair.second->name == macro_name && macro_pair.second->args.size() == args.size()) {
@@ -237,7 +265,8 @@ std::vector<Preprocessor::Macro*> Preprocessor::macros_with_header(std::string m
  * @param regex matches tokens to skip.
  * @param tok_i the index of the current token.
  */
-void Preprocessor::skip_tokens(int& tok_i, const std::string& regex) {
+void Preprocessor::skip_tokens(int& tok_i, const std::string& regex)
+{
 	while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].value, std::regex(regex))) {
 		tok_i++;
 	}
@@ -249,7 +278,8 @@ void Preprocessor::skip_tokens(int& tok_i, const std::string& regex) {
  * @param tok_i the index of the current token.
  * @param tok_types the types to match.
  */
-void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types) {
+void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types)
+{
     while (in_bounds(tok_i) && tok_types.find(m_tokens[tok_i].type) != tok_types.end()) {
         tok_i++;
     }
@@ -261,14 +291,16 @@ void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_
  * @param tok_i the index of the expected token.
  * @param error_msg the error message to throw if the token does not exist.
  */
-bool Preprocessor::expect_token(int tok_i, const std::string& error_msg) {
-	lgr::EXPECT_TRUE(in_bounds(tok_i), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
+bool Preprocessor::expect_token(int tok_i, const std::string& error_msg)
+{
+	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(error_msg));
     return true;
 }
 
-bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg) {
-	lgr::EXPECT_TRUE(in_bounds(tok_i), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
-	lgr::EXPECT_TRUE(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), lgr::Logger::LogType::ERROR, std::stringstream(error_msg));
+bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+{
+	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(error_msg));
+	EXPECT_TRUE_SS(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), std::stringstream(error_msg));
     return true;
 }
 
@@ -280,7 +312,8 @@ bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expe
  *
  * @return true if the current token matches the given types.
  */
-bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg) {
+bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg)
+{
     expect_token(tok_i, error_msg);
     return tok_types.find(m_tokens[tok_i].type) != tok_types.end();
 }
@@ -292,7 +325,8 @@ bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_type
  *
  * @return true if the token index is within the bounds of the tokens list.
  */
-bool Preprocessor::in_bounds(int tok_i) {
+bool Preprocessor::in_bounds(int tok_i)
+{
     return tok_i < m_tokens.size();
 }
 
@@ -304,7 +338,8 @@ bool Preprocessor::in_bounds(int tok_i) {
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg) {
+Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg)
+{
     expect_token(tok_i, error_msg);
     return m_tokens[tok_i++];
 }
@@ -318,9 +353,10 @@ Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg) {
+Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+{
     expect_token(tok_i, error_msg);
-	lgr::EXPECT_TRUE(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), lgr::Logger::LogType::ERROR, std::stringstream() << error_msg << " - Unexpected end of file.");
+	EXPECT_TRUE_SS(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), std::stringstream() << error_msg << " - Unexpected end of file.");
     return m_tokens[tok_i++];
 }
 
@@ -336,7 +372,8 @@ Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Ty
  *
  * @param tok_i the index of the include token.
  */
-void Preprocessor::_include(int& tok_i) {
+void Preprocessor::_include(int& tok_i)
+{
 	consume(tok_i); // '#include'
 	skip_tokens(tok_i, "[ \t]");
 
@@ -365,7 +402,7 @@ void Preprocessor::_include(int& tok_i) {
             if (dir.subfile_exists(sys_file_path)) {
 				if (found_sys_file) {
 					// already found file
-					lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << sys_file_path);
+					ERROR_SS(std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << sys_file_path);
 				}
 
                 full_path_from_working_dir = dir.get_path() + File::SEPARATOR + sys_file_path;
@@ -374,14 +411,14 @@ void Preprocessor::_include(int& tok_i) {
         }
 
 		if (!found_sys_file) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << sys_file_path);
+			ERROR_SS(std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << sys_file_path);
 		}
 	}
 
 	// process included file
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::_include() - include path: " << full_path_from_working_dir);
+	DEBUG_SS(std::stringstream() << "Preprocessor::_include() - include path: " << full_path_from_working_dir);
 	File include_file = File(full_path_from_working_dir);
-	lgr::EXPECT_TRUE(include_file.exists(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << full_path_from_working_dir);
+	EXPECT_TRUE_SS(include_file.exists(), std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << full_path_from_working_dir);
 
 	// instead of writing all the contents to the output file, simply tokenize the file and insert into the current token list
 	Preprocessor included_preprocessor(m_process, include_file, m_output_file.get_path());
@@ -401,7 +438,8 @@ void Preprocessor::_include(int& tok_i) {
  *
  * @param tok_i The index of the macro token.
  */
-void Preprocessor::_macro(int& tok_i) {
+void Preprocessor::_macro(int& tok_i)
+{
 	consume(tok_i); // '#macro'
 	skip_tokens(tok_i, "[ \t]");
 
@@ -441,7 +479,7 @@ void Preprocessor::_macro(int& tok_i) {
     consume(tok_i, {Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
 
     // check if macro declaration is unique
-	lgr::EXPECT_TRUE(m_macros.find(macro->header()) == m_macros.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
+	EXPECT_TRUE_SS(m_macros.find(macro->header()) == m_macros.end(), std::stringstream() << "Preprocessor::_macro() - Macro already defined: " << macro->header());
 
     // add macro to list of macros
     m_macros.insert(std::pair<std::string,Macro*>(macro->header(), macro));
@@ -457,13 +495,14 @@ void Preprocessor::_macro(int& tok_i) {
  *
  * @param tok_i The index of the macro return token
  */
-void Preprocessor::_macret(int& tok_i) {
+void Preprocessor::_macret(int& tok_i)
+{
 	consume(tok_i); // '#macret'
 	skip_tokens(tok_i, "[ \t]");
 
 	std::vector<Tokenizer::Token> return_value;
 	if (m_macro_stack.empty()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unexpected macret token.");
+		ERROR("Preprocessor::_macret() - Unexpected macret token.");
 	}
 
 	// macro contains a return value
@@ -493,7 +532,7 @@ void Preprocessor::_macret(int& tok_i) {
 	}
 
 	if (cur_rel_scope_level != 0) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macret() - Unclosed scope.");
+		ERROR("Preprocessor::_macret() - Unclosed scope.");
 	}
 
 	// add'.equ current_macro_output_symbol expression' to tokens
@@ -517,9 +556,10 @@ void Preprocessor::_macret(int& tok_i) {
  *
  * @param tok_i The index of the macro end token
  */
-void Preprocessor::_macend(int& tok_i) {
+void Preprocessor::_macend(int& tok_i)
+{
     // should never reach this. This should be consumed by the _macro function.
-    lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_macend() - Unexpected macro end token.");
+    ERROR("Preprocessor::_macend() - Unexpected macro end token.");
 }
 
 /**
@@ -532,7 +572,8 @@ void Preprocessor::_macend(int& tok_i) {
  *
  * @param tok_i The index of the invoke token
  */
-void Preprocessor::_invoke(int& tok_i) {
+void Preprocessor::_invoke(int& tok_i)
+{
 	consume(tok_i);
 	skip_tokens(tok_i, "[ \t]");
 
@@ -569,9 +610,9 @@ void Preprocessor::_invoke(int& tok_i) {
 	// check if macro exists
 	std::vector<Macro*> possibleMacros = macros_with_header(macro_name, arguments);
 	if (possibleMacros.size() == 0) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macro_name);
+		ERROR_SS(std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macro_name);
 	} else if (possibleMacros.size() > 1) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macro_name);
+		ERROR_SS(std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macro_name);
 	}
 	Macro* macro = possibleMacros[0];
 
@@ -608,7 +649,7 @@ void Preprocessor::_invoke(int& tok_i) {
 	for (Tokenizer::Token& token : expanded_macro_invoke) {
 		ss << token.value;
 	}
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
+	DEBUG_SS(std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
 
 	// insert into the tokens list
 	m_tokens.insert(m_tokens.begin() + tok_i, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
@@ -624,7 +665,8 @@ void Preprocessor::_invoke(int& tok_i) {
  *
  * @param tok_i The index of the define token.
  */
-void Preprocessor::_define(int& tok_i) {
+void Preprocessor::_define(int& tok_i)
+{
     consume(tok_i); // '#define'
     skip_tokens(tok_i, "[ \t]");
 
@@ -644,7 +686,7 @@ void Preprocessor::_define(int& tok_i) {
             std::string parameter = consume(tok_i, {Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.").value;
 
             // ensure the parameter symbol has not been used before in this definition parameters
-            lgr::EXPECT_TRUE(ensure_unique_params.find(parameter) == ensure_unique_params.end(), lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);
+            EXPECT_TRUE_SS(ensure_unique_params.find(parameter) == ensure_unique_params.end(), std::stringstream() << "Preprocessor::_define() - Duplicate parameter: " << parameter);
             parameters.push_back(parameter);
             ensure_unique_params.insert(parameter);
 
@@ -689,7 +731,8 @@ void Preprocessor::_define(int& tok_i) {
 /**
  *
  */
-void Preprocessor::cond_block(int& tok_i, bool cond_met) {
+void Preprocessor::cond_block(int& tok_i, bool cond_met)
+{
     int rel_scope_level = 0;
     int cur_tok_i = tok_i;
     int next_block_tok_i = -1;
@@ -728,12 +771,12 @@ void Preprocessor::cond_block(int& tok_i, bool cond_met) {
     }
 
     if ((cond_met && end_if_tok_i == -1) || (!cond_met && next_block_tok_i == -1)) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "condition=" << cond_met << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::cond_block() - Unclosed conditional block." );
+        DEBUG_SS(std::stringstream() << "condition=" << cond_met << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
+        ERROR("Preprocessor::cond_block() - Unclosed conditional block." );
     }
 
     if (cond_met) {
-        lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
+        DEBUG_SS(std::stringstream() << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
 
         if (next_block_tok_i != -1) {
             // remove all tokens from the next block to the endif
@@ -752,7 +795,8 @@ void Preprocessor::cond_block(int& tok_i, bool cond_met) {
 /**
  *
  */
-bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params) {
+bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params)
+{
     return m_def_symbols.find(symbol_name) != m_def_symbols.end() && m_def_symbols.at(symbol_name).find(num_params) != m_def_symbols.at(symbol_name).end();
 }
 
@@ -768,7 +812,8 @@ bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params) {
  *
  * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_cond_on_def(int& tok_i) {
+void Preprocessor::_cond_on_def(int& tok_i)
+{
     Tokenizer::Token cond_tok = consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
 
@@ -781,7 +826,7 @@ void Preprocessor::_cond_on_def(int& tok_i) {
     } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFNDEF || cond_tok.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
         cond_block(tok_i, !is_symbol_def(symbol, 0));
     } else {
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_cond_on_def() - Unexpected conditional token: " << cond_tok.value);
+        ERROR_SS(std::stringstream() << "Preprocessor::_cond_on_def() - Unexpected conditional token: " << cond_tok.value);
     }
 }
 
@@ -798,7 +843,8 @@ void Preprocessor::_cond_on_def(int& tok_i) {
  *
  * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_cond_on_value(int& tok_i) {
+void Preprocessor::_cond_on_value(int& tok_i)
+{
     Tokenizer::Token cond_tok = consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
 
@@ -840,7 +886,7 @@ void Preprocessor::_cond_on_value(int& tok_i) {
     } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFMORE || cond_tok.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
         cond_block(tok_i, symbol_val > value);
     } else {
-        lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Preprocessor::_cond_on_value() - Unexpected conditional token: " << cond_tok.value);
+        ERROR_SS(std::stringstream() << "Preprocessor::_cond_on_value() - Unexpected conditional token: " << cond_tok.value);
     }
 }
 
@@ -855,7 +901,8 @@ void Preprocessor::_cond_on_value(int& tok_i) {
  *
  * @param tok_i The index of the else token.
  */
-void Preprocessor::_else(int& tok_i) {
+void Preprocessor::_else(int& tok_i)
+{
     consume(tok_i); // '#else'
     skip_tokens(tok_i, "[ \t]");
 }
@@ -869,7 +916,8 @@ void Preprocessor::_else(int& tok_i) {
  *
  * @param tok_i The index of the endif token.
  */
-void Preprocessor::_endif(int& tok_i) {
+void Preprocessor::_endif(int& tok_i)
+{
     consume(tok_i); // '#endif'
     skip_tokens(tok_i, "[ \t]");
 }
@@ -883,7 +931,8 @@ void Preprocessor::_endif(int& tok_i) {
  *
  * @param tok_i The index of the undefine token.
  */
-void Preprocessor::_undefine(int& tok_i) {
+void Preprocessor::_undefine(int& tok_i)
+{
     consume(tok_i); // '#define'
     skip_tokens(tok_i, "[ \t]");
 
@@ -905,6 +954,7 @@ void Preprocessor::_undefine(int& tok_i) {
  *
  * @return the state of the preprocessor.
  */
-Preprocessor::State Preprocessor::get_state() {
+Preprocessor::State Preprocessor::get_state()
+{
 	return m_state;
 }

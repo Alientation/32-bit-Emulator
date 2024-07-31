@@ -1,5 +1,5 @@
 #include "emulator32bit/disk.h"
-#include "util/logger.h"
+#include "util/loggerv2.h"
 
 /*
  * Located at the beginning of disk and the disk page management files
@@ -35,7 +35,7 @@ void Disk::read_disk_files()
 
 	std::ofstream disk_file(m_diskfile.get_path(), std::ios::binary | std::ios::ate | std::ios::out);
     if (!disk_file.is_open()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file.");
+		ERROR("Error opening disk file.");
 		return;
     }
 
@@ -54,7 +54,7 @@ void Disk::read_disk_files()
 		 * to match the request so stop here.
 		 */
 		disk_file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Disk file is larger than what is requested. "
+		ERROR_SS(std::stringstream() << "Disk file is larger than what is requested. "
 				<< std::to_string(actual_size) << " > " << std::to_string(target_size));
 		return;
 	}
@@ -64,14 +64,15 @@ void Disk::read_disk_files()
 	 * we can correct this by increasing the size to what we want.
 	 */
 	std::streamsize padding_size = target_size - actual_size;
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Padding disk file of size " << std::to_string(actual_size)
+	DEBUG_SS(std::stringstream() << "Padding disk file of size " << std::to_string(actual_size)
 			<< " bytes with " << std::to_string(padding_size) << " bytes.");
 
 	std::vector<char> padding(padding_size, 0);
 	disk_file.write(padding.data(), padding_size);
 
 	disk_file.close();
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully created disk file of size " << std::to_string(m_npages) << " pages");
+	DEBUG_SS(std::stringstream() << "Successfully created disk file of size "
+			<< std::to_string(m_npages) << " pages");
 }
 
 void Disk::read_disk_manager_file()
@@ -90,7 +91,7 @@ void Disk::read_disk_manager_file()
 		m_free_list.return_block(0, m_npages, exception);
 
 		if (exception.type != FreeBlockList::Exception::Type::AOK) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
+			ERROR_SS(std::stringstream()
 					<< "Failed to create default free block list for disk management for "
 					<< std::to_string(m_npages) << " pages.");
 		}
@@ -106,9 +107,9 @@ void Disk::read_disk_manager_file()
 		m_free_list.return_block(page, len, exception);
 
 		if (exception.type != FreeBlockList::Exception::Type::AOK) {
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-					<< "Failed to append block with page address " << std::to_string(page) << " and length "
-					<< std::to_string(len) << " pages to free block list from disk management file.");
+			ERROR_SS(std::stringstream() << "Failed to append block with page address "
+					<< std::to_string(page) << " and length " << std::to_string(len)
+					<< " pages to free block list from disk management file.");
 		}
 	}
 }
@@ -123,12 +124,10 @@ word Disk::get_free_page(FreeBlockList::Exception& exception)
 	word addr = m_free_list.get_free_block(1, exception);
 
 	if (exception.type != FreeBlockList::Exception::Type::AOK) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-				<< "Not enough space to get a free block from disk.");
+		ERROR("Not enough space to get a free block from disk.");
 	}
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting free disk page "
-			<< std::to_string(addr));
+	DEBUG_SS(std::stringstream() << "Getting free disk page " << std::to_string(addr));
 	return addr;
 }
 
@@ -137,19 +136,18 @@ void Disk::return_page(word page, FreeBlockList::Exception& exception)
 	m_free_list.return_block(page, 1, exception);
 
 	if (exception.type != FreeBlockList::Exception::Type::AOK) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-				<< "Failed to return page to disk.");
+		ERROR("Failed to return page to disk.");
 	}
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning disk page "
-			<< std::to_string(page) << " back to disk");
+	DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(page)
+			<< " back to disk");
 }
 
 void Disk::return_all_pages()
 {
 	m_free_list.return_all();
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returning all disk pages back to disk");
+	DEBUG("Returning all disk pages back to disk");
 }
 
 void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception)
@@ -170,7 +168,7 @@ void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& ex
 		}
 	}
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Returned all disk pages from " << std::to_string(page_lo)
+	DEBUG_SS(std::stringstream() << "Returned all disk pages from " << std::to_string(page_lo)
 			<< " to " << std::to_string(page_hi) << " back to disk");
 }
 
@@ -183,8 +181,7 @@ std::vector<byte> Disk::read_page(word page, ReadException& exception)
 		data.push_back(cpage.data[i]);
 	}
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Reading disk page "
-			<< std::to_string(page));
+	DEBUG_SS(std::stringstream() << "Reading disk page " << std::to_string(page));
 	return std::move(data);
 }
 
@@ -237,9 +234,9 @@ void Disk::write_page(word page, std::vector<byte> data, WriteException& excepti
 		exception.type = WriteException::Type::INVALID_PAGEDATA_SIZE;
 		exception.address = page << PAGE_PSIZE;
 		exception.data_length = data.size();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() <<
-				"Tried to write to disk an invalid number of bytes. Expected "
-				<< std::to_string(PAGE_SIZE) << " bytes. Got " << std::to_string(data.size()));
+		ERROR_SS(std::stringstream() << "Tried to write to disk an invalid number of bytes. "
+				"Expected " << std::to_string(PAGE_SIZE) << " bytes. Got "
+				<< std::to_string(data.size()));
 		return;
 	}
 
@@ -249,8 +246,7 @@ void Disk::write_page(word page, std::vector<byte> data, WriteException& excepti
 		cpage.data[i] = data.at(i);
 	}
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Wrote to disk page "
-			<< std::to_string(cpage.page));
+	DEBUG_SS(std::stringstream() << "Wrote to disk page " << std::to_string(cpage.page));
 }
 
 void Disk::write_byte(word address, byte data, WriteException& exception)
@@ -318,8 +314,7 @@ Disk::CachePage& Disk::get_cpage(word addr)
 	cpage.page = addr;
 	read_cpage(cpage, addr);
 
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Getting cached page "
-			<< std::to_string(cpage.page));
+	DEBUG_SS(std::stringstream() << "Getting cached page " << std::to_string(cpage.page));
 	return cpage;
 }
 
@@ -331,15 +326,14 @@ void Disk::write_cpage(CachePage& cpage)
 	 */
 	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::out | std::ios::in);
     if (!file.is_open()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
+		ERROR("Error opening disk file");
     }
 
 	/* Go to location of the cached page in disk so we can write to file. */
 	file.seekp(cpage.page << PAGE_PSIZE);
 	if (!file) {
 		file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-				<< "Error seeking position in disk file");
+		ERROR("Error seeking position in disk file");
 	}
 
 	std::vector<char> data;
@@ -349,15 +343,15 @@ void Disk::write_cpage(CachePage& cpage)
 	file.write(data.data(), PAGE_SIZE);
 
 	file.close();
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully wrote page "
-			<< std::to_string(cpage.page) << " to disk");
+	DEBUG_SS(std::stringstream() << "Successfully wrote page " << std::to_string(cpage.page)
+			<< " to disk");
 }
 
 void Disk::read_cpage(CachePage& cpage, word page)
 {
 	std::ifstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in);
     if (!file.is_open()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
+		ERROR("Error opening disk file");
 		return;
     }
 
@@ -365,9 +359,8 @@ void Disk::read_cpage(CachePage& cpage, word page)
 	file.seekg(cpage.page << PAGE_PSIZE);
 	if (!file) {
 		file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-				<< "Error seeking position of page " << std::to_string(cpage.page)
-				<< "in disk file");
+		ERROR_SS(std::stringstream() << "Error seeking position of page "
+				<< std::to_string(cpage.page) << "in disk file");
 		return;
 	}
 
@@ -376,8 +369,8 @@ void Disk::read_cpage(CachePage& cpage, word page)
 
 	if (!file) {
 		file.close();
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error reading page "
-				<< std::to_string(cpage.page) << " from disk file");
+		ERROR_SS(std::stringstream() << "Error reading page " << std::to_string(cpage.page)
+				<< " from disk file");
 		return;
 	}
 
@@ -385,8 +378,8 @@ void Disk::read_cpage(CachePage& cpage, word page)
 		cpage.data[i] = buffer[i];
 	}
 	file.close();
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "Successfully read page "
-			<< std::to_string(cpage.page) << " from disk");
+	DEBUG_SS(std::stringstream() << "Successfully read page " << std::to_string(cpage.page)
+			<< " from disk");
 }
 
 /*  When the program ends, we want to save all the pages in cache to disk. Instead of
@@ -395,7 +388,7 @@ void Disk::save()
 {
 	std::ofstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
 	if (!file.is_open()) {
-		lgr::log(lgr::Logger::LogType::ERROR, std::stringstream() << "Error opening disk file");
+		ERROR("Error opening disk file");
 		return;
 	}
 
@@ -409,8 +402,7 @@ void Disk::save()
 		file.seekp(cpage.page << PAGE_PSIZE);
 		if (!file) {
 			file.close();
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-					<< "Error seeking position in disk file");
+			ERROR("Error seeking position in disk file");
 			return;
 		}
 
@@ -422,17 +414,15 @@ void Disk::save()
 
 		if (!file) {
 			file.close();
-			lgr::log(lgr::Logger::LogType::ERROR, std::stringstream()
-					<< "Error writing to disk file");
+			ERROR("Error writing to disk file");
 			return;
 		}
 
-		lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream() << "WRITING CACHE PAGE TO DISK "
+		DEBUG_SS(std::stringstream() << "WRITING CACHE PAGE TO DISK "
 				<< std::to_string(cpage.page));
 	}
 	file.close();
-	lgr::log(lgr::Logger::LogType::DEBUG, std::stringstream()
-			<< "Successfully wrote dirty cache pages to disk");
+	DEBUG("Successfully wrote dirty cache pages to disk");
 
 	/* store disk management info. */
 	FileWriter fwriter(m_diskfile_manager, std::ios::binary | std::ios::out);

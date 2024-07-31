@@ -4,7 +4,6 @@
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
-#include "util/logger.h"
 
 #include <unordered_map>
 #include <vector>
@@ -14,7 +13,8 @@
 // todo #define SHARED_OBJECT_FILE_TYPE 3
 #define EMU_32BIT_MACHINE_ID 1
 
-class ObjectFile {
+class ObjectFile
+{
 	friend class Linker;
 	public:
 		ObjectFile();

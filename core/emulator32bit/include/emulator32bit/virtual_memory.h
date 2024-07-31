@@ -9,7 +9,8 @@
 #include <unordered_map>
 
 #define VM_MAX_PAGES 1024
-class VirtualMemory {
+class VirtualMemory
+{
 	public:
 		VirtualMemory(word ram_start_page, word ram_end_page, Disk& disk);
 		~VirtualMemory();
@@ -76,7 +77,8 @@ class VirtualMemory {
 		word access_page(word vpage, Exception& exception); // todo add pid arg
 };
 
-class MockVirtualMemory : public VirtualMemory {
+class MockVirtualMemory : public VirtualMemory
+{
 	public:
 		MockVirtualMemory(word ram_start_page, word ram_end_page);
 

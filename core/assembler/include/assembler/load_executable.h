@@ -5,7 +5,8 @@
 #include "emulator32bit/emulator32bit.h"
 #include "util/file.h"
 
-class LoadExecutable {
+class LoadExecutable
+{
 	public:
 		LoadExecutable(Emulator32bit& emu, File exe_file);
 
