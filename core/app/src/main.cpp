@@ -19,7 +19,7 @@ TODO
 
 * CLEAN UP CODE
 *	- Split long functions into smaller unit sized ones, especially if they can be reused elsewhere
-*	- Macro preprocessors should follow the standard ALL_CAPS_WITH_UNDERSCORE naming conventions
+// *	- Macro preprocessors should follow the standard ALL_CAPS_WITH_UNDERSCORE naming conventions
 		(DEFINITIONS SHOULD COME WITH THE PROJECT NAME PREPENDED BEFORE)
 *	- Comment functions and complex logic
 *	- Make variables that have larger scopes have more meaningful names
@@ -31,8 +31,8 @@ TODO
 		- Memory.h + Memory.cpp
 		- Emulator32bit.h + Emulator32bit.cpp + Emulator32bitUtil.h
 		- Instructions.cpp + SoftwareInterrupt.cpp
-*	- Trying out new style, classes begin with and functions braces are on their own line,
-		everything else has braces right after
+// *	- Trying out new style, classes begin with and functions braces are on their own line,
+		// everything else has braces right after
 * improve vscode extension for basm language like autocomplete, syntax highlighting, etc
 * 		- File icon theme in vscode extension
 Figure shared object files/dynamically linked libraries
@@ -42,7 +42,7 @@ Add flag to set source dirs
 Add more relocation types, directives, preprocessors and build flags as needed
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
 // * Rework logger to not throw on errors, improve the way it is called to reduce length of the log
-* Update all logs to use new logger
+// * Update all logs to use new logger
 * Rework exception handling, try to safely except as much as possible, use error codes whenever
 Add syscalls for virtual memory management, but for now, they will be controlled in c++ land
 */

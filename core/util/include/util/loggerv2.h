@@ -5,6 +5,8 @@
 #include "util/console_color.h"
 #include "util/string_util.h"
 
+#include <chrono>
+#include <ctime>
 #include <iostream>
 
 /*
@@ -13,6 +15,9 @@
 	// - 	toggleable logs (levels + each unit that uses a log has the ability to easily disable logs in that file)
 	// - 	print + noprint
 	-	dump to file with filters, query logs
+	-	timer/profiler
+		- tag a profile log
+		- dump to file and query profiler
 	// - 	color print
 	// - 	automatically detect the line and file a log occurs in, this means a macro. problem with macros is
 		// they do not show types well
@@ -21,31 +26,74 @@
 	// -	fast, but not a high concern as for performance we can disable all low level logs
 */
 
-#define LOG_DEBUG 4
-#define LOG_INFO 3
-#define LOG_WARN 2
-#define LOG_ERROR 1
-#define LOG_NONE 0
+/**
+ * @defgroup 			AEMU_LOG_LEVELS
+ * @brief 				Log levels for AEMU. Set @ref AEMU_LOG_LEVEL to one of these levels to
+ * 						control logging.
+ *
+ * 						This group includes the different logging levels available to configure the
+ * 						logger.
+ * 						- `AEMU_LOG_DEBUG` (4) : Debug level, all logs will be displayed and
+ * 							tracked.
+ * 						- `AEMU_LOG_INFO` (3)  : Information level, informational logs will be
+ * 							displayed.
+ * 						- `AEMU_LOG_WARN` (2)  : Warning level, only warnings and higher severity
+ * 							logs will be displayed.
+ * 						- `AEMU_LOG_ERROR` (1) : Error level, only errors will be displayed.
+ * 						- `AEMU_LOG_NONE` (0)  : No logging.
+ * @{
+ */
+#define AEMU_LOG_DEBUG 4
+#define AEMU_LOG_INFO 3
+#define AEMU_LOG_WARN 2
+#define AEMU_LOG_ERROR 1
+#define AEMU_LOG_NONE 0
+/**@} */ // end of AEMU_LOG_LEVELS
 
-#ifndef LOG_LEVEL
-#define LOG_LEVEL LOG_DEBUG
+/**
+ * @defgroup			AEMU_LOG_CONTROL
+ * @brief 				Controls functionality of the logger. Set these control boolean flags to
+ * 						control print and tracking.
+ *
+ * 						The available control flags are.
+ * 						- `AEMU_LOG_LEVEL` : Set the level of logs to be displayed, corresponding to
+ * 							@ref AEMU_LOG_LEVELS
+ * 						- `AEMU_LOG_ENABLED` : Toggle whether logs will happen. Turn off to
+ * 							minimize/nullify the performance impact of logs.
+ * 						- `AEMU_PRINT_ENABLED` : Toggle whether logs will be printed to standard
+ * 							out. If @ref AEMU_LOG_ENABLED is disabled, no print will occur.
+ * 						- `AEMU_EXCEPT_ON_ERROR` : Toggle whether error logs will exit with failure
+ * 							code.
+ * 						- `AEMU_PROJECT_ROOT_DIR` : Set to a c++ string of the full path to project
+ * 							root directory. The default implementation is dependent on the root
+ * 							folder `core`.
+ * @{
+ */
+#ifndef AEMU_LOG_LEVEL
+#define AEMU_LOG_LEVEL LOG_DEBUG
 #endif /* LOG_LEVEL */
 
-#ifndef LOG_ENABLED
-#define LOG_ENABLED true
+#ifndef AEMU_LOG_ENABLED
+#define AEMU_LOG_ENABLED true
 #endif /* LOG_DISABLED */
 
-#ifndef PRINT_ENABLED
-#define PRINT_ENABLED true
+#ifndef AEMU_PRINT_ENABLED
+#define AEMU_PRINT_ENABLED true
 #endif /* PRINT_DISABLED */
 
-#ifndef EXCEPT_ON_ERROR
-#define EXCEPT_ON_ERROR true
+#ifndef AEMU_EXCEPT_ON_ERROR
+#define AEMU_EXCEPT_ON_ERROR true
 #endif /* EXCEPT_ON_ERROR */
 
-#ifndef PROJECT_ROOT_DIR
-	#define PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
+#ifndef AEMU_PROJECT_ROOT_DIR
+	#define AEMU_PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
 #endif /* PROJECT_ROOT_DIR */
+/**@} */ // end of AEMU_LOG_CONTROL
+
+
+#ifndef AEMU_PROFILER_ENABLED
+#define AEMU_PROFILER_ENABLED true
+#endif /* AEMU_PROFILER_ENABLED */
 
 namespace logger
 {
@@ -62,6 +110,50 @@ namespace logger
 	void track(const std::string& type, const char* format, const char* file, int line,
 			   const char* func, ...);
 
+	/**
+	 * @brief			Tracks the start of running time that the profiler is observing.
+	 *
+	 * @param file
+	 * @param line
+	 * @param func
+	 */
+	void clock_start_master(const char* file, int line, const char* func);
+
+	/**
+	 * @brief			Tracks the end of running time that the profiler is observing. The master
+	 * 					clock can be restarted.
+	 *
+	 * @param file
+	 * @param line
+	 * @param func
+	 */
+	void clock_end_master(const char* file, int line, const char* func);
+
+	/**
+	 * @brief 			Tracks the start of a specific clock
+	 *
+	 * @param tag
+	 * @param file
+	 * @param line
+	 * @param func
+	 */
+	void clock_start(const std::string& tag, const char* file, int line, const char* func);
+
+	/**
+	 * @brief 			Ends the most recently started clock. Clocks are organized in a hierarchy,
+	 * 					so starting sequential clocks will mean the top most clock will have a
+	 * 					longer lifespan than the clock at the root.
+	 *
+	 * @param tag
+	 * @param file
+	 * @param line
+	 * @param func
+	 */
+	void clock_end(const char* file, int line, const char* func);
+
+	/* TODO: query profile logs, dump to file, etc */
+
+
 	/* TODO: query logs, dump to file, etc */
 
 	/**
@@ -76,7 +168,7 @@ namespace logger
 							 const char* func)
 	{
 		std::cout << "[" << ccolor::BOLD << type << ccolor::RESET << "] ["
-				<< ccolor::BLUE << string_util::replaceFirst(file, PROJECT_ROOT_DIR, "")
+				<< ccolor::BLUE << string_util::replaceFirst(file, AEMU_PROJECT_ROOT_DIR, "")
 				<< ccolor::RESET << ":" << ccolor::MAGENTA << line << ccolor::RESET << "] ["
 				<< ccolor::YELLOW << func << ccolor::RESET << "]: ";
 	}
@@ -94,8 +186,8 @@ namespace logger
 	template <typename... Args>
 	inline void log_debug(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (LOG_ENABLED) {
-			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+		if (AEMU_LOG_ENABLED) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
 				print_header(ccolor::MAGENTA + "DBG", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
@@ -118,8 +210,8 @@ namespace logger
 	template <typename... Args>
 	inline void log_info(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (LOG_ENABLED) {
-			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+		if (AEMU_LOG_ENABLED) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
 				print_header(ccolor::BLUE + "INF", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
@@ -142,8 +234,8 @@ namespace logger
 	template <typename... Args>
 	inline void log_warn(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (LOG_ENABLED) {
-			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+		if (AEMU_LOG_ENABLED) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
 				print_header(ccolor::YELLOW + "WRN", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
@@ -167,8 +259,8 @@ namespace logger
 	template <typename... Args>
 	inline void log_error(const char* format, const char* file, int line, const char* func, Args&&... args)
 	{
-		if (LOG_ENABLED) {
-			if (PRINT_ENABLED && LOG_LEVEL >= LOG_DEBUG) {
+		if (AEMU_LOG_ENABLED) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
 				print_header(ccolor::RED + "ERR", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
