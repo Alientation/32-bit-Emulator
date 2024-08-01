@@ -186,7 +186,8 @@ namespace logger
 	 * @param args		Arguments passed into printf.
 	 */
 	template <typename... Args>
-	inline void log_debug(const char* format, const char* file, int line, const char* func, Args&&... args)
+	inline void log_debug(const char* format, const char* file, int line, const char* func,
+						  Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
 			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
@@ -210,7 +211,8 @@ namespace logger
 	 * @param args		Arguments passed into printf.
 	 */
 	template <typename... Args>
-	inline void log_info(const char* format, const char* file, int line, const char* func, Args&&... args)
+	inline void log_info(const char* format, const char* file, int line, const char* func,
+						 Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
 			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
@@ -234,7 +236,8 @@ namespace logger
 	 * @param args		Arguments passed into printf.
 	 */
 	template <typename... Args>
-	inline void log_warn(const char* format, const char* file, int line, const char* func, Args&&... args)
+	inline void log_warn(const char* format, const char* file, int line, const char* func,
+						 Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
 			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
@@ -259,7 +262,8 @@ namespace logger
 	 * @param args		Arguments passed into printf.
 	 */
 	template <typename... Args>
-	inline void log_error(const char* format, const char* file, int line, const char* func, Args&&... args)
+	inline void log_error(const char* format, const char* file, int line, const char* func,
+						  Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
 			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
