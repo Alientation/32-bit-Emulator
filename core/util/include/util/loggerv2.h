@@ -5,8 +5,6 @@
 #include "util/console_color.h"
 #include "util/string_util.h"
 
-#include <chrono>
-#include <ctime>
 #include <iostream>
 
 /*
@@ -15,9 +13,10 @@
 	// - 	toggleable logs (levels + each unit that uses a log has the ability to easily disable logs in that file)
 	// - 	print + noprint
 	-	dump to file with filters, query logs
-	-	timer/profiler
-		- tag a profile log
+	// -	timer/profiler
+		// - tag a profile log
 		- dump to file and query profiler
+		- have separate log type for profiler so it can be also queried from the log file
 	// - 	color print
 	// - 	automatically detect the line and file a log occurs in, this means a macro. problem with macros is
 		// they do not show types well
@@ -70,7 +69,7 @@
  * @{
  */
 #ifndef AEMU_LOG_LEVEL
-#define AEMU_LOG_LEVEL LOG_DEBUG
+#define AEMU_LOG_LEVEL AEMU_LOG_DEBUG
 #endif /* LOG_LEVEL */
 
 #ifndef AEMU_LOG_ENABLED
@@ -94,6 +93,10 @@
 #ifndef AEMU_PROFILER_ENABLED
 #define AEMU_PROFILER_ENABLED true
 #endif /* AEMU_PROFILER_ENABLED */
+
+#ifndef AEMU_PROFILER_LOG_ENABLED
+#define AEMU_PROFILER_LOG_ENABLED true
+#endif /* AEMU_PROFILER_LOG_ENABLED */
 
 namespace logger
 {
@@ -122,12 +125,8 @@ namespace logger
 	/**
 	 * @brief			Tracks the end of running time that the profiler is observing. The master
 	 * 					clock can be restarted.
-	 *
-	 * @param file
-	 * @param line
-	 * @param func
 	 */
-	void clock_end_master(const char* file, int line, const char* func);
+	void clock_stop_master();
 
 	/**
 	 * @brief 			Tracks the start of a specific clock
@@ -140,16 +139,19 @@ namespace logger
 	void clock_start(const std::string& tag, const char* file, int line, const char* func);
 
 	/**
-	 * @brief 			Ends the most recently started clock. Clocks are organized in a hierarchy,
+	 * @brief 			Stops the most recently started clock, but can be restarted with start call.
+	 * 					Clocks are organized in a hierarchy,
 	 * 					so starting sequential clocks will mean the top most clock will have a
 	 * 					longer lifespan than the clock at the root.
-	 *
-	 * @param tag
-	 * @param file
-	 * @param line
-	 * @param func
 	 */
-	void clock_end(const char* file, int line, const char* func);
+	void clock_stop();
+
+	/**
+	 * @brief			Ends the most recently started clock, moving the current clock down the
+	 * 					hierarchy.
+	 *
+	 */
+	void clock_end();
 
 	/* TODO: query profile logs, dump to file, etc */
 
@@ -269,7 +271,7 @@ namespace logger
 			track("ERR", format, file, line, func, args...);
 		}
 
-		if (EXCEPT_ON_ERROR) {
+		if (AEMU_EXCEPT_ON_ERROR) {
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -378,6 +380,13 @@ namespace logger
 	#define EXPECT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
 	#define EXPECT_NOT_EQUAL(t1, t2, format, ...) logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 	#define EXPECT_NOT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+
+	#define PROFILE_START logger::clock_start_master(__FILE__, __LINE__, __func__);
+	#define PROFILE_STOP logger::clock_stop_master();
+	#define CLOCK_START(tag) logger::clock_start(tag, __FILE__, __LINE__, __func__);
+	#define CLOCK_STOP logger::clock_stop();
+	#define CLOCK_END logger::clock_end();
+
 };
 
 #endif /* LOGGERV2_H */

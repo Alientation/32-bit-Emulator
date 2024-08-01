@@ -67,7 +67,9 @@ const static std::string build_exe_from_library_dir = "-libdir .\\programs\\buil
 int main(int argc, char* argv[])
 {
     INFO("Running Build");
+	PROFILE_START
 
+	CLOCK_START("Build")
 	std::string build_command = build_exe_from_library_dir;
 	if (argc > 1) {
    		INFO("Parsing command arguments");
@@ -79,9 +81,13 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+	CLOCK_END
+	CLOCK_START("Process")
 
 	Process process = Process(build_command);
+	CLOCK_STOP
 
+	CLOCK_START("Emulator")
 	byte data[PAGE_SIZE] = {1, 2, 3, 4};
 	if (process.does_create_exe()) {
 		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
@@ -91,4 +97,6 @@ int main(int argc, char* argv[])
 		emulator.run(AEMU_MAX_EXEC_INSTR);
 		emulator.print();
 	}
+	CLOCK_END
+	PROFILE_STOP
 }
