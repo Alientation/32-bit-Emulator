@@ -6,13 +6,13 @@
 std::string trim_dir_path(const std::string& str)
 {
 	std::vector<std::string> segments;
-	int i = 0;
+	size_t i = 0;
 	while(i < str.size()) {
-		int end = str.find("\\", i);
+		size_t end = str.find("\\", i);
 		if (end == std::string::npos) {
 			end = str.size();
 		}
-		int other_separator_end = str.find("/", i);
+		size_t other_separator_end = str.find("/", i);
 		if (other_separator_end == std::string::npos) {
 			other_separator_end = str.size();
 		}
@@ -32,7 +32,7 @@ std::string trim_dir_path(const std::string& str)
 	}
 
 	std::string res;
-	for (int i = 0; i < segments.size(); i++) {
+	for (size_t i = 0; i < segments.size(); i++) {
 		res += segments[i];
 		if (i + 1 < segments.size()) {
 			res += File::SEPARATOR;
@@ -105,8 +105,8 @@ File::File(const std::string& path, bool create_if_not_present)
 
 File::File() :
 	m_name(""),
-	m_dir(""),
-	m_extension("")
+	m_extension(""),
+	m_dir("")
 {
 
 }
@@ -263,7 +263,7 @@ void FileWriter::write(const std::string text)
 	}
 
 	(*m_file_stream) << text;
-    for (int i = 0; i < text.size(); i++) {
+    for (size_t i = 0; i < text.size(); i++) {
         m_bytes_written.push_back(text[i]);
     }
 }
@@ -356,7 +356,7 @@ char* FileWriter::last_bytes_written(unsigned int num_bytes)
 {
     char* bytes = new char[num_bytes];
 
-    for (int i = std::max(0ULL, num_bytes - m_bytes_written.size()); i < num_bytes; i++) {
+    for (size_t i = std::max(0ULL, num_bytes - m_bytes_written.size()); i < num_bytes; i++) {
         bytes[i] = m_bytes_written[m_bytes_written.size() - num_bytes + i];
     }
 

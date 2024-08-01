@@ -6,6 +6,15 @@ project(
     LANGUAGES CXX
 )
 
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
     src/assembler.cpp
@@ -52,10 +61,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC util emulator32bit)
 # the debug and release version of library can be installed to the
 # same location and will not conflict (overwrite each other)
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-	add_compile_options(-g)
-endif()
 
 # specify the target to install (calculator-static library defined above)
 # set the export name <name>-config (does not need to match target name)

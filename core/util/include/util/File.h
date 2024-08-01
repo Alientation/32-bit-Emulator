@@ -135,7 +135,7 @@ class ByteReader
 		void skip_bytes(int num_bytes);
 	private:
 		std::vector<unsigned char>& m_bytes;
-		int m_cur_byte = 0;
+		size_t m_cur_byte = 0;
 };
 
 

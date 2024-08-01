@@ -131,7 +131,7 @@ std::vector<Directory> Directory::get_subdirs()
  */
 Directory Directory::get_subdir(const std::string& subdir_path)
 {
-	return Directory(m_dir_path + File::SEPARATOR + m_dir_path);
+	return Directory(m_dir_path + File::SEPARATOR + subdir_path);
 }
 
 /**

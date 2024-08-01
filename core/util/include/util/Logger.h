@@ -54,10 +54,17 @@ class Logger {
 				std::string msg;
 				std::time_t timestamp;
 
-				LogMessage(std::string file, std::string func, int line_num, Logger::LogType logType, std::string msg, std::string group)
-						: file(file), func(func), line_num(line_num), logType(logType), msg(msg),
-						timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())),
-						group(group) {}
+				LogMessage(std::string file, std::string func, int line_num,
+						   Logger::LogType logType, std::string msg, std::string group) :
+						file(file),
+						func(func),
+						line_num(line_num),
+						logType(logType),
+						group(group), msg(msg),
+						timestamp(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()))
+				{
+
+				}
 
 				std::string to_string();
 				std::string to_print_string();

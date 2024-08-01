@@ -6,6 +6,15 @@ project(
 	LANGUAGES CXX
 )
 
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
 	# source files (.cpp)
