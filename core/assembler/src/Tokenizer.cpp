@@ -167,7 +167,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 	};
 	while (source_code.size() > 0) {
 		// hopefully boost performance
-		int substring_length = 0;
+		size_t substring_length = 0;
 		while (substring_length < source_code.size() && is_alphanumeric(source_code[substring_length], substring_length)) {
 			substring_length++;
 		}

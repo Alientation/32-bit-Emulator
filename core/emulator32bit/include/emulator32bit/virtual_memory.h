@@ -13,7 +13,7 @@ class VirtualMemory
 {
 	public:
 		VirtualMemory(word ram_start_page, word ram_end_page, Disk& disk);
-		~VirtualMemory();
+		virtual ~VirtualMemory();
 
 		Disk& m_disk;
 
@@ -44,7 +44,7 @@ class VirtualMemory
 
 		struct PageTable {
 			long long pid = 0;
-			std::unordered_map<word, PageTableEntry*> entries;
+			std::unordered_map<word, PageTableEntry*> entries = std::unordered_map<word,PageTableEntry*>();
 		};
 
 		word m_ram_start_page;
@@ -81,6 +81,7 @@ class MockVirtualMemory : public VirtualMemory
 {
 	public:
 		MockVirtualMemory(word ram_start_page, word ram_end_page);
+		~MockVirtualMemory() override;
 
 		void set_process(long long pid) override;
 		void begin_process(long long pid, word alloc_mem_begin = 0, word alloc_mem_end = PAGE_SIZE-1) override;

@@ -112,7 +112,7 @@ File Assembler::assemble()
 
 	// parse tokens
 	DEBUG_SS(std::stringstream() << "Assembler::assemble() - Parsing tokens.");
-	for (int i = 0; i < m_tokens.size(); ) {
+	for (size_t i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
         DEBUG_SS(std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": "
 				<< token.to_string());
@@ -174,31 +174,31 @@ File Assembler::assemble()
 
 void Assembler::fill_local()
 {
-	int tokenI = 0;
+	size_t tok_i = 0;
 
 	DEBUG_SS(std::stringstream() << "Assembler::file_local() - Parsing relocation entries to fill in known values.");
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
-	for (int i = 0; i < m_obj.rel_text.size(); i++) {
+	for (size_t i = 0; i < m_obj.rel_text.size(); i++) {
 		ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
 		DEBUG_SS(std::stringstream() << "Assembler::file_local() - Evaluating relocation entry "
 				<< m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
-		while (tokenI < rel.token && tokenI < m_tokens.size()) {
-			if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCOPE) {
+		while (tok_i < rel.token && tok_i < m_tokens.size()) {
+			if (m_tokens[tok_i].type == Tokenizer::ASSEMBLER_SCOPE) {
 				local_scope.push_back(local_count_scope++);
-			} else if (m_tokens[tokenI].type == Tokenizer::ASSEMBLER_SCEND) {
+			} else if (m_tokens[tok_i].type == Tokenizer::ASSEMBLER_SCEND) {
 				local_scope.pop_back();
 			}
 
-			tokenI++;
+			tok_i++;
 		}
 
 		// first find if symbol is defined in local scope
 		ObjectFile::SymbolTableEntry symbol_entry;
 		bool found_local = false;
 		std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
-		for (int scopeI = local_scope.size()-1; scopeI >= 0; scopeI--) {
+		for (size_t scopeI = local_scope.size()-1; scopeI+1 != 0; scopeI--) {
 			std::string local_symbol_name = symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);
 			if (m_obj.string_table.find(local_symbol_name) == m_obj.string_table.end()) {
 				continue;
@@ -260,100 +260,100 @@ void Assembler::fill_local()
  * Skips tokens that match the given regex.
  *
  * @param regex matches tokens to skip.
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  */
-void Assembler::skip_tokens(int& tokenI, const std::string& regex)
+void Assembler::skip_tokens(size_t& tok_i, const std::string& regex)
 {
-	while (in_bounds(tokenI) && std::regex_match(m_tokens[tokenI].value, std::regex(regex))) {
-		tokenI++;
+	while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].value, std::regex(regex))) {
+		tok_i++;
 	}
 }
 
 /**
  * Skips tokens that match the given types.
  *
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  * @param tokenTypes the types to match.
  */
-void Assembler::skip_tokens(int& tokenI, const std::set<Tokenizer::Type>& tokenTypes)
+void Assembler::skip_tokens(size_t& tok_i, const std::set<Tokenizer::Type>& tokenTypes)
 {
-    while (in_bounds(tokenI) && tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end()) {
-        tokenI++;
+    while (in_bounds(tok_i) && tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end()) {
+        tok_i++;
     }
 }
 
 /**
  * Expects the current token to exist.
  *
- * @param tokenI the index of the expected token.
+ * @param tok_i the index of the expected token.
  * @param errorMsg the error message to throw if the token does not exist.
  */
-bool Assembler::expect_token(int tokenI, const std::string& errorMsg)
+bool Assembler::expect_token(size_t tok_i, const std::string& errorMsg)
 {
-	EXPECT_TRUE_SS(in_bounds(tokenI), std::stringstream(errorMsg));
+	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(errorMsg));
     return true;
 }
 
-bool Assembler::expect_token(int tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg)
+bool Assembler::expect_token(size_t tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg)
 {
-	EXPECT_TRUE_SS(in_bounds(tokenI), std::stringstream(errorMsg));
-	EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), std::stringstream(errorMsg));
+	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(errorMsg));
+	EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), std::stringstream(errorMsg));
     return true;
 }
 
 /**
  * Returns whether the current token matches the given types.
  *
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  * @param tokenTypes the types to match.
  *
  * @return true if the current token matches the given types.
  */
-bool Assembler::is_token(int tokenI, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg)
+bool Assembler::is_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg)
 {
-    expect_token(tokenI, errorMsg);
-    return tokenTypes.find(m_tokens[tokenI].type) != tokenTypes.end();
+    expect_token(tok_i, errorMsg);
+    return tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end();
 }
 
 /**
  * Returns whether the current token index is within the bounds of the tokens list.
  *
- * @param tokenI the index of the current token
+ * @param tok_i the index of the current token
  *
  * @return true if the token index is within the bounds of the tokens list.
  */
-bool Assembler::in_bounds(int tokenI)
+bool Assembler::in_bounds(size_t tok_i)
 {
-    return tokenI < m_tokens.size();
+    return tok_i < m_tokens.size();
 }
 
 /**
  * Consumes the current token.
  *
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  * @param errorMsg the error message to throw if the token does not exist.
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Assembler::consume(int& tokenI, const std::string& errorMsg)
+Tokenizer::Token& Assembler::consume(size_t& tok_i, const std::string& errorMsg)
 {
-    expect_token(tokenI, errorMsg);
-    return m_tokens[tokenI++];
+    expect_token(tok_i, errorMsg);
+    return m_tokens[tok_i++];
 }
 
 /**
  * Consumes the current token and checks it matches the given types.
  *
- * @param tokenI the index of the current token.
+ * @param tok_i the index of the current token.
  * @param expectedTypes the expected types of the token.
  * @param errorMsg the error message to throw if the token does not have the expected type.
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Assembler::consume(int& tokenI, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg)
+Tokenizer::Token& Assembler::consume(size_t& tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg)
 {
-    expect_token(tokenI, errorMsg);
-	EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tokenI].type) != expectedTypes.end(), std::stringstream()
+    expect_token(tok_i, errorMsg);
+	EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), std::stringstream()
 			<< errorMsg << " - Unexpected end of file.");
-	return m_tokens.at(tokenI++);
+	return m_tokens.at(tok_i++);
 }

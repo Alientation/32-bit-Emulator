@@ -56,7 +56,7 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 	/* BELF Header */
 	DEBUG("ObjectFile::disassemble() - Reading BELF Header");
 	byte expected[4] = {'B','E','L','F'};							/* 0-3 */
-	for (int i = 0; i < sizeof(expected)/sizeof(expected[0]); i++) {
+	for (unsigned long long i = 0; i < sizeof(expected)/sizeof(expected[0]); i++) {
 		if (expected[i] != reader.read_byte()) {
 			// todo logger
 			return;
@@ -102,18 +102,18 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 
 	/* Sections */
 	DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Reading " << n_sections << " sections");
-	for (int section_i = 0; section_i < n_sections; section_i++) {
+	for (hword section_i = 0; section_i < n_sections; section_i++) {
 		SectionHeader &section_header = sections[section_i];
 		switch(section_header.type) {
 			case SectionHeader::Type::TEXT:
 				DEBUG("ObjectFile::disassemble() - Disassembling Text Section");
-				for (int i = 0; i < section_header.section_size; i+=4) {
+				for (word i = 0; i < section_header.section_size; i+=4) {
 					text_section.push_back(reader.read_word(false));
 				}
 				break;
 			case SectionHeader::Type::DATA:
 				DEBUG("ObjectFile::disassemble() - Disassembling Data Section");
-				for (int i = 0; i < section_header.section_size; i++) {
+				for (word i = 0; i < section_header.section_size; i++) {
 					data_section.push_back(reader.read_byte());
 				}
 				break;
@@ -123,7 +123,7 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 				break;
 			case SectionHeader::Type::SYMTAB:
 				DEBUG("ObjectFile::disassemble() - Disassembling Symbol Table Section");
-				for (int i = 0; i < section_header.section_size; i += SYMBOL_TABLE_ENTRY_SIZE) {
+				for (word i = 0; i < section_header.section_size; i += SYMBOL_TABLE_ENTRY_SIZE) {
 					SymbolTableEntry symbol = {
 						.symbol_name = (int) reader.read_dword(),
 						.symbol_value = (word) reader.read_dword(),
@@ -141,36 +141,39 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 				break;
 			case SectionHeader::Type::REL_TEXT:
 				DEBUG("ObjectFile::disassemble() - Disassembling Rel.Text Section");
-				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+				for (word i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
 					RelocationEntry rel = {
 						.offset = (word) reader.read_dword(),
 						.symbol = (int) reader.read_dword(),
 						.type = (RelocationEntry::Type) reader.read_word(),
 						.shift = (word) reader.read_dword(),
+						.token = 0,
 					};
 					rel_text.push_back(rel);
 				}
 				break;
 			case SectionHeader::Type::REL_DATA:
 				DEBUG("ObjectFile::disassemble() - Disassembling Rel.Data Section");
-				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+				for (word i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
 					RelocationEntry rel = {
 						.offset = (word) reader.read_dword(),
 						.symbol = (int) reader.read_dword(),
 						.type = (RelocationEntry::Type) reader.read_word(),
 						.shift = (word) reader.read_dword(),
+						.token = 0,
 					};
 					rel_data.push_back(rel);
 				}
 				break;
 			case SectionHeader::Type::REL_BSS:
 				DEBUG("ObjectFile::disassemble() - Disassembling Rel.BSS Section");
-				for (int i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
+				for (word i = 0; i < section_header.section_size; i+=RELOCATION_ENTRY_SIZE) {
 					RelocationEntry rel = {
 						.offset = (word) reader.read_dword(),
 						.symbol = (int) reader.read_dword(),
 						.type = (RelocationEntry::Type) reader.read_word(),
 						.shift = (word) reader.read_dword(),
+						.token = 0,
 					};
 					rel_bss.push_back(rel);
 				}
@@ -178,7 +181,7 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 			case SectionHeader::Type::STRTAB: {
 				DEBUG("ObjectFile::disassemble() - Disassembling String Table section");
 				std::string current_string;
-				for (int i = 0; i < section_header.section_size; i++) {
+				for (word i = 0; i < section_header.section_size; i++) {
 					byte b = reader.read_byte();
 					if (b == '\0') {
 						string_table[current_string] = strings.size();
@@ -198,7 +201,7 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 
 	/* Fill in section table */
 	DEBUG("ObjectFile::disassemble() - Filling in Section table");
-	for (int i = 0; i < sections.size(); i++) {
+	for (size_t i = 0; i < sections.size(); i++) {
 		section_table[strings[sections[i].section_name]] = i;
 	}
 
@@ -301,7 +304,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* Text Section */
 	DEBUG("ObjectFile::write_object_file() - Writing .text section.");
-	for (int i = 0; i < text_section.size(); i++) {
+	for (size_t i = 0; i < text_section.size(); i++) {
 		byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
 	}
 	sections[section_table[".text"]].section_size = text_section.size() * 4;
@@ -310,7 +313,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* Data Section */
 	DEBUG("ObjectFile::write_object_file() - Writing .data section.");
-	for (int i = 0; i < data_section.size(); i++) {
+	for (size_t i = 0; i < data_section.size(); i++) {
 		byte_writer << ByteWriter::Data(data_section.at(i), 1);
 	}
 	sections[section_table[".data"]].section_size = data_section.size();
@@ -342,7 +345,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* rel.text Section */
 	DEBUG("ObjectFile::write_object_file() - Writing .rel.text section.");
-	for (int i = 0; i < rel_text.size(); i++) {
+	for (size_t i = 0; i < rel_text.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
@@ -354,7 +357,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* rel.data Section */
 	DEBUG("ObjectFile::write_object_file() - Writing .rel.data section.");
-	for (int i = 0; i < rel_data.size(); i++) {
+	for (size_t i = 0; i < rel_data.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
@@ -366,7 +369,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* rel.bss Section */
 	DEBUG("ObjectFile::write_object_file() - Writing .rel.bss section.");
-	for (int i = 0; i < rel_bss.size(); i++) {
+	for (size_t i = 0; i < rel_bss.size(); i++) {
 		byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
 		byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
 		byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
@@ -379,7 +382,7 @@ void ObjectFile::write_object_file(File obj_file)
 	/* String Table */
 	DEBUG("ObjectFile::write_object_file() - Writing .strtab section.");
 	int size = 0;
-	for (int i = 0; i < strings.size(); i++) {
+	for (size_t i = 0; i < strings.size(); i++) {
 		m_writer.write(strings[i]);
 		byte_writer << ByteWriter::Data(0, 1);							/* Null terminated string */
 		size += strings[i].size() + 1;
@@ -390,7 +393,7 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* Section headers */
 	DEBUG("ObjectFile::write_object_file() - Writing Section headers.");
-	for (int i = 0; i < sections.size(); i++) {
+	for (size_t i = 0; i < sections.size(); i++) {
 		byte_writer << ByteWriter::Data(sections[i].section_name, 8);
 		byte_writer << ByteWriter::Data((int) sections[i].type, 4);
 		byte_writer << ByteWriter::Data(sections[i].section_start, 8);
@@ -446,7 +449,7 @@ void ObjectFile::print()
 		data_address_width = 4;
 	}
 	std::string data_address_format = "\n%." + std::to_string(data_address_width) + "hx ";
-	for (int i = 0; i < data_section.size(); i++) {
+	for (size_t i = 0; i < data_section.size(); i++) {
 		if (i % 16 == 0) {
 			printf(data_address_format.c_str(), i);
 		}
@@ -467,7 +470,7 @@ void ObjectFile::print()
 	}
 
 	std::unordered_map<int, RelocationEntry> rel_text_map;
-	for (int i = 0; i < rel_text.size(); i++) {
+	for (size_t i = 0; i < rel_text.size(); i++) {
 		rel_text_map[rel_text[i].offset] = rel_text[i];
 	}
 
@@ -483,7 +486,7 @@ void ObjectFile::print()
 	std::string text_address_format = "\n%" + std::to_string(text_address_width) + "hx";
 	std::string relocation_spacing = "\n%" + std::to_string(text_address_width) + "s";
 	std::string current_label = "";
-	for (int i = 0; i < text_section.size(); i++) {
+	for (size_t i = 0; i < text_section.size(); i++) {
 		if (label_map.find(i*4) != label_map.end()) {
 			if (i != 0) {
 				printf("\n\n");
@@ -499,7 +502,7 @@ void ObjectFile::print()
 		if (disassembly.find_first_of(' ') != std::string::npos) {
 			std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
 			std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
-			printf(":\t%.8lx\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
+			printf(":\t%.8x\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
 			switch (bitfield_u32(text_section[i], 26, 6)) {
 				case Emulator32bit::_op_b:
 				case Emulator32bit::_op_bl:
@@ -511,7 +514,7 @@ void ObjectFile::print()
 					}
 			}
 		} else {
-			printf(":\t%.8lx\t%.12s", text_section[i], disassembly.c_str());
+			printf(":\t%.8x\t%.12s", text_section[i], disassembly.c_str());
 		}
 
 		/* Check if there is a relocation record here */

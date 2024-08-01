@@ -76,23 +76,23 @@ class Process
 		void assemble();
 		void link();
 
-        void _ignore(std::vector<std::string>& args, int& index);
-		void _version(std::vector<std::string>& args, int& index);
-		void _compile(std::vector<std::string>& args, int& index);
-		void _makelib(std::vector<std::string>& args, int& index);
-		void _output(std::vector<std::string>& args, int& index);
-		void _outdir(std::vector<std::string>& args, int& index);
-		void _optimize(std::vector<std::string>& args, int& index);
-		void _optimize_all(std::vector<std::string>& args, int& index);
-		void _warn(std::vector<std::string>& args, int& index);
-		void _warn_all(std::vector<std::string>& args, int& index);
-		void _include(std::vector<std::string>& args, int& index);
-		void _library(std::vector<std::string>& args, int& index);
-		void _library_directory(std::vector<std::string>& args, int& index);
-		void _preprocessor_flag(std::vector<std::string>& args, int& index);
-		void _keep_processed_files(std::vector<std::string>& args, int& index);
+        void _ignore(std::vector<std::string>& args, size_t& index);
+		void _version(std::vector<std::string>& args, size_t& index);
+		void _compile(std::vector<std::string>& args, size_t& index);
+		void _makelib(std::vector<std::string>& args, size_t& index);
+		void _output(std::vector<std::string>& args, size_t& index);
+		void _outdir(std::vector<std::string>& args, size_t& index);
+		void _optimize(std::vector<std::string>& args, size_t& index);
+		void _optimize_all(std::vector<std::string>& args, size_t& index);
+		void _warn(std::vector<std::string>& args, size_t& index);
+		void _warn_all(std::vector<std::string>& args, size_t& index);
+		void _include(std::vector<std::string>& args, size_t& index);
+		void _library(std::vector<std::string>& args, size_t& index);
+		void _library_directory(std::vector<std::string>& args, size_t& index);
+		void _preprocessor_flag(std::vector<std::string>& args, size_t& index);
+		void _keep_processed_files(std::vector<std::string>& args, size_t& index);
 
-		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, int& index);
+		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, size_t& index);
 		std::map<std::string, FlagFunction> flags;
 
 };

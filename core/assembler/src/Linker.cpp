@@ -99,7 +99,7 @@ void Linker::link()
 	word offset_text = 0;												/* bytes from the start of exe file text section */
 	word offset_data = exe_obj_file.text_section.size() * 4;			/* Same as above */
 	word offset_bss = offset_data + exe_obj_file.bss_section;			/* Same as above, sections are ordered like this. text->data->bss */
-	for (int i = 0; i < m_obj_files.size(); i++) {
+	for (size_t i = 0; i < m_obj_files.size(); i++) {
 		ObjectFile& obj_file = m_obj_files.at(i);
 		for (auto& pair : obj_file.symbol_table) {
 			std::string symbol_name = obj_file.strings[pair.first];
@@ -173,6 +173,7 @@ void Linker::link()
 				.symbol = obj_file.symbol_table.at(rel.symbol).symbol_name,
 				.type = rel.type,
 				.shift = rel.shift,
+				.token = 0,
 			});
 		}
 

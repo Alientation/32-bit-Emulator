@@ -14,6 +14,8 @@
 #define _X3(instr) (bitfield_u32(instr, 9, 5))				/*! bits 9 to 14 */
 #define _X4(instr) (bitfield_u32(instr, 4, 5))				/*! bits 4 to 9 */
 
+#define UNUSED(x) (void)(x)
+
 /**
  * @internal
  * @brief 					Calculates the new value after applying the specified shift
@@ -332,6 +334,7 @@ word Emulator32bit::asm_format_b2(byte opcode, ConditionCode cond, int xd)
 
 void Emulator32bit::_hlt(word instr, EmulatorException& exception)
 {
+	UNUSED(instr);
 	exception.type = EmulatorException::Type::HALT;
 }
 
@@ -342,6 +345,8 @@ word Emulator32bit::asm_hlt()
 
 void Emulator32bit::_nop(word instr, EmulatorException& exception)
 {
+	UNUSED(instr);
+	UNUSED(exception);
 	return; // do nothing
 }
 
@@ -529,18 +534,78 @@ void Emulator32bit::_smull(word instr, EmulatorException& exception)
 }
 
 // todo WILL DO LATER JUST NOT NOW
-void Emulator32bit::_vabs_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vneg_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vsqrt_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vadd_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vsub_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vdiv_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vmul_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vcmp_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vsel_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vcint_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vcflo_f32(word instr, EmulatorException& exception) {}
-void Emulator32bit::_vmov_f32(word instr, EmulatorException& exception) {}
+void Emulator32bit::_vabs_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vneg_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vsqrt_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vadd_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vsub_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vdiv_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vmul_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vcmp_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vsel_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vcint_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vcflo_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
+void Emulator32bit::_vmov_f32(word instr, EmulatorException& exception)
+{
+	UNUSED(instr);
+	UNUSED(exception);
+}
+
 
 void Emulator32bit::_and(word instr, EmulatorException& exception)
 {
@@ -673,7 +738,6 @@ void Emulator32bit::_ror(word instr, EmulatorException& exception)
 // alias to subs
 void Emulator32bit::_cmp(word instr, EmulatorException& exception)
 {
-	byte xd = _X1(instr);
 	word xn_val = read_reg(_X2(instr), exception);
 	word cmp_val = FORMAT_O__get_arg(instr, exception);
 	word dst_val = xn_val - cmp_val;
@@ -688,7 +752,6 @@ void Emulator32bit::_cmp(word instr, EmulatorException& exception)
 // alias to adds
 void Emulator32bit::_cmn(word instr, EmulatorException& exception)
 {
-	byte xd = _X1(instr);
 	word xn_val = read_reg(_X2(instr), exception);
 	word cmn_val = FORMAT_O__get_arg(instr, exception);
 	word dst_val = cmn_val + xn_val;
@@ -703,7 +766,6 @@ void Emulator32bit::_cmn(word instr, EmulatorException& exception)
 // alias to ands
 void Emulator32bit::_tst(word instr, EmulatorException& exception)
 {
-	byte xd = _X1(instr);
 	word xn_val = read_reg(_X2(instr), exception);
 	word tst_val = FORMAT_O__get_arg(instr, exception);
 	word dst_val = tst_val & xn_val;
@@ -717,7 +779,6 @@ void Emulator32bit::_tst(word instr, EmulatorException& exception)
 // alias to eors
 void Emulator32bit::_teq(word instr, EmulatorException& exception)
 {
-	byte xd = _X1(instr);
 	word xn_val = read_reg(_X2(instr), exception);
 	word teq_val = FORMAT_O__get_arg(instr, exception);
 	word dst_val = teq_val ^ xn_val;
@@ -793,7 +854,6 @@ void Emulator32bit::_ldr(word instr, EmulatorException& exception)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -824,7 +884,6 @@ void Emulator32bit::_ldrb(word instr, EmulatorException& exception)
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -858,7 +917,6 @@ void Emulator32bit::_ldrh(word instr, EmulatorException& exception)
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -891,7 +949,6 @@ void Emulator32bit::_str(word instr, EmulatorException& exception)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -922,7 +979,6 @@ void Emulator32bit::_strb(word instr, EmulatorException& exception)
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -956,7 +1012,6 @@ void Emulator32bit::_strh(word instr, EmulatorException& exception)
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
-	word xn_val = read_reg(xn, exception);
 	bool simm = test_bit(instr, 14);
 	sword offset = 0;
 	if (simm) {
@@ -1036,6 +1091,8 @@ void Emulator32bit::_swph(word instr, EmulatorException& exception)
 
 void Emulator32bit::_b(word instr, EmulatorException& exception)
 {
+	UNUSED(exception);
+
 	byte cond = bitfield_u32(instr, 22, 4);
 	if (check_cond(_pstate, cond)) {
 		_pc += (bitfield_s32(instr, 0, 22) << 2) - 4;			/* account for execution loop incrementing _pc by 4 */

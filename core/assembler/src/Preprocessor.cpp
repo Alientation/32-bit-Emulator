@@ -7,6 +7,8 @@
 #include <fstream>
 #include <filesystem>
 
+#define UNUSED(x) (void)(x)
+
 Preprocessor::Argument::Argument(std::string name, Tokenizer::Type type) :
 	name(name),
 	type(type)
@@ -30,12 +32,12 @@ Preprocessor::Macro::Macro(std::string name) :
 std::string Preprocessor::Macro::to_string()
 {
 	std::string toString = header() + "\n";
-	for (auto i = 0; i < args.size(); i++) {
+	for (size_t i = 0; i < args.size(); i++) {
 		toString += "[" + std::to_string(i) + "]: " + args[i].name + ": " + Tokenizer::TYPE_TO_NAME_MAP.at(args[i].type);
 	}
 	toString += "-> " + Tokenizer::TYPE_TO_NAME_MAP.at(return_type) + "\n{\n";
 
-	for (int i = 0; i < definition.size(); i++) {
+	for (size_t i = 0; i < definition.size(); i++) {
 		toString += definition[i].value;
 	}
 
@@ -47,7 +49,7 @@ std::string Preprocessor::Macro::header()
 	std::string header;
 	header += name + "@(";
 
-	for (auto i = 0; i < args.size(); i++) {
+	for (size_t i = 0; i < args.size(); i++) {
 		header += Tokenizer::TYPE_TO_NAME_MAP.at(args[i].type);
 		if (i < args.size() - 1) {
 			header += ",";
@@ -123,7 +125,7 @@ File Preprocessor::preprocess()
 	// parses the tokens
 	int cur_indent_level = 0;
 	int target_indent_level = 0;
-	for (int i = 0; i < m_tokens.size(); ) {
+	for (size_t i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
 
         // skip back to back newlines
@@ -194,10 +196,10 @@ File Preprocessor::preprocess()
 
                 // replace all occurances of a parameter with the value passed in as the parameter
                 std::vector<Tokenizer::Token> definition = m_def_symbols.at(symbol).at(parameters.size()).value;
-                for (int j = 0; j < definition.size(); j++) {
+                for (size_t j = 0; j < definition.size(); j++) {
                     if (definition[j].type == Tokenizer::SYMBOL) {
                         // check if the symbol is a parameter
-                        for (int k = 0; k < parameters.size(); k++) {
+                        for (size_t k = 0; k < parameters.size(); k++) {
                             if (definition[j].value == m_def_symbols.at(symbol).at(parameters.size()).parameters[k]) {
                                 // replace the symbol with the parameter value
                                 definition.erase(definition.begin() + j);
@@ -265,7 +267,7 @@ std::vector<Preprocessor::Macro*> Preprocessor::macros_with_header(std::string m
  * @param regex matches tokens to skip.
  * @param tok_i the index of the current token.
  */
-void Preprocessor::skip_tokens(int& tok_i, const std::string& regex)
+void Preprocessor::skip_tokens(size_t& tok_i, const std::string& regex)
 {
 	while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].value, std::regex(regex))) {
 		tok_i++;
@@ -278,7 +280,7 @@ void Preprocessor::skip_tokens(int& tok_i, const std::string& regex)
  * @param tok_i the index of the current token.
  * @param tok_types the types to match.
  */
-void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types)
+void Preprocessor::skip_tokens(size_t& tok_i, const std::set<Tokenizer::Type>& tok_types)
 {
     while (in_bounds(tok_i) && tok_types.find(m_tokens[tok_i].type) != tok_types.end()) {
         tok_i++;
@@ -291,13 +293,13 @@ void Preprocessor::skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_
  * @param tok_i the index of the expected token.
  * @param error_msg the error message to throw if the token does not exist.
  */
-bool Preprocessor::expect_token(int tok_i, const std::string& error_msg)
+bool Preprocessor::expect_token(size_t tok_i, const std::string& error_msg)
 {
 	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(error_msg));
     return true;
 }
 
-bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+bool Preprocessor::expect_token(size_t tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
 {
 	EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(error_msg));
 	EXPECT_TRUE_SS(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), std::stringstream(error_msg));
@@ -312,7 +314,7 @@ bool Preprocessor::expect_token(int tok_i, const std::set<Tokenizer::Type>& expe
  *
  * @return true if the current token matches the given types.
  */
-bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg)
+bool Preprocessor::is_token(size_t tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg)
 {
     expect_token(tok_i, error_msg);
     return tok_types.find(m_tokens[tok_i].type) != tok_types.end();
@@ -325,7 +327,7 @@ bool Preprocessor::is_token(int tok_i, const std::set<Tokenizer::Type>& tok_type
  *
  * @return true if the token index is within the bounds of the tokens list.
  */
-bool Preprocessor::in_bounds(int tok_i)
+bool Preprocessor::in_bounds(size_t tok_i)
 {
     return tok_i < m_tokens.size();
 }
@@ -338,7 +340,7 @@ bool Preprocessor::in_bounds(int tok_i)
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg)
+Tokenizer::Token& Preprocessor::consume(size_t& tok_i, const std::string& error_msg)
 {
     expect_token(tok_i, error_msg);
     return m_tokens[tok_i++];
@@ -353,7 +355,7 @@ Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::string& error_msg
  *
  * @returns the value of the consumed token.
  */
-Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+Tokenizer::Token& Preprocessor::consume(size_t& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
 {
     expect_token(tok_i, error_msg);
 	EXPECT_TRUE_SS(expected_types.find(m_tokens[tok_i].type) != expected_types.end(), std::stringstream() << error_msg << " - Unexpected end of file.");
@@ -372,7 +374,7 @@ Tokenizer::Token& Preprocessor::consume(int& tok_i, const std::set<Tokenizer::Ty
  *
  * @param tok_i the index of the include token.
  */
-void Preprocessor::_include(int& tok_i)
+void Preprocessor::_include(size_t& tok_i)
 {
 	consume(tok_i); // '#include'
 	skip_tokens(tok_i, "[ \t]");
@@ -438,7 +440,7 @@ void Preprocessor::_include(int& tok_i)
  *
  * @param tok_i The index of the macro token.
  */
-void Preprocessor::_macro(int& tok_i)
+void Preprocessor::_macro(size_t& tok_i)
 {
 	consume(tok_i); // '#macro'
 	skip_tokens(tok_i, "[ \t]");
@@ -495,7 +497,7 @@ void Preprocessor::_macro(int& tok_i)
  *
  * @param tok_i The index of the macro return token
  */
-void Preprocessor::_macret(int& tok_i)
+void Preprocessor::_macret(size_t& tok_i)
 {
 	consume(tok_i); // '#macret'
 	skip_tokens(tok_i, "[ \t]");
@@ -556,8 +558,10 @@ void Preprocessor::_macret(int& tok_i)
  *
  * @param tok_i The index of the macro end token
  */
-void Preprocessor::_macend(int& tok_i)
+void Preprocessor::_macend(size_t& tok_i)
 {
+	UNUSED(tok_i);
+
     // should never reach this. This should be consumed by the _macro function.
     ERROR("Preprocessor::_macend() - Unexpected macro end token.");
 }
@@ -572,7 +576,7 @@ void Preprocessor::_macend(int& tok_i)
  *
  * @param tok_i The index of the invoke token
  */
-void Preprocessor::_invoke(int& tok_i)
+void Preprocessor::_invoke(size_t& tok_i)
 {
 	consume(tok_i);
 	skip_tokens(tok_i, "[ \t]");
@@ -629,7 +633,7 @@ void Preprocessor::_invoke(int& tok_i)
 	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
 
 	// then for each argument, add an '.equ argname argval' statement
-	for (int i = 0; i < arguments.size(); i++) {
+	for (size_t i = 0; i < arguments.size(); i++) {
 		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format(".equ {} ", macro->args[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
 	}
@@ -665,7 +669,7 @@ void Preprocessor::_invoke(int& tok_i)
  *
  * @param tok_i The index of the define token.
  */
-void Preprocessor::_define(int& tok_i)
+void Preprocessor::_define(size_t& tok_i)
 {
     consume(tok_i); // '#define'
     skip_tokens(tok_i, "[ \t]");
@@ -731,7 +735,7 @@ void Preprocessor::_define(int& tok_i)
 /**
  *
  */
-void Preprocessor::cond_block(int& tok_i, bool cond_met)
+void Preprocessor::cond_block(size_t& tok_i, bool cond_met)
 {
     int rel_scope_level = 0;
     int cur_tok_i = tok_i;
@@ -812,7 +816,7 @@ bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params)
  *
  * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_cond_on_def(int& tok_i)
+void Preprocessor::_cond_on_def(size_t& tok_i)
 {
     Tokenizer::Token cond_tok = consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
@@ -843,7 +847,7 @@ void Preprocessor::_cond_on_def(int& tok_i)
  *
  * @param tok_i The index of the conditional token.
  */
-void Preprocessor::_cond_on_value(int& tok_i)
+void Preprocessor::_cond_on_value(size_t& tok_i)
 {
     Tokenizer::Token cond_tok = consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
@@ -901,7 +905,7 @@ void Preprocessor::_cond_on_value(int& tok_i)
  *
  * @param tok_i The index of the else token.
  */
-void Preprocessor::_else(int& tok_i)
+void Preprocessor::_else(size_t& tok_i)
 {
     consume(tok_i); // '#else'
     skip_tokens(tok_i, "[ \t]");
@@ -916,7 +920,7 @@ void Preprocessor::_else(int& tok_i)
  *
  * @param tok_i The index of the endif token.
  */
-void Preprocessor::_endif(int& tok_i)
+void Preprocessor::_endif(size_t& tok_i)
 {
     consume(tok_i); // '#endif'
     skip_tokens(tok_i, "[ \t]");
@@ -931,7 +935,7 @@ void Preprocessor::_endif(int& tok_i)
  *
  * @param tok_i The index of the undefine token.
  */
-void Preprocessor::_undefine(int& tok_i)
+void Preprocessor::_undefine(size_t& tok_i)
 {
     consume(tok_i); // '#define'
     skip_tokens(tok_i, "[ \t]");

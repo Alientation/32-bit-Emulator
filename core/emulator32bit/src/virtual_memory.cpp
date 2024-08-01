@@ -389,6 +389,7 @@ word VirtualMemory::remove_lru()
 	return lru_ppage;
 }
 
+#define UNUSED(x) (void)(x)
 MockVirtualMemory::MockVirtualMemory(word ram_start_page, word ram_end_page) :
 	VirtualMemory(ram_start_page, ram_end_page, mockdisk),
 	mockdisk()
@@ -396,23 +397,31 @@ MockVirtualMemory::MockVirtualMemory(word ram_start_page, word ram_end_page) :
 
 }
 
-void MockVirtualMemory::set_process(long long pid)
+MockVirtualMemory::~MockVirtualMemory()
 {
 
+}
+
+void MockVirtualMemory::set_process(long long pid)
+{
+	UNUSED(pid);
 }
 
 void MockVirtualMemory::begin_process(long long pid, word alloc_mem_begin, word alloc_mem_end)
 {
-
+	UNUSED(pid);
+	UNUSED(alloc_mem_begin);
+	UNUSED(alloc_mem_end);
 }
 
 void MockVirtualMemory::end_process(long long pid)
 {
-
+	UNUSED(pid);
 }
 
 
 word MockVirtualMemory::map_address(word address, Exception& exception)
 {
+	UNUSED(exception);
 	return address;
 }

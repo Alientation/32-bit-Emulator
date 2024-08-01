@@ -166,7 +166,7 @@ void Emulator32bit::run(unsigned int instructions)
 void Emulator32bit::reset()
 {
 	system_bus.reset();
-	for (int i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) {
+	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) {
 		_x[i] = 0;
 	}
 	_pstate = 0;

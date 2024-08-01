@@ -11,7 +11,7 @@ Memory::Memory(Memory& other)
 {
 	this->mem_pages = other.mem_pages;
 	this->data = new byte[(mem_pages << PAGE_PSIZE)];
-	for (int i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
+	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
 		this->data[i] = other.data[i];
 	}
 	this->lo_page = other.lo_page;

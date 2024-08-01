@@ -141,7 +141,7 @@ std::vector<std::pair<word,word>> FreeBlockList::get_blocks()
 		cur = cur->next;
 	}
 	// DEBUG("Getting all blocks");
-	return std::move(blocks);
+	return blocks;
 }
 
 void FreeBlockList::print_blocks()

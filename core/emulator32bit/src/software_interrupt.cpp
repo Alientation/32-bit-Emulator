@@ -1,8 +1,12 @@
 #include "emulator32bit/emulator32bit.h"
 #include "util/loggerv2.h"
 
+#define UNUSED(x) (void)(x)
+
 void Emulator32bit::_emu_print(EmulatorException& exception)
 {
+	UNUSED(exception);
+
 	print();
 }
 
@@ -22,7 +26,7 @@ void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian,
 										exception.mem_read_exception);
 		}
 	} else {
-		for (byte i = size - 1; i >= 0; i--) {
+		for (int i = size - 1; i >= 0; i--) {
 			val <<= 8;
 			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception,
 										exception.mem_read_exception);
@@ -34,7 +38,9 @@ void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian,
 
 void Emulator32bit::_emu_printp(EmulatorException& exception)
 {
-	printf("PSTATE: N=%i,Z=%i,C=%i,V=%i", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG),
+	UNUSED(exception);
+
+	printf("PSTATE: N=%lli,Z=%lli,C=%lli,V=%lli", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG),
 		   test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
 }
 
@@ -57,7 +63,7 @@ void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, w
 			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception, exception.mem_read_exception);
 		}
 	} else {
-		for (byte i = size - 1; i >= 0; i--) {
+		for (int i = size - 1; i >= 0; i--) {
 			val <<= 8;
 			val += system_bus.read_byte(mem_addr + i, exception.sys_bus_exception, exception.mem_read_exception);
 		}
@@ -70,6 +76,8 @@ void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, w
 
 void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception)
 {
+	UNUSED(exception);
+
 	bool val = test_bit(_pstate, p_state_id);
 	EXPECT_TRUE_SS(val == expected_value, std::stringstream() << "Expected PSTATE " <<
 			std::to_string(p_state_id) << " to be " << std::to_string(expected_value) << ". Got "
@@ -189,6 +197,7 @@ void Emulator32bit::_swi(word instr, EmulatorException& exception)
 	word arg3 = read_reg(3, exception);
 	word arg4 = read_reg(4, exception);
 	word arg5 = read_reg(5, exception);
+	UNUSED(arg5); // temporary
 	switch(id) {
 		case 1000:
 			_emu_print(exception);

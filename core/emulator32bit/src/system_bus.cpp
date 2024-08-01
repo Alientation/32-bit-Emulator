@@ -1,6 +1,8 @@
 #include "emulator32bit/system_bus.h"
 #include "util/loggerv2.h"
 
+#define UNUSED(x) (void)(x)
+
 SystemBus::Exception SystemBus::hide_sys_bus_exception;
 Memory::ReadException SystemBus::hide_mem_read_exception;
 Memory::WriteException SystemBus::hide_mem_write_exception;
@@ -25,7 +27,7 @@ Memory* SystemBus::route_memory(word address, Exception &bus_exception)
 	}
 
 	Memory *target = nullptr;
-	for (int i = 0; i < mems.size(); i++) {
+	for (size_t i = 0; i < mems.size(); i++) {
 		if (!mems[i]->in_bounds(address)) {
 			continue;
 		}
@@ -128,6 +130,8 @@ word SystemBus::map_read_address(word address, SystemBus::Exception &bus_excepti
 	word addr = map_address(address, vm_exception);
 
 	// todo, handle exceptions
+	UNUSED(bus_exception);
+	UNUSED(mem_exception);
 
 	return addr;
 }
@@ -140,6 +144,8 @@ word SystemBus::map_write_address(word address, SystemBus::Exception &bus_except
 	word addr = map_address(address, vm_exception);
 
 	// todo, handle exceptions
+	UNUSED(bus_exception);
+	UNUSED(mem_exception);
 
 	return addr;
 }

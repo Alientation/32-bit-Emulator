@@ -7,6 +7,8 @@
 */
 #define MAGIC_HEADER 0x4b534944
 
+#define UNUSED(x) (void)(x)
+
 Disk::Disk(File diskfile, std::streamsize npages) :
 	m_free_list(0, npages, false)
 {
@@ -174,6 +176,8 @@ void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& ex
 
 std::vector<byte> Disk::read_page(word page, ReadException& exception)
 {
+	UNUSED(exception);
+
 	CachePage& cpage = get_cpage(page);
 
 	std::vector<byte> data;
@@ -182,7 +186,7 @@ std::vector<byte> Disk::read_page(word page, ReadException& exception)
 	}
 
 	DEBUG_SS(std::stringstream() << "Reading disk page " << std::to_string(page));
-	return std::move(data);
+	return data;
 }
 
 byte Disk::read_byte(word address, ReadException& exception)
@@ -201,6 +205,7 @@ word Disk::read_word(word address, ReadException& exception)
 dword Disk::read_val(word address, int n_bytes, ReadException& exception)
 {
 	/* TODO: Add warning for when n_bytes is larger than 8. */
+	UNUSED(exception);
 
 	/* Read from the end since the most significant byte will be located there in little endian. */
 	address += n_bytes - 1;
@@ -210,7 +215,7 @@ dword Disk::read_val(word address, int n_bytes, ReadException& exception)
 
 	dword val = 0;
 	for (int i = 0; i < n_bytes; i++) {
-		if (offset == -1) {
+		if (offset + 1 == 0) {
 			/*
 			 * Since we are reading from the end, we might go beyond the beginning of the page.
 			 * Correct the offset and page address appropriately when that happens.
@@ -265,6 +270,7 @@ void Disk::write_word(word address, word data, WriteException& exception)
 void Disk::write_val(word address, dword val, int n_bytes, WriteException& exception)
 {
 	/* TODO: Warn when n_bytes is larger than 8. */
+	UNUSED(exception);
 
 	word page = address >> PAGE_PSIZE;				/* Get the page address (upper bits). */
 	word offset = address & (PAGE_SIZE - 1);		/* Offset into the page (lower bits). */
@@ -312,7 +318,7 @@ Disk::CachePage& Disk::get_cpage(word addr)
 
 	cpage.valid = true;
 	cpage.page = addr;
-	read_cpage(cpage, addr);
+	read_cpage(cpage);
 
 	DEBUG_SS(std::stringstream() << "Getting cached page " << std::to_string(cpage.page));
 	return cpage;
@@ -347,7 +353,7 @@ void Disk::write_cpage(CachePage& cpage)
 			<< " to disk");
 }
 
-void Disk::read_cpage(CachePage& cpage, word page)
+void Disk::read_cpage(CachePage& cpage)
 {
 	std::ifstream file(m_diskfile.get_path(), std::ios::binary | std::ios::in);
     if (!file.is_open()) {
@@ -447,12 +453,14 @@ MockDisk::MockDisk() :
 
 word MockDisk::get_free_page(FreeBlockList::Exception& exception)
 {
+	UNUSED(exception);
 	return 0;
 }
 
 void MockDisk::return_page(word page, FreeBlockList::Exception& exception)
 {
-
+	UNUSED(page);
+	UNUSED(exception);
 }
 
 void MockDisk::return_all_pages()
@@ -462,43 +470,61 @@ void MockDisk::return_all_pages()
 
 void MockDisk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception)
 {
-
+	UNUSED(page_lo);
+	UNUSED(page_hi);
+	UNUSED(exception);
 }
 
 std::vector<byte> MockDisk::read_page(word page, ReadException& exception)
 {
+	UNUSED(page);
+	UNUSED(exception);
 	return std::vector<byte>();
 }
 
 byte MockDisk::read_byte(word address, ReadException& exception)
 {
+	UNUSED(address);
+	UNUSED(exception);
 	return 0;
 }
 hword MockDisk::read_hword(word address, ReadException& exception)
 {
+	UNUSED(address);
+	UNUSED(exception);
 	return 0;
 }
 word MockDisk::read_word(word address, ReadException& exception)
 {
+	UNUSED(address);
+	UNUSED(exception);
 	return 0;
 }
 
 void MockDisk::write_page(word page, std::vector<byte> data, WriteException& exception)
 {
-
+	UNUSED(page);
+	UNUSED(data);
+	UNUSED(exception);
 }
 
 void MockDisk::write_byte(word address, byte data, WriteException& exception)
 {
-
+	UNUSED(address);
+	UNUSED(data);
+	UNUSED(exception);
 }
 void MockDisk::write_hword(word address, hword data, WriteException& exception)
 {
-
+	UNUSED(address);
+	UNUSED(data);
+	UNUSED(exception);
 }
 void MockDisk::write_word(word address, word data, WriteException& exception)
 {
-
+	UNUSED(address);
+	UNUSED(data);
+	UNUSED(exception);
 }
 
 void MockDisk::save()

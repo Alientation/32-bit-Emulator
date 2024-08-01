@@ -57,7 +57,7 @@ void LoadExecutable::load(word start_addr)
 		cur_addr++;
 	}
 
-	for (int i = 0; i < obj.bss_section; i++) {
+	for (word i = 0; i < obj.bss_section; i++) {
 		SystemBus::Exception sys_bus_exception;
 		Memory::WriteException mem_write_exception;
 		m_emu.system_bus.write_byte(cur_addr, 0, sys_bus_exception, mem_write_exception);

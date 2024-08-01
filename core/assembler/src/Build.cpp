@@ -14,6 +14,8 @@
 #include <sstream>
 #include <vector>
 
+#define UNUSED(x) (void)(x)
+
 bool Process::valid_src_file(const File& file)
 {
 	return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
@@ -95,7 +97,7 @@ Process::Process(const std::string& assembler_args)
 	parse_args(assembler_args, args_list);
 
 	DEBUG_SS(std::stringstream() << "Process::Process() - args_list.size(): " << args_list.size());
-	for (int i = 0; i < args_list.size(); i++) {
+	for (size_t i = 0; i < args_list.size(); i++) {
 		DEBUG_SS(std::stringstream() << "Process::Process() - args_list[" << i << "]: " << args_list[i]);
 	}
 
@@ -114,7 +116,7 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string>& a
 	bool is_escaped = false;
 	bool is_quoted = false;
 	std::string cur_arg = "";
-	for (int i = 0; i < assembler_args.length(); i++) {
+	for (size_t i = 0; i < assembler_args.length(); i++) {
 		char c = assembler_args[i];
 		if (c == '\"' && !is_escaped) {
 			// this is a quote that is not escaped
@@ -154,7 +156,7 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string>& a
 void Process::evaluate_args(std::vector<std::string>& args_list)
 {
 	// evaluate arguments
-	for (int i = 0; i < args_list.size(); i++) {
+	for (size_t i = 0; i < args_list.size(); i++) {
 		DEBUG_SS(std::stringstream() << "arg" << i << ": " << args_list[i]);
 
 		std::string& arg = args_list[i];
@@ -273,7 +275,7 @@ void Process::link()
  * @param args
  * @param index
  */
-void Process::_ignore(std::vector<std::string>& args, int& index)
+void Process::_ignore(std::vector<std::string>& args, size_t& index)
 {
     // jumps index to the end of args
     index = args.size();
@@ -287,8 +289,11 @@ void Process::_ignore(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_version(std::vector<std::string>& args, int& index)
+void Process::_version(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	std::cout << "Assembler Version: " << ASSEMBLER_VERSION << std::endl;
 }
 
@@ -298,8 +303,11 @@ void Process::_version(std::vector<std::string>& args, int& index)
  * @param args
  * @param index
  */
-void Process::_makelib(std::vector<std::string>& args, int& index)
+void Process::_makelib(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	m_make_lib = true;
 }
 
@@ -311,8 +319,11 @@ void Process::_makelib(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_compile(std::vector<std::string>& args, int& index)
+void Process::_compile(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	m_only_compile = true;
 }
 
@@ -324,7 +335,7 @@ void Process::_compile(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_output(std::vector<std::string>& args, int& index)
+void Process::_output(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
 			<< "Process::_output() - Missing output file name");
@@ -343,7 +354,7 @@ void Process::_output(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_outdir(std::vector<std::string>& args, int& index)
+void Process::_outdir(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_outdir() - Missing output file name");
 	m_output_dir = args[++index];
@@ -367,7 +378,7 @@ void Process::_outdir(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_optimize(std::vector<std::string>& args, int& index)
+void Process::_optimize(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_optimize() - Missing optimization level");
 	m_optimization_level = std::stoi(args[++index]);
@@ -385,8 +396,11 @@ void Process::_optimize(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_optimize_all(std::vector<std::string>& args, int& index)
+void Process::_optimize_all(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	m_optimization_level = MAX_OPTIMIZATION_LEVEL;
 }
 
@@ -401,7 +415,7 @@ void Process::_optimize_all(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_warn(std::vector<std::string>& args, int& index)
+void Process::_warn(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_warn() - Missing warning type");
 	std::string warning_type = args[++index];
@@ -420,8 +434,11 @@ void Process::_warn(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_warn_all(std::vector<std::string>& args, int& index)
+void Process::_warn_all(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	for (std::string warning_type : WARNINGS) {
 		m_enabled_warnings.insert(warning_type);
 	}
@@ -435,7 +452,7 @@ void Process::_warn_all(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_include(std::vector<std::string>& args, int& index)
+void Process::_include(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
 			<< "Process::_include() - Missing include directory path");
@@ -457,7 +474,7 @@ void Process::_include(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_library(std::vector<std::string>& args, int& index)
+void Process::_library(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
 			<< "Process::_library() - Missing library name");
@@ -477,7 +494,7 @@ void Process::_library(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_library_directory(std::vector<std::string>& args, int& index)
+void Process::_library_directory(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
 			<< "Process::_libraryDirectory() - Missing library directory path");
@@ -497,7 +514,7 @@ void Process::_library_directory(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_preprocessor_flag(std::vector<std::string>& args, int& index)
+void Process::_preprocessor_flag(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
 			<< "Process::_preprocessorFlag() - Missing preprocessor flag");
@@ -522,8 +539,11 @@ void Process::_preprocessor_flag(std::vector<std::string>& args, int& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_keep_processed_files(std::vector<std::string>& args, int& index)
+void Process::_keep_processed_files(std::vector<std::string>& args, size_t& index)
 {
+	UNUSED(args);
+	UNUSED(index);
+
 	keep_proccessed_files = true;
 }
 

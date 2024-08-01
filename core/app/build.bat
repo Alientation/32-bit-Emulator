@@ -15,7 +15,7 @@ cmake --build ../assembler/build --target install
 
 REM Configure and build the core application
 cmake -S . -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="../assembler/install;../emulator32bit/install;../util/install"
-cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="../assembler/install;../emulator32bit/install;../util/install"
+cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="../assembler/install;../emulator32bit/install;../util/install"
 
 cmake --build build/debug
 cmake --build build/release

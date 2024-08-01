@@ -323,9 +323,8 @@ class Disk
 		 * @brief			Reads a cache page from disk.
 		 *
 		 * @param cpage 	Reference to cache page to read to.
-		 * @param page 		Page address to read from to fill the cache page.
 		 */
-		void read_cpage(CachePage& cpage, word page);
+		void read_cpage(CachePage& cpage);
 
 		/**
 		 * @brief 			Reads and sets up the simulated disk from save files.

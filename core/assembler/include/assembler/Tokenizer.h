@@ -156,7 +156,7 @@ class Tokenizer
 			std::string to_string() {
 				if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE) {
 					std::string toString = TYPE_TO_NAME_MAP.at(type) + ":";
-					for (auto i = 0; i < value.length(); i++) {
+					for (size_t i = 0; i < value.length(); i++) {
 						toString += " " + std::to_string(value[i]);
 					}
 					return toString;

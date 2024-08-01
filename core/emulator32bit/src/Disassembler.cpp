@@ -1,6 +1,7 @@
 #include "emulator32bit/emulator32bit.h"
 #include "util/loggerv2.h"
 
+#define UNUSED(x) (void)(x)
 
 std::string disassemble_register(int reg)
 {
@@ -310,71 +311,85 @@ std::string disassemble_smull(word instruction)
 
 std::string disassemble_vabs_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vneg_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vsqrt_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vadd_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vsub_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vdiv_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vmul_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vcmp_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vsel_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vcint_u32_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vcint_s32_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vcflo_u32_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vcflo_s32_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
 std::string disassemble_vmov_f32(word instruction)
 {
+	UNUSED(instruction);
 	return "UNIMPLEMENTED";
 }
 
@@ -529,6 +544,7 @@ std::string disassemble_adrp(word instruction)
 
 std::string disassemble_hlt(word instruction)
 {
+	UNUSED(instruction);
 	return "hlt";
 }
 

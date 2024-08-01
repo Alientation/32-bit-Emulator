@@ -57,7 +57,7 @@ class ObjectFile
 				R_EMU32_B_OFFSET22,									/* Branch offset, +/- 24 bit value (last 2 bits are 0) */
 			} type;													/* type of relocation */
 			word shift;												/* constant to be added to the value of the symbol */
-			int token;												/* token index that the relocation entry is used on. Used to fill local symbols */
+			size_t token;											/* token index that the relocation entry is used on. Used to fill local symbols */
 		};
 
 		static const int BELF_HEADER_SIZE = 24;

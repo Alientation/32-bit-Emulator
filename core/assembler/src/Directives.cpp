@@ -7,17 +7,17 @@
  * @brief
  * @todo				Implement full expression parser
  *
- * @param 				tokenI: Reference to current token index
+ * @param 				tok_i: Reference to current token index
  * @return 				value of expression
  */
-dword Assembler::parse_expression(int& tokenI)
+dword Assembler::parse_expression(size_t& tok_i)
 {
 	/* For now, only parse expressions sequentially, without care of precedence */
 	dword exp_value = 0;
-	skip_tokens(tokenI, "[ \t]");
+	skip_tokens(tok_i, "[ \t]");
 	Tokenizer::Token *operator_token = nullptr;
 	do {
-		Tokenizer::Token token = consume(tokenI);
+		Tokenizer::Token token = consume(tok_i);
 
 		dword value = 0;
 		if (token.type == Tokenizer::LITERAL_NUMBER_DECIMAL) {
@@ -44,21 +44,24 @@ dword Assembler::parse_expression(int& tokenI)
 				case Tokenizer::OPERATOR_MULTIPLICATION:
 					exp_value *= value;
 					break;
+				default:
+					ERROR_SS(std::stringstream() << "Expected operator token but got "
+							<< operator_token->value);
 			}
 			operator_token = nullptr;
 		} else {
 			exp_value = value;
 		}
-		skip_tokens(tokenI, "[ \t]");
+		skip_tokens(tok_i, "[ \t]");
 
 		/* Temporary only support 4 operations */
-		if (is_token(tokenI, {Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION,
+		if (is_token(tok_i, {Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION,
 				Tokenizer::OPERATOR_MULTIPLICATION, Tokenizer::OPERATOR_SUBTRACTION})) {
-			operator_token = &consume(tokenI);
+			operator_token = &consume(tok_i);
 		} else {
 			break;
 		}
-	} while(!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
+	} while(!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
 
 	return exp_value;
 }
@@ -68,9 +71,9 @@ dword Assembler::parse_expression(int& tokenI)
  * 						Must be declared outside any defined sections like .text, .bss, and .data.
  * USAGE:				.global <symbol>
  *
- * @param 					tokenI: reference to current token index
+ * @param 					tok_i: reference to current token index
  */
-void Assembler::_global(int& tokenI)
+void Assembler::_global(size_t& tok_i)
 {
 	if (current_section != Section::NONE) {
 		ERROR_SS(std::stringstream() << "Assembler::_global() - Cannot declare symbol as global "
@@ -79,10 +82,10 @@ void Assembler::_global(int& tokenI)
 		return;
 	}
 
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	std::string symbol = consume(tokenI).value;
+	std::string symbol = consume(tok_i).value;
 	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, -1);
 }
 
@@ -92,9 +95,9 @@ void Assembler::_global(int& tokenI)
  * 						Must be declared outside any defined sections like .text, .bss, and .data.
  * USAGE:				.extern <symbol>
  *
- * @param 				tokenI: reference to current token index
+ * @param 				tok_i: reference to current token index
  */
-void Assembler::_extern(int& tokenI)
+void Assembler::_extern(size_t& tok_i)
 {
 	if (current_section != Section::NONE) {
 		ERROR_SS(std::stringstream() << "Assembler::_extern() - Cannot " <<
@@ -104,10 +107,10 @@ void Assembler::_extern(int& tokenI)
 		return;
 	}
 
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	std::string symbol = consume(tokenI).value;
+	std::string symbol = consume(tok_i).value;
 	m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 }
 
@@ -115,21 +118,14 @@ void Assembler::_extern(int& tokenI)
  * @brief 				Moves where the assembler is in a section. Can only move forward, not backward.
  * USAGE:				.org <expression>
  *
- * @param 				tokenI: reference to current token index
+ * @param 				tok_i: reference to current token index
  */
-void Assembler::_org(int& tokenI)
+void Assembler::_org(size_t& tok_i)
 {
-	if (current_section == Section::NONE) {
-		ERROR_SS(std::stringstream() << "Assembler::_org() - Not defined inside section. "
-				"Cannot move section pointer.");
-		m_state = State::ASSEMBLER_ERROR;
-		return;
-	}
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
-
-	word val = parse_expression(tokenI);
+	word val = parse_expression(tok_i);
 
 	if (val >= 0xffffff) {											/*! Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_org() - new value is large and likely unintentional. ("
@@ -157,7 +153,7 @@ void Assembler::_org(int& tokenI)
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
-			for (int i = m_obj.data_section.size(); i < val; i++) {
+			for (size_t i = m_obj.data_section.size(); i < val; i++) {
 				m_obj.data_section.push_back(0);
 			}
 			break;
@@ -182,10 +178,15 @@ void Assembler::_org(int& tokenI)
 				return;
 			}
 
-			for (int i = m_obj.text_section.size() * 4; i < val; i += 4) {
+			for (size_t i = m_obj.text_section.size() * 4; i < val; i += 4) {
 				m_obj.text_section.push_back(0);
 			}
 			break;
+		case Section::NONE:
+			ERROR_SS(std::stringstream() << "Assembler::_org() - Not defined inside section. "
+					"Cannot move section pointer.");
+			m_state = State::ASSEMBLER_ERROR;
+			return;
 	}
 }
 
@@ -195,11 +196,11 @@ void Assembler::_org(int& tokenI)
  * 						current scope level or above will have higher precedence over globally defined symbols.
  * USAGE:				.scope
  *
- * @param 				tokenI: Reference to current token index
+ * @param 				tok_i: Reference to current token index
  */
-void Assembler::_scope(int& tokenI)
+void Assembler::_scope(size_t& tok_i)
 {
-	consume(tokenI);
+	consume(tok_i);
 	scopes.push_back(total_scopes++);
 }
 
@@ -207,9 +208,9 @@ void Assembler::_scope(int& tokenI)
  * @brief 				Ends a local scope.
  * USAGE:				.scend
  *
- * @param 				tokenI: Reference to current token index
+ * @param 				tok_i: Reference to current token index
  */
-void Assembler::_scend(int& tokenI)
+void Assembler::_scend(size_t& tok_i)
 {
 	if (scopes.empty()) {
 		ERROR_SS(std::stringstream() << "Assembler::_scend() - .scend directive must have a matching"
@@ -219,28 +220,21 @@ void Assembler::_scend(int& tokenI)
 	}
 
 	scopes.pop_back();
-	consume(tokenI);
+	consume(tok_i);
 }
 
 /**
  * @brief 				Moves where the assembler is in a section forward by a certain amount of bytes.
  * USAGE:				.advance <expression>
  *
- * @param 				tokenI: Reference to current token index
+ * @param 				tok_i: Reference to current token index
  */
-void Assembler::_advance(int& tokenI)
+void Assembler::_advance(size_t& tok_i)
 {
-	if (current_section == Section::NONE) {
-		ERROR_SS(std::stringstream() << "Assembler::_advance() - Not defined inside section. "
-				"Cannot move section pointer.");
-		m_state = State::ASSEMBLER_ERROR;
-		return;
-	}
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
-
-	word val = parse_expression(tokenI);
+	word val = parse_expression(tok_i);
 
 	if (val >= 0xffffff) {									/*! Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_advance() - offset value is large and likely unintentional. ("
@@ -254,7 +248,7 @@ void Assembler::_advance(int& tokenI)
 			m_obj.bss_section += val;
 			break;
 		case Section::DATA:
-			for (int i = 0; i < val; i++) {
+			for (word i = 0; i < val; i++) {
 				m_obj.data_section.push_back(0);
 			}
 			break;
@@ -270,10 +264,15 @@ void Assembler::_advance(int& tokenI)
 				return;
 			}
 
-			for (int i = 0; i < val; i += 4) {
+			for (word i = 0; i < val; i += 4) {
 				m_obj.text_section.push_back(0);
 			}
 			break;
+		case Section::NONE:
+			ERROR_SS(std::stringstream() << "Assembler::_advance() - Not defined inside section. "
+					"Cannot move section pointer.");
+			m_state = State::ASSEMBLER_ERROR;
+			return;
 	}
 }
 
@@ -282,20 +281,14 @@ void Assembler::_advance(int& tokenI)
  * @note				This is useless unless we can specify in the program header of the object file the alignment of the whole program
  * USAGE:				.align <expression>
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_align(int& tokenI)
+void Assembler::_align(size_t& tok_i)
 {
-	if (current_section == Section::NONE) {
-		ERROR_SS(std::stringstream() << "Assembler::_align() - Not defined inside a section. Cannot align section pointer.");
-		m_state = State::ASSEMBLER_ERROR;
-		return;
-	}
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
-
-	word val = parse_expression(tokenI);
+	word val = parse_expression(tok_i);
 	if (val >= 0xffff) {											/*! Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_align() - Alignment value is large and likely unintentional. ("
 				<< std::to_string(val) << ")");
@@ -329,6 +322,11 @@ void Assembler::_align(int& tokenI)
 				m_obj.text_section.push_back(0);
 			}
 			break;
+		case Section::NONE:
+			ERROR_SS(std::stringstream() << "Assembler::_align() - Not defined inside a section. "
+					"Cannot align section pointer.");
+			m_state = State::ASSEMBLER_ERROR;
+			return;
 	}
 }
 
@@ -337,14 +335,14 @@ void Assembler::_align(int& tokenI)
  * @warning				Not implemented yet.
  * USAGE:				.section <string>, <flags>
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_section(int& tokenI)
+void Assembler::_section(size_t& tok_i)
 {
-	consume(tokenI);
-	skip_tokens(tokenI, Tokenizer::WHITESPACES);
+	consume(tok_i);
+	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
-	expect_token(tokenI, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a "
+	expect_token(tok_i, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a "
 			"string argument to follow.");
 
 	ERROR_SS(std::stringstream() << "Assembler::_section() - .section directive is not implemented yet.");
@@ -357,11 +355,11 @@ void Assembler::_section(int& tokenI)
  * @warning				Currently will simply add on to the previously defined text section if it exists.
  * USAGE:				.text
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_text(int& tokenI)
+void Assembler::_text(size_t& tok_i)
 {
-	consume(tokenI);
+	consume(tok_i);
 
 	current_section = Section::TEXT;
 	current_section_index = m_obj.section_table[".text"];
@@ -372,11 +370,11 @@ void Assembler::_text(int& tokenI)
  * @warning				Currently will simply add on to the previously defined data section if it exists
  * USAGE:				.data
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_data(int& tokenI)
+void Assembler::_data(size_t& tok_i)
 {
-	consume(tokenI);
+	consume(tok_i);
 
 	current_section = Section::DATA;
 	current_section_index = m_obj.section_table[".data"];
@@ -387,11 +385,11 @@ void Assembler::_data(int& tokenI)
  * @warning				Currently will simply add on to the previously defined bss section if it exists
  * USAGE:				.bss
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_bss(int& tokenI)
+void Assembler::_bss(size_t& tok_i)
 {
-	consume(tokenI);
+	consume(tok_i);
 
 	current_section = Section::BSS;
 	current_section_index = m_obj.section_table[".bss"];
@@ -401,24 +399,24 @@ void Assembler::_bss(int& tokenI)
  * @brief 				Stops assembling
  * USAGE:				.stop
  *
- * @param 				tokenI: Reference to the current token index
+ * @param 				tok_i: Reference to the current token index
  */
-void Assembler::_stop(int& tokenI)
+void Assembler::_stop(size_t& tok_i)
 {
-	tokenI = m_tokens.size();
+	tok_i = m_tokens.size();
 }
 
 
-std::vector<dword> Assembler::parse_arguments(int& tokenI) {
-	skip_tokens(tokenI, "[ \t]");
+std::vector<dword> Assembler::parse_arguments(size_t& tok_i) {
+	skip_tokens(tok_i, "[ \t]");
 
 	std::vector<dword> args;
-	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-		args.push_back(parse_expression(tokenI));
-		skip_tokens(tokenI, "[ \t]");
-		if (is_token(tokenI, {Tokenizer::COMMA})) {
-			consume(tokenI);
-			skip_tokens(tokenI, "[ \t]");
+	while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE})) {
+		args.push_back(parse_expression(tok_i));
+		skip_tokens(tok_i, "[ \t]");
+		if (is_token(tok_i, {Tokenizer::COMMA})) {
+			consume(tok_i);
+			skip_tokens(tok_i, "[ \t]");
 		} else {
 			break;
 		}
@@ -430,7 +428,7 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, int n_bytes)
 {
 	std::vector<byte> little_endian_data;
 
-	for (int i = 0; i < data.size(); i++) {
+	for (size_t i = 0; i < data.size(); i++) {
 		for (int j = 0; j < n_bytes; j++) {
 			little_endian_data.push_back(data.at(i) & 0xFF);
 			data.at(i) >>= 8;
@@ -440,184 +438,184 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, int n_bytes)
 	return little_endian_data;
 }
 
-void Assembler::_byte(int& tokenI)
+void Assembler::_byte(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_byte() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 1);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_dbyte(int& tokenI)
+void Assembler::_dbyte(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_dbyte() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 2);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_word(int& tokenI)
+void Assembler::_word(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_word() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 4);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_dword(int& tokenI)
+void Assembler::_dword(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_dword() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 8);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
 /* this is pointless, same as .byte */
-void Assembler::_sbyte(int& tokenI)
+void Assembler::_sbyte(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_sbyte() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 1);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 1);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
 /* todo, figure out why signed versions of these data defining directives are needed */
-void Assembler::_sdbyte(int& tokenI)
+void Assembler::_sdbyte(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_sdbyte() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 2);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 2);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_sword(int& tokenI)
+void Assembler::_sword(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_sword() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 4);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 4);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_sdword(int& tokenI)
+void Assembler::_sdword(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_sdword() - Can only define data in .data section.");
 
-	consume(tokenI);
+	consume(tok_i);
 
-	std::vector<byte> data = convert_little_endian(parse_arguments(tokenI), 8);
-	for (int i = 0; i < data.size(); i++) {
+	std::vector<byte> data = convert_little_endian(parse_arguments(tok_i), 8);
+	for (size_t i = 0; i < data.size(); i++) {
 		m_obj.data_section.push_back(data.at(i));
 	}
 }
 
-void Assembler::_char(int& tokenI)
+void Assembler::_char(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_char() - Can only define data in .data section.");
-	consume(tokenI);
+	consume(tok_i);
 
-	skip_tokens(tokenI, "[ \t]");
+	skip_tokens(tok_i, "[ \t]");
 
-	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-		expect_token(tokenI, {Tokenizer::Type::LITERAL_CHAR}, "Assembler::_char() - Expected literal"
-				" char. Got " + m_tokens.at(tokenI).value);
-		m_obj.data_section.push_back(consume(tokenI).value.at(1));
-		skip_tokens(tokenI, "[ \t]");
-		if (is_token(tokenI, {Tokenizer::COMMA})) {
-			consume(tokenI);
-			skip_tokens(tokenI, "[ \t]");
+	while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tok_i, {Tokenizer::Type::LITERAL_CHAR}, "Assembler::_char() - Expected literal"
+				" char. Got " + m_tokens.at(tok_i).value);
+		m_obj.data_section.push_back(consume(tok_i).value.at(1));
+		skip_tokens(tok_i, "[ \t]");
+		if (is_token(tok_i, {Tokenizer::COMMA})) {
+			consume(tok_i);
+			skip_tokens(tok_i, "[ \t]");
 		} else {
 			break;
 		}
 	}
 }
 
-void Assembler::_ascii(int& tokenI)
+void Assembler::_ascii(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_ascii() - Can only define data in .data section.");
-	consume(tokenI);
+	consume(tok_i);
 
-	skip_tokens(tokenI, "[ \t]");
+	skip_tokens(tok_i, "[ \t]");
 
-	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected "
-				"literal string. Got " + m_tokens.at(tokenI).value);
+	while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tok_i, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected "
+				"literal string. Got " + m_tokens.at(tok_i).value);
 
-		std::string str = consume(tokenI).value;
-		for (int i = 1; i < str.size() - 1; i++) {
+		std::string str = consume(tok_i).value;
+		for (size_t i = 1; i < str.size() - 1; i++) {
 			m_obj.data_section.push_back(str[i]);
 		}
 		m_obj.data_section.push_back('\0');
 
-		skip_tokens(tokenI, "[ \t]");
-		if (is_token(tokenI, {Tokenizer::COMMA})) {
-			consume(tokenI);
-			skip_tokens(tokenI, "[ \t]");
+		skip_tokens(tok_i, "[ \t]");
+		if (is_token(tok_i, {Tokenizer::COMMA})) {
+			consume(tok_i);
+			skip_tokens(tok_i, "[ \t]");
 		} else {
 			break;
 		}
 	}
 }
 
-void Assembler::_asciz(int& tokenI)
+void Assembler::_asciz(size_t& tok_i)
 {
 	EXPECT_TRUE_SS(current_section == Section::DATA, std::stringstream()
 			<< "Assembler::_asciz() - Can only define data in .data section.");
-	consume(tokenI);
+	consume(tok_i);
 
-	skip_tokens(tokenI, "[ \t]");
+	skip_tokens(tok_i, "[ \t]");
 
-	while (!is_token(tokenI, {Tokenizer::WHITESPACE_NEWLINE})) {
-		expect_token(tokenI, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected "
-				"literal string. Got " + m_tokens.at(tokenI).value);
+	while (!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE})) {
+		expect_token(tok_i, {Tokenizer::Type::LITERAL_STRING}, "Assembler::_ascii() - Expected "
+				"literal string. Got " + m_tokens.at(tok_i).value);
 
-		std::string str = consume(tokenI).value;
-		for (int i = 1; i < str.size() - 1; i++) {
+		std::string str = consume(tok_i).value;
+		for (size_t i = 1; i < str.size() - 1; i++) {
 			m_obj.data_section.push_back(str[i]);
 		}
 		m_obj.data_section.push_back('\0');
 
-		skip_tokens(tokenI, "[ \t]");
-		if (is_token(tokenI, {Tokenizer::COMMA})) {
-			consume(tokenI);
-			skip_tokens(tokenI, "[ \t]");
+		skip_tokens(tok_i, "[ \t]");
+		if (is_token(tok_i, {Tokenizer::COMMA})) {
+			consume(tok_i);
+			skip_tokens(tok_i, "[ \t]");
 		} else {
 			break;
 		}

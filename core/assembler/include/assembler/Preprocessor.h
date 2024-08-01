@@ -69,31 +69,31 @@ class Preprocessor
 
 		std::vector<Macro*> macros_with_header(std::string macro_name, std::vector<std::vector<Tokenizer::Token>> args);
 
-		void skip_tokens(int& tok_i, const std::string& regex);
-        void skip_tokens(int& tok_i, const std::set<Tokenizer::Type>& tok_types);
-		bool expect_token(int tok_i, const std::string& error_msg);
-        bool expect_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg);
-        bool is_token(int tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg = "Preprocessor::is_token() - Unexpected end of file");
-        bool in_bounds(int tok_i);
-        Tokenizer::Token& consume(int& tok_i, const std::string& error_msg = "Preprocessor::consume() - Unexpected end of file");
-        Tokenizer::Token& consume(int& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg = "Preprocessor::consume() - Unexpected token");
+		void skip_tokens(size_t& tok_i, const std::string& regex);
+        void skip_tokens(size_t& tok_i, const std::set<Tokenizer::Type>& tok_types);
+		bool expect_token(size_t tok_i, const std::string& error_msg);
+        bool expect_token(size_t tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg);
+        bool is_token(size_t tok_i, const std::set<Tokenizer::Type>& tok_types, const std::string& error_msg = "Preprocessor::is_token() - Unexpected end of file");
+        bool in_bounds(size_t tok_i);
+        Tokenizer::Token& consume(size_t& tok_i, const std::string& error_msg = "Preprocessor::consume() - Unexpected end of file");
+        Tokenizer::Token& consume(size_t& tok_i, const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg = "Preprocessor::consume() - Unexpected token");
 
-		void _include(int& tok_i);		// todo, make angled brackets <...> capture everything inside as a token to not have to surround inside with a string
-		void _macro(int& tok_i);
-		void _macret(int& tok_i);
-		void _macend(int& tok_i);
-		void _invoke(int& tok_i);
-		void _define(int& tok_i);
-        void _cond_on_def(int& tok_i);
-        void _cond_on_value(int& tok_i);
-		void _else(int& tok_i);
-		void _endif(int& tok_i);
-		void _undefine(int& tok_i);
+		void _include(size_t& tok_i);		// todo, make angled brackets <...> capture everything inside as a token to not have to surround inside with a string
+		void _macro(size_t& tok_i);
+		void _macret(size_t& tok_i);
+		void _macend(size_t& tok_i);
+		void _invoke(size_t& tok_i);
+		void _define(size_t& tok_i);
+        void _cond_on_def(size_t& tok_i);
+        void _cond_on_value(size_t& tok_i);
+		void _else(size_t& tok_i);
+		void _endif(size_t& tok_i);
+		void _undefine(size_t& tok_i);
 
-        void cond_block(int& tok_i, bool cond_met);
+        void cond_block(size_t& tok_i, bool cond_met);
         bool is_symbol_def(std::string symbol_name, int num_params);
 
-		typedef void (Preprocessor::*PreprocessorFunction)(int& tok_i);
+		typedef void (Preprocessor::*PreprocessorFunction)(size_t& tok_i);
 		std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {
 			{Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
 			{Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},
