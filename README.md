@@ -43,6 +43,7 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
   * Added Disk memory with cache system
   * Added virtual memory - simulated in c++ but planning on porting over to a program ran on the emulator
   * Redesigned new logging system to be more compact and versatile
+  * Added simple profiler to assist with optimizing
   * Began documentation process and cleaning up the codebase
 
 ## Future Goals
@@ -57,6 +58,7 @@ to build different executables~~ ***Added 7/16/24***
 * ~~Disk Memory~~ ***Added 7/21/24***
 * ~~Virtual Memory~~ ***Added 7/25/24***
 * File System
+* Benchmarking system
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
