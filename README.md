@@ -59,6 +59,8 @@ to build different executables~~ ***Added 7/16/24***
 * ~~Virtual Memory~~ ***Added 7/25/24***
 * File System
 * Benchmarking system
+  * Haven't optimized much, but reaching upwards of 5 million instructions per second with a simple loop
+  * Voiding the logger macros significantly improves performance (roughly 25% speed up), need to have an option to void the logger macros
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
