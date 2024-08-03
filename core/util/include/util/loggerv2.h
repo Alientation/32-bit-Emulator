@@ -40,6 +40,8 @@
  * 							logs will be displayed.
  * 						- `AEMU_LOG_ERROR` (1) : Error level, only errors will be displayed.
  * 						- `AEMU_LOG_NONE` (0)  : No logging.
+ * @todo				TODO: rethink this, a file that includes this won't have access to
+ * 						these constants before the header is included.
  * @{
  */
 #define AEMU_LOG_DEBUG 4
@@ -55,6 +57,7 @@
  * 						control print and tracking.
  *
  * 						The available control flags are.
+ * 						- `AEMU_ONLY_CRITICAL_LOG` : Only logs WARN and ERROR messages.
  * 						- `AEMU_LOG_LEVEL` : Set the level of logs to be displayed, corresponding to
  * 							@ref AEMU_LOG_LEVELS
  * 						- `AEMU_LOG_ENABLED` : Toggle whether logs will happen. Turn off to
@@ -68,25 +71,29 @@
  * 							folder `core`.
  * @{
  */
+#ifdef AEMU_ONLY_CRITICAL_LOG
+#define AEMU_LOG_LEVEL AEMU_LOG_WARN
+#endif /* AEMU_ONLY_CRITICAL_LOG */
+
 #ifndef AEMU_LOG_LEVEL
 #define AEMU_LOG_LEVEL AEMU_LOG_DEBUG
-#endif /* LOG_LEVEL */
+#endif /* AEMU_LOG_LEVEL */
 
 #ifndef AEMU_LOG_ENABLED
 #define AEMU_LOG_ENABLED true
-#endif /* LOG_DISABLED */
+#endif /* AEMU_LOG_DISABLED */
 
 #ifndef AEMU_PRINT_ENABLED
 #define AEMU_PRINT_ENABLED true
-#endif /* PRINT_DISABLED */
+#endif /* AEMU_PRINT_DISABLED */
 
 #ifndef AEMU_EXCEPT_ON_ERROR
 #define AEMU_EXCEPT_ON_ERROR true
-#endif /* EXCEPT_ON_ERROR */
+#endif /* AEMU_EXCEPT_ON_ERROR */
 
 #ifndef AEMU_PROJECT_ROOT_DIR
 	#define AEMU_PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
-#endif /* PROJECT_ROOT_DIR */
+#endif /* AEMU_PROJECT_ROOT_DIR */
 /**@} */ // end of AEMU_LOG_CONTROL
 
 
@@ -215,7 +222,7 @@ namespace logger
 						 Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
-			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_INFO) {
 				print_header(ccolor::BLUE + "INF", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
@@ -240,7 +247,7 @@ namespace logger
 						 Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
-			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_WARN) {
 				print_header(ccolor::YELLOW + "WRN", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
@@ -266,7 +273,7 @@ namespace logger
 						  Args&&... args)
 	{
 		if (AEMU_LOG_ENABLED) {
-			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG) {
+			if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_ERROR) {
 				print_header(ccolor::RED + "ERR", file, line, func);
 				printf(format, args...);
 				std::cout << "\n";
