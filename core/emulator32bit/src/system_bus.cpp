@@ -1,3 +1,5 @@
+#define AEMU_ONLY_CRITICAL_LOG
+
 #include "emulator32bit/system_bus.h"
 #include "util/loggerv2.h"
 

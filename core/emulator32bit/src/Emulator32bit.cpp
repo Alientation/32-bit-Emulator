@@ -1,5 +1,8 @@
+#define AEMU_ONLY_CRITICAL_LOG
+
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"
+
 #include "util/loggerv2.h"
 #include "util/types.h"
 
@@ -140,6 +143,7 @@ void Emulator32bit::print()
 void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 {
 	// Run the emulator for a given number of instructions
+	int num_instructions_ran = 0;
 	while (instructions > 0 && exception.isOK()) {
 		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
 		exception.instr = instr;
@@ -150,11 +154,14 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 
 		_pc += 4;
 		instructions--;
+		num_instructions_ran++;
 	}
 
 	if (!exception.isOK()) {
 		handle_exception(exception);
 	}
+
+	printf("Ran %d instructions\n", num_instructions_ran);
 }
 
 void Emulator32bit::run(unsigned int instructions)
@@ -200,7 +207,7 @@ word Emulator32bit::read_reg(byte reg, EmulatorException &exception)
 
 void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception)
 {
-	INFO_SS(std::stringstream() << "WRITING " << std::to_string(val) << " to reg "
+	DEBUG_SS(std::stringstream() << "WRITING " << std::to_string(val) << " to reg "
 			<< std::to_string((word)reg));
 	if (reg == XZR) {
 		return;
@@ -215,7 +222,7 @@ void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception)
 void Emulator32bit::handle_exception(EmulatorException &exception)
 {
 	// todo later
-	INFO_SS(std::stringstream() << "Emulator32bit exception at "
+	DEBUG_SS(std::stringstream() << "Emulator32bit exception at "
 			<< disassemble_instr(exception.instr));
 }
 

@@ -29,3 +29,10 @@ target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
 # link libraries
 target_link_libraries(${PROJECT_NAME} PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)
 add_dependencies(${PROJECT_NAME} version)
+
+
+# create executable to run the kernel on the emulator
+add_executable(kernel)
+target_sources(kernel PRIVATE src/kernel.cpp)
+target_link_libraries(kernel PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)
+add_dependencies(kernel version)

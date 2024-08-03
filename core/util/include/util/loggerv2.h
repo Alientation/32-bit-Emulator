@@ -216,6 +216,9 @@ namespace logger
 	 * @param line		Line of code the log occured in.
 	 * @param func		Function name the log occured in.
 	 * @param args		Arguments passed into printf.
+	 *
+	 * @todo			TODO: Cannot disable log_info when setting AEMU_LOG_INFO definition to
+	 * 					LOG_WARN
 	 */
 	template <typename... Args>
 	inline void log_info(const char* format, const char* file, int line, const char* func,
@@ -329,14 +332,23 @@ namespace logger
 	 * @param format	The format string.
 	 * @param ...		Additional arguments for the format string.
 	 */
-	#define DEBUG(format, ...) logger::log_debug(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
+	#ifndef AEMU_ONLY_CRITICAL_LOG
+		#define DEBUG(format, ...) logger::log_debug(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#else
+		#define DEBUG(format, ...);
+	#endif
 
 	/**
 	 * @def				DEBUG_SS(msg)
 	 * @brief 			Wrap log to gather information like file, LOC, and function name.
 	 * @param msg		stringstream log.
 	 */
-	#define DEBUG_SS(msg) logger::log_debug((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#ifndef AEMU_ONLY_CRITICAL_LOG
+		#define DEBUG_SS(msg) logger::log_debug((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#else
+		#define DEBUG_SS(msg);
+	#endif
 
 	/**
 	 * @def				INFO(format, ...)
@@ -344,14 +356,22 @@ namespace logger
 	 * @param format	The format string.
 	 * @param ...		Additional arguments for the format string.
 	 */
-	#define INFO(format, ...) logger::log_info(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#ifndef AEMU_ONLY_CRITICAL_LOG
+		#define INFO(format, ...) logger::log_info(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	#else
+		#define INFO(format, ...);
+	#endif
 
 	/**
 	 * @def				INFO_SS(msg)
 	 * @brief 			Wrap log to gather information like file, LOC, and function name.
 	 * @param msg		stringstream log.
 	 */
-	#define INFO_SS(msg) logger::log_info((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#ifndef AEMU_ONLY_CRITICAL_LOG
+		#define INFO_SS(msg) logger::log_info((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	#else
+		#define INFO_SS(msg);
+	#endif
 
 	/**
 	 * @def				WARN(format, ...)
@@ -360,6 +380,7 @@ namespace logger
 	 * @param ...		Additional arguments for the format string.
 	 */
 	#define WARN(format, ...) logger::log_warn(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define WARN(format, ...);
 
 	/**
 	 * @def				WARN_SS(msg)
@@ -367,6 +388,7 @@ namespace logger
 	 * @param msg		stringstream log.
 	 */
 	#define WARN_SS(msg) logger::log_warn((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define WARN_SS(msg);
 
 	/**
 	 * @def				ERROR(format, ...)
@@ -375,6 +397,7 @@ namespace logger
 	 * @param ...		Additional arguments for the format string.
 	 */
 	#define ERROR(format, ...) logger::log_error(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define ERROR(format, ...);
 
 	/**
 	 * @def				ERROR_SS(msg)
@@ -382,15 +405,24 @@ namespace logger
 	 * @param msg		stringstream log.
 	 */
 	#define ERROR_SS(msg) logger::log_error((msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define ERROR_SS(msg);
 
 	#define EXPECT_TRUE(condition, format, ...) logger::expect_true(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define EXPECT_TRUE(condition, format, ...);
 	#define EXPECT_TRUE_SS(condition, msg) logger::expect_true(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define EXPECT_TRUE_SS(condition, msg);
 	#define EXPECT_FALSE(condition, format, ...) logger::expect_false(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define EXPECT_FALSE(condition, format, ...);
 	#define EXPECT_FALSE_SS(condition, msg) logger::expect_false(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define EXPECT_FALSE_SS(condition, msg);
 	#define EXPECT_EQUAL(t1, t2, format, ...) logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define EXPECT_EQUAL(t1, t2, format, ...);
 	#define EXPECT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define EXPECT_EQUAL_SS(t1, t2, msg);
 	#define EXPECT_NOT_EQUAL(t1, t2, format, ...) logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+	// #define EXPECT_NOT_EQUAL(t1, t2, format, ...);
 	#define EXPECT_NOT_EQUAL_SS(t1, t2, msg) logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
+	// #define EXPECT_NOT_EQUAL_SS(t1, t2, msg);
 
 	#define PROFILE_START logger::clock_start_master(__FILE__, __LINE__, __func__);
 	#define PROFILE_STOP logger::clock_stop_master();

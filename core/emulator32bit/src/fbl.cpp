@@ -1,3 +1,5 @@
+#define AEMU_ONLY_CRITICAL_LOG
+
 #include "emulator32bit/fbl.h"
 #include "util/loggerv2.h"
 

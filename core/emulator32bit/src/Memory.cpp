@@ -80,7 +80,14 @@ void Memory::write(word address, word value, WriteException &exception, int num_
 
 byte Memory::read_byte(word address, ReadException &exception)
 {
-	return this->read(address, exception, 1);
+	if (!in_bounds(address)) {
+		exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
+		exception.address = address;
+		return 0;
+	}
+
+	address -= lo_page << PAGE_PSIZE;
+	return this->data[address];
 }
 
 hword Memory::read_hword(word address, ReadException &exception)
@@ -95,7 +102,16 @@ word Memory::read_word(word address, ReadException &exception)
 
 void Memory::write_byte(word address, byte data, WriteException &exception)
 {
-	this->write(address, data, exception, 1);
+	if (!in_bounds(address)) {
+		exception.type = WriteException::Type::OUT_OF_BOUNDS_ADDRESS;
+		exception.address = address;
+		exception.value = data;
+		exception.num_bytes = 1;
+		return;
+	}
+
+	address -= lo_page << PAGE_PSIZE;
+	this->data[address] = data;
 }
 
 void Memory::write_hword(word address, hword data, WriteException &exception)
@@ -145,4 +161,20 @@ void ROM::write(word address, word value, WriteException &exception, int num_byt
 	exception.address = address;
 	exception.value = value;
 	exception.num_bytes = num_bytes;
+}
+
+void ROM::flash(word address, word data, WriteException &exception, int num_bytes) {
+	Memory::write(address, data, exception, num_bytes);
+}
+
+void ROM::flash_word(word address, word data, WriteException &exception) {
+	flash(address, data, exception, 4);
+}
+
+void ROM::flash_hword(word address, hword data, WriteException &exception) {
+	flash(address, data, exception, 2);
+}
+
+void ROM::flash_byte(word address, byte data, WriteException &exception) {
+	flash(address, data, exception, 1);
 }

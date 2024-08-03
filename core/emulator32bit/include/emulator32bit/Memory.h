@@ -72,6 +72,12 @@ class ROM : public Memory
 		ROM(const byte* data, word mem_pages, word lo_page);
 
 		void write(word address, word data, WriteException &exception, int num_bytes = 4) override;
+
+		void flash(word address, word data, WriteException &exception, int num_bytes = 4);
+
+		void flash_word(word address, word data, WriteException &exception);
+		void flash_hword(word address, hword data, WriteException &exception);
+		void flash_byte(word address, byte data, WriteException &exception);
 };
 
 #endif /* MEMORY_H */
