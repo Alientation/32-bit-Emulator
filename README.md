@@ -45,6 +45,7 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
   * Redesigned new logging system to be more compact and versatile
   * Added simple profiler to assist with optimizing
   * Began documentation process and cleaning up the codebase
+  * Optimized emulator achieving a 32x speed up without virtual memory
 
 ## Future Goals
 * ~~forward arguments passed into the executable to the assembler build process so that recompilation of the project is not necessary
