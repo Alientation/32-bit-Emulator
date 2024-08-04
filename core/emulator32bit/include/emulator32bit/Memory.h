@@ -4,6 +4,8 @@
 
 #include "emulator32bit/emulator32bit_util.h"
 
+#include <string>
+
 class Memory
 {
 	public:
@@ -11,50 +13,42 @@ class Memory
 		Memory(Memory& other);
 		virtual ~Memory();
 
-		struct ReadException {
-			enum class Type {
-				AOK,
-				OUT_OF_BOUNDS_ADDRESS,
-				ACCESS_DENIED
-			};
+		class MemoryReadException : public std::exception
+		{
+			private:
+				std::string message;
 
-			Type type = Type::AOK;
-			word address = 0;
+			public:
+				MemoryReadException(const std::string& msg);
+
+				const char* what() const noexcept override;
 		};
 
-		struct WriteException {
-			enum class Type {
-				AOK,
-				OUT_OF_BOUNDS_ADDRESS,
-				ACCESS_DENIED
-			};
+		class MemoryWriteException : public std::exception
+		{
+			private:
+				std::string message;
 
-			Type type = Type::AOK;
-			word address = 0;
-			word value = 0;
-			int num_bytes = 0;
+			public:
+				MemoryWriteException(const std::string& msg);
+
+				const char* what() const noexcept override;
 		};
 
-		virtual word read(word address, ReadException &exception, int num_bytes = 4);
-		virtual void write(word address, word value, WriteException &exception, int num_bytes = 4);
+		virtual word read(word address, int num_bytes = 4);
+		virtual void write(word address, word value, int num_bytes = 4);
 
-		byte read_byte(word address, ReadException &exception);
-		hword read_hword(word address, ReadException &exception);
-		word read_word(word address, ReadException &exception);
+		byte read_byte(word address);
+		hword read_hword(word address);
+		word read_word(word address);
 
-		inline word read_word_aligned(word address, ReadException& exception) {
-			// if (!in_bounds(address) || !in_bounds(address + 3)) {
-			// 	exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
-			// 	exception.address = address;
-			// 	return 0;
-			// }
-
+		inline word read_word_aligned(word address) {
 			return ((word*) data)[(address - lo_addr) >> 2];
 		}
 
-		void write_byte(word address, byte value, WriteException &exception);
-		void write_hword(word address, hword value, WriteException &exception);
-		void write_word(word address, word value, WriteException &exception);
+		void write_byte(word address, byte value);
+		void write_hword(word address, hword value);
+		void write_word(word address, word value);
 
 		void reset();
 
@@ -82,13 +76,13 @@ class ROM : public Memory
 	public:
 		ROM(const byte* data, word mem_pages, word lo_page);
 
-		void write(word address, word value, WriteException &exception, int num_bytes = 4) override;
+		void write(word address, word value, int num_bytes = 4) override;
 
-		void flash(word address, word value, WriteException &exception, int num_bytes = 4);
+		void flash(word address, word value, int num_bytes = 4);
 
-		void flash_word(word address, word value, WriteException &exception);
-		void flash_hword(word address, hword value, WriteException &exception);
-		void flash_byte(word address, byte value, WriteException &exception);
+		void flash_word(word address, word value);
+		void flash_hword(word address, hword value);
+		void flash_byte(word address, byte value);
 };
 
 #endif /* MEMORY_H */

@@ -211,18 +211,9 @@ word VirtualMemory::access_page(word vpage, Exception& exception)
 		ERROR("Failed to retrieve physical page from free list.");
 	}
 
-	Disk::ReadException disk_read_exception;
-	exception.disk_fetch = m_disk.read_page(entry->diskpage, disk_read_exception);
+	exception.disk_fetch = m_disk.read_page(entry->diskpage);
 	DEBUG_SS(std::stringstream() << "Disk Fetch from page " << std::to_string(entry->diskpage)
 			<< " to physical page " << std::to_string(ppage));
-
-	if (disk_read_exception.type != Disk::ReadException::Type::AOK)
-	{
-		exception.type = Exception::Type::DISK_FETCH_FAILED;
-		ERROR_SS(std::stringstream() << "Disk fetch failed for process "
-				<< std::to_string(m_cur_ptable->pid));
-		return 0;
-	}
 
 	m_disk.return_page(entry->diskpage, fbl_exception);
 	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)

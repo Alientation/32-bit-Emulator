@@ -6,13 +6,8 @@
 #include "assembler/preprocessor.h"
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/disk.h"
-#include "util/directory.h"
 #include "util/file.h"
 #include "util/loggerv2.h"
-
-#include <filesystem>
-#include <fstream>
-#include <sstream>
 
 /*
 TODO
@@ -78,8 +73,9 @@ Bootloader that loads the kernel
 // * Update all logs to use new logger
 // * Add profiler to logger
 
-Rework exception handling, try to safely except as much as possible, use error codes whenever possible
-Go through all the code and try to add more safeguards to catch invalid states and throw exceptions/error codes
+Rework exception handling, try to safely except as much as possible. Throw exceptions and catch them
+where appropriate... Avoid using the current practice of error codes since they introduce a lot of
+overhead when not necessary.
 
 Add syscalls for virtual memory management, but for now, they will be controlled in c++ land
 TODO how important is virtual memory for us?? do we actually need it or can we get by without it??

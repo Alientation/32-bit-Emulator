@@ -144,46 +144,62 @@ void Emulator32bit::print()
 	printf("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run(unsigned long long instructions, EmulatorException &exception)
+
+Emulator32bit::EmulatorException::EmulatorException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* Emulator32bit::EmulatorException::what() const noexcept
+{
+	return message.c_str();
+}
+
+
+void Emulator32bit::run(unsigned long long instructions)
 {
 	word instr = _op_hlt;
 	unsigned long long num_instructions_ran = 0;
 	if (instructions == 0) {
-		while (exception.isOK()) {
-			instr = system_bus.ram.read_word_aligned(_pc, exception.mem_read_exception);
-			// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
-			// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
-			// instr = system_bus.read_word_aligned_ram(_pc, exception.sys_bus_exception, exception.mem_read_exception);
-			execute(instr, exception);
-			_pc += 4;
-			num_instructions_ran++;
+		try
+		{
+			while (true) {
+				// instr = system_bus.ram.read_word_aligned(_pc);
+				// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
+				// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
+				instr = system_bus.read_word_aligned_ram(_pc);
+				execute(instr);
+				_pc += 4;
+				num_instructions_ran++;
+			}
+		}
+		catch(const EmulatorException& e)
+		{
+			std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
 		}
 	} else {
 		unsigned long long start_instructions = instructions;
-		while (instructions > 0 && exception.isOK()) {
-			instr = system_bus.ram.read_word_aligned(_pc, exception.mem_read_exception);
-			// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
-			// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
-			// instr = system_bus.read_word_aligned_ram(_pc, exception.sys_bus_exception, exception.mem_read_exception);
-			execute(instr, exception);
-			_pc += 4;
-			instructions--;
+		try
+		{
+			while (instructions > 0) {
+				// instr = system_bus.ram.read_word_aligned(_pc);
+				// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
+				// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
+				instr = system_bus.read_word_aligned_ram(_pc);
+				execute(instr);
+				_pc += 4;
+				instructions--;
+			}
+		}
+		catch(const EmulatorException& e)
+		{
+			std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
 		}
 		num_instructions_ran = start_instructions - instructions;
 	}
 
-	if (!exception.isOK()) {
-		exception.instr = instr;
-		handle_exception(exception);
-	}
-
 	printf("Ran %llu instructions\n", num_instructions_ran);
-}
-
-void Emulator32bit::run(unsigned long long instructions)
-{
-	EmulatorException exception;
-	run(instructions, exception);
 }
 
 void Emulator32bit::reset()
@@ -195,11 +211,4 @@ void Emulator32bit::reset()
 	_pstate = 0;
 	_pc = 0;
 
-}
-
-void Emulator32bit::handle_exception(EmulatorException &exception)
-{
-	// todo later
-	DEBUG_SS(std::stringstream() << "Emulator32bit exception at "
-			<< disassemble_instr(exception.instr));
 }

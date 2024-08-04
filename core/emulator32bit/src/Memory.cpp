@@ -1,5 +1,6 @@
 #include "emulator32bit/memory.h"
 
+#define UNUSED(x) (void)(x)
 Memory::Memory(word mem_pages, word lo_page) :
 	mem_pages(mem_pages),
 	lo_page(lo_page),
@@ -26,6 +27,29 @@ Memory::~Memory()
 		delete[] data;
 }
 
+
+Memory::MemoryReadException::MemoryReadException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* Memory::MemoryReadException::what() const noexcept
+{
+	return message.c_str();
+}
+
+Memory::MemoryWriteException::MemoryWriteException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* Memory::MemoryWriteException::what() const noexcept
+{
+	return message.c_str();
+}
+
 word Memory::get_mem_pages()
 {
 	return mem_pages;
@@ -46,12 +70,11 @@ bool Memory::in_bounds(word address)
 	return address >= (lo_page << PAGE_PSIZE) && address < ((get_hi_page()+1) << PAGE_PSIZE);
 }
 
-word Memory::read(word address, ReadException &exception, int num_bytes)
+word Memory::read(word address, int num_bytes)
 {
 	if (!in_bounds(address) || !in_bounds(address + num_bytes - 1)) {
-		exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
-		exception.address = address;
-		return 0;
+		throw MemoryReadException("Out of bounds address " + std::to_string(address) + " - " +
+				std::to_string(address + num_bytes - 1));
 	}
 
 	address -= lo_page << PAGE_PSIZE;
@@ -63,14 +86,11 @@ word Memory::read(word address, ReadException &exception, int num_bytes)
 	return value;
 }
 
-void Memory::write(word address, word value, WriteException &exception, int num_bytes)
+void Memory::write(word address, word value, int num_bytes)
 {
 	if (!in_bounds(address) || !in_bounds(address + num_bytes - 1)) {
-		exception.type = WriteException::Type::OUT_OF_BOUNDS_ADDRESS;
-		exception.address = address;
-		exception.value = value;
-		exception.num_bytes = num_bytes;
-		return;
+		throw MemoryWriteException("Out of bounds address " + std::to_string(address) + " - " +
+				std::to_string(address + num_bytes - 1));
 	}
 
 	address -= lo_page << PAGE_PSIZE;
@@ -81,57 +101,50 @@ void Memory::write(word address, word value, WriteException &exception, int num_
 }
 
 
-byte Memory::read_byte(word address, ReadException &exception)
+byte Memory::read_byte(word address)
 {
 	if (!in_bounds(address)) {
-		exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
-		exception.address = address;
-		return 0;
+		throw MemoryReadException("Out of bounds address " + std::to_string(address));
 	}
 
 	address -= lo_page << PAGE_PSIZE;
 	return data[address];
 }
 
-hword Memory::read_hword(word address, ReadException &exception)
+hword Memory::read_hword(word address)
 {
-	return read(address, exception, 2);
+	return read(address, 2);
 }
 
-word Memory::read_word(word address, ReadException &exception)
+word Memory::read_word(word address)
 {
-	return read(address, exception, 4);
+	return read(address, 4);
 }
 
-void Memory::write_byte(word address, byte value, WriteException &exception)
+void Memory::write_byte(word address, byte value)
 {
 	if (!in_bounds(address)) {
-		exception.type = WriteException::Type::OUT_OF_BOUNDS_ADDRESS;
-		exception.address = address;
-		exception.value = value;
-		exception.num_bytes = 1;
-		return;
+		throw MemoryWriteException("Out of bounds address " + std::to_string(address));
 	}
 
 	address -= lo_page << PAGE_PSIZE;
 	data[address] = value;
 }
 
-void Memory::write_hword(word address, hword value, WriteException &exception)
+void Memory::write_hword(word address, hword value)
 {
-	write(address, value, exception, 2);
+	write(address, value, 2);
 }
 
-void Memory::write_word(word address, word value, WriteException &exception)
+void Memory::write_word(word address, word value)
 {
-	write(address, value, exception, 4);
+	write(address, value, 4);
 }
 
 void Memory::reset()
 {
 	for (word addr = lo_page << PAGE_PSIZE; addr < get_hi_page() << PAGE_PSIZE; addr++) {
-		WriteException exception;
-		Memory::write_byte(addr, 0, exception);
+		Memory::write_byte(addr, 0);
 	}
 }
 
@@ -158,26 +171,27 @@ ROM::ROM(const byte* rom_data, word mem_pages, word lo_page) :
 	}
 }
 
-void ROM::write(word address, word value, WriteException &exception, int num_bytes)
+void ROM::write(word address, word value, int num_bytes)
 {
-	exception.type = WriteException::Type::ACCESS_DENIED;
-	exception.address = address;
-	exception.value = value;
-	exception.num_bytes = num_bytes;
+	UNUSED(address);
+	UNUSED(value);
+	UNUSED(num_bytes);
+
+	throw MemoryWriteException("Cannot write to ROM.");
 }
 
-void ROM::flash(word address, word data, WriteException &exception, int num_bytes) {
-	Memory::write(address, data, exception, num_bytes);
+void ROM::flash(word address, word data, int num_bytes) {
+	Memory::write(address, data, num_bytes);
 }
 
-void ROM::flash_word(word address, word data, WriteException &exception) {
-	flash(address, data, exception, 4);
+void ROM::flash_word(word address, word data) {
+	flash(address, data, 4);
 }
 
-void ROM::flash_hword(word address, hword data, WriteException &exception) {
-	flash(address, data, exception, 2);
+void ROM::flash_hword(word address, hword data) {
+	flash(address, data, 2);
 }
 
-void ROM::flash_byte(word address, byte data, WriteException &exception) {
-	flash(address, data, exception, 1);
+void ROM::flash_byte(word address, byte data) {
+	flash(address, data, 1);
 }

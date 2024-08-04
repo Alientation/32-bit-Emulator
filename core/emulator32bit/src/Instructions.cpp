@@ -134,7 +134,7 @@ static bool get_v_flag_sub(word op1, word op2)
  * @hideinitializer
  *
  */
-#define FORMAT_O__get_arg(instr, exception) (test_bit(instr, 14) ? bitfield_u32(instr, 0, 14) : calc_shift(read_reg(_X3(instr), exception), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2)))
+#define FORMAT_O__get_arg(instr) (test_bit(instr, 14) ? bitfield_u32(instr, 0, 14) : calc_shift(read_reg(_X3(instr)), bitfield_u32(instr, 7, 2), bitfield_u32(instr, 2, 2)))
 
 /**
  * @internal
@@ -283,10 +283,10 @@ word Emulator32bit::asm_format_b2(byte opcode, ConditionCode cond, int xd)
 	return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(5, xd) << 17;
 }
 
-void Emulator32bit::_hlt(word instr, EmulatorException& exception)
+void Emulator32bit::_hlt(word instr)
 {
 	UNUSED(instr);
-	exception.type = EmulatorException::Type::HALT;
+	throw EmulatorException("HLT Exception");		// todo, instead, an interrupt should be raised or smthn to be handled by the kernel
 }
 
 word Emulator32bit::asm_hlt()
@@ -294,10 +294,9 @@ word Emulator32bit::asm_hlt()
 	return Joiner() << JPart(6, _op_hlt) << 26;
 }
 
-void Emulator32bit::_nop(word instr, EmulatorException& exception)
+void Emulator32bit::_nop(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
 	return; // do nothing
 }
 
@@ -306,11 +305,11 @@ word Emulator32bit::asm_nop()
 	return Joiner() << JPart(6, _op_nop) << 26;
 }
 
-void Emulator32bit::_add(word instr, EmulatorException& exception)
+void Emulator32bit::_add(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word add_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word add_val = FORMAT_O__get_arg(instr);
 	word dst_val = add_val + xn_val;
 
 	// check to update NZCV
@@ -321,14 +320,14 @@ void Emulator32bit::_add(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "add " << std::to_string(add_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_sub(word instr, EmulatorException& exception)
+void Emulator32bit::_sub(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word sub_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word sub_val = FORMAT_O__get_arg(instr);
 	word dst_val = xn_val - sub_val;
 
 	// check to update NZCV
@@ -339,14 +338,14 @@ void Emulator32bit::_sub(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "sub " << std::to_string(sub_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_rsb(word instr, EmulatorException& exception)
+void Emulator32bit::_rsb(word instr)
 {
 	byte xd = _X1(instr);
-	word sub_val = read_reg(_X2(instr), exception);
-	word xn_val = FORMAT_O__get_arg(instr, exception);
+	word sub_val = read_reg(_X2(instr));
+	word xn_val = FORMAT_O__get_arg(instr);
 	word dst_val = xn_val - sub_val;
 
 	// check to update NZCV
@@ -357,15 +356,15 @@ void Emulator32bit::_rsb(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "rsb " << std::to_string(xn_val) << " "
 			<< std::to_string(sub_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_adc(word instr, EmulatorException& exception)
+void Emulator32bit::_adc(word instr)
 {
 	bool c = test_bit(_pstate, C_FLAG);
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word add_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word add_val = FORMAT_O__get_arg(instr);
 	word dst_val = add_val + xn_val + c;
 
 	// check to update NZCV
@@ -377,15 +376,15 @@ void Emulator32bit::_adc(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "adc " << std::to_string(add_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_sbc(word instr, EmulatorException& exception)
+void Emulator32bit::_sbc(word instr)
 {
 	bool borrow = test_bit(_pstate, C_FLAG);
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word sub_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word sub_val = FORMAT_O__get_arg(instr);
 	word dst_val = xn_val - sub_val - borrow;
 
 	// check to update NZCV
@@ -397,15 +396,15 @@ void Emulator32bit::_sbc(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "sbc " << std::to_string(sub_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_rsc(word instr, EmulatorException& exception)
+void Emulator32bit::_rsc(word instr)
 {
 	bool borrow = test_bit(_pstate, C_FLAG);
 	byte xd = _X1(instr);
-	word sub_val = read_reg(_X2(instr), exception);
-	word xn_val = FORMAT_O__get_arg(instr, exception);
+	word sub_val = read_reg(_X2(instr));
+	word xn_val = FORMAT_O__get_arg(instr);
 	word dst_val = xn_val - sub_val - borrow;
 
 	// check to update NZCV
@@ -417,14 +416,14 @@ void Emulator32bit::_rsc(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "rsc " << std::to_string(xn_val) << " "
 			<< std::to_string(sub_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_mul(word instr, EmulatorException& exception)
+void Emulator32bit::_mul(word instr)
 {
 	byte xd = _X1(instr);
-	dword xn_val = read_reg(_X2(instr), exception);
-	dword xm_val = FORMAT_O__get_arg(instr, exception);
+	dword xn_val = read_reg(_X2(instr));
+	dword xm_val = FORMAT_O__get_arg(instr);
 	dword dst_val = xn_val * xm_val;
 
 	// check to update NZCV
@@ -437,15 +436,15 @@ void Emulator32bit::_mul(word instr, EmulatorException& exception)
 	DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
 			<< std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-	write_reg(xd, (word) dst_val, exception);
+	write_reg(xd, (word) dst_val);
 }
 
-void Emulator32bit::_umull(word instr, EmulatorException& exception)
+void Emulator32bit::_umull(word instr)
 {
 	byte xlo = _X1(instr);
 	byte xhi = _X2(instr);
-	dword xn_val = read_reg(_X3(instr), exception);
-	dword xm_val = read_reg(_X4(instr), exception);
+	dword xn_val = read_reg(_X3(instr));
+	dword xm_val = read_reg(_X4(instr));
 	dword dst_val = xn_val * xm_val;
 
 	// check to update NZCV
@@ -458,16 +457,16 @@ void Emulator32bit::_umull(word instr, EmulatorException& exception)
 	DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
 			<< std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-	write_reg(xlo, (word) dst_val, exception);
-	write_reg(xhi, (word) (dst_val >> 32), exception);
+	write_reg(xlo, (word) dst_val);
+	write_reg(xhi, (word) (dst_val >> 32));
 }
 
-void Emulator32bit::_smull(word instr, EmulatorException& exception)
+void Emulator32bit::_smull(word instr)
 {
 	byte xlo = _X1(instr);
 	byte xhi = _X2(instr);
-	signed long long xn_val = ((signed long long) read_reg(_X3(instr), exception)) << 32 >> 32;
-	signed long long xm_val = ((signed long long) read_reg(_X4(instr), exception)) << 32 >> 32;
+	signed long long xn_val = ((signed long long) read_reg(_X3(instr))) << 32 >> 32;
+	signed long long xm_val = ((signed long long) read_reg(_X4(instr))) << 32 >> 32;
 	signed long long dst_val = xn_val * xm_val;
 
 	// check to update NZCV
@@ -480,89 +479,89 @@ void Emulator32bit::_smull(word instr, EmulatorException& exception)
 	DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
 			<< std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-	write_reg(xlo, (word) dst_val, exception);
-	write_reg(xhi, (word) (dst_val >> 32), exception);
+	write_reg(xlo, (word) dst_val);
+	write_reg(xhi, (word) (dst_val >> 32));
 }
 
 // todo WILL DO LATER JUST NOT NOW
-void Emulator32bit::_vabs_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vabs_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vneg_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vneg_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vsqrt_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vsqrt_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vadd_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vadd_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vsub_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vsub_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vdiv_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vdiv_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vmul_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vmul_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vcmp_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vcmp_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vsel_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vsel_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vcint_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vcint_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vcflo_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vcflo_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
-void Emulator32bit::_vmov_f32(word instr, EmulatorException& exception)
+void Emulator32bit::_vmov_f32(word instr)
 {
 	UNUSED(instr);
-	UNUSED(exception);
+
 }
 
 
-void Emulator32bit::_and(word instr, EmulatorException& exception)
+void Emulator32bit::_and(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word and_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word and_val = FORMAT_O__get_arg(instr);
 	word dst_val = and_val & xn_val;
 
 	// check to update NZCV
@@ -575,14 +574,14 @@ void Emulator32bit::_and(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "and " << std::to_string(and_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_orr(word instr, EmulatorException& exception)
+void Emulator32bit::_orr(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word or_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word or_val = FORMAT_O__get_arg(instr);
 	word dst_val = or_val | xn_val;
 
 	// check to update NZCV
@@ -595,14 +594,14 @@ void Emulator32bit::_orr(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "orr " << std::to_string(or_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_eor(word instr, EmulatorException& exception)
+void Emulator32bit::_eor(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word eor_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word eor_val = FORMAT_O__get_arg(instr);
 	word dst_val = eor_val ^ xn_val;
 
 	// check to update NZCV
@@ -615,14 +614,14 @@ void Emulator32bit::_eor(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "eor " << std::to_string(eor_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_bic(word instr, EmulatorException& exception)
+void Emulator32bit::_bic(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word bic_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word bic_val = FORMAT_O__get_arg(instr);
 	word dst_val = (~bic_val) & xn_val;
 
 	// check to update NZCV
@@ -635,62 +634,62 @@ void Emulator32bit::_bic(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "bic " << std::to_string(bic_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_lsl(word instr, EmulatorException& exception)
+void Emulator32bit::_lsl(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr), exception);
+	word xn_val = read_reg(_X2(instr));
+	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
 	word dst_val = xn_val << lsl_val;
 
 	DEBUG_SS(std::stringstream() << "lsl " << std::to_string(lsl_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_lsr(word instr, EmulatorException& exception)
+void Emulator32bit::_lsr(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr), exception);
+	word xn_val = read_reg(_X2(instr));
+	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
 	word dst_val = xn_val >> lsl_val;
 
 	DEBUG_SS(std::stringstream() << "lsr " << std::to_string(lsl_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_asr(word instr, EmulatorException& exception)
+void Emulator32bit::_asr(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr), exception);
+	word xn_val = read_reg(_X2(instr));
+	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
 	word dst_val = ((sword) xn_val) >> lsl_val;
 
 	DEBUG_SS(std::stringstream() << "asr " << std::to_string(lsl_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_ror(word instr, EmulatorException& exception)
+void Emulator32bit::_ror(word instr)
 {
 	byte xd = _X1(instr);
-	word xn_val = read_reg(_X2(instr), exception);
-	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr), exception);
+	word xn_val = read_reg(_X2(instr));
+	word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
 	word dst_val = (xn_val >> lsl_val) | (bitfield_u32(xn_val, 0, lsl_val) << (32 - lsl_val));
 
 	DEBUG_SS(std::stringstream() << "ror " << std::to_string(lsl_val) << " "
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
 // alias to subs
-void Emulator32bit::_cmp(word instr, EmulatorException& exception)
+void Emulator32bit::_cmp(word instr)
 {
-	word xn_val = read_reg(_X2(instr), exception);
-	word cmp_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word cmp_val = FORMAT_O__get_arg(instr);
 	word dst_val = xn_val - cmp_val;
 
 	set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, cmp_val),
@@ -701,10 +700,10 @@ void Emulator32bit::_cmp(word instr, EmulatorException& exception)
 }
 
 // alias to adds
-void Emulator32bit::_cmn(word instr, EmulatorException& exception)
+void Emulator32bit::_cmn(word instr)
 {
-	word xn_val = read_reg(_X2(instr), exception);
-	word cmn_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word cmn_val = FORMAT_O__get_arg(instr);
 	word dst_val = cmn_val + xn_val;
 
 	set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_add(xn_val, cmn_val),
@@ -715,10 +714,10 @@ void Emulator32bit::_cmn(word instr, EmulatorException& exception)
 }
 
 // alias to ands
-void Emulator32bit::_tst(word instr, EmulatorException& exception)
+void Emulator32bit::_tst(word instr)
 {
-	word xn_val = read_reg(_X2(instr), exception);
-	word tst_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word tst_val = FORMAT_O__get_arg(instr);
 	word dst_val = tst_val & xn_val;
 
 	set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
@@ -728,10 +727,10 @@ void Emulator32bit::_tst(word instr, EmulatorException& exception)
 }
 
 // alias to eors
-void Emulator32bit::_teq(word instr, EmulatorException& exception)
+void Emulator32bit::_teq(word instr)
 {
-	word xn_val = read_reg(_X2(instr), exception);
-	word teq_val = FORMAT_O__get_arg(instr, exception);
+	word xn_val = read_reg(_X2(instr));
+	word teq_val = FORMAT_O__get_arg(instr);
 	word dst_val = teq_val ^ xn_val;
 
 	set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
@@ -740,14 +739,14 @@ void Emulator32bit::_teq(word instr, EmulatorException& exception)
 			<< std::to_string(xn_val) << " = " << std::to_string(dst_val));
 }
 
-void Emulator32bit::_mov(word instr, EmulatorException& exception)
+void Emulator32bit::_mov(word instr)
 {
 	byte xd = _X1(instr);
 	word mov_val = 0;
 	if (test_bit(instr, 19)) {
 		mov_val = bitfield_u32(instr, 0, 19);
 	} else {
-		mov_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5), exception);
+		mov_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
 	}
 
 	// check to update NZCV
@@ -757,18 +756,18 @@ void Emulator32bit::_mov(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "mov " << std::to_string(xd) << " "
 			<< std::to_string(mov_val));
-	write_reg(xd, mov_val, exception);
+	write_reg(xd, mov_val);
 }
 
-void Emulator32bit::_mvn(word instr, EmulatorException& exception)
+void Emulator32bit::_mvn(word instr)
 {
 	byte xd = _X1(instr);
-	// word xn_val = read_reg(_X2(instr), exception);
+	// word xn_val = read_reg(_X2(instr));
 	word mvn_val = 0;
 	if (test_bit(instr, 19)) {
 		mvn_val = bitfield_u32(instr, 0, 19);
 	} else {
-		mvn_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5), exception);
+		mvn_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
 	}
 
 	word dst_val = ~mvn_val;
@@ -780,28 +779,28 @@ void Emulator32bit::_mvn(word instr, EmulatorException& exception)
 
 	DEBUG_SS(std::stringstream() << "mvn " << std::to_string(xd) << " "
 			<< std::to_string(mvn_val) << " = " << std::to_string(dst_val));
-	write_reg(xd, dst_val, exception);
+	write_reg(xd, dst_val);
 }
 
-word Emulator32bit::calc_mem_addr(word xn, sword offset, byte addr_mode, EmulatorException& exception)
+word Emulator32bit::calc_mem_addr(word xn, sword offset, byte addr_mode)
 {
 	word mem_addr = 0;
-	word xn_val = read_reg(xn, exception);
+	word xn_val = read_reg(xn);
 	if (addr_mode == 0) {
 		mem_addr = xn_val + offset;
 	} else if (addr_mode == 1) {
 		mem_addr = xn_val + offset;
-		write_reg(xn, mem_addr, exception);
+		write_reg(xn, mem_addr);
 	} else if (addr_mode == 2) {
 		mem_addr = xn_val;
-		write_reg(xn, xn_val + offset, exception);
+		write_reg(xn, xn_val + offset);
 	} else {
-		exception.type = EmulatorException::Type::BAD_INSTR;
+		throw EmulatorException("Bad memory address mode " + std::to_string(addr_mode));
 	}
 	return mem_addr;
 }
 
-void Emulator32bit::_ldr(word instr, EmulatorException& exception)
+void Emulator32bit::_ldr(word instr)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
@@ -810,12 +809,12 @@ void Emulator32bit::_ldr(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word read_val = system_bus.read_word(mem_addr, exception.sys_bus_exception, exception.mem_read_exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word read_val = system_bus.read_word(mem_addr);
 
 	if (address_mode == 0) {
 		DEBUG_SS(std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << std::to_string(offset)
@@ -827,10 +826,10 @@ void Emulator32bit::_ldr(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << "], " << std::to_string(offset)
 				<< " [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
 	}
-	write_reg(xt, read_val, exception);
+	write_reg(xt, read_val);
 }
 
-void Emulator32bit::_ldrb(word instr, EmulatorException& exception)
+void Emulator32bit::_ldrb(word instr)
 {
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
@@ -840,12 +839,12 @@ void Emulator32bit::_ldrb(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word read_val = system_bus.read_byte(mem_addr, exception.sys_bus_exception, exception.mem_read_exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word read_val = system_bus.read_byte(mem_addr);
 	if (sign) {
 		read_val = (sword) ((byte) read_val);
 	}
@@ -860,10 +859,10 @@ void Emulator32bit::_ldrb(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], "
 				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
 	}
-	write_reg(xt, read_val, exception);
+	write_reg(xt, read_val);
 }
 
-void Emulator32bit::_ldrh(word instr, EmulatorException& exception)
+void Emulator32bit::_ldrh(word instr)
 {
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
@@ -873,12 +872,12 @@ void Emulator32bit::_ldrh(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word read_val = system_bus.read_hword(mem_addr, exception.sys_bus_exception, exception.mem_read_exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word read_val = system_bus.read_hword(mem_addr);
 	if (sign) {
 		read_val = (sword) ((hword) read_val);
 	}
@@ -893,10 +892,10 @@ void Emulator32bit::_ldrh(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], "
 				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
 	}
-	write_reg(xt, read_val, exception);
+	write_reg(xt, read_val);
 }
 
-void Emulator32bit::_str(word instr, EmulatorException& exception)
+void Emulator32bit::_str(word instr)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
@@ -905,12 +904,12 @@ void Emulator32bit::_str(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word write_val = read_reg(xt, exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word write_val = read_reg(xt);
 
 	if (address_mode == 0) {
 		DEBUG_SS(std::stringstream() << "str " << std::to_string(xt) << ", [" << std::to_string(xn) << ", "
@@ -922,10 +921,10 @@ void Emulator32bit::_str(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "str " << std::to_string(xt) << ", [" << std::to_string(xn) << "], "
 				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
 	}
-	system_bus.write_word(mem_addr, write_val, exception.sys_bus_exception, exception.mem_write_exception);
+	system_bus.write_word(mem_addr, write_val);
 }
 
-void Emulator32bit::_strb(word instr, EmulatorException& exception)
+void Emulator32bit::_strb(word instr)
 {
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
@@ -935,12 +934,12 @@ void Emulator32bit::_strb(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word write_val = read_reg(xt, exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word write_val = read_reg(xt);
 	if (sign) {
 		write_val = (sword) ((byte) write_val);
 	}
@@ -955,10 +954,10 @@ void Emulator32bit::_strb(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "str" << (sign ? "sb " : "b ") << ", [" << std::to_string(xn) << "], "
 				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
 	}
-	system_bus.write_byte(mem_addr, write_val, exception.sys_bus_exception, exception.mem_write_exception);
+	system_bus.write_byte(mem_addr, write_val);
 }
 
-void Emulator32bit::_strh(word instr, EmulatorException& exception)
+void Emulator32bit::_strh(word instr)
 {
 	bool sign = test_bit(instr, 25);
 	byte xt = _X1(instr);
@@ -968,12 +967,12 @@ void Emulator32bit::_strh(word instr, EmulatorException& exception)
 	if (simm) {
 		offset = bitfield_s32(instr, 2, 12);
 	} else {
-		offset = FORMAT_O__get_arg(instr, exception);
+		offset = FORMAT_O__get_arg(instr);
 	}
 
 	byte address_mode = bitfield_u32(instr, 0, 2);
-	word mem_addr = calc_mem_addr(xn, offset, address_mode, exception);
-	word write_val = read_reg(xt, exception);
+	word mem_addr = calc_mem_addr(xn, offset, address_mode);
+	word write_val = read_reg(xt);
 	if (sign) {
 		write_val = (sword) ((hword)write_val);
 	}
@@ -988,61 +987,61 @@ void Emulator32bit::_strh(word instr, EmulatorException& exception)
 		DEBUG_SS(std::stringstream() << "str" << (sign ? "sh " : "h ") << ", [" << std::to_string(xn) << "], "
 				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
 	}
-	system_bus.write_hword(mem_addr, write_val, exception.sys_bus_exception, exception.mem_write_exception);
+	system_bus.write_hword(mem_addr, write_val);
 }
 
-void Emulator32bit::_swp(word instr, EmulatorException& exception)
+void Emulator32bit::_swp(word instr)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
 	byte xm = _X3(instr);
-	word mem_adr = read_reg(xm, exception);
+	word mem_adr = read_reg(xm);
 
 	DEBUG_SS(std::stringstream() << "swp " << std::to_string(xt) << " " << std::to_string(xn) << " [" << std::to_string(xm) << "]");
 
-	word val_reg = read_reg(xn, exception);
-	word val_mem = system_bus.read_word(mem_adr, exception.sys_bus_exception, exception.mem_read_exception);
+	word val_reg = read_reg(xn);
+	word val_mem = system_bus.read_word(mem_adr);
 
-	write_reg(xt, val_mem, exception);
-	system_bus.write_word(mem_adr, val_reg, exception.sys_bus_exception, exception.mem_write_exception);
+	write_reg(xt, val_mem);
+	system_bus.write_word(mem_adr, val_reg);
 }
 
-void Emulator32bit::_swpb(word instr, EmulatorException& exception)
+void Emulator32bit::_swpb(word instr)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
 	byte xm = _X3(instr);
-	word mem_adr = read_reg(xm, exception);
+	word mem_adr = read_reg(xm);
 
 	DEBUG_SS(std::stringstream() << "swpb " << std::to_string(xt) << " " << std::to_string(xn) << " [" << std::to_string(xm) << "]");
 
-	word val_reg = read_reg(xn, exception) & 0xFF;
-	word val_mem = system_bus.read_byte(mem_adr, exception.sys_bus_exception, exception.mem_read_exception);
+	word val_reg = read_reg(xn) & 0xFF;
+	word val_mem = system_bus.read_byte(mem_adr);
 
-	write_reg(xt, (val_reg & ~(0xFF)) + val_mem, exception);
-	system_bus.write_byte(mem_adr, val_reg, exception.sys_bus_exception, exception.mem_write_exception);
+	write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
+	system_bus.write_byte(mem_adr, val_reg);
 }
 
-void Emulator32bit::_swph(word instr, EmulatorException& exception)
+void Emulator32bit::_swph(word instr)
 {
 	byte xt = _X1(instr);
 	byte xn = _X2(instr);
 	byte xm = _X3(instr);
-	word mem_adr = read_reg(xm, exception);
+	word mem_adr = read_reg(xm);
 
 	DEBUG_SS(std::stringstream() << "swph " << std::to_string(xt) << " " << std::to_string(xn) << " [" << std::to_string(xm) << "]");
 
-	word val_reg = read_reg(xn, exception) & 0xFFFF;
-	word val_mem = system_bus.read_byte(mem_adr, exception.sys_bus_exception, exception.mem_read_exception);
+	word val_reg = read_reg(xn) & 0xFFFF;
+	word val_mem = system_bus.read_byte(mem_adr);
 
-	write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem, exception);
-	system_bus.write_byte(mem_adr, val_reg, exception.sys_bus_exception, exception.mem_write_exception);
+	write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
+	system_bus.write_byte(mem_adr, val_reg);
 }
 
 
-void Emulator32bit::_b(word instr, EmulatorException& exception)
+void Emulator32bit::_b(word instr)
 {
-	UNUSED(exception);
+
 
 	byte cond = bitfield_u32(instr, 22, 4);
 	if (check_cond(_pstate, cond)) {
@@ -1051,43 +1050,43 @@ void Emulator32bit::_b(word instr, EmulatorException& exception)
 	DEBUG_SS(std::stringstream() << "b " << std::to_string(cond));
 }
 
-void Emulator32bit::_bl(word instr, EmulatorException& exception)
+void Emulator32bit::_bl(word instr)
 {
 	byte cond = bitfield_u32(instr, 22, 4);
 	if (check_cond(_pstate, cond)) {
-		write_reg(LINKR, _pc+4, exception);
+		write_reg(LINKR, _pc+4);
 		_pc += (bitfield_s32(instr, 0, 22) << 2) - 4;
 	}
 	DEBUG_SS(std::stringstream() << "bl " << std::to_string(cond));
 }
 
-void Emulator32bit::_bx(word instr, EmulatorException& exception)
+void Emulator32bit::_bx(word instr)
 {
 	byte cond = bitfield_u32(instr, 22, 4);
 	byte reg = bitfield_u32(instr, 17, 5);
 	if (check_cond(_pstate, cond)) {
-		_pc = (sword) read_reg(reg, exception) - 4;
+		_pc = (sword) read_reg(reg) - 4;
 	}
 	DEBUG_SS(std::stringstream() << "bx " << std::to_string(reg) << " (" << std::to_string(cond) << ")");
 }
 
-void Emulator32bit::_blx(word instr, EmulatorException& exception)
+void Emulator32bit::_blx(word instr)
 {
 	byte cond = bitfield_u32(instr, 22, 4);
 	byte reg = bitfield_u32(instr, 17, 5);
 	if (check_cond(_pstate, cond)) {
-		write_reg(LINKR, _pc+4, exception);
-		_pc = (sword) read_reg(reg, exception) - 4;
+		write_reg(LINKR, _pc+4);
+		_pc = (sword) read_reg(reg) - 4;
 	}
 	DEBUG_SS(std::stringstream() << "blx " << std::to_string(reg) << "(" << std::to_string(cond) << ")");
 }
 
-void Emulator32bit::_adrp(word instr, EmulatorException& exception)
+void Emulator32bit::_adrp(word instr)
 {
 	byte xd = _X1(instr);
 	word imm20 = bitfield_u32(instr, 0, 20) << 12;
 
-	write_reg(xd, imm20, exception);
+	write_reg(xd, imm20);
 
 	DEBUG_SS(std::stringstream() << "adrp " << std::to_string(xd) << " " << std::to_string(imm20));
 }

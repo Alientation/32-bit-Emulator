@@ -44,23 +44,17 @@ void LoadExecutable::load(word start_addr)
 	// text -> data -> bss
 	word cur_addr = start_addr;
 	for (word instr : obj.text_section) {
-		SystemBus::Exception sys_bus_exception;
-		Memory::WriteException mem_write_exception;
-		m_emu.system_bus.write_word(cur_addr, instr, sys_bus_exception, mem_write_exception);
+		m_emu.system_bus.write_word(cur_addr, instr);
 		cur_addr += 4;
 	}
 
 	for (byte data : obj.data_section) {
-		SystemBus::Exception sys_bus_exception;
-		Memory::WriteException mem_write_exception;
-		m_emu.system_bus.write_byte(cur_addr, data, sys_bus_exception, mem_write_exception);
+		m_emu.system_bus.write_byte(cur_addr, data);
 		cur_addr++;
 	}
 
 	for (word i = 0; i < obj.bss_section; i++) {
-		SystemBus::Exception sys_bus_exception;
-		Memory::WriteException mem_write_exception;
-		m_emu.system_bus.write_byte(cur_addr, 0, sys_bus_exception, mem_write_exception);
+		m_emu.system_bus.write_byte(cur_addr, 0);
 		cur_addr++;
 	}
 

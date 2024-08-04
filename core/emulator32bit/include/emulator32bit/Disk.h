@@ -52,42 +52,26 @@ class Disk
 		Disk(File diskfile, std::streamsize npages = 4096);
 		virtual ~Disk();
 
-		/**
-		 * @brief 			Exceptions that occur when reading from disk.
-		 *
-		 * @note 			If no exception occured, the only valid information would be the type.
-		 */
-		struct ReadException {
-			/**
-			 * @brief 			Type of read exception that occured.
-			 */
-			enum class Type {
-				AOK,							///< Good state
-				INVALID_ADDRESS,				///< Invalid read address (out of bounds)
-			};
+		class DiskReadException : public std::exception
+		{
+			private:
+				std::string message;
 
-			Type type = Type::AOK;				///< Type of read exception, defaults to AOK
-			word address = 0;					///< Read address
+			public:
+				DiskReadException(const std::string& msg);
+
+				const char* what() const noexcept override;
 		};
 
-		/**
-		 * @brief 			Exceptions that occur when writing to disk.
-		 *
-		 * @note 			If no exception occured, the only valid information would be the type.
-		 */
-		struct WriteException {
-			/**
-			 * @brief 			Type of write exception that occured.
-			 */
-			enum class Type {
-				AOK,							///< Good state
-				INVALID_ADDRESS,				///< Invalid write address (out of bounds)
-				INVALID_PAGEDATA_SIZE,			///< Passed in page data was not of size PAGE_SIZE
-			};
+		class DiskWriteException : public std::exception
+		{
+			private:
+				std::string message;
 
-			Type type = Type::AOK;				///< Type of write exception, defaults to AOK
-			word address = 0;					///< Write address
-			word data_length = 0;				///< Size of data to write to disk
+			public:
+				DiskWriteException(const std::string& msg);
+
+				const char* what() const noexcept override;
 		};
 
 		/**
@@ -155,7 +139,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Page data corresponding to the page address.
 		 */
-		virtual std::vector<byte> read_page(word page, ReadException& exception);
+		virtual std::vector<byte> read_page(word page);
 
 		/**
 		 * @brief 			Reads a byte from disk.
@@ -165,7 +149,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Byte located at the address in disk.
 		 */
-		virtual byte read_byte(word address, ReadException& exception);
+		virtual byte read_byte(word address);
 
 		/**
 		 * @brief 			Reads a half word (2 bytes) from disk.
@@ -175,7 +159,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Half word located at the address in disk in little endian format.
 		 */
-		virtual hword read_hword(word address, ReadException& exception);
+		virtual hword read_hword(word address);
 
 		/**
 		 * @brief 			Reads a word (4 bytes) from disk.
@@ -185,7 +169,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Word located at the address in disk in little endian format.
 		 */
-		virtual word read_word(word address, ReadException& exception);
+		virtual word read_word(word address);
 
 		/**
 		 * @brief 			Write a page to disk.
@@ -197,7 +181,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_page(word page, std::vector<byte>, WriteException& exception);
+		virtual void write_page(word page, std::vector<byte>);
 
 		/**
 		 * @brief 			Writes a byte to disk.
@@ -207,7 +191,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_byte(word address, byte data, WriteException& exception);
+		virtual void write_byte(word address, byte data);
 
 		/**
 		 * @brief 			Writes a half word (2 bytes) to disk in little endian format.
@@ -217,7 +201,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_hword(word address, hword data, WriteException& exception);
+		virtual void write_hword(word address, hword data);
 
 		/**
 		 * @brief 			Writes a word (4 bytes) to disk in little endian format.
@@ -227,7 +211,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_word(word address, word data, WriteException& exception);
+		virtual void write_word(word address, word data);
 
 		/**
 		 * @brief 			Saves the simulated disk to file.
@@ -280,7 +264,7 @@ class Disk
 		 * 					exceptions can occur.
 		 * @return 			value read.
 		 */
-		dword read_val(word address, int n_bytes, ReadException &exception);
+		dword read_val(word address, int n_bytes);
 
 		/**
 		 * @brief 			Writes a little endian value of specified size to disk.
@@ -297,7 +281,7 @@ class Disk
 		 * @param exception WriteException thrown if write fails. TODO: Specify what
 		 * 					exceptions can occur.
 		 */
-		void write_val(word address, dword val, int n_bytes, WriteException &exception);
+		void write_val(word address, dword val, int n_bytes);
 
 		/**
 		 * @brief 			Accesses a cache page.
@@ -351,15 +335,15 @@ class MockDisk : public Disk
 		void return_all_pages() override;
 		void return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) override;
 
-		std::vector<byte> read_page(word page, ReadException& exception) override;
-		byte read_byte(word address, ReadException &exception) override;
-		hword read_hword(word address, ReadException &exception) override;
-		word read_word(word address, ReadException &exception) override;
+		std::vector<byte> read_page(word page) override;
+		byte read_byte(word address) override;
+		hword read_hword(word addressn) override;
+		word read_word(word address) override;
 
-		void write_page(word page, std::vector<byte>, WriteException& exception) override;
-		void write_byte(word address, byte data, WriteException &exception) override;
-		void write_hword(word address, hword data, WriteException &exception) override;
-		void write_word(word address, word data, WriteException &exception) override;
+		void write_page(word page, std::vector<byte>) override;
+		void write_byte(word address, byte data) override;
+		void write_hword(word address, hword data) override;
+		void write_word(word address, word data) override;
 
 		void save() override;
 };

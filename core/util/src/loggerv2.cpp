@@ -7,9 +7,15 @@
 #include <stack>
 #include <vector>
 
+#define UNUSED(x) (void)(x)
 void logger::track(const std::string& type, const char* format, const char* file, int line,
 		   const char* func, ...)
 {
+	UNUSED(type);
+	UNUSED(format);
+	UNUSED(file);
+	UNUSED(line);
+	UNUSED(func);
 	// char* buf = 0;
 	// size_t buf_size = 0;
 	// va_list args;

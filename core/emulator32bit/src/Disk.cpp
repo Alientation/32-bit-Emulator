@@ -123,6 +123,28 @@ Disk::~Disk()
 	delete[] this->m_cache;
 }
 
+Disk::DiskReadException::DiskReadException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* Disk::DiskReadException::what() const noexcept
+{
+	return message.c_str();
+}
+
+Disk::DiskWriteException::DiskWriteException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* Disk::DiskWriteException::what() const noexcept
+{
+	return message.c_str();
+}
+
 word Disk::get_free_page(FreeBlockList::Exception& exception)
 {
 	word addr = m_free_list.get_free_block(1, exception);
@@ -176,10 +198,8 @@ void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& ex
 			<< " to " << std::to_string(page_hi) << " back to disk");
 }
 
-std::vector<byte> Disk::read_page(word page, ReadException& exception)
+std::vector<byte> Disk::read_page(word page)
 {
-	UNUSED(exception);
-
 	CachePage& cpage = get_cpage(page);
 
 	std::vector<byte> data;
@@ -191,23 +211,22 @@ std::vector<byte> Disk::read_page(word page, ReadException& exception)
 	return data;
 }
 
-byte Disk::read_byte(word address, ReadException& exception)
+byte Disk::read_byte(word address)
 {
-	return read_val(address, 1, exception);
+	return read_val(address, 1);
 }
-hword Disk::read_hword(word address, ReadException& exception)
+hword Disk::read_hword(word address)
 {
-	return read_val(address, 2, exception);
+	return read_val(address, 2);
 }
-word Disk::read_word(word address, ReadException& exception)
+word Disk::read_word(word address)
 {
-	return read_val(address, 4, exception);
+	return read_val(address, 4);
 }
 
-dword Disk::read_val(word address, int n_bytes, ReadException& exception)
+dword Disk::read_val(word address, int n_bytes)
 {
 	/* TODO: Add warning for when n_bytes is larger than 8. */
-	UNUSED(exception);
 
 	/* Read from the end since the most significant byte will be located there in little endian. */
 	address += n_bytes - 1;
@@ -234,16 +253,13 @@ dword Disk::read_val(word address, int n_bytes, ReadException& exception)
 	return val;
 }
 
-void Disk::write_page(word page, std::vector<byte> data, WriteException& exception)
+void Disk::write_page(word page, std::vector<byte> data)
 {
 	if (data.size() != PAGE_SIZE) {
 		/* We expect to write a full page to disk. */
-		exception.type = WriteException::Type::INVALID_PAGEDATA_SIZE;
-		exception.address = page << PAGE_PSIZE;
-		exception.data_length = data.size();
-		ERROR_SS(std::stringstream() << "Tried to write to disk an invalid number of bytes. "
-				"Expected " << std::to_string(PAGE_SIZE) << " bytes. Got "
-				<< std::to_string(data.size()));
+		throw DiskWriteException("Tried to write to disk an invalid number of bytes. "
+				"Expected " + std::to_string(PAGE_SIZE) + " bytes. Got "
+				+ std::to_string(data.size()));
 		return;
 	}
 
@@ -256,23 +272,22 @@ void Disk::write_page(word page, std::vector<byte> data, WriteException& excepti
 	DEBUG_SS(std::stringstream() << "Wrote to disk page " << std::to_string(cpage.page));
 }
 
-void Disk::write_byte(word address, byte data, WriteException& exception)
+void Disk::write_byte(word address, byte data)
 {
-	write_val(address, data, 1, exception);
+	write_val(address, data, 1);
 }
-void Disk::write_hword(word address, hword data, WriteException& exception)
+void Disk::write_hword(word address, hword data)
 {
-	write_val(address, data, 2, exception);
+	write_val(address, data, 2);
 }
-void Disk::write_word(word address, word data, WriteException& exception)
+void Disk::write_word(word address, word data)
 {
-	write_val(address, data, 4, exception);
+	write_val(address, data, 4);
 }
 
-void Disk::write_val(word address, dword val, int n_bytes, WriteException& exception)
+void Disk::write_val(word address, dword val, int n_bytes)
 {
 	/* TODO: Warn when n_bytes is larger than 8. */
-	UNUSED(exception);
 
 	word page = address >> PAGE_PSIZE;				/* Get the page address (upper bits). */
 	word offset = address & (PAGE_SIZE - 1);		/* Offset into the page (lower bits). */
@@ -477,56 +492,48 @@ void MockDisk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception
 	UNUSED(exception);
 }
 
-std::vector<byte> MockDisk::read_page(word page, ReadException& exception)
+std::vector<byte> MockDisk::read_page(word page)
 {
 	UNUSED(page);
-	UNUSED(exception);
 	return std::vector<byte>();
 }
 
-byte MockDisk::read_byte(word address, ReadException& exception)
+byte MockDisk::read_byte(word address)
 {
 	UNUSED(address);
-	UNUSED(exception);
 	return 0;
 }
-hword MockDisk::read_hword(word address, ReadException& exception)
+hword MockDisk::read_hword(word address)
 {
 	UNUSED(address);
-	UNUSED(exception);
 	return 0;
 }
-word MockDisk::read_word(word address, ReadException& exception)
+word MockDisk::read_word(word address)
 {
 	UNUSED(address);
-	UNUSED(exception);
 	return 0;
 }
 
-void MockDisk::write_page(word page, std::vector<byte> data, WriteException& exception)
+void MockDisk::write_page(word page, std::vector<byte> data)
 {
 	UNUSED(page);
 	UNUSED(data);
-	UNUSED(exception);
 }
 
-void MockDisk::write_byte(word address, byte data, WriteException& exception)
+void MockDisk::write_byte(word address, byte data)
 {
 	UNUSED(address);
 	UNUSED(data);
-	UNUSED(exception);
 }
-void MockDisk::write_hword(word address, hword data, WriteException& exception)
+void MockDisk::write_hword(word address, hword data)
 {
 	UNUSED(address);
 	UNUSED(data);
-	UNUSED(exception);
 }
-void MockDisk::write_word(word address, word data, WriteException& exception)
+void MockDisk::write_word(word address, word data)
 {
 	UNUSED(address);
 	UNUSED(data);
-	UNUSED(exception);
 }
 
 void MockDisk::save()

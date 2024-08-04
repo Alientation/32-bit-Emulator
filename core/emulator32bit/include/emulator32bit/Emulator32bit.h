@@ -62,34 +62,14 @@ class Emulator32bit
 		~Emulator32bit();
 		void print();
 
-		/**
-		 * @brief			Exception state of emulator
-		 *
-		 */
-		struct EmulatorException {
-			/**
-			 * @brief 		Type of emulator exception
-			 *
-			 */
-			enum class Type {
-				AOK,									/*! No exception, emulator is in an OK state */
-				BAD_INSTR,								/*! Bad instruction opcode or invalid parameters */
-				HALT,									/*! Execution is halted */
-				BAD_REG									/*! Register read/write is invalid */
-			};
+		class EmulatorException : public std::exception
+		{
+			private:
+				std::string message;
 
-			Type type = Type::AOK;						/*! Type of emulator exception */
-			word instr = 0;								/*! Instruction the exception occured during the execution of */
-			SystemBus::Exception sys_bus_exception;	/*! Exception in reading/writing to the system bus */
-			Memory::ReadException mem_read_exception;		/*! Exception in reading from memory */
-			Memory::WriteException mem_write_exception;	/*! Exception in writing to memory */
-
-			inline bool isOK() {
-				return type == EmulatorException::Type::AOK
-					&& sys_bus_exception.type == SystemBus::Exception::Type::AOK
-					&& mem_read_exception.type == Memory::ReadException::Type::AOK
-					&& mem_write_exception.type == Memory::WriteException::Type::AOK;
-			}
+			public:
+				EmulatorException(const std::string& msg);
+				const char* what() const noexcept override;
 		};
 
 		enum class ConditionCode {
@@ -125,14 +105,7 @@ class Emulator32bit
 		 * @brief			Run the emulator for a given number of instructions
 		 *
 		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
-		 * @param 			exception: Exception raised by the run operation
-		 */
-		void run(unsigned long long instructions, EmulatorException &exception);
-
-		/**
-		 * @brief			Run the emulator a given number of instructions wrapping out the @ref EmulatorException
-		 *
-		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
+		 * @throws			Exception
 		 */
 		void run(unsigned long long instructions);
 
@@ -168,18 +141,18 @@ class Emulator32bit
 
 	private:
 		static constexpr int _num_instructions = 64;
-		typedef void (Emulator32bit::*InstructionFunction)(word, EmulatorException&);
+		typedef void (Emulator32bit::*InstructionFunction)(word);
 		InstructionFunction _instructions[_num_instructions];
 
 		// note, stringstreams cannot use the static const for some reason
 		#define _INSTR(func_name, opcode) \
-		private: void _##func_name(word instr, EmulatorException& exception); \
+		private: void _##func_name(word instr); \
 		public: static const byte _op_##func_name = opcode;
 		void fill_out_instructions();
 
 
-		inline void execute(word instr, EmulatorException &exception) {
-			(this->*_instructions[bitfield_u32(instr, 26, 6)])(instr, exception);
+		inline void execute(word instr) {
+			(this->*_instructions[bitfield_u32(instr, 26, 6)])(instr);
 		}
 
 		inline bool check_cond(word pstate, byte cond) {
@@ -225,19 +198,19 @@ class Emulator32bit
 			return false;										/*! Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
 		}
 
-		inline word read_reg(byte reg, EmulatorException &exception) {
+		inline word read_reg(byte reg) {
 			if (reg < sizeof(_x) / sizeof(_x[0])) {
 				return _x[reg];
 			} else if (reg == XZR) {
 				return 0;
 			}
-			exception.type = EmulatorException::Type::BAD_REG;
-			return 0;
+
+			throw EmulatorException("Bad read register " + std::to_string((int) reg));
 		}
 
-		word calc_mem_addr(word xn, sword offset, byte addr_mode, EmulatorException& exception);
+		word calc_mem_addr(word xn, sword offset, byte addr_mode);
 
-		inline void write_reg(byte reg, word val, EmulatorException &exception) {
+		inline void write_reg(byte reg, word val) {
 			if (reg < sizeof(_x) / sizeof(_x[0])) {
 				_x[reg] = val;
 				return;
@@ -245,10 +218,8 @@ class Emulator32bit
 				return;
 			}
 
-			exception.type = EmulatorException::Type::BAD_REG;
+			throw EmulatorException("Bad write register " + std::to_string((int) reg));
 		}
-
-		void handle_exception(EmulatorException &exception);
 
 		// instruction handling
 		_INSTR(hlt, 0b000000)
@@ -327,15 +298,15 @@ class Emulator32bit
 		#undef _INSTR
 
 		/* Software Interrupt Handling */
-		void _emu_print(EmulatorException& exception);
-		void _emu_printr(byte reg_id, EmulatorException& exception);
-		void _emu_printm(word mem_addr, byte size, bool little_endian, EmulatorException& exception);
-		void _emu_printp(EmulatorException& exception);
-		void _emu_assertr(byte reg_id, word min_value, word max_value, EmulatorException& exception);
-		void _emu_assertm(word mem_addr, byte size, bool little_endian, word min_value, word max_value, EmulatorException& exception);
-		void _emu_assertp(byte p_state_id, bool expected_value, EmulatorException& exception);
-		void _emu_log(word str, EmulatorException& exception);
-		void _emu_err(word err, EmulatorException& exception);
+		void _emu_print();
+		void _emu_printr(byte reg_id);
+		void _emu_printm(word mem_addr, byte size, bool little_endian);
+		void _emu_printp();
+		void _emu_assertr(byte reg_id, word min_value, word max_value);
+		void _emu_assertm(word mem_addr, byte size, bool little_endian, word min_value, word max_value);
+		void _emu_assertp(byte p_state_id, bool expected_value);
+		void _emu_log(word str);
+		void _emu_err(word err);
 
 
 	public:

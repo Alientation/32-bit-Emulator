@@ -8,7 +8,7 @@
 
 namespace string_util
 {
-	[[maybe_unused]] static std::string replaceFirst(std::string str, const std::string& match,
+	[[maybe_unused]] inline std::string replaceFirst(std::string str, const std::string& match,
 													 const std::string& replacement)
 	{
 		size_t index = str.find_first_of(match);
@@ -27,7 +27,7 @@ namespace string_util
 	 *
 	 * @return the trimmed string
 	 */
-	[[maybe_unused]] static std::string leftTrim(std::string str)
+	[[maybe_unused]] inline std::string leftTrim(std::string str)
 	{
 		str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](unsigned char c) {
 			return !std::isspace(c);
@@ -42,7 +42,7 @@ namespace string_util
 	 *
 	 * @return the trimmed string
 	 */
-	[[maybe_unused]] static std::string rightTrim(std::string str)
+	[[maybe_unused]] inline std::string rightTrim(std::string str)
 	{
 		str.erase(std::find_if(str.rbegin(), str.rend(), [](unsigned char c) {
 			return !std::isspace(c);
@@ -57,7 +57,7 @@ namespace string_util
 	 *
 	 * @return the trimmed string
 	 */
-	[[maybe_unused]] static std::string trimString(std::string str)
+	[[maybe_unused]] inline std::string trimString(std::string str)
 	{
 		return leftTrim(rightTrim(str));
 	}
@@ -71,7 +71,7 @@ namespace string_util
      *
      * @return the trimmed string
      */
-    [[maybe_unused]] static std::string trimString(std::string str, int leftTrim, int rightTrim)
+    [[maybe_unused]] inline std::string trimString(std::string str, int leftTrim, int rightTrim)
 	{
         return str.substr(leftTrim, str.length() - rightTrim);
     }
@@ -85,7 +85,7 @@ namespace string_util
 	 *
 	 * @return a vector of strings separated by the given regex delimiter
 	 */
-	[[maybe_unused]] static std::vector<std::string> split(std::string str, std::string delimRegex,
+	[[maybe_unused]] inline std::vector<std::string> split(std::string str, std::string delimRegex,
 														   bool trim = false)
 	{
 		std::vector<std::string> result;
@@ -112,7 +112,7 @@ namespace string_util
 	}
 
 	template<typename T>
-	[[maybe_unused]] static void format_helper(std::ostringstream& oss, std::string& str,
+	[[maybe_unused]] inline void format_helper(std::ostringstream& oss, std::string& str,
 											   const T& value)
 	{
 		std::size_t openBracket = str.find('{');
@@ -124,7 +124,7 @@ namespace string_util
 	}
 
 	template<class... Targ>
-	[[maybe_unused]] static std::string format(std::string str, Targ&&... args)
+	[[maybe_unused]] inline std::string format(std::string str, Targ&&... args)
 	{
 		std::ostringstream oss;
 		(format_helper(oss, str, args), ...);
