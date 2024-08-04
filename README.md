@@ -58,13 +58,15 @@ to build different executables~~ ***Added 7/16/24***
 * ~~Disk Memory~~ ***Added 7/21/24***
 * ~~Virtual Memory~~ ***Added 7/25/24***
 * File System
-* Benchmarking system.. Goal instr/s would be around 100 million.
+* Benchmarking system.. ~~Goal instr/s would be around 100 million~~ WE HAVE THE GOAL HIT SO QUICKLY, NEXT STEP IS TO OPTIMIZE VIRTUAL MEMORY
   * Haven't optimized *too* much, but reaching upwards of 13 million instructions per second with a simple loop in assembly
   * Voiding the logger macros significantly improves performance (roughly 25% speed up), need to have an option to void the logger macros
   * WOah, 2.5x speed up when reading instruction word by assuming 4 byte alignment by simply casting the byte array to a word array and indexing into it
   * Directly accessing RAM to read instructions leads to another 3x speed up to 39 million instructions per second, though this does not use virtual memory...
     * Up to 42 million when inlining many core functions
   * 55 million when removing memory out of bounds check.. might still want to keep that, but oh boy i need that gain
+  * 75 million with some indirection regarding virtual memory (tho not fully in use) and with all libraries built in release mode
+  * 155 million with the indirection factored out!!
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
