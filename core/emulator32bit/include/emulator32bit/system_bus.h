@@ -10,6 +10,12 @@ class SystemBus
 {
 	public:
 		SystemBus(RAM ram, ROM rom, VirtualMemory& mmu);
+
+		/* expose for now */
+		RAM ram;
+		ROM rom;
+		VirtualMemory& mmu;				// todo, we don't need MMU here, we could just called
+
 		struct Exception {
 			enum class Type {
 				AOK,
@@ -36,7 +42,7 @@ class SystemBus
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
 		word read_word(word address, Exception &bus_exception = hide_sys_bus_exception,
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
-		word read_word_aligned(word address, Exception &bus_exception = hide_sys_bus_exception,
+		word read_word_aligned_ram(word address, Exception &bus_exception = hide_sys_bus_exception,
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
 
 
@@ -64,13 +70,18 @@ class SystemBus
 
 	private:
 		std::vector<Memory*> mems;
-		RAM ram;
-		ROM rom;
-		VirtualMemory& mmu;				// todo, we don't need MMU here, we could just called
 
 		word map_address(word address, VirtualMemory::Exception& exception);
-		word map_read_address(word address, SystemBus::Exception &bus_exception, Memory::ReadException &mem_exception);
-		word map_write_address(word address, SystemBus::Exception &bus_exception, Memory::WriteException &mem_exception);
+		inline word map_read_address(word address, SystemBus::Exception &bus_exception, Memory::ReadException &mem_exception) {
+			VirtualMemory::Exception vm_exception;
+			//todo handle exceptions
+			return map_address(address, vm_exception);
+		}
+		inline word map_write_address(word address, SystemBus::Exception &bus_exception, Memory::WriteException &mem_exception) {
+			VirtualMemory::Exception vm_exception;
+			// todo, handle exceptions
+			return map_address(address, vm_exception);
+		}
 		Memory* route_memory(const word address, Exception &bus_exception);
 };
 

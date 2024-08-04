@@ -48,6 +48,10 @@ Emulator32bit::~Emulator32bit()
 
 void Emulator32bit::fill_out_instructions()
 {
+	for (int i = 0; i < _num_instructions; i++) {
+		_instructions[i] = Emulator32bit::_hlt;
+	}
+
 	/* fill out instruction functions and construct disassembler instruction mapping */
 	#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
 
@@ -142,26 +146,34 @@ void Emulator32bit::print()
 
 void Emulator32bit::run(unsigned long long instructions, EmulatorException &exception)
 {
-	bool forever = instructions == 0;
-
-	// Run the emulator for a given number of instructions
+	word instr = _op_hlt;
 	unsigned long long num_instructions_ran = 0;
-	while ((forever || instructions > 0) && exception.isOK()) {
-		/* should probably add check to ensure it is 4 byte aligned */
-
-		word instr = system_bus.read_word_aligned(_pc, exception.sys_bus_exception, exception.mem_read_exception);
-		exception.instr = instr;
-		execute(instr, exception);
-
-		// print flags
-		// printf("flags %d %d %d %d\n", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG), test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
-
-		_pc += 4;
-		instructions--;
-		num_instructions_ran++;
+	if (instructions == 0) {
+		while (exception.isOK()) {
+			instr = system_bus.ram.read_word_aligned(_pc, exception.mem_read_exception);
+			// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
+			// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
+			// instr = system_bus.read_word_aligned_ram(_pc, exception.sys_bus_exception, exception.mem_read_exception);
+			execute(instr, exception);
+			_pc += 4;
+			num_instructions_ran++;
+		}
+	} else {
+		unsigned long long start_instructions = instructions;
+		while (instructions > 0 && exception.isOK()) {
+			instr = system_bus.ram.read_word_aligned(_pc, exception.mem_read_exception);
+			// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
+			// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
+			// instr = system_bus.read_word_aligned_ram(_pc, exception.sys_bus_exception, exception.mem_read_exception);
+			execute(instr, exception);
+			_pc += 4;
+			instructions--;
+		}
+		num_instructions_ran = start_instructions - instructions;
 	}
 
 	if (!exception.isOK()) {
+		exception.instr = instr;
 		handle_exception(exception);
 	}
 
@@ -185,63 +197,9 @@ void Emulator32bit::reset()
 
 }
 
-void Emulator32bit::execute(word instr, EmulatorException &exception)
-{
-	byte opcode = bitfield_u32(instr, 26, 6);
-
-	if (!_instructions[opcode]) {
-		exception.type = EmulatorException::Type::BAD_INSTR;
-		return;
-	}
-
-	(this->*_instructions[opcode])(instr, exception);
-}
-
-word Emulator32bit::read_reg(byte reg, EmulatorException &exception)
-{
-	if (reg == XZR) {
-		return 0;
-	} else if (reg < (sizeof(_x) / sizeof(word))) {
-		return _x[reg];
-	}
-
-	exception.type = EmulatorException::Type::BAD_REG;
-	return 0;
-}
-
-void Emulator32bit::write_reg(byte reg, word val, EmulatorException &exception)
-{
-	DEBUG_SS(std::stringstream() << "WRITING " << std::to_string(val) << " to reg "
-			<< std::to_string((word)reg));
-	if (reg == XZR) {
-		return;
-	} else if (reg < (sizeof(_x) / sizeof(word))) {
-		_x[reg] = val;
-		return;
-	}
-
-	exception.type = EmulatorException::Type::BAD_REG;
-}
-
 void Emulator32bit::handle_exception(EmulatorException &exception)
 {
 	// todo later
 	DEBUG_SS(std::stringstream() << "Emulator32bit exception at "
 			<< disassemble_instr(exception.instr));
-}
-
-void Emulator32bit::set_NZCV(bool N, bool Z, bool C, bool V) {
-	_pstate = set_bit(_pstate, N_FLAG, N);
-	_pstate = set_bit(_pstate, Z_FLAG, Z);
-	_pstate = set_bit(_pstate, C_FLAG, C);
-	_pstate = set_bit(_pstate, V_FLAG, V);
-}
-
-
-bool Emulator32bit::EmulatorException::isOK()
-{
-	return type == EmulatorException::Type::AOK
-		&& sys_bus_exception.type == SystemBus::Exception::Type::AOK
-		&& mem_read_exception.type == Memory::ReadException::Type::AOK
-		&& mem_write_exception.type == Memory::WriteException::Type::AOK;
 }

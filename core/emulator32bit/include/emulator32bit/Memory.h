@@ -42,7 +42,15 @@ class Memory
 		hword read_hword(word address, ReadException &exception);
 		word read_word(word address, ReadException &exception);
 
-		word read_word_aligned(word address, ReadException& exception);
+		inline word read_word_aligned(word address, ReadException& exception) {
+			// if (!in_bounds(address) || !in_bounds(address + 3)) {
+			// 	exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
+			// 	exception.address = address;
+			// 	return 0;
+			// }
+
+			return ((word*) data)[(address - lo_addr) >> 2];
+		}
 
 		void write_byte(word address, byte value, WriteException &exception);
 		void write_hword(word address, hword value, WriteException &exception);
@@ -59,6 +67,7 @@ class Memory
 	protected:
 		word mem_pages;
 		word lo_page;
+		word lo_addr;
 		byte* data;
 };
 

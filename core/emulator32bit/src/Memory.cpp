@@ -3,6 +3,7 @@
 Memory::Memory(word mem_pages, word lo_page) :
 	mem_pages(mem_pages),
 	lo_page(lo_page),
+	lo_addr(lo_page << PAGE_PSIZE),
 	data(new byte[(mem_pages << PAGE_PSIZE)])
 {
 
@@ -10,7 +11,8 @@ Memory::Memory(word mem_pages, word lo_page) :
 
 Memory::Memory(Memory& other) :
 	mem_pages(other.mem_pages),
-	lo_page(other.lo_page)
+	lo_page(other.lo_page),
+	lo_addr(lo_page << PAGE_PSIZE)
 {
 	data = new byte[(mem_pages << PAGE_PSIZE)];
 	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
@@ -99,19 +101,6 @@ hword Memory::read_hword(word address, ReadException &exception)
 word Memory::read_word(word address, ReadException &exception)
 {
 	return read(address, exception, 4);
-}
-
-word Memory::read_word_aligned(word address, ReadException& exception) {
-	if (!in_bounds(address) || !in_bounds(address + 3)) {
-		exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
-		exception.address = address;
-		return 0;
-	}
-
-	address -= lo_page << PAGE_PSIZE;
-	address >>= 2;
-
-	return ((word*) data)[address];
 }
 
 void Memory::write_byte(word address, byte value, WriteException &exception)

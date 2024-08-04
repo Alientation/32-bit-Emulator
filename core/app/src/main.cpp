@@ -49,6 +49,10 @@ Work out how context switching will work (likely the only state that needs to be
 * Create tests with the assembler to run longer pieces of code
 
 Benchmark system for each component of the project (tokenizer, preprocessor, assembler, linker, emulator)
+Idea for optimization, add macros to specify whether we want a large amount of invalid state checking,
+idea is to have the ability to reduce branch mispredictions
+instead of passing exceptions into functions, have the class that contains the functions maintain its
+exception state.
 
 // Figure out IO, Disk, ports, etc
 	- We will use memory mapped IO that can be accessed through syscalls to the kernel
@@ -78,6 +82,8 @@ Rework exception handling, try to safely except as much as possible, use error c
 Go through all the code and try to add more safeguards to catch invalid states and throw exceptions/error codes
 
 Add syscalls for virtual memory management, but for now, they will be controlled in c++ land
+TODO how important is virtual memory for us?? do we actually need it or can we get by without it??
+Maybe have a toggle for virtual memory instead??, like using the mocks.
 */
 
 /*
@@ -102,7 +108,7 @@ const static std::string build_exe_from_library = "-lib .\\programs\\build\\libt
 const static std::string build_exe_from_library_dir = "-libdir .\\programs\\build "
 		"-o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
 
-#define AEMU_MAX_EXEC_INSTR 0xFFFFFFF
+#define AEMU_MAX_EXEC_INSTR 0x0
 
 int main(int argc, char* argv[])
 {

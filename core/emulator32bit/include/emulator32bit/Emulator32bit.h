@@ -84,7 +84,12 @@ class Emulator32bit
 			Memory::ReadException mem_read_exception;		/*! Exception in reading from memory */
 			Memory::WriteException mem_write_exception;	/*! Exception in writing to memory */
 
-			bool isOK();
+			inline bool isOK() {
+				return type == EmulatorException::Type::AOK
+					&& sys_bus_exception.type == SystemBus::Exception::Type::AOK
+					&& mem_read_exception.type == Memory::ReadException::Type::AOK
+					&& mem_write_exception.type == Memory::WriteException::Type::AOK;
+			}
 		};
 
 		enum class ConditionCode {
@@ -145,8 +150,12 @@ class Emulator32bit
 		 * @param 			C: Carry flag
 		 * @param 			V: Overflow flag
 		 */
-		void set_NZCV(bool N, bool Z, bool C, bool V);
-
+		inline void set_NZCV(bool N, bool Z, bool C, bool V) {
+			_pstate = set_bit(_pstate, N_FLAG, N);
+			_pstate = set_bit(_pstate, Z_FLAG, Z);
+			_pstate = set_bit(_pstate, C_FLAG, C);
+			_pstate = set_bit(_pstate, V_FLAG, V);
+		}
 
 		word _x[31];									/*! General purpose registers, x0-x29, and SP. x29 is the link register */
 		word _pc;										/*! Program counter */
@@ -158,7 +167,7 @@ class Emulator32bit
 		// word fpsr;
 
 	private:
-		static const int _num_instructions = 64;
+		static constexpr int _num_instructions = 64;
 		typedef void (Emulator32bit::*InstructionFunction)(word, EmulatorException&);
 		InstructionFunction _instructions[_num_instructions];
 
@@ -169,13 +178,76 @@ class Emulator32bit
 		void fill_out_instructions();
 
 
-		void execute(word instr, EmulatorException &exception);
+		inline void execute(word instr, EmulatorException &exception) {
+			(this->*_instructions[bitfield_u32(instr, 26, 6)])(instr, exception);
+		}
 
-		bool check_cond(word pstate, byte cond);
+		inline bool check_cond(word pstate, byte cond) {
+			bool N = test_bit(pstate, N_FLAG);
+			bool Z = test_bit(pstate, Z_FLAG);
+			bool C = test_bit(pstate, C_FLAG);
+			bool V = test_bit(pstate, V_FLAG);
 
-		word read_reg(byte reg, EmulatorException &exception);
+			switch((ConditionCode) cond) {
+				case ConditionCode::EQ:							/*! EQUAL */
+					return Z == 1;
+				case ConditionCode::NE:							/*! NOT EQUAL */
+					return Z == 0;
+				case ConditionCode::CS:							/*! CARRY SET */
+					return C == 1;
+				case ConditionCode::CC:							/*! CARRY CLEAR */
+					return C == 0;
+				case ConditionCode::MI:							/*! NEGATIVE */
+					return N == 1;
+				case ConditionCode::PL:							/*! NONNEGATIVE */
+					return N == 0;
+				case ConditionCode::VS:							/*! OVERFLOW SET */
+					return V == 1;
+				case ConditionCode::VC:							/*! OVERFLOW CLEAR */
+					return V == 0;
+				case ConditionCode::HI:							/*! UNSIGNED HIGHER */
+					return C == 1 && Z == 0;
+				case ConditionCode::LS:							/*! UNSIGNED LOWER OR EQUAL */
+					return C == 0 || Z == 1;
+				case ConditionCode::GE:							/*! SIGNED GREATER OR EQUAL */
+					return N==V;
+				case ConditionCode::LT:							/*! SIGNED LOWER */
+					return N!=V;
+				case ConditionCode::GT:							/*! SIGNED GREATER */
+					return Z == 0 && (N==V);
+				case ConditionCode::LE:							/*! SIGNED LOWER OR EQUAL */
+					return Z == 1 || (N!=V);
+				case ConditionCode::AL:							/*! ALWAYS */
+					return true;
+				case ConditionCode::NV:							/*! NEVER */
+					return false;
+			}
+			return false;										/*! Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
+		}
+
+		inline word read_reg(byte reg, EmulatorException &exception) {
+			if (reg < sizeof(_x) / sizeof(_x[0])) {
+				return _x[reg];
+			} else if (reg == XZR) {
+				return 0;
+			}
+			exception.type = EmulatorException::Type::BAD_REG;
+			return 0;
+		}
+
 		word calc_mem_addr(word xn, sword offset, byte addr_mode, EmulatorException& exception);
-		void write_reg(byte reg, word val, EmulatorException &exception);
+
+		inline void write_reg(byte reg, word val, EmulatorException &exception) {
+			if (reg < sizeof(_x) / sizeof(_x[0])) {
+				_x[reg] = val;
+				return;
+			} else if (reg == XZR) {
+				return;
+			}
+
+			exception.type = EmulatorException::Type::BAD_REG;
+		}
+
 		void handle_exception(EmulatorException &exception);
 
 		// instruction handling

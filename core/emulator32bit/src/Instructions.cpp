@@ -202,57 +202,6 @@ class Joiner
 };
 
 /**
- * @brief					Check whether the condition code is met
- *
- * @param 					pstate: state of the processor
- * @param 					cond: condition to check
- * @return 					Whether the condition was met
- */
-bool Emulator32bit::check_cond(word pstate, byte cond)
-{
-	bool N = test_bit(pstate, N_FLAG);
-	bool Z = test_bit(pstate, Z_FLAG);
-	bool C = test_bit(pstate, C_FLAG);
-	bool V = test_bit(pstate, V_FLAG);
-
-	switch((ConditionCode) cond) {
-		case ConditionCode::EQ:							/*! EQUAL */
-			return Z == 1;
-		case ConditionCode::NE:							/*! NOT EQUAL */
-			return Z == 0;
-		case ConditionCode::CS:							/*! CARRY SET */
-			return C == 1;
-		case ConditionCode::CC:							/*! CARRY CLEAR */
-			return C == 0;
-		case ConditionCode::MI:							/*! NEGATIVE */
-			return N == 1;
-		case ConditionCode::PL:							/*! NONNEGATIVE */
-			return N == 0;
-		case ConditionCode::VS:							/*! OVERFLOW SET */
-			return V == 1;
-		case ConditionCode::VC:							/*! OVERFLOW CLEAR */
-			return V == 0;
-		case ConditionCode::HI:							/*! UNSIGNED HIGHER */
-			return C == 1 && Z == 0;
-		case ConditionCode::LS:							/*! UNSIGNED LOWER OR EQUAL */
-			return C == 0 || Z == 1;
-		case ConditionCode::GE:							/*! SIGNED GREATER OR EQUAL */
-			return N==V;
-		case ConditionCode::LT:							/*! SIGNED LOWER */
-			return N!=V;
-		case ConditionCode::GT:							/*! SIGNED GREATER */
-			return Z == 0 && (N==V);
-		case ConditionCode::LE:							/*! SIGNED LOWER OR EQUAL */
-			return Z == 1 || (N!=V);
-		case ConditionCode::AL:							/*! ALWAYS */
-			return true;
-		case ConditionCode::NV:							/*! NEVER */
-			return false;
-	}
-	return false;										/*! Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
-}
-
-/**
  * @brief					Constructs instructions of format O with an imm14 operand
  *
  * @param 					opcode: 6 bit identifier of a format O instruction

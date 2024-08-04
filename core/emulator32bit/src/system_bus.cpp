@@ -124,34 +124,6 @@ word SystemBus::map_address(word address, VirtualMemory::Exception& exception)
 	return addr;
 }
 
-word SystemBus::map_read_address(word address, SystemBus::Exception &bus_exception,
-								 Memory::ReadException &mem_exception)
-{
-	VirtualMemory::Exception vm_exception;
-
-	word addr = map_address(address, vm_exception);
-
-	// todo, handle exceptions
-	UNUSED(bus_exception);
-	UNUSED(mem_exception);
-
-	return addr;
-}
-
-word SystemBus::map_write_address(word address, SystemBus::Exception &bus_exception,
-								  Memory::WriteException &mem_exception)
-{
-	VirtualMemory::Exception vm_exception;
-
-	word addr = map_address(address, vm_exception);
-
-	// todo, handle exceptions
-	UNUSED(bus_exception);
-	UNUSED(mem_exception);
-
-	return addr;
-}
-
 dword SystemBus::read_val(word address, int n_bytes, Exception &bus_exception,
 						  Memory::ReadException &mem_exception, bool memory_mapped)
 {
@@ -189,14 +161,13 @@ word SystemBus::read_word(word address, Exception &bus_exception,
 	return read_val(address, 4, bus_exception, mem_exception, memory_mapped);
 }
 
-word SystemBus::read_word_aligned(word address, Exception &bus_exception,
+word SystemBus::read_word_aligned_ram(word address, Exception &bus_exception,
 								  Memory::ReadException &mem_read_exception, bool memory_mapped)
 {
 	word real_adr = memory_mapped ?
 			map_read_address(address, bus_exception, mem_read_exception) : address;
-	Memory *target = route_memory(real_adr, bus_exception);
-	return bus_exception.type != Exception::Type::AOK ? 0 :
-			target->read_word_aligned(real_adr, mem_read_exception);
+
+	return ram.read_word_aligned(real_adr, mem_read_exception);
 }
 
 
