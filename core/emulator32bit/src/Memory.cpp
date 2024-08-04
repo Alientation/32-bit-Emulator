@@ -101,6 +101,19 @@ word Memory::read_word(word address, ReadException &exception)
 	return read(address, exception, 4);
 }
 
+word Memory::read_word_aligned(word address, ReadException& exception) {
+	if (!in_bounds(address) || !in_bounds(address + 3)) {
+		exception.type = ReadException::Type::OUT_OF_BOUNDS_ADDRESS;
+		exception.address = address;
+		return 0;
+	}
+
+	address -= lo_page << PAGE_PSIZE;
+	address >>= 2;
+
+	return ((word*) data)[address];
+}
+
 void Memory::write_byte(word address, byte value, WriteException &exception)
 {
 	if (!in_bounds(address)) {

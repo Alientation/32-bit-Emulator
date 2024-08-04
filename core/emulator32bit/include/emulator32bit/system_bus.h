@@ -36,6 +36,9 @@ class SystemBus
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
 		word read_word(word address, Exception &bus_exception = hide_sys_bus_exception,
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
+		word read_word_aligned(word address, Exception &bus_exception = hide_sys_bus_exception,
+				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);
+
 
 		dword read_val(word address, int n_bytes, Exception &bus_exception = hide_sys_bus_exception,
 				Memory::ReadException &mem_exception = hide_mem_read_exception, bool memory_mapped = true);

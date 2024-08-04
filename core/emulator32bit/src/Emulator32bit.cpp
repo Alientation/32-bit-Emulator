@@ -147,7 +147,9 @@ void Emulator32bit::run(unsigned long long instructions, EmulatorException &exce
 	// Run the emulator for a given number of instructions
 	unsigned long long num_instructions_ran = 0;
 	while ((forever || instructions > 0) && exception.isOK()) {
-		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
+		/* should probably add check to ensure it is 4 byte aligned */
+
+		word instr = system_bus.read_word_aligned(_pc, exception.sys_bus_exception, exception.mem_read_exception);
 		exception.instr = instr;
 		execute(instr, exception);
 

@@ -189,6 +189,17 @@ word SystemBus::read_word(word address, Exception &bus_exception,
 	return read_val(address, 4, bus_exception, mem_exception, memory_mapped);
 }
 
+word SystemBus::read_word_aligned(word address, Exception &bus_exception,
+								  Memory::ReadException &mem_read_exception, bool memory_mapped)
+{
+	word real_adr = memory_mapped ?
+			map_read_address(address, bus_exception, mem_read_exception) : address;
+	Memory *target = route_memory(real_adr, bus_exception);
+	return bus_exception.type != Exception::Type::AOK ? 0 :
+			target->read_word_aligned(real_adr, mem_read_exception);
+}
+
+
 void SystemBus::write_val(word address, dword val, int n_bytes, Exception &bus_exception,
 						  Memory::WriteException &mem_exception, bool memory_mapped)
 {

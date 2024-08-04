@@ -42,6 +42,8 @@ class Memory
 		hword read_hword(word address, ReadException &exception);
 		word read_word(word address, ReadException &exception);
 
+		word read_word_aligned(word address, ReadException& exception);
+
 		void write_byte(word address, byte value, WriteException &exception);
 		void write_hword(word address, hword value, WriteException &exception);
 		void write_word(word address, word value, WriteException &exception);
