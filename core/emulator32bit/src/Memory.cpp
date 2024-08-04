@@ -1,26 +1,27 @@
 #include "emulator32bit/memory.h"
 
-Memory::Memory(word mem_pages, word lo_page)
+Memory::Memory(word mem_pages, word lo_page) :
+	mem_pages(mem_pages),
+	lo_page(lo_page),
+	data(new byte[(mem_pages << PAGE_PSIZE)])
 {
-	this->mem_pages = mem_pages;
-	this->lo_page = lo_page;
-	this->data = new byte[(mem_pages << PAGE_PSIZE)]();
+
 }
 
-Memory::Memory(Memory& other)
+Memory::Memory(Memory& other) :
+	mem_pages(other.mem_pages),
+	lo_page(other.lo_page)
 {
-	this->mem_pages = other.mem_pages;
-	this->data = new byte[(mem_pages << PAGE_PSIZE)];
+	data = new byte[(mem_pages << PAGE_PSIZE)];
 	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
-		this->data[i] = other.data[i];
+		data[i] = other.data[i];
 	}
-	this->lo_page = other.lo_page;
 }
 
 Memory::~Memory()
 {
-	if (this->data)
-		delete[] this->data;
+	if (data)
+		delete[] data;
 }
 
 word Memory::get_mem_pages()
@@ -40,7 +41,7 @@ word Memory::get_hi_page()
 
 bool Memory::in_bounds(word address)
 {
-	return address >= (this->lo_page << PAGE_PSIZE) && address < ((this->get_hi_page()+1) << PAGE_PSIZE);
+	return address >= (lo_page << PAGE_PSIZE) && address < ((get_hi_page()+1) << PAGE_PSIZE);
 }
 
 word Memory::read(word address, ReadException &exception, int num_bytes)
@@ -55,7 +56,7 @@ word Memory::read(word address, ReadException &exception, int num_bytes)
 	word value = 0;
 	for (int i = num_bytes - 1; i >= 0; i--) {
 		value <<= 8;
-		value += this->data[(word) (address + i)];
+		value += data[(word) (address + i)];
 	}
 	return value;
 }
@@ -72,7 +73,7 @@ void Memory::write(word address, word value, WriteException &exception, int num_
 
 	address -= lo_page << PAGE_PSIZE;
 	for (int i = 0; i < num_bytes; i++) {
-		this->data[(word) (address + i)] = value & 0xFF;
+		data[(word) (address + i)] = value & 0xFF;
 		value >>= 8;
 	}
 }
@@ -87,41 +88,41 @@ byte Memory::read_byte(word address, ReadException &exception)
 	}
 
 	address -= lo_page << PAGE_PSIZE;
-	return this->data[address];
+	return data[address];
 }
 
 hword Memory::read_hword(word address, ReadException &exception)
 {
-	return this->read(address, exception, 2);
+	return read(address, exception, 2);
 }
 
 word Memory::read_word(word address, ReadException &exception)
 {
-	return this->read(address, exception, 4);
+	return read(address, exception, 4);
 }
 
-void Memory::write_byte(word address, byte data, WriteException &exception)
+void Memory::write_byte(word address, byte value, WriteException &exception)
 {
 	if (!in_bounds(address)) {
 		exception.type = WriteException::Type::OUT_OF_BOUNDS_ADDRESS;
 		exception.address = address;
-		exception.value = data;
+		exception.value = value;
 		exception.num_bytes = 1;
 		return;
 	}
 
 	address -= lo_page << PAGE_PSIZE;
-	this->data[address] = data;
+	data[address] = value;
 }
 
-void Memory::write_hword(word address, hword data, WriteException &exception)
+void Memory::write_hword(word address, hword value, WriteException &exception)
 {
-	this->write(address, data, exception, 2);
+	write(address, value, exception, 2);
 }
 
-void Memory::write_word(word address, word data, WriteException &exception)
+void Memory::write_word(word address, word value, WriteException &exception)
 {
-	this->write(address, data, exception, 4);
+	write(address, value, exception, 4);
 }
 
 void Memory::reset()
@@ -151,7 +152,7 @@ ROM::ROM(const byte* rom_data, word mem_pages, word lo_page) :
 	Memory(mem_pages, lo_page)
 {
 	for (word i = 0; i < mem_pages << PAGE_PSIZE; i++) {
-		this->data[i] = rom_data[i];
+		data[i] = rom_data[i];
 	}
 }
 

@@ -140,11 +140,13 @@ void Emulator32bit::print()
 	printf("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
+void Emulator32bit::run(unsigned long long instructions, EmulatorException &exception)
 {
+	bool forever = instructions == 0;
+
 	// Run the emulator for a given number of instructions
-	int num_instructions_ran = 0;
-	while (instructions > 0 && exception.isOK()) {
+	unsigned long long num_instructions_ran = 0;
+	while ((forever || instructions > 0) && exception.isOK()) {
 		word instr = system_bus.read_word(_pc, exception.sys_bus_exception, exception.mem_read_exception);
 		exception.instr = instr;
 		execute(instr, exception);
@@ -161,10 +163,10 @@ void Emulator32bit::run(unsigned int instructions, EmulatorException &exception)
 		handle_exception(exception);
 	}
 
-	printf("Ran %d instructions\n", num_instructions_ran);
+	printf("Ran %llu instructions\n", num_instructions_ran);
 }
 
-void Emulator32bit::run(unsigned int instructions)
+void Emulator32bit::run(unsigned long long instructions)
 {
 	EmulatorException exception;
 	run(instructions, exception);

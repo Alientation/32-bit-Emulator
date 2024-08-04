@@ -122,14 +122,14 @@ class Emulator32bit
 		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
 		 * @param 			exception: Exception raised by the run operation
 		 */
-		void run(unsigned int instructions, EmulatorException &exception);
+		void run(unsigned long long instructions, EmulatorException &exception);
 
 		/**
 		 * @brief			Run the emulator a given number of instructions wrapping out the @ref EmulatorException
 		 *
 		 * @param 			instructions: Number of instructions to run, if 0 run until HLT instruction or exception is thrown
 		 */
-		void run(unsigned int instructions);
+		void run(unsigned long long instructions);
 
 		/**
 		 * @brief			Resets the processor state

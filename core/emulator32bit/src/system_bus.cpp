@@ -199,7 +199,6 @@ void SystemBus::write_val(word address, dword val, int n_bytes, Exception &bus_e
 		}
 		Memory *target = route_memory(real_adr, bus_exception);
 		if (bus_exception.type != Exception::Type::AOK) {
-			printf("bus write val state not AOK warning\n");
 			return;
 		}
 		target->write_byte(real_adr, val & 0xFF, mem_exception);

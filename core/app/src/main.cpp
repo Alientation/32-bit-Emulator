@@ -102,7 +102,7 @@ const static std::string build_exe_from_library = "-lib .\\programs\\build\\libt
 const static std::string build_exe_from_library_dir = "-libdir .\\programs\\build "
 		"-o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
 
-#define AEMU_MAX_EXEC_INSTR 0xFFFFFF
+#define AEMU_MAX_EXEC_INSTR 0xFFFFFFF
 
 int main(int argc, char* argv[])
 {
