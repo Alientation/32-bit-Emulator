@@ -59,8 +59,9 @@ to build different executables~~ ***Added 7/16/24***
 * ~~Virtual Memory~~ ***Added 7/25/24***
 * File System
 * Benchmarking system
-  * Haven't optimized much, but reaching upwards of 5 million instructions per second with a simple loop
+  * Haven't optimized *too* much, but reaching upwards of 13 million instructions per second with a simple loop in assembly
   * Voiding the logger macros significantly improves performance (roughly 25% speed up), need to have an option to void the logger macros
+  * WOah, 2.5x speed up when reading instruction word by assuming 4 byte alignment by simply casting the byte array to a word array and indexing into it
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
