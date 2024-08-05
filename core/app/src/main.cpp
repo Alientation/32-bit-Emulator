@@ -138,8 +138,8 @@ int main(int argc, char* argv[])
 
 		CLOCK_START("Running emulator")
 		emulator.run(AEMU_MAX_EXEC_INSTR);
-		// emulator.print();
+		CLOCK_END
+		emulator.print();
 	}
-	CLOCK_END
 	PROFILE_STOP
 }

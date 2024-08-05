@@ -12,8 +12,8 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE

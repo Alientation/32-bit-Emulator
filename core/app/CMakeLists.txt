@@ -7,8 +7,8 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra ")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
 # get project version from git
 add_custom_target(version
