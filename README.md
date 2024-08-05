@@ -68,6 +68,7 @@ to build different executables~~ ***Added 7/16/24***
   * 55 million when removing memory out of bounds check.. might still want to keep that, but oh boy i need that gain
   * 75 million with some indirection regarding virtual memory (tho not fully in use) and with all libraries built in release mode (155 million with the indirection factored out!!)
   * 165 million after transitioning from error codes to exceptions for most of the project (110 million with the indirection)
+  * 182 million after optimizing memory accesses (inlined + used shift + casting to access multibyte values that are not aligned)
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
