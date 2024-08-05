@@ -165,10 +165,8 @@ void Emulator32bit::run(unsigned long long instructions)
 		try
 		{
 			while (true) {
-				instr = system_bus.ram.read_word_aligned(_pc);
-				// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
-				// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
-				// instr = system_bus.read_word_aligned_ram(_pc);
+				// instr = system_bus.ram.read_word_aligned(_pc);
+				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
 				_pc += 4;
 				num_instructions_ran++;
@@ -183,10 +181,8 @@ void Emulator32bit::run(unsigned long long instructions)
 		try
 		{
 			while (instructions > 0) {
-				instr = system_bus.ram.read_word_aligned(_pc);
-				// TODO, since we cannot execute code from ROM, we can assume instructions are in ram + 4 byte aligned, though
-				// we would need to have virtual memory support... todo, add method to system bus to read from specific memory with virtual memory support
-				// instr = system_bus.read_word_aligned_ram(_pc);
+				// instr = system_bus.ram.read_word_aligned(_pc);
+				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
 				_pc += 4;
 				instructions--;
