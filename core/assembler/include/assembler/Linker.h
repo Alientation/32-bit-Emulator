@@ -4,6 +4,12 @@
 
 #include "assembler/object_file.h"
 
+/*
+	Linker script
+
+
+*/
+
 class Linker
 {
 	public:

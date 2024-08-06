@@ -40,6 +40,8 @@ class VirtualMemory
 			bool dirty = false;		// todo, unused, not sure if it is necessary (maybe instead don't free up disk space unless we need to)
 			bool disk = true;
 			word diskpage = 0;
+			bool mapped = false;
+			word mapped_ppage = 0;
 		};
 
 		struct PageTable {
@@ -72,9 +74,15 @@ class VirtualMemory
 		word remove_lru();
 		void check_lru();
 
-		void add_page(word vpage); // todo add pid arg
-		void remove_page(long long pid, word vpage);
-		word access_page(word vpage, Exception& exception); // todo add pid arg
+		bool is_ppage_used(word ppage);
+
+		void evict_ppage(word ppage, Exception& exception);
+		void map_vpage_to_ppage(word vpage, word ppage, Exception& exception);
+
+		void add_vpage(word vpage); // todo add pid arg
+		void map_ppage(word ppage, Exception& exception);
+		void remove_vpage(long long pid, word vpage);
+		word access_vpage(word vpage, Exception& exception); // todo add pid arg
 };
 
 class MockVirtualMemory : public VirtualMemory

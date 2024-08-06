@@ -13,28 +13,26 @@
 TODO
 
 * CLEAN UP CODE
+*	- Standardized braces placement (always on new line)
 *	- Split long functions into smaller unit sized ones, especially if they can be reused elsewhere
-// *	- Macro preprocessors should follow the standard ALL_CAPS_WITH_UNDERSCORE naming conventions
+*	- Macro preprocessors should follow the standard ALL_CAPS_WITH_UNDERSCORE naming conventions
 		(DEFINITIONS SHOULD COME WITH THE PROJECT NAME PREPENDED BEFORE)
 *	- Comment functions and complex logic
 *	- Make variables that have larger scopes have more meaningful names
 *	- FIX TODO (emulator32bit library)
-*		- ////Disk.h + Disk.cpp
-*		- ////FreeBlockList.h + FreeBlockList.cpp
+*		- Disk.h + Disk.cpp
+*		- FreeBlockList.h + FreeBlockList.cpp
 *		- VirtualMemory.h + VirtualMemory.cpp
 *		- SystemBus.h + SystemBus.cpp
 		- Memory.h + Memory.cpp
 		- Emulator32bit.h + Emulator32bit.cpp + Emulator32bitUtil.h
 		- Instructions.cpp + SoftwareInterrupt.cpp
-// *	- Trying out new style, classes begin with and functions braces are on their own line,
-		// everything else has braces right after
 
 * improve vscode extension for basm language like autocomplete, syntax highlighting, etc
 // * 		- File icon theme in vscode extension
 
 Figure shared object files/dynamically linked libraries
 
-// Update ROM memory to allow special access to flash it.
 // Update Memory to operate in terms of pages. This will also mean that when we use
 // memory mapped I/O and ports that they will operate in terms of pages.
 Enforce a zeroing of the first couple pages of memory to catch null pointers <- likely handled by the kernel
@@ -54,14 +52,10 @@ exception state.
 	- Disk is implemented as a file stored on the host computer that represents disk memory
 	- Ports will be memory mapped that will be accessed through syscalls to the kernel
 
-Add flag to set source dirs
-
+Add flag to set source dirs for build
 Add more relocation types, directives, preprocessors and build flags as needed
-
 Rework the build process to be more like the tokenizer
-
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
-
 Implement linker scripts that the linker will process to create the final BELF file
 	- https://users.informatik.haw-hamburg.de/~krabat/FH-Labor/gnupro/5_GNUPro_Utilities/c_Using_LD/ldLinker_scripts.html
 
@@ -73,20 +67,20 @@ Bootloader that loads the kernel
 // * Update all logs to use new logger
 // * Add profiler to logger
 
-Rework exception handling, try to safely except as much as possible. Throw exceptions and catch them
-where appropriate... Avoid using the current practice of error codes since they introduce a lot of
-overhead when not necessary.
+// Rework exception handling, try to safely except as much as possible. Throw exceptions and catch them
+// where appropriate... Avoid using the current practice of error codes since they introduce a lot of
+// overhead when not necessary.
 
 Add syscalls for virtual memory management, but for now, they will be controlled in c++ land
-TODO how important is virtual memory for us?? do we actually need it or can we get by without it??
 Maybe have a toggle for virtual memory instead??, like using the mocks.
 */
 
 /*
 KNOWN BUGS
 
-the assembler will not check the bit lengths of any value that is passed as an immediate (likely extends beyond that too)
-
+the assembler will not check the bit lengths of any value that is passed as an immediate (problem likely extends beyond that too)
+very few exceptions are thrown when encountering invalid states (invalid states that can produce unintended consequences should throw an exception)
+leading to incorrect programs being runnable when it should not have been.
 */
 
 const static std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test "
