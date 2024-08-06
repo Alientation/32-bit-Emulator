@@ -1,5 +1,4 @@
 #include "emulator32bit/virtual_memory.h"
-#include "util/loggerv2.h"
 
 #include <unordered_set>
 
@@ -221,6 +220,14 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	removed_entry->disk = true;
 	removed_entry->diskpage = m_disk.get_free_page(fbl_exception);
 
+	word tlb_addr = removed_entry->vpage & (TLB_SIZE-1);
+	TLB_Entry& tlb_entry = tlb[tlb_addr];
+	if (tlb_entry.valid && tlb_entry.pid == m_cur_ptable->pid && tlb_entry.vpage == removed_entry->vpage)
+	{
+		tlb_entry.valid = false;
+	}
+
+
 	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
 	{
 		ERROR("FBL Exception");
@@ -263,64 +270,6 @@ void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& except
 
 	m_physical_memory_map[ppage] = entry;
 	add_lru(ppage);
-}
-
-word VirtualMemory::access_vpage(word vpage, Exception& exception)
-{
-	check_vm();
-	if (m_cur_ptable == nullptr)
-	{
-		WARN("Accessing physical page instead of virtual page since there is no currently "
-				"mapped process.");
-		return vpage;
-	}
-
-	if (m_cur_ptable->entries.find(vpage) == m_cur_ptable->entries.end())
-	{
-		/* Allocate new page to this process */
-		add_vpage(vpage);
-	}
-
-	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
-	if (!entry->disk)
-	{
-		DEBUG_SS(std::stringstream() << "accessing virtual page (NOT ON DISK) "
-				<< std::to_string(vpage) << " (maps to " << std::to_string(entry->ppage) << ")"
-				<< " of process " << std::to_string(m_cur_ptable->pid));
-		return entry->ppage;
-	}
-
-	/* Bring page from disk onto RAM */
-	FreeBlockList::Exception fbl_exception;
-	if (entry->mapped)
-	{
-		if (is_ppage_used(entry->mapped_ppage))
-		{
-			evict_ppage(entry->mapped_ppage, exception);
-		}
-
-		map_vpage_to_ppage(vpage, entry->mapped_ppage, exception);
-	} else
-	{
-		if (!m_freelist.can_fit(1))
-		{
-			evict_ppage(remove_lru(), exception);
-		}
-
-		word ppage = m_freelist.get_free_block(1, fbl_exception);
-		if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-		{
-			ERROR("Failed to retrieve physical page from free list.");
-		}
-
-		map_vpage_to_ppage(vpage, ppage, exception);
-	}
-
-	DEBUG_SS(std::stringstream() << "accessing virtual page " << std::to_string(entry->vpage)
-			<< " (maps to " << std::to_string(entry->ppage) << ")" << " of process "
-			<< std::to_string(m_cur_ptable->pid));
-
-	return entry->ppage;
 }
 
 // todo these should be allocated by pages IMO
@@ -376,33 +325,6 @@ void VirtualMemory::end_process(long long pid)
 	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
 }
 
-word VirtualMemory::map_address(word address, Exception& exception)
-{
-	if (m_cur_ptable == nullptr)
-	{
-		/*
-		 * for now, just warn about it, should not have to call this method
-		 * if its the OS managing memory.
-		 *
-		 * Scratch that. The warning spam is annoying. Just return the address.. it is up to the
-		 * OS to have a current proccess id set.
-		 */
-
-		// WARN_SS(std::stringstream() << "There is no associated PID to map address "
-				// << std::to_string(address) << ".");
-		return address;
-	}
-
-	DEBUG_SS(std::stringstream() << "Mapping address " << std::to_string(address) << ".");
-
-	word vpage = address >> PAGE_PSIZE;
-
-	word ppage = access_vpage(vpage, exception);
-	DEBUG_SS(std::stringstream() << "Accessing virtual memory page " << std::to_string(vpage)
-			<< " which is physical page " << std::to_string(ppage) << ".");
-	return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
-}
-
 void VirtualMemory::check_lru()
 {
 	DEBUG("Checking LRU");
@@ -438,7 +360,7 @@ void VirtualMemory::check_lru()
 /* Move an lru list node respective to a physical page address back to the tail */
 void VirtualMemory::add_lru(word ppage)
 {
-	check_lru();
+	// check_lru();
 
 	/* this node exists in the lru list, so access it */
 	if (m_lru_map.find(ppage) != m_lru_map.end())
@@ -467,7 +389,7 @@ void VirtualMemory::add_lru(word ppage)
 		node->next = nullptr;
 		m_lru_tail = node;
 
-		check_lru();
+		// check_lru();
 		return;
 	}
 
@@ -483,7 +405,7 @@ void VirtualMemory::add_lru(word ppage)
 		m_lru_tail = m_lru_head;
 		m_lru_map.insert(std::make_pair(ppage, m_lru_head));
 
-		check_lru();
+		// check_lru();
 		return;
 	}
 
@@ -500,7 +422,7 @@ void VirtualMemory::add_lru(word ppage)
 	/* Update the node map to maintain O(1) */
 	m_lru_map.insert(std::make_pair(ppage, m_lru_tail));
 
-	check_lru();
+	// check_lru();
 }
 
 word VirtualMemory::remove_lru()
@@ -523,43 +445,6 @@ word VirtualMemory::remove_lru()
 	m_lru_map.erase(lru_ppage);
 	delete removed_node;
 
-	check_lru();
+	// check_lru();
 	return lru_ppage;
-}
-
-#define UNUSED(x) (void)(x)
-MockVirtualMemory::MockVirtualMemory(word ram_start_page, word ram_end_page) :
-	VirtualMemory(ram_start_page, ram_end_page, mockdisk),
-	mockdisk()
-{
-
-}
-
-MockVirtualMemory::~MockVirtualMemory()
-{
-
-}
-
-void MockVirtualMemory::set_process(long long pid)
-{
-	UNUSED(pid);
-}
-
-void MockVirtualMemory::begin_process(long long pid, word alloc_mem_begin, word alloc_mem_end)
-{
-	UNUSED(pid);
-	UNUSED(alloc_mem_begin);
-	UNUSED(alloc_mem_end);
-}
-
-void MockVirtualMemory::end_process(long long pid)
-{
-	UNUSED(pid);
-}
-
-
-word MockVirtualMemory::map_address(word address, Exception& exception)
-{
-	UNUSED(exception);
-	return address;
 }

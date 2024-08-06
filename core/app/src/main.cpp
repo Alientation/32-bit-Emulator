@@ -64,7 +64,7 @@ Figure out executable linking/loading
 
 Rework how byte reader works, don't like how we have to manually extra all bytes from file and then
 pass it to the the byte reader. Maybe change that to ByteParser and add a ByteReader that uses it
-and the input file to parse the bytes.
+and the file reader to parse the bytes.
 
 Visualizer with raylib to visually show the state of the processor
 
@@ -127,19 +127,23 @@ int main(int argc, char* argv[])
 	CLOCK_START("Building program")
 
 	Process process = Process(build_command);
-	CLOCK_STOP
+	CLOCK_END
 
-	CLOCK_START("Loading program into emulator")
 	if (process.does_create_exe()) {
+		CLOCK_START("Loading program into emulator")
 		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
 		Emulator32bit emulator(RAM(16, 0), ROM(File("..\\tests\\rom.bin", true), 1, 16), disk);
+		emulator.system_bus.mmu.begin_process(0, 0, 4);
 		LoadExecutable loader(emulator, process.get_exe_file());
-		CLOCK_STOP
+		CLOCK_END
 
+		DEBUG("Running emulator");
 		CLOCK_START("Running emulator")
 		emulator.run(AEMU_MAX_EXEC_INSTR);
 		CLOCK_END
 		emulator.print();
+		// emulator.system_bus.mmu.end_process(0);
 	}
+
 	PROFILE_STOP
 }

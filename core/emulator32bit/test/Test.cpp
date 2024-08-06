@@ -31,18 +31,14 @@ void test_bus() {
 	RAM ram = RAM(1, 0);
 	const byte rom_data[PAGE_SIZE] = {1,2,3,4,5,6,7,8};
 	ROM rom = ROM(rom_data, 1, 1);
-	MockVirtualMemory mock_vm(ram.get_lo_page(), ram.get_hi_page());
+	MockDisk disk;
+	VirtualMemory mock_vm(ram.get_lo_page(), ram.get_hi_page(), disk);
 	SystemBus bus(ram, rom, mock_vm);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");
 	std::stringstream data_stream;
 	for (int i = 0; i < sizeof(rom_data); i++) {
-		SystemBus::Exception bus_exception;
-		Memory::ReadException mem_exception;
-		byte data = bus.read_byte(1024 + i, bus_exception, mem_exception);
-		if (bus_exception.type != SystemBus::Exception::Type::AOK) {
-			log(lgr::Logger::LogType::ERROR, "error reading from memory");
-		}
+		byte data = bus.read_byte(1024 + i);
 		data_stream << (int) data << " ";
 	}
 	log(lgr::Logger::LogType::LOG, data_stream);
