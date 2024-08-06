@@ -69,6 +69,9 @@ to build different executables~~ ***Added 7/16/24***
   * 75 million with some indirection regarding virtual memory (tho not fully in use) and with all libraries built in release mode (155 million with the indirection factored out!!)
   * 165 million after transitioning from error codes to exceptions for most of the project (110 million with the indirection)
   * 182 million after optimizing memory accesses (inlined + used shift + casting to access multibyte values that are not aligned)
+  * Down to 44 million with virtual memory fully turned on.. atleast we know virtual memory works lol?
+  * 48 million after removing mock virtual memory and inlining some functions (wasn't really needed since accessing without pid is like normal memory access)
+  * 120 million after implementing a simple translation lookaside buffer to avoid using unordered map which is VERY slow.
 * Clean up and HEAVILY refactor code :~)
 * Documentation!
 
