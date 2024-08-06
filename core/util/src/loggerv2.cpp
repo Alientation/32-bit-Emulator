@@ -150,7 +150,9 @@ void logger::clock_start(const std::string& tag, const char* file, int line, con
 
 		if (profile_logs_map.find(tag) != profile_logs_map.end())
 		{
-			ERROR_SS(std::stringstream() << "Duplicate clock tag: " + tag);
+			// ERROR_SS(std::stringstream() << "Duplicate clock tag: " + tag);
+			current_clocks.push(tag);
+			profile_logs_map.at(tag).logs.push_back(log);
 			return;
 		}
 
@@ -199,7 +201,7 @@ void logger::clock_stop()
 		}
 		using namespace std::chrono;
 
-		ProfileLog profile_log = profile_logs_map.at(current_clocks.top());
+		ProfileLog& profile_log = profile_logs_map.at(current_clocks.top());
 		ProfileLog::Log& log = profile_log.logs.back();
 		log.ended = true;
 		log.end_time = high_resolution_clock::now();
