@@ -3,6 +3,7 @@
 #define MEMORY_H
 
 #include "emulator32bit/emulator32bit_util.h"
+#include "util/file.h"
 
 #include <string>
 
@@ -94,7 +95,18 @@ class ROM : public Memory
 {
 	public:
 		ROM(const byte* data, word mem_pages, word lo_page);
+		ROM(File file, word mem_pages, word lo_page);
+		~ROM() override;
 
+		class ROM_Exception : public std::exception
+		{
+			private:
+				std::string message;
+
+			public:
+				ROM_Exception(std::string msg);
+				const char* what() const noexcept override;
+		};
 		// void write(word address, word value, int num_bytes = 4) override;
 
 		// void flash(word address, word value, int num_bytes = 4);
@@ -102,6 +114,9 @@ class ROM : public Memory
 		// void flash_word(word address, word value);
 		// void flash_hword(word address, hword value);
 		// void flash_byte(word address, byte value);
+	private:
+		bool save_file = false;
+		File file;
 };
 
 #endif /* MEMORY_H */

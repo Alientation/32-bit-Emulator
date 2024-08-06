@@ -58,6 +58,13 @@ Rework the build process to be more like the tokenizer
 Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
 Implement linker scripts that the linker will process to create the final BELF file
 	- https://users.informatik.haw-hamburg.de/~krabat/FH-Labor/gnupro/5_GNUPro_Utilities/c_Using_LD/ldLinker_scripts.html
+Figure out executable linking/loading
+
+// Make ROM take in a file so that it reads from it at the start and writes to it at the end to save.
+
+Rework how byte reader works, don't like how we have to manually extra all bytes from file and then
+pass it to the the byte reader. Maybe change that to ByteParser and add a ByteReader that uses it
+and the input file to parse the bytes.
 
 Visualizer with raylib to visually show the state of the processor
 
@@ -123,10 +130,9 @@ int main(int argc, char* argv[])
 	CLOCK_STOP
 
 	CLOCK_START("Loading program into emulator")
-	byte data[PAGE_SIZE] = {1, 2, 3, 4};
 	if (process.does_create_exe()) {
 		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
-		Emulator32bit emulator(RAM(16, 0), ROM(data, 1, 16), disk);
+		Emulator32bit emulator(RAM(16, 0), ROM(File("..\\tests\\rom.bin", true), 1, 16), disk);
 		LoadExecutable loader(emulator, process.get_exe_file());
 		CLOCK_STOP
 
