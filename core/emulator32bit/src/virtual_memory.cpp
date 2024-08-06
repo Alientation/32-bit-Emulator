@@ -397,13 +397,6 @@ word VirtualMemory::map_address(word address, Exception& exception)
 
 	word vpage = address >> PAGE_PSIZE;
 
-	if (m_cur_ptable->entries.find(vpage) == m_cur_ptable->entries.end())
-	{
-		DEBUG_SS(std::stringstream() << "Adding virtual memory page " << std::to_string(vpage)
-				<< ".");
-		add_vpage(vpage);
-	}
-
 	word ppage = access_vpage(vpage, exception);
 	DEBUG_SS(std::stringstream() << "Accessing virtual memory page " << std::to_string(vpage)
 			<< " which is physical page " << std::to_string(ppage) << ".");
