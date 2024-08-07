@@ -161,10 +161,12 @@ void Emulator32bit::run(unsigned long long instructions)
 {
 	word instr = _op_hlt;
 	unsigned long long num_instructions_ran = 0;
-	if (instructions == 0) {
-		try
+	try
+	{
+		if (instructions == 0)
 		{
-			while (true) {
+			while (true)
+			{
 				// instr = system_bus.ram.read_word_aligned(_pc);
 				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
@@ -172,27 +174,27 @@ void Emulator32bit::run(unsigned long long instructions)
 				num_instructions_ran++;
 			}
 		}
-		catch(const EmulatorException& e)
+		else
 		{
-			std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
-		}
-	} else {
-		unsigned long long start_instructions = instructions;
-		try
-		{
-			while (instructions > 0) {
+			unsigned long long start_instructions = instructions;
+			while (instructions > 0)
+			{
 				// instr = system_bus.ram.read_word_aligned(_pc);
 				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
 				_pc += 4;
 				instructions--;
 			}
+			num_instructions_ran = start_instructions - instructions;
 		}
-		catch(const EmulatorException& e)
-		{
-			std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
-		}
-		num_instructions_ran = start_instructions - instructions;
+	}
+	catch(const EmulatorException& e)
+	{
+		std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
+	}
+	catch(const SystemBus::SystemBusException& e)
+	{
+		std::cerr << "Caught System Bus Exception: " << e.what() << std::endl;
 	}
 
 	printf("Ran %llu instructions\n", num_instructions_ran);

@@ -8,7 +8,7 @@
 // 	cpu->_pc = 0;
 // 	cpu->_x[1] = 11;
 
-// 	Emulator32bit::EmulatorException exception;
+//
 // 	cpu->run(1, exception);
 
 // 	EXPECT_EQ(cpu->_x[1], 11) << "operation should not alter operand register \'x1\'";
@@ -16,7 +16,7 @@
 // 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 // 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 // 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-// 	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
+//
 // 	delete cpu;
 // }
 
@@ -30,7 +30,7 @@
 // 	cpu->_x[1] = 11;
 // 	cpu->_x[2] = 10;
 
-// 	Emulator32bit::EmulatorException exception;
+//
 // 	cpu->run(1, exception);
 
 // 	EXPECT_EQ(cpu->_x[1], 11) << "operation should not alter operand register \'x1\'";
@@ -39,7 +39,7 @@
 // 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 // 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 // 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-// 	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
+//
 // 	delete cpu;
 // }
 
@@ -53,8 +53,7 @@ TEST(cmp, negative_flag) {
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 2;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], 1) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], 2) << "operation should not alter operand register \'x2\'";
@@ -62,7 +61,6 @@ TEST(cmp, negative_flag) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "C flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -76,8 +74,7 @@ TEST(cmp, zero_flag) {
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 1;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], 1) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], 1) << "operation should not alter operand register \'x2\'";
@@ -85,7 +82,6 @@ TEST(cmp, zero_flag) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 1) << "Z flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "C flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -99,8 +95,7 @@ TEST(cmp, carry_flag_1) {
 	cpu->_x[1] = -3;
 	cpu->_x[2] = -2;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], -3) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], -2) << "operation should not alter operand register \'x2\'";
@@ -108,7 +103,6 @@ TEST(cmp, carry_flag_1) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "C flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -122,8 +116,7 @@ TEST(cmp, carry_flag_2) {
 	cpu->_x[1] = 1;
 	cpu->_x[2] = -2;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], 1) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], -2) << "operation should not alter operand register \'x2\'";
@@ -131,7 +124,6 @@ TEST(cmp, carry_flag_2) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "C flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -145,8 +137,7 @@ TEST(cmp, overflow_flag__positive_to_negative) {
 	cpu->_x[1] = (1U<<31) - 1;
 	cpu->_x[2] = -1;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], (1U<<31) - 1) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], -1) << "operation should not alter operand register \'x2\'";
@@ -154,7 +145,6 @@ TEST(cmp, overflow_flag__positive_to_negative) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "C flag should be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "V flag should be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -168,8 +158,7 @@ TEST(cmp, overflow_flag__negative_to_positive) {
 	cpu->_x[1] = 1U<<31;
 	cpu->_x[2] = 1;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[1], 1U<<31) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(cpu->_x[2], 1) << "operation should not alter operand register \'x2\'";
@@ -177,6 +166,5 @@ TEST(cmp, overflow_flag__negative_to_positive) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "V flag should be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }

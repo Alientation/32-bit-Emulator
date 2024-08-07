@@ -7,8 +7,7 @@ TEST(asr, imm5_shift_pos) {
 	cpu->_x[1] = 32;
 	cpu->set_NZCV(1, 0, 0, 1);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 1) << "\'asr x0, x1, 5\' : where x1=32, should result in x0=1";
 	EXPECT_EQ(cpu->_x[1], 32) << "operation should not alter operand register \'x1\'";
@@ -16,7 +15,6 @@ TEST(asr, imm5_shift_pos) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not alter Z flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "operation should not alter V flag";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -27,8 +25,7 @@ TEST(asr, imm5_shift_neg) {
 	cpu->_x[1] = -32;
 	cpu->set_NZCV(1, 0, 0, 1);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], -1) << "\'asr x0, x1, 5\' : where x1=-32, should result in x0=-1";
 	EXPECT_EQ(cpu->_x[1], -32) << "operation should not alter operand register \'x1\'";
@@ -36,7 +33,6 @@ TEST(asr, imm5_shift_neg) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not alter Z flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "operation should not alter V flag";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -48,8 +44,7 @@ TEST(asr, reg_shift) {
 	cpu->_x[2] = 5;
 	cpu->set_NZCV(0, 0, 1, 1);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 1) << "\'asr x0, x1, x2\' : where x1=32, x2=5, should result in x0=1";
 	EXPECT_EQ(cpu->_x[1], 32) << "operation should not alter operand register \'x1\'";
@@ -58,7 +53,6 @@ TEST(asr, reg_shift) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not alter Z flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "operation should not alter V flag";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -70,8 +64,7 @@ TEST(asr, reg_shift_low_byte) {
 	cpu->_x[2] = 5 + ~((word) 0xFF);
 	cpu->set_NZCV(0, 1, 0, 1);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 1) << "\'asr x0, x1, x2\' : where x1=32, x2=5 (lower 8 bits), should result in x0=1";
 	EXPECT_EQ(cpu->_x[1], 32) << "operation should not alter operand register \'x1\'";
@@ -80,6 +73,5 @@ TEST(asr, reg_shift_low_byte) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 1) << "operation should not alter Z flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 1) << "operation should not alter V flag";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }

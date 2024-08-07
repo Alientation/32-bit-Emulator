@@ -50,6 +50,7 @@ class Disk
 		 * @param npages 	the number of pages the disk should have.
 		 */
 		Disk(File diskfile, std::streamsize npages = 4096);
+		Disk();
 		virtual ~Disk();
 
 		class DiskReadException : public std::exception

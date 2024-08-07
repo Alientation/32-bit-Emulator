@@ -22,6 +22,12 @@ Disk::Disk(File diskfile, std::streamsize npages) :
 	read_disk_files();
 }
 
+Disk::Disk() :
+	m_free_list(0, 0, false)
+{
+	// maybe this isnt the best way to create support a mocked disk
+}
+
 void Disk::read_disk_files()
 {
 	/*
@@ -461,9 +467,7 @@ void Disk::save()
 	fwriter.close();
 }
 
-MockDisk::MockDisk() :
-	Disk(File(".\\shouldnotmakethisfilepls.bin"),
-	static_cast<std::streamsize>(0))
+MockDisk::MockDisk()
 {
 
 }

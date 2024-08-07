@@ -5,10 +5,8 @@ TEST(hlt, test_execution_halting) {
 	cpu->system_bus.write_word(0, Emulator32bit::asm_hlt());
 	cpu->_pc = 0;
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
-	EXPECT_EQ(exception.type, Emulator32bit::EmulatorException::Type::HALT);
-	EXPECT_EQ(cpu->_pc, 4);
+	EXPECT_EQ(cpu->_pc, 0);
 	delete cpu;
 }

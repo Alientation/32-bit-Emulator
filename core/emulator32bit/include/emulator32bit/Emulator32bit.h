@@ -328,5 +328,4 @@ class Emulator32bit
 		static word asm_nop();
 };
 
-
 #endif /* EMULATOR32BIT_H */

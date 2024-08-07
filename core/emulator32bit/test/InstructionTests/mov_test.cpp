@@ -7,15 +7,13 @@ TEST(mov, register_mov_immediate) {
 	cpu->_pc = 0;
 	cpu->set_NZCV(0, 0, 1, 0);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 9) << "\'mov x0 #9\' : should result in x0=9";
 	EXPECT_EQ(test_bit(cpu->_pstate, N_FLAG), 0) << "operation should not cause N flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -26,14 +24,12 @@ TEST(mov, zero_flag) {
 	cpu->_pc = 0;
 	cpu->set_NZCV(0, 0, 1, 0);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 0) << "\'movs x0, #0\' : should result in x0=0";
 	EXPECT_EQ(test_bit(cpu->_pstate, N_FLAG), 0) << "operation should not cause N flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 1) << "operation should set Z flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 1) << "operation should not alter C flag";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }

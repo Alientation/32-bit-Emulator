@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
 		emulator.run(AEMU_MAX_EXEC_INSTR);
 		CLOCK_END
 		emulator.print();
-		// emulator.system_bus.mmu.end_process(0);
+		emulator.system_bus.mmu.end_process(0);
 	}
 
 	PROFILE_STOP

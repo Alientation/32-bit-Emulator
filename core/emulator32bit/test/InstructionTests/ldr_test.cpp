@@ -8,8 +8,7 @@ TEST(ldr, offset) {
 	cpu->_x[1] = PAGE_SIZE - 3;
 	cpu->set_NZCV(0, 0, 0, 0);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 9) << "\'ldr x0, [x1, #3]\', where x1=1 : should result in x0=9";
 	EXPECT_EQ(cpu->_x[1], PAGE_SIZE - 3) << "operation should not change operand \'x1\'";
@@ -17,7 +16,6 @@ TEST(ldr, offset) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -29,8 +27,7 @@ TEST(ldr, pre_indexed) {
 	cpu->_x[1] = PAGE_SIZE - 3;
 	cpu->set_NZCV(0, 0, 0, 0);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 9) << "\'ldr x0, [x1, #3]\', where x1=1 : should result in x0=9";
 	EXPECT_EQ(cpu->_x[1], PAGE_SIZE) << "operation should preincrement \'x1\'";
@@ -38,7 +35,6 @@ TEST(ldr, pre_indexed) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }
 
@@ -50,8 +46,7 @@ TEST(ldr, post_indexed) {
 	cpu->_x[1] = PAGE_SIZE;
 	cpu->set_NZCV(0, 0, 0, 0);
 
-	Emulator32bit::EmulatorException exception;
-	cpu->run(1, exception);
+	cpu->run(1);
 
 	EXPECT_EQ(cpu->_x[0], 9) << "\'ldr x0, [x1, #3]\', where x1=4 : should result in x0=9";
 	EXPECT_EQ(cpu->_x[1], 3 + PAGE_SIZE) << "operation should postincrement \'x1\'";
@@ -59,6 +54,5 @@ TEST(ldr, post_indexed) {
 	EXPECT_EQ(test_bit(cpu->_pstate, Z_FLAG), 0) << "operation should not cause Z flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, C_FLAG), 0) << "operation should not cause C flag to be set";
 	EXPECT_EQ(test_bit(cpu->_pstate, V_FLAG), 0) << "operation should not cause V flag to be set";
-	EXPECT_EQ(exception.isOK(), true) << "cpu should be OK";
 	delete cpu;
 }

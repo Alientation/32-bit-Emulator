@@ -82,11 +82,14 @@ ROM::ROM(File file, word mem_pages, word lo_page) :
 
 ROM::~ROM()
 {
-	// save data to file
-	FileWriter fw(file, std::ios::out | std::ios::binary);
-	for (word i = 0; i < mem_pages << PAGE_PSIZE; i++)
+	if (save_file)
 	{
-		fw.write(data[i]);
+		// save data to file
+		FileWriter fw(file, std::ios::out | std::ios::binary);
+		for (word i = 0; i < mem_pages << PAGE_PSIZE; i++)
+		{
+			fw.write(data[i]);
+		}
 	}
 }
 
