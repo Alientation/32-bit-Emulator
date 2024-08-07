@@ -29,6 +29,7 @@ class VirtualMemory
 		virtual ~VirtualMemory();
 
 		Disk& m_disk;
+		bool enabled = false;
 
 		struct Exception {
 			enum class Type {							// todo  VVVV VERY UGLY AND BAD, FIX
@@ -47,7 +48,7 @@ class VirtualMemory
 
 		inline word map_address(word address, Exception& exception)
 		{
-			if (m_cur_ptable == nullptr)
+			if (m_cur_ptable == nullptr || !enabled)
 			{
 				return address;
 			}

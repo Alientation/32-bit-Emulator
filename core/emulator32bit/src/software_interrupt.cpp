@@ -117,69 +117,128 @@ void Emulator32bit::_emu_err(word err)
  * 							Would prefer to, in the future, implement these system calls directly in the kernel rather than abstracting it away
  * 							here. For now this would be fine until a higher level language is implemented for basm
  *
+ * 							In future, we need a vector table that contains various jump instructions to handle various exceptions.
+ * 							The kernel's vector table needs to be loaded into a fixed address location, which means we need a linker script
+ * 							to specify memory layout of an executable. This also means the executable file format would have to slightly differ
+ * 							and contain information about the physical/virtual address locations. We also would want to be able to access memory directly
+ * 							instead of using virtual memory. We could store that information in the PSTATE variable of the processor.
+ *
  * 							File management would be simulated through creating a large file to represent a hard drive (something along the lines of ~16 MiB)
  * ______________________________________________________________________________________________________________________________________________________________________________________________
  * | ID |		NAME	   |		arg x0		   |		arg x1		   |		arg x2		   |		arg x3			   |				arg x4				   |		arg x5			|
  * |____|__________________|_______________________|_______________________|_______________________|___________________________|_______________________________________|________________________|
  * |
  * |======================= Emulator Specific =======================
- * |1000: emu_print			-						-						-						-							-										-
- * |	- prints emulator state to console
- * |1001: emu_printr		byte reg_id				-						-						-							-										-
- * |	- prints a register to console
- * |1002: emu_printm		word mem_addr			byte size				bool little_endian		-							-										-
- * |	- prints a specific value in memory to console
- * |1003: emu_printp		-						-						-						-							-										-
- * |	- prints the pstate of the processor
- * |1010: emu_assertr		byte reg_id				word min_value			word max_value			-							-										-
- * |	- halts execution if reg val is not within bounds
- * |1011: emu_assertm		word mem_addr			byte size				bool little_endian		word min_value				word max_value							-
- * |	- halts execution if mem val is not within bounds
- * |1012: emu_assertp		byte p_state_id			bool expected_val		-						-							-										-
- * |	- halts execution if the specified p_state is not the expected val
- * |1020: emu_log			char* str				-						-						-							-										-
- * |	- prints message to console
- * |1021: emu_error			char* err				-						-						-							-										-
- * |	- prints merror to console and halts program
+ **|1000: emu_print			-						-						-						-							-										-
+ * |
+ * |	prints emulator state to console
+ * |
+ **|1001: emu_printr		byte reg_id				-						-						-							-										-
+ * |
+ * |	prints a register to console
+ * |
+ **|1002: emu_printm		word mem_addr			byte size				bool little_endian		-							-										-
+ * |
+ * |	prints a specific value in memory to console
+ * |
+ **|1003: emu_printp		-						-						-						-							-										-
+ * |
+ * |	prints the pstate of the processor
+ * |
+ **|1010: emu_assertr		byte reg_id				word min_value			word max_value			-							-										-
+ * |
+ * |	halts execution if reg val is not within bounds
+ * |
+ **|1011: emu_assertm		word mem_addr			byte size				bool little_endian		word min_value				word max_value							-
+ * |
+ * |	halts execution if mem val is not within bounds
+ * |
+ **|1012: emu_assertp		byte p_state_id			bool expected_val		-						-							-										-
+ * |
+ * |	halts execution if the specified p_state is not the expected val
+ * |
+ **|1020: emu_log			char* str				-						-						-							-										-
+ * |
+ * |	prints message to console
+ * |
+ **|1021: emu_error			char* err				-						-						-							-										-
+ * |
+ * |	prints error to console and halts program
+ * |
+ * |
  * |
  * |======================= I/O Operations ==========================
  * |
- * | 0: io_setup			unsigned nr_reqs		aio_context_t *ctx
- * | 	- creates the context information for the I/O operation with space for #nr requests
- * | 1: io_destroy			aio_context_t ctx
- * | 	- invalidates the previously created context information
- * | 2: io_submit			aio_context_t			long					struct iocb * *
- * | 	- with the file descriptor (some unique number that identifies a specific file), begins an operation
- * | 3: io_cancel			aio_context_t ctx_id	struct iocb *iocb		struct io_event *result
- * | 	- cancels a specific I/O operation
- * | 4: io_getevents		aio_context_t ctx_id	long min_nr				long nr					struct io_event *events		struct __kernel_timespec *timeout
- * | 	- waits for when a specific I/O operation finishes or timesout
+ **|0000: io_setup			unsigned nr_reqs		aio_context_t *ctx
+ * |
+ * | 	creates the context information for the I/O operation with space for #nr requests
+ * |
+ **|0001: io_destroy			aio_context_t ctx
+ * |
+ * | 	invalidates the previously created context information
+ * |
+ **|0002: io_submit			aio_context_t			long					struct iocb * *
+ * |
+ * | 	with the file descriptor (some unique number that identifies a specific file), begins an operation
+ * |
+ **|0003: io_cancel			aio_context_t ctx_id	struct iocb *iocb		struct io_event *result
+ * |
+ * |	cancels a specific I/O operation
+ * |
+ **|0004: io_getevents		aio_context_t ctx_id	long min_nr				long nr					struct io_event *events		struct __kernel_timespec *timeout
+ * |
+ * | 	waits for when a specific I/O operation finishes or timesout
+ * |
+ * |
  * |
  * |======================= File Operations =========================
- * | 5: setxattr			const char *path		const char *name		const void *value		size_t size					int flags								-
- * |	-
- * | 6: lsetxattr			const char *path		const char *name		const void *value		size_t size					int flags								-
- * |	-
- * | 7: fsetxattr			int fd					const char *name		const void *value		size_t size					int flags								-
- * |	-
- * | 8: getxattr			const char *path		const char *name		void *value				size_t size					-										-
- * |	-
- * | 9: lgetxattr			const char *path		const char *name		void *value				size_t size					-										-
- * |	-
- * | 10: fgetxattr			int fd					const char *name		void *value				size_t size					-										-
- * |	-
- * | 11: listxattr			const char *path		char *list				size_t size				-							-										-
- * |	-
- * | 12: llistxattr			const char *path		char *list				size_t size				-							-										-
- * |	-
- * | 13: flistxattr			int fd					char *list				size_t size				-							-										-
- * |	-
- * | 14: removexattr		const char *path		const char *name		-						-							-										-
- * |	-
- * | 15: lremovexattr		const char *path		const char *name		-						-							-										-
- * |	-
- * | 16: fremovexattr		int fd					const char *name		-						-							-										-
- * |	-
+ **|0005: setxattr			const char *path		const char *name		const void *value		size_t size					int flags								-
+ * |
+ * |
+ * |
+ **|0006: lsetxattr			const char *path		const char *name		const void *value		size_t size					int flags								-
+ * |
+ * |
+ * |
+ **|0007: fsetxattr			int fd					const char *name		const void *value		size_t size					int flags								-
+ * |
+ * |
+ * |
+ **|0008: getxattr			const char *path		const char *name		void *value				size_t size					-										-
+ * |
+ * |
+ * |
+ **|0009: lgetxattr			const char *path		const char *name		void *value				size_t size					-										-
+ * |
+ * |
+ * |
+ **|0010: fgetxattr			int fd					const char *name		void *value				size_t size					-										-
+ * |
+ * |
+ * |
+ **|0011: listxattr			const char *path		char *list				size_t size				-							-										-
+ * |
+ * |
+ * |
+ **|0012: llistxattr		const char *path		char *list				size_t size				-							-										-
+ * |
+ * |
+ * |
+ **|0013: flistxattr		int fd					char *list				size_t size				-							-										-
+ * |
+ * |
+ * |
+ **|0014: removexattr		const char *path		const char *name		-						-							-										-
+ * |
+ * |
+ * |
+ **|0015: lremovexattr		const char *path		const char *name		-						-							-										-
+ * |
+ * |
+ * |
+ **|0016: fremovexattr		int fd					const char *name		-						-							-										-
+ * |
+ * |
  * L____________________________________________________________________________________________________________________________________________________________________________________________|
  * @param instr
  * @param exception

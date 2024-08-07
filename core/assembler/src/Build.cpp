@@ -265,7 +265,8 @@ void Process::link()
 	}
 
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-	DEBUG_SS(std::stringstream() << "Process::link() - output file name: " << m_exe_file.get_path());
+	DEBUG_SS(std::stringstream() << "Process::link() - output file name: "
+			<< m_exe_file.get_path() << ".");
 	Linker linker(objects, m_exe_file);
 }
 
@@ -294,7 +295,7 @@ void Process::_version(std::vector<std::string>& args, size_t& index)
 	UNUSED(args);
 	UNUSED(index);
 
-	std::cout << "Assembler Version: " << ASSEMBLER_VERSION << std::endl;
+	std::cout << "Assembler Version: " << ASSEMBLER_VERSION << "." << std::endl;
 }
 
 /**
@@ -338,12 +339,12 @@ void Process::_compile(std::vector<std::string>& args, size_t& index)
 void Process::_output(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-			<< "Process::_output() - Missing output file name");
+			<< "Process::_output() - Missing output file path.");
 	m_output_file = args[++index];
 
 	// check if the output file is valid
 	EXPECT_TRUE_SS(File::valid_path(m_output_file), std::stringstream()
-			<< "Process::_output() - Invalid output file path: " << m_output_file);
+			<< "Process::_output() - Invalid output file path: " << m_output_file << ".");
 }
 
 /**
@@ -356,12 +357,13 @@ void Process::_output(std::vector<std::string>& args, size_t& index)
  */
 void Process::_outdir(std::vector<std::string>& args, size_t& index)
 {
-	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_outdir() - Missing output file name");
+	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
+			<< "Process::_outdir() - Missing output directory path.");
 	m_output_dir = args[++index];
 	m_has_output_dir = true;
 	// check if the output file is valid
 	EXPECT_TRUE_SS(Directory::valid_path(m_output_dir), std::stringstream()
-			<< "Process::_outdir() - Invalid output directory path: " << m_output_file);
+			<< "Process::_outdir() - Invalid output directory path: " << m_output_file << ".");
 }
 
 /**
@@ -380,12 +382,14 @@ void Process::_outdir(std::vector<std::string>& args, size_t& index)
  */
 void Process::_optimize(std::vector<std::string>& args, size_t& index)
 {
-	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_optimize() - Missing optimization level");
+	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
+			<< "Process::_optimize() - Missing optimization level.");
 	m_optimization_level = std::stoi(args[++index]);
 
 	// check if the optimization level is valid
 	EXPECT_TRUE_SS(0 <= m_optimization_level && m_optimization_level <= 3, std::stringstream()
-			<< "Process::_optimize() - Invalid optimization level: " << m_optimization_level);
+			<< "Process::_optimize() - Invalid optimization level: " << m_optimization_level
+			<< ".");
 }
 
 /**
@@ -417,12 +421,13 @@ void Process::_optimize_all(std::vector<std::string>& args, size_t& index)
  */
 void Process::_warn(std::vector<std::string>& args, size_t& index)
 {
-	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream() << "Process::_warn() - Missing warning type");
+	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
+			<< "Process::_warn() - Missing warning type.");
 	std::string warning_type = args[++index];
 
 	// check if the warning type is valid
 	EXPECT_TRUE_SS(WARNINGS.find(warning_type) != WARNINGS.end(), std::stringstream()
-			<< "Process::_warn() - Invalid warning type: " << warning_type);
+			<< "Process::_warn() - Invalid warning type: " << warning_type << ".");
 	m_enabled_warnings.insert(warning_type);
 }
 
@@ -455,13 +460,13 @@ void Process::_warn_all(std::vector<std::string>& args, size_t& index)
 void Process::_include(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-			<< "Process::_include() - Missing include directory path");
-	std::string include_dir = args[++index];
+			<< "Process::_include() - Missing include directory path.");
+	std::string dpath = args[++index];
 
 	// check if the include directory is valid
-	EXPECT_TRUE_SS(Directory::valid_path(include_dir), std::stringstream()
-			<< "Process::_include() - Invalid include directory path: " << include_dir);
-	m_system_dirs.push_back(Directory(include_dir));
+	EXPECT_TRUE_SS(Directory::valid_path(dpath), std::stringstream()
+			<< "Process::_include() - Invalid include directory path: " << dpath << ".");
+	m_system_dirs.push_back(Directory(dpath));
 }
 
 /**
@@ -477,13 +482,13 @@ void Process::_include(std::vector<std::string>& args, size_t& index)
 void Process::_library(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-			<< "Process::_library() - Missing library name");
-	std::string lib_path = args[++index];
+			<< "Process::_library() - Missing library file path.");
+	std::string fpath = args[++index];
 
 	// check if the library name is valid
-	EXPECT_TRUE_SS(File::valid_path(lib_path), std::stringstream()
-			<< "Process::_library() - Invalid library path: " << lib_path);
-	m_linked_lib.push_back(File(lib_path));
+	EXPECT_TRUE_SS(File::valid_path(fpath), std::stringstream()
+			<< "Process::_library() - Invalid library file path: " << fpath << ".");
+	m_linked_lib.push_back(File(fpath));
 }
 
 /**
@@ -497,13 +502,13 @@ void Process::_library(std::vector<std::string>& args, size_t& index)
 void Process::_library_directory(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-			<< "Process::_libraryDirectory() - Missing library directory path");
-	std::string lib_dir = args[++index];
+			<< "Process::_libraryDirectory() - Missing library directory path.");
+	std::string dpath = args[++index];
 
 	// check if the library directory is valid
-	EXPECT_TRUE_SS(Directory::valid_path(lib_dir), std::stringstream()
-			<< "Process::_libraryDirectory() - Invalid library directory path: " << lib_dir);
-	m_library_dirs.push_back(Directory(lib_dir));
+	EXPECT_TRUE_SS(Directory::valid_path(dpath), std::stringstream()
+			<< "Process::_libraryDirectory() - Invalid library directory path: " << dpath << ".");
+	m_library_dirs.push_back(Directory(dpath));
 }
 
 /**
@@ -517,7 +522,7 @@ void Process::_library_directory(std::vector<std::string>& args, size_t& index)
 void Process::_preprocessor_flag(std::vector<std::string>& args, size_t& index)
 {
 	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-			<< "Process::_preprocessorFlag() - Missing preprocessor flag");
+			<< "Process::_preprocessorFlag() - Missing preprocessor flag.");
 	std::string flag = args[++index];
 
 	// check if there is a value
@@ -545,6 +550,18 @@ void Process::_keep_processed_files(std::vector<std::string>& args, size_t& inde
 	UNUSED(index);
 
 	keep_proccessed_files = true;
+}
+
+void Process::_ld(std::vector<std::string>& args, size_t& index)
+{
+	EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
+			<< "Process::_ld() - Missing linker script file path.");
+	std::string fpath = args[++index];
+
+	// check if the library name is valid
+	EXPECT_TRUE_SS(File::valid_path(fpath), std::stringstream()
+			<< "Process::_ld() - Invalid linker script file path: " << fpath << ".");
+	m_ld_file = File(fpath);
 }
 
 
@@ -587,4 +604,14 @@ std::vector<File> Process::get_obj_files() const
 File Process::get_exe_file() const
 {
     return m_exe_file;
+}
+
+File Process::get_ld_file() const
+{
+	return m_ld_file;
+}
+
+bool Process::has_ld_file() const
+{
+	return m_has_ld_file;
 }

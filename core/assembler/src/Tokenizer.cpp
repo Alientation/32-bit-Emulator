@@ -32,10 +32,13 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 {
 	std::vector<Token>* tokens = new std::vector<Token>();
-	auto is_alphanumeric = [](char c, int index){
+	auto is_alphanumeric = [](char c, int index)
+	{
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '.' && index == 0) || (c == '_') || (c == '#' && index == 0);
 	};
-	std::unordered_map<std::string, Type> simple_map = {
+
+	std::unordered_map<std::string, Type> simple_map =
+	{
 		{"x0", REGISTER_X0}, {"x1", REGISTER_X1},
 		{"x2", REGISTER_X2}, {"x3", REGISTER_X3},
 		{"x4", REGISTER_X4}, {"x5", REGISTER_X5},
@@ -165,15 +168,19 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 		{"ge", CONDITION_GE}, {"lt", CONDITION_LT}, {"gt", CONDITION_GT}, {"le", CONDITION_LE},
 		{"al", CONDITION_AL}, {"nv", CONDITION_NV},
 	};
-	while (source_code.size() > 0) {
+
+	while (source_code.size() > 0)
+	{
 		// hopefully boost performance
 		size_t substring_length = 0;
-		while (substring_length < source_code.size() && is_alphanumeric(source_code[substring_length], substring_length)) {
+		while (substring_length < source_code.size() && is_alphanumeric(source_code[substring_length], substring_length))
+		{
 			substring_length++;
 		}
 
 		std::string sub = source_code.substr(0, substring_length);
-		if (simple_map.find(sub) != simple_map.end()) {
+		if (simple_map.find(sub) != simple_map.end())
+		{
 			tokens->push_back(Token(simple_map.at(sub), sub));
 			source_code = source_code.substr(substring_length);
 			continue;
@@ -181,12 +188,14 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 
 		// try to match regex
 		bool matched = false;
-		for (std::pair<std::string, Type> regexPair : TOKEN_SPEC) {
+		for (std::pair<std::string, Type> regexPair : TOKEN_SPEC)
+		{
 			std::string regex = regexPair.first;
 			Type type = regexPair.second;
 			std::regex token_regex(regex);
 			std::smatch match;
-			if (std::regex_search(source_code, match, token_regex)) {
+			if (std::regex_search(source_code, match, token_regex))
+			{
 				// matched regex
 				std::string token_value = match.str();
 				tokens->push_back(Token(type, token_value));
@@ -204,7 +213,34 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 	return *tokens;
 }
 
-const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP = {
+Tokenizer::Token::Token(Tokenizer::Type type, std::string value) :
+	type(type),
+	value(value)
+{
+
+}
+
+std::string Tokenizer::Token::to_string()
+{
+	if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE)
+	{
+		std::string toString = TYPE_TO_NAME_MAP.at(type) + ":";
+		for (size_t i = 0; i < value.length(); i++)
+		{
+			toString += " " + std::to_string(value[i]);
+		}
+		return toString;
+	}
+	else if (type == COMMENT_SINGLE_LINE || type == COMMENT_MULTI_LINE)
+	{
+		return TYPE_TO_NAME_MAP.at(type);
+	}
+
+	return TYPE_TO_NAME_MAP.at(type) + ": " + value;
+}
+
+const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP =
+{
 	{UNKNOWN, "UNKNOWN"},
 
 	{LABEL, "LABEL"},
@@ -325,15 +361,18 @@ const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_M
 	{OPERATOR_LOGICAL_OR, "OPERATOR_LOGICAL_OR"}, {OPERATOR_LOGICAL_AND, "OPERATOR_LOGICAL_AND"},
 };
 
-const std::set<Tokenizer::Type> Tokenizer::WHITESPACES = {
+const std::set<Tokenizer::Type> Tokenizer::WHITESPACES =
+{
 	WHITESPACE_SPACE, WHITESPACE_TAB, WHITESPACE_NEWLINE
 };
 
-const std::set<Tokenizer::Type> Tokenizer::COMMENTS = {
+const std::set<Tokenizer::Type> Tokenizer::COMMENTS =
+{
     COMMENT_SINGLE_LINE, COMMENT_MULTI_LINE
 };
 
-const std::set<Tokenizer::Type> Tokenizer::PREPROCESSOR_DIRECTIVES = {
+const std::set<Tokenizer::Type> Tokenizer::PREPROCESSOR_DIRECTIVES =
+{
 	PREPROCESSOR_INCLUDE, PREPROCESSOR_MACRO, PREPROCESSOR_MACRET, PREPROCESSOR_MACEND, PREPROCESSOR_INVOKE,
 	PREPROCESSOR_DEFINE, PREPROCESSOR_UNDEF, PREPROCESSOR_IFDEF, PREPROCESSOR_IFNDEF, PREPROCESSOR_IFEQU,
 	PREPROCESSOR_IFNEQU, PREPROCESSOR_IFLESS, PREPROCESSOR_IFMORE, PREPROCESSOR_ELSE,
@@ -342,7 +381,8 @@ const std::set<Tokenizer::Type> Tokenizer::PREPROCESSOR_DIRECTIVES = {
 	PREPROCESSOR_ENDIF
 };
 
-const std::set<Tokenizer::Type> Tokenizer::ASSEMBLER_DIRECTIVES = {
+const std::set<Tokenizer::Type> Tokenizer::ASSEMBLER_DIRECTIVES =
+{
 	ASSEMBLER_GLOBAL, ASSEMBLER_EXTERN,
 	ASSEMBLER_ORG,
 	ASSEMBLER_SCOPE, ASSEMBLER_SCEND,
@@ -358,12 +398,14 @@ const std::set<Tokenizer::Type> Tokenizer::ASSEMBLER_DIRECTIVES = {
 	ASSEMBLER_CHAR, ASSEMBLER_ASCII, ASSEMBLER_ASCIZ,
 };
 
-const std::set<Tokenizer::Type> Tokenizer::RELOCATIONS = {
+const std::set<Tokenizer::Type> Tokenizer::RELOCATIONS =
+{
 	RELOCATION_EMU32_O_LO12, RELOCATION_EMU32_ADRP_HI20,
 	RELOCATION_EMU32_MOV_LO19, RELOCATION_EMU32_MOV_HI13,
 };
 
-const std::set<Tokenizer::Type> Tokenizer::REGISTERS = {
+const std::set<Tokenizer::Type> Tokenizer::REGISTERS =
+{
 	REGISTER_X0, REGISTER_X1,
 	REGISTER_X2, REGISTER_X3,
 	REGISTER_X4, REGISTER_X5,
@@ -382,7 +424,8 @@ const std::set<Tokenizer::Type> Tokenizer::REGISTERS = {
 	REGISTER_XZR, REGISTER_SP,
 };
 
-const std::set<Tokenizer::Type> Tokenizer::INSTRUCTIONS = {
+const std::set<Tokenizer::Type> Tokenizer::INSTRUCTIONS =
+{
 	INSTRUCTION_HLT,
 	INSTRUCTION_ADD, INSTRUCTION_SUB, INSTRUCTION_RSB,
 	INSTRUCTION_ADC, INSTRUCTION_SBC, INSTRUCTION_RSC,
@@ -406,7 +449,8 @@ const std::set<Tokenizer::Type> Tokenizer::INSTRUCTIONS = {
 	INSTRUCTION_RET,
 };
 
-const std::set<Tokenizer::Type> Tokenizer::CONDITIONS = {
+const std::set<Tokenizer::Type> Tokenizer::CONDITIONS =
+{
 	CONDITION_EQ, CONDITION_NE,
 	CONDITION_CS, CONDITION_HS,
 	CONDITION_CC, CONDITION_LO,
@@ -417,18 +461,21 @@ const std::set<Tokenizer::Type> Tokenizer::CONDITIONS = {
 	CONDITION_AL, CONDITION_NV,
 };
 
-const std::set<Tokenizer::Type> Tokenizer::LITERAL_NUMBERS = {
+const std::set<Tokenizer::Type> Tokenizer::LITERAL_NUMBERS =
+{
 	LITERAL_FLOAT_32,
 	LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL, LITERAL_NUMBER_HEXADECIMAL
 };
 
-const std::set<Tokenizer::Type> Tokenizer::LITERAL_VALUES = {
+const std::set<Tokenizer::Type> Tokenizer::LITERAL_VALUES =
+{
 	LITERAL_FLOAT_32,
 	LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL, LITERAL_NUMBER_HEXADECIMAL,
 	LITERAL_CHAR, LITERAL_STRING
 };
 
-const std::set<Tokenizer::Type> Tokenizer::OPERATORS = {
+const std::set<Tokenizer::Type> Tokenizer::OPERATORS =
+{
 	OPERATOR_ADDITION, OPERATOR_SUBTRACTION, OPERATOR_MULTIPLICATION, OPERATOR_DIVISION, OPERATOR_MODULUS,
 	OPERATOR_BITWISE_LEFT_SHIFT, OPERATOR_BITWISE_RIGHT_SHIFT, OPERATOR_BITWISE_XOR, OPERATOR_BITWISE_AND,
 	OPERATOR_BITWISE_OR, OPERATOR_BITWISE_COMPLEMENT, OPERATOR_LOGICAL_NOT, OPERATOR_LOGICAL_EQUAL,
@@ -437,7 +484,8 @@ const std::set<Tokenizer::Type> Tokenizer::OPERATORS = {
 	OPERATOR_LOGICAL_AND
 };
 
-const std::vector<std::pair<std::string, Tokenizer::Type>> Tokenizer::TOKEN_SPEC = {
+const std::vector<std::pair<std::string, Tokenizer::Type>> Tokenizer::TOKEN_SPEC =
+{
 	{"^ ", WHITESPACE_SPACE}, {"^\\t", WHITESPACE_TAB}, {"^\\n", WHITESPACE_NEWLINE},
 	{"^[^\\S\\n\\t]+", WHITESPACE},
 	{"^;\\*[\\s\\S]*?\\*;", COMMENT_MULTI_LINE}, {"^;.*", COMMENT_SINGLE_LINE},

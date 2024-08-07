@@ -45,6 +45,8 @@ class Process
         std::vector<File> get_processed_files() const;
         std::vector<File> get_obj_files() const;
         File get_exe_file() const;
+		File get_ld_file() const;
+		bool has_ld_file() const;
 
 	private:
 		/* process flags */
@@ -62,6 +64,9 @@ class Process
 		std::string m_output_dir = "";
 		bool m_has_output_dir = false;
 		bool keep_proccessed_files = false;
+
+		File m_ld_file;
+		bool m_has_ld_file = false;
 
 		/* process files */
 		std::vector<File> m_processed_files;
@@ -91,6 +96,7 @@ class Process
 		void _library_directory(std::vector<std::string>& args, size_t& index);
 		void _preprocessor_flag(std::vector<std::string>& args, size_t& index);
 		void _keep_processed_files(std::vector<std::string>& args, size_t& index);
+		void _ld(std::vector<std::string>& args, size_t& index);
 
 		typedef void (Process::*FlagFunction)(std::vector<std::string>& args, size_t& index);
 		std::map<std::string, FlagFunction> flags;

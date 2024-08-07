@@ -14,7 +14,8 @@
 class Tokenizer
 {
     public:
-        enum Type {
+        enum Type
+		{
             UNKNOWN,
 
 			LABEL,
@@ -143,29 +144,13 @@ class Tokenizer
 		 *
 		 * a-z A-Z 0-9 _ { } [ ] ( ) < > % : ; . , ? * + - / ^ & | ~ ! = " ' \ # @ $
 		 */
-		struct Token {
-
+		struct Token
+		{
 			Type type;
 			std::string value;
 
-			Token(Type type, std::string value) {
-				this->type = type;
-				this->value = value;
-			}
-
-			std::string to_string() {
-				if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE) {
-					std::string toString = TYPE_TO_NAME_MAP.at(type) + ":";
-					for (size_t i = 0; i < value.length(); i++) {
-						toString += " " + std::to_string(value[i]);
-					}
-					return toString;
-				} else if (type == COMMENT_SINGLE_LINE || type == COMMENT_MULTI_LINE) {
-                    return TYPE_TO_NAME_MAP.at(type);
-                }
-
-				return TYPE_TO_NAME_MAP.at(type) + ": " + value;
-			}
+			Token(Type type, std::string value);
+			std::string to_string();
 		};
 
 
