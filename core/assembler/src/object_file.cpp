@@ -88,6 +88,9 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 			.section_start = (word) section_headers_reader.read_dword(),
 			.section_size = (word) section_headers_reader.read_dword(),
 			.entry_size = (word) section_headers_reader.read_dword(),
+
+			.load_at_physical_address = (bool) section_headers_reader.read_byte(),
+			.address = (word) section_headers_reader.read_dword(),
 		};
 
 		sections.push_back(section_header);
@@ -399,6 +402,9 @@ void ObjectFile::write_object_file(File obj_file)
 		byte_writer << ByteWriter::Data(sections[i].section_start, 8);
 		byte_writer << ByteWriter::Data(sections[i].section_size, 8);
 		byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
+
+		byte_writer << ByteWriter::Data(sections[i].load_at_physical_address, 1);
+		byte_writer << ByteWriter::Data(sections[i].address, 8);
 	}
 	/* For easy access */
 	byte_writer << ByteWriter::Data(current_byte, 8);
@@ -408,6 +414,8 @@ void ObjectFile::write_object_file(File obj_file)
 	m_writer.close();
 
 	m_state = State::WRITING_SUCCESS;
+
+	print();
 }
 
 void ObjectFile::print()
@@ -416,10 +424,10 @@ void ObjectFile::print()
 	DEBUG("ObjectFile::print() - Printing object file.");
 
 	/* Don't print object files that could not be disassembled */
-	if (m_state != State::DISASSEMBLED_SUCCESS) {
-		printf("ERROR: Cannot print object file. Disassembly failed.");
-		return;
-	}
+	// if (m_state != State::DISASSEMBLED_SUCCESS) {
+		// printf("ERROR: Cannot print object file. Disassembly failed.");
+		// return;
+	// }
 
 	printf("%s:\tfile format %s\n\n", (m_obj_file.get_name() + "." + OBJECT_EXTENSION).c_str(), "belf32-littleemu32");
 	printf("SYMBOL TABLE:\n");

@@ -36,7 +36,7 @@ class File
 			return path.find_first_of("*?\"<>|") == std::string::npos;
 		}
 
-		File(const std::string& name, const std::string& extension, const std::string& dir = "", bool create_if_not_present = false);
+		File(const std::string& name, const std::string& extension, const std::string& dir, bool create_if_not_present = false);
 		File(const std::string& path, bool create_if_not_present = false);
 		File();
 

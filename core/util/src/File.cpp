@@ -74,7 +74,6 @@ File::File(const std::string& name, const std::string& extension,
 /**
  * Constructs a file object with the given file path.
  *
- * @todo TODO: call the other constructor with the parsed informatino from the path string.
  * @param path the path of the file
  */
 File::File(const std::string& path, bool create_if_not_present)

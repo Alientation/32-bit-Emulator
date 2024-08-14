@@ -14,7 +14,7 @@ class LoadExecutable
 		Emulator32bit& m_emu;
 		File m_exe_file;
 
-		void load(word start_addr = 0);
+		void load();
 };
 
 

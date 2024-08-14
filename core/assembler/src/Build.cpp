@@ -267,7 +267,15 @@ void Process::link()
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
 	DEBUG_SS(std::stringstream() << "Process::link() - output file name: "
 			<< m_exe_file.get_path() << ".");
-	Linker linker(objects, m_exe_file);
+
+	if (m_has_ld_file)
+	{
+		Linker linker(objects, m_exe_file, m_ld_file);
+	}
+	else
+	{
+		Linker linker(objects, m_exe_file);
+	}
 }
 
 /**

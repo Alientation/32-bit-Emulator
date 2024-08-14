@@ -168,6 +168,7 @@ File Assembler::assemble()
 		DEBUG_SS(std::stringstream() << "Assembler::assemble() - Assembled file: "
 				<< m_inputFile.get_name());
 	}
+
 	return m_outputFile;
 }
 
@@ -176,12 +177,12 @@ void Assembler::fill_local()
 {
 	size_t tok_i = 0;
 
-	DEBUG_SS(std::stringstream() << "Assembler::file_local() - Parsing relocation entries to fill in known values.");
+	DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Parsing relocation entries to fill in known values.");
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
 	for (size_t i = 0; i < m_obj.rel_text.size(); i++) {
 		ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
-		DEBUG_SS(std::stringstream() << "Assembler::file_local() - Evaluating relocation entry "
+		DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Evaluating relocation entry "
 				<< m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
 		while (tok_i < rel.token && tok_i < m_tokens.size()) {
@@ -252,7 +253,7 @@ void Assembler::fill_local()
 		i--;															/*! Offset the for loop increment */
 	}
 
-	DEBUG_SS(std::stringstream() << "Assembler::file_local() - Finished parsing relocation entries.");
+	DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Finished parsing relocation entries.");
 }
 
 

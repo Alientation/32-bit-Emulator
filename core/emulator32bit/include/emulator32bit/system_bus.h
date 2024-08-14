@@ -151,6 +151,11 @@ class SystemBus
 			}
 		}
 
+		inline void write_unmapped_word(word address, word data)
+		{
+			route_memory(address)->write_word(address, data);
+		}
+
 		inline void write_val(word address, dword val, int n_bytes)
 		{
 			for (int i = 0; i < n_bytes; i++)

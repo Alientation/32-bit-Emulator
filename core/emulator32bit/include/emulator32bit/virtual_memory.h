@@ -2,7 +2,7 @@
 #ifndef VIRTUAL_MEMORY_H
 #define VIRTUAL_MEMORY_H
 
-#define AEMU_ONLY_CRITICAL_LOG
+// #define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/disk.h"

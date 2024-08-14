@@ -65,10 +65,10 @@ class Assembler
         void skip_tokens(size_t& tok_i, const std::set<Tokenizer::Type>& tokenTypes);
 		bool expect_token(size_t tok_i, const std::string& errorMsg);
         bool expect_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
-        bool is_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "Assembler::is_token() - Unexpected end of file");
+        bool is_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "assembler::is_token() - Unexpected end of file");
         bool in_bounds(size_t tok_i);
-        Tokenizer::Token& consume(size_t& tok_i, const std::string& errorMsg = "Assembler::assemble() - Unexpected end of file");
-        Tokenizer::Token& consume(size_t& tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "Assembler::consume() - Unexpected token");
+        Tokenizer::Token& consume(size_t& tok_i, const std::string& errorMsg = "assembler::consume() - Unexpected end of file");
+        Tokenizer::Token& consume(size_t& tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "assembler::consume() - Unexpected token");
 
 		void _global(size_t& tok_i);
 		void _extern(size_t& tok_i);

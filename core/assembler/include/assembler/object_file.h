@@ -45,6 +45,9 @@ class ObjectFile
 			word section_start;										/* start offset of section */
 			word section_size;										/* size of section in bytes */
 			word entry_size;										/* size of entry in section, todo this has not use imo, figure out why ELF has it listed */
+
+			bool load_at_physical_address = false;
+			word address = 0;
 		};
 
 		struct RelocationEntry {
@@ -61,7 +64,7 @@ class ObjectFile
 		};
 
 		static const int BELF_HEADER_SIZE = 24;
-		static const int SECTION_HEADER_SIZE = 36;
+		static const int SECTION_HEADER_SIZE = 45;
 		static const int BSS_SECTION_SIZE = 8;
 		static const int RELOCATION_ENTRY_SIZE = 28;
 		static const int SYMBOL_TABLE_ENTRY_SIZE = 26;

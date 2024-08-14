@@ -7,7 +7,7 @@ LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), 
 	load();
 }
 
-void LoadExecutable::load(word start_addr)
+void LoadExecutable::load()
 {											/* For now load starting at address 0 */
 	ObjectFile obj(m_exe_file);
 
@@ -21,7 +21,7 @@ void LoadExecutable::load(word start_addr)
 		}
 
 		word instr_i = rel.offset/4;
-		word new_abs_value = symbol_entry.symbol_value + start_addr;
+		word new_abs_value = symbol_entry.symbol_value;
 		switch (rel.type) {
 			case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
 				obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 14) + bitfield_u32(new_abs_value, 0, 12);
@@ -42,17 +42,30 @@ void LoadExecutable::load(word start_addr)
 	}
 
 	// text -> data -> bss
-	word cur_addr = start_addr;
+	word cur_addr = obj.sections[obj.section_table.at(".text")].address;
+	bool physical = obj.sections[obj.section_table.at(".text")].load_at_physical_address;
 	for (word instr : obj.text_section) {
-		m_emu.system_bus.write_word(cur_addr, instr);
+		if (!physical)
+		{
+			m_emu.system_bus.write_word(cur_addr, instr);
+		}
+		else
+		{
+			m_emu.system_bus.write_unmapped_word(cur_addr, instr);
+		}
+
 		cur_addr += 4;
 	}
 
+	cur_addr = obj.sections[obj.section_table.at(".data")].address;
+	physical = obj.sections[obj.section_table.at(".data")].load_at_physical_address;
 	for (byte data : obj.data_section) {
 		m_emu.system_bus.write_byte(cur_addr, data);
 		cur_addr++;
 	}
 
+	cur_addr = obj.sections[obj.section_table.at(".bss")].address;
+	physical = obj.sections[obj.section_table.at(".bss")].load_at_physical_address;
 	for (word i = 0; i < obj.bss_section; i++) {
 		m_emu.system_bus.write_byte(cur_addr, 0);
 		cur_addr++;
@@ -64,5 +77,5 @@ void LoadExecutable::load(word start_addr)
 	}
 
 	VirtualMemory::Exception vm_exception;
-	m_emu._pc = m_emu.mmu->map_address(obj.symbol_table.at(obj.string_table.at("_start")).symbol_value + start_addr, vm_exception);
+	m_emu._pc = m_emu.mmu->map_address(obj.symbol_table.at(obj.string_table.at("_start")).symbol_value, vm_exception);
 };

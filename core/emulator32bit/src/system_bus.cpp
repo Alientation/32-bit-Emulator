@@ -1,4 +1,4 @@
-#define AEMU_ONLY_CRITICAL_LOG
+// #define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/system_bus.h"
 
