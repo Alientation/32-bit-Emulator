@@ -1,22 +1,35 @@
 #include "emulator32bit/memory.h"
 
 #define UNUSED(x) (void)(x)
-Memory::Memory(word mem_pages, word lo_page) :
+
+
+BaseMemory::BaseMemory(word mem_pages, word lo_page) :
 	mem_pages(mem_pages),
 	lo_page(lo_page),
-	lo_addr(lo_page << PAGE_PSIZE),
+	lo_addr(lo_page << PAGE_PSIZE)
+{
+
+}
+
+BaseMemory::~BaseMemory()
+{
+
+}
+
+
+Memory::Memory(word mem_pages, word lo_page) :
+	BaseMemory(mem_pages, lo_page),
 	data(new byte[(mem_pages << PAGE_PSIZE)])
 {
 
 }
 
 Memory::Memory(Memory& other) :
-	mem_pages(other.mem_pages),
-	lo_page(other.lo_page),
-	lo_addr(lo_page << PAGE_PSIZE)
+	BaseMemory(other.mem_pages, other.lo_page),
+	data(new byte[(other.mem_pages << PAGE_PSIZE)])
 {
-	data = new byte[(mem_pages << PAGE_PSIZE)];
-	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++) {
+	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++)
+	{
 		data[i] = other.data[i];
 	}
 }
@@ -24,7 +37,9 @@ Memory::Memory(Memory& other) :
 Memory::~Memory()
 {
 	if (data)
+	{
 		delete[] data;
+	}
 }
 
 void Memory::reset()

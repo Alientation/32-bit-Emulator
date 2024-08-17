@@ -124,12 +124,15 @@ int main(int argc, char* argv[])
 
 	CLOCK_START("Parsing command arguments")
 	std::string build_command = build_palindrome;
-	if (argc > 1) {
+	if (argc > 1)
+	{
    		INFO("Parsing command arguments");
 		build_command = "";
-		for (int i = 1; i < argc; i++) {
+		for (int i = 1; i < argc; i++)
+		{
 			build_command += std::string(argv[i]);
-			if (i+1 < argc) {
+			if (i+1 < argc)
+			{
 				build_command += " ";
 			}
 		}
@@ -140,10 +143,14 @@ int main(int argc, char* argv[])
 	Process process = Process(build_command);
 	CLOCK_END
 
-	if (process.does_create_exe()) {
+	if (process.does_create_exe())
+	{
 		CLOCK_START("Loading program into emulator")
-		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 4);
-		Emulator32bit emulator(RAM(16, 0), ROM(File("..\\tests\\rom.bin", true), 1, 16), disk);
+		RAM *ram = new RAM(16, 0);
+		ROM *rom = new ROM(File("..\\tests\\rom.bin", true), 16, 16);
+		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 32, 32);
+
+		Emulator32bit emulator(ram, rom, disk);
 		emulator.system_bus.mmu.begin_process(0, 0, 4);
 		LoadExecutable loader(emulator, process.get_exe_file());
 		CLOCK_END

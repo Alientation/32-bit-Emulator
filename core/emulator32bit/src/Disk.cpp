@@ -11,7 +11,8 @@
 
 #define UNUSED(x) (void)(x)
 
-Disk::Disk(File diskfile, std::streamsize npages) :
+Disk::Disk(File diskfile, word npages, word lo_page) :
+	BaseMemory(npages, lo_page),
 	m_free_list(0, npages, false)
 {
 	this->m_diskfile = diskfile;
@@ -23,6 +24,7 @@ Disk::Disk(File diskfile, std::streamsize npages) :
 }
 
 Disk::Disk() :
+	BaseMemory(0, 0),
 	m_free_list(0, 0, false)
 {
 	// maybe this isnt the best way to create support a mocked disk
@@ -105,6 +107,8 @@ void Disk::read_disk_manager_file()
 					<< "Failed to create default free block list for disk management for "
 					<< std::to_string(m_npages) << " pages.");
 		}
+
+		DEBUG("Creating empty disk.");
 		return;
 	}
 

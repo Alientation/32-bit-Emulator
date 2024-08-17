@@ -2,9 +2,10 @@
 
 #include "emulator32bit/system_bus.h"
 
-SystemBus::SystemBus(RAM ram, ROM rom, VirtualMemory& mmu) :
+SystemBus::SystemBus(RAM& ram, ROM& rom, Disk& disk, VirtualMemory& mmu) :
 	ram(ram),
 	rom(rom),
+	disk(disk),
 	mmu(mmu)
 {
 

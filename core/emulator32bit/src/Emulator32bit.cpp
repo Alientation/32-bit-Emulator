@@ -16,9 +16,11 @@ const word Emulator32bit::ROM_MEM_START = 16;
 
 Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte rom_data[],
 		word rom_mem_psize, word rom_mem_pstart) :
+	ram(new RAM(ram_mem_psize, ram_mem_pstart)),
+	rom(new ROM(rom_data, rom_mem_psize, rom_mem_pstart)),
 	disk(new MockDisk()),
 	mmu(new VirtualMemory(ram_mem_pstart, ram_mem_pstart + ram_mem_psize, *disk)),
-	system_bus(RAM(ram_mem_psize, ram_mem_pstart), ROM(rom_data, rom_mem_psize, rom_mem_pstart), *mmu)
+	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();
 	reset();
@@ -30,10 +32,12 @@ Emulator32bit::Emulator32bit() :
 
 }
 
-Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) :
+Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
+	ram(ram),
+	rom(rom),
 	disk(disk),
-	mmu(new VirtualMemory(ram.get_lo_page(), ram.get_hi_page(), *disk)),
-	system_bus(ram, rom, *mmu)
+	mmu(new VirtualMemory(ram->get_lo_page(), ram->get_hi_page(), *disk)),
+	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();
 	reset();
@@ -42,8 +46,10 @@ Emulator32bit::Emulator32bit(RAM ram, ROM rom, Disk* disk) :
 Emulator32bit::~Emulator32bit()
 {
 	disk->save();
-	delete disk;
 	delete mmu;
+	delete ram;
+	delete rom;
+	delete disk;
 }
 
 void Emulator32bit::fill_out_instructions()

@@ -7,56 +7,18 @@
 
 #include <string>
 
-class Memory
+class BaseMemory
 {
 	public:
-		Memory(word mem_pages, word lo_page);
-		Memory(Memory& other);
-		virtual ~Memory();
+		BaseMemory(word mem_pages, word lo_page);
+		virtual ~BaseMemory();
 
-		// FOR SEG FAULTS, WE CAN USE SIGNAL HANDLERS TO CATCH AND HANDLE THEM IN THE KERNEL, WITHOUT
-		// HAVING AN EXPENSIVE CONDITIONAL CHECK EVERYTIME MEMORY IS ACCESSED
-		virtual inline byte read_byte(word address)
-		{
-			return data[address - (lo_page << PAGE_PSIZE)];
-		}
-
-		virtual inline hword read_hword(word address)
-		{
-			address -= lo_addr;
-			return ((hword*)(data + (address & 1)))[address >> 1];
-		}
-
-		virtual inline word read_word(word address)
-		{
-			address -= lo_addr;
-			return ((word*)(data + (address & 0b11)))[address >> 2];
-		}
-
-		virtual inline word read_word_aligned(word address)
-		{
-			return ((word*) data)[(address - lo_addr) >> 2];
-		}
-
-		virtual inline void write_byte(word address, byte value)
-		{
-			data[address - (lo_page << PAGE_PSIZE)] = value;
-		}
-
-		virtual inline void write_hword(word address, hword value)
-		{
-			address -= lo_addr;
-			((hword*)(data + (address & 1)))[address >> 1] = value;
-		}
-
-		virtual inline void write_word(word address, word value)
-		{
-			address -= lo_addr;
-			((word*)(data + (address & 0b11)))[address >> 2] = value;
-		}
-
-
-		void reset();
+		virtual inline byte read_byte(word address) = 0;
+		virtual inline hword read_hword(word address) = 0;
+		virtual inline word read_word(word address) = 0;
+		virtual inline void write_byte(word address, byte value) = 0;
+		virtual inline void write_hword(word address, hword value) = 0;
+		virtual inline void write_word(word address, word value) = 0;
 
 		inline word get_mem_pages()
 		{
@@ -82,6 +44,60 @@ class Memory
 		word mem_pages;
 		word lo_page;
 		word lo_addr;
+};
+
+class Memory : public BaseMemory
+{
+	public:
+		Memory(word mem_pages, word lo_page);
+		Memory(Memory& other);
+		virtual ~Memory();
+
+		// FOR SEG FAULTS, WE CAN USE SIGNAL HANDLERS TO CATCH AND HANDLE THEM IN THE KERNEL, WITHOUT
+		// HAVING AN EXPENSIVE CONDITIONAL CHECK EVERYTIME MEMORY IS ACCESSED
+		inline byte read_byte(word address) override
+		{
+			return data[address - (lo_page << PAGE_PSIZE)];
+		}
+
+		inline hword read_hword(word address)
+		{
+			address -= lo_addr;
+			return ((hword*)(data + (address & 1)))[address >> 1];
+		}
+
+		inline word read_word(word address)
+		{
+			address -= lo_addr;
+			return ((word*)(data + (address & 0b11)))[address >> 2];
+		}
+
+		virtual inline word read_word_aligned(word address)
+		{
+			return ((word*) data)[(address - lo_addr) >> 2];
+		}
+
+		inline void write_byte(word address, byte value)
+		{
+			data[address - (lo_page << PAGE_PSIZE)] = value;
+		}
+
+		inline void write_hword(word address, hword value)
+		{
+			address -= lo_addr;
+			((hword*)(data + (address & 1)))[address >> 1] = value;
+		}
+
+		inline void write_word(word address, word value)
+		{
+			address -= lo_addr;
+			((word*)(data + (address & 0b11)))[address >> 2] = value;
+		}
+
+
+		void reset();
+
+	protected:
 		byte* data;
 };
 
@@ -107,6 +123,8 @@ class ROM : public Memory
 				ROM_Exception(std::string msg);
 				const char* what() const noexcept override;
 		};
+
+		/* todo, prevent writes, have special way to flash memory */
 
 
 	private:

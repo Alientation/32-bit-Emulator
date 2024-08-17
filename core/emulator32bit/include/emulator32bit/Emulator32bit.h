@@ -58,7 +58,7 @@ class Emulator32bit
 	public:
 		Emulator32bit();
 		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);
-		Emulator32bit(RAM ram, ROM rom, Disk* disk);
+		Emulator32bit(RAM *ram, ROM *rom, Disk *disk);
 		~Emulator32bit();
 		void print();
 
@@ -97,8 +97,10 @@ class Emulator32bit
 		static const word ROM_MEM_START;				/*! Default 32 bit start address of ROM memory */
 		static const byte ROM_DATA[];					/*! Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
 
-		Disk* disk;
-		VirtualMemory* mmu;
+		RAM *ram;
+		ROM *rom;
+		Disk *disk;
+		VirtualMemory *mmu;
 		SystemBus system_bus;							/*!  */
 
 		/**

@@ -3,6 +3,7 @@
 #define DISK_H
 
 #include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/memory.h"
 #include "emulator32bit/fbl.h"
 #include "util/file.h"
 
@@ -40,7 +41,7 @@
  * @todo 			TODO: Allow allocating multiple pages at times. Also add helper to check if the
  * 					disk can allocate such an amount.
  */
-class Disk
+class Disk : public BaseMemory
 {
 	public:
 		/**
@@ -49,7 +50,7 @@ class Disk
 		 * @param diskfile 	the file the disk memory is saved in.
 		 * @param npages 	the number of pages the disk should have.
 		 */
-		Disk(File diskfile, std::streamsize npages = 4096);
+		Disk(File diskfile, word npages, word lo_page);
 		Disk();
 		virtual ~Disk();
 
@@ -150,7 +151,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Byte located at the address in disk.
 		 */
-		virtual byte read_byte(word address);
+		byte read_byte(word address) override;
 
 		/**
 		 * @brief 			Reads a half word (2 bytes) from disk.
@@ -160,7 +161,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Half word located at the address in disk in little endian format.
 		 */
-		virtual hword read_hword(word address);
+		hword read_hword(word address) override;
 
 		/**
 		 * @brief 			Reads a word (4 bytes) from disk.
@@ -170,7 +171,7 @@ class Disk
 		 * 					occur.
 		 * @return 			Word located at the address in disk in little endian format.
 		 */
-		virtual word read_word(word address);
+		word read_word(word address) override;
 
 		/**
 		 * @brief 			Write a page to disk.
@@ -192,7 +193,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_byte(word address, byte data);
+		void write_byte(word address, byte data) override;
 
 		/**
 		 * @brief 			Writes a half word (2 bytes) to disk in little endian format.
@@ -202,7 +203,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_hword(word address, hword data);
+		void write_hword(word address, hword data) override;
 
 		/**
 		 * @brief 			Writes a word (4 bytes) to disk in little endian format.
@@ -212,7 +213,7 @@ class Disk
 		 * @param exception WriteException if the write fails. TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void write_word(word address, word data);
+		void write_word(word address, word data) override;
 
 		/**
 		 * @brief 			Saves the simulated disk to file.

@@ -3,6 +3,7 @@
 #define SYSTEM_BUS_H
 
 #include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/disk.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
 #include "util/loggerv2.h"
@@ -11,11 +12,12 @@
 class SystemBus
 {
 	public:
-		SystemBus(RAM ram, ROM rom, VirtualMemory& mmu);
+		SystemBus(RAM& ram, ROM& rom, Disk& disk, VirtualMemory& mmu);
 
 		/* expose for now */
-		RAM ram;
-		ROM rom;
+		RAM& ram;
+		ROM& rom;
+		Disk& disk;
 		VirtualMemory& mmu;
 
 		class SystemBusException : public std::exception
@@ -37,7 +39,7 @@ class SystemBus
 				val <<= 8;
 				word real_adr = address;
 				real_adr = map_address(address + n_bytes - i - 1);
-				Memory *target = route_memory(real_adr);
+				BaseMemory *target = route_memory(real_adr);
 				val += target->read_byte(real_adr);
 			}
 			return val;
@@ -162,7 +164,7 @@ class SystemBus
 			{
 				word real_adr = address;
 				real_adr = map_address(address + i);
-				Memory *target = route_memory(real_adr);
+				BaseMemory *target = route_memory(real_adr);
 				target->write_byte(real_adr, val & 0xFF);
 				val >>= 8;
 			}
@@ -189,7 +191,7 @@ class SystemBus
 
 				// EXPECTS page to be part of single memory target
 				word p_addr = exception.ppage_return << PAGE_PSIZE;
-				Memory *target = route_memory(p_addr);
+				BaseMemory *target = route_memory(p_addr);
 
 				for (word i = 0; i < PAGE_SIZE; i++)
 				{
@@ -209,7 +211,7 @@ class SystemBus
 				word paddr = exception.ppage_fetch << PAGE_PSIZE;
 
 				// EXPECTS page to be part of single memory target
-				Memory *target = route_memory(paddr);
+				BaseMemory *target = route_memory(paddr);
 
 				for (word i = 0; i < PAGE_SIZE; i++)
 				{
@@ -223,27 +225,22 @@ class SystemBus
 			return addr;
 		}
 
-		// todo, instead of verifying that no addresses conflict here, check in the constructor of
-		// the system bus
-		inline Memory* route_memory(const word address)
+		inline BaseMemory* route_memory(const word address)
 		{
-			// for (size_t i = 0; i < mems.size(); i++)
-			// {
-			// 	if (!mems[i]->in_bounds(address))
-			// 	{
-			// 		continue;
-			// 	}
-
-			// 	return mems[i];
-			// }
-
-			// throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
-
-			if (ram.in_bounds(address)) {
+			if (ram.in_bounds(address))
+			{
 				return &ram;
-			} else if (rom.in_bounds(address)) {
+			}
+			else if (rom.in_bounds(address))
+			{
 				return &rom;
-			} else {
+			}
+			else if (disk.in_bounds(address))
+			{
+				return &disk;
+			}
+			else
+			{
 				throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
 			}
 		}
