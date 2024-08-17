@@ -1,0 +1,15 @@
+.global _start
+
+.text
+_start:
+		add	x0, xzr, #$FFF		; number of iterations
+		lsl	x0, x0, #12
+
+_loop_start:
+		cmp 	x0, #0
+		b.le 	_loop_end
+		sub	x0, x0, #1
+		b 	_loop_start
+
+_loop_end:
+		hlt
