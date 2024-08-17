@@ -34,18 +34,24 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
 &mdash; loads a `.bexe` file into the emulator memory *for now, stores programs at the beginning of memory*
 
 ## Progress
-* Sep '23 - May '24
+* **(V1 Iteration)** Sep '23 - May '24
   * First iteration of this project (**6502 emulator** and attempted assembler)
   * Ultimately transitioned project to focus on an ARM-like emulator
-* June '24 - July '24
-  * Near MVP, with most functionality operational
-* July '24 - Present
+* **(V2 Iteration)** June '24 - July '24
+  * Near MVP for the 32 bit emulator, with most functionality operational
+  * Capable of running example/test programs
+  * Ironed out bugs with emulator
+  * Rudimentary unit tests (partial code coverage)
+* **(Optimizations and New Features)** July '24 - August '24
   * Added Disk memory with cache system
   * Added virtual memory - simulated in c++ but planning on porting over to a program ran on the emulator
   * Redesigned new logging system to be more compact and versatile
   * Added simple profiler to assist with optimizing
   * Began documentation process and cleaning up the codebase
   * Optimized emulator achieving a 32x speed up without virtual memory
+* **(Kernel Building Blocks)** August '24 - Present
+  * Added simple linker script, planning on expanding capabilities of it (especially once custom defined sections are added to the assembler)
+  * Disk memory is now accessed the same way as ram and rom are accessed (to support memory mapped i/o)
 
 ## Future Goals
 * ~~forward arguments passed into the executable to the assembler build process so that recompilation of the project is not necessary
