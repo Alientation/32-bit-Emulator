@@ -88,7 +88,7 @@ Run the `build.bat` or `build.sh` script located in the app subdirectory which w
 To build a specific program, pass a build argument to the executable\
 Note, currently the build process argument parser is extremely rudimentary so options that take an argument must have a space in between\
 \
-*Example:* `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`
+*Windows Example:* `-I .\programs\include -o .\programs\build\palindrome .\programs\src\palindrome.basm -outdir .\programs\build`
 #### Some useful options
 * -o <path>: output file path relative to the *app* subdirectory (output file is an executable `.bexe` unless otherwise specified)
 * -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
