@@ -1,4 +1,4 @@
-// #define AEMU_ONLY_CRITICAL_LOG
+#define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"

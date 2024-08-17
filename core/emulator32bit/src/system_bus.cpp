@@ -1,4 +1,4 @@
-// #define AEMU_ONLY_CRITICAL_LOG
+#define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/system_bus.h"
 
@@ -7,9 +7,7 @@ SystemBus::SystemBus(RAM ram, ROM rom, VirtualMemory& mmu) :
 	rom(rom),
 	mmu(mmu)
 {
-	// Constructor
-	mems.push_back(&this->ram);
-	mems.push_back(&this->rom);
+
 }
 
 SystemBus::SystemBusException::SystemBusException(const std::string& msg) :
@@ -25,8 +23,6 @@ const char* SystemBus::SystemBusException::what() const noexcept
 
 void SystemBus::reset()
 {
-	for (Memory *mem : mems)
-	{
-		mem->reset();
-	}
+	ram.reset();
+	rom.reset(); 	// Do we really want to reset rom??
 }

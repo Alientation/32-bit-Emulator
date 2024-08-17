@@ -171,8 +171,6 @@ class SystemBus
 		void reset();
 
 	private:
-		std::vector<Memory*> mems;
-
 		inline word map_address(word address)
 		{
 			VirtualMemory::Exception exception;
@@ -229,17 +227,25 @@ class SystemBus
 		// the system bus
 		inline Memory* route_memory(const word address)
 		{
-			for (size_t i = 0; i < mems.size(); i++)
-			{
-				if (!mems[i]->in_bounds(address))
-				{
-					continue;
-				}
+			// for (size_t i = 0; i < mems.size(); i++)
+			// {
+			// 	if (!mems[i]->in_bounds(address))
+			// 	{
+			// 		continue;
+			// 	}
 
-				return mems[i];
+			// 	return mems[i];
+			// }
+
+			// throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
+
+			if (ram.in_bounds(address)) {
+				return &ram;
+			} else if (rom.in_bounds(address)) {
+				return &rom;
+			} else {
+				throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
 			}
-
-			throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
 		}
 };
 
