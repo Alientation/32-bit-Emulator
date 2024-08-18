@@ -65,6 +65,8 @@ class FreeBlockList
 		 */
 		word get_free_block(word length, Exception& exception);
 
+		void remove_block(word addr, word length, Exception& exception);
+
 		/**
 		 * @brief			Returns a block back to the list.
 		 *

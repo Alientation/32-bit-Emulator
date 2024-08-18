@@ -45,6 +45,18 @@ class SystemBus
 			return val;
 		}
 
+		inline void ensure_unmapped_mapping(word address)
+		{
+			VirtualMemory::Exception exception;
+			word ppage = address >> PAGE_PSIZE;
+			mmu.ensure_physical_page_mapping(ppage, ppage, exception);
+
+			if (exception.type != VirtualMemory::Exception::Type::AOK)
+			{
+				handle_mmu_exception(exception);
+			}
+		}
+
 		/**
 		 * Read a byte from the system bus
 		 *
@@ -59,6 +71,7 @@ class SystemBus
 
 		inline byte read_unmapped_byte(word address)
 		{
+			ensure_unmapped_mapping(address);
 			return route_memory(address)->read_byte(address);
 		}
 
@@ -75,6 +88,7 @@ class SystemBus
 
 		inline hword read_unmapped_hword(word address)
 		{
+			ensure_unmapped_mapping(address);
 			return route_memory(address)->read_word(address);
 		}
 
@@ -91,6 +105,7 @@ class SystemBus
 
 		inline word read_unmapped_word(word address)
 		{
+			ensure_unmapped_mapping(address);
 			return route_memory(address)->read_word(address);
 		}
 
@@ -119,6 +134,7 @@ class SystemBus
 
 		inline void write_unmapped_byte(word address, byte data)
 		{
+			ensure_unmapped_mapping(address);
 			route_memory(address)->write_byte(address, data);
 		}
 
@@ -137,6 +153,7 @@ class SystemBus
 
 		inline void write_unmapped_hword(word address, hword data)
 		{
+			ensure_unmapped_mapping(address);
 			route_memory(address)->write_hword(address, data);
 		}
 
@@ -155,6 +172,7 @@ class SystemBus
 
 		inline void write_unmapped_word(word address, word data)
 		{
+			ensure_unmapped_mapping(address);
 			route_memory(address)->write_word(address, data);
 		}
 
@@ -173,16 +191,8 @@ class SystemBus
 		void reset();
 
 	private:
-		inline word map_address(word address)
+		inline void handle_mmu_exception(VirtualMemory::Exception& exception)
 		{
-			VirtualMemory::Exception exception;
-			word addr = mmu.map_address(address, exception);
-
-			if (exception.type == VirtualMemory::Exception::Type::AOK)
-			{
-				return addr;
-			}
-
 			if (exception.type == VirtualMemory::Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
 			{
 				exception.type = VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS; /* so the next conditional can handle */
@@ -220,6 +230,17 @@ class SystemBus
 
 				DEBUG_SS(std::stringstream() << "Reading physical page "
 						<< std::to_string(exception.ppage_fetch) << " from disk");
+			}
+		}
+
+		inline word map_address(word address)
+		{
+			VirtualMemory::Exception exception;
+			word addr = mmu.map_address(address, exception);
+
+			if (exception.type != VirtualMemory::Exception::Type::AOK)
+			{
+				handle_mmu_exception(exception);
 			}
 
 			return addr;

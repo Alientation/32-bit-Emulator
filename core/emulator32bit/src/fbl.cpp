@@ -57,6 +57,38 @@ word FreeBlockList::get_free_block(word length, Exception& exception)
 	return addr;
 }
 
+void FreeBlockList::remove_block(word addr, word length, Exception& exception)
+{
+	FreeBlock* cur = m_head;
+	while (cur->addr + cur->len <= addr)
+	{
+		cur = cur->next;
+	}
+
+	if (cur->addr > addr || cur->addr + cur->len < addr + length)
+	{
+		exception.type = Exception::Type::INVALID_ADDR;
+		exception.addr = addr;
+		exception.length = length;
+		return;
+	}
+
+	word remaining_before = addr - cur->addr;
+	word remaining_after = cur->addr + cur->len - (addr + length);
+
+	remove(cur);
+
+	if (remaining_before > 0)
+	{
+		return_block(addr, remaining_before, exception);
+	}
+
+	if (remaining_after > 0)
+	{
+		return_block(addr + length, remaining_after, exception);
+	}
+}
+
 FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length)
 {
 	if (!m_head || addr < m_head->addr) {

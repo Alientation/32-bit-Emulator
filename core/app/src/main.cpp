@@ -52,11 +52,11 @@ exception state.
 	- Disk is implemented as a file stored on the host computer that represents disk memory
 	- Ports will be memory mapped that will be accessed through syscalls to the kernel
 
-Change disk to extend Memory, add it to system bus
-This means we will have to make the Memory methods virtual, which means to allow the compiler to inline those functions,
-we need to access these functions with object itself and not a reference/pointer to it. This means our current
-way of storing all memory in a list and iterating the list to find a match won't work. We will have to settle for
-hardcoded conditional checks.
+// Change disk to extend Memory, add it to system bus
+// This means we will have to make the Memory methods virtual, which means to allow the compiler to inline those functions,
+// we need to access these functions with object itself and not a reference/pointer to it. This means our current
+// way of storing all memory in a list and iterating the list to find a match won't work. We will have to settle for
+// hardcoded conditional checks.
 Change virtual memory to not automatically map more virtual memory pages to physical pages when they are accessed. This should instead through a segfault
 exception in the emulator.
 We instead will have to manually request the virtual memory to map a specfic set of virtual memory pages to a *type* of memory (by suppling the memory object?)
@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
 		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 32, 32);
 
 		Emulator32bit emulator(ram, rom, disk);
-		emulator.system_bus.mmu.begin_process(0, 0, 4);
+		emulator.system_bus.mmu.begin_process(0, 0, 0);
 		LoadExecutable loader(emulator, process.get_exe_file());
 		CLOCK_END
 

@@ -44,6 +44,7 @@ void LoadExecutable::load()
 	// text -> data -> bss
 	word cur_addr = obj.sections[obj.section_table.at(".text")].address;
 	bool physical = obj.sections[obj.section_table.at(".text")].load_at_physical_address;
+
 	for (word instr : obj.text_section) {
 		if (!physical)
 		{
@@ -60,14 +61,28 @@ void LoadExecutable::load()
 	cur_addr = obj.sections[obj.section_table.at(".data")].address;
 	physical = obj.sections[obj.section_table.at(".data")].load_at_physical_address;
 	for (byte data : obj.data_section) {
-		m_emu.system_bus.write_byte(cur_addr, data);
+		if (!physical)
+		{
+			m_emu.system_bus.write_byte(cur_addr, data);
+		}
+		else
+		{
+			m_emu.system_bus.write_unmapped_byte(cur_addr, data);
+		}
 		cur_addr++;
 	}
 
 	cur_addr = obj.sections[obj.section_table.at(".bss")].address;
 	physical = obj.sections[obj.section_table.at(".bss")].load_at_physical_address;
 	for (word i = 0; i < obj.bss_section; i++) {
-		m_emu.system_bus.write_byte(cur_addr, 0);
+		if (!physical)
+		{
+			m_emu.system_bus.write_byte(cur_addr, 0);
+		}
+		else
+		{
+			m_emu.system_bus.write_unmapped_byte(cur_addr, 0);
+		}
 		cur_addr++;
 	}
 
@@ -77,5 +92,8 @@ void LoadExecutable::load()
 	}
 
 	VirtualMemory::Exception vm_exception;
-	m_emu._pc = m_emu.mmu->map_address(obj.symbol_table.at(obj.string_table.at("_start")).symbol_value, vm_exception);
+	word entry_point = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value;
+	m_emu._pc = m_emu.mmu->map_address(entry_point, vm_exception);
+
+	INFO("Starting emulator at entry point _start at virtual address %x mapped to physical address %x", entry_point, m_emu._pc);
 };

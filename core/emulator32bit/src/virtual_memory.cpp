@@ -22,6 +22,28 @@ VirtualMemory::~VirtualMemory()
 	}
 }
 
+VirtualMemory::VirtualMemoryException::VirtualMemoryException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* VirtualMemory::VirtualMemoryException::what() const noexcept
+{
+	return message.c_str();
+}
+
+VirtualMemory::PageTableEntry::PageTableEntry(word vpage, word diskpage) :
+	vpages(std::vector<word>()),
+	ppage(0),
+	disk(true),
+	diskpage(diskpage),
+	mapped(false),
+	mapped_ppage(0)
+{
+	vpages.push_back(vpage);
+}
+
 void VirtualMemory::set_process(long long pid)
 {
 	if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
@@ -58,14 +80,7 @@ void VirtualMemory::add_vpage(word vpage)
 		return;
 	}
 
-	m_cur_ptable->entries.insert(std::make_pair(vpage, new (PageTableEntry)
-	{
-		.vpage = vpage,
-		.ppage = (word) -1,
-		.dirty = false,
-		.disk = true,
-		.diskpage = m_disk.get_free_page(exception),
-	}));
+	m_cur_ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page(exception))));
 
 	if (exception.type != FreeBlockList::Exception::Type::AOK)
 	{
@@ -77,7 +92,7 @@ void VirtualMemory::add_vpage(word vpage)
 }
 
 // FORCIBLY MAP A VIRTUAL PAGE TO A SPECIFIC PAGE, EVICTING WHATEVER WAS THERE PREVIOUSLY
-void VirtualMemory::map_ppage(word ppage, Exception& exception)
+void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
 {
 	if (m_cur_ptable == nullptr)
 	{
@@ -85,43 +100,31 @@ void VirtualMemory::map_ppage(word ppage, Exception& exception)
 		return;
 	}
 
-	// For now, just loop to find a free virtual page to map to this specific physical page.
-	// In future, use a free block list instead. (there would have to be a unique FBL for each
-	// process though)
-	word vpage = 0;
-	while (m_cur_ptable->entries.find(vpage) != m_cur_ptable->entries.end())
+	if (m_cur_ptable->entries.find(vpage) != m_cur_ptable->entries.end())
 	{
-		if (vpage == ~(word) 0)
-		{
-			ERROR("Cannot map physical page since there are no free virtual pages.");
-		}
-
-		vpage++;
+		ERROR_SS(std::stringstream() << "Cannot map physical page " << std::to_string(ppage)
+				<< " to virtual page" << std::to_string(vpage));
 	}
 
-	FreeBlockList::Exception fbl_exception;
-	PageTableEntry *entry = new (PageTableEntry)
-	{
-		.vpage = vpage,
-		.ppage = (word) -1,
-		.dirty = false,
-		.disk = true,
-		.diskpage = m_disk.get_free_page(fbl_exception),
-	};
+	add_vpage(vpage);
 
-	m_cur_ptable->entries.insert(std::make_pair(vpage, entry));
-
-	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR("Failed to get free page from disk.");
-	}
-
-	if (m_physical_memory_map.find(ppage) != m_physical_memory_map.end())
+	if (is_ppage_used(ppage))
 	{
 		evict_ppage(ppage, exception);
 	}
 
+	FreeBlockList::Exception fbl_exception;
+	m_freelist.remove_block(ppage, 1, fbl_exception);
+
+	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
+	{
+		ERROR_SS(std::stringstream() << "Could not remove ppage " << std::to_string(ppage)
+				<< " from free list.");
+	}
+
 	map_vpage_to_ppage(vpage, ppage, exception);
+
+	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
 	entry->mapped = true;
 	entry->mapped_ppage = ppage;
 }
@@ -193,12 +196,23 @@ void VirtualMemory::check_vm()
 		{
 			DEBUG_SS(std::stringstream() << "Checking page entry at vpage "
 					<< std::to_string(entry.first));
-			EXPECT_TRUE(entry.first == entry.second->vpage, "Expected virtual memory to match");
+
+			word found = false;
+			for (word vpage : entry.second->vpages)
+			{
+				if (vpage == entry.first)
+				{
+					found = true;
+					break;
+				}
+			}
+
+			EXPECT_TRUE(found, "Expected virtual memory to match");
 
 			if (!entry.second->disk)
 			{
 				EXPECT_TRUE(m_physical_memory_map.at(entry.second->ppage) == entry.second,
-						"Expected page entry to match");
+						"Expected page entry to match.");
 			}
 		}
 	}
@@ -212,21 +226,23 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 			<< " to disk");
 
 	/*
-		* NOTE: this location will be overwritten below since we return the
-		* block to the free list, and then request a free block immediately
-		*/
+	 * NOTE: this location will be overwritten below since we return the
+	 * block to the free list, and then request a free block immediately
+	 */
 	PageTableEntry* removed_entry = m_physical_memory_map.at(ppage);
 
 	removed_entry->disk = true;
 	removed_entry->diskpage = m_disk.get_free_page(fbl_exception);
 
-	word tlb_addr = removed_entry->vpage & (TLB_SIZE-1);
-	TLB_Entry& tlb_entry = tlb[tlb_addr];
-	if (tlb_entry.valid && tlb_entry.pid == m_cur_ptable->pid && tlb_entry.vpage == removed_entry->vpage)
+	for (word vpage : removed_entry->vpages)
 	{
-		tlb_entry.valid = false;
+		word tlb_addr = vpage & (TLB_SIZE-1);
+		TLB_Entry& tlb_entry = tlb[tlb_addr];
+		if (tlb_entry.valid && tlb_entry.ppage == ppage && tlb_entry.vpage == vpage)
+		{
+			tlb_entry.valid = false;
+		}
 	}
-
 
 	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
 	{
@@ -293,9 +309,12 @@ void VirtualMemory::begin_process(long long pid, word alloc_mem_begin, word allo
 	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
 	m_cur_ptable = new_pagetable;
 
-	for (; page_begin <= page_end; page_begin++)
+	if (alloc_mem_begin != alloc_mem_end)
 	{
-		add_vpage(page_begin);
+		for (; page_begin <= page_end; page_begin++)
+		{
+			add_vpage(page_begin);
+		}
 	}
 
 	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(m_cur_ptable->pid));

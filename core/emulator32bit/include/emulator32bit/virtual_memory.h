@@ -13,9 +13,9 @@
 
 /*
 IDEA
-instead of using unordered maps, use just a massive array instead.. might take more memory, but who cares
-for now, lets have a TLB instead, to have fast access on average to pages instead of having to go to the unordered maps
-
+instead of using unordered maps, use just a massive array instead.. might take more memory,
+but who cares for now, lets have a TLB instead, to have fast access on average to pages
+instead of having to go to the unordered maps
 
 */
 
@@ -29,22 +29,88 @@ class VirtualMemory
 		virtual ~VirtualMemory();
 
 		Disk& m_disk;
-		bool enabled = false;
+		bool enabled = true;				/* Whether addresses should be mapped. */
 
+		class VirtualMemoryException : public std::exception
+		{
+			private:
+				std::string message;
+
+			public:
+				VirtualMemoryException(const std::string& msg);
+
+				const char* what() const noexcept override;
+		};
+
+		/**
+		 * @brief 			Represents recoverable exception states that should be handled by the caller.
+		 *
+		 * @note 			INVALID_ADDRESS and DISK_FETCH_FAILED should be instead through as a c++ exception.
+		 * 					These should not be recovered from and the running user program should exit
+		 * 					(or the kernel should just crash???).
+		 */
 		struct Exception {
-			enum class Type {							// todo  VVVV VERY UGLY AND BAD, FIX
+			enum class Type {
 				AOK, INVALID_ADDRESS, DISK_FETCH_SUCCESS, DISK_RETURN_AND_FETCH_SUCCESS, DISK_FETCH_FAILED,
-			} type = Type::AOK;
-			word address = 0;
-			std::vector<byte> disk_fetch;
-			word ppage_fetch;
-			word ppage_return;
-			word disk_page_return;
-		}; // todo, maybe exceptions should be unions instead?? since different exceptions have different values to store
+			};
 
+			Type type = Type::AOK;
+			word address = 0;						/* Address accessed */
+
+			/*
+			 * Result of the fetched disk if DISK_FETCH_SUCCESS or DISK_RETURN_AND_FETCH_SUCCESS
+			 * to be written to memory at the physical ppage_fetch.
+			 *
+			 * Note: perhaps instead of supplying the disk data, just give the disk page to read
+			 * and write to the specified physical memory page.
+			*/
+			std::vector<byte> disk_fetch;
+			word ppage_fetch;						/* physical page to write the disk fetch results to. */
+			word ppage_return;						/* physical page to read from and write to disk at disk_page_return. */
+			word disk_page_return;					/* disk page to write the read physical page to. */
+		};
+
+		/**
+		 * @brief 			Sets the current proccess to change the virtual space mappings.
+		 *
+		 * @param pid 		Process id.
+		 */
 		void set_process(long long pid);
+
+		/**
+		 * @brief 			Starts a new processes with the specified virtual memory allocated
+		 * @note			Change the specified virtual memory space range to be in terms of pages.
+		 * @note			Should not have the kernel supply a process id. Instead find a new pid
+		 * 					and return it to the kernel.
+		 *
+		 * @param pid		Process id.
+		 * @param alloc_mem_begin Start virtual address in bytes.
+		 * @param alloc_mem_end End virtual address in bytes.
+		 */
 		void begin_process(long long pid, word alloc_mem_begin = 0, word alloc_mem_end = PAGE_SIZE-1);
+
+		/**
+		 * @brief 			Ends a specified process.
+		 *
+		 * @param pid		Process id.
+		 */
 		void end_process(long long pid);
+
+		/*
+		idea
+
+		allow multiple virtual addresses to map to a specific physical address
+		we want to be able to map virtual addresses to ram, rom, disk, i/o, ports, etc (memory mapped)
+			-> The physical address space needs to encompass all memory addresses, not just ram..
+		Throw a segfault whenever a virtual address page is accessed but not mapped
+		Manually map new virtual address pages to a specific range of addresses (possibly supplied with the memory object reference)
+			-> this will map a specific virtual address page to an unused physical page. would also mean we need to be able to evict pages
+			-> FBL's need to be updated to support this if it doesn't yet
+		Manually map a specific virtual address page to a specific physical page
+			-> this won't require a unique virtual address page mapping to physical page, multiple other virtual address pages can map to the same phyiscal page
+			-> to prevent this from breaking evictions, should we just update the PageTableEntry to support multiple vpages
+		*/
+
 
 		inline word map_address(word address, Exception& exception)
 		{
@@ -63,15 +129,42 @@ class VirtualMemory
 			return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
 		}
 
+		inline void ensure_physical_page_mapping(word vpage, word ppage, Exception& exception)
+		{
+			if (m_cur_ptable == nullptr || !enabled)
+			{
+				return;
+			}
+
+			if (m_cur_ptable->entries.find(vpage) != m_cur_ptable->entries.end())
+			{
+				if (m_cur_ptable->entries.at(vpage)->ppage == ppage)
+				{
+					return;
+				}
+
+				ERROR_SS(std::stringstream() << "Virtual page " << std::to_string(vpage)
+						<< " is already mapped to a different physical page "
+						<< std::to_string(m_cur_ptable->entries.at(vpage)->ppage));
+			}
+
+			DEBUG_SS(std::stringstream() << "Mapping physical page " << std::to_string(ppage)
+					<< " to virtual page " << std::to_string(vpage) << ".");
+
+			map_ppage(vpage, ppage, exception);
+		}
+
+
 	private:
 		struct PageTableEntry {
-			word vpage = 0;
-			word ppage = 0;
-			bool dirty = false;		// todo, unused, not sure if it is necessary (maybe instead don't free up disk space unless we need to)
-			bool disk = true;
-			word diskpage = 0;
-			bool mapped = false;
-			word mapped_ppage = 0;
+			PageTableEntry(word vpage, word diskpage);
+
+			std::vector<word> vpages;
+			word ppage;
+			bool disk;
+			word diskpage;
+			bool mapped;
+			word mapped_ppage;
 		};
 
 		struct PageTable {
@@ -118,7 +211,7 @@ class VirtualMemory
 		void map_vpage_to_ppage(word vpage, word ppage, Exception& exception);
 
 		void add_vpage(word vpage);
-		void map_ppage(word ppage, Exception& exception);
+		void map_ppage(word vpage, word ppage, Exception& exception);
 		void remove_vpage(long long pid, word vpage);
 
 		inline word access_vpage(word vpage, Exception& exception)
@@ -167,7 +260,8 @@ class VirtualMemory
 				}
 
 				map_vpage_to_ppage(vpage, entry->mapped_ppage, exception);
-			} else
+			}
+			else
 			{
 				if (!m_freelist.can_fit(1))
 				{
@@ -183,7 +277,7 @@ class VirtualMemory
 				map_vpage_to_ppage(vpage, ppage, exception);
 			}
 
-			DEBUG_SS(std::stringstream() << "accessing virtual page " << std::to_string(entry->vpage)
+			DEBUG_SS(std::stringstream() << "accessing virtual page " << std::to_string(vpage)
 					<< " (maps to " << std::to_string(entry->ppage) << ")" << " of process "
 					<< std::to_string(m_cur_ptable->pid));
 
