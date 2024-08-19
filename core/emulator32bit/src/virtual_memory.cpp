@@ -6,6 +6,7 @@ VirtualMemory::VirtualMemory(word ram_start_page, word ram_end_page, Disk& disk)
 	m_disk(disk),
 	m_ram_start_page(ram_start_page),
 	m_ram_end_page(ram_end_page),
+	m_freepids(0, MAX_PROCESSES),
 	m_freelist(ram_start_page, ram_end_page - ram_start_page + 1)
 {
 
@@ -64,8 +65,6 @@ bool VirtualMemory::is_ppage_used(word ppage)
 
 void VirtualMemory::add_vpage(word vpage)
 {
-	FreeBlockList::Exception exception;
-
 	if (m_cur_ptable == nullptr)
 	{
 		ERROR("Cannot add page because there is no currently running process.");
@@ -80,12 +79,7 @@ void VirtualMemory::add_vpage(word vpage)
 		return;
 	}
 
-	m_cur_ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page(exception))));
-
-	if (exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR("Failed to get free page from disk.");
-	}
+	m_cur_ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page())));
 
 	DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
 			<< " to process " << std::to_string(m_cur_ptable->pid));
@@ -113,15 +107,7 @@ void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
 		evict_ppage(ppage, exception);
 	}
 
-	FreeBlockList::Exception fbl_exception;
-	m_freelist.remove_block(ppage, 1, fbl_exception);
-
-	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR_SS(std::stringstream() << "Could not remove ppage " << std::to_string(ppage)
-				<< " from free list.");
-	}
-
+	m_freelist.remove_block(ppage, 1);
 	map_vpage_to_ppage(vpage, ppage, exception);
 
 	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
@@ -129,8 +115,6 @@ void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
 	entry->mapped_ppage = ppage;
 }
 
-// WARNING, THIS WILL NOT REMOVE THE ENTRY FROM THE PROCESS TABLE->ENTRIES MAPPING SINCE THIS
-// FOR NOW IS ONLY EVER CALLED WHEN A PROCESS ENDS
 void VirtualMemory::remove_vpage(long long pid, word vpage)
 {
 	PageTable* ptable = m_process_ptable_map.at(pid);
@@ -143,17 +127,11 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 	}
 
 	PageTableEntry *entry = ptable->entries.at(vpage);
+	ptable->entries.erase(vpage);
+
 	if (entry->disk)
 	{
-		FreeBlockList::Exception exception;
-		m_disk.return_page(entry->diskpage, exception);
-
-		if (exception.type != FreeBlockList::Exception::Type::AOK)
-		{
-			WARN_SS(std::stringstream() << "Failed to return virtual page " << std::to_string(vpage)
-					<< " at disk page " << std::to_string(entry->diskpage) << ".");
-			return;
-		}
+		m_disk.return_page(entry->diskpage);
 
 		DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(entry->diskpage)
 				<< " corresponding to virtual page " << std::to_string(vpage));
@@ -163,14 +141,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 		m_physical_memory_map.erase(entry->ppage);
 
 		/* add back to free list */
-		FreeBlockList::Exception exception;
-		m_freelist.return_block(entry->ppage, 1, exception);
-
-		if (exception.type != FreeBlockList::Exception::Type::AOK)
-		{
-			ERROR_SS(std::stringstream() << "Failed to return physical page "
-					<< std::to_string(entry->ppage) << " to free list.");
-		}
+		m_freelist.return_block(entry->ppage, 1);
 
 		DEBUG_SS(std::stringstream() << "Returning physical page " << std::to_string(entry->ppage)
 				<< " corresponding to virtual page " << std::to_string(vpage));
@@ -220,8 +191,6 @@ void VirtualMemory::check_vm()
 
 void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 {
-	FreeBlockList::Exception fbl_exception;
-
 	DEBUG_SS(std::stringstream() << "Evicting physical page " << std::to_string(ppage)
 			<< " to disk");
 
@@ -232,7 +201,7 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	PageTableEntry* removed_entry = m_physical_memory_map.at(ppage);
 
 	removed_entry->disk = true;
-	removed_entry->diskpage = m_disk.get_free_page(fbl_exception);
+	removed_entry->diskpage = m_disk.get_free_page();
 
 	for (word vpage : removed_entry->vpages)
 	{
@@ -244,37 +213,23 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 		}
 	}
 
-	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR("FBL Exception");
-	}
-
 	// exception to tell system bus to write to disk
 	exception.disk_page_return = removed_entry->diskpage;
 	exception.ppage_return = ppage;
 	exception.type = Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS;
 
-	m_freelist.return_block(ppage, 1, fbl_exception);
-	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR("FBL Exception");
-	}
+	m_freelist.return_block(ppage, 1);
 }
 
 void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& exception)
 {
-	FreeBlockList::Exception fbl_exception;
 	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
 	exception.disk_fetch = m_disk.read_page(entry->diskpage);
 
 	DEBUG_SS(std::stringstream() << "Disk Fetch from page " << std::to_string(entry->diskpage)
 			<< " to physical page " << std::to_string(ppage));
 
-	m_disk.return_page(entry->diskpage, fbl_exception);
-	if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-	{
-		ERROR("Failed to return disk page to free list.");
-	}
+	m_disk.return_page(entry->diskpage);
 
 	if (exception.type != Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
 	{
@@ -288,18 +243,15 @@ void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& except
 	add_lru(ppage);
 }
 
-// todo these should be allocated by pages IMO
-void VirtualMemory::begin_process(long long pid, word alloc_mem_begin, word alloc_mem_end)
+long long VirtualMemory::begin_process()
 {
-	if (m_process_ptable_map.find(pid) != m_process_ptable_map.end())
+	if (!m_freepids.can_fit(1))
 	{
-		ERROR("Cannot create memory map for new process because an existing process pid "
-				"already exists.");
-		return;
+		ERROR("Reached the MAX_PROCESSES limit. Cannot create a new process.");
+		return -1;
 	}
 
-	word page_begin = alloc_mem_begin >> PAGE_PSIZE;
-	word page_end = alloc_mem_end >> PAGE_PSIZE;
+	word pid = m_freepids.get_free_block(1);
 
 	PageTable *new_pagetable = new PageTable
 	{
@@ -309,15 +261,8 @@ void VirtualMemory::begin_process(long long pid, word alloc_mem_begin, word allo
 	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
 	m_cur_ptable = new_pagetable;
 
-	if (alloc_mem_begin != alloc_mem_end)
-	{
-		for (; page_begin <= page_end; page_begin++)
-		{
-			add_vpage(page_begin);
-		}
-	}
-
-	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(m_cur_ptable->pid));
+	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(pid));
+	return pid;
 }
 
 void VirtualMemory::end_process(long long pid)
@@ -329,9 +274,19 @@ void VirtualMemory::end_process(long long pid)
 		return;
 	}
 
+	/*
+	 * Store into a temporary array because when vpage entry is removed, it will also be removed
+	 * from the process PageTableEntry map. This would have caused a concurrent modification error.
+	 */
+	std::vector<word> vpages;
 	for (std::pair<const word, PageTableEntry*>& pair : m_process_ptable_map.at(pid)->entries)
 	{
-		remove_vpage(pid, pair.first);
+		vpages.push_back(pair.first);
+	}
+
+	for (word vpage : vpages)
+	{
+		remove_vpage(pid, vpage);
 	}
 
 	if (m_cur_ptable == m_process_ptable_map.at(pid))

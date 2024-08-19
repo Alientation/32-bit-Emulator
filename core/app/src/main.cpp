@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
 		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 32, 32);
 
 		Emulator32bit emulator(ram, rom, disk);
-		emulator.system_bus.mmu.begin_process(0, 0, 0);
+		long long pid = emulator.system_bus.mmu.begin_process();
 		LoadExecutable loader(emulator, process.get_exe_file());
 		CLOCK_END
 
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
 		emulator.run(AEMU_MAX_EXEC_INSTR);
 		CLOCK_END
 		emulator.print();
-		emulator.system_bus.mmu.end_process(0);
+		emulator.system_bus.mmu.end_process(pid);
 	}
 
 	PROFILE_STOP

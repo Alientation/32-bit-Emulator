@@ -85,11 +85,9 @@ class Disk : public BaseMemory
 		 * 					internal implementation (free block list) and to limit/make more
 		 * 					specific what exceptions can actually occur as a result of this request.
 		 *
-		 * @param exception Exception thrown if the request fails TODO: specify what
-		 * 					exceptions can occur.
 		 * @return 			Address of the free page (the upper bits of a full 32 bit address).
 		 */
-		virtual word get_free_page(FreeBlockList::Exception& exception);
+		virtual word get_free_page();
 
 		/**
 		 * @brief 			Returns a disk page back into the free page list.
@@ -102,7 +100,7 @@ class Disk : public BaseMemory
 		 * @param exception	Exception thrown if the return fails TODO: specify what exceptions can
 		 * 					occur.
 		 */
-		virtual void return_page(word page, FreeBlockList::Exception& exception);
+		virtual void return_page(word page);
 
 		/**
 		 * @brief 			Returns all disk pages back to the free page list.
@@ -125,10 +123,8 @@ class Disk : public BaseMemory
 		 *
 		 * @param page_lo 	Lowest page address to return back to disk.
 		 * @param page_hi 	Highest page address to return back to disk.
-		 * @param exception Exception thrown if the return fails TODO: specify what exceptions can
-		 * 					occur.
 		 */
-		virtual void return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception);
+		virtual void return_pages(word page_lo, word page_hi);
 
 		/**
 		 * @brief 			Reads a disk page.
@@ -332,10 +328,10 @@ class MockDisk : public Disk
 	public:
 		MockDisk();
 
-		word get_free_page(FreeBlockList::Exception& exception) override;
-		void return_page(word page, FreeBlockList::Exception& exception) override;
+		word get_free_page() override;
+		void return_page(word page) override;
 		void return_all_pages() override;
-		void return_pages(word p_addr_lo, word p_addr_hi, FreeBlockList::Exception& exception) override;
+		void return_pages(word p_addr_lo, word p_addr_hi) override;
 
 		std::vector<byte> read_page(word page) override;
 		byte read_byte(word address) override;

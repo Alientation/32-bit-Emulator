@@ -7,9 +7,11 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 	m_begin(begin),
 	m_len(len)
 {
-	if (init) {
+	if (init)
+	{
 		/* Only initializes all blocks to be free if specified. */
-		m_head = new FreeBlock{
+		m_head = new FreeBlock
+		{
 			.addr = begin,
 			.len = len,
 		};
@@ -20,7 +22,8 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 FreeBlockList::~FreeBlockList()
 {
 	FreeBlock *cur = m_head;
-	while (cur != nullptr) {
+	while (cur != nullptr)
+	{
 		FreeBlock *next = cur->next;
 		delete(cur);
 		cur = next;
@@ -28,15 +31,24 @@ FreeBlockList::~FreeBlockList()
 	// DEBUG("Destroying Free Block List");
 }
 
-word FreeBlockList::get_free_block(word length, Exception& exception)
+FreeBlockList::FreeBlockListException::FreeBlockListException(const std::string& msg) :
+	message(msg)
+{
+
+}
+
+const char* FreeBlockList::FreeBlockListException::what() const noexcept
+{
+	return message.c_str();
+}
+
+word FreeBlockList::get_free_block(word length)
 {
 	FreeBlock* freeblock = find(length);
 
-	if (!freeblock) {
-		exception.type = Exception::Type::NOT_ENOUGH_SPACE;
-		exception.length = length;
-		// WARN_SS(std::stringstream() << "Not enough space to retrieve free block of length "
-		//		<< std::to_string(length));
+	if (!freeblock)
+	{
+		throw FreeBlockListException("Not enough space to allocate free block " + std::to_string((int) length));
 		return 0;
 	}
 
@@ -48,16 +60,15 @@ word FreeBlockList::get_free_block(word length, Exception& exception)
 	freeblock->addr += length;
 
 	/* Remove the block if empty. */
-	if (freeblock->len == 0) {
+	if (freeblock->len == 0)
+	{
 		remove(freeblock);
 	}
 
-	// DEBUG_SS(std::stringstream() << "Getting free block "
-	//			<< std::to_string(addr) << " to fit " << std::to_string(length));
 	return addr;
 }
 
-void FreeBlockList::remove_block(word addr, word length, Exception& exception)
+void FreeBlockList::remove_block(word addr, word length)
 {
 	FreeBlock* cur = m_head;
 	while (cur->addr + cur->len <= addr)
@@ -67,9 +78,8 @@ void FreeBlockList::remove_block(word addr, word length, Exception& exception)
 
 	if (cur->addr > addr || cur->addr + cur->len < addr + length)
 	{
-		exception.type = Exception::Type::INVALID_ADDR;
-		exception.addr = addr;
-		exception.length = length;
+		throw FreeBlockListException("Invalid returned block " + std::to_string((int) addr) + " - " +
+				std::to_string((int) length) + ".");
 		return;
 	}
 
@@ -80,55 +90,57 @@ void FreeBlockList::remove_block(word addr, word length, Exception& exception)
 
 	if (remaining_before > 0)
 	{
-		return_block(addr, remaining_before, exception);
+		return_block(addr, remaining_before);
 	}
 
 	if (remaining_after > 0)
 	{
-		return_block(addr + length, remaining_after, exception);
+		return_block(addr + length, remaining_after);
 	}
 }
 
 FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length)
 {
-	if (!m_head || addr < m_head->addr) {
-		m_head = new FreeBlock {
+	if (!m_head || addr < m_head->addr)
+	{
+		m_head = new FreeBlock
+		{
 			.addr = addr,
 			.len = length,
 			.next = m_head,
 		};
 
-		// DEBUG("Initializing Free Block List");
 		return m_head;
 	}
 
 	FreeBlock *cur = m_head;
-	while (cur->next != nullptr && cur->next->addr < addr) {
+	while (cur->next != nullptr && cur->next->addr < addr)
+	{
 		cur = cur->next;
 	}
 
-	FreeBlock *next = new FreeBlock {
+	FreeBlock *next = new FreeBlock
+	{
 		.addr = addr,
 		.len = 1,
 		.next = cur->next,
 		.prev = cur,
 	};
 
-	if (cur->next) {
+	if (cur->next)
+	{
 		cur->next->prev = next;
 	}
 	cur->next = next;
 	return next;
 }
 
-void FreeBlockList::return_block(word addr, word length, Exception& exception)
+void FreeBlockList::return_block(word addr, word length)
 {
-	if (addr < m_begin || addr + length > m_begin + m_len) {
-		exception.type = Exception::Type::INVALID_ADDR;
-		exception.addr = addr;
-		exception.length = length;
-		// WARN_SS(std::stringstream() << "Returning block with invalid address "
-		//			<< std::to_string(addr) << " and length " << std::to_string(length));
+	if (addr < m_begin || addr + length > m_begin + m_len)
+	{
+		throw FreeBlockListException("Invalid returned block " + std::to_string((int) addr) + " - " +
+				std::to_string((int) length) + ".");
 		return;
 	}
 
@@ -136,10 +148,10 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception)
 
 	bool intersect_prev = ret_block->prev && ret_block->prev->addr + ret_block->prev->len > addr;
 	bool intersect_next = ret_block->next && ret_block->next->addr < addr + length;
-	if (intersect_prev || intersect_next) {
-		exception.type = Exception::Type::DOUBLE_FREE;
-		exception.addr = addr;
-		exception.length = length;
+	if (intersect_prev || intersect_next)
+	{
+		throw FreeBlockListException("Invalid returned block " + std::to_string((int) addr) + " - " +
+				std::to_string((int) length) + ".");
 
 		/* Undo state change so that the caller can cleanly handle the exception. */
 		remove(ret_block);
@@ -150,38 +162,76 @@ void FreeBlockList::return_block(word addr, word length, Exception& exception)
 	coalesce(ret_block->prev);
 }
 
+// NO CONFIDENCE THAT THIS WORKS.. HAS TO BE TESTED
+void FreeBlockList::force_return_block(word addr, word length)
+{
+	if (addr < m_begin || addr + length > m_begin + m_len)
+	{
+		throw FreeBlockListException("Invalid returned block " + std::to_string((int) addr) + " - " +
+				std::to_string((int) length) + ".");
+		return;
+	}
+
+	FreeBlock* ret_block = insert(addr, length);
+
+	while (ret_block->prev && ret_block->prev->addr + ret_block->prev->len > ret_block->addr)
+	{
+		if (ret_block->prev->addr + ret_block->prev->len > ret_block->addr + ret_block->len)
+		{
+			ret_block->len += ret_block->prev->addr + ret_block->prev->len -
+					(ret_block->addr + ret_block->len);
+		}
+
+		ret_block->len += ret_block->addr - ret_block->prev->addr;
+		ret_block->addr = ret_block->prev->addr;
+
+		remove(ret_block->prev);
+	}
+
+	while (ret_block->next && ret_block->next->addr < ret_block->addr + ret_block->len)
+	{
+		ret_block->len += ret_block->next->addr + ret_block->next->len -
+				(ret_block->addr + ret_block->len);
+
+		remove(ret_block->next);
+	}
+}
+
+
 void FreeBlockList::return_all()
 {
 	FreeBlock *cur = m_head;
-	while (cur) {
+	while (cur)
+	{
 		FreeBlock *next = cur->next;
 		cur = cur->next;
 		delete next;
 	}
 
-	m_head = new FreeBlock {
+	m_head = new FreeBlock
+	{
 		.addr = m_begin,
 		.len = m_len,
 	};
-	// DEBUG("Returning all.");
 }
 
 std::vector<std::pair<word,word>> FreeBlockList::get_blocks()
 {
 	std::vector<std::pair<word,word>> blocks;
 	FreeBlock *cur = m_head;
-	while (cur) {
+	while (cur)
+	{
 		blocks.push_back(std::pair<word,word>(cur->addr, cur->len));
 		cur = cur->next;
 	}
-	// DEBUG("Getting all blocks");
 	return blocks;
 }
 
 void FreeBlockList::print_blocks()
 {
 	std::vector<std::pair<word,word>> blocks = get_blocks();
-	for (auto pair : blocks) {
+	for (auto pair : blocks)
+	{
 		printf("Block {addr=%x, len=%x}\n", pair.first, pair.second);
 	}
 }
@@ -194,8 +244,10 @@ bool FreeBlockList::can_fit(word length)
 FreeBlockList::FreeBlock* FreeBlockList::find(word length)
 {
 	FreeBlock* cur = m_head;
-	while (cur) {
-		if (cur->len >= length) {
+	while (cur)
+	{
+		if (cur->len >= length)
+		{
 			break;
 		}
 		cur = cur->next;
@@ -205,13 +257,17 @@ FreeBlockList::FreeBlock* FreeBlockList::find(word length)
 
 void FreeBlockList::remove(FreeBlock *node)
 {
-	if (node->prev) {
+	if (node->prev)
+	{
 		node->prev->next = node->next;
-	} else {
+	}
+	else
+	{
 		m_head = node->next;
 	}
 
-	if (node->next) {
+	if (node->next)
+	{
 		node->next->prev = node->prev;
 	}
 
@@ -220,11 +276,13 @@ void FreeBlockList::remove(FreeBlock *node)
 
 void FreeBlockList::coalesce(FreeBlock *first)
 {
-	if (!first || !first->next) {
+	if (!first || !first->next)
+	{
 		return;
 	}
 
-	if (first->next->addr != first->addr + first->len) {
+	if (first->next->addr != first->addr + first->len)
+	{
 		return;
 	}
 
@@ -232,7 +290,8 @@ void FreeBlockList::coalesce(FreeBlock *first)
 	FreeBlock *cur = first->next;
 	first->next = first->next->next;
 
-	if (first->next) {
+	if (first->next)
+	{
 		first->next->prev = first;
 	}
 	delete cur;

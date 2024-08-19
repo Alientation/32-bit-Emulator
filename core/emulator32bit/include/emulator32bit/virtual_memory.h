@@ -22,6 +22,8 @@ instead of having to go to the unordered maps
 #define VM_MAX_PAGES 1024
 #define TLB_PSIZE 12
 #define TLB_SIZE (1 << TLB_PSIZE)
+#define MAX_PROCESSES 1024
+
 class VirtualMemory
 {
 	public:
@@ -78,16 +80,11 @@ class VirtualMemory
 		void set_process(long long pid);
 
 		/**
-		 * @brief 			Starts a new processes with the specified virtual memory allocated
-		 * @note			Change the specified virtual memory space range to be in terms of pages.
-		 * @note			Should not have the kernel supply a process id. Instead find a new pid
-		 * 					and return it to the kernel.
+		 * @brief 			Starts a new process with it's own virtual memory address space.
 		 *
-		 * @param pid		Process id.
-		 * @param alloc_mem_begin Start virtual address in bytes.
-		 * @param alloc_mem_end End virtual address in bytes.
+		 * @return			New process id.
 		 */
-		void begin_process(long long pid, word alloc_mem_begin = 0, word alloc_mem_end = PAGE_SIZE-1);
+		long long begin_process();
 
 		/**
 		 * @brief 			Ends a specified process.
@@ -182,6 +179,8 @@ class VirtualMemory
 
 		word m_ram_start_page;
 		word m_ram_end_page;
+
+		FreeBlockList m_freepids;
 		std::unordered_map<long long, PageTable*> m_process_ptable_map;
 		std::unordered_map<word, PageTableEntry*> m_physical_memory_map;
 
@@ -251,7 +250,6 @@ class VirtualMemory
 			DEBUG("BRINGING PAGE ONTO RAM");
 
 			/* Bring page from disk onto RAM */
-			FreeBlockList::Exception fbl_exception;
 			if (entry->mapped)
 			{
 				if (is_ppage_used(entry->mapped_ppage))
@@ -268,11 +266,7 @@ class VirtualMemory
 					evict_ppage(remove_lru(), exception);
 				}
 
-				word ppage = m_freelist.get_free_block(1, fbl_exception);
-				if (fbl_exception.type != FreeBlockList::Exception::Type::AOK)
-				{
-					ERROR("Failed to retrieve physical page from free list.");
-				}
+				word ppage = m_freelist.get_free_block(1);
 
 				map_vpage_to_ppage(vpage, ppage, exception);
 			}

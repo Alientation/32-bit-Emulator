@@ -99,14 +99,7 @@ void Disk::read_disk_manager_file()
 
 	if (!reader.has_next() || reader.read_word() != MAGIC_HEADER) {
 		/* set up page managment from scratch since there was no valid header */
-		FreeBlockList::Exception exception;
-		m_free_list.return_block(0, m_npages, exception);
-
-		if (exception.type != FreeBlockList::Exception::Type::AOK) {
-			ERROR_SS(std::stringstream()
-					<< "Failed to create default free block list for disk management for "
-					<< std::to_string(m_npages) << " pages.");
-		}
+		m_free_list.return_block(0, m_npages);
 
 		DEBUG("Creating empty disk.");
 		return;
@@ -117,14 +110,7 @@ void Disk::read_disk_manager_file()
 		word page = reader.read_word();
 		word len = reader.read_word();
 
-		FreeBlockList::Exception exception;
-		m_free_list.return_block(page, len, exception);
-
-		if (exception.type != FreeBlockList::Exception::Type::AOK) {
-			ERROR_SS(std::stringstream() << "Failed to append block with page address "
-					<< std::to_string(page) << " and length " << std::to_string(len)
-					<< " pages to free block list from disk management file.");
-		}
+		m_free_list.return_block(page, len);
 	}
 }
 
@@ -155,25 +141,17 @@ const char* Disk::DiskWriteException::what() const noexcept
 	return message.c_str();
 }
 
-word Disk::get_free_page(FreeBlockList::Exception& exception)
+word Disk::get_free_page()
 {
-	word addr = m_free_list.get_free_block(1, exception);
-
-	if (exception.type != FreeBlockList::Exception::Type::AOK) {
-		ERROR("Not enough space to get a free block from disk.");
-	}
+	word addr = m_free_list.get_free_block(1);
 
 	DEBUG_SS(std::stringstream() << "Getting free disk page " << std::to_string(addr));
 	return addr;
 }
 
-void Disk::return_page(word page, FreeBlockList::Exception& exception)
+void Disk::return_page(word page)
 {
-	m_free_list.return_block(page, 1, exception);
-
-	if (exception.type != FreeBlockList::Exception::Type::AOK) {
-		ERROR("Failed to return page to disk.");
-	}
+	m_free_list.return_block(page, 1);
 
 	DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(page)
 			<< " back to disk");
@@ -186,23 +164,9 @@ void Disk::return_all_pages()
 	DEBUG("Returning all disk pages back to disk");
 }
 
-void Disk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception)
+void Disk::return_pages(word page_lo, word page_hi)
 {
-	/*
-	 * TODO: This is really inefficient, as each returned page needs the FBL to
-	 * traverse the linked list from the beginning.
-	 */
-	for (; page_lo <= page_hi && exception.type == FreeBlockList::Exception::Type::AOK; page_lo++) {
-		return_page(page_lo, exception);
-
-		/*
-		 * Ignore any double free errors, this just clears all used pages in the range
-		 * and ignores the rest.
-		 */
-		if (exception.type == FreeBlockList::Exception::Type::DOUBLE_FREE) {
-			exception.type = FreeBlockList::Exception::Type::AOK;
-		}
-	}
+	m_free_list.force_return_block(page_lo, page_hi - page_lo + 1);
 
 	DEBUG_SS(std::stringstream() << "Returned all disk pages from " << std::to_string(page_lo)
 			<< " to " << std::to_string(page_hi) << " back to disk");
@@ -476,16 +440,14 @@ MockDisk::MockDisk()
 
 }
 
-word MockDisk::get_free_page(FreeBlockList::Exception& exception)
+word MockDisk::get_free_page()
 {
-	UNUSED(exception);
 	return 0;
 }
 
-void MockDisk::return_page(word page, FreeBlockList::Exception& exception)
+void MockDisk::return_page(word page)
 {
 	UNUSED(page);
-	UNUSED(exception);
 }
 
 void MockDisk::return_all_pages()
@@ -493,11 +455,10 @@ void MockDisk::return_all_pages()
 
 }
 
-void MockDisk::return_pages(word page_lo, word page_hi, FreeBlockList::Exception& exception)
+void MockDisk::return_pages(word page_lo, word page_hi)
 {
 	UNUSED(page_lo);
 	UNUSED(page_hi);
-	UNUSED(exception);
 }
 
 std::vector<byte> MockDisk::read_page(word page)
