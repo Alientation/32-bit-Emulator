@@ -63,38 +63,25 @@ bool VirtualMemory::is_ppage_used(word ppage)
 	return m_physical_memory_map.find(ppage) != m_physical_memory_map.end();
 }
 
-void VirtualMemory::add_vpage(word vpage)
+void VirtualMemory::add_vpage(PageTable *ptable, word vpage)
 {
-	if (m_cur_ptable == nullptr)
-	{
-		ERROR("Cannot add page because there is no currently running process.");
-		return;
-	}
-
-	if (m_cur_ptable->entries.find(vpage) != m_cur_ptable->entries.end())
+	if (ptable->entries.find(vpage) != ptable->entries.end())
 	{
 		ERROR_SS(std::stringstream() << "Cannot add virtual page " << std::to_string(vpage)
 				<< " because it is already mapped to process "
-				<< std::to_string(m_cur_ptable->pid));
+				<< std::to_string(ptable->pid));
 		return;
 	}
 
-	m_cur_ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page())));
+	ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page())));
 
 	DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
-			<< " to process " << std::to_string(m_cur_ptable->pid));
+			<< " to process " << std::to_string(ptable->pid));
 }
 
-// FORCIBLY MAP A VIRTUAL PAGE TO A SPECIFIC PAGE, EVICTING WHATEVER WAS THERE PREVIOUSLY
-void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
+void VirtualMemory::map_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception)
 {
-	if (m_cur_ptable == nullptr)
-	{
-		ERROR("Cannot map physical page because there is no currently running process.");
-		return;
-	}
-
-	if (m_cur_ptable->entries.find(vpage) != m_cur_ptable->entries.end())
+	if (ptable->entries.find(vpage) != ptable->entries.end())
 	{
 		ERROR_SS(std::stringstream() << "Cannot map physical page " << std::to_string(ppage)
 				<< " to virtual page" << std::to_string(vpage));
@@ -110,19 +97,17 @@ void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
 	m_freelist.remove_block(ppage, 1);
 	map_vpage_to_ppage(vpage, ppage, exception);
 
-	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
+	PageTableEntry *entry = ptable->entries.at(vpage);
 	entry->mapped = true;
 	entry->mapped_ppage = ppage;
 }
 
-void VirtualMemory::remove_vpage(long long pid, word vpage)
+void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 {
-	PageTable* ptable = m_process_ptable_map.at(pid);
-
 	if (ptable->entries.find(vpage) == ptable->entries.end())
 	{
 		ERROR_SS(std::stringstream() << "Cannot remove virtual page " << std::to_string(vpage)
-				<< " because it is not mapped in process " << std::to_string(pid));
+				<< " because it is not mapped in process " << std::to_string(ptable->pid));
 		return;
 	}
 
@@ -221,9 +206,9 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	m_freelist.return_block(ppage, 1);
 }
 
-void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& exception)
+void VirtualMemory::map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception)
 {
-	PageTableEntry *entry = m_cur_ptable->entries.at(vpage);
+	PageTableEntry *entry = ptable->entries.at(vpage);
 	exception.disk_fetch = m_disk.read_page(entry->diskpage);
 
 	DEBUG_SS(std::stringstream() << "Disk Fetch from page " << std::to_string(entry->diskpage)
@@ -296,6 +281,7 @@ void VirtualMemory::end_process(long long pid)
 
 	delete m_process_ptable_map.at(pid);
 	m_process_ptable_map.erase(pid);
+	m_freepids.return_block(pid, 1);
 	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
 }
 
