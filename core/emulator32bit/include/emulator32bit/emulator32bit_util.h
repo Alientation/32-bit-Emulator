@@ -18,6 +18,9 @@
 #define PAGE_PSIZE 12
 #define PAGE_SIZE (1 << PAGE_PSIZE)
 
+#define UNLIKELY(cond) __builtin_expect(cond, 0)
+#define LIKELY(cond) __builtin_expect(cond, 1)
+
 typedef unsigned long long dword;
 typedef unsigned int word;
 typedef unsigned short hword;
