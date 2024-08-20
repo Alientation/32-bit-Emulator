@@ -9,7 +9,10 @@ VirtualMemory::VirtualMemory(word ram_start_page, word ram_end_page, Disk& disk)
 	m_freepids(0, MAX_PROCESSES),
 	m_freelist(ram_start_page, ram_end_page - ram_start_page + 1)
 {
-
+	for (int i = 0; i < NUM_PPAGES; i++)
+	{
+		m_physical_memory_map[i].ppage = (word) i;
+	}
 }
 
 VirtualMemory::~VirtualMemory()
@@ -34,15 +37,26 @@ const char* VirtualMemory::VirtualMemoryException::what() const noexcept
 	return message.c_str();
 }
 
-VirtualMemory::PageTableEntry::PageTableEntry(word vpage, word diskpage) :
-	vpages(std::vector<word>()),
+VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word diskpage) :
+	pid(pid),
+	vpage(vpage),
 	ppage(0),
 	disk(true),
 	diskpage(diskpage),
 	mapped(false),
 	mapped_ppage(0)
 {
-	vpages.push_back(vpage);
+
+}
+
+VirtualMemory::PhysicalPage::PhysicalPage() :
+	mapped_vpages(std::vector<PageTableEntry*>()),
+	ppage(0),
+	used(false),
+	swappable(true),
+	kernel_locked(false)
+{
+
 }
 
 void VirtualMemory::set_process(long long pid)
@@ -58,11 +72,6 @@ void VirtualMemory::set_process(long long pid)
 	DEBUG_SS(std::stringstream() << "Setting memory map to process " << std::to_string(pid));
 }
 
-bool VirtualMemory::is_ppage_used(word ppage)
-{
-	return m_physical_memory_map.find(ppage) != m_physical_memory_map.end();
-}
-
 void VirtualMemory::add_vpage(PageTable *ptable, word vpage)
 {
 	if (ptable->entries.find(vpage) != ptable->entries.end())
@@ -73,10 +82,63 @@ void VirtualMemory::add_vpage(PageTable *ptable, word vpage)
 		return;
 	}
 
-	ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(vpage, m_disk.get_free_page())));
+	ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(ptable->pid, vpage, m_disk.get_free_page())));
 
 	DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
 			<< " to process " << std::to_string(ptable->pid));
+}
+
+void VirtualMemory::add_vpage(word vpage)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		ERROR("Cannot add page because there is no currently running process.");
+		return;
+	}
+
+	add_vpage(m_cur_ptable, vpage);
+}
+
+void VirtualMemory::add_vpage(long long pid, word vpage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	add_vpage(m_process_ptable_map.at(pid), vpage);
+}
+
+void VirtualMemory::add_vpages(PageTable *ptable, word vpage_begin, word vpage_end)
+{
+	INFO_SS(std::stringstream() << "Adding virtual pagess " << std::to_string(vpage_begin)
+			<< " to " << std::to_string(vpage_end));
+
+	for (word i = vpage_begin; i <= vpage_end; i++)
+	{
+		add_vpage(ptable, i);
+	}
+}
+
+void VirtualMemory::add_vpages(word vpage_begin, word vpage_end)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		ERROR("Cannot add page because there is no currently running process.");
+		return;
+	}
+
+	add_vpages(m_cur_ptable, vpage_begin, vpage_end);
+}
+
+void VirtualMemory::add_vpages(long long pid, word vpage_begin, word vpage_end)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	add_vpages(m_process_ptable_map.at(pid), vpage_begin, vpage_end);
 }
 
 void VirtualMemory::map_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception)
@@ -89,7 +151,7 @@ void VirtualMemory::map_ppage(PageTable *ptable, word vpage, word ppage, Excepti
 
 	add_vpage(vpage);
 
-	if (is_ppage_used(ppage))
+	if (m_physical_memory_map[ppage].used)
 	{
 		evict_ppage(ppage, exception);
 	}
@@ -123,7 +185,7 @@ void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 	}
 	else
 	{
-		m_physical_memory_map.erase(entry->ppage);
+		m_physical_memory_map[entry->ppage].used = false;
 
 		/* add back to free list */
 		m_freelist.return_block(entry->ppage, 1);
@@ -137,11 +199,21 @@ void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 
 void VirtualMemory::check_vm()
 {
-	for (std::pair<word,PageTableEntry*> pair : m_physical_memory_map)
+	for (int i = 0; i < NUM_PPAGES; i++)
 	{
-		DEBUG_SS(std::stringstream() << "Checking physical page " << std::to_string(pair.first));
-		EXPECT_TRUE(pair.first == pair.second->ppage, "Expected physical memory to match");
-		EXPECT_TRUE(pair.second->disk == false, "Expected physical memory to not be on disk");
+		PhysicalPage& ppage = m_physical_memory_map[i];
+
+		EXPECT_TRUE((word) i == ppage.ppage, "Expected physical memory to match");
+
+		if (ppage.mapped_vpages.size() > 0)
+		{
+			word diskpage = ppage.mapped_vpages.at(0)->diskpage;
+			for (PageTableEntry *entry : ppage.mapped_vpages)
+			{
+				EXPECT_TRUE(entry->diskpage == diskpage, "Expected all virtual pages mapped to the "
+						"physical page to have same diskpage location.");
+			}
+		}
 	}
 
 	for (std::pair<long long, PageTable*> pair : m_process_ptable_map)
@@ -153,23 +225,7 @@ void VirtualMemory::check_vm()
 			DEBUG_SS(std::stringstream() << "Checking page entry at vpage "
 					<< std::to_string(entry.first));
 
-			word found = false;
-			for (word vpage : entry.second->vpages)
-			{
-				if (vpage == entry.first)
-				{
-					found = true;
-					break;
-				}
-			}
-
-			EXPECT_TRUE(found, "Expected virtual memory to match");
-
-			if (!entry.second->disk)
-			{
-				EXPECT_TRUE(m_physical_memory_map.at(entry.second->ppage) == entry.second,
-						"Expected page entry to match.");
-			}
+			EXPECT_TRUE(entry.second->vpage == entry.first, "Expected virtual memory to match");
 		}
 	}
 }
@@ -183,23 +239,24 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	 * NOTE: this location will be overwritten below since we return the
 	 * block to the free list, and then request a free block immediately
 	 */
-	PageTableEntry* removed_entry = m_physical_memory_map.at(ppage);
+	PhysicalPage& evicted_ppage = m_physical_memory_map[ppage];
+	evicted_ppage.used = false;
 
-	removed_entry->disk = true;
-	removed_entry->diskpage = m_disk.get_free_page();
-
-	for (word vpage : removed_entry->vpages)
+	for (PageTableEntry *removed_entry : evicted_ppage.mapped_vpages)
 	{
-		word tlb_addr = vpage & (TLB_SIZE-1);
+		removed_entry->disk = true;
+		removed_entry->diskpage = m_disk.get_free_page();
+		word tlb_addr = removed_entry->vpage & (TLB_SIZE-1);
 		TLB_Entry& tlb_entry = tlb[tlb_addr];
-		if (tlb_entry.valid && tlb_entry.ppage == ppage && tlb_entry.vpage == vpage)
+		if (tlb_entry.valid && tlb_entry.ppage == ppage && tlb_entry.vpage == removed_entry->vpage) // todo, this should check for pid i think.
 		{
 			tlb_entry.valid = false;
 		}
 	}
+	evicted_ppage.mapped_vpages.clear();
 
 	// exception to tell system bus to write to disk
-	exception.disk_page_return = removed_entry->diskpage;
+	exception.disk_page_return = evicted_ppage.mapped_vpages.at(0)->diskpage;		// there MUST be a mapped vpage or else we should not be evicting this ppage.
 	exception.ppage_return = ppage;
 	exception.type = Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS;
 
@@ -224,11 +281,14 @@ void VirtualMemory::map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage
 	entry->ppage = ppage;
 	entry->disk = false;
 
-	m_physical_memory_map[ppage] = entry;
+	PhysicalPage& mapped_ppage = m_physical_memory_map[ppage];
+	mapped_ppage.mapped_vpages.push_back(entry);
+	mapped_ppage.used = true;
+
 	add_lru(ppage);
 }
 
-long long VirtualMemory::begin_process()
+long long VirtualMemory::begin_process(bool kernel_privilege)
 {
 	if (!m_freepids.can_fit(1))
 	{
@@ -240,7 +300,8 @@ long long VirtualMemory::begin_process()
 
 	PageTable *new_pagetable = new PageTable
 	{
-		.pid = pid
+		.pid = pid,
+		.kernel_privilege = kernel_privilege,
 	};
 
 	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
@@ -283,6 +344,15 @@ void VirtualMemory::end_process(long long pid)
 	m_process_ptable_map.erase(pid);
 	m_freepids.return_block(pid, 1);
 	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
+}
+
+void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, word swappable, word kernel_locked)
+{
+	for (word i = ppage_begin; i <= ppage_end; i++)
+	{
+		m_physical_memory_map[i].swappable = swappable;
+		m_physical_memory_map[i].kernel_locked = kernel_locked;
+	}
 }
 
 void VirtualMemory::check_lru()

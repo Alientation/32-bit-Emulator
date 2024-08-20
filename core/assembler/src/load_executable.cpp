@@ -45,6 +45,13 @@ void LoadExecutable::load()
 	word cur_addr = obj.sections[obj.section_table.at(".text")].address;
 	bool physical = obj.sections[obj.section_table.at(".text")].load_at_physical_address;
 
+
+	if (!physical && obj.text_section.size() > 0)
+	{
+		// we are assuming that there is no overlap between pages of text, data, and bss sections
+		m_emu.mmu->add_vpages(cur_addr >> PAGE_PSIZE, (cur_addr + 4 * obj.text_section.size() - 1) >> PAGE_PSIZE);
+	}
+
 	for (word instr : obj.text_section) {
 		if (!physical)
 		{
@@ -60,6 +67,12 @@ void LoadExecutable::load()
 
 	cur_addr = obj.sections[obj.section_table.at(".data")].address;
 	physical = obj.sections[obj.section_table.at(".data")].load_at_physical_address;
+
+	if (!physical && obj.data_section.size() > 0)
+	{
+		m_emu.mmu->add_vpages(cur_addr >> PAGE_PSIZE, (cur_addr + obj.data_section.size() - 1) >> PAGE_PSIZE);
+	}
+
 	for (byte data : obj.data_section) {
 		if (!physical)
 		{
@@ -74,6 +87,11 @@ void LoadExecutable::load()
 
 	cur_addr = obj.sections[obj.section_table.at(".bss")].address;
 	physical = obj.sections[obj.section_table.at(".bss")].load_at_physical_address;
+	if (!physical && obj.bss_section > 0)
+	{
+		m_emu.mmu->add_vpages(cur_addr >> PAGE_PSIZE, (cur_addr + obj.bss_section - 1) >> PAGE_PSIZE);
+	}
+
 	for (word i = 0; i < obj.bss_section; i++) {
 		if (!physical)
 		{

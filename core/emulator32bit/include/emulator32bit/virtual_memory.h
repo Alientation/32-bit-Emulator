@@ -23,6 +23,7 @@ instead of having to go to the unordered maps
 #define TLB_PSIZE 12
 #define TLB_SIZE (1 << TLB_PSIZE)
 #define MAX_PROCESSES 1024
+#define NUM_PPAGES (1 << (8 * sizeof(word) - PAGE_PSIZE))
 
 class VirtualMemory
 {
@@ -51,8 +52,10 @@ class VirtualMemory
 		 * 					These should not be recovered from and the running user program should exit
 		 * 					(or the kernel should just crash???).
 		 */
-		struct Exception {
-			enum class Type {
+		struct Exception
+		{
+			enum class Type
+			{
 				AOK, INVALID_ADDRESS, DISK_FETCH_SUCCESS, DISK_RETURN_AND_FETCH_SUCCESS, DISK_FETCH_FAILED,
 			};
 
@@ -82,9 +85,11 @@ class VirtualMemory
 		/**
 		 * @brief 			Starts a new process with it's own virtual memory address space.
 		 *
+		 * @param			kernel_privilege: Whether the process has the kernel level access
+		 * 					privilege
 		 * @return			New process id.
 		 */
-		long long begin_process();
+		long long begin_process(bool kernel_privilege = false);
 
 		/**
 		 * @brief 			Ends a specified process.
@@ -92,6 +97,18 @@ class VirtualMemory
 		 * @param pid		Process id.
 		 */
 		void end_process(long long pid);
+
+		/**
+		 * @brief 			Set the the access permissions of physical memory. Used by the kernel
+		 * 					to set up memory mapped regions for I/O.
+		 *
+		 * @param 			ppage_begin: First physical page to set the permissions to.
+		 * @param 			ppage_end: Last physical page to set the permissions to.
+		 * @param 			swappable: Whether the pages in this region should be swappable.
+		 * @param 			kernel_locked: Whether the pages in this region require kernel level
+		 * 					privilege to access.
+		 */
+		void set_ppage_permissions(word ppage_begin, word ppage_end, word swappable, word kernel_locked);
 
 		/*
 		idea
@@ -115,6 +132,39 @@ class VirtualMemory
 			-> this won't require a unique virtual address page mapping to physical page, multiple other virtual address pages can map to the same phyiscal page
 			-> to prevent this from breaking evictions, should we just update the PageTableEntry to support multiple vpages
 		*/
+
+		/**
+		 * @brief			Adds virtual pages in the given range to the specified process.
+		 *
+		 * @param 			pid: ID of the process to add virtual pages to.
+		 * @param 			vpage_begin: First virtual page to add.
+		 * @param 			vpage_end: Last virtual page to add.
+		 */
+		void add_vpages(long long pid, word vpage_begin, word vpage_end);
+
+		/**
+		 * @brief			Adds virtual pages in the given range to the current process.
+		 *
+		 * @param 			pid: ID of the process to add virtual pages to.
+		 * @param 			vpage_begin: First virtual page to add.
+		 * @param 			vpage_end: Last virtual page to add.
+		 */
+		void add_vpages(word vpage_begin, word vpage_end);
+
+		/**
+		 * @brief			Adds a new virtual page to the specified process.
+		 *
+		 * @param 			pid: ID of the process to add a virtual page to.
+		 * @param 			vpage: Virtual page to add.
+		 */
+		void add_vpage(long long pid, word vpage);
+
+		/**
+		 * @brief			Adds a new virtual page to the current process.
+		 *
+		 * @param 			vpage: Virtual page to add.
+		 */
+		void add_vpage(word vpage);
 
 		inline word map_address(long long pid, word address, Exception& exception)
 		{
@@ -180,38 +230,62 @@ class VirtualMemory
 		 * 					page addresses are same, and if the virtual page is also in the vpages
 		 * 					list, there might be a problem here.)
 		 */
-		struct PageTableEntry {
+		struct PageTableEntry
+		{
 			/**
 			 * @brief 		Construct a new Page Table Entry object.
 			 *
-			 * @param 		vpage: Initial virtual page of this mapping.
+			 * @param		pid: Process ID.
+			 * @param 		vpage: Virtual page of this mapping.
 			 * @param 		diskpage: Disk page where the virtual page resides.
 			 */
-			PageTableEntry(word vpage, word diskpage);
+			PageTableEntry(long long pid, word vpage, word diskpage);
 
-			std::vector<word> vpages;		/* Virtual pages corresponding to the same physical page. (Usually will only have 1 element) */
+			long long pid;					/* Process that has this mapping. */
+			word vpage;						/* Virtual page. */
 			word ppage;						/* Mapped physical page if not on disk. */
 			bool disk;						/* Whether the virtual page is on disk. */
-			word diskpage;					/* Corresponding disk page where the virtual page resides.
-											   (Note all virtual pages mapped to the same physical page will share this) */
+			word diskpage;					/* Corresponding disk page where the virtual page resides. */
 			bool mapped;					/* Whether this is a mapped virtual page with a specific physical page it must be located in. */
 			word mapped_ppage;				/* Corresponding physical page as mentioned above. */
+
+			/* TODO: */
+			bool read;
+			bool write;
+			bool execute;
+		};
+
+		struct PhysicalPage
+		{
+			PhysicalPage();
+
+			std::vector<PageTableEntry*> mapped_vpages;
+			word ppage;
+
+			bool used;
+
+			bool swappable;
+			bool kernel_locked;
 		};
 
 		/**
 		 * @brief			Contains information about the memory mapping of a specific process.
 		 */
-		struct PageTable {
+		struct PageTable
+		{
 			long long pid = 0;				/* Process ID. */
 
 			/* Mapping of virtual page address to the corresponding PageTableEntry. */
 			std::unordered_map<word, PageTableEntry*> entries = std::unordered_map<word,PageTableEntry*>();
+
+			bool kernel_privilege;
 		};
 
 		/**
 		 * @brief			TBL Entry.
 		 */
-		struct TLB_Entry {
+		struct TLB_Entry
+		{
 			bool valid = false;			/* Whether the TLB_Entry is a valid translation. */
 			long long pid = -1;			/* Corresponding process of the translation. */
 			word vpage;					/* Virtual page address of the translation. */
@@ -254,7 +328,8 @@ class VirtualMemory
 		/**
 		 * @brief  			Map of physical pages to the corresponding PageTableEntry.
 		 */
-		std::unordered_map<word, PageTableEntry*> m_physical_memory_map;
+		// std::unordered_map<word, PhysicalPage*> m_physical_memory_map;
+		PhysicalPage* m_physical_memory_map = new PhysicalPage[NUM_PPAGES];
 
 		/**
 		 * @brief			Free physical pages that new virtual pages can map to.
@@ -271,7 +346,8 @@ class VirtualMemory
 		 * @brief 			LRU_Node keeps track of the corresponding physical page and maintains
 		 * 					linkages to the next and previous nodes in the LRU list.
 		 */
-		struct LRU_Node {
+		struct LRU_Node
+		{
 			word ppage;				/* Corresponding physical page. */
 			LRU_Node* next;			/* Next node in the list. */
 			LRU_Node* prev;			/* Previous node in the list. */
@@ -320,14 +396,6 @@ class VirtualMemory
 		 * 					are valid.
 		 */
 		void check_lru();
-
-		/**
-		 * @brief 			Returns whether the physical page is in use or not.
-		 *
-		 * @param 			ppage: Physical page in question.
-		 * @return 			Whether the physical page is in use.
-		 */
-		bool is_ppage_used(word ppage);
 
 		/**
 		 * @brief 			Removes the physical page and writes it back to disk, freeing up a
@@ -385,40 +453,31 @@ class VirtualMemory
 			map_vpage_to_ppage(m_cur_ptable, vpage, ppage, exception);
 		}
 
+		/**
+		 * @brief			Add a virtual page to the process.
+		 *
+		 * @param 			ptable: Page table corresponding to the process.
+		 * @param 			vpage: Virtual page to add.
+		 */
 		void add_vpage(PageTable *ptable, word vpage);
 
 		/**
-		 * @brief			Adds a new virtual page to the specified process.
+		 * @brief			Adds a range of new virtual pages to the process.
 		 *
-		 * @param 			pid: ID of the process to add a virtual page to.
-		 * @param 			vpage: Virtual page to add.
+		 * @param 			ptable: Page table corresponding to the process.
+		 * @param 			vpage_begin: First virtual page to add.
+		 * @param 			vpage_end: Last virtual page to add.
 		 */
-		inline void add_vpage(long long pid, word vpage)
-		{
-			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-			}
-
-			add_vpage(m_process_ptable_map.at(pid), vpage);
-		}
+		void add_vpages(PageTable *ptable, word vpage_begin, word vpage_end);
 
 		/**
-		 * @brief			Adds a new virtual page to the current process.
+		 * @brief 			Maps a new virtual page to a physical page of the process.
 		 *
-		 * @param 			vpage: Virtual page to add.
+		 * @param 			ptable: Page table corresponding to the process.
+		 * @param 			vpage: Virtual page to map.
+		 * @param 			ppage: Physical page to map to.
+		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		inline void add_vpage(word vpage)
-		{
-			if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-			{
-				ERROR("Cannot add page because there is no currently running process.");
-				return;
-			}
-
-			add_vpage(m_cur_ptable, vpage);
-		}
-
 		void map_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception);
 
 		/**
@@ -591,11 +650,7 @@ class VirtualMemory
 				 */
 				if (UNLIKELY(ptable->entries.find(vpage) == ptable->entries.end()))
 				{
-					/*
-					 * TODO: this should throw an emulator sigsegv exception instead of allocating
-					 * a new page.
-					 */
-					add_vpage(vpage);
+					throw VirtualMemoryException("SIGSEGV");
 				}
 				else if (!ptable->entries.at(vpage)->disk)
 				{
@@ -641,7 +696,7 @@ class VirtualMemory
 				 * Since the virtual page is mapped to a physical page on disk, we can assume it was
 				 * evicted and some other page is in use at the spot.
 				 */
-				if (LIKELY(is_ppage_used(entry->mapped_ppage)))
+				if (LIKELY(m_physical_memory_map[entry->mapped_ppage].used))
 				{
 					evict_ppage(entry->mapped_ppage, exception);
 				}
