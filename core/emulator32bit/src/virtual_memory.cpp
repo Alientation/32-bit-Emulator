@@ -116,7 +116,10 @@ void VirtualMemory::add_vpages(PageTable *ptable, word vpage_begin, word vpage_e
 
 	for (word i = vpage_begin; i <= vpage_end; i++)
 	{
-		add_vpage(ptable, i);
+		if (ptable->entries.find(i) == ptable->entries.end())
+		{
+			add_vpage(ptable, i);
+		}
 	}
 }
 
@@ -164,6 +167,27 @@ void VirtualMemory::map_ppage(PageTable *ptable, word vpage, word ppage, Excepti
 	entry->mapped_ppage = ppage;
 }
 
+void VirtualMemory::map_ppage(long long pid, word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	map_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
+}
+
+void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		ERROR("Cannot map physical page because there is no currently running process.");
+		return;
+	}
+
+	map_ppage(m_cur_ptable, vpage, ppage, exception);
+}
+
 void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 {
 	if (ptable->entries.find(vpage) == ptable->entries.end())
@@ -195,6 +219,27 @@ void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 	}
 
 	delete entry;
+}
+
+void VirtualMemory::remove_vpage(long long pid, word vpage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	remove_vpage(m_process_ptable_map.at(pid), vpage);
+}
+
+void VirtualMemory::remove_vpage(word vpage)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		ERROR("Cannot remove virtual page because there is no currently running process.");
+		return;
+	}
+
+	remove_vpage(m_cur_ptable, vpage);
 }
 
 void VirtualMemory::check_vm()
@@ -286,6 +331,78 @@ void VirtualMemory::map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage
 	mapped_ppage.used = true;
 
 	add_lru(ppage);
+}
+
+void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	map_vpage_to_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
+}
+
+void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		ERROR("Mapping vpage to ppage requires a valid active process.");
+	}
+
+	map_vpage_to_ppage(m_cur_ptable, vpage, ppage, exception);
+}
+
+void VirtualMemory::ensure_physical_page_mapping(PageTable *ptable, word vpage, word ppage, Exception& exception)
+{
+	/*
+		* It is likely that the virtual page has already been mapped since this is a temporary
+		* way to allow the emulator to load a program at a specific physical address.
+		*/
+	if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
+	{
+		/*
+			* It is likely that the virtual page maps to the same physical page.
+			*/
+		if (LIKELY(ptable->entries.at(vpage)->ppage == ppage))
+		{
+			return;
+		}
+
+		ERROR_SS(std::stringstream() << "Virtual page " << std::to_string(vpage)
+				<< " is already mapped to a different physical page "
+				<< std::to_string(ptable->entries.at(vpage)->ppage));
+	}
+
+	DEBUG_SS(std::stringstream() << "Mapping physical page " << std::to_string(ppage)
+			<< " to virtual page " << std::to_string(vpage) << ".");
+
+	map_ppage(vpage, ppage, exception);
+}
+
+void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(!enabled))
+	{
+		return;
+	}
+
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	ensure_physical_page_mapping(m_process_ptable_map.at(pid), vpage, ppage, exception);
+}
+
+void VirtualMemory::ensure_physical_page_mapping(word vpage, word ppage, Exception& exception)
+{
+	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	{
+		return;
+	}
+
+	ensure_physical_page_mapping(m_cur_ptable, vpage, ppage, exception);
 }
 
 long long VirtualMemory::begin_process(bool kernel_privilege)

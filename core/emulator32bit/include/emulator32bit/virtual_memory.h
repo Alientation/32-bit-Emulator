@@ -46,17 +46,22 @@ class VirtualMemory
 		};
 
 		/**
-		 * @brief 			Represents recoverable exception states that should be handled by the caller.
+		 * @brief 			Represents recoverable exception states that should be handled by the
+		 * 					caller.
 		 *
-		 * @note 			INVALID_ADDRESS and DISK_FETCH_FAILED should be instead through as a c++ exception.
-		 * 					These should not be recovered from and the running user program should exit
-		 * 					(or the kernel should just crash???).
+		 * @note 			INVALID_ADDRESS and DISK_FETCH_FAILED should be instead through as a
+		 * 					c++ exception. These should not be recovered from and the running user
+		 * 					program should exit (or the kernel should just crash???).
 		 */
 		struct Exception
 		{
 			enum class Type
 			{
-				AOK, INVALID_ADDRESS, DISK_FETCH_SUCCESS, DISK_RETURN_AND_FETCH_SUCCESS, DISK_FETCH_FAILED,
+				AOK,
+				INVALID_ADDRESS,
+				DISK_FETCH_SUCCESS,
+				DISK_RETURN_AND_FETCH_SUCCESS,
+				DISK_FETCH_FAILED,
 			};
 
 			Type type = Type::AOK;
@@ -70,7 +75,7 @@ class VirtualMemory
 			 * and write to the specified physical memory page.
 			*/
 			std::vector<byte> disk_fetch;
-			word ppage_fetch;						/* physical page to write the disk fetch results to. */
+			word ppage_fetch;						/* physical page to write disk fetch results to. */
 			word ppage_return;						/* physical page to read from and write to disk at disk_page_return. */
 			word disk_page_return;					/* disk page to write the read physical page to. */
 		};
@@ -108,7 +113,8 @@ class VirtualMemory
 		 * @param 			kernel_locked: Whether the pages in this region require kernel level
 		 * 					privilege to access.
 		 */
-		void set_ppage_permissions(word ppage_begin, word ppage_end, word swappable, word kernel_locked);
+		void set_ppage_permissions(word ppage_begin, word ppage_end, word swappable,
+								   word kernel_locked);
 
 		/*
 		idea
@@ -134,7 +140,8 @@ class VirtualMemory
 		*/
 
 		/**
-		 * @brief			Adds virtual pages in the given range to the specified process.
+		 * @brief			Adds virtual pages in the given range to the specified process, ignoring
+		 * 					virtual pages already added.
 		 *
 		 * @param 			pid: ID of the process to add virtual pages to.
 		 * @param 			vpage_begin: First virtual page to add.
@@ -143,7 +150,8 @@ class VirtualMemory
 		void add_vpages(long long pid, word vpage_begin, word vpage_end);
 
 		/**
-		 * @brief			Adds virtual pages in the given range to the current process.
+		 * @brief			Adds virtual pages in the given range to the current process, ignoring
+		 * 					virtual pages already added.
 		 *
 		 * @param 			pid: ID of the process to add virtual pages to.
 		 * @param 			vpage_begin: First virtual page to add.
@@ -191,44 +199,15 @@ class VirtualMemory
 			return map_address(m_cur_ptable, address, exception);
 		}
 
-		inline void ensure_physical_page_mapping(long long pid, word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(!enabled))
-			{
-				return;
-			}
-
-			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-			}
-
-			ensure_physical_page_mapping(m_process_ptable_map.at(pid), vpage, ppage, exception);
-		}
-
-		inline void ensure_physical_page_mapping(word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-			{
-				return;
-			}
-
-			ensure_physical_page_mapping(m_cur_ptable, vpage, ppage, exception);
-		}
+		void ensure_physical_page_mapping(long long pid, word vpage, word ppage,
+										  Exception& exception);
+		void ensure_physical_page_mapping(word vpage, word ppage, Exception& exception);
 
 
 	private:
 		/**
 		 * @brief			Contains information about a physical page and what virtual pages
 		 * 					map to it.
-		 *
-		 * @todo			TODO: Since we want to have virtual pages be able to map to the same
-		 * 					physical page, we have the vector of vpages. But it should also contain
-		 * 					the corresponding pid otherwise a different process which should map
-		 * 					to a separate page might map to the same physical page if the page
-		 * 					addresses are the same. (ie, a page swap happens since this is LRU,
-		 * 					page addresses are same, and if the virtual page is also in the vpages
-		 * 					list, there might be a problem here.)
 		 */
 		struct PageTableEntry
 		{
@@ -246,7 +225,7 @@ class VirtualMemory
 			word ppage;						/* Mapped physical page if not on disk. */
 			bool disk;						/* Whether the virtual page is on disk. */
 			word diskpage;					/* Corresponding disk page where the virtual page resides. */
-			bool mapped;					/* Whether this is a mapped virtual page with a specific physical page it must be located in. */
+			bool mapped;					/* Whether this is a mapped virtual page with a permanent physical page. */
 			word mapped_ppage;				/* Corresponding physical page as mentioned above. */
 
 			/* TODO: */
@@ -426,15 +405,7 @@ class VirtualMemory
 		 * @param 			ppage: Physical page to map to.
 		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		inline void map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-			}
-
-			map_vpage_to_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
-		}
+		void map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief			Maps a virtual page to a specific physical page of the current process.
@@ -443,15 +414,7 @@ class VirtualMemory
 		 * @param 			ppage: Physical page to map to.
 		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		inline void map_vpage_to_ppage(word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-			{
-				ERROR("Mapping vpage to ppage requires a valid active process.");
-			}
-
-			map_vpage_to_ppage(m_cur_ptable, vpage, ppage, exception);
-		}
+		void map_vpage_to_ppage(word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief			Add a virtual page to the process.
@@ -462,7 +425,8 @@ class VirtualMemory
 		void add_vpage(PageTable *ptable, word vpage);
 
 		/**
-		 * @brief			Adds a range of new virtual pages to the process.
+		 * @brief			Adds a range of virtual pages to the process. Any existing conflicting
+		 * 					virtual pages will be ignored.
 		 *
 		 * @param 			ptable: Page table corresponding to the process.
 		 * @param 			vpage_begin: First virtual page to add.
@@ -489,15 +453,7 @@ class VirtualMemory
 		 * @param 			ppage: Physical page to map to.
 		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		void map_ppage(long long pid, word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-			}
-
-			map_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
-		}
+		void map_ppage(long long pid, word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief			Maps a new virtual page to a physical page of the current process. Note
@@ -508,16 +464,7 @@ class VirtualMemory
 		 * @param 			ppage: Physical page to map to.
 		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		void map_ppage(word vpage, word ppage, Exception& exception)
-		{
-			if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-			{
-				ERROR("Cannot map physical page because there is no currently running process.");
-				return;
-			}
-
-			map_ppage(m_cur_ptable, vpage, ppage, exception);
-		}
+		void map_ppage(word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief 			Removes the virtual page from a process' page table.
@@ -533,15 +480,7 @@ class VirtualMemory
 		 * @param 			pid: Process id.
 		 * @param 			vpage: Virtual page to remove.
 		 */
-		void remove_vpage(long long pid, word vpage)
-		{
-			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-			}
-
-			remove_vpage(m_process_ptable_map.at(pid), vpage);
-		}
+		void remove_vpage(long long pid, word vpage);
 
 		/**
 		 * @brief 			Removes the virtual page from the current process essentially unmapping
@@ -550,16 +489,7 @@ class VirtualMemory
 		 *
 		 * @param 			vpage: Virtual page to remove.
 		 */
-		void remove_vpage(word vpage)
-		{
-			if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-			{
-				ERROR("Cannot remove virtual page because there is no currently running process.");
-				return;
-			}
-
-			remove_vpage(m_cur_ptable, vpage);
-		}
+		void remove_vpage(word vpage);
 
 		/**
 		 * @brief			Maps a virtual space address to a physical space address. Note these
@@ -594,32 +524,7 @@ class VirtualMemory
 		 * @param 			ppage: Physical page to map to.
 		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
 		 */
-		inline void ensure_physical_page_mapping(PageTable *ptable, word vpage, word ppage, Exception& exception)
-		{
-			/*
-			 * It is likely that the virtual page has already been mapped since this is a temporary
-			 * way to allow the emulator to load a program at a specific physical address.
-			 */
-			if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
-			{
-				/*
-				 * It is likely that the virtual page maps to the same physical page.
-				 */
-				if (LIKELY(ptable->entries.at(vpage)->ppage == ppage))
-				{
-					return;
-				}
-
-				ERROR_SS(std::stringstream() << "Virtual page " << std::to_string(vpage)
-						<< " is already mapped to a different physical page "
-						<< std::to_string(ptable->entries.at(vpage)->ppage));
-			}
-
-			DEBUG_SS(std::stringstream() << "Mapping physical page " << std::to_string(ppage)
-					<< " to virtual page " << std::to_string(vpage) << ".");
-
-			map_ppage(vpage, ppage, exception);
-		}
+		void ensure_physical_page_mapping(PageTable *ptable, word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief 			Accesses a virtual page, performing the translation to the physical page
