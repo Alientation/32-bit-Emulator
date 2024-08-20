@@ -49,7 +49,7 @@ class SystemBus
 		{
 			VirtualMemory::Exception exception;
 			word ppage = address >> PAGE_PSIZE;
-			mmu.ensure_physical_page_mapping(ppage, ppage, exception);
+			mmu.ensure_physical_page_mapping(mmu.current_process(), ppage, ppage, exception);
 
 			if (exception.type != VirtualMemory::Exception::Type::AOK)
 			{

@@ -103,6 +103,8 @@ class VirtualMemory
 		 */
 		void end_process(long long pid);
 
+		long long current_process();
+
 		/**
 		 * @brief 			Set the the access permissions of physical memory. Used by the kernel
 		 * 					to set up memory mapped regions for I/O.
@@ -115,6 +117,14 @@ class VirtualMemory
 		 */
 		void set_ppage_permissions(word ppage_begin, word ppage_end, word swappable,
 								   word kernel_locked);
+
+		void set_vpage_permissions(long long pid, word vpage_begin, word vpage_end, bool read, bool write, bool execute);
+
+		bool can_read_vpage(long long pid, word vpage);
+		bool can_write_vpage(long long pid, word vpage);
+		bool can_execute_vpage(long long pid, word vpage);
+
+		bool can_access_ppage(long long pid, word ppage);
 
 		/*
 		idea
@@ -140,39 +150,19 @@ class VirtualMemory
 		*/
 
 		/**
-		 * @brief			Adds virtual pages in the given range to the specified process, ignoring
-		 * 					virtual pages already added.
-		 *
-		 * @param 			pid: ID of the process to add virtual pages to.
-		 * @param 			vpage_begin: First virtual page to add.
-		 * @param 			vpage_end: Last virtual page to add.
-		 */
-		void add_vpages(long long pid, word vpage_begin, word vpage_end);
-
-		/**
-		 * @brief			Adds virtual pages in the given range to the current process, ignoring
-		 * 					virtual pages already added.
-		 *
-		 * @param 			pid: ID of the process to add virtual pages to.
-		 * @param 			vpage_begin: First virtual page to add.
-		 * @param 			vpage_end: Last virtual page to add.
-		 */
-		void add_vpages(word vpage_begin, word vpage_end);
-
-		/**
 		 * @brief			Adds a new virtual page to the specified process.
 		 *
 		 * @param 			pid: ID of the process to add a virtual page to.
 		 * @param 			vpage: Virtual page to add.
 		 */
-		void add_vpage(long long pid, word vpage);
+		void add_vpage(long long pid, word vpage, word length, bool read, bool write, bool execute);
 
 		/**
 		 * @brief			Adds a new virtual page to the current process.
 		 *
 		 * @param 			vpage: Virtual page to add.
 		 */
-		void add_vpage(word vpage);
+		void add_vpage(word vpage, word length, bool read, bool write, bool execute);
 
 		inline word map_address(long long pid, word address, Exception& exception)
 		{
@@ -201,7 +191,6 @@ class VirtualMemory
 
 		void ensure_physical_page_mapping(long long pid, word vpage, word ppage,
 										  Exception& exception);
-		void ensure_physical_page_mapping(word vpage, word ppage, Exception& exception);
 
 
 	private:
@@ -218,7 +207,7 @@ class VirtualMemory
 			 * @param 		vpage: Virtual page of this mapping.
 			 * @param 		diskpage: Disk page where the virtual page resides.
 			 */
-			PageTableEntry(long long pid, word vpage, word diskpage);
+			PageTableEntry(long long pid, word vpage, word diskpage, bool read, bool write, bool execute);
 
 			long long pid;					/* Process that has this mapping. */
 			word vpage;						/* Virtual page. */
@@ -387,16 +376,6 @@ class VirtualMemory
 		void evict_ppage(word ppage, Exception& exception);
 
 		/**
-		 * @brief 			Maps a virtual page to a specific physical page in a page table.
-		 *
-		 * @param 			ptable: Process' page table to map virtual page.
-		 * @param 			vpage: Virtual page to map.
-		 * @param 			ppage: Physical page to map to.
-		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
-		 */
-		void map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception);
-
-		/**
 		 * @brief 			Maps a virtual page to a specific physical page of the process
 		 * 					corresponding to the given pid.
 		 *
@@ -408,41 +387,13 @@ class VirtualMemory
 		void map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception);
 
 		/**
-		 * @brief			Maps a virtual page to a specific physical page of the current process.
-		 *
-		 * @param 			vpage: Virtual page to map.
-		 * @param 			ppage: Physical page to map to.
-		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
-		 */
-		void map_vpage_to_ppage(word vpage, word ppage, Exception& exception);
-
-		/**
 		 * @brief			Add a virtual page to the process.
 		 *
 		 * @param 			ptable: Page table corresponding to the process.
 		 * @param 			vpage: Virtual page to add.
+		 * @param			length: Number of virtual pages to add.
 		 */
-		void add_vpage(PageTable *ptable, word vpage);
-
-		/**
-		 * @brief			Adds a range of virtual pages to the process. Any existing conflicting
-		 * 					virtual pages will be ignored.
-		 *
-		 * @param 			ptable: Page table corresponding to the process.
-		 * @param 			vpage_begin: First virtual page to add.
-		 * @param 			vpage_end: Last virtual page to add.
-		 */
-		void add_vpages(PageTable *ptable, word vpage_begin, word vpage_end);
-
-		/**
-		 * @brief 			Maps a new virtual page to a physical page of the process.
-		 *
-		 * @param 			ptable: Page table corresponding to the process.
-		 * @param 			vpage: Virtual page to map.
-		 * @param 			ppage: Physical page to map to.
-		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
-		 */
-		void map_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception);
+		void add_vpage(PageTable *ptable, word vpage, word length, bool read, bool write, bool execute);
 
 		/**
 		 * @brief 			Maps a new virtual page to a physical page of the specified process.
@@ -456,40 +407,12 @@ class VirtualMemory
 		void map_ppage(long long pid, word vpage, word ppage, Exception& exception);
 
 		/**
-		 * @brief			Maps a new virtual page to a physical page of the current process. Note
-		 * 					this forces the virtual page to always map to the physical page.
-		 *
-		 * @param 			vpage: Virtual page to map to the physical page. Must be an unmapped
-		 * 						   virtual page.
-		 * @param 			ppage: Physical page to map to.
-		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
-		 */
-		void map_ppage(word vpage, word ppage, Exception& exception);
-
-		/**
-		 * @brief 			Removes the virtual page from a process' page table.
-		 *
-		 * @param 			ptable: A page table of a process containing the virtual memory map.
-		 * @param 			vpage: Virtual page to remove.
-		 */
-		void remove_vpage(PageTable *ptable, word vpage);
-
-		/**
 		 * @brief 			Removes the virtual page from a process referenced by it's pid.
 		 *
 		 * @param 			pid: Process id.
 		 * @param 			vpage: Virtual page to remove.
 		 */
 		void remove_vpage(long long pid, word vpage);
-
-		/**
-		 * @brief 			Removes the virtual page from the current process essentially unmapping
-		 * 					it. Any future accesses to this virtual page will result in an exception
-		 * 					unless it is remapped.
-		 *
-		 * @param 			vpage: Virtual page to remove.
-		 */
-		void remove_vpage(word vpage);
 
 		/**
 		 * @brief			Maps a virtual space address to a physical space address. Note these
@@ -514,17 +437,6 @@ class VirtualMemory
 
 			return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
 		}
-
-		/**
-		 * @brief			Maps the virtual page to a specific physical page if it is not yet
-		 * 					mapped. Maintains mapping even after page swaps.
-		 *
-		 * @param 			ptable: Page table of the process containing the virtual address mappings.
-		 * @param 			vpage: Virtual page to map.
-		 * @param 			ppage: Physical page to map to.
-		 * @param 			exception: Exception is thrown whenever there is a page fault to handle.
-		 */
-		void ensure_physical_page_mapping(PageTable *ptable, word vpage, word ppage, Exception& exception);
 
 		/**
 		 * @brief 			Accesses a virtual page, performing the translation to the physical page
@@ -606,7 +518,7 @@ class VirtualMemory
 					evict_ppage(entry->mapped_ppage, exception);
 				}
 
-				map_vpage_to_ppage(vpage, entry->mapped_ppage, exception);
+				map_vpage_to_ppage(ptable->pid, vpage, entry->mapped_ppage, exception);
 			}
 			else
 			{
@@ -619,7 +531,7 @@ class VirtualMemory
 				}
 
 				word ppage = m_freelist.get_free_block(1);
-				map_vpage_to_ppage(vpage, ppage, exception);
+				map_vpage_to_ppage(ptable->pid, vpage, ppage, exception);
 			}
 
 			DEBUG_SS(std::stringstream() << "accessing virtual page " << std::to_string(vpage)

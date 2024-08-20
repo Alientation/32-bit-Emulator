@@ -37,14 +37,18 @@ const char* VirtualMemory::VirtualMemoryException::what() const noexcept
 	return message.c_str();
 }
 
-VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word diskpage) :
+VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word diskpage,
+											  bool read, bool write, bool execute) :
 	pid(pid),
 	vpage(vpage),
 	ppage(0),
 	disk(true),
 	diskpage(diskpage),
 	mapped(false),
-	mapped_ppage(0)
+	mapped_ppage(0),
+	read(read),
+	write(write),
+	execute(execute)
 {
 
 }
@@ -72,58 +76,184 @@ void VirtualMemory::set_process(long long pid)
 	DEBUG_SS(std::stringstream() << "Setting memory map to process " << std::to_string(pid));
 }
 
-void VirtualMemory::add_vpage(PageTable *ptable, word vpage)
+long long VirtualMemory::begin_process(bool kernel_privilege)
 {
-	if (ptable->entries.find(vpage) != ptable->entries.end())
+	if (!m_freepids.can_fit(1))
 	{
-		ERROR_SS(std::stringstream() << "Cannot add virtual page " << std::to_string(vpage)
-				<< " because it is already mapped to process "
-				<< std::to_string(ptable->pid));
+		ERROR("Reached the MAX_PROCESSES limit. Cannot create a new process.");
+		return -1;
+	}
+
+	word pid = m_freepids.get_free_block(1);
+
+	PageTable *new_pagetable = new PageTable
+	{
+		.pid = pid,
+		.kernel_privilege = kernel_privilege,
+	};
+
+	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
+	m_cur_ptable = new_pagetable;
+
+	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(pid));
+	return pid;
+}
+
+void VirtualMemory::end_process(long long pid)
+{
+	if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
+	{
+		ERROR_SS(std::stringstream() << "Cannot end process " << std::to_string(pid)
+				<< "'s memory map since it does not have one.");
 		return;
 	}
 
-	ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(ptable->pid, vpage, m_disk.get_free_page())));
-
-	DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
-			<< " to process " << std::to_string(ptable->pid));
-}
-
-void VirtualMemory::add_vpage(word vpage)
-{
-	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	/*
+	 * Store into a temporary array because when vpage entry is removed, it will also be removed
+	 * from the process PageTableEntry map. This would have caused a concurrent modification error.
+	 */
+	std::vector<word> vpages;
+	for (std::pair<const word, PageTableEntry*>& pair : m_process_ptable_map.at(pid)->entries)
 	{
-		ERROR("Cannot add page because there is no currently running process.");
-		return;
+		vpages.push_back(pair.first);
 	}
 
-	add_vpage(m_cur_ptable, vpage);
+	for (word vpage : vpages)
+	{
+		remove_vpage(pid, vpage);
+	}
+
+	if (m_cur_ptable == m_process_ptable_map.at(pid))
+	{
+		m_cur_ptable = nullptr;
+	}
+
+	delete m_process_ptable_map.at(pid);
+	m_process_ptable_map.erase(pid);
+	m_freepids.return_block(pid, 1);
+	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
 }
 
-void VirtualMemory::add_vpage(long long pid, word vpage)
+long long VirtualMemory::current_process()
+{
+	if (m_cur_ptable == nullptr)
+	{
+		return -1;
+	}
+
+	return m_cur_ptable->pid;
+}
+
+void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, word swappable, word kernel_locked)
+{
+	for (word i = ppage_begin; i <= ppage_end; i++)
+	{
+		m_physical_memory_map[i].swappable = swappable;
+		m_physical_memory_map[i].kernel_locked = kernel_locked;
+	}
+}
+
+void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word vpage_end, bool read, bool write, bool execute)
 {
 	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 	{
 		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
 	}
 
-	add_vpage(m_process_ptable_map.at(pid), vpage);
-}
-
-void VirtualMemory::add_vpages(PageTable *ptable, word vpage_begin, word vpage_end)
-{
-	INFO_SS(std::stringstream() << "Adding virtual pagess " << std::to_string(vpage_begin)
-			<< " to " << std::to_string(vpage_end));
-
-	for (word i = vpage_begin; i <= vpage_end; i++)
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	for (word vpage = vpage_begin; vpage <= vpage_end; vpage++)
 	{
-		if (ptable->entries.find(i) == ptable->entries.end())
+		if (ptable->entries.find(vpage) == ptable->entries.end())
 		{
-			add_vpage(ptable, i);
+			add_vpage(vpage, 1, read, write, execute);
+		}
+		else
+		{
+			PageTableEntry *entry = ptable->entries.at(vpage);
+			entry->read = read;
+			entry->write = write;
+			entry->execute = execute;
 		}
 	}
 }
 
-void VirtualMemory::add_vpages(word vpage_begin, word vpage_end)
+bool VirtualMemory::can_read_vpage(long long pid, word vpage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	if (ptable->entries.find(vpage) == ptable->entries.end())
+	{
+		return false;
+	}
+	return ptable->entries.at(vpage)->read;
+}
+
+bool VirtualMemory::can_write_vpage(long long pid, word vpage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	if (ptable->entries.find(vpage) == ptable->entries.end())
+	{
+		return false;
+	}
+	return ptable->entries.at(vpage)->write;
+}
+
+bool VirtualMemory::can_execute_vpage(long long pid, word vpage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	if (ptable->entries.find(vpage) == ptable->entries.end())
+	{
+		return false;
+	}
+	return ptable->entries.at(vpage)->execute;
+}
+
+bool VirtualMemory::can_access_ppage(long long pid, word ppage)
+{
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	return !m_physical_memory_map[ppage].kernel_locked || ptable->kernel_privilege;
+}
+
+void VirtualMemory::add_vpage(PageTable *ptable, word vpage, word length, bool read, bool write, bool execute)
+{
+	word last_vpage = vpage + length - 1;
+	for (; vpage <= last_vpage; vpage++)
+	{
+		if (ptable->entries.find(vpage) != ptable->entries.end())
+		{
+			ERROR_SS(std::stringstream() << "Cannot add virtual page " << std::to_string(vpage)
+					<< " because it is already mapped to process "
+					<< std::to_string(ptable->pid));
+			return;
+		}
+
+		ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(ptable->pid, vpage, m_disk.get_free_page(), read, write, execute)));
+
+		DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
+				<< " to process " << std::to_string(ptable->pid));
+	}
+}
+
+void VirtualMemory::add_vpage(word vpage, word length, bool read, bool write, bool execute)
 {
 	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
 	{
@@ -131,40 +261,17 @@ void VirtualMemory::add_vpages(word vpage_begin, word vpage_end)
 		return;
 	}
 
-	add_vpages(m_cur_ptable, vpage_begin, vpage_end);
+	add_vpage(m_cur_ptable, vpage, length, read, write, execute);
 }
 
-void VirtualMemory::add_vpages(long long pid, word vpage_begin, word vpage_end)
+void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool read, bool write, bool execute)
 {
 	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 	{
 		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
 	}
 
-	add_vpages(m_process_ptable_map.at(pid), vpage_begin, vpage_end);
-}
-
-void VirtualMemory::map_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception)
-{
-	if (ptable->entries.find(vpage) != ptable->entries.end())
-	{
-		ERROR_SS(std::stringstream() << "Cannot map physical page " << std::to_string(ppage)
-				<< " to virtual page" << std::to_string(vpage));
-	}
-
-	add_vpage(vpage);
-
-	if (m_physical_memory_map[ppage].used)
-	{
-		evict_ppage(ppage, exception);
-	}
-
-	m_freelist.remove_block(ppage, 1);
-	map_vpage_to_ppage(vpage, ppage, exception);
-
-	PageTableEntry *entry = ptable->entries.at(vpage);
-	entry->mapped = true;
-	entry->mapped_ppage = ppage;
+	add_vpage(m_process_ptable_map.at(pid), vpage, length, read, write, execute);
 }
 
 void VirtualMemory::map_ppage(long long pid, word vpage, word ppage, Exception& exception)
@@ -174,22 +281,37 @@ void VirtualMemory::map_ppage(long long pid, word vpage, word ppage, Exception& 
 		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
 	}
 
-	map_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
-}
-
-void VirtualMemory::map_ppage(word vpage, word ppage, Exception& exception)
-{
-	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+	PageTable *ptable = m_process_ptable_map.at(pid);
+	if (ptable->entries.find(vpage) != ptable->entries.end())
 	{
-		ERROR("Cannot map physical page because there is no currently running process.");
-		return;
+		ERROR_SS(std::stringstream() << "Cannot map physical page " << std::to_string(ppage)
+				<< " to virtual page" << std::to_string(vpage));
 	}
 
-	map_ppage(m_cur_ptable, vpage, ppage, exception);
+	add_vpage(vpage, 1, true, true, true);
+
+	if (m_physical_memory_map[ppage].used)
+	{
+		evict_ppage(ppage, exception);
+	}
+
+	m_freelist.remove_block(ppage, 1);
+	map_vpage_to_ppage(pid, vpage, ppage, exception);
+
+	PageTableEntry *entry = ptable->entries.at(vpage);
+	entry->mapped = true;
+	entry->mapped_ppage = ppage;
 }
 
-void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
+void VirtualMemory::remove_vpage(long long pid, word vpage)
 {
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+
 	if (ptable->entries.find(vpage) == ptable->entries.end())
 	{
 		ERROR_SS(std::stringstream() << "Cannot remove virtual page " << std::to_string(vpage)
@@ -219,27 +341,6 @@ void VirtualMemory::remove_vpage(PageTable *ptable, word vpage)
 	}
 
 	delete entry;
-}
-
-void VirtualMemory::remove_vpage(long long pid, word vpage)
-{
-	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-	{
-		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-	}
-
-	remove_vpage(m_process_ptable_map.at(pid), vpage);
-}
-
-void VirtualMemory::remove_vpage(word vpage)
-{
-	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-	{
-		ERROR("Cannot remove virtual page because there is no currently running process.");
-		return;
-	}
-
-	remove_vpage(m_cur_ptable, vpage);
 }
 
 void VirtualMemory::check_vm()
@@ -308,8 +409,15 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	m_freelist.return_block(ppage, 1);
 }
 
-void VirtualMemory::map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage, Exception& exception)
+void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception)
 {
+	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+	{
+		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+	}
+
+	PageTable *ptable = m_process_ptable_map.at(pid);
+
 	PageTableEntry *entry = ptable->entries.at(vpage);
 	exception.disk_fetch = m_disk.read_page(entry->diskpage);
 
@@ -333,37 +441,29 @@ void VirtualMemory::map_vpage_to_ppage(PageTable *ptable, word vpage, word ppage
 	add_lru(ppage);
 }
 
-void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception& exception)
+void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage, Exception& exception)
 {
+	if (UNLIKELY(!enabled))
+	{
+		return;
+	}
+
 	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 	{
 		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
 	}
 
-	map_vpage_to_ppage(m_process_ptable_map.at(pid), vpage, ppage, exception);
-}
+	PageTable *ptable = m_process_ptable_map.at(pid);
 
-void VirtualMemory::map_vpage_to_ppage(word vpage, word ppage, Exception& exception)
-{
-	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-	{
-		ERROR("Mapping vpage to ppage requires a valid active process.");
-	}
-
-	map_vpage_to_ppage(m_cur_ptable, vpage, ppage, exception);
-}
-
-void VirtualMemory::ensure_physical_page_mapping(PageTable *ptable, word vpage, word ppage, Exception& exception)
-{
 	/*
-		* It is likely that the virtual page has already been mapped since this is a temporary
-		* way to allow the emulator to load a program at a specific physical address.
-		*/
+	 * It is likely that the virtual page has already been mapped since this is a temporary
+	 * way to allow the emulator to load a program at a specific physical address.
+	 */
 	if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
 	{
 		/*
-			* It is likely that the virtual page maps to the same physical page.
-			*/
+		 * It is likely that the virtual page maps to the same physical page.
+		 */
 		if (LIKELY(ptable->entries.at(vpage)->ppage == ppage))
 		{
 			return;
@@ -377,99 +477,7 @@ void VirtualMemory::ensure_physical_page_mapping(PageTable *ptable, word vpage, 
 	DEBUG_SS(std::stringstream() << "Mapping physical page " << std::to_string(ppage)
 			<< " to virtual page " << std::to_string(vpage) << ".");
 
-	map_ppage(vpage, ppage, exception);
-}
-
-void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage, Exception& exception)
-{
-	if (UNLIKELY(!enabled))
-	{
-		return;
-	}
-
-	if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-	{
-		ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
-	}
-
-	ensure_physical_page_mapping(m_process_ptable_map.at(pid), vpage, ppage, exception);
-}
-
-void VirtualMemory::ensure_physical_page_mapping(word vpage, word ppage, Exception& exception)
-{
-	if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
-	{
-		return;
-	}
-
-	ensure_physical_page_mapping(m_cur_ptable, vpage, ppage, exception);
-}
-
-long long VirtualMemory::begin_process(bool kernel_privilege)
-{
-	if (!m_freepids.can_fit(1))
-	{
-		ERROR("Reached the MAX_PROCESSES limit. Cannot create a new process.");
-		return -1;
-	}
-
-	word pid = m_freepids.get_free_block(1);
-
-	PageTable *new_pagetable = new PageTable
-	{
-		.pid = pid,
-		.kernel_privilege = kernel_privilege,
-	};
-
-	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
-	m_cur_ptable = new_pagetable;
-
-	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(pid));
-	return pid;
-}
-
-void VirtualMemory::end_process(long long pid)
-{
-	if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
-	{
-		ERROR_SS(std::stringstream() << "Cannot end process " << std::to_string(pid)
-				<< "'s memory map since it does not have one.");
-		return;
-	}
-
-	/*
-	 * Store into a temporary array because when vpage entry is removed, it will also be removed
-	 * from the process PageTableEntry map. This would have caused a concurrent modification error.
-	 */
-	std::vector<word> vpages;
-	for (std::pair<const word, PageTableEntry*>& pair : m_process_ptable_map.at(pid)->entries)
-	{
-		vpages.push_back(pair.first);
-	}
-
-	for (word vpage : vpages)
-	{
-		remove_vpage(pid, vpage);
-	}
-
-	if (m_cur_ptable == m_process_ptable_map.at(pid))
-	{
-		m_cur_ptable = nullptr;
-	}
-
-	delete m_process_ptable_map.at(pid);
-	m_process_ptable_map.erase(pid);
-	m_freepids.return_block(pid, 1);
-	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
-}
-
-void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, word swappable, word kernel_locked)
-{
-	for (word i = ppage_begin; i <= ppage_end; i++)
-	{
-		m_physical_memory_map[i].swappable = swappable;
-		m_physical_memory_map[i].kernel_locked = kernel_locked;
-	}
+	map_ppage(pid, vpage, ppage, exception);
 }
 
 void VirtualMemory::check_lru()
