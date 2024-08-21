@@ -51,7 +51,7 @@ void LoadExecutable::load()
 		// we are assuming that there is no overlap between pages of text, data, and bss sections
 		word start = cur_addr >> PAGE_PSIZE;
 		word end = (cur_addr + 4 * obj.text_section.size() - 1) >> PAGE_PSIZE;
-		m_emu.mmu->add_vpage(start, end - start + 1, true, false, true);
+		m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, false, true);
 	}
 
 	for (word instr : obj.text_section) {
@@ -74,7 +74,7 @@ void LoadExecutable::load()
 	{
 		word start = cur_addr >> PAGE_PSIZE;
 		word end = (cur_addr + obj.data_section.size() - 1) >> PAGE_PSIZE;
-		m_emu.mmu->add_vpage(start, end - start + 1, true, true, false);
+		m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, true, false);
 	}
 
 	for (byte data : obj.data_section) {
@@ -95,7 +95,7 @@ void LoadExecutable::load()
 	{
 		word start = cur_addr >> PAGE_PSIZE;
 		word end = (cur_addr + obj.bss_section - 1) >> PAGE_PSIZE;
-		m_emu.mmu->add_vpage(start, end - start + 1, true, true, false);
+		m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, true, false);
 	}
 
 	for (word i = 0; i < obj.bss_section; i++) {
@@ -117,7 +117,7 @@ void LoadExecutable::load()
 
 	VirtualMemory::Exception vm_exception;
 	word entry_point = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value;
-	m_emu._pc = m_emu.mmu->map_address(entry_point, vm_exception);
+	m_emu._pc = m_emu.mmu->translate_address(entry_point, vm_exception);
 
 	INFO("Starting emulator at entry point _start at virtual address %x mapped to physical address %x", entry_point, m_emu._pc);
 };

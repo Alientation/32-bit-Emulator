@@ -19,7 +19,7 @@ Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte
 	ram(new RAM(ram_mem_psize, ram_mem_pstart)),
 	rom(new ROM(rom_data, rom_mem_psize, rom_mem_pstart)),
 	disk(new MockDisk()),
-	mmu(new VirtualMemory(ram_mem_pstart, ram_mem_pstart + ram_mem_psize, *disk)),
+	mmu(new VirtualMemory(*disk)),
 	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();
@@ -36,7 +36,7 @@ Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
 	ram(ram),
 	rom(rom),
 	disk(disk),
-	mmu(new VirtualMemory(ram->get_lo_page(), ram->get_hi_page(), *disk)),
+	mmu(new VirtualMemory(*disk)),
 	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();

@@ -38,7 +38,7 @@ class SystemBus
 			{
 				val <<= 8;
 				word real_adr = address;
-				real_adr = map_address(address + n_bytes - i - 1);
+				real_adr = translate_address(address + n_bytes - i - 1);
 				BaseMemory *target = route_memory(real_adr);
 				val += target->read_byte(real_adr);
 			}
@@ -65,7 +65,7 @@ class SystemBus
 		 */
 		inline byte read_byte(word address)
 		{
-			address = map_address(address);
+			address = translate_address(address);
 			return route_memory(address)->read_byte(address);
 		}
 
@@ -79,7 +79,7 @@ class SystemBus
 		{
 			if ((address >> PAGE_PSIZE) == ((address + 1) >> PAGE_PSIZE))
 			{
-				address = map_address(address);
+				address = translate_address(address);
 				return route_memory(address)->read_hword(address);
 			}
 
@@ -96,7 +96,7 @@ class SystemBus
 		{
 			if ((address >> PAGE_PSIZE) == ((address + 3) >> PAGE_PSIZE))
 			{
-				address = map_address(address);
+				address = translate_address(address);
 				return route_memory(address)->read_word(address);
 			}
 
@@ -111,7 +111,7 @@ class SystemBus
 
 		inline word read_word_aligned_ram(word address)
 		{
-			return ram.read_word_aligned(map_address(address));
+			return ram.read_word_aligned(translate_address(address));
 		}
 
 		inline word read_unmapped_word_aligned_ram(word address)
@@ -128,7 +128,7 @@ class SystemBus
 		 */
 		inline void write_byte(word address, byte data)
 		{
-			address = map_address(address);
+			address = translate_address(address);
 			route_memory(address)->write_byte(address, data);
 		}
 
@@ -142,7 +142,7 @@ class SystemBus
 		{
 			if ((address >> PAGE_PSIZE) == ((address + 1) >> PAGE_PSIZE))
 			{
-				address = map_address(address);
+				address = translate_address(address);
 				route_memory(address)->write_hword(address, data);
 			}
 			else
@@ -161,7 +161,7 @@ class SystemBus
 		{
 			if ((address >> PAGE_PSIZE) == ((address + 3) >> PAGE_PSIZE))
 			{
-				address = map_address(address);
+				address = translate_address(address);
 				route_memory(address)->write_word(address, data);
 			}
 			else
@@ -181,7 +181,7 @@ class SystemBus
 			for (int i = 0; i < n_bytes; i++)
 			{
 				word real_adr = address;
-				real_adr = map_address(address + i);
+				real_adr = translate_address(address + i);
 				BaseMemory *target = route_memory(real_adr);
 				target->write_byte(real_adr, val & 0xFF);
 				val >>= 8;
@@ -233,10 +233,10 @@ class SystemBus
 			}
 		}
 
-		inline word map_address(word address)
+		inline word translate_address(word address)
 		{
 			VirtualMemory::Exception exception;
-			word addr = mmu.map_address(address, exception);
+			word addr = mmu.translate_address(address, exception);
 
 			if (exception.type != VirtualMemory::Exception::Type::AOK)
 			{
