@@ -159,6 +159,11 @@ class VirtualMemory
 		 */
 		void end_process(long long pid);
 
+		/**
+		 * @brief 			Gets the current process identifier.
+		 *
+		 * @return 			Current process ID, -1 if no current active process.
+		 */
 		long long current_process();
 
 		/**
