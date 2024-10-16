@@ -28,6 +28,7 @@ Disk::Disk() :
 	m_free_list(0, 0, false)
 {
 	// maybe this isnt the best way to create support a mocked disk
+	this->m_cache = new CachePage[AEMU_DISK_CACHE_SIZE];    /* so destructor can work. */
 }
 
 void Disk::read_disk_files()
@@ -437,7 +438,7 @@ void Disk::save()
 
 MockDisk::MockDisk()
 {
-
+	
 }
 
 word MockDisk::get_free_page()

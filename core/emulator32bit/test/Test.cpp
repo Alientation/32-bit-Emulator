@@ -1,4 +1,5 @@
 #include <emulator32bit/emulator32bit.h>
+#include <emulator32bit/virtual_memory.h>
 #include <emulator32bit/system_bus.h>
 #include <emulator32bit/memory.h>
 #include <util/logger.h>
@@ -32,8 +33,8 @@ void test_bus() {
 	const byte rom_data[PAGE_SIZE] = {1,2,3,4,5,6,7,8};
 	ROM rom = ROM(rom_data, 1, 1);
 	MockDisk disk;
-	VirtualMemory mock_vm(ram.get_lo_page(), ram.get_hi_page(), disk);
-	SystemBus bus(ram, rom, mock_vm);
+	VirtualMemory mock_vm(disk);
+	SystemBus bus(ram, rom, disk, mock_vm);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");
 	std::stringstream data_stream;

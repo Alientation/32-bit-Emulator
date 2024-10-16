@@ -25,35 +25,35 @@ enable_testing()
 add_executable(emulator32bit_tests)
 target_sources(emulator32bit_tests PRIVATE
 	# add test source files here
-	./Emulator32bitTest.cpp
+	./emulator32bit_test.cpp
 
-	./EmulatorTests/emulator_test.cpp
+	./emulator_tests/emulator_test.cpp
 
-	./InstructionTests/hlt_test.cpp
-	./InstructionTests/add_test.cpp
-	./InstructionTests/sub_test.cpp
-	./InstructionTests/rsb_test.cpp
-	./InstructionTests/adc_test.cpp
-	./InstructionTests/sbc_test.cpp
-	./InstructionTests/rsc_test.cpp
-	./InstructionTests/mul_test.cpp
-	./InstructionTests/umull_test.cpp
-	./InstructionTests/smull_test.cpp
-	./InstructionTests/and_test.cpp
-	./InstructionTests/orr_test.cpp
-	./InstructionTests/eor_test.cpp
-	./InstructionTests/bic_test.cpp
-	./InstructionTests/lsl_test.cpp
-	./InstructionTests/lsr_test.cpp
-	./InstructionTests/asr_test.cpp
-	./InstructionTests/ror_test.cpp
-	./InstructionTests/cmp_test.cpp
-	./InstructionTests/cmn_test.cpp
-	./InstructionTests/tst_test.cpp
-	./InstructionTests/teq_test.cpp
-	./InstructionTests/mov_test.cpp
-	./InstructionTests/mvn_test.cpp
-	./InstructionTests/ldr_test.cpp
+	./instruction_tests/hlt_test.cpp
+	./instruction_tests/add_test.cpp
+	./instruction_tests/sub_test.cpp
+	./instruction_tests/rsb_test.cpp
+	./instruction_tests/adc_test.cpp
+	./instruction_tests/sbc_test.cpp
+	./instruction_tests/rsc_test.cpp
+	./instruction_tests/mul_test.cpp
+	./instruction_tests/umull_test.cpp
+	./instruction_tests/smull_test.cpp
+	./instruction_tests/and_test.cpp
+	./instruction_tests/orr_test.cpp
+	./instruction_tests/eor_test.cpp
+	./instruction_tests/bic_test.cpp
+	./instruction_tests/lsl_test.cpp
+	./instruction_tests/lsr_test.cpp
+	./instruction_tests/asr_test.cpp
+	./instruction_tests/ror_test.cpp
+	./instruction_tests/cmp_test.cpp
+	./instruction_tests/cmn_test.cpp
+	./instruction_tests/tst_test.cpp
+	./instruction_tests/teq_test.cpp
+	./instruction_tests/mov_test.cpp
+	./instruction_tests/mvn_test.cpp
+	./instruction_tests/ldr_test.cpp
 )
 
 target_include_directories(
@@ -69,7 +69,7 @@ gtest_discover_tests(emulator32bit_tests)
 
 add_executable(quick_test)
 target_sources(quick_test PRIVATE
-	./Test.cpp
+	./test.cpp
 )
 
 target_include_directories(

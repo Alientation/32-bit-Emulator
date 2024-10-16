@@ -173,7 +173,6 @@ void Emulator32bit::run(unsigned long long instructions)
 		{
 			while (true)
 			{
-				// instr = system_bus.ram.read_word_aligned(_pc);
 				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
 				_pc += 4;
@@ -185,7 +184,6 @@ void Emulator32bit::run(unsigned long long instructions)
 			unsigned long long start_instructions = instructions;
 			while (instructions > 0)
 			{
-				// instr = system_bus.ram.read_word_aligned(_pc);
 				instr = system_bus.read_word_aligned_ram(_pc);
 				execute(instr);
 				_pc += 4;

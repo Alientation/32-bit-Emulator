@@ -1,12 +1,17 @@
+struct pcb {
+    pid_t pid;
+    struct pagetable *ptable;
+
+    reg_t pc, pstate, x0, x1, x2 .... x29, sp;
+}
+
 Process memory layout
-
 each process needs to have information about its memory location (the kernel should store these information)
-
 so things like where the stack begins, very top of the memory block allocated to the process etc
 
- === High Address ===
-- Command line args and environment variables
+ === High User Address ===
 - Stack Bottom
+- Command line args and environment variables
 - Stack Pointer (stack top)
 - Free Space
 - Heap Top
@@ -19,24 +24,22 @@ so things like where the stack begins, very top of the memory block allocated to
 
 Stack will grow down and heap grows upwards
 We will have to use memory mappings to have virtual memory and support dynamically growing heap or stack
-if free space runs out
+without mapping the whole free space
 
 
-
-Virtual memory
-Page table (~2 MiB)
-maps each page of virtual memory to a page in physical memory
-first 20 bits are the key into the page table, last 12 bits offset into the resulting physical page
+32 bit Virtual memory
+Support multi level page tables
+Support mapping to variable size physical memory
 Each entry in page table needs a dirty flag and disk flag
 If page is in disk, OS will need to load the corresponding page from disk (respective to the current process id)
-The OS should have a page map from virtual page index to disk page index
-	- ~8 MiB
-	- should think about spliting virtual page index into chunks
 
 File system
 
 
 Disk memory
+====TODO====
+This should be modeled after a real harddisk - split into sectors of 512 bytes.
+
 A single file containing binary data
 32 bit memory access
 split into chunks and pages (4096 bytes => page, 4096 pages => chunk)

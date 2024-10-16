@@ -93,7 +93,7 @@ target_link_libraries(emulator6502_tests PUBLIC util::util assembler::assembler 
 
 add_executable(assembler_tests)
 target_sources(assembler_tests PRIVATE
-    ./assembler_tests/AssemblerTests.cpp
+    ./assembler_tests/assembler_tests.cpp
 )
 target_include_directories(
     assembler_tests
