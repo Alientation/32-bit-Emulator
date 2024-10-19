@@ -286,7 +286,7 @@ word Emulator32bit::asm_format_b2(byte opcode, ConditionCode cond, int xd)
 void Emulator32bit::_hlt(word instr)
 {
 	UNUSED(instr);
-	throw EmulatorException("HLT Exception");		// todo, instead, an interrupt should be raised or smthn to be handled by the kernel
+	throw Exception(HALT_INSTR, "HLT Exception");
 }
 
 word Emulator32bit::asm_hlt()
@@ -795,7 +795,7 @@ word Emulator32bit::calc_mem_addr(word xn, sword offset, byte addr_mode)
 		mem_addr = xn_val;
 		write_reg(xn, xn_val + offset);
 	} else {
-		throw EmulatorException("Bad memory address mode " + std::to_string(addr_mode));
+		throw Exception(BAD_INSTR, "Bad memory address mode " + std::to_string(addr_mode));
 	}
 	return mem_addr;
 }

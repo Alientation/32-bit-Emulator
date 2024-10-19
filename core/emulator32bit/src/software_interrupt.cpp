@@ -47,7 +47,7 @@ void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value) {
 	if (val >= min_value && val <= max_value) {
 
 	} else {
-		throw EmulatorException("Failed system call assertion. Expected register " +
+		throw Exception(FAILED_ASSERT, "Failed system call assertion. Expected register " +
 				std::to_string(reg_id) + " to contain a value between " +
 				std::to_string(min_value) + " and " + std::to_string(max_value) +
 				" but it contains " + std::to_string(val) + ".");
@@ -71,7 +71,7 @@ void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, w
 	}
 
 	if (val < min_value || val > max_value) {
-		throw EmulatorException("Expected value at memory address " + std::to_string(mem_addr) +
+		throw Exception(FAILED_ASSERT, "Expected value at memory address " + std::to_string(mem_addr) +
 				" to be between " + std::to_string(min_value) + " and " +
 				std::to_string(max_value) + ". Got " + std::to_string(val) + ".");
 	}
@@ -82,7 +82,7 @@ void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value)
 	bool val = test_bit(_pstate, p_state_id);
 
 	if (val != expected_value) {
-		throw EmulatorException("Failed system call assertion. Expected PSTATE " +
+		throw Exception(FAILED_ASSERT, "Failed system call assertion. Expected PSTATE " +
 				std::to_string(p_state_id) + " to be " + std::to_string(expected_value) +
 				". Got " + std::to_string(val) + ".");
 	}
@@ -286,6 +286,6 @@ void Emulator32bit::_swi(word instr)
 			_emu_assertp(arg0, arg1);
 			break;
 		default:
-			throw EmulatorException("Invalid syscall number " + std::to_string(id));
+			throw Exception(BAD_INSTR, "Invalid syscall number " + std::to_string(id));
 	}
 }

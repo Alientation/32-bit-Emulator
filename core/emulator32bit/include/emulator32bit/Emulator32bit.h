@@ -9,11 +9,14 @@
 
 #include <string>
 
+class MMU;  /* Forward declare from 'better_virtual_memory.h' */
+
 /**
  * @brief					IDs for special registers
  *
  */
-#define SP 30											/*! Stack Pointer*/
+#define NUM_REG 31                                      /*! Number of general purpose stack registers */
+#define SP 30											/*! Stack Pointer */
 #define XZR 31											/*! Zero Register */
 #define LINKR 29										/*! Link Register */
 #define NR 8											/*! Number register for syscalls */
@@ -26,6 +29,8 @@
 #define Z_FLAG 1										/*! Zero Flag */
 #define C_FLAG 2										/*! Carry Flag */
 #define V_FLAG 3										/*! Overflow Flag */
+#define USER_FLAG 8                                     /*! User mode flag */
+#define REAL_FLAG 9                                     /*! Real memory mode flag */
 
 /**
  * @brief					Which bit of the instruction determines whether flags will be updated
@@ -62,17 +67,39 @@ class Emulator32bit
 		~Emulator32bit();
 		void print();
 
-		class EmulatorException : public std::exception
+        enum InterruptType
+        {
+            /* TODO */
+            BAD_REG,
+            BAD_INSTR,
+            HALT_INSTR,
+            FAILED_ASSERT,
+            PAGEFAULT,
+        };
+
+        struct InterruptFrame
+        {
+            word saved_reg[NUM_REG];
+            word saved_px;
+            word saved_pstate;
+            word saved_pagedir;
+
+
+        };
+
+		class Exception : public std::exception
 		{
 			private:
+                InterruptType type;
 				std::string message;
 
 			public:
-				EmulatorException(const std::string& msg);
+				Exception(InterruptType type, const std::string& msg);
 				const char* what() const noexcept override;
 		};
 
-		enum class ConditionCode {
+		enum class ConditionCode 
+        {
 			EQ = 0,										/*! Equal						: Z==1 */
 			NE = 1,										/*! Not Equal					: Z==0 */
 			CS = 2, HS = 2,								/*! Unsigned higher or same		: C==1 */
@@ -125,17 +152,30 @@ class Emulator32bit
 		 * @param 			C: Carry flag
 		 * @param 			V: Overflow flag
 		 */
-		inline void set_NZCV(bool N, bool Z, bool C, bool V) {
+		inline void set_NZCV(bool N, bool Z, bool C, bool V) 
+        {
 			_pstate = set_bit(_pstate, N_FLAG, N);
 			_pstate = set_bit(_pstate, Z_FLAG, Z);
 			_pstate = set_bit(_pstate, C_FLAG, C);
 			_pstate = set_bit(_pstate, V_FLAG, V);
 		}
 
-		word _x[31];									/*! General purpose registers, x0-x29, and SP. x29 is the link register */
+        /**
+         * @brief           Sets flags in the process state register
+         * 
+         * @param           flag: Bit to set 
+         * @param           value: Flag value 
+         */
+        inline void set_flag(int flag, bool value)
+        {
+            _pstate = set_bit(_pstate, flag, value);
+        }
+
+		word _x[NUM_REG];								/*! General purpose registers, x0-x29, and SP. x29 is the link register */
 		word _pc;										/*! Program counter */
 		word _pstate;									/*! Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
+        word _pagedir;                                  /*! Pointer to Page directory for virtual address space. */
 
 		/*! @todo determine if fp registers are needed */
 		// word fpcr;
@@ -153,17 +193,20 @@ class Emulator32bit
 		void fill_out_instructions();
 
 
-		inline void execute(word instr) {
+		inline void execute(word instr) 
+        {
 			(this->*_instructions[bitfield_u32(instr, 26, 6)])(instr);
 		}
 
-		inline bool check_cond(word pstate, byte cond) {
+		inline bool check_cond(word pstate, byte cond) 
+        {
 			bool N = test_bit(pstate, N_FLAG);
 			bool Z = test_bit(pstate, Z_FLAG);
 			bool C = test_bit(pstate, C_FLAG);
 			bool V = test_bit(pstate, V_FLAG);
 
-			switch((ConditionCode) cond) {
+			switch((ConditionCode) cond) 
+            {
 				case ConditionCode::EQ:							/*! EQUAL */
 					return Z == 1;
 				case ConditionCode::NE:							/*! NOT EQUAL */
@@ -200,27 +243,35 @@ class Emulator32bit
 			return false;										/*! Shouldn't ever reach this, but to be safe, return false to clearly indicate a incorrect instruction */
 		}
 
-		inline word read_reg(byte reg) {
-			if (reg < sizeof(_x) / sizeof(_x[0])) {
+		inline word read_reg(byte reg) 
+        {
+			if (reg < sizeof(_x) / sizeof(_x[0])) 
+            {
 				return _x[reg];
-			} else if (reg == XZR) {
+			} 
+            else if (reg == XZR) 
+            {
 				return 0;
 			}
 
-			throw EmulatorException("Bad read register " + std::to_string((int) reg));
+			throw Exception(BAD_REG, "Bad read register " + std::to_string((int) reg));
 		}
 
 		word calc_mem_addr(word xn, sword offset, byte addr_mode);
 
-		inline void write_reg(byte reg, word val) {
-			if (reg < sizeof(_x) / sizeof(_x[0])) {
+		inline void write_reg(byte reg, word val) 
+        {
+			if (reg < sizeof(_x) / sizeof(_x[0])) 
+            {
 				_x[reg] = val;
 				return;
-			} else if (reg == XZR) {
+			} 
+            else if (reg == XZR) 
+            {
 				return;
 			}
 
-			throw EmulatorException("Bad write register " + std::to_string((int) reg));
+			throw Exception(BAD_REG, "Bad write register " + std::to_string((int) reg));
 		}
 
 		// instruction handling

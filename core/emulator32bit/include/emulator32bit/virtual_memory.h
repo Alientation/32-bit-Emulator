@@ -20,9 +20,6 @@
 /*
 	idea
 
-	todo
-	mark physical pages as swappable/non swappable so memory mapped i/o can work (and kernel specific memory can work)
-		-> also allow these pages to be marked as kernel/user
 	mark virtual pages with read/write/execute permissions
 	fix the current way multiple virtual addresses can map to the same physical address, instead,
 	check the physical page if it is swappable, if not, then that means multiple virtual addresses
@@ -43,10 +40,10 @@
 class VirtualMemory
 {
 	public:
-		VirtualMemory(Disk& disk);
-		virtual ~VirtualMemory();
+		VirtualMemory(Disk *disk);
+		~VirtualMemory();
 
-		Disk& m_disk;
+		Disk *m_disk;
 		bool enabled = true;				/* Whether addresses should be mapped. */
 
 		class VirtualMemoryException : public std::exception

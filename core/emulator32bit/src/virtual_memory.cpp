@@ -2,7 +2,7 @@
 
 #include <unordered_set>
 
-VirtualMemory::VirtualMemory(Disk& disk) :
+VirtualMemory::VirtualMemory(Disk *disk) :
 	m_disk(disk),
 	m_freepids(0, MAX_PROCESSES),
 	m_freelist(0, NUM_PPAGES)
@@ -286,7 +286,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
 			return;
 		}
 
-		ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(pid, vpage, m_disk.get_free_page(), write, execute)));
+		ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(pid, vpage, m_disk->get_free_page(), write, execute)));
 
 		DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
 				<< " to process " << std::to_string(pid));
@@ -341,7 +341,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 
 	if (entry->disk)
 	{
-		m_disk.return_page(entry->diskpage);
+		m_disk->return_page(entry->diskpage);
 
 		DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(entry->diskpage)
 				<< " corresponding to virtual page " << std::to_string(vpage));
@@ -408,7 +408,7 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 	for (PageTableEntry *removed_entry : evicted_ppage.mapped_vpages)
 	{
 		removed_entry->disk = true;
-		removed_entry->diskpage = m_disk.get_free_page();
+		removed_entry->diskpage = m_disk->get_free_page();
 		word tlb_addr = removed_entry->vpage & (TLB_SIZE-1);
 		TLB_Entry& tlb_entry = tlb[tlb_addr];
 		if (tlb_entry.valid && tlb_entry.ppage == ppage && tlb_entry.vpage == removed_entry->vpage) // todo, this should check for pid i think.
@@ -436,12 +436,12 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Ex
 	PageTable *ptable = m_process_ptable_map.at(pid);
 
 	PageTableEntry *entry = ptable->entries.at(vpage);
-	exception.disk_fetch = m_disk.read_page(entry->diskpage);
+	exception.disk_fetch = m_disk->read_page(entry->diskpage);
 
 	DEBUG_SS(std::stringstream() << "Disk Fetch from page " << std::to_string(entry->diskpage)
 			<< " to physical page " << std::to_string(ppage));
 
-	m_disk.return_page(entry->diskpage);
+	m_disk->return_page(entry->diskpage);
 
 	if (exception.type != Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
 	{

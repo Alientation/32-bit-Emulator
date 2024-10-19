@@ -28,6 +28,7 @@ target_sources(emulator32bit_tests PRIVATE
 	./emulator32bit_test.cpp
 
 	./emulator_tests/emulator_test.cpp
+	./emulator_tests/fbl_inmemory_test.cpp
 
 	./instruction_tests/hlt_test.cpp
 	./instruction_tests/add_test.cpp

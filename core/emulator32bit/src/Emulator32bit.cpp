@@ -2,6 +2,7 @@
 
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"
+#include "emulator32bit/better_virtual_memory.h"
 
 #include "util/loggerv2.h"
 #include "util/types.h"
@@ -19,7 +20,7 @@ Emulator32bit::Emulator32bit(word ram_mem_psize, word ram_mem_pstart, const byte
 	ram(new RAM(ram_mem_psize, ram_mem_pstart)),
 	rom(new ROM(rom_data, rom_mem_psize, rom_mem_pstart)),
 	disk(new MockDisk()),
-	mmu(new VirtualMemory(*disk)),
+	mmu(new VirtualMemory(disk)),
 	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();
@@ -36,7 +37,7 @@ Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
 	ram(ram),
 	rom(rom),
 	disk(disk),
-	mmu(new VirtualMemory(*disk)),
+	mmu(new VirtualMemory(disk)),
 	system_bus(*ram, *rom, *disk, *mmu)
 {
 	fill_out_instructions();
@@ -50,6 +51,17 @@ Emulator32bit::~Emulator32bit()
 	delete ram;
 	delete rom;
 	delete disk;
+}
+
+Emulator32bit::Exception::Exception(Emulator32bit::InterruptType type, const std::string& msg) :
+	type(type), message(msg)
+{
+
+}
+
+const char* Emulator32bit::Exception::what() const noexcept
+{
+	return message.c_str();
 }
 
 void Emulator32bit::fill_out_instructions()
@@ -150,19 +162,6 @@ void Emulator32bit::print()
 	printf("\nMemory Dump: TODO");
 }
 
-
-Emulator32bit::EmulatorException::EmulatorException(const std::string& msg) :
-	message(msg)
-{
-
-}
-
-const char* Emulator32bit::EmulatorException::what() const noexcept
-{
-	return message.c_str();
-}
-
-
 void Emulator32bit::run(unsigned long long instructions)
 {
 	word instr = _op_hlt;
@@ -192,11 +191,11 @@ void Emulator32bit::run(unsigned long long instructions)
 			num_instructions_ran = start_instructions - instructions;
 		}
 	}
-	catch(const EmulatorException& e)
+	catch(const Exception& e)
 	{
 		std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
 	}
-	catch(const SystemBus::SystemBusException& e)
+	catch(const SystemBus::Exception& e)
 	{
 		std::cerr << "Caught System Bus Exception: " << e.what() << std::endl;
 	}
@@ -207,7 +206,8 @@ void Emulator32bit::run(unsigned long long instructions)
 void Emulator32bit::reset()
 {
 	system_bus.reset();
-	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) {
+	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) 
+    {
 		_x[i] = 0;
 	}
 	_pstate = 0;

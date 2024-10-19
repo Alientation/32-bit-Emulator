@@ -20,13 +20,13 @@ class SystemBus
 		Disk& disk;
 		VirtualMemory& mmu;
 
-		class SystemBusException : public std::exception
+		class Exception : public std::exception
 		{
 			private:
 				std::string message;
 
 			public:
-				SystemBusException(const std::string& msg);
+				Exception(const std::string& msg);
 
 				const char* what() const noexcept override;
 		};
@@ -208,7 +208,7 @@ class SystemBus
 					bytes.at(i) = target->read_byte(p_addr + i);
 				}
 
-				mmu.m_disk.write_page(exception.disk_page_return, bytes);
+				mmu.m_disk->write_page(exception.disk_page_return, bytes);
 
 				DEBUG_SS(std::stringstream() << "Writing physical page "
 						<< std::to_string(exception.ppage_return) << " to disk page "
@@ -262,7 +262,7 @@ class SystemBus
 			}
 			else
 			{
-				throw SystemBusException("Could not route address " + std::to_string(address) + " to memory.");
+				throw Exception("Could not route address " + std::to_string(address) + " to memory.");
 			}
 		}
 };

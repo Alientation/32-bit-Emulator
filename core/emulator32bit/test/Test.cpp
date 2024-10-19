@@ -33,7 +33,7 @@ void test_bus() {
 	const byte rom_data[PAGE_SIZE] = {1,2,3,4,5,6,7,8};
 	ROM rom = ROM(rom_data, 1, 1);
 	MockDisk disk;
-	VirtualMemory mock_vm(disk);
+	VirtualMemory mock_vm(&disk);
 	SystemBus bus(ram, rom, disk, mock_vm);
 
 	log(lgr::Logger::LogType::LOG, "reading from memory");

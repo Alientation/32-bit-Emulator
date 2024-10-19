@@ -11,13 +11,13 @@ SystemBus::SystemBus(RAM& ram, ROM& rom, Disk& disk, VirtualMemory& mmu) :
 
 }
 
-SystemBus::SystemBusException::SystemBusException(const std::string& msg) :
+SystemBus::Exception::Exception(const std::string& msg) :
 	message(msg)
 {
 
 }
 
-const char* SystemBus::SystemBusException::what() const noexcept
+const char* SystemBus::Exception::what() const noexcept
 {
 	return message.c_str();
 }
