@@ -110,6 +110,11 @@ FreeBlockList::FreeBlock* FreeBlockList::insert(word addr, word length)
 			.next = m_head,
 		};
 
+        if (m_head->next)
+        {
+            m_head->next->prev = m_head;
+        }
+
 		return m_head;
 	}
 
