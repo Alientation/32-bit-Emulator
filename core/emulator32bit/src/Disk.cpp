@@ -177,7 +177,7 @@ std::vector<byte> Disk::read_page(word page)
 {
 	CachePage& cpage = get_cpage(page);
 
-	std::vector<byte> data;
+	std::vector<byte> data(PAGE_SIZE);
 	for (int i = 0; i < PAGE_SIZE; i++) {
 		data.push_back(cpage.data[i]);
 	}

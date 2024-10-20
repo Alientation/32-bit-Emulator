@@ -8,7 +8,12 @@
 
 /**
  * @brief               Stores a free list in memory instead of dynamically allocating it.
- * 
+ *
+ * TODO: since we only allocate blocks in fixed sizes, this means we do not need
+ * to coalesce, and thus we do not need to store nodes in order. This means
+ * removing and returning blocks should be O(1) instead of returning blocks
+ * being O(n)
+ *  
  */
 class FBL_InMemory
 {

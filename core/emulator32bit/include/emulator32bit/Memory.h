@@ -96,8 +96,7 @@ class Memory : public BaseMemory
 
 
 		void reset();
-
-	protected:
+        
 		byte* data;
 };
 

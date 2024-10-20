@@ -127,7 +127,7 @@ void Assembler::_org(size_t& tok_i)
 
 	word val = parse_expression(tok_i);
 
-	if (val >= 0xffffff) {											/*! Safety exit. Likely unintentional behavior */
+	if (val >= 0xffffff) {											/* Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_org() - new value is large and likely unintentional. ("
 				<< std::to_string(val) << ")");
 		m_state = State::ASSEMBLER_WARNING;
@@ -236,7 +236,7 @@ void Assembler::_advance(size_t& tok_i)
 
 	word val = parse_expression(tok_i);
 
-	if (val >= 0xffffff) {									/*! Safety exit. Likely unintentional behavior */
+	if (val >= 0xffffff) {									/* Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_advance() - offset value is large and likely unintentional. ("
 				<< std::to_string(val) << ")");
 		m_state = State::ASSEMBLER_WARNING;
@@ -289,7 +289,7 @@ void Assembler::_align(size_t& tok_i)
 	skip_tokens(tok_i, Tokenizer::WHITESPACES);
 
 	word val = parse_expression(tok_i);
-	if (val >= 0xffff) {											/*! Safety exit. Likely unintentional behavior */
+	if (val >= 0xffff) {											/* Safety exit. Likely unintentional behavior */
 		WARN_SS(std::stringstream() << "Assembler::_align() - Alignment value is large and likely unintentional. ("
 				<< std::to_string(val) << ")");
 		m_state = State::ASSEMBLER_WARNING;
@@ -305,7 +305,7 @@ void Assembler::_align(size_t& tok_i)
 				m_obj.data_section.push_back(0);
 			}
 			break;
-		case Section::TEXT:											/*!
+		case Section::TEXT:											/*
 																		It is likely not very useful to allow
 																		.org to move pc in a text section,
 																		comparatively to .data and .bss

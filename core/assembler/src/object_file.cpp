@@ -249,7 +249,7 @@ std::string ObjectFile::get_symbol_name(int symbol)
  */
 void ObjectFile::add_symbol(const std::string& symbol, word value, SymbolTableEntry::BindingInfo binding_info, int section)
 {
-	if (string_table.find(symbol) == string_table.end()) {				/*! If symbol does not exist yet, create it */
+	if (string_table.find(symbol) == string_table.end()) {				/* If symbol does not exist yet, create it */
 		string_table[symbol] = strings.size();
 		strings.push_back(symbol);
 		symbol_table[string_table[symbol]] = (SymbolTableEntry) {
@@ -297,12 +297,12 @@ void ObjectFile::write_object_file(File obj_file)
 
 	/* BELF Header */
 	DEBUG("ObjectFile::write_objectFile() - Writing BELF header.");
-	m_writer.write("BELF");												/*! BELF magic number header */
-	byte_writer << ByteWriter::Data(0, 12);								/*! Unused padding */
-	byte_writer << ByteWriter::Data(file_type, 2);						/*! Object file type */
-	byte_writer << ByteWriter::Data(target_machine, 2);					/*! Target machine */
-	byte_writer << ByteWriter::Data(0, 2);								/*! Flags */
-	byte_writer << ByteWriter::Data(sections.size(), 2);				/*! Number of sections */
+	m_writer.write("BELF");												/* BELF magic number header */
+	byte_writer << ByteWriter::Data(0, 12);								/* Unused padding */
+	byte_writer << ByteWriter::Data(file_type, 2);						/* Object file type */
+	byte_writer << ByteWriter::Data(target_machine, 2);					/* Target machine */
+	byte_writer << ByteWriter::Data(0, 2);								/* Flags */
+	byte_writer << ByteWriter::Data(sections.size(), 2);				/* Number of sections */
 	current_byte += BELF_HEADER_SIZE;
 
 	/* Text Section */

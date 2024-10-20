@@ -249,8 +249,8 @@ void Assembler::fill_local()
 				ERROR_SS(std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
 		}
 
-		m_obj.rel_text.erase(m_obj.rel_text.begin() + i);							/*! For now, simply delete from vector. In future look to optimize */
-		i--;															/*! Offset the for loop increment */
+		m_obj.rel_text.erase(m_obj.rel_text.begin() + i);							/* For now, simply delete from vector. In future look to optimize */
+		i--;															/* Offset the for loop increment */
 	}
 
 	DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Finished parsing relocation entries.");

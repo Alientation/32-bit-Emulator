@@ -11,10 +11,10 @@
  * @hideinitializer
  *
  */
-#define _X1(instr) (bitfield_u32(instr, 20, 5))				/*! bits 20 to 24 */
-#define _X2(instr) (bitfield_u32(instr, 15, 5))				/*! bits 15 to 19 */
-#define _X3(instr) (bitfield_u32(instr, 9, 5))				/*! bits 9 to 14 */
-#define _X4(instr) (bitfield_u32(instr, 4, 5))				/*! bits 4 to 9 */
+#define _X1(instr) (bitfield_u32(instr, 20, 5))				/* bits 20 to 24 */
+#define _X2(instr) (bitfield_u32(instr, 15, 5))				/* bits 15 to 19 */
+#define _X3(instr) (bitfield_u32(instr, 9, 5))				/* bits 9 to 14 */
+#define _X4(instr) (bitfield_u32(instr, 4, 5))				/* bits 4 to 9 */
 
 #define UNUSED(x) (void)(x)
 
@@ -31,29 +31,29 @@
 static word calc_shift(word val, byte shift_type, byte imm5)
 {
 	switch(shift_type) {
-		case 0b00:											/*! LSL */
+		case 0b00:											/* LSL */
 			DEBUG_SS(std::stringstream() << "LSL " << std::to_string((word)imm5));
 			val <<= imm5;
 			break;
-		case 0b01:											/*! LSR */
+		case 0b01:											/* LSR */
 			DEBUG_SS(std::stringstream() << "LSR " << std::to_string((word)imm5));
 			val >>= imm5;
 			break;
-		case 0b10: 											/*! ASR */
+		case 0b10: 											/* ASR */
 			DEBUG_SS(std::stringstream() << "ASR " << std::to_string((word)imm5));
 			val = ((signed int) val) >> imm5;
 			break;
-		case 0b11: 											/*! ROR */
+		case 0b11: 											/* ROR */
 		{
 			DEBUG_SS(std::stringstream() << "ROR " << std::to_string((word)imm5));
 			word rot_bits = val & ((1 << imm5) - 1);
 			rot_bits <<= (WORD_BITS - imm5);
 			val >>= imm5;
-			val &= (1 << (WORD_BITS - imm5)) - 1; 			/*! to be safe and remove bits that will be replaced */
+			val &= (1 << (WORD_BITS - imm5)) - 1; 			/* to be safe and remove bits that will be replaced */
 			val |= rot_bits;
 			break;
 		}
-		default:											/*! Invalid shift */
+		default:											/* Invalid shift */
 			ERROR("Invalid shift: " + val);
 	}
 	return val;
@@ -148,8 +148,8 @@ struct JPart
 	{
 
 	}
-	int bits;											/*! Number of bits stored in this part */
-	word val;											/*! Contents of the bits stored in this part, stored with the first bit in the most significant bit */
+	int bits;											/* Number of bits stored in this part */
+	word val;											/* Contents of the bits stored in this part, stored with the first bit in the most significant bit */
 };
 
 /**
@@ -160,7 +160,7 @@ struct JPart
 class Joiner
 {
 	public:
-		word val = 0;									/*! Content stored so far */
+		word val = 0;									/* Content stored so far */
 
 		/**
 		 * @internal
