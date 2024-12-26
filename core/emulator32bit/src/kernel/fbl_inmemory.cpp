@@ -1,6 +1,6 @@
 #include "emulator32bit/kernel/fbl_inmemory.h"
 
-#include "util/loggerv2.h"
+#include "util/logger.h"
 
 FBL_InMemory::FBL_InMemory(byte *mem, word mem_start, word mem_size, word block_size)
     : mem(mem), mem_start(mem_start), mem_size(mem_size), block_size(block_size)
@@ -97,7 +97,7 @@ void FBL_InMemory::verify()
 
 void FBL_InMemory::coalesce(struct FreeBlock *first)
 {
-    if (!first || !first->next || 
+    if (!first || !first->next ||
         (byte *) first->next != ((byte *) first) + first->len * block_size)
     {
         return;
@@ -109,11 +109,11 @@ void FBL_InMemory::coalesce(struct FreeBlock *first)
     if (first->next)
     {
         first->next->prev = first;
-    }    
+    }
 }
 
 struct FBL_InMemory::FreeBlock* FBL_InMemory::insert(word block)
-{   
+{
     struct FreeBlock *next = (struct FreeBlock*) (mem + block);
     next->len = 1;
     if (!head || block < ptr_to_mem_index(head))

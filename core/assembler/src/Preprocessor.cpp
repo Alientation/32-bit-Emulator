@@ -1,5 +1,5 @@
 #include "assembler/preprocessor.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 #include "util/string_util.h"
 #include "util/vector_util.h"
 

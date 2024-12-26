@@ -1,318 +1,231 @@
-#include <util/logger.h>
-#include <util/file.h>
-#include <util/string_util.h>
+#include "util/logger.h"
 
-#include <algorithm>
-#include <format>
-#include <iomanip>
-#include <map>
+#include <chrono>
+#include <ctime>
+#include <cstdarg>
+#include <unordered_map>
+#include <stack>
+#include <vector>
 
-#undef log
-#undef EXPECT_TRUE
-#undef EXPECT_FALSE
+#define UNUSED(x) (void)(x)
+void logger::track(const std::string& type, const char* format, const char* file, int line,
+		   const char* func, ...)
+{
+	UNUSED(type);
+	UNUSED(format);
+	UNUSED(file);
+	UNUSED(line);
+	UNUSED(func);
+	// char* buf = 0;
+	// size_t buf_size = 0;
+	// va_list args;
+	// va_start(args, func);
+	// size_t size = vsnprintf(buf, buf_size, format, args);
+	// va_end(args);
 
-namespace lgr {
-	std::map<std::string, Logger*> loggers;
+	// buf = (char*) malloc(size + 1);
+	// if (!buf)
+	// {
+	// 	return;
+	// }
 
-	std::string Logger::LOGTYPE_TO_STRING(Logger::LogType log_type) {
-		switch(log_type) {
-			case Logger::LogType::LOG:
-				return "LOG";
-			case Logger::LogType::ERROR:
-				return "ERR";
-			case Logger::LogType::WARN:
-				return "WRN";
-			case Logger::LogType::INFO:
-				return "INF";
-			case Logger::LogType::DEBUG:
-				return "DBG";
-			case Logger::LogType::TEST:
-				return "TST";
-			default:
-				return "UNK";
-		}
-	}
+	// buf_size = size + 1;
+	// buf[buf_size-1] = '\0';
+	// va_start(args, func);
+	// vsnprintf(buf, buf_size, format, args);
+	// va_end(args);
+	// std::string str(buf);
 
-	std::string Logger::LOGTYPE_TO_PRINT(Logger::LogType log_type) {
-		std::string log_name = Logger::LOGTYPE_TO_STRING(log_type);
-		using namespace ccolor;
-		switch(log_type) {
-			case Logger::LogType::LOG:
-				return BOLD + WHITE + log_name + RESET;
-			case Logger::LogType::ERROR:
-				return BOLD + RED + log_name + RESET;
-			case Logger::LogType::WARN:
-				return BOLD + YELLOW + log_name + RESET;
-			case Logger::LogType::INFO:
-				return BOLD + BLUE + log_name + RESET;
-			case Logger::LogType::DEBUG:
-				return BOLD + MAGENTA + log_name + RESET;
-			case Logger::LogType::TEST:
-				return BOLD + CYAN + log_name + RESET;
-			default:
-				return log_name;
-		}
-	}
+	// str = "[" + type + "] [" + std::string(file) + ":" +
+	// 		std::to_string(line) + "]" + str;
 
-	std::string Logger::LogMessage::to_string() {
-		std::stringstream ss;
-
-		std::string group_str = group.empty() ? "" : group + ":";
-
-		ss << "[" << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << "] ["
-			<< file << ":" << line_num << "] [" << group_str << Logger::LOGTYPE_TO_STRING(logType) << "]: " << msg;
-		return ss.str();
-	}
-
-	std::string Logger::LogMessage::to_print_string() {
-		std::stringstream ss;
-		// ss << "[" << ccolor::GRAY << std::put_time(std::localtime(&timestamp), "%H:%M:%S") << ccolor::RESET << "] ["
-		// << ccolor::CYAN << group << ccolor::RESET << ":" << Logger::LOGTYPE_TO_PRINT(logType) << "]: " << msg;
-
-		std::string group_str = group.empty() ? "" : ccolor::CYAN + group + ccolor::RESET + ":";
-
-		ss << "[" << group_str << Logger::LOGTYPE_TO_PRINT(logType) << "] ["
-		<< ccolor::BLUE << string_util::replaceFirst(file,PROJECT_ROOT_DIRECTORY,"") << ccolor::RESET  << ":" << ccolor::MAGENTA
-		<< line_num << ccolor::RESET << "] [" << ccolor::YELLOW << func << ccolor::RESET << "]: " << msg;
-		return ss.str();
-	}
+	// /* TODO: complete tracking */
 
 
-	Logger::CONFIG::CONFIG() {
-		this->_output_file = "";
-		this->_print_logs = true;
-		this->_throw_on_error = true;
-		this->_flush_every_log = true;
-	}
-
-	Logger::CONFIG::~CONFIG() {
-
-	}
-
-	Logger::CONFIG& Logger::CONFIG::output_file(std::string output_file) {
-		this->_output_file = output_file;
-		return *this;
-	}
-
-	Logger::CONFIG& Logger::CONFIG::print_logs(bool print_logs, std::function<std::string(Logger::LogMessage)> print_log_func) {
-		this->_print_logs = print_logs;
-		this->_print_log_func = print_log_func;
-		return *this;
-	}
-
-	Logger::CONFIG& Logger::CONFIG::throw_on_error(bool throw_on_error) {
-		this->_throw_on_error = throw_on_error;
-		return *this;
-	}
-
-	Logger::CONFIG& Logger::CONFIG::flush_every_log(bool flush_every_log) {
-		this->_flush_every_log = flush_every_log;
-		return *this;
-	}
+	// free(buf);
+}
 
 
-	Logger* get_logger(const std::string &logger_id) {
-		if (loggers.find(logger_id) == loggers.end()) {
-			create_logger(logger_id, Logger::CONFIG());
-		}
-		return loggers.at(logger_id);
-	}
+struct ProfileLog
+{
+	const std::string tag;
 
-	Logger* create_logger(const std::string &logger_id, Logger::CONFIG config) {
-		Logger *logger = new Logger(logger_id, config);
-		loggers[logger_id] = logger;
-		return logger;
-	}
+	struct Log
+	{
+		std::string file;
+		int line;
+		std::string func;
+		std::chrono::high_resolution_clock::time_point start_time;
+		std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
+		bool ended  = false;
+	};
 
-	Logger* remove_logger(const std::string &logger_id) {
-		if (loggers.find(logger_id) == loggers.end()) {
-			return nullptr;
-		}
-		Logger* logger = loggers.at(logger_id);
-		loggers.erase(logger_id);
-		return logger;
-	}
-
-	void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group) {
-		get_logger("")->log_f(file, func, line_num, log_type, msg, group);
-	}
-
-	void log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->log_f(file, func, line_num, log_type, msg, group);
-	}
-
-	void EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->EXPECT_TRUE_f(file, func, line_num, condition, logType, msg, group);
-	}
-
-	void EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		get_logger("")->EXPECT_FALSE_f(file, func, line_num, condition, logType, msg, group);
-	}
-
-	void Logger::dump_all(FileWriter &writer, LOG_DUMP log_dump_query) {
-		std::vector<Logger::LogMessage> sorted_logs;
-
-		if (log_dump_query._logger_ids.empty()) {
-			// add all loggers to the list
-			for (std::pair<std::string, Logger*> pair : loggers) {
-				log_dump_query._logger_ids.insert(pair.first);
-			}
-		}
-
-		for (const std::string& log_id : log_dump_query._logger_ids) {
-			if (loggers.find(log_id) == loggers.end()) {
-				continue;
-			}
-
-			for (Logger::LogMessage& log : loggers.at(log_id)->_logs) {
-				if (log_dump_query.evaluate(log)) {
-					sorted_logs.push_back(log);
-				}
-			}
-		}
-
-		std::sort(sorted_logs.begin(), sorted_logs.end(), [](const Logger::LogMessage& lhs, const Logger::LogMessage& rhs) {
-			if (lhs.timestamp != rhs.timestamp) {
-				return std::difftime(lhs.timestamp, rhs.timestamp) < 0;
-			} else if (lhs.group != rhs.group) {
-				return lhs.group.compare(rhs.group) < 0;
-			} else if (lhs.logType != rhs.logType) {
-				return lhs.logType < rhs.logType;
-			} else {
-				return true;
-			}
-		});
-
-		for (LogMessage log : sorted_logs) {
-			writer.write(log.to_string() + "\n");
-		}
-	}
-
-
-	Logger::Logger(std::string logger_id, CONFIG config) {
-		_logger_id = logger_id;
-		_config = config;
-
-		if (_config._output_file.empty()) {
-			_file_writer = nullptr;
-			_log_file = nullptr;
-		} else {
-			_log_file = new File(_config._output_file);
-			_file_writer = new FileWriter(*_log_file);
-		}
-	}
-
-	Logger::~Logger() {
-		loggers.erase(_logger_id);
-
-		delete _file_writer;
-		delete _log_file;
-	}
-
-
-	void Logger::log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::string& msg, const std::string& group) {
-		Logger::LogMessage log = Logger::LogMessage(file, func, line_num, log_type, msg, group);
-		_logs.push_back(log);
-
-		if (_file_writer != nullptr) {
-			*_file_writer << log.to_string() << "\n";
-
-			// _file_writer->write(log.to_string() + "\n");
-			if (_config._flush_every_log) {
-				_file_writer->flush();
-			}
-		}
-
-		if (this->_config._throw_on_error && log_type == Logger::LogType::ERROR) {
-			std::cerr << log.to_print_string() << std::endl;
-			exit(EXIT_FAILURE);
-		}
-
-		if (this->_config._print_logs) {
-			if (this->_config._print_log_func) {
-				std::cout << (this->_config._print_log_func)(log);
-			} else {
-				std::cout << log.to_print_string() << std::endl;
-			}
-		}
-	}
-
-	void Logger::log_f(std::string file, std::string func, int line_num, Logger::LogType log_type, const std::stringstream& msg, const std::string& group) {
-		this->log_f(file, func, line_num, log_type, msg.str(), group);
-	}
-
-	void Logger::EXPECT_TRUE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		if (!condition) {
-			log_f(file, func, line_num, logType, msg, group);
-		}
-	}
-
-	void Logger::EXPECT_FALSE_f(std::string file, std::string func, int line_num, bool condition, Logger::LogType logType, const std::stringstream& msg, const std::string& group) {
-		if (condition) {
-			log_f(file, func, line_num, logType, msg, group);
-		}
-	}
-
-	void Logger::flush() {
-		if (_file_writer) {
-			_file_writer->flush();
-		}
-	}
-
-	void Logger::dump(FileWriter &writer, Logger::LOG_DUMP log_dump_query) {
-		for (LogMessage& log : _logs) {
-			if (log_dump_query.evaluate(log)) {
-				writer.write(log.to_string() + "\n");
-			}
-		}
-	}
-
-
-
-	Logger::LOG_DUMP::LOG_DUMP() {
-
-	}
-
-	Logger::LOG_DUMP::~LOG_DUMP() {
-
-	}
-
-	bool Logger::LOG_DUMP::evaluate(const Logger::LogMessage& log) {
-		#define _CHECK(set,value) (set.empty() || set.find(value) != set.end())
-		return _CHECK(_log_types,log.logType) &&
-				_CHECK(_groups, log.group) &&
-				_CHECK(_files, log.file) &&
-				_CHECK(_lines, log.line_num) &&
-				_CHECK(_funcs, log.func);
-		#undef _CHECK
-	}
-
-	Logger::LOG_DUMP& Logger::LOG_DUMP::files(std::set<std::string> files) {
-		_files = files;
-		return *this;
-	}
-
-	Logger::LOG_DUMP& Logger::LOG_DUMP::funcs(std::set<std::string> funcs) {
-		_funcs = funcs;
-		return *this;
-	}
-
-	Logger::LOG_DUMP& Logger::LOG_DUMP::lines(std::set<int> lines) {
-		_lines = lines;
-		return *this;
-	}
-
-	Logger::LOG_DUMP& Logger::LOG_DUMP::groups(std::set<std::string> groups) {
-		_groups = groups;
-		return *this;
-	}
-	Logger::LOG_DUMP& Logger::LOG_DUMP::log_types(std::set<Logger::LogType> log_types) {
-		_log_types = log_types;
-		return *this;
-	}
-
-	Logger::LOG_DUMP& Logger::LOG_DUMP::logger_ids(std::set<std::string> logger_ids) {
-		_logger_ids = logger_ids;
-		return *this;
-	}
+	long long total_elapsed = 0;
+	std::vector<Log> logs = std::vector<Log>();
 };
+
+static long long master_total_time = 0;
+static ProfileLog master_profile_log = (ProfileLog)
+{
+	.tag = "MASTER",
+};
+
+static std::unordered_map<std::string, ProfileLog> profile_logs_map;
+static std::stack<std::string> current_clocks;
+
+template <typename... Args>
+static inline void log_profile(const char* format, const char* file, int line, const char* func,
+							   Args&&... args)
+{
+	if (AEMU_LOG_ENABLED)
+	{
+		if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG)
+		{
+			logger::print_header(ccolor::GREEN + "PRF", file, line, func);
+			printf(format, args...);
+			std::cout << "\n";
+		}
+
+		logger::track("PRF", format, file, line, func, args...);
+	}
+}
+
+void logger::clock_start_master(const char* file, int line, const char* func)
+{
+	if (AEMU_PROFILER_ENABLED)
+	{
+		ProfileLog::Log log = (ProfileLog::Log)
+		{
+			.file = file,
+			.line = line,
+			.func = func,
+			.start_time = std::chrono::high_resolution_clock::now(),
+		};
+
+		master_profile_log.logs.push_back(log);
+	}
+}
+
+void logger::clock_stop_master()
+{
+	if (AEMU_PROFILER_ENABLED)
+	{
+		if (master_profile_log.logs.empty() || master_profile_log.logs.back().ended)
+		{
+			ERROR("Could not stop the master clock that has not yet started");
+			return;
+		}
+		using namespace std::chrono;
+
+		ProfileLog::Log& log = master_profile_log.logs.back();
+		log.end_time = high_resolution_clock::now();
+		log.ended = true;
+
+		master_total_time += duration_cast<nanoseconds>(log.end_time - log.start_time).count();
+	}
+}
+
+void logger::clock_start(const std::string& tag, const char* file, int line, const char* func)
+{
+	if (AEMU_PROFILER_ENABLED)
+	{
+		if (master_profile_log.logs.empty())
+		{
+			clock_start_master(file, line, func);
+		}
+
+		ProfileLog::Log log = (ProfileLog::Log)
+		{
+			.file = file,
+			.line = line,
+			.func = func,
+			.start_time = std::chrono::high_resolution_clock::now(),
+		};
+
+		if (!current_clocks.empty() && current_clocks.top() == tag)
+		{
+			profile_logs_map.at(tag).logs.push_back(log);
+			return;
+		}
+
+		if (profile_logs_map.find(tag) != profile_logs_map.end())
+		{
+			// ERROR_SS(std::stringstream() << "Duplicate clock tag: " + tag);
+			current_clocks.push(tag);
+			profile_logs_map.at(tag).logs.push_back(log);
+			return;
+		}
+
+		ProfileLog profile_log = (ProfileLog)
+		{
+			.tag = tag,
+		};
+		profile_log.logs.push_back(log);
+		profile_logs_map.emplace(tag, profile_log);
+		current_clocks.push(tag);
+	}
+}
+
+static std::tuple<double,std::string> simplify_clocktime(long long time)
+{
+	std::tuple<double,std::string> simplified;
+
+	if (time <= 10'000)
+	{
+		simplified = std::tuple<double,std::string>(time, "ns");
+	}
+	else if (time <= 10'000'000)
+	{
+		simplified = std::tuple<double,std::string>(time / 1'000.0, "us");
+	}
+	else if (time <= 10'000'000'000)
+	{
+		simplified = std::tuple<double,std::string>(time / 1'000'000.0, "ms");
+	}
+	else
+	{
+		simplified = std::tuple<double,std::string>(time / 1'000'000'000.0, "s");
+	}
+
+	return simplified;
+}
+
+void logger::clock_stop()
+{
+	if (AEMU_PROFILER_ENABLED)
+	{
+		if (current_clocks.empty() || profile_logs_map.at(current_clocks.top()).logs.back().ended)
+		{
+			ERROR("Could not stop a clock that has not yet started");
+			return;
+		}
+		using namespace std::chrono;
+
+		ProfileLog& profile_log = profile_logs_map.at(current_clocks.top());
+		ProfileLog::Log& log = profile_log.logs.back();
+		log.ended = true;
+		log.end_time = high_resolution_clock::now();
+		auto elapsed = duration_cast<nanoseconds>(log.end_time - log.start_time).count();
+		profile_log.total_elapsed += elapsed;
+
+		if (AEMU_PROFILER_LOG_ENABLED)
+		{
+			auto elapsed_simpl = simplify_clocktime(elapsed);
+			auto tot_elapsed_simpl = simplify_clocktime(profile_log.total_elapsed);
+
+			log_profile("%s took %.2f%s, total %.2f%s.", log.file.c_str(), log.line,
+					log.func.c_str(), current_clocks.top().c_str(),
+					std::get<0>(elapsed_simpl), std::get<1>(elapsed_simpl).c_str(),
+					std::get<0>(tot_elapsed_simpl), std::get<1>(tot_elapsed_simpl).c_str());
+		}
+	}
+}
+
+void logger::clock_end()
+{
+	if (AEMU_PROFILER_ENABLED)
+	{
+		clock_stop();
+		current_clocks.pop();
+	}
+}

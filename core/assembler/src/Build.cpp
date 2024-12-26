@@ -6,7 +6,7 @@
 #include "assembler/preprocessor.h"
 #include "assembler/static_library.h"
 #include "util/directory.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 #include "util/string_util.h"
 
 #include <filesystem>

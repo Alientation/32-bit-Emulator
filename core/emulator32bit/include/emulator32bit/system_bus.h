@@ -6,7 +6,7 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 
 #include <vector>
 class SystemBus

@@ -5,7 +5,7 @@
 #include "emulator32bit/kernel/better_virtual_memory.h"
 #include "emulator32bit/timer.h"
 
-#include "util/loggerv2.h"
+#include "util/logger.h"
 #include "util/types.h"
 
 #include <stdio.h>
@@ -207,7 +207,7 @@ void Emulator32bit::run(unsigned long long instructions)
 void Emulator32bit::reset()
 {
 	system_bus.reset();
-	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++) 
+	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++)
     {
 		_x[i] = 0;
 	}

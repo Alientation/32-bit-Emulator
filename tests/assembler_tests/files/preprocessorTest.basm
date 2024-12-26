@@ -1,5 +1,0 @@
-#define CONSTANT constant
-
-#ifequ CONSTANT constant2
-	; this is included
-#endif

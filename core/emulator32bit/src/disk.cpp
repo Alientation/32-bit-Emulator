@@ -1,7 +1,7 @@
 #define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/disk.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 
 /*
  * Located at the beginning of disk and the disk page management files
@@ -438,7 +438,7 @@ void Disk::save()
 
 MockDisk::MockDisk()
 {
-	
+
 }
 
 word MockDisk::get_free_page()

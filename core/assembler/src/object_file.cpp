@@ -1,7 +1,7 @@
 #include "assembler/object_file.h"
 #include "assembler/build.h"
 #include "emulator32bit/emulator32bit.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 #include "util/types.h"
 
 #include <fstream>

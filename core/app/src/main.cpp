@@ -7,7 +7,7 @@
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/disk.h"
 #include "util/file.h"
-#include "util/loggerv2.h"
+#include "util/logger.h"
 
 /*
 TODO

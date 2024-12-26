@@ -1,8 +1,0 @@
-This is a simple test file
-
-HELLO
-	I SEE 
-		"This is in quotes"
-
-	BYE
-END OF FILE
