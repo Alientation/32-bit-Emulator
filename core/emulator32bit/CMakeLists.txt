@@ -24,11 +24,14 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/software_interrupt.cpp
 	src/memory.cpp
 	src/virtual_memory.cpp
-	src/better_virtual_memory.cpp
+	src/kernel/better_virtual_memory.cpp
 	src/system_bus.cpp
 	src/disk.cpp
 	src/fbl.cpp
-	src/fbl_inmemory.cpp
+	src/kernel/fbl_inmemory.cpp
+	src/kernel/process.cpp
+	src/kernel/malloc.cpp
+	src/timer.cpp
 )
 
 # rest is boilerplate to set up the build

@@ -2,7 +2,8 @@
 
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"
-#include "emulator32bit/better_virtual_memory.h"
+#include "emulator32bit/kernel/better_virtual_memory.h"
+#include "emulator32bit/timer.h"
 
 #include "util/loggerv2.h"
 #include "util/types.h"

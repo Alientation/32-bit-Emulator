@@ -1,4 +1,4 @@
-#include "emulator32bit/better_virtual_memory.h"
+#include "emulator32bit/kernel/better_virtual_memory.h"
 
 MMU::MMU(Emulator32bit *processor, word user_low_page, word user_high_page,
          word kernel_low_page, word kernel_high_page) 

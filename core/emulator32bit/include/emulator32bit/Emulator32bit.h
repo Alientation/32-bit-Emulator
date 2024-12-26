@@ -10,6 +10,7 @@
 #include <string>
 
 class MMU;  /* Forward declare from 'better_virtual_memory.h' */
+class Timer; /* Forward declare from 'timer.h' */
 
 /**
  * @brief					IDs for special registers
@@ -120,35 +121,37 @@ class Emulator32bit
 
 		enum class ConditionCode 
         {
-			EQ = 0,					/* Equal						: Z==1 */
-			NE = 1,					/* Not Equal					: Z==0 */
-			CS = 2, HS = 2,			/* Unsigned higher or same		: C==1 */
-			CC = 3, LO = 3,			/* Unsigned lower				: C==0 */
-			MI = 4,					/* Negative						: N==1 */
-			PL = 5,					/* Nonnegative					: N==0 */
-			VS = 6,					/* Signed overflow 				: V==1 */
-			VC = 7,					/* No signed overflow			: V==0 */
-			HI = 8,					/* Unsigned higher				: (C==1) && (Z==0) */
-			LS = 9,					/* Unsigned lower or same 		: (C==0) || (Z==0) */
-			GE = 10,				/* Signed greater than or equal	: N==V */
-			LT = 11,				/* Signed less than				: N!=V */
-			GT = 12,				/* Signed greater than			: (Z==0) && (N==V) */
-			LE = 13,				/* Signed less than or equal 	: (Z==1) || (N!=V) */
-			AL = 14,				/* Always Executed				: NONE */
-			NV = 15,				/* Never Executed 				: NONE */
+			EQ = 0,                 /* Equal						: Z==1 */
+			NE = 1,                 /* Not Equal					: Z==0 */
+			CS = 2, HS = 2,         /* Unsigned higher or same		: C==1 */
+			CC = 3, LO = 3,         /* Unsigned lower				: C==0 */
+			MI = 4,                 /* Negative						: N==1 */
+			PL = 5,                 /* Nonnegative					: N==0 */
+			VS = 6,                 /* Signed overflow 				: V==1 */
+			VC = 7,                 /* No signed overflow			: V==0 */
+			HI = 8,                 /* Unsigned higher				: (C==1) && (Z==0) */
+			LS = 9,                 /* Unsigned lower or same 		: (C==0) || (Z==0) */
+			GE = 10,                /* Signed greater than or equal	: N==V */
+			LT = 11,                /* Signed less than				: N!=V */
+			GT = 12,                /* Signed greater than			: (Z==0) && (N==V) */
+			LE = 13,                /* Signed less than or equal 	: (Z==1) || (N!=V) */
+			AL = 14,                /* Always Executed				: NONE */
+			NV = 15,                /* Never Executed 				: NONE */
 		};
 
-		static const word RAM_MEM_SIZE;		/* Default size of RAM memory in bytes */
-		static const word RAM_MEM_START;	/* Default 32 bit start address of RAM memory */
-		static const word ROM_MEM_SIZE;		/* Default size of ROM memory in bytes */
-		static const word ROM_MEM_START;	/* Default 32 bit start address of ROM memory */
-		static const byte ROM_DATA[];		/* Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
+		static const word RAM_MEM_SIZE;     /* Default size of RAM memory in bytes */
+		static const word RAM_MEM_START;    /* Default 32 bit start address of RAM memory */
+		static const word ROM_MEM_SIZE;     /* Default size of ROM memory in bytes */
+		static const word ROM_MEM_START;    /* Default 32 bit start address of ROM memory */
+		static const byte ROM_DATA[];       /* Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
 
 		RAM *ram;
 		ROM *rom;
 		Disk *disk;
 		VirtualMemory *mmu;
 		SystemBus system_bus;
+        
+        Timer *timer;
 
 		/**
 		 * @brief			Run the emulator for a given number of instructions
