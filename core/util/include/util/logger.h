@@ -71,25 +71,24 @@
  * 							folder `core`.
  * @{
  */
-#undef AEMU_ONLY_CRITICAL_LOG // TODO: TEMP
 #ifdef AEMU_ONLY_CRITICAL_LOG
-#define AEMU_LOG_LEVEL AEMU_LOG_WARN
+	#define AEMU_LOG_LEVEL AEMU_LOG_WARN
 #endif /* AEMU_ONLY_CRITICAL_LOG */
 
-// #ifndef AEMU_LOG_LEVEL
-#define AEMU_LOG_LEVEL AEMU_LOG_DEBUG
-// #endif /* AEMU_LOG_LEVEL */
+#ifndef AEMU_LOG_LEVEL
+	#define AEMU_LOG_LEVEL AEMU_LOG_DEBUG
+#endif /* AEMU_LOG_LEVEL */
 
-// #ifndef AEMU_LOG_ENABLED
-#define AEMU_LOG_ENABLED true
-// #endif /* AEMU_LOG_DISABLED */
+#ifndef AEMU_LOG_ENABLED
+	#define AEMU_LOG_ENABLED true
+#endif /* AEMU_LOG_DISABLED */
 
 #ifndef AEMU_PRINT_ENABLED
-#define AEMU_PRINT_ENABLED true
+	#define AEMU_PRINT_ENABLED true
 #endif /* AEMU_PRINT_DISABLED */
 
 #ifndef AEMU_EXCEPT_ON_ERROR
-#define AEMU_EXCEPT_ON_ERROR true
+	#define AEMU_EXCEPT_ON_ERROR true
 #endif /* AEMU_EXCEPT_ON_ERROR */
 
 #ifndef AEMU_PROJECT_ROOT_DIR
@@ -99,11 +98,11 @@
 
 
 #ifndef AEMU_PROFILER_ENABLED
-#define AEMU_PROFILER_ENABLED true
+	#define AEMU_PROFILER_ENABLED true
 #endif /* AEMU_PROFILER_ENABLED */
 
 #ifndef AEMU_PROFILER_LOG_ENABLED
-#define AEMU_PROFILER_LOG_ENABLED true
+	#define AEMU_PROFILER_LOG_ENABLED true
 #endif /* AEMU_PROFILER_LOG_ENABLED */
 
 namespace logger
