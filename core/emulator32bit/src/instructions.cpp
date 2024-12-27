@@ -32,20 +32,20 @@ static word calc_shift(word val, byte shift_type, byte imm5)
 {
 	switch(shift_type) {
 		case 0b00:											/* LSL */
-			DEBUG_SS(std::stringstream() << "LSL " << std::to_string((word)imm5));
+			DEBUG("LSL %u", (word) imm5);
 			val <<= imm5;
 			break;
 		case 0b01:											/* LSR */
-			DEBUG_SS(std::stringstream() << "LSR " << std::to_string((word)imm5));
+			DEBUG("LSR %u", (word)imm5);
 			val >>= imm5;
 			break;
 		case 0b10: 											/* ASR */
-			DEBUG_SS(std::stringstream() << "ASR " << std::to_string((word)imm5));
+			DEBUG("ASR %u", (word)imm5);
 			val = ((signed int) val) >> imm5;
 			break;
 		case 0b11: 											/* ROR */
 		{
-			DEBUG_SS(std::stringstream() << "ROR " << std::to_string((word)imm5));
+			DEBUG("ROR %u", (word)imm5);
 			word rot_bits = val & ((1 << imm5) - 1);
 			rot_bits <<= (WORD_BITS - imm5);
 			val >>= imm5;

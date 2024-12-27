@@ -16,7 +16,7 @@ void LoadExecutable::load()
 
 		/* all symbols should have a corresponding definition */
 		if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-			ERROR_SS(std::stringstream() << "Linker::link() - Undefined symbol " << obj.strings.at(symbol_entry.symbol_name));
+			ERROR("Linker::link() - Undefined symbol %s.", obj.strings.at(symbol_entry.symbol_name).c_str());
 			continue;
 		}
 
@@ -37,7 +37,7 @@ void LoadExecutable::load()
 				break;
 			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
-				ERROR_SS(std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type (" << std::to_string((int)rel.type) << ")");
+				ERROR("Assembler::fill_local() - Unknown relocation entry type (%d)", (int)rel.type);
 		}
 	}
 

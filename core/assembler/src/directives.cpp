@@ -45,8 +45,7 @@ dword Assembler::parse_expression(size_t& tok_i)
 					exp_value *= value;
 					break;
 				default:
-					ERROR_SS(std::stringstream() << "Expected operator token but got "
-							<< operator_token->value);
+					ERROR("Expected operator token but got %s.", operator_token->value.c_str());
 			}
 			operator_token = nullptr;
 		} else {
@@ -76,7 +75,7 @@ dword Assembler::parse_expression(size_t& tok_i)
 void Assembler::_global(size_t& tok_i)
 {
 	if (current_section != Section::NONE) {
-		ERROR_SS(std::stringstream() << "Assembler::_global() - Cannot declare symbol as global "
+		ERROR("Assembler::_global() - Cannot declare symbol as global "
 				"inside a section. Must be declared outside of .text, .bss, and .data.");
 		m_state = State::ASSEMBLER_ERROR;
 		return;
@@ -100,7 +99,7 @@ void Assembler::_global(size_t& tok_i)
 void Assembler::_extern(size_t& tok_i)
 {
 	if (current_section != Section::NONE) {
-		ERROR_SS(std::stringstream() << "Assembler::_extern() - Cannot " <<
+		ERROR("Assembler::_extern() - Cannot "
 				"declare symbol as extern inside a section. Must be declared outside of "
 				".text, .bss, and .data.");
 		m_state = State::ASSEMBLER_ERROR;
@@ -128,8 +127,7 @@ void Assembler::_org(size_t& tok_i)
 	word val = parse_expression(tok_i);
 
 	if (val >= 0xffffff) {											/* Safety exit. Likely unintentional behavior */
-		WARN_SS(std::stringstream() << "Assembler::_org() - new value is large and likely unintentional. ("
-				<< std::to_string(val) << ")");
+		WARN("Assembler::_org() - new value is large and likely unintentional. (%d).", val);
 		m_state = State::ASSEMBLER_WARNING;
 		return;
 	}
@@ -137,9 +135,8 @@ void Assembler::_org(size_t& tok_i)
 	switch (current_section) {
 		case Section::BSS:
 			if (val < m_obj.bss_section) {
-				ERROR_SS(std::stringstream() << "Assembler::_org() - .org directive cannot move "
-						"assembler pc backwards. Expected >= "
-						<< std::to_string(m_obj.bss_section) << ". Got " << val << ".");
+				ERROR("Assembler::_org() - .org directive cannot move "
+						"assembler pc backwards. Expected >= %u. Got %u.", m_obj.bss_section, val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -147,9 +144,8 @@ void Assembler::_org(size_t& tok_i)
 			break;
 		case Section::DATA:
 			if (val < m_obj.data_section.size()) {
-				ERROR_SS(std::stringstream() << "Assembler::_org() - .org directive cannot move "
-						"assembler pc backwards. Expected >= "
-						<< std::to_string(m_obj.data_section.size()) << ". Got " << val << ".");
+				ERROR("Assembler::_org() - .org directive cannot move "
+						"assembler pc backwards. Expected >= %llu. Got %u.", m_obj.data_section.size(), val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -163,17 +159,17 @@ void Assembler::_org(size_t& tok_i)
 													and .bss
 												*/
 			if (val < m_obj.text_section.size() * 4) {
-				ERROR_SS(std::stringstream() << "Assembler::_org() - .org directive cannot move "
-						"assembler pc backwards. Expected >= "
-						<< std::to_string(m_obj.text_section.size() * 4) << ". Got " << val << ".");
+				ERROR("Assembler::_org() - .org directive cannot move "
+						"assembler pc backwards. Expected >= %llu. Got %u.",
+						m_obj.text_section.size() * 4, val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
 
 			if (val % 4 != 0) {
-				ERROR_SS(std::stringstream() << "Assembler::_org() - .org directive cannot move "
+				ERROR("Assembler::_org() - .org directive cannot move "
 						"assembler pc to a non-word aligned byte in .text section. Expected aligned "
-						"4 byte." << " Got " << val << ".");
+						"4 byte. Got %u.", val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -183,8 +179,7 @@ void Assembler::_org(size_t& tok_i)
 			}
 			break;
 		case Section::NONE:
-			ERROR_SS(std::stringstream() << "Assembler::_org() - Not defined inside section. "
-					"Cannot move section pointer.");
+			ERROR("Assembler::_org() - Not defined inside section. Cannot move section pointer.");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
 	}
@@ -213,8 +208,7 @@ void Assembler::_scope(size_t& tok_i)
 void Assembler::_scend(size_t& tok_i)
 {
 	if (scopes.empty()) {
-		ERROR_SS(std::stringstream() << "Assembler::_scend() - .scend directive must have a matching"
-				" .scope directive.");
+		ERROR("Assembler::_scend() - .scend directive must have a matching .scope directive.");
 		m_state = State::ASSEMBLER_ERROR;
 		return;
 	}
@@ -237,8 +231,7 @@ void Assembler::_advance(size_t& tok_i)
 	word val = parse_expression(tok_i);
 
 	if (val >= 0xffffff) {									/* Safety exit. Likely unintentional behavior */
-		WARN_SS(std::stringstream() << "Assembler::_advance() - offset value is large and likely unintentional. ("
-				<< std::to_string(val) << ")");
+		WARN("Assembler::_advance() - offset value is large and likely unintentional. (%u).", val);
 		m_state = State::ASSEMBLER_WARNING;
 		return;
 	}
@@ -257,9 +250,9 @@ void Assembler::_advance(size_t& tok_i)
 																move pc in a text section, comparatively to .data and .bss
 															*/
 			if (val % 4 != 0) {
-				ERROR_SS(std::stringstream() << "Assembler::_advance() - .advance directive cannot"
+				ERROR("Assembler::_advance() - .advance directive cannot"
 						" move assembler pc to a non-word aligned byte in .text section. Expected aligned 4 byte."
-						<< " Got " << val << ".");
+						" Got %u.", val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -269,8 +262,7 @@ void Assembler::_advance(size_t& tok_i)
 			}
 			break;
 		case Section::NONE:
-			ERROR_SS(std::stringstream() << "Assembler::_advance() - Not defined inside section. "
-					"Cannot move section pointer.");
+			ERROR("Assembler::_advance() - Not defined inside section. Cannot move section pointer.");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
 	}
@@ -290,8 +282,7 @@ void Assembler::_align(size_t& tok_i)
 
 	word val = parse_expression(tok_i);
 	if (val >= 0xffff) {											/* Safety exit. Likely unintentional behavior */
-		WARN_SS(std::stringstream() << "Assembler::_align() - Alignment value is large and likely unintentional. ("
-				<< std::to_string(val) << ")");
+		WARN("Assembler::_align() - Alignment value is large and likely unintentional. (%u).", val);
 		m_state = State::ASSEMBLER_WARNING;
 		return;
 	}
@@ -311,9 +302,9 @@ void Assembler::_align(size_t& tok_i)
 																		comparatively to .data and .bss
 																	*/
 			if (val % 4 != 0) {
-				ERROR_SS(std::stringstream() << "Assembler::_advance() - .advance directive cannot "
+				ERROR("Assembler::_advance() - .advance directive cannot "
 						"move assembler pc to a non-word aligned byte in .text section. Expected aligned 4 byte."
-						<< " Got " << val << ".");
+						" Got %u.", val);
 				m_state = State::ASSEMBLER_ERROR;
 				return;
 			}
@@ -323,8 +314,7 @@ void Assembler::_align(size_t& tok_i)
 			}
 			break;
 		case Section::NONE:
-			ERROR_SS(std::stringstream() << "Assembler::_align() - Not defined inside a section. "
-					"Cannot align section pointer.");
+			ERROR("Assembler::_align() - Not defined inside a section. Cannot align section pointer.");
 			m_state = State::ASSEMBLER_ERROR;
 			return;
 	}
@@ -345,7 +335,7 @@ void Assembler::_section(size_t& tok_i)
 	expect_token(tok_i, {Tokenizer::LITERAL_STRING}, "Assembler::_section() - .section expects a "
 			"string argument to follow.");
 
-	ERROR_SS(std::stringstream() << "Assembler::_section() - .section directive is not implemented yet.");
+	ERROR("Assembler::_section() - .section directive is not implemented yet.");
 	m_state = State::ASSEMBLER_ERROR;
 	return;
 }

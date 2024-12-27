@@ -44,8 +44,8 @@ bool Process::valid_exe_file(const File& file)
  */
 Process::Process(const std::string& assembler_args)
 {
-	INFO_SS(std::stringstream() << "Building Process: args(" << assembler_args << ")\n"
-			<< "Current Working Directory: " << std::filesystem::current_path().string());
+	INFO("Building Process: args(%s).", assembler_args.c_str());
+	INFO("Current Working Directory: %s.", std::filesystem::current_path().string().c_str());
 
 	flags = {
 		{"--", &Process::_ignore},
@@ -96,9 +96,9 @@ Process::Process(const std::string& assembler_args)
 	std::vector<std::string> args_list;
 	parse_args(assembler_args, args_list);
 
-	DEBUG_SS(std::stringstream() << "Process::Process() - args_list.size(): " << args_list.size());
+	DEBUG("Process::Process() - args_list.size(): %llu.", args_list.size());
 	for (size_t i = 0; i < args_list.size(); i++) {
-		DEBUG_SS(std::stringstream() << "Process::Process() - args_list[" << i << "]: " << args_list[i]);
+		DEBUG("Process::Process() - args_list[%llu]: %s.", i, args_list[i].c_str());
 	}
 
 	evaluate_args(args_list);
@@ -157,7 +157,7 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
 {
 	// evaluate arguments
 	for (size_t i = 0; i < args_list.size(); i++) {
-		DEBUG_SS(std::stringstream() << "arg" << i << ": " << args_list[i]);
+		DEBUG("arg %llu: %s.", i, args_list[i].c_str());
 
 		std::string& arg = args_list[i];
 		if (arg[0] == '-') {
@@ -221,7 +221,7 @@ void Process::assemble()
 	m_obj_files.clear();
 	for (File file : m_processed_files) {
 		if (m_has_output_dir) {
-    		DEBUG_SS(std::stringstream() << "FILE NAME = " << file.get_name());
+    		DEBUG("FILE NAME = %s.", file.get_name().c_str());
 			Assembler assembler(this, file, m_output_dir + File::SEPARATOR + file.get_name() + "." + OBJECT_EXTENSION);
 			m_obj_files.push_back(assembler.assemble());
 		} else {
@@ -265,8 +265,7 @@ void Process::link()
 	}
 
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-	DEBUG_SS(std::stringstream() << "Process::link() - output file name: "
-			<< m_exe_file.get_path() << ".");
+	DEBUG("Process::link() - output file name: %s.", m_exe_file.get_path().c_str());
 
 	if (m_has_ld_file)
 	{

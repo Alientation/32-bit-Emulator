@@ -320,7 +320,7 @@ void Linker::link()
 			/* all symbols should have a corresponding definition */
 			if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)
 			{
-				ERROR_SS(std::stringstream() << "Linker::link() - Error, symbol definition is not found.");
+				ERROR("Linker::link() - Error, symbol definition is not found.");
 				continue;
 			}
 
@@ -346,7 +346,7 @@ void Linker::link()
 					continue;
 				case ObjectFile::RelocationEntry::Type::UNDEFINED:
 				default:
-					ERROR_SS(std::stringstream() << "Linker::fill_local() - Unknown relocation entry type.");
+					ERROR("Linker::fill_local() - Unknown relocation entry type.");
 			}
 
 			/* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */

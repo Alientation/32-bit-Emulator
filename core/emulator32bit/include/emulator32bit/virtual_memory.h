@@ -249,7 +249,7 @@ class VirtualMemory
 
 			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+				ERROR("Invalid Process ID %llu.", pid);
 			}
 
 			return translate_address(m_process_ptable_map.at(pid), address, exception);
@@ -504,13 +504,12 @@ class VirtualMemory
 		 */
 		inline word translate_address(PageTable *ptable, word address, Exception& exception)
 		{
-			DEBUG_SS(std::stringstream() << "Mapping address " << std::to_string(address) << ".");
+			DEBUG("Mapping address %u.", address);
 
 			word vpage = address >> PAGE_PSIZE;
 			word ppage = access_vpage(ptable, vpage, exception);
 
-			DEBUG_SS(std::stringstream() << "Accessing virtual memory page " << std::to_string(vpage)
-					<< " which is physical page " << std::to_string(ppage) << ".");
+			DEBUG("Accessing virtual memory page %u which is physical page %u.", vpage, ppage);
 
 			return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
 		}
@@ -570,9 +569,8 @@ class VirtualMemory
 			 */
 			if (LIKELY(!entry->disk))
 			{
-				DEBUG_SS(std::stringstream() << "accessing virtual page (NOT ON DISK) "
-						<< std::to_string(vpage) << " (maps to " << std::to_string(entry->ppage) << ")"
-						<< " of process " << std::to_string(ptable->pid));
+				DEBUG("accessing virtual page (NOT ON DISK) %u (maps to %u) of process %llu",
+						vpage, entry->ppage, ptable->pid);
 				return entry->ppage;
 			}
 
@@ -611,9 +609,8 @@ class VirtualMemory
 				map_vpage_to_ppage(ptable->pid, vpage, ppage, exception);
 			}
 
-			DEBUG_SS(std::stringstream() << "accessing virtual page " << std::to_string(vpage)
-					<< " (maps to " << std::to_string(entry->ppage) << ")" << " of process "
-					<< std::to_string(ptable->pid));
+			DEBUG("Accessing virtual page %u (maps to %u) of process %llu.",
+					vpage, entry->ppage, ptable->pid);
 
 			return entry->ppage;
 		}
@@ -630,7 +627,7 @@ class VirtualMemory
 		{
 			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 			{
-				ERROR_SS(std::stringstream() << "Invalid Process ID " << std::to_string(pid));
+				ERROR("Invalid Process ID %llu.", pid);
 			}
 
 			return access_vpage(m_process_ptable_map.at(pid), vpage, exception);

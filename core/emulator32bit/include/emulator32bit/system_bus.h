@@ -210,9 +210,8 @@ class SystemBus
 
 				mmu.m_disk->write_page(exception.disk_page_return, bytes);
 
-				DEBUG_SS(std::stringstream() << "Writing physical page "
-						<< std::to_string(exception.ppage_return) << " to disk page "
-						<< std::to_string(exception.disk_page_return));
+				DEBUG("Writing physical page %u to disk page %u.",
+						exception.ppage_return, exception.disk_page_return);
 			}
 
 			if (exception.type == VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS)
@@ -228,8 +227,7 @@ class SystemBus
 					target->write_byte(paddr + i, exception.disk_fetch.at(i));
 				}
 
-				DEBUG_SS(std::stringstream() << "Reading physical page "
-						<< std::to_string(exception.ppage_fetch) << " from disk");
+				DEBUG("Reading physical page %u from disk.", exception.ppage_fetch);
 			}
 		}
 

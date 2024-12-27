@@ -107,8 +107,7 @@ Preprocessor::~Preprocessor()
  */
 File Preprocessor::preprocess()
 {
-	DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Preprocessing file: "
-			<< m_input_file.get_name());
+	DEBUG("Preprocessor::preprocess() - Preprocessing file: %s.", m_input_file.get_name().c_str());
 
 	EXPECT_TRUE_SS(m_state == State::UNPROCESSED, std::stringstream()
 			<< "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
@@ -191,7 +190,7 @@ File Preprocessor::preprocess()
 
                 // check if the symbol has a definition with the same number of parameters
                 if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end()) {
-                    ERROR_SS(std::stringstream() << "Preprocessor::preprocess() - Undefined symbol: " << symbol);
+                    ERROR("Preprocessor::preprocess() - Undefined symbol: %s.", symbol.c_str());
                 }
 
                 // replace all occurances of a parameter with the value passed in as the parameter
@@ -226,11 +225,11 @@ File Preprocessor::preprocess()
 	m_state = State::PROCESSED_SUCCESS;
 	writer.close();
 
-	DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Preprocessed file: " << m_input_file.get_name());
+	DEBUG("Preprocessor::preprocess() - Preprocessed file: %s.", m_input_file.get_name().c_str());
 
     // log macros
     for (std::pair<std::string, Macro*> macro_pair : m_macros) {
-        DEBUG_SS(std::stringstream() << "Preprocessor::preprocess() - Macro: " << macro_pair.second->to_string());
+        DEBUG("Preprocessor::preprocess() - Macro: %s.", macro_pair.second->to_string().c_str());
     }
 
 	return m_output_file;
@@ -404,7 +403,7 @@ void Preprocessor::_include(size_t& tok_i)
             if (dir.subfile_exists(sys_file_path)) {
 				if (found_sys_file) {
 					// already found file
-					ERROR_SS(std::stringstream() << "Preprocessor::_include() - Multiple matching files found in system include directories: " << sys_file_path);
+					ERROR("Preprocessor::_include() - Multiple matching files found in system include directories: %s.", sys_file_path.c_str());
 				}
 
                 full_path_from_working_dir = dir.get_path() + File::SEPARATOR + sys_file_path;
@@ -413,12 +412,12 @@ void Preprocessor::_include(size_t& tok_i)
         }
 
 		if (!found_sys_file) {
-			ERROR_SS(std::stringstream() << "Preprocessor::_include() - File not found in system include directories: " << sys_file_path);
+			ERROR("Preprocessor::_include() - File not found in system include directories: %s.", sys_file_path.c_str());
 		}
 	}
 
 	// process included file
-	DEBUG_SS(std::stringstream() << "Preprocessor::_include() - include path: " << full_path_from_working_dir);
+	DEBUG("Preprocessor::_include() - include path: %s.", full_path_from_working_dir.c_str());
 	File include_file = File(full_path_from_working_dir);
 	EXPECT_TRUE_SS(include_file.exists(), std::stringstream() << "Preprocessor::_include() - Include file does not exist: " << full_path_from_working_dir);
 
@@ -614,9 +613,9 @@ void Preprocessor::_invoke(size_t& tok_i)
 	// check if macro exists
 	std::vector<Macro*> possibleMacros = macros_with_header(macro_name, arguments);
 	if (possibleMacros.size() == 0) {
-		ERROR_SS(std::stringstream() << "Preprocessor::_invoke() - Macro does not exist: " << macro_name);
+		ERROR("Preprocessor::_invoke() - Macro does not exist: %s.", macro_name.c_str());
 	} else if (possibleMacros.size() > 1) {
-		ERROR_SS(std::stringstream() << "Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: " << macro_name);
+		ERROR("Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: %s.", macro_name.c_str());
 	}
 	Macro* macro = possibleMacros[0];
 
@@ -653,7 +652,7 @@ void Preprocessor::_invoke(size_t& tok_i)
 	for (Tokenizer::Token& token : expanded_macro_invoke) {
 		ss << token.value;
 	}
-	DEBUG_SS(std::stringstream() << "Preprocessor::_invoke() - Expanded macro: " << ss.str());
+	DEBUG("Preprocessor::_invoke() - Expanded macro: %s.", ss.str().c_str());
 
 	// insert into the tokens list
 	m_tokens.insert(m_tokens.begin() + tok_i, expanded_macro_invoke.begin(), expanded_macro_invoke.end());
@@ -775,12 +774,12 @@ void Preprocessor::cond_block(size_t& tok_i, bool cond_met)
     }
 
     if ((cond_met && end_if_tok_i == -1) || (!cond_met && next_block_tok_i == -1)) {
-        DEBUG_SS(std::stringstream() << "condition=" << cond_met << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
+        DEBUG("condition=%d | endIf=%d | next_block_tok_i=%d", (int) cond_met, end_if_tok_i, next_block_tok_i);
         ERROR("Preprocessor::cond_block() - Unclosed conditional block." );
     }
 
     if (cond_met) {
-        DEBUG_SS(std::stringstream() << " | endIf=" << end_if_tok_i << " | next_block_tok_i=" << next_block_tok_i);
+        DEBUG(" | endIf=%d | next_block_tok_i=%d", end_if_tok_i, next_block_tok_i);
 
         if (next_block_tok_i != -1) {
             // remove all tokens from the next block to the endif
@@ -830,7 +829,7 @@ void Preprocessor::_cond_on_def(size_t& tok_i)
     } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFNDEF || cond_tok.type == Tokenizer::PREPROCESSOR_ELSENDEF) {
         cond_block(tok_i, !is_symbol_def(symbol, 0));
     } else {
-        ERROR_SS(std::stringstream() << "Preprocessor::_cond_on_def() - Unexpected conditional token: " << cond_tok.value);
+        ERROR("Preprocessor::_cond_on_def() - Unexpected conditional token: %s.", cond_tok.value.c_str());
     }
 }
 
@@ -890,7 +889,7 @@ void Preprocessor::_cond_on_value(size_t& tok_i)
     } else if (cond_tok.type == Tokenizer::PREPROCESSOR_IFMORE || cond_tok.type == Tokenizer::PREPROCESSOR_ELSEMORE) {
         cond_block(tok_i, symbol_val > value);
     } else {
-        ERROR_SS(std::stringstream() << "Preprocessor::_cond_on_value() - Unexpected conditional token: " << cond_tok.value);
+        ERROR("Preprocessor::_cond_on_value() - Unexpected conditional token: %s.", cond_tok.value.c_str());
     }
 }
 

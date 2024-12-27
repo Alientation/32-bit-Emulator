@@ -150,7 +150,6 @@ void logger::clock_start(const std::string& tag, const char* file, int line, con
 
 		if (profile_logs_map.find(tag) != profile_logs_map.end())
 		{
-			// ERROR_SS(std::stringstream() << "Duplicate clock tag: " + tag);
 			current_clocks.push(tag);
 			profile_logs_map.at(tag).logs.push_back(log);
 			return;

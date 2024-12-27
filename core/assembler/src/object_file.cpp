@@ -68,9 +68,8 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 	flags = reader.read_hword();									/* 20-21 */
 	n_sections = reader.read_hword();								/* 22-23 */
 
-	DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Belf Header = (filetype=" <<
-		std::to_string(file_type) << ", target_machine=" << std::to_string(target_machine)
-		<< ", flags=" << std::to_string(flags) << ", n_sections=" << n_sections << ")");
+	DEBUG("ObjectFile::disassemble() - Belf Header = (filetype=%hu, target_machine=%hu, flags=%hu, n_sections=%hu)",
+		file_type, target_machine, flags, n_sections);
 
 	/* Section headers */
 	DEBUG("ObjectFile::disassemble() - Reading section headers");
@@ -78,8 +77,7 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 	ByteReader section_headers_start_reader(bytes);
 	section_headers_start_reader.skip_bytes(bytes.size() - 8);
 	dword section_header_start = section_headers_start_reader.read_dword();
-	DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Section Header Start = "
-			<< std::to_string(section_header_start));
+	DEBUG("ObjectFile::disassemble() - Section Header Start = %llu", section_header_start);
 	section_headers_reader.skip_bytes(section_header_start);
 	for (int i = 0; i < n_sections; i++) {
 		SectionHeader section_header = {
@@ -95,16 +93,13 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 
 		sections.push_back(section_header);
 
-		DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Reading section " << i
-				<< " (name=" << std::to_string(section_header.section_name) << ", type="
-				<< std::to_string((int)section_header.type)
-				<< ", section_start=" << std::to_string(section_header.section_start) << ", section_size="
-				<< std::to_string(section_header.section_size) << ", entry_size="
-				<< std::to_string(section_header.entry_size) << ")");
+		DEBUG("ObjectFile::disassemble() - Reading section %d (name = %d, type=%d, section_start=%u, section_size=%u, entry_size=%u)",
+				i, section_header.section_name, (int) section_header.type, section_header.section_start,
+				section_header.section_size, section_header.entry_size);
 	}
 
 	/* Sections */
-	DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Reading " << n_sections << " sections");
+	DEBUG("ObjectFile::disassemble() - Reading %hu sections.", n_sections);
 	for (hword section_i = 0; section_i < n_sections; section_i++) {
 		SectionHeader &section_header = sections[section_i];
 		switch(section_header.type) {
@@ -135,11 +130,8 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
 					};
 
 					symbol_table[symbol.symbol_name] = symbol;
-					DEBUG_SS(std::stringstream() << "ObjectFile::disassemble() - Symbol entry = (symbol_name="
-							<< std::to_string(symbol.symbol_name) << ", symbol_value="
-							<< std::to_string(symbol.symbol_value) << ", binding_info="
-							<< std::to_string((int) symbol.binding_info) << ", section="
-							<< std::to_string(symbol.section));
+					DEBUG("ObjectFile::disassemble() - Symbol entry = (symbol_name=%d, symbol_value=%d, binding_info=%d, section=%d)",
+							symbol.symbol_name, symbol.symbol_value, (int) symbol.binding_info, symbol.section);
 				}
 				break;
 			case SectionHeader::Type::REL_TEXT:
@@ -264,9 +256,9 @@ void ObjectFile::add_symbol(const std::string& symbol, word value, SymbolTableEn
 			symbol_entry.section = section;
 			symbol_entry.symbol_value = value;
 		} else if (symbol_entry.section != -1 && section != -1) {
-			ERROR_SS(std::stringstream() << "ObjectFile::add_symbol() - Multiple definition of symbol "
-					<< symbol << " at sections " << strings[sections[section].section_name] << " and "
-					<< strings[sections[symbol_entry.section].section_name] << ".");
+			ERROR("ObjectFile::add_symbol() - Multiple definition of symbol %s at sections %s and %s.",
+					symbol.c_str(), strings[sections[section].section_name].c_str(),
+					strings[sections[symbol_entry.section].section_name].c_str());
 			return;
 		}
 
@@ -324,7 +316,7 @@ void ObjectFile::write_object_file(File obj_file)
 	current_byte += data_section.size();
 
 	/* BSS Section */
-	DEBUG_SS(std::stringstream() << "ObjectFile::write_object_file() - Writing .bss section. Size " << bss_section << " bytes.");
+	DEBUG("ObjectFile::write_object_file() - Writing .bss section. Size %u bytes.", bss_section);
 	byte_writer << ByteWriter::Data(bss_section, BSS_SECTION_SIZE);
 	sections[section_table[".bss"]].section_size = bss_section;
 	sections[section_table[".bss"]].section_start = current_byte;
@@ -338,9 +330,9 @@ void ObjectFile::write_object_file(File obj_file)
 		byte_writer << ByteWriter::Data((short) symbol.second.binding_info, 2);
 		byte_writer << ByteWriter::Data(symbol.second.section, 8);
 
-		DEBUG_SS(std::stringstream() << "ObjectFile::write_object_file() - symbol " <<
-				strings[symbol.second.symbol_name] << " = " << std::to_string(symbol.second.symbol_value)
-				<< " (" << std::to_string((int)symbol.second.binding_info) << ")[" << std::to_string(symbol.second.section) << "]");
+		DEBUG("ObjectFile::write_object_file() - symbol %s = %u (%d)[%d]",
+				strings[symbol.second.symbol_name].c_str(), symbol.second.symbol_value,
+				(int) symbol.second.binding_info, symbol.second.section);
 	}
 	sections[section_table[".symtab"]].section_size = symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
 	sections[section_table[".symtab"]].section_start = current_byte;

@@ -11,7 +11,7 @@
  */
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 {
-    DEBUG_SS(std::stringstream() << "Tokenizer::tokenize() - Tokenizing file: " << srcFile.get_name());
+    DEBUG("Tokenizer::tokenize() - Tokenizing file: %s.", srcFile.get_name());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -19,7 +19,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 	reader.close();
 
 	std::vector<Token>& tokens = tokenize(source_code);
-	DEBUG_SS(std::stringstream() << "Tokenizer::tokenize() - Tokenized file: " << srcFile.get_name());
+	DEBUG("Tokenizer::tokenize() - Tokenized file: %s.", srcFile.get_name());
 	return tokens;
 }
 

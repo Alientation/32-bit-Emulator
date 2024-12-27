@@ -246,7 +246,7 @@ void Emulator32bit::_emu_err(word err)
 void Emulator32bit::_swi(word instr)
 {
 	byte cond = bitfield_u32(instr, 22, 4);
-	DEBUG_SS(std::stringstream() << "swi " << std::to_string(cond));
+	DEBUG("swi %d", (int) cond);
 
 	if (!check_cond(_pstate, cond)) {
 		return;

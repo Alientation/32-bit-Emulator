@@ -97,7 +97,7 @@ void add_sections(ObjectFile& m_obj)
 // todo, filter out all spaces and tabs
 File Assembler::assemble()
 {
-	DEBUG_SS(std::stringstream() << "Assembler::assemble() - Assembling file: " << m_inputFile.get_name());
+	DEBUG("Assembler::assemble() - Assembling file: %s.", m_inputFile.get_name().c_str());
 
 	EXPECT_TRUE_SS(m_state == State::NOT_ASSEMBLED, std::stringstream()
 			<< "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
@@ -111,11 +111,10 @@ File Assembler::assemble()
 	add_sections(m_obj);
 
 	// parse tokens
-	DEBUG_SS(std::stringstream() << "Assembler::assemble() - Parsing tokens.");
+	DEBUG("Assembler::assemble() - Parsing tokens.");
 	for (size_t i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        DEBUG_SS(std::stringstream() << "Assembler::assemble() - Assembling token " << i << ": "
-				<< token.to_string());
+        DEBUG("Assembler::assemble() - Assembling token %d: %s.", i, token.to_string().c_str());
 
         // skip non code or directives
         if (is_token(i, Tokenizer::WHITESPACES) || is_token(i, Tokenizer::COMMENTS)) {
@@ -126,7 +125,7 @@ File Assembler::assemble()
 		// perform logic on current token
 		if (token.type == Tokenizer::LABEL) {
 			if (current_section == Section::NONE) {
-				ERROR_SS(std::stringstream() << "Assembler::assemble() - Label must be located in a section.");
+				ERROR("Assembler::assemble() - Label must be located in a section.");
 				m_state = State::ASSEMBLER_ERROR;
 				break;
 			}
@@ -142,7 +141,7 @@ File Assembler::assemble()
 			i++;
 		} else if (instructions.find(token.type) != instructions.end()) {
 			if (current_section != Section::TEXT) {
-				ERROR_SS(std::stringstream() << "Assembler::assemble() - Code must be located in .text section.");
+				ERROR("Assembler::assemble() - Code must be located in .text section.");
 				m_state = State::ASSEMBLER_ERROR;
 				break;
 			}
@@ -150,13 +149,12 @@ File Assembler::assemble()
 		} else if (directives.find(token.type) != directives.end()) {
 			(this->*directives[token.type])(i);
 		} else {
-			ERROR_SS(std::stringstream() << "Assembler::assemble() - Cannot parse token " << i << " "
-					<< token.to_string());
+			ERROR("Assembler::assemble() - Cannot parse token %d %s.", i, token.to_string().c_str());
 			m_state = State::ASSEMBLER_ERROR;
 			break;
 		}
 	}
-	DEBUG_SS(std::stringstream() << "Assembler::assemble() - Finished parsing tokens.");
+	DEBUG("Assembler::assemble() - Finished parsing tokens.");
 
 	/* Parse through second time to fill in local symbol values */
 	fill_local();
@@ -165,8 +163,7 @@ File Assembler::assemble()
 
 	if (m_state == State::ASSEMBLING) {
 		m_state = State::ASSEMBLED;
-		DEBUG_SS(std::stringstream() << "Assembler::assemble() - Assembled file: "
-				<< m_inputFile.get_name());
+		DEBUG("Assembler::assemble() - Assembled file: %s.", m_inputFile.get_name());
 	}
 
 	return m_outputFile;
@@ -177,13 +174,13 @@ void Assembler::fill_local()
 {
 	size_t tok_i = 0;
 
-	DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Parsing relocation entries to fill in known values.");
+	DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
 	std::vector<int> local_scope;
 	int local_count_scope = 0;
 	for (size_t i = 0; i < m_obj.rel_text.size(); i++) {
 		ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
-		DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Evaluating relocation entry "
-				<< m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
+		DEBUG("Assembler::fill_local() - Evaluating relocation entry %s.",
+				m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name].c_str());
 
 		while (tok_i < rel.token && tok_i < m_tokens.size()) {
 			if (m_tokens[tok_i].type == Tokenizer::ASSEMBLER_SCOPE) {
@@ -246,14 +243,14 @@ void Assembler::fill_local()
 				break;
 			case ObjectFile::RelocationEntry::Type::UNDEFINED:
 			default:
-				ERROR_SS(std::stringstream() << "Assembler::fill_local() - Unknown relocation entry type.");
+				ERROR("Assembler::fill_local() - Unknown relocation entry type.");
 		}
 
 		m_obj.rel_text.erase(m_obj.rel_text.begin() + i);							/* For now, simply delete from vector. In future look to optimize */
 		i--;															/* Offset the for loop increment */
 	}
 
-	DEBUG_SS(std::stringstream() << "Assembler::fill_local() - Finished parsing relocation entries.");
+	DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }
 
 

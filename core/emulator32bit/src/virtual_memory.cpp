@@ -121,7 +121,7 @@ void VirtualMemory::set_process(long long pid)
 	}
 
 	m_cur_ptable = m_process_ptable_map.at(pid);
-	DEBUG_SS(std::stringstream() << "Setting memory map to process " << std::to_string(pid));
+	DEBUG("Setting memory map to process %llu.", pid);
 }
 
 long long VirtualMemory::begin_process(bool kernel_privilege)
@@ -143,7 +143,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
 	m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
 	m_cur_ptable = new_pagetable;
 
-	DEBUG_SS(std::stringstream() << "Beginning process " << std::to_string(pid));
+	DEBUG("Beginning process %llu.", pid);
 	return pid;
 }
 
@@ -179,7 +179,7 @@ void VirtualMemory::end_process(long long pid)
 	delete m_process_ptable_map.at(pid);
 	m_process_ptable_map.erase(pid);
 	m_freepids.return_block(pid, 1);
-	DEBUG_SS(std::stringstream() << "Ending process " << std::to_string(pid));
+	DEBUG("Ending process %llu.", pid);
 }
 
 long long VirtualMemory::current_process()
@@ -272,8 +272,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
 		throw InvalidPIDException("Cannot add virtual pages because pid is invalid.", pid);
 	}
 
-	DEBUG_SS(std::stringstream() << "Adding vpages from " << std::to_string(vpage) << " to "
-			<< std::to_string(vpage + length - 1));
+	DEBUG("Adding vpages from %u to %u.", vpage, vpage + length - 1);
 
 	PageTable *ptable = m_process_ptable_map.at(pid);
 	word last_vpage = vpage + length - 1;
@@ -288,8 +287,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
 
 		ptable->entries.insert(std::make_pair(vpage, new PageTableEntry(pid, vpage, m_disk->get_free_page(), write, execute)));
 
-		DEBUG_SS(std::stringstream() << "Adding virtual page " << std::to_string(vpage)
-				<< " to process " << std::to_string(pid));
+		DEBUG("Adding virtual page %u to process %llu.", vpage, pid);
 	}
 }
 
@@ -343,8 +341,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 	{
 		m_disk->return_page(entry->diskpage);
 
-		DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(entry->diskpage)
-				<< " corresponding to virtual page " << std::to_string(vpage));
+		DEBUG("Returning disk page %u coressponding to virtual page %u.", entry->diskpage, vpage);
 	}
 	else
 	{
@@ -353,8 +350,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 		/* add back to free list */
 		m_freelist.return_block(entry->ppage, 1);
 
-		DEBUG_SS(std::stringstream() << "Returning physical page " << std::to_string(entry->ppage)
-				<< " corresponding to virtual page " << std::to_string(vpage));
+		DEBUG("Returning physical page %u corresponding to virtual page %u.", entry->ppage, vpage);
 	}
 
 	delete entry;
@@ -381,12 +377,11 @@ void VirtualMemory::check_vm()
 
 	for (std::pair<long long, PageTable*> pair : m_process_ptable_map)
 	{
-		DEBUG_SS(std::stringstream() << "Checking process " << std::to_string(pair.first));
+		DEBUG("Checking process %llu.", pair.first);
 		EXPECT_TRUE(pair.second->pid == pair.first, "Expected Process ID to match");
 		for (std::pair<word,PageTableEntry*> entry : pair.second->entries)
 		{
-			DEBUG_SS(std::stringstream() << "Checking page entry at vpage "
-					<< std::to_string(entry.first));
+			DEBUG("Checking page entry at vpage %u.", entry.first);
 
 			EXPECT_TRUE(entry.second->vpage == entry.first, "Expected virtual memory to match");
 		}
@@ -395,8 +390,7 @@ void VirtualMemory::check_vm()
 
 void VirtualMemory::evict_ppage(word ppage, Exception& exception)
 {
-	DEBUG_SS(std::stringstream() << "Evicting physical page " << std::to_string(ppage)
-			<< " to disk");
+	DEBUG("Evicting physical page %u to disk.", ppage);
 
 	/*
 	 * NOTE: this location will be overwritten below since we return the
@@ -438,8 +432,7 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Ex
 	PageTableEntry *entry = ptable->entries.at(vpage);
 	exception.disk_fetch = m_disk->read_page(entry->diskpage);
 
-	DEBUG_SS(std::stringstream() << "Disk Fetch from page " << std::to_string(entry->diskpage)
-			<< " to physical page " << std::to_string(ppage));
+	DEBUG("Disk Fetch from page %u to physical page %u.", entry->diskpage, ppage);
 
 	m_disk->return_page(entry->diskpage);
 
@@ -492,8 +485,7 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
 				std::to_string(pid), vpage, ptable->entries.at(vpage)->ppage, ppage);
 	}
 
-	DEBUG_SS(std::stringstream() << "Mapping physical page " << std::to_string(ppage)
-			<< " to virtual page " << std::to_string(vpage) << ".");
+	DEBUG("Mapping physical page %u to virtual page %u.", ppage, vpage);
 
 	map_ppage(pid, vpage, ppage, exception);
 }

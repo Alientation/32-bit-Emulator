@@ -141,8 +141,8 @@ std::string disassemble_format_m(word instruction, std::string op)
 	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
 	int adr_mode = bitfield_u32(instruction, 0, 2);
 	if (adr_mode != M_PRE && adr_mode != M_OFFSET && adr_mode != M_POST) {
-		ERROR_SS(std::stringstream() << "disassemble_format_m() - Invalid addressing mode "
-				"in the disassembly of instruction (" << op << ") " << instruction);
+		ERROR("disassemble_format_m() - Invalid addressing mode "
+				"in the disassembly of instruction (%s) %u", op.c_str(), instruction);
 	}
 
 	if (test_bit(instruction, 14)) {

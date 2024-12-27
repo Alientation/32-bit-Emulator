@@ -67,8 +67,7 @@ void Disk::read_disk_files()
 		 * to match the request so stop here.
 		 */
 		disk_file.close();
-		ERROR_SS(std::stringstream() << "Disk file is larger than what is requested. "
-				<< std::to_string(actual_size) << " > " << std::to_string(target_size));
+		ERROR("Disk file is larger than what is requested. %llu > %llu.", actual_size, target_size);
 		return;
 	}
 
@@ -77,15 +76,13 @@ void Disk::read_disk_files()
 	 * we can correct this by increasing the size to what we want.
 	 */
 	std::streamsize padding_size = target_size - actual_size;
-	DEBUG_SS(std::stringstream() << "Padding disk file of size " << std::to_string(actual_size)
-			<< " bytes with " << std::to_string(padding_size) << " bytes.");
+	DEBUG("Padding disk file of size %llu bytes with %llu bytes.", actual_size, padding_size);
 
 	std::vector<char> padding(padding_size, 0);
 	disk_file.write(padding.data(), padding_size);
 
 	disk_file.close();
-	DEBUG_SS(std::stringstream() << "Successfully created disk file of size "
-			<< std::to_string(m_npages) << " pages");
+	DEBUG("Successfully created disk file of size %llu pages.", m_npages);
 }
 
 void Disk::read_disk_manager_file()
@@ -146,7 +143,7 @@ word Disk::get_free_page()
 {
 	word addr = m_free_list.get_free_block(1);
 
-	DEBUG_SS(std::stringstream() << "Getting free disk page " << std::to_string(addr));
+	DEBUG("Getting free disk page %u.", addr);
 	return addr;
 }
 
@@ -154,8 +151,7 @@ void Disk::return_page(word page)
 {
 	m_free_list.return_block(page, 1);
 
-	DEBUG_SS(std::stringstream() << "Returning disk page " << std::to_string(page)
-			<< " back to disk");
+	DEBUG("Returning disk page %u back to disk.", page);
 }
 
 void Disk::return_all_pages()
@@ -169,8 +165,7 @@ void Disk::return_pages(word page_lo, word page_hi)
 {
 	m_free_list.force_return_block(page_lo, page_hi - page_lo + 1);
 
-	DEBUG_SS(std::stringstream() << "Returned all disk pages from " << std::to_string(page_lo)
-			<< " to " << std::to_string(page_hi) << " back to disk");
+	DEBUG("Returned all disk pages from %u to %u back to disk.", page_lo, page_hi);
 }
 
 std::vector<byte> Disk::read_page(word page)
@@ -182,7 +177,7 @@ std::vector<byte> Disk::read_page(word page)
 		data.push_back(cpage.data[i]);
 	}
 
-	DEBUG_SS(std::stringstream() << "Reading disk page " << std::to_string(page));
+	DEBUG("Reading disk page %u.", page);
 	return data;
 }
 
@@ -244,7 +239,7 @@ void Disk::write_page(word page, std::vector<byte> data)
 		cpage.data[i] = data.at(i);
 	}
 
-	DEBUG_SS(std::stringstream() << "Wrote to disk page " << std::to_string(cpage.page));
+	DEBUG("Wrote to disk page %u.", cpage.page);
 }
 
 void Disk::write_byte(word address, byte data)
@@ -312,7 +307,7 @@ Disk::CachePage& Disk::get_cpage(word addr)
 	cpage.page = addr;
 	read_cpage(cpage);
 
-	DEBUG_SS(std::stringstream() << "Getting cached page " << std::to_string(cpage.page));
+	DEBUG("Getting cached page %u.", cpage.page);
 	return cpage;
 }
 
@@ -341,8 +336,7 @@ void Disk::write_cpage(CachePage& cpage)
 	file.write(data.data(), PAGE_SIZE);
 
 	file.close();
-	DEBUG_SS(std::stringstream() << "Successfully wrote page " << std::to_string(cpage.page)
-			<< " to disk");
+	DEBUG("Successfully wrote page %u to disk.", cpage.page);
 }
 
 void Disk::read_cpage(CachePage& cpage)
@@ -357,8 +351,7 @@ void Disk::read_cpage(CachePage& cpage)
 	file.seekg(cpage.page << PAGE_PSIZE);
 	if (!file) {
 		file.close();
-		ERROR_SS(std::stringstream() << "Error seeking position of page "
-				<< std::to_string(cpage.page) << "in disk file");
+		ERROR("Error seeking position of page %u in disk file.", cpage.page);
 		return;
 	}
 
@@ -367,8 +360,7 @@ void Disk::read_cpage(CachePage& cpage)
 
 	if (!file) {
 		file.close();
-		ERROR_SS(std::stringstream() << "Error reading page " << std::to_string(cpage.page)
-				<< " from disk file");
+		ERROR("Error reading page %u from disk file", cpage.page);
 		return;
 	}
 
@@ -376,8 +368,7 @@ void Disk::read_cpage(CachePage& cpage)
 		cpage.data[i] = buffer[i];
 	}
 	file.close();
-	DEBUG_SS(std::stringstream() << "Successfully read page " << std::to_string(cpage.page)
-			<< " from disk");
+	DEBUG("Successfully read page %u from disk.", cpage.page);
 }
 
 /*  When the program ends, we want to save all the pages in cache to disk. Instead of
@@ -416,8 +407,7 @@ void Disk::save()
 			return;
 		}
 
-		DEBUG_SS(std::stringstream() << "WRITING CACHE PAGE TO DISK "
-				<< std::to_string(cpage.page));
+		DEBUG("WRITING CACHE PAGE TO DISK %u.", cpage.page);
 	}
 	file.close();
 	DEBUG("Successfully wrote dirty cache pages to disk");

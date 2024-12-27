@@ -59,11 +59,11 @@ File::File(const std::string& name, const std::string& extension,
 	}
 
 	if (!valid_name(name)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file name: " << name);
+		ERROR("File::File() - Invalid file name: %s.", name.c_str());
 	} else if (!valid_extension(extension)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file extension: " << extension);
+		ERROR("File::File() - Invalid file extension: %s.", extension.c_str());
 	} else if (!valid_dir(dir)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file directory: " << dir);
+		ERROR("File::File() - Invalid file directory: %s.", dir.c_str());
 	}
 
 	if (create_if_not_present && !exists()) {
@@ -80,7 +80,7 @@ File::File(const std::string& path, bool create_if_not_present)
 {
 	std::size_t extension_separator_index = path.find_last_of(".");
 	if (extension_separator_index == std::string::npos) {
-		ERROR_SS(std::stringstream() << "File::File() - File path does not contain an extension: " << path);
+		ERROR("File::File() - File path does not contain an extension: %s.", path.c_str());
 	}
 
 	bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
@@ -90,11 +90,11 @@ File::File(const std::string& path, bool create_if_not_present)
 	m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
 
 	if (!valid_name(m_name)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file name: " << m_name);
+		ERROR("File::File() - Invalid file name: %s.", m_name.c_str());
 	} else if (!valid_extension(m_extension)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file extension: " << m_extension);
+		ERROR("File::File() - Invalid file extension: %s.", m_extension.c_str());
 	} else if (!valid_dir(m_dir)) {
-		ERROR_SS(std::stringstream() << "File::File() - Invalid file directory: " << m_dir);
+		ERROR("File::File() - Invalid file directory: %s.", m_dir.c_str());
 	}
 
 	if (create_if_not_present && !exists()) {
@@ -209,7 +209,7 @@ FileWriter::FileWriter(const File& file) :
 	m_closed = false;
 
 	if (!m_file_stream->good()) {
-		ERROR_SS(std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.get_path());
+		ERROR("FileWriter::FileWriter() - Failed to open file: %s.", file.get_path().c_str());
 	}
 }
 
@@ -220,7 +220,7 @@ FileWriter::FileWriter(const File& file, std::_Ios_Openmode flags) :
 	m_closed = false;
 
 	if (!m_file_stream->good()) {
-		ERROR_SS(std::stringstream() << "FileWriter::FileWriter() - Failed to open file: " << file.get_path());
+		ERROR("FileWriter::FileWriter() - Failed to open file: %s.", file.get_path().c_str());
 	}
 }
 
@@ -454,7 +454,7 @@ FileReader::FileReader(const File& file) : m_file(file)
 	m_closed = false;
 
 	if (!m_file_stream->good()) {
-		ERROR_SS(std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.get_path());
+		ERROR("FileReader::FileReader() - Failed to open file: %s.", m_file.get_path().c_str());
 	}
 }
 
@@ -465,7 +465,7 @@ FileReader::FileReader(const File& file, std::_Ios_Openmode flags) : m_file(file
 	m_closed = false;
 
 	if (!m_file_stream->good()) {
-		ERROR_SS(std::stringstream() << "FileReader::FileReader() - Failed to open file: " << m_file.get_path());
+		ERROR("FileReader::FileReader() - Failed to open file: %s.", m_file.get_path().c_str());
 	}
 }
 
@@ -525,8 +525,8 @@ char* FileReader::read_bytes(const unsigned int num_bytes)
 	m_file_stream->read(bytes, num_bytes);
 
 	if (m_file_stream->fail()) {
-		ERROR_SS(std::stringstream() << "FileReader::readBytes() - Failed to read " << num_bytes
-				<< " bytes from file: " << m_file.get_path());
+		ERROR("FileReader::readBytes() - Failed to read %u bytes from file: %s.", num_bytes,
+				m_file.get_path().c_str());
 	}
 
 	return bytes;
