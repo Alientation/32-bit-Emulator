@@ -1,4 +1,6 @@
 #include <emulator32bit/emulator32bit.h>
+
+#define AEMU_ONLY_CRITICAL_LOG
 #include <util/logger.h>
 
 #include <string>
@@ -226,7 +228,7 @@ word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int imm14)
  * @param 					imm5: shift amount
  * @return 					instruction word
  */
-word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5)
+word Emulator32bit::asm_format_o(byte opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5)
 {
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << 1 << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << 2;
 }
@@ -251,12 +253,12 @@ word Emulator32bit::asm_format_o3(byte opcode, bool s, int xd, int xn, int imm14
 	return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << 0 << JPart(5, xn) << JPart(14, imm14);
 }
 
-word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr)
+word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, ShiftType shift, int imm5, AddrType adr)
 {
 	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << 1 << JPart(5, xm) << JPart(2, shift) << JPart(5, imm5) << JPart(2, adr);
 }
 
-word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr)
+word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, AddrType adr)
 {
 	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << JPart(1, 1) << JPart(12, bitfield_u32(simm12, 0, 12)) << JPart(2, adr);
 }

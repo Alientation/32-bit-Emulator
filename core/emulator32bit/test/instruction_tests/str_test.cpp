@@ -5,7 +5,7 @@
 TEST(str, offset) {
 	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// str x0, [x1, #3]
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, Emulator32bit::ADDR_OFFSET));
 	cpu->_pc = 0;
 	cpu->_x[0] = 9;
 	cpu->_x[1] = 5;
@@ -26,7 +26,7 @@ TEST(str, offset) {
 TEST(str, pre_indexed) {
 	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// str x0, [x1, #3]!
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, 1));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, Emulator32bit::ADDR_PRE_INC));
 	cpu->_pc = 0;
 	cpu->_x[0] = 9;
 	cpu->_x[1] = 5;
@@ -47,7 +47,7 @@ TEST(str, pre_indexed) {
 TEST(str, post_indexed) {
 	Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
 	// str x0, [x1], #3
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, 2));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 3, Emulator32bit::ADDR_POST_INC));
 	cpu->_pc = 0;
 	cpu->_x[0] = 9;
 	cpu->_x[1] = 8;

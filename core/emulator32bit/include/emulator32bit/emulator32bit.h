@@ -54,23 +54,6 @@ class Timer; /* Forward declare from 'timer.h' */
  */
 #define S_BIT 25            /* Update Flag Bit */
 
-/**
- * @brief					Shift codes
- *
- */
-#define LSL 0               /* Logical Shift Left */
-#define LSR 1               /* Logical Shift Right */
-#define ASR 2               /* Arithmetic Shift Right */
-#define ROR 3               /* Rotate Right */
-
-/**
- * @brief                   Memory address modes
- *
- */
-#define M_OFFSET 0          /* Address offset */
-#define M_PRE 1             /* Pre-increment address */
-#define M_POST 2            /* Post-increment address */
-
 std::string disassemble_instr(word instr);
 
 /**
@@ -137,6 +120,14 @@ class Emulator32bit
 			LE = 13,                /* Signed less than or equal 	: (Z==1) || (N!=V) */
 			AL = 14,                /* Always Executed				: NONE */
 			NV = 15,                /* Never Executed 				: NONE */
+		};
+
+		enum ShiftType {
+			SHIFT_LSL, SHIFT_LSR, SHIFT_ASR, SHIFT_ROR
+		};
+
+		enum AddrType {
+			ADDR_OFFSET, ADDR_PRE_INC, ADDR_POST_INC
 		};
 
 		static const word RAM_MEM_SIZE;     /* Default size of RAM memory in bytes */
@@ -399,13 +390,13 @@ class Emulator32bit
 		// help assemble instructions
 		static word asm_hlt();
 		static word asm_format_o(byte opcode, bool s, int xd, int xn, int imm14);
-		static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, int shift, int imm5);
+		static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
 		static word asm_format_o1(byte opcode, int xd, int xn, bool imm, int xm, int imm5);
 		static word asm_format_o2(byte opcode, bool s, int xlo, int xhi, int xn, int xm);
 		static word asm_format_o3(byte opcode, bool s, int xd, int imm19);
 		static word asm_format_o3(byte opcode, bool s, int xd, int xn, int imm14);
-		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, int shift, int imm5, int adr);
-		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr);
+		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, ShiftType shift, int imm5, AddrType adr);
+		static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, AddrType adr);
 		static word asm_format_m1(byte opcode, int xd, int xn, int xm);
 		static word asm_format_m2(byte opcode, int xd, int imm20);
 		static word asm_format_b1(byte opcode, ConditionCode cond, sword simm22);

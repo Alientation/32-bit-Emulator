@@ -6,7 +6,7 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/fbl.h"
 
-// #define AEMU_ONLY_CRITICAL_LOG
+#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <unordered_map>
@@ -504,12 +504,12 @@ class VirtualMemory
 		 */
 		inline word translate_address(PageTable *ptable, word address, Exception& exception)
 		{
-			DEBUG("Mapping address %u.", address);
+			// DEBUG("Mapping address %u.", address);
 
 			word vpage = address >> PAGE_PSIZE;
 			word ppage = access_vpage(ptable, vpage, exception);
 
-			DEBUG("Accessing virtual memory page %u which is physical page %u.", vpage, ppage);
+			// DEBUG("Accessing virtual memory page %u which is physical page %u.", vpage, ppage);
 
 			return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
 		}
@@ -569,12 +569,12 @@ class VirtualMemory
 			 */
 			if (LIKELY(!entry->disk))
 			{
-				DEBUG("accessing virtual page (NOT ON DISK) %u (maps to %u) of process %llu",
-						vpage, entry->ppage, ptable->pid);
+				// DEBUG("accessing virtual page (NOT ON DISK) %u (maps to %u) of process %llu",
+						// vpage, entry->ppage, ptable->pid);
 				return entry->ppage;
 			}
 
-			DEBUG("BRINGING PAGE ONTO RAM");
+			// DEBUG("BRINGING PAGE ONTO RAM");
 
 			/*
 			 * Unlikely that the virtual page has been forcibly mapped to a physical page.
@@ -609,8 +609,8 @@ class VirtualMemory
 				map_vpage_to_ppage(ptable->pid, vpage, ppage, exception);
 			}
 
-			DEBUG("Accessing virtual page %u (maps to %u) of process %llu.",
-					vpage, entry->ppage, ptable->pid);
+			// DEBUG("Accessing virtual page %u (maps to %u) of process %llu.",
+					// vpage, entry->ppage, ptable->pid);
 
 			return entry->ppage;
 		}

@@ -11,7 +11,7 @@ TEST(adc, register_adc_immediate) {
 	cpu->set_NZCV(0, 0, 1, 0);
 
 	cpu->run(1);
-    
+
 	EXPECT_EQ(cpu->_x[0], 11) << "\'adc x0, x1 #9\' : where x1=1, c=1, should result in x0=11";
 	EXPECT_EQ(cpu->_x[1], 1) << "operation should not alter operand register \'x1\'";
 	EXPECT_EQ(test_bit(cpu->_pstate, N_FLAG), 0) << "operation should not cause N flag to be set";
@@ -27,7 +27,7 @@ TEST(adc, register_adc_register) {
 	// x1: 1
 	// x2: 9
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, false, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 1;
 	cpu->_x[2] = 9;
@@ -51,7 +51,7 @@ TEST(adc, register_adc_register_shifted) {
 	// x1: 1
 	// x2: 1
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, false, 0, 1, 2, 0, 3));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, false, 0, 1, 2, Emulator32bit::SHIFT_LSL, 3));
 	cpu->_pc = 0;
 	cpu->_x[1] = 0;
 	cpu->_x[2] = 2;
@@ -75,7 +75,7 @@ TEST(adc, negative_flag) {
 	// x1: -3
 	// x2: 1
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -3;
 	cpu->_x[2] = 1;
@@ -100,7 +100,7 @@ TEST(adc, zero_flag) {
 	// x1: -1
 	// x2: 0
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -1;
 	cpu->_x[2] = 0;
@@ -124,7 +124,7 @@ TEST(adc, carry_flag_1) {
 	// x1: -1
 	// x2: -2
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -1;
 	cpu->_x[2] = -2;
@@ -148,7 +148,7 @@ TEST(adc, carry_flag_2) {
 	// x1: -4
 	// x2: -5
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -4;
 	cpu->_x[2] = -5;
@@ -172,7 +172,7 @@ TEST(adc, overflow_flag__neg_to_pos) {
 	// x1: 1<<31
 	// x2: 1<<31
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = (1U << 31) - 1;
 	cpu->_x[2] = 1U << 31;
@@ -196,7 +196,7 @@ TEST(adc, overflow_flag__pos_to_neg) {
 	// x1: (1<<31) - 1
 	// x2: 0
 	// carry: 1
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_adc, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = (1U << 31) - 1;
 	cpu->_x[2] = 0;

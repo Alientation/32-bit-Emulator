@@ -24,7 +24,7 @@ TEST(mul, register_mul_register) {
 	// mul x0, x1, x2
 	// x1: 2
 	// x2: 4
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 2;
 	cpu->_x[2] = 4;
@@ -46,7 +46,7 @@ TEST(mul, register_mul_register_shift) {
 	// mul x0, x1, x2, lsr #1
 	// x1: 2
 	// x2: 4
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 2, LSR, 1));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 2, Emulator32bit::SHIFT_LSR, 1));
 	cpu->_pc = 0;
 	cpu->_x[1] = 2;
 	cpu->_x[2] = 4;
@@ -68,7 +68,7 @@ TEST(mul, negative_flag) {
 	// mul x0, x1, x2
 	// x1: -2
 	// x2: 4
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = -2;
 	cpu->_x[2] = 4;
@@ -90,7 +90,7 @@ TEST(mul, zero_flag) {
 	// mul x0, x1, x2
 	// x1: 0
 	// x2: 4
-	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, true, 0, 1, 2, 0, 0));
+	cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, true, 0, 1, 2, Emulator32bit::SHIFT_LSL, 0));
 	cpu->_pc = 0;
 	cpu->_x[1] = 0;
 	cpu->_x[2] = 4;

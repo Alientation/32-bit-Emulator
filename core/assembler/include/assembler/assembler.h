@@ -6,6 +6,7 @@
 #include "assembler/build.h"
 #include "assembler/tokenizer.h"
 #include "util/file.h"
+#include <emulator32bit/emulator32bit.h>
 #include "emulator32bit/emulator32bit_util.h"
 
 #include <string>
@@ -44,7 +45,7 @@ class Assembler
 		dword parse_expression(size_t& tok_i);
 		std::vector<dword> parse_arguments(size_t& tok_i);
 		byte parse_register(size_t& tok_i);
-		void parse_shift(size_t& tok_i, int& shift, int& shift_amt);
+		void parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int& shift_amt);
 
 		word parse_format_o(size_t& tok_i, byte opcode);
 		word parse_format_o1(size_t& tok_i, byte opcode);

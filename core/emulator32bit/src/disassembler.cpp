@@ -18,16 +18,16 @@ std::string disassemble_shift(word instruction)
 {
 	std::string disassemble;
 	switch (bitfield_u32(instruction, 7, 2)) {
-		case LSL:
+		case Emulator32bit::SHIFT_LSL:
 			disassemble = "lsl #";
 			break;
-		case LSR:
+		case Emulator32bit::SHIFT_LSR:
 			disassemble = "lsr #";
 			break;
-		case ASR:
+		case Emulator32bit::SHIFT_ASR:
 			disassemble = "asr #";
 			break;
-		case ROR:
+		case Emulator32bit::SHIFT_ROR:
 			disassemble = "ror #";
 			break;
 	}
@@ -140,7 +140,7 @@ std::string disassemble_format_m(word instruction, std::string op)
 	disassemble += "[";
 	disassemble += disassemble_register(bitfield_u32(instruction, 15, 5));
 	int adr_mode = bitfield_u32(instruction, 0, 2);
-	if (adr_mode != M_PRE && adr_mode != M_OFFSET && adr_mode != M_POST) {
+	if (adr_mode != Emulator32bit::ADDR_PRE_INC && adr_mode != Emulator32bit::ADDR_OFFSET && adr_mode != Emulator32bit::ADDR_POST_INC) {
 		ERROR("disassemble_format_m() - Invalid addressing mode "
 				"in the disassembly of instruction (%s) %u", op.c_str(), instruction);
 	}
@@ -149,11 +149,11 @@ std::string disassemble_format_m(word instruction, std::string op)
 		int simm12 = bitfield_s32(instruction, 2, 12);
 		if (simm12 == 0 ){
 			disassemble += "]";
-		}else if (adr_mode == M_PRE) {
+		}else if (adr_mode == Emulator32bit::ADDR_PRE_INC) {
 			disassemble += ", #" + std::to_string(simm12) + "]!";
-		} else if (adr_mode == M_OFFSET) {
+		} else if (adr_mode == Emulator32bit::ADDR_OFFSET) {
 			disassemble += ", #" + std::to_string(simm12) + "]";
-		} else if (adr_mode == M_POST) {
+		} else if (adr_mode == Emulator32bit::ADDR_POST_INC) {
 			disassemble += "], #" + std::to_string(simm12);
 		}
 	} else {
@@ -163,11 +163,11 @@ std::string disassemble_format_m(word instruction, std::string op)
 			shift = ", " + disassemble_shift(instruction);
 		}
 
-		if (adr_mode == M_PRE) {
+		if (adr_mode == Emulator32bit::ADDR_PRE_INC) {
 			disassemble += ", " + reg + ", " + shift + "]!";
-		} else if (adr_mode == M_OFFSET) {
+		} else if (adr_mode == Emulator32bit::ADDR_OFFSET) {
 			disassemble += ", " + reg + ", " + shift + "]";
-		} else if (adr_mode == M_POST) {
+		} else if (adr_mode == Emulator32bit::ADDR_POST_INC) {
 			disassemble += "], " + reg + ", " + shift;
 		}
 	}

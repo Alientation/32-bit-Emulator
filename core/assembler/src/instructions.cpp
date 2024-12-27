@@ -1,7 +1,5 @@
 #include <assembler/assembler.h>
 
-#include <emulator32bit/emulator32bit.h>
-#include <emulator32bit/emulator32bit_util.h>
 #include <util/logger.h>
 
 #include <string>
@@ -16,18 +14,18 @@ byte Assembler::parse_register(size_t& tok_i)
 	return type - Tokenizer::Type::REGISTER_X0;							/* register order is assumed to be x0-x29, sp, xzr */
 }
 
-void Assembler::parse_shift(size_t& tok_i, int& shift, int& shift_amt)
+void Assembler::parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int& shift_amt)
 {
 	expect_token(tok_i, {Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR, Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR}, "Assembler::parse_shift() - Expected shift.");
 
 	if (is_token(tok_i, {Tokenizer::INSTRUCTION_LSL})) {
-		shift = LSL;
+		shift = Emulator32bit::SHIFT_LSL;
 	} else if (is_token(tok_i, {Tokenizer::INSTRUCTION_LSR})) {
-		shift = LSR;
+		shift = Emulator32bit::SHIFT_LSR;
 	} else if (is_token(tok_i, {Tokenizer::INSTRUCTION_ASR})) {
-		shift = ASR;
+		shift = Emulator32bit::SHIFT_ASR;
 	} else if (is_token(tok_i, {Tokenizer::INSTRUCTION_ROR})) {
-		shift = ROR;
+		shift = Emulator32bit::SHIFT_ROR;
 	}
 	consume(tok_i);
 	skip_tokens(tok_i, "[ \t]");
@@ -216,11 +214,11 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 	byte reg_a = parse_register(tok_i);								/* register that contains memory address */
 	skip_tokens(tok_i, "[ \t]");
 
-	int addressing_mode = -1;											/* parse the address mode, -1 indicates invalid address mode */
+	Emulator32bit::AddrType addressing_mode = Emulator32bit::ADDR_OFFSET;											/* parse the address mode, -1 indicates invalid address mode */
 	if (is_token(tok_i, {Tokenizer::CLOSE_BRACKET})) {					/* post indexed, offset is applied to value at register after accessing */
 		consume(tok_i);
 		skip_tokens(tok_i, "[ \t]");
-		addressing_mode = M_POST;
+		addressing_mode = Emulator32bit::ADDR_POST_INC;
 	}
 
 	if (is_token(tok_i, {Tokenizer::COMMA})) {							/* check for offset */
@@ -241,9 +239,9 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 																		   are the same for all addressing modes, but differ soley in arrangement */
 				if (is_token(tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 					consume(tok_i);
-					addressing_mode = M_PRE;							/* preindexed, offset is applied to value at register before accessing */
+					addressing_mode = Emulator32bit::ADDR_PRE_INC;							/* preindexed, offset is applied to value at register before accessing */
 				} else {
-					addressing_mode = M_OFFSET;							/* simple offset */
+					addressing_mode = Emulator32bit::ADDR_OFFSET;							/* simple offset */
 				}
 			}
 
@@ -252,7 +250,7 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 
 		expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_format_m() - Expected register argument.");
 		byte reg_b = parse_register(tok_i);							/* since there is a comma, there is another argument that is not the above checked offset */
-		int shift = 0;
+		Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
 		int shift_amount = 0;
 		skip_tokens(tok_i, "[ \t]");
 		if (is_token(tok_i, {Tokenizer::COMMA})) {						/* shift argument */
@@ -268,9 +266,9 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 		if (addressing_mode == -1) {									/* same logic as above, only update addressing mode if not yet determined */
 			if (is_token(tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
 				consume(tok_i);
-				addressing_mode = M_PRE;								/* preindexed */
+				addressing_mode = Emulator32bit::ADDR_PRE_INC;								/* preindexed */
 			} else {
-				addressing_mode = M_OFFSET;								/* simple offset */
+				addressing_mode = Emulator32bit::ADDR_OFFSET;								/* simple offset */
 			}
 		}
 
@@ -423,7 +421,7 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
 		skip_tokens(tok_i, "[ \t]");
 
 		// shift
-		int shift = 0;
+		Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
 		int shift_amt = 0;
 		if (is_token(tok_i, {Tokenizer::COMMA})) {
 			consume(tok_i);
