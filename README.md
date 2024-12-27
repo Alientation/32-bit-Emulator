@@ -49,40 +49,26 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
   * Added simple profiler to assist with optimizing
   * Began documentation process and cleaning up the codebase
   * Optimized emulator achieving a 32x speed up without virtual memory
-* **(Kernel Building Blocks)** August '24 - Present
+* **(Kernel Building Blocks)** August '24 - November '24
   * Added simple linker script, planning on expanding capabilities of it (especially once custom defined sections are added to the assembler)
   * Disk memory is now accessed the same way as ram and rom are accessed (to support memory mapped i/o)
+* **(Refactor and Clean up)** November '24 - Present
+  * Removed dead code and cleaned up tests
+  * Fix some inconsistencies with float operation naming between the emulator and assembler
+  * Finally fixed inconsistent file naming (now all lowercase)
+  * Started work on implementing a better virtual memory system
 
 ## Future Goals
-* ~~forward arguments passed into the executable to the assembler build process so that recompilation of the project is not necessary
-to build different executables~~ ***Added 7/16/24***
 * add floating point instructions, flesh out more relocation entry types, and add section directives to help partition code
-* ~~test emulator with simple and fun programs~~ ***Added fibonacci and palindrome example programs 7/17/24***
 * create simple OS with a CLI
 * Support dynamically linked libraries
-* Simple compiled language (like C)
+* Simple compiled language (like C, might instead write a LLVM backend)
 * System libraries
-* ~~Disk Memory~~ ***Added 7/21/24***
-* ~~Virtual Memory~~ ***Added 7/25/24***
 * File System
 * Benchmarking system..
-* ~~Goal instr/s would be around 100 million~~
-* ~~WE HAVE THE GOAL HIT SO QUICKLY, NEXT STEP IS TO OPTIMIZE VIRTUAL MEMORY~~
-* Virtual memory is way better than before, although it is still significantly slower than without, that is expected since virtual memory just adds another level of indirection. Next goal is to optimize the page swaps which will happen with larger programs.
-  * Haven't optimized *too* much, but reaching upwards of 13 million instructions per second with a simple loop in assembly
-  * Voiding the logger macros significantly improves performance (roughly 25% speed up), need to have an option to void the logger macros
-  * WOah, 2.5x speed up when reading instruction word by assuming 4 byte alignment by simply casting the byte array to a word array and indexing into it
-  * Directly accessing RAM to read instructions leads to another 3x speed up to 39 million instructions per second, though this does not use virtual memory...
-    * Up to 42 million when inlining many core functions
-  * 55 million when removing memory out of bounds check.. might still want to keep that, but oh boy i need that gain
-  * 75 million with some indirection regarding virtual memory (tho not fully in use) and with all libraries built in release mode (155 million with the indirection factored out!!)
-  * 165 million after transitioning from error codes to exceptions for most of the project (110 million with the indirection)
-  * 182 million after optimizing memory accesses (inlined + used shift + casting to access multibyte values that are not aligned)
-  * Down to 44 million with virtual memory fully turned on.. atleast we know virtual memory works lol?
-  * 48 million after removing mock virtual memory and inlining some functions (wasn't really needed since accessing without pid is like normal memory access)
-  * 120 million after implementing a simple translation lookaside buffer to avoid using unordered map which is VERY slow.
+* Expand testing
 * Clean up and HEAVILY refactor code :~)
-* Documentation!
+* Documentation! (both the assembly language, emulator, and source code)
 
 ## How to run
 Run the `build.bat` or `build.sh` script located in the app subdirectory which will configure and build the entire project
