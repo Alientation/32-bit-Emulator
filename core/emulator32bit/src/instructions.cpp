@@ -484,73 +484,73 @@ void Emulator32bit::_smull(word instr)
 }
 
 // todo WILL DO LATER JUST NOT NOW
-void Emulator32bit::_vabs_f32(word instr)
+void Emulator32bit::_vabs(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vneg_f32(word instr)
+void Emulator32bit::_vneg(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vsqrt_f32(word instr)
+void Emulator32bit::_vsqrt(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vadd_f32(word instr)
+void Emulator32bit::_vadd(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vsub_f32(word instr)
+void Emulator32bit::_vsub(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vdiv_f32(word instr)
+void Emulator32bit::_vdiv(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vmul_f32(word instr)
+void Emulator32bit::_vmul(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vcmp_f32(word instr)
+void Emulator32bit::_vcmp(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vsel_f32(word instr)
+void Emulator32bit::_vsel(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vcint_f32(word instr)
+void Emulator32bit::_vcint(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vcflo_f32(word instr)
+void Emulator32bit::_vcflo(word instr)
 {
 	UNUSED(instr);
 
 }
 
-void Emulator32bit::_vmov_f32(word instr)
+void Emulator32bit::_vmov(word instr)
 {
 	UNUSED(instr);
 

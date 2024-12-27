@@ -104,20 +104,18 @@ class Assembler
 		void _mul(size_t& tok_i);
 		void _umull(size_t& tok_i);
 		void _smull(size_t& tok_i);
-		void _vabs_f32(size_t& tok_i);
-		void _vneg_f32(size_t& tok_i);
-		void _vsqrt_f32(size_t& tok_i);
-		void _vadd_f32(size_t& tok_i);
-		void _vsub_f32(size_t& tok_i);
-		void _vdiv_f32(size_t& tok_i);
-		void _vmul_f32(size_t& tok_i);
-		void _vcmp_f32(size_t& tok_i);
-		void _vsel_f32(size_t& tok_i);
-		void _vcint_u32_f32(size_t& tok_i);
-		void _vcint_s32_f32(size_t& tok_i);
-		void _vcflo_u32_f32(size_t& tok_i);
-		void _vcflo_s32_f32(size_t& tok_i);
-		void _vmov_f32(size_t& tok_i);
+		void _vabs(size_t& tok_i);
+		void _vneg(size_t& tok_i);
+		void _vsqrt(size_t& tok_i);
+		void _vadd(size_t& tok_i);
+		void _vsub(size_t& tok_i);
+		void _vdiv(size_t& tok_i);
+		void _vmul(size_t& tok_i);
+		void _vcmp(size_t& tok_i);
+		void _vsel(size_t& tok_i);
+		void _vcint(size_t& tok_i);
+		void _vcflo(size_t& tok_i);
+		void _vmov(size_t& tok_i);
 		void _and(size_t& tok_i);
 		void _orr(size_t& tok_i);
 		void _eor(size_t& tok_i);
@@ -189,20 +187,18 @@ class Assembler
 			{Tokenizer::INSTRUCTION_MUL, &Assembler::_mul},
 			{Tokenizer::INSTRUCTION_UMULL, &Assembler::_umull},
 			{Tokenizer::INSTRUCTION_SMULL, &Assembler::_smull},
-			{Tokenizer::INSTRUCTION_VABS_F32, &Assembler::_vabs_f32},
-			{Tokenizer::INSTRUCTION_VNEG_F32, &Assembler::_vneg_f32},
-			{Tokenizer::INSTRUCTION_VSQRT_F32, &Assembler::_vsqrt_f32},
-			{Tokenizer::INSTRUCTION_VADD_F32, &Assembler::_vadd_f32},
-			{Tokenizer::INSTRUCTION_VSUB_F32, &Assembler::_vsub_f32},
-			{Tokenizer::INSTRUCTION_VDIV_F32, &Assembler::_vdiv_f32},
-			{Tokenizer::INSTRUCTION_VMUL_F32, &Assembler::_vmul_f32},
-			{Tokenizer::INSTRUCTION_VCMP_F32, &Assembler::_vcmp_f32},
-			{Tokenizer::INSTRUCTION_VSEL_F32, &Assembler::_vsel_f32},
-			{Tokenizer::INSTRUCTION_VCINT_U32_F32, &Assembler::_vcint_u32_f32},
-			{Tokenizer::INSTRUCTION_VCINT_S32_F32, &Assembler::_vcint_s32_f32},
-			{Tokenizer::INSTRUCTION_VCFLO_U32_F32, &Assembler::_vcflo_u32_f32},
-			{Tokenizer::INSTRUCTION_VCFLO_S32_F32, &Assembler::_vcflo_s32_f32},
-			{Tokenizer::INSTRUCTION_VMOV_F32, &Assembler::_vmov_f32},
+			{Tokenizer::INSTRUCTION_VABS, &Assembler::_vabs},
+			{Tokenizer::INSTRUCTION_VNEG, &Assembler::_vneg},
+			{Tokenizer::INSTRUCTION_VSQRT, &Assembler::_vsqrt},
+			{Tokenizer::INSTRUCTION_VADD, &Assembler::_vadd},
+			{Tokenizer::INSTRUCTION_VSUB, &Assembler::_vsub},
+			{Tokenizer::INSTRUCTION_VDIV, &Assembler::_vdiv},
+			{Tokenizer::INSTRUCTION_VMUL, &Assembler::_vmul},
+			{Tokenizer::INSTRUCTION_VCMP, &Assembler::_vcmp},
+			{Tokenizer::INSTRUCTION_VSEL, &Assembler::_vsel},
+			{Tokenizer::INSTRUCTION_VCINT, &Assembler::_vcint},
+			{Tokenizer::INSTRUCTION_VCFLO, &Assembler::_vcflo},
+			{Tokenizer::INSTRUCTION_VMOV, &Assembler::_vmov},
 			{Tokenizer::INSTRUCTION_AND, &Assembler::_and},
 			{Tokenizer::INSTRUCTION_ORR, &Assembler::_orr},
 			{Tokenizer::INSTRUCTION_EOR, &Assembler::_eor},

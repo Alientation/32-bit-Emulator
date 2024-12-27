@@ -36,7 +36,7 @@ void Assembler::parse_shift(size_t& tok_i, int& shift, int& shift_amt)
 	consume(tok_i);
 	shift_amt = parse_expression(tok_i);								/* note, in future, we could change this to create relocation record instead */
 
-	EXPECT_TRUE_SS(shift_amt < (1<<5), std::stringstream() << "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: " << shift_amt);
+	EXPECT_TRUE(shift_amt < (1<<5), "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d.", shift_amt);
 }
 
 Emulator32bit::ConditionCode get_cond_code(Tokenizer::Type type)
@@ -109,8 +109,8 @@ word Assembler::parse_format_b1(size_t& tok_i, byte opcode)
 		});
 	} else {
 		word imm = parse_expression(tok_i);
-		EXPECT_TRUE_SS(imm < (1 << 24), std::stringstream() << "Assembler::parse_format_b1() - Expected immediate to be 24 bits");
-		EXPECT_TRUE_SS((imm & 0b11) == 0, std::stringstream() << "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned");
+		EXPECT_TRUE(imm < (1 << 24), "Assembler::parse_format_b1() - Expected immediate to be 24 bits");
+		EXPECT_TRUE((imm & 0b11) == 0, "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned");
 		value = bitfield_s32(imm, 0, 24) >> 2;
 	}
 
@@ -230,7 +230,7 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 			consume(tok_i);
 			skip_tokens(tok_i, "[ \t]");
 			word offset = parse_expression(tok_i);
-			EXPECT_TRUE_SS(offset < (1<<12), std::stringstream() << "Assembler::parse_format_m() - Offset must be 12 bit value.");
+			EXPECT_TRUE(offset < (1<<12), "Assembler::parse_format_m() - Offset must be 12 bit value.");
 
 			skip_tokens(tok_i, "[ \t]");
 			expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_m() - Expected close bracket.");
@@ -278,7 +278,7 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 	}
 
 	/* check for invalid addressing mode */
-	EXPECT_FALSE_SS(addressing_mode == -1, std::stringstream() << "Assembler::parse_format_m() - Invalid addressing mode.");
+	EXPECT_FALSE(addressing_mode == -1, "Assembler::parse_format_m() - Invalid addressing mode.");
 	return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, addressing_mode);
 }
 
@@ -328,7 +328,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
 			consume(tok_i);
 			word imm = parse_expression(tok_i);
 
-			EXPECT_TRUE_SS(imm < (1<<14), std::stringstream() << "Assembler::parse_format_o() - Immediate value must be a 14 bit number.");
+			EXPECT_TRUE(imm < (1<<14), "Assembler::parse_format_o() - Immediate value must be a 14 bit number.");
 			return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
 		}
 	}
@@ -394,7 +394,7 @@ word Assembler::parse_format_o1(size_t& tok_i, byte opcode)
 		consume(tok_i);
 
 		int shift_amt = parse_expression(tok_i);
-		EXPECT_TRUE_SS(shift_amt < (1<<5), std::stringstream() << "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: " << shift_amt);
+		EXPECT_TRUE(shift_amt < (1<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d.");
 		return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt);
 	}
 }
@@ -456,7 +456,7 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
 			operand = parse_expression(tok_i);
 		} else {
 			m_state = Assembler::State::ASSEMBLER_ERROR;
-			EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::parse_format_o() - Could not parse token.");
+			EXPECT_TRUE(false, "Assembler::parse_format_o() - Could not parse token.");
 		}
 
 		return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand);
@@ -548,102 +548,88 @@ void Assembler::_smull(size_t& tok_i)
 	m_obj.text_section.push_back(instruction);
 }
 
-void Assembler::_vabs_f32(size_t& tok_i)
+void Assembler::_vabs(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vabs_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vabs() - Instruction not implemented yet.");
 }
 
-void Assembler::_vneg_f32(size_t& tok_i)
+void Assembler::_vneg(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vneg_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vneg() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsqrt_f32(size_t& tok_i)
+void Assembler::_vsqrt(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vsqrt_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vsqrt() - Instruction not implemented yet.");
 }
 
-void Assembler::_vadd_f32(size_t& tok_i)
+void Assembler::_vadd(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vadd_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vadd() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsub_f32(size_t& tok_i)
+void Assembler::_vsub(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vsub_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vsub() - Instruction not implemented yet.");
 }
 
-void Assembler::_vdiv_f32(size_t& tok_i)
+void Assembler::_vdiv(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vdiv_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vdiv() - Instruction not implemented yet.");
 }
 
-void Assembler::_vmul_f32(size_t& tok_i)
+void Assembler::_vmul(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vmul_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vmul() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcmp_f32(size_t& tok_i)
+void Assembler::_vcmp(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vcmp_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vcmp() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsel_f32(size_t& tok_i)
+void Assembler::_vsel(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vsel_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vsel() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcint_u32_f32(size_t& tok_i)
+void Assembler::_vcint(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vcint_u32_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vcint() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcint_s32_f32(size_t& tok_i)
+void Assembler::_vcflo(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vcint_s32_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vcflo() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcflo_u32_f32(size_t& tok_i)
+void Assembler::_vmov(size_t& tok_i)
 {
 	UNUSED(tok_i);
 
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vcflo_u32_f32() - Instruction not implemented yet.");
-}
-
-void Assembler::_vcflo_s32_f32(size_t& tok_i)
-{
-	UNUSED(tok_i);
-
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vcflo_s32_f32() - Instruction not implemented yet.");
-}
-
-void Assembler::_vmov_f32(size_t& tok_i)
-{
-	UNUSED(tok_i);
-
-	EXPECT_TRUE_SS(false, std::stringstream() << "Assembler::_vmov_f32() - Instruction not implemented yet.");
+	EXPECT_TRUE(false, "Assembler::_vmov() - Instruction not implemented yet.");
 }
 
 void Assembler::_and(size_t& tok_i)

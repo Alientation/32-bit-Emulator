@@ -10,13 +10,13 @@
 
 #define N_VPAGES (1<<20)
 
-// todo, figure out how to implement shared pages. might have to use 
+// todo, figure out how to implement shared pages. might have to use
 // dynamically allocated memory on kernel heap to do so.
 
 class MMU
 {
     public:
-        MMU(Emulator32bit *processor, word user_low_page, word user_high_page, 
+        MMU(Emulator32bit *processor, word user_low_page, word user_high_page,
             word kernel_low_page, word kernel_high_page);
 
         enum AccessMode
@@ -27,19 +27,19 @@ class MMU
         };
 
         void create_pagedir();
-        void add_vpage(word vpage, bool kernel, bool write, 
+        void add_vpage(word vpage, bool kernel, bool write,
                        bool execute, bool copy_on_write);
-        
+
         void remove_vpage(word vpage);
         void remove_pagedir();
 
         inline word map_address(word address, AccessMode mode)
         {
-            /* 
+            /*
                 Null page directory or processor in real more implies no virtual
                 memory.
             */
-            if (UNLIKELY(!processor->_pagedir || 
+            if (UNLIKELY(!processor->_pagedir ||
                 processor->get_flag(REAL_FLAG)))
             {
                 return address;
@@ -47,10 +47,10 @@ class MMU
 
             /* Check for valid page directory. */
             if (UNLIKELY(!processor->ram->in_bounds(processor->_pagedir)) ||
-                !processor->ram->in_bounds(processor->_pagedir + 
+                !processor->ram->in_bounds(processor->_pagedir +
                 (PAGE_SIZE * sizeof(struct PageTableEntry)) - 1))
             {
-                throw Emulator32bit::Exception(Emulator32bit::BAD_PAGEDIR, 
+                throw Emulator32bit::Exception(Emulator32bit::BAD_PAGEDIR,
                     "Page directory is not in RAM.");
             }
 
@@ -70,14 +70,14 @@ class MMU
                 return address;
             }
 
-            struct PageTableEntry *pagetable = (struct PageTableEntry *) 
+            struct PageTableEntry *pagetable = (struct PageTableEntry *)
                 &processor->ram->data[processor->_pagedir];
             struct PageTableEntry *entry = &pagetable[vpage];
 
             /* Check for access permissions. */
             if (UNLIKELY(!entry->valid))
             {
-                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT, 
+                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                     "Unmapped memory accessed.");
             }
             else if (UNLIKELY(entry->kernel && processor->get_flag(USER_FLAG)))
@@ -87,12 +87,12 @@ class MMU
             }
             else if (UNLIKELY(mode == WRITE_ACCESSMODE && !entry->write))
             {
-                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT, 
+                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                     "Page has no write permissions.");
             }
             else if (UNLIKELY(mode == EXECUTE_ACCESSMODE && !entry->execute))
             {
-                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT, 
+                throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                     "Page has no execute permissions.");
             }
 
@@ -101,21 +101,21 @@ class MMU
             /* Read from disk and write to memory. */
             if (UNLIKELY(entry->disk))
             {
-                std::vector<byte> disk_page = 
+                std::vector<byte> disk_page =
                         processor->disk->read_page(entry->disk);
                 processor->disk->return_page(entry->disk);
 
-                EXPECT_TRUE(disk_page.size() == PAGE_SIZE, 
+                EXPECT_TRUE(disk_page.size() == PAGE_SIZE,
                     "Page size does not match.");
-                
+
                 word free_ppage = get_free_ppage();
 
                 entry->disk = false;
                 entry->ppage = free_ppage;
-                
-                word mapped_address = (free_ppage << PAGE_PSIZE) + 
+
+                word mapped_address = (free_ppage << PAGE_PSIZE) +
                     (address & (PAGE_SIZE - 1));
-                memcpy(&processor->ram->data[mapped_address], disk_page.data(), 
+                memcpy(&processor->ram->data[mapped_address], disk_page.data(),
                     PAGE_SIZE);
                 return mapped_address;
             }
@@ -162,7 +162,7 @@ class MMU
 
         inline word evict_ppage()
         {
-
+			return 0;
         }
 };
 

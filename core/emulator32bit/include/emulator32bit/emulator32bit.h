@@ -15,7 +15,7 @@ class Timer; /* Forward declare from 'timer.h' */
 /**
  * @brief					IDs for special registers
  *
- * 
+ *
  *    Stack grows downwards
  * <--------STACK_TOP-------->
  *          Saved FP
@@ -25,10 +25,10 @@ class Timer; /* Forward declare from 'timer.h' */
  *          <...>
  *          <...>
  *      local variables             <---- sp
- * 
+ *
  * Link register stores the previous pc, the next instruction is what will be
  * executed.
- * 
+ *
  */
 #define NUM_REG 31          /* Number of general purpose stack registers */
 #define NR 8                /* Number register for syscalls */
@@ -65,7 +65,7 @@ class Timer; /* Forward declare from 'timer.h' */
 
 /**
  * @brief                   Memory address modes
- * 
+ *
  */
 #define M_OFFSET 0          /* Address offset */
 #define M_PRE 1             /* Pre-increment address */
@@ -119,7 +119,7 @@ class Emulator32bit
 				const char* what() const noexcept override;
 		};
 
-		enum class ConditionCode 
+		enum class ConditionCode
         {
 			EQ = 0,                 /* Equal						: Z==1 */
 			NE = 1,                 /* Not Equal					: Z==0 */
@@ -150,7 +150,7 @@ class Emulator32bit
 		Disk *disk;
 		VirtualMemory *mmu;
 		SystemBus system_bus;
-        
+
         Timer *timer;
 
 		/**
@@ -175,7 +175,7 @@ class Emulator32bit
 		 * @param 			C: Carry flag
 		 * @param 			V: Overflow flag
 		 */
-		inline void set_NZCV(bool N, bool Z, bool C, bool V) 
+		inline void set_NZCV(bool N, bool Z, bool C, bool V)
         {
 			_pstate = set_bit(_pstate, N_FLAG, N);
 			_pstate = set_bit(_pstate, Z_FLAG, Z);
@@ -185,9 +185,9 @@ class Emulator32bit
 
         /**
          * @brief           Sets flags in the process state register
-         * 
-         * @param           flag: Bit to set 
-         * @param           value: Flag value 
+         *
+         * @param           flag: Bit to set
+         * @param           value: Flag value
          */
         inline void set_flag(int flag, bool value)
         {
@@ -221,19 +221,19 @@ class Emulator32bit
 		void fill_out_instructions();
 
 
-		inline void execute(word instr) 
+		inline void execute(word instr)
         {
 			(this->*_instructions[bitfield_u32(instr, 26, 6)])(instr);
 		}
 
-		inline bool check_cond(word pstate, byte cond) 
+		inline bool check_cond(word pstate, byte cond)
         {
 			bool N = test_bit(pstate, N_FLAG);
 			bool Z = test_bit(pstate, Z_FLAG);
 			bool C = test_bit(pstate, C_FLAG);
 			bool V = test_bit(pstate, V_FLAG);
 
-			switch((ConditionCode) cond) 
+			switch((ConditionCode) cond)
             {
 				case ConditionCode::EQ:			/* EQUAL */
 					return Z == 1;
@@ -269,20 +269,20 @@ class Emulator32bit
 					return false;
 			}
 
-            /* 
-                Shouldn't ever reach this, but to be safe, return false to clearly 
-                indicate a incorrect instruction 
+            /*
+                Shouldn't ever reach this, but to be safe, return false to clearly
+                indicate a incorrect instruction
             */
-			return false;	
+			return false;
 		}
 
-		inline word read_reg(byte reg) 
+		inline word read_reg(byte reg)
         {
-			if (reg < sizeof(_x) / sizeof(_x[0])) 
+			if (reg < sizeof(_x) / sizeof(_x[0]))
             {
 				return _x[reg];
-			} 
-            else if (reg == XZR) 
+			}
+            else if (reg == XZR)
             {
 				return 0;
 			}
@@ -292,14 +292,14 @@ class Emulator32bit
 
 		word calc_mem_addr(word xn, sword offset, byte addr_mode);
 
-		inline void write_reg(byte reg, word val) 
+		inline void write_reg(byte reg, word val)
         {
-			if (reg < sizeof(_x) / sizeof(_x[0])) 
+			if (reg < sizeof(_x) / sizeof(_x[0]))
             {
 				_x[reg] = val;
 				return;
-			} 
-            else if (reg == XZR) 
+			}
+            else if (reg == XZR)
             {
 				return;
 			}
@@ -320,18 +320,18 @@ class Emulator32bit
 		_INSTR(umull, 0b001000)
 		_INSTR(smull, 0b001001)
 
-		_INSTR(vabs_f32, 0b001010)
-		_INSTR(vneg_f32, 0b001011)
-		_INSTR(vsqrt_f32, 0b001100)
-		_INSTR(vadd_f32, 0b001101)
-		_INSTR(vsub_f32, 0b001110)
-		_INSTR(vdiv_f32, 0b001111)
-		_INSTR(vmul_f32, 0b010000)
-		_INSTR(vcmp_f32, 0b010001)
-		_INSTR(vsel_f32, 0b010010)
-		_INSTR(vcint_f32, 0b010011)
-		_INSTR(vcflo_f32, 0b010100)
-		_INSTR(vmov_f32, 0b010101)
+		_INSTR(vabs, 0b001010)
+		_INSTR(vneg, 0b001011)
+		_INSTR(vsqrt, 0b001100)
+		_INSTR(vadd, 0b001101)
+		_INSTR(vsub, 0b001110)
+		_INSTR(vdiv, 0b001111)
+		_INSTR(vmul, 0b010000)
+		_INSTR(vcmp, 0b010001)
+		_INSTR(vsel, 0b010010)
+		_INSTR(vcint, 0b010011)
+		_INSTR(vcflo, 0b010100)
+		_INSTR(vmov, 0b010101)
 
 		_INSTR(and, 0b010110)
 		_INSTR(orr, 0b010111)
