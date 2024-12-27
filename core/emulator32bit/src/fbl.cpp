@@ -1,7 +1,5 @@
-#define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/fbl.h"
-#include "util/logger.h"
 
 FreeBlockList::FreeBlockList (word begin, word len, bool init) :
 	m_begin (begin),

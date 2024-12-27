@@ -1,5 +1,3 @@
-#define AEMU_ONLY_CRITICAL_LOG
-
 #include <emulator32bit/emulator32bit.h>
 #include <util/logger.h>
 
@@ -260,7 +258,7 @@ word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int xm,
 
 word Emulator32bit::asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, int adr)
 {
-	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << JPart(1, 1) << JPart(12, simm12) << JPart(2, adr);
+	return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << JPart(1, 1) << JPart(12, bitfield_u32(simm12, 0, 12)) << JPart(2, adr);
 }
 
 word Emulator32bit::asm_format_m1(byte opcode, int xt, int xn, int xm)
@@ -275,7 +273,7 @@ word Emulator32bit::asm_format_m2(byte opcode, int xd, int imm20)
 
 word Emulator32bit::asm_format_b1(byte opcode, ConditionCode cond, sword simm22)
 {
-	return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(22, simm22);
+	return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(22, bitfield_u32(simm22, 0, 22));
 }
 
 word Emulator32bit::asm_format_b2(byte opcode, ConditionCode cond, int xd)
@@ -817,14 +815,14 @@ void Emulator32bit::_ldr(word instr)
 	word read_val = system_bus.read_word(mem_addr);
 
 	if (address_mode == 0) {
-		DEBUG_SS(std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << std::to_string(offset)
-				<< "] [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
+		DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x" << std::to_string(xn) << ", #" << std::to_string(offset)
+				<< "] (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
 	} else if (address_mode == 1) {
-		DEBUG_SS(std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << ", " << std::to_string(offset)
-				<< "]! [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
+		DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x" << std::to_string(xn) << ", #" << std::to_string(offset)
+				<< "]! (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
 	} else {
-		DEBUG_SS(std::stringstream() << "ldr " << std::to_string(xt) << ", [" << std::to_string(xn) << "], " << std::to_string(offset)
-				<< " [" << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
+		DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x" << std::to_string(xn) << "], #" << std::to_string(offset)
+				<< " (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
 	}
 	write_reg(xt, read_val);
 }
@@ -912,14 +910,14 @@ void Emulator32bit::_str(word instr)
 	word write_val = read_reg(xt);
 
 	if (address_mode == 0) {
-		DEBUG_SS(std::stringstream() << "str " << std::to_string(xt) << ", [" << std::to_string(xn) << ", "
-				<< offset << "] [" << std::to_string(mem_addr) << "]= " << std::to_string(write_val));
+		DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x" << std::to_string(xn) << ", #"
+				<< offset << "] (" << std::to_string(mem_addr) << ") = " << std::to_string(write_val));
 	} else if (address_mode == 1) {
-		DEBUG_SS(std::stringstream() << "str " << std::to_string(xt) << ", [" << std::to_string(xn) << ", "
-				<< offset << "]! [" << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
+		DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x" << std::to_string(xn) << ", #"
+				<< offset << "]! (" << std::to_string(mem_addr) << ") = " << std::to_string(write_val));
 	} else {
-		DEBUG_SS(std::stringstream() << "str " << std::to_string(xt) << ", [" << std::to_string(xn) << "], "
-				<< offset << " [" << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
+		DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x" << std::to_string(xn) << "], #"
+				<< offset << " (" << std::to_string(mem_addr) << ") = " << std::to_string(write_val));
 	}
 	system_bus.write_word(mem_addr, write_val);
 }

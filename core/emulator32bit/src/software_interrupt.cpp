@@ -1,6 +1,7 @@
-#define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/emulator32bit.h"
+
+#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <iostream>

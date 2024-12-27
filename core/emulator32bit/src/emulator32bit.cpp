@@ -1,11 +1,9 @@
-#define AEMU_ONLY_CRITICAL_LOG
 
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/virtual_memory.h"
 #include "emulator32bit/kernel/better_virtual_memory.h"
 #include "emulator32bit/timer.h"
 
-#include "util/logger.h"
 #include "util/types.h"
 
 #include <stdio.h>

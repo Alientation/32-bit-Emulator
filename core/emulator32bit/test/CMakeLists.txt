@@ -55,6 +55,9 @@ target_sources(emulator32bit_tests PRIVATE
 	./instruction_tests/mov_test.cpp
 	./instruction_tests/mvn_test.cpp
 	./instruction_tests/ldr_test.cpp
+	./instruction_tests/ldrb_test.cpp
+	./instruction_tests/ldrh_test.cpp
+	./instruction_tests/str_test.cpp
 )
 
 target_include_directories(

@@ -2,11 +2,11 @@
 #ifndef VIRTUAL_MEMORY_H
 #define VIRTUAL_MEMORY_H
 
-#define AEMU_ONLY_CRITICAL_LOG
-
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/disk.h"
 #include "emulator32bit/fbl.h"
+
+// #define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <unordered_map>
@@ -650,6 +650,5 @@ class VirtualMemory
 			return access_vpage(m_cur_ptable, vpage, exception);
 		}
 };
-
 
 #endif /* VIRTUAL_MEMORY_H */
