@@ -60,6 +60,7 @@ target_sources(emulator32bit_tests PRIVATE
 	./instruction_tests/str_test.cpp
 	./instruction_tests/strb_test.cpp
 	./instruction_tests/strh_test.cpp
+	./instruction_tests/swp_test.cpp
 )
 
 target_include_directories(
