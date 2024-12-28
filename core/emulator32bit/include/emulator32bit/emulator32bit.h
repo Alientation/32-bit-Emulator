@@ -31,7 +31,6 @@ class Timer; /* Forward declare from 'timer.h' */
  *
  */
 #define NUM_REG 32          /* Number of general purpose stack registers */
-// #define NUM_REG 31          /* Number of general purpose stack registers */
 #define NR 8                /* Number register for syscalls */
 #define FP 28               /* Frame Pointer - points to saved (FP,LR) in stack */
 #define LINKR 29            /* Link Register */
@@ -174,34 +173,11 @@ class Emulator32bit
 		inline word read_reg(byte reg)
         {
 			return ((word) _x[reg]) & ((word) (_x[reg] >> 32));
-
-			// if (reg < sizeof(_x) / sizeof(_x[0]))
-            // {
-			// 	return _x[reg];
-			// }
-            // else if (reg == XZR)
-            // {
-			// 	return 0;
-			// }
-
-			// throw Exception(BAD_REG, "Bad read register " + std::to_string((int) reg));
 		}
 
 		inline void write_reg(byte reg, word val)
         {
 			_x[reg] = (((word) _x[reg]) ^ ((dword) val << 32));
-
-			// if (reg < sizeof(_x) / sizeof(_x[0]))
-            // {
-			// 	_x[reg] = val;
-			// 	return;
-			// }
-            // else if (reg == XZR)
-            // {
-			// 	return;
-			// }
-
-			// throw Exception(BAD_REG, "Bad write register " + std::to_string((int) reg));
 		}
 
 		/**
@@ -246,7 +222,6 @@ class Emulator32bit
 		 *
 		 * Format: top 32 bits register value, bottom 32 bits mask value (for xzr register)
 		 */
-		// word _x[NUM_REG];
 		dword _x[NUM_REG];
 		word _pc;										/* Program counter */
 		word _pstate;									/* Program state. Bits 0-3 are NZCV flags. Rest are TODO */

@@ -207,7 +207,6 @@ void Emulator32bit::reset()
 	system_bus.reset();
 	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++)
     {
-		// _x[i] = 0;
 		_x[i] = (1ULL << (8 * sizeof(word))) - 1;
 	}
 	_x[XZR] = 0;
