@@ -272,7 +272,7 @@ shift: shift register value
 
 mem: memory address
 [reg, #simm12]
-[reg, reg]
+[rega, regb]
 [rega, regb, shift]
 [reg, #simm12]!
 [rega, regb]!
