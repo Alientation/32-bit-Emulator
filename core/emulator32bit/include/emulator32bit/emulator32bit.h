@@ -65,7 +65,7 @@ class Emulator32bit
 {
 	public:
 		Emulator32bit();
-		Emulator32bit(word ram_mem_size, word ram_mem_start, const byte rom_data[], word rom_mem_size, word rom_mem_start);
+		Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[], word rom_npages, word rom_start_page);
 		Emulator32bit(RAM *ram, ROM *rom, Disk *disk);
 		~Emulator32bit();
 		void print();
@@ -130,11 +130,11 @@ class Emulator32bit
 			ADDR_OFFSET, ADDR_PRE_INC, ADDR_POST_INC
 		};
 
-		static const word RAM_MEM_SIZE;     /* Default size of RAM memory in bytes */
-		static const word RAM_MEM_START;    /* Default 32 bit start address of RAM memory */
-		static const word ROM_MEM_SIZE;     /* Default size of ROM memory in bytes */
-		static const word ROM_MEM_START;    /* Default 32 bit start address of ROM memory */
-		static const byte ROM_DATA[];       /* Data stored in ROM, should be of the same length specified in @ref ROM_MEM_SIZE */
+		static const word RAM_NPAGES;     /* Default size of RAM memory in bytes */
+		static const word RAM_START_PAGE;    /* Default 32 bit start address of RAM memory */
+		static const word ROM_NPAGES;     /* Default size of ROM memory in bytes */
+		static const word ROM_START_PAGE;    /* Default 32 bit start address of ROM memory */
+		static const byte ROM_DATA[];       /* Data stored in ROM, should be of the same length specified in @ref ROM_NPAGES */
 
 		RAM *ram;
 		ROM *rom;

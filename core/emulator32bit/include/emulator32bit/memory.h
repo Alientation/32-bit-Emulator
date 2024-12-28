@@ -10,7 +10,7 @@
 class BaseMemory
 {
 	public:
-		BaseMemory(word mem_pages, word lo_page);
+		BaseMemory(word npages, word start_page);
 		virtual ~BaseMemory();
 
 		virtual inline byte read_byte(word address) = 0;
@@ -22,34 +22,34 @@ class BaseMemory
 
 		inline word get_mem_pages()
 		{
-			return mem_pages;
+			return npages;
 		}
 
 		inline word get_lo_page()
 		{
-			return lo_page;
+			return start_page;
 		}
 
 		inline word get_hi_page()
 		{
-			return lo_page + mem_pages - 1;
+			return start_page + npages - 1;
 		}
 
 		inline bool in_bounds(word address)
 		{
-			return address >= (lo_page << PAGE_PSIZE) && address < ((get_hi_page()+1) << PAGE_PSIZE);
+			return address >= (start_page << PAGE_PSIZE) && address < ((get_hi_page()+1) << PAGE_PSIZE);
 		}
 
 	protected:
-		word mem_pages;
-		word lo_page;
-		word lo_addr;
+		word npages;
+		word start_page;
+		word start_addr;
 };
 
 class Memory : public BaseMemory
 {
 	public:
-		Memory(word mem_pages, word lo_page);
+		Memory(word npages, word start_page);
 		Memory(Memory& other);
 		virtual ~Memory();
 
@@ -57,60 +57,60 @@ class Memory : public BaseMemory
 		// HAVING AN EXPENSIVE CONDITIONAL CHECK EVERYTIME MEMORY IS ACCESSED
 		inline byte read_byte(word address) override
 		{
-			return data[address - (lo_page << PAGE_PSIZE)];
+			return data[address - (start_page << PAGE_PSIZE)];
 		}
 
 		inline hword read_hword(word address)
 		{
-			address -= lo_addr;
+			address -= start_addr;
 			return ((hword*)(data + (address & 1)))[address >> 1];
 		}
 
 		inline word read_word(word address)
 		{
-			address -= lo_addr;
+			address -= start_addr;
 			return ((word*)(data + (address & 0b11)))[address >> 2];
 		}
 
 		virtual inline word read_word_aligned(word address)
 		{
-			return ((word*) data)[(address - lo_addr) >> 2];
+			return ((word*) data)[(address - start_addr) >> 2];
 		}
 
 		inline void write_byte(word address, byte value)
 		{
-			data[address - (lo_page << PAGE_PSIZE)] = value;
+			data[address - (start_page << PAGE_PSIZE)] = value;
 		}
 
 		inline void write_hword(word address, hword value)
 		{
-			address -= lo_addr;
+			address -= start_addr;
 			((hword*)(data + (address & 1)))[address >> 1] = value;
 		}
 
 		inline void write_word(word address, word value)
 		{
-			address -= lo_addr;
+			address -= start_addr;
 			((word*)(data + (address & 0b11)))[address >> 2] = value;
 		}
 
 
 		void reset();
-        
+
 		byte* data;
 };
 
 class RAM : public Memory
 {
 	public:
-		RAM(word mem_pages, word lo_page);
+		RAM(word npages, word start_pages);
 };
 
 class ROM : public Memory
 {
 	public:
-		ROM(const byte* data, word mem_pages, word lo_page);
-		ROM(File file, word mem_pages, word lo_page);
+		ROM(const byte* data, word npages, word start_page);
+		ROM(File file, word npages, word start_page);
 		~ROM() override;
 
 		class ROM_Exception : public std::exception

@@ -3,10 +3,10 @@
 #define UNUSED(x) (void)(x)
 
 
-BaseMemory::BaseMemory(word mem_pages, word lo_page) :
-	mem_pages(mem_pages),
-	lo_page(lo_page),
-	lo_addr(lo_page << PAGE_PSIZE)
+BaseMemory::BaseMemory(word npages, word start_page) :
+	npages(npages),
+	start_page(start_page),
+	start_addr(start_page << PAGE_PSIZE)
 {
 
 }
@@ -17,18 +17,18 @@ BaseMemory::~BaseMemory()
 }
 
 
-Memory::Memory(word mem_pages, word lo_page) :
-	BaseMemory(mem_pages, lo_page),
-	data(new byte[(mem_pages << PAGE_PSIZE)])
+Memory::Memory(word npages, word start_page) :
+	BaseMemory(npages, start_page),
+	data(new byte[(npages << PAGE_PSIZE)])
 {
 
 }
 
 Memory::Memory(Memory& other) :
-	BaseMemory(other.mem_pages, other.lo_page),
-	data(new byte[(other.mem_pages << PAGE_PSIZE)])
+	BaseMemory(other.npages, other.start_page),
+	data(new byte[(other.npages << PAGE_PSIZE)])
 {
-	for (word i = 0; i < (mem_pages << PAGE_PSIZE); i++)
+	for (word i = 0; i < (npages << PAGE_PSIZE); i++)
 	{
 		data[i] = other.data[i];
 	}
@@ -44,7 +44,7 @@ Memory::~Memory()
 
 void Memory::reset()
 {
-	for (word addr = lo_page << PAGE_PSIZE; addr < get_hi_page() << PAGE_PSIZE; addr++) {
+	for (word addr = start_page << PAGE_PSIZE; addr < get_hi_page() << PAGE_PSIZE; addr++) {
 		Memory::write_byte(addr, 0);
 	}
 }
@@ -53,8 +53,8 @@ void Memory::reset()
 /*
 	RAM
 */
-RAM::RAM(word mem_pages, word lo_page) :
-	Memory(mem_pages, lo_page)
+RAM::RAM(word npages, word start_page) :
+	Memory(npages, start_page)
 {
 
 }
@@ -64,16 +64,16 @@ RAM::RAM(word mem_pages, word lo_page) :
 	ROM
 */
 
-ROM::ROM(const byte* rom_data, word mem_pages, word lo_page) :
-	Memory(mem_pages, lo_page)
+ROM::ROM(const byte* rom_data, word npages, word start_page) :
+	Memory(npages, start_page)
 {
-	for (word i = 0; i < mem_pages << PAGE_PSIZE; i++) {
+	for (word i = 0; i < npages << PAGE_PSIZE; i++) {
 		data[i] = rom_data[i];
 	}
 }
 
-ROM::ROM(File file, word mem_pages, word lo_page) :
-	Memory(mem_pages, lo_page),
+ROM::ROM(File file, word npages, word start_page) :
+	Memory(npages, start_page),
 	save_file(true),
 	file(file)
 {
@@ -84,9 +84,9 @@ ROM::ROM(File file, word mem_pages, word lo_page) :
 		bytes.push_back(fr.read_byte());
 	}
 
-	if (bytes.size() > mem_pages << PAGE_PSIZE) {
+	if (bytes.size() > npages << PAGE_PSIZE) {
 		throw ROM_Exception("ROM File is larger than the specified ROM size " +
-				std::to_string(mem_pages << PAGE_PSIZE) + " bytes. Got " +
+				std::to_string(npages << PAGE_PSIZE) + " bytes. Got " +
 				std::to_string(bytes.size()) + " bytes.");
 	}
 
@@ -101,7 +101,7 @@ ROM::~ROM()
 	{
 		// save data to file
 		FileWriter fw(file, std::ios::out | std::ios::binary);
-		for (word i = 0; i < mem_pages << PAGE_PSIZE; i++)
+		for (word i = 0; i < npages << PAGE_PSIZE; i++)
 		{
 			fw.write(data[i]);
 		}
