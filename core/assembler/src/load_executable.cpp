@@ -117,7 +117,7 @@ void LoadExecutable::load()
 
 	VirtualMemory::Exception vm_exception;
 	word entry_point = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value;
-	m_emu._pc = m_emu.mmu->translate_address(entry_point, vm_exception);
+	m_emu.set_pc(m_emu.mmu->translate_address(entry_point, vm_exception));
 
-	INFO("Starting emulator at entry point _start at virtual address %x mapped to physical address %x", entry_point, m_emu._pc);
+	INFO("Starting emulator at entry point _start at virtual address %x mapped to physical address %x", entry_point, m_emu.get_pc());
 };

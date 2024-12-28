@@ -153,9 +153,9 @@ void Emulator32bit::fill_out_instructions()
 void Emulator32bit::print()
 {
 	printf("32 bit emulator\nRegisters:\n");
-	printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(_x[SP]).c_str(), to_color_hex_str((word)0).c_str());
+	printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(read_reg(SP)).c_str(), to_color_hex_str((word)0).c_str());
 	for (int i = 0; i < SP; i++) {
-		printf("x%.2d: %s\n", i, to_color_hex_str(_x[i]).c_str());
+		printf("x%.2d: %s\n", i, to_color_hex_str(read_reg(i)).c_str());
 	}
 
 	printf("\nMemory Dump: TODO");
@@ -207,8 +207,10 @@ void Emulator32bit::reset()
 	system_bus.reset();
 	for (unsigned long long i = 0; i < sizeof(_x) / sizeof(_x[0]); i++)
     {
-		_x[i] = 0;
+		// _x[i] = 0;
+		_x[i] = (1ULL << (8 * sizeof(word))) - 1;
 	}
+	_x[XZR] = 0;
 	_pstate = 0;
 	_pc = 0;
 

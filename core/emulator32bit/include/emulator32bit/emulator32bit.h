@@ -30,7 +30,8 @@ class Timer; /* Forward declare from 'timer.h' */
  * executed.
  *
  */
-#define NUM_REG 31          /* Number of general purpose stack registers */
+#define NUM_REG 32          /* Number of general purpose stack registers */
+// #define NUM_REG 31          /* Number of general purpose stack registers */
 #define NR 8                /* Number register for syscalls */
 #define FP 28               /* Frame Pointer - points to saved (FP,LR) in stack */
 #define LINKR 29            /* Link Register */
@@ -144,6 +145,8 @@ class Emulator32bit
 
         Timer *timer;
 
+		word _pagedir;                                  /* Pointer to Page directory for virtual address space. */
+
 		/**
 		 * @brief			Run the emulator for a given number of instructions
 		 *
@@ -157,6 +160,49 @@ class Emulator32bit
 		 *
 		 */
 		void reset();
+
+		inline void set_pc(word pc)
+		{
+			_pc = pc;
+		}
+
+		inline word get_pc()
+		{
+			return _pc;
+		}
+
+		inline word read_reg(byte reg)
+        {
+			return ((word) _x[reg]) & ((word) (_x[reg] >> 32));
+
+			// if (reg < sizeof(_x) / sizeof(_x[0]))
+            // {
+			// 	return _x[reg];
+			// }
+            // else if (reg == XZR)
+            // {
+			// 	return 0;
+			// }
+
+			// throw Exception(BAD_REG, "Bad read register " + std::to_string((int) reg));
+		}
+
+		inline void write_reg(byte reg, word val)
+        {
+			_x[reg] = (((word) _x[reg]) ^ ((dword) val << 32));
+
+			// if (reg < sizeof(_x) / sizeof(_x[0]))
+            // {
+			// 	_x[reg] = val;
+			// 	return;
+			// }
+            // else if (reg == XZR)
+            // {
+			// 	return;
+			// }
+
+			// throw Exception(BAD_REG, "Bad write register " + std::to_string((int) reg));
+		}
 
 		/**
 		 * @brief 			Sets the @ref _pstate NZCV flags
@@ -190,17 +236,21 @@ class Emulator32bit
             return test_bit(_pstate, flag);
         }
 
-		word _x[NUM_REG];								/* General purpose registers, x0-x29, and SP. x29 is the link register */
-		word _pc;										/* Program counter */
-		word _pstate;									/* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
-
-        word _pagedir;                                  /* Pointer to Page directory for virtual address space. */
-
 		/* @todo determine if fp registers are needed */
 		// word fpcr;
 		// word fpsr;
 
 	private:
+		/**
+		 * General purpose registers, x0-x29, xzr, and SP. x29 is the link register.
+		 *
+		 * Format: top 32 bits register value, bottom 32 bits mask value (for xzr register)
+		 */
+		// word _x[NUM_REG];
+		dword _x[NUM_REG];
+		word _pc;										/* Program counter */
+		word _pstate;									/* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
+
 		static constexpr int _num_instructions = 64;
 		typedef void (Emulator32bit::*InstructionFunction)(word);
 		InstructionFunction _instructions[_num_instructions];
@@ -211,6 +261,7 @@ class Emulator32bit
 		public: static const byte _op_##func_name = opcode;
 		void fill_out_instructions();
 
+		word calc_mem_addr(word xn, sword offset, byte addr_mode);
 
 		inline void execute(word instr)
         {
@@ -265,37 +316,6 @@ class Emulator32bit
                 indicate a incorrect instruction
             */
 			return false;
-		}
-
-		inline word read_reg(byte reg)
-        {
-			if (reg < sizeof(_x) / sizeof(_x[0]))
-            {
-				return _x[reg];
-			}
-            else if (reg == XZR)
-            {
-				return 0;
-			}
-
-			throw Exception(BAD_REG, "Bad read register " + std::to_string((int) reg));
-		}
-
-		word calc_mem_addr(word xn, sword offset, byte addr_mode);
-
-		inline void write_reg(byte reg, word val)
-        {
-			if (reg < sizeof(_x) / sizeof(_x[0]))
-            {
-				_x[reg] = val;
-				return;
-			}
-            else if (reg == XZR)
-            {
-				return;
-			}
-
-			throw Exception(BAD_REG, "Bad write register " + std::to_string((int) reg));
 		}
 
 		// instruction handling
