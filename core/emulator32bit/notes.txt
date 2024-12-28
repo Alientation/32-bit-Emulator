@@ -211,12 +211,14 @@ MVN{S} xd, arg (O3)
 	- op: 100011
 
 Memory Access Instructions (3)
-LDR{S}{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
+LDR{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
 	- op: 100100 (regular), 100101 (Byte), 100110 (Half-Word)
-STR{S}{B|H} xt, mem (M)
+STR{B|H} xt, mem (M)
 	- op: 100111 (regular), 101000 (Byte), 101001 (Half-Word)
-SWP{S}{B|H} xd, xn, [xm] (M1)
+SWP{B|H} xd, xn, [xm] (M1)
 	- op: 101010 (regular), 101011 (Byte), 101100 (Half-Word)
+	- Writes the value at the address at xm to xd, while also storing xn into address at xm
+	- Effectively allows for the implementation of synchronization
 
 Branching Instructions (5)
 B{CD} simm22 (B1)

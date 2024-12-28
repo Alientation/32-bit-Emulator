@@ -6,7 +6,7 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/fbl.h"
 
-// #define AEMU_ONLY_CRITICAL_LOG
+#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <unordered_map>
