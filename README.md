@@ -59,13 +59,14 @@ Comes packaged with a preprocessor, assembler, linker, and executable loader to 
   * Started work on implementing a better virtual memory system
 
 ## Future Goals
-* add floating point instructions, flesh out more relocation entry types, and add section directives to help partition code
-* create simple OS with a CLI
+* Add floating point instructions, relocation entry types, and section directives to help partition code
+* Create simple OS with a CLI
 * Support dynamically linked libraries
 * Simple compiled language (like C, might instead write a LLVM backend)
 * System libraries
 * File System
-* Benchmarking system..
+* Benchmarking system.. (Current optimizations have led to 120-130 million instr/s)
+* - Slightly confused why the debug build performs slightly faster than the release build
 * Expand testing
 * Clean up and HEAVILY refactor code :~)
 * Documentation! (both the assembly language, emulator, and source code)
