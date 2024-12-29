@@ -101,7 +101,7 @@ Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_t
  */
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 {
-    DEBUG("Tokenizer::tokenize() - Tokenizing file: %s.", srcFile.get_name().c_str());
+    DEBUG("Tokenizer::tokenize() - Tokenizing file: %s", srcFile.get_name().c_str());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -110,7 +110,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 
 	std::vector<Token>& tokens = tokenize(source_code);
 
-	DEBUG("Tokenizer::tokenize() - Tokenized file: %s.", srcFile.get_name().c_str());
+	DEBUG("Tokenizer::tokenize() - Tokenized file: %s", srcFile.get_name().c_str());
 	return tokens;
 }
 

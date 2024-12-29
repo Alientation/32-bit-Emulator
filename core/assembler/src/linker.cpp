@@ -123,7 +123,7 @@ void Linker::parse_ld()
 				_sections(i);
 				break;
 			default:
-				ERROR("Invalid token %s.", m_tokens[i].val.c_str());
+				ERROR("Invalid token %s", m_tokens[i].val.c_str());
 		}
 	}
 }

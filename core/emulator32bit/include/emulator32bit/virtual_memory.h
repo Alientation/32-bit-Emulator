@@ -6,9 +6,6 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/fbl.h"
 
-#define AEMU_ONLY_CRITICAL_LOG
-#include "util/logger.h"
-
 #include <unordered_map>
 
 #define VM_MAX_PAGES 1024
@@ -249,7 +246,7 @@ class VirtualMemory
 
 			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 			{
-				ERROR("Invalid Process ID %llu.", pid);
+				throw VirtualMemoryException("Invalid Process ID: " + std::to_string(pid));
 			}
 
 			return translate_address(m_process_ptable_map.at(pid), address, exception);
@@ -627,7 +624,7 @@ class VirtualMemory
 		{
 			if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
 			{
-				ERROR("Invalid Process ID %llu.", pid);
+				throw VirtualMemoryException("Invalid Process ID: " + std::to_string(pid));
 			}
 
 			return access_vpage(m_process_ptable_map.at(pid), vpage, exception);

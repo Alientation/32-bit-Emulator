@@ -256,7 +256,7 @@ void ObjectFile::add_symbol(const std::string& symbol, word value, SymbolTableEn
 			symbol_entry.section = section;
 			symbol_entry.symbol_value = value;
 		} else if (symbol_entry.section != -1 && section != -1) {
-			ERROR("ObjectFile::add_symbol() - Multiple definition of symbol %s at sections %s and %s.",
+			ERROR("ObjectFile::add_symbol() - Multiple definition of symbol %s at sections %s and %s",
 					symbol.c_str(), strings[sections[section].section_name].c_str(),
 					strings[sections[symbol_entry.section].section_name].c_str());
 			return;

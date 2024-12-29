@@ -45,7 +45,7 @@ dword Assembler::parse_expression(size_t& tok_i)
 					exp_value *= value;
 					break;
 				default:
-					ERROR("Expected operator token but got %s.", operator_token->value.c_str());
+					ERROR("Expected operator token but got %s", operator_token->value.c_str());
 			}
 			operator_token = nullptr;
 		} else {

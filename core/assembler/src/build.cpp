@@ -45,7 +45,7 @@ bool Process::valid_exe_file(const File& file)
 Process::Process(const std::string& assembler_args)
 {
 	INFO("Building Process: args(%s).", assembler_args.c_str());
-	INFO("Current Working Directory: %s.", std::filesystem::current_path().string().c_str());
+	INFO("Current Working Directory: %s", std::filesystem::current_path().string().c_str());
 
 	flags =
 	{
@@ -100,7 +100,7 @@ Process::Process(const std::string& assembler_args)
 	DEBUG("Process::Process() - args_list.size(): %llu.", args_list.size());
 	for (size_t i = 0; i < args_list.size(); i++)
 	{
-		DEBUG("Process::Process() - args_list[%llu]: %s.", i, args_list[i].c_str());
+		DEBUG("Process::Process() - args_list[%llu]: %s", i, args_list[i].c_str());
 	}
 
 	evaluate_args(args_list);
@@ -171,13 +171,13 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
 	// evaluate arguments
 	for (size_t i = 0; i < args_list.size(); i++)
 	{
-		DEBUG("arg %llu: %s.", i, args_list[i].c_str());
+		DEBUG("arg %llu: %s", i, args_list[i].c_str());
 
 		std::string& arg = args_list[i];
 		if (arg[0] == '-')
 		{
 			// this is a flag
-			EXPECT_TRUE_SS(flags.find(arg) != flags.end(), std::stringstream("Process::Process() - Invalid flag: ") << arg);
+			EXPECT_TRUE_SS(flags.find(arg) != flags.end(), std::stringstream("Process::evaluate_args() - Invalid flag: ") << arg);
 
 			(this->*flags[arg])(args_list, i);
 		}
@@ -186,9 +186,11 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
 			// this should be a file
 			File file(arg);
 
+			DEBUG("Process::evaluate_args() - Adding file %s", file.get_path().c_str());
+
 			// check the extension
 			EXPECT_TRUE_SS(file.get_extension() == SOURCE_EXTENSION,
-					std::stringstream("Process::Process() - Invalid file extension: ") << file.get_extension());
+					std::stringstream("Process::evaluate_args() - Invalid file extension: ") << file.get_extension());
 
 			m_src_files.push_back(file);
 		}
@@ -228,8 +230,30 @@ void Process::preprocess()
 	m_processed_files.clear();
 	for (File file : m_src_files)
 	{
-		Preprocessor preprocessor(this, file);
-		m_processed_files.push_back(preprocessor.preprocess());
+		if (!file.exists())
+		{
+			WARN("File %s does not exist.", file.get_path().c_str());
+			Directory dir(file.get_dir());
+			if (dir.exists())
+			{
+				DEBUG("But it's parent directory exists with files");
+				for (File f : dir.get_subfiles())
+				{
+					DEBUG("%s", f.get_name().c_str());
+				}
+			}
+		}
+
+		if (m_has_output_dir)
+		{
+			Preprocessor preprocessor(this, file, m_output_dir + File::SEPARATOR + file.get_name() + "." + PROCESSED_EXTENSION);
+			m_processed_files.push_back(preprocessor.preprocess());
+		}
+		else
+		{
+			Preprocessor preprocessor(this, file);
+			m_processed_files.push_back(preprocessor.preprocess());
+		}
 	}
 }
 
@@ -244,7 +268,6 @@ void Process::assemble()
 	{
 		if (m_has_output_dir)
 		{
-    		DEBUG("FILE NAME = %s.", file.get_name().c_str());
 			Assembler assembler(this, file, m_output_dir + File::SEPARATOR + file.get_name() + "." + OBJECT_EXTENSION);
 			m_obj_files.push_back(assembler.assemble());
 		}
@@ -302,7 +325,7 @@ void Process::link()
 	}
 
 	m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-	DEBUG("Process::link() - output file name: %s.", m_exe_file.get_path().c_str());
+	DEBUG("Process::link() - output file name: %s", m_exe_file.get_path().c_str());
 
 	if (m_has_ld_file)
 	{

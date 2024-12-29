@@ -109,7 +109,7 @@ Preprocessor::~Preprocessor()
  */
 File Preprocessor::preprocess()
 {
-	DEBUG("Preprocessor::preprocess() - Preprocessing file: %s.", m_input_file.get_name().c_str());
+	DEBUG("Preprocessor::preprocess() - Preprocessing file: %s", m_input_file.get_name().c_str());
 
 	EXPECT_TRUE_SS(m_state == State::UNPROCESSED, std::stringstream()
 			<< "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
@@ -214,7 +214,7 @@ File Preprocessor::preprocess()
                 // check if the symbol has a definition with the same number of parameters
                 if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end())
 				{
-                    ERROR("Preprocessor::preprocess() - Undefined symbol: %s.", symbol.c_str());
+                    ERROR("Preprocessor::preprocess() - Undefined symbol: %s", symbol.c_str());
                 }
 
                 // replace all occurances of a parameter with the value passed in as the parameter
@@ -257,12 +257,12 @@ File Preprocessor::preprocess()
 	m_state = State::PROCESSED_SUCCESS;
 	writer.close();
 
-	DEBUG("Preprocessor::preprocess() - Preprocessed file: %s.", m_input_file.get_name().c_str());
+	DEBUG("Preprocessor::preprocess() - Preprocessed file: %s", m_input_file.get_name().c_str());
 
     // log macros
     for (std::pair<std::string, Macro*> macro_pair : m_macros)
 	{
-        DEBUG("Preprocessor::preprocess() - Macro: %s.", macro_pair.second->to_string().c_str());
+        DEBUG("Preprocessor::preprocess() - Macro: %s", macro_pair.second->to_string().c_str());
     }
 
 	return m_output_file;
@@ -342,7 +342,7 @@ void Preprocessor::_include()
 				if (found_sys_file)
 				{
 					// already found file
-					ERROR("Preprocessor::_include() - Multiple matching files found in system include directories: %s.",
+					ERROR("Preprocessor::_include() - Multiple matching files found in system include directories: %s",
 							sys_file_path.c_str());
 				}
 
@@ -353,13 +353,13 @@ void Preprocessor::_include()
 
 		if (!found_sys_file)
 		{
-			ERROR("Preprocessor::_include() - File not found in system include directories: %s.",
+			ERROR("Preprocessor::_include() - File not found in system include directories: %s",
 					sys_file_path.c_str());
 		}
 	}
 
 	// process included file
-	DEBUG("Preprocessor::_include() - include path: %s.", full_path_from_working_dir.c_str());
+	DEBUG("Preprocessor::_include() - include path: %s", full_path_from_working_dir.c_str());
 	File include_file = File(full_path_from_working_dir);
 	EXPECT_TRUE_SS(include_file.exists(), std::stringstream()
 			<< "Preprocessor::_include() - Include file does not exist: " << full_path_from_working_dir);
@@ -577,11 +577,11 @@ void Preprocessor::_invoke()
 	std::vector<Macro*> possibleMacros = macros_with_header(macro_name, arguments);
 	if (possibleMacros.size() == 0)
 	{
-		ERROR("Preprocessor::_invoke() - Macro does not exist: %s.", macro_name.c_str());
+		ERROR("Preprocessor::_invoke() - Macro does not exist: %s", macro_name.c_str());
 	}
 	else if (possibleMacros.size() > 1)
 	{
-		ERROR("Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: %s.",
+		ERROR("Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: %s",
 				macro_name.c_str());
 	}
 	Macro* macro = possibleMacros[0];
@@ -633,7 +633,7 @@ void Preprocessor::_invoke()
 	{
 		ss << token.value;
 	}
-	DEBUG("Preprocessor::_invoke() - Expanded macro: %s.", ss.str().c_str());
+	DEBUG("Preprocessor::_invoke() - Expanded macro: %s", ss.str().c_str());
 
 	// insert into the tokens list
 	tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
@@ -847,7 +847,7 @@ void Preprocessor::_cond_on_def()
     }
 	else
 	{
-        ERROR("Preprocessor::_cond_on_def() - Unexpected conditional token: %s.", cond_tok.value.c_str());
+        ERROR("Preprocessor::_cond_on_def() - Unexpected conditional token: %s", cond_tok.value.c_str());
     }
 }
 
@@ -920,7 +920,7 @@ void Preprocessor::_cond_on_value()
         	cond_block(symbol_val > value);
 			break;
 		default:
-        	ERROR("Preprocessor::_cond_on_value() - Unexpected conditional token: %s.", cond_tok.value.c_str());
+        	ERROR("Preprocessor::_cond_on_value() - Unexpected conditional token: %s", cond_tok.value.c_str());
 	}
 }
 

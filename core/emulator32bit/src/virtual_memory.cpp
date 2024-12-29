@@ -1,5 +1,8 @@
 #include "emulator32bit/virtual_memory.h"
 
+#define AEMU_ONLY_CRITICAL_LOG
+#include "util/logger.h"
+
 #include <unordered_set>
 
 VirtualMemory::VirtualMemory(Disk *disk) :

@@ -1,0 +1,6 @@
+#ifndef INCLUDE_LOCAL_DIR_H
+#define INCLUDE_LOCAL_DIR_H
+
+; Included from include_local_dir.binc
+
+#endif  ; INCLUDE_LOCAL_DIR_H

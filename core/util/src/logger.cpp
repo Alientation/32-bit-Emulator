@@ -212,7 +212,7 @@ void logger::clock_stop()
 			auto elapsed_simpl = simplify_clocktime(elapsed);
 			auto tot_elapsed_simpl = simplify_clocktime(profile_log.total_elapsed);
 
-			log_profile("%s took %.2f%s, total %.2f%s.", log.file.c_str(), log.line,
+			log_profile("%s took %.2f%s, total %.2f%s", log.file.c_str(), log.line,
 					log.func.c_str(), current_clocks.top().c_str(),
 					std::get<0>(elapsed_simpl), std::get<1>(elapsed_simpl).c_str(),
 					std::get<0>(tot_elapsed_simpl), std::get<1>(tot_elapsed_simpl).c_str());

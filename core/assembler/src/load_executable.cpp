@@ -16,7 +16,7 @@ void LoadExecutable::load()
 
 		/* all symbols should have a corresponding definition */
 		if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK) {
-			ERROR("Linker::link() - Undefined symbol %s.", obj.strings.at(symbol_entry.symbol_name).c_str());
+			ERROR("Linker::link() - Undefined symbol %s", obj.strings.at(symbol_entry.symbol_name).c_str());
 			continue;
 		}
 

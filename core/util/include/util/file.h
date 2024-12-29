@@ -11,6 +11,7 @@ std::string trim_dir_path(const std::string& str);
 
 // TODO probably best to add some form of thread safe locking to the file operations
 // todo, automatically convert separators
+// todo add a way to compose a file path using the builder pattern which will attach the correct separator
 class File
 {
 	public:

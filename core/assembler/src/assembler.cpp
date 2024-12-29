@@ -97,7 +97,7 @@ void add_sections(ObjectFile& m_obj)
 // todo, filter out all spaces and tabs
 File Assembler::assemble()
 {
-	DEBUG("Assembler::assemble() - Assembling file: %s.", m_inputFile.get_name().c_str());
+	DEBUG("Assembler::assemble() - Assembling file: %s", m_inputFile.get_name().c_str());
 
 	EXPECT_TRUE_SS(m_state == State::NOT_ASSEMBLED, std::stringstream()
 			<< "Assembler::assemble() - Assembler is not in the NOT ASSEMBLED state");
@@ -114,7 +114,7 @@ File Assembler::assemble()
 	DEBUG("Assembler::assemble() - Parsing tokens.");
 	for (size_t i = 0; i < m_tokens.size(); ) {
 		Tokenizer::Token& token = m_tokens[i];
-        DEBUG("Assembler::assemble() - Assembling token %d: %s.", i, token.to_string().c_str());
+        DEBUG("Assembler::assemble() - Assembling token %d: %s", i, token.to_string().c_str());
 
         // skip non code or directives
         if (is_token(i, Tokenizer::WHITESPACES) || is_token(i, Tokenizer::COMMENTS)) {
@@ -149,7 +149,7 @@ File Assembler::assemble()
 		} else if (directives.find(token.type) != directives.end()) {
 			(this->*directives[token.type])(i);
 		} else {
-			ERROR("Assembler::assemble() - Cannot parse token %d %s.", i, token.to_string().c_str());
+			ERROR("Assembler::assemble() - Cannot parse token %d %s", i, token.to_string().c_str());
 			m_state = State::ASSEMBLER_ERROR;
 			break;
 		}
@@ -163,7 +163,7 @@ File Assembler::assemble()
 
 	if (m_state == State::ASSEMBLING) {
 		m_state = State::ASSEMBLED;
-		DEBUG("Assembler::assemble() - Assembled file: %s.", m_inputFile.get_name());
+		DEBUG("Assembler::assemble() - Assembled file: %s", m_inputFile.get_name());
 	}
 
 	return m_outputFile;
@@ -179,7 +179,7 @@ void Assembler::fill_local()
 	int local_count_scope = 0;
 	for (size_t i = 0; i < m_obj.rel_text.size(); i++) {
 		ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
-		DEBUG("Assembler::fill_local() - Evaluating relocation entry %s.",
+		DEBUG("Assembler::fill_local() - Evaluating relocation entry %s",
 				m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name].c_str());
 
 		while (tok_i < rel.token && tok_i < m_tokens.size()) {
