@@ -3,6 +3,96 @@
 
 #include <regex>
 
+Tokenizer::Tokenizer(File src)
+{
+	m_tokens = tokenize(src);
+	m_toki = 0;
+}
+
+Tokenizer::Tokenizer(std::string src)
+{
+	m_tokens = tokenize(src);
+	m_toki = 0;
+}
+
+size_t Tokenizer::get_toki()
+{
+	return m_toki;
+}
+
+void Tokenizer::set_toki(size_t toki)
+{
+	m_toki = toki;
+}
+
+Tokenizer::Token& Tokenizer::get_token()
+{
+	EXPECT_TRUE(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
+	return m_tokens[m_toki];
+}
+
+void Tokenizer::skip_next()
+{
+	EXPECT_TRUE(has_next(), "Tokenizer::skip_next(): Unexpected end of file.");
+	m_toki++;
+}
+
+void Tokenizer::skip_next(const std::string& regex)
+{
+	while (has_next() && std::regex_match(m_tokens[m_toki].value, std::regex(regex))) {
+		m_toki++;
+	}
+}
+
+void Tokenizer::skip_next(const std::set<Tokenizer::Type>& tok_types)
+{
+    while (has_next() && tok_types.find(m_tokens[m_toki].type) != tok_types.end()) {
+        m_toki++;
+    }
+}
+
+bool Tokenizer::expect_next(const std::string& error_msg)
+{
+	EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
+    return true;
+}
+
+bool Tokenizer::expect_next(const std::set<Tokenizer::Type>& expected_types,
+							const std::string& error_msg)
+{
+	EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
+	EXPECT_TRUE_SS(expected_types.find(m_tokens[m_toki].type) != expected_types.end(),
+			std::stringstream(error_msg));
+    return true;
+}
+
+bool Tokenizer::is_next(const std::set<Tokenizer::Type>& tok_types,
+						const std::string& error_msg)
+{
+    expect_next(error_msg);
+    return tok_types.find(m_tokens[m_toki].type) != tok_types.end();
+}
+
+bool Tokenizer::has_next()
+{
+    return m_toki < m_tokens.size();
+}
+
+Tokenizer::Token& Tokenizer::consume(const std::string& error_msg)
+{
+    expect_next(error_msg);
+    return m_tokens[m_toki++];
+}
+
+Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+{
+    expect_next(error_msg);
+	EXPECT_TRUE_SS(expected_types.find(m_tokens[m_toki].type) != expected_types.end(),
+			std::stringstream() << error_msg << " - Unexpected end of file.");
+    return m_tokens[m_toki++];
+}
+
+
 /**
  * Converts the source file contents into a list of tokens
  *
@@ -11,7 +101,7 @@
  */
 std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 {
-    DEBUG("Tokenizer::tokenize() - Tokenizing file: %s.", srcFile.get_name());
+    DEBUG("Tokenizer::tokenize() - Tokenizing file: %s.", srcFile.get_name().c_str());
 	FileReader reader(srcFile);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -19,7 +109,8 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 	reader.close();
 
 	std::vector<Token>& tokens = tokenize(source_code);
-	DEBUG("Tokenizer::tokenize() - Tokenized file: %s.", srcFile.get_name());
+
+	DEBUG("Tokenizer::tokenize() - Tokenized file: %s.", srcFile.get_name().c_str());
 	return tokens;
 }
 

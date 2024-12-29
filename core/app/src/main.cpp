@@ -91,6 +91,9 @@ const static std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\
 const static std::string build_fibonacci = "-I .\\programs\\include "
 		"-o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm "
 		"-outdir .\\programs\\build";
+const static std::string build_preprocessor = "-kp -I .\\programs\\include "
+		"-o .\\programs\\build\\showcase_preprocessor .\\programs\\src\\showcase_preprocessor.basm "
+		"-outdir .\\programs\\build";
 const static std::string build_palindrome = "-I .\\programs\\include "
 		"-o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm "
 		"-outdir .\\programs\\build";
@@ -110,7 +113,7 @@ int main(int argc, char* argv[])
 	PROFILE_START
 
 	CLOCK_START("Parsing command arguments")
-	std::string build_command = build_long_loop;
+	std::string build_command = build_preprocessor;
 	if (argc > 1)
 	{
    		INFO("Parsing command arguments");

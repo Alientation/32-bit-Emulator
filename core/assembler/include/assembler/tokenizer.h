@@ -152,9 +152,89 @@ class Tokenizer
 			std::string to_string();
 		};
 
+		Tokenizer(File src);
+		Tokenizer(std::string src);
+
+		size_t get_toki();
+		void set_toki(size_t toki);
+
+		Tokenizer::Token& get_token();
+
+		void skip_next();
+
+		/**
+		 * Skips tokens that match the given regex.
+		 *
+		 * @param regex matches tokens to skip.
+		 */
+		void skip_next(const std::string& regex);
+
+		/**
+		 * Skips tokens that match the given types.
+		 *
+		 * @param tok_types the types to match.
+		 */
+        void skip_next(const std::set<Tokenizer::Type>& tok_types);
+
+		/**
+		 * Expects the current token to exist.
+		 *
+		 * @param error_msg the error message to throw if the token does not exist.
+		 */
+		bool expect_next(const std::string& error_msg);
+
+		/**
+		 * Expects the current token to exist and be of a specific type.
+		 *
+		 * @param tok_types the expected token types
+		 * @param error_msg the error message to throw if the token does not exist.
+		 */
+        bool expect_next(const std::set<Tokenizer::Type>& tok_types,
+				const std::string& error_msg);
+
+		/**
+		 * Returns whether the current token matches the given types.
+		 *
+		 * @param tok_types the types to match.
+		 *
+		 * @return true if the current token matches the given types.
+		 */
+        bool is_next(const std::set<Tokenizer::Type>& tok_types,
+				const std::string& error_msg = "Tokenizer::is_token() - Unexpected end of file.");
+
+		/**
+		 * Returns whether the current token index is within the bounds of the tokens list.
+		 *
+		 * @return true if the token index is within the bounds of the tokens list.
+		 */
+		bool has_next();
+
+		/**
+		 * Consumes the current token.
+		 *
+		 * @param error_msg the error message to throw if the token does not exist.
+		 *
+		 * @returns the value of the consumed token.
+		 */
+        Tokenizer::Token& consume(const std::string& error_msg =
+				"Tokenizer::consume() - Unexpected end of file.");
+
+		/**
+		 * Consumes the current token and checks it matches the given types.
+		 *
+		 * @param expected_types the expected types of the token.
+		 * @param error_msg the error message to throw if the token does not have the expected type.
+		 *
+		 * @returns the value of the consumed token.
+		 */
+		Tokenizer::Token& consume(const std::set<Tokenizer::Type>& expected_types,
+				const std::string& error_msg = "Tokenizer::consume() - Unexpected token.");
 
         static std::vector<Token>& tokenize(File srcFile);
 		static std::vector<Token>& tokenize(std::string source_code);
+
+		std::vector<Tokenizer::Token> m_tokens;
+		size_t m_toki;
 };
 
 #endif /* TOKENIZER_H */

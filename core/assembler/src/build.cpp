@@ -47,7 +47,8 @@ Process::Process(const std::string& assembler_args)
 	INFO("Building Process: args(%s).", assembler_args.c_str());
 	INFO("Current Working Directory: %s.", std::filesystem::current_path().string().c_str());
 
-	flags = {
+	flags =
+	{
 		{"--", &Process::_ignore},
 
 		{"-v", &Process::_version},										/* Prints version of assembler */
@@ -97,7 +98,8 @@ Process::Process(const std::string& assembler_args)
 	parse_args(assembler_args, args_list);
 
 	DEBUG("Process::Process() - args_list.size(): %llu.", args_list.size());
-	for (size_t i = 0; i < args_list.size(); i++) {
+	for (size_t i = 0; i < args_list.size(); i++)
+	{
 		DEBUG("Process::Process() - args_list[%llu]: %s.", i, args_list[i].c_str());
 	}
 
@@ -116,22 +118,32 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string>& a
 	bool is_escaped = false;
 	bool is_quoted = false;
 	std::string cur_arg = "";
-	for (size_t i = 0; i < assembler_args.length(); i++) {
+	for (size_t i = 0; i < assembler_args.length(); i++)
+	{
 		char c = assembler_args[i];
-		if (c == '\"' && !is_escaped) {
+		if (c == '\"' && !is_escaped)
+		{
 			// this is a quote that is not escaped
 			is_quoted = !is_quoted;
-		} else if (std::isspace(c) && !is_quoted) {
+		}
+		else if (std::isspace(c) && !is_quoted)
+		{
 			// only add argument if it's not empty
-			if (cur_arg.length() > 0) {
+			if (cur_arg.length() > 0)
+			{
 				args_list.push_back(cur_arg);
 				cur_arg = "";
 			}
-		} else {
+		}
+		else
+		{
 			// check if escape character
-			if (c == '\\') {
+			if (c == '\\')
+			{
 				is_escaped = !is_escaped;
-			} else {
+			}
+			else
+			{
 				is_escaped = false;
 			}
 			cur_arg += c;
@@ -143,7 +155,8 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string>& a
 	EXPECT_FALSE_SS(is_escaped, std::stringstream() << "Process::Process() - Dangling escape character: " << assembler_args);
 
 	// add the last argument if it's not empty
-	if (cur_arg.length() > 0) {
+	if (cur_arg.length() > 0)
+	{
 		args_list.push_back(cur_arg);
 	}
 }
@@ -156,16 +169,20 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string>& a
 void Process::evaluate_args(std::vector<std::string>& args_list)
 {
 	// evaluate arguments
-	for (size_t i = 0; i < args_list.size(); i++) {
+	for (size_t i = 0; i < args_list.size(); i++)
+	{
 		DEBUG("arg %llu: %s.", i, args_list[i].c_str());
 
 		std::string& arg = args_list[i];
-		if (arg[0] == '-') {
+		if (arg[0] == '-')
+		{
 			// this is a flag
 			EXPECT_TRUE_SS(flags.find(arg) != flags.end(), std::stringstream("Process::Process() - Invalid flag: ") << arg);
 
 			(this->*flags[arg])(args_list, i);
-		} else {
+		}
+		else
+		{
 			// this should be a file
 			File file(arg);
 
@@ -188,12 +205,15 @@ void Process::build()
 	preprocess();
 	assemble();
 
-	if (m_make_lib) {
+	if (m_make_lib)
+	{
 		WriteStaticLibrary(m_obj_files, File(m_output_file + "." + STATIC_LIBRARY_EXTENSION, true));
 		return;
 	}
 
-	if (m_only_compile) {											/* Only compiles object files */
+	/* Only compiles object files */
+	if (m_only_compile)
+	{
 		return;
 	}
 	link();
@@ -206,7 +226,8 @@ void Process::build()
 void Process::preprocess()
 {
 	m_processed_files.clear();
-	for (File file : m_src_files) {
+	for (File file : m_src_files)
+	{
 		Preprocessor preprocessor(this, file);
 		m_processed_files.push_back(preprocessor.preprocess());
 	}
@@ -219,22 +240,33 @@ void Process::preprocess()
 void Process::assemble()
 {
 	m_obj_files.clear();
-	for (File file : m_processed_files) {
-		if (m_has_output_dir) {
+	for (File file : m_processed_files)
+	{
+		if (m_has_output_dir)
+		{
     		DEBUG("FILE NAME = %s.", file.get_name().c_str());
 			Assembler assembler(this, file, m_output_dir + File::SEPARATOR + file.get_name() + "." + OBJECT_EXTENSION);
 			m_obj_files.push_back(assembler.assemble());
-		} else {
+		}
+		else
+		{
 			Assembler assembler(this, file);
 			m_obj_files.push_back(assembler.assemble());
 		}
 
-		try {
-			if (!std::filesystem::remove(file.get_path())) {
-				std::cout << "file " << file.get_path() << " not found.\n";
+		if (!keep_proccessed_files)
+		{
+			try
+			{
+				if (!std::filesystem::remove(file.get_path()))
+				{
+					std::cout << "file " << file.get_path() << " not found.\n";
+				}
 			}
-		} catch (const std::filesystem::filesystem_error& err) {
-			std::cout << "filesystem error: " << err.what() << "\n";
+			catch (const std::filesystem::filesystem_error& err)
+			{
+				std::cout << "filesystem error: " << err.what() << "\n";
+			}
 		}
 	}
 }
@@ -246,19 +278,24 @@ void Process::assemble()
 void Process::link()
 {
 	std::vector<ObjectFile> objects;
-	for (File file : m_obj_files) {
+	for (File file : m_obj_files)
+	{
 		objects.push_back(ObjectFile(file));
 	}
 
 	/* Link all included libraries */
-	for (File lib : m_linked_lib) {
+	for (File lib : m_linked_lib)
+	{
 		ReadStaticLibrary(objects, lib);
 	}
 
 	/* Link all libraries found in the provided directories */
-	for (Directory lib_dir : m_library_dirs) {
-		for (File lib : lib_dir.get_all_subfiles()) {
-			if (lib.get_extension() == STATIC_LIBRARY_EXTENSION) {
+	for (Directory lib_dir : m_library_dirs)
+	{
+		for (File lib : lib_dir.get_all_subfiles())
+		{
+			if (lib.get_extension() == STATIC_LIBRARY_EXTENSION)
+			{
 				ReadStaticLibrary(objects, lib);
 			}
 		}
@@ -451,7 +488,8 @@ void Process::_warn_all(std::vector<std::string>& args, size_t& index)
 	UNUSED(args);
 	UNUSED(index);
 
-	for (std::string warning_type : WARNINGS) {
+	for (std::string warning_type : WARNINGS)
+	{
 		m_enabled_warnings.insert(warning_type);
 	}
 }
@@ -534,7 +572,8 @@ void Process::_preprocessor_flag(std::vector<std::string>& args, size_t& index)
 
 	// check if there is a value
 	std::string value = "";
-	if (flag.find('=') != std::string::npos) {
+	if (flag.find('=') != std::string::npos)
+	{
 		// there is a value
 		value = flag.substr(flag.find('=') + 1);
 		flag = flag.substr(0, flag.find('='));

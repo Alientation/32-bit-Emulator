@@ -20,7 +20,8 @@ static const std::string OBJECT_EXTENSION = "bo";
 static const std::string EXECUTABLE_EXTENSION = "bexe";
 static const std::string STATIC_LIBRARY_EXTENSION = "ba";
 
-static const std::set<std::string> WARNINGS = {
+static const std::set<std::string> WARNINGS =
+{
 	"error",
 };
 static const std::string DEFAULT_OUTPUT_FILE = "a";

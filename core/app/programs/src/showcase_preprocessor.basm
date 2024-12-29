@@ -1,0 +1,11 @@
+#include "../include/showcase_preprocessor.binc"
+; #include "../include/showcase_preprocessor.binc"
+
+
+.global _start
+
+
+.text
+_start:
+	#invoke add_to_x0($12, 4)
+	hlt

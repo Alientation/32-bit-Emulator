@@ -1,0 +1,13 @@
+#ifndef SHOWCASE_PREPROCESSOR_H
+#define SHOWCASE_PREPROCESSOR_H
+
+; This was included, Should only happen once
+
+#macro add_to_x0(va, vb)
+	add x0, xzr, va
+	add x0, x0, vb
+#macend
+
+
+
+#endif	; SHOWCASE_PREPROCESSOR_H
