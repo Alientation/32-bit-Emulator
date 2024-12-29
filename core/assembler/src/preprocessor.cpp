@@ -596,13 +596,15 @@ void Preprocessor::_invoke()
 				Tokenizer::tokenize(string_util::format("#define {} 0\n", output_symbol)));
 	}
 
-	// append a new '.scope' symbol to the tokens list
-	// expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCOPE, ".scope"));
-	// expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
-
-	// then for each argument, add an '.equ argname argval' statement
+	// then for each argument, add an '#define argname argval' statement
+	// if the symbol has already been defined, store previous definition
+	std::vector<Symbol> previously_defined;
 	for (size_t i = 0; i < arguments.size(); i++)
 	{
+		if (is_symbol_def (macro->args[i].name, 0))
+		{
+			previously_defined.push_back(m_def_symbols.at(macro->args[i].name).at(0));
+		}
 		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} #",
 				macro->args[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
@@ -612,13 +614,18 @@ void Preprocessor::_invoke()
 	// then append the macro definition
 	expanded_macro_invoke.insert(expanded_macro_invoke.end(), macro->definition.begin(),
 			macro->definition.end());
-
-	// finally end with a '.scend' symbol
 	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
-	// expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::ASSEMBLER_SCEND, ".scend"));
 
 	// push the macro and output symbol if any onto the macro stack
 	m_macro_stack.push(std::pair<std::string, Macro*>(output_symbol, macro));
+
+	for (Symbol &symbol : previously_defined)
+	{
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} ",
+			symbol.name)));
+		vector_util::append(expanded_macro_invoke, symbol.value);
+		expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+	}
 
 	// print out expanded macro
 	std::stringstream ss;
@@ -709,11 +716,12 @@ void Preprocessor::_define()
     }
 
     // add to symbols mapping
-    if (m_def_symbols.find(symbol) == m_def_symbols.end())
+    m_def_symbols.insert(std::pair<std::string, std::map<int, Symbol>>(symbol, std::map<int, Symbol>()));
+	if (m_def_symbols.at(symbol).find(parameters.size()) != m_def_symbols.at(symbol).end())
 	{
-        m_def_symbols.insert(std::pair<std::string, std::map<int, Symbol>>(symbol, std::map<int, Symbol>()));
-    }
-    m_def_symbols.at(symbol).insert(std::pair<int, Symbol>(parameters.size(), Symbol(symbol, parameters, tokens)));
+		m_def_symbols.at(symbol).erase(parameters.size());
+	}
+	m_def_symbols.at(symbol).insert(std::pair<int, Symbol>(parameters.size(), Symbol(symbol, parameters, tokens)));
 }
 
 /**

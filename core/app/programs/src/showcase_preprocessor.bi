@@ -6,6 +6,8 @@
 .text
 _start:
 	
+	
 add x0, xzr, #$12
 	add x0, x0, #4
-hlt
+add x1, xzr, #5
+	hlt
