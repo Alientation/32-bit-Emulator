@@ -515,11 +515,11 @@ void Process::_include(std::vector<std::string>& args, size_t& index)
 }
 
 /**
- * @brief Adds shared library to be linked with the compiled object files
+ * @brief Adds library to be linked with the compiled object files
  *
- * USAGE: -l, -lib, -library [library name]
+ * USAGE: -l, -lib, -library [library name].ba
  *
- * Specifically, it links to the shared library [library name].so
+ * Specifically, it links to the static library [library name].ba
  *
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
@@ -537,7 +537,7 @@ void Process::_library(std::vector<std::string>& args, size_t& index)
 }
 
 /**
- * @brief Adds directory to the list of directories to search for shared libraries
+ * @brief Adds directory to the list of directories to search for static libraries
  *
  * USAGE: -L, -libdir, -librarydir [directory path]
  *

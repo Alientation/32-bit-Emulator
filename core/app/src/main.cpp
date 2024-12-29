@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
 	CLOCK_END
 	CLOCK_START("Building program")
 
-	Process process = Process(build_command);
+	Process process(build_command);
 	CLOCK_END
 
 	if (process.does_create_exe())

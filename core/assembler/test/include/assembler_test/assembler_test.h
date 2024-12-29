@@ -1,6 +1,6 @@
 #pragma once
-#ifndef EMULATOR32BITTEST_H
-#define EMULATOR32BITTEST_H
+#ifndef ASSEMBLER_TEST_H
+#define ASSEMBLER_TEST_H
 
 #include <gtest/gtest.h>
 #include <assembler/assembler.h>
@@ -12,4 +12,4 @@
 #include <assembler/static_library.h>
 #include <assembler/tokenizer.h>
 
-#endif /* EMULATOR32BITTEST_H */
+#endif /* ASSEMBLER_TEST_H */
