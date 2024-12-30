@@ -42,6 +42,8 @@ class Assembler
 		int total_scopes = 0;
 		std::vector<int> scopes;									/* Nested scopes */
 
+		size_t line_at(size_t tok_i);
+
 		dword parse_expression(size_t& tok_i);
 		std::vector<dword> parse_arguments(size_t& tok_i);
 		byte parse_register(size_t& tok_i);

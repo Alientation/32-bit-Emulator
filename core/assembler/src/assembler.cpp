@@ -253,6 +253,16 @@ void Assembler::fill_local()
 	DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }
 
+size_t Assembler::line_at(size_t tok_i)
+{
+	size_t line = 0;
+	for (size_t i = 0; i <= tok_i && i < m_tokens.size(); i++) {
+		if (m_tokens.at(i).type == Tokenizer::Type::WHITESPACE_NEWLINE) {
+			line++;
+		}
+	}
+	return line;
+}
 
 /**
  * Skips tokens that match the given regex.

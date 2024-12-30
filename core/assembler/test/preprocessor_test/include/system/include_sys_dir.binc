@@ -1,0 +1,13 @@
+#ifndef INCLUDE_SYS_DIR_H
+#define INCLUDE_SYS_DIR_H
+
+; Included from include_local_dir.binc
+
+.global _start
+
+.text
+_start:
+	add x0, xzr, #$531
+	hlt
+
+#endif  ; INCLUDE_SYS_DIR_H

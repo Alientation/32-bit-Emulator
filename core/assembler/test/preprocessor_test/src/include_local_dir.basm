@@ -1,0 +1,3 @@
+; start of include_local_dir.basm
+#include "../include/include_local_dir.binc"
+; end of include_local_dir.basm

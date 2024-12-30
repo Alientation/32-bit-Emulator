@@ -1,7 +1,7 @@
 
 #include "emulator32bit/disk.h"
 
-#define AEMU_ONLY_CRITICAL_LOG
+// #define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 /*
@@ -17,7 +17,7 @@ Disk::Disk(File diskfile, word npages, word lo_page) :
 	m_free_list(0, npages, false)
 {
 	this->m_diskfile = diskfile;
-	this->m_diskfile_manager = File(diskfile.get_path() + ".info", diskfile.exists());
+	this->m_diskfile_manager = File(diskfile.get_path() + ".info", true);
 	this->m_npages = npages;
 	this->m_cache = new CachePage[AEMU_DISK_CACHE_SIZE];
 

@@ -8,7 +8,7 @@
 Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
 	m_obj_files(obj_files),
 	m_exe_file(exe_file),
-	m_ld_file(File("default_linker", "ld", std::filesystem::current_path().parent_path().concat("/assembler/src").string()))
+	m_ld_file(File("default_linker", "ld", AEMU_PROJECT_ROOT_DIR + "core\\assembler\\src"))
 {
 	link();
 }
