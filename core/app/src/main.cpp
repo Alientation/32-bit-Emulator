@@ -86,25 +86,25 @@ very few exceptions are thrown when encountering invalid states (invalid states 
 leading to incorrect programs being runnable when it should not have been.
 */
 
-const static std::string build_test = "-I .\\tests\\include -o .\\tests\\build\\test "
-		".\\tests\\src\\main.basm .\\tests\\src\\other.basm -outdir .\\tests\\build";
-const static std::string build_fibonacci = "-I .\\programs\\include "
-		"-o .\\programs\\build\\fibonacci .\\programs\\src\\fibonacci.basm "
-		"-outdir .\\programs\\build";
-const static std::string build_preprocessor = "-kp -I .\\programs\\include "
-		"-o .\\programs\\build\\showcase_preprocessor .\\programs\\src\\showcase_preprocessor.basm "
-		"-outdir .\\programs\\build";
-const static std::string build_palindrome = "-I .\\programs\\include "
-		"-o .\\programs\\build\\palindrome .\\programs\\src\\palindrome.basm "
-		"-outdir .\\programs\\build";
-const static std::string build_library = "-o .\\programs\\build\\libtest "
-		"-makelib .\\programs\\src\\palindrome.basm -outdir .\\programs\\build";
-const static std::string build_exe_from_library = "-lib .\\programs\\build\\libtest.ba "
-		"-o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
-const static std::string build_exe_from_library_dir = "-libdir .\\programs\\build "
-		"-o .\\programs\\build\\palindrome_list -outdir .\\programs\\build";
-const static std::string build_long_loop = "-o .\\programs\\build\\long_loop "
-        ".\\programs\\src\\long_loop.basm -outdir .\\programs\\build";
+const static std::string build_test = "-I ./tests/include -o ./tests/build/test "
+		"./tests/src/main.basm ./tests/src/other.basm -outdir ./tests/build";
+const static std::string build_fibonacci = "-I ./programs/include "
+		"-o ./programs/build/fibonacci ./programs/src/fibonacci.basm "
+		"-outdir ./programs/build";
+const static std::string build_preprocessor = "-kp -I ./programs/include "
+		"-o ./programs/build/showcase_preprocessor ./programs/src/showcase_preprocessor.basm "
+		"-outdir ./programs/build";
+const static std::string build_palindrome = "-I ./programs/include "
+		"-o ./programs/build/palindrome ./programs/src/palindrome.basm "
+		"-outdir ./programs/build";
+const static std::string build_library = "-o ./programs/build/libtest "
+		"-makelib ./programs/src/palindrome.basm -outdir ./programs/build";
+const static std::string build_exe_from_library = "-lib ./programs/build/libtest.ba "
+		"-o ./programs/build/palindrome_list -outdir ./programs/build";
+const static std::string build_exe_from_library_dir = "-libdir ./programs/build "
+		"-o ./programs/build/palindrome_list -outdir ./programs/build";
+const static std::string build_long_loop = "-o ./programs/build/long_loop "
+        "./programs/src/long_loop.basm -outdir ./programs/build";
 
 #define AEMU_MAX_EXEC_INSTR 0x0
 
@@ -137,8 +137,8 @@ int main(int argc, char* argv[])
 	{
 		CLOCK_START("Loading program into emulator")
 		RAM *ram = new RAM(16, 0);
-		ROM *rom = new ROM(File("..\\tests\\rom.bin", true), 16, 16);
-		Disk *disk = new Disk(File("..\\tests\\disk.bin", true), 32, 32);
+		ROM *rom = new ROM(File("../tests/rom.bin", true), 16, 16);
+		Disk *disk = new Disk(File("../tests/disk.bin", true), 32, 32);
 
 		Emulator32bit emulator(ram, rom, disk);
 		long long pid = emulator.system_bus.mmu.begin_process();

@@ -23,8 +23,8 @@ protected:
 	{
 		machine = new Emulator32bit (
 		new RAM (16, 0),
-		new ROM (File (AEMU_PROJECT_ROOT_DIR + "core\\assembler\\test\\rom.bin", true), 16, 16),
-		new Disk (File (AEMU_PROJECT_ROOT_DIR + "core\\assembler\\test\\disk.bin"), 32, 32));
+		new ROM (File (AEMU_PROJECT_ROOT_DIR + "core/assembler/test/rom.bin", true), 16, 16),
+		new Disk (File (AEMU_PROJECT_ROOT_DIR + "core/assembler/test/disk.bin"), 32, 32));
 		long long pid = machine->system_bus.mmu.begin_process ();
 	}
 
