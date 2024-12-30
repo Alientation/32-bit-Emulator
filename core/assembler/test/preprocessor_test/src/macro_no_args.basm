@@ -1,0 +1,10 @@
+#macro simple_addition()
+	#1 + 9
+#macend
+
+.global _start
+
+.text
+_start:
+	add x0, xzr, #invoke simple_addition()
+	hlt

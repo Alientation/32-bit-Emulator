@@ -14,9 +14,9 @@ dword Assembler::parse_expression(size_t& tok_i)
 {
 	/* For now, only parse expressions sequentially, without care of precedence */
 	dword exp_value = 0;
-	skip_tokens(tok_i, "[ \t]");
 	Tokenizer::Token *operator_token = nullptr;
 	do {
+		skip_tokens(tok_i, "[ \t]");
 		Tokenizer::Token token = consume(tok_i);
 
 		dword value = 0;
