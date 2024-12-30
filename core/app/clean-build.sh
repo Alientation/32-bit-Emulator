@@ -12,4 +12,4 @@ rm -rf /build
 
 
 # Configure and install the application
-source /build.bat
+source build.sh
