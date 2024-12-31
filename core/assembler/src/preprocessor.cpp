@@ -456,20 +456,15 @@ void Preprocessor::_macret()
 	}
 
 	// macro contains a return value
-	bool does_macro_return = m_macro_stack.top().second->return_type != Tokenizer::UNKNOWN;
-	if (does_macro_return)
+	while (!tokenizer.is_next({Tokenizer::WHITESPACE_NEWLINE}))
 	{
-		while (!tokenizer.is_next({Tokenizer::WHITESPACE_NEWLINE}))
-		{
-			return_value.push_back(tokenizer.consume());
-		}
+		return_value.push_back(tokenizer.consume());
 	}
 
 	// skip all the tokens after this till the end of the current macro's definition
 	// we can achieve this by counting the number of scope levels,
 	// incrementing if we reach a .scope token and decrementing if we reach a .scend token.
 	// If we reach 0, we know we have reached the end of the macro definition.
-
 	int cur_rel_scope_level = 0;
 	while (tokenizer.has_next())
 	{
@@ -494,16 +489,13 @@ void Preprocessor::_macret()
 		ERROR("Preprocessor::_macret() - Unclosed scope.");
 	}
 
-	// add'.equ current_macro_output_symbol expression' to tokens
-	if (does_macro_return)
-	{
-		std::vector<Tokenizer::Token> set_return_statement;
-		vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format(".equ {} ",
-				m_macro_stack.top().first)));
-		vector_util::append(set_return_statement, return_value);
-		tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
-				set_return_statement.begin(), set_return_statement.end());
-	}
+	// add '#define current_macro_output_symbol expression' to tokens
+	std::vector<Tokenizer::Token> set_return_statement;
+	vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format("#define {} ",
+			m_macro_stack.top().first)));
+	vector_util::append(set_return_statement, return_value);
+	tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
+			set_return_statement.begin(), set_return_statement.end());
 
 	// pop the macro from the stack
 	m_macro_stack.pop();
@@ -585,15 +577,11 @@ void Preprocessor::_invoke()
 	}
 	Macro* macro = possibleMacros[0];
 
-	// replace the '_invoke symbol(arg1, arg2,..., argn) ?symbol' with the macro definition
+	// replace the '#invoke symbol(arg1, arg2,..., argn) ?symbol' with the macro definition
 	std::vector<Tokenizer::Token> expanded_macro_invoke;
 
-	// check if the macro returns something, if so add a equate statement to store the output
-	if (has_output)
-	{
-		vector_util::append(expanded_macro_invoke,
-				Tokenizer::tokenize(string_util::format("#define {} 0\n", output_symbol)));
-	}
+	// append a new '.scope' symbol to the tokens list
+	vector_util::append(expanded_macro_invoke, tokenizer.tokenize(".scope\n"));
 
 	// then for each argument, add an '#define argname argval' statement
 	// if the symbol has already been defined, store previous definition
@@ -613,7 +601,9 @@ void Preprocessor::_invoke()
 	// then append the macro definition
 	expanded_macro_invoke.insert(expanded_macro_invoke.end(), macro->definition.begin(),
 			macro->definition.end());
-	expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
+
+	// finally end with a '.scend' symbol
+	vector_util::append(expanded_macro_invoke, tokenizer.tokenize("\n.scend\n"));
 
 	// push the macro and output symbol if any onto the macro stack
 	m_macro_stack.push(std::pair<std::string, Macro*>(output_symbol, macro));

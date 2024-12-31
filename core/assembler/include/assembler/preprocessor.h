@@ -11,6 +11,15 @@
 #include <map>
 #include <functional>
 
+/**
+ * Plan
+ *
+ * Fix identation
+ * 	- when appending symbols, such as .scope and .scend for macro invocations,
+ * 	  correctly indent to the previous indentation level. This means we will need to keep
+ * 	  track of the current indentation level and the previous indentation level
+ *
+ */
 class Preprocessor
 {
 	public:
