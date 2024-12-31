@@ -299,6 +299,11 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 		EXPECT_TRUE_SS(matched, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
 
+	for (Tokenizer::Token &token : *tokens)
+	{
+		DEBUG("Token: %s", token.to_string().c_str());
+	}
+
 	return *tokens;
 }
 

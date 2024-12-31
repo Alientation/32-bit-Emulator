@@ -1,0 +1,10 @@
+#macro addition(_a, _b)
+	#_a + _b
+#macend
+
+.global _start
+
+.text
+_start:
+	add x0, xzr, #invoke addition(1, 9)
+	hlt

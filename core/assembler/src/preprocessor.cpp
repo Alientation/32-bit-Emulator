@@ -183,7 +183,6 @@ File Preprocessor::preprocess()
                 // replace symbol with value
                 std::string symbol = token.value;
 				tokenizer.consume();
-                tokenizer.skip_next("[ \t]");
 
                 // check if the symbol has parameters
                 std::vector<std::vector<Tokenizer::Token>> parameters;
@@ -605,7 +604,7 @@ void Preprocessor::_invoke()
 		{
 			previously_defined.push_back(m_def_symbols.at(macro->args[i].name).at(0));
 		}
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} #",
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {}",
 				macro->args[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
 		expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
@@ -714,6 +713,8 @@ void Preprocessor::_define()
             tokens.pop_back();
         }
     }
+
+	tokenizer.consume({Tokenizer::WHITESPACE_NEWLINE}, "Preprocessor::Invoke() - Expected newline.");
 
     // add to symbols mapping
     m_def_symbols.insert(std::pair<std::string, std::map<int, Symbol>>(symbol, std::map<int, Symbol>()));
