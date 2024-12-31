@@ -230,11 +230,19 @@ class Tokenizer
 		Tokenizer::Token& consume(const std::set<Tokenizer::Type>& expected_types,
 				const std::string& error_msg = "Tokenizer::consume() - Unexpected token.");
 
+		void insert_tokens(const std::vector<Token>& tokens, size_t loc);
+		void remove_tokens(size_t start, size_t end);
+		const std::vector<Token>& get_tokens();
+
         static std::vector<Token>& tokenize(File srcFile);
 		static std::vector<Token>& tokenize(std::string source_code);
 
+	private:
 		std::vector<Tokenizer::Token> m_tokens;
 		size_t m_toki;
+		int prev_indent_level = 0;
+		int cur_indent_level = 0;
+		int target_indent_level = 0;
 };
 
 #endif /* TOKENIZER_H */

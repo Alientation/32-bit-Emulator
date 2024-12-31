@@ -237,8 +237,7 @@ File Preprocessor::preprocess()
                 }
 
                 // insert the definition into the tokens list
-                tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
-						definition.begin(), definition.end());
+				tokenizer.insert_tokens(definition, tokenizer.get_toki());
             }
 			else
 			{
@@ -368,8 +367,7 @@ void Preprocessor::_include()
 	Preprocessor included_preprocessor(m_process, include_file, m_output_file.get_path());
 
 	// yoink the tokens from the included file and insert
-	tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
-			included_preprocessor.tokenizer.m_tokens.begin(), included_preprocessor.tokenizer.m_tokens.end());
+	tokenizer.insert_tokens(included_preprocessor.tokenizer.get_tokens(), tokenizer.get_toki());
 }
 
 /**
@@ -494,8 +492,7 @@ void Preprocessor::_macret()
 	vector_util::append(set_return_statement, Tokenizer::tokenize(string_util::format("#define {} ",
 			m_macro_stack.top().first)));
 	vector_util::append(set_return_statement, return_value);
-	tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
-			set_return_statement.begin(), set_return_statement.end());
+	tokenizer.insert_tokens(set_return_statement, tokenizer.get_toki());
 
 	// pop the macro from the stack
 	m_macro_stack.pop();
@@ -625,8 +622,7 @@ void Preprocessor::_invoke()
 	DEBUG("Preprocessor::_invoke() - Expanded macro: %s", ss.str().c_str());
 
 	// insert into the tokens list
-	tokenizer.m_tokens.insert(tokenizer.m_tokens.begin() + tokenizer.get_toki(),
-			expanded_macro_invoke.begin(), expanded_macro_invoke.end());
+	tokenizer.insert_tokens(expanded_macro_invoke, tokenizer.get_toki());
 }
 
 /**
@@ -782,13 +778,7 @@ void Preprocessor::cond_block(bool cond_met)
         if (next_block_tok_i != -1)
 		{
             // remove all tokens from the next block to the endif
-            tokenizer.m_tokens.erase(tokenizer.m_tokens.begin() + next_block_tok_i,
-					tokenizer.m_tokens.begin() + end_if_tok_i);
-        }
-		else
-		{
-			// assert, end_if_tok_i != -1
-            // don't need to do anything, because there are no linked conditional blocks after this
+			tokenizer.remove_tokens(next_block_tok_i, end_if_tok_i);
         }
     }
 	else

@@ -25,6 +25,21 @@ void Tokenizer::set_toki(size_t toki)
 	m_toki = toki;
 }
 
+void Tokenizer::insert_tokens(const std::vector<Token>& tokens, size_t loc)
+{
+	m_tokens.insert(m_tokens.begin() + loc, tokens.begin(), tokens.end());
+}
+
+void Tokenizer::remove_tokens(size_t start, size_t end)
+{
+	m_tokens.erase(m_tokens.begin() + start, m_tokens.begin() + end);
+}
+
+const std::vector<Tokenizer::Token>& Tokenizer::get_tokens()
+{
+	return m_tokens;
+}
+
 Tokenizer::Token& Tokenizer::get_token()
 {
 	EXPECT_TRUE(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
