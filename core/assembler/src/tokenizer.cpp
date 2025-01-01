@@ -3,14 +3,14 @@
 
 #include <regex>
 
-Tokenizer::Tokenizer(File src) :
-	m_tokens(tokenize(src))
+Tokenizer::Tokenizer(File src, bool keep_comments) :
+	m_tokens(tokenize(src, keep_comments))
 {
 
 }
 
-Tokenizer::Tokenizer(std::string src) :
-	m_tokens(tokenize(src))
+Tokenizer::Tokenizer(std::string src, bool keep_comments) :
+	m_tokens(tokenize(src, keep_comments))
 {
 
 }
@@ -52,7 +52,7 @@ bool Tokenizer::fix_indent()
 	return true;
 }
 
-void Tokenizer::insert_tokens(const std::vector<Token>& tokens, size_t loc)
+void Tokenizer::insert_tokens(const std::vector<Token> &tokens, size_t loc)
 {
 	m_tokens.insert(m_tokens.begin() + loc, tokens.begin(), tokens.end());
 }
@@ -62,12 +62,12 @@ void Tokenizer::remove_tokens(size_t start, size_t end)
 	m_tokens.erase(m_tokens.begin() + start, m_tokens.begin() + end);
 }
 
-const std::vector<Tokenizer::Token>& Tokenizer::get_tokens()
+const std::vector<Tokenizer::Token> &Tokenizer::get_tokens()
 {
 	return m_tokens;
 }
 
-Tokenizer::Token& Tokenizer::get_token()
+Tokenizer::Token &Tokenizer::get_token()
 {
 	EXPECT_TRUE(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
 	return m_tokens[m_toki];
@@ -121,28 +121,48 @@ void Tokenizer::skip_next()
 	}
 }
 
-void Tokenizer::skip_next(const std::string& regex)
+void Tokenizer::filter_all(const std::set<Tokenizer::Type> &tok_types)
+{
+	size_t real_pos = 0;
+	for (size_t i = 0; i < m_tokens.size(); i++)
+	{
+		if (m_tokens[i].is(tok_types))
+		{
+			continue;
+		}
+
+		if (real_pos != i)
+		{
+			m_tokens[real_pos] = m_tokens[i];
+		}
+		real_pos++;
+	}
+
+	m_tokens.resize(real_pos, Token(Tokenizer::UNKNOWN, ""));
+}
+
+void Tokenizer::skip_next_regex(const std::string &regex)
 {
 	while (has_next() && std::regex_match(m_tokens[m_toki].value, std::regex(regex))) {
 		skip_next();
 	}
 }
 
-void Tokenizer::skip_next(const std::set<Tokenizer::Type>& tok_types)
+void Tokenizer::skip_next(const std::set<Tokenizer::Type> &tok_types)
 {
     while (has_next() && tok_types.find(m_tokens[m_toki].type) != tok_types.end()) {
         skip_next();
     }
 }
 
-bool Tokenizer::expect_next(const std::string& error_msg)
+bool Tokenizer::expect_next(const std::string &error_msg)
 {
 	EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
     return true;
 }
 
-bool Tokenizer::expect_next(const std::set<Tokenizer::Type>& expected_types,
-							const std::string& error_msg)
+bool Tokenizer::expect_next(const std::set<Tokenizer::Type> &expected_types,
+							const std::string &error_msg)
 {
 	EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
 	EXPECT_TRUE_SS(expected_types.find(m_tokens[m_toki].type) != expected_types.end(),
@@ -150,8 +170,8 @@ bool Tokenizer::expect_next(const std::set<Tokenizer::Type>& expected_types,
     return true;
 }
 
-bool Tokenizer::is_next(const std::set<Tokenizer::Type>& tok_types,
-						const std::string& error_msg)
+bool Tokenizer::is_next(const std::set<Tokenizer::Type> &tok_types,
+						const std::string &error_msg)
 {
     expect_next(error_msg);
     return tok_types.find(m_tokens[m_toki].type) != tok_types.end();
@@ -162,7 +182,7 @@ bool Tokenizer::has_next()
     return m_toki < m_tokens.size();
 }
 
-Tokenizer::Token& Tokenizer::consume(const std::string& error_msg)
+Tokenizer::Token &Tokenizer::consume(const std::string &error_msg)
 {
     expect_next(error_msg);
     Tokenizer::Token &token = m_tokens[m_toki];
@@ -170,11 +190,11 @@ Tokenizer::Token& Tokenizer::consume(const std::string& error_msg)
 	return token;
 }
 
-Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
+Tokenizer::Token &Tokenizer::consume(const std::set<Tokenizer::Type> &expected_types, const std::string &error_msg)
 {
     expect_next(error_msg);
 	EXPECT_TRUE_SS(expected_types.find(m_tokens[m_toki].type) != expected_types.end(),
-			std::stringstream() << error_msg << " - Unexpected end of file.");
+			std::stringstream() << error_msg << " - Got " << m_tokens[m_toki].to_string());
     Tokenizer::Token &token = m_tokens[m_toki];
 	skip_next();
 	return token;
@@ -187,7 +207,7 @@ Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_t
  * @param srcFile The source file to tokenize
  * @return A list of tokens
  */
-std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
+std::vector<Tokenizer::Token> Tokenizer::tokenize(File srcFile, bool keep_comments)
 {
     DEBUG("Tokenizer::tokenize() - Tokenizing file: %s", srcFile.get_name().c_str());
 	FileReader reader(srcFile);
@@ -196,8 +216,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
 	std::string source_code = reader.read_all() + "\n";
 	reader.close();
 
-	std::vector<Token>& tokens = tokenize(source_code);
-
+	std::vector<Token> tokens = tokenize(source_code, keep_comments);
 	DEBUG("Tokenizer::tokenize() - Tokenized file: %s", srcFile.get_name().c_str());
 	return tokens;
 }
@@ -208,9 +227,9 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(File srcFile)
  * @param source_code The source code to tokenize
  * @return A list of tokens
  */
-std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
+std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, bool keep_comments)
 {
-	std::vector<Token>* tokens = new std::vector<Token>();
+	std::vector<Token> tokens;
 	auto is_alphanumeric = [](char c, int index)
 	{
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '.' && index == 0) || (c == '_') || (c == '#' && index == 0);
@@ -358,7 +377,7 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 		std::string sub = source_code.substr(0, substring_length);
 		if (simple_map.find(sub) != simple_map.end())
 		{
-			tokens->push_back(Token(simple_map.at(sub), sub));
+			tokens.push_back(Token(simple_map.at(sub), sub));
 			source_code = source_code.substr(substring_length);
 			continue;
 		}
@@ -375,7 +394,11 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 			{
 				// matched regex
 				std::string token_value = match.str();
-				tokens->push_back(Token(type, token_value));
+
+				if (!keep_comments || (type != Tokenizer::COMMENT_SINGLE_LINE && type != Tokenizer::COMMENT_MULTI_LINE))
+				{
+					tokens.push_back(Token(type, token_value));
+				}
 				source_code = match.suffix();
 				matched = true;
 
@@ -387,12 +410,12 @@ std::vector<Tokenizer::Token>& Tokenizer::tokenize(std::string source_code)
 		EXPECT_TRUE_SS(matched, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
 	}
 
-	for (Tokenizer::Token &token : *tokens)
+	for (Tokenizer::Token &token : tokens)
 	{
 		DEBUG("Token: %s", token.to_string().c_str());
 	}
 
-	return *tokens;
+	return tokens;
 }
 
 Tokenizer::Token::Token(Tokenizer::Type type, std::string value) :

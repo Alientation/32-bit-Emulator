@@ -160,8 +160,8 @@ class Tokenizer
 			bool is(const std::set<Type> &types);
 		};
 
-		Tokenizer(File src);
-		Tokenizer(std::string src);
+		Tokenizer(File src, bool keep_comments = true);
+		Tokenizer(std::string src, bool keep_comments = true);
 
 		size_t get_toki();
 		void set_toki(size_t toki);
@@ -176,6 +176,7 @@ class Tokenizer
 		void insert_tokens(const std::vector<Token>& tokens, size_t loc);
 		void remove_tokens(size_t start, size_t end);
 
+		void filter_all(const std::set<Tokenizer::Type>& tok_types);
 
 		void skip_next();
 
@@ -184,7 +185,7 @@ class Tokenizer
 		 *
 		 * @param regex matches tokens to skip.
 		 */
-		void skip_next(const std::string& regex);
+		void skip_next_regex(const std::string& regex);
 
 		/**
 		 * Skips tokens that match the given types.
@@ -247,8 +248,8 @@ class Tokenizer
 		Tokenizer::Token& consume(const std::set<Tokenizer::Type>& expected_types,
 				const std::string& error_msg = "Tokenizer::consume() - Unexpected token.");
 
-        static std::vector<Token>& tokenize(File srcFile);
-		static std::vector<Token>& tokenize(std::string source_code);
+        static std::vector<Token> tokenize(File srcFile, bool keep_comments = true);
+		static std::vector<Token> tokenize(std::string source_code, bool keep_comments = true);
 
 	private:
 		std::vector<Tokenizer::Token> m_tokens;
