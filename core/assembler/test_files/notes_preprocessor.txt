@@ -42,8 +42,8 @@ PREPROCESSOR CONDITIONALS
 
 #ifdef [symbol]
 #ifndef [symbol]
-#ifequ [symbol] [expression]
-#ifnequ [symbol] [expression] --- note these will evaluate the expression
+#ifequ [symbol] [expression]  -- Note, these will NOT evaluate the expressions. Maybe implemented in the future
+#ifnequ [symbol] [expression] --
 #ifless [symbol] [expression] -- if symbol is less than value
 #ifmore [symbol] [expression] -- if symbol is more than value
 #else

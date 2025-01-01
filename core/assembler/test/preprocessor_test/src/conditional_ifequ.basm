@@ -1,0 +1,15 @@
+#define test 4
+
+.global _start
+
+.text
+_start:
+	add x0, xzr, #1
+#ifequ test 4
+	add x0, x0, #2
+#endif
+
+#ifequ test 6
+	add x0, x0, #4
+#endif
+	hlt
