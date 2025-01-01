@@ -143,6 +143,11 @@ std::string File::get_path() const
 	return m_dir + SEPARATOR + m_name + "." + m_extension;
 }
 
+std::string File::get_abs_path() const
+{
+	return std::filesystem::absolute(get_path()).string();
+}
+
 /**
  * Returns the directory of the file
  *
@@ -184,7 +189,7 @@ bool File::exists() const
 /**
  * Creates the file
  */
-void File::create() const
+void File::create()
 {
 	std::filesystem::path fs_path(get_path());
 

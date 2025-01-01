@@ -236,7 +236,7 @@ void Process::preprocess()
 			Directory dir(file.get_dir());
 			if (dir.exists())
 			{
-				DEBUG("But it's parent directory exists with files");
+				DEBUG("But it's parent directory exists at %s with files", dir.get_abs_path().c_str());
 				for (File f : dir.get_subfiles())
 				{
 					DEBUG("%s", f.get_name().c_str());

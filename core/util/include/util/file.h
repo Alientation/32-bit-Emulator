@@ -45,10 +45,11 @@ class File
 		std::string get_name() const;
 		std::string get_extension() const;
 		std::string get_path() const;
+		std::string get_abs_path() const;
 		std::string get_dir() const;
 		int get_size() const;
 		bool exists() const;
-		void create() const;
+		void create();
 	private:
 		std::string m_name;
 		std::string m_extension;
