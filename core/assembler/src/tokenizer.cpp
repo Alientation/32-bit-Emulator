@@ -3,16 +3,16 @@
 
 #include <regex>
 
-Tokenizer::Tokenizer(File src)
+Tokenizer::Tokenizer(File src) :
+	m_tokens(tokenize(src))
 {
-	m_tokens = tokenize(src);
-	m_toki = 0;
+
 }
 
-Tokenizer::Tokenizer(std::string src)
+Tokenizer::Tokenizer(std::string src) :
+	m_tokens(tokenize(src))
 {
-	m_tokens = tokenize(src);
-	m_toki = 0;
+
 }
 
 size_t Tokenizer::get_toki()
@@ -23,6 +23,33 @@ size_t Tokenizer::get_toki()
 void Tokenizer::set_toki(size_t toki)
 {
 	m_toki = toki;
+}
+
+struct Tokenizer::IndentInfo Tokenizer::get_indent()
+{
+	return m_indent;
+}
+
+void Tokenizer::set_indent(Tokenizer::IndentInfo indent)
+{
+	m_indent = indent;
+}
+
+bool Tokenizer::fix_indent()
+{
+	if (m_indent.cur >= m_indent.target)
+	{
+		return false;
+	}
+
+	std::string added;
+	for (int indent = m_indent.cur; indent < m_indent.target; indent++)
+	{
+		added += "\t";
+	}
+
+	insert_tokens(tokenize(added), m_toki);
+	return true;
 }
 
 void Tokenizer::insert_tokens(const std::vector<Token>& tokens, size_t loc)
@@ -49,20 +76,62 @@ Tokenizer::Token& Tokenizer::get_token()
 void Tokenizer::skip_next()
 {
 	EXPECT_TRUE(has_next(), "Tokenizer::skip_next(): Unexpected end of file.");
+
+	// calculate some indent level information
+	switch (m_tokens[m_toki].type)
+	{
+		case WHITESPACE_NEWLINE:
+			m_indent.prev = m_indent.cur;
+			m_indent.cur = 0;
+			break;
+		case WHITESPACE_TAB:
+			m_indent.cur++;
+			break;
+		case LABEL:
+			m_indent.target = 1;
+			break;
+		case ASSEMBLER_SCOPE:
+			m_indent.target++;
+			break;
+		case PREPROCESSOR_MACRO:
+			m_indent.target = 1;
+			break;
+		case ASSEMBLER_SCEND:
+			m_indent.target--;
+			break;
+		case PREPROCESSOR_MACEND:
+			m_indent.target = 0;
+			break;
+		default:
+			break;
+	}
+
 	m_toki++;
+
+	if (m_toki < m_tokens.size())
+	{
+		switch (m_tokens[m_toki].type)
+		{
+			case LABEL:
+				m_indent.target = 0;
+				break;
+			default:
+				break;
+		}
+	}
 }
 
 void Tokenizer::skip_next(const std::string& regex)
 {
 	while (has_next() && std::regex_match(m_tokens[m_toki].value, std::regex(regex))) {
-		m_toki++;
+		skip_next();
 	}
 }
 
 void Tokenizer::skip_next(const std::set<Tokenizer::Type>& tok_types)
 {
     while (has_next() && tok_types.find(m_tokens[m_toki].type) != tok_types.end()) {
-        m_toki++;
+        skip_next();
     }
 }
 
@@ -96,7 +165,9 @@ bool Tokenizer::has_next()
 Tokenizer::Token& Tokenizer::consume(const std::string& error_msg)
 {
     expect_next(error_msg);
-    return m_tokens[m_toki++];
+    Tokenizer::Token &token = m_tokens[m_toki];
+	skip_next();
+	return token;
 }
 
 Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_types, const std::string& error_msg)
@@ -104,7 +175,9 @@ Tokenizer::Token& Tokenizer::consume(const std::set<Tokenizer::Type>& expected_t
     expect_next(error_msg);
 	EXPECT_TRUE_SS(expected_types.find(m_tokens[m_toki].type) != expected_types.end(),
 			std::stringstream() << error_msg << " - Unexpected end of file.");
-    return m_tokens[m_toki++];
+    Tokenizer::Token &token = m_tokens[m_toki];
+	skip_next();
+	return token;
 }
 
 

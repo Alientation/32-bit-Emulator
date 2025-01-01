@@ -123,133 +123,87 @@ File Preprocessor::preprocess()
     // create writer for intermediate output file
     FileWriter writer = FileWriter(m_output_file);
 
-	// parses the tokens
-	int cur_indent_level = 0;
-	int target_indent_level = 0;
+	// parse the tokens
 	while (tokenizer.has_next())
 	{
 		Tokenizer::Token& token = tokenizer.get_token();
 
-        // skip back to back newlines
-        if (token.type == Tokenizer::WHITESPACE_NEWLINE && writer.last_byte_written() == '\n')
-		{
-			tokenizer.skip_next();
-            continue;
-        }
-
-		// update current indent level
-		if (token.type == Tokenizer::WHITESPACE_TAB)
-		{
-			cur_indent_level++;
-		}
-		else if (token.type == Tokenizer::WHITESPACE_NEWLINE)
-		{
-			cur_indent_level = 0;
-		}
-
-		// update target indent level
-		if (token.type == Tokenizer::ASSEMBLER_SCEND)
-		{
-			target_indent_level--;
-		}
-
-		// format the output with improved indents
-		if (cur_indent_level < target_indent_level && token.type == Tokenizer::WHITESPACE_SPACE)
-		{
-			// don't output whitespaces if a tab is expected
-			continue;
-		}
-		else if (cur_indent_level < target_indent_level
-				&& token.type != Tokenizer::WHITESPACE_TAB && token.type != Tokenizer::WHITESPACE_NEWLINE)
-		{
-			// append tabs
-			while (cur_indent_level < target_indent_level)
-			{
-				writer.write("\t");
-				cur_indent_level++;
-			}
-		}
+		DEBUG("%s indent: %d, %d, %d", token.to_string().c_str(),
+				tokenizer.get_indent().prev, tokenizer.get_indent().cur, tokenizer.get_indent().target);
 
 		// if token is valid preprocessor, call the preprocessor function
 		if (preprocessors.find(token.type) != preprocessors.end())
 		{
 			(this->*preprocessors[token.type])();
+			continue;
 		}
-		else
+
+		// check if this is not a defined symbol
+		if (token.type != Tokenizer::SYMBOL || m_def_symbols.find(token.value) == m_def_symbols.end())
 		{
-            // check if this is a defined symbol
-            if (token.type == Tokenizer::SYMBOL && m_def_symbols.find(token.value) != m_def_symbols.end())
-			{
-                // replace symbol with value
-                std::string symbol = token.value;
-				tokenizer.consume();
-
-                // check if the symbol has parameters
-                std::vector<std::vector<Tokenizer::Token>> parameters;
-                if (tokenizer.is_next({Tokenizer::OPEN_PARANTHESIS}))
-				{
-                    tokenizer.consume(); // '('
-                    while (!tokenizer.is_next({Tokenizer::CLOSE_PARANTHESIS}))
-					{
-                        std::vector<Tokenizer::Token> parameter;
-                        while (!tokenizer.is_next({Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS}))
-						{
-                            parameter.push_back(tokenizer.consume());
-                        }
-                        parameters.push_back(parameter);
-                        if (tokenizer.is_next({Tokenizer::COMMA}))
-						{
-                            tokenizer.consume();
-                        }
-						else
-						{
-                            tokenizer.expect_next({Tokenizer::CLOSE_PARANTHESIS},
-									"Preprocessor::preprocess() - Expected ')' in symbol parameters.");
-                        }
-                    }
-                    tokenizer.consume({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')'.");
-                }
-
-                // check if the symbol has a definition with the same number of parameters
-                if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end())
-				{
-                    ERROR("Preprocessor::preprocess() - Undefined symbol: %s", symbol.c_str());
-                }
-
-                // replace all occurances of a parameter with the value passed in as the parameter
-                std::vector<Tokenizer::Token> definition = m_def_symbols.at(symbol).at(parameters.size()).value;
-                for (size_t j = 0; j < definition.size(); j++)
-				{
-                    if (definition[j].type == Tokenizer::SYMBOL)
-					{
-                        // check if the symbol is a parameter
-                        for (size_t k = 0; k < parameters.size(); k++)
-						{
-                            if (definition[j].value == m_def_symbols.at(symbol).at(parameters.size()).parameters[k])
-							{
-                                // replace the symbol with the parameter value
-                                definition.erase(definition.begin() + j);
-                                definition.insert(definition.begin() + j, parameters[k].begin(), parameters[k].end());
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // insert the definition into the tokens list
-				tokenizer.insert_tokens(definition, tokenizer.get_toki());
-            }
-			else
-			{
-                writer.write(tokenizer.consume().value);
-            }
+			writer.write(tokenizer.consume().value);
+			continue;
 		}
 
-		// update target indent level
-		if (token.type == Tokenizer::ASSEMBLER_SCOPE)
+		// replace symbol with value
+		std::string symbol = tokenizer.consume().value;
+
+		// check if the symbol has parameters
+		std::vector<std::vector<Tokenizer::Token>> parameters;
+		if (tokenizer.is_next({Tokenizer::OPEN_PARANTHESIS}))
 		{
-			target_indent_level++;
+			tokenizer.consume(); // '('
+			while (!tokenizer.is_next({Tokenizer::CLOSE_PARANTHESIS}))
+			{
+				std::vector<Tokenizer::Token> parameter;
+				while (!tokenizer.is_next({Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS}))
+				{
+					parameter.push_back(tokenizer.consume());
+				}
+				parameters.push_back(parameter);
+				if (tokenizer.is_next({Tokenizer::COMMA}))
+				{
+					tokenizer.consume();
+				}
+				else
+				{
+					tokenizer.expect_next({Tokenizer::CLOSE_PARANTHESIS},
+							"Preprocessor::preprocess() - Expected ')' in symbol parameters.");
+				}
+			}
+			tokenizer.consume({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::preprocess() - Expected ')'.");
 		}
+
+		// check if the symbol has a definition with the same number of parameters
+		if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end())
+		{
+			ERROR("Preprocessor::preprocess() - Undefined symbol: %s", symbol.c_str());
+		}
+
+		// replace all occurances of a parameter with the value passed in as the parameter
+		std::vector<Tokenizer::Token> definition = m_def_symbols.at(symbol).at(parameters.size()).value;
+		for (size_t j = 0; j < definition.size(); j++)
+		{
+			if (definition[j].type != Tokenizer::SYMBOL)
+			{
+				continue;
+			}
+
+			// check if the symbol is a parameter
+			for (size_t k = 0; k < parameters.size(); k++)
+			{
+				if (definition[j].value == m_def_symbols.at(symbol).at(parameters.size()).parameters[k])
+				{
+					// replace the symbol with the parameter value
+					definition.erase(definition.begin() + j);
+					definition.insert(definition.begin() + j, parameters[k].begin(), parameters[k].end());
+					break;
+				}
+			}
+		}
+
+		// insert the definition into the tokens list
+		tokenizer.insert_tokens(definition, tokenizer.get_toki());
 	}
 
 	m_state = State::PROCESSED_SUCCESS;
@@ -578,7 +532,9 @@ void Preprocessor::_invoke()
 	std::vector<Tokenizer::Token> expanded_macro_invoke;
 
 	// append a new '.scope' symbol to the tokens list
-	vector_util::append(expanded_macro_invoke, tokenizer.tokenize(".scope\n"));
+	vector_util::append(expanded_macro_invoke, tokenizer.tokenize(".scope\n" +
+			string_util::repeat("\t", 1 + tokenizer.get_indent().prev)));
+
 
 	// then for each argument, add an '#define argname argval' statement
 	// if the symbol has already been defined, store previous definition
@@ -589,18 +545,29 @@ void Preprocessor::_invoke()
 		{
 			previously_defined.push_back(m_def_symbols.at(macro->args[i].name).at(0));
 		}
-		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {}",
+		vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} ",
 				macro->args[i].name)));
 		vector_util::append(expanded_macro_invoke, arguments[i]);
 		expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
 	}
 
 	// then append the macro definition
-	expanded_macro_invoke.insert(expanded_macro_invoke.end(), macro->definition.begin(),
-			macro->definition.end());
+	for (Tokenizer::Token tok : macro->definition)
+	{
+		expanded_macro_invoke.push_back(tok);
+
+		if (tok.type == Tokenizer::WHITESPACE_NEWLINE)
+		{
+			for (int i = 0; i < tokenizer.get_indent().prev + 1; i++)
+			{
+				expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_TAB, "\t"));
+			}
+		}
+	}
 
 	// finally end with a '.scend' symbol
-	vector_util::append(expanded_macro_invoke, tokenizer.tokenize("\n.scend\n"));
+	vector_util::append(expanded_macro_invoke, tokenizer.tokenize("\n" +
+			string_util::repeat("\t", tokenizer.get_indent().prev) + ".scend\n"));
 
 	// push the macro and output symbol if any onto the macro stack
 	m_macro_stack.push(std::pair<std::string, Macro*>(output_symbol, macro));
@@ -718,8 +685,11 @@ void Preprocessor::cond_block(bool cond_met)
 {
     int rel_scope_level = 0;
     int prev_tok_i = tokenizer.get_toki();
+	Tokenizer::IndentInfo prev_indent = tokenizer.get_indent();
+
     int next_block_tok_i = -1;
-    int end_if_tok_i = -1;
+	Tokenizer::IndentInfo next_block_indent;
+	int end_if_tok_i = -1;
     while (tokenizer.has_next())
 	{
         if (rel_scope_level == 0 && tokenizer.is_next({Tokenizer::PREPROCESSOR_ENDIF}))
@@ -727,6 +697,7 @@ void Preprocessor::cond_block(bool cond_met)
             if (next_block_tok_i == -1)
 			{
                 next_block_tok_i = tokenizer.get_toki();
+				next_block_indent = tokenizer.get_indent();
             }
 
             end_if_tok_i = tokenizer.get_toki();
@@ -741,6 +712,7 @@ void Preprocessor::cond_block(bool cond_met)
             if (next_block_tok_i == -1)
 			{
                 next_block_tok_i = tokenizer.get_toki();
+				next_block_indent = tokenizer.get_indent();
             }
 
             // start of next conditional block that should be checked if the current conditional block was
@@ -765,6 +737,7 @@ void Preprocessor::cond_block(bool cond_met)
     }
 
 	tokenizer.set_toki(prev_tok_i);
+	tokenizer.set_indent(prev_indent);
 
     if ((cond_met && end_if_tok_i == -1) || (!cond_met && next_block_tok_i == -1))
 	{
@@ -785,7 +758,8 @@ void Preprocessor::cond_block(bool cond_met)
 	{
         // move token index to the start of the next conditional block (or endif)
         tokenizer.set_toki(next_block_tok_i);
-    }
+		tokenizer.set_indent(next_block_indent);
+	}
 }
 
 /**

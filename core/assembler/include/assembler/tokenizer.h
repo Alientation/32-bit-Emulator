@@ -14,6 +14,13 @@
 class Tokenizer
 {
     public:
+		struct IndentInfo
+		{
+			int prev = 0;
+			int cur = 0;
+			int target = 0;
+		};
+
         enum Type
 		{
             UNKNOWN,
@@ -158,7 +165,16 @@ class Tokenizer
 		size_t get_toki();
 		void set_toki(size_t toki);
 
+		struct IndentInfo get_indent();
+		void set_indent(struct IndentInfo);
+		bool fix_indent();
+
 		Tokenizer::Token& get_token();
+		const std::vector<Token>& get_tokens();
+
+		void insert_tokens(const std::vector<Token>& tokens, size_t loc);
+		void remove_tokens(size_t start, size_t end);
+
 
 		void skip_next();
 
@@ -230,19 +246,13 @@ class Tokenizer
 		Tokenizer::Token& consume(const std::set<Tokenizer::Type>& expected_types,
 				const std::string& error_msg = "Tokenizer::consume() - Unexpected token.");
 
-		void insert_tokens(const std::vector<Token>& tokens, size_t loc);
-		void remove_tokens(size_t start, size_t end);
-		const std::vector<Token>& get_tokens();
-
         static std::vector<Token>& tokenize(File srcFile);
 		static std::vector<Token>& tokenize(std::string source_code);
 
 	private:
 		std::vector<Tokenizer::Token> m_tokens;
-		size_t m_toki;
-		int prev_indent_level = 0;
-		int cur_indent_level = 0;
-		int target_indent_level = 0;
+		size_t m_toki = 0;
+		struct IndentInfo m_indent;
 };
 
 #endif /* TOKENIZER_H */

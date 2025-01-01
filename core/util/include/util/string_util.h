@@ -8,6 +8,16 @@
 
 namespace string_util
 {
+	inline std::string repeat(std::string str, int times)
+	{
+		std::string res;
+		for (int i = 0; i < times; i++) {
+			res += str;
+		}
+		return res;
+	}
+
+
 	[[maybe_unused]] inline std::string replaceFirst(std::string str, const std::string& match,
 													 const std::string& replacement)
 	{
