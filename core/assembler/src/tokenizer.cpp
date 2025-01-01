@@ -421,6 +421,11 @@ std::string Tokenizer::Token::to_string()
 	return TYPE_TO_NAME_MAP.at(type) + ": " + value;
 }
 
+bool Tokenizer::Token::is(const std::set<Tokenizer::Type> &types)
+{
+	return types.find(type) != types.end();
+}
+
 const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP =
 {
 	{UNKNOWN, "UNKNOWN"},

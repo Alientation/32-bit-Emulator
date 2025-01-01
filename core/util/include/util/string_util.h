@@ -17,6 +17,15 @@ namespace string_util
 		return res;
 	}
 
+	inline std::string replace_all(std::string str, const std::string &pattern, const std::string &replacement)
+	{
+		size_t pos;
+		while ((pos = str.find(pattern)) != std::string::npos)
+		{
+			str.replace(pos, pattern.size(), replacement);
+		}
+		return str;
+	}
 
 	[[maybe_unused]] inline std::string replaceFirst(std::string str, const std::string& match,
 													 const std::string& replacement)

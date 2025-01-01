@@ -77,7 +77,7 @@ std::vector<File> Directory::get_subfiles()
 			continue;
 		}
 
-		subfiles.push_back(File(entry.path().string()));
+		subfiles.push_back(File(string_util::replace_all(entry.path().string(), "\\", File::SEPARATOR)));
 	}
 
 	return subfiles;
@@ -93,7 +93,7 @@ std::vector<File> Directory::get_all_subfiles()
 	std::vector<File> all_subfiles;
 	for (const auto & entry : std::filesystem::recursive_directory_iterator(m_dir_path)) {
 		if (entry.is_regular_file()) {
-			all_subfiles.push_back(File(entry.path().string()));
+			all_subfiles.push_back(File(string_util::replace_all(entry.path().string(), "\\", File::SEPARATOR)));
 		}
 	}
 	return all_subfiles;

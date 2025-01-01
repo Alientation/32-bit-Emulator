@@ -157,6 +157,7 @@ class Tokenizer
 
 			Token(Type type, std::string value);
 			std::string to_string();
+			bool is(const std::set<Type> &types);
 		};
 
 		Tokenizer(File src);

@@ -155,12 +155,25 @@ File Preprocessor::preprocess()
 			tokenizer.consume(); // '('
 			while (!tokenizer.is_next({Tokenizer::CLOSE_PARANTHESIS}))
 			{
+				tokenizer.skip_next(Tokenizer::WHITESPACES);
 				std::vector<Tokenizer::Token> parameter;
+
+				// find all tokens that make up the current parameter
 				while (!tokenizer.is_next({Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS}))
 				{
 					parameter.push_back(tokenizer.consume());
 				}
+
+				// remove whitespace from the end of the parameter
+				while (parameter.size() > 0 && parameter.back().is(Tokenizer::WHITESPACES))
+				{
+					parameter.pop_back();
+				}
+
+				// add to parameters list
 				parameters.push_back(parameter);
+
+				// if the next is a comma, expect another parameter
 				if (tokenizer.is_next({Tokenizer::COMMA}))
 				{
 					tokenizer.consume();
