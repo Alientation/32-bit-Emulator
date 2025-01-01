@@ -30,6 +30,7 @@ target_sources(assembler_tests PRIVATE
 
 	./preprocessor_test/include.cpp
 	./preprocessor_test/macro.cpp
+	./preprocessor_test/define.cpp
 )
 
 target_include_directories(

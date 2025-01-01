@@ -1,0 +1,8 @@
+#define ADD(_a, _b) _a + _b
+
+.global _start
+
+.text
+_start:
+	add x0, xzr, #ADD(4, 9)
+	hlt
