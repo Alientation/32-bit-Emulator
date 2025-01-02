@@ -17,7 +17,6 @@ class Tokenizer
         struct State
         {
             size_t toki = 0;
-            int chari = 0;
             int prev_indent = 0;
             int cur_indent = 0;
             int target_indent = 0;
@@ -156,8 +155,15 @@ class Tokenizer
         {
             Type type;
             std::string value;
+            int tokenize_id;
+            bool skip = false;
 
-            Token(Type type, std::string value);
+            Token(Type type, std::string value, int tokenize_id = -1) noexcept;
+            Token(const Token &tok) noexcept;
+            Token(Token &&tok) noexcept;
+            Token &operator=(const Token &tok) noexcept;
+            Token &operator=(Token &&tok) noexcept;
+
             std::string to_string();
             bool is(const std::set<Type> &types);
         };
@@ -169,6 +175,8 @@ class Tokenizer
         struct State get_state();
         void set_state(struct State);
         bool fix_indent();
+        int get_linei(size_t toki);
+        std::string get_line(int linei);
 
         Tokenizer::Token& get_token();
         const std::vector<Token>& get_tokens();
@@ -253,7 +261,11 @@ class Tokenizer
 
     private:
         std::vector<Tokenizer::Token> m_tokens;
+        int m_tokenize_id = -1;
         struct State m_state;
+
+        void move_past_skipped_tokens();
+        void handle_token();
 };
 
 #endif /* TOKENIZER_H */

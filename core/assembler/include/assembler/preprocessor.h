@@ -14,11 +14,10 @@
 /**
  * Plan
  *
- * Fix identation
- *     - when appending symbols, such as .scope and .scend for macro invocations,
- *       correctly indent to the previous indentation level. This means we will need to keep
- *       track of the current indentation level and the previous indentation level
- *
+ * Improve errors
+ *  - supply more information like the problematic line, a specific error and maybe a way to resolve the error?
+ *  - throw an exception for errors
+ *  - unit test these exceptions
  */
 class Preprocessor
 {
@@ -30,6 +29,7 @@ class Preprocessor
         class Exception : public std::exception
         {
             private:
+
 
             public:
                 Exception(const std::string& msg);
