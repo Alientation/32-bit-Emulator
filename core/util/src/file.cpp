@@ -5,40 +5,40 @@
 
 std::string trim_dir_path(const std::string& str)
 {
-	std::vector<std::string> segments;
-	size_t i = 0;
-	while(i < str.size()) {
-		size_t end = str.find("\\", i);
-		if (end == std::string::npos) {
-			end = str.size();
-		}
-		size_t other_separator_end = str.find("/", i);
-		if (other_separator_end == std::string::npos) {
-			other_separator_end = str.size();
-		}
-		end = end < other_separator_end ? end : other_separator_end;
+    std::vector<std::string> segments;
+    size_t i = 0;
+    while(i < str.size()) {
+        size_t end = str.find("\\", i);
+        if (end == std::string::npos) {
+            end = str.size();
+        }
+        size_t other_separator_end = str.find("/", i);
+        if (other_separator_end == std::string::npos) {
+            other_separator_end = str.size();
+        }
+        end = end < other_separator_end ? end : other_separator_end;
 
-		segments.push_back(str.substr(i, end - i));
-		i = end+1;
+        segments.push_back(str.substr(i, end - i));
+        i = end+1;
 
-		if (segments.back() == ".") {
-			segments.pop_back();
-		} else if (segments.back() == "..") {
-			if (segments.size() > 1) {
-				segments.pop_back();
-				segments.pop_back();
-			}
-		}
-	}
+        if (segments.back() == ".") {
+            segments.pop_back();
+        } else if (segments.back() == "..") {
+            if (segments.size() > 1) {
+                segments.pop_back();
+                segments.pop_back();
+            }
+        }
+    }
 
-	std::string res;
-	for (size_t i = 0; i < segments.size(); i++) {
-		res += segments[i];
-		if (i + 1 < segments.size()) {
-			res += File::SEPARATOR;
-		}
-	}
-	return res;
+    std::string res;
+    for (size_t i = 0; i < segments.size(); i++) {
+        res += segments[i];
+        if (i + 1 < segments.size()) {
+            res += File::SEPARATOR;
+        }
+    }
+    return res;
 }
 
 /**
@@ -48,27 +48,27 @@ std::string trim_dir_path(const std::string& str)
  * @param dir the directory of the file
  */
 File::File(const std::string& name, const std::string& extension,
-		   const std::string& dir, bool create_if_not_present) :
-	m_name(name),
-	m_extension(extension)
+           const std::string& dir, bool create_if_not_present) :
+    m_name(name),
+    m_extension(extension)
 {
-	if (dir.empty()) {
-		m_dir = std::filesystem::current_path().string();
-	} else {
-		m_dir = trim_dir_path(dir);
-	}
+    if (dir.empty()) {
+        m_dir = std::filesystem::current_path().string();
+    } else {
+        m_dir = trim_dir_path(dir);
+    }
 
-	if (!valid_name(name)) {
-		ERROR("File::File() - Invalid file name: %s", name.c_str());
-	} else if (!valid_extension(extension)) {
-		ERROR("File::File() - Invalid file extension: %s", extension.c_str());
-	} else if (!valid_dir(dir)) {
-		ERROR("File::File() - Invalid file directory: %s", dir.c_str());
-	}
+    if (!valid_name(name)) {
+        ERROR("File::File() - Invalid file name: %s", name.c_str());
+    } else if (!valid_extension(extension)) {
+        ERROR("File::File() - Invalid file extension: %s", extension.c_str());
+    } else if (!valid_dir(dir)) {
+        ERROR("File::File() - Invalid file directory: %s", dir.c_str());
+    }
 
-	if (create_if_not_present && !exists()) {
-		create();
-	}
+    if (create_if_not_present && !exists()) {
+        create();
+    }
 }
 
 /**
@@ -78,34 +78,34 @@ File::File(const std::string& name, const std::string& extension,
  */
 File::File(const std::string& path, bool create_if_not_present)
 {
-	std::size_t extension_separator_index = path.find_last_of(".");
-	if (extension_separator_index == std::string::npos) {
-		ERROR("File::File() - File path does not contain an extension: %s", path.c_str());
-	}
+    std::size_t extension_separator_index = path.find_last_of(".");
+    if (extension_separator_index == std::string::npos) {
+        ERROR("File::File() - File path does not contain an extension: %s", path.c_str());
+    }
 
-	bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
-	std::string name_and_extension = has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
-	m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
-	m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
-	m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
+    bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
+    std::string name_and_extension = has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
+    m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
+    m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
+    m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
 
-	if (!valid_name(m_name)) {
-		ERROR("File::File() - Invalid file name: %s", m_name.c_str());
-	} else if (!valid_extension(m_extension)) {
-		ERROR("File::File() - Invalid file extension: %s", m_extension.c_str());
-	} else if (!valid_dir(m_dir)) {
-		ERROR("File::File() - Invalid file directory: %s", m_dir.c_str());
-	}
+    if (!valid_name(m_name)) {
+        ERROR("File::File() - Invalid file name: %s", m_name.c_str());
+    } else if (!valid_extension(m_extension)) {
+        ERROR("File::File() - Invalid file extension: %s", m_extension.c_str());
+    } else if (!valid_dir(m_dir)) {
+        ERROR("File::File() - Invalid file directory: %s", m_dir.c_str());
+    }
 
-	if (create_if_not_present && !exists()) {
-		create();
-	}
+    if (create_if_not_present && !exists()) {
+        create();
+    }
 }
 
 File::File() :
-	m_name(""),
-	m_extension(""),
-	m_dir("")
+    m_name(""),
+    m_extension(""),
+    m_dir("")
 {
 
 }
@@ -117,7 +117,7 @@ File::File() :
  */
 std::string File::get_name() const
 {
-	return m_name;
+    return m_name;
 }
 
 /**
@@ -127,7 +127,7 @@ std::string File::get_name() const
  */
 std::string File::get_extension() const
 {
-	return m_extension;
+    return m_extension;
 }
 
 /**
@@ -137,15 +137,15 @@ std::string File::get_extension() const
  */
 std::string File::get_path() const
 {
-	if (m_dir.size() == 0) {
-		return m_name + "." + m_extension;
-	}
-	return m_dir + SEPARATOR + m_name + "." + m_extension;
+    if (m_dir.size() == 0) {
+        return m_name + "." + m_extension;
+    }
+    return m_dir + SEPARATOR + m_name + "." + m_extension;
 }
 
 std::string File::get_abs_path() const
 {
-	return std::filesystem::absolute(get_path()).string();
+    return std::filesystem::absolute(get_path()).string();
 }
 
 /**
@@ -155,7 +155,7 @@ std::string File::get_abs_path() const
  */
 std::string File::get_dir() const
 {
-	return m_dir;
+    return m_dir;
 }
 
 /**
@@ -165,15 +165,15 @@ std::string File::get_dir() const
  */
 int File::get_size() const
 {
-	int fileSize = 0;
+    int fileSize = 0;
 
-	std::ifstream file_stream = std::ifstream(this->get_path(), std::ifstream::in);
-	while (file_stream.peek() != EOF) {
-		file_stream.get();
-		fileSize++;
-	}
+    std::ifstream file_stream = std::ifstream(this->get_path(), std::ifstream::in);
+    while (file_stream.peek() != EOF) {
+        file_stream.get();
+        fileSize++;
+    }
 
-	return fileSize;
+    return fileSize;
 }
 
 /**
@@ -183,7 +183,7 @@ int File::get_size() const
  */
 bool File::exists() const
 {
-	return std::filesystem::exists(this->get_path());
+    return std::filesystem::exists(this->get_path());
 }
 
 /**
@@ -191,13 +191,13 @@ bool File::exists() const
  */
 void File::create()
 {
-	std::filesystem::path fs_path(get_path());
+    std::filesystem::path fs_path(get_path());
 
     // Create all necessary directories
     std::filesystem::create_directories(fs_path.parent_path());
 
-	std::ofstream file(get_path());
-	file.close();
+    std::ofstream file(get_path());
+    file.close();
 }
 
 
@@ -208,25 +208,25 @@ void File::create()
  * @param file the file to write to
  */
 FileWriter::FileWriter(const File& file) :
-	m_file(file)
+    m_file(file)
 {
-	m_file_stream = new std::ofstream(file.get_path(), std::ifstream::out);
-	m_closed = false;
+    m_file_stream = new std::ofstream(file.get_path(), std::ifstream::out);
+    m_closed = false;
 
-	if (!m_file_stream->good()) {
-		ERROR("FileWriter::FileWriter() - Failed to open file: %s", file.get_path().c_str());
-	}
+    if (!m_file_stream->good()) {
+        ERROR("FileWriter::FileWriter() - Failed to open file: %s", file.get_path().c_str());
+    }
 }
 
 FileWriter::FileWriter(const File& file, std::_Ios_Openmode flags) :
-	m_file(file)
+    m_file(file)
 {
-	m_file_stream = new std::ofstream(file.get_path(), flags);
-	m_closed = false;
+    m_file_stream = new std::ofstream(file.get_path(), flags);
+    m_closed = false;
 
-	if (!m_file_stream->good()) {
-		ERROR("FileWriter::FileWriter() - Failed to open file: %s", file.get_path().c_str());
-	}
+    if (!m_file_stream->good()) {
+        ERROR("FileWriter::FileWriter() - Failed to open file: %s", file.get_path().c_str());
+    }
 }
 
 /**
@@ -234,25 +234,25 @@ FileWriter::FileWriter(const File& file, std::_Ios_Openmode flags) :
  */
 FileWriter::~FileWriter()
 {
-	this->close();
+    this->close();
 }
 
 FileWriter& FileWriter::operator<<(std::string str)
 {
-	this->write(str);
-	return *this;
+    this->write(str);
+    return *this;
 }
 
 FileWriter& FileWriter::operator<<(char byte)
 {
-	this->write(byte);
-	return *this;
+    this->write(byte);
+    return *this;
 }
 
 FileWriter& FileWriter::operator<<(const char* str)
 {
-	this->write(str);
-	return *this;
+    this->write(str);
+    return *this;
 }
 
 /**
@@ -262,11 +262,11 @@ FileWriter& FileWriter::operator<<(const char* str)
  */
 void FileWriter::write(const std::string text)
 {
-	if (m_closed) {
-		exit(EXIT_FAILURE);
-	}
+    if (m_closed) {
+        exit(EXIT_FAILURE);
+    }
 
-	(*m_file_stream) << text;
+    (*m_file_stream) << text;
     for (size_t i = 0; i < text.size(); i++) {
         m_bytes_written.push_back(text[i]);
     }
@@ -279,37 +279,37 @@ ByteWriter::Data::Data(unsigned long long value, int num_bytes) : value(value), 
 
 ByteWriter::Data::Data(unsigned long long value, int num_bytes, bool little_endian)
 {
-	if (little_endian) {
-		this->value = value;
-	} else {
-		for (int i = 0; i < num_bytes; i++) {
-			this->value <<= 8;
-			this->value += value & 0xFF;
-			value >>= 8;
-		}
-	}
-	this->num_bytes = num_bytes;
+    if (little_endian) {
+        this->value = value;
+    } else {
+        for (int i = 0; i < num_bytes; i++) {
+            this->value <<= 8;
+            this->value += value & 0xFF;
+            value >>= 8;
+        }
+    }
+    this->num_bytes = num_bytes;
 }
 
 ByteWriter::ByteWriter(FileWriter& filewriter) :
-	m_filewriter(filewriter)
+    m_filewriter(filewriter)
 {
 
 }
 
 /**
- * @brief 					Writes sequence of bytes in little endian order
+ * @brief                     Writes sequence of bytes in little endian order
  *
- * @param 					data: contains bytes to write and length
- * @return 					reference to byte writer
+ * @param                     data: contains bytes to write and length
+ * @return                     reference to byte writer
  */
 ByteWriter& ByteWriter::operator<<(Data data)
 {
-	for (int i = 0; i < data.num_bytes; i++) {
-		m_filewriter.write(data.value & 0xFF);
-		data.value >>= 8;
-	}
-	return (*this);
+    for (int i = 0; i < data.num_bytes; i++) {
+        m_filewriter.write(data.value & 0xFF);
+        data.value >>= 8;
+    }
+    return (*this);
 }
 
 /**
@@ -319,11 +319,11 @@ ByteWriter& ByteWriter::operator<<(Data data)
  */
 void FileWriter::write(const char byte)
 {
-	if (m_closed) {
-		exit(EXIT_FAILURE);
-	}
+    if (m_closed) {
+        exit(EXIT_FAILURE);
+    }
 
-	(*m_file_stream) << byte;
+    (*m_file_stream) << byte;
 
     m_bytes_written.push_back(byte);
 }
@@ -335,11 +335,11 @@ void FileWriter::write(const char byte)
  */
 void FileWriter::write(const char* bytes)
 {
-	if (m_closed) {
-		exit(EXIT_FAILURE);
-	}
+    if (m_closed) {
+        exit(EXIT_FAILURE);
+    }
 
-	(*m_file_stream) << bytes;
+    (*m_file_stream) << bytes;
 
     int size = sizeof(bytes);
     for (int i = 0; i < size; i++) {
@@ -369,12 +369,12 @@ char* FileWriter::last_bytes_written(unsigned int num_bytes)
 
 void FileWriter::flush()
 {
-	if (m_closed) {
-		// error
-		exit(EXIT_FAILURE);
-	}
+    if (m_closed) {
+        // error
+        exit(EXIT_FAILURE);
+    }
 
-	m_file_stream->flush();
+    m_file_stream->flush();
 }
 
 
@@ -383,68 +383,68 @@ void FileWriter::flush()
  */
 void FileWriter::close()
 {
-	if (!m_closed) {
-		m_closed = true;
-		delete m_file_stream;
-	}
+    if (!m_closed) {
+        m_closed = true;
+        delete m_file_stream;
+    }
 }
 
 ByteReader::Data::Data(int num_bytes) : num_bytes(num_bytes) { };
 ByteReader::Data::Data(int num_bytes, bool little_endian) : num_bytes(num_bytes), little_endian(little_endian) { };
 
 ByteReader& ByteReader::operator>>(ByteReader::Data &data) {
-	if (data.little_endian) {
-		for (int i = data.num_bytes-1; i >= 0; i--) {
-			data.val <<= 8;
-			data.val += m_bytes.at(m_cur_byte + i);
-		}
-		m_cur_byte += data.num_bytes;
-	} else {
-		for (int i = data.num_bytes-1; i >= 0; i--) {
-			data.val += ((unsigned long long) m_bytes.at(m_cur_byte)) << (8 * i);
-			m_cur_byte++;
-		}
-	}
+    if (data.little_endian) {
+        for (int i = data.num_bytes-1; i >= 0; i--) {
+            data.val <<= 8;
+            data.val += m_bytes.at(m_cur_byte + i);
+        }
+        m_cur_byte += data.num_bytes;
+    } else {
+        for (int i = data.num_bytes-1; i >= 0; i--) {
+            data.val += ((unsigned long long) m_bytes.at(m_cur_byte)) << (8 * i);
+            m_cur_byte++;
+        }
+    }
 
-	return (*this);
+    return (*this);
 }
 
 bool ByteReader::has_next()
 {
-	return m_cur_byte < m_bytes.size();
+    return m_cur_byte < m_bytes.size();
 }
 
 unsigned char ByteReader::read_byte(bool little_endian)
 {
-	ByteReader::Data data(1, little_endian);
-	(*this) >> data;
-	return data.val;
+    ByteReader::Data data(1, little_endian);
+    (*this) >> data;
+    return data.val;
 }
 
 unsigned short ByteReader::read_hword(bool little_endian)
 {
-	ByteReader::Data data(2, little_endian);
-	(*this) >> data;
-	return data.val;
+    ByteReader::Data data(2, little_endian);
+    (*this) >> data;
+    return data.val;
 }
 
 unsigned int ByteReader::read_word(bool little_endian)
 {
-	ByteReader::Data data(4, little_endian);
-	(*this) >> data;
-	return data.val;
+    ByteReader::Data data(4, little_endian);
+    (*this) >> data;
+    return data.val;
 }
 
 unsigned long long ByteReader::read_dword(bool little_endian)
 {
-	ByteReader::Data data(8, little_endian);
-	(*this) >> data;
-	return data.val;
+    ByteReader::Data data(8, little_endian);
+    (*this) >> data;
+    return data.val;
 }
 
 void ByteReader::skip_bytes(int num_bytes)
 {
-	m_cur_byte += num_bytes;
+    m_cur_byte += num_bytes;
 }
 
 
@@ -455,23 +455,23 @@ void ByteReader::skip_bytes(int num_bytes)
  */
 FileReader::FileReader(const File& file) : m_file(file)
 {
-	m_file_stream = new std::ifstream(m_file.get_path(), std::ifstream::in);
-	m_closed = false;
+    m_file_stream = new std::ifstream(m_file.get_path(), std::ifstream::in);
+    m_closed = false;
 
-	if (!m_file_stream->good()) {
-		ERROR("FileReader::FileReader() - Failed to open file: %s", m_file.get_path().c_str());
-	}
+    if (!m_file_stream->good()) {
+        ERROR("FileReader::FileReader() - Failed to open file: %s", m_file.get_path().c_str());
+    }
 }
 
 
 FileReader::FileReader(const File& file, std::_Ios_Openmode flags) : m_file(file)
 {
-	m_file_stream = new std::ifstream(m_file.get_path(), flags);
-	m_closed = false;
+    m_file_stream = new std::ifstream(m_file.get_path(), flags);
+    m_closed = false;
 
-	if (!m_file_stream->good()) {
-		ERROR("FileReader::FileReader() - Failed to open file: %s", m_file.get_path().c_str());
-	}
+    if (!m_file_stream->good()) {
+        ERROR("FileReader::FileReader() - Failed to open file: %s", m_file.get_path().c_str());
+    }
 }
 
 
@@ -480,7 +480,7 @@ FileReader::FileReader(const File& file, std::_Ios_Openmode flags) : m_file(file
  */
 FileReader::~FileReader()
 {
-	this->close();
+    this->close();
 }
 
 /**
@@ -490,12 +490,12 @@ FileReader::~FileReader()
  */
 std::string FileReader::read_all()
 {
-	std::string fileContents;
-	while (m_file_stream->peek() != EOF) {
-		fileContents += m_file_stream->get();
-	}
-	close();
-	return fileContents;
+    std::string fileContents;
+    while (m_file_stream->peek() != EOF) {
+        fileContents += m_file_stream->get();
+    }
+    close();
+    return fileContents;
 }
 
 /**
@@ -505,7 +505,7 @@ std::string FileReader::read_all()
  */
 char FileReader::read_byte()
 {
-	return m_file_stream->get();;
+    return m_file_stream->get();;
 }
 
 /**
@@ -515,7 +515,7 @@ char FileReader::read_byte()
  */
 char FileReader::peek_byte()
 {
-	return m_file_stream->peek();
+    return m_file_stream->peek();
 }
 
 /**
@@ -526,15 +526,15 @@ char FileReader::peek_byte()
  */
 char* FileReader::read_bytes(const unsigned int num_bytes)
 {
-	char* bytes = new char[num_bytes];
-	m_file_stream->read(bytes, num_bytes);
+    char* bytes = new char[num_bytes];
+    m_file_stream->read(bytes, num_bytes);
 
-	if (m_file_stream->fail()) {
-		ERROR("FileReader::readBytes() - Failed to read %u bytes from file: %s", num_bytes,
-				m_file.get_path().c_str());
-	}
+    if (m_file_stream->fail()) {
+        ERROR("FileReader::readBytes() - Failed to read %u bytes from file: %s", num_bytes,
+                m_file.get_path().c_str());
+    }
 
-	return bytes;
+    return bytes;
 }
 
 /**
@@ -546,12 +546,12 @@ char* FileReader::read_bytes(const unsigned int num_bytes)
  */
 char* FileReader::read_token(const char token_delimiter) // TODO: make this take in a regex separator
 {
-	std::string token = "";
-	while (m_file_stream->peek() != token_delimiter && m_file_stream->peek() != EOF) {
-		token += m_file_stream->get();
-	}
+    std::string token = "";
+    while (m_file_stream->peek() != token_delimiter && m_file_stream->peek() != EOF) {
+        token += m_file_stream->get();
+    }
 
-	return (char*)token.c_str();
+    return (char*)token.c_str();
 }
 
 /**
@@ -561,7 +561,7 @@ char* FileReader::read_token(const char token_delimiter) // TODO: make this take
  */
 bool FileReader::has_next_byte()
 {
-	return m_file_stream->peek() != EOF;
+    return m_file_stream->peek() != EOF;
 }
 
 /**
@@ -569,8 +569,8 @@ bool FileReader::has_next_byte()
  */
 void FileReader::close()
 {
-	if (!m_closed) {
-		delete m_file_stream;
-		m_closed = true;
-	}
+    if (!m_closed) {
+        delete m_file_stream;
+        m_closed = true;
+    }
 }

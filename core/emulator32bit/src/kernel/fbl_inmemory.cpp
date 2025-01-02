@@ -15,14 +15,14 @@ FBL_InMemory::FBL_InMemory(byte *mem, word mem_start, word mem_size, word block_
 }
 
 FBL_InMemory::Exception::Exception(const std::string& msg) :
-	message(msg)
+    message(msg)
 {
 
 }
 
 const char* FBL_InMemory::Exception::what() const noexcept
 {
-	return message.c_str();
+    return message.c_str();
 }
 
 word FBL_InMemory::get_free_block()

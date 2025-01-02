@@ -26,22 +26,22 @@ std::string to_hex_str(u8 hex)
 
 std::string to_color_hex_str(u64 hex, int digits)
 {
-	return color_val_str(to_hex_str(hex, digits));
+    return color_val_str(to_hex_str(hex, digits));
 }
 
 std::string to_color_hex_str(u32 hex)
 {
-	return to_color_hex_str(hex, 8);
+    return to_color_hex_str(hex, 8);
 }
 
 std::string to_color_hex_str(u16 hex)
 {
-	return to_color_hex_str(hex, 4);
+    return to_color_hex_str(hex, 4);
 }
 
 std::string to_color_hex_str(u8 hex)
 {
-	return to_color_hex_str(hex, 2);
+    return to_color_hex_str(hex, 2);
 }
 
 std::string color_val_str(std::string string)
@@ -52,13 +52,13 @@ std::string color_val_str(std::string string)
         iterator++;
     }
 
-	// gray out any leading zeros except for the last zero
+    // gray out any leading zeros except for the last zero
     while ((*iterator) == '0' && iterator != string.end() - 1) {
         result += *iterator;
         iterator++;
     }
 
-	// bold the remaining digits
+    // bold the remaining digits
     result += ccolor::BOLD_WHITE;
     while (iterator != string.end()) {
         result += *iterator;

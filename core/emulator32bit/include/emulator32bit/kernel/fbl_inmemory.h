@@ -13,7 +13,7 @@
  * to coalesce, and thus we do not need to store nodes in order. This means
  * removing and returning blocks should be O(1) instead of returning blocks
  * being O(n)
- *  
+ *
  */
 class FBL_InMemory
 {
@@ -23,12 +23,12 @@ class FBL_InMemory
         class Exception : public std::exception
         {
             protected:
-				std::string message;
+                std::string message;
 
-			public:
-				Exception(const std::string& msg);
+            public:
+                Exception(const std::string& msg);
 
-				const char* what() const noexcept override;
+                const char* what() const noexcept override;
         };
 
         word get_free_block();

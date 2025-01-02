@@ -60,18 +60,18 @@ TEST(fbl, out_of_order)
     word b3 = fbl.get_free_block (1);
     word b4 = fbl.get_free_block (1);
 
-	/* Cannot assume order, that is implementation dependent */
-	std::vector <word> sort;
-	sort.push_back (b1);
-	sort.push_back (b2);
-	sort.push_back (b3);
-	sort.push_back (b4);
+    /* Cannot assume order, that is implementation dependent */
+    std::vector <word> sort;
+    sort.push_back (b1);
+    sort.push_back (b2);
+    sort.push_back (b3);
+    sort.push_back (b4);
 
-	std::sort (sort.begin (), sort.end ());
-	b1 = sort.at (0);
-	b2 = sort.at (1);
-	b3 = sort.at (2);
-	b4 = sort.at (3);
+    std::sort (sort.begin (), sort.end ());
+    b1 = sort.at (0);
+    b2 = sort.at (1);
+    b3 = sort.at (2);
+    b4 = sort.at (3);
 
     ASSERT_TRUE (fbl.empty ());
 

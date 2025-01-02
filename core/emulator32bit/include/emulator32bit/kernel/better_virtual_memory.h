@@ -162,7 +162,7 @@ class MMU
 
         inline word evict_ppage()
         {
-			return 0;
+            return 0;
         }
 };
 

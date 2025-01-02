@@ -16,34 +16,34 @@ using namespace testing;
 
 namespace testing
 {
-	class MemoryLeakDetector : public EmptyTestEventListener
-	{
-	#ifdef _DEBUG
-	public:
-		virtual void OnTestStart(const TestInfo&) {
-			_CrtMemCheckpoint(&memState_);
-		}
+    class MemoryLeakDetector : public EmptyTestEventListener
+    {
+    #ifdef _DEBUG
+    public:
+        virtual void OnTestStart(const TestInfo&) {
+            _CrtMemCheckpoint(&memState_);
+        }
 
-		virtual void OnTestEnd(const TestInfo& test_info) {
-			if(test_info.result()->Passed()) {
-				_CrtMemState stateNow, stateDiff;
-				_CrtMemCheckpoint(&stateNow);
-				int diffResult = _CrtMemDifference(&stateDiff, &memState_, &stateNow);
-				if (diffResult) {
-					FAIL() << "Memory leak of " << stateDiff.lSizes[1] << " byte(s) detected.";
-				}
-			}
-		}
+        virtual void OnTestEnd(const TestInfo& test_info) {
+            if(test_info.result()->Passed()) {
+                _CrtMemState stateNow, stateDiff;
+                _CrtMemCheckpoint(&stateNow);
+                int diffResult = _CrtMemDifference(&stateDiff, &memState_, &stateNow);
+                if (diffResult) {
+                    FAIL() << "Memory leak of " << stateDiff.lSizes[1] << " byte(s) detected.";
+                }
+            }
+        }
 
-	private:
-		_CrtMemState memState_;
-	#endif // _DEBUG
-	};
+    private:
+        _CrtMemState memState_;
+    #endif // _DEBUG
+    };
 }
 
 GTEST_API_ int main(int argc, char **argv) {
-	InitGoogleTest(&argc, argv);
-	UnitTest::GetInstance()->listeners().Append(new MemoryLeakDetector());
+    InitGoogleTest(&argc, argv);
+    UnitTest::GetInstance()->listeners().Append(new MemoryLeakDetector());
 
-	return RUN_ALL_TESTS();
+    return RUN_ALL_TESTS();
 }
