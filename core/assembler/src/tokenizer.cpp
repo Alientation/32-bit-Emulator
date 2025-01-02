@@ -10,8 +10,12 @@ Tokenizer::Tokenizer(File src, bool keep_comments) :
     if (m_tokens.size() > 0)
     {
         m_tokenize_id = m_tokens[0].tokenize_id;
-        EXPECT_TRUE(m_tokenize_id != -1, "Tokenizer::Tokenizer() - Tokenize id is invalid. Something went wrong.");
     }
+    else
+    {
+        WARN("Tokenizing an empty file \'%s\'", src.get_abs_path().c_str());
+    }
+    verify();
 }
 
 Tokenizer::Tokenizer(std::string src, bool keep_comments) :
@@ -20,7 +24,20 @@ Tokenizer::Tokenizer(std::string src, bool keep_comments) :
     if (m_tokens.size() > 0)
     {
         m_tokenize_id = m_tokens[0].tokenize_id;
-        EXPECT_TRUE(m_tokenize_id != -1, "Tokenizer::Tokenizer() - Tokenize id is invalid. Something went wrong.");
+    }
+    else
+    {
+        WARN("Tokenizing an empty string.");
+    }
+    verify();
+}
+
+void Tokenizer::verify()
+{
+    for (Token &tok : m_tokens)
+    {
+        EXPECT_TRUE(tok.tokenize_id == m_tokenize_id,
+                "Tokenizer::verify() - Something went wrong. Expected tokenize id to match at initialization.");
     }
 }
 
@@ -63,7 +80,7 @@ void Tokenizer::insert_tokens(const std::vector<Token> &tokens, size_t loc)
 
 void Tokenizer::remove_tokens(size_t start, size_t end)
 {
-    EXPECT_TRUE(start <= end, "Tokenizer::remove_tokens() - Invalid range of tokens to remove.");
+    EXPECT_TRUE(start <= end, "Tokenizer::remove_tokens() - Invalid range of tokens to remove. (start > end)");
     EXPECT_TRUE(start < m_tokens.size(), "Tokenizer::remove_tokens() - Start of range is out of bounds.");
     EXPECT_TRUE(end <= m_tokens.size(), "Tokenizer::remove_tokens() - End of range is out of bounds.");
 
@@ -83,9 +100,7 @@ int Tokenizer::get_linei(size_t toki)
 {
     EXPECT_TRUE(toki < m_tokens.size(), "Tokenizer::get_linei() - Token index out of bounds.");
 
-    int linei = 0;
-
-    for (size_t i = 0; i <= toki; i++)
+    for (size_t i = toki; i <= toki; i--)
     {
         Token &tok = m_tokens[i];
         if (tok.tokenize_id != m_tokenize_id)
@@ -93,16 +108,10 @@ int Tokenizer::get_linei(size_t toki)
             continue;
         }
 
-        for (char &c : tok.value)
-        {
-            if (c == '\n')
-            {
-                linei++;
-            }
-        }
+        return tok.line;
     }
 
-    return linei;
+    return -1;
 }
 
 std::string Tokenizer::get_line(int linei)
@@ -308,6 +317,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, bool 
 {
     static int TOKENIZE_IDS = 0;
     int tokenize_id = TOKENIZE_IDS++;
+    int cur_line = 0;
 
     std::vector<Token> tokens;
     auto is_alphanumeric = [](char c, int index)
@@ -458,7 +468,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, bool 
         std::string sub = source_code.substr(0, substring_length);
         if (simple_map.find(sub) != simple_map.end())
         {
-            tokens.emplace_back(simple_map.at(sub), sub, tokenize_id);
+            tokens.emplace_back(simple_map.at(sub), sub, cur_line, tokenize_id);
             source_code = source_code.substr(substring_length);
             continue;
         }
@@ -478,17 +488,25 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, bool 
 
                 if (!keep_comments || (type != Tokenizer::COMMENT_SINGLE_LINE && type != Tokenizer::COMMENT_MULTI_LINE))
                 {
-                    tokens.emplace_back(type, token_value, tokenize_id);
+                    tokens.emplace_back(type, token_value, cur_line, tokenize_id);
                 }
                 source_code = match.suffix();
                 matched = true;
+
+                for (char c : token_value)
+                {
+                    if (c == '\n')
+                    {
+                        cur_line++;
+                    }
+                }
 
                 break;
             }
         }
 
         // check if regex matched
-        EXPECT_TRUE_SS(matched, std::stringstream() << "Tokenizer::tokenize() - Could not match regex to source code: " << source_code);
+        EXPECT_TRUE(matched, "Tokenizer::tokenize() - Could not match regex to source code: %s", source_code.c_str());
     }
 
     for (Tokenizer::Token &token : tokens)
@@ -499,9 +517,10 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, bool 
     return tokens;
 }
 
-Tokenizer::Token::Token(Tokenizer::Type type, std::string value, int tokenize_id) noexcept :
+Tokenizer::Token::Token(Tokenizer::Type type, std::string value, int line, int tokenize_id) noexcept :
     type(type),
     value(value),
+    line(line),
     tokenize_id(tokenize_id)
 {
 
@@ -510,6 +529,7 @@ Tokenizer::Token::Token(Tokenizer::Type type, std::string value, int tokenize_id
 Tokenizer::Token::Token(const Token &tok) noexcept :
     type(tok.type),
     value(tok.value),
+    line(-1),
     tokenize_id(-1),
     skip(tok.skip)
 {
@@ -519,7 +539,8 @@ Tokenizer::Token::Token(const Token &tok) noexcept :
 Tokenizer::Token::Token(Token &&tok) noexcept :
     type(std::move(tok.type)),
     value(std::move(tok.value)),
-    tokenize_id(std::exchange(tok.tokenize_id, 0)),
+    line(std::exchange(tok.line, -1)),
+    tokenize_id(std::exchange(tok.tokenize_id, -1)),
     skip(std::exchange(tok.skip, false))
 {
 
@@ -529,6 +550,7 @@ Tokenizer::Token &Tokenizer::Token::operator=(const Token &tok) noexcept
 {
     type = tok.type;
     value = tok.value;
+    line = -1;
     tokenize_id = -1;
     skip = tok.skip;
     return *this;
@@ -538,7 +560,8 @@ Tokenizer::Token &Tokenizer::Token::operator=(Token &&tok) noexcept
 {
     type = std::move(tok.type);
     value = std::move(tok.value);
-    tokenize_id = std::exchange(tok.tokenize_id, 0);
+    line = std::exchange(tok.line, -1);
+    tokenize_id = std::exchange(tok.tokenize_id, -1);
     skip = std::exchange(tok.skip, false);
     return *this;
 }
@@ -565,6 +588,19 @@ std::string Tokenizer::Token::to_string()
 bool Tokenizer::Token::is(const std::set<Tokenizer::Type> &types)
 {
     return types.find(type) != types.end();
+}
+
+int Tokenizer::Token::nlines()
+{
+    int nlines = 1;
+    for (char c : value)
+    {
+        if (c == '\n')
+        {
+            nlines++;
+        }
+    }
+    return nlines;
 }
 
 const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP =

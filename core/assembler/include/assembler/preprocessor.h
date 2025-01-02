@@ -26,14 +26,15 @@ class Preprocessor
             UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
         };
 
-        class Exception : public std::exception
+        class BadTokenException : public std::exception
         {
             private:
-
+                std::string msg;
+                const Tokenizer::Token &tok;
 
             public:
-                Exception(const std::string& msg);
-                const char* what() const noexcept override;
+                BadTokenException(const std::string &msg, const Tokenizer::Token &tok);
+                const char *what() const noexcept override;
         };
 
         /**
@@ -43,7 +44,7 @@ class Preprocessor
          * @param file the file to preprocess.
          * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
          */
-        Preprocessor(Process *process, const File& input_file, const std::string& output_file_path = "");
+        Preprocessor(Process *process, const File &input_file, const std::string &output_file_path = "");
         ~Preprocessor();
 
         File preprocess();
@@ -92,30 +93,164 @@ class Preprocessor
         State m_state;
 
         // the current processing macro stack with the output symbol and macro
-        std::stack<std::pair<std::string, Macro*>> m_macro_stack;
+        std::stack<std::pair<std::string, Macro>> m_macro_stack;
 
         std::map<std::string, std::map<int, Symbol>> m_def_symbols;
-        std::map<std::string, Macro*> m_macros;
+        std::map<std::string, Macro> m_macros;
 
-        std::vector<Macro*> macros_with_header(std::string macro_name,
-                                               std::vector<std::vector<Tokenizer::Token>> args);
 
-        /* TODO:, make angled brackets <...> capture everything inside as a token to
-         not have to surround inside with a string */
+        /**
+         * Returns the macros that match the given macro name and arguments list.
+         *
+         * @param macro_name the name of the macro.
+         * @param arguments the arguments passed to the macro.
+         *
+         * TODO:
+         * possibly in the future should consider filtering for macros that have the same order of argument types.
+         * This would require us knowing the types of symbols and expressions in the preprocessor state
+         * which is not ideal
+         *
+         * @return the macros with the given name and number of arguments.
+         */
+        std::vector<Macro> macros_with_header(const std::string &macro_name,
+                                              const std::vector<std::vector<Tokenizer::Token>> &args);
+
+
+        /**
+         * Inserts the file contents into the current file.
+         *
+         * USAGE: #include "filepath"|<"filepath">
+         *
+         * TODO:
+         * make angled brackets <...> capture everything inside as a token to
+         * not have to surround inside with a string
+         *
+         * "filepath": looks for files located in the current directory.
+         * <filepath>: prioritizes files located in the include directory, if not found, looks in the
+         * current directory.
+         */
         void _include();
-        void _macro();
-        void _macret();
-        void _macend();
-        void _invoke();
-        void _define();
-        void _cond_on_def();
-        void _cond_on_value();
-        void _else();
-        void _endif();
-        void _undefine();
 
+        /**
+         * Defines a macro symbol with n arguments and optionally a return type.
+         *
+         * USAGE: #macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
+         *
+         * If a return type is specified and the macro definition does not return a value an error is thrown.
+         * There cannot be a macro definition within this macro definition.
+         * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
+         */
+        void _macro();
+
+        /**
+         * Stops processing the macro and returns the value of the expression.
+         *
+         * USAGE: #macret [?expression]
+         *
+         * If the macro does not have a return type the macret must return nothing.
+         * If the macro has a return type the macret must return a value of that type
+         */
+        void _macret();
+
+        /**
+         * Closes a macro definition.
+         *
+         * USAGE: #macend
+         *
+         * If a macro is not closed an error is thrown.
+         */
+        void _macend();
+
+        /**
+         * Invokes the macro with the given arguments.
+         *
+         * USAGE: #invoke [symbol]([arg1, arg2,..., argn]) [?symbol]
+         *
+         * If provided an output symbol, the symbol will be associated with the return value of the macro.
+         * If the macro does not return a value but an output symbol is provided, an error is thrown.
+         */
+        void _invoke();
+
+        /**
+         * Associates the symbol with a value
+         *
+         * USAGE: #define [symbol] [?value]
+         *
+         * Replaces all instances of symbol with the value.
+         * If value is not specified, the default is empty.
+         */
+        void _define();
+
+        /**
+         * Handles a condition block
+         * Depending on whether the condition was met, keep/discard blocks
+         *
+         * @param cond_met
+         */
         void cond_block(bool cond_met);
-        bool is_symbol_def(std::string symbol_name, int num_params);
+
+        /**
+         * Returns whether the symbol is a defined symbol with the same number of parameters
+         *
+         * @param symbol_name
+         * @param num_params
+         */
+        bool is_symbol_def(const std::string &symbol_name, int num_params);
+
+        /**
+         * Begins a conditional block.
+         * Determines whether to include the following text block depending on whether the symbol is defined.
+         *
+         * USAGE: #ifdef [symbol], #ifndef [symbol] (top conditional blocks)
+         * USAGE: #elsedef [symbol], #elsendef [symbol] (lower conditional blocks)
+         *
+         * The top conditional block must be closed by a lower conditional block or an #endif.
+         * The lower conditional block must be closed by an #endif.
+         */
+        void _cond_on_def();
+
+        /**
+         * Begins a conditional block.
+         * Determines whether to include the following text block based on the symbol's value
+         * lexicographically ordering to a value.
+         *
+         * USAGE: #ifequ [symbol] [value], #ifnequ [symbol] [value], #ifless [symbol] [value], #ifmore [symbol] [value]
+         * USAGE: #elseequ [symbol] [value], #elsenequ [symbol] [value], #elseless [symbol] [value], #elsemore [symbol] [value]
+         *
+         * The top conditional block must be closed by a lower conditional block or an #endif.
+         * The lower conditional block must be closed by an #endif.
+         */
+        void _cond_on_value();
+
+        /**
+         * Closure of a top or lower conditional block, only includes the following text if all previous
+         * conditional blocks were not included.
+         *
+         * USAGE: #else
+         *
+         * Must be preceded by a top or inner conditional block.
+         * Must not be proceeded by an inner conditional block or closure.
+         */
+        void _else();
+
+        /**
+         * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
+         *
+         * USAGE: #endif
+         *
+         * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
+         */
+        void _endif();
+
+
+        /**
+         * Undefines a symbol defined by #define.
+         *
+         * USAGE: #undefine [symbol]
+         *
+         * This will still work if the symbol was never defined previously.
+         */
+        void _undefine();
 
         typedef void (Preprocessor::*PreprocessorFunction)();
         std::map<Tokenizer::Type,PreprocessorFunction> preprocessors = {
@@ -148,6 +283,5 @@ class Preprocessor
             {Tokenizer::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}
         };
 };
-
 
 #endif /* PREPROCESSOR_H */

@@ -155,10 +155,11 @@ class Tokenizer
         {
             Type type;
             std::string value;
+            int line;
             int tokenize_id;
             bool skip = false;
 
-            Token(Type type, std::string value, int tokenize_id = -1) noexcept;
+            Token(Type type, std::string value, int line = -1, int tokenize_id = -1) noexcept;
             Token(const Token &tok) noexcept;
             Token(Token &&tok) noexcept;
             Token &operator=(const Token &tok) noexcept;
@@ -166,6 +167,7 @@ class Tokenizer
 
             std::string to_string();
             bool is(const std::set<Type> &types);
+            int nlines();
         };
 
         Tokenizer(File src, bool keep_comments = true);
@@ -264,6 +266,7 @@ class Tokenizer
         int m_tokenize_id = -1;
         struct State m_state;
 
+        void verify();
         void move_past_skipped_tokens();
         void handle_token();
 };

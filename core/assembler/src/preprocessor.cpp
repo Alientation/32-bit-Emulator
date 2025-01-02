@@ -93,20 +93,23 @@ Preprocessor::Preprocessor(Process* process, const File& input_file, const std::
     m_state = State::UNPROCESSED;
 }
 
-/**
- * Destructs a preprocessor object.
- */
 Preprocessor::~Preprocessor()
 {
-    for (std::pair<std::string, Macro*> macro_pair : m_macros)
-    {
-        delete macro_pair.second;
-    }
+
 }
 
-/**
- * Preprocesses the file.
- */
+Preprocessor::BadTokenException::BadTokenException(const std::string &msg, const Tokenizer::Token &tok) :
+    msg(msg),
+    tok(tok)
+{
+
+}
+
+const char *Preprocessor::BadTokenException::what() const noexcept
+{
+    return "";
+}
+
 File Preprocessor::preprocess()
 {
     DEBUG("Preprocessor::preprocess() - Preprocessing file: %s", m_input_file.get_name().c_str());
@@ -225,35 +228,23 @@ File Preprocessor::preprocess()
     DEBUG("Preprocessor::preprocess() - Preprocessed file: %s", m_input_file.get_name().c_str());
 
     // log macros
-    for (std::pair<std::string, Macro*> macro_pair : m_macros)
+    for (std::pair<std::string, Macro> macro_pair : m_macros)
     {
-        DEBUG("Preprocessor::preprocess() - Macro: %s", macro_pair.second->to_string().c_str());
+        DEBUG("Preprocessor::preprocess() - Macro: %s", macro_pair.second.to_string().c_str());
     }
 
     return m_output_file;
 }
 
 
-/**
- * Returns the macros that match the given macro name and arguments list.
- *
- * @param macro_name the name of the macro.
- * @param arguments the arguments passed to the macro.
- *
- * TODO: possibly in the future should consider filtering for macros that have the same order of argument types.
- *         This would require us knowing the types of symbols and expressions in the preprocessor state
- *         which is not ideal
- *
- * @return the macros with the given name and number of arguments.
- */
-std::vector<Preprocessor::Macro*>
-Preprocessor::macros_with_header(std::string macro_name,
-                                 std::vector<std::vector<Tokenizer::Token>> args)
+std::vector<Preprocessor::Macro>
+Preprocessor::macros_with_header(const std::string &macro_name,
+                                 const std::vector<std::vector<Tokenizer::Token>> &args)
 {
-    std::vector<Macro*> possible_macros;
-    for (std::pair<std::string, Macro*> macro_pair : m_macros)
+    std::vector<Macro> possible_macros;
+    for (const std::pair<std::string, Macro> macro_pair : m_macros)
     {
-        if (macro_pair.second->name == macro_name && macro_pair.second->args.size() == args.size())
+        if (macro_pair.second.name == macro_name && macro_pair.second.args.size() == args.size())
         {
             possible_macros.push_back(macro_pair.second);
         }
@@ -262,15 +253,6 @@ Preprocessor::macros_with_header(std::string macro_name,
 }
 
 
-/**
- * Inserts the file contents into the current file.
- *
- * USAGE: #include "filepath"|<filepath>
- *
- * "filepath": looks for files located in the current directory.
- * <filepath>: prioritizes files located in the include directory, if not found, looks in the
- * current directory.
- */
 void Preprocessor::_include()
 {
     tokenizer.consume(); // '#include'
@@ -338,15 +320,6 @@ void Preprocessor::_include()
     tokenizer.insert_tokens(included_preprocessor.tokenizer.get_tokens(), tokenizer.get_toki());
 }
 
-/**
- * Defines a macro symbol with n arguments and optionally a return type.
- *
- * USAGE: #macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
- *
- * If a return type is specified and the macro definition does not return a value an error is thrown.
- * There cannot be a macro definition within this macro definition.
- * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
- */
 void Preprocessor::_macro()
 {
     tokenizer.consume(); // '#macro'
@@ -355,7 +328,7 @@ void Preprocessor::_macro()
     // parse macro name
     std::string macro_name = tokenizer.consume({Tokenizer::SYMBOL},
             "Preprocessor::_macro() - Expected macro name.").value;
-    Macro* macro = new Macro(macro_name);
+    Macro macro(macro_name);
 
     // start of invoked arguments
     tokenizer.skip_next_regex("[ \t]");
@@ -370,7 +343,7 @@ void Preprocessor::_macro()
                 "Preprocessor::_macro() - Expected argument name.").value;
 
         tokenizer.skip_next_regex("[ \t]");
-        macro->args.push_back(Argument(argName));
+        macro.args.push_back(Argument(argName));
 
 
         // parse comma or expect closing parenthesis
@@ -389,30 +362,21 @@ void Preprocessor::_macro()
     while (!tokenizer.is_next({Tokenizer::PREPROCESSOR_MACEND},
             "Preprocessor::_macro() - Expected macro definition." ))
     {
-        macro->definition.push_back(tokenizer.consume());
+        macro.definition.push_back(tokenizer.consume());
     }
     tokenizer.consume({Tokenizer::PREPROCESSOR_MACEND}, "Preprocessor::_macro() - Expected '#macend'.");
     tokenizer.skip_next_regex("[ \t]");
     tokenizer.consume({Tokenizer::WHITESPACE_NEWLINE},
             "Preprocessor::_macro() - #macend should be on it's own line.");
 
-
     // check if macro declaration is unique
-    EXPECT_TRUE_SS(m_macros.find(macro->header()) == m_macros.end(), std::stringstream()
-            << "Preprocessor::_macro() - Macro already defined: " << macro->header());
+    EXPECT_TRUE(m_macros.find(macro.header()) == m_macros.end(),
+            "Preprocessor::_macro() - Macro already defined: %s", macro.header().c_str());
 
     // add macro to list of macros
-    m_macros.insert(std::pair<std::string,Macro*>(macro->header(), macro));
+    m_macros.insert(std::pair<std::string,Macro>(macro.header(), macro));
 }
 
-/**
- * Stops processing the macro and returns the value of the expression.
- *
- * USAGE: #macret [?expression]
- *
- * If the macro does not have a return type the macret must return nothing.
- * If the macro has a return type the macret must return a value of that type
- */
 void Preprocessor::_macret()
 {
     tokenizer.consume(); // '#macret'
@@ -469,27 +433,12 @@ void Preprocessor::_macret()
     m_macro_stack.pop();
 }
 
-/**
- * Closes a macro definition.
- *
- * USAGE: #macend
- *
- * If a macro is not closed an error is thrown.
- */
 void Preprocessor::_macend()
 {
     // should never reach this. This should be consumed by the _macro function.
     ERROR("Preprocessor::_macend() - Unexpected macro end token.");
 }
 
-/**
- * Invokes the macro with the given arguments.
- *
- * USAGE: #invoke [symbol]([arg1, arg2,..., argn]) [?symbol]
- *
- * If provided an output symbol, the symbol will be associated with the return value of the macro.
- * If the macro does not return a value but an output symbol is provided, an error is thrown.
- */
 void Preprocessor::_invoke()
 {
     tokenizer.consume();
@@ -537,7 +486,7 @@ void Preprocessor::_invoke()
             "Preprocessor::_invoke() - Macro preprocessors must be on it's own line.");
 
     // check if macro exists
-    std::vector<Macro*> possibleMacros = macros_with_header(macro_name, arguments);
+    std::vector<Macro> possibleMacros = macros_with_header(macro_name, arguments);
     if (possibleMacros.size() == 0)
     {
         ERROR("Preprocessor::_invoke() - Macro does not exist: %s", macro_name.c_str());
@@ -547,7 +496,7 @@ void Preprocessor::_invoke()
         ERROR("Preprocessor::_invoke() - Multiple macros with the same name and number of arguments: %s",
                 macro_name.c_str());
     }
-    Macro* macro = possibleMacros[0];
+    Macro &macro = possibleMacros[0];
 
     // replace the '#invoke symbol(arg1, arg2,..., argn) ?symbol' with the macro definition
     std::vector<Tokenizer::Token> expanded_macro_invoke;
@@ -562,18 +511,18 @@ void Preprocessor::_invoke()
     std::vector<Symbol> previously_defined;
     for (size_t i = 0; i < arguments.size(); i++)
     {
-        if (is_symbol_def (macro->args[i].name, 0))
+        if (is_symbol_def (macro.args[i].name, 0))
         {
-            previously_defined.push_back(m_def_symbols.at(macro->args[i].name).at(0));
+            previously_defined.push_back(m_def_symbols.at(macro.args[i].name).at(0));
         }
         vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} ",
-                macro->args[i].name), false));
+                macro.args[i].name), false));
         vector_util::append(expanded_macro_invoke, arguments[i]);
         expanded_macro_invoke.push_back(Tokenizer::Token(Tokenizer::WHITESPACE_NEWLINE, "\n"));
     }
 
     // then append the macro definition
-    for (Tokenizer::Token tok : macro->definition)
+    for (const Tokenizer::Token &tok : macro.definition)
     {
         expanded_macro_invoke.push_back(tok);
 
@@ -591,9 +540,9 @@ void Preprocessor::_invoke()
             string_util::repeat("\t", tokenizer.get_state().prev_indent) + ".scend\n", false));
 
     // push the macro and output symbol if any onto the macro stack
-    m_macro_stack.push(std::pair<std::string, Macro*>(output_symbol, macro));
+    m_macro_stack.push(std::pair<std::string, Macro>(output_symbol, macro));
 
-    for (Symbol &symbol : previously_defined)
+    for (const Symbol &symbol : previously_defined)
     {
         vector_util::append(expanded_macro_invoke, Tokenizer::tokenize(string_util::format("#define {} ",
             symbol.name), false));
@@ -603,7 +552,7 @@ void Preprocessor::_invoke()
 
     // print out expanded macro
     std::stringstream ss;
-    for (Tokenizer::Token& token : expanded_macro_invoke)
+    for (const Tokenizer::Token& token : expanded_macro_invoke)
     {
         ss << token.value;
     }
@@ -613,14 +562,6 @@ void Preprocessor::_invoke()
     tokenizer.insert_tokens(expanded_macro_invoke, tokenizer.get_toki());
 }
 
-/**
- * Associates the symbol with a value
- *
- * USAGE: #define [symbol] [?value]
- *
- * Replaces all instances of symbol with the value.
- * If value is not specified, the default is empty.
- */
 void Preprocessor::_define()
 {
     tokenizer.consume(); // '#define'
@@ -700,9 +641,6 @@ void Preprocessor::_define()
     m_def_symbols.at(symbol).insert(std::pair<int, Symbol>(parameters.size(), Symbol(symbol, parameters, tokens)));
 }
 
-/**
- *
- */
 void Preprocessor::cond_block(bool cond_met)
 {
     int rel_scope_level = 0;
@@ -784,25 +722,12 @@ void Preprocessor::cond_block(bool cond_met)
     }
 }
 
-/**
- *
- */
-bool Preprocessor::is_symbol_def(std::string symbol_name, int num_params)
+bool Preprocessor::is_symbol_def(const std::string &symbol_name, int num_params)
 {
     return m_def_symbols.find(symbol_name) != m_def_symbols.end() &&
             m_def_symbols.at(symbol_name).find(num_params) != m_def_symbols.at(symbol_name).end();
 }
 
-/**
- * Begins a conditional block.
- * Determines whether to include the following text block depending on whether the symbol is defined.
- *
- * USAGE: #ifdef [symbol], #ifndef [symbol] (top conditional blocks)
- * USAGE: #elsedef [symbol], #elsendef [symbol] (lower conditional blocks)
- *
- * The top conditional block must be closed by a lower conditional block or an #endif.
- * The lower conditional block must be closed by an #endif.
- */
 void Preprocessor::_cond_on_def()
 {
     Tokenizer::Token cond_tok = tokenizer.consume();
@@ -831,17 +756,6 @@ void Preprocessor::_cond_on_def()
     }
 }
 
-/**
- * Begins a conditional block.
- * Determines whether to include the following text block based on the symbol's value
- * lexicographically ordering to a value.
- *
- * USAGE: #ifequ [symbol] [value], #ifnequ [symbol] [value], #ifless [symbol] [value], #ifmore [symbol] [value]
- * USAGE: #elseequ [symbol] [value], #elsenequ [symbol] [value], #elseless [symbol] [value], #elsemore [symbol] [value]
- *
- * The top conditional block must be closed by a lower conditional block or an #endif.
- * The lower conditional block must be closed by an #endif.
- */
 void Preprocessor::_cond_on_value()
 {
     Tokenizer::Token cond_tok = tokenizer.consume();
@@ -907,15 +821,6 @@ void Preprocessor::_cond_on_value()
     }
 }
 
-/**
- * Closure of a top or lower conditional block, only includes the following text if all previous
- * conditional blocks were not included.
- *
- * USAGE: #else
- *
- * Must be preceded by a top or inner conditional block.
- * Must not be proceeded by an inner conditional block or closure.
- */
 void Preprocessor::_else()
 {
     tokenizer.consume(); // '#else'
@@ -925,13 +830,6 @@ void Preprocessor::_else()
             "Preprocessor::_else() - Conditional preprocessors must be on it's own line.");
 }
 
-/**
- * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
- *
- * USAGE: #endif
- *
- * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
- */
 void Preprocessor::_endif()
 {
     tokenizer.consume(); // '#endif'
@@ -941,13 +839,6 @@ void Preprocessor::_endif()
             "Preprocessor::_endif() - Conditional preprocessors must be on it's own line.");
 }
 
-/**
- * Undefines a symbol defined by #define.
- *
- * USAGE: #undefine [symbol]
- *
- * This will still work if the symbol was never defined previously.
- */
 void Preprocessor::_undefine()
 {
     tokenizer.consume(); // '#define'
@@ -974,11 +865,6 @@ void Preprocessor::_undefine()
     }
 }
 
-/**
- * Returns the state of the preprocessor.
- *
- * @return the state of the preprocessor.
- */
 Preprocessor::State Preprocessor::get_state()
 {
     return m_state;
