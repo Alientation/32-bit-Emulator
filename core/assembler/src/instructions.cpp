@@ -348,7 +348,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
             Tokenizer::Type relocation = consume(tok_i).type;
             skip_tokens(tok_i, "[ \t]");
             expect_token(tok_i, (std::set<Tokenizer::Type>){Tokenizer::SYMBOL},
-                    "Assembler::parse_format_o() - Expected symbol to follow relocation.");
+                    "Assembler::parse_format_o3() - Expected symbol to follow relocation.");
             std::string symbol = consume(tok_i).value;
             m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
 
@@ -367,11 +367,11 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
             return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
         } else {
             expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN},
-                    "Assembler::parse_format_o() - Expected numeric argument.");
+                    "Assembler::parse_format_o3() - Expected numeric argument.");
             consume(tok_i);
             word imm = parse_expression(tok_i);
 
-            EXPECT_TRUE(imm < (1<<14), "Assembler::parse_format_o() - Immediate value must be a 14 bit number. "
+            EXPECT_TRUE(imm < (1<<14), "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
                 "Error at %s in line %llu.", disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }

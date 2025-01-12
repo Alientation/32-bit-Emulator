@@ -8,6 +8,6 @@
 .text
 _start:
 	#define va #5
-	#invoke add_to_x0($12, 4)
+	#invoke add_to_x0(#$12, #4)
 	add x1, xzr, va
 	hlt

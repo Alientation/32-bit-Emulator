@@ -305,7 +305,8 @@ bool Assembler::expect_token(size_t tok_i, const std::string& errorMsg)
 bool Assembler::expect_token(size_t tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg)
 {
     EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(errorMsg));
-    EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), std::stringstream(errorMsg));
+    EXPECT_TRUE(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), "%s\nGot Token: %s",
+            errorMsg.c_str(), m_tokens[tok_i].to_string().c_str());
     return true;
 }
 

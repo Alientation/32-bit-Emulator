@@ -6,6 +6,8 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
+
+#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <vector>

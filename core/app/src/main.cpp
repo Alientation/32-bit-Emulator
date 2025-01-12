@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
     PROFILE_START
 
     CLOCK_START("Parsing command arguments")
-    std::string build_command = build_preprocessor;
+    std::string build_command = build_long_loop;
     if (argc > 1)
     {
            INFO("Parsing command arguments");
