@@ -2,12 +2,12 @@
 #undef ADD
 
 #ifndef ADD
-#define ADD #13		; define ADD after undefining it
+#define ADD #13         ; define ADD after undefining it
 #endif
 
 .global _start
 
 .text
 _start:
-	add x0, xzr, ADD
-	hlt
+                add     x0, xzr, ADD
+                hlt

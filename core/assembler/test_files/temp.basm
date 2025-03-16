@@ -1,60 +1,60 @@
 ;*
-	Start of file
+        Start of file
 
-	TODO
-	- Increase capability of syntax highlighting
-	- add code snippets and tab-complete
+        TODO
+        - Increase capability of syntax highlighting
+        - add code snippets and tab-complete
 *;
 .global _start
 
 .section .text
-		add	x1, x2, 123			; this code will never run
+                add     x1, x2, 123                     ; this code will never run
 _start:
-		add	x1, x2, $1234
-		sub	x1, x3, $1234
+                add     x1, x2, $1234
+                sub     x1, x3, $1234
 
-		adrp	x0, #:hi20:datalabel		; equivalent to adrp x1, datalabel
-		add	x0, #:lo12:datalabel
-		ldr	x0, [x0]
+                adrp    x0, #:hi20:datalabel            ; equivalent to adrp x1, datalabel
+                add     x0, #:lo12:datalabel
+                ldr     x0, [x0]
 
-		bl 	func
-		hlt
+                bl      func
+                hlt
 
 func:
-		mul	x3, x1, x2
-		ret
+                mul     x3, x1, x2
+                ret
 
-;*#macro	testmacro(arg1, arg2)
-		add	x1, x2, arg1
-		sub	x1, x3, arg2
+;*#macro        testmacro(arg1, arg2)
+                add     x1, x2, arg1
+                sub     x1, x3, arg2
 #macend
 
-#invoke	testmacro(50, 30)*;
+#invoke         testmacro(50, 30)*;
 
 .section .data
 datalabel:
-	.byte		$01, $02, $03, $04
-	.dbyte		$1234, $5678
-	.word		$12345678,
-	.dword		$0123456789abcdef,
+        .byte           $01, $02, $03, $04
+        .dbyte          $1234, $5678
+        .word           $12345678,
+        .dword          $0123456789abcdef,
 
 ; End
 
 ;*
-temp.o		file format belf32-littleemu32
+temp.o          file format belf32-littleemu32
 
 SYMBOL TABLE:
-0000000000000000 g	.text		000000000000000c _start
-000000000000000c l	.text		0000000000000008 func
-0000000000000000 g	.data		0000000000000014 datalabel
+0000000000000000 g      .text           000000000000000c _start
+000000000000000c l      .text           0000000000000008 func
+0000000000000000 g      .data           0000000000000014 datalabel
 
 Contents of section .data:
 0000 01020304 34127856 78563412 efcdab89 67452301
 
 Disassembly of section .text:
 0000000000000000 <_start>:
-   0:		########	add		x1, x2, $1234
-   4:		########	sub		x1, x3, $1234
+   0:           ########        add             x1, x2, $1234
+   4:           ########        sub             x1, x3, $1234
 
 
 *;

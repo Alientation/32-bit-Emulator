@@ -4,20 +4,20 @@
 
 .text
 _start:
-	add x0, xzr, #1
+                add     x0, xzr, #1
 #ifless test 4
-	add x0, x0, #2
+                add     x0, x0, #2
 #endif
 
 #ifless test 5
-	add x0, x0, #4
+                add     x0, x0, #4
 #endif
 
 #ifmore test 3
-	add x0, x0, #8
+                add     x0, x0, #8
 #endif
 
 #ifmore test 4
-	add x0, x0, #16
+                add     x0, x0, #16
 #endif
-	hlt
+                hlt

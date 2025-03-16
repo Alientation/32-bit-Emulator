@@ -1,11 +1,11 @@
 #macro addition(_a, _b)
-	#macret #_a + _b
+                #macret #_a + _b
 #macend
 
 .global _start
 
 .text
 _start:
-	#invoke addition(1, 9) sum
-	add x0, xzr, sum
-	hlt
+	        #invoke addition(1, 9) sum
+	        add     x0, xzr, sum
+	        hlt

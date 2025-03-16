@@ -1,9 +1,9 @@
 #define ADD \
-	add x0, xzr, #4 + 9
+                add     x0, xzr, #4 + 9
 
 .global _start
 
 .text
 _start:
-	ADD
-	hlt
+                ADD
+                hlt

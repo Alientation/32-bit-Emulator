@@ -1,10 +1,10 @@
 #define ADD #1
 #define ADD1 #2
-#define ADD #13		; redefine ADD
+#define ADD #13         ; redefine ADD
 
 .global _start
 
 .text
 _start:
-	add x0, xzr, ADD
-	hlt
+                add     x0, xzr, ADD
+                hlt

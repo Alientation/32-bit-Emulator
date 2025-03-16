@@ -4,5 +4,5 @@
 
 .text
 _start:
-	add x0, xzr, #ADD(4, 9)
-	hlt
+                add     x0, xzr, #ADD(4, 9)
+                hlt
