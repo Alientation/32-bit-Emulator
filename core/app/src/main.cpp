@@ -113,10 +113,10 @@ int main(int argc, char* argv[])
     PROFILE_START
 
     CLOCK_START("Parsing command arguments")
-    std::string build_command = build_long_loop;
+    std::string build_command = build_palindrome;
     if (argc > 1)
     {
-           INFO("Parsing command arguments");
+        INFO("Parsing command arguments");
         build_command = "";
         for (int i = 1; i < argc; i++)
         {

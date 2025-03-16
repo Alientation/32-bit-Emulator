@@ -1,5 +1,6 @@
 #include "assembler/load_executable.h"
 #include "assembler/object_file.h"
+
 #include "util/logger.h"
 
 LoadExecutable::LoadExecutable(Emulator32bit& emu, File exe_file) : m_emu(emu), m_exe_file(exe_file)
@@ -24,16 +25,25 @@ void LoadExecutable::load()
         word new_abs_value = symbol_entry.symbol_value;
         switch (rel.type) {
             case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 14) + bitfield_u32(new_abs_value, 0, 12);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 14) + bitfield_u32(new_abs_value, 0, 12);
                 break;
             case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 20) + bitfield_u32(new_abs_value, 12, 20);
+            {
+                word start_address = obj.sections[obj.section_table.at(".text")].address;
+                int offset = int (new_abs_value >> 12) - ((start_address + rel.offset) >> 12);
+                word instr = mask_0(obj.text_section.at(instr_i), 0, 20) + bitfield_u32(offset, 0, 20);
+                if ((offset >> 20) & 1) {
+                    instr = set_bit(instr, S_BIT, 1);
+                }
+
+                obj.text_section.at(instr_i) = instr;
                 break;
+            }
             case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 19) + bitfield_u32(new_abs_value, 0, 19);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_u32(new_abs_value, 0, 19);
                 break;
             case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(rel.offset/4), 0, 19) + bitfield_u32(new_abs_value, 19, 13);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_u32(new_abs_value, 19, 13);
                 break;
             case ObjectFile::RelocationEntry::Type::UNDEFINED:
             default:

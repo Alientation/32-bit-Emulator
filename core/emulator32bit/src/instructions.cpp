@@ -1133,7 +1133,12 @@ void Emulator32bit::_adrp(const word instr)
     const byte xd = _X1(instr);
     const word imm20 = bitfield_u32(instr, 0, 20) << 12;
 
-    write_reg(xd, imm20);
+    signed int simm21 = imm20;
+    if (test_bit(instr, S_BIT)) {
+        simm21 -= (1 << 20);
+    }
 
-    DEBUG_SS(std::stringstream() << "adrp " << std::to_string(xd) << " " << std::to_string(imm20));
+    word val = mask_0(_pc, 0, 12) + simm21;
+    write_reg(xd, val);
+    DEBUG_SS(std::stringstream() << "adrp " << std::to_string(xd) << " " << std::to_string(simm21));
 }

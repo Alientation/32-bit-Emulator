@@ -6,6 +6,8 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/kernel/fbl_inmemory.h"
 
+#include "util/logger.h"
+
 #include <string>
 
 #define N_VPAGES (1<<20)

@@ -44,11 +44,11 @@
  *                         these constants before the header is included.
  * @{
  */
-#define AEMU_LOG_DEBUG 4
-#define AEMU_LOG_INFO 3
-#define AEMU_LOG_WARN 2
-#define AEMU_LOG_ERROR 1
-#define AEMU_LOG_NONE 0
+constexpr int AEMU_LOG_DEBUG = 4;
+constexpr int AEMU_LOG_INFO = 3;
+constexpr int AEMU_LOG_WARN = 2;
+constexpr int AEMU_LOG_ERROR = 1;
+constexpr int AEMU_LOG_NONE = 0;
 /**@} */ // end of AEMU_LOG_LEVELS
 
 /**

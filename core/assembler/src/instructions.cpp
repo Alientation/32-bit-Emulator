@@ -157,6 +157,7 @@ word Assembler::parse_format_m2(size_t& tok_i, byte opcode)
     expect_token(tok_i, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
     consume(tok_i);
 
+    /* Implicitly assume :hi20:*/
     skip_tokens(tok_i, "[ \t]");
     if (is_token(tok_i, {Tokenizer::RELOCATION_EMU32_ADRP_HI20})) {
         consume(tok_i);

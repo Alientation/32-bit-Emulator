@@ -1,5 +1,7 @@
 #include "assembler/assembler.h"
 #include "emulator32bit/emulator32bit.h"
+
+#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 #include "util/types.h"
 
@@ -163,7 +165,7 @@ File Assembler::assemble()
 
     if (m_state == State::ASSEMBLING) {
         m_state = State::ASSEMBLED;
-        DEBUG("Assembler::assemble() - Assembled file: %s", m_inputFile.get_name());
+        DEBUG("Assembler::assemble() - Assembled file: %s", m_inputFile.get_name().c_str());
     }
 
     return m_outputFile;

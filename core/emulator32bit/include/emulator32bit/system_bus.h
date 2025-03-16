@@ -7,9 +7,6 @@
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
 
-#define AEMU_ONLY_CRITICAL_LOG
-#include "util/logger.h"
-
 #include <vector>
 class SystemBus
 {
@@ -211,9 +208,6 @@ class SystemBus
                 }
 
                 mmu.m_disk->write_page(exception.disk_page_return, bytes);
-
-                DEBUG("Writing physical page %u to disk page %u.",
-                        exception.ppage_return, exception.disk_page_return);
             }
 
             if (exception.type == VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS)
@@ -228,8 +222,6 @@ class SystemBus
                 {
                     target->write_byte(paddr + i, exception.disk_fetch.at(i));
                 }
-
-                DEBUG("Reading physical page %u from disk.", exception.ppage_fetch);
             }
         }
 

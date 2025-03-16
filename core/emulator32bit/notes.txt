@@ -73,9 +73,9 @@ M1 Type Instruction
 000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
 opcode   -     xt      xn    -     xm    ---------
 
-M2 Type Instruction
+M2 Type Instruction (?sign is bit 21 of the simm21, stored in two parts)
 000000 | 0 | 00000 | 00000000000000000000
-opcode   -	   xd            imm20
+opcode ?sign   xd            imm20
 
 
 B Type Instruction
@@ -237,7 +237,7 @@ SWI{CD} - (B1)
 	- registers x0 through x5 can be used as arguments
 
 Addressing Instructions (1)
-ADRP imm20 (M2)
+ADRP simm21 (M2)
 	- op: 110010
 
 AVAILABLE OPCODES

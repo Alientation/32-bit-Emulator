@@ -107,7 +107,12 @@ std::string disassemble_format_m2(word instruction, std::string op)
     std::string disassemble = op + " ";
     disassemble += disassemble_register(bitfield_u32(instruction, 20, 5));
     disassemble += ", ";
-    disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 20));
+
+    int32_t offset = bitfield_u32(instruction, 0, 20);
+    if (test_bit(instruction, S_BIT)) {
+        offset -= 1 << 20;
+    }
+    disassemble += "#" + std::to_string(offset);
     return disassemble;
 }
 

@@ -10,7 +10,7 @@ _start:
                 adrp    x2, #string
                 add     x2, x2, #:lo12:string           ; address of string
 
-		adrp    x9, #result                     ; for now, since dumping memory is not implemented yet, write to registers
+		adrp    x9, #result
 		add     x9, x9, #:lo12:result
 loop_begin:
                 cmp     x1, x0
@@ -51,7 +51,7 @@ pal_check_loop_end:
                 add     x1, x1, #1
                 b       loop_begin
 loop_end:
-                ldrb    10, [x9]
+                ldrb    x10, [x9]                       ; for now, since dumping memory is not implemented yet, write to registers
                 ldrb    x11, [x9, #1]
                 hlt
 .data
