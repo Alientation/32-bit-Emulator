@@ -67,21 +67,24 @@ void Linker::_sections(size_t& tok_i)
         {
             case Token::Type::TEXT:
                 consume(tok_i);
-                sections.push_back((SectionAddress) {
+                sections.push_back((SectionAddress)
+                {
                     .type = SectionAddress::Type::TEXT,
                     .physical = physical
                 });
                 break;
             case Token::Type::DATA:
                 consume(tok_i);
-                sections.push_back((SectionAddress) {
+                sections.push_back((SectionAddress)
+                {
                     .type = SectionAddress::Type::DATA,
                     .physical = physical
                 });
                 break;
             case Token::Type::BSS:
                 consume(tok_i);
-                sections.push_back((SectionAddress) {
+                sections.push_back((SectionAddress)
+                {
                     .type = SectionAddress::Type::BSS,
                     .physical = physical
                 });
@@ -495,7 +498,8 @@ word Linker::parse_value(size_t& tok_i)
  */
 void Linker::skip_tokens(size_t& tok_i, const std::string& regex)
 {
-    while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].val, std::regex(regex))) {
+    while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].val, std::regex(regex)))
+    {
         tok_i++;
     }
 }
@@ -508,7 +512,8 @@ void Linker::skip_tokens(size_t& tok_i, const std::string& regex)
  */
 void Linker::skip_tokens(size_t& tok_i, const std::set<Token::Type>& tokenTypes)
 {
-    while (in_bounds(tok_i) && tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end()) {
+    while (in_bounds(tok_i) && tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end())
+    {
         tok_i++;
     }
 }

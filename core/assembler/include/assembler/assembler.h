@@ -15,7 +15,8 @@
 class Assembler
 {
     public:
-        enum State {
+        enum State
+        {
             NOT_ASSEMBLED, ASSEMBLING, ASSEMBLED, ASSEMBLER_ERROR, ASSEMBLER_WARNING,
         };
 
@@ -34,7 +35,8 @@ class Assembler
 
         ObjectFile m_obj;
 
-        enum class Section {
+        enum class Section
+        {
             NONE, DATA, BSS, TEXT
         } current_section = Section::NONE;                            /* Which section is being assembled currently */
         int current_section_index = 0;                                /* Index into section table */
@@ -44,7 +46,7 @@ class Assembler
 
         size_t line_at(size_t tok_i);
 
-        dword parse_expression(size_t& tok_i);
+        dword parse_expression(size_t& tok_i, dword min = 0, dword max = -1);
         std::vector<dword> parse_arguments(size_t& tok_i);
         byte parse_register(size_t& tok_i);
         void parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int& shift_amt);
@@ -68,11 +70,15 @@ class Assembler
         void skip_tokens(size_t& tok_i, const std::string& regex);
         void skip_tokens(size_t& tok_i, const std::set<Tokenizer::Type>& tokenTypes);
         bool expect_token(size_t tok_i, const std::string& errorMsg);
-        bool expect_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg);
-        bool is_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes, const std::string& errorMsg = "assembler::is_token() - Unexpected end of file");
+        bool expect_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes,
+                const std::string& errorMsg);
+        bool is_token(size_t tok_i, const std::set<Tokenizer::Type>& tokenTypes,
+                const std::string& errorMsg = "assembler::is_token() - Unexpected end of file");
         bool in_bounds(size_t tok_i);
-        Tokenizer::Token& consume(size_t& tok_i, const std::string& errorMsg = "assembler::consume() - Unexpected end of file");
-        Tokenizer::Token& consume(size_t& tok_i, const std::set<Tokenizer::Type>& expectedTypes, const std::string& errorMsg = "assembler::consume() - Unexpected token");
+        Tokenizer::Token& consume(size_t& tok_i,
+                const std::string& errorMsg = "assembler::consume() - Unexpected end of file");
+        Tokenizer::Token& consume(size_t& tok_i, const std::set<Tokenizer::Type>& expectedTypes,
+                const std::string& errorMsg = "assembler::consume() - Unexpected token");
 
         void _global(size_t& tok_i);
         void _extern(size_t& tok_i);
@@ -173,7 +179,8 @@ class Assembler
         void _ret(size_t& tok_i);
 
         typedef void (Assembler::*DirectiveFunction)(size_t& tok_i);
-        std::unordered_map<Tokenizer::Type,DirectiveFunction> directives = {
+        std::unordered_map<Tokenizer::Type,DirectiveFunction> directives =
+        {
             {Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
             {Tokenizer::ASSEMBLER_EXTERN, &Assembler::_extern},
             {Tokenizer::ASSEMBLER_ORG, &Assembler::_org},
@@ -199,7 +206,8 @@ class Assembler
             {Tokenizer::ASSEMBLER_ASCIZ, &Assembler::_asciz},
         };
         typedef void (Assembler::*InstructionFunction)(size_t& tok_i);
-        std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {
+        std::unordered_map<Tokenizer::Type,InstructionFunction> instructions =
+        {
             {Tokenizer::INSTRUCTION_HLT, & Assembler::_hlt},
             {Tokenizer::INSTRUCTION_NOP, & Assembler::_nop},
             {Tokenizer::INSTRUCTION_ADD, &Assembler::_add},

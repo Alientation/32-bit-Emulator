@@ -230,14 +230,16 @@ void Tokenizer::filter_all(const std::set<Tokenizer::Type> &tok_types)
 
 void Tokenizer::skip_next_regex(const std::string &regex)
 {
-    while (has_next() && std::regex_match(m_tokens[m_state.toki].value, std::regex(regex))) {
+    while (has_next() && std::regex_match(m_tokens[m_state.toki].value, std::regex(regex)))
+    {
         skip_next();
     }
 }
 
 void Tokenizer::skip_next(const std::set<Tokenizer::Type> &tok_types)
 {
-    while (has_next() && tok_types.find(m_tokens[m_state.toki].type) != tok_types.end()) {
+    while (has_next() && tok_types.find(m_tokens[m_state.toki].type) != tok_types.end())
+    {
         skip_next();
     }
 }

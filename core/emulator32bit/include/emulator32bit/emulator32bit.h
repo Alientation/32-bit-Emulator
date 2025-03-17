@@ -123,11 +123,13 @@ class Emulator32bit
             NV = 15,                /* Never Executed                 : NONE */
         };
 
-        enum ShiftType {
+        enum ShiftType
+        {
             SHIFT_LSL, SHIFT_LSR, SHIFT_ASR, SHIFT_ROR
         };
 
-        enum AddrType {
+        enum AddrType
+        {
             ADDR_OFFSET, ADDR_PRE_INC, ADDR_POST_INC
         };
 
@@ -432,6 +434,7 @@ class Emulator32bit
         static constexpr int ATOMIC_WIDTH_BYTE = 0b01;
         static constexpr int ATOMIC_WIDTH_HWORD = 0b10;
 
+        static constexpr word SYSREG_PSTATE = 1;
 };
 
 #endif /* EMULATOR32BIT_H */

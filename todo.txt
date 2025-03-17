@@ -5,7 +5,7 @@
     - Some can alias other instructions.
     - For example, CMP ... can just be an alias for SUB xzr, ...
     - Try to merge some instructions so more aliasing can be done like hlt and nop
-[ ] Add new instructions  ***STILL NEED TO INCORPORATE INTO ASSEMBLER AND DISASSEMBLER***
+[ ] Add new instructions
     [ ] MSR/MRS (Move to/from system register)
         - moves a system register's contents to/from a GPR
     [ ] TLBI
@@ -34,3 +34,5 @@
     [ ] NOP
 [ ] Work on a tiny c compiler
 [ ] Refactor Disassembler to be in its own container
+[ ] Improve preprocessor warning/errors to user
+[ ] Improve assembler warning/errors to user

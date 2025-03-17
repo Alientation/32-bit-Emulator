@@ -28,18 +28,22 @@ class ObjectFile
          * @brief                     Symbols defined in this unit
          *
          */
-        struct SymbolTableEntry {
+        struct SymbolTableEntry
+        {
             int symbol_name;                                        /* index into string table */
             word symbol_value;                                        /* value of symbol */
-            enum class BindingInfo {
+            enum class BindingInfo
+            {
                 LOCAL=0, GLOBAL=1, WEAK=2
             } binding_info;                                            /* type of symbol */
             int section;                                            /* index into section table, -1 indicates no section */
         };
 
-        struct SectionHeader {
+        struct SectionHeader
+        {
             int section_name;                                        /* index into string table */
-            enum class Type {
+            enum class Type
+            {
                 UNDEFINED, TEXT, DATA, BSS, SYMTAB, REL_TEXT, REL_DATA, REL_BSS, DEBUG, STRTAB,
             } type;                                                    /* type of section */
             word section_start;                                        /* start offset of section */
@@ -50,10 +54,12 @@ class ObjectFile
             word address = 0;
         };
 
-        struct RelocationEntry {
+        struct RelocationEntry
+        {
             word offset;                                            /* offset from beginning of section to the symbol */
             int symbol;                                                /* index into symbol table */
-            enum class Type {
+            enum class Type
+            {
                 UNDEFINED,
                 R_EMU32_O_LO12, R_EMU32_ADRP_HI20,                    /* Format O instructions and ADRP */
                 R_EMU32_MOV_LO19, R_EMU32_MOV_HI13,                    /* MOV/MVN instructions */
@@ -95,7 +101,8 @@ class ObjectFile
         std::string get_symbol_name(int symbol);
 
     private:
-        enum class State {
+        enum class State
+        {
             NO_STATE,
             DISASSEMBLING, DISASSEMBLED_SUCCESS, DISASSEMBLED_ERROR,
             WRITING, WRITING_SUCCESS, WRITING_ERROR,

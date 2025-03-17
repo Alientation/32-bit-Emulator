@@ -10,7 +10,7 @@
  * @param                 tok_i: Reference to current token index
  * @return                 value of expression
  */
-dword Assembler::parse_expression(size_t& tok_i)
+dword Assembler::parse_expression(size_t& tok_i, dword min, dword max)
 {
     /* For now, only parse expressions sequentially, without care of precedence */
     dword exp_value = 0;
@@ -62,6 +62,11 @@ dword Assembler::parse_expression(size_t& tok_i)
         }
     } while(!is_token(tok_i, {Tokenizer::WHITESPACE_NEWLINE, Tokenizer::COMMA}));
 
+    if (exp_value < min || exp_value > max)
+    {
+        m_state = Assembler::State::ASSEMBLER_WARNING;
+        WARN("Parsed value %llu is outside of the target range %llu - %llu.", exp_value, min, max);
+    }
     return exp_value;
 }
 

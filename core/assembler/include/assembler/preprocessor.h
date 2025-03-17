@@ -22,7 +22,8 @@
 class Preprocessor
 {
     public:
-        enum State {
+        enum State
+        {
             UNPROCESSED, PROCESSING, PROCESSED_SUCCESS, PROCESSED_ERROR
         };
 
@@ -51,7 +52,8 @@ class Preprocessor
         State get_state();
 
     private:
-        struct Argument {
+        struct Argument
+        {
             std::string name;
             Tokenizer::Type type;
 
@@ -59,7 +61,8 @@ class Preprocessor
             Argument(std::string name);
         };
 
-        struct Macro {
+        struct Macro
+        {
             std::string name;
             std::vector<Argument> args;
             Tokenizer::Type return_type;
@@ -72,7 +75,8 @@ class Preprocessor
             std::string header();
         };
 
-        struct Symbol {
+        struct Symbol
+        {
             std::string name;
             std::vector<std::string> parameters;
             std::vector<Tokenizer::Token> value;

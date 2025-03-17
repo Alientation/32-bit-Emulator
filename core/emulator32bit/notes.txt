@@ -103,19 +103,19 @@ opcode  ext. op         imm22
 	- 000000 | 1111 | 0000000000000000000000
     - Does nothing
 
-000000 | 0001 : MSR
+000000 | 0001 : MSR sysreg, xn|imm16
     - 000000 | 0001 | 00000 | 0 | 00000 | 00000000000
                      sysreg  ?imm  xn
     - 000000 | 0001 | 00000 | 1 | 0000000000000000
                      sysreg  ?imm     imm16
     - Move to system register
 
-000000 | 000010: MRS
+000000 | 000010: MRS xn, sysreg
 	- 000000 | 0010 | 00000 | 0 | 00000 | 00000000000
                        xn        sysreg
     - Move from system register
 
-000000 | 0011: TLBI
+000000 | 0011: TLBI flags(, xt)
     - 000000 | 0011 | 00000 | 0 | 0000000000000000
                         xt   ?xt    imm16, specify TLBI operation
     - Flush the TLB, flags to specify how to do so
