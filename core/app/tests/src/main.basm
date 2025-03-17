@@ -9,20 +9,20 @@
 
 .text
 _start:
-		add	x2, xzr, #0
+		add	x2, xzr, 0
 .scope
 array:
-		adrp	x1, #array
-		add	x1, x1, #:lo12:array
+		adrp	x1, array
+		add	x1, x1, :lo12:array
 .scend
 
-		adrp	x2, #array
-		add	x2, x2, #:lo12:array
+		adrp	x2, array
+		add	x2, x2, :lo12:array
 		ldr	x2, [x2]
 
-		adrp	x0, #datalabel
-		add	x0, x0, #:lo12:datalabel
-		ldr	x0, [x0, #4]
+		adrp	x0, datalabel
+		add	x0, x0, :lo12:datalabel
+		ldr	x0, [x0, 4]
 
 		bl 	func
 		hlt

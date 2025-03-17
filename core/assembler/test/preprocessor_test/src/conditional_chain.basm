@@ -5,42 +5,42 @@
 
 .text
 _start:
-                add     x0, xzr, #0
-                add     x1, xzr, #0
-                add     x2, xzr, #0
-                add     x3, xzr, #0
+                add     x0, xzr, 0
+                add     x1, xzr, 0
+                add     x2, xzr, 0
+                add     x3, xzr, 0
 
 #ifdef test_define
-                add     x0, x0, #1          ; <--- Should choose this
+                add     x0, x0, 1          ; <--- Should choose this
 #elsedef test_define
-                add     x0, x0, #2
+                add     x0, x0, 2
 #endif
 
 #ifequ test_val 3
-                add     x1, x1, #1
+                add     x1, x1, 1
 #elseequ test_val 4
-                add     x1, x1, #2          ; <--- Should choose this
+                add     x1, x1, 2          ; <--- Should choose this
 #else
-                add     x1, x1, #4
+                add     x1, x1, 4
 #endif
 
 #ifless test_val 4
-                add     x2, x2, #1
+                add     x2, x2, 1
 #elsemore test_val 4
-                add     x2, x2, #2
+                add     x2, x2, 2
 #else
-                add     x2, x2, #4          ; <--- Should choose this
+                add     x2, x2, 4          ; <--- Should choose this
 #endif
 
 #ifless test_val 3
-                add     x3, x3, #1
+                add     x3, x3, 1
 #elseequ test_val 6
-                add     x3, x3, #2
+                add     x3, x3, 2
 #elsedef test_not_def
-                add     x3, x3, #4
+                add     x3, x3, 4
 #elsendef test_val
-                add     x3, x3, #8
+                add     x3, x3, 8
 #else
-                add     x3, x3, #16         ; <--- Should choose this
+                add     x3, x3, 16         ; <--- Should choose this
 #endif
                 hlt

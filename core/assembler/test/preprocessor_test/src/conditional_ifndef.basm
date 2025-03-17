@@ -4,12 +4,12 @@
 
 .text
 _start:
-                add     x0, xzr, #1
+                add     x0, xzr, 1
 #ifndef test
-                add     x0, x0, #2
+                add     x0, x0, 2
 #endif
 
 #ifndef apple
-                add     x0, x0, #4
+                add     x0, x0, 4
 #endif
                 hlt

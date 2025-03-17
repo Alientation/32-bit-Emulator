@@ -11,6 +11,7 @@
 #include <assembler/preprocessor.h>
 #include <assembler/static_library.h>
 #include <assembler/tokenizer.h>
+#include <util/logger.h>
 
 #define MAX_INSTRUCTIONS 10000
 

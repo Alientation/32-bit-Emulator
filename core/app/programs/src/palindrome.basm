@@ -2,31 +2,31 @@
 
 .text
 _start:
-                adrp    x0, #n_strings
-                add     x0, x0, #:lo12:n_strings
+                adrp    x0, n_strings
+                add     x0, x0, :lo12:n_strings
                 ldr     x0, [x0]                        ; load number of strings to check
 
-                add     x1, xzr, #0                     ; loop counter
-                adrp    x2, #string
-                add     x2, x2, #:lo12:string           ; address of string
+                add     x1, xzr, 0                     ; loop counter
+                adrp    x2, string
+                add     x2, x2, :lo12:string           ; address of string
 
-                adrp    x9, #result
-                add     x9, x9, #:lo12:result
+                adrp    x9, result
+                add     x9, x9, :lo12:result
 loop_begin:
                 cmp     x1, x0
                 b.ge    loop_end
 
-                add     x3, xzr, #0                     ; length of string
+                add     x3, xzr, 0                     ; length of string
 len_loop_begin:
                 ldrb    x4, [x2, x3]                    ; get character
-                cmp     x4, #0
+                cmp     x4, 0
                 b.eq    len_loop_end                    ; end loop if null terminator
-                add     x3, x3, #1                      ; inc string length
+                add     x3, x3, 1                      ; inc string length
                 b       len_loop_begin
 len_loop_end:
-                add     x4, xzr, #0                     ; start of string
-                sub     x5, x3, #1                      ; end of string
-                add     x8, xzr, #1                     ; boolean flag, initially valid palindrome
+                add     x4, xzr, 0                     ; start of string
+                sub     x5, x3, 1                      ; end of string
+                add     x8, xzr, 1                     ; boolean flag, initially valid palindrome
 pal_check_loop_begin:
                 cmp     x4, x5
                 b.ge    pal_check_loop_end              ; while first pointer is before the second pointer
@@ -37,22 +37,22 @@ pal_check_loop_begin:
                 cmp     x6, x7
                 b.ne    pal_check_fail
 
-                add     x4, x4, #1                      ; increment indices
-                sub     x5, x5, #1
+                add     x4, x4, 1                      ; increment indices
+                sub     x5, x5, 1
                 b       pal_check_loop_begin
 pal_check_fail:
-                add     x8, xzr, #0                     ; set flag to invalid palindrome
+                add     x8, xzr, 0                     ; set flag to invalid palindrome
 pal_check_loop_end:
                 strb    x8, [x9, x1]
 
                 add     x2, x2, x3
-                add     x2, x2, #1                      ; move pointer to the next position after the null terminator
+                add     x2, x2, 1                      ; move pointer to the next position after the null terminator
 
-                add     x1, x1, #1
+                add     x1, x1, 1
                 b       loop_begin
 loop_end:
                 ldrb    x10, [x9]                       ; for now, since dumping memory is not implemented yet, write to registers
-                ldrb    x11, [x9, #1]
+                ldrb    x11, [x9, 1]
                 hlt
 .data
 string: .asciz "aacbcaa", "abda"

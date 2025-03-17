@@ -19,16 +19,16 @@ std::string disassemble_shift(word instruction)
     std::string disassemble;
     switch (bitfield_u32(instruction, 7, 2)) {
         case Emulator32bit::SHIFT_LSL:
-            disassemble = "lsl #";
+            disassemble = "lsl ";
             break;
         case Emulator32bit::SHIFT_LSR:
-            disassemble = "lsr #";
+            disassemble = "lsr ";
             break;
         case Emulator32bit::SHIFT_ASR:
-            disassemble = "asr #";
+            disassemble = "asr ";
             break;
         case Emulator32bit::SHIFT_ROR:
-            disassemble = "ror #";
+            disassemble = "ror ";
             break;
     }
 
@@ -98,7 +98,7 @@ std::string disassemble_format_b1(word instruction, std::string op)
     if (condition != Emulator32bit::ConditionCode::AL) {
         disassemble += "." + disassemble_condition(condition);
     }
-    disassemble += " #" + std::to_string(bitfield_s32(instruction, 0, 22));
+    disassemble += " " + std::to_string(bitfield_s32(instruction, 0, 22));
     return disassemble;
 }
 
@@ -112,7 +112,7 @@ std::string disassemble_format_m2(word instruction, std::string op)
     if (test_bit(instruction, S_BIT)) {
         offset -= 1 << 20;
     }
-    disassemble += "#" + std::to_string(offset);
+    disassemble += std::to_string(offset);
     return disassemble;
 }
 
@@ -155,11 +155,11 @@ std::string disassemble_format_m(word instruction, std::string op)
         if (simm12 == 0 ){
             disassemble += "]";
         }else if (adr_mode == Emulator32bit::ADDR_PRE_INC) {
-            disassemble += ", #" + std::to_string(simm12) + "]!";
+            disassemble += ", " + std::to_string(simm12) + "]!";
         } else if (adr_mode == Emulator32bit::ADDR_OFFSET) {
-            disassemble += ", #" + std::to_string(simm12) + "]";
+            disassemble += ", " + std::to_string(simm12) + "]";
         } else if (adr_mode == Emulator32bit::ADDR_POST_INC) {
-            disassemble += "], #" + std::to_string(simm12);
+            disassemble += "], " + std::to_string(simm12);
         }
     } else {
         std::string reg = disassemble_register(bitfield_u32(instruction, 9, 5));
@@ -191,7 +191,7 @@ std::string disassemble_format_o3(word instruction, std::string op)
     disassemble += ", ";
 
     if (test_bit(instruction, 19)) {
-        disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 19));
+        disassemble += std::to_string(bitfield_u32(instruction, 0, 19));
     } else {
         disassemble += disassemble_register(bitfield_u32(instruction, 14, 5));
         if (bitfield_u32(instruction, 0, 14) > 0) {
@@ -235,7 +235,6 @@ std::string disassemble_format_o1(word instruction, std::string op)
     disassemble += ", ";
 
     if (test_bit(instruction, 14)) {
-        disassemble += "#";
         disassemble += std::to_string(bitfield_u32(instruction, 0, 14));
     } else {
         disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
@@ -258,7 +257,7 @@ std::string disassemble_format_o(word instruction, std::string op)
     disassemble += ", ";
 
     if (test_bit(instruction, 14)) {
-        disassemble += "#" + std::to_string(bitfield_u32(instruction, 0, 14));
+        disassemble += std::to_string(bitfield_u32(instruction, 0, 14));
     } else {
         disassemble += disassemble_register(bitfield_u32(instruction, 9, 5));
 

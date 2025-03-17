@@ -34,10 +34,6 @@ void Assembler::parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int&
     consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
 
-    expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN},
-            "Assembler::parse_shift() - Expected numeric argument.");
-    consume(tok_i);
-
     /* note, in future, we could change this to create relocation record instead */
     shift_amt = parse_expression(tok_i);
 
@@ -154,9 +150,6 @@ word Assembler::parse_format_m2(size_t& tok_i, byte opcode)
     consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
 
-    expect_token(tok_i, {Tokenizer::NUMBER_SIGN}, "Assembler::parse_format_m2() - Expected numeric operand");
-    consume(tok_i);
-
     /* Implicitly assume :hi20:*/
     skip_tokens(tok_i, "[ \t]");
     if (is_token(tok_i, {Tokenizer::RELOCATION_EMU32_ADRP_HI20})) {
@@ -251,9 +244,7 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
         skip_tokens(tok_i, "[ \t]");
 
         /* offset begins with the '#' symbol */
-        if (is_token(tok_i, {Tokenizer::NUMBER_SIGN})) {
-            consume(tok_i);
-            skip_tokens(tok_i, "[ \t]");
+        if (!is_token(tok_i, Tokenizer::REGISTERS)) {
             word offset = parse_expression(tok_i);
             EXPECT_TRUE(offset < (1<<12), "Assembler::parse_format_m() - Offset must be 12 bit value.");
 
@@ -278,40 +269,40 @@ word Assembler::parse_format_m(size_t& tok_i, byte opcode)
 
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, addressing_mode);
         }
-
-        expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_format_m() - Expected register argument.");
-
-        /* since there is a comma, there is another argument that is not the above checked offset */
-        byte reg_b = parse_register(tok_i);
-        Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
-        int shift_amount = 0;
-        skip_tokens(tok_i, "[ \t]");
-        /* shift argument */
-        if (is_token(tok_i, {Tokenizer::COMMA})) {
-            consume(tok_i);
+        else
+        {
+            /* since there is a comma, there is another argument that is not the above checked offset */
+            byte reg_b = parse_register(tok_i);
+            Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
+            int shift_amount = 0;
             skip_tokens(tok_i, "[ \t]");
-            parse_shift(tok_i, shift, shift_amount);
-        }
-
-        skip_tokens(tok_i, "[ \t]");
-        expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET},
-                "Assembler::parse_format_m() - Expected close bracket.");
-        consume(tok_i);
-
-        /* same logic as above, only update addressing mode if not yet determined */
-        if (addressing_mode == -1) {
-            if (is_token(tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
+            /* shift argument */
+            if (is_token(tok_i, {Tokenizer::COMMA})) {
                 consume(tok_i);
-
-                /* preindexed */
-                addressing_mode = Emulator32bit::ADDR_PRE_INC;
-            } else {
-                /* simple offset */
-                addressing_mode = Emulator32bit::ADDR_OFFSET;
+                skip_tokens(tok_i, "[ \t]");
+                parse_shift(tok_i, shift, shift_amount);
             }
-        }
 
-        return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift, shift_amount, addressing_mode);
+            skip_tokens(tok_i, "[ \t]");
+            expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET},
+                    "Assembler::parse_format_m() - Expected close bracket.");
+            consume(tok_i);
+
+            /* same logic as above, only update addressing mode if not yet determined */
+            if (addressing_mode == -1) {
+                if (is_token(tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT})) {
+                    consume(tok_i);
+
+                    /* preindexed */
+                    addressing_mode = Emulator32bit::ADDR_PRE_INC;
+                } else {
+                    /* simple offset */
+                    addressing_mode = Emulator32bit::ADDR_OFFSET;
+                }
+            }
+
+            return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift, shift_amount, addressing_mode);
+        }
     }
 
     /* check for invalid addressing mode */
@@ -338,7 +329,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
         skip_tokens(tok_i, "[ \t]");
 
         word value = 0;
-        if (is_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN})) {
+        if (is_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA})) {
             consume(tok_i);
             value = parse_expression(tok_i);
         }
@@ -367,9 +358,6 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
 
             return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
         } else {
-            expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN},
-                    "Assembler::parse_format_o3() - Expected numeric argument.");
-            consume(tok_i);
             word imm = parse_expression(tok_i);
 
             EXPECT_TRUE(imm < (1<<14), "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
@@ -435,10 +423,6 @@ word Assembler::parse_format_o1(size_t& tok_i, byte opcode)
         byte operand_reg = parse_register(tok_i);
         return Emulator32bit::asm_format_o1(opcode, reg1, reg2, false, operand_reg, 0);
     } else {
-        expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN},
-                "Assembler::parse_format_o1() - Expected numeric argument.");
-        consume(tok_i);
-
         int shift_amt = parse_expression(tok_i);
         EXPECT_TRUE(shift_amt < (1<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
                 "Error at %s in line %llu.", shift_amt, disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
@@ -481,10 +465,6 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
         return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand_reg, shift, shift_amt);
     } else {
         word operand = 0;
-        expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::NUMBER_SIGN},
-                "Assembler::parse_format_o() - Expected numeric argument.");
-        consume(tok_i);
-
         if (is_token(tok_i, {Tokenizer::RELOCATION_EMU32_O_LO12})) {
             consume(tok_i);
             skip_tokens(tok_i, "[ \t]");

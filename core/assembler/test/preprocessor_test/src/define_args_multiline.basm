@@ -1,5 +1,5 @@
 #define ADD(_a, _b) \
-                add     x0, xzr, #_a + _b
+                add     x0, xzr, _a + _b
 
 .global _start
 

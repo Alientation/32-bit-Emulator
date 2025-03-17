@@ -1,4 +1,4 @@
-#define ADD #4 + 9
+#define ADD 4 + 9
 
 .global _start
 

@@ -13,8 +13,8 @@ _start:
                 add     x1, x2, $1234
                 sub     x1, x3, $1234
 
-                adrp    x0, #:hi20:datalabel            ; equivalent to adrp x1, datalabel
-                add     x0, #:lo12:datalabel
+                adrp    x0, :hi20:datalabel            ; equivalent to adrp x1, datalabel
+                add     x0, :lo12:datalabel
                 ldr     x0, [x0]
 
                 bl      func

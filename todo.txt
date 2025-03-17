@@ -1,7 +1,7 @@
-[] Rework '#' symbol
+[x] Rework '#' symbol
     - It should not be required to be in front a literal number, in fact
       it should have not be used at all.
-[] Reorganize cpu instructions
+[ ] Reorganize cpu instructions
     - Some can alias other instructions.
     - For example, CMP ... can just be an alias for SUB xzr, ...
-[] Work on a tiny c compiler
+[ ] Work on a tiny c compiler

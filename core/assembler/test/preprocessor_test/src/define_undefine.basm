@@ -1,8 +1,8 @@
-#define ADD #1
+#define ADD 1
 #undef ADD
 
 #ifndef ADD
-#define ADD #13         ; define ADD after undefining it
+#define ADD 13         ; define ADD after undefining it
 #endif
 
 .global _start

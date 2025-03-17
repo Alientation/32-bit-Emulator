@@ -1,5 +1,5 @@
 #macro addition(_a, _b)
-                #macret #_a + _b
+                #macret _a + _b
 #macend
 
 .global _start
