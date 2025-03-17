@@ -56,10 +56,11 @@ class Assembler
 
         word parse_format_m(size_t& tok_i, byte opcode);
         word parse_format_m1(size_t& tok_i, byte opcode);
-        word parse_format_m2(size_t& tok_i, byte opcode);
 
         word parse_format_b1(size_t& tok_i, byte opcode);
         word parse_format_b2(size_t& tok_i, byte opcode);
+
+        word parse_format_atomic(size_t& tok_i, byte atopcode);
 
         void fill_local();
 
@@ -98,6 +99,7 @@ class Assembler
         void _asciz(size_t& tok_i);
 
         void _hlt(size_t& tok_i);
+        void _nop(size_t& tok_i);
         void _add(size_t& tok_i);
         void _sub(size_t& tok_i);
         void _rsb(size_t& tok_i);
@@ -135,13 +137,31 @@ class Assembler
         void _mvn(size_t& tok_i);
         void _ldr(size_t& tok_i);
         void _str(size_t& tok_i);
-        void _swp(size_t& tok_i);
         void _ldrb(size_t& tok_i);
         void _strb(size_t& tok_i);
-        void _swpb(size_t& tok_i);
         void _ldrh(size_t& tok_i);
         void _strh(size_t& tok_i);
+
+        void _msr(size_t& tok_i);
+        void _mrs(size_t& tok_i);
+        void _tlbi(size_t& tok_i);
+
+        void _swp(size_t& tok_i);
+        void _swpb(size_t& tok_i);
         void _swph(size_t& tok_i);
+
+        void _ldadd(size_t& tok_i);
+        void _ldaddb(size_t& tok_i);
+        void _ldaddh(size_t& tok_i);
+
+        void _ldclr(size_t& tok_i);
+        void _ldclrb(size_t& tok_i);
+        void _ldclrh(size_t& tok_i);
+
+        void _ldset(size_t& tok_i);
+        void _ldsetb(size_t& tok_i);
+        void _ldseth(size_t& tok_i);
+
         void _b(size_t& tok_i);
         void _bl(size_t& tok_i);
         void _bx(size_t& tok_i);
@@ -181,6 +201,7 @@ class Assembler
         typedef void (Assembler::*InstructionFunction)(size_t& tok_i);
         std::unordered_map<Tokenizer::Type,InstructionFunction> instructions = {
             {Tokenizer::INSTRUCTION_HLT, & Assembler::_hlt},
+            {Tokenizer::INSTRUCTION_NOP, & Assembler::_nop},
             {Tokenizer::INSTRUCTION_ADD, &Assembler::_add},
             {Tokenizer::INSTRUCTION_SUB, &Assembler::_sub},
             {Tokenizer::INSTRUCTION_RSB, &Assembler::_rsb},
@@ -218,13 +239,31 @@ class Assembler
             {Tokenizer::INSTRUCTION_MVN, &Assembler::_mvn},
             {Tokenizer::INSTRUCTION_LDR, &Assembler::_ldr},
             {Tokenizer::INSTRUCTION_STR, &Assembler::_str},
-            {Tokenizer::INSTRUCTION_SWP, &Assembler::_swp},
             {Tokenizer::INSTRUCTION_LDRB, &Assembler::_ldrb},
             {Tokenizer::INSTRUCTION_STRB, &Assembler::_strb},
-            {Tokenizer::INSTRUCTION_SWPB, &Assembler::_swpb},
             {Tokenizer::INSTRUCTION_LDRH, &Assembler::_ldrh},
             {Tokenizer::INSTRUCTION_STRH, &Assembler::_strh},
+
+            {Tokenizer::INSTRUCTION_MSR, &Assembler::_msr},
+            {Tokenizer::INSTRUCTION_MRS, &Assembler::_mrs},
+            {Tokenizer::INSTRUCTION_TLBI, &Assembler::_tlbi},
+
+            {Tokenizer::INSTRUCTION_SWP, &Assembler::_swp},
+            {Tokenizer::INSTRUCTION_SWPB, &Assembler::_swpb},
             {Tokenizer::INSTRUCTION_SWPH, &Assembler::_swph},
+
+            {Tokenizer::INSTRUCTION_LDADD, &Assembler::_ldadd},
+            {Tokenizer::INSTRUCTION_LDADDB, &Assembler::_ldaddb},
+            {Tokenizer::INSTRUCTION_LDADDH, &Assembler::_ldaddh},
+
+            {Tokenizer::INSTRUCTION_LDCLR, &Assembler::_ldclr},
+            {Tokenizer::INSTRUCTION_LDCLRB, &Assembler::_ldclrb},
+            {Tokenizer::INSTRUCTION_LDCLRH, &Assembler::_ldclrh},
+
+            {Tokenizer::INSTRUCTION_LDSET, &Assembler::_ldset},
+            {Tokenizer::INSTRUCTION_LDSETB, &Assembler::_ldsetb},
+            {Tokenizer::INSTRUCTION_LDSETH, &Assembler::_ldseth},
+
             {Tokenizer::INSTRUCTION_B, &Assembler::_b},
             {Tokenizer::INSTRUCTION_BL, &Assembler::_bl},
             {Tokenizer::INSTRUCTION_BX, &Assembler::_bx},

@@ -112,9 +112,9 @@ word Assembler::parse_format_b1(size_t& tok_i, byte opcode)
     } else {
         word imm = parse_expression(tok_i);
         EXPECT_TRUE(imm < (1 << 24), "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
-                "Error at %s in line %llu.", disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
         EXPECT_TRUE((imm & 0b11) == 0, "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
-                "Error at %s in line %llu.", disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
         value = bitfield_s32(imm, 0, 24) >> 2;
     }
 
@@ -137,7 +137,7 @@ word Assembler::parse_format_b2(size_t& tok_i, byte opcode)
     return Emulator32bit::asm_format_b2(opcode, condition, reg);
 }
 
-word Assembler::parse_format_m2(size_t& tok_i, byte opcode)
+word Assembler::parse_format_m1(size_t& tok_i, byte opcode)
 {
     consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
@@ -170,37 +170,7 @@ word Assembler::parse_format_m2(size_t& tok_i, byte opcode)
         .token = tok_i,
     });
 
-    return Emulator32bit::asm_format_m2(opcode, reg, 0);
-}
-
-word Assembler::parse_format_m1(size_t& tok_i, byte opcode)
-{
-    consume(tok_i);
-    skip_tokens(tok_i, "[ \t]");
-
-    byte reg_t = parse_register(tok_i);
-    skip_tokens(tok_i, "[ \t]");
-
-    expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA},
-            "Assembler::parse_format_m1() - Expected second argument.");
-    consume(tok_i);
-    skip_tokens(tok_i, "[ \t]");
-    byte reg_n = parse_register(tok_i);
-    skip_tokens(tok_i, "[ \t]");
-
-    expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA},
-            "Assembler::parse_format_m1() - Expected third argument.");
-    consume(tok_i);
-    expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET},
-            "Assembler::parse_format_m1() - Expected open bracket.");
-    consume(tok_i);
-    byte reg_m = parse_register(tok_i);
-    skip_tokens(tok_i, "[ \t]");
-    expect_token(tok_i, (std::set<Tokenizer::Type>) {Tokenizer::OPEN_BRACKET},
-            "Assembler::parse_format_m1() - Expected close bracket.");
-    consume(tok_i);
-
-    return Emulator32bit::asm_format_m1(opcode, reg_t, reg_n, reg_m);
+    return Emulator32bit::asm_format_m1(opcode, reg, 0);
 }
 
 word Assembler::parse_format_m(size_t& tok_i, byte opcode)
@@ -361,7 +331,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
             word imm = parse_expression(tok_i);
 
             EXPECT_TRUE(imm < (1<<14), "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
-                "Error at %s in line %llu.", disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }
     }
@@ -425,7 +395,7 @@ word Assembler::parse_format_o1(size_t& tok_i, byte opcode)
     } else {
         int shift_amt = parse_expression(tok_i);
         EXPECT_TRUE(shift_amt < (1<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
-                "Error at %s in line %llu.", shift_amt, disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", shift_amt, Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
         return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt);
     }
 }
@@ -492,11 +462,17 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
 
 
         EXPECT_TRUE(operand < (1ULL << 14), "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
-                "Error at %s in line %llu.", disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
 
         return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand);
     }
 }
+
+word Assembler::parse_format_atomic(size_t& tok_i, byte atopcode)
+{
+
+}
+
 
 /**
  * @brief
@@ -782,11 +758,6 @@ void Assembler::_str(size_t& tok_i)
     m_obj.text_section.push_back(instruction);
 }
 
-void Assembler::_swp(size_t& tok_i)
-{
-    word instruction = parse_format_m1(tok_i, Emulator32bit::_op_swp);
-    m_obj.text_section.push_back(instruction);
-}
 
 void Assembler::_ldrb(size_t& tok_i)
 {
@@ -797,12 +768,6 @@ void Assembler::_ldrb(size_t& tok_i)
 void Assembler::_strb(size_t& tok_i)
 {
     word instruction = parse_format_m(tok_i, Emulator32bit::_op_strb);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_swpb(size_t& tok_i)
-{
-    word instruction = parse_format_m1(tok_i, Emulator32bit::_op_swpb);
     m_obj.text_section.push_back(instruction);
 }
 
@@ -818,11 +783,98 @@ void Assembler::_strh(size_t& tok_i)
     m_obj.text_section.push_back(instruction);
 }
 
-void Assembler::_swph(size_t& tok_i)
+void Assembler::_hlt(size_t& tok_i)
 {
-    word instruction = parse_format_m1(tok_i, Emulator32bit::_op_swph);
+    consume(tok_i);
+    word instruction = Emulator32bit::asm_hlt();
     m_obj.text_section.push_back(instruction);
 }
+
+void Assembler::_nop(size_t& tok_i)
+{
+    consume(tok_i);
+    word instruction = Emulator32bit::asm_nop();
+    m_obj.text_section.push_back(instruction);
+}
+
+void Assembler::_msr(size_t& tok_i)
+{
+
+}
+
+void Assembler::_mrs(size_t& tok_i)
+{
+
+}
+
+void Assembler::_tlbi(size_t& tok_i)
+{
+
+}
+
+void Assembler::_swp(size_t& tok_i)
+{
+
+}
+
+void Assembler::_swpb(size_t& tok_i)
+{
+
+}
+
+void Assembler::_swph(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldadd(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldaddb(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldaddh(size_t& tok_i)
+{
+
+}
+
+
+void Assembler::_ldclr(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldclrb(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldclrh(size_t& tok_i)
+{
+
+}
+
+
+void Assembler::_ldset(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldsetb(size_t& tok_i)
+{
+
+}
+
+void Assembler::_ldseth(size_t& tok_i)
+{
+
+}
+
+
 
 void Assembler::_b(size_t& tok_i)
 {
@@ -869,13 +921,6 @@ void Assembler::_ret(size_t& tok_i)
 
 void Assembler::_adrp(size_t& tok_i)
 {
-    word instruction = parse_format_m2(tok_i, Emulator32bit::_op_adrp);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_hlt(size_t& tok_i)
-{
-    consume(tok_i);
-    word instruction = Emulator32bit::asm_hlt();
+    word instruction = parse_format_m1(tok_i, Emulator32bit::_op_adrp);
     m_obj.text_section.push_back(instruction);
 }

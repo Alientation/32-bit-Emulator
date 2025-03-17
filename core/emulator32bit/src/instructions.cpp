@@ -11,10 +11,15 @@
  * @hideinitializer
  *
  */
-#define _X1(instr) (bitfield_u32(instr, 20, 5))                /* bits 20 to 24 */
-#define _X2(instr) (bitfield_u32(instr, 15, 5))                /* bits 15 to 19 */
-#define _X3(instr) (bitfield_u32(instr, 9, 5))                /* bits 9 to 14 */
-#define _X4(instr) (bitfield_u32(instr, 4, 5))                /* bits 4 to 9 */
+#define _X1(instr) (bitfield_u32(instr, 20, 5))                 /* bits 20 to 24 */
+#define _X2(instr) (bitfield_u32(instr, 15, 5))                 /* bits 15 to 19 */
+#define _X3(instr) (bitfield_u32(instr, 9, 5))                  /* bits 9 to 13 */
+#define _X4(instr) (bitfield_u32(instr, 4, 5))                  /* bits 4 to 8 */
+
+#define _SX1(instr) (bitfield_u32(instr, 17, 5))                /* bits 17 to 21 */
+#define _SX2(instr) (bitfield_u32(instr, 11, 5))                /* bits 11 to 15 */
+#define _SX3(instr) (bitfield_u32(instr, 6, 5))                 /* bits 6 to 10 */
+
 
 #define UNUSED(x) (void)(x)
 
@@ -30,7 +35,8 @@
  */
 static word calc_shift(word val, const Emulator32bit::ShiftType shift_type, const byte imm5)
 {
-    switch(shift_type) {
+    switch(shift_type)
+    {
         case Emulator32bit::SHIFT_LSL:
             DEBUG("LSL %u", (word) imm5);
             val <<= imm5;
@@ -277,13 +283,7 @@ word Emulator32bit::asm_format_m(const byte opcode, const bool sign, const int x
                     << JPart(1, 1) << JPart(12, bitfield_u32(simm12, 0, 12)) << JPart(2, adr);
 }
 
-word Emulator32bit::asm_format_m1(const byte opcode, const int xt, const int xn, const int xm)
-{
-    return Joiner() << JPart(6, opcode) << 1 << JPart(5, xt) << JPart(5, xn) << 1 << JPart(5, xm)
-                    << 9;
-}
-
-word Emulator32bit::asm_format_m2(const byte opcode, const int xd, const int imm20)
+word Emulator32bit::asm_format_m1(const byte opcode, const int xd, const int imm20)
 {
     return Joiner() << JPart(6, opcode) << 1 << JPart(5, xd) << JPart(20, imm20);
 }
@@ -299,6 +299,36 @@ word Emulator32bit::asm_format_b2(const byte opcode, const ConditionCode cond, c
     return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(5, xd) << 17;
 }
 
+void Emulator32bit::_special_instructions(const word instr)
+{
+    word opspec = bitfield_u32(instr, 22, 4);
+
+    switch (opspec)
+    {
+        case _opspec_hlt:
+            _hlt(instr);
+            break;
+        case _opspec_nop:
+            _nop(instr);
+            break;
+        case _opspec_msr:
+            _msr(instr);
+            break;
+        case _opspec_mrs:
+            _mrs(instr);
+            break;
+        case _opspec_tlbi:
+            _tlbi(instr);
+            break;
+        case _opspec_atomic:
+            _atomic(instr);
+            break;
+        default:
+            throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
+                    "Bad OPSPEC specifier " + std::to_string(opspec));
+    }
+}
+
 void Emulator32bit::_hlt(const word instr)
 {
     UNUSED(instr);
@@ -307,7 +337,7 @@ void Emulator32bit::_hlt(const word instr)
 
 word Emulator32bit::asm_hlt()
 {
-    return Joiner() << JPart(6, _op_hlt) << 26;
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_hlt) << 22;
 }
 
 void Emulator32bit::_nop(const word instr)
@@ -318,7 +348,304 @@ void Emulator32bit::_nop(const word instr)
 
 word Emulator32bit::asm_nop()
 {
-    return Joiner() << JPart(6, _op_nop) << 26;
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_nop) << 22;
+}
+
+void Emulator32bit::_msr(const word instr)
+{
+    const word sysreg = _SX1(instr);
+    const bool imm = test_bit(instr, 16);
+    word val = imm ? bitfield_u32(instr, 0, 16) : read_reg(_SX2(instr));
+
+    // TODO
+    switch (sysreg)
+    {
+        default:
+            throw Exception(Emulator32bit::InterruptType::BAD_REG, "System register "+
+                    std::to_string(sysreg) + " unimplemented.");
+    }
+}
+
+word Emulator32bit::asm_msr(word sysreg, bool imm, word xn_or_imm16)
+{
+    if (imm)
+    {
+        return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_msr)
+                << JPart(5, sysreg) << JPart(1, imm) << JPart(16, xn_or_imm16);
+    }
+    else
+    {
+        return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_msr)
+                << JPart(5, sysreg) << JPart(1, imm) << JPart(5, xn_or_imm16) << 11;
+    }
+}
+
+void Emulator32bit::_mrs(const word instr)
+{
+    word xn = _SX1(instr);
+    word sysreg = _SX2(instr);
+
+    // todo
+
+    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "MRS unimplemented.");
+}
+
+word Emulator32bit::asm_mrs(word xn, word sysreg)
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_mrs)
+            << JPart(5, xn) << 1 << JPart(5, sysreg) << 11;
+}
+
+void Emulator32bit::_tlbi(const word instr)
+{
+    word xt = _SX1(instr);
+    bool isxt = test_bit(instr, 16);
+    word imm16 = bitfield_u32(instr, 0, 16);
+
+    // todo
+
+    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "TLBI unimplemented.");
+}
+
+word Emulator32bit::asm_tlbi(word xt, bool isxt, word imm16)
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_mrs)
+            << JPart(5, xt) << JPart(1, isxt) << JPart(16, imm16);
+}
+
+void Emulator32bit::_atomic(const word instr)
+{
+    byte atop = bitfield_u32(instr, 0, 4);
+
+    switch (atop)
+    {
+        case ATOMIC_SWP:
+            _swp(instr);
+            break;
+        case ATOMIC_LDADD:
+            _ldadd(instr);
+            break;
+        case ATOMIC_LDCLR:
+            _ldclr(instr);
+            break;
+        case ATOMIC_LDSET:
+            _ldset(instr);
+            break;
+        default:
+            throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "Atomic op " +
+                    std::to_string(atop) + " unimplemented.");
+    }
+}
+
+void Emulator32bit::_swp(const word instr)
+{
+    const byte xt = _SX1(instr);
+    const byte xn = _SX2(instr);
+    const byte xm = _SX3(instr);
+    const word mem_adr = read_reg(xm);
+    const byte width = bitfield_u32(instr, 0, 4);
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        DEBUG_SS(std::stringstream() << "swp x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        DEBUG_SS(std::stringstream() << "swpb x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        DEBUG_SS(std::stringstream() << "swph x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        const word val_reg = read_reg(xn);
+        const word val_mem = system_bus.read_word(mem_adr);
+        write_reg(xt, val_mem);
+        system_bus.write_word(mem_adr, val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        const word val_reg = read_reg(xn) & 0xFF;
+        const word val_mem = system_bus.read_byte(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
+        system_bus.write_byte(mem_adr, val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        const word val_reg = read_reg(xn) & 0xFFFF;
+        const word val_mem = system_bus.read_hword(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
+        system_bus.write_hword(mem_adr, val_reg);
+    }
+    else
+    {
+        ERROR("Invalid ATOMIC_WIDTH");
+    }
+}
+
+void Emulator32bit::_ldadd(const word instr)
+{
+    const byte xt = _SX1(instr);
+    const byte xn = _SX2(instr);
+    const byte xm = _SX3(instr);
+    const word mem_adr = read_reg(xm);
+    const byte width = bitfield_u32(instr, 0, 4);
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldadd x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        DEBUG_SS(std::stringstream() << "ldaddb x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldaddh x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        const word val_reg = read_reg(xn);
+        const word val_mem = system_bus.read_word(mem_adr);
+        write_reg(xt, val_mem);
+        system_bus.write_word(mem_adr, val_mem + val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        const word val_reg = read_reg(xn) & 0xFF;
+        const word val_mem = system_bus.read_byte(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
+        system_bus.write_byte(mem_adr, val_mem + val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        const word val_reg = read_reg(xn) & 0xFFFF;
+        const word val_mem = system_bus.read_hword(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
+        system_bus.write_hword(mem_adr, val_mem + val_reg);
+    }
+    else
+    {
+        ERROR("Invalid ATOMIC_WIDTH");
+    }
+}
+
+void Emulator32bit::_ldclr(const word instr)
+{
+    const byte xt = _SX1(instr);
+    const byte xn = _SX2(instr);
+    const byte xm = _SX3(instr);
+    const word mem_adr = read_reg(xm);
+    const byte width = bitfield_u32(instr, 0, 4);
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldclr x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        DEBUG_SS(std::stringstream() << "ldclrb x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldclrh x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        const word val_reg = read_reg(xn);
+        const word val_mem = system_bus.read_word(mem_adr);
+        write_reg(xt, val_mem);
+        system_bus.write_word(mem_adr, val_mem & (~val_reg));
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        const word val_reg = read_reg(xn) & 0xFF;
+        const word val_mem = system_bus.read_byte(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
+        system_bus.write_byte(mem_adr, val_mem & (~val_reg));
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        const word val_reg = read_reg(xn) & 0xFFFF;
+        const word val_mem = system_bus.read_hword(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
+        system_bus.write_hword(mem_adr, val_mem & (~val_reg));
+    }
+    else
+    {
+        ERROR("Invalid ATOMIC_WIDTH");
+    }
+}
+
+void Emulator32bit::_ldset(const word instr)
+{
+    const byte xt = _SX1(instr);
+    const byte xn = _SX2(instr);
+    const byte xm = _SX3(instr);
+    const word mem_adr = read_reg(xm);
+    const byte width = bitfield_u32(instr, 0, 4);
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldset x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        DEBUG_SS(std::stringstream() << "lsetb x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        DEBUG_SS(std::stringstream() << "ldseth x" << std::to_string(xt) << ", x" << std::to_string(xn)
+             << ", [x" << std::to_string(xm) << "]");
+    }
+
+    if (width == ATOMIC_WIDTH_WORD)
+    {
+        const word val_reg = read_reg(xn);
+        const word val_mem = system_bus.read_word(mem_adr);
+        write_reg(xt, val_mem);
+        system_bus.write_word(mem_adr, val_mem | val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_BYTE)
+    {
+        const word val_reg = read_reg(xn) & 0xFF;
+        const word val_mem = system_bus.read_byte(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
+        system_bus.write_byte(mem_adr, val_mem | val_reg);
+    }
+    else if (width == ATOMIC_WIDTH_HWORD)
+    {
+        const word val_reg = read_reg(xn) & 0xFFFF;
+        const word val_mem = system_bus.read_hword(mem_adr);
+        write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
+        system_bus.write_hword(mem_adr, val_mem | val_reg);
+    }
+    else
+    {
+        ERROR("Invalid ATOMIC_WIDTH");
+    }
+}
+
+
+word Emulator32bit::asm_atomic(word xt, word xn, word xm, byte width, byte atop)
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, _opspec_atomic)
+            << JPart(5, xt) << 1 << JPart(5, xn) << JPart(5, xm) << JPart(2, width) << JPart(4, atop);
 }
 
 void Emulator32bit::_add(const word instr)
@@ -329,7 +656,8 @@ void Emulator32bit::_add(const word instr)
     const word dst_val = add_val + xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_add(xn_val, add_val),
                  get_v_flag_add(xn_val, add_val));
     }
@@ -347,7 +675,8 @@ void Emulator32bit::_sub(const word instr)
     const word dst_val = xn_val - sub_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, sub_val),
                  get_v_flag_sub(xn_val, sub_val));
     }
@@ -365,7 +694,8 @@ void Emulator32bit::_rsb(const word instr)
     const word dst_val = xn_val - sub_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, sub_val),
                  get_v_flag_sub(xn_val, sub_val));
     }
@@ -384,7 +714,8 @@ void Emulator32bit::_adc(const word instr)
     const word dst_val = add_val + xn_val + c;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                  get_c_flag_add(xn_val + c, add_val) | get_c_flag_add(xn_val, c),
                  get_v_flag_add(xn_val + c, add_val) | get_v_flag_add(xn_val, c));
@@ -404,7 +735,8 @@ void Emulator32bit::_sbc(const word instr)
     const word dst_val = xn_val - sub_val - borrow;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                  get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
                  get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow));
@@ -424,7 +756,8 @@ void Emulator32bit::_rsc(const word instr)
     const word dst_val = xn_val - sub_val - borrow;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                 get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
                 get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow));
@@ -443,7 +776,8 @@ void Emulator32bit::_mul(const word instr)
     dword dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/smull
         // arm's MUL instruction does not set carry or overflow flags
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
@@ -465,7 +799,8 @@ void Emulator32bit::_umull(const word instr)
     dword dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/umull
         // arm's UMULL instruction does not set carry or overflow flags
         set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG),
@@ -488,7 +823,8 @@ void Emulator32bit::_smull(const word instr)
     const signed long long dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
         // arm's UMULL instruction does not set carry or overflow flags
         set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG),
@@ -584,7 +920,8 @@ void Emulator32bit::_and(const word instr)
     const word dst_val = and_val & xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
@@ -605,7 +942,8 @@ void Emulator32bit::_orr(const word instr)
     const word dst_val = or_val | xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
@@ -626,7 +964,8 @@ void Emulator32bit::_eor(const word instr)
     const word dst_val = eor_val ^ xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
@@ -647,7 +986,8 @@ void Emulator32bit::_bic(const word instr)
     const word dst_val = (~bic_val) & xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
@@ -768,14 +1108,18 @@ void Emulator32bit::_mov(const word instr)
 {
     const byte xd = _X1(instr);
     word mov_val = 0;
-    if (test_bit(instr, 19)) {
+    if (test_bit(instr, 19))
+    {
         mov_val = bitfield_u32(instr, 0, 19);
-    } else {
+    }
+    else
+    {
         mov_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
     }
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(mov_val, 31), mov_val == 0, test_bit(_pstate, C_FLAG),
                  test_bit(_pstate, V_FLAG));
     }
@@ -789,16 +1133,20 @@ void Emulator32bit::_mvn(const word instr)
 {
     const byte xd = _X1(instr);
     word mvn_val = 0;
-    if (test_bit(instr, 19)) {
+    if (test_bit(instr, 19))
+    {
         mvn_val = bitfield_u32(instr, 0, 19);
-    } else {
+    }
+    else
+    {
         mvn_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
     }
 
     const word dst_val = ~mvn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
                  test_bit(_pstate, V_FLAG));
     }
@@ -812,15 +1160,22 @@ word Emulator32bit::calc_mem_addr(word xn, sword offset, byte addr_mode)
 {
     word mem_addr = 0;
     const word xn_val = read_reg(xn);
-    if (addr_mode == 0) {
+    if (addr_mode == 0)
+    {
         mem_addr = xn_val + offset;
-    } else if (addr_mode == 1) {
+    }
+    else if (addr_mode == 1)
+    {
         mem_addr = xn_val + offset;
         write_reg(xn, mem_addr);
-    } else if (addr_mode == 2) {
+    }
+    else if (addr_mode == 2)
+    {
         mem_addr = xn_val;
         write_reg(xn, xn_val + offset);
-    } else {
+    }
+    else
+    {
         throw Exception(BAD_INSTR, "Bad memory address mode " + std::to_string(addr_mode));
     }
     return mem_addr;
@@ -831,26 +1186,26 @@ void Emulator32bit::_ldr(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     const word read_val = system_bus.read_word(mem_addr);
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x"
                 << std::to_string(xn) << ", #" << std::to_string(offset)
                 << "] (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x" << std::to_string(xn)
                 << ", #" << std::to_string(offset)
                 << "]! (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "ldr x" << std::to_string(xt) << ", [x" << std::to_string(xn)
                 << "], #" << std::to_string(offset)
                 << " (" << std::to_string(mem_addr) << ") = " << std::to_string(read_val));
@@ -864,29 +1219,30 @@ void Emulator32bit::_ldrb(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word read_val = system_bus.read_byte(mem_addr);
-    if (sign) {
+    if (sign)
+    {
         read_val = (sword) ((byte) read_val);
     }
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sb " : "b ") << std::to_string(xt)
                 << ", [" << std::to_string(xn) << ", " << offset << "] ["
                 << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sb " : "b ") << ", ["
                 << std::to_string(xn) << ", " << offset << "]! [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(read_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sb " : "b ") << ", ["
                 << std::to_string(xn) << "], " << offset << " [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(read_val));
@@ -900,29 +1256,30 @@ void Emulator32bit::_ldrh(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ?  bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word read_val = system_bus.read_hword(mem_addr);
-    if (sign) {
+    if (sign)
+    {
         read_val = (sword) ((hword) read_val);
     }
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sh " : "h ") << std::to_string(xt)
                 << ", [" << std::to_string(xn) << ", " << offset << "] ["
                 << std::to_string(mem_addr) << "] = " << std::to_string(read_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sh " : "h ") << ", ["
                 << std::to_string(xn) << ", " << offset << "]! [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(read_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "ldr" << (sign ? "sh " : "h ") << ", ["
                 << std::to_string(xn) << "], " << offset << " [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(read_val));
@@ -935,26 +1292,26 @@ void Emulator32bit::_str(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     const word write_val = read_reg(xt);
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x"
                 << std::to_string(xn) << ", #" << offset << "] (" << std::to_string(mem_addr)
                 << ") = " << std::to_string(write_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x"
                 << std::to_string(xn) << ", #" << offset << "]! (" << std::to_string(mem_addr)
                 << ") = " << std::to_string(write_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "str x" << std::to_string(xt) << ", [x"
                 << std::to_string(xn) << "], #" << offset << " (" << std::to_string(mem_addr)
                 << ") = " << std::to_string(write_val));
@@ -968,29 +1325,30 @@ void Emulator32bit::_strb(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word write_val = read_reg(xt);
-    if (sign) {
+    if (sign)
+    {
         write_val = (sword) ((byte) write_val);
     }
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sb " : "b ") << std::to_string(xt)
                 << ", [" << std::to_string(xn) << ", " << offset << "] ["
                 << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sb " : "b ") << ", ["
                 << std::to_string(xn) << ", " << offset << "]! [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(write_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sb " : "b ") << ", ["
                 << std::to_string(xn) << "], " << offset << " [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(write_val));
@@ -1004,29 +1362,30 @@ void Emulator32bit::_strh(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = 0;
-    if (simm) {
-        offset = bitfield_s32(instr, 2, 12);
-    } else {
-        offset = FORMAT_O__get_arg(instr);
-    }
+    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
     const byte address_mode = bitfield_u32(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word write_val = read_reg(xt);
-    if (sign) {
+    if (sign)
+    {
         write_val = (sword) ((hword)write_val);
     }
 
-    if (address_mode == 0) {
+    if (address_mode == 0)
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sh " : "h ") << std::to_string(xt)
                 << ", [" << std::to_string(xn) << ", " << offset << "] ["
                 << std::to_string(mem_addr) << "] = " << std::to_string(write_val));
-    } else if (address_mode == 1) {
+    }
+    else if (address_mode == 1)
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sh " : "h ") << ", ["
                 << std::to_string(xn) << ", " << offset << "]! [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(write_val));
-    } else {
+    }
+    else
+    {
         DEBUG_SS(std::stringstream() << "str" << (sign ? "sh " : "h ") << ", ["
                 << std::to_string(xn) << "], " << offset << " [" << std::to_string(mem_addr)
                 << "] = " << std::to_string(write_val));
@@ -1034,62 +1393,11 @@ void Emulator32bit::_strh(const word instr)
     system_bus.write_hword(mem_addr, write_val);
 }
 
-void Emulator32bit::_swp(const word instr)
-{
-    const byte xt = _X1(instr);
-    const byte xn = _X2(instr);
-    const byte xm = _X3(instr);
-    const word mem_adr = read_reg(xm);
-
-    DEBUG_SS(std::stringstream() << "swp x" << std::to_string(xt) << ", x" << std::to_string(xn)
-             << ", [x" << std::to_string(xm) << "]");
-
-    const word val_reg = read_reg(xn);
-    const word val_mem = system_bus.read_word(mem_adr);
-
-    write_reg(xt, val_mem);
-    system_bus.write_word(mem_adr, val_reg);
-}
-
-void Emulator32bit::_swpb(const word instr)
-{
-    const byte xt = _X1(instr);
-    const byte xn = _X2(instr);
-    const byte xm = _X3(instr);
-    const word mem_adr = read_reg(xm);
-
-    DEBUG_SS(std::stringstream() << "swpb x" << std::to_string(xt) << ", x" << std::to_string(xn)
-             << ", [x" << std::to_string(xm) << "]");
-
-    const word val_reg = read_reg(xn) & 0xFF;
-    const word val_mem = system_bus.read_byte(mem_adr);
-
-    write_reg(xt, (val_reg & ~(0xFF)) + val_mem);
-    system_bus.write_byte(mem_adr, val_reg);
-}
-
-void Emulator32bit::_swph(const word instr)
-{
-    const byte xt = _X1(instr);
-    const byte xn = _X2(instr);
-    const byte xm = _X3(instr);
-    const word mem_adr = read_reg(xm);
-
-    DEBUG_SS(std::stringstream() << "swph x" << std::to_string(xt) << ", x" << std::to_string(xn)
-             << ", [x" << std::to_string(xm) << "]");
-
-    const word val_reg = read_reg(xn) & 0xFFFF;
-    const word val_mem = system_bus.read_byte(mem_adr);
-
-    write_reg(xt, (val_reg & ~(0xFFFF)) + val_mem);
-    system_bus.write_byte(mem_adr, val_reg);
-}
-
-
 void Emulator32bit::_b(const word instr)
 {
     const byte cond = bitfield_u32(instr, 22, 4);
-    if (check_cond(_pstate, cond)) {
+    if (check_cond(_pstate, cond))
+    {
         _pc += (bitfield_s32(instr, 0, 22) << 2) - 4;            /* account for execution loop incrementing _pc by 4 */
     }
     DEBUG_SS(std::stringstream() << "b " << std::to_string(cond));
@@ -1098,7 +1406,8 @@ void Emulator32bit::_b(const word instr)
 void Emulator32bit::_bl(const word instr)
 {
     const byte cond = bitfield_u32(instr, 22, 4);
-    if (check_cond(_pstate, cond)) {
+    if (check_cond(_pstate, cond))
+    {
         write_reg(LINKR, _pc+4);
         _pc += (bitfield_s32(instr, 0, 22) << 2) - 4;
     }
@@ -1109,7 +1418,8 @@ void Emulator32bit::_bx(const word instr)
 {
     const byte cond = bitfield_u32(instr, 22, 4);
     const byte reg = bitfield_u32(instr, 17, 5);
-    if (check_cond(_pstate, cond)) {
+    if (check_cond(_pstate, cond))
+    {
         _pc = (sword) read_reg(reg) - 4;
     }
     DEBUG_SS(std::stringstream() << "bx " << std::to_string(reg) << " (" << std::to_string(cond)
@@ -1120,7 +1430,8 @@ void Emulator32bit::_blx(const word instr)
 {
     const byte cond = bitfield_u32(instr, 22, 4);
     const byte reg = bitfield_u32(instr, 17, 5);
-    if (check_cond(_pstate, cond)) {
+    if (check_cond(_pstate, cond))
+    {
         write_reg(LINKR, _pc+4);
         _pc = (sword) read_reg(reg) - 4;
     }
@@ -1134,7 +1445,8 @@ void Emulator32bit::_adrp(const word instr)
     const word imm20 = bitfield_u32(instr, 0, 20) << 12;
 
     signed int simm21 = imm20;
-    if (test_bit(instr, S_BIT)) {
+    if (test_bit(instr, S_BIT))
+    {
         simm21 -= (1 << 20);
     }
 

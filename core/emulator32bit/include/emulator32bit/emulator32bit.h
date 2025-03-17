@@ -30,31 +30,32 @@ class Timer; /* Forward declare from 'timer.h' */
  * executed.
  *
  */
-#define NUM_REG 32          /* Number of general purpose stack registers */
-#define NR 8                /* Number register for syscalls */
-#define FP 28               /* Frame Pointer - points to saved (FP,LR) in stack */
-#define LINKR 29            /* Link Register */
-#define SP 30               /* Stack Pointer */
-#define XZR 31              /* Zero Register */
+constexpr int NUM_REG = 32; /* Number of general purpose stack registers */
+constexpr int NR = 8;       /* Number register for syscalls */
+constexpr int FP = 28;      /* Frame Pointer - points to saved (FP,LR) in stack */
+constexpr int LINKR = 29;   /* Link Register */
+constexpr int SP = 30;      /* Stack Pointer */
+constexpr int XZR = 31;     /* Zero Register */
 
 /**
  * @brief                     Flag bit locations in _pstate register
  *
  */
-#define N_FLAG 0            /* Negative Flag */
-#define Z_FLAG 1            /* Zero Flag */
-#define C_FLAG 2            /* Carry Flag */
-#define V_FLAG 3            /* Overflow Flag */
-#define USER_FLAG 8         /* User mode flag */
-#define REAL_FLAG 9         /* Real memory mode flag */
+constexpr int N_FLAG = 0;       /* Negative Flag */
+constexpr int Z_FLAG = 1;       /* Zero Flag */
+constexpr int C_FLAG = 2;       /* Carry Flag */
+constexpr int V_FLAG = 3;       /* Overflow Flag */
+constexpr int USER_FLAG = 8;    /* User mode flag */
+constexpr int REAL_FLAG = 9;    /* Real memory mode flag */
 
 /**
  * @brief                    Which bit of the instruction determines whether flags will be updated
  *
  */
-#define S_BIT 25            /* Update Flag Bit */
+constexpr int S_BIT = 25;       /* Update Flag Bit */
 
-std::string disassemble_instr(word instr);
+constexpr int NUM_INSTRUCTIONS = 64;
+
 
 /**
  * @brief                     32 bit Emulator
@@ -226,14 +227,13 @@ class Emulator32bit
         word _pc;                                        /* Program counter */
         word _pstate;                                    /* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
-        static constexpr int _num_instructions = 64;
         typedef void (Emulator32bit::*InstructionFunction)(word);
-        InstructionFunction _instructions[_num_instructions];
+        InstructionFunction _instructions[NUM_INSTRUCTIONS];
 
         // note, stringstreams cannot use the static const for some reason
         #define _INSTR(func_name, opcode) \
         private: void _##func_name(word instr); \
-        public: static const byte _op_##func_name = opcode;
+        public: static constexpr word _op_##func_name = opcode;
         void fill_out_instructions();
 
         word calc_mem_addr(word xn, sword offset, byte addr_mode);
@@ -294,7 +294,19 @@ class Emulator32bit
         }
 
         // instruction handling
-        _INSTR(hlt, 0b000000)
+        _INSTR(special_instructions, 0b000000)
+
+        void _hlt(const word instr);
+        void _nop(const word instr);
+        void _msr(const word instr);
+        void _mrs(const word instr);
+        void _tlbi(const word instr);
+        void _atomic(const word instr);
+        void _swp(const word instr);
+        void _ldadd(const word instr);
+        void _ldclr(const word instr);
+        void _ldset(const word instr);
+
 
         _INSTR(add, 0b000001)
         _INSTR(sub, 0b000010)
@@ -342,9 +354,9 @@ class Emulator32bit
         _INSTR(str, 0b100111)
         _INSTR(strb, 0b101000)
         _INSTR(strh, 0b101001)
-        _INSTR(swp, 0b101010)
-        _INSTR(swpb, 0b101011)
-        _INSTR(swph, 0b101100)
+        // _INSTR(swp, 0b101010)
+        // _INSTR(swpb, 0b101011)
+        // _INSTR(swph, 0b101100)
         _INSTR(b, 0b101101)
         _INSTR(bl, 0b101110)
         _INSTR(bx, 0b101111)
@@ -365,7 +377,7 @@ class Emulator32bit
         // _INSTR(nop_, 0b111101)
         // _INSTR(nop_, 0b111110)
 
-        _INSTR(nop, 0b111111)
+        // _INSTR(nop, 0b111111)
 
         #undef _INSTR
 
@@ -384,6 +396,12 @@ class Emulator32bit
     public:
         // help assemble instructions
         static word asm_hlt();
+        static word asm_nop();
+        static word asm_msr(word sysreg, bool imm, word xn_or_imm16);
+        static word asm_mrs(word xn, word sysreg);
+        static word asm_tlbi(word xt, bool isxt, word imm16);
+        static word asm_atomic(word xt, word xn, word xm, byte width, byte atop);
+
         static word asm_format_o(byte opcode, bool s, int xd, int xn, int imm14);
         static word asm_format_o(byte opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
         static word asm_format_o1(byte opcode, int xd, int xn, bool imm, int xm, int imm5);
@@ -392,12 +410,28 @@ class Emulator32bit
         static word asm_format_o3(byte opcode, bool s, int xd, int xn, int imm14);
         static word asm_format_m(byte opcode, bool sign, int xt, int xn, int xm, ShiftType shift, int imm5, AddrType adr);
         static word asm_format_m(byte opcode, bool sign, int xt, int xn, int simm12, AddrType adr);
-        static word asm_format_m1(byte opcode, int xd, int xn, int xm);
-        static word asm_format_m2(byte opcode, int xd, int imm20);
+        static word asm_format_m1(byte opcode, int xd, int imm20);
         static word asm_format_b1(byte opcode, ConditionCode cond, sword simm22);
         static word asm_format_b2(byte opcode, ConditionCode cond, int xd);
 
-        static word asm_nop();
+        static std::string disassemble_instr(word instr);
+
+        static constexpr word _opspec_hlt = 0b0000;
+        static constexpr word _opspec_nop = 0b1111;
+        static constexpr word _opspec_msr = 0b0001;
+        static constexpr word _opspec_mrs = 0b0010;
+        static constexpr word _opspec_tlbi = 0b0011;
+        static constexpr word _opspec_atomic = 0b0100;
+
+        static constexpr int ATOMIC_SWP = 0b0000;
+        static constexpr int ATOMIC_LDADD = 0b0001;
+        static constexpr int ATOMIC_LDCLR = 0b0010;
+        static constexpr int ATOMIC_LDSET = 0b0011;
+
+        static constexpr int ATOMIC_WIDTH_WORD = 0b00;
+        static constexpr int ATOMIC_WIDTH_BYTE = 0b01;
+        static constexpr int ATOMIC_WIDTH_HWORD = 0b10;
+
 };
 
 #endif /* EMULATOR32BIT_H */

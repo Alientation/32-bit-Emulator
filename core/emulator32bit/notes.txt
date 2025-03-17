@@ -69,11 +69,7 @@ opcode ?sign   xt      xn  ?simm  xm    shift  imm5  adr
 000000 | 0 | 00000 | 00000 | 1 | 000000000000 | 00
 opcode ?sign   xt      xn  ?simm   simm12      adr
 
-M1 Type Instruction
-000000 | 0 | 00000 | 00000 | 0 | 00000 | 000000000
-opcode   -     xt      xn    -     xm    ---------
-
-M2 Type Instruction (?sign is bit 21 of the simm21, stored in two parts)
+M1 Type Instruction (?sign is bit 21 of the simm21, stored in two parts)
 000000 | 0 | 00000 | 00000000000000000000
 opcode ?sign   xd            imm20
 
@@ -94,155 +90,146 @@ B2 Type Instruction
 000000 | 0000 | 00000 | 00000000000000000
 opcode   cond    xd     -----------------
 
-Miscellaneous Instructions (2)
-HLT
-	- Stops program execution
-	- op: 000000
+================================================================
+Miscellaneous Instructions (1)
+000000 | 0000 | 0000000000000000000000
+opcode  ext. op         imm22
 
-NOP
-	- Does nothing
-	- op: 111111
+000000 | 0000: HLT
+    - 000000 | 0000 | 0000000000000000000000
+	- Stops program execution
+
+000000 | 1111: NOP
+	- 000000 | 1111 | 0000000000000000000000
+    - Does nothing
+
+000000 | 0001 : MSR
+    - 000000 | 0001 | 00000 | 0 | 00000 | 00000000000
+                     sysreg  ?imm  xn
+    - 000000 | 0001 | 00000 | 1 | 0000000000000000
+                     sysreg  ?imm     imm16
+    - Move to system register
+
+000000 | 000010: MRS
+	- 000000 | 0010 | 00000 | 0 | 00000 | 00000000000
+                       xn        sysreg
+    - Move from system register
+
+000000 | 0011: TLBI
+    - 000000 | 0011 | 00000 | 0 | 0000000000000000
+                        xt   ?xt    imm16, specify TLBI operation
+    - Flush the TLB, flags to specify how to do so
+
+000000 | 0100: Atomic Operations
+    000000 | 0100 | 00000 | 0 | 00000 | 00000 | 00 | 0000
+                     xt     -    xn      xm    W/B/H atop
+    - SWP{B|H} xt, xn, [xm]
+	    - Writes the value at the address xm to xt, storing xn into address xm
+
+    000000 | 0100 | 00000 | 0 | 00000 | 00000 | 00 | 0001
+                     xt     -    xn      xm    W/B/H atop
+    - LDADD{B|H} xt, xn, [xm]
+        - Writes the value at address xm to xt, adding xn into address xm
+
+    000000 | 0100 | 00000 | 0 | 00000 | 00000 | 00 | 0010
+                     xt     -    xn      xm    W/B/H atop
+    - LDCLR{B|H} xt, xn, [xm]
+        - Writes the value at address xm to xt, clearing the bits specified by xn at address xm
+
+    000000 | 0100 | 00000 | 0 | 00000 | 00000 | 00 | 0011
+                     xt     -    xn      xm    W/B/H ----
+    - LDSET{B|H} xt, xn, [xm]
+        - Writes the value at address xm to xt, setting the bits specified by xn at address xm
+
+
 
 Arithmetic Instructions (9)
-ADD{S} xd, xn, arg (O)
+000001: ADD{S} xd, xn, arg (O)
 	- adds xn and arg and stores in xd
 	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000001
 
-SUB{S} xd, xn, arg (O)
+000010: SUB{S} xd, xn, arg (O)
 	- subtracts arg from xn and stores in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000010
 
-RSB{S} xd, xm, arg (O)
+000011: RSB{S} xd, xm, arg (O)
 	- subtracts xm from arg and stores in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000011
 
-ADC{S} xd, xn, arg (O)
+000100: ADC{S} xd, xn, arg (O)
 	- adds xn and arg with the current state's carry flag and stores in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000100
 
-SBC{S} xd, xn, arg (O)
+000101: SBC{S} xd, xn, arg (O)
 	- subtracts arg from xn with the current state's carrry flag and stores in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000101
 
-RSC{S} xd, xm, arg (O)
+000110: RSC{S} xd, xm, arg (O)
 	- subtracts xm from arg with the current state's carry flag and stores in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000110
 
-MUL{S} xd, xn, arg (O)
+000111: MUL{S} xd, xn, arg (O)
 	- multiplies xn and arg and stores the lower 32 bits in xd
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 000111
 
-UMULL{S} xlo, xhi, xn, xm (O2)
+001000: UMULL{S} xlo, xhi, xn, xm (O2)
 	- multiplies unsigned xn and xm and stores the result into {xhi, xlo}
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 001000
 
-SMULL{S} xlo, xhi, xn, xm (O2)
+001001: SMULL{S} xlo, xhi, xn, xm (O2)
 	- multiplies signed xn and xm and stores the result into {xhi, xlo}
-	- {S} specifies whether the NZCV flags are updated as a result of the operation
-	- op: 001001
 
 Floating Point Instructions (12)
 https://developer.arm.com/documentation/dui0802/b/Advanced-SIMD-and-Floating-point-Programming--32-bit-/Floating-point-instructions
-VABS.F32 xd, xn (F)
-	- op: 001010
-VNEG.F32 xd, xn (F)
-	- op: 001011
-VSQRT.F32 xd, xn (F)
-	- op: 001100
-VADD.F32 xd, xn, xm (F1)
-	- op: 001101
-VSUB.F32 xd, xn, xm (F1)
-	- op: 001110
-VDIV.F32 xd, xn, xm (F1)
-	- op: 001111
-VMUL.F32 xd, xn, xm (F1)
-	- op: 010000
-VCMP.F32 xn, {xm|0} (F1)
-	- op: 010001
-VSEL.cond.F32 xd, xn, xm (F1)
-	- op: 010010
-VCINT.{u32|s32}.F32 xd, xn (F)
-	- op: 010011
-VCFLO.{u32|s32}.F32 xd, xn (F)
-	- op: 010100
-VMOV.F32 xd, {xn|#fimm} (F2)
-	- op: 010101
+001010: VABS.F32 xd, xn (F)
+001011: VNEG.F32 xd, xn (F)
+001100: VSQRT.F32 xd, xn (F)
+001101: VADD.F32 xd, xn, xm (F1)
+001110: VSUB.F32 xd, xn, xm (F1)
+001111: VDIV.F32 xd, xn, xm (F1)
+010000: VMUL.F32 xd, xn, xm (F1)
+010001: VCMP.F32 xn, {xm|0} (F1)
+010010: VSEL.cond.F32 xd, xn, xm (F1)
+010011: VCINT.{u32|s32}.F32 xd, xn (F)
+010100: VCFLO.{u32|s32}.F32 xd, xn (F)
+010101: VMOV.F32 xd, {xn|#fimm} (F2)
 
 Bitwise Instructions (8)
-AND{S} xd, xn, arg (O)
-	- op: 010110
-ORR{S} xd, xn, arg (O)
-	- op: 010111
-EOR{S} xd, xn, arg (O)
-	- op: 011000
-BIC{S} xd, xn, arg (O)
-	- op: 011001
-LSL{S} xd, xn, {xm|#imm5} (O1)	-- NOTE, #imm5 refers to the same one if ?imm was unset
-	- op: 011010
-LSR{S} xd, xn, {xm|#imm5} (O1)
-	- op: 011011
-ASR{S} xd, xn, {xm|#imm5} (O1)
-	- op: 011100
-ROR{S} xd, xn, {xm|#imm5} (O1)
-	- op: 011101
+010110: AND{S} xd, xn, arg (O)
+010111: ORR{S} xd, xn, arg (O)
+011000: EOR{S} xd, xn, arg (O)
+011001: BIC{S} xd, xn, arg (O)
+011010: LSL{S} xd, xn, {xm|#imm5} (O1)
+011011: LSR{S} xd, xn, {xm|#imm5} (O1)
+011100: ASR{S} xd, xn, {xm|#imm5} (O1)
+011101: ROR{S} xd, xn, {xm|#imm5} (O1)
 
 Comparison Instructions (4)
-CMP xn, arg (O)
-	- op: 011110
-CMN xn, arg (O)
-	- op: 011111
-TST xn, arg (O)
-	- op: 100000
-TEQ xn, arg (O)
-	- op: 100001
+011110: CMP xn, arg (O)
+011111: CMN xn, arg (O)
+100000: TST xn, arg (O)
+100001: TEQ xn, arg (O)
 
 Data Movement Instructions (2)
-MOV{S} xd, arg (O3)
-	- op: 100010
-MVN{S} xd, arg (O3)
-	- op: 100011
+100010: MOV{S} xd, arg (O3)
+100011: MVN{S} xd, arg (O3)
 
-Memory Access Instructions (3)
-LDR{B|H} xt, mem (M)		: NOTE {B|H} signify different instruction opcodes
-	- op: 100100 (regular), 100101 (Byte), 100110 (Half-Word)
-STR{B|H} xt, mem (M)
-	- op: 100111 (regular), 101000 (Byte), 101001 (Half-Word)
-SWP{B|H} xd, xn, [xm] (M1)
-	- op: 101010 (regular), 101011 (Byte), 101100 (Half-Word)
-	- Writes the value at the address at xm to xd, while also storing xn into address at xm
-	- Effectively allows for the implementation of synchronization
+Memory Access Instructions (9)
+100100: LDR{B|H} xt, mem (M)
+	- op: 100100 (Word), 100101 (Byte), 100110 (Half-Word)
+100111: STR{B|H} xt, mem (M)
+	- op: 100111 (Word), 101000 (Byte), 101001 (Half-Word)
 
 Branching Instructions (5)
-B{CD} simm22 (B1)
-	- op: 101101
-BL{CD} simm22 (B1)
-	- op: 101110
-BX{CD} xd (B2)
+101101: B{CD} simm22 (B1)
+101110: BL{CD} simm22 (B1)
+101111: BX{CD} xd (B2)
 	- BX X29 equivalent to ret
-	- op: 101111
-BLX{CD} xd (B2)
-	- op: 110000
-SWI{CD} - (B1)
-	- op: 110001
+110000: BLX{CD} xd (B2)
+110001: SWI{CD} - (B1)
 	- operation depends on the value of register x8 which gives the syscall identifier
 	- operation, if returning anything, writes to x0
 	- registers x0 through x5 can be used as arguments
 
 Addressing Instructions (1)
-ADRP simm21 (M2)
-	- op: 110010
+110010: ADRP simm21 (M1)
 
 AVAILABLE OPCODES
-	110011, 110100, 110101, 110110, 110111,
-	111000, 111001, 111010, 111011, 111100, 111101, 111110
+	101010, 101011, 101100, 110011, 110100, 110101, 110110, 110111,
+	111000, 111001, 111010, 111011, 111100, 111101, 111110, 111111
 
 Condition Codes (15)
 AL {1}

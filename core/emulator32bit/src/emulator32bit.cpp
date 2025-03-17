@@ -65,14 +65,15 @@ const char* Emulator32bit::Exception::what() const noexcept
 
 void Emulator32bit::fill_out_instructions()
 {
-    for (int i = 0; i < _num_instructions; i++) {
+    for (int i = 0; i < NUM_INSTRUCTIONS; i++)
+    {
         _instructions[i] = Emulator32bit::_hlt;
     }
 
     /* fill out instruction functions and construct disassembler instruction mapping */
     #define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
 
-    _INSTR(hlt)
+    _INSTR(special_instructions)
 
     _INSTR(add)
     _INSTR(sub)
@@ -120,9 +121,6 @@ void Emulator32bit::fill_out_instructions()
     _INSTR(str)
     _INSTR(strb)
     _INSTR(strh)
-    _INSTR(swp)
-    _INSTR(swpb)
-    _INSTR(swph)
 
     _INSTR(b)
     _INSTR(bl)
@@ -131,22 +129,6 @@ void Emulator32bit::fill_out_instructions()
     _INSTR(swi)
 
     _INSTR(adrp)
-
-    _INSTR(hlt)
-
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-    // _INSTR(nop_)
-
-    _INSTR(nop)
     #undef _INSTR
 }
 
@@ -154,7 +136,8 @@ void Emulator32bit::print()
 {
     printf("32 bit emulator\nRegisters:\n");
     printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(read_reg(SP)).c_str(), to_color_hex_str((word)0).c_str());
-    for (int i = 0; i < SP; i++) {
+    for (int i = 0; i < SP; i++)
+    {
         printf("x%.2d: %s\n", i, to_color_hex_str(read_reg(i)).c_str());
     }
 
@@ -163,7 +146,7 @@ void Emulator32bit::print()
 
 void Emulator32bit::run(unsigned long long instructions)
 {
-    word instr = _op_hlt;
+    word instr = asm_hlt();
     unsigned long long num_instructions_ran = 0;
     try
     {

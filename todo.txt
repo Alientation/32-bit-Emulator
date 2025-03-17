@@ -5,20 +5,32 @@
     - Some can alias other instructions.
     - For example, CMP ... can just be an alias for SUB xzr, ...
     - Try to merge some instructions so more aliasing can be done like hlt and nop
-    - Add new instructions
-        - MSR/MRS (Move to/from system register)
-            - moves the pstate register contents to a GPR
-        - Atomic operations
-            - LDADD (Load and Add)
-                - Value in memory is updated by adding a value
-                - Reads in the old value to a GPR
-                - LDADD xd, [xt], imm
-            - LDCLR (Load and Clear)
-                - Value in memory is set to 0
-                - Reads in old value to a GPR
-                - LDCLR xd, [xt]
-            - LDSET (Load and Set)
-                - Value in memory is set to 1
-                - Reads in old value to a GPR
-                - LDSET xd, [xt]
+[ ] Add new instructions  ***STILL NEED TO INCORPORATE INTO ASSEMBLER AND DISASSEMBLER***
+    [ ] MSR/MRS (Move to/from system register)
+        - moves a system register's contents to/from a GPR
+    [ ] TLBI
+        - Invalidate the TLB, when context switching
+    [ ] Atomic operations
+        [ ] LDADD (Load and Add)
+            - Value in memory is updated by adding a value
+            - Reads in the old value to a GPR
+            - LDADD xt, xn, [xm]
+        [ ] LDCLR (Load and Clear)
+            - Specified bits in memory is cleared
+            - Reads in old value to a GPR
+            - LDCLR xt, xn, [xm]
+        [ ] LDSET (Load and Set)
+            - Specified bits in memory is set
+            - Reads in old value to a GPR
+            - LDSET xt, xn, [xm]
+[ ] Add tests
+    [ ] MSR/MRS
+    [ ] TLBI
+    [ ] Atomics
+        [ ] SWP
+        [ ] LDADD
+        [ ] LDCLR
+        [ ] LDSET
+    [ ] NOP
 [ ] Work on a tiny c compiler
+[ ] Refactor Disassembler to be in its own container

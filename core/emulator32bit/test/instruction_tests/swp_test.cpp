@@ -7,7 +7,7 @@ static const byte data[PAGE_SIZE] = {0x07, 0x16, 0x25, 0x34};
 TEST(swp, basic) {
     Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
     // swp x0, x1, [x2]
-    cpu->system_bus.write_word(0, Emulator32bit::asm_format_m1(Emulator32bit::_op_swp, 0, 1, 2));
+    cpu->system_bus.write_word(0, Emulator32bit::asm_atomic(0, 1, 2, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP));
     cpu->set_pc(0);
     cpu->write_reg(1, 0x76543210);
     cpu->write_reg(2, PAGE_SIZE);

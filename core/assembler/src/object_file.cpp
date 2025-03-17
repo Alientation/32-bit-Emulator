@@ -496,7 +496,7 @@ void ObjectFile::print()
             std::cout << color_val_str(to_hex_str((dword) i*4)) << " <" << current_label << ">:";
         }
         // std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
-        std::string disassembly = disassemble_instr(text_section[i]);
+        std::string disassembly = Emulator32bit::disassemble_instr(text_section[i]);
         printf(text_address_format.c_str(), i*4);
 
         if (disassembly.find_first_of(' ') != std::string::npos) {
