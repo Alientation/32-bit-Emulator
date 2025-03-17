@@ -6,6 +6,17 @@
 
 #define UNUSED(x) (void)(x)
 
+byte Assembler::parse_sysreg(size_t& tok_i)
+{
+    std::string sysreg = consume(tok_i).value;
+    if (sysreg == "PSTATE")
+    {
+        return Emulator32bit::SYSREG_PSTATE;
+    }
+
+    ERROR("Assembler::parse_sysreg() - Invalid System Register %s.", sysreg.c_str());
+}
+
 byte Assembler::parse_register(size_t& tok_i)
 {
     expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_register() - Expected register identifier. Got "
@@ -856,16 +867,10 @@ void Assembler::_msr(size_t& tok_i)
     consume(tok_i);
     skip_tokens(tok_i, "[ \t]");
 
-    expect_token(tok_i, {Tokenizer::SYMBOL}, "Assembler::_msr() - Expected symbol to specify system register.");
-    std::string sysreg_str = consume(tok_i).value;
-    word sysreg = 0;
-
-    if (sysreg_str == "PSTATE")
-    {
-        sysreg = Emulator32bit::SYSREG_PSTATE;
-    }
-
+    word sysreg = parse_sysreg(tok_i);
     skip_tokens(tok_i, "[ \t]");
+    consume(tok_i, {Tokenizer::COMMA}, "Assembler::_msr() - Expected second argument.");
+
     word instruction;
     if (is_token(tok_i, Tokenizer::REGISTERS))
     {
@@ -884,12 +889,27 @@ void Assembler::_msr(size_t& tok_i)
 
 void Assembler::_mrs(size_t& tok_i)
 {
+    consume(tok_i);
+    skip_tokens(tok_i, "[ \t]");
 
+    expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::_mrs() - Expected register.");
+    byte xn = parse_register(tok_i);
+    skip_tokens(tok_i, "[ \t]");
+
+    consume(tok_i, {Tokenizer::COMMA}, "Assembler::_mrs() - Expected second argument.");
+    byte sysreg = parse_sysreg(tok_i);
+
+    word instruction = Emulator32bit::asm_mrs(xn, sysreg);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_tlbi(size_t& tok_i)
 {
+    consume(tok_i);
+    skip_tokens(tok_i, "[ \t]");
 
+    // todo
+    ERROR("Assembler::_tlbi() - Unimplemented instruction.")
 }
 
 void Assembler::_swp(size_t& tok_i)

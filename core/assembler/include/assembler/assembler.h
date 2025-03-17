@@ -48,6 +48,7 @@ class Assembler
 
         dword parse_expression(size_t& tok_i, dword min = 0, dword max = -1);
         std::vector<dword> parse_arguments(size_t& tok_i);
+        byte parse_sysreg(size_t& tok_i);
         byte parse_register(size_t& tok_i);
         void parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int& shift_amt);
 
