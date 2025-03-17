@@ -10,8 +10,8 @@ _start:
                 adrp    x2, #string
                 add     x2, x2, #:lo12:string           ; address of string
 
-		adrp    x9, #result
-		add     x9, x9, #:lo12:result
+                adrp    x9, #result
+                add     x9, x9, #:lo12:result
 loop_begin:
                 cmp     x1, x0
                 b.ge    loop_end
