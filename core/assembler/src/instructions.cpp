@@ -529,9 +529,25 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
     }
 }
 
-word Assembler::parse_format_atomic(size_t& tok_i, byte atopcode)
+word Assembler::parse_format_atomic(size_t& tok_i, byte width, byte atopcode)
 {
+    consume(tok_i);
+    skip_tokens(tok_i, "[ \t]");
 
+    expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_format_atomic() - Expected register xt.");
+    byte xt = parse_register(tok_i);
+    skip_tokens(tok_i, "[ \t]");
+
+    expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_format_atomic() - Expected register xn.");
+    byte xn = parse_register(tok_i);
+    skip_tokens(tok_i, "[ \t]");
+
+    expect_token(tok_i, {Tokenizer::OPEN_BRACKET}, "Assembler::parse_format_atomic() - Expected opening '[' for memory address.");
+    expect_token(tok_i, Tokenizer::REGISTERS, "Assembler::parse_format_atomic() - Expected register xm.");
+    byte xm = parse_register(tok_i);
+    expect_token(tok_i, {Tokenizer::CLOSE_BRACKET}, "Assembler::parse_format_atomic() - Expected closing ']' for memory address.");
+
+    return Emulator32bit::asm_atomic(xt, xn, xm, width, atopcode);
 }
 
 
@@ -851,15 +867,13 @@ void Assembler::_strh(size_t& tok_i)
 void Assembler::_hlt(size_t& tok_i)
 {
     consume(tok_i);
-    word instruction = Emulator32bit::asm_hlt();
-    m_obj.text_section.push_back(instruction);
+    m_obj.text_section.push_back(Emulator32bit::asm_hlt());
 }
 
 void Assembler::_nop(size_t& tok_i)
 {
     consume(tok_i);
-    word instruction = Emulator32bit::asm_nop();
-    m_obj.text_section.push_back(instruction);
+    m_obj.text_section.push_back(Emulator32bit::asm_nop());
 }
 
 void Assembler::_msr(size_t& tok_i)
@@ -909,69 +923,81 @@ void Assembler::_tlbi(size_t& tok_i)
     skip_tokens(tok_i, "[ \t]");
 
     // todo
-    ERROR("Assembler::_tlbi() - Unimplemented instruction.")
+    ERROR("Assembler::_tlbi() - Unimplemented instruction.");
 }
 
 void Assembler::_swp(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swpb(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_SWP);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_swph(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_SWP);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldadd(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDADD);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldaddb(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDADD);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldaddh(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDADD);
+    m_obj.text_section.push_back(instruction);
 }
 
 
 void Assembler::_ldclr(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDCLR);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldclrb(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDCLR);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldclrh(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDCLR);
+    m_obj.text_section.push_back(instruction);
 }
 
 
 void Assembler::_ldset(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDSET);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldsetb(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDSET);
+    m_obj.text_section.push_back(instruction);
 }
 
 void Assembler::_ldseth(size_t& tok_i)
 {
-
+    word instruction = parse_format_atomic(tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDSET);
+    m_obj.text_section.push_back(instruction);
 }
 
 

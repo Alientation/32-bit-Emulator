@@ -63,7 +63,7 @@ class Assembler
         word parse_format_b1(size_t& tok_i, byte opcode);
         word parse_format_b2(size_t& tok_i, byte opcode);
 
-        word parse_format_atomic(size_t& tok_i, byte atopcode);
+        word parse_format_atomic(size_t& tok_i, byte width, byte atopcode);
 
         void fill_local();
 
