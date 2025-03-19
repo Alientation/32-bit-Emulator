@@ -1,3 +1,26 @@
+[ ] Work on a tiny c compiler
+    [ ] Small step for man - sample/simple.c
+        - simple main function, no args, return 1;
+        [ ] Lex into tokens
+        [ ] Parse into AST
+        [ ] Codegen into basm assembly
+    [ ] Expressive Expressions
+        - all kinds of Expressions
+        [ ] Lex
+        [ ] Parse
+        [ ] Codegen
+    [ ] Functionional Functions
+        - calling functions, stack, local variables, register handling, etc
+        [ ] Lex
+        [ ] Parse
+        [ ] Codegen
+[ ] Define a standard for using registers
+    [ ] Parameter registers (x0-x7)
+    [ ] System calls (x8)
+    [ ] Caller saved (x9-17)
+    [ ] Callee saved (x18-x27)
+    [x] Frame Register (x28)
+    [x] Link Register (x29)
 [x] Rework '#' symbol
     - It should not be required to be in front a literal number, in fact
       it should have not be used at all.
@@ -10,16 +33,16 @@
         - moves a system register's contents to/from a GPR
     [ ] TLBI
         - Invalidate the TLB, when context switching
-    [ ] Atomic operations
-        [ ] LDADD (Load and Add)
+    [x] Atomic operations
+        [x] LDADD (Load and Add)
             - Value in memory is updated by adding a value
             - Reads in the old value to a GPR
             - LDADD xt, xn, [xm]
-        [ ] LDCLR (Load and Clear)
+        [x] LDCLR (Load and Clear)
             - Specified bits in memory is cleared
             - Reads in old value to a GPR
             - LDCLR xt, xn, [xm]
-        [ ] LDSET (Load and Set)
+        [x] LDSET (Load and Set)
             - Specified bits in memory is set
             - Reads in old value to a GPR
             - LDSET xt, xn, [xm]
@@ -32,7 +55,6 @@
         [ ] LDCLR
         [ ] LDSET
     [ ] NOP
-[ ] Work on a tiny c compiler
-[ ] Refactor Disassembler to be in its own container
+[ ] Refactor disassembler to be in its own container
 [ ] Improve preprocessor warning/errors to user
 [ ] Improve assembler warning/errors to user

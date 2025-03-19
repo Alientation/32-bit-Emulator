@@ -26,6 +26,16 @@ find_package(assembler REQUIRED CONFIG)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
 
+# sets the search paths for the include files after installation
+# as well as during when building the library (as these may differ)
+# this allows the library itself and users to #include the library headers
+target_include_directories(
+    ${PROJECT_NAME}
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
 # link libraries
 target_link_libraries(${PROJECT_NAME} PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)
 add_dependencies(${PROJECT_NAME} version)
