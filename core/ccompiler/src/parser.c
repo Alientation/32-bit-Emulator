@@ -55,6 +55,7 @@ void parser_free (struct ParserData *parser)
 
 void parser_print (struct ParserData *parser)
 {
+    printf ("PRINTING AST\n");
     ASTNode_print (parser->ast, 0);
 }
 
@@ -92,6 +93,7 @@ static void ASTNode_print (void *node, int tabs)
         case AST_EXPRESSION:
             printf ("expression:\n");
             ASTNode_print (((astexpression_t *) ast_node)->literal_int, tabs + 1);
+            printf ("\n");
             break;
         case AST_STATEMENT:
             printf ("statement:\n");
