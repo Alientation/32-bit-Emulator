@@ -51,7 +51,7 @@ int lex (const char* filepath,
     {
         fprintf (stderr, "Memory allocation failed\n");
         fclose (file);
-        return 1;
+        return LEXER_FAILURE__MEMORY;
     }
 
     if (fread (buffer, 1, file_size, file) != (size_t) file_size)
@@ -59,14 +59,13 @@ int lex (const char* filepath,
         fprintf (stderr, "Error reading file\n");
         free (buffer);
         fclose (file);
-        return 1;
+        return LEXER_FAILURE__FILE;
     }
 
     lexer->src = buffer;
     lexer->length = strlen (buffer);
 
-    tokenize (lexer);
-    return 0;
+    return tokenize (lexer);
 }
 
 void lexer_print (const struct LexerData *lexer)
@@ -166,7 +165,7 @@ static int tokenize (struct LexerData *lexer)
             if (regcomp (&regex, TOKEN_PATTERNS[i].pattern, REG_EXTENDED) != 0)
             {
                 fprintf (stderr, "Error compiling regex %s\n", TOKEN_PATTERNS[i].pattern);
-                return 1;
+                return LEXER_FAILURE__REGEX;
             }
 
             if (regexec (&regex, lexer->src + offset, 1, &match, 0) == 0)
@@ -215,7 +214,7 @@ static int tokenize (struct LexerData *lexer)
                 default:
                     fprintf (stderr, "Could not match regex at line %d and column %d.\n>>%s\n",
                             cur_line, cur_column, lexer->src + offset);
-                    return 1;
+                    return LEXER_FAILURE__REGEX;
             }
         }
     }
@@ -235,7 +234,7 @@ static int add_token (struct LexerData *lexer, token_t tok)
         if (lexer->tokens == NULL)
         {
             fprintf (stderr, "Memory allocation failed\n");
-            return 1;
+            return LEXER_FAILURE__MEMORY;
         }
 
         memcpy (lexer->tokens, prev_tokens, prev_alloc * sizeof (token_t));

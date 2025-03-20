@@ -1,6 +1,11 @@
 #pragma once
 #ifndef LEXER_H
 
+static const int LEXER_FAILURE__MEMORY = 32;
+static const int LEXER_FAILURE__FILE = 33;
+static const int LEXER_FAILURE__REGEX = 34;
+
+
 typedef struct Token token_t;
 
 struct LexerData

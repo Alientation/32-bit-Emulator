@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 
-char* ccompile (const char *filepath)
+int ccompile (const char *filepath)
 {
     int filepath_len = strlen (filepath);
     int last_dot = filepath_len - 1;
@@ -20,17 +20,25 @@ char* ccompile (const char *filepath)
     if (last_dot <= 0 || strcmp (filepath + last_dot + 1, "c") != 0)
     {
         fprintf (stderr, "Invalid filepath %s, expected *.c", filepath);
-        return NULL;
+        return CCOMPILER_FAILURE__BAD_SOURCE_FILE;
     }
     printf ("Compiling \'%s\'.\n\n", filepath);
 
     struct LexerData lexer = lexer_init ();
-    lex (filepath, &lexer);
+    int lex_exitcode = lex (filepath, &lexer);
+    if (lex_exitcode)
+    {
+        return lex_exitcode;
+    }
     lexer_print (&lexer);
     printf ("\n");
 
     struct ParserData parser = parser_init ();
-    parse (&lexer, &parser);
+    int parse_exitcode = parse (&lexer, &parser);
+    if (parse_exitcode)
+    {
+        return parse_exitcode;
+    }
     parser_print (&parser);
     printf ("\n");
 
@@ -44,5 +52,5 @@ char* ccompile (const char *filepath)
     // todo
 
     free (output_filepath);
-    return "";
+    return 0;
 }

@@ -2,6 +2,7 @@
 #ifndef CCOMPILER_H
 #define CCOMPILER_H
 
+static const int CCOMPILER_FAILURE__BAD_SOURCE_FILE = 16;
 
 /**
  * @brief Compiles a .c file into a .basm assembly file
@@ -11,7 +12,7 @@
  *
  * @param filepath
  */
-char* ccompile (const char *sourcefile);
+int ccompile (const char *sourcefile);
 
 
 #endif /* CCOMPILER_H */
