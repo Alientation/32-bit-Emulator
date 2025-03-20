@@ -6,27 +6,16 @@
 /*
     <program> ::= <function>
     <function> ::= "int" <identifier> "()" "{" <statement> "}"
-    <statement> ::= "return" <expression>
+    <statement> ::= "return" <expression> ";"
     <expression> ::= <literal_int>
 
  */
-
-typedef struct LiteralInt
-{
-    struct Token *tok;
-    int value;
-} literalint_t;
-
-typedef struct Identifier
-{
-    struct Token *tok;
-} identifier_t;
-
-
-
 typedef enum ASTNodeType
 {
     AST_ERROR,
+
+    AST_LITERAL_INT,
+    AST_IDENTIFIER,
 
     AST_EXPRESSION,
     AST_STATEMENT,
@@ -34,16 +23,20 @@ typedef enum ASTNodeType
     AST_PROGRAM,
 } astnodetype_t;
 
-typedef struct ASTNode
+
+typedef struct ASTLiteralInt
 {
     astnodetype_t type;
-} astnode_t;
+
+    token_t *tok;
+    int value;
+} astliteralint_t;
 
 typedef struct ASTExpression
 {
     astnodetype_t type;
 
-    literalint_t literal_int;
+    astliteralint_t *literal_int;
 } astexpression_t;
 
 typedef struct ASTStatement
@@ -53,11 +46,18 @@ typedef struct ASTStatement
     astexpression_t *expression;
 } aststatement_t;
 
+typedef struct ASTIdentifier
+{
+    astnodetype_t type;
+
+    token_t *tok;
+} astidentifier_t;
+
 typedef struct ASTFunction
 {
     astnodetype_t type;
 
-    identifier_t Identifier;
+    astidentifier_t *identifier;
     aststatement_t *statement;
 } astfunction_t;
 
@@ -68,19 +68,26 @@ typedef struct ASTProgram
     astfunction_t *function;
 } astprogram_t;
 
+typedef struct ASTNode
+{
+    astnodetype_t type;
+} astnode_t;
+
 struct ParserData
 {
-    struct LexerData lexer;
+    const struct LexerData *lexer;
     int tok_i;
 
     astprogram_t *ast;
 };
 
 
-int parse (struct LexerData *lexer,
+int parse (const struct LexerData *lexer,
            struct ParserData *parser);
 
 struct ParserData parser_init ();
 void parser_free (struct ParserData *parser);
+
+void parser_print (struct ParserData *parser);
 
 #endif /* PARSER_H */

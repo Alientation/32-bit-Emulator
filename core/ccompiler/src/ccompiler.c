@@ -10,5 +10,8 @@ char* ccompile (const char *filepath)
     lex (filepath, &lexer);
     lexer_print (&lexer);
 
+    struct ParserData parser = parser_init ();
+    parse (&lexer, &parser);
+    parser_print (&parser);
     return "";
 }

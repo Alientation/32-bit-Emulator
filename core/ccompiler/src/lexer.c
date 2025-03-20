@@ -7,18 +7,18 @@
 
 #include "ccompiler/lexer.h"
 
-static int add_token (struct LexerData *lexer, struct Token tok);
+static int add_token (struct LexerData *lexer, token_t tok);
 static int tokenize (struct LexerData *lexer);
 
 static const int TAB_SIZE = 4;
 
-struct TokenPattern
+struct Token_Pattern
 {
     enum TokenType type;
     const char *pattern;
 };
 
-static const struct TokenPattern TOKEN_PATTERNS[] =
+static const struct Token_Pattern TOKEN_PATTERNS[] =
 {
     { TOKEN_KEYWORD_INT, "^int\\b" },
     { TOKEN_KEYWORD_RETURN, "^return\\b" },
@@ -49,14 +49,14 @@ int lex (const char* filepath,
     buffer = (char *) calloc (file_size + 1, sizeof (char));
     if (buffer == NULL)
     {
-        perror ("Memory allocation failed");
+        fprintf (stderr, "Memory allocation failed\n");
         fclose (file);
         return 1;
     }
 
     if (fread (buffer, 1, file_size, file) != (size_t) file_size)
     {
-        perror ("Error reading file");
+        fprintf (stderr, "Error reading file\n");
         free (buffer);
         fclose (file);
         return 1;
@@ -100,14 +100,14 @@ struct LexerData lexer_init ()
     lexer.length = 0;
     lexer.tok_count = 0;
     lexer.tok_total_alloc = 4;
-    lexer.tokens = calloc (lexer.tok_total_alloc, sizeof (struct Token));
+    lexer.tokens = calloc (lexer.tok_total_alloc, sizeof (token_t));
     return lexer;
 }
 
-void token_print (struct Token tok)
+void token_print (token_t tok)
 {
     char *buffer = calloc (tok.length + 1, sizeof (char));
-    strncpy (buffer, tok.tok, tok.length);
+    strncpy (buffer, tok.src, tok.length);
     switch (tok.type)
     {
         case TOKEN_ERROR:
@@ -175,12 +175,12 @@ static int tokenize (struct LexerData *lexer)
 
                 int length = match.rm_eo - match.rm_so;
 
-                struct Token token;
+                token_t token;
                 token.type = TOKEN_PATTERNS[i].type;
                 token.line = cur_line;
                 token.column = cur_column;
                 token.length = length;
-                token.tok = lexer->src + offset;
+                token.src = lexer->src + offset;
 
                 add_token (lexer, token);
 
@@ -223,22 +223,22 @@ static int tokenize (struct LexerData *lexer)
     return 0;
 }
 
-static int add_token (struct LexerData *lexer, struct Token tok)
+static int add_token (struct LexerData *lexer, token_t tok)
 {
     if (lexer->tok_count + 1 > lexer->tok_total_alloc)
     {
-        struct Token *prev_tokens = lexer->tokens;
+        token_t *prev_tokens = lexer->tokens;
         int prev_alloc = lexer->tok_total_alloc;
         lexer->tok_total_alloc *= 2;
-        lexer->tokens = calloc (lexer->tok_total_alloc, sizeof (struct Token));
+        lexer->tokens = calloc (lexer->tok_total_alloc, sizeof (token_t));
 
         if (lexer->tokens == NULL)
         {
-            perror ("Memory allocation failed");
+            fprintf (stderr, "Memory allocation failed\n");
             return 1;
         }
 
-        memcpy (lexer->tokens, prev_tokens, prev_alloc * sizeof (struct Token));
+        memcpy (lexer->tokens, prev_tokens, prev_alloc * sizeof (token_t));
         free (prev_tokens);
     }
 
