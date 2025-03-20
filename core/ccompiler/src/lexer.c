@@ -31,7 +31,7 @@ static const struct TokenPattern TOKEN_PATTERNS[] =
     { TOKEN_SEMICOLON, "^;" },
 
     { TOKEN_IDENTIFIER, "^[a-zA-Z_][a-zA-Z0-9_]*\\b" },
-    { TOKEN_LITERAL_INTEGER, "^[1-9][0-9]*\\b" },
+    { TOKEN_LITERAL_INT, "^[1-9][0-9]*\\b" },
 };
 
 int lex (const char* filepath,
@@ -116,8 +116,8 @@ void token_print (struct Token tok)
         case TOKEN_IDENTIFIER:
             printf ("TOKEN_IDENTIFIER: \'%s\'", buffer);
             break;
-        case TOKEN_LITERAL_INTEGER:
-            printf ("TOKEN_LITERAL_INTEGER: \'%s\'", buffer);
+        case TOKEN_LITERAL_INT:
+            printf ("TOKEN_LITERAL_INT: \'%s\'", buffer);
             break;
         case TOKEN_KEYWORD_INT:
             printf ("TOKEN_KEYWORD_INT: \'%s\'", buffer);
