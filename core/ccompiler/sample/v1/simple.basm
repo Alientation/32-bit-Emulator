@@ -1,0 +1,8 @@
+.global main
+
+.text
+main:
+mov x0, 1
+ret
+
+hlt
