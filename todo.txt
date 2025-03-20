@@ -14,11 +14,12 @@
         [ ] Lex
         [ ] Parse
         [ ] Codegen
-[ ] Define a standard for using registers
-    [ ] Parameter registers (x0-x7)
-    [ ] System calls (x8)
-    [ ] Caller saved (x9-17)
-    [ ] Callee saved (x18-x27)
+[x] Define a standard for using registers
+    [x] Parameter registers (x0-x7)
+    [x] Return value (x0)
+    [x] System calls (x8)
+    [x] Caller saved (x0-17)
+    [x] Callee saved (x19-x27)
     [x] Frame Register (x28)
     [x] Link Register (x29)
 [x] Rework '#' symbol

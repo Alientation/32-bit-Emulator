@@ -20,6 +20,7 @@ class Timer; /* Forward declare from 'timer.h' */
  * <--------STACK_TOP-------->
  *          Saved FP
  *          Saved LR                <--- fp
+ *   ---STACK_FRAME_BORDER---
  *      local variables
  *          <...>
  *          <...>
@@ -28,6 +29,15 @@ class Timer; /* Forward declare from 'timer.h' */
  *
  * Link register stores the previous pc, the next instruction is what will be
  * executed.
+ *
+ * Register Conventions
+ *  - x0-x17: Caller Saved
+ *      - x0-x7: Parameter Registers
+ *          - x0: Return value
+ *      - x8: Syscall Number
+ *  - x19-27: Callee Saved
+ *  - x28: Frame Register
+ *  - x29: Link Register
  *
  */
 constexpr int NUM_REG = 32; /* Number of general purpose stack registers */
