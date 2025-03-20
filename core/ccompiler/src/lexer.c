@@ -31,7 +31,7 @@ static const struct Token_Pattern TOKEN_PATTERNS[] =
     { TOKEN_SEMICOLON, "^;" },
 
     { TOKEN_IDENTIFIER, "^[a-zA-Z_][a-zA-Z0-9_]*\\b" },
-    { TOKEN_LITERAL_INT, "^[1-9][0-9]*\\b" },
+    { TOKEN_LITERAL_INT, "^[0-9]+\\b" },
 };
 
 int lex (const char* filepath,
@@ -212,7 +212,7 @@ static int tokenize (struct LexerData *lexer)
                     cur_line++;
                     break;
                 default:
-                    fprintf (stderr, "Could not match regex at line %d and column %d.\n>>%s\n",
+                    fprintf (stderr, "Could not match regex at line %d and column %d.\n>>\n%s\n",
                             cur_line, cur_column, lexer->src + offset);
                     return LEXER_FAILURE__REGEX;
             }
