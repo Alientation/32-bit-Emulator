@@ -38,13 +38,12 @@ int parse (const struct LexerData *lexer,
 }
 
 
-struct ParserData parser_init ()
+int parser_init (struct ParserData *parser)
 {
-    struct ParserData parser;
-    parser.lexer = NULL;
-    parser.tok_i = 0;
-    parser.ast = NULL;
-    return parser;
+    parser->lexer = NULL;
+    parser->tok_i = 0;
+    parser->ast = NULL;
+    return 0;
 }
 
 void parser_free (struct ParserData *parser)
@@ -142,6 +141,7 @@ static void ASTNode_free (void *node)
     }
 
     free (ast_node);
+    ast_node = NULL;
 }
 
 static token_t *nxttok (struct ParserData *parser)

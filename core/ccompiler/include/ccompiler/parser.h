@@ -85,7 +85,7 @@ struct ParserData
 int parse (const struct LexerData *lexer,
            struct ParserData *parser);
 
-struct ParserData parser_init ();
+int parser_init (struct ParserData *parser);
 void parser_free (struct ParserData *parser);
 
 void parser_print (struct ParserData *parser);

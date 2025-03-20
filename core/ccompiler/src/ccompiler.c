@@ -24,33 +24,54 @@ int ccompile (const char *filepath)
     }
     printf ("Compiling \'%s\'.\n\n", filepath);
 
-    struct LexerData lexer = lexer_init ();
-    int lex_exitcode = lex (filepath, &lexer);
-    if (lex_exitcode)
+    struct LexerData lexer;
+    int exitcode = lexer_init (&lexer);
+    if (exitcode)
     {
-        return lex_exitcode;
+        lexer_fail:
+        lexer_free (&lexer);
+        return exitcode;
     }
+    exitcode = lex (filepath, &lexer);
+    if (exitcode) goto lexer_fail;
     lexer_print (&lexer);
     printf ("\n");
 
-    struct ParserData parser = parser_init ();
-    int parse_exitcode = parse (&lexer, &parser);
-    if (parse_exitcode)
+    struct ParserData parser;
+    exitcode = parser_init (&parser);
+    if (exitcode)
     {
-        return parse_exitcode;
+        parser_fail:
+        parser_free (&parser);
+        goto lexer_fail;
+    }
+
+    exitcode = parse (&lexer, &parser);
+    if (exitcode)
+    {
+        goto parser_fail;
     }
     parser_print (&parser);
     printf ("\n");
 
 
     char *output_filepath = calloc (last_dot + 1 + sizeof ("basm"), sizeof (char));
+    if (!output_filepath)
+    {
+        perror ("Memory allocation failure");
+        exitcode = 1;
+        goto parser_fail;
+    }
+
     strncpy (output_filepath, filepath, last_dot);
     strcpy (output_filepath + last_dot, ".basm");
 
     printf ("Generating assembly code in \'%s\'.\n\n", output_filepath);
 
-    // todo
-
+    exitcode = codegen (&parser, output_filepath);
     free (output_filepath);
+    output_filepath = NULL;
+
+    if (exitcode) goto parser_fail;
     return 0;
 }

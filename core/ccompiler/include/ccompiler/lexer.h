@@ -45,7 +45,7 @@ struct Token
 int lex (const char* filepath,
         struct LexerData *lexer);
 
-struct LexerData lexer_init ();
+int lexer_init (struct LexerData *lexer);
 void lexer_print (const struct LexerData *lexer);
 void lexer_free (struct LexerData *lexer);
 
