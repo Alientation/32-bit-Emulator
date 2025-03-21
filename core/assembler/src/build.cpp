@@ -181,7 +181,7 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
         if (m_parse_options && arg[0] == '-')
         {
             // this is a flag
-            EXPECT_TRUE_SS(flags.find(arg) != flags.end(), std::stringstream("Process::evaluate_args() - Invalid flag: ") << arg);
+            EXPECT_TRUE_SS(flags.find(arg) != flags.end(), std::stringstream() << "Process::evaluate_args() - Invalid flag: " << arg);
 
             (this->*flags[arg])(args_list, i);
         }
@@ -194,7 +194,7 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
 
             // check the extension
             EXPECT_TRUE_SS(file.get_extension() == SOURCE_EXTENSION,
-                    std::stringstream("Process::evaluate_args() - Invalid file extension: ") << file.get_extension());
+                    std::stringstream() << "Process::evaluate_args() - Invalid file extension: " << file.get_extension());
 
             m_src_files.push_back(file);
         }
@@ -655,8 +655,8 @@ void Process::_help(std::vector<std::string>& args, size_t& index)
     std::cout << "basm [options] file...\n";
     std::cout << "Options:\n";
 
-    auto print_option = [](const std::string& option, const std::string& description, int width = 20) {
-        std::cout << std::left << std::setw(width) << option << description << '\n';
+    auto print_option = [](const std::string& option, const std::string& description, int width = 26) {
+        std::cout << std::left << std::setw(width) << option << " " << description << '\n';
     };
 
     print_option ("--", "End of options.");

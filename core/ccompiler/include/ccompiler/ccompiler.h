@@ -4,7 +4,10 @@
 
 struct CompilerOptions
 {
-    int n_source_files;
+    int n_src_files;
+    const char **src_files;
+
+
 };
 
 /**
