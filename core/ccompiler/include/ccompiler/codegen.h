@@ -6,8 +6,6 @@
 
 #include <stdio.h>
 
-static const int CODEGEN_FAILURE__FILE = 64;
-
 
 /*
 example.c
@@ -42,6 +40,6 @@ struct CodegenData
     struct CodegenBlock txt_sect;
 };
 
-int codegen (struct ParserData *parser, const char *output_filepath);
+void codegen (struct ParserData *parser, const char *output_filepath);
 
 #endif /* CODEGEN_H */

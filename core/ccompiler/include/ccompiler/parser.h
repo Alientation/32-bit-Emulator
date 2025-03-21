@@ -82,10 +82,10 @@ struct ParserData
 };
 
 
-int parse (const struct LexerData *lexer,
+void  parse (const struct LexerData *lexer,
            struct ParserData *parser);
 
-int parser_init (struct ParserData *parser);
+void parser_init (struct ParserData *parser);
 void parser_free (struct ParserData *parser);
 
 void parser_print (struct ParserData *parser);

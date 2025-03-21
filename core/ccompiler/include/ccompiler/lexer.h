@@ -1,11 +1,6 @@
 #pragma once
 #ifndef LEXER_H
 
-static const int LEXER_FAILURE__MEMORY = 32;
-static const int LEXER_FAILURE__FILE = 33;
-static const int LEXER_FAILURE__REGEX = 34;
-
-
 typedef struct Token token_t;
 
 struct LexerData
@@ -42,10 +37,10 @@ struct Token
     int column;
 };
 
-int lex (const char* filepath,
+void lex (const char* filepath,
         struct LexerData *lexer);
 
-int lexer_init (struct LexerData *lexer);
+void lexer_init (struct LexerData *lexer);
 void lexer_print (const struct LexerData *lexer);
 void lexer_free (struct LexerData *lexer);
 

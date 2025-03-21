@@ -24,26 +24,19 @@ static astidentifier_t *parse_identifier (struct ParserData *parser);
 
 static char strbuffer[256];
 
-int parse (const struct LexerData *lexer,
+void parse (const struct LexerData *lexer,
            struct ParserData *parser)
 {
     parser->lexer = lexer;
     parser->ast = parse_program (parser);
-    if (parser->ast == NULL)
-    {
-        return 1;
-    }
-
-    return 0;
 }
 
 
-int parser_init (struct ParserData *parser)
+void parser_init (struct ParserData *parser)
 {
     parser->lexer = NULL;
     parser->tok_i = 0;
     parser->ast = NULL;
-    return 0;
 }
 
 void parser_free (struct ParserData *parser)
@@ -119,7 +112,8 @@ static void ASTNode_free (void *node)
     switch (ast_node->type)
     {
         case AST_ERROR:
-            fprintf (stderr, "Encountered AST_ERROR node while freeing.\n");
+            fprintf (stderr, "ERROR: encountered AST_ERROR node while freeing\n");
+            exit (EXIT_FAILURE);
             break;
         case AST_LITERAL_INT:
             break;
@@ -151,7 +145,8 @@ static token_t *nxttok (struct ParserData *parser)
         return &parser->lexer->tokens[parser->tok_i++];
     }
 
-    fprintf (stderr, "Unexpected End of File.\n");
+    fprintf (stderr, "ERROR: unexpected end of file\n");
+    exit (EXIT_FAILURE);
     return NULL;
 }
 
@@ -161,6 +156,7 @@ static token_t *exp_nxttok (struct ParserData *parser, const char *error_msg)
     if (!tok)
     {
         fprintf (stderr, error_msg);
+        exit (EXIT_FAILURE);
     }
     return tok;
 }
@@ -173,9 +169,9 @@ static token_t *exp_nxttok_is (struct ParserData *parser, enum TokenType type,
     {
         strncpy (strbuffer, tok->src, tok->length);
         strbuffer[tok->length] = '\0';
-        fprintf (stderr, "Error at tok %d \'%s\' at line %d, column %d.\n", parser->tok_i - 1, strbuffer, tok->line, tok->column);
+        fprintf (stderr, "ERROR: at tok %d \'%s\' at line %d, column %d\n", parser->tok_i - 1, strbuffer, tok->line, tok->column);
         fprintf (stderr, error_msg);
-        return NULL;
+        exit (EXIT_FAILURE);
     }
     return tok;
 }
@@ -197,16 +193,12 @@ static astprogram_t *parse_program (struct ParserData *parser)
     astprogram_t *program = calloc (1, sizeof (astprogram_t));
     if (!program)
     {
-        fprintf (stderr, "Memory allocation failed.\n");
-        fail:
-        ASTNode_free (program);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
 
     program->type = AST_PROGRAM;
     program->function = parse_function (parser);
-
-    if (!program->function) goto fail;
     return program;
 }
 
@@ -215,37 +207,20 @@ static astfunction_t *parse_function (struct ParserData *parser)
     astfunction_t *function = calloc (1, sizeof (astfunction_t));
     if (!function)
     {
-        fprintf (stderr, "Memory allocation failed.\n");
-        fail:
-        ASTNode_free (function);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate Memory\n");
+        exit (EXIT_FAILURE);
     }
 
     function->type = AST_FUNCTION;
 
-    token_t *return_type = exp_nxttok_is (parser, TOKEN_KEYWORD_INT,
-                                          "Expected an \'int\' return type for function.\n");
-    if (!return_type) goto fail;
-
+    exp_nxttok_is (parser, TOKEN_KEYWORD_INT, "Expected an \'int\' return type for function.\n");
     function->identifier = parse_identifier (parser);
-    if (!function->identifier) goto fail;
 
-    token_t *open_parenthesis = exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS,
-                                               "Expected \'(\' after function identifier.\n");
-    if (!open_parenthesis) goto fail;
-
-    token_t *close_parenthesis = exp_nxttok_is (parser, TOKEN_CLOSE_PARENTHESIS,
-                                                "Expected closing \')\' after \'(\'.\n");
-    if (!close_parenthesis) goto fail;
-    token_t *open_brace = exp_nxttok_is (parser, TOKEN_OPEN_BRACE,
-                                         "Expected \'{\' to begin function body.\n");
-    if (!open_brace) goto fail;
+    exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS, "Expected \'(\' after function identifier.\n");
+    exp_nxttok_is (parser, TOKEN_CLOSE_PARENTHESIS, "Expected closing \')\' after \'(\'.\n");
+    exp_nxttok_is (parser, TOKEN_OPEN_BRACE, "Expected \'{\' to begin function body.\n");
     function->statement = parse_statement (parser);
-    if (!function->statement) goto fail;
-    token_t *close_brace = exp_nxttok_is (parser, TOKEN_CLOSE_BRACE,
-                                          "Expected \'}\' to close function body.\n");
-    if (!close_brace) goto fail;
-
+    exp_nxttok_is (parser, TOKEN_CLOSE_BRACE, "Expected \'}\' to close function body.\n");
     return function;
 }
 
@@ -254,23 +229,14 @@ static aststatement_t *parse_statement (struct ParserData *parser)
     aststatement_t *statement = calloc (1, sizeof (aststatement_t));
     if (!statement)
     {
-        fprintf (stderr, "Memory allocation failed.\n");
-        fail:
-        ASTNode_free (statement);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
     statement->type = AST_STATEMENT;
 
-    token_t *keyword_return = exp_nxttok_is (parser, TOKEN_KEYWORD_RETURN,
-                                             "Expected \'return\' statement.\n");
-    if (!keyword_return) goto fail;
-
+    exp_nxttok_is (parser, TOKEN_KEYWORD_RETURN, "Expected \'return\' statement.\n");
     statement->expression = parse_expression (parser);
-    if (!statement->expression) goto fail;
-
-    token_t *semicolon = exp_nxttok_is (parser, TOKEN_SEMICOLON, "Expected \';\' to end statement.\n");
-    if (!semicolon) goto fail;
-
+    exp_nxttok_is (parser, TOKEN_SEMICOLON, "Expected \';\' to end statement.\n");
     return statement;
 }
 
@@ -279,16 +245,12 @@ static astexpression_t *parse_expression (struct ParserData *parser)
     astexpression_t *expression = calloc (1, sizeof (astexpression_t));
     if (!expression)
     {
-        fprintf (stderr, "Memory allocation failed.\n");
-        fail:
-        ASTNode_free (expression);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
     expression->type = AST_EXPRESSION;
 
     expression->literal_int = parse_literal_int (parser);
-    if (!expression->literal_int) goto fail;
-
     return expression;
 }
 
@@ -297,22 +259,18 @@ static astliteralint_t *parse_literal_int (struct ParserData *parser)
     astliteralint_t *literal_int = calloc (1, sizeof (astliteralint_t));
     if (!literal_int)
     {
-        fprintf (stderr, "Memory allocation failed. \n");
-        fail:
-        ASTNode_free (literal_int);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
 
     literal_int->type = AST_LITERAL_INT;
     literal_int->tok = exp_nxttok_is (parser, TOKEN_LITERAL_INT, "Expected integer literal.\n");
-    if (!literal_int->tok) goto fail;
 
     for (int i = 0; i < literal_int->tok->length; i++)
     {
         literal_int->value *= 10;
         literal_int->value += literal_int->tok->src[i] - '0';
     }
-
     return literal_int;
 }
 
@@ -321,15 +279,11 @@ static astidentifier_t *parse_identifier (struct ParserData *parser)
     astidentifier_t *identifier = calloc (1, sizeof (astidentifier_t));
     if (!identifier)
     {
-        fprintf (stderr, "Memory allocation failed.\n");
-        fail:
-        ASTNode_free (identifier);
-        return NULL;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
 
     identifier->type = AST_IDENTIFIER;
     identifier->tok = exp_nxttok_is (parser, TOKEN_IDENTIFIER, "Expected identifier.\n");
-    if (!identifier->tok) goto fail;
-
     return identifier;
 }

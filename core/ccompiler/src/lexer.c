@@ -7,8 +7,8 @@
 
 #include "ccompiler/lexer.h"
 
-static int add_token (struct LexerData *lexer, token_t tok);
-static int tokenize (struct LexerData *lexer);
+static void add_token (struct LexerData *lexer, token_t tok);
+static void tokenize (struct LexerData *lexer);
 
 static const int TAB_SIZE = 4;
 
@@ -34,7 +34,7 @@ static const struct Token_Pattern TOKEN_PATTERNS[] =
     { TOKEN_LITERAL_INT, "^[0-9]+\\b" },
 };
 
-int lex (const char* filepath,
+void lex (const char* filepath,
         struct LexerData *lexer)
 {
     FILE *file;
@@ -49,28 +49,29 @@ int lex (const char* filepath,
     buffer = (char *) calloc (file_size + 1, sizeof (char));
     if (buffer == NULL)
     {
-        fprintf (stderr, "Memory allocation failed\n");
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
         fclose (file);
-        return LEXER_FAILURE__MEMORY;
+        exit (EXIT_FAILURE);
     }
 
     if (fread (buffer, 1, file_size, file) != (size_t) file_size)
     {
-        fprintf (stderr, "Error reading file\n");
+        fprintf (stderr, "ERROR: failed to read file\n");
         free (buffer);
-        buffer = NULL;
         fclose (file);
-        return LEXER_FAILURE__FILE;
+        exit (EXIT_FAILURE);
     }
 
     lexer->src = buffer;
     lexer->length = strlen (buffer);
 
-    return tokenize (lexer);
+    tokenize (lexer);
 }
 
 void lexer_print (const struct LexerData *lexer)
 {
+    assert(lexer);
+
     printf ("PRINTING TOKENS");
     for (int i = 0; i < lexer->tok_count; i++)
     {
@@ -82,6 +83,8 @@ void lexer_print (const struct LexerData *lexer)
 
 void lexer_free (struct LexerData *lexer)
 {
+    assert(lexer);
+
     free ((void *) lexer->src);
     free (lexer->tokens);
 
@@ -93,13 +96,10 @@ void lexer_free (struct LexerData *lexer)
 }
 
 
-int lexer_init (struct LexerData *lexer)
+void lexer_init (struct LexerData *lexer)
 {
-    if (!lexer)
-    {
-        fprintf (stderr, "Lexer is NULL\n");
-        return LEXER_FAILURE__MEMORY;
-    }
+    assert (lexer);
+
     lexer->src = NULL;
     lexer->length = 0;
     lexer->tok_count = 0;
@@ -107,16 +107,20 @@ int lexer_init (struct LexerData *lexer)
     lexer->tokens = calloc (lexer->tok_total_alloc, sizeof (token_t));
     if (!lexer->tokens)
     {
-        perror ("Memory allocation failed\n");
-        return LEXER_FAILURE__MEMORY;
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
     }
-
-    return 0;
 }
 
 void token_print (token_t tok)
 {
     char *buffer = calloc (tok.length + 1, sizeof (char));
+    if (!buffer)
+    {
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        exit (EXIT_FAILURE);
+    }
+
     strncpy (buffer, tok.src, tok.length);
     switch (tok.type)
     {
@@ -156,7 +160,7 @@ void token_print (token_t tok)
     }
 }
 
-static int tokenize (struct LexerData *lexer)
+static void tokenize (struct LexerData *lexer)
 {
     const int PATTERN_COUNT = sizeof (TOKEN_PATTERNS) / sizeof (TOKEN_PATTERNS[0]);
 
@@ -175,8 +179,8 @@ static int tokenize (struct LexerData *lexer)
         {
             if (regcomp (&regex, TOKEN_PATTERNS[i].pattern, REG_EXTENDED) != 0)
             {
-                fprintf (stderr, "Error compiling regex %s\n", TOKEN_PATTERNS[i].pattern);
-                return LEXER_FAILURE__REGEX;
+                fprintf (stderr, "ERROR: failed to compile regex %s\n", TOKEN_PATTERNS[i].pattern);
+                exit (EXIT_FAILURE);
             }
 
             if (regexec (&regex, lexer->src + offset, 1, &match, 0) == 0)
@@ -223,17 +227,15 @@ static int tokenize (struct LexerData *lexer)
                     cur_line++;
                     break;
                 default:
-                    fprintf (stderr, "Could not match regex at line %d and column %d.\n>>\n%s\n",
+                    fprintf (stderr, "ERROR: could not match regex at line %d and column %d.\n>>\n%s\n",
                             cur_line, cur_column, lexer->src + offset);
-                    return LEXER_FAILURE__REGEX;
+                    exit (EXIT_FAILURE);
             }
         }
     }
-
-    return 0;
 }
 
-static int add_token (struct LexerData *lexer, token_t tok)
+static void add_token (struct LexerData *lexer, token_t tok)
 {
     if (lexer->tok_count + 1 > lexer->tok_total_alloc)
     {
@@ -243,8 +245,8 @@ static int add_token (struct LexerData *lexer, token_t tok)
 
         if (lexer->tokens == NULL)
         {
-            fprintf (stderr, "Memory allocation failed\n");
-            return LEXER_FAILURE__MEMORY;
+            fprintf (stderr, "ERROR: failed to allocate memory\n");
+            exit (EXIT_FAILURE);
         }
 
         memcpy (lexer->tokens, prev_tokens, lexer->tok_count * sizeof (token_t));
@@ -254,5 +256,4 @@ static int add_token (struct LexerData *lexer, token_t tok)
 
     lexer->tokens[lexer->tok_count] = tok;
     lexer->tok_count++;
-    return 0;
 }
