@@ -83,7 +83,7 @@ Note, currently the build process argument parser is extremely rudimentary so op
 \
 *Windows Example:* `-I .\programs\include -o .\programs\build\palindrome .\programs\src\palindrome.basm -outdir .\programs\build`
 #### Some useful options
-* -o <path>: output file path relative to the *app* subdirectory (output file is an executable `.bexe` unless otherwise specified)
+* -o <path>: output file path relative to the current directory (output file is an executable `.bexe` unless otherwise specified)
 * -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
 * -l <path>: links given library file `.ba` to the rest of the code in the linker phase
 * -makedir: instead of an executable file output, create a `.ba` library file to link with in the future
