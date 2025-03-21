@@ -86,7 +86,7 @@ class Process
         void _ignore(std::vector<std::string>& args, size_t& index);
         void _version(std::vector<std::string>& args, size_t& index);
         void _compile(std::vector<std::string>& args, size_t& index);
-        void _makelib(std::vector<std::string>& args, size_t& index);
+        void _ar(std::vector<std::string>& args, size_t& index);
         void _output(std::vector<std::string>& args, size_t& index);
         void _outdir(std::vector<std::string>& args, size_t& index);
         void _optimize(std::vector<std::string>& args, size_t& index);
@@ -97,7 +97,7 @@ class Process
         void _library(std::vector<std::string>& args, size_t& index);
         void _library_directory(std::vector<std::string>& args, size_t& index);
         void _preprocessor_flag(std::vector<std::string>& args, size_t& index);
-        void _keep_processed_files(std::vector<std::string>& args, size_t& index);
+        void _keep_preprocessor_output(std::vector<std::string>& args, size_t& index);
         void _ld(std::vector<std::string>& args, size_t& index);
         void _help(std::vector<std::string>& args, size_t& index);
 

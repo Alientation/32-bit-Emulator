@@ -53,48 +53,48 @@ Process::Process(const std::string& assembler_args)
         {"--", &Process::_ignore},                                      /* Treats everything after as a regular argument */
 
         {"-v", &Process::_version},                                     /* Prints version of assembler */
-        {"-version", &Process::_version},
+        {"--version", &Process::_version},
 
-        {"-makelib", &Process::_makelib},                               /* Instead of building an executable, create a collection of
+        {"-ar", &Process::_ar},                                         /* Instead of building an executable, create a collection of
                                                                             object files and package into a single library file (.ba) */
+        {"--archive", &Process::_ar},
 
         {"-c", &Process::_compile},                                     /* Only compiles the src code files into object files */
-        {"-compile", &Process::_compile},
+        {"--compile", &Process::_compile},
 
         {"-o", &Process::_output},                                      /* Path to output file (executable for builds, library files for makelib) */
-        {"-out", &Process::_output},
-        {"-output", &Process::_output},
+        {"--output", &Process::_output},
 
         {"-outdir", &Process::_outdir},                                 /* Directory where all object files will be stored */
 
         {"-O", &Process::_optimize},                                    /* Turns on optimization level *unimplemented* */
-        {"-optimize", &Process::_optimize},
+        {"--optimize", &Process::_optimize},
 
         {"-oall", &Process::_optimize_all},                             /* Highest optimization level *unimplemented* */
 
         {"-W", &Process::_warn},                                        /* Turns on warning level *unimplemented* */
-        {"-warning", &Process::_warn},
+        {"--warning", &Process::_warn},
 
         {"-wall", &Process::_warn_all},                                 /* Highest warning level *unimplemented* */
 
         {"-I", &Process::_include},                                     /* Adds directory to search for system files */
-        {"-inc", &Process::_include},
-        {"-include", &Process::_include},
+        {"--include", &Process::_include},
 
         {"-l", &Process::_library},                                     /* Links given library file to program */
-        {"-lib", &Process::_library},
-        {"-library", &Process::_library},
+        {"--library", &Process::_library},
 
         {"-L", &Process::_library_directory},                           /* Searches for all libraries in given directory and links */
-        {"-libdir", &Process::_library_directory},
-        {"-librarydir", &Process::_library_directory},
+        {"--librarydir", &Process::_library_directory},
 
         {"-D", &Process::_preprocessor_flag},                           /* Passes preprocessor flags into the program */
 
-        {"-kp", &Process::_keep_processed_files},                       /* Don't delete intermediate files */
+        {"-kp", &Process::_keep_preprocessor_output},                   /* Don't delete intermediate files */
 
         {"-h", &Process::_help},                                        /* Display options */
-        {"-help", &Process::_help},
+        {"--help", &Process::_help},
+
+        // todo -E only run preprocessor
+        // todo -C keep comments in preprocessed output
     };
 
     // split command args by whitespace unless surrounded by quotes
@@ -383,7 +383,7 @@ void Process::_version(std::vector<std::string>& args, size_t& index)
  * @param args
  * @param index
  */
-void Process::_makelib(std::vector<std::string>& args, size_t& index)
+void Process::_ar(std::vector<std::string>& args, size_t& index)
 {
     UNUSED(args);
     UNUSED(index);
@@ -625,7 +625,7 @@ void Process::_preprocessor_flag(std::vector<std::string>& args, size_t& index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_keep_processed_files(std::vector<std::string>& args, size_t& index)
+void Process::_keep_preprocessor_output(std::vector<std::string>& args, size_t& index)
 {
     UNUSED(args);
     UNUSED(index);
@@ -660,21 +660,21 @@ void Process::_help(std::vector<std::string>& args, size_t& index)
     };
 
     print_option ("--", "End of options.");
-    print_option ("-v, -version", "Display assembler version information.");
-    print_option ("-makelib", "Build a single library file (.ba).");
-    print_option ("-c, -compile", "Only compiles the source files into object files.");
-    print_option ("-o, -out, -output <file>", "Path to output file.");
+    print_option ("-v, --version", "Display assembler version information.");
+    print_option ("-ar", "Build a library file (.ba).");
+    print_option ("-c, --compile", "Only compiles the source files into object files.");
+    print_option ("-o, --output <file>", "Path to output file.");
     print_option ("-outdir <dir>", "Path to directory where object files will be stored.");
-    print_option ("-O, -optimize=<level>", "Turns on optimization level. *UNIMPLEMENTED*");
+    print_option ("-O, --optimize=<level>", "Turns on optimization level. *UNIMPLEMENTED*");
     print_option ("-oall", "Turns on highest optimization level. *UNIMPLEMENTED*");
-    print_option ("-W, -warning=<level>", "Turns on warning level. *UNIMPLEMENTED*");
+    print_option ("-W, --warning=<level>", "Turns on warning level. *UNIMPLEMENTED*");
     print_option ("-wall", "Turns on highest warning level. *UNIMPLEMENTED*");
-    print_option ("-I, -inc, -include <dir>", "Add directory to search for system files from include macros.");
-    print_option ("-l, -lib, -library <file>", "Links given library file to program.");
-    print_option ("-L, -libdir, -librarydir <dir>", "Links all library files in the given directory recursively to program.");
+    print_option ("-I, --include <dir>", "Add directory to search for system files from include macros.");
+    print_option ("-l, --library <file>", "Links given library file to program.");
+    print_option ("-L, --librarydir <dir>", "Links all library files in the given directory recursively to program.");
     print_option ("-D <flag>", "Pass preprocessor flag to program.");
     print_option ("-kp", "Keep intermediate files (.bi).");
-    print_option ("-h, -help", "Display options help.");
+    print_option ("-h, --help", "Display options help.");
     exit (EXIT_SUCCESS);
 }
 

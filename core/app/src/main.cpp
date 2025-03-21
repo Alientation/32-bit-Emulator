@@ -98,8 +98,8 @@ const static std::string build_palindrome = "-I ./programs/include "
         "-o ./programs/build/palindrome ./programs/src/palindrome.basm "
         "-outdir ./programs/build";
 const static std::string build_library = "-o ./programs/build/libtest "
-        "-makelib ./programs/src/palindrome.basm -outdir ./programs/build";
-const static std::string build_exe_from_library = "-lib ./programs/build/libtest.ba "
+        "-ar ./programs/src/palindrome.basm -outdir ./programs/build";
+const static std::string build_exe_from_library = "-l ./programs/build/libtest.ba "
         "-o ./programs/build/palindrome_list -outdir ./programs/build";
 const static std::string build_exe_from_library_dir = "-libdir ./programs/build "
         "-o ./programs/build/palindrome_list -outdir ./programs/build";
