@@ -51,6 +51,7 @@ class Process
 
     private:
         /* process flags */
+        bool m_parse_options = true;
         bool m_make_lib = false;
         bool m_only_compile = false;
         std::string m_output_file = DEFAULT_OUTPUT_FILE;
@@ -98,6 +99,7 @@ class Process
         void _preprocessor_flag(std::vector<std::string>& args, size_t& index);
         void _keep_processed_files(std::vector<std::string>& args, size_t& index);
         void _ld(std::vector<std::string>& args, size_t& index);
+        void _help(std::vector<std::string>& args, size_t& index);
 
         typedef void (Process::*FlagFunction)(std::vector<std::string>& args, size_t& index);
         std::map<std::string, FlagFunction> flags;

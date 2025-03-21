@@ -61,3 +61,5 @@
 [ ] Refactor disassembler to be in its own container
 [ ] Improve preprocessor warning/errors to user
 [ ] Improve assembler warning/errors to user
+[ ] Add a preprocessor flag that can be added to disable debug prints
+    - Or only enable on the debug build

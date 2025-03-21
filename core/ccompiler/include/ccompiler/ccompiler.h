@@ -2,6 +2,11 @@
 #ifndef CCOMPILER_H
 #define CCOMPILER_H
 
+struct CompilerOptions
+{
+    int n_source_files;
+};
+
 /**
  * @brief Compiles a .c file into a .basm assembly file
  *

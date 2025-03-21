@@ -15,6 +15,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
+# Create the assembler library
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
     src/assembler.cpp
@@ -27,6 +28,23 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/static_library.cpp
     src/preprocessor.cpp
     src/tokenizer.cpp
+)
+
+# Create assembler executable
+add_executable(basm)
+target_sources(basm PRIVATE src/main.cpp)
+
+# Link the library to the executable
+target_link_libraries(basm PRIVATE ${PROJECT_NAME})
+
+# sets the search paths for the include files after installation
+# as well as during when building the library (as these may differ)
+# this allows the library itself and users to #include the library headers
+target_include_directories(
+    basm
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 include (FetchContent)

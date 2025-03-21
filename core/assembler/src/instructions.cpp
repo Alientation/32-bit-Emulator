@@ -15,6 +15,7 @@ byte Assembler::parse_sysreg(size_t& tok_i)
     }
 
     ERROR("Assembler::parse_sysreg() - Invalid System Register %s.", sysreg.c_str());
+    return 0;
 }
 
 byte Assembler::parse_register(size_t& tok_i)
@@ -55,7 +56,7 @@ void Assembler::parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int&
     /* note, in future, we could change this to create relocation record instead */
     shift_amt = parse_expression(tok_i);
 
-    EXPECT_TRUE(shift_amt < (1ULL<<5), "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
+    EXPECT_TRUE((word) shift_amt < (1ULL<<5), "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
                 "Error in line %llu.", shift_amt, line_at(tok_i));
 }
 
@@ -444,7 +445,7 @@ word Assembler::parse_format_o1(size_t& tok_i, byte opcode)
     else
     {
         int shift_amt = parse_expression(tok_i);
-        EXPECT_TRUE(shift_amt < (1ULL<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
+        EXPECT_TRUE((word) shift_amt < (1ULL<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
                 "Error at %s in line %llu.", shift_amt, Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
         return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt);
     }

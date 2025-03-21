@@ -32,9 +32,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 if(WIN32)
     # On Windows, explicitly link the regex library (MinGW/Cygwin)
     target_link_libraries(${PROJECT_NAME} regex)
-else()
-    # On Linux/macOS, regex functions are in libc (no need to link separately)
-    target_link_libraries(${PROJECT_NAME} m)  # Ensure math library is linked (optional)
 endif()
 
 # sets the search paths for the include files after installation

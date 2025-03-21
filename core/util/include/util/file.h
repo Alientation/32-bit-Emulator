@@ -86,7 +86,7 @@ class ByteWriter
         ByteWriter(FileWriter& filewriter);
         struct Data
         {
-            unsigned long long value;
+            unsigned long long value = 0;
             int num_bytes;
             Data(unsigned long long value, int num_bytes);
             Data(unsigned long long value, int num_bytes, bool little_endian);
