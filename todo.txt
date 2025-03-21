@@ -1,9 +1,11 @@
 [ ] Work on a tiny c compiler
     [ ] Small step for man - sample/simple.c
         - simple main function, no args, return 1;
-        [ ] Lex into tokens
-        [ ] Parse into AST
-        [ ] Codegen into basm assembly
+        [x] Lex into tokens
+        [x] Parse into AST
+        [x] Codegen into basm assembly
+        [ ] Run in emulator
+            - requires basic C runtime that defines the entry point _start and calls the main function
     [ ] Expressive Expressions
         - all kinds of Expressions
         [ ] Lex

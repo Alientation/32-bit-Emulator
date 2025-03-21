@@ -1,0 +1,13 @@
+;*
+
+        A basic C Runtime implementation
+
+*;
+
+.extern main
+.global _start
+
+.text
+_start:
+                bl      main
+                hlt
