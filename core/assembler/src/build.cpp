@@ -208,6 +208,12 @@ void Process::evaluate_args(std::vector<std::string>& args_list)
  */
 void Process::build()
 {
+    if (m_src_files.size() == 0)
+    {
+        std::cout << "ERROR: missing source files to assemble\n";
+        exit (EXIT_FAILURE);
+    }
+
     preprocess();
     assemble();
 
