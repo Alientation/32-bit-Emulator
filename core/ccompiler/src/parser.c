@@ -12,15 +12,16 @@ static token_t *nxttok (struct ParserData *parser);
 static token_t *exp_nxttok (struct ParserData *parser, const char *error_msg);
 static token_t *exp_nxttok_is (struct ParserData *parser, enum TokenType type, const char *error_msg);
 
-static bool istok (struct ParserData *parser, enum TokenType type, const char *error_msg);
+static bool istok (struct ParserData *parser, enum TokenType type);
 
-static astprogram_t *parse_program (struct ParserData *parser);
-static astfunction_t *parse_function (struct ParserData *parser);
-static aststatement_t *parse_statement (struct ParserData *parser);
-static astexpression_t *parse_expression (struct ParserData *parser);
+static astnode_t *allocate_astnode (astnodetype_t type);
+static astnode_t *parse_program (struct ParserData *parser);
+static astnode_t *parse_function (struct ParserData *parser);
+static astnode_t *parse_statement (struct ParserData *parser);
+static astnode_t *parse_expression (struct ParserData *parser);
 
-static astliteralint_t *parse_literal_int (struct ParserData *parser);
-static astidentifier_t *parse_identifier (struct ParserData *parser);
+static astnode_t *parse_literal_int (struct ParserData *parser);
+static astnode_t *parse_identifier (struct ParserData *parser);
 
 static char strbuffer[256];
 
@@ -71,31 +72,31 @@ static void ASTNode_print (void *node, int tabs)
             printf ("ERROR\n");
             break;
         case AST_LITERAL_INT:
-            printf ("int<%d>", ((astliteralint_t *) ast_node)->value);
+            printf ("int<%d>", ast_node->as.literal_int.value);
             break;
         case AST_IDENTIFIER:
-            strncpy (strbuffer, ((astidentifier_t *) ast_node)->tok->src, ((astidentifier_t *) ast_node)->tok->length);
-            strbuffer[((astidentifier_t *) ast_node)->tok->length] = '\0';
+            strncpy (strbuffer, ast_node->as.identifier.tok_id->src, ast_node->as.identifier.tok_id->length);
+            strbuffer[ast_node->as.identifier.tok_id->length] = '\0';
             printf ("identifier<%s>", strbuffer);
             break;
         case AST_PROGRAM:
             printf ("program:\n");
-            ASTNode_print (((astprogram_t *) ast_node)->function, tabs + 1);
+            ASTNode_print (ast_node->as.program.function, tabs + 1);
             break;
         case AST_EXPRESSION:
             printf ("expression:\n");
-            ASTNode_print (((astexpression_t *) ast_node)->literal_int, tabs + 1);
+            ASTNode_print (ast_node->as.expression.val, tabs + 1);
             printf ("\n");
             break;
         case AST_STATEMENT:
             printf ("statement:\n");
-            ASTNode_print (((aststatement_t *) ast_node)->expression, tabs + 1);
+            ASTNode_print (ast_node->as.statement.expression, tabs + 1);
             break;
         case AST_FUNCTION:
             printf ("function <int> ");
-            ASTNode_print (((astfunction_t *) ast_node)->identifier, 0);
+            ASTNode_print (ast_node->as.function.identifier, 0);
             printf (":\n");
-            ASTNode_print (((astfunction_t *) ast_node)->statement, tabs + 1);
+            ASTNode_print (ast_node->as.function.statement, tabs + 1);
             break;
     }
 }
@@ -120,17 +121,17 @@ static void ASTNode_free (void *node)
         case AST_IDENTIFIER:
             break;
         case AST_PROGRAM:
-            ASTNode_free (((astprogram_t *) ast_node)->function);
+            ASTNode_free (ast_node->as.program.function);
             break;
         case AST_EXPRESSION:
-            ASTNode_free (((astexpression_t *) ast_node)->literal_int);
+            ASTNode_free (ast_node->as.expression.val);
             break;
         case AST_STATEMENT:
-            ASTNode_free (((aststatement_t *) ast_node)->expression);
+            ASTNode_free (ast_node->as.statement.expression);
             break;
         case AST_FUNCTION:
-            ASTNode_free (((astfunction_t *) ast_node)->identifier);
-            ASTNode_free (((astfunction_t *) ast_node)->statement);
+            ASTNode_free (ast_node->as.function.identifier);
+            ASTNode_free (ast_node->as.function.statement);
             break;
     }
 
@@ -176,11 +177,11 @@ static token_t *exp_nxttok_is (struct ParserData *parser, enum TokenType type,
     return tok;
 }
 
-static bool istok (struct ParserData *parser, enum TokenType type, const char *error_msg)
+static bool istok (struct ParserData *parser, enum TokenType type)
 {
     if (parser->tok_i >= parser->lexer->tok_count)
     {
-        fprintf (stderr, error_msg);
+        fprintf (stderr, "ERROR: unexpected end of file\n");
         return false;
     }
 
@@ -188,102 +189,82 @@ static bool istok (struct ParserData *parser, enum TokenType type, const char *e
     return tok->type == type;
 }
 
-static astprogram_t *parse_program (struct ParserData *parser)
+
+
+static astnode_t *allocate_astnode (astnodetype_t type)
 {
-    astprogram_t *program = calloc (1, sizeof (astprogram_t));
-    if (!program)
+    astnode_t *node = calloc (1, sizeof (astnode_t));
+    if (!node)
     {
         fprintf (stderr, "ERROR: failed to allocate memory\n");
         exit (EXIT_FAILURE);
     }
 
-    program->type = AST_PROGRAM;
-    program->function = parse_function (parser);
+    node->type = type;
+    return node;
+}
+
+
+static astnode_t *parse_program (struct ParserData *parser)
+{
+    astnode_t *program = allocate_astnode (AST_PROGRAM);
+    program->as.program.function = parse_function (parser);
     return program;
 }
 
-static astfunction_t *parse_function (struct ParserData *parser)
+static astnode_t *parse_function (struct ParserData *parser)
 {
-    astfunction_t *function = calloc (1, sizeof (astfunction_t));
-    if (!function)
-    {
-        fprintf (stderr, "ERROR: failed to allocate Memory\n");
-        exit (EXIT_FAILURE);
-    }
-
-    function->type = AST_FUNCTION;
-
+    astnode_t *function = allocate_astnode (AST_FUNCTION);
     exp_nxttok_is (parser, TOKEN_KEYWORD_INT, "Expected an \'int\' return type for function.\n");
-    function->identifier = parse_identifier (parser);
+    function->as.function.identifier = parse_identifier (parser);
 
     exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS, "Expected \'(\' after function identifier.\n");
     exp_nxttok_is (parser, TOKEN_CLOSE_PARENTHESIS, "Expected closing \')\' after \'(\'.\n");
     exp_nxttok_is (parser, TOKEN_OPEN_BRACE, "Expected \'{\' to begin function body.\n");
-    function->statement = parse_statement (parser);
+    function->as.function.statement = parse_statement (parser);
     exp_nxttok_is (parser, TOKEN_CLOSE_BRACE, "Expected \'}\' to close function body.\n");
     return function;
 }
 
-static aststatement_t *parse_statement (struct ParserData *parser)
+static astnode_t *parse_statement (struct ParserData *parser)
 {
-    aststatement_t *statement = calloc (1, sizeof (aststatement_t));
-    if (!statement)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
-    }
-    statement->type = AST_STATEMENT;
-
+    astnode_t *statement = allocate_astnode (AST_STATEMENT);
     exp_nxttok_is (parser, TOKEN_KEYWORD_RETURN, "Expected \'return\' statement.\n");
-    statement->expression = parse_expression (parser);
+    statement->as.statement.expression = parse_expression (parser);
     exp_nxttok_is (parser, TOKEN_SEMICOLON, "Expected \';\' to end statement.\n");
     return statement;
 }
 
-static astexpression_t *parse_expression (struct ParserData *parser)
+static astnode_t *parse_expression (struct ParserData *parser)
 {
-    astexpression_t *expression = calloc (1, sizeof (astexpression_t));
-    if (!expression)
+    astnode_t *expression = allocate_astnode (AST_EXPRESSION);
+    if (istok (parser, TOKEN_LITERAL_INT))
     {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
+        expression->as.expression.val = parse_literal_int (parser);
     }
-    expression->type = AST_EXPRESSION;
-
-    expression->literal_int = parse_literal_int (parser);
+    else
+    {
+        // todo
+    }
     return expression;
 }
 
-static astliteralint_t *parse_literal_int (struct ParserData *parser)
+static astnode_t *parse_literal_int (struct ParserData *parser)
 {
-    astliteralint_t *literal_int = calloc (1, sizeof (astliteralint_t));
-    if (!literal_int)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
-    }
+    astnode_t*literal_int = allocate_astnode (AST_LITERAL_INT);
+    literal_int->as.literal_int.tok_int = exp_nxttok_is (parser, TOKEN_LITERAL_INT, "Expected integer literal.\n");
 
-    literal_int->type = AST_LITERAL_INT;
-    literal_int->tok = exp_nxttok_is (parser, TOKEN_LITERAL_INT, "Expected integer literal.\n");
-
-    for (int i = 0; i < literal_int->tok->length; i++)
+    for (int i = 0; i < literal_int->as.literal_int.tok_int->length; i++)
     {
-        literal_int->value *= 10;
-        literal_int->value += literal_int->tok->src[i] - '0';
+        literal_int->as.literal_int.value *= 10;
+        literal_int->as.literal_int.value += literal_int->as.literal_int.tok_int->src[i] - '0';
     }
     return literal_int;
 }
 
-static astidentifier_t *parse_identifier (struct ParserData *parser)
+static astnode_t *parse_identifier (struct ParserData *parser)
 {
-    astidentifier_t *identifier = calloc (1, sizeof (astidentifier_t));
-    if (!identifier)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
-    }
-
-    identifier->type = AST_IDENTIFIER;
-    identifier->tok = exp_nxttok_is (parser, TOKEN_IDENTIFIER, "Expected identifier.\n");
+    astnode_t *identifier = allocate_astnode (AST_IDENTIFIER);
+    identifier->as.identifier.tok_id = exp_nxttok_is (parser, TOKEN_IDENTIFIER, "Expected identifier.\n");
     return identifier;
 }

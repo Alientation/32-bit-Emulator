@@ -2,7 +2,7 @@
 
 .text
 main:
-mov x0, 1
+mov x0, 
 ret
 
 hlt

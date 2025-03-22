@@ -6,10 +6,10 @@
 #include <assert.h>
 
 static void codegen_astnode (struct CodegenData *codegen, astnode_t *ast_node);
-static void codegen_astexpression (struct CodegenData *codegen, astexpression_t *ast_node);
-static void codegen_aststatement (struct CodegenData *codegen, aststatement_t *ast_node);
-static void codegen_astfunction (struct CodegenData *codegen, astfunction_t *ast_node);
-static void codegen_astprogram (struct CodegenData *codegen, astprogram_t *ast_node);
+static void codegen_astexpression (struct CodegenData *codegen, astnode_t *ast_node);
+static void codegen_aststatement (struct CodegenData *codegen, astnode_t *ast_node);
+static void codegen_astfunction (struct CodegenData *codegen, astnode_t *ast_node);
+static void codegen_astprogram (struct CodegenData *codegen, astnode_t *ast_node);
 
 static void codegenblock_init (struct CodegenBlock *block);
 static void codegenblock_free (struct CodegenBlock *block);
@@ -59,47 +59,53 @@ static void codegen_astnode (struct CodegenData *codegen, astnode_t *ast_node)
             fprintf (stderr, "ERROR: unexpected AST_IDENTIFIER\n");
             exit (EXIT_FAILURE);
         case AST_EXPRESSION:
-            return codegen_astexpression (codegen, (astexpression_t *) ast_node);
+            return codegen_astexpression (codegen, ast_node);
         case AST_STATEMENT:
-            return codegen_aststatement (codegen, (aststatement_t *) ast_node);
+            return codegen_aststatement (codegen, ast_node);
         case AST_FUNCTION:
-            return codegen_astfunction (codegen, (astfunction_t *) ast_node);
+            return codegen_astfunction (codegen, ast_node);
         case AST_PROGRAM:
-            return codegen_astprogram (codegen, (astprogram_t *) ast_node);
+            return codegen_astprogram (codegen, ast_node);
     }
 
     fprintf (stderr, "ERROR: unknown ASTNode type %d\n", ast_node->type);
     exit (EXIT_FAILURE);
 }
 
-static void codegen_astexpression (struct CodegenData *codegen, astexpression_t *ast_node)
+static void codegen_astexpression (struct CodegenData *codegen, astnode_t *node)
 {
     codegenblock_add (&codegen->txt_sect, "mov x0, ");
-    codegenblock_ladd (&codegen->txt_sect, ast_node->literal_int->tok->src, ast_node->literal_int->tok->length);
+
+    // todo add codegenblock_add_token for these things
+    codegenblock_ladd (&codegen->txt_sect, node->as.literal_int.tok_int->src,
+                       node->as.literal_int.tok_int->length);
     codegenblock_add (&codegen->txt_sect, "\n");
 }
 
-static void codegen_aststatement (struct CodegenData *codegen, aststatement_t *ast_node)
+static void codegen_aststatement (struct CodegenData *codegen, astnode_t *node)
 {
-    codegen_astexpression (codegen, ast_node->expression);
+    codegen_astexpression (codegen, node->as.statement.expression);
     codegenblock_add (&codegen->txt_sect, "ret\n");
 }
 
-static void codegen_astfunction (struct CodegenData *codegen, astfunction_t *ast_node)
+static void codegen_astfunction (struct CodegenData *codegen, astnode_t *node)
 {
+    astnode_t *identifier = node->as.function.identifier;
     codegenblock_add (&codegen->glob_sym_decl, ".global ");
-    codegenblock_ladd (&codegen->glob_sym_decl, ast_node->identifier->tok->src, ast_node->identifier->tok->length);
+    codegenblock_ladd (&codegen->glob_sym_decl, identifier->as.identifier.tok_id->src,
+                       identifier->as.identifier.tok_id->length);
     codegenblock_add (&codegen->glob_sym_decl, "\n");
 
-    codegenblock_ladd (&codegen->txt_sect, ast_node->identifier->tok->src, ast_node->identifier->tok->length);
+    codegenblock_ladd (&codegen->txt_sect, identifier->as.identifier.tok_id->src,
+                       identifier->as.identifier.tok_id->length);
     codegenblock_add (&codegen->txt_sect, ":\n");
 
-    codegen_aststatement (codegen, ast_node->statement);
+    codegen_aststatement (codegen, node->as.function.statement);
 }
 
-static void codegen_astprogram (struct CodegenData *codegen, astprogram_t *ast_node)
+static void codegen_astprogram (struct CodegenData *codegen, astnode_t *node)
 {
-    codegen_astfunction (codegen, ast_node->function);
+    codegen_astfunction (codegen, node->as.program.function);
 }
 
 static void codegenblock_init (struct CodegenBlock *block)

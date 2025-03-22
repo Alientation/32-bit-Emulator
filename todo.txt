@@ -1,4 +1,5 @@
 [ ] Work on a tiny c compiler
+    [ ] Parse command args
     [ ] Small step for man - sample/simple.c
         - simple main function, no args, return 1;
         [x] Lex into tokens

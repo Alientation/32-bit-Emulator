@@ -23,6 +23,10 @@ static const struct Token_Pattern TOKEN_PATTERNS[] =
     { TOKEN_KEYWORD_INT, "^int\\b" },
     { TOKEN_KEYWORD_RETURN, "^return\\b" },
 
+    { TOKEN_HYPEN, "^-" },
+    { TOKEN_TILDE, "^~" },
+    { TOKEN_EXCLAMATION_MARK, "^!" },
+
     { TOKEN_OPEN_PARENTHESIS, "^\\(" },
     { TOKEN_CLOSE_PARENTHESIS, "^\\)" },
     { TOKEN_OPEN_BRACE, "^\\{" },
@@ -138,6 +142,15 @@ void token_print (token_t tok)
             break;
         case TOKEN_KEYWORD_RETURN:
             printf ("TOKEN_KEYWORD_RETURN: \'%s\'", buffer);
+            break;
+        case TOKEN_HYPEN:
+            printf ("TOKEN_HYPEN: \'%s\'", buffer);
+            break;
+        case TOKEN_TILDE:
+            printf ("TOKEN_TILDE: \'%s\'", buffer);
+            break;
+        case TOKEN_EXCLAMATION_MARK:
+            printf ("TOKEN_EXCLAMATION_MARK: \'%s\'", buffer);
             break;
         case TOKEN_OPEN_PARENTHESIS:
             printf ("TOKEN_OPEN_PARENTHESIS: \'%s\'", buffer);
