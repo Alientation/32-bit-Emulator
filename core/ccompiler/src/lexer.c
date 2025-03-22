@@ -7,7 +7,7 @@
 
 #include "ccompiler/lexer.h"
 
-static void add_token (struct LexerData *lexer, token_t tok);
+static void add_token (struct LexerData *lexer, token_t *tok);
 static void tokenize (struct LexerData *lexer);
 
 static const int TAB_SIZE = 4;
@@ -80,7 +80,7 @@ void lexer_print (const struct LexerData *lexer)
     for (int i = 0; i < lexer->tok_count; i++)
     {
         printf("\n[%d] ", i);
-        token_print (lexer->tokens[i]);
+        token_print (&lexer->tokens[i]);
     }
     printf ("\n");
 }
@@ -116,17 +116,26 @@ void lexer_init (struct LexerData *lexer)
     }
 }
 
-void token_print (token_t tok)
+char *token_tostr (token_t *tok)
 {
-    char *buffer = calloc (tok.length + 1, sizeof (char));
-    if (!buffer)
+    static char strbuffer[256];
+    if ((long long unsigned int) tok->length >= sizeof (strbuffer))
     {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        fprintf (stderr, "ERROR: failed to print token at \'%s\' of length %d\n", tok->src, tok->length);
         exit (EXIT_FAILURE);
     }
 
-    strncpy (buffer, tok.src, tok.length);
-    switch (tok.type)
+    strncpy (strbuffer, tok->src, tok->length);
+    strbuffer[tok->length] = '\0';
+    return strbuffer;
+}
+
+void token_print (token_t *tok)
+{
+    char *buffer = token_tostr (tok);
+
+    strncpy (buffer, tok->src, tok->length);
+    switch (tok->type)
     {
         case TOKEN_ERROR:
             printf ("TOKEN_ERROR: \'%s\'", buffer);
@@ -209,7 +218,7 @@ static void tokenize (struct LexerData *lexer)
                 token.length = length;
                 token.src = lexer->src + offset;
 
-                add_token (lexer, token);
+                add_token (lexer, &token);
 
                 offset += length;
                 cur_column += length;
@@ -248,7 +257,7 @@ static void tokenize (struct LexerData *lexer)
     }
 }
 
-static void add_token (struct LexerData *lexer, token_t tok)
+static void add_token (struct LexerData *lexer, token_t *tok)
 {
     if (lexer->tok_count + 1 > lexer->tok_total_alloc)
     {
@@ -267,6 +276,6 @@ static void add_token (struct LexerData *lexer, token_t tok)
         prev_tokens = NULL;
     }
 
-    lexer->tokens[lexer->tok_count] = tok;
+    lexer->tokens[lexer->tok_count] = *tok;
     lexer->tok_count++;
 }

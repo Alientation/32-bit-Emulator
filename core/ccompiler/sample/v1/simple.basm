@@ -1,8 +1,0 @@
-.global main
-
-.text
-main:
-mov x0, 
-ret
-
-hlt

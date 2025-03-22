@@ -1,22 +1,25 @@
 [ ] Work on a tiny c compiler
     [ ] Parse command args
-    [ ] Small step for man - sample/simple.c
+    [x] Small step for man - sample/simple.c
         - simple main function, no args, return 1;
         [x] Lex into tokens
         [x] Parse into AST
         [x] Codegen into basm assembly
-        [ ] Run in emulator
-            - requires basic C runtime that defines the entry point _start and calls the main function
-    [ ] Expressive Expressions
-        - all kinds of Expressions
-        [ ] Lex
-        [ ] Parse
-        [ ] Codegen
+    [x] Expressive Expressions
+        - '-', '!', '~' and recursive expressions
+        [x] Lex
+        [x] Parse
+        [x] Codegen
     [ ] Functionional Functions
         - calling functions, stack, local variables, register handling, etc
         [ ] Lex
         [ ] Parse
         [ ] Codegen
+    [ ] Run in emulator
+        - requires basic C runtime that defines the entry point _start and calls the main function
+    [ ] Pretty assembly
+        - make the output look nice with spacing
+
 [x] Define a standard for using registers
     [x] Parameter registers (x0-x7)
     [x] Return value (x0)
@@ -50,6 +53,9 @@
             - Specified bits in memory is set
             - Reads in old value to a GPR
             - LDSET xt, xn, [xm]
+    [ ] CSET, CINC, CINV, CNEG, CSEL, CSINC, CSINV, CSNEG
+        - Conditional set, increment, invert, negate
+        - Conditionl select, select increment, select invert, select negate
 [ ] Add tests
     [ ] MSR/MRS
     [ ] TLBI

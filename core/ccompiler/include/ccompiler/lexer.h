@@ -46,6 +46,7 @@ void lexer_init (struct LexerData *lexer);
 void lexer_print (const struct LexerData *lexer);
 void lexer_free (struct LexerData *lexer);
 
-void token_print (token_t tok);
+char *token_tostr (token_t *tok);
+void token_print (token_t *tok);
 
 #endif /* LEXER_H */

@@ -3,13 +3,6 @@
 
 #include "ccompiler/lexer.h"
 
-/*
-    <program> ::= <function>
-    <function> ::= "int" <identifier> "()" "{" <statement> "}"
-    <statement> ::= "return" <expression> ";"
-    <expression> ::= <literal_int>
-
- */
 typedef enum ASTNodeType
 {
     AST_ERROR,
@@ -18,6 +11,7 @@ typedef enum ASTNodeType
     AST_IDENTIFIER,
 
     AST_EXPRESSION,
+    AST_UNARY_OP,
     AST_STATEMENT,
     AST_FUNCTION,
     AST_PROGRAM,
@@ -29,49 +23,55 @@ typedef struct ASTNode
 
     union
     {
-        /* Literal integer */
+        /* <literal_int> */
         struct
         {
             token_t *tok_int;
             int value;
         } literal_int;
 
-        /* Unary operator */
+
+        /* <unary_op> ::= ("!" | "-" | "~") <expression> */
         struct
         {
             token_t *tok_op;
-            struct ASTNode *literal_int;
+            struct ASTNode *operand;        /* <expression> */
         } unary_op;
 
-        /* Expression */
+
+        /* <expression> ::= <unary_op> | <literal_int> */
         struct
         {
-            struct ASTNode *val;
+            struct ASTNode *expr;           /* <unary_op> | <literal_int> */
         } expression;
 
-        /* Statement */
+
+        /* <statement> ::= "return" <expression> */
         struct
         {
-            struct ASTNode *expression;
+            struct ASTNode *body;           /* <expression> */
         } statement;
 
-        /* Identifier */
+
+        /* <identifier> */
         struct
         {
             token_t *tok_id;
         } identifier;
 
-        /* Function */
+
+        /* <function> ::= "int" <identifier> "()" "{" <statement> "}" */
         struct
         {
-            struct ASTNode *identifier;
-            struct ASTNode *statement;
+            struct ASTNode *name;           /* <identifier> */
+            struct ASTNode *body;           /* <statement> */
         } function;
 
-        /* Program */
+
+        /* <program> ::= <function> */
         struct
         {
-            struct ASTNode *function;
+            struct ASTNode *function;       /* <function> */
         } program;
     } as;
 
