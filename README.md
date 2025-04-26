@@ -145,4 +145,4 @@ Note, currently the build process argument parser is extremely rudimentary so op
 
 
 ## **License**
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE.md) file for details
