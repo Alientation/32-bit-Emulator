@@ -2,6 +2,7 @@
 
 #include "emulator32bit/fbl.h"
 
+#include "algorithm"
 
 TEST (fbl, in_order)
 {

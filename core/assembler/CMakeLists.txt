@@ -47,18 +47,6 @@ target_include_directories(
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-include (FetchContent)
-FetchContent_Declare(
-    util
-    SOURCE_DIR ../../util)
-FetchContent_MakeAvailable(util)
-
-FetchContent_Declare(
-	emulator32bit
-	SOURCE_DIR ../../emulator32bit
-)
-FetchContent_MakeAvailable(emulator32bit)
-
 include(GNUInstallDirs)
 
 # sets the search paths for the include files after installation

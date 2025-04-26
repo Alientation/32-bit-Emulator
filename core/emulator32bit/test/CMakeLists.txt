@@ -17,8 +17,8 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # get required libraries
-find_package(util REQUIRED CONFIG)
-find_package(emulator32bit REQUIRED CONFIG)
+add_subdirectory(../../util ${CMAKE_BINARY_DIR}/util)
+add_subdirectory(../../emulator32bit ${CMAKE_BINARY_DIR}/emulator32bit)
 
 # link gtest
 enable_testing()
@@ -69,7 +69,7 @@ target_include_directories(
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(emulator32bit_tests PUBLIC util::util emulator32bit::emulator32bit GTest::gtest_main)
+target_link_libraries(emulator32bit_tests PUBLIC util emulator32bit GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(emulator32bit_tests)

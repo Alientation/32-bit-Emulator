@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(emulator-app LANGUAGES CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra ")
@@ -10,34 +10,35 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
-# get project version from git
+# Generate version header
 add_custom_target(version
     ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/src/version.h.in
-                        -D DST=${CMAKE_SOURCE_DIR}/src/version.h
-                        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
+                     -D DST=${CMAKE_SOURCE_DIR}/src/version.h
+                     -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
 )
 
-# get required libraries
-find_package(util REQUIRED CONFIG)
-find_package(emulator32bit REQUIRED CONFIG)
-find_package(assembler REQUIRED CONFIG)
+# Add sibling directories
+add_subdirectory(../util ${CMAKE_BINARY_DIR}/util)
+add_subdirectory(../emulator32bit ${CMAKE_BINARY_DIR}/emulator32bit)
+add_subdirectory(../assembler ${CMAKE_BINARY_DIR}/assembler)
 
-# create final executable
+# Main executable
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
 
-# sets the search paths for the include files after installation
-# as well as during when building the library (as these may differ)
-# this allows the library itself and users to #include the library headers
 target_include_directories(
     ${PROJECT_NAME}
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# link libraries
-target_link_libraries(${PROJECT_NAME} PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+    util
+    emulator32bit
+    assembler
+)
+
 add_dependencies(${PROJECT_NAME} version)
 
 

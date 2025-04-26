@@ -34,13 +34,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/timer.cpp
 )
 
-# rest is boilerplate to set up the build
-include(FetchContent)
-FetchContent_Declare(
-	util
-	SOURCE_DIR ../../util)
-FetchContent_MakeAvailable(util)
-
 include(GNUInstallDirs)
 
 # sets the search paths for the include files after installation
