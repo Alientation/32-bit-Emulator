@@ -57,6 +57,7 @@
         - Conditional set, increment, invert, negate
         - Conditionl select, select increment, select invert, select negate
 [ ] Add tests
+    [ ] B, BL, BX, BLX, ADRP
     [ ] MSR/MRS
     [ ] TLBI
     [ ] Atomics
