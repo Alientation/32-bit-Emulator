@@ -15,7 +15,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
-# Create the assembler library
+add_subdirectory(tests)
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE
     src/assembler.cpp

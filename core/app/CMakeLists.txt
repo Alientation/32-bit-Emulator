@@ -17,11 +17,6 @@ add_custom_target(version
                      -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
 )
 
-# Add sibling directories
-add_subdirectory(../util ${CMAKE_BINARY_DIR}/util)
-add_subdirectory(../emulator32bit ${CMAKE_BINARY_DIR}/emulator32bit)
-add_subdirectory(../assembler ${CMAKE_BINARY_DIR}/assembler)
-
 # Main executable
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
