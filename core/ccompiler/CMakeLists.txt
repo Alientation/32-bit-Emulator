@@ -26,6 +26,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/lexer.c
     src/parser.c
     src/codegen.c
+    src/stringbuffer.c
 )
 
 # Link POSIX regex library if necessary
