@@ -2,7 +2,7 @@
 
 .text
 main:
-mov x0, 12
-ret
+	mov x0, 12
+	ret
 
-hlt
+	hlt

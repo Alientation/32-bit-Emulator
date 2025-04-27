@@ -2,19 +2,19 @@
 
 .text
 main:
-mov x0, 60
-sub x0, xzr, x0
+	mov x0, 60
+	sub x0, xzr, x0
 
 .scope
-cmp x0, 0
-b.eq __set
-mov x0, 0
-b __done
+	cmp x0, 0
+	b.eq __set
+	mov x0, 0
+	b __done
 __set:
-mov x0, 1
+	mov x0, 1
 __done:
 .scend
 
-ret
+	ret
 
-hlt
+	hlt

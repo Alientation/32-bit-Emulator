@@ -2,9 +2,9 @@
 
 .text
 main:
-mov x0, 0
-mvn x0, x0
+	mov x0, 0
+	mvn x0, x0
 
-ret
+	ret
 
-hlt
+	hlt

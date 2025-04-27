@@ -71,3 +71,4 @@
 [ ] Improve assembler warning/errors to user
 [ ] Add a preprocessor flag that can be added to disable debug prints
     - Or only enable on the debug build
+[ ] Allow testing individual subdirectories in cmake target

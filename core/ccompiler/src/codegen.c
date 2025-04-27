@@ -37,10 +37,10 @@ void codegen (struct ParserData *parser, const char *output_filepath)
     codegen_ast (&codegen, (astnode_t *) parser->ast);
 
     /* Write code blocks to file */
-    fprintf (file, "%s\n.text\n%s\nhlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
+    fprintf (file, "%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
 
     printf ("GENERATED CODE\n\"%s\":\n", output_filepath);
-    printf ("%s\n.text\n%s\nhlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
+    printf ("%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
 
     fclose (file);
     codegenblock_free (&codegen.glob_sym_decl);
@@ -86,24 +86,24 @@ static void codegen_unary_op (struct CodegenData *codegen, astnode_t *node)
         case TOKEN_EXCLAMATION_MARK:
             codegenblock_add (&codegen->txt_sect,
                 ".scope\n"
-                    "cmp x0, 0\n"
-                    "b.eq __set\n"
-                    "mov x0, 0\n"
-                    "b __done\n"
+                    "\tcmp x0, 0\n"
+                    "\tb.eq __set\n"
+                    "\tmov x0, 0\n"
+                    "\tb __done\n"
                 "__set:\n"
-                    "mov x0, 1\n"
+                    "\tmov x0, 1\n"
                 "__done:\n"
                 ".scend\n"
             );
             break;
         case TOKEN_HYPEN:
             codegenblock_add (&codegen->txt_sect,
-                "sub x0, xzr, x0\n"
+                "\tsub x0, xzr, x0\n"
             );
             break;
         case TOKEN_TILDE:
             codegenblock_add (&codegen->txt_sect,
-                "mvn x0, x0\n"
+                "\tmvn x0, x0\n"
             );
             break;
         default:
@@ -117,7 +117,7 @@ static void codegen_expression (struct CodegenData *codegen, astnode_t *node)
     switch (node->as.expression.expr->type)
     {
         case AST_LITERAL_INT:
-            codegenblock_add (&codegen->txt_sect, "mov x0, ");
+            codegenblock_add (&codegen->txt_sect, "\tmov x0, ");
             codegenblock_addtok (&codegen->txt_sect, node->as.expression.expr->as.literal_int.tok_int);
             break;
         case AST_UNARY_OP:
@@ -134,7 +134,7 @@ static void codegen_expression (struct CodegenData *codegen, astnode_t *node)
 static void codegen_statement (struct CodegenData *codegen, astnode_t *node)
 {
     codegen_expression (codegen, node->as.statement.body);
-    codegenblock_add (&codegen->txt_sect, "ret\n");
+    codegenblock_add (&codegen->txt_sect, "\tret\n");
 }
 
 static void codegen_function (struct CodegenData *codegen, astnode_t *node)
