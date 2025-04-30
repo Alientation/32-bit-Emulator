@@ -21,7 +21,11 @@ static void stringbuffer_extend (struct StringBuffer *stringbuffer, int target_c
         exit (EXIT_FAILURE);
     }
 
-    memcpy (stringbuffer->buf, old_buf, stringbuffer->length);
+    if (old_buf)
+    {
+        memcpy (stringbuffer->buf, old_buf, stringbuffer->length);
+        free (old_buf);
+    }
     stringbuffer->buf[stringbuffer->length] = '\0';
 }
 
