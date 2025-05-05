@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void stringbuffer_extend (struct StringBuffer *stringbuffer, int target_cap)
+static void stringbuffer_extend (stringbuffer_t *stringbuffer, int target_cap)
 {
     int new_cap = stringbuffer->capacity *= 2;
     if (new_cap < 2 * target_cap)
@@ -30,14 +30,14 @@ static void stringbuffer_extend (struct StringBuffer *stringbuffer, int target_c
 }
 
 
-void stringbuffer_init (struct StringBuffer *stringbuffer)
+void stringbuffer_init (stringbuffer_t *stringbuffer)
 {
     stringbuffer->buf = NULL;
     stringbuffer->capacity = 0;
     stringbuffer->length = 0;
 }
 
-void stringbuffer_free (struct StringBuffer *stringbuffer)
+void stringbuffer_free (stringbuffer_t *stringbuffer)
 {
     free (stringbuffer->buf);
     stringbuffer->buf = NULL;
@@ -45,13 +45,13 @@ void stringbuffer_free (struct StringBuffer *stringbuffer)
     stringbuffer->length = 0;
 }
 
-void stringbuffer_append (struct StringBuffer *stringbuffer, char *str)
+void stringbuffer_append (stringbuffer_t *stringbuffer, char *str)
 {
     int len = strlen (str);
     stringbuffer_appendl (stringbuffer, str, len);
 }
 
-void stringbuffer_appendl (struct StringBuffer *stringbuffer, char *str, int len)
+void stringbuffer_appendl (stringbuffer_t *stringbuffer, char *str, int len)
 {
     if (stringbuffer->length + len > stringbuffer->capacity)
     {
@@ -63,7 +63,7 @@ void stringbuffer_appendl (struct StringBuffer *stringbuffer, char *str, int len
     stringbuffer->buf[stringbuffer->length] = '\0';
 }
 
-void stringbuffer_clear (struct StringBuffer *stringbuffer)
+void stringbuffer_clear (stringbuffer_t *stringbuffer)
 {
     if (stringbuffer->capacity > 0)
     {

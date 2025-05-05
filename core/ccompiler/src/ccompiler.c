@@ -33,6 +33,13 @@ void ccompile (const char *filepath)
     struct ParserData parser;
     parser_init (&parser);
     parse (&lexer, &parser);
+
+    if (parser.had_error)
+    {
+        fprintf (stderr, "ERROR: %s\n", parser.err_msg_buffer.buf);
+        exit (EXIT_FAILURE);
+    }
+
     parser_print (&parser);
     printf ("\n");
 

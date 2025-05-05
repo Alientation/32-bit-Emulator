@@ -1,9 +1,10 @@
 #pragma once
 #ifndef LEXER_H
+#define LEXER_H
 
 typedef struct Token token_t;
 
-struct LexerData
+typedef struct LexerData
 {
     const char *src;
     int length;
@@ -11,7 +12,7 @@ struct LexerData
     token_t *tokens;
     int tok_count;
     int tok_total_alloc;
-};
+} lexer_data_t;
 
 typedef enum TokenType
 {
@@ -23,6 +24,7 @@ typedef enum TokenType
     TOKEN_KEYWORD_INT,
     TOKEN_KEYWORD_RETURN,
 
+    TOKEN_PLUS, TOKEN_ASTERICK, TOKEN_FORWARD_SLASH,
     TOKEN_HYPEN, TOKEN_TILDE, TOKEN_EXCLAMATION_MARK,
 
     TOKEN_OPEN_PARENTHESIS, TOKEN_CLOSE_PARENTHESIS,
@@ -40,11 +42,11 @@ struct Token
 };
 
 void lex (const char* filepath,
-        struct LexerData *lexer);
+          lexer_data_t *lexer);
 
-void lexer_init (struct LexerData *lexer);
-void lexer_print (const struct LexerData *lexer);
-void lexer_free (struct LexerData *lexer);
+void lexer_init (lexer_data_t *lexer);
+void lexer_print (const lexer_data_t *lexer);
+void lexer_free (lexer_data_t *lexer);
 
 char *token_tostr (token_t *tok);
 void token_print (token_t *tok);

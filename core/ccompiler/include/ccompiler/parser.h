@@ -1,20 +1,27 @@
 #pragma once
 #ifndef PARSER_H
+#define PARSER_H
 
 #include "ccompiler/lexer.h"
+#include "ccompiler/stringbuffer.h"
+
+#include <stdbool.h>
 
 typedef enum ASTNodeType
 {
-    AST_ERROR,
+    AST_ERR,
 
     AST_LITERAL_INT,
-    AST_IDENTIFIER,
+    AST_IDENT,
 
-    AST_EXPRESSION,
-    AST_UNARY_OP,
+    AST_EXPR,
+    AST_UNARY_EXPR,
+    AST_BINARY_EXPR_1,
+    AST_BINARY_EXPR_2,
+    AST_FACTOR,
     AST_STATEMENT,
-    AST_FUNCTION,
-    AST_PROGRAM,
+    AST_FUNC,
+    AST_PROG,
 } astnodetype_t;
 
 typedef struct ASTNode
@@ -31,25 +38,50 @@ typedef struct ASTNode
         } literal_int;
 
 
-        /* <unary_op> ::= ("!" | "-" | "~") <expression> */
+        /* <unary_expr> ::= ("!" | "-" | "~") <factor> */
         struct
         {
             token_t *tok_op;
-            struct ASTNode *operand;        /* <expression> */
-        } unary_op;
+            struct ASTNode *operand;        /* <factor> */
+        } unary_expr;
 
 
-        /* <expression> ::= <unary_op> | <literal_int> */
+        /* <binary_expr_1> ::= <factor> ("*" | "/") <factor> */
         struct
         {
-            struct ASTNode *expr;           /* <unary_op> | <literal_int> */
-        } expression;
+            struct ASTNode *operand_a;
+            token_t *tok_op;
+            struct ASTNode *operand_b;
+        } binary_expr_1;
 
 
-        /* <statement> ::= "return" <expression> */
+        /* <binary_expr_2> ::= <binary_expr_1> ("+" | "-") <binary_expr1> */
         struct
         {
-            struct ASTNode *body;           /* <expression> */
+            struct ASTNode *operand_a;
+            token_t *tok_op;
+            struct ASTNode *operand_b;
+        } binary_expr_2;
+
+
+        /* <factor> ::= "(" <expr> ")" | <unary_expr> | <literal_int> */
+        struct
+        {
+            struct ASTNode *body;
+        } factor;
+
+
+        /* <expr> ::= <factor> | <binary_expr_2> */
+        struct
+        {
+            struct ASTNode *body;           /* <factor> | <binary_expr_2> */
+        } expr;
+
+
+        /* <statement> ::= "return" <expr> */
+        struct
+        {
+            struct ASTNode *body;           /* <expr> */
         } statement;
 
 
@@ -57,40 +89,57 @@ typedef struct ASTNode
         struct
         {
             token_t *tok_id;
-        } identifier;
+        } ident;
 
 
-        /* <function> ::= "int" <identifier> "()" "{" <statement> "}" */
+        /* <func> ::= "int" <ident> "(" ")" "{" <statement> "}" */
         struct
         {
-            struct ASTNode *name;           /* <identifier> */
+            struct ASTNode *name;           /* <ident> */
             struct ASTNode *body;           /* <statement> */
-        } function;
+        } func;
 
 
-        /* <program> ::= <function> */
+        /* <prog> ::= <func> */
         struct
         {
-            struct ASTNode *function;       /* <function> */
-        } program;
+            struct ASTNode *func;           /* <func> */
+        } prog;
     } as;
 
 } astnode_t;
 
-struct ParserData
+typedef struct ParserState
 {
-    const struct LexerData *lexer;
+    int tok_i;
+} parser_state_t;
+
+typedef struct ParserHistory
+{
+    parser_state_t *checkpoints;
+    int length;
+    int capacity;
+} parser_history_t;
+
+typedef struct ParserData
+{
+    const lexer_data_t *lexer;
     int tok_i;
 
     astnode_t *ast;
-};
 
-void  parse (const struct LexerData *lexer,
-           struct ParserData *parser);
+    bool had_error;
+    stringbuffer_t err_msg_buffer;
 
-void parser_init (struct ParserData *parser);
-void parser_free (struct ParserData *parser);
+    parser_history_t history;
+} parser_data_t;
 
-void parser_print (struct ParserData *parser);
+void parse (const lexer_data_t *lexer,
+           parser_data_t *parser);
+
+void parser_init (parser_data_t *parser);
+void parser_free (parser_data_t *parser);
+
+void parser_print (parser_data_t *parser);
 
 #endif /* PARSER_H */

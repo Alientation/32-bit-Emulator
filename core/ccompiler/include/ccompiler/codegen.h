@@ -1,5 +1,6 @@
 #pragma once
 #ifndef CODEGEN_H
+#define CODEGEN_H
 
 #include <ccompiler/lexer.h>
 #include <ccompiler/parser.h>
@@ -24,22 +25,22 @@ main:
         ret
 */
 
-struct CodegenBlock
+typedef struct CodegenBlock
 {
     char *code;
     int length;
     int capacity;
-};
+} codegen_block_t;
 
-struct CodegenData
+typedef struct CodegenData
 {
-    struct ParserData *parser;
+    parser_data_t *parser;
     FILE *output_file;
 
-    struct CodegenBlock glob_sym_decl;
-    struct CodegenBlock txt_sect;
-};
+    codegen_block_t glob_sym_decl;
+    codegen_block_t txt_sect;
+} codegen_data_t;
 
-void codegen (struct ParserData *parser, const char *output_filepath);
+void codegen (parser_data_t *parser, const char *output_filepath);
 
 #endif /* CODEGEN_H */

@@ -5,21 +5,22 @@
 #include <string.h>
 #include <assert.h>
 
-static void codegen_ast (struct CodegenData *codegen, astnode_t *node);
-static void codegen_unary_op (struct CodegenData *codegen, astnode_t *node);
-static void codegen_expression (struct CodegenData *codegen, astnode_t *node);
-static void codegen_statement (struct CodegenData *codegen, astnode_t *node);
-static void codegen_function (struct CodegenData *codegen, astnode_t *node);
-static void codegen_program (struct CodegenData *codegen, astnode_t *node);
-
-static void codegenblock_init (struct CodegenBlock *block);
-static void codegenblock_free (struct CodegenBlock *block);
-static void codegenblock_add (struct CodegenBlock *block, const char *code);
-static void codegenblock_ladd (struct CodegenBlock *block, const char *code, int len);
-static void codegenblock_addtok (struct CodegenBlock *block, token_t *tok);
+static void codegen_ast (codegen_data_t *codegen, astnode_t *node);
+static void codegen_prog (codegen_data_t *codegen, astnode_t *node);
+static void codegen_func (codegen_data_t *codegen, astnode_t *node);
+static void codegen_statement (codegen_data_t *codegen, astnode_t *node);
+static void codegen_expr (codegen_data_t *codegen, astnode_t *node);
+static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node);
 
 
-void codegen (struct ParserData *parser, const char *output_filepath)
+static void codegenblock_init (codegen_block_t *block);
+static void codegenblock_free (codegen_block_t *block);
+static void codegenblock_add (codegen_block_t *block, const char *code);
+static void codegenblock_ladd (codegen_block_t *block, const char *code, int len);
+static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
+
+
+void codegen (parser_data_t *parser, const char *output_filepath)
 {
     FILE *file = fopen (output_filepath, "w");
     if (file == NULL)
@@ -28,7 +29,7 @@ void codegen (struct ParserData *parser, const char *output_filepath)
         exit (EXIT_FAILURE);
     }
 
-    struct CodegenData codegen;
+    codegen_data_t codegen;
     codegen.parser = parser;
     codegen.output_file = file;
     codegenblock_init (&codegen.glob_sym_decl);
@@ -48,40 +49,87 @@ void codegen (struct ParserData *parser, const char *output_filepath)
 }
 
 
-static void codegen_ast (struct CodegenData *codegen, astnode_t *node)
+static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
 {
     switch (node->type)
     {
-        case AST_ERROR:
+        case AST_ERR:
             fprintf (stderr, "ERROR: encountered ERROR ASTNode\n");
             exit (EXIT_FAILURE);
         case AST_LITERAL_INT:
             fprintf (stderr, "ERROR: unexpected AST_LITERAL_INT\n");
             exit (EXIT_FAILURE);
-        case AST_IDENTIFIER:
-            fprintf (stderr, "ERROR: unexpected AST_IDENTIFIER\n");
+        case AST_IDENT:
+            fprintf (stderr, "ERROR: unexpected AST_IDENT\n");
             exit (EXIT_FAILURE);
-        case AST_EXPRESSION:
-            return codegen_expression (codegen, node);
-        case AST_UNARY_OP:
-            return codegen_unary_op (codegen, node);
+        case AST_EXPR:
+            return codegen_expr (codegen, node);
+        case AST_UNARY_EXPR:
+            return codegen_unary_expr (codegen, node);
         case AST_STATEMENT:
             return codegen_statement (codegen, node);
-        case AST_FUNCTION:
-            return codegen_function (codegen, node);
-        case AST_PROGRAM:
-            return codegen_program (codegen, node);
+        case AST_FUNC:
+            return codegen_func (codegen, node);
+        case AST_PROG:
+            return codegen_prog (codegen, node);
+        default:
+            fprintf (stderr, "ERROR: unknown ASTNode type %d\n", node->type);
+            exit (EXIT_FAILURE);
     }
-
-    fprintf (stderr, "ERROR: unknown ASTNode type %d\n", node->type);
-    exit (EXIT_FAILURE);
 }
 
-static void codegen_unary_op (struct CodegenData *codegen, astnode_t *node)
-{
-    codegen_expression (codegen, node->as.unary_op.operand);
 
-    switch (node->as.unary_op.tok_op->type)
+static void codegen_prog (codegen_data_t *codegen, astnode_t *node)
+{
+    codegen_func (codegen, node->as.prog.func);
+}
+
+static void codegen_func (codegen_data_t *codegen, astnode_t *node)
+{
+    astnode_t *ident = node->as.func.name;
+    codegenblock_add (&codegen->glob_sym_decl, ".global ");
+    codegenblock_addtok (&codegen->glob_sym_decl, ident->as.ident.tok_id);
+    codegenblock_add (&codegen->glob_sym_decl, "\n");
+
+    codegenblock_addtok (&codegen->txt_sect, ident->as.ident.tok_id);
+    codegenblock_add (&codegen->txt_sect, ":\n");
+
+    codegen_statement (codegen, node->as.func.body);
+}
+
+static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
+{
+    codegen_expr (codegen, node->as.statement.body);
+    codegenblock_add (&codegen->txt_sect, "\tret\n");
+}
+
+static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
+{
+    switch (node->as.expr.body->type)
+    {
+        case AST_LITERAL_INT:
+            codegenblock_add (&codegen->txt_sect, "\tmov x0, ");
+            codegenblock_addtok (&codegen->txt_sect, node->as.expr.body->as.literal_int.tok_int);
+            break;
+        case AST_UNARY_EXPR:
+            codegen_unary_expr (codegen, node->as.expr.body);
+            break;
+        case AST_EXPR:
+            codegen_expr (codegen, node->as.expr.body);
+            break;
+        default:
+            fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->type);
+            exit (EXIT_FAILURE);
+    }
+
+    codegenblock_add (&codegen->txt_sect, "\n");
+}
+
+static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
+{
+    codegen_expr (codegen, node->as.unary_expr.operand);
+
+    switch (node->as.unary_expr.tok_op->type)
     {
         case TOKEN_EXCLAMATION_MARK:
             codegenblock_add (&codegen->txt_sect,
@@ -107,55 +155,12 @@ static void codegen_unary_op (struct CodegenData *codegen, astnode_t *node)
             );
             break;
         default:
-            fprintf (stderr, "ERROR: unknown unary op \'%s\'\n", token_tostr (node->as.unary_op.tok_op));
+            fprintf (stderr, "ERROR: unknown unary op \'%s\'\n", token_tostr (node->as.unary_expr.tok_op));
             exit (EXIT_FAILURE);
     }
 }
 
-static void codegen_expression (struct CodegenData *codegen, astnode_t *node)
-{
-    switch (node->as.expression.expr->type)
-    {
-        case AST_LITERAL_INT:
-            codegenblock_add (&codegen->txt_sect, "\tmov x0, ");
-            codegenblock_addtok (&codegen->txt_sect, node->as.expression.expr->as.literal_int.tok_int);
-            break;
-        case AST_UNARY_OP:
-            codegen_unary_op (codegen, node->as.expression.expr);
-            break;
-        default:
-            fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->type);
-            exit (EXIT_FAILURE);
-    }
-
-    codegenblock_add (&codegen->txt_sect, "\n");
-}
-
-static void codegen_statement (struct CodegenData *codegen, astnode_t *node)
-{
-    codegen_expression (codegen, node->as.statement.body);
-    codegenblock_add (&codegen->txt_sect, "\tret\n");
-}
-
-static void codegen_function (struct CodegenData *codegen, astnode_t *node)
-{
-    astnode_t *identifier = node->as.function.name;
-    codegenblock_add (&codegen->glob_sym_decl, ".global ");
-    codegenblock_addtok (&codegen->glob_sym_decl, identifier->as.identifier.tok_id);
-    codegenblock_add (&codegen->glob_sym_decl, "\n");
-
-    codegenblock_addtok (&codegen->txt_sect, identifier->as.identifier.tok_id);
-    codegenblock_add (&codegen->txt_sect, ":\n");
-
-    codegen_statement (codegen, node->as.function.body);
-}
-
-static void codegen_program (struct CodegenData *codegen, astnode_t *node)
-{
-    codegen_function (codegen, node->as.program.function);
-}
-
-static void codegenblock_init (struct CodegenBlock *block)
+static void codegenblock_init (codegen_block_t *block)
 {
     assert (block);
 
@@ -169,7 +174,7 @@ static void codegenblock_init (struct CodegenBlock *block)
     }
 }
 
-static void codegenblock_free (struct CodegenBlock *block)
+static void codegenblock_free (codegen_block_t *block)
 {
     assert (block);
 
@@ -179,18 +184,18 @@ static void codegenblock_free (struct CodegenBlock *block)
     block->length = 0;
 }
 
-static void codegenblock_add (struct CodegenBlock *block, const char *code)
+static void codegenblock_add (codegen_block_t *block, const char *code)
 {
     int len = strlen (code);
     codegenblock_ladd (block, code, len);
 }
 
-static void codegenblock_addtok (struct CodegenBlock *block, token_t *tok)
+static void codegenblock_addtok (codegen_block_t *block, token_t *tok)
 {
     codegenblock_ladd (block, tok->src, tok->length);
 }
 
-static void codegenblock_ladd (struct CodegenBlock *block, const char *code, int len)
+static void codegenblock_ladd (codegen_block_t *block, const char *code, int len)
 {
     if (block->length + len >= block->capacity)
     {

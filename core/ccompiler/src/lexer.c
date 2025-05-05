@@ -7,8 +7,8 @@
 
 #include "ccompiler/lexer.h"
 
-static void add_token (struct LexerData *lexer, token_t *tok);
-static void tokenize (struct LexerData *lexer);
+static void add_token (lexer_data_t *lexer, token_t *tok);
+static void tokenize (lexer_data_t *lexer);
 
 static const int TAB_SIZE = 4;
 
@@ -22,6 +22,11 @@ static const struct Token_Pattern TOKEN_PATTERNS[] =
 {
     { TOKEN_KEYWORD_INT, "^int\\b" },
     { TOKEN_KEYWORD_RETURN, "^return\\b" },
+
+
+    { TOKEN_PLUS, "^\\+" },
+    { TOKEN_ASTERICK, "^\\*" },
+    { TOKEN_FORWARD_SLASH, "^/" },
 
     { TOKEN_HYPEN, "^-" },
     { TOKEN_TILDE, "^~" },
@@ -39,7 +44,7 @@ static const struct Token_Pattern TOKEN_PATTERNS[] =
 };
 
 void lex (const char* filepath,
-        struct LexerData *lexer)
+        lexer_data_t *lexer)
 {
     FILE *file;
     char *buffer;
@@ -72,7 +77,7 @@ void lex (const char* filepath,
     tokenize (lexer);
 }
 
-void lexer_print (const struct LexerData *lexer)
+void lexer_print (const lexer_data_t *lexer)
 {
     assert(lexer);
 
@@ -85,7 +90,7 @@ void lexer_print (const struct LexerData *lexer)
     printf ("\n");
 }
 
-void lexer_free (struct LexerData *lexer)
+void lexer_free (lexer_data_t *lexer)
 {
     assert(lexer);
 
@@ -100,7 +105,7 @@ void lexer_free (struct LexerData *lexer)
 }
 
 
-void lexer_init (struct LexerData *lexer)
+void lexer_init (lexer_data_t *lexer)
 {
     assert (lexer);
 
@@ -182,7 +187,7 @@ void token_print (token_t *tok)
     }
 }
 
-static void tokenize (struct LexerData *lexer)
+static void tokenize (lexer_data_t *lexer)
 {
     const int PATTERN_COUNT = sizeof (TOKEN_PATTERNS) / sizeof (TOKEN_PATTERNS[0]);
 
@@ -257,7 +262,7 @@ static void tokenize (struct LexerData *lexer)
     }
 }
 
-static void add_token (struct LexerData *lexer, token_t *tok)
+static void add_token (lexer_data_t *lexer, token_t *tok)
 {
     if (lexer->tok_count + 1 > lexer->tok_total_alloc)
     {
