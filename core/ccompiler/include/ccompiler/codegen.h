@@ -25,6 +25,9 @@ main:
         ret
 */
 
+static const int N_CALLER_REGS = 18;
+static const int N_CALLEE_REGS = 9;
+
 typedef struct CodegenBlock
 {
     char *code;
@@ -48,10 +51,10 @@ typedef struct CodegenData
     codegen_block_t txt_sect;
 
     // push allocated to stack before function call, pop off after
-    codegen_reg_t caller_saved_regs[18]; // x0-x17
+    codegen_reg_t caller_saved_regs[N_CALLER_REGS]; // x0-x17
 
     // push to stack when allocated, pop off when deallocated
-    codegen_reg_t callee_saved_regs[9]; // x19-x27
+    codegen_reg_t callee_saved_regs[N_CALLEE_REGS]; // x19-x27
 } codegen_data_t;
 
 void codegen (parser_data_t *parser, const char *output_filepath);

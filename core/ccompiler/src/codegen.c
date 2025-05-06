@@ -23,6 +23,7 @@ static void codegenblock_add (codegen_block_t *block, const char *code);
 static void codegenblock_ladd (codegen_block_t *block, const char *code, int len);
 static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
 
+static void register_init (codegen_data_t *codegen);
 static int register_alloc (codegen_data_t *codegen);
 static void register_free (codegen_data_t *codegen, int reg);
 static codegen_reg_t register_get (codegen_data_t *codegen, int reg);
@@ -30,10 +31,52 @@ static bool register_is_caller_saved (codegen_data_t *codegen, int reg);
 static bool register_is_callee_saved (codegen_data_t *codegen, int reg);
 
 
+static void register_init (codegen_data_t *codegen)
+{
+    for (int i = 0; i < N_CALLER_REGS; i++)
+    {
+        codegen->caller_saved_regs[i].alloc = false;
+    }
+
+    for (int i = 0; i < N_CALLEE_REGS; i++)
+    {
+        codegen->callee_saved_regs[i].alloc = false;
+    }
+
+    codegen->caller_saved_regs[0].name = "x0";
+    codegen->caller_saved_regs[1].name = "x1";
+    codegen->caller_saved_regs[2].name = "x2";
+    codegen->caller_saved_regs[3].name = "x3";
+    codegen->caller_saved_regs[4].name = "x4";
+    codegen->caller_saved_regs[5].name = "x5";
+    codegen->caller_saved_regs[6].name = "x6";
+    codegen->caller_saved_regs[7].name = "x7";
+    codegen->caller_saved_regs[8].name = "x8";
+    codegen->caller_saved_regs[9].name = "x9";
+    codegen->caller_saved_regs[10].name = "x10";
+    codegen->caller_saved_regs[11].name = "x11";
+    codegen->caller_saved_regs[12].name = "x12";
+    codegen->caller_saved_regs[13].name = "x13";
+    codegen->caller_saved_regs[14].name = "x14";
+    codegen->caller_saved_regs[15].name = "x15";
+    codegen->caller_saved_regs[16].name = "x16";
+    codegen->caller_saved_regs[17].name = "x17";
+
+    codegen->callee_saved_regs[0].name = "x19";
+    codegen->callee_saved_regs[1].name = "x20";
+    codegen->callee_saved_regs[2].name = "x21";
+    codegen->callee_saved_regs[3].name = "x22";
+    codegen->callee_saved_regs[4].name = "x23";
+    codegen->callee_saved_regs[5].name = "x24";
+    codegen->callee_saved_regs[6].name = "x25";
+    codegen->callee_saved_regs[7].name = "x26";
+    codegen->callee_saved_regs[8].name = "x27";
+}
+
 static int register_alloc (codegen_data_t *codegen)
 {
     // prioritize allocating caller saved registers
-
+    
 
 
     return -1;
@@ -46,19 +89,15 @@ static void register_free (codegen_data_t *codegen, int reg)
 
 static codegen_reg_t register_get (codegen_data_t *codegen, int reg)
 {
+    massert (reg >= 0 && reg < N_CALLER_REGS + N_CALLEE_REGS, "Invalid register identifier: r%d", reg);
 
-    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
-    const int n_callee_regs = sizeof (codegen->callee_saved_regs) / sizeof (codegen->callee_saved_regs[0]);
-
-    massert (reg >= 0 && reg < n_caller_regs + n_callee_regs, "Invalid register identifier: r%d", reg);
-
-    if (reg < n_caller_regs)
+    if (reg < N_CALLER_REGS)
     {
         return codegen->caller_saved_regs[reg];
     }
-    else if (reg - n_caller_regs < n_callee_regs)
+    else if (reg < N_CALLER_REGS + N_CALLEE_REGS)
     {
-        return codegen->callee_saved_regs[reg - n_caller_regs];
+        return codegen->callee_saved_regs[reg - N_CALLER_REGS];
     }
 
     UNREACHABLE ();
@@ -66,17 +105,12 @@ static codegen_reg_t register_get (codegen_data_t *codegen, int reg)
 
 static bool register_is_caller_saved (codegen_data_t *codegen, int reg)
 {
-    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
-
-    return reg >= 0 && reg < n_caller_regs;
+    return reg >= 0 && reg < N_CALLER_REGS;
 }
 
 static bool register_is_callee_saved (codegen_data_t *codegen, int reg)
 {
-    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
-    const int n_callee_regs = sizeof (codegen->callee_saved_regs) / sizeof (codegen->callee_saved_regs[0]);
-
-    return reg >= n_caller_regs && reg < n_caller_regs + n_callee_regs;
+    return reg >= N_CALLER_REGS && reg < N_CALLER_REGS + N_CALLEE_REGS;
 }
 
 
@@ -90,9 +124,10 @@ void codegen (parser_data_t *parser, const char *output_filepath)
         exit (EXIT_FAILURE);
     }
 
-    codegen_data_t codegen;
+    codegen_data_t codegen = {0};
     codegen.parser = parser;
     codegen.output_file = file;
+    register_init (&codegen);
     codegenblock_init (&codegen.glob_sym_decl);
     codegenblock_init (&codegen.txt_sect);
 
