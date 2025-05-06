@@ -2,6 +2,7 @@
 
 #include "ccompiler/massert.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,9 +26,15 @@ static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
 static int register_alloc (codegen_data_t *codegen);
 static void register_free (codegen_data_t *codegen, int reg);
 static codegen_reg_t register_get (codegen_data_t *codegen, int reg);
+static bool register_is_caller_saved (codegen_data_t *codegen, int reg);
+static bool register_is_callee_saved (codegen_data_t *codegen, int reg);
+
 
 static int register_alloc (codegen_data_t *codegen)
 {
+    // prioritize allocating caller saved registers
+
+
 
     return -1;
 }
@@ -56,6 +63,22 @@ static codegen_reg_t register_get (codegen_data_t *codegen, int reg)
 
     UNREACHABLE ();
 }
+
+static bool register_is_caller_saved (codegen_data_t *codegen, int reg)
+{
+    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
+
+    return reg >= 0 && reg < n_caller_regs;
+}
+
+static bool register_is_callee_saved (codegen_data_t *codegen, int reg)
+{
+    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
+    const int n_callee_regs = sizeof (codegen->callee_saved_regs) / sizeof (codegen->callee_saved_regs[0]);
+
+    return reg >= n_caller_regs && reg < n_caller_regs + n_callee_regs;
+}
+
 
 
 void codegen (parser_data_t *parser, const char *output_filepath)

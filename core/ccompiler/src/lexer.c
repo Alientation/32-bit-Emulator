@@ -242,7 +242,43 @@ static void tokenize (lexer_data_t *lexer)
             continue;
         }
 
-        // unmatched, skip if whitespace or comments
+
+        // check comments
+        if (lexer->src[offset] == '/' && offset + 1 < lexer->length)
+        {
+            if (lexer->src[offset + 1] == '/')
+            {
+                // single line comment
+                offset += 2;
+                while (offset < lexer->length)
+                {
+                    if (lexer->src[offset] == '\n')
+                    {
+                        offset++;
+                        break;
+                    }
+                    offset++;
+                }
+                continue;
+            }
+            else if (lexer->src[offset + 1] == '*')
+            {
+                // multi-line comment
+                offset += 2;
+                while (offset + 1 < lexer->length)
+                {
+                    if (lexer->src[offset] == '*' && lexer->src[offset + 1] == '/')
+                    {
+                        offset += 2;
+                        break;
+                    }
+                    offset++;
+                }
+                continue;
+            }
+        }
+
+        // unmatched, skip if whitespace
         // otherwise, could not tokenize
         switch (lexer->src[offset])
         {
@@ -262,39 +298,6 @@ static void tokenize (lexer_data_t *lexer)
                 cur_column = 1;
                 cur_line++;
                 break;
-            case '/':
-                // comments
-                if (offset + 1 < lexer->length)
-                {
-                    if (lexer->src[offset + 1] == '/')
-                    {
-                        // single line comment
-                        offset += 2;
-                        while (offset < lexer->length)
-                        {
-                            if (lexer->src[offset] == '\n')
-                            {
-                                offset++;
-                                break;
-                            }
-                            offset++;
-                        }
-                    }
-                    else if (lexer->src[offset + 1] == '*')
-                    {
-                        // multi-line comment
-                        offset += 2;
-                        while (offset + 1 < lexer->length)
-                        {
-                            if (lexer->src[offset] == '*' && lexer->src[offset + 1] == '/')
-                            {
-                                offset += 2;
-                                break;
-                            }
-                            offset++;
-                        }
-                    }
-                }
             default:
                 fprintf (stderr, "ERROR: could not match regex at line %d and column %d.\n>>\n%s\n",
                         cur_line, cur_column, lexer->src + offset);
