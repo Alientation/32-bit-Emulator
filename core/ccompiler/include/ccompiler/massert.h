@@ -1,0 +1,13 @@
+#pragma once
+#ifndef MASSERT_H
+#define MASSERT_H
+
+#include <stdbool.h>
+
+void _M_ASSERT (bool cond, const char *cond_str, const char *file, int line, const char *msg_fmt, ...);
+
+#define massert(cond, msg_args...) _M_ASSERT (cond, #cond, __FILE__, __LINE__, msg_args);
+
+
+
+#endif /* MASSERT_H */
