@@ -23,94 +23,170 @@ static void codegenblock_add (codegen_block_t *block, const char *code);
 static void codegenblock_ladd (codegen_block_t *block, const char *code, int len);
 static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
 
-static void register_init (codegen_data_t *codegen);
-static int register_alloc (codegen_data_t *codegen);
-static void register_free (codegen_data_t *codegen, int reg);
-static codegen_reg_t register_get (codegen_data_t *codegen, int reg);
-static bool register_is_caller_saved (codegen_data_t *codegen, int reg);
-static bool register_is_callee_saved (codegen_data_t *codegen, int reg);
+static void func_init (codegen_func_t *func, astnode_t *node);
+static void func_push_reg (codegen_func_t *func, regid_t reg);
 
 
-static void register_init (codegen_data_t *codegen)
+typedef int regid_t;
+
+static void reg_init (codegen_func_t *func);
+static regid_t reg_alloc (codegen_func_t *func);
+static regid_t reg_evict (codegen_func_t *func);
+static void reg_free (codegen_func_t *func, regid_t reg);
+static codegen_reg_t *reg_get (codegen_func_t *func, regid_t reg);
+static bool reg_is_caller_saved (regid_t reg);
+static bool reg_is_callee_saved (regid_t reg);
+static regid_t reg_get_caller_saved_id (int i);
+static regid_t reg_get_callee_saved_id (int i);
+
+
+static void func_init (codegen_func_t *func, astnode_t *node)
+{
+    func->func = node;
+
+    // by default, stack needs space for LR and FP
+    // can be optimized out, but at the end when funcion code has been generated
+    func->stack_used = 16;
+    func->stack_capacity = 16;
+
+    codegenblock_init (&func->prologue);
+    codegenblock_init (&func->body);
+    codegenblock_init (&func->epilogue);
+
+    reg_init (func);
+}
+
+static void func_push_reg (codegen_func_t *func, regid_t reg)
+{
+    reg_get (func, reg)->stack_offset = func->stack_used;
+    func->stack_used += 8;
+    if (func->stack_capacity < func->stack_used)
+    {
+        // align to 16
+        func->stack_capacity = ((func->stack_capacity + 15) / 16) * 16;
+    }
+}
+
+static void reg_init (codegen_func_t *func)
 {
     for (int i = 0; i < N_CALLER_REGS; i++)
     {
-        codegen->caller_saved_regs[i].alloc = false;
+        func->caller_saved_regs[i].alloc = false;
+        func->caller_saved_regs[i].stack_offset = -1;
     }
 
     for (int i = 0; i < N_CALLEE_REGS; i++)
     {
-        codegen->callee_saved_regs[i].alloc = false;
+        func->callee_saved_regs[i].alloc = false;
+        func->callee_saved_regs[i].stack_offset = -1;
     }
 
-    codegen->caller_saved_regs[0].name = "x0";
-    codegen->caller_saved_regs[1].name = "x1";
-    codegen->caller_saved_regs[2].name = "x2";
-    codegen->caller_saved_regs[3].name = "x3";
-    codegen->caller_saved_regs[4].name = "x4";
-    codegen->caller_saved_regs[5].name = "x5";
-    codegen->caller_saved_regs[6].name = "x6";
-    codegen->caller_saved_regs[7].name = "x7";
-    codegen->caller_saved_regs[8].name = "x8";
-    codegen->caller_saved_regs[9].name = "x9";
-    codegen->caller_saved_regs[10].name = "x10";
-    codegen->caller_saved_regs[11].name = "x11";
-    codegen->caller_saved_regs[12].name = "x12";
-    codegen->caller_saved_regs[13].name = "x13";
-    codegen->caller_saved_regs[14].name = "x14";
-    codegen->caller_saved_regs[15].name = "x15";
-    codegen->caller_saved_regs[16].name = "x16";
-    codegen->caller_saved_regs[17].name = "x17";
+    func->caller_saved_regs[0].name = "x0";
+    func->caller_saved_regs[1].name = "x1";
+    func->caller_saved_regs[2].name = "x2";
+    func->caller_saved_regs[3].name = "x3";
+    func->caller_saved_regs[4].name = "x4";
+    func->caller_saved_regs[5].name = "x5";
+    func->caller_saved_regs[6].name = "x6";
+    func->caller_saved_regs[7].name = "x7";
+    func->caller_saved_regs[8].name = "x8";
+    func->caller_saved_regs[9].name = "x9";
+    func->caller_saved_regs[10].name = "x10";
+    func->caller_saved_regs[11].name = "x11";
+    func->caller_saved_regs[12].name = "x12";
+    func->caller_saved_regs[13].name = "x13";
+    func->caller_saved_regs[14].name = "x14";
+    func->caller_saved_regs[15].name = "x15";
+    func->caller_saved_regs[16].name = "x16";
+    func->caller_saved_regs[17].name = "x17";
 
-    codegen->callee_saved_regs[0].name = "x19";
-    codegen->callee_saved_regs[1].name = "x20";
-    codegen->callee_saved_regs[2].name = "x21";
-    codegen->callee_saved_regs[3].name = "x22";
-    codegen->callee_saved_regs[4].name = "x23";
-    codegen->callee_saved_regs[5].name = "x24";
-    codegen->callee_saved_regs[6].name = "x25";
-    codegen->callee_saved_regs[7].name = "x26";
-    codegen->callee_saved_regs[8].name = "x27";
+    func->callee_saved_regs[0].name = "x19";
+    func->callee_saved_regs[1].name = "x20";
+    func->callee_saved_regs[2].name = "x21";
+    func->callee_saved_regs[3].name = "x22";
+    func->callee_saved_regs[4].name = "x23";
+    func->callee_saved_regs[5].name = "x24";
+    func->callee_saved_regs[6].name = "x25";
+    func->callee_saved_regs[7].name = "x26";
+    func->callee_saved_regs[8].name = "x27";
 }
 
-static int register_alloc (codegen_data_t *codegen)
+static regid_t reg_alloc (codegen_func_t *func)
 {
     // prioritize allocating caller saved registers
-    
+    for (int i = 0; i < N_CALLER_REGS; i++)
+    {
+        if (!func->caller_saved_regs[i].alloc)
+        {
+            func->caller_saved_regs[i].alloc = true;
+            return reg_get_caller_saved_id (i);
+        }
+    }
+
+    // otherwise try to allocate a callee saved register
+    // need to push current value in the reg to stack
+    for (int i = 0; i < N_CALLEE_REGS; i++)
+    {
+        if (!func->callee_saved_regs[i].alloc)
+        {
+            func->callee_saved_regs[i].alloc = true;
+
+            // todo stack stuff
 
 
+            return reg_get_callee_saved_id (i);
+        }
+    }
+
+    // otherwise, we need to evict
+    return reg_evict (func);
+}
+
+static regid_t reg_evict (codegen_func_t *func)
+{
     return -1;
 }
 
-static void register_free (codegen_data_t *codegen, int reg)
+static void reg_free (codegen_func_t *func, regid_t reg)
 {
 
 }
 
-static codegen_reg_t register_get (codegen_data_t *codegen, int reg)
+static codegen_reg_t *reg_get (codegen_func_t *func, regid_t reg)
 {
     massert (reg >= 0 && reg < N_CALLER_REGS + N_CALLEE_REGS, "Invalid register identifier: r%d", reg);
 
     if (reg < N_CALLER_REGS)
     {
-        return codegen->caller_saved_regs[reg];
+        return &func->caller_saved_regs[reg];
     }
     else if (reg < N_CALLER_REGS + N_CALLEE_REGS)
     {
-        return codegen->callee_saved_regs[reg - N_CALLER_REGS];
+        return &func->callee_saved_regs[reg - N_CALLER_REGS];
     }
 
     UNREACHABLE ();
+    return NULL;
 }
 
-static bool register_is_caller_saved (codegen_data_t *codegen, int reg)
+static bool reg_is_caller_saved (regid_t reg)
 {
     return reg >= 0 && reg < N_CALLER_REGS;
 }
 
-static bool register_is_callee_saved (codegen_data_t *codegen, int reg)
+static bool reg_is_callee_saved (regid_t reg)
 {
     return reg >= N_CALLER_REGS && reg < N_CALLER_REGS + N_CALLEE_REGS;
+}
+
+static regid_t reg_get_caller_saved_id (int i)
+{
+    return i;
+}
+
+static regid_t reg_get_callee_saved_id (int i)
+{
+    return i + N_CALLER_REGS;
 }
 
 
@@ -127,7 +203,7 @@ void codegen (parser_data_t *parser, const char *output_filepath)
     codegen_data_t codegen = {0};
     codegen.parser = parser;
     codegen.output_file = file;
-    register_init (&codegen);
+    codegen.cur_func = NULL;
     codegenblock_init (&codegen.glob_sym_decl);
     codegenblock_init (&codegen.txt_sect);
 
@@ -183,7 +259,6 @@ static void codegen_prog (codegen_data_t *codegen, astnode_t *node)
 static void codegen_func (codegen_data_t *codegen, astnode_t *node)
 {
     // todo register allocation, stack space management
-
     astnode_t *ident = node->as.func.name;
     codegenblock_add (&codegen->glob_sym_decl, ".global ");
     codegenblock_addtok (&codegen->glob_sym_decl, ident->as.ident.tok_id);
@@ -192,11 +267,22 @@ static void codegen_func (codegen_data_t *codegen, astnode_t *node)
     codegenblock_addtok (&codegen->txt_sect, ident->as.ident.tok_id);
     codegenblock_add (&codegen->txt_sect, ":\n");
 
+    codegen_func_t func;
+    func_init (&func, node);
+    codegen->cur_func = &func;
+
+    // todo, these need to generate code into the func's codegen_block body
+    // maybe store current codegen_block_t pointer in codegen data?
     codegen_statement (codegen, node->as.func.body);
+
+    // todo, generate prologue and epilogue
+    codegen->cur_func = NULL;
 }
 
 static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
 {
+    massert (codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
+
     codegen_expr (codegen, node->as.statement.body);
     codegenblock_add (&codegen->txt_sect, "\tret\n");
 }

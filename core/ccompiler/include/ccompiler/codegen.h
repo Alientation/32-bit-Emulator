@@ -39,7 +39,43 @@ typedef struct CodegenReg
 {
     const char *name;
     bool alloc;
+    int stack_offset;
 } codegen_reg_t;
+
+typedef struct CodegenFunc
+{
+    astnode_t *func;
+    codegen_block_t prologue;   // code to set up stack (store LR, FP)
+    codegen_block_t body;
+    codegen_block_t epilogue;   // code to pop off stack (load LR, FP)
+
+    /*
+        HIGH ADDR
+        |-----|
+        |/ / /| <- alignment/padding
+        |/ / /| <- saved registers
+        |/ / /|  |
+        |/ / /|  L
+        |/ / /| <- local variables
+        |/ / /|  |
+        |/ / /|  L
+        |/ / /| <- LR
+        |/ / /| <- FP
+        |-----| <- SP
+        | . . |
+        | . . |
+        |-----|
+        LO ADDR
+    */
+    int stack_used;
+    int stack_capacity;     // max stack space required by the function
+
+    // push allocated to stack before function call, pop off after
+    codegen_reg_t caller_saved_regs[N_CALLER_REGS]; // x0-x17
+
+    // push to stack when allocated, pop off when deallocated
+    codegen_reg_t callee_saved_regs[N_CALLEE_REGS]; // x19-x27
+} codegen_func_t;
 
 
 typedef struct CodegenData
@@ -50,11 +86,7 @@ typedef struct CodegenData
     codegen_block_t glob_sym_decl;
     codegen_block_t txt_sect;
 
-    // push allocated to stack before function call, pop off after
-    codegen_reg_t caller_saved_regs[N_CALLER_REGS]; // x0-x17
-
-    // push to stack when allocated, pop off when deallocated
-    codegen_reg_t callee_saved_regs[N_CALLEE_REGS]; // x19-x27
+    codegen_func_t *cur_func;
 } codegen_data_t;
 
 void codegen (parser_data_t *parser, const char *output_filepath);
