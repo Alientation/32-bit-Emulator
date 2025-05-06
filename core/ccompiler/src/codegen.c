@@ -1,4 +1,5 @@
 #include "ccompiler/codegen.h"
+
 #include "ccompiler/massert.h"
 
 #include <stdio.h>
@@ -23,10 +24,11 @@ static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
 
 static int register_alloc (codegen_data_t *codegen);
 static void register_free (codegen_data_t *codegen, int reg);
-static codegen_regpool_t register_get (int reg);
+static codegen_reg_t register_get (codegen_data_t *codegen, int reg);
 
 static int register_alloc (codegen_data_t *codegen)
 {
+
     return -1;
 }
 
@@ -35,16 +37,25 @@ static void register_free (codegen_data_t *codegen, int reg)
 
 }
 
-static codegen_regpool_t register_get (int reg)
+static codegen_reg_t register_get (codegen_data_t *codegen, int reg)
 {
-    massert (reg >= 0, "Invalid register identifier");
 
+    const int n_caller_regs = sizeof (codegen->caller_saved_regs) / sizeof (codegen->caller_saved_regs[0]);
+    const int n_callee_regs = sizeof (codegen->callee_saved_regs) / sizeof (codegen->callee_saved_regs[0]);
 
-    return (codegen_regpool_t) {0};
+    massert (reg >= 0 && reg < n_caller_regs + n_callee_regs, "Invalid register identifier: r%d", reg);
+
+    if (reg < n_caller_regs)
+    {
+        return codegen->caller_saved_regs[reg];
+    }
+    else if (reg - n_caller_regs < n_callee_regs)
+    {
+        return codegen->callee_saved_regs[reg - n_caller_regs];
+    }
+
+    UNREACHABLE ();
 }
-
-
-
 
 
 void codegen (parser_data_t *parser, const char *output_filepath)
@@ -81,13 +92,14 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
     switch (node->type)
     {
         case AST_ERR:
-            massert (false, "Encountered AST_ERR in codegen");
+            M_UNREACHABLE ("Encountered AST_ERR in codegen");
             break;
         case AST_LITERAL_INT:
             massert (false, "Encountered AST_LITERAL_INT in codegen");
             break;
         case AST_IDENT:
             massert (false, "Encountered AST_IDENT in codegen");
+            M_UNREACHABLE ("Unexpected ASTNODE_TYPE in codegen: %s", node->type);
             break;
         case AST_EXPR:
             return codegen_expr (codegen, node);
@@ -100,7 +112,7 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
         case AST_PROG:
             return codegen_prog (codegen, node);
         default:
-            fprintf (stderr, "ERROR: unknown ASTNode type %d\n", node->type);
+            UNREACHABLE ();
     }
 }
 

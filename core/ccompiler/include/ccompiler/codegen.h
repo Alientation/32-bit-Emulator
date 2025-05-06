@@ -32,11 +32,11 @@ typedef struct CodegenBlock
     int capacity;
 } codegen_block_t;
 
-typedef struct CodegenRegPool
+typedef struct CodegenReg
 {
     const char *name;
     bool alloc;
-} codegen_regpool_t;
+} codegen_reg_t;
 
 
 typedef struct CodegenData
@@ -48,10 +48,10 @@ typedef struct CodegenData
     codegen_block_t txt_sect;
 
     // push allocated to stack before function call, pop off after
-    codegen_regpool_t caller_saved_registers[18]; // x0-x17
+    codegen_reg_t caller_saved_regs[18]; // x0-x17
 
     // push to stack when allocated, pop off when deallocated
-    codegen_regpool_t callee_saved_registers[9]; // x19-x27
+    codegen_reg_t callee_saved_regs[9]; // x19-x27
 } codegen_data_t;
 
 void codegen (parser_data_t *parser, const char *output_filepath);

@@ -156,4 +156,6 @@ void parser_free (parser_data_t *parser);
 
 void parser_print (parser_data_t *parser);
 
+const char *parser_astnode_type_to_str (astnodetype_t type);
+
 #endif /* PARSER_H */

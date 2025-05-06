@@ -1,5 +1,7 @@
 #include "ccompiler/parser.h"
 
+#include "ccompiler/massert.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -81,6 +83,37 @@ void parser_print (parser_data_t *parser)
     ASTNode_print (parser->ast, 0);
 }
 
+const char *parser_astnode_type_to_str (astnodetype_t type)
+{
+    switch (type)
+    {
+        case AST_ERR:
+            return "AST_ERR";
+        case AST_LITERAL_INT:
+            return "AST_LITERAL_INT";
+        case AST_IDENT:
+            return "AST_IDENT";
+        case AST_EXPR:
+            return "AST_EXPR";
+        case AST_UNARY_EXPR:
+            return "AST_UNARY_EXPR";
+        case AST_BINARY_EXPR_1:
+            return "AST_BINARY_EXPR_1";
+        case AST_BINARY_EXPR_2:
+            return "AST_BINARY_EXPR_2";
+        case AST_FACTOR:
+            return "AST_FACTOR";
+        case AST_STATEMENT:
+            return "AST_STATEMENT";
+        case AST_FUNC:
+            return "AST_FUNC";
+        case AST_PROG:
+            return "AST_PROG";
+        default:
+            UNREACHABLE ();
+    }
+}
+
 static void ASTNode_print (void *node, int tabs)
 {
     for (int i = 0; i < tabs; i++)
@@ -144,6 +177,8 @@ static void ASTNode_print (void *node, int tabs)
             printf ("prog:\n");
             ASTNode_print (ast_node->as.prog.func, tabs + 1);
             break;
+        default:
+            UNREACHABLE ();
     }
 }
 
@@ -193,6 +228,8 @@ static void ASTNode_free (void *node)
         case AST_PROG:
             ASTNode_free (ast_node->as.prog.func);
             break;
+        default:
+            UNREACHABLE ();
     }
 
     free (ast_node);
