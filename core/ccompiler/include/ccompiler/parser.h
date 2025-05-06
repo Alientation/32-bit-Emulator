@@ -7,6 +7,30 @@
 
 #include <stdbool.h>
 
+/*
+CONTEXT FREE GRAMMAR
+
+Non-terminals:
+<unary_expr> ::= ("!" | "-" | "~") <factor>
+<binary_expr_1> ::= <factor> ("*" | "/") <factor>
+<binary_expr_2> ::= <binary_expr_1> ("+" | "-") <binary_expr1>
+<factor> ::= "(" <expr> ")" | <unary_expr> | <literal_int>
+<expr> ::= <factor> | <binary_expr_2>
+<statement> ::= "return" <expr>
+<func> ::= "int" <ident> "(" ")" "{" <statement> "}"
+<prog> ::= <func>
+
+
+Terminals:
+<literal_int>
+<ident>
+
+
+Start:
+<prog>
+*/
+
+
 typedef enum ASTNodeType
 {
     AST_ERR,
@@ -30,7 +54,6 @@ typedef struct ASTNode
 
     union
     {
-        /* <literal_int> */
         struct
         {
             token_t *tok_int;
@@ -38,7 +61,6 @@ typedef struct ASTNode
         } literal_int;
 
 
-        /* <unary_expr> ::= ("!" | "-" | "~") <factor> */
         struct
         {
             token_t *tok_op;
@@ -46,7 +68,6 @@ typedef struct ASTNode
         } unary_expr;
 
 
-        /* <binary_expr_1> ::= <factor> ("*" | "/") <factor> */
         struct
         {
             struct ASTNode *operand_a;
@@ -55,7 +76,6 @@ typedef struct ASTNode
         } binary_expr_1;
 
 
-        /* <binary_expr_2> ::= <binary_expr_1> ("+" | "-") <binary_expr1> */
         struct
         {
             struct ASTNode *operand_a;
@@ -64,35 +84,30 @@ typedef struct ASTNode
         } binary_expr_2;
 
 
-        /* <factor> ::= "(" <expr> ")" | <unary_expr> | <literal_int> */
         struct
         {
             struct ASTNode *body;
         } factor;
 
 
-        /* <expr> ::= <factor> | <binary_expr_2> */
         struct
         {
             struct ASTNode *body;           /* <factor> | <binary_expr_2> */
         } expr;
 
 
-        /* <statement> ::= "return" <expr> */
         struct
         {
             struct ASTNode *body;           /* <expr> */
         } statement;
 
 
-        /* <identifier> */
         struct
         {
             token_t *tok_id;
         } ident;
 
 
-        /* <func> ::= "int" <ident> "(" ")" "{" <statement> "}" */
         struct
         {
             struct ASTNode *name;           /* <ident> */
@@ -100,7 +115,6 @@ typedef struct ASTNode
         } func;
 
 
-        /* <prog> ::= <func> */
         struct
         {
             struct ASTNode *func;           /* <func> */
