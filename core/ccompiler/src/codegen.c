@@ -17,25 +17,19 @@ static void codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node);
 static void codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node);
 static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node);
 
-static void codegenblock_init (codegen_block_t *block);
-static void codegenblock_free (codegen_block_t *block);
-static void codegenblock_add (codegen_block_t *block, const char *code);
-static void codegenblock_ladd (codegen_block_t *block, const char *code, int len);
-static void codegenblock_addtok (codegen_block_t *block, token_t *tok);
+static void codegenblock_addtok (stringbuffer_t *block, token_t *tok);
 
 static void func_init (codegen_func_t *func, astnode_t *node);
-static void func_push_reg (codegen_func_t *func, regid_t reg);
-
-
-typedef int regid_t;
+static void func_push_reg (codegen_func_t *func, regid_t rid);
+static void func_pop_reg (codegen_func_t *func, regid_t rid);
 
 static void reg_init (codegen_func_t *func);
 static regid_t reg_alloc (codegen_func_t *func);
 static regid_t reg_evict (codegen_func_t *func);
-static void reg_free (codegen_func_t *func, regid_t reg);
-static codegen_reg_t *reg_get (codegen_func_t *func, regid_t reg);
-static bool reg_is_caller_saved (regid_t reg);
-static bool reg_is_callee_saved (regid_t reg);
+static void reg_free (codegen_func_t *func, regid_t rid);
+static codegen_reg_t *reg_get (codegen_func_t *func, regid_t rid);
+static bool reg_is_caller_saved (regid_t rid);
+static bool reg_is_callee_saved (regid_t rid);
 static regid_t reg_get_caller_saved_id (int i);
 static regid_t reg_get_callee_saved_id (int i);
 
@@ -49,34 +43,53 @@ static void func_init (codegen_func_t *func, astnode_t *node)
     func->stack_used = 16;
     func->stack_capacity = 16;
 
-    codegenblock_init (&func->prologue);
-    codegenblock_init (&func->body);
-    codegenblock_init (&func->epilogue);
+    stringbuffer_init (&func->prologue);
+    stringbuffer_init (&func->body);
+    stringbuffer_init (&func->epilogue);
 
     reg_init (func);
 }
 
-static void func_push_reg (codegen_func_t *func, regid_t reg)
+static void func_push_reg (codegen_func_t *func, regid_t rid)
 {
-    reg_get (func, reg)->stack_offset = func->stack_used;
+    codegen_reg_t *reg = reg_get (func, rid);
+    reg->stack_offset = func->stack_used;
     func->stack_used += 8;
     if (func->stack_capacity < func->stack_used)
     {
         // align to 16
         func->stack_capacity = ((func->stack_capacity + 15) / 16) * 16;
     }
+
+    // save register to stack
+}
+
+static void func_pop_reg (codegen_func_t *func, regid_t rid)
+{
+    massert (func->stack_used >= 8, "expected stack size to be greater than the size of a register");
+
+    codegen_reg_t *reg = reg_get (func, rid);
+
+    massert (reg->stack_offset >= 0, "expected stack offset to be positive since SP points to the bottom of the stack");
+
+    stringbuffer_append (&func->body, ""); // todo
+
+    reg->stack_offset = -1;
+    func->stack_used -= 8;
 }
 
 static void reg_init (codegen_func_t *func)
 {
-    for (int i = 0; i < N_CALLER_REGS; i++)
+    for (int i = 0; i < CODEGEN_NUM_CALLER_REGS; i++)
     {
+        func->caller_saved_regs[i].name = NULL;
         func->caller_saved_regs[i].alloc = false;
         func->caller_saved_regs[i].stack_offset = -1;
     }
 
-    for (int i = 0; i < N_CALLEE_REGS; i++)
+    for (int i = 0; i < CODEGEN_NUM_CALLEE_REGS; i++)
     {
+        func->callee_saved_regs[i].name = NULL;
         func->callee_saved_regs[i].alloc = false;
         func->callee_saved_regs[i].stack_offset = -1;
     }
@@ -114,7 +127,7 @@ static void reg_init (codegen_func_t *func)
 static regid_t reg_alloc (codegen_func_t *func)
 {
     // prioritize allocating caller saved registers
-    for (int i = 0; i < N_CALLER_REGS; i++)
+    for (int i = 0; i < CODEGEN_NUM_CALLER_REGS; i++)
     {
         if (!func->caller_saved_regs[i].alloc)
         {
@@ -125,15 +138,12 @@ static regid_t reg_alloc (codegen_func_t *func)
 
     // otherwise try to allocate a callee saved register
     // need to push current value in the reg to stack
-    for (int i = 0; i < N_CALLEE_REGS; i++)
+    for (int i = 0; i < CODEGEN_NUM_CALLEE_REGS; i++)
     {
         if (!func->callee_saved_regs[i].alloc)
         {
             func->callee_saved_regs[i].alloc = true;
-
-            // todo stack stuff
-
-
+            func_push_reg (func, reg_get_callee_saved_id (i));
             return reg_get_callee_saved_id (i);
         }
     }
@@ -144,39 +154,50 @@ static regid_t reg_alloc (codegen_func_t *func)
 
 static regid_t reg_evict (codegen_func_t *func)
 {
+    M_UNREACHABLE ("unimplemented");
     return -1;
 }
 
-static void reg_free (codegen_func_t *func, regid_t reg)
+static void reg_free (codegen_func_t *func, regid_t rid)
 {
+    codegen_reg_t *reg = reg_get (func, rid);
 
+    massert (reg->alloc, "attempted to free unallocated register %s", reg->name);
+
+    reg->alloc = false;
+
+    // need to restore old value
+    if (reg_is_callee_saved (rid))
+    {
+        func_pop_reg (func, rid);
+    }
 }
 
-static codegen_reg_t *reg_get (codegen_func_t *func, regid_t reg)
+static codegen_reg_t *reg_get (codegen_func_t *func, regid_t rid)
 {
-    massert (reg >= 0 && reg < N_CALLER_REGS + N_CALLEE_REGS, "Invalid register identifier: r%d", reg);
+    massert (rid >= 0 && rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS, "Invalid register identifier: r%d", rid);
 
-    if (reg < N_CALLER_REGS)
+    if (rid < CODEGEN_NUM_CALLER_REGS)
     {
-        return &func->caller_saved_regs[reg];
+        return &func->caller_saved_regs[rid];
     }
-    else if (reg < N_CALLER_REGS + N_CALLEE_REGS)
+    else if (rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS)
     {
-        return &func->callee_saved_regs[reg - N_CALLER_REGS];
+        return &func->callee_saved_regs[rid - CODEGEN_NUM_CALLER_REGS];
     }
 
     UNREACHABLE ();
     return NULL;
 }
 
-static bool reg_is_caller_saved (regid_t reg)
+static bool reg_is_caller_saved (regid_t rid)
 {
-    return reg >= 0 && reg < N_CALLER_REGS;
+    return rid >= 0 && rid < CODEGEN_NUM_CALLER_REGS;
 }
 
-static bool reg_is_callee_saved (regid_t reg)
+static bool reg_is_callee_saved (regid_t rid)
 {
-    return reg >= N_CALLER_REGS && reg < N_CALLER_REGS + N_CALLEE_REGS;
+    return rid >= CODEGEN_NUM_CALLER_REGS && rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS;
 }
 
 static regid_t reg_get_caller_saved_id (int i)
@@ -186,7 +207,7 @@ static regid_t reg_get_caller_saved_id (int i)
 
 static regid_t reg_get_callee_saved_id (int i)
 {
-    return i + N_CALLER_REGS;
+    return i + CODEGEN_NUM_CALLER_REGS;
 }
 
 
@@ -204,20 +225,20 @@ void codegen (parser_data_t *parser, const char *output_filepath)
     codegen.parser = parser;
     codegen.output_file = file;
     codegen.cur_func = NULL;
-    codegenblock_init (&codegen.glob_sym_decl);
-    codegenblock_init (&codegen.txt_sect);
+    stringbuffer_init (&codegen.glob_sym_decl);
+    stringbuffer_init (&codegen.txt_sect);
 
     codegen_ast (&codegen, (astnode_t *) parser->ast);
 
     /* Write code blocks to file */
-    fprintf (file, "%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
+    fprintf (file, "%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
 
     printf ("GENERATED CODE\n\"%s\":\n", output_filepath);
-    printf ("%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.code, codegen.txt_sect.code);
+    printf ("%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
 
     fclose (file);
-    codegenblock_free (&codegen.glob_sym_decl);
-    codegenblock_free (&codegen.txt_sect);
+    stringbuffer_free (&codegen.glob_sym_decl);
+    stringbuffer_free (&codegen.txt_sect);
 }
 
 
@@ -260,19 +281,19 @@ static void codegen_func (codegen_data_t *codegen, astnode_t *node)
 {
     // todo register allocation, stack space management
     astnode_t *ident = node->as.func.name;
-    codegenblock_add (&codegen->glob_sym_decl, ".global ");
+    stringbuffer_append (&codegen->glob_sym_decl, ".global ");
     codegenblock_addtok (&codegen->glob_sym_decl, ident->as.ident.tok_id);
-    codegenblock_add (&codegen->glob_sym_decl, "\n");
+    stringbuffer_append (&codegen->glob_sym_decl, "\n");
 
     codegenblock_addtok (&codegen->txt_sect, ident->as.ident.tok_id);
-    codegenblock_add (&codegen->txt_sect, ":\n");
+    stringbuffer_append (&codegen->txt_sect, ":\n");
 
     codegen_func_t func;
     func_init (&func, node);
     codegen->cur_func = &func;
 
     // todo, these need to generate code into the func's codegen_block body
-    // maybe store current codegen_block_t pointer in codegen data?
+    // maybe store current stringbuffer_t pointer in codegen data?
     codegen_statement (codegen, node->as.func.body);
 
     // todo, generate prologue and epilogue
@@ -284,7 +305,7 @@ static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
     massert (codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
 
     codegen_expr (codegen, node->as.statement.body);
-    codegenblock_add (&codegen->txt_sect, "\tret\n");
+    stringbuffer_append (&codegen->txt_sect, "\tret\n");
 }
 
 static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
@@ -301,7 +322,7 @@ static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.expr.body->type);
     }
 
-    codegenblock_add (&codegen->txt_sect, "\n");
+    stringbuffer_append (&codegen->txt_sect, "\n");
 }
 
 static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
@@ -315,7 +336,7 @@ static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
             codegen_unary_expr (codegen, node->as.factor.body);
             break;
         case AST_LITERAL_INT:
-            codegenblock_add (&codegen->txt_sect, "\tmov x0, ");
+            stringbuffer_append (&codegen->txt_sect, "\tmov x0, ");
             codegenblock_addtok (&codegen->txt_sect, node->as.factor.body->as.literal_int.tok_int);
             break;
         default:
@@ -356,7 +377,7 @@ static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
     switch (node->as.unary_expr.tok_op->type)
     {
         case TOKEN_EXCLAMATION_MARK:
-            codegenblock_add (&codegen->txt_sect,
+            stringbuffer_append (&codegen->txt_sect,
                 ".scope\n"
                     "\tcmp x0, 0\n"
                     "\tb.eq __set\n"
@@ -369,12 +390,12 @@ static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
             );
             break;
         case TOKEN_HYPEN:
-            codegenblock_add (&codegen->txt_sect,
+            stringbuffer_append (&codegen->txt_sect,
                 "\tsub x0, xzr, x0\n"
             );
             break;
         case TOKEN_TILDE:
-            codegenblock_add (&codegen->txt_sect,
+            stringbuffer_append (&codegen->txt_sect,
                 "\tmvn x0, x0\n"
             );
             break;
@@ -384,60 +405,8 @@ static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
     }
 }
 
-static void codegenblock_init (codegen_block_t *block)
+
+static void codegenblock_addtok (stringbuffer_t *block, token_t *tok)
 {
-    block->capacity = 16;
-    block->length = 0;
-    block->code = calloc (block->capacity + 1, sizeof (char));
-    if (!block->code)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory.\n");
-        exit (EXIT_FAILURE);
-    }
-}
-
-static void codegenblock_free (codegen_block_t *block)
-{
-    free (block->code);
-    block->code = NULL;
-    block->capacity = 0;
-    block->length = 0;
-}
-
-static void codegenblock_add (codegen_block_t *block, const char *code)
-{
-    int len = strlen (code);
-    codegenblock_ladd (block, code, len);
-}
-
-static void codegenblock_addtok (codegen_block_t *block, token_t *tok)
-{
-    codegenblock_ladd (block, tok->src, tok->length);
-}
-
-static void codegenblock_ladd (codegen_block_t *block, const char *code, int len)
-{
-    if (block->length + len >= block->capacity)
-    {
-        char *old_code = block->code;
-        block->capacity += block->capacity + 10;
-        if (block->length + len >= block->capacity)
-        {
-            block->capacity = 2 * (block->length + len);
-        }
-
-        block->code = calloc (block->capacity + 1, sizeof (char));
-        if (!block->code)
-        {
-            fprintf (stderr, "ERROR: failed to allocate memory\n");
-            exit (EXIT_FAILURE);
-        }
-        strncpy (block->code, old_code, block->length);
-        block->code[block->length] = '\0';
-        free (old_code);
-    }
-
-    memcpy (block->code + block->length, code, len);
-    block->code[block->length + len] = '\0';  /* Ensure a NULL terminator */
-    block->length += len;
+    stringbuffer_appendl (block, tok->src, tok->length);
 }

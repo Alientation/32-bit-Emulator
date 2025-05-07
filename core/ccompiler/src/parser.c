@@ -112,6 +112,7 @@ const char *parser_astnode_type_to_str (astnodetype_t type)
         default:
             UNREACHABLE ();
     }
+    return "ERR";
 }
 
 static void ASTNode_print (void *node, int tabs)
@@ -357,35 +358,7 @@ static void err (parser_data_t *parser, const char * fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-
-    // find required size
-    va_list args_copy;
-    va_copy(args_copy, args);
-    int size = vsnprintf(NULL, 0, fmt, args_copy);
-    va_end(args_copy);
-
-    if (size < 0) {
-        va_end(args);
-
-        fprintf (stderr, "ERROR: vsnprintf failed\n");
-        exit (EXIT_FAILURE);
-    }
-
-    // allocate space for string (+1 for null terminator)
-    char* buffer = calloc(size + 1, sizeof (char));
-    if (!buffer) {
-        va_end(args);
-
-        fprintf (stderr, "ERROR: memory allocation failed\n");
-        exit (EXIT_FAILURE);
-    }
-
-    // output into buffer
-    vsnprintf(buffer, size + 1, fmt, args);
-    va_end(args);
-
-    // append error message to the error string buffer
-    stringbuffer_appendl (&parser->err_msg_buffer, buffer, size);
+    stringbuffer_appendf (&parser->err_msg_buffer, fmt, args);
 }
 
 static astnode_t *allocate_astnode (astnodetype_t type)

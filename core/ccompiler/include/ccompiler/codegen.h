@@ -2,8 +2,9 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include <ccompiler/lexer.h>
-#include <ccompiler/parser.h>
+#include "ccompiler/lexer.h"
+#include "ccompiler/parser.h"
+#include "ccompiler/stringbuffer.h"
 
 #include <stdio.h>
 
@@ -25,15 +26,10 @@ main:
         ret
 */
 
-static const int N_CALLER_REGS = 18;
-static const int N_CALLEE_REGS = 9;
+#define CODEGEN_NUM_CALLER_REGS 18
+#define CODEGEN_NUM_CALLEE_REGS 9
 
-typedef struct CodegenBlock
-{
-    char *code;
-    int length;
-    int capacity;
-} codegen_block_t;
+typedef int regid_t;
 
 typedef struct CodegenReg
 {
@@ -45,9 +41,9 @@ typedef struct CodegenReg
 typedef struct CodegenFunc
 {
     astnode_t *func;
-    codegen_block_t prologue;   // code to set up stack (store LR, FP)
-    codegen_block_t body;
-    codegen_block_t epilogue;   // code to pop off stack (load LR, FP)
+    stringbuffer_t prologue;   // code to set up stack (store LR, FP)
+    stringbuffer_t body;
+    stringbuffer_t epilogue;   // code to pop off stack (load LR, FP)
 
     /*
         HIGH ADDR
@@ -71,10 +67,10 @@ typedef struct CodegenFunc
     int stack_capacity;     // max stack space required by the function
 
     // push allocated to stack before function call, pop off after
-    codegen_reg_t caller_saved_regs[N_CALLER_REGS]; // x0-x17
+    codegen_reg_t caller_saved_regs[CODEGEN_NUM_CALLER_REGS]; // x0-x17
 
     // push to stack when allocated, pop off when deallocated
-    codegen_reg_t callee_saved_regs[N_CALLEE_REGS]; // x19-x27
+    codegen_reg_t callee_saved_regs[CODEGEN_NUM_CALLEE_REGS]; // x19-x27
 } codegen_func_t;
 
 
@@ -83,8 +79,8 @@ typedef struct CodegenData
     parser_data_t *parser;
     FILE *output_file;
 
-    codegen_block_t glob_sym_decl;
-    codegen_block_t txt_sect;
+    stringbuffer_t glob_sym_decl;
+    stringbuffer_t txt_sect;
 
     codegen_func_t *cur_func;
 } codegen_data_t;
