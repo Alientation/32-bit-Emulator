@@ -1,10 +1,14 @@
 #include "ccompiler/stringbuffer.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static void stringbuffer_extend (stringbuffer_t *stringbuffer, int target_cap)
+static void stringbuffer_extend (stringbuffer_t *stringbuffer, const int target_cap);
+
+
+static void stringbuffer_extend (stringbuffer_t *stringbuffer, const int target_cap)
 {
     int new_cap = stringbuffer->capacity *= 2;
     if (new_cap < 2 * target_cap)
@@ -45,13 +49,48 @@ void stringbuffer_free (stringbuffer_t *stringbuffer)
     stringbuffer->length = 0;
 }
 
-void stringbuffer_append (stringbuffer_t *stringbuffer, char *str)
+void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    // find required size
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int size = vsnprintf(NULL, 0, fmt, args_copy);
+    va_end(args_copy);
+
+    if (size < 0) {
+        va_end(args);
+
+        fprintf (stderr, "ERROR: vsnprintf failed\n");
+        exit (EXIT_FAILURE);
+    }
+
+    // allocate space for string (+1 for null terminator)
+    char* buffer = calloc(size + 1, sizeof (char));
+    if (!buffer) {
+        va_end(args);
+
+        fprintf (stderr, "ERROR: memory allocation failed\n");
+        exit (EXIT_FAILURE);
+    }
+
+    // output into buffer
+    vsnprintf(buffer, size + 1, fmt, args);
+    va_end(args);
+
+    // append to string buffer
+    stringbuffer_appendl (stringbuffer, buffer, size);
+}
+
+void stringbuffer_append (stringbuffer_t *stringbuffer, const char *str)
 {
     int len = strlen (str);
     stringbuffer_appendl (stringbuffer, str, len);
 }
 
-void stringbuffer_appendl (stringbuffer_t *stringbuffer, char *str, int len)
+void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const int len)
 {
     if (stringbuffer->length + len > stringbuffer->capacity)
     {
