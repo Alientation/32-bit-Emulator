@@ -43,10 +43,7 @@ static void func_init (codegen_func_t *func, astnode_t *node)
     func->stack_used = 16;
     func->stack_capacity = 16;
 
-    stringbuffer_init (&func->prologue);
     stringbuffer_init (&func->body);
-    stringbuffer_init (&func->epilogue);
-
     reg_init (func);
 }
 
@@ -61,18 +58,19 @@ static void func_push_reg (codegen_func_t *func, regid_t rid)
         func->stack_capacity = ((func->stack_capacity + 15) / 16) * 16;
     }
 
-    // save register to stack
+    // save register to stack 'str <r>, [sp, <offset>]'
+    stringbuffer_appendf (&func->body, "str %s, [sp, %d]\n", reg->name, reg->stack_offset);
 }
 
 static void func_pop_reg (codegen_func_t *func, regid_t rid)
 {
-    massert (func->stack_used >= 8, "expected stack size to be greater than the size of a register");
-
     codegen_reg_t *reg = reg_get (func, rid);
 
+    massert (func->stack_used >= 8, "expected stack size to be greater than the size of a register");
     massert (reg->stack_offset >= 0, "expected stack offset to be positive since SP points to the bottom of the stack");
 
-    stringbuffer_append (&func->body, ""); // todo
+    // restore reg from stack 'ldr <r>, [sp, <offset>]'
+    stringbuffer_appendf (&func->body, "ldr %s, [sp, %d]\n", reg->name, reg->stack_offset);
 
     reg->stack_offset = -1;
     func->stack_used -= 8;
@@ -211,7 +209,6 @@ static regid_t reg_get_callee_saved_id (int i)
 }
 
 
-
 void codegen (parser_data_t *parser, const char *output_filepath)
 {
     FILE *file = fopen (output_filepath, "w");
@@ -225,12 +222,13 @@ void codegen (parser_data_t *parser, const char *output_filepath)
     codegen.parser = parser;
     codegen.output_file = file;
     codegen.cur_func = NULL;
+    codegen.cur_txt_sect = &codegen.txt_sect;
     stringbuffer_init (&codegen.glob_sym_decl);
     stringbuffer_init (&codegen.txt_sect);
 
     codegen_ast (&codegen, (astnode_t *) parser->ast);
 
-    /* Write code blocks to file */
+    // Write code blocks to file
     fprintf (file, "%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
 
     printf ("GENERATED CODE\n\"%s\":\n", output_filepath);
@@ -260,6 +258,12 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
             return codegen_expr (codegen, node);
         case AST_UNARY_EXPR:
             return codegen_unary_expr (codegen, node);
+        case AST_BINARY_EXPR_1:
+            return codegen_binary_expr_1 (codegen, node);
+        case AST_BINARY_EXPR_2:
+            return codegen_binary_expr_2 (codegen, node);
+        case AST_FACTOR:
+            return codegen_factor (codegen, node);
         case AST_STATEMENT:
             return codegen_statement (codegen, node);
         case AST_FUNC:
@@ -279,25 +283,37 @@ static void codegen_prog (codegen_data_t *codegen, astnode_t *node)
 
 static void codegen_func (codegen_data_t *codegen, astnode_t *node)
 {
-    // todo register allocation, stack space management
     astnode_t *ident = node->as.func.name;
-    stringbuffer_append (&codegen->glob_sym_decl, ".global ");
-    codegenblock_addtok (&codegen->glob_sym_decl, ident->as.ident.tok_id);
-    stringbuffer_append (&codegen->glob_sym_decl, "\n");
 
-    codegenblock_addtok (&codegen->txt_sect, ident->as.ident.tok_id);
-    stringbuffer_append (&codegen->txt_sect, ":\n");
+    // mark symbol as global '.global <func.name>'
+    stringbuffer_appendf (&codegen->glob_sym_decl, ".global %.*s\n",
+            ident->as.ident.tok_id->length, ident->as.ident.tok_id->length);
+
+    // label in text section '<func.name>:'
+    stringbuffer_appendf (&codegen->txt_sect, "%.*s:\n",
+            ident->as.ident.tok_id->length, ident->as.ident.tok_id->length);
 
     codegen_func_t func;
     func_init (&func, node);
     codegen->cur_func = &func;
+    codegen->cur_txt_sect = &func.body;
 
-    // todo, these need to generate code into the func's codegen_block body
-    // maybe store current stringbuffer_t pointer in codegen data?
     codegen_statement (codegen, node->as.func.body);
 
-    // todo, generate prologue and epilogue
+    // prologue, set up stack frame
+    stringbuffer_appendf (&codegen->txt_sect, "sub sp, sp, %d\n", func.stack_capacity);
+    stringbuffer_appendf (&codegen->txt_sect, "str x28, [sp]\n");
+    stringbuffer_appendf (&codegen->txt_sect, "str x29, [sp, 8]\n");
+
+    // body
+    stringbuffer_appendf (&codegen->txt_sect, "\n%s\n", func.body.buf);
+
+    // epliogue
+    stringbuffer_appendf (&codegen->txt_sect, "ldr x28, [sp]\n");
+    stringbuffer_appendf (&codegen->txt_sect, "ldr x29, [sp, 8]\n");
+    stringbuffer_appendf (&codegen->txt_sect, "add sp, sp, %d\n", func.stack_capacity);
     codegen->cur_func = NULL;
+    codegen->cur_txt_sect = &codegen->txt_sect;
 }
 
 static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
@@ -305,7 +321,7 @@ static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
     massert (codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
 
     codegen_expr (codegen, node->as.statement.body);
-    stringbuffer_append (&codegen->txt_sect, "\tret\n");
+    stringbuffer_append (&codegen->cur_txt_sect, "\tret\n");
 }
 
 static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
@@ -322,7 +338,7 @@ static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.expr.body->type);
     }
 
-    stringbuffer_append (&codegen->txt_sect, "\n");
+    stringbuffer_append (&codegen->cur_txt_sect, "\n");
 }
 
 static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
@@ -336,8 +352,9 @@ static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
             codegen_unary_expr (codegen, node->as.factor.body);
             break;
         case AST_LITERAL_INT:
-            stringbuffer_append (&codegen->txt_sect, "\tmov x0, ");
-            codegenblock_addtok (&codegen->txt_sect, node->as.factor.body->as.literal_int.tok_int);
+            stringbuffer_append (&codegen->cur_txt_sect, "\tmov x0, ");
+            codegenblock_addtok (&codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
+            stringbuffer_append (&codegen->cur_txt_sect, "\n");
             break;
         default:
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.factor.body->type);
@@ -377,7 +394,7 @@ static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
     switch (node->as.unary_expr.tok_op->type)
     {
         case TOKEN_EXCLAMATION_MARK:
-            stringbuffer_append (&codegen->txt_sect,
+            stringbuffer_append (&codegen->cur_txt_sect,
                 ".scope\n"
                     "\tcmp x0, 0\n"
                     "\tb.eq __set\n"
@@ -390,12 +407,12 @@ static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
             );
             break;
         case TOKEN_HYPEN:
-            stringbuffer_append (&codegen->txt_sect,
+            stringbuffer_append (&codegen->cur_txt_sect,
                 "\tsub x0, xzr, x0\n"
             );
             break;
         case TOKEN_TILDE:
-            stringbuffer_append (&codegen->txt_sect,
+            stringbuffer_append (&codegen->cur_txt_sect,
                 "\tmvn x0, x0\n"
             );
             break;

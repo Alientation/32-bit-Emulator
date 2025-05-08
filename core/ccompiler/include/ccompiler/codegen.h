@@ -41,9 +41,7 @@ typedef struct CodegenReg
 typedef struct CodegenFunc
 {
     astnode_t *func;
-    stringbuffer_t prologue;   // code to set up stack (store LR, FP)
     stringbuffer_t body;
-    stringbuffer_t epilogue;   // code to pop off stack (load LR, FP)
 
     /*
         HIGH ADDR
@@ -83,6 +81,7 @@ typedef struct CodegenData
     stringbuffer_t txt_sect;
 
     codegen_func_t *cur_func;
+    stringbuffer_t *cur_txt_sect;
 } codegen_data_t;
 
 void codegen (parser_data_t *parser, const char *output_filepath);
