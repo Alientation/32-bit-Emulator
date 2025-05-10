@@ -299,9 +299,9 @@ static void parser_rollback (parser_data_t *parser)
 
 static token_t *nxttok (parser_data_t *parser)
 {
-    if (parser->tok_i < parser->lexer->tok_count)
+    if (parser->tok_i < parser->lexer->tok_cnt)
     {
-        return &parser->lexer->tokens[parser->tok_i++];
+        return &parser->lexer->toks[parser->tok_i++];
     }
 
     err (parser, "ERROR: Unexpected end of file\n");
@@ -323,35 +323,35 @@ static token_t *exp_nxttok_is (parser_data_t *parser, tokentype_t type,
 
 static bool istok (parser_data_t *parser, tokentype_t type)
 {
-    if (parser->tok_i >= parser->lexer->tok_count)
+    if (parser->tok_i >= parser->lexer->tok_cnt)
     {
         return false;
     }
 
-    token_t *tok = &parser->lexer->tokens[parser->tok_i];
+    token_t *tok = &parser->lexer->toks[parser->tok_i];
     return tok->type == type;
 }
 
 static token_t *tok (parser_data_t *parser)
 {
-    if (parser->tok_i >= parser->lexer->tok_count)
+    if (parser->tok_i >= parser->lexer->tok_cnt)
     {
         err (parser, "ERROR: unexpected end of file\n");
         return NULL;
     }
 
-    return &parser->lexer->tokens[parser->tok_i];
+    return &parser->lexer->toks[parser->tok_i];
 }
 
 static tokentype_t toktype (parser_data_t *parser)
 {
-    if (parser->tok_i >= parser->lexer->tok_count)
+    if (parser->tok_i >= parser->lexer->tok_cnt)
     {
         err (parser, "ERROR: unexpected end of file\n");
         return TOKEN_ERROR;
     }
 
-    return parser->lexer->tokens[parser->tok_i].type;
+    return parser->lexer->toks[parser->tok_i].type;
 }
 
 static void err (parser_data_t *parser, const char * fmt, ...)

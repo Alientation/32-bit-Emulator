@@ -56,5 +56,10 @@ void ccompile (const char *filepath)
     printf ("Generating assembly code in \'%s\'.\n\n", output_filepath);
 
     codegen (&parser, output_filepath);
+
+    
+
     free (output_filepath);
+    lexer_free (&lexer);
+    parser_free (&parser);
 }

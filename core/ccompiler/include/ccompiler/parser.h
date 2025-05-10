@@ -8,28 +8,15 @@
 #include <stdbool.h>
 
 /*
-CONTEXT FREE GRAMMAR
+    C Grammar from ANSI C Yacc updated to C11
+    https://www.quut.com/c/ANSI-C-grammar-y.html
 
-Non-terminals:
-<unary_expr> ::= ("!" | "-" | "~") <factor>
-<binary_expr_1> ::= <factor> ("*" | "/") <factor>
-<binary_expr_2> ::= <binary_expr_1> ("+" | "-") <binary_expr1>
-<factor> ::= "(" <expr> ")" | <unary_expr> | <literal_int>
-<expr> ::= <factor> | <binary_expr_2>
-<statement> ::= "return" <expr>
-<func> ::= "int" <ident> "(" ")" "{" <statement> "}"
-<prog> ::= <func>
-
-
-Terminals:
-<literal_int>
-<ident>
-
-
-Start:
-<prog>
+    todo
+    - will have recursion issues, but that is fine since problems will arise with files of around 10k lines
+    - could avoid this problem by having statements be an iterative process within the parser instead of having
+      a recursive definition. Then the max file would be something like 10k functions/structs def/global or static vars
+      - Which can also be done in an iterative process so..
 */
-
 
 typedef enum ASTNodeType
 {

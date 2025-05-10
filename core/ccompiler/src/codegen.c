@@ -11,11 +11,11 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node);
 static void codegen_prog (codegen_data_t *codegen, astnode_t *node);
 static void codegen_func (codegen_data_t *codegen, astnode_t *node);
 static void codegen_statement (codegen_data_t *codegen, astnode_t *node);
-static void codegen_expr (codegen_data_t *codegen, astnode_t *node);
-static void codegen_factor (codegen_data_t *codegen, astnode_t *node);
-static void codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node);
-static void codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node);
-static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node);
+static regid_t codegen_expr (codegen_data_t *codegen, astnode_t *node);
+static regid_t codegen_factor (codegen_data_t *codegen, astnode_t *node);
+static regid_t codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node);
+static regid_t codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node);
+static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node);
 
 static void codegenblock_addtok (stringbuffer_t *block, token_t *tok);
 
@@ -245,29 +245,16 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
     switch (node->type)
     {
         case AST_ERR:
-            M_UNREACHABLE ("Encountered AST_ERR in codegen");
-            break;
         case AST_LITERAL_INT:
-            massert (false, "Encountered AST_LITERAL_INT in codegen");
-            break;
         case AST_IDENT:
-            massert (false, "Encountered AST_IDENT in codegen");
-            M_UNREACHABLE ("Unexpected ASTNODE_TYPE in codegen: %s", node->type);
-            break;
         case AST_EXPR:
-            return codegen_expr (codegen, node);
         case AST_UNARY_EXPR:
-            return codegen_unary_expr (codegen, node);
         case AST_BINARY_EXPR_1:
-            return codegen_binary_expr_1 (codegen, node);
         case AST_BINARY_EXPR_2:
-            return codegen_binary_expr_2 (codegen, node);
         case AST_FACTOR:
-            return codegen_factor (codegen, node);
         case AST_STATEMENT:
-            return codegen_statement (codegen, node);
         case AST_FUNC:
-            return codegen_func (codegen, node);
+            M_UNREACHABLE ("Unexpected ASTNODE_TYPE in codegen: %s", parser_astnode_type_to_str (node->type));
         case AST_PROG:
             return codegen_prog (codegen, node);
         default:
@@ -324,34 +311,41 @@ static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
     stringbuffer_append (&codegen->cur_txt_sect, "\tret\n");
 }
 
-static void codegen_expr (codegen_data_t *codegen, astnode_t *node)
+static regid_t codegen_expr (codegen_data_t *codegen, astnode_t *node)
 {
     switch (node->as.expr.body->type)
     {
         case AST_FACTOR:
-            codegen_factor (codegen, node->as.expr.body);
+            return codegen_factor (codegen, node->as.expr.body);
             break;
         case AST_BINARY_EXPR_2:
-            codegen_binary_expr_2 (codegen, node->as.expr.body);
+            return codegen_binary_expr_2 (codegen, node->as.expr.body);
             break;
         default:
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.expr.body->type);
     }
-
-    stringbuffer_append (&codegen->cur_txt_sect, "\n");
+    return -1;
 }
 
-static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
+static regid_t codegen_factor (codegen_data_t *codegen, astnode_t *node)
 {
     switch (node->as.factor.body->type)
     {
         case AST_EXPR:
-            codegen_expr (codegen, node->as.factor.body);
+            return codegen_expr (codegen, node->as.factor.body);
             break;
         case AST_UNARY_EXPR:
-            codegen_unary_expr (codegen, node->as.factor.body);
+            return codegen_unary_expr (codegen, node->as.factor.body);
             break;
         case AST_LITERAL_INT:
+            // todo, problem
+            //  generating code this way would lead to many inefficiencies
+            // since any time we want to use a literal, we have to first load the literal into a reg
+            // instead of taking advantage of instructio immediates
+            // this would be more easily solved with constant folding on IR
+            // but we don't have IR, so... should we implement IR to allow easier compiler otpimizations?
+
+            // TODO last left off here, for now, just allocate a register for the immediate constant...
             stringbuffer_append (&codegen->cur_txt_sect, "\tmov x0, ");
             codegenblock_addtok (&codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
             stringbuffer_append (&codegen->cur_txt_sect, "\n");
@@ -361,7 +355,7 @@ static void codegen_factor (codegen_data_t *codegen, astnode_t *node)
     }
 }
 
-static void codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node)
+static regid_t codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node)
 {
     switch (node->as.binary_expr_2.operand_a->type)
     {
@@ -382,12 +376,12 @@ static void codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node)
     }
 }
 
-static void codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node)
+static regid_t codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node)
 {
 
 }
 
-static void codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
+static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
 {
     codegen_expr (codegen, node->as.unary_expr.operand);
 

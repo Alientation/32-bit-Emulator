@@ -6,12 +6,12 @@ typedef struct Token token_t;
 
 typedef struct LexerData
 {
-    const char *src;
+    char *src;
     int length;
 
-    token_t *tokens;
-    int tok_count;
-    int tok_total_alloc;
+    token_t *toks;
+    int tok_cnt;
+    int tok_cap;
 } lexer_data_t;
 
 typedef enum TokenType
@@ -35,8 +35,11 @@ typedef enum TokenType
 struct Token
 {
     tokentype_t type;
+
     const char *src;
     int length;
+
+    const char *file;
     int line;
     int column;
 };
