@@ -12,6 +12,8 @@ echo Running Debug tests...
 cd build/debug
 ctest --build-config Debug --output-on-failure
 
+cd ../../
+
 echo Running Release tests...
 cd build/release
 ctest --build-config Release --output-on-failure
