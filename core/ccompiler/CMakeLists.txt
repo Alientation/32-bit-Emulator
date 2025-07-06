@@ -18,16 +18,20 @@ else()
 endif()
 
 # create final executable
-add_executable(${PROJECT_NAME})
+add_executable(${PROJECT_NAME}_exec)
+add_library(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME} PRIVATE
-    src/main.c
     src/ccompiler.c
     src/lexer.c
     src/parser.c
     src/codegen.c
     src/stringbuffer.c
     src/massert.c
+)
+
+target_sources(${PROJECT_NAME}_exec PRIVATE
+    src/main.c
 )
 
 # Link POSIX regex library if necessary
@@ -45,6 +49,10 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+target_link_libraries(${PROJECT_NAME}_exec ${PROJECT_NAME})
+
+add_subdirectory(tests)
 
 # Output a summary message for clarity
 message(STATUS "Building ${PROJECT_NAME} on ${CMAKE_SYSTEM_NAME}")
