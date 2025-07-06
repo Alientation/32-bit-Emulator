@@ -28,10 +28,10 @@ TEST (fbl, in_order)
     ASSERT_NE (b2, b4);
     ASSERT_NE (b3, b4);
 
-    ASSERT_TRUE (b1 >= 0 && b1 < MEM_SIZE);
-    ASSERT_TRUE (b2 >= 0 && b2 < MEM_SIZE);
-    ASSERT_TRUE (b3 >= 0 && b3 < MEM_SIZE);
-    ASSERT_TRUE (b4 >= 0 && b4 < MEM_SIZE);
+    ASSERT_TRUE (b1 < MEM_SIZE);
+    ASSERT_TRUE (b2 < MEM_SIZE);
+    ASSERT_TRUE (b3 < MEM_SIZE);
+    ASSERT_TRUE (b4 < MEM_SIZE);
 
     ASSERT_TRUE (fbl.empty ());
 

@@ -357,6 +357,8 @@ void Emulator32bit::_msr(const word instr)
     const bool imm = test_bit(instr, 16);
     word val = imm ? bitfield_u32(instr, 0, 16) : read_reg(_SX2(instr));
 
+    (void) (val);
+
     // TODO
     switch (sysreg)
     {
@@ -386,6 +388,8 @@ void Emulator32bit::_mrs(const word instr)
     word sysreg = _SX2(instr);
 
     // todo
+    (void) (xn);
+    (void) (sysreg);
 
     throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "MRS unimplemented.");
 }
@@ -403,6 +407,9 @@ void Emulator32bit::_tlbi(const word instr)
     word imm16 = bitfield_u32(instr, 0, 16);
 
     // todo
+    (void) (xt);
+    (void) (isxt);
+    (void) (imm16);
 
     throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "TLBI unimplemented.");
 }
