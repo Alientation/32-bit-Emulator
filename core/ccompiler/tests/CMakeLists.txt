@@ -21,8 +21,9 @@ target_include_directories(
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(${PROJECT_NAME}
-    PUBLIC
+    PRIVATE
     ccompiler
+    gcov
     GTest::gtest_main)
 
 include(GoogleTest)

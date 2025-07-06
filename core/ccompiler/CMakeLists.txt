@@ -6,7 +6,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_C_FLAGS "-Wall -Wextra ")
-set(CMAKE_C_FLAGS_DEBUG "-g")
+set(CMAKE_C_FLAGS_DEBUG "-g --coverage")
 
 # Use -flto only on non-Windows platforms (MinGW has issues with aggressive LTO)
 if(NOT WIN32)

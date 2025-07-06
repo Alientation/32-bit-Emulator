@@ -52,7 +52,12 @@ target_include_directories(
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(emulator32bit_tests PRIVATE util emulator32bit GTest::gtest_main)
+target_link_libraries(emulator32bit_tests
+	PRIVATE
+	util
+	emulator32bit
+	gcov
+	GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(emulator32bit_tests)
