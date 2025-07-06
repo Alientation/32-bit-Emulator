@@ -103,10 +103,21 @@ void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const 
     stringbuffer->buf[stringbuffer->length] = '\0';
 }
 
+void stringbuffer_appendsb (stringbuffer_t *dest, const stringbuffer_t *src)
+{
+    if (src->length == 0)
+    {
+        return;
+    }
+
+    stringbuffer_appendl (dest, src->buf, src->length);
+}
+
 void stringbuffer_clear (stringbuffer_t *stringbuffer)
 {
     if (stringbuffer->capacity > 0)
     {
         stringbuffer->buf[0] = '\0';
     }
+    stringbuffer->length = 0;
 }
