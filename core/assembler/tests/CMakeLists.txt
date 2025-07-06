@@ -28,8 +28,14 @@ target_link_libraries(${PROJECT_NAME}
 	util
 	emulator32bit
 	assembler
-	gcov
 	GTest::gtest_main)
+
+# GCC, use gcov to display code coverage
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_link_libraries(${PROJECT_NAME}
+		PRIVATE
+		gcov)
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME})
