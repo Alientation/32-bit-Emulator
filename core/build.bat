@@ -1,8 +1,8 @@
 @echo off
 
 :: Build Debug and Release configurations
-cmake --build build/debug  || exit /b
-cmake --build build/release  || exit /b
+cmake --build build/debug --config Debug || exit /b
+cmake --build build/release --config RelWithDebInfo  || exit /b
 
 :: Run tests for both Debug and Release configurations
 echo Running Debug tests...
