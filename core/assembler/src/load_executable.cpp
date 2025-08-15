@@ -28,13 +28,13 @@ void LoadExecutable::load()
         switch (rel.type)
         {
             case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 14) + bitfield_u32(new_abs_value, 0, 12);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 14) + bitfield_unsigned(new_abs_value, 0, 12);
                 break;
             case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
             {
                 word start_address = obj.sections[obj.section_table.at(".text")].address;
                 int offset = int (new_abs_value >> 12) - ((start_address + rel.offset) >> 12);
-                word instr = mask_0(obj.text_section.at(instr_i), 0, 20) + bitfield_u32(offset, 0, 20);
+                word instr = mask_0(obj.text_section.at(instr_i), 0, 20) + bitfield_unsigned(offset, 0, 20);
                 if ((offset >> 20) & 1)
                 {
                     instr = set_bit(instr, kInstructionUpdateFlagBit, 1);
@@ -44,10 +44,10 @@ void LoadExecutable::load()
                 break;
             }
             case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_u32(new_abs_value, 0, 19);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_unsigned(new_abs_value, 0, 19);
                 break;
             case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_u32(new_abs_value, 19, 13);
+                obj.text_section.at(instr_i) = mask_0(obj.text_section.at(instr_i), 0, 19) + bitfield_unsigned(new_abs_value, 19, 13);
                 break;
             case ObjectFile::RelocationEntry::Type::UNDEFINED:
             default:

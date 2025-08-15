@@ -140,7 +140,7 @@ word Assembler::parse_format_b1(size_t& tok_i, byte opcode)
                 "Error at %s in line %llu.", Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
         EXPECT_TRUE((imm & 0b11) == 0, "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
                 "Error at %s in line %llu.", Emulator32bit::Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
-        value = bitfield_s32(imm, 0, 24) >> 2;
+        value = bitfield_signed(imm, 0, 24) >> 2;
     }
 
     return Emulator32bit::asm_format_b1(opcode, condition, value);

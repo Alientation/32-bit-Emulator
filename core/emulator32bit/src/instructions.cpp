@@ -11,14 +11,14 @@
  * @hideinitializer
  *
  */
-#define _X1(instr) (bitfield_u32(instr, 20, 5))                 /* bits 20 to 24 */
-#define _X2(instr) (bitfield_u32(instr, 15, 5))                 /* bits 15 to 19 */
-#define _X3(instr) (bitfield_u32(instr, 9, 5))                  /* bits 9 to 13 */
-#define _X4(instr) (bitfield_u32(instr, 4, 5))                  /* bits 4 to 8 */
+#define _X1(instr) (bitfield_unsigned(instr, 20, 5))                 /* bits 20 to 24 */
+#define _X2(instr) (bitfield_unsigned(instr, 15, 5))                 /* bits 15 to 19 */
+#define _X3(instr) (bitfield_unsigned(instr, 9, 5))                  /* bits 9 to 13 */
+#define _X4(instr) (bitfield_unsigned(instr, 4, 5))                  /* bits 4 to 8 */
 
-#define _SX1(instr) (bitfield_u32(instr, 17, 5))                /* bits 17 to 21 */
-#define _SX2(instr) (bitfield_u32(instr, 11, 5))                /* bits 11 to 15 */
-#define _SX3(instr) (bitfield_u32(instr, 6, 5))                 /* bits 6 to 10 */
+#define _SX1(instr) (bitfield_unsigned(instr, 17, 5))                /* bits 17 to 21 */
+#define _SX2(instr) (bitfield_unsigned(instr, 11, 5))                /* bits 11 to 15 */
+#define _SX3(instr) (bitfield_unsigned(instr, 6, 5))                 /* bits 6 to 10 */
 
 
 #define UNUSED(x) (void)(x)
@@ -136,9 +136,9 @@ static bool get_v_flag_sub(const word op1, const word op2)
  * @hideinitializer
  *
  */
-#define FORMAT_O__get_arg(instr) (test_bit(instr, 14) ? bitfield_u32(instr, 0, 14) : \
-        calc_shift(read_reg(_X3(instr)), (Emulator32bit::ShiftType) bitfield_u32(instr, 7, 2), \
-        bitfield_u32(instr, 2, 2)))
+#define FORMAT_O__get_arg(instr) (test_bit(instr, 14) ? bitfield_unsigned(instr, 0, 14) : \
+        calc_shift(read_reg(_X3(instr)), (Emulator32bit::ShiftType) bitfield_unsigned(instr, 7, 2), \
+        bitfield_unsigned(instr, 2, 2)))
 
 /**
  * @internal
@@ -280,7 +280,7 @@ word Emulator32bit::asm_format_m(const byte opcode, const bool sign, const int x
                                  const int simm12, const AddrType adr)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn)
-                    << JPart(1, 1) << JPart(12, bitfield_u32(simm12, 0, 12)) << JPart(2, adr);
+                    << JPart(1, 1) << JPart(12, bitfield_unsigned(simm12, 0, 12)) << JPart(2, adr);
 }
 
 word Emulator32bit::asm_format_m1(const byte opcode, const int xd, const int imm20)
@@ -291,7 +291,7 @@ word Emulator32bit::asm_format_m1(const byte opcode, const int xd, const int imm
 word Emulator32bit::asm_format_b1(const byte opcode, const ConditionCode cond, const sword simm22)
 {
     return Joiner() << JPart(6, opcode) << JPart(4, word(cond))
-                    << JPart(22, bitfield_u32(simm22, 0, 22));
+                    << JPart(22, bitfield_unsigned(simm22, 0, 22));
 }
 
 word Emulator32bit::asm_format_b2(const byte opcode, const ConditionCode cond, const int xd)
@@ -301,7 +301,7 @@ word Emulator32bit::asm_format_b2(const byte opcode, const ConditionCode cond, c
 
 void Emulator32bit::_special_instructions(const word instr)
 {
-    word opspec = bitfield_u32(instr, 22, 4);
+    word opspec = bitfield_unsigned(instr, 22, 4);
 
     switch (opspec)
     {
@@ -355,7 +355,7 @@ void Emulator32bit::_msr(const word instr)
 {
     const word sysreg = _SX1(instr);
     const bool imm = test_bit(instr, 16);
-    word val = imm ? bitfield_u32(instr, 0, 16) : read_reg(_SX2(instr));
+    word val = imm ? bitfield_unsigned(instr, 0, 16) : read_reg(_SX2(instr));
 
     (void) (val);
 
@@ -404,7 +404,7 @@ void Emulator32bit::_tlbi(const word instr)
 {
     word xt = _SX1(instr);
     bool isxt = test_bit(instr, 16);
-    word imm16 = bitfield_u32(instr, 0, 16);
+    word imm16 = bitfield_unsigned(instr, 0, 16);
 
     // todo
     (void) (xt);
@@ -422,7 +422,7 @@ word Emulator32bit::asm_tlbi(word xt, bool isxt, word imm16)
 
 void Emulator32bit::_atomic(const word instr)
 {
-    byte atop = bitfield_u32(instr, 0, 4);
+    byte atop = bitfield_unsigned(instr, 0, 4);
 
     switch (atop)
     {
@@ -450,7 +450,7 @@ void Emulator32bit::_swp(const word instr)
     const byte xn = _SX2(instr);
     const byte xm = _SX3(instr);
     const word mem_adr = read_reg(xm);
-    const byte width = bitfield_u32(instr, 0, 4);
+    const byte width = bitfield_unsigned(instr, 0, 4);
 
     if (width == ATOMIC_WIDTH_WORD)
     {
@@ -501,7 +501,7 @@ void Emulator32bit::_ldadd(const word instr)
     const byte xn = _SX2(instr);
     const byte xm = _SX3(instr);
     const word mem_adr = read_reg(xm);
-    const byte width = bitfield_u32(instr, 0, 4);
+    const byte width = bitfield_unsigned(instr, 0, 4);
 
     if (width == ATOMIC_WIDTH_WORD)
     {
@@ -552,7 +552,7 @@ void Emulator32bit::_ldclr(const word instr)
     const byte xn = _SX2(instr);
     const byte xm = _SX3(instr);
     const word mem_adr = read_reg(xm);
-    const byte width = bitfield_u32(instr, 0, 4);
+    const byte width = bitfield_unsigned(instr, 0, 4);
 
     if (width == ATOMIC_WIDTH_WORD)
     {
@@ -603,7 +603,7 @@ void Emulator32bit::_ldset(const word instr)
     const byte xn = _SX2(instr);
     const byte xm = _SX3(instr);
     const word mem_adr = read_reg(xm);
-    const byte width = bitfield_u32(instr, 0, 4);
+    const byte width = bitfield_unsigned(instr, 0, 4);
 
     if (width == ATOMIC_WIDTH_WORD)
     {
@@ -1011,7 +1011,7 @@ void Emulator32bit::_lsl(const word instr)
 {
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
+    const word lsl_val = test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
     const word dst_val = xn_val << lsl_val;
 
     DEBUG_SS(std::stringstream() << "lsl " << std::to_string(lsl_val) << " "
@@ -1023,7 +1023,7 @@ void Emulator32bit::_lsr(const word instr)
 {
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
+    const word lsl_val = test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
     const word dst_val = xn_val >> lsl_val;
 
     DEBUG_SS(std::stringstream() << "lsr " << std::to_string(lsl_val) << " "
@@ -1035,7 +1035,7 @@ void Emulator32bit::_asr(const word instr)
 {
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
+    const word lsl_val = test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
     const word dst_val = sword(xn_val) >> lsl_val;
 
     DEBUG_SS(std::stringstream() << "asr " << std::to_string(lsl_val) << " "
@@ -1047,8 +1047,8 @@ void Emulator32bit::_ror(const word instr)
 {
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val = (xn_val >> lsl_val) | (bitfield_u32(xn_val, 0, lsl_val) << (32 - lsl_val));
+    const word lsl_val = test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
+    const word dst_val = (xn_val >> lsl_val) | (bitfield_unsigned(xn_val, 0, lsl_val) << (32 - lsl_val));
 
     DEBUG_SS(std::stringstream() << "ror " << std::to_string(lsl_val) << " "
             << std::to_string(xn_val) << " = " << std::to_string(dst_val));
@@ -1117,11 +1117,11 @@ void Emulator32bit::_mov(const word instr)
     word mov_val = 0;
     if (test_bit(instr, 19))
     {
-        mov_val = bitfield_u32(instr, 0, 19);
+        mov_val = bitfield_unsigned(instr, 0, 19);
     }
     else
     {
-        mov_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
+        mov_val = bitfield_unsigned(instr, 0, 14) + read_reg(bitfield_unsigned(instr, 14, 5));
     }
 
     // check to update NZCV
@@ -1142,11 +1142,11 @@ void Emulator32bit::_mvn(const word instr)
     word mvn_val = 0;
     if (test_bit(instr, 19))
     {
-        mvn_val = bitfield_u32(instr, 0, 19);
+        mvn_val = bitfield_unsigned(instr, 0, 19);
     }
     else
     {
-        mvn_val = bitfield_u32(instr, 0, 14) + read_reg(bitfield_u32(instr, 14, 5));
+        mvn_val = bitfield_unsigned(instr, 0, 14) + read_reg(bitfield_unsigned(instr, 14, 5));
     }
 
     const word dst_val = ~mvn_val;
@@ -1193,10 +1193,12 @@ void Emulator32bit::_ldr(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    printf("OFFSET %d\n", offset);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
+    printf("MEMORY ADDRESS %u\n", mem_addr);
     const word read_val = system_bus.read_word(mem_addr);
 
     if (address_mode == 0)
@@ -1226,9 +1228,9 @@ void Emulator32bit::_ldrb(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word read_val = system_bus.read_byte(mem_addr);
     if (sign)
@@ -1263,9 +1265,9 @@ void Emulator32bit::_ldrh(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ?  bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ?  bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word read_val = system_bus.read_hword(mem_addr);
     if (sign)
@@ -1299,9 +1301,9 @@ void Emulator32bit::_str(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     const word write_val = read_reg(xt);
 
@@ -1332,9 +1334,9 @@ void Emulator32bit::_strb(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word write_val = read_reg(xt);
     if (sign)
@@ -1369,9 +1371,9 @@ void Emulator32bit::_strh(const word instr)
     const byte xt = _X1(instr);
     const byte xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_s32(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
 
-    const byte address_mode = bitfield_u32(instr, 0, 2);
+    const byte address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     word write_val = read_reg(xt);
     if (sign)
@@ -1402,29 +1404,29 @@ void Emulator32bit::_strh(const word instr)
 
 void Emulator32bit::_b(const word instr)
 {
-    const byte cond = bitfield_u32(instr, 22, 4);
+    const byte cond = bitfield_unsigned(instr, 22, 4);
     if (check_cond(_pstate, cond))
     {
-        _pc += (bitfield_s32(instr, 0, 22) << 2) - 4;            /* account for execution loop incrementing _pc by 4 */
+        _pc += (bitfield_signed(instr, 0, 22) << 2) - 4;            /* account for execution loop incrementing _pc by 4 */
     }
     DEBUG_SS(std::stringstream() << "b " << std::to_string(cond));
 }
 
 void Emulator32bit::_bl(const word instr)
 {
-    const byte cond = bitfield_u32(instr, 22, 4);
+    const byte cond = bitfield_unsigned(instr, 22, 4);
     if (check_cond(_pstate, cond))
     {
         write_reg(kLinkRegister, _pc+4);
-        _pc += (bitfield_s32(instr, 0, 22) << 2) - 4;
+        _pc += (bitfield_signed(instr, 0, 22) << 2) - 4;
     }
     DEBUG_SS(std::stringstream() << "bl " << std::to_string(cond));
 }
 
 void Emulator32bit::_bx(const word instr)
 {
-    const byte cond = bitfield_u32(instr, 22, 4);
-    const byte reg = bitfield_u32(instr, 17, 5);
+    const byte cond = bitfield_unsigned(instr, 22, 4);
+    const byte reg = bitfield_unsigned(instr, 17, 5);
     if (check_cond(_pstate, cond))
     {
         _pc = sword(read_reg(reg)) - 4;
@@ -1435,8 +1437,8 @@ void Emulator32bit::_bx(const word instr)
 
 void Emulator32bit::_blx(const word instr)
 {
-    const byte cond = bitfield_u32(instr, 22, 4);
-    const byte reg = bitfield_u32(instr, 17, 5);
+    const byte cond = bitfield_unsigned(instr, 22, 4);
+    const byte reg = bitfield_unsigned(instr, 17, 5);
     if (check_cond(_pstate, cond))
     {
         write_reg(kLinkRegister, _pc+4);
@@ -1449,7 +1451,7 @@ void Emulator32bit::_blx(const word instr)
 void Emulator32bit::_adrp(const word instr)
 {
     const byte xd = _X1(instr);
-    const word imm20 = bitfield_u32(instr, 0, 20) << 12;
+    const word imm20 = bitfield_unsigned(instr, 0, 20) << 12;
 
     signed int simm21 = imm20;
     if (test_bit(instr, kInstructionUpdateFlagBit))

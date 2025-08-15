@@ -333,19 +333,19 @@ void Linker::link()
             switch (rel.type)
             {
                 case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 14) + bitfield_u32(symbol_entry.symbol_value, 0, 12);
+                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 14) + bitfield_unsigned(symbol_entry.symbol_value, 0, 12);
                 case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 20) + bitfield_u32(symbol_entry.symbol_value, 12, 20);
+                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 20) + bitfield_unsigned(symbol_entry.symbol_value, 12, 20);
                 case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 0, 19);
+                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_unsigned(symbol_entry.symbol_value, 0, 19);
                 case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_u32(symbol_entry.symbol_value, 19, 13);
+                    // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_unsigned(symbol_entry.symbol_value, 19, 13);
                     break;
                 case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
                     EXPECT_TRUE_SS((symbol_entry.symbol_value & 0b11) == 0, std::stringstream()
                             << "Linker::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
                             << symbol_entry.symbol_value);
-                    exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 22) + bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - instr_i, 0, 22);
+                    exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 22) + bitfield_unsigned(bitfield_signed(symbol_entry.symbol_value, 2, 22) - instr_i, 0, 22);
                     continue;
                 case ObjectFile::RelocationEntry::Type::UNDEFINED:
                 default:

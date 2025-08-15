@@ -560,11 +560,11 @@ void ObjectFile::print()
             std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
             std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
             printf(":\t%.8x\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
-            switch (bitfield_u32(text_section[i], 26, 6))
+            switch (bitfield_unsigned(text_section[i], 26, 6))
             {
                 case Emulator32bit::_op_b:
                 case Emulator32bit::_op_bl:
-                    sword offset = bitfield_s32(text_section[i], 0, 22) * 4;
+                    sword offset = bitfield_signed(text_section[i], 0, 22) * 4;
                     if (offset < 0)
                     {
                         printf(" <%s-0x%hx>", current_label.c_str(), -offset);

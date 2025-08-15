@@ -252,7 +252,7 @@ class Emulator32bit
 
         inline void execute(word instr)
         {
-            (this->*_instructions[bitfield_u32(instr, 26, 6)])(instr);
+            (this->*_instructions[bitfield_unsigned(instr, 26, 6)])(instr);
         }
 
         inline bool check_cond(word pstate, byte cond)

@@ -271,7 +271,7 @@ void Assembler::fill_local()
                         << "Assembler::fill_local() - Expected relocation value for R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
                         << symbol_entry.symbol_value);
                 m_obj.text_section[rel.offset/4] = mask_0(m_obj.text_section[rel.offset/4], 0, 22) +
-                        bitfield_u32(bitfield_s32(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
+                        bitfield_unsigned(bitfield_signed(symbol_entry.symbol_value, 2, 22) - rel.offset/4, 0, 22);
                 break;
             case ObjectFile::RelocationEntry::Type::UNDEFINED:
             default:
