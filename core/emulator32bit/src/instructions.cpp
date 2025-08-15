@@ -38,24 +38,24 @@ static word calc_shift(word val, const Emulator32bit::ShiftType shift_type, cons
     switch(shift_type)
     {
         case Emulator32bit::SHIFT_LSL:
-            DEBUG("LSL %u", (word) imm5);
+            DEBUG("LSL %u", word(imm5));
             val <<= imm5;
             break;
         case Emulator32bit::SHIFT_LSR:
-            DEBUG("LSR %u", (word) imm5);
+            DEBUG("LSR %u", word(imm5));
             val >>= imm5;
             break;
         case Emulator32bit::SHIFT_ASR:
-            DEBUG("ASR %u", (word) imm5);
-            val = ((signed int) val) >> imm5;
+            DEBUG("ASR %u", word(imm5));
+            val = S32(val) >> imm5;
             break;
         case Emulator32bit::SHIFT_ROR:
         {
-            DEBUG("ROR %u", (word) imm5);
+            DEBUG("ROR %u", word(imm5));
             word rot_bits = val & ((1 << imm5) - 1);
-            rot_bits <<= (WORD_BITS - imm5);
+            rot_bits <<= (kNumWordBits - imm5);
             val >>= imm5;
-            val &= (1 << (WORD_BITS - imm5)) - 1;             /* to be safe and remove bits that will be replaced */
+            val &= (1 << (kNumWordBits - imm5)) - 1;             /* to be safe and remove bits that will be replaced */
             val |= rot_bits;
             break;
         }
@@ -290,13 +290,13 @@ word Emulator32bit::asm_format_m1(const byte opcode, const int xd, const int imm
 
 word Emulator32bit::asm_format_b1(const byte opcode, const ConditionCode cond, const sword simm22)
 {
-    return Joiner() << JPart(6, opcode) << JPart(4, (word) cond)
+    return Joiner() << JPart(6, opcode) << JPart(4, word(cond))
                     << JPart(22, bitfield_u32(simm22, 0, 22));
 }
 
 word Emulator32bit::asm_format_b2(const byte opcode, const ConditionCode cond, const int xd)
 {
-    return Joiner() << JPart(6, opcode) << JPart(4, (word) cond) << JPart(5, xd) << 17;
+    return Joiner() << JPart(6, opcode) << JPart(4, word(cond)) << JPart(5, xd) << 17;
 }
 
 void Emulator32bit::_special_instructions(const word instr)
@@ -663,7 +663,7 @@ void Emulator32bit::_add(const word instr)
     const word dst_val = add_val + xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_add(xn_val, add_val),
                  get_v_flag_add(xn_val, add_val));
@@ -682,7 +682,7 @@ void Emulator32bit::_sub(const word instr)
     const word dst_val = xn_val - sub_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, sub_val),
                  get_v_flag_sub(xn_val, sub_val));
@@ -701,7 +701,7 @@ void Emulator32bit::_rsb(const word instr)
     const word dst_val = xn_val - sub_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sub(xn_val, sub_val),
                  get_v_flag_sub(xn_val, sub_val));
@@ -714,14 +714,14 @@ void Emulator32bit::_rsb(const word instr)
 
 void Emulator32bit::_adc(const word instr)
 {
-    const bool c = test_bit(_pstate, C_FLAG);
+    const bool c = test_bit(_pstate, kCFlagBit);
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
     const word add_val = FORMAT_O__get_arg(instr);
     const word dst_val = add_val + xn_val + c;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                  get_c_flag_add(xn_val + c, add_val) | get_c_flag_add(xn_val, c),
@@ -735,14 +735,14 @@ void Emulator32bit::_adc(const word instr)
 
 void Emulator32bit::_sbc(const word instr)
 {
-    const bool borrow = test_bit(_pstate, C_FLAG);
+    const bool borrow = test_bit(_pstate, kCFlagBit);
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
     const word sub_val = FORMAT_O__get_arg(instr);
     const word dst_val = xn_val - sub_val - borrow;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                  get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
@@ -756,14 +756,14 @@ void Emulator32bit::_sbc(const word instr)
 
 void Emulator32bit::_rsc(const word instr)
 {
-    const bool borrow = test_bit(_pstate, C_FLAG);
+    const bool borrow = test_bit(_pstate, kCFlagBit);
     const byte xd = _X1(instr);
     const word sub_val = read_reg(_X2(instr));
     const word xn_val = FORMAT_O__get_arg(instr);
     const word dst_val = xn_val - sub_val - borrow;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         set_NZCV(test_bit(dst_val, 31), dst_val == 0,
                 get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
@@ -783,18 +783,18 @@ void Emulator32bit::_mul(const word instr)
     dword dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/smull
         // arm's MUL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
             << std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-    write_reg(xd, (word) dst_val);
+    write_reg(xd, word(dst_val));
 }
 
 void Emulator32bit::_umull(const word instr)
@@ -806,43 +806,43 @@ void Emulator32bit::_umull(const word instr)
     dword dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/umull
         // arm's UMULL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
             << std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-    write_reg(xlo, (word) dst_val);
-    write_reg(xhi, (word) (dst_val >> 32));
+    write_reg(xlo, word(dst_val));
+    write_reg(xhi, word(dst_val >> 32));
 }
 
 void Emulator32bit::_smull(const word instr)
 {
     const byte xlo = _X1(instr);
     const byte xhi = _X2(instr);
-    const signed long long xn_val = ((signed long long) read_reg(_X3(instr))) << 32 >> 32;
-    const signed long long xm_val = ((signed long long) read_reg(_X4(instr))) << 32 >> 32;
+    const signed long long xn_val = S64(read_reg(_X3(instr))) << 32 >> 32;
+    const signed long long xm_val = S64(read_reg(_X4(instr))) << 32 >> 32;
     const signed long long dst_val = xn_val * xm_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
         // arm's UMULL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "mul " << std::to_string(xn_val) << " "
             << std::to_string(xm_val) << " = " << std::to_string(dst_val));
 
-    write_reg(xlo, (word) dst_val);
-    write_reg(xhi, (word) (dst_val >> 32));
+    write_reg(xlo, word(dst_val));
+    write_reg(xhi, word(dst_val >> 32));
 }
 
 // todo WILL DO LATER JUST NOT NOW
@@ -927,13 +927,13 @@ void Emulator32bit::_and(const word instr)
     const word dst_val = and_val & xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "and " << std::to_string(and_val) << " "
@@ -949,13 +949,13 @@ void Emulator32bit::_orr(const word instr)
     const word dst_val = or_val | xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "orr " << std::to_string(or_val) << " "
@@ -971,13 +971,13 @@ void Emulator32bit::_eor(const word instr)
     const word dst_val = eor_val ^ xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "eor " << std::to_string(eor_val) << " "
@@ -993,13 +993,13 @@ void Emulator32bit::_bic(const word instr)
     const word dst_val = (~bic_val) & xn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         // https://developer.arm.com/documentation/dui0489/h/arm-and-thumb-instructions/and--orr--eor--bic--and-orn
         // N and Z flags are set based of the result, C flag may be set based of the calculation for the second operand
         // but will ignore for now
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "bic " << std::to_string(bic_val) << " "
@@ -1036,7 +1036,7 @@ void Emulator32bit::_asr(const word instr)
     const byte xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
     const word lsl_val = test_bit(instr, 14) ? bitfield_u32(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val = ((sword) xn_val) >> lsl_val;
+    const word dst_val = sword(xn_val) >> lsl_val;
 
     DEBUG_SS(std::stringstream() << "asr " << std::to_string(lsl_val) << " "
             << std::to_string(xn_val) << " = " << std::to_string(dst_val));
@@ -1090,8 +1090,8 @@ void Emulator32bit::_tst(const word instr)
     const word tst_val = FORMAT_O__get_arg(instr);
     const word dst_val = tst_val & xn_val;
 
-    set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-             test_bit(_pstate, V_FLAG));
+    set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+             test_bit(_pstate, kVFlagBit));
 
     DEBUG_SS(std::stringstream() << "tst " << std::to_string(tst_val) << " "
             << std::to_string(xn_val) << " = " << std::to_string(dst_val));
@@ -1104,8 +1104,8 @@ void Emulator32bit::_teq(const word instr)
     const word teq_val = FORMAT_O__get_arg(instr);
     const word dst_val = teq_val ^ xn_val;
 
-    set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-             test_bit(_pstate, V_FLAG));
+    set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+             test_bit(_pstate, kVFlagBit));
 
     DEBUG_SS(std::stringstream() << "teq " << std::to_string(teq_val) << " "
             << std::to_string(xn_val) << " = " << std::to_string(dst_val));
@@ -1125,10 +1125,10 @@ void Emulator32bit::_mov(const word instr)
     }
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
-        set_NZCV(test_bit(mov_val, 31), mov_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(mov_val, 31), mov_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "mov " << std::to_string(xd) << " "
@@ -1152,10 +1152,10 @@ void Emulator32bit::_mvn(const word instr)
     const word dst_val = ~mvn_val;
 
     // check to update NZCV
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, C_FLAG),
-                 test_bit(_pstate, V_FLAG));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(_pstate, kCFlagBit),
+                 test_bit(_pstate, kVFlagBit));
     }
 
     DEBUG_SS(std::stringstream() << "mvn " << std::to_string(xd) << " "
@@ -1233,7 +1233,7 @@ void Emulator32bit::_ldrb(const word instr)
     word read_val = system_bus.read_byte(mem_addr);
     if (sign)
     {
-        read_val = (sword) ((byte) read_val);
+        read_val = sword(byte(read_val));
     }
 
     if (address_mode == 0)
@@ -1270,7 +1270,7 @@ void Emulator32bit::_ldrh(const word instr)
     word read_val = system_bus.read_hword(mem_addr);
     if (sign)
     {
-        read_val = (sword) ((hword) read_val);
+        read_val = sword(hword(read_val));
     }
 
     if (address_mode == 0)
@@ -1339,7 +1339,7 @@ void Emulator32bit::_strb(const word instr)
     word write_val = read_reg(xt);
     if (sign)
     {
-        write_val = (sword) ((byte) write_val);
+        write_val = sword(byte(write_val));
     }
 
     if (address_mode == 0)
@@ -1376,7 +1376,7 @@ void Emulator32bit::_strh(const word instr)
     word write_val = read_reg(xt);
     if (sign)
     {
-        write_val = (sword) ((hword)write_val);
+        write_val = sword(hword(write_val));
     }
 
     if (address_mode == 0)
@@ -1415,7 +1415,7 @@ void Emulator32bit::_bl(const word instr)
     const byte cond = bitfield_u32(instr, 22, 4);
     if (check_cond(_pstate, cond))
     {
-        write_reg(LINKR, _pc+4);
+        write_reg(kLinkRegister, _pc+4);
         _pc += (bitfield_s32(instr, 0, 22) << 2) - 4;
     }
     DEBUG_SS(std::stringstream() << "bl " << std::to_string(cond));
@@ -1427,7 +1427,7 @@ void Emulator32bit::_bx(const word instr)
     const byte reg = bitfield_u32(instr, 17, 5);
     if (check_cond(_pstate, cond))
     {
-        _pc = (sword) read_reg(reg) - 4;
+        _pc = sword(read_reg(reg)) - 4;
     }
     DEBUG_SS(std::stringstream() << "bx " << std::to_string(reg) << " (" << std::to_string(cond)
              << ")");
@@ -1439,8 +1439,8 @@ void Emulator32bit::_blx(const word instr)
     const byte reg = bitfield_u32(instr, 17, 5);
     if (check_cond(_pstate, cond))
     {
-        write_reg(LINKR, _pc+4);
-        _pc = (sword) read_reg(reg) - 4;
+        write_reg(kLinkRegister, _pc+4);
+        _pc = sword(read_reg(reg)) - 4;
     }
     DEBUG_SS(std::stringstream() << "blx " << std::to_string(reg) << "(" << std::to_string(cond)
              << ")");
@@ -1452,7 +1452,7 @@ void Emulator32bit::_adrp(const word instr)
     const word imm20 = bitfield_u32(instr, 0, 20) << 12;
 
     signed int simm21 = imm20;
-    if (test_bit(instr, S_BIT))
+    if (test_bit(instr, kInstructionUpdateFlagBit))
     {
         simm21 -= (1 << 20);
     }

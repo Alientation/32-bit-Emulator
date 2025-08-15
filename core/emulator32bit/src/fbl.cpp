@@ -47,7 +47,7 @@ word FreeBlockList::get_free_block (word length)
     if (!freeblock)
     {
         throw FreeBlockListException ("Not enough space to allocate free block " +
-                std::to_string ((int) length));
+                std::to_string (length));
         return 0;
     }
 
@@ -78,7 +78,7 @@ void FreeBlockList::remove_block (word addr, word length)
     if (cur->addr > addr || cur->addr + cur->len < addr + length)
     {
         throw FreeBlockListException ("Invalid returned block " +
-                std::to_string ((int) addr) + " - " + std::to_string ((int) length) + ".");
+                std::to_string (addr) + " - " + std::to_string (length) + ".");
         return;
     }
 
@@ -144,7 +144,7 @@ void FreeBlockList::return_block (word addr, word length)
     if (addr < m_begin || addr + length > m_begin + m_len)
     {
         throw FreeBlockListException ("Invalid returned block " +
-                std::to_string ((int) addr) + " - " + std::to_string ((int) length) + ".");
+                std::to_string (addr) + " - " + std::to_string (length) + ".");
         return;
     }
 
@@ -155,7 +155,7 @@ void FreeBlockList::return_block (word addr, word length)
     if (intersect_prev || intersect_next)
     {
         throw FreeBlockListException ("Invalid returned block " +
-                std::to_string ((int) addr) + " - " + std::to_string ((int) length) + ".");
+                std::to_string (addr) + " - " + std::to_string (length) + ".");
 
         /* Undo state change so that the caller can cleanly handle the exception. */
         remove (ret_block);
@@ -171,8 +171,8 @@ void FreeBlockList::force_return_block (word addr, word length)
 {
     if (addr < m_begin || addr + length > m_begin + m_len)
     {
-        throw FreeBlockListException ("Invalid returned block " + std::to_string ((int) addr) +
-                " - " + std::to_string ((int) length) + ".");
+        throw FreeBlockListException ("Invalid returned block " + std::to_string (addr) +
+                " - " + std::to_string (length) + ".");
         return;
     }
 

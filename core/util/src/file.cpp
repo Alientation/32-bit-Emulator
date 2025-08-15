@@ -1,5 +1,6 @@
 #include <util/file.h>
 #include <util/logger.h>
+#include <util/types.h>
 
 #include <fstream>
 
@@ -401,7 +402,7 @@ ByteReader& ByteReader::operator>>(ByteReader::Data &data) {
         m_cur_byte += data.num_bytes;
     } else {
         for (int i = data.num_bytes-1; i >= 0; i--) {
-            data.val += ((unsigned long long) m_bytes.at(m_cur_byte)) << (8 * i);
+            data.val += U64(m_bytes.at(m_cur_byte)) << (8 * i);
             m_cur_byte++;
         }
     }

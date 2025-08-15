@@ -87,20 +87,23 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
     {
         SectionHeader section_header =
         {
-            .section_name = (int) section_headers_reader.read_dword(),
+            .section_name = int(section_headers_reader.read_dword()),
             .type = (SectionHeader::Type) section_headers_reader.read_word(),
-            .section_start = (word) section_headers_reader.read_dword(),
-            .section_size = (word) section_headers_reader.read_dword(),
-            .entry_size = (word) section_headers_reader.read_dword(),
 
+            /* TODO: Why are we reading in dwords and then immediatelly casting to words? */
+            .section_start = word(section_headers_reader.read_dword()),
+            .section_size = word(section_headers_reader.read_dword()),
+            .entry_size = word(section_headers_reader.read_dword()),
+
+            /* TODO: Maybe should store a single bit? instead of wasting a whole byte for this. */
             .load_at_physical_address = (bool) section_headers_reader.read_byte(),
-            .address = (word) section_headers_reader.read_dword(),
+            .address = word(section_headers_reader.read_dword()),
         };
 
         sections.push_back(section_header);
 
         DEBUG("ObjectFile::disassemble() - Reading section %d (name = %d, type=%d, section_start=%u, section_size=%u, entry_size=%u)",
-                i, section_header.section_name, (int) section_header.type, section_header.section_start,
+                i, section_header.section_name, int(section_header.type), section_header.section_start,
                 section_header.section_size, section_header.entry_size);
     }
 
@@ -135,15 +138,15 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
                 {
                     SymbolTableEntry symbol =
                     {
-                        .symbol_name = (int) reader.read_dword(),
-                        .symbol_value = (word) reader.read_dword(),
+                        .symbol_name = int(reader.read_dword()),
+                        .symbol_value = word(reader.read_dword()),
                         .binding_info = (SymbolTableEntry::BindingInfo) reader.read_hword(),
-                        .section = (int) reader.read_dword(),
+                        .section = int(reader.read_dword()),
                     };
 
                     symbol_table[symbol.symbol_name] = symbol;
                     DEBUG("ObjectFile::disassemble() - Symbol entry = (symbol_name=%d, symbol_value=%d, binding_info=%d, section=%d)",
-                            symbol.symbol_name, symbol.symbol_value, (int) symbol.binding_info, symbol.section);
+                            symbol.symbol_name, symbol.symbol_value, int(symbol.binding_info), symbol.section);
                 }
                 break;
             case SectionHeader::Type::REL_TEXT:
@@ -152,10 +155,10 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
                 {
                     RelocationEntry rel =
                     {
-                        .offset = (word) reader.read_dword(),
-                        .symbol = (int) reader.read_dword(),
+                        .offset = word(reader.read_dword()),
+                        .symbol = int(reader.read_dword()),
                         .type = (RelocationEntry::Type) reader.read_word(),
-                        .shift = (word) reader.read_dword(),
+                        .shift = word(reader.read_dword()),
                         .token = 0,
                     };
                     rel_text.push_back(rel);
@@ -167,10 +170,10 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
                 {
                     RelocationEntry rel =
                     {
-                        .offset = (word) reader.read_dword(),
-                        .symbol = (int) reader.read_dword(),
+                        .offset = word(reader.read_dword()),
+                        .symbol = int(reader.read_dword()),
                         .type = (RelocationEntry::Type) reader.read_word(),
-                        .shift = (word) reader.read_dword(),
+                        .shift = word(reader.read_dword()),
                         .token = 0,
                     };
                     rel_data.push_back(rel);
@@ -182,10 +185,10 @@ void ObjectFile::disassemble(std::vector<byte>& bytes)
                 {
                     RelocationEntry rel =
                     {
-                        .offset = (word) reader.read_dword(),
-                        .symbol = (int) reader.read_dword(),
+                        .offset = word(reader.read_dword()),
+                        .symbol = int(reader.read_dword()),
                         .type = (RelocationEntry::Type) reader.read_word(),
-                        .shift = (word) reader.read_dword(),
+                        .shift = word(reader.read_dword()),
                         .token = 0,
                     };
                     rel_bss.push_back(rel);
@@ -360,12 +363,12 @@ void ObjectFile::write_object_file(File obj_file)
     {
         byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
         byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
-        byte_writer << ByteWriter::Data((short) symbol.second.binding_info, 2);
+        byte_writer << ByteWriter::Data(S16(symbol.second.binding_info), 2);
         byte_writer << ByteWriter::Data(symbol.second.section, 8);
 
         DEBUG("ObjectFile::write_object_file() - symbol %s = %u (%d)[%d]",
                 strings[symbol.second.symbol_name].c_str(), symbol.second.symbol_value,
-                (int) symbol.second.binding_info, symbol.second.section);
+                int(symbol.second.binding_info), symbol.second.section);
     }
     sections[section_table[".symtab"]].section_size = symbol_table.size() * SYMBOL_TABLE_ENTRY_SIZE;
     sections[section_table[".symtab"]].section_start = current_byte;
@@ -377,7 +380,7 @@ void ObjectFile::write_object_file(File obj_file)
     {
         byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
         byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
-        byte_writer << ByteWriter::Data((int) rel_text[i].type, 4);
+        byte_writer << ByteWriter::Data(int(rel_text[i].type), 4);
         byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
     }
     sections[section_table[".rel.text"]].section_size = rel_text.size() * RELOCATION_ENTRY_SIZE;
@@ -390,7 +393,7 @@ void ObjectFile::write_object_file(File obj_file)
     {
         byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
         byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
-        byte_writer << ByteWriter::Data((int) rel_data[i].type, 4);
+        byte_writer << ByteWriter::Data(int(rel_data[i].type), 4);
         byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
     }
     sections[section_table[".rel.data"]].section_size = rel_data.size() * RELOCATION_ENTRY_SIZE;
@@ -403,7 +406,7 @@ void ObjectFile::write_object_file(File obj_file)
     {
         byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
         byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
-        byte_writer << ByteWriter::Data((int) rel_bss[i].type, 4);
+        byte_writer << ByteWriter::Data(int(rel_bss[i].type), 4);
         byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
     }
     sections[section_table[".rel.bss"]].section_size = rel_bss.size() * RELOCATION_ENTRY_SIZE;
@@ -428,7 +431,7 @@ void ObjectFile::write_object_file(File obj_file)
     for (size_t i = 0; i < sections.size(); i++)
     {
         byte_writer << ByteWriter::Data(sections[i].section_name, 8);
-        byte_writer << ByteWriter::Data((int) sections[i].type, 4);
+        byte_writer << ByteWriter::Data(int(sections[i].type), 4);
         byte_writer << ByteWriter::Data(sections[i].section_start, 8);
         byte_writer << ByteWriter::Data(sections[i].section_size, 8);
         byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
@@ -480,10 +483,9 @@ void ObjectFile::print()
             section_name = strings[sections[symbol.second.section].section_name];
         }
 
-        // printf("%.16llx %c\t %s\t\t %.16llx %s\n", (dword) symbol.second.symbol_value, visibility, section_name.c_str(),(dword) 0, strings[symbol.second.symbol_name].c_str());
-        std::cout << color_val_str(to_hex_str((dword) symbol.second.symbol_value))
+        std::cout << color_val_str(to_hex_str(dword(symbol.second.symbol_value)))
                 << " " << visibility << "\t " << section_name << "\t\t " <<
-                color_val_str(to_hex_str((dword) 0)) << " " << strings[symbol.second.symbol_name]
+                color_val_str(to_hex_str(dword(0))) << " " << strings[symbol.second.symbol_name]
                 << "\n";
     }
 
@@ -528,8 +530,7 @@ void ObjectFile::print()
 
     if (label_map.find(0) == label_map.end())
     {
-        // printf("%.16llx:", (dword) 0);
-        std::cout << color_val_str(to_hex_str((dword) 0)) << ":";
+        std::cout << color_val_str(to_hex_str(dword(0))) << ":";
     }
 
     int text_address_width = std::__bit_width(text_section.size() / 4);
@@ -549,10 +550,8 @@ void ObjectFile::print()
                 printf("\n\n");
             }
             current_label = strings[label_map[i*4]];
-            // printf("\n%.16llx <%s>:", (dword) i*4, current_label.c_str());
-            std::cout << color_val_str(to_hex_str((dword) i*4)) << " <" << current_label << ">:";
+            std::cout << color_val_str(to_hex_str(dword(i*4))) << " <" << current_label << ">:";
         }
-        // std::string disassembly = (this->*_disassembler_instructions[bitfield_u32(text_section[i], 26, 6)])(text_section[i]);
         std::string disassembly = Emulator32bit::disassemble_instr(text_section[i]);
         printf(text_address_format.c_str(), i*4);
 
@@ -611,7 +610,7 @@ void ObjectFile::print()
             }
 
             int print_str_width = 29 - std::__bit_width(i / 4);
-            printf((" \t%hx: %-" + std::to_string(print_str_width) + "s").c_str(), (dword) i*4, print_str.c_str());
+            printf((" \t%hx: %-" + std::to_string(print_str_width) + "s").c_str(), dword(i*4), print_str.c_str());
             printf("%s", strings[symbol_table[entry.symbol].symbol_name].c_str());
         }
     }

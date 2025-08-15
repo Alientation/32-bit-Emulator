@@ -30,6 +30,7 @@ class ObjectFile
          */
         struct SymbolTableEntry
         {
+            /* TODO: This should be unsigned.. Can't have a negative index. */
             int symbol_name;                                        /* index into string table */
             word symbol_value;                                        /* value of symbol */
             enum class BindingInfo

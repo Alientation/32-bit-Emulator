@@ -5,9 +5,9 @@ MMU::MMU(Emulator32bit *processor, word user_low_page, word user_high_page,
     : processor(processor), user_low_page(user_low_page), user_high_page(user_high_page),
     kernel_low_page(kernel_low_page), kernel_high_page(kernel_high_page),
     free_user_ppages(processor->ram->data, user_low_page,
-        user_high_page - user_low_page + 1, PAGE_SIZE),
+        user_high_page - user_low_page + 1, kPageSize),
     free_kernel_ppages(processor->ram->data, kernel_low_page,
-        kernel_high_page - kernel_low_page + 1, PAGE_SIZE)
+        kernel_high_page - kernel_low_page + 1, kPageSize)
 {
     EXPECT_TRUE(processor->ram->in_bounds(user_low_page), "User page not in ram.");
     EXPECT_TRUE(processor->ram->in_bounds(user_high_page), "User page not in ram.");

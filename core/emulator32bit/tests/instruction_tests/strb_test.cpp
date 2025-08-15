@@ -16,10 +16,10 @@ TEST(strb, offset) {
     EXPECT_EQ(cpu->system_bus.read_byte(8), 9) << "\'strb x0, [x1, #3]\', where x0=9, x1=5 : should result in 1 byte value of 9 to be written at address 8";
     EXPECT_EQ(cpu->read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu->read_reg(1), 5) << "operation should not change operand \'x1\'";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }
 
@@ -37,10 +37,10 @@ TEST(strb, pre_indexed) {
     EXPECT_EQ(cpu->system_bus.read_byte(8), 9) << "\'strb x0, [x1, #3]!\', where x0=9, x1=5 : should result in 1 byte value of 9 to be written at address 8";
     EXPECT_EQ(cpu->read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu->read_reg(1), 8) << "operation should preincrement \'x1\'";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }
 
@@ -58,9 +58,9 @@ TEST(strb, post_indexed) {
     EXPECT_EQ(cpu->system_bus.read_byte(8), 9) << "\'strb x0, [x1], #3\', where x0=9, x1=8 : should result in 1 byte value of 9 to be written at address 8";
     EXPECT_EQ(cpu->read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu->read_reg(1), 11) << "operation should postincrement \'x1\'";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }

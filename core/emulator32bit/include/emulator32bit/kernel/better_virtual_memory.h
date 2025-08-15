@@ -42,7 +42,7 @@ class MMU
                 memory.
             */
             if (UNLIKELY(!processor->_pagedir ||
-                processor->get_flag(REAL_FLAG)))
+                processor->get_flag(kRealModeFlagBit)))
             {
                 return address;
             }
@@ -50,13 +50,13 @@ class MMU
             /* Check for valid page directory. */
             if (UNLIKELY(!processor->ram->in_bounds(processor->_pagedir)) ||
                 !processor->ram->in_bounds(processor->_pagedir +
-                (PAGE_SIZE * sizeof(struct PageTableEntry)) - 1))
+                (kPageSize * sizeof(struct PageTableEntry)) - 1))
             {
                 throw Emulator32bit::Exception(Emulator32bit::BAD_PAGEDIR,
                     "Page directory is not in RAM.");
             }
 
-            word vpage = address >> PAGE_PSIZE;
+            word vpage = address >> kNumPageOffsetBits;
 
             /*
                 Kernel memory is directly mapped, not rerouting. Just check
@@ -64,7 +64,7 @@ class MMU
             */
             if (UNLIKELY(vpage >= kernel_low_page && vpage <= kernel_high_page))
             {
-                if (UNLIKELY(processor->get_flag(USER_FLAG)))
+                if (UNLIKELY(processor->get_flag(kUserModeFlagBit)))
                 {
                     throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                         "User tried accessing kernel page.");
@@ -82,7 +82,7 @@ class MMU
                 throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                     "Unmapped memory accessed.");
             }
-            else if (UNLIKELY(entry->kernel && processor->get_flag(USER_FLAG)))
+            else if (UNLIKELY(entry->kernel && processor->get_flag(kUserModeFlagBit)))
             {
                 throw Emulator32bit::Exception(Emulator32bit::PAGEFAULT,
                     "User tried accessing kernel page.");
@@ -107,7 +107,7 @@ class MMU
                         processor->disk->read_page(entry->disk);
                 processor->disk->return_page(entry->disk);
 
-                EXPECT_TRUE(disk_page.size() == PAGE_SIZE,
+                EXPECT_TRUE(disk_page.size() == kPageSize,
                     "Page size does not match.");
 
                 word free_ppage = get_free_ppage();
@@ -115,14 +115,14 @@ class MMU
                 entry->disk = false;
                 entry->ppage = free_ppage;
 
-                word mapped_address = (free_ppage << PAGE_PSIZE) +
-                    (address & (PAGE_SIZE - 1));
+                word mapped_address = (free_ppage << kNumPageOffsetBits) +
+                    (address & (kPageSize - 1));
                 memcpy(&processor->ram->data[mapped_address], disk_page.data(),
-                    PAGE_SIZE);
+                    kPageSize);
                 return mapped_address;
             }
 
-            return (entry->ppage << PAGE_PSIZE) + (address & (PAGE_SIZE - 1));
+            return (entry->ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
         }
 
     private:
@@ -159,7 +159,7 @@ class MMU
                 return evict_ppage();
             }
 
-            return free_user_ppages.get_free_block() >> PAGE_PSIZE;
+            return free_user_ppages.get_free_block() >> kNumPageOffsetBits;
         }
 
         inline word evict_ppage()

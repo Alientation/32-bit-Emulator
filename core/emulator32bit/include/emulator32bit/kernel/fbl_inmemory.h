@@ -59,7 +59,7 @@ class FBL_InMemory
 
         inline word ptr_to_mem_index(void *ptr)
         {
-            return (word) ((uintptr_t) ptr - (uintptr_t) mem);
+            return word((uintptr_t) ptr - (uintptr_t) mem);
         }
 };
 

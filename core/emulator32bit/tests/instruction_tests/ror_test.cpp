@@ -11,10 +11,10 @@ TEST(ror, imm5_shift) {
 
     EXPECT_EQ(cpu->read_reg(0), 1<<31) << "\'ror x0, x1, 5\' : where x1=1<<15, should result in x0=1<<31";
     EXPECT_EQ(cpu->read_reg(1), 1<<15) << "operation should not alter operand register \'x1\'";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 1) << "operation should not alter N flag";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not alter Z flag";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 0) << "operation should not alter C flag";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 1) << "operation should not alter V flag";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 1) << "operation should not alter N flag";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not alter Z flag";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not alter C flag";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 1) << "operation should not alter V flag";
     delete cpu;
 }
 
@@ -31,9 +31,9 @@ TEST(ror, reg_shift) {
     EXPECT_EQ(cpu->read_reg(0), 1<<31) << "\'ror x0, x1, x2\' : where x1=1<<15, x2=16, should result in x0=1<<31";
     EXPECT_EQ(cpu->read_reg(1), 1<<15) << "operation should not alter operand register \'x1\'";
     EXPECT_EQ(cpu->read_reg(2), 16) << "operation should not alter operand register \'x2\'";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not alter N flag";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not alter Z flag";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 1) << "operation should not alter C flag";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 1) << "operation should not alter V flag";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not alter N flag";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not alter Z flag";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 1) << "operation should not alter V flag";
     delete cpu;
 }

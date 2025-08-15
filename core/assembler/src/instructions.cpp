@@ -56,7 +56,7 @@ void Assembler::parse_shift(size_t& tok_i, Emulator32bit::ShiftType& shift, int&
     /* note, in future, we could change this to create relocation record instead */
     shift_amt = parse_expression(tok_i);
 
-    EXPECT_TRUE((word) shift_amt < (1ULL<<5), "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
+    EXPECT_TRUE(word(shift_amt) < (1ULL<<5), "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
                 "Error in line %llu.", shift_amt, line_at(tok_i));
 }
 
@@ -126,7 +126,7 @@ word Assembler::parse_format_b1(size_t& tok_i, byte opcode)
 
         m_obj.rel_text.push_back((ObjectFile::RelocationEntry)
         {
-            .offset = (word) (m_obj.text_section.size() * 4),
+            .offset = word(m_obj.text_section.size() * 4),
             .symbol = m_obj.string_table[symbol],
             .type = ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22,
             .shift = 0,                                                    /* Support shift in future */
@@ -137,9 +137,9 @@ word Assembler::parse_format_b1(size_t& tok_i, byte opcode)
     {
         word imm = parse_expression(tok_i);
         EXPECT_TRUE(imm < (1ULL << 24), "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
-                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
         EXPECT_TRUE((imm & 0b11) == 0, "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
-                "Error at %s in line %llu.", Emulator32bit::Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
         value = bitfield_s32(imm, 0, 24) >> 2;
     }
 
@@ -190,7 +190,7 @@ word Assembler::parse_format_m1(size_t& tok_i, byte opcode)
 
     m_obj.rel_text.push_back((ObjectFile::RelocationEntry)
     {
-        .offset = (word) (m_obj.text_section.size() * 4),
+        .offset = word(m_obj.text_section.size() * 4),
         .symbol = m_obj.string_table[symbol],
         .type = ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
         .shift = 0,                                                        /* Support shift in future */
@@ -361,7 +361,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
 
             m_obj.rel_text.push_back((ObjectFile::RelocationEntry)
             {
-                .offset = (word) (m_obj.text_section.size() * 4),
+                .offset = word(m_obj.text_section.size() * 4),
                 .symbol = m_obj.string_table[symbol],
                 .type = (relocation == Tokenizer::RELOCATION_EMU32_MOV_HI13 ?
                         ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13 :
@@ -379,7 +379,7 @@ word Assembler::parse_format_o3(size_t& tok_i, byte opcode)
             word imm = parse_expression(tok_i);
 
             EXPECT_TRUE(imm < (1ULL<<14), "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
-                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }
     }
@@ -445,8 +445,8 @@ word Assembler::parse_format_o1(size_t& tok_i, byte opcode)
     else
     {
         int shift_amt = parse_expression(tok_i);
-        EXPECT_TRUE((word) shift_amt < (1ULL<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
-                "Error at %s in line %llu.", shift_amt, Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+        EXPECT_TRUE(word(shift_amt) < (1ULL<<5), "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
+                "Error at %s in line %llu.", shift_amt, Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
         return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt);
     }
 }
@@ -501,7 +501,7 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
 
             m_obj.rel_text.push_back((ObjectFile::RelocationEntry)
             {
-                .offset = (word) (m_obj.text_section.size() * 4),
+                .offset = word(m_obj.text_section.size() * 4),
                 .symbol = m_obj.string_table[symbol],
                 .type = ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12,
                 /* Support shift in future */
@@ -524,7 +524,7 @@ word Assembler::parse_format_o(size_t& tok_i, byte opcode)
 
 
         EXPECT_TRUE(operand < (1ULL << 14), "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
-                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(((word) opcode) << 26).c_str(), line_at(tok_i));
+                "Error at %s in line %llu.", Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(), line_at(tok_i));
 
         return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand);
     }

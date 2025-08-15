@@ -37,7 +37,7 @@ class BaseMemory
 
         inline bool in_bounds(word address)
         {
-            return address >= (start_page << PAGE_PSIZE) && address < ((get_hi_page()+1) << PAGE_PSIZE);
+            return address >= (start_page << kNumPageOffsetBits) && address < ((get_hi_page()+1) << kNumPageOffsetBits);
         }
 
     protected:
@@ -57,7 +57,7 @@ class Memory : public BaseMemory
         // HAVING AN EXPENSIVE CONDITIONAL CHECK EVERYTIME MEMORY IS ACCESSED
         inline byte read_byte(word address) override
         {
-            return data[address - (start_page << PAGE_PSIZE)];
+            return data[address - (start_page << kNumPageOffsetBits)];
         }
 
         inline hword read_hword(word address)
@@ -79,7 +79,7 @@ class Memory : public BaseMemory
 
         inline void write_byte(word address, byte value)
         {
-            data[address - (start_page << PAGE_PSIZE)] = value;
+            data[address - (start_page << kNumPageOffsetBits)] = value;
         }
 
         inline void write_hword(word address, hword value)

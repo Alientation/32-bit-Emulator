@@ -10,10 +10,10 @@ TEST(mov, register_mov_immediate) {
     cpu->run(1);
 
     EXPECT_EQ(cpu->read_reg(0), 9) << "\'mov x0 #9\' : should result in x0=9";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 1) << "operation should not alter C flag";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }
 
@@ -27,9 +27,9 @@ TEST(mov, zero_flag) {
     cpu->run(1);
 
     EXPECT_EQ(cpu->read_reg(0), 0) << "\'movs x0, #0\' : should result in x0=0";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 1) << "operation should set Z flag";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 1) << "operation should not alter C flag";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 0) << "operation should not cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 1) << "operation should set Z flag";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }

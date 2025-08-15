@@ -8,11 +8,11 @@
 
 #include <unordered_map>
 
-#define VM_MAX_PAGES 1024
-#define TLB_PSIZE 12
-#define TLB_SIZE (1 << TLB_PSIZE)
-#define MAX_PROCESSES 1024
-#define NUM_PPAGES (1 << (8 * sizeof(word) - PAGE_PSIZE))
+constexpr U32 kMaxVMPages = 1024;
+constexpr U8 kNumTLBBits = 12;
+constexpr U32 kMaxTLBSize = 1 << kNumTLBBits;
+constexpr U32 kMaxProcesses = 1024;
+constexpr U32 kMaxPhysicalPages = 1 << (8 * sizeof(word) - kNumPageOffsetBits);
 
 /*
     idea
@@ -359,7 +359,7 @@ class VirtualMemory
          * @todo            Change so that the hash is of the virtual page address and the pid to
          *                     avoid collisions between processes.
          */
-        TLB_Entry tlb[TLB_SIZE];
+        TLB_Entry tlb[kMaxTLBSize];
 
         /**
          * @brief            Free PIDs not in use by any process.
@@ -375,7 +375,7 @@ class VirtualMemory
          * @brief              Map of physical pages to the corresponding PageTableEntry.
          */
         // std::unordered_map<word, PhysicalPage*> m_physical_memory_map;
-        PhysicalPage* m_physical_memory_map = new PhysicalPage[NUM_PPAGES];
+        PhysicalPage* m_physical_memory_map = new PhysicalPage[kMaxPhysicalPages];
 
         /**
          * @brief            Free physical pages that new virtual pages can map to.
@@ -503,12 +503,12 @@ class VirtualMemory
         {
             // DEBUG("Mapping address %u.", address);
 
-            word vpage = address >> PAGE_PSIZE;
+            word vpage = address >> kNumPageOffsetBits;
             word ppage = access_vpage(ptable, vpage, exception);
 
             // DEBUG("Accessing virtual memory page %u which is physical page %u.", vpage, ppage);
 
-            return (ppage << PAGE_PSIZE) + (address & (PAGE_SIZE-1));
+            return (ppage << kNumPageOffsetBits) + (address & (kPageSize-1));
         }
 
         /**
@@ -524,7 +524,7 @@ class VirtualMemory
         {
             // check_vm();
 
-            word tlb_addr = vpage & (TLB_SIZE-1);
+            word tlb_addr = vpage & (kMaxTLBSize-1);
 
             /*
              * Unlikely that the virtual page has not been accessed recently.

@@ -38,8 +38,8 @@ void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian)
 
 void Emulator32bit::_emu_printp()
 {
-    printf("PSTATE: N=%lli,Z=%lli,C=%lli,V=%lli", test_bit(_pstate, N_FLAG), test_bit(_pstate, Z_FLAG),
-           test_bit(_pstate, C_FLAG), test_bit(_pstate, V_FLAG));
+    printf("PSTATE: N=%lli,Z=%lli,C=%lli,V=%lli", test_bit(_pstate, kNFlagBit), test_bit(_pstate, kZFlagBit),
+           test_bit(_pstate, kCFlagBit), test_bit(_pstate, kVFlagBit));
 }
 
 void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value) {
@@ -247,7 +247,7 @@ void Emulator32bit::_emu_err(word err)
 void Emulator32bit::_swi(word instr)
 {
     byte cond = bitfield_u32(instr, 22, 4);
-    DEBUG("swi %d", (int) cond);
+    DEBUG("swi %d", cond);
 
     if (!check_cond(_pstate, cond)) {
         return;
@@ -255,7 +255,7 @@ void Emulator32bit::_swi(word instr)
 
     // software interrupts.. perfect to add functionality to this like console print,
     // file operations, ports, etc
-    word id = read_reg(NR);
+    word id = read_reg(kSyscallRegister);
     word arg0 = read_reg(0);
     word arg1 = read_reg(1);
     word arg2 = read_reg(2);

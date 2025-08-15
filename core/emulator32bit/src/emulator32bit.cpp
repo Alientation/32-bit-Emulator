@@ -10,7 +10,7 @@
 
 const word Emulator32bit::RAM_NPAGES = 16;
 const word Emulator32bit::RAM_START_PAGE = 0;
-const byte Emulator32bit::ROM_DATA[16 << PAGE_PSIZE] = {};
+const byte Emulator32bit::ROM_DATA[16 << kNumPageOffsetBits] = {};
 const word Emulator32bit::ROM_NPAGES = 16;
 const word Emulator32bit::ROM_START_PAGE = 16;
 
@@ -65,7 +65,7 @@ const char* Emulator32bit::Exception::what() const noexcept
 
 void Emulator32bit::fill_out_instructions()
 {
-    for (int i = 0; i < NUM_INSTRUCTIONS; i++)
+    for (int i = 0; i < kMaxInstructions; i++)
     {
         _instructions[i] = Emulator32bit::_hlt;
     }
@@ -135,8 +135,11 @@ void Emulator32bit::fill_out_instructions()
 void Emulator32bit::print()
 {
     printf("32 bit emulator\nRegisters:\n");
-    printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(_pc).c_str(), to_color_hex_str(read_reg(SP)).c_str(), to_color_hex_str((word)0).c_str());
-    for (int i = 0; i < SP; i++)
+    printf(" pc: %s\n sp: %s\nxzr: %s\n",
+            to_color_hex_str(_pc).c_str(),
+            to_color_hex_str(read_reg(kStackPointerRegister)).c_str(),
+            to_color_hex_str(word(0)).c_str());
+    for (int i = 0; i < kStackPointerRegister; i++)
     {
         printf("x%.2d: %s\n", i, to_color_hex_str(read_reg(i)).c_str());
     }
@@ -192,7 +195,7 @@ void Emulator32bit::reset()
     {
         _x[i] = (1ULL << (8 * sizeof(word))) - 1;
     }
-    _x[XZR] = 0;
+    _x[kZeroRegister] = 0;
     _pstate = 0;
     _pc = 0;
 

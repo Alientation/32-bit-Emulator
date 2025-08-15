@@ -10,9 +10,9 @@ TEST(mvn, register_mvn_immediate) {
     cpu->run(1);
 
     EXPECT_EQ(cpu->read_reg(0), ~0) << "\'mvn x0, #0\' : should result in x0=~0";
-    EXPECT_EQ(cpu->get_flag(N_FLAG), 1) << "operation should cause N flag to be set";
-    EXPECT_EQ(cpu->get_flag(Z_FLAG), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(C_FLAG), 1) << "operation should not alter C flag";
-    EXPECT_EQ(cpu->get_flag(V_FLAG), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu->get_flag(kNFlagBit), 1) << "operation should cause N flag to be set";
+    EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
+    EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
     delete cpu;
 }

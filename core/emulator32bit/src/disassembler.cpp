@@ -5,9 +5,9 @@
 
 static std::string disassemble_gpr(int gpr)
 {
-    if (gpr == SP) {
+    if (gpr == kStackPointerRegister) {
         return "sp";
-    } else if (gpr == XZR) {
+    } else if (gpr == kZeroRegister) {
         return "xzr";
     } else {
         return "x" + std::to_string(gpr);
@@ -109,7 +109,7 @@ static std::string disassemble_format_m1(word instruction, std::string op)
     disassemble += ", ";
 
     int32_t offset = bitfield_u32(instruction, 0, 20);
-    if (test_bit(instruction, S_BIT)) {
+    if (test_bit(instruction, kInstructionUpdateFlagBit)) {
         offset -= 1 << 20;
     }
     disassemble += std::to_string(offset);
@@ -621,7 +621,7 @@ static std::string disassemble_adrp(word instruction)
 
 /* construct disassembler instruction mapping */
 typedef std::string (*DisassemblerFunction)(word);
-static DisassemblerFunction _disassembler_instructions[NUM_INSTRUCTIONS];
+static DisassemblerFunction _disassembler_instructions[kMaxInstructions];
 
 static void disassembler_init()
 {
@@ -631,7 +631,7 @@ static void disassembler_init()
     }
     init = true;
 
-    for (int i = 0; i < NUM_INSTRUCTIONS; i++) {
+    for (int i = 0; i < kMaxInstructions; i++) {
         _disassembler_instructions[i] = disassemble_nop;
     }
 

@@ -37,7 +37,7 @@ void LoadExecutable::load()
                 word instr = mask_0(obj.text_section.at(instr_i), 0, 20) + bitfield_u32(offset, 0, 20);
                 if ((offset >> 20) & 1)
                 {
-                    instr = set_bit(instr, S_BIT, 1);
+                    instr = set_bit(instr, kInstructionUpdateFlagBit, 1);
                 }
 
                 obj.text_section.at(instr_i) = instr;
@@ -51,7 +51,7 @@ void LoadExecutable::load()
                 break;
             case ObjectFile::RelocationEntry::Type::UNDEFINED:
             default:
-                ERROR("Assembler::fill_local() - Unknown relocation entry type (%d)", (int)rel.type);
+                ERROR("Assembler::fill_local() - Unknown relocation entry type (%d)", int(rel.type));
         }
     }
 
@@ -63,8 +63,8 @@ void LoadExecutable::load()
     if (!physical && obj.text_section.size() > 0)
     {
         // we are assuming that there is no overlap between pages of text, data, and bss sections
-        word start = cur_addr >> PAGE_PSIZE;
-        word end = (cur_addr + 4 * obj.text_section.size() - 1) >> PAGE_PSIZE;
+        word start = cur_addr >> kNumPageOffsetBits;
+        word end = (cur_addr + 4 * obj.text_section.size() - 1) >> kNumPageOffsetBits;
         m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, false, true);
     }
 
@@ -87,8 +87,8 @@ void LoadExecutable::load()
 
     if (!physical && obj.data_section.size() > 0)
     {
-        word start = cur_addr >> PAGE_PSIZE;
-        word end = (cur_addr + obj.data_section.size() - 1) >> PAGE_PSIZE;
+        word start = cur_addr >> kNumPageOffsetBits;
+        word end = (cur_addr + obj.data_section.size() - 1) >> kNumPageOffsetBits;
         m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, true, false);
     }
 
@@ -109,8 +109,8 @@ void LoadExecutable::load()
     physical = obj.sections[obj.section_table.at(".bss")].load_at_physical_address;
     if (!physical && obj.bss_section > 0)
     {
-        word start = cur_addr >> PAGE_PSIZE;
-        word end = (cur_addr + obj.bss_section - 1) >> PAGE_PSIZE;
+        word start = cur_addr >> kNumPageOffsetBits;
+        word end = (cur_addr + obj.bss_section - 1) >> kNumPageOffsetBits;
         m_emu.mmu->add_vpage(m_emu.mmu->current_process(), start, end - start + 1, true, false);
     }
 

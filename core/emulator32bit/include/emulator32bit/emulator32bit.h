@@ -40,31 +40,31 @@ class Timer; /* Forward declare from 'timer.h' */
  *  - x29: Link Register
  *
  */
-constexpr int NUM_REG = 32; /* Number of general purpose stack registers */
-constexpr int NR = 8;       /* Number register for syscalls */
-constexpr int FP = 28;      /* Frame Pointer - points to saved (FP,LR) in stack */
-constexpr int LINKR = 29;   /* Link Register */
-constexpr int SP = 30;      /* Stack Pointer */
-constexpr int XZR = 31;     /* Zero Register */
+constexpr int kNumReg = 32;                 /* Number of general purpose stack registers. */
+constexpr int kSyscallRegister = 8;         /* Number register for syscalls. */
+constexpr int kFPRegister = 28;             /* Frame Pointer - points to saved (FP,LR) in stack. */
+constexpr int kLinkRegister = 29;           /* Link Register. */
+constexpr int kStackPointerRegister = 30;   /* Stack Pointer. */
+constexpr int kZeroRegister = 31;           /* Zero Register. */
 
 /**
- * @brief                     Flag bit locations in _pstate register
+ * @brief                     Flag bit locations in the _pstate register.
  *
  */
-constexpr int N_FLAG = 0;       /* Negative Flag */
-constexpr int Z_FLAG = 1;       /* Zero Flag */
-constexpr int C_FLAG = 2;       /* Carry Flag */
-constexpr int V_FLAG = 3;       /* Overflow Flag */
-constexpr int USER_FLAG = 8;    /* User mode flag */
-constexpr int REAL_FLAG = 9;    /* Real memory mode flag */
+constexpr int kNFlagBit = 0;            /* Negative Flag. */
+constexpr int kZFlagBit = 1;            /* Zero Flag. */
+constexpr int kCFlagBit = 2;            /* Carry Flag. */
+constexpr int kVFlagBit = 3;            /* Overflow Flag. */
+constexpr int kUserModeFlagBit = 8;     /* User mode flag. */
+constexpr int kRealModeFlagBit = 9;     /* Real memory mode flag. */
 
 /**
  * @brief                    Which bit of the instruction determines whether flags will be updated
  *
  */
-constexpr int S_BIT = 25;       /* Update Flag Bit */
+constexpr int kInstructionUpdateFlagBit = 25;       /* Update Flag Bit */
 
-constexpr int NUM_INSTRUCTIONS = 64;
+constexpr int kMaxInstructions = 64;
 
 
 /**
@@ -94,7 +94,7 @@ class Emulator32bit
 
         struct InterruptFrame
         {
-            word saved_reg[NUM_REG];
+            word saved_reg[kNumReg];
             word saved_px;
             word saved_pstate;
             word saved_pagedir;
@@ -185,12 +185,12 @@ class Emulator32bit
 
         inline word read_reg(byte reg)
         {
-            return ((word) _x[reg]) & ((word) (_x[reg] >> 32));
+            return word(_x[reg]) & word(_x[reg] >> 32);
         }
 
         inline void write_reg(byte reg, word val)
         {
-            _x[reg] = (((word) _x[reg]) ^ ((dword) val << 32));
+            _x[reg] = word(_x[reg]) ^ dword(val) << 32;
         }
 
         /**
@@ -203,10 +203,10 @@ class Emulator32bit
          */
         inline void set_NZCV(bool N, bool Z, bool C, bool V)
         {
-            _pstate = set_bit(_pstate, N_FLAG, N);
-            _pstate = set_bit(_pstate, Z_FLAG, Z);
-            _pstate = set_bit(_pstate, C_FLAG, C);
-            _pstate = set_bit(_pstate, V_FLAG, V);
+            _pstate = set_bit(_pstate, kNFlagBit, N);
+            _pstate = set_bit(_pstate, kZFlagBit, Z);
+            _pstate = set_bit(_pstate, kCFlagBit, C);
+            _pstate = set_bit(_pstate, kVFlagBit, V);
         }
 
         /**
@@ -235,12 +235,12 @@ class Emulator32bit
          *
          * Format: top 32 bits register value, bottom 32 bits mask value (for xzr register)
          */
-        dword _x[NUM_REG];
+        dword _x[kNumReg];
         word _pc;                                        /* Program counter */
         word _pstate;                                    /* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
         typedef void (Emulator32bit::*InstructionFunction)(word);
-        InstructionFunction _instructions[NUM_INSTRUCTIONS];
+        InstructionFunction _instructions[kMaxInstructions];
 
         // note, stringstreams cannot use the static const for some reason
         #define _INSTR(func_name, opcode) \
@@ -257,10 +257,10 @@ class Emulator32bit
 
         inline bool check_cond(word pstate, byte cond)
         {
-            bool N = test_bit(pstate, N_FLAG);
-            bool Z = test_bit(pstate, Z_FLAG);
-            bool C = test_bit(pstate, C_FLAG);
-            bool V = test_bit(pstate, V_FLAG);
+            bool N = test_bit(pstate, kNFlagBit);
+            bool Z = test_bit(pstate, kZFlagBit);
+            bool C = test_bit(pstate, kCFlagBit);
+            bool V = test_bit(pstate, kVFlagBit);
 
             switch((ConditionCode) cond)
             {

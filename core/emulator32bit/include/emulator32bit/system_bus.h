@@ -47,7 +47,7 @@ class SystemBus
         inline void ensure_unmapped_mapping(word address)
         {
             VirtualMemory::Exception exception;
-            word ppage = address >> PAGE_PSIZE;
+            word ppage = address >> kNumPageOffsetBits;
             mmu.ensure_physical_page_mapping(mmu.current_process(), ppage, ppage, exception);
 
             if (exception.type != VirtualMemory::Exception::Type::AOK)
@@ -76,7 +76,7 @@ class SystemBus
 
         inline hword read_hword(word address)
         {
-            if ((address >> PAGE_PSIZE) == ((address + 1) >> PAGE_PSIZE))
+            if ((address >> kNumPageOffsetBits) == ((address + 1) >> kNumPageOffsetBits))
             {
                 address = translate_address(address);
                 return route_memory(address)->read_hword(address);
@@ -93,7 +93,7 @@ class SystemBus
 
         inline word read_word(word address)
         {
-            if ((address >> PAGE_PSIZE) == ((address + 3) >> PAGE_PSIZE))
+            if ((address >> kNumPageOffsetBits) == ((address + 3) >> kNumPageOffsetBits))
             {
                 address = translate_address(address);
                 return route_memory(address)->read_word(address);
@@ -139,7 +139,7 @@ class SystemBus
 
         inline void write_hword(word address, hword data)
         {
-            if ((address >> PAGE_PSIZE) == ((address + 1) >> PAGE_PSIZE))
+            if ((address >> kNumPageOffsetBits) == ((address + 1) >> kNumPageOffsetBits))
             {
                 address = translate_address(address);
                 route_memory(address)->write_hword(address, data);
@@ -158,7 +158,7 @@ class SystemBus
 
         inline void write_word(word address, word data)
         {
-            if ((address >> PAGE_PSIZE) == ((address + 3) >> PAGE_PSIZE))
+            if ((address >> kNumPageOffsetBits) == ((address + 3) >> kNumPageOffsetBits))
             {
                 address = translate_address(address);
                 route_memory(address)->write_word(address, data);
@@ -196,13 +196,13 @@ class SystemBus
             {
                 exception.type = VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS; /* so the next conditional can handle */
 
-                std::vector<byte> bytes(PAGE_SIZE);
+                std::vector<byte> bytes(kPageSize);
 
                 // EXPECTS page to be part of single memory target
-                word p_addr = exception.ppage_return << PAGE_PSIZE;
+                word p_addr = exception.ppage_return << kNumPageOffsetBits;
                 BaseMemory *target = route_memory(p_addr);
 
-                for (word i = 0; i < PAGE_SIZE; i++)
+                for (word i = 0; i < kPageSize; i++)
                 {
                     bytes.at(i) = target->read_byte(p_addr + i);
                 }
@@ -213,12 +213,12 @@ class SystemBus
             if (exception.type == VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS)
             {
                 /* handle exception by writing page fetched from disk to memory */
-                word paddr = exception.ppage_fetch << PAGE_PSIZE;
+                word paddr = exception.ppage_fetch << kNumPageOffsetBits;
 
                 // EXPECTS page to be part of single memory target
                 BaseMemory *target = route_memory(paddr);
 
-                for (word i = 0; i < PAGE_SIZE; i++)
+                for (word i = 0; i < kPageSize; i++)
                 {
                     target->write_byte(paddr + i, exception.disk_fetch.at(i));
                 }

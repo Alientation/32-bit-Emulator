@@ -7,12 +7,12 @@
 
 VirtualMemory::VirtualMemory(Disk *disk) :
     m_disk(disk),
-    m_freepids(0, MAX_PROCESSES),
-    m_freelist(0, NUM_PPAGES)
+    m_freepids(0, kMaxProcesses),
+    m_freelist(0, kMaxPhysicalPages)
 {
-    for (int i = 0; i < NUM_PPAGES; i++)
+    for (U32 i = 0; i < kMaxPhysicalPages; i++)
     {
-        m_physical_memory_map[i].ppage = (word) i;
+        m_physical_memory_map[i].ppage =  word(i);
     }
 }
 
@@ -361,11 +361,11 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 
 void VirtualMemory::check_vm()
 {
-    for (int i = 0; i < NUM_PPAGES; i++)
+    for (U32 i = 0; i < kMaxPhysicalPages; i++)
     {
         PhysicalPage& ppage = m_physical_memory_map[i];
 
-        EXPECT_TRUE((word) i == ppage.ppage, "Expected physical memory to match");
+        EXPECT_TRUE(word(i) == ppage.ppage, "Expected physical memory to match");
 
         if (ppage.mapped_vpages.size() > 0)
         {
@@ -406,7 +406,7 @@ void VirtualMemory::evict_ppage(word ppage, Exception& exception)
     {
         removed_entry->disk = true;
         removed_entry->diskpage = m_disk->get_free_page();
-        word tlb_addr = removed_entry->vpage & (TLB_SIZE-1);
+        word tlb_addr = removed_entry->vpage & (kMaxTLBSize-1);
         TLB_Entry& tlb_entry = tlb[tlb_addr];
         if (tlb_entry.valid && tlb_entry.ppage == ppage && tlb_entry.vpage == removed_entry->vpage) // todo, this should check for pid i think.
         {

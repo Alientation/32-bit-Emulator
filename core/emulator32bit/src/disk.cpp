@@ -58,7 +58,7 @@ void Disk::read_disk_files()
      * the write position 'tellp()' should be located at the end of the file.
      */
     std::streamsize actual_size = disk_file.tellp();
-    const std::streamsize target_size = m_npages * PAGE_SIZE;
+    const std::streamsize target_size = m_npages * kPageSize;
     if (actual_size == target_size) {
         disk_file.close();
         return;
@@ -173,8 +173,8 @@ std::vector<byte> Disk::read_page(word page)
 {
     CachePage& cpage = get_cpage(page);
 
-    std::vector<byte> data(PAGE_SIZE);
-    for (int i = 0; i < PAGE_SIZE; i++) {
+    std::vector<byte> data(kPageSize);
+    for (word i = 0; i < kPageSize; i++) {
         data.push_back(cpage.data[i]);
     }
 
@@ -201,8 +201,8 @@ dword Disk::read_val(word address, int n_bytes)
 
     /* Read from the end since the most significant byte will be located there in little endian. */
     address += n_bytes - 1;
-    word page = address >> PAGE_PSIZE;                /* Get the page address (upper bits). */
-    word offset = address & (PAGE_SIZE - 1);        /* Offset into the page (lower bits). */
+    word page = address >> kNumPageOffsetBits;                /* Get the page address (upper bits). */
+    word offset = address & (kPageSize - 1);        /* Offset into the page (lower bits). */
     CachePage& cpage = get_cpage(page);
 
     dword val = 0;
@@ -212,7 +212,7 @@ dword Disk::read_val(word address, int n_bytes)
              * Since we are reading from the end, we might go beyond the beginning of the page.
              * Correct the offset and page address appropriately when that happens.
              */
-            offset = PAGE_SIZE - 1;
+            offset = kPageSize - 1;
             page--;
             cpage = get_cpage(page);
         }
@@ -226,17 +226,17 @@ dword Disk::read_val(word address, int n_bytes)
 
 void Disk::write_page(word page, std::vector<byte> data)
 {
-    if (data.size() != PAGE_SIZE) {
+    if (data.size() != kPageSize) {
         /* We expect to write a full page to disk. */
         throw DiskWriteException("Tried to write to disk an invalid number of bytes. "
-                "Expected " + std::to_string(PAGE_SIZE) + " bytes. Got "
+                "Expected " + std::to_string(kPageSize) + " bytes. Got "
                 + std::to_string(data.size()));
         return;
     }
 
     CachePage& cpage = get_cpage(page);
     cpage.dirty = true;                             /* Mark as dirty since it is written to. */
-    for (int i = 0; i < PAGE_SIZE; i++) {
+    for (word i = 0; i < kPageSize; i++) {
         cpage.data[i] = data.at(i);
     }
 
@@ -260,14 +260,14 @@ void Disk::write_val(word address, dword val, int n_bytes)
 {
     /* TODO: Warn when n_bytes is larger than 8. */
 
-    word page = address >> PAGE_PSIZE;                /* Get the page address (upper bits). */
-    word offset = address & (PAGE_SIZE - 1);        /* Offset into the page (lower bits). */
+    word page = address >> kNumPageOffsetBits;                /* Get the page address (upper bits). */
+    word offset = address & (kPageSize - 1);        /* Offset into the page (lower bits). */
     CachePage& cpage = get_cpage(page);
     cpage.dirty = true;
 
     /* Write the bytes in little endian. */
     for (int i = 0; i < n_bytes; i++) {
-        if (offset == PAGE_SIZE) {
+        if (offset == kPageSize) {
             /*
              * We might go beyond the end of the page since we are incrementing the address.
              * Correct the offset and page address appropriately when that happens.
@@ -293,7 +293,7 @@ Disk::CachePage& Disk::get_cpage(word addr)
     }
 
     /* Bitwise AND does the same as modulus to index into table since cache size is a power of 2. */
-    CachePage& cpage = m_cache[(addr >> PAGE_PSIZE) & (AEMU_DISK_CACHE_SIZE - 1)];
+    CachePage& cpage = m_cache[(addr >> kNumPageOffsetBits) & (AEMU_DISK_CACHE_SIZE - 1)];
 
     cpage.last_acc = n_acc++;                        /* LRU information, but unused for now. */
     if (cpage.valid && cpage.page == addr) {
@@ -324,17 +324,17 @@ void Disk::write_cpage(CachePage& cpage)
     }
 
     /* Go to location of the cached page in disk so we can write to file. */
-    file.seekp(cpage.page << PAGE_PSIZE);
+    file.seekp(cpage.page << kNumPageOffsetBits);
     if (!file) {
         file.close();
         ERROR("Error seeking position in disk file");
     }
 
     std::vector<char> data;
-    for (int i = 0; i < PAGE_SIZE; i++) {
+    for (word i = 0; i < kPageSize; i++) {
         data.push_back(cpage.data[i]);
     }
-    file.write(data.data(), PAGE_SIZE);
+    file.write(data.data(), kPageSize);
 
     file.close();
     DEBUG("Successfully wrote page %u to disk.", cpage.page);
@@ -349,15 +349,15 @@ void Disk::read_cpage(CachePage& cpage)
     }
 
     /* Go to location of the page so we can read from file. */
-    file.seekg(cpage.page << PAGE_PSIZE);
+    file.seekg(cpage.page << kNumPageOffsetBits);
     if (!file) {
         file.close();
         ERROR("Error seeking position of page %u in disk file.", cpage.page);
         return;
     }
 
-    std::vector<char> buffer(PAGE_SIZE);
-    file.read(buffer.data(), PAGE_SIZE);
+    std::vector<char> buffer(kPageSize);
+    file.read(buffer.data(), kPageSize);
 
     if (!file) {
         file.close();
@@ -365,7 +365,7 @@ void Disk::read_cpage(CachePage& cpage)
         return;
     }
 
-    for (int i = 0; i < PAGE_SIZE; i++) {
+    for (word i = 0; i < kPageSize; i++) {
         cpage.data[i] = buffer[i];
     }
     file.close();
@@ -389,7 +389,7 @@ void Disk::save()
             continue;
         }
 
-        file.seekp(cpage.page << PAGE_PSIZE);
+        file.seekp(cpage.page << kNumPageOffsetBits);
         if (!file) {
             file.close();
             ERROR("Error seeking position in disk file");
@@ -397,10 +397,10 @@ void Disk::save()
         }
 
         std::vector<char> data;
-        for (int i = 0; i < PAGE_SIZE; i++) {
+        for (word i = 0; i < kPageSize; i++) {
             data.push_back(cpage.data[i]);
         }
-        file.write(data.data(), PAGE_SIZE);
+        file.write(data.data(), kPageSize);
 
         if (!file) {
             file.close();

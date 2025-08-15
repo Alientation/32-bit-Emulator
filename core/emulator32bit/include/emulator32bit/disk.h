@@ -226,7 +226,7 @@ class Disk : public BaseMemory
             word page;
 
             /// Data stored in the cache page
-            byte data[PAGE_SIZE];
+            byte data[kPageSize];
 
             /// Whether the data has been written to after bringing into cache
             bool dirty = false;

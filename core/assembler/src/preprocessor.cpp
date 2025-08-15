@@ -1,4 +1,5 @@
 #include "assembler/preprocessor.h"
+#include "emulator32bit/emulator32bit.h"
 #include "util/logger.h"
 #include "util/string_util.h"
 #include "util/vector_util.h"
@@ -702,13 +703,13 @@ void Preprocessor::cond_block(bool cond_met)
 
     if ((cond_met && !found_end_block) || (!cond_met && !found_next_block))
     {
-        DEBUG("condition=%d | endIf=%d | next_block_tok_i=%d", (int) cond_met, (int) found_end_block, (int) found_next_block);
+        DEBUG("condition=%u | endIf=%u | next_block_tok_i=%u", word(cond_met), word(found_end_block), word(found_next_block));
         ERROR("Preprocessor::cond_block() - Unclosed conditional block." );
     }
 
     if (cond_met)
     {
-        DEBUG(" | endIf=%d | next_block_tok_i=%d", (int) found_end_block, (int) found_next_block);
+        DEBUG(" | endIf=%u | next_block_tok_i=%u", word(found_end_block), word(found_next_block));
         if (found_next_block)
         {
             // remove all tokens from the next block to the endif
