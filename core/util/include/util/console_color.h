@@ -1,6 +1,4 @@
 #pragma once
-#ifndef CONSOLE_COLOR_H
-#define CONSOLE_COLOR_H
 
 #include <string>
 
@@ -37,5 +35,3 @@ namespace ccolor
     static const std::string BOLD_CYAN = "\033[96m";
     static const std::string BOLD_WHITE = "\033[97m";
 }
-
-#endif // CONSOLE_COLOR_H

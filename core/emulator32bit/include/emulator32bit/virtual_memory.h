@@ -1,6 +1,4 @@
 #pragma once
-#ifndef VIRTUAL_MEMORY_H
-#define VIRTUAL_MEMORY_H
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/disk.h"
@@ -647,5 +645,3 @@ class VirtualMemory
             return access_vpage(m_cur_ptable, vpage, exception);
         }
 };
-
-#endif /* VIRTUAL_MEMORY_H */

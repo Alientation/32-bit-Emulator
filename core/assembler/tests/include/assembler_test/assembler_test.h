@@ -1,6 +1,4 @@
 #pragma once
-#ifndef ASSEMBLER_TEST_H
-#define ASSEMBLER_TEST_H
 
 #include <gtest/gtest.h>
 #include <assembler/assembler.h>
@@ -34,5 +32,3 @@ protected:
         delete machine;
     }
 };
-
-#endif /* ASSEMBLER_TEST_H */

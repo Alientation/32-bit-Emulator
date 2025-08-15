@@ -1,5 +1,6 @@
 #pragma once
 
+#include "util/common.h"
 #include "util/types.h"
 
 /* Tests if a bit is set. */
@@ -36,10 +37,6 @@ static inline constexpr T mask_0(T val, U8 bit_i, U8 len)
 {
     return val & ~(((~U64(0)) >> (sizeof(U64) * 8 - len)) << bit_i);
 }
-
-/* TODO: This should be moved to the util library. */
-#define UNLIKELY(cond) __builtin_expect(cond, 0)
-#define LIKELY(cond) __builtin_expect(cond, 1)
 
 /* TODO: This should be moved to some header file specific to the kernel. */
 static constexpr U8 kNumPageOffsetBits = 12;

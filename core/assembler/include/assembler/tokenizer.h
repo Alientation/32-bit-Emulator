@@ -1,6 +1,4 @@
 #pragma once
-#ifndef TOKENIZER_H
-#define TOKENIZER_H
 
 #include "util/file.h"
 
@@ -274,5 +272,3 @@ class Tokenizer
         void move_past_skipped_tokens();
         void handle_token();
 };
-
-#endif /* TOKENIZER_H */

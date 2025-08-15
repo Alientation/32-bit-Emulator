@@ -1,6 +1,4 @@
 #pragma once
-#ifndef FILE_H
-#define FILE_H
 
 #include <cstdint>
 #include <filesystem>
@@ -140,6 +138,3 @@ class ByteReader
         std::vector<unsigned char>& m_bytes;
         size_t m_cur_byte = 0;
 };
-
-
-#endif /* FILE_H */

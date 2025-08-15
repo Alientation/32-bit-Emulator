@@ -1,6 +1,4 @@
 #pragma once
-#ifndef DIRECTORY_H
-#define DIRECTORY_H
 
 #include "util/file.h"
 
@@ -105,5 +103,3 @@ class Directory
         std::string m_dir_path;
 
 };
-
-#endif /* DIRECTORY_H */

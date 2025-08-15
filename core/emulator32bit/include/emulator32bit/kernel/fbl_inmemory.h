@@ -1,6 +1,4 @@
 #pragma once
-#ifndef FBL_INMEMORY_H
-#define FBL_INMEMORY_H
 
 #include "emulator32bit/emulator32bit_util.h"
 
@@ -62,8 +60,3 @@ class FBL_InMemory
             return word((uintptr_t) ptr - (uintptr_t) mem);
         }
 };
-
-
-
-
-#endif  /* FBL_INMEMORY_H */

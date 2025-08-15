@@ -1,6 +1,4 @@
 #pragma once
-#ifndef LINKER_H
-#define LINKER_H
 
 #include "assembler/object_file.h"
 
@@ -86,5 +84,3 @@ class Linker
         Token& consume(size_t& tok_i, const std::string& errorMsg = "Linker::consume() - Unexpected end of file");
         Token& consume(size_t& tok_i, const std::set<Token::Type>& expectedTypes, const std::string& errorMsg = "Linker::consume() - Unexpected token");
 };
-
-#endif /* LINKER_H */

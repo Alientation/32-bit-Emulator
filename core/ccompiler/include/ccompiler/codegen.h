@@ -1,6 +1,4 @@
 #pragma once
-#ifndef CODEGEN_H
-#define CODEGEN_H
 
 #include "ccompiler/lexer.h"
 #include "ccompiler/parser.h"
@@ -85,5 +83,3 @@ typedef struct CodegenData
 } codegen_data_t;
 
 void codegen (parser_data_t *parser, const char *output_filepath);
-
-#endif /* CODEGEN_H */

@@ -1,6 +1,4 @@
 #pragma once
-#ifndef FBL_H
-#define FBL_H
 
 #include "emulator32bit/emulator32bit_util.h"
 
@@ -172,5 +170,3 @@ class FreeBlockList
          */
         void remove (FreeBlock *node);
 };
-
-#endif /* FBL_H */

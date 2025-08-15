@@ -1,6 +1,4 @@
 #pragma once
-#ifndef PREPROCESSOR_H
-#define PREPROCESSOR_H
 
 #include "assembler/build.h"
 #include "assembler/tokenizer.h"
@@ -287,5 +285,3 @@ class Preprocessor
             {Tokenizer::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}
         };
 };
-
-#endif /* PREPROCESSOR_H */

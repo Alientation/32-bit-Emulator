@@ -1,6 +1,4 @@
 #pragma once
-#ifndef CCOMPILER_TEST_H
-#define CCOMPILER_TEST_H
 
 #include <gtest/gtest.h>
 
@@ -12,5 +10,3 @@ extern "C" {
     #include "ccompiler/parser.h"
     #include "ccompiler/stringbuffer.h"
 }
-
-#endif /* CCOMPILER_TEST_H */

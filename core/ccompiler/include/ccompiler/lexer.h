@@ -1,6 +1,4 @@
 #pragma once
-#ifndef LEXER_H
-#define LEXER_H
 
 typedef struct Token token_t;
 
@@ -53,5 +51,3 @@ void lexer_free (lexer_data_t *lexer);
 
 char *token_tostr (token_t *tok);
 void token_print (token_t *tok);
-
-#endif /* LEXER_H */

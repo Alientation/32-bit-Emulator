@@ -1,6 +1,4 @@
 #pragma once
-#ifndef ASSEMBLER_H
-#define ASSEMBLER_H
 
 #include "assembler/object_file.h"
 #include "assembler/build.h"
@@ -282,5 +280,3 @@ class Assembler
             {Tokenizer::INSTRUCTION_RET, &Assembler::_ret},
         };
 };
-
-#endif

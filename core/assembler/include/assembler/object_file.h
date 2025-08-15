@@ -1,6 +1,4 @@
 #pragma once
-#ifndef OBJECT_FILE_H
-#define OBJECT_FILE_H
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
@@ -115,5 +113,3 @@ class ObjectFile
         void disassemble(std::vector<byte>& bytes);
         void print();
 };
-
-#endif /* OBJECT_FILE_H */

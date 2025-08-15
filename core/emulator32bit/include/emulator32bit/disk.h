@@ -1,6 +1,4 @@
 #pragma once
-#ifndef DISK_H
-#define DISK_H
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
@@ -345,5 +343,3 @@ class MockDisk : public Disk
 
         void save() override;
 };
-
-#endif /* DISK_H */

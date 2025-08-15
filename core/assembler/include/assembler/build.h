@@ -1,6 +1,4 @@
 #pragma once
-#ifndef BUILD_H
-#define BUILD_H
 
 #include "util/file.h"
 #include "util/directory.h"
@@ -105,6 +103,3 @@ class Process
         std::map<std::string, FlagFunction> flags;
 
 };
-
-
-#endif

@@ -1,6 +1,4 @@
 #pragma once
-#ifndef MEMORY_H
-#define MEMORY_H
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
@@ -130,5 +128,3 @@ class ROM : public Memory
         bool save_file = false;
         File file;
 };
-
-#endif /* MEMORY_H */

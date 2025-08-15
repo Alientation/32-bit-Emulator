@@ -1,6 +1,4 @@
 #pragma once
-#ifndef TYPES_H
-#define TYPES_H
 
 #include <bitset>
 #include <iostream>
@@ -117,5 +115,3 @@ std::string to_bin_str(U16 bin);
  * @return the binary string representation of the value
  */
 std::string to_bin_str(U8 bin);
-
-#endif // TYPES_H

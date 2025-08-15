@@ -1,6 +1,4 @@
 #pragma once
-#ifndef EMULATOR32BIT_H
-#define EMULATOR32BIT_H
 
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
@@ -446,5 +444,3 @@ class Emulator32bit
 
         static constexpr word SYSREG_PSTATE = 1;
 };
-
-#endif /* EMULATOR32BIT_H */

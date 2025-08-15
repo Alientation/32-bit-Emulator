@@ -1,6 +1,4 @@
 #pragma once
-#ifndef LOGGERV2_H
-#define LOGGERV2_H
 
 #include "util/console_color.h"
 #include "util/string_util.h"
@@ -419,5 +417,3 @@ namespace logger
     #define CLOCK_END logger::clock_end();
 
 };
-
-#endif /* LOGGERV2_H */

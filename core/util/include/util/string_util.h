@@ -1,6 +1,4 @@
 #pragma once
-#ifndef STRING_UTIL_H
-#define STRING_UTIL_H
 
 #include <vector>
 #include <string>
@@ -151,5 +149,3 @@ namespace string_util
         return oss.str();
     }
 }
-
-#endif /* STRING_UTIL_H */

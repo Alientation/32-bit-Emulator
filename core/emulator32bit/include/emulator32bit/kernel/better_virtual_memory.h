@@ -1,6 +1,4 @@
 #pragma once
-#ifndef BETTER_VIRTUAL_MEMORY_H
-#define BETTER_VIRTUAL_MEMORY_H
 
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/emulator32bit_util.h"
@@ -167,8 +165,3 @@ class MMU
             return 0;
         }
 };
-
-
-
-
-#endif /* BETTER_VIRTUAL_MEMORY */

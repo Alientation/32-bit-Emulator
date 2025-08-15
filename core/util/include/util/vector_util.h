@@ -1,6 +1,4 @@
 #pragma once
-#ifndef VECTOR_UTIL_H
-#define VECTOR_UTIL_H
 
 namespace vector_util
 {
@@ -10,5 +8,3 @@ namespace vector_util
         vec.insert(vec.end(), other.begin(), other.end());
     }
 };
-
-#endif // VECTOR_UTIL_H

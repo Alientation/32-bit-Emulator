@@ -1,6 +1,4 @@
 #pragma once
-#ifndef STRINGBUFFER_H
-#define STRINGBUFFER_H
 
 #include "inttypes.h"
 
@@ -22,6 +20,3 @@ void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const 
 void stringbuffer_appendsb (stringbuffer_t *dest, const stringbuffer_t *src);
 
 void stringbuffer_clear (stringbuffer_t *stringbuffer);
-
-
-#endif /* STRINGBUFFER_H */

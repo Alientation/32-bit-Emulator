@@ -1,6 +1,4 @@
 #pragma once
-#ifndef LOAD_EXECUTABLE_H
-#define LOAD_EXECUTABLE_H
 
 #include "emulator32bit/emulator32bit.h"
 #include "util/file.h"
@@ -16,7 +14,3 @@ class LoadExecutable
 
         void load();
 };
-
-
-
-#endif /* LOAD_EXECUTABLE_H */

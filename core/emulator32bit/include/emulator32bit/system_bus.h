@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SYSTEM_BUS_H
-#define SYSTEM_BUS_H
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/disk.h"
@@ -258,5 +256,3 @@ class SystemBus
             }
         }
 };
-
-#endif /* SYSTEM_BUS */
