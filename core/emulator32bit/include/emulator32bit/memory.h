@@ -108,6 +108,7 @@ class ROM : public Memory
 {
     public:
         ROM(const byte* data, word npages, word start_page);
+        ROM(word npages, word start_page);
         ROM(File file, word npages, word start_page);
         ~ROM() override;
 
@@ -121,7 +122,7 @@ class ROM : public Memory
                 const char* what() const noexcept override;
         };
 
-        /* todo, prevent writes, have special way to flash memory */
+        /* TODO: prevent writes, have special way to flash memory */
 
 
     private:

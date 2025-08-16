@@ -4,8 +4,8 @@
 
 static const byte data[kPageSize] = {9U, 0U, 0U, 0U};
 
-TEST(ldr, offset_positive_constant) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_offset_positive_constant) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, #3]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, Emulator32bit::ADDR_OFFSET));
     cpu->set_pc(0);
@@ -20,11 +20,10 @@ TEST(ldr, offset_positive_constant) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, offset_negative_constant) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_offset_negative_constant) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, #-3]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -3, Emulator32bit::ADDR_OFFSET));
     cpu->set_pc(0);
@@ -39,11 +38,10 @@ TEST(ldr, offset_negative_constant) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, offset_reg) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_offset_reg) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, x2]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
             Emulator32bit::SHIFT_LSL, 0, Emulator32bit::ADDR_OFFSET));
@@ -61,11 +59,10 @@ TEST(ldr, offset_reg) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, offset_reg_lsl) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_offset_reg_lsl) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, x2]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
             Emulator32bit::SHIFT_LSL, 1, Emulator32bit::ADDR_OFFSET));
@@ -83,11 +80,10 @@ TEST(ldr, offset_reg_lsl) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, offset_reg_lsr) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_offset_reg_lsr) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, x2]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
             Emulator32bit::SHIFT_LSR, 1, Emulator32bit::ADDR_OFFSET));
@@ -105,11 +101,10 @@ TEST(ldr, offset_reg_lsr) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, pre_indexed) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_pre_indexed) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, #3]!
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, Emulator32bit::ADDR_PRE_INC));
     cpu->set_pc(0);
@@ -124,11 +119,10 @@ TEST(ldr, pre_indexed) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(ldr, post_indexed) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, ldr_post_indexed) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // ldr x0, [x1, #3]!
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 3, Emulator32bit::ADDR_POST_INC));
     cpu->set_pc(0);
@@ -143,5 +137,4 @@ TEST(ldr, post_indexed) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }

@@ -7,6 +7,7 @@
 
 #include <string>
 
+/* TODO: I think we can get rid of these forward declarations. They should not need to know about this emulator class. */
 class MMU;  /* Forward declare from 'better_virtual_memory.h' */
 class Timer; /* Forward declare from 'timer.h' */
 
@@ -66,8 +67,8 @@ constexpr int kMaxInstructions = 64;
 
 
 /**
- * @brief                     32 bit Emulator
- * @paragraph                Modeled off of the ARM architecture with many simplifications. A software simulated processor.
+ * @brief                   32 bit Emulator
+ * @paragraph               Modeled off of the ARM architecture with many simplifications. A software simulated processor.
  *
  */
 class Emulator32bit
@@ -151,6 +152,9 @@ class Emulator32bit
         ROM *rom;
         Disk *disk;
         VirtualMemory *mmu;
+
+        /* TODO: We should move anything to do with memory to the system bus. Ideally.. this should only talk to the system bus which will handle everything else. */
+        /* Since we probably want direct access to these individual components, we can make this class a friend. */
         SystemBus system_bus;
 
         Timer *timer;
@@ -364,9 +368,9 @@ class Emulator32bit
         _INSTR(str, 0b100111)
         _INSTR(strb, 0b101000)
         _INSTR(strh, 0b101001)
-        // _INSTR(swp, 0b101010)
-        // _INSTR(swpb, 0b101011)
-        // _INSTR(swph, 0b101100)
+        // _INSTR(nop, 0b101010)
+        // _INSTR(nop, 0b101011)
+        // _INSTR(nop, 0b101100)
         _INSTR(b, 0b101101)
         _INSTR(bl, 0b101110)
         _INSTR(bx, 0b101111)

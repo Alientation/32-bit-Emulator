@@ -44,7 +44,8 @@ Memory::~Memory()
 
 void Memory::reset()
 {
-    for (word addr = start_page << kNumPageOffsetBits; addr < get_hi_page() << kNumPageOffsetBits; addr++) {
+    for (word addr = start_page << kNumPageOffsetBits; addr < get_hi_page() << kNumPageOffsetBits; addr++)
+    {
         Memory::write_byte(addr, 0);
     }
 }
@@ -67,8 +68,18 @@ RAM::RAM(word npages, word start_page) :
 ROM::ROM(const byte* rom_data, word npages, word start_page) :
     Memory(npages, start_page)
 {
-    for (word i = 0; i < npages << kNumPageOffsetBits; i++) {
+    for (word i = 0; i < npages << kNumPageOffsetBits; i++)
+    {
         data[i] = rom_data[i];
+    }
+}
+
+ROM::ROM(word npages, word start_page) :
+    Memory(npages, start_page)
+{
+    for (word i = 0; i < npages << kNumPageOffsetBits; i++)
+    {
+        data[i] = 0;
     }
 }
 
@@ -84,13 +95,15 @@ ROM::ROM(File file, word npages, word start_page) :
         bytes.push_back(fr.read_byte());
     }
 
-    if (bytes.size() > npages << kNumPageOffsetBits) {
+    if (bytes.size() > npages << kNumPageOffsetBits)
+    {
         throw ROM_Exception("ROM File is larger than the specified ROM size " +
                 std::to_string(npages << kNumPageOffsetBits) + " bytes. Got " +
                 std::to_string(bytes.size()) + " bytes.");
     }
 
-    for (size_t i = 0; i < bytes.size(); i++) {
+    for (size_t i = 0; i < bytes.size(); i++)
+    {
         data[i] = bytes[i];
     }
 }

@@ -1,7 +1,7 @@
 #include <emulator32bit_test/emulator32bit_test.h>
 
-TEST(mul, register_mul_immediate) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, mul_register_mul_immediate) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // mul x0, x1, #9
     // x1: 2
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 0, 1, 9));
@@ -16,11 +16,10 @@ TEST(mul, register_mul_immediate) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(mul, register_mul_register) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, mul_register_mul_register) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // mul x0, x1, x2
     // x1: 2
     // x2: 4
@@ -38,11 +37,10 @@ TEST(mul, register_mul_register) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(mul, register_mul_register_shift) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, mul_register_mul_register_shift) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // mul x0, x1, x2, lsr #1
     // x1: 2
     // x2: 4
@@ -60,11 +58,10 @@ TEST(mul, register_mul_register_shift) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(mul, negative_flag) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, mul_negative_flag) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // mul x0, x1, x2
     // x1: -2
     // x2: 4
@@ -82,11 +79,10 @@ TEST(mul, negative_flag) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(mul, zero_flag) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, mul_zero_flag) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // mul x0, x1, x2
     // x1: 0
     // x2: 4
@@ -104,5 +100,4 @@ TEST(mul, zero_flag) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 1) << "Z flag should be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }

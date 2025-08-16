@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-TEST(strh, offset) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, strh_offset) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // strh x0, [x1, #3]
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 0, 1, 3, Emulator32bit::ADDR_OFFSET));
     cpu->set_pc(0);
@@ -20,11 +20,10 @@ TEST(strh, offset) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(strh, pre_indexed) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, strh_pre_indexed) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // strh x0, [x1, #3]!
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 0, 1, 3, Emulator32bit::ADDR_PRE_INC));
     cpu->set_pc(0);
@@ -41,11 +40,10 @@ TEST(strh, pre_indexed) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(strh, post_indexed) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, strh_post_indexed) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // strh x0, [x1], #3
     cpu->system_bus.write_word(0, Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 0, 1, 3, Emulator32bit::ADDR_POST_INC));
     cpu->set_pc(0);
@@ -62,5 +60,4 @@ TEST(strh, post_indexed) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }

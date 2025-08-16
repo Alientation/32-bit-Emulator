@@ -4,8 +4,8 @@
 
 static const byte data[kPageSize] = {0x07, 0x16, 0x25, 0x34};
 
-TEST(swp, basic) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, data, 1, 1);
+TEST_F(EmulatorFixture, swp_basic) {
+    cpu = new(cpu) Emulator32bit(1, 0, data, 1, 1);
     // swp x0, x1, [x2]
     cpu->system_bus.write_word(0, Emulator32bit::asm_atomic(0, 1, 2, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP));
     cpu->set_pc(0);
@@ -23,5 +23,4 @@ TEST(swp, basic) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }

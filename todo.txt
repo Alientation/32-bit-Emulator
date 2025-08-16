@@ -72,3 +72,5 @@
 [ ] Add a preprocessor flag that can be added to disable debug prints
     - Or only enable on the debug build
 [ ] Allow testing individual subdirectories in cmake target
+[ ] Explore reducing compilation time
+    - Examine preprocessed output: https://gcc.gnu.org/onlinedocs/gcc/Developer-Options.html#index-save-temps

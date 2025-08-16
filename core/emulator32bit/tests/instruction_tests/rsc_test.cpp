@@ -1,7 +1,7 @@
 #include <emulator32bit_test/emulator32bit_test.h>
 
-TEST(rsc, register_rsc_immediate) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_register_rsc_immediate) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, #11
     // x1: 9
     // carry: 1
@@ -18,11 +18,10 @@ TEST(rsc, register_rsc_immediate) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, register_rsc_register) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_register_rsc_register) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: 9
     // x2: 11
@@ -42,11 +41,10 @@ TEST(rsc, register_rsc_register) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "operation should not alter C flag";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, negative_flag) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_negative_flag) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: 2
     // x2: 2
@@ -66,11 +64,10 @@ TEST(rsc, negative_flag) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, zero_flag) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_zero_flag) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: 1
     // x2: 2
@@ -90,11 +87,10 @@ TEST(rsc, zero_flag) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 1) << "Z flag should be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, carry_flag_1) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_carry_flag_1) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: -2
     // x2: -2
@@ -114,11 +110,10 @@ TEST(rsc, carry_flag_1) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, carry_flag_2) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_carry_flag_2) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: -2
     // x2: 2
@@ -138,11 +133,10 @@ TEST(rsc, carry_flag_2) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 0) << "operation should not cause V flag to be set";
-    delete cpu;
 }
 
-TEST(rsc, overflow_flag__positive_to_negative) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_overflow_flag__positive_to_negative) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: -2
     // x2: (1<<31)-1
@@ -162,11 +156,10 @@ TEST(rsc, overflow_flag__positive_to_negative) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 1) << "V flag should be set";
-    delete cpu;
 }
 
-TEST(rsc, overflow_flag__negative_to_positive) {
-    Emulator32bit *cpu = new Emulator32bit(1, 0, {}, 0, 1);
+TEST_F(EmulatorFixture, rsc_overflow_flag__negative_to_positive) {
+    cpu = new(cpu) Emulator32bit(1, 0, {}, 0, 1);
     // rsc x0, x1, x2
     // x1: 0
     // x2: 1<<31
@@ -186,5 +179,4 @@ TEST(rsc, overflow_flag__negative_to_positive) {
     EXPECT_EQ(cpu->get_flag(kZFlagBit), 0) << "operation should not cause Z flag to be set";
     EXPECT_EQ(cpu->get_flag(kCFlagBit), 0) << "operation should not cause C flag to be set";
     EXPECT_EQ(cpu->get_flag(kVFlagBit), 1) << "V flag should be set";
-    delete cpu;
 }
