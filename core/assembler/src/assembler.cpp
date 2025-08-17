@@ -17,7 +17,7 @@ Assembler::Assembler (const Process *process, const File processed_file,
     if (output_path.empty ())
     {
         m_outputFile =
-            File (m_inputFile.get_name (), OBJECT_EXTENSION, processed_file.get_dir (), true);
+            File (m_inputFile.get_name (), OBJECT_EXTENSION, processed_file.get_dir_str (), true);
     }
     else
     {

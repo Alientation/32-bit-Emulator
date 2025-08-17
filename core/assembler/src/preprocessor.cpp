@@ -79,7 +79,7 @@ Preprocessor::Preprocessor (Process *process, const File &input_file,
     if (output_file_path.empty ())
     {
         m_output_file =
-            File (m_input_file.get_name (), PROCESSED_EXTENSION, m_input_file.get_dir (), true);
+            File (m_input_file.get_name (), PROCESSED_EXTENSION, m_input_file.get_dir_str (), true);
     }
     else
     {
@@ -272,8 +272,8 @@ void Preprocessor::_include ()
     {
         // local include
         std::string loc_path = tokenizer.consume ().value;
-        loc_path =
-            m_input_file.get_dir () + File::SEPARATOR + loc_path.substr (1, loc_path.length () - 2);
+        loc_path = m_input_file.get_dir_str () + File::SEPARATOR
+                   + loc_path.substr (1, loc_path.length () - 2);
         full_path_from_working_dir = trim_dir_path (loc_path);
     }
     else

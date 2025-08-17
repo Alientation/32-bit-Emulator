@@ -251,7 +251,7 @@ void Process::preprocess ()
         if (!file.exists ())
         {
             WARN ("File %s does not exist.", file.get_path ().c_str ());
-            Directory dir (file.get_dir ());
+            Directory dir (file.get_dir_str ());
             if (dir.exists ())
             {
                 DEBUG ("But it's parent directory exists at %s with files",

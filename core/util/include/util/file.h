@@ -46,7 +46,7 @@ class File
     std::string get_extension () const;
     std::string get_path () const;
     std::string get_abs_path () const;
-    std::string get_dir () const;
+    std::string get_dir_str () const;
     int get_size () const;
     bool exists () const;
     bool create ();

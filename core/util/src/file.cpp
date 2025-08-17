@@ -180,7 +180,7 @@ std::string File::get_abs_path () const
  *
  * @return the directory of the file
  */
-std::string File::get_dir () const
+std::string File::get_dir_str () const
 {
     return m_dir;
 }
