@@ -49,10 +49,10 @@ TEST (fbl, in_order)
     ASSERT_EQ (fbl.size (), 4);
 }
 
-TEST(fbl, out_of_order)
+TEST (fbl, out_of_order)
 {
     const int MEM_SIZE = 4;
-    FreeBlockList fbl(0, MEM_SIZE);
+    FreeBlockList fbl (0, MEM_SIZE);
 
     ASSERT_FALSE (fbl.empty ());
 
@@ -62,7 +62,7 @@ TEST(fbl, out_of_order)
     word b4 = fbl.get_free_block (1);
 
     /* Cannot assume order, that is implementation dependent */
-    std::vector <word> sort;
+    std::vector<word> sort;
     sort.push_back (b1);
     sort.push_back (b2);
     sort.push_back (b3);

@@ -1,0 +1,40 @@
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Pointer alignment
+PointerAlignment: Right
+
+# Space settings
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: Always
+SpaceAfterCStyleCast: true
+SpaceAfterTemplateKeyword: false
+SeparateDefinitionBlocks: Always
+SpacesInContainerLiterals: true
+
+# Line breaking
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Allman
+AlwaysBreakTemplateDeclarations: Yes
+BreakConstructorInitializers: AfterColon
+PackConstructorInitializers: Never
+ColumnLimit: 100
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# Inline Comments
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 2
+ReflowComments: false
+CommentPragmas: "^ IWYU pragma:"
+
+# Header includes
+SortIncludes: true

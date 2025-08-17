@@ -1,11 +1,11 @@
 #pragma once
 
 #include <bitset>
-#include <iostream>
 #include <iomanip>
-#include <util/console_color.h>
+#include <iostream>
 #include <sstream>
 #include <stdint.h>
+#include <util/console_color.h>
 
 // Machine integer types.
 using dword = uint64_t;
@@ -29,10 +29,10 @@ using S32 = int32_t;
 using S16 = int16_t;
 using S8 = int8_t;
 
-static constexpr U8 kNumDwordBits = sizeof(dword) << 3;
-static constexpr U8 kNumWordBits = sizeof(word) << 3;
-static constexpr U8 kNumHwordBits = sizeof(hword) << 3;
-static constexpr U8 kNumByteBits = sizeof(byte) << 3;
+static constexpr U8 kNumDwordBits = sizeof (dword) << 3;
+static constexpr U8 kNumWordBits = sizeof (word) << 3;
+static constexpr U8 kNumHwordBits = sizeof (hword) << 3;
+static constexpr U8 kNumByteBits = sizeof (byte) << 3;
 
 static constexpr const char *kBinaryPrefix = "0b";
 static constexpr const char *kHexPrefix = "0x";
@@ -44,7 +44,7 @@ static constexpr const char *kHexPrefix = "0x";
  * @param digits the number of hexadecimal digits to output
  * @return the hexadecimal string representation of the value
  */
-std::string to_hex_str(U64 hex, int digits = 16);
+std::string to_hex_str (U64 hex, int digits = 16);
 
 /**
  * Converts a 32 bit value into hexadecimal string representation
@@ -52,7 +52,7 @@ std::string to_hex_str(U64 hex, int digits = 16);
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-std::string to_hex_str(U32 hex);
+std::string to_hex_str (U32 hex);
 
 /**
  * Converts a 16 bit value into hexadecimal string representation
@@ -60,7 +60,7 @@ std::string to_hex_str(U32 hex);
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-std::string to_hex_str(U16 hex);
+std::string to_hex_str (U16 hex);
 
 /**
  * Converts an 8 bit value into hexadecimal string representation
@@ -68,8 +68,7 @@ std::string to_hex_str(U16 hex);
  * @param hex the value to convert
  * @return the hexadecimal string representation of the value
  */
-std::string to_hex_str(U8 hex);
-
+std::string to_hex_str (U8 hex);
 
 /**
  * Pretty stringifies a value by bolding the digits and graying out the leading zeros
@@ -77,12 +76,12 @@ std::string to_hex_str(U8 hex);
  * @param string the string to pretty stringify
  * @return the pretty stringified value
  */
-std::string color_val_str(std::string string);
+std::string color_val_str (std::string string);
 
-std::string to_color_hex_str(U64 hex, int digits = 16);
-std::string to_color_hex_str(U32 hex);
-std::string to_color_hex_str(U16 hex);
-std::string to_color_hex_str(U8 hex);
+std::string to_color_hex_str (U64 hex, int digits = 16);
+std::string to_color_hex_str (U32 hex);
+std::string to_color_hex_str (U16 hex);
+std::string to_color_hex_str (U8 hex);
 
 /**
  * Converts a 64 bit value into binary string representation
@@ -90,7 +89,7 @@ std::string to_color_hex_str(U8 hex);
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-std::string to_bin_str(U64 bin);
+std::string to_bin_str (U64 bin);
 
 /**
  * Converts a 32 bit value into binary string representation
@@ -98,7 +97,7 @@ std::string to_bin_str(U64 bin);
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-std::string to_bin_str(U32 bin);
+std::string to_bin_str (U32 bin);
 
 /**
  * Converts a 16 bit value into binary string representation
@@ -106,7 +105,7 @@ std::string to_bin_str(U32 bin);
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-std::string to_bin_str(U16 bin);
+std::string to_bin_str (U16 bin);
 
 /**
  * Converts an 8 bit value into binary string representation
@@ -114,4 +113,4 @@ std::string to_bin_str(U16 bin);
  * @param bin the value to convert
  * @return the binary string representation of the value
  */
-std::string to_bin_str(U8 bin);
+std::string to_bin_str (U8 bin);

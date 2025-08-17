@@ -11,20 +11,20 @@
  */
 class Timer
 {
-    public:
-        Timer(Emulator32bit *processor);
+  public:
+    Timer (Emulator32bit *processor);
 
-        inline void tick()
-        {
-            clock++;
-        }
+    inline void tick ()
+    {
+        clock++;
+    }
 
-        inline unsigned long long time()
-        {
-            return clock;
-        }
+    inline unsigned long long time ()
+    {
+        return clock;
+    }
 
-    private:
-        Emulator32bit *processor;
-        unsigned long long clock = 0;
+  private:
+    Emulator32bit *processor;
+    unsigned long long clock = 0;
 };

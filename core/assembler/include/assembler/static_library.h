@@ -5,5 +5,5 @@
 
 #include <vector>
 
-void WriteStaticLibrary(std::vector<File>& objs, File out);
-void ReadStaticLibrary(std::vector<ObjectFile>& objs, File in);
+void WriteStaticLibrary (std::vector<File> &objs, File out);
+void ReadStaticLibrary (std::vector<ObjectFile> &objs, File in);

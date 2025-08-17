@@ -15,48 +15,48 @@
  */
 class FBL_InMemory
 {
-    public:
-        FBL_InMemory(byte *mem, word mem_start, word mem_size, word block_size);
+  public:
+    FBL_InMemory (byte *mem, word mem_start, word mem_size, word block_size);
 
-        class Exception : public std::exception
-        {
-            protected:
-                std::string message;
+    class Exception : public std::exception
+    {
+      protected:
+        std::string message;
 
-            public:
-                Exception(const std::string& msg);
+      public:
+        Exception (const std::string &msg);
 
-                const char* what() const noexcept override;
-        };
+        const char *what () const noexcept override;
+    };
 
-        word get_free_block();
-        void return_block(word block_addr);
+    word get_free_block ();
+    void return_block (word block_addr);
 
-        bool empty();
-        int nfree();
-        int nnodes();
-        void verify();
+    bool empty ();
+    int nfree ();
+    int nnodes ();
+    void verify ();
 
-    private:
-        struct FreeBlock
-        {
-            word len;
-            FreeBlock *next = nullptr;
-            FreeBlock *prev = nullptr;
-        };
+  private:
+    struct FreeBlock
+    {
+        word len;
+        FreeBlock *next = nullptr;
+        FreeBlock *prev = nullptr;
+    };
 
-        byte *mem;
-        word mem_start;
-        word mem_size;
-        word block_size;
+    byte *mem;
+    word mem_start;
+    word mem_size;
+    word block_size;
 
-        struct FreeBlock *head = nullptr;
+    struct FreeBlock *head = nullptr;
 
-        struct FreeBlock* insert(word block);
-        void coalesce(FreeBlock *first);
+    struct FreeBlock *insert (word block);
+    void coalesce (FreeBlock *first);
 
-        inline word ptr_to_mem_index(void *ptr)
-        {
-            return word((uintptr_t) ptr - (uintptr_t) mem);
-        }
+    inline word ptr_to_mem_index (void *ptr)
+    {
+        return word ((uintptr_t) ptr - (uintptr_t) mem);
+    }
 };

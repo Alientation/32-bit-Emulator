@@ -1,32 +1,27 @@
 #include "emulator32bit/memory.h"
 
-#define UNUSED(x) (void)(x)
+#include "util/common.h"
 
-
-BaseMemory::BaseMemory(word npages, word start_page) :
-    npages(npages),
-    start_page(start_page),
-    start_addr(start_page << kNumPageOffsetBits)
+BaseMemory::BaseMemory (word npages, word start_page) :
+    npages (npages),
+    start_page (start_page),
+    start_addr (start_page << kNumPageOffsetBits)
 {
-
 }
 
-BaseMemory::~BaseMemory()
+BaseMemory::~BaseMemory ()
 {
-
 }
 
-
-Memory::Memory(word npages, word start_page) :
-    BaseMemory(npages, start_page),
-    data(new byte[(npages << kNumPageOffsetBits)])
+Memory::Memory (word npages, word start_page) :
+    BaseMemory (npages, start_page),
+    data (new byte[(npages << kNumPageOffsetBits)])
 {
-
 }
 
-Memory::Memory(Memory& other) :
-    BaseMemory(other.npages, other.start_page),
-    data(new byte[(other.npages << kNumPageOffsetBits)])
+Memory::Memory (Memory &other) :
+    BaseMemory (other.npages, other.start_page),
+    data (new byte[(other.npages << kNumPageOffsetBits)])
 {
     for (word i = 0; i < (npages << kNumPageOffsetBits); i++)
     {
@@ -34,7 +29,7 @@ Memory::Memory(Memory& other) :
     }
 }
 
-Memory::~Memory()
+Memory::~Memory ()
 {
     if (data)
     {
@@ -42,31 +37,29 @@ Memory::~Memory()
     }
 }
 
-void Memory::reset()
+void Memory::reset ()
 {
-    for (word addr = start_page << kNumPageOffsetBits; addr < get_hi_page() << kNumPageOffsetBits; addr++)
+    for (word addr = start_page << kNumPageOffsetBits; addr < get_hi_page () << kNumPageOffsetBits;
+         addr++)
     {
-        Memory::write_byte(addr, 0);
+        Memory::write_byte (addr, 0);
     }
 }
-
 
 /*
     RAM
 */
-RAM::RAM(word npages, word start_page) :
-    Memory(npages, start_page)
+RAM::RAM (word npages, word start_page) :
+    Memory (npages, start_page)
 {
-
 }
-
 
 /*
     ROM
 */
 
-ROM::ROM(const byte* rom_data, word npages, word start_page) :
-    Memory(npages, start_page)
+ROM::ROM (const byte *rom_data, word npages, word start_page) :
+    Memory (npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; i++)
     {
@@ -74,8 +67,8 @@ ROM::ROM(const byte* rom_data, word npages, word start_page) :
     }
 }
 
-ROM::ROM(word npages, word start_page) :
-    Memory(npages, start_page)
+ROM::ROM (word npages, word start_page) :
+    Memory (npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; i++)
     {
@@ -83,51 +76,50 @@ ROM::ROM(word npages, word start_page) :
     }
 }
 
-ROM::ROM(File file, word npages, word start_page) :
-    Memory(npages, start_page),
-    save_file(true),
-    file(file)
+ROM::ROM (File file, word npages, word start_page) :
+    Memory (npages, start_page),
+    save_file (true),
+    file (file)
 {
-    FileReader fr(file, std::ios::binary | std::ios::in);
+    FileReader fr (file, std::ios::binary | std::ios::in);
     std::vector<byte> bytes;
-    while (fr.has_next_byte())
+    while (fr.has_next_byte ())
     {
-        bytes.push_back(fr.read_byte());
+        bytes.push_back (fr.read_byte ());
     }
 
-    if (bytes.size() > npages << kNumPageOffsetBits)
+    if (bytes.size () > npages << kNumPageOffsetBits)
     {
-        throw ROM_Exception("ROM File is larger than the specified ROM size " +
-                std::to_string(npages << kNumPageOffsetBits) + " bytes. Got " +
-                std::to_string(bytes.size()) + " bytes.");
+        throw ROM_Exception ("ROM File is larger than the specified ROM size "
+                             + std::to_string (npages << kNumPageOffsetBits) + " bytes. Got "
+                             + std::to_string (bytes.size ()) + " bytes.");
     }
 
-    for (size_t i = 0; i < bytes.size(); i++)
+    for (size_t i = 0; i < bytes.size (); i++)
     {
         data[i] = bytes[i];
     }
 }
 
-ROM::~ROM()
+ROM::~ROM ()
 {
     if (save_file)
     {
         // save data to file
-        FileWriter fw(file, std::ios::out | std::ios::binary);
+        FileWriter fw (file, std::ios::out | std::ios::binary);
         for (word i = 0; i < npages << kNumPageOffsetBits; i++)
         {
-            fw.write(data[i]);
+            fw.write (data[i]);
         }
     }
 }
 
-ROM::ROM_Exception::ROM_Exception(std::string msg) :
-    message(msg)
+ROM::ROM_Exception::ROM_Exception (std::string msg) :
+    message (msg)
 {
-
 }
 
-const char* ROM::ROM_Exception::what() const noexcept
+const char *ROM::ROM_Exception::what () const noexcept
 {
-    return message.c_str();
+    return message.c_str ();
 }

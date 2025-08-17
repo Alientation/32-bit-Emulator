@@ -1,9 +1,10 @@
 #pragma once
 
 #include "emulator32bit/emulator32bit_util.h"
-#include "emulator32bit/memory.h"
 #include "emulator32bit/fbl.h"
+#include "emulator32bit/memory.h"
 #include "util/file.h"
+
 
 #include <fstream>
 
@@ -41,40 +42,40 @@
  */
 class Disk : public BaseMemory
 {
-    public:
-        /**
+  public:
+    /**
          * @brief             Construct a new Disk object.
          *
          * @param diskfile     the file the disk memory is saved in.
          * @param npages     the number of pages the disk should have.
          */
-        Disk(File diskfile, word npages, word lo_page);
-        Disk();
-        virtual ~Disk();
+    Disk (File diskfile, word npages, word lo_page);
+    Disk ();
+    virtual ~Disk ();
 
-        class DiskReadException : public std::exception
-        {
-            private:
-                std::string message;
+    class DiskReadException : public std::exception
+    {
+      private:
+        std::string message;
 
-            public:
-                DiskReadException(const std::string& msg);
+      public:
+        DiskReadException (const std::string &msg);
 
-                const char* what() const noexcept override;
-        };
+        const char *what () const noexcept override;
+    };
 
-        class DiskWriteException : public std::exception
-        {
-            private:
-                std::string message;
+    class DiskWriteException : public std::exception
+    {
+      private:
+        std::string message;
 
-            public:
-                DiskWriteException(const std::string& msg);
+      public:
+        DiskWriteException (const std::string &msg);
 
-                const char* what() const noexcept override;
-        };
+        const char *what () const noexcept override;
+    };
 
-        /**
+    /**
          * @brief             Get a free disk page that is not currently in use.
          *
          *                     The disk page is not guaranteed to be zero initialized.
@@ -85,9 +86,9 @@ class Disk : public BaseMemory
          *
          * @return             Address of the free page (the upper bits of a full 32 bit address).
          */
-        virtual word get_free_page();
+    virtual word get_free_page ();
 
-        /**
+    /**
          * @brief             Returns a disk page back into the free page list.
          *
          * @todo             TODO: The returned exception should be a disk exception to wrap the
@@ -98,17 +99,17 @@ class Disk : public BaseMemory
          * @param exception    Exception thrown if the return fails TODO: specify what exceptions can
          *                     occur.
          */
-        virtual void return_page(word page);
+    virtual void return_page (word page);
 
-        /**
+    /**
          * @brief             Returns all disk pages back to the free page list.
          *
          *                     This will essentially wipe the disk fully, though the contents of the
          *                     pages that were in disk will still remain in disk memory.
          */
-        virtual void return_all_pages();
+    virtual void return_all_pages ();
 
-        /**
+    /**
          * @brief             Return all pages in a specific range.
          *
          *                     Pages that are in the range page_lo..page_hi, inclusive, but are already
@@ -122,9 +123,9 @@ class Disk : public BaseMemory
          * @param page_lo     Lowest page address to return back to disk.
          * @param page_hi     Highest page address to return back to disk.
          */
-        virtual void return_pages(word page_lo, word page_hi);
+    virtual void return_pages (word page_lo, word page_hi);
 
-        /**
+    /**
          * @brief             Reads a disk page.
          *
          *                     Page data is returned as a vector of @ref PAGE_SIZE bytes,
@@ -135,9 +136,9 @@ class Disk : public BaseMemory
          *                     occur.
          * @return             Page data corresponding to the page address.
          */
-        virtual std::vector<byte> read_page(word page);
+    virtual std::vector<byte> read_page (word page);
 
-        /**
+    /**
          * @brief             Reads a byte from disk.
          *
          * @param address     Full address of byte to read.
@@ -145,9 +146,9 @@ class Disk : public BaseMemory
          *                     occur.
          * @return             Byte located at the address in disk.
          */
-        byte read_byte(word address) override;
+    byte read_byte (word address) override;
 
-        /**
+    /**
          * @brief             Reads a half word (2 bytes) from disk.
          *
          * @param address     Full address of hword to read.
@@ -155,9 +156,9 @@ class Disk : public BaseMemory
          *                     occur.
          * @return             Half word located at the address in disk in little endian format.
          */
-        hword read_hword(word address) override;
+    hword read_hword (word address) override;
 
-        /**
+    /**
          * @brief             Reads a word (4 bytes) from disk.
          *
          * @param address     Full address of word to read.
@@ -165,9 +166,9 @@ class Disk : public BaseMemory
          *                     occur.
          * @return             Word located at the address in disk in little endian format.
          */
-        word read_word(word address) override;
+    word read_word (word address) override;
 
-        /**
+    /**
          * @brief             Write a page to disk.
          *
          *                     Page data is given as a vector of @ref PAGE_SIZE bytes, where the first
@@ -177,9 +178,9 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-        virtual void write_page(word page, std::vector<byte>);
+    virtual void write_page (word page, std::vector<byte>);
 
-        /**
+    /**
          * @brief             Writes a byte to disk.
          *
          * @param address     Full address of the location to write the byte to.
@@ -187,9 +188,9 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-        void write_byte(word address, byte data) override;
+    void write_byte (word address, byte data) override;
 
-        /**
+    /**
          * @brief             Writes a half word (2 bytes) to disk in little endian format.
          *
          * @param address     Full address of the location to write the half word to.
@@ -197,9 +198,9 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-        void write_hword(word address, hword data) override;
+    void write_hword (word address, hword data) override;
 
-        /**
+    /**
          * @brief             Writes a word (4 bytes) to disk in little endian format.
          *
          * @param address     Full address of the location to write the word to.
@@ -207,45 +208,47 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-        void write_word(word address, word data) override;
+    void write_word (word address, word data) override;
 
-        /**
+    /**
          * @brief             Saves the simulated disk to file.
          *
          *                     Saves both the disk file and free page management to file.
          */
-        virtual void save();
-    private:
-        /**
+    virtual void save ();
+
+  private:
+    /**
          * @brief             Disk page located in cache
          */
-        struct CachePage {
-            /// Disk page address that the cache page refers to
-            word page;
+    struct CachePage
+    {
+        /// Disk page address that the cache page refers to
+        word page;
 
-            /// Data stored in the cache page
-            byte data[kPageSize];
+        /// Data stored in the cache page
+        byte data[kPageSize];
 
-            /// Whether the data has been written to after bringing into cache
-            bool dirty = false;
+        /// Whether the data has been written to after bringing into cache
+        bool dirty = false;
 
-            /// Whether the cache page refers to an actual disk page or is an empty page
-            bool valid = false;
+        /// Whether the cache page refers to an actual disk page or is an empty page
+        bool valid = false;
 
-            /// Not yet used, but for caches with multi-page lines can use for page eviction
-            long long last_acc;
-        };
+        /// Not yet used, but for caches with multi-page lines can use for page eviction
+        long long last_acc;
+    };
 
-        File m_diskfile;                        ///< Where the contents of disk memory are stored at
-        File m_diskfile_manager;                ///< Where the disk memory manager data is stored at
-        std::streamsize m_npages;                ///< Number of pages the disk memory contains
-        CachePage* m_cache;                        ///< Disk cache for read/write optimization
+    File m_diskfile;           ///< Where the contents of disk memory are stored at
+    File m_diskfile_manager;   ///< Where the disk memory manager data is stored at
+    std::streamsize m_npages;  ///< Number of pages the disk memory contains
+    CachePage *m_cache;        ///< Disk cache for read/write optimization
 
-        long long n_acc = 0;                    ///< Used for LRU calculations, number of accesses
+    long long n_acc = 0;       ///< Used for LRU calculations, number of accesses
 
-        FreeBlockList m_free_list;                ///< Disk manager, which pages are free to use
+    FreeBlockList m_free_list; ///< Disk manager, which pages are free to use
 
-        /**
+    /**
          * @brief             Reads a specified size little endian value from disk.
          *
          *                     Interfaced with by the read byte/hword/word public functions. Note,
@@ -260,9 +263,9 @@ class Disk : public BaseMemory
          *                     exceptions can occur.
          * @return             value read.
          */
-        dword read_val(word address, int n_bytes);
+    dword read_val (word address, int n_bytes);
 
-        /**
+    /**
          * @brief             Writes a little endian value of specified size to disk.
          *
          *                     Interfaced with by the write byte/hword/word public functions. Note,
@@ -277,9 +280,9 @@ class Disk : public BaseMemory
          * @param exception WriteException thrown if write fails. TODO: Specify what
          *                     exceptions can occur.
          */
-        void write_val(word address, dword val, int n_bytes);
+    void write_val (word address, dword val, int n_bytes);
 
-        /**
+    /**
          * @brief             Accesses a cache page.
          *
          *                     Fetches the corresponding cache page of the disk page requested,
@@ -288,34 +291,34 @@ class Disk : public BaseMemory
          * @param addr        Address to fetch the page of.
          * @return             Reference to the cache page.
          */
-        CachePage& get_cpage(word addr);
+    CachePage &get_cpage (word addr);
 
-        /**
+    /**
          * @brief             Writes a cache page to disk.
          *
          *                     Writes to disk even if the cache page is not valid or dirty.
          *
          * @param cpage     Reference to the cache page to write.
          */
-        void write_cpage(CachePage& cpage);
+    void write_cpage (CachePage &cpage);
 
-        /**
+    /**
          * @brief            Reads a cache page from disk.
          *
          * @param cpage     Reference to cache page to read to.
          */
-        void read_cpage(CachePage& cpage);
+    void read_cpage (CachePage &cpage);
 
-        /**
+    /**
          * @brief             Reads and sets up the simulated disk from save files.
          */
-        void read_disk_files();
+    void read_disk_files ();
 
-        /**
+    /**
          * @brief             Reads and sets up the disk free page list from save file.
          * @note             Called from @ref Disk::read_disk_files()
          */
-        void read_disk_manager_file();
+    void read_disk_manager_file ();
 };
 
 /**
@@ -323,23 +326,23 @@ class Disk : public BaseMemory
  */
 class MockDisk : public Disk
 {
-    public:
-        MockDisk();
+  public:
+    MockDisk ();
 
-        word get_free_page() override;
-        void return_page(word page) override;
-        void return_all_pages() override;
-        void return_pages(word p_addr_lo, word p_addr_hi) override;
+    word get_free_page () override;
+    void return_page (word page) override;
+    void return_all_pages () override;
+    void return_pages (word p_addr_lo, word p_addr_hi) override;
 
-        std::vector<byte> read_page(word page) override;
-        byte read_byte(word address) override;
-        hword read_hword(word addressn) override;
-        word read_word(word address) override;
+    std::vector<byte> read_page (word page) override;
+    byte read_byte (word address) override;
+    hword read_hword (word addressn) override;
+    word read_word (word address) override;
 
-        void write_page(word page, std::vector<byte>) override;
-        void write_byte(word address, byte data) override;
-        void write_hword(word address, hword data) override;
-        void write_word(word address, word data) override;
+    void write_page (word page, std::vector<byte>) override;
+    void write_byte (word address, byte data) override;
+    void write_hword (word address, hword data) override;
+    void write_word (word address, word data) override;
 
-        void save() override;
+    void save () override;
 };
