@@ -116,6 +116,10 @@ class ObjectFile
     int add_section (const std::string &section_name, SectionHeader::Type type);
     std::string get_symbol_name (int symbol);
 
+    word get_text_section_length ();
+    word get_data_section_length ();
+    word get_bss_section_length ();
+
   private:
     enum class State
     {

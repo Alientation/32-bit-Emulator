@@ -10,53 +10,57 @@
 #include <string>
 #include <unordered_map>
 
-/// @brief          Assembler to convert a basm assembly file into an object file.
-///                 Specific to an assembly file, cannot reassemble this or another file.
+/// @brief              Assembler to convert a basm assembly file into an object file.
+///                     Specific to an assembly file, cannot reassemble this or another file.
 ///
-/// @todo           TODO: Add assembly documentation
+/// @todo               TODO: Add assembly documentation
 class Assembler
 {
   public:
-    /// @brief      State of the Assembler.
+    /// @brief          State of the Assembler.
     enum State
     {
-        /// @brief  Assembler has not started.
+        /// @brief      Assembler has not started.
         NOT_ASSEMBLED,
 
-        /// @brief  Assembler has begun, but has not finished.
+        /// @brief      Assembler has begun, but has not finished.
         ASSEMBLING,
 
-        /// @brief  Assembler has finished successfully and produced an object file.
+        /// @brief      Assembler has finished successfully and produced an object file.
         ASSEMBLED,
 
-        /// @brief  Assembler encountered a warning but produced a valid object file.
+        /// @brief      Assembler encountered a warning but produced a valid object file.
         ASSEMBLER_WARNING,
 
-        /// @brief  Assembler encountered an error and did not produce a valid object file.
+        /// @brief      Assembler encountered an error and did not produce a valid object file.
         ASSEMBLER_ERROR,
     };
 
-    /// @brief TODO:
-    /// @param process
-    /// @param processed_file
-    /// @param output_path
-    Assembler (Process *process, File processed_file, const std::string &output_path = "");
+    /// @brief          Initializes the assembler and creates the output object file.
+    /// @param process          Build process.
+    /// @param processed_file   Input file to process. Post preprocessor.
+    /// @param output_path      Output file path to write the object file to. If left empty, creates
+    ///                         the object file as the same path as the input file with the .bo
+    ///                         extension.
+    Assembler (const Process *process, const File processed_file, const std::string &output_path = "");
 
-    /// @brief TODO:
+    /// @brief          Assembles the input assembly into an object file.
     void assemble ();
 
+    /// @brief          Get the output object file.
+    /// @return         The file.
     File get_output_file ();
 
-    /// @brief TODO:
-    /// @return
+    /// @brief          Get assembler state.
+    /// @return         Assembler state.
     State get_state ();
 
   private:
     /// @brief Build process container.
-    Process *m_process;
+    const Process *const m_process;
 
     /// @brief Input .bi file that will be assembled.
-    File m_inputFile;
+    const File m_inputFile;
 
     /// @brief Output .bo object file.
     File m_outputFile;

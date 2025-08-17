@@ -291,9 +291,9 @@ class Tokenizer
         Token &operator= (const Token &tok) noexcept;
         Token &operator= (Token &&tok) noexcept;
 
-        std::string to_string ();
-        bool is (const std::set<Type> &types);
-        int nlines ();
+        std::string to_string () const;
+        bool is (const std::set<Type> &types) const;
+        int nlines () const;
     };
 
     Tokenizer (File src, bool keep_comments = true);

@@ -308,8 +308,9 @@ std::string ObjectFile::get_symbol_name (int symbol)
 void ObjectFile::add_symbol (const std::string &symbol, word value,
                              SymbolTableEntry::BindingInfo binding_info, int section)
 {
+    // If symbol does not exist yet, create it.
     if (string_table.find (symbol) == string_table.end ())
-    { /* If symbol does not exist yet, create it */
+    {
         string_table[symbol] = strings.size ();
         strings.push_back (symbol);
         symbol_table[string_table[symbol]] = (SymbolTableEntry) {
@@ -661,4 +662,19 @@ void ObjectFile::print ()
         }
     }
     printf ("\n");
+}
+
+word ObjectFile::get_text_section_length ()
+{
+    return text_section.size () * 4;
+}
+
+word ObjectFile::get_data_section_length ()
+{
+    return data_section.size ();
+}
+
+word ObjectFile::get_bss_section_length ()
+{
+    return bss_section;
 }

@@ -26,7 +26,7 @@ class EmulatorFixture : public ::testing::Test
             new Disk (File (AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/disk.bin"), 32, 32);
 
         machine = new Emulator32bit (new RAM (16, 0), new ROM (*rom), new Disk (*disk));
-        long long pid = machine->system_bus->mmu->begin_process ();
+        machine->system_bus->mmu->begin_process ();
     }
 
     void TearDown () override

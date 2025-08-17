@@ -8,10 +8,12 @@
 #include <fstream>
 #include <regex>
 
-Assembler::Assembler (Process *process, File processed_file, const std::string &output_path) :
+Assembler::Assembler (const Process *process, const File processed_file,
+                      const std::string &output_path) :
     m_process (process),
     m_inputFile (processed_file)
 {
+    // Create the output object file.
     if (output_path.empty ())
     {
         m_outputFile =
@@ -27,12 +29,9 @@ Assembler::Assembler (Process *process, File processed_file, const std::string &
                                          << processed_file.get_extension ());
 
     m_state = State::NOT_ASSEMBLED;
-    m_tokens = Tokenizer::tokenize (processed_file);
-}
 
-Assembler::State Assembler::get_state ()
-{
-    return this->m_state;
+    // Convert the input file into tokens.
+    m_tokens = Tokenizer::tokenize (processed_file);
 }
 
 void Assembler::assemble ()
@@ -51,6 +50,7 @@ void Assembler::assemble ()
     // Clear the object file.
     m_outputFile.clear ();
 
+    // Add appropriate sections to the object file.
     m_obj.add_section (".text", ObjectFile::SectionHeader::Type::TEXT);
     m_obj.add_section (".data", ObjectFile::SectionHeader::Type::DATA);
     m_obj.add_section (".bss", ObjectFile::SectionHeader::Type::BSS);
@@ -64,7 +64,7 @@ void Assembler::assemble ()
     DEBUG ("Assembler::assemble() - Parsing tokens.");
     for (size_t i = 0; i < m_tokens.size ();)
     {
-        Tokenizer::Token &token = m_tokens[i];
+        const Tokenizer::Token &token = m_tokens[i];
         DEBUG ("Assembler::assemble() - Assembling token %d: %s", i, token.to_string ().c_str ());
 
         // Skip whitespace and comments.
@@ -84,25 +84,43 @@ void Assembler::assemble ()
                 break;
             }
 
-            std::string symbol =
+            // The symbol name depends on its scope level. This allows for nested scopes to have
+            // the same label names while refering to different locations in code.'
+            // Since these symbols are LOCAL binding, two symbols with the same name in two
+            // different scope blocks but at the same scope level will not conflict with each other.
+            // The prior will be overwritten and gauranteed to not be needed in the future since
+            // its scope block has already closed.
+            // However if two symbols with the same name are in the same scope block, this most
+            // likely is unintended.
+            // TODO: Warn the user if this is the case. Keep track at each scope level what are
+            // the registered labels thus far.
+            const std::string symbol =
                 token.value.substr (0, token.value.size () - 1)
                 + (m_scopes.empty () ? "" : "::SCOPE:" + std::to_string (m_scopes.back ()));
 
             // Track the offset in the section that this label is in.
             if (m_cur_section == Section::TEXT)
             {
-                m_obj.add_symbol (symbol, m_obj.text_section.size () * 4,
+                m_obj.add_symbol (symbol, m_obj.get_text_section_length (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
             }
             else if (m_cur_section == Section::DATA)
             {
-                m_obj.add_symbol (symbol, m_obj.data_section.size (),
+                m_obj.add_symbol (symbol, m_obj.get_data_section_length (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
             }
             else if (m_cur_section == Section::BSS)
             {
-                m_obj.add_symbol (symbol, m_obj.bss_section,
+                m_obj.add_symbol (symbol, m_obj.get_bss_section_length (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
+            }
+            else
+            {
+                ERROR ("Assembler::assemble() - Label %s is not located in a valid "
+                       "section. Valid sections are TEXT, DATA, and BSS",
+                       token.value.c_str ());
+                m_state = State::ASSEMBLER_ERROR;
+                break;
             }
             i++;
         }
@@ -152,6 +170,11 @@ void Assembler::assemble ()
 File Assembler::get_output_file ()
 {
     return m_outputFile;
+}
+
+Assembler::State Assembler::get_state ()
+{
+    return this->m_state;
 }
 
 void Assembler::fill_local ()

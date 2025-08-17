@@ -644,7 +644,7 @@ Tokenizer::Token &Tokenizer::Token::operator= (Token &&tok) noexcept
     return *this;
 }
 
-std::string Tokenizer::Token::to_string ()
+std::string Tokenizer::Token::to_string () const
 {
     if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE)
     {
@@ -663,12 +663,12 @@ std::string Tokenizer::Token::to_string ()
     return TYPE_TO_NAME_MAP.at (type) + ": " + value + +" (" + std::to_string (tokenize_id) + ")";
 }
 
-bool Tokenizer::Token::is (const std::set<Tokenizer::Type> &types)
+bool Tokenizer::Token::is (const std::set<Tokenizer::Type> &types) const
 {
     return types.find (type) != types.end ();
 }
 
-int Tokenizer::Token::nlines ()
+int Tokenizer::Token::nlines () const
 {
     int nlines = 1;
     for (char c : value)
