@@ -6,11 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-#define RELOCATABLE_FILE_TYPE 1
-#define EXECUTABLE_FILE_TYPE 2
-#define SHARED_OBJECT_FILE_TYPE 3
-#define EMU_32BIT_MACHINE_ID 1
-
 class ObjectFile
 {
     friend class Linker;
@@ -23,27 +18,41 @@ class ObjectFile
     void read_object_file (std::vector<byte> &bytes);
     void write_object_file (File object_file);
 
-    /**
-     * @brief           Symbols defined in this unit
-     *
-     */
+    /// @brief              Symbols defined in this unit.
     struct SymbolTableEntry
     {
-        /* TODO: This should be unsigned.. Can't have a negative index. */
-        int symbol_name;   /* index into string table */
-        word symbol_value; /* value of symbol */
+        /// @brief          Index into the string table.
+        U32 symbol_name;
+
+        /// @brief          Value of the symbol.
+        word symbol_value;
+
+        /// @brief          Binding type of the symbol. Determines how to resolve symbol references
+        ///                 during the linking process.
         enum class BindingInfo
         {
+            /// @brief      TODO:
             LOCAL = 0,
+
+            /// @brief      TODO:
             GLOBAL = 1,
+
+            /// @brief      TODO:
             WEAK = 2
-        } binding_info; /* type of symbol */
-        int section;    /* index into section table, -1 indicates no section */
+        } binding_info;
+
+        /// @brief          Index into the section table that this symbol is defined in. U32(-1)
+        ///                 indicates no section.
+        U32 section;
     };
 
+    /// @brief              Description of a section stored in the object file binary.
     struct SectionHeader
     {
-        int section_name; /* index into string table */
+        /// @brief          Index into the string table of the section name.
+        U32 section_name;
+
+        /// @brief          Type of section.
         enum class Type
         {
             UNDEFINED,
@@ -56,87 +65,214 @@ class ObjectFile
             REL_BSS,
             DEBUG,
             STRTAB,
-        } type;             /* type of section */
-        word section_start; /* start offset of section */
-        word section_size;  /* size of section in bytes */
-        word
-            entry_size; /* size of entry in section, todo this has not use imo, figure out why ELF has it listed */
+        } type;
 
+        /// @brief          Offset this section starts at in bytes.
+        word section_start;
+
+        /// @brief          Size of the section in bytes.
+        word section_size;
+
+        /// @brief          Size of an entry in the section.
+        /// @todo           TODO: Why is this necessary? ELF seems to have this but why.
+        word entry_size;
+
+        /// @brief          TODO:
         bool load_at_physical_address = false;
+
+        /// @brief          TODO:
         word address = 0;
     };
 
+    /// @brief              TODO:
     struct RelocationEntry
     {
-        word offset; /* offset from beginning of section to the symbol */
-        int symbol;  /* index into symbol table */
+        /// @brief          Offset from the beginning of the section to symbol.
+        word offset;
+
+        /// @brief          Index into symbol table.
+        U32 symbol;
+
+        /// @brief          Type of relocation.
         enum class Type
         {
+            /// @brief      Undefined.
             UNDEFINED,
+
+            /// @brief      TODO:
             R_EMU32_O_LO12,
-            R_EMU32_ADRP_HI20,  /* Format O instructions and ADRP */
+
+            /// @brief      Format O instructions and ADRP.
+            R_EMU32_ADRP_HI20,
+
+            /// @brief      TODO:
             R_EMU32_MOV_LO19,
-            R_EMU32_MOV_HI13,   /* MOV/MVN instructions */
-            R_EMU32_B_OFFSET22, /* Branch offset, +/- 24 bit value (last 2 bits are 0) */
-        } type;                 /* type of relocation */
-        word shift;             /* constant to be added to the value of the symbol */
-        size_t
-            token; /* token index that the relocation entry is used on. Used to fill local symbols */
+
+            /// @brief      MOV/MVN instructions.
+            R_EMU32_MOV_HI13,
+
+            /// @brief      Branch offset, +/- 24 bit value (last 2 bits are 0).
+            R_EMU32_B_OFFSET22,
+        } type;
+
+        /// @brief          Constant to be added to the value of symbol.
+        word shift;
+
+        /// @brief          Token index that the relocation entry is used on. Use to fill local symbols.
+        size_t token;
     };
 
     // TODO: Figure out how these sizes are calculated again.
+    /// @brief              TODO:
     static constexpr U32 kBELFHeaderSize = 24;
+
+    /// @brief              TODO:
     static constexpr U32 kSectionHeaderSize = 45;
+
+    /// @brief              TODO:
     static constexpr U32 kBSSSectionSize = 8;
+
+    /// @brief              TODO:
     static constexpr U32 kTextEntrySize = 4;
+
+    /// @brief              TODO:
     static constexpr U32 kRelocationEntrySize = 28;
+
+    /// @brief              TODO:
     static constexpr U32 kSymbolTableEntrySize = 26;
 
+    /// @brief              TODO:
+    static constexpr hword kRelocatableFileType = 1;
+
+    /// @brief              TODO:
+    static constexpr hword kExecutableFileType = 2;
+
+    /// @brief              TODO:
+    static constexpr hword kSharedObjectFileType = 3;
+
+    /// @brief              TODO:
+    static constexpr hword kEMU32MachineId = 1;
+
+    /// @brief              What binary file type this object file represents.
     hword file_type;
+
+    /// @brief              Target machine that this object file is built for.
     hword target_machine;
+
+    /// @brief              TODO:
     hword flags;
+
+    /// @brief              TODO:
     hword n_sections;
 
-    std::vector<word> text_section; /* instructions stored in .text section */
-    std::vector<byte> data_section; /* data stored in .data section */
-    word bss_section = 0;           /* size of .bss section */
-    std::unordered_map<int, SymbolTableEntry> symbol_table; /* maps string index to symbol */
-    std::vector<RelocationEntry> rel_text; /* references to symbols that need to be relocated */
-    std::vector<RelocationEntry> rel_data; /* For now, no purpose */
-    std::vector<RelocationEntry>
-        rel_bss; /* For now, no purpose, this won't ever be used, get rid of this */
-    /* Possbly in future add separate string table for section headers */
-    /* Also, reword string table so that it stores the offset of the first character of a string in the string table, not the position of it in the array */
-    std::vector<std::string> strings;                   /* stores all strings */
-    std::unordered_map<std::string, int> string_table;  /* maps strings to index in the table*/
-    std::vector<SectionHeader> sections;                /* section headers */
-    std::unordered_map<std::string, int> section_table; /* map section name to index in sections */
+    /// @brief              Instructions stored in .text section.
+    std::vector<word> text_section;
 
-    int add_string (const std::string &string);
+    /// @brief              Data stored in .data section.
+    std::vector<byte> data_section;
+
+    /// @brief              Size of .bss section. Zero initialized on program load.
+    word bss_section = 0;
+
+    /// @brief              Maps string index to symbol.
+    std::unordered_map<U32, SymbolTableEntry> symbol_table;
+
+    /// @brief              References to symbols that need to be relocated.
+    std::vector<RelocationEntry> rel_text;
+
+    /// @brief              For now, no purpose.
+    std::vector<RelocationEntry> rel_data;
+
+    /// @brief              For now, no purpose.
+    /// @todo               TODO: Will this ever be used?
+    std::vector<RelocationEntry> rel_bss;
+
+    // TODO: Possbly in future add separate string table for section headers like ELF files.
+    // TODO: Refactor string table so that it stores the offset of the first character of a
+    // string in the string table, not the position of it in the array.
+    // TODO: what did i mean by the above?
+
+    /// @brief              Stores all the strings in a compact table.
+    std::vector<std::string> strings;
+
+    /// @brief              Maps strings to index in the table.
+    std::unordered_map<std::string, U32> string_table;
+
+    /// @brief              Section headers.
+    std::vector<SectionHeader> sections;
+
+    /// @brief              Map section name to index in sections.
+    std::unordered_map<std::string, U32> section_table;
+
+    /// @brief              TODO:
+    /// @param string
+    /// @return
+    U32 add_string (const std::string &string);
+
+    /// @brief              TODO:
+    /// @param symbol
+    /// @param value
+    /// @param binding_info
+    /// @param section
     void add_symbol (const std::string &symbol, word value,
-                     SymbolTableEntry::BindingInfo binding_info, int section);
-    int add_section (const std::string &section_name, SectionHeader::Type type);
-    std::string get_symbol_name (int symbol);
+                     SymbolTableEntry::BindingInfo binding_info, U32 section);
 
-    word get_text_section_length ();
-    word get_data_section_length ();
-    word get_bss_section_length ();
+    /// @brief              TODO:
+    /// @param section_name
+    /// @param type
+    /// @return
+    U32 add_section (const std::string &section_name, SectionHeader::Type type);
+
+    /// @brief              TODO:
+    /// @param symbol
+    /// @return
+    std::string get_symbol_name (U32 symbol);
+
+    /// @brief              Get the size of the .text section.
+    /// @return             Size of .text section in bytes.
+    word get_text_section_size ();
+
+    /// @brief              Get size of .data section.
+    /// @return             Size of .data section in bytes.
+    word get_data_section_size ();
+
+    /// @brief              Get size of .bss section.
+    /// @return             Size of .bss section in bytes.
+    word get_bss_section_size ();
 
   private:
+    /// @brief              State of the disassembly.
     enum class State
     {
+        /// @brief          TODO:
         NO_STATE,
-        DISASSEMBLING,
-        DISASSEMBLED_SUCCESS,
-        DISASSEMBLED_ERROR,
-        WRITING,
-        WRITING_SUCCESS,
-        WRITING_ERROR,
-    };
 
-    State m_state; /* state of the disassembly */
+        /// @brief          TODO:
+        DISASSEMBLING,
+
+        /// @brief          TODO:
+        DISASSEMBLED_SUCCESS,
+
+        /// @brief          TODO:
+        DISASSEMBLED_ERROR,
+
+        /// @brief          TODO:
+        WRITING,
+
+        /// @brief          TODO:
+        WRITING_SUCCESS,
+
+        /// @brief          TODO:
+        WRITING_ERROR,
+    } m_state;
+
+    /// @brief              TODO:
     File m_obj_file;
 
+    /// @brief              TODO:
+    /// @param bytes
     void disassemble (std::vector<byte> &bytes);
+
+    /// @brief              TODO:
     void print ();
 };

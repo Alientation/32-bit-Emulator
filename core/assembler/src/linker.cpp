@@ -139,8 +139,8 @@ void Linker::link ()
 
     ObjectFile exe_obj_file;
 
-    exe_obj_file.file_type = EXECUTABLE_FILE_TYPE;
-    exe_obj_file.target_machine = EMU_32BIT_MACHINE_ID;
+    exe_obj_file.file_type = ObjectFile::kExecutableFileType;
+    exe_obj_file.target_machine = ObjectFile::kEMU32MachineId;
     exe_obj_file.flags = 0;
 
     exe_obj_file.add_section (".text", ObjectFile::SectionHeader::Type::TEXT);

@@ -50,11 +50,11 @@ class Assembler
 
     /// @brief          Get the output object file.
     /// @return         The file.
-    File get_output_file ();
+    File get_output_file () const;
 
     /// @brief          Get assembler state.
     /// @return         Assembler state.
-    State get_state ();
+    State get_state () const;
 
   private:
     /// @brief Build process container.
@@ -78,27 +78,27 @@ class Assembler
     /// @brief Which section is currently assembling.
     enum class Section
     {
-        /// @brief TODO:
+        /// @brief      No section declared.
         NONE,
 
-        /// @brief TODO:
+        /// @brief      In the DATA section.
         DATA,
 
-        /// @brief TODO:
+        /// @brief      In the BSS section.
         BSS,
 
-        /// @brief TODO:
+        /// @brief      In the TEXT section.
         TEXT
     } m_cur_section = Section::NONE;
 
-    /// @brief Index into the sectio ntable.
-    int m_cur_section_index = 0;
+    /// @brief Index into the section table of the current section.
+    U32 m_cur_section_index = U32 (-1);
 
-    /// @brief TODO:
-    int m_total_scopes = 0;
+    /// @brief Total number of declared scopes. Monotically increasing.
+    U32 m_total_scopes = 0;
 
-    /// @brief Nested scopes.
-    std::vector<int> m_scopes;
+    /// @brief Nested scope id.
+    std::vector<U32> m_scopes;
 
     /// @brief TODO:
     /// @param tok_i

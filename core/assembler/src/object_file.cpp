@@ -88,7 +88,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
     for (int i = 0; i < n_sections; i++)
     {
         SectionHeader section_header = {
-            .section_name = int (section_headers_reader.read_dword ()),
+            .section_name = U32 (section_headers_reader.read_dword ()),
             .type = (SectionHeader::Type) section_headers_reader.read_word (),
 
             /* TODO: Why are we reading in dwords and then immediatelly casting to words? */
@@ -103,9 +103,9 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
 
         sections.push_back (section_header);
 
-        DEBUG ("ObjectFile::disassemble() - Reading section %d (name = %d, type=%d, "
+        DEBUG ("ObjectFile::disassemble() - Reading section %d (name = %u, type=%u, "
                "section_start=%u, section_size=%u, entry_size=%u)",
-               i, section_header.section_name, int (section_header.type),
+               i, section_header.section_name, U32 (section_header.type),
                section_header.section_start, section_header.section_size,
                section_header.entry_size);
     }
@@ -140,16 +140,16 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             for (word i = 0; i < section_header.section_size; i += kSymbolTableEntrySize)
             {
                 SymbolTableEntry symbol = {
-                    .symbol_name = int (reader.read_dword ()),
+                    .symbol_name = U32 (reader.read_dword ()),
                     .symbol_value = word (reader.read_dword ()),
                     .binding_info = (SymbolTableEntry::BindingInfo) reader.read_hword (),
-                    .section = int (reader.read_dword ()),
+                    .section = U32 (reader.read_dword ()),
                 };
 
                 symbol_table[symbol.symbol_name] = symbol;
-                DEBUG ("ObjectFile::disassemble() - Symbol entry = (symbol_name=%d, "
-                       "symbol_value=%d, binding_info=%d, section=%d)",
-                       symbol.symbol_name, symbol.symbol_value, int (symbol.binding_info),
+                DEBUG ("ObjectFile::disassemble() - Symbol entry = (symbol_name=%u, "
+                       "symbol_value=%u, binding_info=%u, section=%u)",
+                       symbol.symbol_name, symbol.symbol_value, U32 (symbol.binding_info),
                        symbol.section);
             }
             break;
@@ -159,7 +159,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
-                    .symbol = int (reader.read_dword ()),
+                    .symbol = U32 (reader.read_dword ()),
                     .type = (RelocationEntry::Type) reader.read_word (),
                     .shift = word (reader.read_dword ()),
                     .token = 0,
@@ -173,7 +173,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
-                    .symbol = int (reader.read_dword ()),
+                    .symbol = U32 (reader.read_dword ()),
                     .type = (RelocationEntry::Type) reader.read_word (),
                     .shift = word (reader.read_dword ()),
                     .token = 0,
@@ -187,7 +187,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
-                    .symbol = int (reader.read_dword ()),
+                    .symbol = U32 (reader.read_dword ()),
                     .type = (RelocationEntry::Type) reader.read_word (),
                     .shift = word (reader.read_dword ()),
                     .token = 0,
@@ -232,14 +232,14 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
     DEBUG ("ObjectFile::disassemble() - Finished disassembling");
 }
 
-int ObjectFile::add_section (const std::string &section_name, SectionHeader::Type type)
+U32 ObjectFile::add_section (const std::string &section_name, SectionHeader::Type type)
 {
     EXPECT_TRUE_SS (section_table.find (section_name) == section_table.end (),
                     std::stringstream ()
                         << "ObjectFile::add_section() - Section name exists in section table");
 
     SectionHeader header = {
-        .section_name = -1,
+        .section_name = U32 (-1),
         .type = type,
         .section_start = 0,
         .section_size = 0,
@@ -261,7 +261,7 @@ int ObjectFile::add_section (const std::string &section_name, SectionHeader::Typ
         break;
     case SectionHeader::Type::DEBUG:
         ERROR ("Cannot add section of type DEBUG. Not implemented yet");
-        return -1;
+        return U32 (-1);
         break;
     case SectionHeader::Type::BSS:
     case SectionHeader::Type::DATA:
@@ -270,29 +270,29 @@ int ObjectFile::add_section (const std::string &section_name, SectionHeader::Typ
         break;
     case SectionHeader::Type::UNDEFINED:
         ERROR ("Cannot add section of type UNDEFINED");
-        return -1;
+        return U32 (-1);
         break;
     }
 
     header.section_name = add_string (section_name);
-    section_table[section_name] = sections.size ();
+    section_table[section_name] = U32 (sections.size ());
     sections.push_back (header);
     n_sections++;
-    return sections.size () - 1;
+    return n_sections - 1;
 }
 
-int ObjectFile::add_string (const std::string &string)
+U32 ObjectFile::add_string (const std::string &string)
 {
     EXPECT_TRUE_SS (string_table.find (string) == string_table.end (),
                     std::stringstream ()
                         << "ObjectFile::add_string() - String name exists in string table");
 
-    string_table[string] = string_table.size ();
+    string_table[string] = U32 (string_table.size ());
     strings.push_back (string);
     return strings.size () - 1;
 }
 
-std::string ObjectFile::get_symbol_name (int symbol)
+std::string ObjectFile::get_symbol_name (U32 symbol)
 {
     return strings[symbol_table[symbol].symbol_name];
 }
@@ -306,12 +306,12 @@ std::string ObjectFile::get_symbol_name (int symbol)
  * @param section             section it is defined in. -1 if not defined in a section
  */
 void ObjectFile::add_symbol (const std::string &symbol, word value,
-                             SymbolTableEntry::BindingInfo binding_info, int section)
+                             SymbolTableEntry::BindingInfo binding_info, U32 section)
 {
     // If symbol does not exist yet, create it.
     if (string_table.find (symbol) == string_table.end ())
     {
-        string_table[symbol] = strings.size ();
+        string_table[symbol] = U32 (strings.size ());
         strings.push_back (symbol);
         symbol_table[string_table[symbol]] = (SymbolTableEntry) {
             .symbol_name = string_table[symbol],
@@ -323,12 +323,12 @@ void ObjectFile::add_symbol (const std::string &symbol, word value,
     else
     {
         SymbolTableEntry &symbol_entry = symbol_table[string_table[symbol]];
-        if (symbol_entry.section == -1 && section != -1)
+        if (symbol_entry.section == U32 (-1) && section != U32 (-1))
         {
             symbol_entry.section = section;
             symbol_entry.symbol_value = value;
         }
-        else if (symbol_entry.section != -1 && section != -1)
+        else if (symbol_entry.section != U32 (-1) && section != U32 (-1))
         {
             ERROR (
                 "ObjectFile::add_symbol() - Multiple definition of symbol %s at sections %s and %s",
@@ -411,7 +411,7 @@ void ObjectFile::write_object_file (File obj_file)
 
         DEBUG ("ObjectFile::write_object_file() - symbol %s = %u (%d)[%d]",
                strings[symbol.second.symbol_name].c_str (), symbol.second.symbol_value,
-               int (symbol.second.binding_info), symbol.second.section);
+               U32 (symbol.second.binding_info), symbol.second.section);
     }
     sections[section_table[".symtab"]].section_size = symbol_table.size () * kSymbolTableEntrySize;
     sections[section_table[".symtab"]].section_start = current_byte;
@@ -423,7 +423,7 @@ void ObjectFile::write_object_file (File obj_file)
     {
         byte_writer << ByteWriter::Data (rel_text[i].offset, 8);
         byte_writer << ByteWriter::Data (rel_text[i].symbol, 8);
-        byte_writer << ByteWriter::Data (int (rel_text[i].type), 4);
+        byte_writer << ByteWriter::Data (U32 (rel_text[i].type), 4);
         byte_writer << ByteWriter::Data (rel_text[i].shift, 8);
     }
     sections[section_table[".rel.text"]].section_size = rel_text.size () * kRelocationEntrySize;
@@ -436,7 +436,7 @@ void ObjectFile::write_object_file (File obj_file)
     {
         byte_writer << ByteWriter::Data (rel_data[i].offset, 8);
         byte_writer << ByteWriter::Data (rel_data[i].symbol, 8);
-        byte_writer << ByteWriter::Data (int (rel_data[i].type), 4);
+        byte_writer << ByteWriter::Data (U32 (rel_data[i].type), 4);
         byte_writer << ByteWriter::Data (rel_data[i].shift, 8);
     }
     sections[section_table[".rel.data"]].section_size = rel_data.size () * kRelocationEntrySize;
@@ -449,7 +449,7 @@ void ObjectFile::write_object_file (File obj_file)
     {
         byte_writer << ByteWriter::Data (rel_bss[i].offset, 8);
         byte_writer << ByteWriter::Data (rel_bss[i].symbol, 8);
-        byte_writer << ByteWriter::Data (int (rel_bss[i].type), 4);
+        byte_writer << ByteWriter::Data (U32 (rel_bss[i].type), 4);
         byte_writer << ByteWriter::Data (rel_bss[i].shift, 8);
     }
     sections[section_table[".rel.bss"]].section_size = rel_bss.size () * kRelocationEntrySize;
@@ -474,7 +474,7 @@ void ObjectFile::write_object_file (File obj_file)
     for (size_t i = 0; i < sections.size (); i++)
     {
         byte_writer << ByteWriter::Data (sections[i].section_name, 8);
-        byte_writer << ByteWriter::Data (int (sections[i].type), 4);
+        byte_writer << ByteWriter::Data (U32 (sections[i].type), 4);
         byte_writer << ByteWriter::Data (sections[i].section_start, 8);
         byte_writer << ByteWriter::Data (sections[i].section_size, 8);
         byte_writer << ByteWriter::Data (sections[i].entry_size, 8);
@@ -522,7 +522,7 @@ void ObjectFile::print ()
         }
 
         std::string section_name = "*UND*";
-        if (symbol.second.section != -1)
+        if (symbol.second.section != U32 (-1))
         {
             section_name = strings[sections[symbol.second.section].section_name];
         }
@@ -663,17 +663,17 @@ void ObjectFile::print ()
     printf ("\n");
 }
 
-word ObjectFile::get_text_section_length ()
+word ObjectFile::get_text_section_size ()
 {
     return text_section.size () * 4;
 }
 
-word ObjectFile::get_data_section_length ()
+word ObjectFile::get_data_section_size ()
 {
     return data_section.size ();
 }
 
-word ObjectFile::get_bss_section_length ()
+word ObjectFile::get_bss_section_size ()
 {
     return bss_section;
 }

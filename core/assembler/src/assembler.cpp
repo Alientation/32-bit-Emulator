@@ -85,13 +85,9 @@ void Assembler::assemble ()
             }
 
             // The symbol name depends on its scope level. This allows for nested scopes to have
-            // the same label names while refering to different locations in code.'
-            // Since these symbols are LOCAL binding, two symbols with the same name in two
-            // different scope blocks but at the same scope level will not conflict with each other.
-            // The prior will be overwritten and gauranteed to not be needed in the future since
-            // its scope block has already closed.
-            // However if two symbols with the same name are in the same scope block, this most
-            // likely is unintended.
+            // the same label names while refering to different locations in code.
+            // However if two symbols with the same name are in the same scope block, this will
+            // cause the later symbol to overshadow the prior symbol and likely is unintended.
             // TODO: Warn the user if this is the case. Keep track at each scope level what are
             // the registered labels thus far.
             const std::string symbol =
@@ -101,17 +97,17 @@ void Assembler::assemble ()
             // Track the offset in the section that this label is in.
             if (m_cur_section == Section::TEXT)
             {
-                m_obj.add_symbol (symbol, m_obj.get_text_section_length (),
+                m_obj.add_symbol (symbol, m_obj.get_text_section_size (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
             }
             else if (m_cur_section == Section::DATA)
             {
-                m_obj.add_symbol (symbol, m_obj.get_data_section_length (),
+                m_obj.add_symbol (symbol, m_obj.get_data_section_size (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
             }
             else if (m_cur_section == Section::BSS)
             {
-                m_obj.add_symbol (symbol, m_obj.get_bss_section_length (),
+                m_obj.add_symbol (symbol, m_obj.get_bss_section_size (),
                                   ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
             }
             else
@@ -167,12 +163,12 @@ void Assembler::assemble ()
     }
 }
 
-File Assembler::get_output_file ()
+File Assembler::get_output_file () const
 {
     return m_out_obj_file;
 }
 
-Assembler::State Assembler::get_state ()
+Assembler::State Assembler::get_state () const
 {
     return this->m_state;
 }
