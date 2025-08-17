@@ -137,7 +137,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             break;
         case SectionHeader::Type::SYMTAB:
             DEBUG ("ObjectFile::disassemble() - Disassembling Symbol Table Section");
-            for (word i = 0; i < section_header.section_size; i += SYMBOL_TABLE_ENTRY_SIZE)
+            for (word i = 0; i < section_header.section_size; i += kSymbolTableEntrySize)
             {
                 SymbolTableEntry symbol = {
                     .symbol_name = int (reader.read_dword ()),
@@ -155,7 +155,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             break;
         case SectionHeader::Type::REL_TEXT:
             DEBUG ("ObjectFile::disassemble() - Disassembling Rel.Text Section");
-            for (word i = 0; i < section_header.section_size; i += RELOCATION_ENTRY_SIZE)
+            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
@@ -169,7 +169,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             break;
         case SectionHeader::Type::REL_DATA:
             DEBUG ("ObjectFile::disassemble() - Disassembling Rel.Data Section");
-            for (word i = 0; i < section_header.section_size; i += RELOCATION_ENTRY_SIZE)
+            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
@@ -183,7 +183,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
             break;
         case SectionHeader::Type::REL_BSS:
             DEBUG ("ObjectFile::disassemble() - Disassembling Rel.BSS Section");
-            for (word i = 0; i < section_header.section_size; i += RELOCATION_ENTRY_SIZE)
+            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
                 RelocationEntry rel = {
                     .offset = word (reader.read_dword ()),
@@ -249,13 +249,15 @@ int ObjectFile::add_section (const std::string &section_name, SectionHeader::Typ
     switch (type)
     {
     case SectionHeader::Type::TEXT:
-        header.entry_size = 4;
+        header.entry_size = kTextEntrySize;
         break;
     case SectionHeader::Type::SYMTAB:
-        header.entry_size = 26;
+        header.entry_size = kSymbolTableEntrySize;
         break;
     case SectionHeader::Type::REL_TEXT:
-        header.entry_size = 28;
+    case SectionHeader::Type::REL_DATA:
+    case SectionHeader::Type::REL_BSS:
+        header.entry_size = kRelocationEntrySize;
         break;
     case SectionHeader::Type::DEBUG:
         ERROR ("Cannot add section of type DEBUG. Not implemented yet");
@@ -263,8 +265,6 @@ int ObjectFile::add_section (const std::string &section_name, SectionHeader::Typ
         break;
     case SectionHeader::Type::BSS:
     case SectionHeader::Type::DATA:
-    case SectionHeader::Type::REL_DATA:
-    case SectionHeader::Type::REL_BSS:
     case SectionHeader::Type::STRTAB:
         header.entry_size = 0;
         break;
@@ -371,7 +371,7 @@ void ObjectFile::write_object_file (File obj_file)
     byte_writer << ByteWriter::Data (target_machine, 2);   /* Target machine */
     byte_writer << ByteWriter::Data (0, 2);                /* Flags */
     byte_writer << ByteWriter::Data (sections.size (), 2); /* Number of sections */
-    current_byte += BELF_HEADER_SIZE;
+    current_byte += kBELFHeaderSize;
 
     /* Text Section */
     DEBUG ("ObjectFile::write_object_file() - Writing .text section.");
@@ -395,10 +395,10 @@ void ObjectFile::write_object_file (File obj_file)
 
     /* BSS Section */
     DEBUG ("ObjectFile::write_object_file() - Writing .bss section. Size %u bytes.", bss_section);
-    byte_writer << ByteWriter::Data (bss_section, BSS_SECTION_SIZE);
+    byte_writer << ByteWriter::Data (bss_section, kBSSSectionSize);
     sections[section_table[".bss"]].section_size = bss_section;
     sections[section_table[".bss"]].section_start = current_byte;
-    current_byte += BSS_SECTION_SIZE;
+    current_byte += kBSSSectionSize;
 
     /* Symbol Table */
     DEBUG ("ObjectFile::write_object_file() - Writing .symtab section.");
@@ -413,10 +413,9 @@ void ObjectFile::write_object_file (File obj_file)
                strings[symbol.second.symbol_name].c_str (), symbol.second.symbol_value,
                int (symbol.second.binding_info), symbol.second.section);
     }
-    sections[section_table[".symtab"]].section_size =
-        symbol_table.size () * SYMBOL_TABLE_ENTRY_SIZE;
+    sections[section_table[".symtab"]].section_size = symbol_table.size () * kSymbolTableEntrySize;
     sections[section_table[".symtab"]].section_start = current_byte;
-    current_byte += symbol_table.size () * SYMBOL_TABLE_ENTRY_SIZE;
+    current_byte += symbol_table.size () * kSymbolTableEntrySize;
 
     /* rel.text Section */
     DEBUG ("ObjectFile::write_object_file() - Writing .rel.text section.");
@@ -427,9 +426,9 @@ void ObjectFile::write_object_file (File obj_file)
         byte_writer << ByteWriter::Data (int (rel_text[i].type), 4);
         byte_writer << ByteWriter::Data (rel_text[i].shift, 8);
     }
-    sections[section_table[".rel.text"]].section_size = rel_text.size () * RELOCATION_ENTRY_SIZE;
+    sections[section_table[".rel.text"]].section_size = rel_text.size () * kRelocationEntrySize;
     sections[section_table[".rel.text"]].section_start = current_byte;
-    current_byte += rel_text.size () * RELOCATION_ENTRY_SIZE;
+    current_byte += rel_text.size () * kRelocationEntrySize;
 
     /* rel.data Section */
     DEBUG ("ObjectFile::write_object_file() - Writing .rel.data section.");
@@ -440,9 +439,9 @@ void ObjectFile::write_object_file (File obj_file)
         byte_writer << ByteWriter::Data (int (rel_data[i].type), 4);
         byte_writer << ByteWriter::Data (rel_data[i].shift, 8);
     }
-    sections[section_table[".rel.data"]].section_size = rel_data.size () * RELOCATION_ENTRY_SIZE;
+    sections[section_table[".rel.data"]].section_size = rel_data.size () * kRelocationEntrySize;
     sections[section_table[".rel.data"]].section_start = current_byte;
-    current_byte += rel_data.size () * RELOCATION_ENTRY_SIZE;
+    current_byte += rel_data.size () * kRelocationEntrySize;
 
     /* rel.bss Section */
     DEBUG ("ObjectFile::write_object_file() - Writing .rel.bss section.");
@@ -453,9 +452,9 @@ void ObjectFile::write_object_file (File obj_file)
         byte_writer << ByteWriter::Data (int (rel_bss[i].type), 4);
         byte_writer << ByteWriter::Data (rel_bss[i].shift, 8);
     }
-    sections[section_table[".rel.bss"]].section_size = rel_bss.size () * RELOCATION_ENTRY_SIZE;
+    sections[section_table[".rel.bss"]].section_size = rel_bss.size () * kRelocationEntrySize;
     sections[section_table[".rel.bss"]].section_start = current_byte;
-    current_byte += rel_bss.size () * RELOCATION_ENTRY_SIZE;
+    current_byte += rel_bss.size () * kRelocationEntrySize;
 
     /* String Table */
     DEBUG ("ObjectFile::write_object_file() - Writing .strtab section.");
@@ -486,7 +485,7 @@ void ObjectFile::write_object_file (File obj_file)
     /* For easy access */
     byte_writer << ByteWriter::Data (current_byte, 8);
     current_byte += 8;
-    current_byte += sections.size () * SECTION_HEADER_SIZE;
+    current_byte += sections.size () * kSectionHeaderSize;
 
     m_writer.close ();
 

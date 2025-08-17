@@ -42,9 +42,9 @@ void Emulator32bit::_emu_printm (word mem_addr, byte size, bool little_endian)
 
 void Emulator32bit::_emu_printp ()
 {
-    printf ("PSTATE: N=%u,Z=%u,C=%u,V=%u", test_bit (_pstate, kNFlagBit),
-            test_bit (_pstate, kZFlagBit), test_bit (_pstate, kCFlagBit),
-            test_bit (_pstate, kVFlagBit));
+    printf ("PSTATE: N=%u,Z=%u,C=%u,V=%u", test_bit (m_pstate, kNFlagBit),
+            test_bit (m_pstate, kZFlagBit), test_bit (m_pstate, kCFlagBit),
+            test_bit (m_pstate, kVFlagBit));
 }
 
 void Emulator32bit::_emu_assertr (byte reg_id, word min_value, word max_value)
@@ -96,7 +96,7 @@ void Emulator32bit::_emu_assertm (word mem_addr, byte size, bool little_endian, 
 
 void Emulator32bit::_emu_assertp (byte p_state_id, bool expected_value)
 {
-    bool val = test_bit (_pstate, p_state_id);
+    bool val = test_bit (m_pstate, p_state_id);
 
     if (val != expected_value)
     {
@@ -269,7 +269,7 @@ void Emulator32bit::_swi (word instr)
     byte cond = bitfield_unsigned (instr, 22, 4);
     DEBUG ("swi %d", cond);
 
-    if (!check_cond (_pstate, cond))
+    if (!check_cond (m_pstate, cond))
     {
         return;
     }

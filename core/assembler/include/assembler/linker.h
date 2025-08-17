@@ -56,11 +56,11 @@ class Linker
         Token (Type type, std::string val);
     };
 
-    static const std::vector<std::pair<std::string, Token::Type>> TOKEN_SPEC;
+    static const std::vector<std::pair<std::string, Token::Type>> kTokenSpec;
 
     std::vector<Token> m_tokens;
 
-    std::string entry_symbol = "_start";
+    std::string m_entry_symbol = "_start";
 
     struct SectionAddress
     {
@@ -77,8 +77,8 @@ class Linker
         bool physical = false;
     };
 
-    bool physical = false;
-    std::vector<SectionAddress> sections;
+    bool m_physical = false;
+    std::vector<SectionAddress> m_sections;
 
     void link ();
     void tokenize_ld ();

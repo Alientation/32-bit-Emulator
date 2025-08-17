@@ -1,2 +1,2 @@
 #pragma once
-#define AEMU_VERSION "v0.7.3-165-ge5e092c-dirty"
+#define AEMU_VERSION "v0.7.3-168-gcff30c9-dirty"

@@ -11,17 +11,17 @@
 Assembler::Assembler (const Process *process, const File processed_file,
                       const std::string &output_path) :
     m_process (process),
-    m_inputFile (processed_file)
+    m_in_file (processed_file)
 {
     // Create the output object file.
     if (output_path.empty ())
     {
-        m_outputFile =
-            File (m_inputFile.get_name (), OBJECT_EXTENSION, processed_file.get_dir_str (), true);
+        m_out_obj_file =
+            File (m_in_file.get_name (), OBJECT_EXTENSION, processed_file.get_dir_str (), true);
     }
     else
     {
-        m_outputFile = File (output_path, true);
+        m_out_obj_file = File (output_path, true);
     }
 
     EXPECT_TRUE_SS (m_process->valid_processed_file (processed_file),
@@ -39,16 +39,16 @@ void Assembler::assemble ()
     if (m_state != State::NOT_ASSEMBLED)
     {
         DEBUG ("Assembler::assemble() - Already assembled file: %s",
-               m_inputFile.get_name ().c_str ());
+               m_in_file.get_name ().c_str ());
         return;
     }
 
-    DEBUG ("Assembler::assemble() - Assembling file: %s", m_inputFile.get_name ().c_str ());
+    DEBUG ("Assembler::assemble() - Assembling file: %s", m_in_file.get_name ().c_str ());
 
     m_state = State::ASSEMBLING;
 
     // Clear the object file.
-    m_outputFile.clear ();
+    m_out_obj_file.clear ();
 
     // Add appropriate sections to the object file.
     m_obj.add_section (".text", ObjectFile::SectionHeader::Type::TEXT);
@@ -157,8 +157,8 @@ void Assembler::assemble ()
         // Parse through second time to fill in local symbol values.
         fill_local ();
 
-        m_obj.write_object_file (m_outputFile);
-        DEBUG ("Assembler::assemble() - Assembled file: %s", m_inputFile.get_name ().c_str ());
+        m_obj.write_object_file (m_out_obj_file);
+        DEBUG ("Assembler::assemble() - Assembled file: %s", m_in_file.get_name ().c_str ());
     }
 
     if (m_state == State::ASSEMBLING)
@@ -169,7 +169,7 @@ void Assembler::assemble ()
 
 File Assembler::get_output_file ()
 {
-    return m_outputFile;
+    return m_out_obj_file;
 }
 
 Assembler::State Assembler::get_state ()

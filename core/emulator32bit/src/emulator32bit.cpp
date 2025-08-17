@@ -48,11 +48,11 @@ void Emulator32bit::fill_out_instructions ()
 {
     for (int i = 0; i < kMaxInstructions; i++)
     {
-        _instructions[i] = Emulator32bit::_hlt;
+        m_instruction_handler[i] = Emulator32bit::_hlt;
     }
 
 /* fill out instruction functions and construct disassembler instruction mapping */
-#define _INSTR(op) _instructions[_op_##op] = Emulator32bit::_##op;
+#define _INSTR(op) m_instruction_handler[_op_##op] = Emulator32bit::_##op;
 
     _INSTR (special_instructions)
 
@@ -116,7 +116,7 @@ void Emulator32bit::fill_out_instructions ()
 void Emulator32bit::print ()
 {
     printf ("32 bit emulator\nRegisters:\n");
-    printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (_pc).c_str (),
+    printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
             to_color_hex_str (read_reg (kStackPointerRegister)).c_str (),
             to_color_hex_str (word (0)).c_str ());
     for (int i = 0; i < kStackPointerRegister; i++)
@@ -137,9 +137,9 @@ void Emulator32bit::run (unsigned long long instructions)
         {
             while (true)
             {
-                instr = system_bus->read_word_aligned_ram (_pc);
+                instr = system_bus->read_word_aligned_ram (m_pc);
                 execute (instr);
-                _pc += 4;
+                m_pc += 4;
                 num_instructions_ran++;
             }
         }
@@ -148,9 +148,9 @@ void Emulator32bit::run (unsigned long long instructions)
             unsigned long long start_instructions = instructions;
             while (instructions > 0)
             {
-                instr = system_bus->read_word_aligned_ram (_pc);
+                instr = system_bus->read_word_aligned_ram (m_pc);
                 execute (instr);
-                _pc += 4;
+                m_pc += 4;
                 instructions--;
             }
             num_instructions_ran = start_instructions - instructions;
@@ -171,11 +171,11 @@ void Emulator32bit::run (unsigned long long instructions)
 void Emulator32bit::reset ()
 {
     system_bus->reset ();
-    for (unsigned long long i = 0; i < sizeof (_x) / sizeof (_x[0]); i++)
+    for (unsigned long long i = 0; i < sizeof (m_x) / sizeof (m_x[0]); i++)
     {
-        _x[i] = (1ULL << (8 * sizeof (word))) - 1;
+        m_x[i] = (1ULL << (8 * sizeof (word))) - 1;
     }
-    _x[kZeroRegister] = 0;
-    _pstate = 0;
-    _pc = 0;
+    m_x[kZeroRegister] = 0;
+    m_pstate = 0;
+    m_pc = 0;
 }

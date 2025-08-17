@@ -2,15 +2,15 @@
 
 MMU::MMU (Emulator32bit *processor, word user_low_page, word user_high_page, word kernel_low_page,
           word kernel_high_page) :
-    processor (processor),
-    user_low_page (user_low_page),
-    user_high_page (user_high_page),
-    kernel_low_page (kernel_low_page),
-    kernel_high_page (kernel_high_page),
-    free_user_ppages (processor->system_bus->ram->data, user_low_page,
-                      user_high_page - user_low_page + 1, kPageSize),
-    free_kernel_ppages (processor->system_bus->ram->data, kernel_low_page,
-                        kernel_high_page - kernel_low_page + 1, kPageSize)
+    m_processor (processor),
+    m_user_low_page (user_low_page),
+    m_user_high_page (user_high_page),
+    m_kernel_low_page (kernel_low_page),
+    m_kernel_high_page (kernel_high_page),
+    m_free_user_ppages (processor->system_bus->ram->m_data, user_low_page,
+                        user_high_page - user_low_page + 1, kPageSize),
+    m_free_kernel_ppages (processor->system_bus->ram->m_data, kernel_low_page,
+                          kernel_high_page - kernel_low_page + 1, kPageSize)
 {
     RAM *ram = processor->system_bus->ram;
     EXPECT_TRUE (ram->in_bounds (user_low_page), "User page not in ram.");
@@ -41,7 +41,7 @@ void MMU::remove_vpage (word vpage)
 void MMU::remove_pagedir ()
 {
     struct PageTableEntry *pagetable =
-        (struct PageTableEntry *) &processor->system_bus->ram->data[processor->_pagedir];
+        (struct PageTableEntry *) &m_processor->system_bus->ram->m_data[m_processor->pagedir];
 
     word end_page = N_VPAGES;
     for (word page = 0; page <= end_page; page++)
@@ -55,13 +55,13 @@ void MMU::remove_pagedir ()
 
         if (entry->disk)
         {
-            processor->system_bus->disk->return_page (entry->disk);
+            m_processor->system_bus->disk->return_page (entry->disk);
         }
         else
         {
-            free_user_ppages.return_block (entry->ppage);
+            m_free_user_ppages.return_block (entry->ppage);
         }
     }
 
-    processor->_pagedir = 0;
+    m_processor->pagedir = 0;
 }

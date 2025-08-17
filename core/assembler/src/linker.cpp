@@ -27,9 +27,9 @@ void Linker::_entry (size_t &tok_i)
     consume (tok_i, {Token::Type::OPEN_PARENTHESIS},
              "Expected open parenthesis after ENTRY command. Got " + m_tokens[tok_i].val);
     skip_tokens (tok_i, {Token::Type::WHITESPACE});
-    entry_symbol = consume (tok_i, {Token::Type::SYMBOL},
-                            "Expected symbol to follow ENTRY command. Got " + m_tokens[tok_i].val)
-                       .val;
+    m_entry_symbol = consume (tok_i, {Token::Type::SYMBOL},
+                              "Expected symbol to follow ENTRY command. Got " + m_tokens[tok_i].val)
+                         .val;
 
     skip_tokens (tok_i, {Token::Type::WHITESPACE});
     consume (tok_i, {Token::Type::CLOSE_PARENTHESIS},
@@ -56,11 +56,11 @@ void Linker::_sections (size_t &tok_i)
                     .val;
             if (tag == "P")
             {
-                physical = true;
+                m_physical = true;
             }
             else if (tag == "V")
             {
-                physical = false;
+                m_physical = false;
             }
 
             skip_tokens (tok_i, {Token::Type::WHITESPACE});
@@ -75,18 +75,18 @@ void Linker::_sections (size_t &tok_i)
         {
         case Token::Type::TEXT:
             consume (tok_i);
-            sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::TEXT, .physical = physical});
+            m_sections.push_back (
+                (SectionAddress) {.type = SectionAddress::Type::TEXT, .physical = m_physical});
             break;
         case Token::Type::DATA:
             consume (tok_i);
-            sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::DATA, .physical = physical});
+            m_sections.push_back (
+                (SectionAddress) {.type = SectionAddress::Type::DATA, .physical = m_physical});
             break;
         case Token::Type::BSS:
             consume (tok_i);
-            sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::BSS, .physical = physical});
+            m_sections.push_back (
+                (SectionAddress) {.type = SectionAddress::Type::BSS, .physical = m_physical});
             break;
         default:
             ERROR ("Invalid token %s in SECTIONS command.", m_tokens[tok_i].val.c_str ());
@@ -99,8 +99,8 @@ void Linker::_sections (size_t &tok_i)
                      "Expected equal symbol to follow section. Got " + m_tokens[tok_i].val);
             skip_tokens (tok_i, {Token::Type::WHITESPACE});
 
-            sections.back ().set_address = true;
-            sections.back ().address = parse_value (tok_i);
+            m_sections.back ().set_address = true;
+            m_sections.back ().address = parse_value (tok_i);
             skip_tokens (tok_i, {Token::Type::WHITESPACE});
         }
 
@@ -180,7 +180,7 @@ void Linker::link ()
     word offset_text = 0;
     word offset_data = 0;
     word offset_bss = 0;
-    for (SectionAddress &section : sections)
+    for (SectionAddress &section : m_sections)
     {
         ObjectFile::SectionHeader *section_header = nullptr;
         word section_size = 0;
@@ -338,7 +338,7 @@ void Linker::tokenize_ld ()
     {
         // try to match regex
         bool matched = false;
-        for (std::pair<std::string, Linker::Token::Type> regexPair : TOKEN_SPEC)
+        for (std::pair<std::string, Linker::Token::Type> regexPair : kTokenSpec)
         {
             std::string regex = regexPair.first;
             Linker::Token::Type type = regexPair.second;
@@ -370,7 +370,7 @@ Linker::Token::Token (Type type, std::string val) :
 {
 }
 
-const std::vector<std::pair<std::string, Linker::Token::Type>> Linker::TOKEN_SPEC = {
+const std::vector<std::pair<std::string, Linker::Token::Type>> Linker::kTokenSpec = {
     {"^[^\\S]+", Linker::Token::Type::WHITESPACE},
     {"^/\\*[\\s\\S]*?\\*/", Linker::Token::Type::WHITESPACE},
     {"^//.*", Linker::Token::Type::WHITESPACE},

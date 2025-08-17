@@ -16,15 +16,15 @@ class Timer
 
     inline void tick ()
     {
-        clock++;
+        m_clock++;
     }
 
     inline unsigned long long time ()
     {
-        return clock;
+        return m_clock;
     }
 
   private:
-    Emulator32bit *processor;
-    unsigned long long clock = 0;
+    Emulator32bit *m_processor;
+    unsigned long long m_clock = 0;
 };

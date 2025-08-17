@@ -417,7 +417,7 @@ void VirtualMemory::evict_ppage (word ppage, Exception &exception)
         removed_entry->disk = true;
         removed_entry->diskpage = m_disk->get_free_page ();
         word tlb_addr = removed_entry->vpage & (kMaxTLBSize - 1);
-        TLB_Entry &tlb_entry = tlb[tlb_addr];
+        TLB_Entry &tlb_entry = m_tlb[tlb_addr];
         if (tlb_entry.valid && tlb_entry.ppage == ppage
             && tlb_entry.vpage == removed_entry->vpage) // todo, this should check for pid i think.
         {

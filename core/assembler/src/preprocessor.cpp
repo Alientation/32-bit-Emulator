@@ -73,7 +73,7 @@ Preprocessor::Preprocessor (Process *process, const File &input_file,
                             const std::string &output_file_path) :
     m_process (process),
     m_input_file (input_file),
-    tokenizer (input_file)
+    m_tokenizer (input_file)
 {
     // default output file path if not supplied in the constructor
     if (output_file_path.empty ())
@@ -129,17 +129,17 @@ File Preprocessor::preprocess ()
     FileWriter writer = FileWriter (m_output_file);
 
     // remove all comments before processing
-    tokenizer.filter_all (Tokenizer::COMMENTS);
+    m_tokenizer.filter_all (Tokenizer::COMMENTS);
 
     // parse the tokens
-    while (tokenizer.has_next ())
+    while (m_tokenizer.has_next ())
     {
-        Tokenizer::Token &token = tokenizer.get_token ();
+        Tokenizer::Token &token = m_tokenizer.get_token ();
 
         // if token is valid preprocessor, call the preprocessor function
-        if (preprocessors.find (token.type) != preprocessors.end ())
+        if (m_preprocessor_handlers.find (token.type) != m_preprocessor_handlers.end ())
         {
-            (this->*preprocessors[token.type]) ();
+            (this->*m_preprocessor_handlers[token.type]) ();
             continue;
         }
 
@@ -147,27 +147,27 @@ File Preprocessor::preprocess ()
         if (token.type != Tokenizer::SYMBOL
             || m_def_symbols.find (token.value) == m_def_symbols.end ())
         {
-            writer.write (tokenizer.consume ().value);
+            writer.write (m_tokenizer.consume ().value);
             continue;
         }
 
         // replace symbol with value
-        std::string symbol = tokenizer.consume ().value;
+        std::string symbol = m_tokenizer.consume ().value;
 
         // check if the symbol has parameters
         std::vector<std::vector<Tokenizer::Token>> parameters;
-        if (tokenizer.is_next ({Tokenizer::OPEN_PARANTHESIS}))
+        if (m_tokenizer.is_next ({Tokenizer::OPEN_PARANTHESIS}))
         {
-            tokenizer.consume (); // '('
-            while (!tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS}))
+            m_tokenizer.consume (); // '('
+            while (!m_tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS}))
             {
-                tokenizer.skip_next (Tokenizer::WHITESPACES);
+                m_tokenizer.skip_next (Tokenizer::WHITESPACES);
                 std::vector<Tokenizer::Token> parameter;
 
                 // find all tokens that make up the current parameter
-                while (!tokenizer.is_next ({Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS}))
+                while (!m_tokenizer.is_next ({Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS}))
                 {
-                    parameter.push_back (tokenizer.consume ());
+                    parameter.push_back (m_tokenizer.consume ());
                 }
 
                 // remove whitespace from the end of the parameter
@@ -180,19 +180,19 @@ File Preprocessor::preprocess ()
                 parameters.push_back (parameter);
 
                 // if the next is a comma, expect another parameter
-                if (tokenizer.is_next ({Tokenizer::COMMA}))
+                if (m_tokenizer.is_next ({Tokenizer::COMMA}))
                 {
-                    tokenizer.consume ();
+                    m_tokenizer.consume ();
                 }
                 else
                 {
-                    tokenizer.expect_next (
+                    m_tokenizer.expect_next (
                         {Tokenizer::CLOSE_PARANTHESIS},
                         "Preprocessor::preprocess() - Expected ')' in symbol parameters.");
                 }
             }
-            tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS},
-                               "Preprocessor::preprocess() - Expected ')'.");
+            m_tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS},
+                                 "Preprocessor::preprocess() - Expected ')'.");
         }
 
         // check if the symbol has a definition with the same number of parameters
@@ -227,7 +227,7 @@ File Preprocessor::preprocess ()
         }
 
         // insert the definition into the tokens list
-        tokenizer.insert_tokens (definition, tokenizer.get_toki ());
+        m_tokenizer.insert_tokens (definition, m_tokenizer.get_toki ());
     }
 
     m_state = State::PROCESSED_SUCCESS;
@@ -261,17 +261,17 @@ Preprocessor::macros_with_header (const std::string &macro_name,
 
 void Preprocessor::_include ()
 {
-    tokenizer.consume (); // '#include'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#include'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // the path to the included file
     std::string full_path_from_working_dir;
 
-    if (tokenizer.is_next ({Tokenizer::LITERAL_STRING},
-                           "Preprocessor::_include() - Missing include filename."))
+    if (m_tokenizer.is_next ({Tokenizer::LITERAL_STRING},
+                             "Preprocessor::_include() - Missing include filename."))
     {
         // local include
-        std::string loc_path = tokenizer.consume ().value;
+        std::string loc_path = m_tokenizer.consume ().value;
         loc_path = m_input_file.get_dir_str () + File::SEPARATOR
                    + loc_path.substr (1, loc_path.length () - 2);
         full_path_from_working_dir = trim_dir_path (loc_path);
@@ -279,16 +279,16 @@ void Preprocessor::_include ()
     else
     {
         // expect <"...">
-        tokenizer.consume ({Tokenizer::OPERATOR_LOGICAL_LESS_THAN},
-                           "Preprocessor::_include() - Missing '<'.");
+        m_tokenizer.consume ({Tokenizer::OPERATOR_LOGICAL_LESS_THAN},
+                             "Preprocessor::_include() - Missing '<'.");
         std::string sys_file_path =
-            tokenizer
+            m_tokenizer
                 .consume ({Tokenizer::LITERAL_STRING},
                           "Preprocessor::_include() - Expected string literal.")
                 .value;
         sys_file_path = sys_file_path.substr (1, sys_file_path.length () - 2);
-        tokenizer.consume ({Tokenizer::OPERATOR_LOGICAL_GREATER_THAN},
-                           "Preprocessor::_include() - Missing '>'.");
+        m_tokenizer.consume ({Tokenizer::OPERATOR_LOGICAL_GREATER_THAN},
+                             "Preprocessor::_include() - Missing '>'.");
 
         // check if file exists in system include directories
         bool found_sys_file = false;
@@ -316,9 +316,9 @@ void Preprocessor::_include ()
         }
     }
 
-    tokenizer.skip_next ({Tokenizer::WHITESPACE_SPACE, Tokenizer::WHITESPACE_TAB});
-    tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
-                       "Preprocessor::_include() - #include should be on it's own line");
+    m_tokenizer.skip_next ({Tokenizer::WHITESPACE_SPACE, Tokenizer::WHITESPACE_TAB});
+    m_tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
+                         "Preprocessor::_include() - #include should be on it's own line");
 
     // process included file
     DEBUG ("Preprocessor::_include() - include path: %s", full_path_from_working_dir.c_str ());
@@ -333,60 +333,61 @@ void Preprocessor::_include ()
     Preprocessor included_preprocessor (m_process, include_file, m_output_file.get_path ());
 
     // yoink the tokens from the included file and insert
-    tokenizer.insert_tokens (included_preprocessor.tokenizer.get_tokens (), tokenizer.get_toki ());
+    m_tokenizer.insert_tokens (included_preprocessor.m_tokenizer.get_tokens (),
+                               m_tokenizer.get_toki ());
 }
 
 void Preprocessor::_macro ()
 {
-    tokenizer.consume (); // '#macro'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#macro'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // parse macro name
     std::string macro_name =
-        tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected macro name.")
+        m_tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected macro name.")
             .value;
     Macro macro (macro_name);
 
     // start of invoked arguments
-    tokenizer.skip_next_regex ("[ \t]");
-    tokenizer.consume ({Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
+    m_tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ({Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_macro() - Expected '('.");
 
     // parse arguments
-    while (!tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS},
-                               "Preprocessor::_macro() - Expected macro header."))
+    while (!m_tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS},
+                                 "Preprocessor::_macro() - Expected macro header."))
     {
-        tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.skip_next_regex ("[ \t]");
         std::string argName =
-            tokenizer
+            m_tokenizer
                 .consume ({Tokenizer::SYMBOL}, "Preprocessor::_macro() - Expected argument name.")
                 .value;
 
-        tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.skip_next_regex ("[ \t]");
         macro.args.push_back (Argument (argName));
 
         // parse comma or expect closing parenthesis
-        tokenizer.skip_next_regex ("[ \t]");
-        if (tokenizer.is_next ({Tokenizer::COMMA}))
+        m_tokenizer.skip_next_regex ("[ \t]");
+        if (m_tokenizer.is_next ({Tokenizer::COMMA}))
         {
-            tokenizer.consume ();
+            m_tokenizer.consume ();
         }
     }
 
     // consume the closing parenthesis
-    tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
-    tokenizer.skip_next_regex ("[ \t\n]");
+    m_tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_macro() - Expected ')'.");
+    m_tokenizer.skip_next_regex ("[ \t\n]");
 
     // parse macro definition
-    while (!tokenizer.is_next ({Tokenizer::PREPROCESSOR_MACEND},
-                               "Preprocessor::_macro() - Expected macro definition."))
+    while (!m_tokenizer.is_next ({Tokenizer::PREPROCESSOR_MACEND},
+                                 "Preprocessor::_macro() - Expected macro definition."))
     {
-        macro.definition.push_back (tokenizer.consume ());
+        macro.definition.push_back (m_tokenizer.consume ());
     }
-    tokenizer.consume ({Tokenizer::PREPROCESSOR_MACEND},
-                       "Preprocessor::_macro() - Expected '#macend'.");
-    tokenizer.skip_next_regex ("[ \t]");
-    tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
-                       "Preprocessor::_macro() - #macend should be on it's own line.");
+    m_tokenizer.consume ({Tokenizer::PREPROCESSOR_MACEND},
+                         "Preprocessor::_macro() - Expected '#macend'.");
+    m_tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
+                         "Preprocessor::_macro() - #macend should be on it's own line.");
 
     // check if macro declaration is unique
     EXPECT_TRUE (m_macros.find (macro.header ()) == m_macros.end (),
@@ -398,8 +399,8 @@ void Preprocessor::_macro ()
 
 void Preprocessor::_macret ()
 {
-    tokenizer.consume (); // '#macret'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#macret'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     std::vector<Tokenizer::Token> return_value;
     if (m_macro_stack.empty ())
@@ -408,9 +409,9 @@ void Preprocessor::_macret ()
     }
 
     // macro contains a return value
-    while (!tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}))
+    while (!m_tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}))
     {
-        return_value.push_back (tokenizer.consume ());
+        return_value.push_back (m_tokenizer.consume ());
     }
 
     // skip all the tokens after this till the end of the current macro's definition
@@ -418,17 +419,17 @@ void Preprocessor::_macret ()
     // incrementing if we reach a .scope token and decrementing if we reach a .scend token.
     // If we reach 0, we know we have reached the end of the macro definition.
     int cur_rel_scope_level = 0;
-    while (tokenizer.has_next ())
+    while (m_tokenizer.has_next ())
     {
-        if (tokenizer.is_next ({Tokenizer::ASSEMBLER_SCOPE}))
+        if (m_tokenizer.is_next ({Tokenizer::ASSEMBLER_SCOPE}))
         {
             cur_rel_scope_level++;
         }
-        else if (tokenizer.is_next ({Tokenizer::ASSEMBLER_SCEND}))
+        else if (m_tokenizer.is_next ({Tokenizer::ASSEMBLER_SCEND}))
         {
             cur_rel_scope_level--;
         }
-        tokenizer.consume ();
+        m_tokenizer.consume ();
 
         if (cur_rel_scope_level == 0)
         {
@@ -448,7 +449,7 @@ void Preprocessor::_macret ()
         Tokenizer::tokenize (string_util::format ("#define {} ", m_macro_stack.top ().first),
                              false));
     vector_util::append (set_return_statement, return_value);
-    tokenizer.insert_tokens (set_return_statement, tokenizer.get_toki ());
+    m_tokenizer.insert_tokens (set_return_statement, m_tokenizer.get_toki ());
 
     // pop the macro from the stack
     m_macro_stack.pop ();
@@ -462,54 +463,54 @@ void Preprocessor::_macend ()
 
 void Preprocessor::_invoke ()
 {
-    tokenizer.consume ();
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ();
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // parse macro name
     std::string macro_name =
-        tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected macro name.")
+        m_tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected macro name.")
             .value;
 
     // parse arguments
-    tokenizer.skip_next_regex ("[ \t]");
-    tokenizer.consume ({Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_invoke() - Expected '('.");
+    m_tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ({Tokenizer::OPEN_PARANTHESIS}, "Preprocessor::_invoke() - Expected '('.");
     std::vector<std::vector<Tokenizer::Token>> arguments;
-    while (!tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS},
-                               "Preprocessor::_invoke() - Expected ')'."))
+    while (!m_tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS},
+                                 "Preprocessor::_invoke() - Expected ')'."))
     {
-        tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.skip_next_regex ("[ \t]");
 
         std::vector<Tokenizer::Token> argumentValues;
-        while (!tokenizer.is_next (
+        while (!m_tokenizer.is_next (
             {Tokenizer::COMMA, Tokenizer::CLOSE_PARANTHESIS, Tokenizer::WHITESPACE_NEWLINE},
             "Preprocessor::_invoke() - Expected ')'."))
         {
-            argumentValues.push_back (tokenizer.consume ());
+            argumentValues.push_back (m_tokenizer.consume ());
         }
         arguments.push_back (argumentValues);
 
-        if (tokenizer.is_next ({Tokenizer::COMMA}))
+        if (m_tokenizer.is_next ({Tokenizer::COMMA}))
         {
-            tokenizer.consume ();
+            m_tokenizer.consume ();
         }
     }
-    tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS}, "Preprocessor::_invoke() - Expected ')'.");
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // parse the output symbol if there is one
-    bool has_output = tokenizer.is_next ({Tokenizer::SYMBOL});
+    bool has_output = m_tokenizer.is_next ({Tokenizer::SYMBOL});
     std::string output_symbol = "";
     if (has_output)
     {
         output_symbol =
-            tokenizer
+            m_tokenizer
                 .consume ({Tokenizer::SYMBOL}, "Preprocessor::_invoke() - Expected output symbol.")
                 .value;
     }
 
-    tokenizer.skip_next_regex ("[ \t]");
-    tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
-                       "Preprocessor::_invoke() - Macro preprocessors must be on it's own line.");
+    m_tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume ({Tokenizer::WHITESPACE_NEWLINE},
+                         "Preprocessor::_invoke() - Macro preprocessors must be on it's own line.");
 
     // check if macro exists
     std::vector<Macro> possibleMacros = macros_with_header (macro_name, arguments);
@@ -531,8 +532,8 @@ void Preprocessor::_invoke ()
     // append a new '.scope' symbol to the tokens list
     vector_util::append (
         expanded_macro_invoke,
-        tokenizer.tokenize (
-            ".scope\n" + string_util::repeat ("\t", 1 + tokenizer.get_state ().prev_indent),
+        m_tokenizer.tokenize (
+            ".scope\n" + string_util::repeat ("\t", 1 + m_tokenizer.get_state ().prev_indent),
             false));
 
     // then for each argument, add an '#define argname argval' statement
@@ -558,7 +559,7 @@ void Preprocessor::_invoke ()
 
         if (tok.type == Tokenizer::WHITESPACE_NEWLINE)
         {
-            for (int i = 0; i < tokenizer.get_state ().prev_indent + 1; i++)
+            for (int i = 0; i < m_tokenizer.get_state ().prev_indent + 1; i++)
             {
                 expanded_macro_invoke.push_back (
                     Tokenizer::Token (Tokenizer::WHITESPACE_TAB, "\t"));
@@ -569,9 +570,9 @@ void Preprocessor::_invoke ()
     // finally end with a '.scend' symbol
     vector_util::append (
         expanded_macro_invoke,
-        tokenizer.tokenize ("\n" + string_util::repeat ("\t", tokenizer.get_state ().prev_indent)
-                                + ".scend\n",
-                            false));
+        m_tokenizer.tokenize (
+            "\n" + string_util::repeat ("\t", m_tokenizer.get_state ().prev_indent) + ".scend\n",
+            false));
 
     // push the macro and output symbol if any onto the macro stack
     m_macro_stack.push (std::pair<std::string, Macro> (output_symbol, macro));
@@ -594,32 +595,33 @@ void Preprocessor::_invoke ()
     DEBUG ("Preprocessor::_invoke() - Expanded macro: %s", ss.str ().c_str ());
 
     // insert into the tokens list
-    tokenizer.insert_tokens (expanded_macro_invoke, tokenizer.get_toki ());
+    m_tokenizer.insert_tokens (expanded_macro_invoke, m_tokenizer.get_toki ());
 }
 
 void Preprocessor::_define ()
 {
-    tokenizer.consume (); // '#define'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#define'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // symbol
     std::string symbol =
-        tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
-    tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.")
+            .value;
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // check for parameter declaration
     std::vector<std::string> parameters;
     std::set<std::string> ensure_unique_params;
-    if (tokenizer.is_next ({Tokenizer::OPEN_PARANTHESIS}))
+    if (m_tokenizer.is_next ({Tokenizer::OPEN_PARANTHESIS}))
     {
-        tokenizer.consume (); // '('
+        m_tokenizer.consume (); // '('
 
         // parse parameters
-        while (!tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS}))
+        while (!m_tokenizer.is_next ({Tokenizer::CLOSE_PARANTHESIS}))
         {
-            tokenizer.skip_next_regex ("[ \t]");
+            m_tokenizer.skip_next_regex ("[ \t]");
             std::string parameter =
-                tokenizer
+                m_tokenizer
                     .consume ({Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected parameter.")
                     .value;
 
@@ -631,35 +633,35 @@ void Preprocessor::_define ()
             ensure_unique_params.insert (parameter);
 
             // parse comma or expect closing parenthesis
-            tokenizer.skip_next_regex ("[ \t]");
-            if (tokenizer.is_next ({Tokenizer::COMMA}))
+            m_tokenizer.skip_next_regex ("[ \t]");
+            if (m_tokenizer.is_next ({Tokenizer::COMMA}))
             {
-                tokenizer.consume ();
+                m_tokenizer.consume ();
             }
             else
             {
-                tokenizer.expect_next ({Tokenizer::CLOSE_PARANTHESIS},
-                                       "Preprocessor::_define() - Expected ')'.");
+                m_tokenizer.expect_next ({Tokenizer::CLOSE_PARANTHESIS},
+                                         "Preprocessor::_define() - Expected ')'.");
             }
         }
 
         // expect ')'
-        tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS},
-                           "Preprocessor::_define() - Expected ')'.");
-        tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.consume ({Tokenizer::CLOSE_PARANTHESIS},
+                             "Preprocessor::_define() - Expected ')'.");
+        m_tokenizer.skip_next_regex ("[ \t]");
     }
 
     // value
     std::vector<Tokenizer::Token> tokens;
     bool read_next_line = false;
-    while (!tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) || read_next_line)
+    while (!m_tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) || read_next_line)
     {
         read_next_line = false;
-        tokens.push_back (tokenizer.consume ());
+        tokens.push_back (m_tokenizer.consume ());
 
         // check if we should read the nextline provided the next token is a newline
         // and the previous token read was a '\' character
-        if (tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE})
+        if (m_tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE})
             && tokens.back ().type == Tokenizer::BACK_SLASH)
         {
             read_next_line = true;
@@ -669,7 +671,7 @@ void Preprocessor::_define ()
         }
     }
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_define() - Definition preprocessors must be on it's own line.");
 
@@ -687,29 +689,29 @@ void Preprocessor::_define ()
 void Preprocessor::cond_block (bool cond_met)
 {
     int rel_scope_level = 0;
-    Tokenizer::State prev_state = tokenizer.get_state ();
+    Tokenizer::State prev_state = m_tokenizer.get_state ();
 
     bool found_next_block = false;
     Tokenizer::State next_block_state;
 
     bool found_end_block = false;
     Tokenizer::State end_block_state;
-    while (tokenizer.has_next ())
+    while (m_tokenizer.has_next ())
     {
-        if (rel_scope_level == 0 && tokenizer.is_next ({Tokenizer::PREPROCESSOR_ENDIF}))
+        if (rel_scope_level == 0 && m_tokenizer.is_next ({Tokenizer::PREPROCESSOR_ENDIF}))
         {
             if (!found_next_block)
             {
                 found_next_block = true;
-                next_block_state = tokenizer.get_state ();
+                next_block_state = m_tokenizer.get_state ();
             }
 
             found_end_block = true;
-            end_block_state = tokenizer.get_state ();
+            end_block_state = m_tokenizer.get_state ();
             break;
         }
         else if (rel_scope_level == 0
-                 && tokenizer.is_next (
+                 && m_tokenizer.is_next (
                      {Tokenizer::PREPROCESSOR_ELSE, Tokenizer::PREPROCESSOR_ELSEDEF,
                       Tokenizer::PREPROCESSOR_ELSENDEF, Tokenizer::PREPROCESSOR_ELSEEQU,
                       Tokenizer::PREPROCESSOR_ELSENEQU, Tokenizer::PREPROCESSOR_ELSELESS,
@@ -718,7 +720,7 @@ void Preprocessor::cond_block (bool cond_met)
             if (!found_next_block)
             {
                 found_next_block = true;
-                next_block_state = tokenizer.get_state ();
+                next_block_state = m_tokenizer.get_state ();
             }
 
             // start of next conditional block that should be checked if the current conditional block was
@@ -729,20 +731,20 @@ void Preprocessor::cond_block (bool cond_met)
             }
         }
 
-        if (tokenizer.is_next ({Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF,
-                                Tokenizer::PREPROCESSOR_IFEQU, Tokenizer::PREPROCESSOR_IFNEQU,
-                                Tokenizer::PREPROCESSOR_IFLESS, Tokenizer::PREPROCESSOR_IFMORE}))
+        if (m_tokenizer.is_next ({Tokenizer::PREPROCESSOR_IFDEF, Tokenizer::PREPROCESSOR_IFNDEF,
+                                  Tokenizer::PREPROCESSOR_IFEQU, Tokenizer::PREPROCESSOR_IFNEQU,
+                                  Tokenizer::PREPROCESSOR_IFLESS, Tokenizer::PREPROCESSOR_IFMORE}))
         {
             rel_scope_level++;
         }
-        else if (tokenizer.is_next ({Tokenizer::PREPROCESSOR_ENDIF}))
+        else if (m_tokenizer.is_next ({Tokenizer::PREPROCESSOR_ENDIF}))
         {
             rel_scope_level--;
         }
-        tokenizer.consume ();
+        m_tokenizer.consume ();
     }
 
-    tokenizer.set_state (prev_state);
+    m_tokenizer.set_state (prev_state);
 
     if ((cond_met && !found_end_block) || (!cond_met && !found_next_block))
     {
@@ -758,13 +760,13 @@ void Preprocessor::cond_block (bool cond_met)
         if (found_next_block)
         {
             // remove all tokens from the next block to the endif
-            tokenizer.remove_tokens (next_block_state.toki, end_block_state.toki);
+            m_tokenizer.remove_tokens (next_block_state.toki, end_block_state.toki);
         }
     }
     else
     {
         // move token index to the start of the next conditional block (or endif)
-        tokenizer.set_state (next_block_state);
+        m_tokenizer.set_state (next_block_state);
     }
 }
 
@@ -777,18 +779,18 @@ bool Preprocessor::is_symbol_def (const std::string &symbol_name, int num_params
 
 void Preprocessor::_cond_on_def ()
 {
-    Tokenizer::Token cond_tok = tokenizer.consume ();
-    tokenizer.skip_next_regex ("[ \t]");
+    Tokenizer::Token cond_tok = m_tokenizer.consume ();
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // symbol
     std::string symbol =
-        tokenizer
+        m_tokenizer
             .consume ({Tokenizer::SYMBOL},
                       "Preprocessor::_" + cond_tok.value.substr (1) + "() - Expected symbol.")
             .value;
-    tokenizer.skip_next ({Tokenizer::WHITESPACE_SPACE, Tokenizer::WHITESPACE_TAB});
+    m_tokenizer.skip_next ({Tokenizer::WHITESPACE_SPACE, Tokenizer::WHITESPACE_TAB});
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_cond_on_def() - Conditional preprocessors must be on it's own line.");
 
@@ -811,16 +813,16 @@ void Preprocessor::_cond_on_def ()
 
 void Preprocessor::_cond_on_value ()
 {
-    Tokenizer::Token cond_tok = tokenizer.consume ();
-    tokenizer.skip_next_regex ("[ \t]");
+    Tokenizer::Token cond_tok = m_tokenizer.consume ();
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // symbol
     std::string symbol =
-        tokenizer
+        m_tokenizer
             .consume ({Tokenizer::SYMBOL},
                       "Preprocessor::_" + cond_tok.value.substr (1) + "() - Expected symbol.")
             .value;
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // extract symbol's string value
     std::string symbol_val;
@@ -835,14 +837,14 @@ void Preprocessor::_cond_on_value ()
     // value
     std::string value;
     bool read_next_line = false;
-    while (!tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) || read_next_line)
+    while (!m_tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) || read_next_line)
     {
         read_next_line = false;
-        value += tokenizer.consume ().value;
+        value += m_tokenizer.consume ().value;
 
         // check if we should read the nextline provided the next token is a newline
         // and the previous token read was a '\' character
-        if (tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) && value.back () == '\\')
+        if (m_tokenizer.is_next ({Tokenizer::WHITESPACE_NEWLINE}) && value.back () == '\\')
         {
             read_next_line = true;
 
@@ -851,7 +853,7 @@ void Preprocessor::_cond_on_value ()
         }
     }
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_cond_on_value() - Conditional preprocessors must be on it's own line.");
 
@@ -881,43 +883,44 @@ void Preprocessor::_cond_on_value ()
 
 void Preprocessor::_else ()
 {
-    tokenizer.consume (); // '#else'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#else'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_else() - Conditional preprocessors must be on it's own line.");
 }
 
 void Preprocessor::_endif ()
 {
-    tokenizer.consume (); // '#endif'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#endif'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_endif() - Conditional preprocessors must be on it's own line.");
 }
 
 void Preprocessor::_undefine ()
 {
-    tokenizer.consume (); // '#define'
-    tokenizer.skip_next_regex ("[ \t]");
+    m_tokenizer.consume (); // '#define'
+    m_tokenizer.skip_next_regex ("[ \t]");
 
     // symbol
     std::string symbol =
-        tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.").value;
-    tokenizer.skip_next_regex ("[ \t]");
+        m_tokenizer.consume ({Tokenizer::SYMBOL}, "Preprocessor::_define() - Expected symbol.")
+            .value;
+    m_tokenizer.skip_next_regex ("[ \t]");
 
-    tokenizer.consume (
+    m_tokenizer.consume (
         {Tokenizer::WHITESPACE_NEWLINE},
         "Preprocessor::_undefine() - Definition preprocessors must be on it's own line.");
 
     // if a number of parameters was specified, remove that definition otherwise remove all definitions
-    if (tokenizer.is_next ({Tokenizer::LITERAL_NUMBER_DECIMAL}))
+    if (m_tokenizer.is_next ({Tokenizer::LITERAL_NUMBER_DECIMAL}))
     {
         int num_params =
-            std::stoi (tokenizer
+            std::stoi (m_tokenizer
                            .consume ({Tokenizer::LITERAL_NUMBER_DECIMAL},
                                      "Preprocessor::_undefine() - Expected number of parameters.")
                            .value);

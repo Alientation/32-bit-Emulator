@@ -170,7 +170,7 @@ class Emulator32bit
 
     Timer *timer = nullptr;
 
-    word _pagedir; /* Pointer to Page directory for virtual address space. */
+    word pagedir; /* Pointer to Page directory for virtual address space. */
 
     /**
      * @brief            Run the emulator for a given number of instructions
@@ -189,22 +189,22 @@ class Emulator32bit
 
     inline void set_pc (word pc)
     {
-        _pc = pc;
+        m_pc = pc;
     }
 
     inline word get_pc ()
     {
-        return _pc;
+        return m_pc;
     }
 
     inline word read_reg (byte reg)
     {
-        return word (_x[reg]) & word (_x[reg] >> 32);
+        return word (m_x[reg]) & word (m_x[reg] >> 32);
     }
 
     inline void write_reg (byte reg, word val)
     {
-        _x[reg] = word (_x[reg]) ^ dword (val) << 32;
+        m_x[reg] = word (m_x[reg]) ^ dword (val) << 32;
     }
 
     /**
@@ -217,10 +217,10 @@ class Emulator32bit
      */
     inline void set_NZCV (bool N, bool Z, bool C, bool V)
     {
-        _pstate = set_bit (_pstate, kNFlagBit, N);
-        _pstate = set_bit (_pstate, kZFlagBit, Z);
-        _pstate = set_bit (_pstate, kCFlagBit, C);
-        _pstate = set_bit (_pstate, kVFlagBit, V);
+        m_pstate = set_bit (m_pstate, kNFlagBit, N);
+        m_pstate = set_bit (m_pstate, kZFlagBit, Z);
+        m_pstate = set_bit (m_pstate, kCFlagBit, C);
+        m_pstate = set_bit (m_pstate, kVFlagBit, V);
     }
 
     /**
@@ -231,12 +231,12 @@ class Emulator32bit
      */
     inline void set_flag (int flag, bool value)
     {
-        _pstate = set_bit (_pstate, flag, value);
+        m_pstate = set_bit (m_pstate, flag, value);
     }
 
     inline bool get_flag (int flag)
     {
-        return test_bit (_pstate, flag);
+        return test_bit (m_pstate, flag);
     }
 
     /* @todo determine if fp registers are needed */
@@ -250,12 +250,12 @@ class Emulator32bit
      * Format: top 32 bits register value, bottom 32 bits mask value (for xzr
      * register)
      */
-    dword _x[kNumReg];
-    word _pc;     /* Program counter */
-    word _pstate; /* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
+    dword m_x[kNumReg];
+    word m_pc;     /* Program counter */
+    word m_pstate; /* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
 
     typedef void (Emulator32bit::*InstructionFunction) (word);
-    InstructionFunction _instructions[kMaxInstructions];
+    InstructionFunction m_instruction_handler[kMaxInstructions];
 
 // note, stringstreams cannot use the static const for some reason
 #define _INSTR(func_name, opcode)                                                                  \
@@ -270,7 +270,7 @@ class Emulator32bit
 
     inline void execute (word instr)
     {
-        (this->*_instructions[bitfield_unsigned (instr, 26, 6)]) (instr);
+        (this->*m_instruction_handler[bitfield_unsigned (instr, 26, 6)]) (instr);
     }
 
     inline bool check_cond (word pstate, byte cond)

@@ -45,18 +45,18 @@ class FBL_InMemory
         FreeBlock *prev = nullptr;
     };
 
-    byte *mem;
-    word mem_start;
-    word mem_size;
-    word block_size;
+    byte *m_mem;
+    word m_mem_start;
+    word m_mem_size;
+    word m_block_size;
 
-    struct FreeBlock *head = nullptr;
+    struct FreeBlock *m_head = nullptr;
 
     struct FreeBlock *insert (word block);
     void coalesce (FreeBlock *first);
 
     inline word ptr_to_mem_index (void *ptr)
     {
-        return word ((uintptr_t) ptr - (uintptr_t) mem);
+        return word ((uintptr_t) ptr - (uintptr_t) m_mem);
     }
 };

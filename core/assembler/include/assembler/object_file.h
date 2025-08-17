@@ -84,11 +84,13 @@ class ObjectFile
             token; /* token index that the relocation entry is used on. Used to fill local symbols */
     };
 
-    static const int BELF_HEADER_SIZE = 24;
-    static const int SECTION_HEADER_SIZE = 45;
-    static const int BSS_SECTION_SIZE = 8;
-    static const int RELOCATION_ENTRY_SIZE = 28;
-    static const int SYMBOL_TABLE_ENTRY_SIZE = 26;
+    // TODO: Figure out how these sizes are calculated again.
+    static constexpr U32 kBELFHeaderSize = 24;
+    static constexpr U32 kSectionHeaderSize = 45;
+    static constexpr U32 kBSSSectionSize = 8;
+    static constexpr U32 kTextEntrySize = 4;
+    static constexpr U32 kRelocationEntrySize = 28;
+    static constexpr U32 kSymbolTableEntrySize = 26;
 
     hword file_type;
     hword target_machine;

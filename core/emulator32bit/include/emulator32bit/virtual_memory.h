@@ -358,7 +358,7 @@ class VirtualMemory
      * @todo            Change so that the hash is of the virtual page address and the pid to
      *                     avoid collisions between processes.
      */
-    TLB_Entry tlb[kMaxTLBSize];
+    TLB_Entry m_tlb[kMaxTLBSize];
 
     /**
      * @brief            Free PIDs not in use by any process.
@@ -532,8 +532,8 @@ class VirtualMemory
          * mapping. Recently accessed virtual pages will have the translation stored in the
          * buffer.
          */
-        if (UNLIKELY (!tlb[tlb_addr].valid || tlb[tlb_addr].pid != ptable->pid
-                      || tlb[tlb_addr].vpage != vpage))
+        if (UNLIKELY (!m_tlb[tlb_addr].valid || m_tlb[tlb_addr].pid != ptable->pid
+                      || m_tlb[tlb_addr].vpage != vpage))
         {
             /*
              * Unlikely that the virtual page accesses is an unmapped virtual page.
@@ -548,15 +548,15 @@ class VirtualMemory
                  * Update the TLB with the result of the translation of virtual page to
                  * physical page.
                  */
-                tlb[tlb_addr].valid = true;
-                tlb[tlb_addr].pid = ptable->pid;
-                tlb[tlb_addr].vpage = vpage;
-                tlb[tlb_addr].ppage = ptable->entries.at (vpage)->ppage;
+                m_tlb[tlb_addr].valid = true;
+                m_tlb[tlb_addr].pid = ptable->pid;
+                m_tlb[tlb_addr].vpage = vpage;
+                m_tlb[tlb_addr].ppage = ptable->entries.at (vpage)->ppage;
             }
         }
         else
         {
-            return tlb[tlb_addr].ppage; // translation exists in the buffer.
+            return m_tlb[tlb_addr].ppage; // translation exists in the buffer.
         }
 
         PageTableEntry *entry = ptable->entries.at (vpage);

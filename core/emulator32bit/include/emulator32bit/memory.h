@@ -20,29 +20,29 @@ class BaseMemory
 
     inline word get_mem_pages ()
     {
-        return npages;
+        return m_npages;
     }
 
     inline word get_lo_page ()
     {
-        return start_page;
+        return m_start_page;
     }
 
     inline word get_hi_page ()
     {
-        return start_page + npages - 1;
+        return m_start_page + m_npages - 1;
     }
 
     inline bool in_bounds (word address)
     {
-        return address >= (start_page << kNumPageOffsetBits)
+        return address >= (m_start_page << kNumPageOffsetBits)
                && address < ((get_hi_page () + 1) << kNumPageOffsetBits);
     }
 
   protected:
-    word npages;
-    word start_page;
-    word start_addr;
+    word m_npages;
+    word m_start_page;
+    word m_start_addr;
 };
 
 class Memory : public BaseMemory
@@ -56,46 +56,49 @@ class Memory : public BaseMemory
     // HAVING AN EXPENSIVE CONDITIONAL CHECK EVERYTIME MEMORY IS ACCESSED
     inline byte read_byte (word address) override
     {
-        return data[address - (start_page << kNumPageOffsetBits)];
+        return m_data[address - (m_start_page << kNumPageOffsetBits)];
     }
 
     inline hword read_hword (word address)
     {
-        address -= start_addr;
-        return ((hword *) (data + (address & 1)))[address >> 1];
+        address -= m_start_addr;
+        return ((hword *) (m_data + (address & 1)))[address >> 1];
     }
 
     inline word read_word (word address)
     {
-        address -= start_addr;
-        return ((word *) (data + (address & 0b11)))[address >> 2];
+        address -= m_start_addr;
+        return ((word *) (m_data + (address & 0b11)))[address >> 2];
     }
 
     virtual inline word read_word_aligned (word address)
     {
-        return ((word *) data)[(address - start_addr) >> 2];
+        return ((word *) m_data)[(address - m_start_addr) >> 2];
     }
 
     inline void write_byte (word address, byte value)
     {
-        data[address - (start_page << kNumPageOffsetBits)] = value;
+        m_data[address - (m_start_page << kNumPageOffsetBits)] = value;
     }
 
     inline void write_hword (word address, hword value)
     {
-        address -= start_addr;
-        ((hword *) (data + (address & 1)))[address >> 1] = value;
+        address -= m_start_addr;
+        ((hword *) (m_data + (address & 1)))[address >> 1] = value;
     }
 
     inline void write_word (word address, word value)
     {
-        address -= start_addr;
-        ((word *) (data + (address & 0b11)))[address >> 2] = value;
+        address -= m_start_addr;
+        ((word *) (m_data + (address & 0b11)))[address >> 2] = value;
     }
 
     void reset ();
 
-    byte *data;
+  protected:
+    byte *m_data;
+
+    friend class MMU;
 };
 
 class RAM : public Memory
@@ -122,9 +125,9 @@ class ROM : public Memory
         const char *what () const noexcept override;
     };
 
-    /* TODO: prevent writes, have special way to flash memory */
+    // TODO: prevent writes, have special way to flash memory
 
   private:
-    bool save_file = false;
-    File file;
+    bool m_save_file = false;
+    File m_file;
 };

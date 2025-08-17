@@ -42,7 +42,8 @@ class Assembler
     /// @param output_path      Output file path to write the object file to. If left empty, creates
     ///                         the object file as the same path as the input file with the .bo
     ///                         extension.
-    Assembler (const Process *process, const File processed_file, const std::string &output_path = "");
+    Assembler (const Process *process, const File processed_file,
+               const std::string &output_path = "");
 
     /// @brief          Assembles the input assembly into an object file.
     void assemble ();
@@ -60,10 +61,10 @@ class Assembler
     const Process *const m_process;
 
     /// @brief Input .bi file that will be assembled.
-    const File m_inputFile;
+    const File m_in_file;
 
     /// @brief Output .bo object file.
-    File m_outputFile;
+    File m_out_obj_file;
 
     /// @brief State of the assembler.
     State m_state;

@@ -38,15 +38,15 @@ class MMU
                 Null page directory or processor in real more implies no virtual
                 memory.
             */
-        if (UNLIKELY (!processor->_pagedir || processor->get_flag (kRealModeFlagBit)))
+        if (UNLIKELY (!m_processor->pagedir || m_processor->get_flag (kRealModeFlagBit)))
         {
             return address;
         }
 
         /* Check for valid page directory. */
-        RAM *ram = processor->system_bus->ram;
-        if (UNLIKELY (!ram->in_bounds (processor->_pagedir))
-            || !ram->in_bounds (processor->_pagedir + (kPageSize * sizeof (struct PageTableEntry))
+        RAM *ram = m_processor->system_bus->ram;
+        if (UNLIKELY (!ram->in_bounds (m_processor->pagedir))
+            || !ram->in_bounds (m_processor->pagedir + (kPageSize * sizeof (struct PageTableEntry))
                                 - 1))
         {
             throw Emulator32bit::Exception (Emulator32bit::BAD_PAGEDIR,
@@ -59,9 +59,9 @@ class MMU
                 Kernel memory is directly mapped, not rerouting. Just check
                 for permissions of process accessing.
             */
-        if (UNLIKELY (vpage >= kernel_low_page && vpage <= kernel_high_page))
+        if (UNLIKELY (vpage >= m_kernel_low_page && vpage <= m_kernel_high_page))
         {
-            if (UNLIKELY (processor->get_flag (kUserModeFlagBit)))
+            if (UNLIKELY (m_processor->get_flag (kUserModeFlagBit)))
             {
                 throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
                                                 "User tried accessing kernel page.");
@@ -70,7 +70,7 @@ class MMU
         }
 
         struct PageTableEntry *pagetable =
-            (struct PageTableEntry *) &ram->data[processor->_pagedir];
+            (struct PageTableEntry *) &ram->m_data[m_processor->pagedir];
         struct PageTableEntry *entry = &pagetable[vpage];
 
         /* Check for access permissions. */
@@ -78,7 +78,7 @@ class MMU
         {
             throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT, "Unmapped memory accessed.");
         }
-        else if (UNLIKELY (entry->kernel && processor->get_flag (kUserModeFlagBit)))
+        else if (UNLIKELY (entry->kernel && m_processor->get_flag (kUserModeFlagBit)))
         {
             throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
                                             "User tried accessing kernel page.");
@@ -99,7 +99,7 @@ class MMU
         /* Read from disk and write to memory. */
         if (UNLIKELY (entry->disk))
         {
-            Disk *disk = processor->system_bus->disk;
+            Disk *disk = m_processor->system_bus->disk;
             std::vector<byte> disk_page = disk->read_page (entry->disk);
             disk->return_page (entry->disk);
 
@@ -111,7 +111,7 @@ class MMU
             entry->ppage = free_ppage;
 
             word mapped_address = (free_ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
-            memcpy (&ram->data[mapped_address], disk_page.data (), kPageSize);
+            memcpy (&ram->m_data[mapped_address], disk_page.data (), kPageSize);
             return mapped_address;
         }
 
@@ -135,24 +135,24 @@ class MMU
         bool copy_on_write;   /* Copies and maps new page on write */
     };
 
-    Emulator32bit *processor;
-    word user_low_page;
-    word user_high_page;
-    word kernel_low_page;
-    word kernel_high_page;
+    Emulator32bit *m_processor;
+    word m_user_low_page;
+    word m_user_high_page;
+    word m_kernel_low_page;
+    word m_kernel_high_page;
 
-    FBL_InMemory free_user_ppages;
-    FBL_InMemory free_kernel_ppages;
-    word clock_hand = 0;
+    FBL_InMemory m_free_user_ppages;
+    FBL_InMemory m_free_kernel_ppages;
+    word m_clock_hand = 0;
 
     inline word get_free_ppage ()
     {
-        if (UNLIKELY (free_user_ppages.empty ()))
+        if (UNLIKELY (m_free_user_ppages.empty ()))
         {
             return evict_ppage ();
         }
 
-        return free_user_ppages.get_free_block () >> kNumPageOffsetBits;
+        return m_free_user_ppages.get_free_block () >> kNumPageOffsetBits;
     }
 
     inline word evict_ppage ()

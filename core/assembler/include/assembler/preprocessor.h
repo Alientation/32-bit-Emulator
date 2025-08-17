@@ -92,7 +92,7 @@ class Preprocessor
     // the .basm or .binc file being preprocessed
     File m_input_file;
 
-    Tokenizer tokenizer;
+    Tokenizer m_tokenizer;
 
     // the output file of the processed file, usually a .bi file
     File m_output_file;
@@ -256,7 +256,7 @@ class Preprocessor
     void _undefine ();
 
     typedef void (Preprocessor::*PreprocessorFunction) ();
-    std::map<Tokenizer::Type, PreprocessorFunction> preprocessors = {
+    std::map<Tokenizer::Type, PreprocessorFunction> m_preprocessor_handlers = {
         {Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
         {Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},
         {Tokenizer::PREPROCESSOR_MACRET, &Preprocessor::_macret},
