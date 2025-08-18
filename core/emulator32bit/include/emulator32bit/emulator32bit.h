@@ -7,72 +7,90 @@
 
 #include <string>
 
-/* TODO: I think we can get rid of these forward declarations. They should not
- * need to know about this emulator class. */
-class MMU;   /* Forward declare from 'better_virtual_memory.h' */
-class Timer; /* Forward declare from 'timer.h' */
+// TODO: I think we can get rid of these forward declarations. They should not
+// need to know about this emulator class.
+class MMU;
+class Timer;
 
-/**
- * @brief                    IDs for special registers
- *
- *
- *    Stack grows downwards
- * <--------STACK_TOP-------->
- *          Saved FP
- *          Saved LR                <--- fp
- *   ---STACK_FRAME_BORDER---
- *      local variables
- *          <...>
- *          <...>
- *          <...>
- *      local variables             <---- sp
- *
- * Link register stores the previous pc, the next instruction is what will be
- * executed.
- *
- * Register Conventions
- *  - x0-x17: Caller Saved
- *      - x0-x7: Parameter Registers
- *          - x0: Return value
- *      - x8: Syscall Number
- *  - x19-27: Callee Saved
- *  - x28: Frame Register
- *  - x29: Link Register
- *
- */
-constexpr int kNumReg = 32;               /* Number of general purpose stack registers. */
-constexpr int kSyscallRegister = 8;       /* Number register for syscalls. */
-constexpr int kFPRegister = 28;           /* Frame Pointer - points to saved (FP,LR) in stack. */
-constexpr int kLinkRegister = 29;         /* Link Register. */
-constexpr int kStackPointerRegister = 30; /* Stack Pointer. */
-constexpr int kZeroRegister = 31;         /* Zero Register. */
+///
+/// @brief                  IDs for special registers
+///
+/// Stack grows downwards
+/// <--------STACK_TOP-------->
+///          Saved FP
+///          Saved LR                <--- fp
+///  ---STACK_FRAME_BORDER---
+///      local variables
+///          <...>
+///          <...>
+///          <...>
+///      local variables             <---- sp
+///
+/// Link register stores the previous pc, the next instruction is what will be
+/// executed.
+///
+/// Register Conventions
+///  - x0-x17: Caller Saved
+///     - x0-x7: Parameter Registers
+///     - x0: Return value
+///     - x8: Syscall Number
+///  - x19-27: Callee Saved
+///  - x28: Frame Register
+///  - x29: Link Register
+///
 
-/**
- * @brief                     Flag bit locations in the _pstate register.
- *
- */
-constexpr int kNFlagBit = 0;        /* Negative Flag. */
-constexpr int kZFlagBit = 1;        /* Zero Flag. */
-constexpr int kCFlagBit = 2;        /* Carry Flag. */
-constexpr int kVFlagBit = 3;        /* Overflow Flag. */
-constexpr int kUserModeFlagBit = 8; /* User mode flag. */
-constexpr int kRealModeFlagBit = 9; /* Real memory mode flag. */
+/// @brief              Number of general purpose stack registers.
+constexpr int kNumReg = 32;
 
-/**
- * @brief                    Which bit of the instruction determines whether
- * flags will be updated
- *
- */
-constexpr int kInstructionUpdateFlagBit = 25; /* Update Flag Bit */
+/// @brief              Number register for syscalls.
+constexpr int kSyscallRegister = 8;
 
+/// @brief              Frame Pointer - points to saved (FP,LR) in stack.
+constexpr int kFPRegister = 28;
+
+/// @brief              Link Register.
+constexpr int kLinkRegister = 29;
+
+/// @brief              Stack Pointer.
+constexpr int kStackPointerRegister = 30;
+
+/// @brief              Zero Register.
+constexpr int kZeroRegister = 31;
+
+///
+/// @brief              Flag bit locations in the _pstate register.
+///
+
+/// @brief              Negative Flag.
+constexpr int kNFlagBit = 0;
+
+/// @brief              Zero Flag.
+constexpr int kZFlagBit = 1;
+
+/// @brief              Carry Flag.
+constexpr int kCFlagBit = 2;
+
+/// @brief              Overflow Flag.
+constexpr int kVFlagBit = 3;
+
+/// @brief              User mode flag.
+constexpr int kUserModeFlagBit = 8;
+
+/// @brief              Real memory mode flag.
+constexpr int kRealModeFlagBit = 9;
+
+/// @brief              Which bit of the instruction determines whether flags will be updated.
+constexpr int kInstructionUpdateFlagBit = 25;
+
+/// @brief              Max supported instructions. 6 bits are used to represent the opcode for easy
+///                     look-up table translations.
 constexpr int kMaxInstructions = 64;
 
-/**
- * @brief                   32 bit Emulator
- * @paragraph               Modeled off of the ARM architecture with many
- * simplifications. A software simulated processor.
- *
- */
+///
+/// @brief              32 bit Emulator
+/// @paragraph          Modeled off of the ARM architecture with many simplifications.
+///                     A software simulated processor.
+///
 class Emulator32bit
 {
   public:
@@ -83,9 +101,9 @@ class Emulator32bit
     ~Emulator32bit ();
     void print ();
 
+    // TODO:
     enum InterruptType
     {
-        /* TODO */
         BAD_REG,
         BAD_INSTR,
         HALT_INSTR,
@@ -94,6 +112,7 @@ class Emulator32bit
         PAGEFAULT,
     };
 
+    // TODO:
     struct InterruptFrame
     {
         word saved_reg[kNumReg];
@@ -115,24 +134,55 @@ class Emulator32bit
 
     enum class ConditionCode
     {
-        EQ = 0,  /* Equal                        : Z==1 */
-        NE = 1,  /* Not Equal                    : Z==0 */
+        /// @brief          Equal                           : Z==1
+        EQ = 0,
+
+        /// @brief          Not Equal                       : Z==0
+        NE = 1,
+
+        /// @brief          Unsigned higher or same         : C==1
         CS = 2,
-        HS = 2,  /* Unsigned higher or same        : C==1 */
+        HS = 2,
+
+        /// @brief          Unsigned lower                  : C==0
         CC = 3,
-        LO = 3,  /* Unsigned loiwer                : C==0 */
-        MI = 4,  /* Negative                        : N==1 */
-        PL = 5,  /* Nonnegative                    : N==0 */
-        VS = 6,  /* Signed overflow                 : V==1 */
-        VC = 7,  /* No signed overflow            : V==0 */
-        HI = 8,  /* Unsigned higher                : (C==1) && (Z==0) */
-        LS = 9,  /* Unsigned lower or same         : (C==0) || (Z==0) */
-        GE = 10, /* Signed greater than or equal    : N==V */
-        LT = 11, /* Signed less than                : N!=V */
-        GT = 12, /* Signed greater than            : (Z==0) && (N==V) */
-        LE = 13, /* Signed less than or equal     : (Z==1) || (N!=V) */
-        AL = 14, /* Always Executed                : NONE */
-        NV = 15, /* Never Executed                 : NONE */
+        LO = 3,
+
+        /// @brief          Negative                        : N==1
+        MI = 4,
+
+        /// @brief          Nonnegative                     : N==0
+        PL = 5,
+
+        /// @brief          Signed overflow                 : V==1
+        VS = 6,
+
+        /// @brief          No signed overflow              : V==0
+        VC = 7,
+
+        /// @brief          Unsigned higher                 : C==1 && Z==0
+        HI = 8,
+
+        /// @brief          Unsigned lower or same          : C==0 || Z==0
+        LS = 9,
+
+        /// @brief          Signed greater than or equal    : N==V
+        GE = 10,
+
+        /// @brief          Signed less than                : N!=V
+        LT = 11,
+
+        /// @brief          Signed greater than             : Z==0 && N==V
+        GT = 12,
+
+        /// @brief          Signed less than or equal       : Z==1 || N!=V
+        LE = 13,
+
+        /// @brief          Always executed                 : NONE
+        AL = 14,
+
+        /// @brief          Never executed                  : NONE
+        NV = 15,
     };
 
     enum ShiftType
@@ -150,41 +200,43 @@ class Emulator32bit
         ADDR_POST_INC
     };
 
-    /* Default size of RAM memory in pages */
+    /// @brief              Default size of RAM memory in pages.
     static constexpr word RAM_NPAGES = 16;
 
-    /* Default start page of RAM memory */
+    /// @brief              Default start page of RAM memory.
     static constexpr word RAM_START_PAGE = 0;
 
-    /* Default size of ROM memory in pages */
+    /// @brief              Default size of ROM memory in pages.
     static constexpr word ROM_NPAGES = 16;
 
-    /* Default start page of ROM memory */
+    /// @brief              Default start page of ROM memory.
     static constexpr word ROM_START_PAGE = 16;
 
-    /* Data stored in ROM, should be of the same length specified in @ref
-     * ROM_NPAGES */
+    /// @brief              Data stored in ROM, should be of the same length specified in
+    ///                     @ref ROM_NPAGES.
     static constexpr byte ROM_DATA[ROM_NPAGES << kNumPageOffsetBits] = {};
 
     SystemBus *system_bus = nullptr;
 
     Timer *timer = nullptr;
 
-    word pagedir; /* Pointer to Page directory for virtual address space. */
+    /// @brief              Pointer to the page directory for the virtual address space of the
+    ///                     process.
+    word pagedir;
 
-    /**
-     * @brief            Run the emulator for a given number of instructions
-     *
-     * @param             instructions: Number of instructions to run, if 0 run
-     * until HLT instruction or exception is thrown
-     * @throws            Exception
-     */
+    ///
+    /// @brief                  Run the emulator for a given number of instructions.
+    ///
+    /// @param instructions     Number of instructions to run, if 0 run until HLT instruction or
+    ///                         exception is thrown.
+    /// @throws                 Exception
+    ///
     void run (unsigned long long instructions);
 
-    /**
-     * @brief            Resets the processor state
-     *
-     */
+    ///
+    /// @brief              Resets the processor state.
+    ///
+    ///
     void reset ();
 
     inline void set_pc (word pc)
@@ -207,14 +259,14 @@ class Emulator32bit
         m_x[reg] = word (m_x[reg]) ^ dword (val) << 32;
     }
 
-    /**
-     * @brief             Sets the @ref _pstate NZCV flags
-     *
-     * @param             N: Negative flag
-     * @param             Z: Zero flag
-     * @param             C: Carry flag
-     * @param             V: Overflow flag
-     */
+    ///
+    /// @brief              Sets the @ref _pstate NZCV flags.
+    ///
+    /// @param N            Negative flag.
+    /// @param Z            Zero flag.
+    /// @param C            Carry flag.
+    /// @param V            Overflow flag.
+    ///
     inline void set_NZCV (bool N, bool Z, bool C, bool V)
     {
         m_pstate = set_bit (m_pstate, kNFlagBit, N);
@@ -223,12 +275,12 @@ class Emulator32bit
         m_pstate = set_bit (m_pstate, kVFlagBit, V);
     }
 
-    /**
-     * @brief           Sets flags in the process state register
-     *
-     * @param           flag: Bit to set
-     * @param           value: Flag value
-     */
+    ///
+    /// @brief              Sets flags in the process state register.
+    ///
+    /// @param flag         Bit to set.
+    /// @param value        Flag value.
+    ///
     inline void set_flag (int flag, bool value)
     {
         m_pstate = set_bit (m_pstate, flag, value);
@@ -239,20 +291,24 @@ class Emulator32bit
         return test_bit (m_pstate, flag);
     }
 
-    /* @todo determine if fp registers are needed */
+    /// @todo               TODO: determine if fp registers are needed
     // word fpcr;
     // word fpsr;
 
   private:
-    /**
-     * General purpose registers, x0-x29, xzr, and SP. x29 is the link register.
-     *
-     * Format: top 32 bits register value, bottom 32 bits mask value (for xzr
-     * register)
-     */
+    ///
+    /// @brief              General purpose registers, x0-x29, xzr, and SP. x29 is the link register.
+    ///
+    ///                     Format: top 32 bits register value, bottom 32 bits mask value (for xzr
+    ///                     register)
+    ///
     dword m_x[kNumReg];
-    word m_pc;     /* Program counter */
-    word m_pstate; /* Program state. Bits 0-3 are NZCV flags. Rest are TODO */
+
+    /// @brief              Program counter.
+    word m_pc;
+
+    /// @brief              Program state. Bits 0-3 are NZCV flags. Rest are TODO
+    word m_pstate;
 
     typedef void (Emulator32bit::*InstructionFunction) (word);
     InstructionFunction m_instruction_handler[kMaxInstructions];
@@ -275,48 +331,45 @@ class Emulator32bit
 
         switch ((ConditionCode) cond)
         {
-        case ConditionCode::EQ: /* EQUAL */
+        case ConditionCode::EQ:
             return Z == 1;
-        case ConditionCode::NE: /* NOT EQUAL */
+        case ConditionCode::NE:
             return Z == 0;
-        case ConditionCode::CS: /* CARRY SET */
+        case ConditionCode::CS:
             return C == 1;
-        case ConditionCode::CC: /* CARRY CLEAR */
+        case ConditionCode::CC:
             return C == 0;
-        case ConditionCode::MI: /* NEGATIVE */
+        case ConditionCode::MI:
             return N == 1;
-        case ConditionCode::PL: /* NONNEGATIVE */
+        case ConditionCode::PL:
             return N == 0;
-        case ConditionCode::VS: /* OVERFLOW SET */
+        case ConditionCode::VS:
             return V == 1;
-        case ConditionCode::VC: /* OVERFLOW CLEAR */
+        case ConditionCode::VC:
             return V == 0;
-        case ConditionCode::HI: /* UNSIGNED HIGHER */
+        case ConditionCode::HI:
             return C == 1 && Z == 0;
-        case ConditionCode::LS: /* UNSIGNED LOWER OR EQUAL */
+        case ConditionCode::LS:
             return C == 0 || Z == 1;
-        case ConditionCode::GE: /* SIGNED GREATER OR EQUAL */
+        case ConditionCode::GE:
             return N == V;
-        case ConditionCode::LT: /* SIGNED LOWER */
+        case ConditionCode::LT:
             return N != V;
-        case ConditionCode::GT: /* SIGNED GREATER */
+        case ConditionCode::GT:
             return Z == 0 && (N == V);
-        case ConditionCode::LE: /* SIGNED LOWER OR EQUAL */
+        case ConditionCode::LE:
             return Z == 1 || (N != V);
-        case ConditionCode::AL: /* ALWAYS */
+        case ConditionCode::AL:
             return true;
-        case ConditionCode::NV: /* NEVER */
+        case ConditionCode::NV:
             return false;
         }
 
-        /*
-            Shouldn't ever reach this, but to be safe, return false to clearly
-            indicate a incorrect instruction
-        */
+        // Shouldn't ever reach this.
+        // TODO: figure out how to report this better?
         return false;
     }
 
-// note, stringstreams cannot use the static const for some reason
 #define _INSTR(func_name, opcode)                                                                  \
   private:                                                                                         \
     void _##func_name (word instr);                                                                \
@@ -324,7 +377,7 @@ class Emulator32bit
   public:                                                                                          \
     static constexpr word _op_##func_name = opcode;
 
-    // instruction handling
+    // Instruction handling.
     _INSTR (special_instructions, 0b000000)
 
     void _hlt (const word instr);
@@ -411,7 +464,7 @@ class Emulator32bit
 
 #undef _INSTR
 
-    /* Software Interrupt Handling */
+    // Software interrupt handling.
     void _emu_print ();
     void _emu_printr (byte reg_id);
     void _emu_printm (word mem_addr, byte size, bool little_endian);
@@ -424,7 +477,7 @@ class Emulator32bit
     void _emu_err (word err);
 
   public:
-    // help assemble instructions
+    // Helpers to assemble instructions.
     static word asm_hlt ();
     static word asm_nop ();
     static word asm_msr (word sysreg, bool imm, word xn_or_imm16);
