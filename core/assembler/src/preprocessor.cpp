@@ -73,7 +73,7 @@ Preprocessor::Preprocessor (Process *process, const File &input_file,
                             const std::string &output_file_path) :
     m_process (process),
     m_input_file (input_file),
-    m_tokenizer (input_file)
+    m_tokenizer (input_file, kTokenizerOptions)
 {
     // default output file path if not supplied in the constructor
     if (output_file_path.empty ())
@@ -127,9 +127,6 @@ File Preprocessor::preprocess ()
 
     // create writer for intermediate output file
     FileWriter writer = FileWriter (m_output_file);
-
-    // remove all comments before processing
-    m_tokenizer.filter_all (Tokenizer::COMMENTS);
 
     // parse the tokens
     while (m_tokenizer.has_next ())
@@ -447,7 +444,7 @@ void Preprocessor::_macret ()
     vector_util::append (
         set_return_statement,
         Tokenizer::tokenize (string_util::format ("#define {} ", m_macro_stack.top ().first),
-                             false));
+                             kTokenizerOptions));
     vector_util::append (set_return_statement, return_value);
     m_tokenizer.insert_tokens (set_return_statement, m_tokenizer.get_toki ());
 
@@ -534,7 +531,7 @@ void Preprocessor::_invoke ()
         expanded_macro_invoke,
         m_tokenizer.tokenize (
             ".scope\n" + string_util::repeat ("\t", 1 + m_tokenizer.get_state ().prev_indent),
-            false));
+            kTokenizerOptions));
 
     // then for each argument, add an '#define argname argval' statement
     // if the symbol has already been defined, store previous definition
@@ -547,7 +544,8 @@ void Preprocessor::_invoke ()
         }
         vector_util::append (
             expanded_macro_invoke,
-            Tokenizer::tokenize (string_util::format ("#define {} ", macro.args[i].name), false));
+            Tokenizer::tokenize (string_util::format ("#define {} ", macro.args[i].name),
+                                 kTokenizerOptions));
         vector_util::append (expanded_macro_invoke, arguments[i]);
         expanded_macro_invoke.push_back (Tokenizer::Token (Tokenizer::WHITESPACE_NEWLINE, "\n"));
     }
@@ -572,16 +570,16 @@ void Preprocessor::_invoke ()
         expanded_macro_invoke,
         m_tokenizer.tokenize (
             "\n" + string_util::repeat ("\t", m_tokenizer.get_state ().prev_indent) + ".scend\n",
-            false));
+            kTokenizerOptions));
 
     // push the macro and output symbol if any onto the macro stack
     m_macro_stack.push (std::pair<std::string, Macro> (output_symbol, macro));
 
     for (const Symbol &symbol : previously_defined)
     {
-        vector_util::append (
-            expanded_macro_invoke,
-            Tokenizer::tokenize (string_util::format ("#define {} ", symbol.name), false));
+        vector_util::append (expanded_macro_invoke,
+                             Tokenizer::tokenize (string_util::format ("#define {} ", symbol.name),
+                                                  kTokenizerOptions));
         vector_util::append (expanded_macro_invoke, symbol.value);
         expanded_macro_invoke.push_back (Tokenizer::Token (Tokenizer::WHITESPACE_NEWLINE, "\n"));
     }

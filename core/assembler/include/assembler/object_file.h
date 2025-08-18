@@ -215,7 +215,7 @@ class ObjectFile
     /// @param binding_info
     /// @param section
     void add_symbol (const std::string &symbol, word value,
-                     SymbolTableEntry::BindingInfo binding_info, U32 section);
+                     SymbolTableEntry::BindingInfo binding_info, U32 section = U32 (-1));
 
     /// @brief              TODO:
     /// @param section_name

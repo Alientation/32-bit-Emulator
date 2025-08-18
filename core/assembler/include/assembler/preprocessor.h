@@ -93,6 +93,8 @@ class Preprocessor
     File m_input_file;
 
     Tokenizer m_tokenizer;
+    static constexpr Tokenizer::Options kTokenizerOptions = {.keep_comments = false,
+                                                      .keep_whitespace = true};
 
     // the output file of the processed file, usually a .bi file
     File m_output_file;

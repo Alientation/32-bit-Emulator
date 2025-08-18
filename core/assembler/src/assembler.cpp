@@ -31,7 +31,8 @@ Assembler::Assembler (const Process *process, const File processed_file,
     m_state = State::NOT_ASSEMBLED;
 
     // Convert the input file into tokens.
-    m_tokens = Tokenizer::tokenize (processed_file);
+    m_tokenizer = Tokenizer (processed_file,
+                             Tokenizer::Options{.keep_comments = false, .keep_whitespace = false});
 }
 
 void Assembler::assemble ()
@@ -62,17 +63,10 @@ void Assembler::assemble ()
 
     // Parse tokens.
     DEBUG ("Assembler::assemble() - Parsing tokens.");
-    for (size_t i = 0; i < m_tokens.size ();)
+    while (m_tokenizer.has_next ())
     {
-        const Tokenizer::Token &token = m_tokens[i];
+        const Tokenizer::Token &token = m_tokenizer.get_token ();
         DEBUG ("Assembler::assemble() - Assembling token %d: %s", i, token.to_string ().c_str ());
-
-        // Skip whitespace and comments.
-        if (is_token (i, Tokenizer::WHITESPACES) || is_token (i, Tokenizer::COMMENTS))
-        {
-            i++;
-            continue;
-        }
 
         if (token.type == Tokenizer::LABEL)
         {
@@ -118,7 +112,7 @@ void Assembler::assemble ()
                 m_state = State::ASSEMBLER_ERROR;
                 break;
             }
-            i++;
+            m_tokenizer.consume ();
         }
         else if (m_instruction_handlers.find (token.type) != m_instruction_handlers.end ())
         {
@@ -129,17 +123,17 @@ void Assembler::assemble ()
                 m_state = State::ASSEMBLER_ERROR;
                 break;
             }
-            (this->*m_instruction_handlers[token.type]) (i);
+            (this->*m_instruction_handlers[token.type]) ();
         }
         else if (m_directive_handlers.find (token.type) != m_directive_handlers.end ())
         {
             // Handle assembler directive.
-            (this->*m_directive_handlers[token.type]) (i);
+            (this->*m_directive_handlers[token.type]) ();
         }
         else
         {
             // Unknown token.
-            ERROR ("Assembler::assemble() - Cannot parse token %d %s", i,
+            ERROR ("Assembler::assemble() - Cannot parse token %d %s", m_tokenizer.get_toki (),
                    token.to_string ().c_str ());
             m_state = State::ASSEMBLER_ERROR;
             break;
@@ -175,6 +169,7 @@ Assembler::State Assembler::get_state () const
 
 void Assembler::fill_local ()
 {
+    const std::vector<Tokenizer::Token> &tokens = m_tokenizer.get_tokens ();
     size_t tok_i = 0;
 
     DEBUG ("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
@@ -186,13 +181,13 @@ void Assembler::fill_local ()
         DEBUG ("Assembler::fill_local() - Evaluating relocation entry %s",
                m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name].c_str ());
 
-        while (tok_i < rel.token && tok_i < m_tokens.size ())
+        while (tok_i < rel.token && tok_i < tokens.size ())
         {
-            if (m_tokens[tok_i].type == Tokenizer::ASSEMBLER_SCOPE)
+            if (tokens[tok_i].type == Tokenizer::ASSEMBLER_SCOPE)
             {
                 local_scope.push_back (local_count_scope++);
             }
-            else if (m_tokens[tok_i].type == Tokenizer::ASSEMBLER_SCEND)
+            else if (tokens[tok_i].type == Tokenizer::ASSEMBLER_SCEND)
             {
                 local_scope.pop_back ();
             }
@@ -200,7 +195,7 @@ void Assembler::fill_local ()
             tok_i++;
         }
 
-        // first find if symbol is defined in local scope
+        // First find if symbol is defined in local scope.
         ObjectFile::SymbolTableEntry symbol_entry;
         bool found_local = false;
         std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
@@ -237,7 +232,8 @@ void Assembler::fill_local ()
             continue;
         }
 
-        /* Only fixes relative offsets, we cannot fix absolute references since that must be done when the executable is loaded into memory */
+        // Only fixes relative offsets, we cannot fix absolute references since
+        // that must be done when the executable is loaded into memory.
         switch (rel.type)
         {
         case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
@@ -256,132 +252,13 @@ void Assembler::fill_local ()
             ERROR ("Assembler::fill_local() - Unknown relocation entry type.");
         }
 
-        m_obj.rel_text.erase (
-            m_obj.rel_text.begin ()
-            + i); /* For now, simply delete from vector. In future look to optimize */
-        i--;      /* Offset the for loop increment */
+        // For now, simply delete from vector.
+        // TODO: In future look to optimize.
+        m_obj.rel_text.erase (m_obj.rel_text.begin () + i);
+
+        // Offset the for loop increment.
+        i--;
     }
 
     DEBUG ("Assembler::fill_local() - Finished parsing relocation entries.");
-}
-
-size_t Assembler::line_at (size_t tok_i)
-{
-    size_t line = 0;
-    for (size_t i = 0; i <= tok_i && i < m_tokens.size (); i++)
-    {
-        if (m_tokens.at (i).type == Tokenizer::Type::WHITESPACE_NEWLINE)
-        {
-            line++;
-        }
-    }
-    return line;
-}
-
-/**
- * Skips tokens that match the given regex.
- *
- * @param regex matches tokens to skip.
- * @param tok_i the index of the current token.
- */
-void Assembler::skip_tokens (size_t &tok_i, const std::string &regex)
-{
-    while (in_bounds (tok_i) && std::regex_match (m_tokens[tok_i].value, std::regex (regex)))
-    {
-        tok_i++;
-    }
-}
-
-/**
- * Skips tokens that match the given types.
- *
- * @param tok_i the index of the current token.
- * @param tokenTypes the types to match.
- */
-void Assembler::skip_tokens (size_t &tok_i, const std::set<Tokenizer::Type> &tokenTypes)
-{
-    while (in_bounds (tok_i) && tokenTypes.find (m_tokens[tok_i].type) != tokenTypes.end ())
-    {
-        tok_i++;
-    }
-}
-
-/**
- * Expects the current token to exist.
- *
- * @param tok_i the index of the expected token.
- * @param errorMsg the error message to throw if the token does not exist.
- */
-bool Assembler::expect_token (size_t tok_i, const std::string &errorMsg)
-{
-    EXPECT_TRUE_SS (in_bounds (tok_i), std::stringstream (errorMsg));
-    return true;
-}
-
-bool Assembler::expect_token (size_t tok_i, const std::set<Tokenizer::Type> &expectedTypes,
-                              const std::string &errorMsg)
-{
-    EXPECT_TRUE_SS (in_bounds (tok_i), std::stringstream (errorMsg));
-    EXPECT_TRUE (expectedTypes.find (m_tokens[tok_i].type) != expectedTypes.end (),
-                 "%s\nGot Token: %s", errorMsg.c_str (), m_tokens[tok_i].to_string ().c_str ());
-    return true;
-}
-
-/**
- * Returns whether the current token matches the given types.
- *
- * @param tok_i the index of the current token.
- * @param tokenTypes the types to match.
- *
- * @return true if the current token matches the given types.
- */
-bool Assembler::is_token (size_t tok_i, const std::set<Tokenizer::Type> &tokenTypes,
-                          const std::string &errorMsg)
-{
-    expect_token (tok_i, errorMsg);
-    return tokenTypes.find (m_tokens[tok_i].type) != tokenTypes.end ();
-}
-
-/**
- * Returns whether the current token index is within the bounds of the tokens list.
- *
- * @param tok_i the index of the current token
- *
- * @return true if the token index is within the bounds of the tokens list.
- */
-bool Assembler::in_bounds (size_t tok_i)
-{
-    return tok_i < m_tokens.size ();
-}
-
-/**
- * Consumes the current token.
- *
- * @param tok_i the index of the current token.
- * @param errorMsg the error message to throw if the token does not exist.
- *
- * @returns the value of the consumed token.
- */
-Tokenizer::Token &Assembler::consume (size_t &tok_i, const std::string &errorMsg)
-{
-    expect_token (tok_i, errorMsg);
-    return m_tokens[tok_i++];
-}
-
-/**
- * Consumes the current token and checks it matches the given types.
- *
- * @param tok_i the index of the current token.
- * @param expectedTypes the expected types of the token.
- * @param errorMsg the error message to throw if the token does not have the expected type.
- *
- * @returns the value of the consumed token.
- */
-Tokenizer::Token &Assembler::consume (size_t &tok_i, const std::set<Tokenizer::Type> &expectedTypes,
-                                      const std::string &errorMsg)
-{
-    expect_token (tok_i, errorMsg);
-    EXPECT_TRUE_SS (expectedTypes.find (m_tokens[tok_i].type) != expectedTypes.end (),
-                    std::stringstream () << errorMsg << " - Unexpected end of file.");
-    return m_tokens.at (tok_i++);
 }

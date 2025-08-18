@@ -257,13 +257,6 @@ class Emulator32bit
     typedef void (Emulator32bit::*InstructionFunction) (word);
     InstructionFunction m_instruction_handler[kMaxInstructions];
 
-// note, stringstreams cannot use the static const for some reason
-#define _INSTR(func_name, opcode)                                                                  \
-  private:                                                                                         \
-    void _##func_name (word instr);                                                                \
-                                                                                                   \
-  public:                                                                                          \
-    static constexpr word _op_##func_name = opcode;
     void fill_out_instructions ();
 
     word calc_mem_addr (word xn, sword offset, byte addr_mode);
@@ -322,6 +315,14 @@ class Emulator32bit
         */
         return false;
     }
+
+// note, stringstreams cannot use the static const for some reason
+#define _INSTR(func_name, opcode)                                                                  \
+  private:                                                                                         \
+    void _##func_name (word instr);                                                                \
+                                                                                                   \
+  public:                                                                                          \
+    static constexpr word _op_##func_name = opcode;
 
     // instruction handling
     _INSTR (special_instructions, 0b000000)

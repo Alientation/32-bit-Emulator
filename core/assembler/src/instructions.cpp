@@ -5,9 +5,9 @@
 
 #include <string>
 
-byte Assembler::parse_sysreg (size_t &tok_i)
+byte Assembler::parse_sysreg ()
 {
-    std::string sysreg = consume (tok_i).value;
+    const std::string sysreg = m_tokenizer.consume ().value;
     if (sysreg == "PSTATE")
     {
         return Emulator32bit::SYSREG_PSTATE;
@@ -17,51 +17,80 @@ byte Assembler::parse_sysreg (size_t &tok_i)
     return 0;
 }
 
-byte Assembler::parse_register (size_t &tok_i)
+constexpr bool check_sequential_register_enum ()
 {
-    expect_token (tok_i, Tokenizer::REGISTERS,
-                  "Assembler::parse_register() - Expected register identifier. Got "
-                      + m_tokens[tok_i].value);
-    Tokenizer::Type type = consume (tok_i).type;
+    // register order is assumed to be x0-x29, sp, xzr.
+    constexpr Tokenizer::Type kRegisterSequence[] = {
+        Tokenizer::Type::REGISTER_X0,  Tokenizer::Type::REGISTER_X1,  Tokenizer::Type::REGISTER_X2,
+        Tokenizer::Type::REGISTER_X3,  Tokenizer::Type::REGISTER_X4,  Tokenizer::Type::REGISTER_X5,
+        Tokenizer::Type::REGISTER_X6,  Tokenizer::Type::REGISTER_X7,  Tokenizer::Type::REGISTER_X8,
+        Tokenizer::Type::REGISTER_X9,  Tokenizer::Type::REGISTER_X10, Tokenizer::Type::REGISTER_X11,
+        Tokenizer::Type::REGISTER_X12, Tokenizer::Type::REGISTER_X13, Tokenizer::Type::REGISTER_X14,
+        Tokenizer::Type::REGISTER_X15, Tokenizer::Type::REGISTER_X16, Tokenizer::Type::REGISTER_X17,
+        Tokenizer::Type::REGISTER_X18, Tokenizer::Type::REGISTER_X19, Tokenizer::Type::REGISTER_X20,
+        Tokenizer::Type::REGISTER_X21, Tokenizer::Type::REGISTER_X22, Tokenizer::Type::REGISTER_X23,
+        Tokenizer::Type::REGISTER_X24, Tokenizer::Type::REGISTER_X25, Tokenizer::Type::REGISTER_X26,
+        Tokenizer::Type::REGISTER_X27, Tokenizer::Type::REGISTER_X28, Tokenizer::Type::REGISTER_X29,
+        Tokenizer::Type::REGISTER_SP,  Tokenizer::Type::REGISTER_XZR,
+    };
 
-    /* register order is assumed to be x0-x29, sp, xzr */
-    return type - Tokenizer::Type::REGISTER_X0;
+    for (size_t i = 0; i + 1 < std::size (kRegisterSequence); i++)
+    {
+        if (static_cast<U32> (kRegisterSequence[i]) + 1
+            != static_cast<U32> (kRegisterSequence[i + 1]))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
-void Assembler::parse_shift (size_t &tok_i, Emulator32bit::ShiftType &shift, int &shift_amt)
+byte Assembler::parse_register ()
 {
-    expect_token (tok_i,
-                  {Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR,
-                   Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR},
-                  "Assembler::parse_shift() - Expected shift.");
+    const Tokenizer::Type type =
+        m_tokenizer
+            .consume (Tokenizer::REGISTERS,
+                      "Assembler::parse_register() - Expected register identifier. Got "
+                          + m_tokenizer.get_token ().value)
+            .type;
 
-    if (is_token (tok_i, {Tokenizer::INSTRUCTION_LSL}))
+    static_assert (check_sequential_register_enum ());
+
+    return byte (static_cast<U32> (type) - static_cast<U32> (Tokenizer::Type::REGISTER_X0));
+}
+
+void Assembler::parse_shift (Emulator32bit::ShiftType &shift, int &shift_amt)
+{
+    m_tokenizer.expect_next ({Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR,
+                              Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR},
+                             "Assembler::parse_shift() - Expected shift.");
+
+    switch (m_tokenizer.consume ().type)
     {
+    case Tokenizer::INSTRUCTION_LSL:
         shift = Emulator32bit::SHIFT_LSL;
-    }
-    else if (is_token (tok_i, {Tokenizer::INSTRUCTION_LSR}))
-    {
+        break;
+    case Tokenizer::INSTRUCTION_LSR:
         shift = Emulator32bit::SHIFT_LSR;
-    }
-    else if (is_token (tok_i, {Tokenizer::INSTRUCTION_ASR}))
-    {
+        break;
+    case Tokenizer::INSTRUCTION_ASR:
         shift = Emulator32bit::SHIFT_ASR;
-    }
-    else if (is_token (tok_i, {Tokenizer::INSTRUCTION_ROR}))
-    {
+        break;
+    case Tokenizer::INSTRUCTION_ROR:
         shift = Emulator32bit::SHIFT_ROR;
+        break;
+    default:
+        ERROR ("Assembler::parse_shift() - Unreachable.");
     }
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
 
-    /* note, in future, we could change this to create relocation record instead */
-    shift_amt = parse_expression (tok_i);
+    // Note, in future, we could change this to create relocation record instead.
+    shift_amt = parse_expression ();
 
     EXPECT_TRUE (
         word (shift_amt) < (1ULL << 5),
         "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
         "Error in line %llu.",
-        shift_amt, line_at (tok_i));
+        shift_amt, m_tokenizer.get_linei ());
 }
 
 Emulator32bit::ConditionCode get_cond_code (Tokenizer::Type type)
@@ -105,180 +134,172 @@ Emulator32bit::ConditionCode get_cond_code (Tokenizer::Type type)
     case Tokenizer::Type::CONDITION_NV:
         return Emulator32bit::ConditionCode::NV;
     default:
+        ERROR ("Assembler::get_cond_code() - Unreachable.");
         return Emulator32bit::ConditionCode::NV;
     }
 }
 
-word Assembler::parse_format_b1 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_b1 (byte opcode)
 {
-    consume (tok_i);
+    m_tokenizer.consume ();
 
     Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
-    if (is_token (tok_i, {Tokenizer::PERIOD}))
+    if (m_tokenizer.is_next (Tokenizer::PERIOD))
     {
-        consume (tok_i);
-        expect_token (tok_i, Tokenizer::CONDITIONS,
-                      "Assembler::parse_format_b1() - Expected condition code to follow period.");
-        condition = (Emulator32bit::ConditionCode) get_cond_code (consume (tok_i).type);
+        m_tokenizer.consume ();
+        condition = get_cond_code (
+            m_tokenizer
+                .consume (
+                    Tokenizer::CONDITIONS,
+                    "Assembler::parse_format_b1() - Expected condition code to follow period.")
+                .type);
     }
 
     sword value = 0;
-    skip_tokens (tok_i, "[ \t]");
-    if (is_token (tok_i, {Tokenizer::SYMBOL}))
+    if (m_tokenizer.is_next (Tokenizer::SYMBOL))
     {
-        std::string symbol = consume (tok_i).value;
-        m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+        const std::string &symbol = m_tokenizer.consume ().value;
+        m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
         m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
             .offset = word (m_obj.text_section.size () * 4),
             .symbol = m_obj.string_table[symbol],
             .type = ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22,
-            .shift = 0, /* Support shift in future */
-            .token = tok_i});
+            // TODO: Support shift in future.
+            .shift = 0,
+            .token = m_tokenizer.get_toki ()});
     }
     else
     {
-        word imm = parse_expression (tok_i);
+        const word imm = parse_expression ();
         EXPECT_TRUE (imm < (1ULL << 24),
                      "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
                      "Error at %s in line %llu.",
                      Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
-                     line_at (tok_i));
+                     m_tokenizer.get_linei ());
         EXPECT_TRUE ((imm & 0b11) == 0,
                      "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
                      "Error at %s in line %llu.",
                      Emulator32bit::Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
-                     line_at (tok_i));
+                     m_tokenizer.get_linei ());
         value = bitfield_signed (imm, 0, 24) >> 2;
     }
 
     return Emulator32bit::asm_format_b1 (opcode, condition, value);
 }
 
-word Assembler::parse_format_b2 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_b2 (byte opcode)
 {
-    consume (tok_i);
+    m_tokenizer.consume ();
 
     Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
-    if (is_token (tok_i, {Tokenizer::PERIOD}))
+    if (m_tokenizer.is_next (Tokenizer::PERIOD))
     {
-        consume (tok_i);
-        expect_token (tok_i, Tokenizer::CONDITIONS,
-                      "Assembler::parse_format_b1() - Expected condition code to follow period.");
-        condition = (Emulator32bit::ConditionCode) get_cond_code (consume (tok_i).type);
+        m_tokenizer.consume ();
+        condition = (Emulator32bit::ConditionCode) get_cond_code (
+            m_tokenizer
+                .consume (
+                    Tokenizer::CONDITIONS,
+                    "Assembler::parse_format_b1() - Expected condition code to follow period.")
+                .type);
     }
-    skip_tokens (tok_i, "[ \t]");
 
-    byte reg = parse_register (tok_i);
+    const byte reg = parse_register ();
     return Emulator32bit::asm_format_b2 (opcode, condition, reg);
 }
 
-word Assembler::parse_format_m1 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_m1 (byte opcode)
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
+    const byte reg = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA,
+                         "Assembler::parse_format_m2() - Expected second argument.");
 
-    byte reg = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA},
-                  "Assembler::parse_format_m2() - Expected second argument.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    /* Implicitly assume :hi20:*/
-    skip_tokens (tok_i, "[ \t]");
-    if (is_token (tok_i, {Tokenizer::RELOCATION_EMU32_ADRP_HI20}))
+    // Implicitly assume :hi20:
+    if (m_tokenizer.is_next (Tokenizer::RELOCATION_EMU32_ADRP_HI20))
     {
-        consume (tok_i);
-        skip_tokens (tok_i, "[ \t]");
+        m_tokenizer.consume ();
     }
 
-    expect_token (tok_i, {Tokenizer::SYMBOL}, "Assembler::parse_format_m2() - Expected symbol.");
-    std::string symbol = consume (tok_i).value;
-    m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+    const std::string &symbol =
+        m_tokenizer.consume (Tokenizer::SYMBOL, "Assembler::parse_format_m2() - Expected symbol.")
+            .value;
+    m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
     m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
         .offset = word (m_obj.text_section.size () * 4),
         .symbol = m_obj.string_table[symbol],
         .type = ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
-        .shift = 0, /* Support shift in future */
-        .token = tok_i,
+        // TODO: Support shift in future.
+        .shift = 0,
+        .token = m_tokenizer.get_toki (),
     });
 
     return Emulator32bit::asm_format_m1 (opcode, reg, 0);
 }
 
-word Assembler::parse_format_m (size_t &tok_i, byte opcode)
+word Assembler::parse_format_m (byte opcode)
 {
-    std::string op = consume (tok_i).value;
+    const std::string &op = m_tokenizer.consume ().value;
 
-    /* ex: whether the value to be loaded/stored should be interpreted as signed */
-    bool sign = op.size () > 3 ? op.at (3) == 's' : false;
-    skip_tokens (tok_i, "[ \t]");
+    // Whether the value to be loaded/stored should be interpreted as signed.
+    const bool sign = op.size () > 3 ? op.at (3) == 's' : false;
 
-    /* target register. For reads, stores read value; for writes, stores write value */
-    byte reg_t = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    // Target register. For reads, stores read value; for writes, stores write value.
+    byte reg_t = parse_register ();
 
-    expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA},
-                  "Assembler::parse_format_m() - Expected second argument.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume (Tokenizer::COMMA,
+                         "Assembler::parse_format_m() - Expected second argument.");
+    m_tokenizer.consume (Tokenizer::OPEN_BRACKET,
+                         "Assembler::parse_format_m() - Expected open bracket");
 
-    expect_token (tok_i, {Tokenizer::OPEN_BRACKET},
-                  "Assembler::parse_format_m() - Expected open bracket");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    // Register that contains memory address.
+    byte reg_a = parse_register ();
 
-    /* register that contains memory address */
-    byte reg_a = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    // Parse the address mode.
+    Emulator32bit::AddrType addressing_mode;
+    bool parsed_addressing_mode = false;
 
-    /* parse the address mode, -1 indicates invalid address mode */
-    Emulator32bit::AddrType addressing_mode = Emulator32bit::ADDR_OFFSET;
-
-    /* post indexed, offset is applied to value at register after accessing */
-    if (is_token (tok_i, {Tokenizer::CLOSE_BRACKET}))
+    // Post indexed, offset is applied to value at register after accessing.
+    if (m_tokenizer.is_next (Tokenizer::CLOSE_BRACKET))
     {
-        consume (tok_i);
-        skip_tokens (tok_i, "[ \t]");
+        m_tokenizer.consume ();
         addressing_mode = Emulator32bit::ADDR_POST_INC;
+        parsed_addressing_mode = true;
     }
 
-    /* check for offset */
-    if (is_token (tok_i, {Tokenizer::COMMA}))
+    // Check for offset.
+    if (m_tokenizer.is_next (Tokenizer::COMMA))
     {
-        consume (tok_i);
-        skip_tokens (tok_i, "[ \t]");
+        m_tokenizer.consume ();
 
-        /* offset begins with the '#' symbol */
-        if (!is_token (tok_i, Tokenizer::REGISTERS))
+        // Offset begins with the '#' symbol. Checked by parse expression. TODO: IS THIS TRUE??
+        if (!m_tokenizer.is_next (Tokenizer::REGISTERS))
         {
-            word offset = parse_expression (tok_i);
+            const word offset = parse_expression ();
             EXPECT_TRUE (offset < (1ULL << 12),
                          "Assembler::parse_format_m() - Offset must be 12 bit value.");
 
-            skip_tokens (tok_i, "[ \t]");
-            expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET},
-                          "Assembler::parse_format_m() - Expected close bracket.");
-            consume (tok_i);
+            m_tokenizer.consume (Tokenizer::CLOSE_BRACKET,
+                                 "Assembler::parse_format_m() - Expected close bracket.");
 
-            /* only update addressing mode if not yet determined.
-                This reduces code repetition, since the way offsets are calculated
-                are the same for all addressing modes, but differ soley in arrangement */
-            if (addressing_mode == -1)
+            // Only update addressing mode if not yet determined. Only ADDR_POST_INC mode has been
+            // checked thus far. This reduces code repetition, since the way offsets are calculated
+            // are the same for all addressing modes, but differ soley in arrangement.
+            if (!parsed_addressing_mode)
             {
-                if (is_token (tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT}))
+                if (m_tokenizer.is_next (Tokenizer::OPERATOR_LOGICAL_NOT))
                 {
-                    consume (tok_i);
-                    /* preindexed, offset is applied to value at register before accessing */
+                    // Preindexed, offset is applied to value at register before accessing.
+                    m_tokenizer.consume ();
                     addressing_mode = Emulator32bit::ADDR_PRE_INC;
+                    parsed_addressing_mode = true;
                 }
                 else
                 {
-                    /* simple offset */
+                    // Simple offset.
                     addressing_mode = Emulator32bit::ADDR_OFFSET;
+                    parsed_addressing_mode = true;
                 }
             }
 
@@ -287,38 +308,36 @@ word Assembler::parse_format_m (size_t &tok_i, byte opcode)
         }
         else
         {
-            /* since there is a comma, there is another argument that is not the above checked offset */
-            byte reg_b = parse_register (tok_i);
+            // Since there is a comma, there is another argument that is not the above checked offset.
+            const byte reg_b = parse_register ();
+
+            // Shift argument.
             Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
             int shift_amount = 0;
-            skip_tokens (tok_i, "[ \t]");
-            /* shift argument */
-            if (is_token (tok_i, {Tokenizer::COMMA}))
+            if (m_tokenizer.is_next (Tokenizer::COMMA))
             {
-                consume (tok_i);
-                skip_tokens (tok_i, "[ \t]");
-                parse_shift (tok_i, shift, shift_amount);
+                m_tokenizer.consume ();
+                parse_shift (shift, shift_amount);
             }
 
-            skip_tokens (tok_i, "[ \t]");
-            expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::CLOSE_BRACKET},
-                          "Assembler::parse_format_m() - Expected close bracket.");
-            consume (tok_i);
+            m_tokenizer.consume (Tokenizer::CLOSE_BRACKET,
+                                 "Assembler::parse_format_m() - Expected close bracket.");
 
-            /* same logic as above, only update addressing mode if not yet determined */
-            if (addressing_mode == -1)
+            // Same logic as above, only update addressing mode if not yet determined.
+            if (!parsed_addressing_mode)
             {
-                if (is_token (tok_i, {Tokenizer::OPERATOR_LOGICAL_NOT}))
+                if (m_tokenizer.is_next (Tokenizer::OPERATOR_LOGICAL_NOT))
                 {
-                    consume (tok_i);
-
-                    /* preindexed */
+                    // Preindexed.
+                    m_tokenizer.consume ();
                     addressing_mode = Emulator32bit::ADDR_PRE_INC;
+                    parsed_addressing_mode = true;
                 }
                 else
                 {
-                    /* simple offset */
+                    // Simple offset.
                     addressing_mode = Emulator32bit::ADDR_OFFSET;
+                    parsed_addressing_mode = true;
                 }
             }
 
@@ -327,35 +346,28 @@ word Assembler::parse_format_m (size_t &tok_i, byte opcode)
         }
     }
 
-    /* check for invalid addressing mode */
-    EXPECT_FALSE (addressing_mode == -1, "Assembler::parse_format_m() - Invalid addressing mode.");
+    // Check for invalid addressing mode.
+    EXPECT_FALSE (parsed_addressing_mode, "Assembler::parse_format_m() - Invalid addressing mode.");
     return Emulator32bit::asm_format_m (opcode, sign, reg_t, reg_a, 0, addressing_mode);
 }
 
-word Assembler::parse_format_o3 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_o3 (byte opcode)
 {
-    // todo, make sure to handle relocation
-    bool s = consume (tok_i).value.back () == 's';
-    skip_tokens (tok_i, "[ \t]");
+    // TODO: make sure to handle relocation.
+    const bool s = m_tokenizer.consume ().value.back () == 's';
+    const byte reg1 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o3() - Expected comma.");
 
-    byte reg1 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o3() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    /* In future, support relocation for immediate value */
-    if (is_token (tok_i, {Tokenizer::REGISTERS}))
+    // TODO: In future, support relocation for immediate value.
+    if (m_tokenizer.is_next (Tokenizer::REGISTERS))
     {
-        byte operand_reg = parse_register (tok_i);
-        skip_tokens (tok_i, "[ \t]");
+        const byte operand_reg = parse_register ();
 
         word value = 0;
-        if (is_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::COMMA}))
+        if (m_tokenizer.is_next (Tokenizer::COMMA))
         {
-            consume (tok_i);
-            value = parse_expression (tok_i);
+            m_tokenizer.consume ();
+            value = parse_expression ();
             EXPECT_TRUE (value < (1ULL << 14),
                          "Assembler::parse_format_o3() - Immediate must be a 14 bit value.");
         }
@@ -364,15 +376,17 @@ word Assembler::parse_format_o3 (size_t &tok_i, byte opcode)
     }
     else
     {
-        if (is_token (tok_i,
-                      {Tokenizer::RELOCATION_EMU32_MOV_HI13, Tokenizer::RELOCATION_EMU32_MOV_LO19}))
+        if (m_tokenizer.is_next (
+                {Tokenizer::RELOCATION_EMU32_MOV_HI13, Tokenizer::RELOCATION_EMU32_MOV_LO19}))
         {
-            Tokenizer::Type relocation = consume (tok_i).type;
-            skip_tokens (tok_i, "[ \t]");
-            expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::SYMBOL},
-                          "Assembler::parse_format_o3() - Expected symbol to follow relocation.");
-            std::string symbol = consume (tok_i).value;
-            m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+            const Tokenizer::Type relocation = m_tokenizer.consume ().type;
+            const std::string symbol =
+                m_tokenizer
+                    .consume (
+                        Tokenizer::SYMBOL,
+                        "Assembler::parse_format_o3() - Expected symbol to follow relocation.")
+                    .value;
+            m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
             m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
                 .offset = word (m_obj.text_section.size () * 4),
@@ -381,22 +395,21 @@ word Assembler::parse_format_o3 (size_t &tok_i, byte opcode)
                              ? ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13
                              : ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19),
 
-                /* Support shift in future */
+                // TODO: Support shift in future.
                 .shift = 0,
-                .token = tok_i,
-            });
+                .token = m_tokenizer.get_toki ()});
 
             return Emulator32bit::asm_format_o3 (opcode, s, reg1, 0);
         }
         else
         {
-            word imm = parse_expression (tok_i);
+            const word imm = parse_expression ();
 
             EXPECT_TRUE (imm < (1ULL << 14),
                          "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
                          "Error at %s in line %llu.",
                          Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
-                         line_at (tok_i));
+                         m_tokenizer.get_linei ());
             return Emulator32bit::asm_format_o3 (opcode, s, reg1, imm);
         }
     }
@@ -404,106 +417,72 @@ word Assembler::parse_format_o3 (size_t &tok_i, byte opcode)
     return 0;
 }
 
-word Assembler::parse_format_o2 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_o2 (byte opcode)
 {
-    bool s = consume (tok_i).value.back () == 's';
-    skip_tokens (tok_i, "[ \t]");
+    bool s = m_tokenizer.consume ().value.back () == 's';
 
-    byte reg1 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg1 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o2() - Expected comma.");
 
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg2 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o2() - Expected comma.");
 
-    byte reg2 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte operand_reg1 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o2() - Expected comma.");
 
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    byte operand_reg1 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o2() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    byte operand_reg2 = parse_register (tok_i);
-
+    const byte operand_reg2 = parse_register ();
     return Emulator32bit::asm_format_o2 (opcode, s, reg1, reg2, operand_reg1, operand_reg2);
 }
 
-word Assembler::parse_format_o1 (size_t &tok_i, byte opcode)
+word Assembler::parse_format_o1 (byte opcode)
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
 
-    byte reg1 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg1 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o1() - Expected comma.");
 
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg2 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o1() - Expected comma.");
 
-    byte reg2 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o1() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    if (is_token (tok_i, Tokenizer::REGISTERS))
+    if (m_tokenizer.is_next (Tokenizer::REGISTERS))
     {
-        byte operand_reg = parse_register (tok_i);
+        const byte operand_reg = parse_register ();
         return Emulator32bit::asm_format_o1 (opcode, reg1, reg2, false, operand_reg, 0);
     }
     else
     {
-        int shift_amt = parse_expression (tok_i);
+        const int shift_amt = parse_expression ();
         EXPECT_TRUE (word (shift_amt) < (1ULL << 5),
                      "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < "
                      "32, Got: %d. "
                      "Error at %s in line %llu.",
                      shift_amt, Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
-                     line_at (tok_i));
+                     m_tokenizer.get_linei ());
         return Emulator32bit::asm_format_o1 (opcode, reg1, reg2, true, 0, shift_amt);
     }
 }
 
-word Assembler::parse_format_o (size_t &tok_i, byte opcode)
+word Assembler::parse_format_o (byte opcode)
 {
-    bool s = consume (tok_i).value.back () == 's';
-    skip_tokens (tok_i, "[ \t]");
+    const bool s = m_tokenizer.consume ().value.back () == 's';
 
-    byte reg1 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg1 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o() - Expected comma.");
 
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte reg2 = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_o() - Expected comma.");
 
-    byte reg2 = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    expect_token (tok_i, {Tokenizer::COMMA}, "Assembler::parse_format_o() - Expected comma.");
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-
-    if (is_token (tok_i, Tokenizer::REGISTERS))
+    if (m_tokenizer.is_next (Tokenizer::REGISTERS))
     {
-        byte operand_reg = parse_register (tok_i);
-        skip_tokens (tok_i, "[ \t]");
+        const byte operand_reg = parse_register ();
 
-        // shift
+        // Shift.
         Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
         int shift_amt = 0;
-        if (is_token (tok_i, {Tokenizer::COMMA}))
+        if (m_tokenizer.is_next (Tokenizer::COMMA))
         {
-            consume (tok_i);
-            skip_tokens (tok_i, "[ \t]");
-            parse_shift (tok_i, shift, shift_amt);
+            m_tokenizer.consume ();
+            parse_shift (shift, shift_amt);
         }
 
         return Emulator32bit::asm_format_o (opcode, s, reg1, reg2, operand_reg, shift, shift_amt);
@@ -511,27 +490,29 @@ word Assembler::parse_format_o (size_t &tok_i, byte opcode)
     else
     {
         word operand = 0;
-        if (is_token (tok_i, {Tokenizer::RELOCATION_EMU32_O_LO12}))
+        if (m_tokenizer.is_next (Tokenizer::RELOCATION_EMU32_O_LO12))
         {
-            consume (tok_i);
-            skip_tokens (tok_i, "[ \t]");
-            expect_token (tok_i, (std::set<Tokenizer::Type>) {Tokenizer::SYMBOL},
-                          "Assembler::parse_format_o() - Expected symbol to follow relocation.");
-            std::string symbol = consume (tok_i).value;
-            m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK, -1);
+            m_tokenizer.consume ();
+            const std::string symbol =
+                m_tokenizer
+                    .consume (Tokenizer::SYMBOL,
+                              "Assembler::parse_format_o() - Expected symbol to follow relocation.")
+                    .value;
+            m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
             m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
                 .offset = word (m_obj.text_section.size () * 4),
                 .symbol = m_obj.string_table[symbol],
                 .type = ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12,
-                /* Support shift in future */
+
+                // TODO: Support shift in future.
                 .shift = 0,
-                .token = tok_i,
+                .token = m_tokenizer.get_toki (),
             });
         }
-        else if (is_token (tok_i, Tokenizer::LITERAL_NUMBERS))
+        else if (m_tokenizer.is_next (Tokenizer::LITERAL_NUMBERS))
         {
-            operand = parse_expression (tok_i);
+            operand = parse_expression ();
             EXPECT_TRUE (operand < (1ULL << 14),
                          "Assembler::parse_format_o() - Immediate must be a 14 bit value.");
         }
@@ -539,387 +520,336 @@ word Assembler::parse_format_o (size_t &tok_i, byte opcode)
         {
             m_state = Assembler::State::ASSEMBLER_ERROR;
             ERROR ("Assembler::parse_format_o() - Could not parse token. Error at %s in line %d.",
-                   m_tokens.at (tok_i).to_string ().c_str (), line_at (tok_i));
+                   m_tokenizer.get_token ().to_string ().c_str (), m_tokenizer.get_linei ());
         }
 
         EXPECT_TRUE (
             operand < (1ULL << 14),
             "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
             "Error at %s in line %llu.",
-            Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (), line_at (tok_i));
+            Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
+            m_tokenizer.get_linei ());
 
         return Emulator32bit::asm_format_o (opcode, s, reg1, reg2, operand);
     }
 }
 
-word Assembler::parse_format_atomic (size_t &tok_i, byte width, byte atopcode)
+word Assembler::parse_format_atomic (byte width, byte atopcode)
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
 
-    expect_token (tok_i, Tokenizer::REGISTERS,
-                  "Assembler::parse_format_atomic() - Expected register xt.");
-    byte xt = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte xt = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_atomic() - Expected comma.");
 
-    expect_token (tok_i, Tokenizer::REGISTERS,
-                  "Assembler::parse_format_atomic() - Expected register xn.");
-    byte xn = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte xn = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::parse_format_atomic() - Expected comma.");
 
-    expect_token (tok_i, {Tokenizer::OPEN_BRACKET},
-                  "Assembler::parse_format_atomic() - Expected opening '[' for memory address.");
-    expect_token (tok_i, Tokenizer::REGISTERS,
-                  "Assembler::parse_format_atomic() - Expected register xm.");
-    byte xm = parse_register (tok_i);
-    expect_token (tok_i, {Tokenizer::CLOSE_BRACKET},
-                  "Assembler::parse_format_atomic() - Expected closing ']' for memory address.");
+    m_tokenizer.consume (
+        Tokenizer::OPEN_BRACKET,
+        "Assembler::parse_format_atomic() - Expected opening '[' for memory address.");
+
+    const byte xm = parse_register ();
+    m_tokenizer.consume (
+        Tokenizer::CLOSE_BRACKET,
+        "Assembler::parse_format_atomic() - Expected closing ']' for memory address.");
 
     return Emulator32bit::asm_atomic (xt, xn, xm, width, atopcode);
 }
 
-/**
- * @brief
- *
- * add x1, x2, x3
- * add x1, x2, #40
- * add x1, x2, x3, lsl 4
- * add x1, x2, :lo12:symbol
- * NOT SUPPORTED -- add x1, x2, :lo12:symbol + 4
- *
- * @param                         tok_i: Reference to current token index
- */
-void Assembler::_add (size_t &tok_i)
+///
+/// @brief
+///
+/// add x1, x2, x3
+/// add x1, x2, #40
+/// add x1, x2, x3, lsl 4
+/// add x1, x2, :lo12:symbol
+/// NOT SUPPORTED -- add x1, x2, :lo12:symbol + 4
+///
+void Assembler::_add ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_add);
+    const word instruction = parse_format_o (Emulator32bit::_op_add);
     m_obj.text_section.push_back (instruction);
 }
 
-/**
- * @brief
- *
- * @param                         tok_i: Reference to current token index
- */
-void Assembler::_sub (size_t &tok_i)
+void Assembler::_sub ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_sub);
+    const word instruction = parse_format_o (Emulator32bit::_op_sub);
     m_obj.text_section.push_back (instruction);
 }
 
-/**
- * @brief
- *
- * @param                         tok_i: Reference to current token index
- */
-void Assembler::_rsb (size_t &tok_i)
+void Assembler::_rsb ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_rsb);
+    const word instruction = parse_format_o (Emulator32bit::_op_rsb);
     m_obj.text_section.push_back (instruction);
 }
 
-/**
- * @brief
- *
- * @param                         tok_i: Reference to current token index
- */
-void Assembler::_adc (size_t &tok_i)
+void Assembler::_adc ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_adc);
+    const word instruction = parse_format_o (Emulator32bit::_op_adc);
     m_obj.text_section.push_back (instruction);
 }
 
-/**
- * @brief
- *
- * @param                         tok_i: Reference to current token index
- */
-void Assembler::_sbc (size_t &tok_i)
+void Assembler::_sbc ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_sbc);
+    const word instruction = parse_format_o (Emulator32bit::_op_sbc);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_rsc (size_t &tok_i)
+void Assembler::_rsc ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_rsc);
+    const word instruction = parse_format_o (Emulator32bit::_op_rsc);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_mul (size_t &tok_i)
+void Assembler::_mul ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_mul);
+    const word instruction = parse_format_o (Emulator32bit::_op_mul);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_umull (size_t &tok_i)
+void Assembler::_umull ()
 {
-    word instruction = parse_format_o2 (tok_i, Emulator32bit::_op_umull);
+    const word instruction = parse_format_o2 (Emulator32bit::_op_umull);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_smull (size_t &tok_i)
+void Assembler::_smull ()
 {
-    word instruction = parse_format_o2 (tok_i, Emulator32bit::_op_smull);
+    const word instruction = parse_format_o2 (Emulator32bit::_op_smull);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_vabs (size_t &tok_i)
+void Assembler::_vabs ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vabs() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vabs() - Instruction not implemented yet.");
 }
 
-void Assembler::_vneg (size_t &tok_i)
+void Assembler::_vneg ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vneg() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vneg() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsqrt (size_t &tok_i)
+void Assembler::_vsqrt ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vsqrt() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vsqrt() - Instruction not implemented yet.");
 }
 
-void Assembler::_vadd (size_t &tok_i)
+void Assembler::_vadd ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vadd() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vadd() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsub (size_t &tok_i)
+void Assembler::_vsub ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vsub() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vsub() - Instruction not implemented yet.");
 }
 
-void Assembler::_vdiv (size_t &tok_i)
+void Assembler::_vdiv ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vdiv() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vdiv() - Instruction not implemented yet.");
 }
 
-void Assembler::_vmul (size_t &tok_i)
+void Assembler::_vmul ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vmul() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vmul() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcmp (size_t &tok_i)
+void Assembler::_vcmp ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vcmp() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vcmp() - Instruction not implemented yet.");
 }
 
-void Assembler::_vsel (size_t &tok_i)
+void Assembler::_vsel ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vsel() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vsel() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcint (size_t &tok_i)
+void Assembler::_vcint ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vcint() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vcint() - Instruction not implemented yet.");
 }
 
-void Assembler::_vcflo (size_t &tok_i)
+void Assembler::_vcflo ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vcflo() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vcflo() - Instruction not implemented yet.");
 }
 
-void Assembler::_vmov (size_t &tok_i)
+void Assembler::_vmov ()
 {
-    UNUSED (tok_i);
-
-    EXPECT_TRUE (false, "Assembler::_vmov() - Instruction not implemented yet.");
+    ERROR ("Assembler::_vmov() - Instruction not implemented yet.");
 }
 
-void Assembler::_and (size_t &tok_i)
+void Assembler::_and ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_and);
+    const word instruction = parse_format_o (Emulator32bit::_op_and);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_orr (size_t &tok_i)
+void Assembler::_orr ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_orr);
+    const word instruction = parse_format_o (Emulator32bit::_op_orr);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_eor (size_t &tok_i)
+void Assembler::_eor ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_eor);
+    const word instruction = parse_format_o (Emulator32bit::_op_eor);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_bic (size_t &tok_i)
+void Assembler::_bic ()
 {
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_bic);
+    const word instruction = parse_format_o (Emulator32bit::_op_bic);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_lsl (size_t &tok_i)
+void Assembler::_lsl ()
 {
-    word instruction = parse_format_o1 (tok_i, Emulator32bit::_op_lsl);
+    const word instruction = parse_format_o1 (Emulator32bit::_op_lsl);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_lsr (size_t &tok_i)
+void Assembler::_lsr ()
 {
-    word instruction = parse_format_o1 (tok_i, Emulator32bit::_op_lsr);
+    const word instruction = parse_format_o1 (Emulator32bit::_op_lsr);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_asr (size_t &tok_i)
+void Assembler::_asr ()
 {
-    word instruction = parse_format_o1 (tok_i, Emulator32bit::_op_asr);
+    const word instruction = parse_format_o1 (Emulator32bit::_op_asr);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ror (size_t &tok_i)
+void Assembler::_ror ()
 {
-    word instruction = parse_format_o1 (tok_i, Emulator32bit::_op_ror);
+    const word instruction = parse_format_o1 (Emulator32bit::_op_ror);
     m_obj.text_section.push_back (instruction);
 }
 
-void insert_xzr (std::vector<Tokenizer::Token> &tokens, int pos)
+void insert_xzr (Tokenizer &tokenizer)
 {
-    std::vector<Tokenizer::Token> insert = {
+    const std::vector<Tokenizer::Token> insert = {
         Tokenizer::Token (Tokenizer::Type::WHITESPACE_SPACE, " "),
         Tokenizer::Token (Tokenizer::Type::REGISTER_XZR, "xzr"),
         Tokenizer::Token (Tokenizer::Type::COMMA, ","),
     };
 
-    tokens.insert (tokens.begin () + pos, insert.begin (), insert.end ());
+    tokenizer.insert_tokens (insert, tokenizer.get_toki () + 1);
 }
 
-void Assembler::_cmp (size_t &tok_i)
+void Assembler::_cmp ()
 {
-    insert_xzr (m_tokens, tok_i + 1);
+    insert_xzr (m_tokenizer);
 
-    // todo, alias subs
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_cmp);
+    // TODO: Alias subs.
+    const word instruction = parse_format_o (Emulator32bit::_op_cmp);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_cmn (size_t &tok_i)
+void Assembler::_cmn ()
 {
-    insert_xzr (m_tokens, tok_i + 1);
+    insert_xzr (m_tokenizer);
 
-    // todo, alias adds
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_cmn);
+    // TODO: Alias adds.
+    const word instruction = parse_format_o (Emulator32bit::_op_cmn);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_tst (size_t &tok_i)
+void Assembler::_tst ()
 {
-    insert_xzr (m_tokens, tok_i + 1);
+    insert_xzr (m_tokenizer);
 
-    // todo, alias ands
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_tst);
+    // TODO: Alias ands.
+    const word instruction = parse_format_o (Emulator32bit::_op_tst);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_teq (size_t &tok_i)
+void Assembler::_teq ()
 {
-    insert_xzr (m_tokens, tok_i + 1);
+    insert_xzr (m_tokenizer);
 
-    // todo, alias eors
-    word instruction = parse_format_o (tok_i, Emulator32bit::_op_teq);
+    // TODO: Alias eors.
+    const word instruction = parse_format_o (Emulator32bit::_op_teq);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_mov (size_t &tok_i)
+void Assembler::_mov ()
 {
-    word instruction = parse_format_o3 (tok_i, Emulator32bit::_op_mov);
+    const word instruction = parse_format_o3 (Emulator32bit::_op_mov);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_mvn (size_t &tok_i)
+void Assembler::_mvn ()
 {
-    word instruction = parse_format_o3 (tok_i, Emulator32bit::_op_mvn);
+    const word instruction = parse_format_o3 (Emulator32bit::_op_mvn);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldr (size_t &tok_i)
+void Assembler::_ldr ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_ldr);
+    const word instruction = parse_format_m (Emulator32bit::_op_ldr);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_str (size_t &tok_i)
+void Assembler::_str ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_str);
+    const word instruction = parse_format_m (Emulator32bit::_op_str);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldrb (size_t &tok_i)
+void Assembler::_ldrb ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_ldrb);
+    const word instruction = parse_format_m (Emulator32bit::_op_ldrb);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_strb (size_t &tok_i)
+void Assembler::_strb ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_strb);
+    const word instruction = parse_format_m (Emulator32bit::_op_strb);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldrh (size_t &tok_i)
+void Assembler::_ldrh ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_ldrh);
+    const word instruction = parse_format_m (Emulator32bit::_op_ldrh);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_strh (size_t &tok_i)
+void Assembler::_strh ()
 {
-    word instruction = parse_format_m (tok_i, Emulator32bit::_op_strh);
+    const word instruction = parse_format_m (Emulator32bit::_op_strh);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_hlt (size_t &tok_i)
+void Assembler::_hlt ()
 {
-    consume (tok_i);
+    m_tokenizer.consume ();
     m_obj.text_section.push_back (Emulator32bit::asm_hlt ());
 }
 
-void Assembler::_nop (size_t &tok_i)
+void Assembler::_nop ()
 {
-    consume (tok_i);
+    m_tokenizer.consume ();
     m_obj.text_section.push_back (Emulator32bit::asm_nop ());
 }
 
-void Assembler::_msr (size_t &tok_i)
+void Assembler::_msr ()
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
 
-    word sysreg = parse_sysreg (tok_i);
-    skip_tokens (tok_i, "[ \t]");
-    consume (tok_i, {Tokenizer::COMMA}, "Assembler::_msr() - Expected second argument.");
+    const word sysreg = parse_sysreg ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::_msr() - Expected second argument.");
 
     word instruction;
-    if (is_token (tok_i, Tokenizer::REGISTERS))
+    if (m_tokenizer.is_next (Tokenizer::REGISTERS))
     {
-        byte xn = parse_register (tok_i);
+        const byte xn = parse_register ();
         instruction = Emulator32bit::asm_msr (sysreg, false, xn);
     }
     else
     {
-        word imm16 = parse_expression (tok_i);
+        const word imm16 = parse_expression ();
         EXPECT_TRUE (imm16 < (1ULL << 16), "Assembler::_msr() - Immediate must be a 16 bit value.");
 
         instruction = Emulator32bit::asm_msr (sysreg, true, imm16);
@@ -927,160 +857,155 @@ void Assembler::_msr (size_t &tok_i)
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_mrs (size_t &tok_i)
+void Assembler::_mrs ()
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
 
-    expect_token (tok_i, Tokenizer::REGISTERS, "Assembler::_mrs() - Expected register.");
-    byte xn = parse_register (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    const byte xn = parse_register ();
+    m_tokenizer.consume (Tokenizer::COMMA, "Assembler::_mrs() - Expected second argument.");
 
-    consume (tok_i, {Tokenizer::COMMA}, "Assembler::_mrs() - Expected second argument.");
-    byte sysreg = parse_sysreg (tok_i);
+    const byte sysreg = parse_sysreg ();
 
-    word instruction = Emulator32bit::asm_mrs (xn, sysreg);
+    const word instruction = Emulator32bit::asm_mrs (xn, sysreg);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_tlbi (size_t &tok_i)
+void Assembler::_tlbi ()
 {
-    consume (tok_i);
-    skip_tokens (tok_i, "[ \t]");
+    m_tokenizer.consume ();
 
-    // todo
     ERROR ("Assembler::_tlbi() - Unimplemented instruction.");
 }
 
-void Assembler::_swp (size_t &tok_i)
+void Assembler::_swp ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_swpb (size_t &tok_i)
+void Assembler::_swpb ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_SWP);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_SWP);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_swph (size_t &tok_i)
+void Assembler::_swph ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_SWP);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_SWP);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldadd (size_t &tok_i)
+void Assembler::_ldadd ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDADD);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDADD);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldaddb (size_t &tok_i)
+void Assembler::_ldaddb ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDADD);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDADD);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldaddh (size_t &tok_i)
+void Assembler::_ldaddh ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDADD);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDADD);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldclr (size_t &tok_i)
+void Assembler::_ldclr ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDCLR);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDCLR);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldclrb (size_t &tok_i)
+void Assembler::_ldclrb ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDCLR);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDCLR);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldclrh (size_t &tok_i)
+void Assembler::_ldclrh ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDCLR);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDCLR);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldset (size_t &tok_i)
+void Assembler::_ldset ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDSET);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDSET);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldsetb (size_t &tok_i)
+void Assembler::_ldsetb ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDSET);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDSET);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ldseth (size_t &tok_i)
+void Assembler::_ldseth ()
 {
-    word instruction =
-        parse_format_atomic (tok_i, Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDSET);
+    const word instruction =
+        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDSET);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_b (size_t &tok_i)
+void Assembler::_b ()
 {
-    word instruction = parse_format_b1 (tok_i, Emulator32bit::_op_b);
+    const word instruction = parse_format_b1 (Emulator32bit::_op_b);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_bl (size_t &tok_i)
+void Assembler::_bl ()
 {
-    word instruction = parse_format_b1 (tok_i, Emulator32bit::_op_bl);
+    const word instruction = parse_format_b1 (Emulator32bit::_op_bl);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_bx (size_t &tok_i)
+void Assembler::_bx ()
 {
-    word instruction = parse_format_b2 (tok_i, Emulator32bit::_op_bx);
+    const word instruction = parse_format_b2 (Emulator32bit::_op_bx);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_blx (size_t &tok_i)
+void Assembler::_blx ()
 {
-    word instruction = parse_format_b2 (tok_i, Emulator32bit::_op_blx);
+    const word instruction = parse_format_b2 (Emulator32bit::_op_blx);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_swi (size_t &tok_i)
+void Assembler::_swi ()
 {
-    word instruction = parse_format_b1 (tok_i, Emulator32bit::_op_swi);
+    const word instruction = parse_format_b1 (Emulator32bit::_op_swi);
     m_obj.text_section.push_back (instruction);
 }
 
-void Assembler::_ret (size_t &tok_i)
+void Assembler::_ret ()
 {
-    tok_i++;
+    m_tokenizer.consume ();
 
-    std::vector<Tokenizer::Token> insert = {
+    const std::vector<Tokenizer::Token> insert = {
         Tokenizer::Token (Tokenizer::Type::INSTRUCTION_BX, "bx"),
         Tokenizer::Token (Tokenizer::Type::WHITESPACE_SPACE, " "),
         Tokenizer::Token (Tokenizer::Type::REGISTER_X29, "x29"),
     };
 
-    m_tokens.insert (m_tokens.begin () + tok_i, insert.begin (), insert.end ());
+    m_tokenizer.insert_tokens (insert, m_tokenizer.get_toki ());
 }
 
-void Assembler::_adrp (size_t &tok_i)
+void Assembler::_adrp ()
 {
-    word instruction = parse_format_m1 (tok_i, Emulator32bit::_op_adrp);
+    const word instruction = parse_format_m1 (Emulator32bit::_op_adrp);
     m_obj.text_section.push_back (instruction);
 }
