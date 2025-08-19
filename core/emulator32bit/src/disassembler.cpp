@@ -22,18 +22,18 @@ static std::string disassemble_gpr (word instruction, U8 offset)
 static std::string disassemble_shift (word instruction)
 {
     std::string disassemble;
-    switch (bitfield_unsigned (instruction, 7, 2))
+    switch (static_cast<Emulator32bit::ShiftType> (bitfield_unsigned (instruction, 7, 2)))
     {
-    case U8 (Emulator32bit::ShiftType::SHIFT_LSL):
+    case Emulator32bit::ShiftType::SHIFT_LSL:
         disassemble = "lsl ";
         break;
-    case U8 (Emulator32bit::ShiftType::SHIFT_LSR):
+    case Emulator32bit::ShiftType::SHIFT_LSR:
         disassemble = "lsr ";
         break;
-    case U8 (Emulator32bit::ShiftType::SHIFT_ASR):
+    case Emulator32bit::ShiftType::SHIFT_ASR:
         disassemble = "asr ";
         break;
-    case U8 (Emulator32bit::ShiftType::SHIFT_ROR):
+    case Emulator32bit::ShiftType::SHIFT_ROR:
         disassemble = "ror ";
         break;
     default:

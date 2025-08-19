@@ -383,7 +383,7 @@ class Emulator32bit
         const bool C = test_bit (pstate, kCFlagBit);
         const bool V = test_bit (pstate, kVFlagBit);
 
-        switch ((ConditionCode) cond)
+        switch (static_cast<ConditionCode> (cond))
         {
         case ConditionCode::EQ:
             return Z == 1;
