@@ -20,6 +20,22 @@ class Timer;
 class Emulator32bit
 {
   public:
+    /// @brief              Default size of RAM memory in pages.
+    static constexpr word RAM_NPAGES = 16;
+
+    /// @brief              Default start page of RAM memory.
+    static constexpr word RAM_START_PAGE = 0;
+
+    /// @brief              Default size of ROM memory in pages.
+    static constexpr word ROM_NPAGES = 16;
+
+    /// @brief              Default start page of ROM memory.
+    static constexpr word ROM_START_PAGE = 16;
+
+    /// @brief              Data stored in ROM, should be of the same length specified in
+    ///                     @ref ROM_NPAGES.
+    static constexpr byte ROM_DATA[ROM_NPAGES << kNumPageOffsetBits] = {};
+
     Emulator32bit ();
     Emulator32bit (word ram_npages, word ram_start_page, const byte rom_data[], word rom_npages,
                    word rom_start_page);
@@ -224,25 +240,9 @@ class Emulator32bit
         ADDR_POST_INC
     };
 
-    /// @brief              Default size of RAM memory in pages.
-    static constexpr word RAM_NPAGES = 16;
+    SystemBus *const system_bus = nullptr;
 
-    /// @brief              Default start page of RAM memory.
-    static constexpr word RAM_START_PAGE = 0;
-
-    /// @brief              Default size of ROM memory in pages.
-    static constexpr word ROM_NPAGES = 16;
-
-    /// @brief              Default start page of ROM memory.
-    static constexpr word ROM_START_PAGE = 16;
-
-    /// @brief              Data stored in ROM, should be of the same length specified in
-    ///                     @ref ROM_NPAGES.
-    static constexpr byte ROM_DATA[ROM_NPAGES << kNumPageOffsetBits] = {};
-
-    SystemBus *system_bus = nullptr;
-
-    Timer *timer = nullptr;
+    Timer *const timer = nullptr;
 
     /// @brief              Pointer to the page directory for the virtual address space of the
     ///                     process.
