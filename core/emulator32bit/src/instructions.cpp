@@ -312,22 +312,22 @@ void Emulator32bit::_special_instructions (const word instr)
 
     switch (opspec)
     {
-    case _opspec_hlt:
+    case kSpecialOpId_hlt:
         _hlt (instr);
         break;
-    case _opspec_nop:
+    case kSpecialOpId_nop:
         _nop (instr);
         break;
-    case _opspec_msr:
+    case kSpecialOpId_msr:
         _msr (instr);
         break;
-    case _opspec_mrs:
+    case kSpecialOpId_mrs:
         _mrs (instr);
         break;
-    case _opspec_tlbi:
+    case kSpecialOpId_tlbi:
         _tlbi (instr);
         break;
-    case _opspec_atomic:
+    case kSpecialOpId_atomic:
         _atomic (instr);
         break;
     default:
@@ -344,7 +344,7 @@ void Emulator32bit::_hlt (const word instr)
 
 word Emulator32bit::asm_hlt ()
 {
-    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_hlt) << 22;
+    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_hlt) << 22;
 }
 
 void Emulator32bit::_nop (const word instr)
@@ -355,7 +355,7 @@ void Emulator32bit::_nop (const word instr)
 
 word Emulator32bit::asm_nop ()
 {
-    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_nop) << 22;
+    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_nop) << 22;
 }
 
 void Emulator32bit::_msr (const word instr)
@@ -379,12 +379,12 @@ word Emulator32bit::asm_msr (U8 sysreg, bool imm, word xn_or_imm16)
 {
     if (imm)
     {
-        return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_msr)
+        return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_msr)
                          << JPart (5, sysreg) << JPart (1, imm) << JPart (16, xn_or_imm16);
     }
     else
     {
-        return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_msr)
+        return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_msr)
                          << JPart (5, sysreg) << JPart (1, imm) << JPart (5, xn_or_imm16) << 11;
     }
 }
@@ -403,7 +403,7 @@ void Emulator32bit::_mrs (const word instr)
 
 word Emulator32bit::asm_mrs (U8 xn, U8 sysreg)
 {
-    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_mrs)
+    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_mrs)
                      << JPart (5, xn) << 1 << JPart (5, sysreg) << 11;
 }
 
@@ -423,7 +423,7 @@ void Emulator32bit::_tlbi (const word instr)
 
 word Emulator32bit::asm_tlbi (U8 xt, bool isxt, word imm16)
 {
-    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_mrs)
+    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_mrs)
                      << JPart (5, xt) << JPart (1, isxt) << JPart (16, imm16);
 }
 
@@ -433,16 +433,16 @@ void Emulator32bit::_atomic (const word instr)
 
     switch (atop)
     {
-    case ATOMIC_SWP:
+    case kAtomicId_swp:
         _swp (instr);
         break;
-    case ATOMIC_LDADD:
+    case kAtomicId_ldadd:
         _ldadd (instr);
         break;
-    case ATOMIC_LDCLR:
+    case kAtomicId_ldclr:
         _ldclr (instr);
         break;
-    case ATOMIC_LDSET:
+    case kAtomicId_ldset:
         _ldset (instr);
         break;
     default:
@@ -459,40 +459,40 @@ void Emulator32bit::_swp (const word instr)
     const word mem_adr = read_reg (xm);
     const U8 width = bitfield_unsigned (instr, 0, 4);
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         DEBUG_SS (std::stringstream ()
                   << "swp x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         DEBUG_SS (std::stringstream ()
                   << "swpb x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         DEBUG_SS (std::stringstream ()
                   << "swph x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         const word val_reg = read_reg (xn);
         const word val_mem = system_bus->read_word (mem_adr);
         write_reg (xt, val_mem);
         system_bus->write_word (mem_adr, val_reg);
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         const word val_reg = read_reg (xn) & 0xFF;
         const word val_mem = system_bus->read_byte (mem_adr);
         write_reg (xt, (val_reg & ~(0xFF)) + val_mem);
         system_bus->write_byte (mem_adr, val_reg);
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         const word val_reg = read_reg (xn) & 0xFFFF;
         const word val_mem = system_bus->read_hword (mem_adr);
@@ -513,40 +513,40 @@ void Emulator32bit::_ldadd (const word instr)
     const word mem_adr = read_reg (xm);
     const U8 width = bitfield_unsigned (instr, 0, 4);
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldadd x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldaddb x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldaddh x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         const word val_reg = read_reg (xn);
         const word val_mem = system_bus->read_word (mem_adr);
         write_reg (xt, val_mem);
         system_bus->write_word (mem_adr, val_mem + val_reg);
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         const word val_reg = read_reg (xn) & 0xFF;
         const word val_mem = system_bus->read_byte (mem_adr);
         write_reg (xt, (val_reg & ~(0xFF)) + val_mem);
         system_bus->write_byte (mem_adr, val_mem + val_reg);
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         const word val_reg = read_reg (xn) & 0xFFFF;
         const word val_mem = system_bus->read_hword (mem_adr);
@@ -567,40 +567,40 @@ void Emulator32bit::_ldclr (const word instr)
     const word mem_adr = read_reg (xm);
     const U8 width = bitfield_unsigned (instr, 0, 4);
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldclr x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldclrb x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldclrh x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         const word val_reg = read_reg (xn);
         const word val_mem = system_bus->read_word (mem_adr);
         write_reg (xt, val_mem);
         system_bus->write_word (mem_adr, val_mem & (~val_reg));
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         const word val_reg = read_reg (xn) & 0xFF;
         const word val_mem = system_bus->read_byte (mem_adr);
         write_reg (xt, (val_reg & ~(0xFF)) + val_mem);
         system_bus->write_byte (mem_adr, val_mem & (~val_reg));
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         const word val_reg = read_reg (xn) & 0xFFFF;
         const word val_mem = system_bus->read_hword (mem_adr);
@@ -621,40 +621,40 @@ void Emulator32bit::_ldset (const word instr)
     const word mem_adr = read_reg (xm);
     const U8 width = bitfield_unsigned (instr, 0, 4);
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldset x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         DEBUG_SS (std::stringstream ()
                   << "lsetb x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         DEBUG_SS (std::stringstream ()
                   << "ldseth x" << std::to_string (xt) << ", x" << std::to_string (xn) << ", [x"
                   << std::to_string (xm) << "]");
     }
 
-    if (width == ATOMIC_WIDTH_WORD)
+    if (width == kAtomicWidth_word)
     {
         const word val_reg = read_reg (xn);
         const word val_mem = system_bus->read_word (mem_adr);
         write_reg (xt, val_mem);
         system_bus->write_word (mem_adr, val_mem | val_reg);
     }
-    else if (width == ATOMIC_WIDTH_BYTE)
+    else if (width == kAtomicWidth_byte)
     {
         const word val_reg = read_reg (xn) & 0xFF;
         const word val_mem = system_bus->read_byte (mem_adr);
         write_reg (xt, (val_reg & ~(0xFF)) + val_mem);
         system_bus->write_byte (mem_adr, val_mem | val_reg);
     }
-    else if (width == ATOMIC_WIDTH_HWORD)
+    else if (width == kAtomicWidth_hword)
     {
         const word val_reg = read_reg (xn) & 0xFFFF;
         const word val_mem = system_bus->read_hword (mem_adr);
@@ -669,7 +669,7 @@ void Emulator32bit::_ldset (const word instr)
 
 word Emulator32bit::asm_atomic (word xt, word xn, word xm, U8 width, U8 atop)
 {
-    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, _opspec_atomic)
+    return Joiner () << JPart (6, _op_special_instructions) << JPart (4, kSpecialOpId_atomic)
                      << JPart (5, xt) << 1 << JPart (5, xn) << JPart (5, xm) << JPart (2, width)
                      << JPart (4, atop);
 }
@@ -1451,7 +1451,7 @@ void Emulator32bit::_bl (const word instr)
     const U8 cond = bitfield_unsigned (instr, 22, 4);
     if (check_cond (m_pstate, cond))
     {
-        write_reg (U8 (Register::LR), m_pc + 4);
+        write_reg (Register::LR, m_pc + 4);
         m_pc += (bitfield_signed (instr, 0, 22) << 2) - 4;
     }
     DEBUG_SS (std::stringstream () << "bl " << std::to_string (cond));
@@ -1475,7 +1475,7 @@ void Emulator32bit::_blx (const word instr)
     const U8 reg = bitfield_unsigned (instr, 17, 5);
     if (check_cond (m_pstate, cond))
     {
-        write_reg (U8 (Emulator32bit::Register::LR), m_pc + 4);
+        write_reg (Emulator32bit::Register::LR, m_pc + 4);
         m_pc = sword (read_reg (reg)) - 4;
     }
     DEBUG_SS (std::stringstream ()

@@ -9,8 +9,8 @@ TEST_F (EmulatorFixture, swp_basic)
     cpu = new (cpu) Emulator32bit (1, 0, data, 1, 1);
     // swp x0, x1, [x2]
     cpu->system_bus->write_word (0, Emulator32bit::asm_atomic (0, 1, 2,
-                                                               Emulator32bit::ATOMIC_WIDTH_WORD,
-                                                               Emulator32bit::ATOMIC_SWP));
+                                                               Emulator32bit::kAtomicWidth_word,
+                                                               Emulator32bit::kAtomicId_swp));
     cpu->set_pc (0);
     cpu->write_reg (1, 0x76543210);
     cpu->write_reg (2, kPageSize);

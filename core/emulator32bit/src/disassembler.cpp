@@ -5,11 +5,11 @@
 static std::string disassemble_gpr (word instruction, U8 offset)
 {
     const U8 gpr = bitfield_unsigned (instruction, offset, 5);
-    if (gpr == U8 (Emulator32bit::Register::SP))
+    if (gpr == Emulator32bit::register_to_U8 (Emulator32bit::Register::SP))
     {
         return "sp";
     }
-    else if (gpr == U8 (Emulator32bit::Register::XZR))
+    else if (gpr == Emulator32bit::register_to_U8 (Emulator32bit::Register::XZR))
     {
         return "xzr";
     }
@@ -358,16 +358,16 @@ static std::string disassemble_atomic (word instruction)
     std::string disassemble;
     switch (atop)
     {
-    case Emulator32bit::ATOMIC_SWP:
+    case Emulator32bit::kAtomicId_swp:
         disassemble = "swp";
         break;
-    case Emulator32bit::ATOMIC_LDADD:
+    case Emulator32bit::kAtomicId_ldadd:
         disassemble = "ldadd";
         break;
-    case Emulator32bit::ATOMIC_LDCLR:
+    case Emulator32bit::kAtomicId_ldclr:
         disassemble = "ldclr";
         break;
-    case Emulator32bit::ATOMIC_LDSET:
+    case Emulator32bit::kAtomicId_ldset:
         disassemble = "ldset";
         break;
     default:
@@ -376,12 +376,12 @@ static std::string disassemble_atomic (word instruction)
 
     switch (width)
     {
-    case Emulator32bit::ATOMIC_WIDTH_WORD:
+    case Emulator32bit::kAtomicWidth_word:
         break;
-    case Emulator32bit::ATOMIC_WIDTH_BYTE:
+    case Emulator32bit::kAtomicWidth_byte:
         disassemble += "b";
         break;
-    case Emulator32bit::ATOMIC_WIDTH_HWORD:
+    case Emulator32bit::kAtomicWidth_hword:
         disassemble += "h";
         break;
     default:
@@ -400,17 +400,17 @@ static std::string disassemble_special_instructions (word instruction)
 
     switch (opsec)
     {
-    case Emulator32bit::_opspec_hlt:
+    case Emulator32bit::kSpecialOpId_hlt:
         return disassemble_hlt (instruction);
-    case Emulator32bit::_opspec_nop:
+    case Emulator32bit::kSpecialOpId_nop:
         return disassemble_nop (instruction);
-    case Emulator32bit::_opspec_msr:
+    case Emulator32bit::kSpecialOpId_msr:
         return disassemble_msr (instruction);
-    case Emulator32bit::_opspec_mrs:
+    case Emulator32bit::kSpecialOpId_mrs:
         return disassemble_mrs (instruction);
-    case Emulator32bit::_opspec_tlbi:
+    case Emulator32bit::kSpecialOpId_tlbi:
         return disassemble_tlbi (instruction);
-    case Emulator32bit::_opspec_atomic:
+    case Emulator32bit::kSpecialOpId_atomic:
         return disassemble_atomic (instruction);
     default:
         return "ERROR: INVALID SPECOP";

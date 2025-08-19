@@ -10,7 +10,7 @@ byte Assembler::parse_sysreg ()
     const std::string sysreg = m_tokenizer.consume ().value;
     if (sysreg == "PSTATE")
     {
-        return Emulator32bit::SYSREG_PSTATE;
+        return Emulator32bit::kSysregId_pstate;
     }
 
     ERROR ("Assembler::parse_sysreg() - Invalid System Register %s.", sysreg.c_str ());
@@ -880,84 +880,84 @@ void Assembler::_tlbi ()
 void Assembler::_swp ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_SWP);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_swp);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_swpb ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_SWP);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_swp);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_swph ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_SWP);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_swp);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldadd ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDADD);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldadd);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldaddb ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDADD);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldadd);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldaddh ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDADD);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldadd);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldclr ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDCLR);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldclr);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldclrb ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDCLR);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldclr);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldclrh ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDCLR);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldclr);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldset ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_WORD, Emulator32bit::ATOMIC_LDSET);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldset);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldsetb ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_BYTE, Emulator32bit::ATOMIC_LDSET);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldset);
     m_obj.text_section.push_back (instruction);
 }
 
 void Assembler::_ldseth ()
 {
     const word instruction =
-        parse_format_atomic (Emulator32bit::ATOMIC_WIDTH_HWORD, Emulator32bit::ATOMIC_LDSET);
+        parse_format_atomic (Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldset);
     m_obj.text_section.push_back (instruction);
 }
 

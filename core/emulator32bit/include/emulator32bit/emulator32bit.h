@@ -110,7 +110,12 @@ class Emulator32bit
 
     /// @brief              Number of general purpose stack registers.
     static constexpr U8 kNumReg = 32;
-    static_assert (U8 (Register::XZR) + 1 == kNumReg);
+    static_assert (static_cast<U8> (Register::XZR) + 1 == kNumReg);
+
+    static constexpr inline U8 register_to_U8 (Register reg)
+    {
+        return static_cast<U8> (reg);
+    }
 
     ///
     /// @brief              Flag bit locations in the _pstate register.
@@ -275,14 +280,37 @@ class Emulator32bit
         return m_pc;
     }
 
+    inline word read_reg (Register reg)
+    {
+        const U8 r = register_to_U8 (reg);
+        // The lower 32 bits is the register mask, upper 32 bits contains the value.
+        return word (m_x[r]) & word (m_x[r] >> 32);
+    }
+
     inline word read_reg (U8 reg)
     {
-        return word (m_x[reg]) & word (m_x[reg] >> 32);
+        if (LIKELY (reg < kNumReg))
+        {
+            // The lower 32 bits is the register mask, upper 32 bits contains the value.
+            return word (m_x[reg]) & word (m_x[reg] >> 32);
+        }
+        return 0;
+    }
+
+    inline void write_reg (Register reg, word val)
+    {
+        const U8 r = register_to_U8 (reg);
+        // The lower 32 bits is the register mask, upper 32 bits contains the value.
+        m_x[r] = word (m_x[r]) ^ dword (val) << 32;
     }
 
     inline void write_reg (U8 reg, word val)
     {
-        m_x[reg] = word (m_x[reg]) ^ dword (val) << 32;
+        if (LIKELY (reg < kNumReg))
+        {
+            // The lower 32 bits is the register mask, upper 32 bits contains the value.
+            m_x[reg] = word (m_x[reg]) ^ dword (val) << 32;
+        }
     }
 
     ///
@@ -350,10 +378,10 @@ class Emulator32bit
 
     inline bool check_cond (word pstate, U8 cond)
     {
-        bool N = test_bit (pstate, kNFlagBit);
-        bool Z = test_bit (pstate, kZFlagBit);
-        bool C = test_bit (pstate, kCFlagBit);
-        bool V = test_bit (pstate, kVFlagBit);
+        const bool N = test_bit (pstate, kNFlagBit);
+        const bool Z = test_bit (pstate, kZFlagBit);
+        const bool C = test_bit (pstate, kCFlagBit);
+        const bool V = test_bit (pstate, kVFlagBit);
 
         switch ((ConditionCode) cond)
         {
@@ -525,21 +553,23 @@ class Emulator32bit
 
     static std::string disassemble_instr (word instr);
 
-    static constexpr word _opspec_hlt = 0b0000;
-    static constexpr word _opspec_nop = 0b1111;
-    static constexpr word _opspec_msr = 0b0001;
-    static constexpr word _opspec_mrs = 0b0010;
-    static constexpr word _opspec_tlbi = 0b0011;
-    static constexpr word _opspec_atomic = 0b0100;
+    // Since these operations are encoded under one 'Special' instruction,
+    // these are the id for each operation.
+    static constexpr word kSpecialOpId_hlt = 0b0000;
+    static constexpr word kSpecialOpId_nop = 0b1111;
+    static constexpr word kSpecialOpId_msr = 0b0001;
+    static constexpr word kSpecialOpId_mrs = 0b0010;
+    static constexpr word kSpecialOpId_tlbi = 0b0011;
+    static constexpr word kSpecialOpId_atomic = 0b0100;
 
-    static constexpr int ATOMIC_SWP = 0b0000;
-    static constexpr int ATOMIC_LDADD = 0b0001;
-    static constexpr int ATOMIC_LDCLR = 0b0010;
-    static constexpr int ATOMIC_LDSET = 0b0011;
+    static constexpr word kAtomicId_swp = 0b0000;
+    static constexpr word kAtomicId_ldadd = 0b0001;
+    static constexpr word kAtomicId_ldclr = 0b0010;
+    static constexpr word kAtomicId_ldset = 0b0011;
 
-    static constexpr int ATOMIC_WIDTH_WORD = 0b00;
-    static constexpr int ATOMIC_WIDTH_BYTE = 0b01;
-    static constexpr int ATOMIC_WIDTH_HWORD = 0b10;
+    static constexpr word kAtomicWidth_word = 0b00;
+    static constexpr word kAtomicWidth_byte = 0b01;
+    static constexpr word kAtomicWidth_hword = 0b10;
 
-    static constexpr word SYSREG_PSTATE = 1;
+    static constexpr word kSysregId_pstate = 1;
 };

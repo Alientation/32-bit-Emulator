@@ -277,13 +277,13 @@ void Emulator32bit::_swi (word instr)
 
     // software interrupts.. perfect to add functionality to this like console print,
     // file operations, ports, etc
-    word id = read_reg (U8 (Register::SYSCALL));
-    word arg0 = read_reg (0);
-    word arg1 = read_reg (1);
-    word arg2 = read_reg (2);
-    word arg3 = read_reg (3);
-    word arg4 = read_reg (4);
-    word arg5 = read_reg (5);
+    word id = read_reg (Register::SYSCALL);
+    word arg0 = read_reg (Register::X0);
+    word arg1 = read_reg (Register::X1);
+    word arg2 = read_reg (Register::X2);
+    word arg3 = read_reg (Register::X3);
+    word arg4 = read_reg (Register::X4);
+    word arg5 = read_reg (Register::X5);
     UNUSED (arg5); // temporary
     switch (id)
     {
