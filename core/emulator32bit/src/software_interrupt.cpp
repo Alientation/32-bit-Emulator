@@ -56,7 +56,7 @@ void Emulator32bit::_emu_assertr (byte reg_id, word min_value, word max_value)
     }
     else
     {
-        throw Exception (FAILED_ASSERT,
+        throw Exception (InterruptType::FAILED_ASSERT,
                          "Failed system call assertion. Expected register "
                              + std::to_string (reg_id) + " to contain a value between "
                              + std::to_string (min_value) + " and " + std::to_string (max_value)
@@ -87,7 +87,7 @@ void Emulator32bit::_emu_assertm (word mem_addr, byte size, bool little_endian, 
 
     if (val < min_value || val > max_value)
     {
-        throw Exception (FAILED_ASSERT,
+        throw Exception (InterruptType::FAILED_ASSERT,
                          "Expected value at memory address " + std::to_string (mem_addr)
                              + " to be between " + std::to_string (min_value) + " and "
                              + std::to_string (max_value) + ". Got " + std::to_string (val) + ".");
@@ -100,10 +100,11 @@ void Emulator32bit::_emu_assertp (byte p_state_id, bool expected_value)
 
     if (val != expected_value)
     {
-        throw Exception (FAILED_ASSERT, "Failed system call assertion. Expected PSTATE "
-                                            + std::to_string (p_state_id) + " to be "
-                                            + std::to_string (expected_value) + ". Got "
-                                            + std::to_string (val) + ".");
+        throw Exception (InterruptType::FAILED_ASSERT,
+                         "Failed system call assertion. Expected PSTATE "
+                             + std::to_string (p_state_id) + " to be "
+                             + std::to_string (expected_value) + ". Got " + std::to_string (val)
+                             + ".");
     }
 }
 
@@ -276,7 +277,7 @@ void Emulator32bit::_swi (word instr)
 
     // software interrupts.. perfect to add functionality to this like console print,
     // file operations, ports, etc
-    word id = read_reg (kSyscallRegister);
+    word id = read_reg (U8 (Register::SYSCALL));
     word arg0 = read_reg (0);
     word arg1 = read_reg (1);
     word arg2 = read_reg (2);
@@ -309,6 +310,6 @@ void Emulator32bit::_swi (word instr)
         _emu_assertp (arg0, arg1);
         break;
     default:
-        throw Exception (BAD_INSTR, "Invalid syscall number " + std::to_string (id));
+        throw Exception (InterruptType::BAD_INSTR, "Invalid syscall number " + std::to_string (id));
     }
 }

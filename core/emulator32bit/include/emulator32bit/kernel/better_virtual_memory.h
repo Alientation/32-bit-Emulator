@@ -38,7 +38,8 @@ class MMU
                 Null page directory or processor in real more implies no virtual
                 memory.
             */
-        if (UNLIKELY (!m_processor->pagedir || m_processor->get_flag (kRealModeFlagBit)))
+        if (UNLIKELY (!m_processor->pagedir
+                      || m_processor->get_flag (Emulator32bit::kRealModeFlagBit)))
         {
             return address;
         }
@@ -49,7 +50,7 @@ class MMU
             || !ram->in_bounds (m_processor->pagedir + (kPageSize * sizeof (struct PageTableEntry))
                                 - 1))
         {
-            throw Emulator32bit::Exception (Emulator32bit::BAD_PAGEDIR,
+            throw Emulator32bit::Exception (Emulator32bit::InterruptType::BAD_PAGEDIR,
                                             "Page directory is not in RAM.");
         }
 
@@ -61,9 +62,9 @@ class MMU
             */
         if (UNLIKELY (vpage >= m_kernel_low_page && vpage <= m_kernel_high_page))
         {
-            if (UNLIKELY (m_processor->get_flag (kUserModeFlagBit)))
+            if (UNLIKELY (m_processor->get_flag (Emulator32bit::kUserModeFlagBit)))
             {
-                throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
+                throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
                                                 "User tried accessing kernel page.");
             }
             return address;
@@ -76,21 +77,23 @@ class MMU
         /* Check for access permissions. */
         if (UNLIKELY (!entry->valid))
         {
-            throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT, "Unmapped memory accessed.");
+            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
+                                            "Unmapped memory accessed.");
         }
-        else if (UNLIKELY (entry->kernel && m_processor->get_flag (kUserModeFlagBit)))
+        else if (UNLIKELY (entry->kernel
+                           && m_processor->get_flag (Emulator32bit::kUserModeFlagBit)))
         {
-            throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
+            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
                                             "User tried accessing kernel page.");
         }
         else if (UNLIKELY (mode == WRITE_ACCESSMODE && !entry->write))
         {
-            throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
+            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
                                             "Page has no write permissions.");
         }
         else if (UNLIKELY (mode == EXECUTE_ACCESSMODE && !entry->execute))
         {
-            throw Emulator32bit::Exception (Emulator32bit::PAGEFAULT,
+            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
                                             "Page has no execute permissions.");
         }
 

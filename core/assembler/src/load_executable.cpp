@@ -42,7 +42,7 @@ void LoadExecutable::load ()
                 mask_0 (obj.text_section.at (instr_i), 0, 20) + bitfield_unsigned (offset, 0, 20);
             if ((offset >> 20) & 1)
             {
-                instr = set_bit (instr, kInstructionUpdateFlagBit, 1);
+                instr = set_bit (instr, Emulator32bit::kInstructionUpdateFlagBit, 1);
             }
 
             obj.text_section.at (instr_i) = instr;

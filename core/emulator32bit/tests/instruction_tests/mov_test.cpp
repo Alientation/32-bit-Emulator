@@ -12,10 +12,13 @@ TEST_F (EmulatorFixture, mov_register_mov_immediate)
     cpu->run (1);
 
     EXPECT_EQ (cpu->read_reg (0), 9) << "\'mov x0 #9\' : should result in x0=9";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 1) << "operation should not alter C flag";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 0)
+        << "operation should not cause N flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 0)
+        << "operation should not cause Z flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 0)
+        << "operation should not cause V flag to be set";
 }
 
 TEST_F (EmulatorFixture, mov_zero_flag)
@@ -30,8 +33,10 @@ TEST_F (EmulatorFixture, mov_zero_flag)
     cpu->run (1);
 
     EXPECT_EQ (cpu->read_reg (0), 0) << "\'movs x0, #0\' : should result in x0=0";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 1) << "operation should set Z flag";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 1) << "operation should not alter C flag";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 0)
+        << "operation should not cause N flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 1) << "operation should set Z flag";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 0)
+        << "operation should not cause V flag to be set";
 }

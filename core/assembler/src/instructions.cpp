@@ -68,16 +68,16 @@ void Assembler::parse_shift (Emulator32bit::ShiftType &shift, int &shift_amt)
     switch (m_tokenizer.consume ().type)
     {
     case Tokenizer::INSTRUCTION_LSL:
-        shift = Emulator32bit::SHIFT_LSL;
+        shift = Emulator32bit::ShiftType::SHIFT_LSL;
         break;
     case Tokenizer::INSTRUCTION_LSR:
-        shift = Emulator32bit::SHIFT_LSR;
+        shift = Emulator32bit::ShiftType::SHIFT_LSR;
         break;
     case Tokenizer::INSTRUCTION_ASR:
-        shift = Emulator32bit::SHIFT_ASR;
+        shift = Emulator32bit::ShiftType::SHIFT_ASR;
         break;
     case Tokenizer::INSTRUCTION_ROR:
-        shift = Emulator32bit::SHIFT_ROR;
+        shift = Emulator32bit::ShiftType::SHIFT_ROR;
         break;
     default:
         ERROR ("Assembler::parse_shift() - Unreachable.");
@@ -264,7 +264,7 @@ word Assembler::parse_format_m (byte opcode)
     if (m_tokenizer.is_next (Tokenizer::CLOSE_BRACKET))
     {
         m_tokenizer.consume ();
-        addressing_mode = Emulator32bit::ADDR_POST_INC;
+        addressing_mode = Emulator32bit::AddrType::ADDR_POST_INC;
         parsed_addressing_mode = true;
     }
 
@@ -292,13 +292,13 @@ word Assembler::parse_format_m (byte opcode)
                 {
                     // Preindexed, offset is applied to value at register before accessing.
                     m_tokenizer.consume ();
-                    addressing_mode = Emulator32bit::ADDR_PRE_INC;
+                    addressing_mode = Emulator32bit::AddrType::ADDR_PRE_INC;
                     parsed_addressing_mode = true;
                 }
                 else
                 {
                     // Simple offset.
-                    addressing_mode = Emulator32bit::ADDR_OFFSET;
+                    addressing_mode = Emulator32bit::AddrType::ADDR_OFFSET;
                     parsed_addressing_mode = true;
                 }
             }
@@ -312,7 +312,7 @@ word Assembler::parse_format_m (byte opcode)
             const byte reg_b = parse_register ();
 
             // Shift argument.
-            Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
+            Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
             int shift_amount = 0;
             if (m_tokenizer.is_next (Tokenizer::COMMA))
             {
@@ -330,13 +330,13 @@ word Assembler::parse_format_m (byte opcode)
                 {
                     // Preindexed.
                     m_tokenizer.consume ();
-                    addressing_mode = Emulator32bit::ADDR_PRE_INC;
+                    addressing_mode = Emulator32bit::AddrType::ADDR_PRE_INC;
                     parsed_addressing_mode = true;
                 }
                 else
                 {
                     // Simple offset.
-                    addressing_mode = Emulator32bit::ADDR_OFFSET;
+                    addressing_mode = Emulator32bit::AddrType::ADDR_OFFSET;
                     parsed_addressing_mode = true;
                 }
             }
@@ -477,7 +477,7 @@ word Assembler::parse_format_o (byte opcode)
         const byte operand_reg = parse_register ();
 
         // Shift.
-        Emulator32bit::ShiftType shift = Emulator32bit::SHIFT_LSL;
+        Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
         int shift_amt = 0;
         if (m_tokenizer.is_next (Tokenizer::COMMA))
         {

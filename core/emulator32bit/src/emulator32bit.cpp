@@ -117,9 +117,9 @@ void Emulator32bit::print ()
 {
     printf ("32 bit emulator\nRegisters:\n");
     printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
-            to_color_hex_str (read_reg (kStackPointerRegister)).c_str (),
+            to_color_hex_str (read_reg (U8 (Register::SP))).c_str (),
             to_color_hex_str (word (0)).c_str ());
-    for (int i = 0; i < kStackPointerRegister; i++)
+    for (U8 i = 0; i < U8 (Register::X29); i++)
     {
         printf ("x%.2d: %s\n", i, to_color_hex_str (read_reg (i)).c_str ());
     }
@@ -127,17 +127,16 @@ void Emulator32bit::print ()
     printf ("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run (unsigned long long instructions)
+void Emulator32bit::run (U64 instructions)
 {
-    word instr = asm_hlt ();
-    unsigned long long num_instructions_ran = 0;
+    U64 num_instructions_ran = 0;
     try
     {
         if (instructions == 0)
         {
             while (true)
             {
-                instr = system_bus->read_word_aligned_ram (m_pc);
+                const word instr = system_bus->read_word_aligned_ram (m_pc);
                 execute (instr);
                 m_pc += 4;
                 num_instructions_ran++;
@@ -145,10 +144,10 @@ void Emulator32bit::run (unsigned long long instructions)
         }
         else
         {
-            unsigned long long start_instructions = instructions;
+            const U64 start_instructions = instructions;
             while (instructions > 0)
             {
-                instr = system_bus->read_word_aligned_ram (m_pc);
+                const word instr = system_bus->read_word_aligned_ram (m_pc);
                 execute (instr);
                 m_pc += 4;
                 instructions--;
@@ -171,11 +170,13 @@ void Emulator32bit::run (unsigned long long instructions)
 void Emulator32bit::reset ()
 {
     system_bus->reset ();
-    for (unsigned long long i = 0; i < sizeof (m_x) / sizeof (m_x[0]); i++)
+    static_assert (sizeof (m_x) / sizeof (m_x[0]) == kNumReg);
+    // Set up the masks for registers.
+    for (U8 i = 0; i < kNumReg; i++)
     {
         m_x[i] = (1ULL << (8 * sizeof (word))) - 1;
     }
-    m_x[kZeroRegister] = 0;
+    m_x[U8 (Register::XZR)] = 0;
     m_pstate = 0;
     m_pc = 0;
 }

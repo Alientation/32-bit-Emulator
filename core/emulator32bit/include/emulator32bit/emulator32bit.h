@@ -13,80 +13,6 @@ class MMU;
 class Timer;
 
 ///
-/// @brief                  IDs for special registers
-///
-/// Stack grows downwards
-/// <--------STACK_TOP-------->
-///          Saved FP
-///          Saved LR                <--- fp
-///  ---STACK_FRAME_BORDER---
-///      local variables
-///          <...>
-///          <...>
-///          <...>
-///      local variables             <---- sp
-///
-/// Link register stores the previous pc, the next instruction is what will be
-/// executed.
-///
-/// Register Conventions
-///  - x0-x17: Caller Saved
-///     - x0-x7: Parameter Registers
-///     - x0: Return value
-///     - x8: Syscall Number
-///  - x19-27: Callee Saved
-///  - x28: Frame Register
-///  - x29: Link Register
-///
-
-/// @brief              Number of general purpose stack registers.
-constexpr int kNumReg = 32;
-
-/// @brief              Number register for syscalls.
-constexpr int kSyscallRegister = 8;
-
-/// @brief              Frame Pointer - points to saved (FP,LR) in stack.
-constexpr int kFPRegister = 28;
-
-/// @brief              Link Register.
-constexpr int kLinkRegister = 29;
-
-/// @brief              Stack Pointer.
-constexpr int kStackPointerRegister = 30;
-
-/// @brief              Zero Register.
-constexpr int kZeroRegister = 31;
-
-///
-/// @brief              Flag bit locations in the _pstate register.
-///
-
-/// @brief              Negative Flag.
-constexpr int kNFlagBit = 0;
-
-/// @brief              Zero Flag.
-constexpr int kZFlagBit = 1;
-
-/// @brief              Carry Flag.
-constexpr int kCFlagBit = 2;
-
-/// @brief              Overflow Flag.
-constexpr int kVFlagBit = 3;
-
-/// @brief              User mode flag.
-constexpr int kUserModeFlagBit = 8;
-
-/// @brief              Real memory mode flag.
-constexpr int kRealModeFlagBit = 9;
-
-/// @brief              Which bit of the instruction determines whether flags will be updated.
-constexpr int kInstructionUpdateFlagBit = 25;
-
-/// @brief              Max supported instructions. 6 bits are used to represent the opcode for easy
-///                     look-up table translations.
-constexpr int kMaxInstructions = 64;
-
-///
 /// @brief              32 bit Emulator
 /// @paragraph          Modeled off of the ARM architecture with many simplifications.
 ///                     A software simulated processor.
@@ -99,10 +25,108 @@ class Emulator32bit
                    word rom_start_page);
     Emulator32bit (RAM *ram, ROM *rom, Disk *disk);
     ~Emulator32bit ();
-    void print ();
+
+    enum class Register : U8
+    {
+        X0 = 0,
+        X1,
+        X2,
+        X3,
+        X4,
+        X5,
+        X6,
+        X7,
+        X8,
+        SYSCALL = 8,
+        X9,
+        X10,
+        X11,
+        X12,
+        X13,
+        X14,
+        X15,
+        X16,
+        X17,
+        X18,
+        X19,
+        X20,
+        X21,
+        X22,
+        X23,
+        X24,
+        X25,
+        X26,
+        X27,
+        X28,
+        FP = 28,
+        X29,
+        LR = 29,
+        SP,
+        XZR,
+    };
+
+    ///
+    /// @brief                  IDs for special registers
+    ///
+    /// Stack grows downwards
+    /// <--------STACK_TOP-------->
+    ///          Saved FP
+    ///          Saved LR                <--- fp
+    ///  ---STACK_FRAME_BORDER---
+    ///      local variables
+    ///          <...>
+    ///          <...>
+    ///          <...>
+    ///      local variables             <---- sp
+    ///
+    /// Link register stores the previous pc, the next instruction is what will be
+    /// executed.
+    ///
+    /// Register Conventions
+    ///  - x0-x17: Caller Saved
+    ///     - x0-x7: Parameter Registers
+    ///     - x0: Return value
+    ///     - x8: Syscall Number
+    ///  - x19-27: Callee Saved
+    ///  - x28: Frame Register
+    ///  - x29: Link Register
+    ///
+
+    /// @brief              Number of general purpose stack registers.
+    static constexpr U8 kNumReg = 32;
+    static_assert (U8 (Register::XZR) + 1 == kNumReg);
+
+    ///
+    /// @brief              Flag bit locations in the _pstate register.
+    ///
+
+    /// @brief              Negative Flag.
+    static constexpr U8 kNFlagBit = 0;
+
+    /// @brief              Zero Flag.
+    static constexpr U8 kZFlagBit = 1;
+
+    /// @brief              Carry Flag.
+    static constexpr U8 kCFlagBit = 2;
+
+    /// @brief              Overflow Flag.
+    static constexpr U8 kVFlagBit = 3;
+
+    /// @brief              User mode flag.
+    static constexpr U8 kUserModeFlagBit = 8;
+
+    /// @brief              Real memory mode flag.
+    static constexpr U8 kRealModeFlagBit = 9;
+
+    /// @brief              Which bit of the instruction determines whether flags will be updated.
+    static constexpr U8 kInstructionUpdateFlagBit = 25;
+
+    /// @brief              Max supported instructions. 6 bits are used to represent the opcode for easy
+    ///                     look-up table translations.
+    static constexpr U8 kMaxInstructions = 64;
 
     // TODO:
-    enum InterruptType
+    enum class InterruptType : U8
     {
         BAD_REG,
         BAD_INSTR,
@@ -132,7 +156,7 @@ class Emulator32bit
         const char *what () const noexcept override;
     };
 
-    enum class ConditionCode
+    enum class ConditionCode : U8
     {
         /// @brief          Equal                           : Z==1
         EQ = 0,
@@ -185,7 +209,7 @@ class Emulator32bit
         NV = 15,
     };
 
-    enum ShiftType
+    enum class ShiftType : U8
     {
         SHIFT_LSL,
         SHIFT_LSR,
@@ -193,7 +217,7 @@ class Emulator32bit
         SHIFT_ROR
     };
 
-    enum AddrType
+    enum class AddrType : U8
     {
         ADDR_OFFSET,
         ADDR_PRE_INC,
@@ -231,7 +255,9 @@ class Emulator32bit
     ///                         exception is thrown.
     /// @throws                 Exception
     ///
-    void run (unsigned long long instructions);
+    void run (U64 instructions);
+
+    void print ();
 
     ///
     /// @brief              Resets the processor state.
@@ -249,12 +275,12 @@ class Emulator32bit
         return m_pc;
     }
 
-    inline word read_reg (byte reg)
+    inline word read_reg (U8 reg)
     {
         return word (m_x[reg]) & word (m_x[reg] >> 32);
     }
 
-    inline void write_reg (byte reg, word val)
+    inline void write_reg (U8 reg, word val)
     {
         m_x[reg] = word (m_x[reg]) ^ dword (val) << 32;
     }
@@ -281,12 +307,12 @@ class Emulator32bit
     /// @param flag         Bit to set.
     /// @param value        Flag value.
     ///
-    inline void set_flag (int flag, bool value)
+    inline void set_flag (U8 flag, bool value)
     {
         m_pstate = set_bit (m_pstate, flag, value);
     }
 
-    inline bool get_flag (int flag)
+    inline bool get_flag (U8 flag)
     {
         return test_bit (m_pstate, flag);
     }
@@ -310,19 +336,19 @@ class Emulator32bit
     /// @brief              Program state. Bits 0-3 are NZCV flags. Rest are TODO
     word m_pstate;
 
-    typedef void (Emulator32bit::*InstructionFunction) (word);
+    using InstructionFunction = void (Emulator32bit::*) (word);
     InstructionFunction m_instruction_handler[kMaxInstructions];
 
     void fill_out_instructions ();
 
-    word calc_mem_addr (word xn, sword offset, byte addr_mode);
+    word calc_mem_addr (word xn, sword offset, U8 addr_mode);
 
     inline void execute (word instr)
     {
         (this->*m_instruction_handler[bitfield_unsigned (instr, 26, 6)]) (instr);
     }
 
-    inline bool check_cond (word pstate, byte cond)
+    inline bool check_cond (word pstate, U8 cond)
     {
         bool N = test_bit (pstate, kNFlagBit);
         bool Z = test_bit (pstate, kZFlagBit);
@@ -466,13 +492,12 @@ class Emulator32bit
 
     // Software interrupt handling.
     void _emu_print ();
-    void _emu_printr (byte reg_id);
-    void _emu_printm (word mem_addr, byte size, bool little_endian);
+    void _emu_printr (U8 reg_id);
+    void _emu_printm (word mem_addr, U8 size, bool little_endian);
     void _emu_printp ();
-    void _emu_assertr (byte reg_id, word min_value, word max_value);
-    void _emu_assertm (word mem_addr, byte size, bool little_endian, word min_value,
-                       word max_value);
-    void _emu_assertp (byte p_state_id, bool expected_value);
+    void _emu_assertr (U8 reg_id, word min_value, word max_value);
+    void _emu_assertm (word mem_addr, U8 size, bool little_endian, word min_value, word max_value);
+    void _emu_assertp (U8 p_state_id, bool expected_value);
     void _emu_log (word str);
     void _emu_err (word err);
 
@@ -480,24 +505,23 @@ class Emulator32bit
     // Helpers to assemble instructions.
     static word asm_hlt ();
     static word asm_nop ();
-    static word asm_msr (word sysreg, bool imm, word xn_or_imm16);
-    static word asm_mrs (word xn, word sysreg);
-    static word asm_tlbi (word xt, bool isxt, word imm16);
-    static word asm_atomic (word xt, word xn, word xm, byte width, byte atop);
+    static word asm_msr (U8 sysreg, bool imm, word xn_or_imm16);
+    static word asm_mrs (U8 xn, U8 sysreg);
+    static word asm_tlbi (U8 xt, bool isxt, word imm16);
+    static word asm_atomic (word xt, word xn, word xm, U8 width, U8 atop);
 
-    static word asm_format_o (byte opcode, bool s, int xd, int xn, int imm14);
-    static word asm_format_o (byte opcode, bool s, int xd, int xn, int xm, ShiftType shift,
-                              int imm5);
-    static word asm_format_o1 (byte opcode, int xd, int xn, bool imm, int xm, int imm5);
-    static word asm_format_o2 (byte opcode, bool s, int xlo, int xhi, int xn, int xm);
-    static word asm_format_o3 (byte opcode, bool s, int xd, int imm19);
-    static word asm_format_o3 (byte opcode, bool s, int xd, int xn, int imm14);
-    static word asm_format_m (byte opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
+    static word asm_format_o (U8 opcode, bool s, int xd, int xn, int imm14);
+    static word asm_format_o (U8 opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
+    static word asm_format_o1 (U8 opcode, int xd, int xn, bool imm, int xm, int imm5);
+    static word asm_format_o2 (U8 opcode, bool s, int xlo, int xhi, int xn, int xm);
+    static word asm_format_o3 (U8 opcode, bool s, int xd, int imm19);
+    static word asm_format_o3 (U8 opcode, bool s, int xd, int xn, int imm14);
+    static word asm_format_m (U8 opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
                               int imm5, AddrType adr);
-    static word asm_format_m (byte opcode, bool sign, int xt, int xn, int simm12, AddrType adr);
-    static word asm_format_m1 (byte opcode, int xd, int imm20);
-    static word asm_format_b1 (byte opcode, ConditionCode cond, sword simm22);
-    static word asm_format_b2 (byte opcode, ConditionCode cond, int xd);
+    static word asm_format_m (U8 opcode, bool sign, int xt, int xn, int simm12, AddrType adr);
+    static word asm_format_m1 (U8 opcode, int xd, int imm20);
+    static word asm_format_b1 (U8 opcode, ConditionCode cond, sword simm22);
+    static word asm_format_b2 (U8 opcode, ConditionCode cond, int xd);
 
     static std::string disassemble_instr (word instr);
 

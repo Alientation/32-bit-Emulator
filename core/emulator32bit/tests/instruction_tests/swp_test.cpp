@@ -24,8 +24,12 @@ TEST_F (EmulatorFixture, swp_basic)
         << "\'x0\' should contain the 4 byte value at address x2 in memory.";
     EXPECT_EQ (cpu->read_reg (1), 0x76543210) << "operation should not change operand \'x1\'";
     EXPECT_EQ (cpu->read_reg (2), kPageSize) << "operation should not change operand \'x2\'";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 0)
+        << "operation should not cause N flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 0)
+        << "operation should not cause Z flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 0)
+        << "operation should not cause C flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 0)
+        << "operation should not cause V flag to be set";
 }

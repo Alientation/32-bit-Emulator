@@ -20,10 +20,14 @@ TEST_F (EmulatorFixture, smull_register_smull_register)
         << "\'smull x0, x1, x2, x3\' : where x2=2, x3=4, should result in x0=8, x1=0";
     EXPECT_EQ (cpu->read_reg (2), 2) << "operation should not alter operand register \'x2\'";
     EXPECT_EQ (cpu->read_reg (3), 4) << "operation should not alter operand register \'x3\'";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 0)
+        << "operation should not cause N flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 0)
+        << "operation should not cause Z flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 0)
+        << "operation should not cause C flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 0)
+        << "operation should not cause V flag to be set";
 }
 
 TEST_F (EmulatorFixture, smull_negative_flag)
@@ -46,10 +50,13 @@ TEST_F (EmulatorFixture, smull_negative_flag)
         << "\'smull x0, x1, x2, x3\' : where x2=-2, x3=4, should result in x0=-8, x1=-1";
     EXPECT_EQ (cpu->read_reg (2), -2) << "operation should not alter operand register \'x2\'";
     EXPECT_EQ (cpu->read_reg (3), 4) << "operation should not alter operand register \'x3\'";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 1) << "N flag should be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 0) << "operation should not cause Z flag to be set";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 0) << "operation should not cause C flag to be set";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 0) << "operation should not cause V flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 1) << "N flag should be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 0)
+        << "operation should not cause Z flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 0)
+        << "operation should not cause C flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 0)
+        << "operation should not cause V flag to be set";
 }
 
 TEST_F (EmulatorFixture, smull_zero_flag)
@@ -73,8 +80,9 @@ TEST_F (EmulatorFixture, smull_zero_flag)
         << "\'smull x0, x1, x2, x3\' : where x2=0, x3=4, should result in x0=0, x1=0";
     EXPECT_EQ (cpu->read_reg (2), 0) << "operation should not alter operand register \'x2\'";
     EXPECT_EQ (cpu->read_reg (3), 4) << "operation should not alter operand register \'x3\'";
-    EXPECT_EQ (cpu->get_flag (kNFlagBit), 0) << "operation should not cause N flag to be set";
-    EXPECT_EQ (cpu->get_flag (kZFlagBit), 1) << "Z flag should be set";
-    EXPECT_EQ (cpu->get_flag (kCFlagBit), 1) << "operation should not alter C flag";
-    EXPECT_EQ (cpu->get_flag (kVFlagBit), 1) << "operation should not alter V flag";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kNFlagBit), 0)
+        << "operation should not cause N flag to be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kZFlagBit), 1) << "Z flag should be set";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kCFlagBit), 1) << "operation should not alter C flag";
+    EXPECT_EQ (cpu->get_flag (Emulator32bit::kVFlagBit), 1) << "operation should not alter V flag";
 }
