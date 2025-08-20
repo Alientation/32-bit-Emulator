@@ -4,8 +4,9 @@ project(util VERSION 0.0.1 LANGUAGES CXX)
 add_library(util STATIC
     src/directory.cpp
     src/file.cpp
-    src/logger.cpp
-    src/types.cpp
+	src/logger.cpp
+	src/logger_v3.cpp
+	src/types.cpp
 )
 
 # Public headers
