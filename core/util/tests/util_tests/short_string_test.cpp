@@ -1,0 +1,653 @@
+#include <gtest/gtest.h>
+
+#include "util/short_string.h"
+
+TEST (short_string, test_constructor)
+{
+    // Test default constructor.
+    {
+        const ShortString short_string;
+
+        EXPECT_EQ (short_string.len (), 0);
+        EXPECT_STREQ (short_string.str (), "");
+    }
+
+    // Test smallest buffer size.
+    {
+        const ShortString<0> short_string;
+
+        EXPECT_EQ (short_string.len (), 0);
+        EXPECT_STREQ (short_string.str (), "");
+    }
+
+    // Test constructor truncating input string to fit inside buffer.
+    {
+        const ShortString<0> short_string ("I");
+
+        EXPECT_EQ (short_string.len (), 0);
+        EXPECT_STREQ (short_string.str (), "");
+    }
+
+    // Test regular case.
+    {
+        const char *str = "Hello World!";
+        const ShortString short_string = "Hello World!";
+
+        EXPECT_EQ (short_string.len (), strlen (str));
+        EXPECT_STREQ (short_string.str (), str);
+    }
+
+    // Test regular case.
+    {
+        const std::string str = "Hello World!";
+        const ShortString short_string (str.c_str ());
+
+        EXPECT_EQ (short_string.len (), str.length ());
+        EXPECT_STREQ (short_string.str (), str.c_str ());
+    }
+}
+
+TEST (short_string, test_addition)
+{
+    // Test simple addition.
+    {
+        const std::string str_1 = "Hello";
+        ShortString<24> short_string_1 (str_1.c_str ());
+
+        const std::string str_2 = " World!";
+        const ShortString<32> short_string_2 (str_2.c_str ());
+
+        const std::string str_final = str_1 + str_2;
+
+        const ShortString short_string_final = short_string_1 + short_string_2;
+
+        EXPECT_EQ (short_string_final.len (), str_final.length ());
+        EXPECT_STREQ (short_string_final.str (), str_final.c_str ());
+
+        EXPECT_EQ (short_string_1.len (), str_1.length ());
+        EXPECT_STREQ (short_string_1.str (), str_1.c_str ());
+
+        short_string_1 += short_string_2;
+
+        EXPECT_EQ (short_string_1.len (), str_final.length ());
+        EXPECT_STREQ (short_string_1.str (), str_final.c_str ());
+
+        EXPECT_EQ (short_string_2.len (), str_2.length ());
+        EXPECT_STREQ (short_string_2.str (), str_2.c_str ());
+    }
+
+    // Test compound addition.
+    {
+        const char *str_1 = "a";
+        const char *str_2 = "b";
+        const char *str_3 = "c";
+
+        ShortString<3> short_string_1 (str_1);
+        short_string_1 += ShortString (str_2) + str_3;
+        EXPECT_EQ (short_string_1.len (), 3);
+        EXPECT_STREQ (short_string_1.str (), "abc");
+
+        const ShortString<3> short_string_2 = str_1 + ShortString (str_2) + str_3;
+        EXPECT_EQ (short_string_2.len (), 3);
+        EXPECT_STREQ (short_string_2.str (), "abc");
+
+        const ShortString<3> short_string_3 = str_1 + ShortString (str_2) + ShortString (str_3);
+        EXPECT_EQ (short_string_3.len (), 3);
+        EXPECT_STREQ (short_string_3.str (), "abc");
+
+        const ShortString<3> short_string_4 (str_1);
+        const ShortString short_string_5 = short_string_4 + str_2 + ShortString (str_3);
+        EXPECT_EQ (short_string_5.len (), 3);
+        EXPECT_STREQ (short_string_5.str (), "abc");
+    }
+
+    // Test exceed storage limit.
+    {
+        const char *str_1 = "12";
+        const char *str_2 = "34";
+        const char *str_3 = "5";
+
+        ShortString<4> short_string_1 (str_1);
+        short_string_1 += ShortString (str_2) + ShortString (str_3);
+        EXPECT_EQ (short_string_1.len (), 4);
+        EXPECT_STREQ (short_string_1.str (), "1234");
+
+        ShortString<3> short_string_2 (str_1);
+        short_string_2 += ShortString (str_2) + ShortString (str_3);
+        EXPECT_EQ (short_string_2.len (), 3);
+        EXPECT_STREQ (short_string_2.str (), "123");
+
+        ShortString<4> short_string_3 (str_1);
+        short_string_3 += ShortString (str_2) + str_3;
+        EXPECT_EQ (short_string_3.len (), 4);
+        EXPECT_STREQ (short_string_3.str (), "1234");
+    }
+}
+
+TEST (short_string, test_repeat)
+{
+    // Simple repeat.
+    {
+        const char *str_1 = "1";
+        const char *str_2 = "2";
+
+        ShortString short_string_1 (str_1);
+        short_string_1 *= 3;
+        short_string_1 += str_2;
+        short_string_1 *= 2;
+        EXPECT_EQ (short_string_1.len (), 8);
+        EXPECT_STREQ (short_string_1.str (), "11121112");
+
+        ShortString short_string_2 (str_1);
+        short_string_2 *= 3;
+        short_string_2 += ShortString (str_2) * 2;
+        short_string_2 *= 3;
+        EXPECT_EQ (short_string_2.len (), 15);
+        EXPECT_STREQ (short_string_2.str (), "111221112211122");
+
+        ShortString short_string_3 (str_1);
+        const ShortString short_string_4 (str_2);
+        short_string_3 += short_string_4 * 2;
+        short_string_3 *= 3;
+        EXPECT_EQ (short_string_3.len (), 9);
+        EXPECT_STREQ (short_string_3.str (), "122122122");
+    }
+
+    // Edge cases.
+    {
+        const char *str_1 = "1";
+        const char *str_2 = "2";
+
+        ShortString short_string_1 (str_1);
+        short_string_1 *= 0;
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString<2> short_string_2 (str_1);
+        short_string_2 *= 3;
+        EXPECT_EQ (short_string_2.len (), 2);
+        EXPECT_STREQ (short_string_2.str (), "11");
+
+        ShortString<3> short_string_3 (str_1);
+        short_string_3 += ShortString (str_2) * 2;
+        short_string_3 *= 2;
+        EXPECT_EQ (short_string_3.len (), 3);
+        EXPECT_STREQ (short_string_3.str (), "122");
+
+        ShortString<7> short_string_4 (str_1);
+        short_string_4 += ShortString (str_2) * 2;
+        short_string_4 *= 3;
+        EXPECT_EQ (short_string_4.len (), 7);
+        EXPECT_STREQ (short_string_4.str (), "1221221");
+    }
+}
+
+TEST (short_string, test_substring)
+{
+    // Edge cases - substring (pos).
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.substring (0);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Beginning.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.substring (0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Middle.
+        short_string_2.substring (6);
+        EXPECT_EQ (short_string_2.len (), strlen ("World!"));
+        EXPECT_STREQ (short_string_2.str (), "World!");
+
+        // End.
+        short_string_2.substring (6);
+        EXPECT_EQ (short_string_2.len (), strlen (""));
+        EXPECT_STREQ (short_string_2.str (), "");
+    }
+
+    // Edge cases - substring (pos, len).
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.substring (0, 0);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Empty, nonzero length.
+        short_string_1.substring (0, 1);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Just within boundary.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.substring (0, 12);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Just outside boundary.
+        short_string_2.substring (0, 13);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // End.
+        short_string_2.substring (6, 12);
+        EXPECT_EQ (short_string_2.len (), strlen ("World!"));
+        EXPECT_STREQ (short_string_2.str (), "World!");
+
+        // Length 0.
+        short_string_2.substring (0, 0);
+        EXPECT_EQ (short_string_2.len (), strlen (""));
+        EXPECT_STREQ (short_string_2.str (), "");
+    }
+}
+
+TEST (short_string, test_find)
+{
+    // Edge cases.
+    {
+        ShortString<0> short_string_1;
+
+        // Empty string, but find empty string.
+        EXPECT_EQ (short_string_1.find (ShortString ("")), 0);
+
+        // Find longer string.
+        EXPECT_EQ (short_string_1.find (ShortString ("H")), U32 (-1));
+
+        ShortString short_string_2 = "Hello World!";
+
+        // Find empty string.
+        EXPECT_EQ (short_string_2.find (ShortString ("")), 0);
+
+        // Beginning.
+        EXPECT_EQ (short_string_2.find (ShortString ("Hello")), 0);
+
+        // Middle.
+        EXPECT_EQ (short_string_2.find (ShortString ("ello")), 1);
+
+        // End.
+        EXPECT_EQ (short_string_2.find (ShortString ("World!")), 6);
+
+        // Last character.
+        EXPECT_EQ (short_string_2.find (ShortString ("!")), 11);
+
+        // Find longer string.
+        EXPECT_EQ (short_string_2.find (ShortString ("Hello World! ")), U32 (-1));
+
+        // Find first character.
+        EXPECT_EQ (short_string_2.find (ShortString ("l")), 2);
+    }
+}
+
+TEST (short_string, test_find_from)
+{
+    // Edge cases.
+    {
+        ShortString<0> short_string_1;
+
+        // Find empty from beginning of empty string.
+        EXPECT_EQ (short_string_1.find_from (ShortString (""), 0), 0);
+
+        // Find empty from end of empty string.
+        EXPECT_EQ (short_string_1.find_from (ShortString (""), 1), U32 (-1));
+
+        ShortString short_string_2 = "Hello World!";
+
+        // Find empty string.
+        EXPECT_EQ (short_string_2.find_from (ShortString (""), 1), 1);
+
+        // Find first word.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("Hello"), 0), 0);
+
+        // Find no word.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("Hello"), 1), U32 (-1));
+
+        // Find first o.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("o"), 0), 4);
+
+        // Find first o.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("o"), 4), 4);
+
+        // Find second o.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("o"), 5), 7);
+
+        // Find last character.
+        EXPECT_EQ (short_string_2.find_from (ShortString ("!"), 11), 11);
+    }
+}
+
+TEST (short_string, test_split)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_split_from)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_insert)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_remove)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.remove (0, 0);
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Zero length.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.remove (0, 0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Zero length end of string.
+        short_string_2.remove (12, 0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // End of string.
+        short_string_2.remove (12, 1);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Larger section
+        short_string_2.remove (11, 2);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World");
+
+        short_string_2.remove (1, 20);
+        EXPECT_EQ (short_string_2.len (), strlen ("H"));
+        EXPECT_STREQ (short_string_2.str (), "H");
+    }
+
+    // Normal.
+    {
+        ShortString short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.remove (0, 6);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple apple watermelon");
+
+        short_string_1.remove (18, 11);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple apple"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple apple");
+
+        short_string_1.remove (6, 6);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple");
+
+        short_string_1.remove (0, 12);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+    }
+}
+
+TEST (short_string, test_replace)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace (0, 0, ShortString ("Hello"));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Out of bounds.
+        ShortString short_string_2 = "Hi";
+        short_string_2.replace (2, 0, ShortString ("Hello"));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hi"));
+        EXPECT_STREQ (short_string_2.str (), "Hi");
+
+        // Truncation.
+        short_string_2.replace (0, 2, ShortString ("Hello"));
+        EXPECT_EQ (short_string_2.len (), strlen ("He"));
+        EXPECT_STREQ (short_string_2.str (), "He");
+
+        // Reduction.
+        short_string_2.replace (0, 2, ShortString ("I"));
+        EXPECT_EQ (short_string_2.len (), strlen ("I"));
+        EXPECT_STREQ (short_string_2.str (), "I");
+
+        // Replacement.
+        ShortString short_string_3 = "Hello World!";
+        short_string_3.replace (0, 5, ShortString ("Hi"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+
+        // Truncation.
+        short_string_3.replace (0, 2, ShortString ("Helloo"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Helloo World"));
+        EXPECT_STREQ (short_string_3.str (), "Helloo World");
+
+        // Just within bounds.
+        short_string_3.replace (0, 12, ShortString ("Hi World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+
+        // Just outside bounds.
+        short_string_3.replace (0, 13, ShortString ("Hello World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hello World!");
+
+        // Truncation.
+        short_string_3.replace (0, 2, ShortString ("Hello World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hello World!");
+    }
+}
+
+TEST (short_string, test_replace_all)
+{
+    // Edge cases.
+    {
+        ShortString<0> short_string_1;
+        short_string_1.replace_all (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Pattern string longer than given string.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_all (ShortString ("Hello World!!"), ShortString ("hello world!"));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Replace last character.
+        short_string_2.replace_all (ShortString ("!"), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World");
+
+        // Replace multiple instances.
+        short_string_2.replace_all (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("HeLLo World"));
+        EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
+
+        // Case sensitive.
+        short_string_2.replace_all (ShortString ("h"), ShortString ("H"));
+        EXPECT_EQ (short_string_2.len (), strlen ("HeLLo WorLd"));
+        EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
+
+        // Replacements exceed internal storage buffer limit.
+        ShortString<5> short_string_3 = "aabc";
+        short_string_3.replace_all (ShortString ("a"), ShortString ("bc"));
+        EXPECT_EQ (short_string_3.len (), strlen ("bcbcb"));
+        EXPECT_STREQ (short_string_3.str (), "bcbcb");
+
+        short_string_3.replace_all (ShortString ("b"), ShortString ("ac"));
+        EXPECT_EQ (short_string_3.len (), strlen ("accac"));
+        EXPECT_STREQ (short_string_3.str (), "accac");
+
+        short_string_3.replace_all (ShortString ("a"), ShortString ("aa"));
+        EXPECT_EQ (short_string_3.len (), strlen ("aacca"));
+        EXPECT_STREQ (short_string_3.str (), "aacca");
+    }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 ("apple orange apple apple watermelon");
+        short_string_1.replace_all (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (),
+                   strlen ("pineapple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple watermelon");
+
+        ShortString<127> short_string_2 ("(apple) orange (apple) apple watermelon");
+        short_string_2.replace_all (ShortString ("(apple)"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_2.len (), strlen ("pineapple orange pineapple apple watermelon"));
+        EXPECT_STREQ (short_string_2.str (), "pineapple orange pineapple apple watermelon");
+    }
+}
+
+TEST (short_string, test_replace_first)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace_first (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_first (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Replace first.
+        short_string_2.replace_first (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // No match.
+        short_string_2.replace_first (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // Replace only 1.
+        short_string_2.replace_first (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLlo World!"));
+        EXPECT_STREQ (short_string_2.str (), "heLlo World!");
+
+        // Case sensitive.
+        short_string_2.replace_first (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLLo World!"));
+        EXPECT_STREQ (short_string_2.str (), "heLLo World!");
+
+        // Replace last.
+        short_string_2.replace_first (ShortString ("!"), ShortString ("."));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLLo World."));
+        EXPECT_STREQ (short_string_2.str (), "heLLo World.");
+
+        // Exceed internal storage buffer.
+        ShortString<4> short_string_3 = "abc";
+        short_string_3.replace_first (ShortString ("a"), ShortString ("AAA"));
+        EXPECT_EQ (short_string_3.len (), strlen ("AAAb"));
+        EXPECT_STREQ (short_string_3.str (), "AAAb");
+    }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.replace_first (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange apple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange apple apple watermelon");
+
+        short_string_1.replace_first (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange pineapple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple apple watermelon");
+
+        short_string_1.replace_first (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (),
+                   strlen ("pineapple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple watermelon");
+
+        short_string_1.replace_first (ShortString ("watermelon"), ShortString ("orange"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple orange");
+
+        short_string_1.replace_first (ShortString ("orange"), ShortString ("apple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple apple pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple apple pineapple pineapple orange");
+    }
+}
+
+TEST (short_string, test_replace_last)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace_last (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_last (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Replace first.
+        short_string_2.replace_last (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // No match.
+        short_string_2.replace_last (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // Replace only 1.
+        short_string_2.replace_last (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello WorLd!"));
+        EXPECT_STREQ (short_string_2.str (), "hello WorLd!");
+
+        // Case sensitive.
+        short_string_2.replace_last (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("helLo WorLd!"));
+        EXPECT_STREQ (short_string_2.str (), "helLo WorLd!");
+
+        // Replace last.
+        short_string_2.replace_last (ShortString ("!"), ShortString ("."));
+        EXPECT_EQ (short_string_2.len (), strlen ("helLo WorLd."));
+        EXPECT_STREQ (short_string_2.str (), "helLo WorLd.");
+
+        // Exceed internal storage buffer.
+        ShortString<4> short_string_3 = "abc";
+        short_string_3.replace_last (ShortString ("a"), ShortString ("AAA"));
+        EXPECT_EQ (short_string_3.len (), strlen ("AAAb"));
+        EXPECT_STREQ (short_string_3.str (), "AAAb");
+    }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.replace_last (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange apple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange apple pineapple watermelon");
+
+        short_string_1.replace_last (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple watermelon");
+
+        short_string_1.replace_last (ShortString ("watermelon"), ShortString ("orange"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple orange");
+
+        short_string_1.replace_last (ShortString ("orange"), ShortString ("apple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple apple"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple apple");
+    }
+}

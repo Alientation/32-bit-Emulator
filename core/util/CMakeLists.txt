@@ -6,6 +6,8 @@ add_library(util STATIC
     src/file.cpp
     src/logger.cpp
     src/types.cpp
+    src/logger.cpp
+    src/types.cpp
 )
 
 # Public headers
@@ -37,8 +39,4 @@ install(EXPORT util-targets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/util
 )
 
-# TODO: add util tests
-# Build tests if requested
-# if(BUILD_TESTS)
-    # add_subdirectory(tests)
-# endif()
+add_subdirectory(tests)

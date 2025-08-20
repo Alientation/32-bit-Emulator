@@ -39,13 +39,13 @@ inline static std::string replaceFirst (std::string str, const std::string &matc
     return str.replace (index, match.length (), replacement);
 }
 
-/**
-     * Trims whitespace from the left side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+///
+/// @brief              Trims whitespace from the left side of a string.
+///
+/// @param str          String to trim.
+///
+/// @return             Trimmed string.
+///
 inline static std::string leftTrim (std::string str)
 {
     str.erase (str.begin (), std::find_if (str.begin (), str.end (),
@@ -53,13 +53,13 @@ inline static std::string leftTrim (std::string str)
     return str;
 }
 
-/**
-     * Trims whitespace from the right side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+///
+/// @brief              Trims whitespace from the right side of a string.
+///
+/// @param str          String to trim.
+///
+/// @return             Trimmed string.
+///
 inline static std::string rightTrim (std::string str)
 {
     str.erase (std::find_if (str.rbegin (), str.rend (),
@@ -69,41 +69,41 @@ inline static std::string rightTrim (std::string str)
     return str;
 }
 
-/**
-     * Trims whitespace from the left and right side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+///
+/// @brief              Trims whitespace from the left and right side of a string.
+///
+/// @param str          String to trim.
+///
+/// @return             Trimmed string.
+///
 inline static std::string trimString (std::string str)
 {
     return leftTrim (rightTrim (str));
 }
 
-/**
-     * Trims whitespace from the left and right side of a string
-     *
-     * @param str the string to trim
-     * @param leftTrim the number of characters to trim from the left side of the string
-     * @param rightTrim the number of characters to trim from the right side of the string
-     *
-     * @return the trimmed string
-     */
+///
+/// @brief              Trims whitespace from the left and right side of a string.
+///
+/// @param str          String to trim.
+/// @param leftTrim     Number of characters to trim from the left side of the string.
+/// @param rightTrim    Number of characters to trim from the right side of the string.
+///
+/// @return             Trimmed string.
+///
 inline static std::string trimString (std::string str, int leftTrim, int rightTrim)
 {
     return str.substr (leftTrim, str.length () - rightTrim);
 }
 
-/**
-     * Splits a string into a vector of strings separated by the given regex delimiter.
-     *
-     * @param str the string to split
-     * @param delimiter the regex delimiter to split the string by
-     * @param trim whether or not to trim each split string
-     *
-     * @return a vector of strings separated by the given regex delimiter
-     */
+///
+/// @brief              Splits a string into a vector of strings separated by the given regex delimiter.
+///
+/// @param str          String to split.
+/// @param delimiter    Regex delimiter to split the string by.
+/// @param trim         Whether or not to trim each split string.
+///
+/// @return             Vector of strings separated by the given regex delimiter.
+///
 inline static std::vector<std::string> split (std::string str, std::string delimRegex,
                                               bool trim = false)
 {
