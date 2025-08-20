@@ -51,7 +51,6 @@ TEST (short_string, test_addition)
 {
     // Test simple addition.
     {
-        printf ("TEST SIMPLE ADDITION\n");
         const std::string str_1 = "Hello";
         ShortString<24> short_string_1 (str_1.c_str ());
 
@@ -79,7 +78,6 @@ TEST (short_string, test_addition)
 
     // Test compound addition.
     {
-        printf ("TEST COMPOUND ADDITION\n");
         const char *str_1 = "a";
         const char *str_2 = "b";
         const char *str_3 = "c";
@@ -101,5 +99,57 @@ TEST (short_string, test_addition)
         const ShortString short_string_5 = short_string_4 + str_2 + ShortString (str_3);
         EXPECT_EQ (short_string_5.len (), 3);
         EXPECT_STREQ (short_string_5.str (), "abc");
+    }
+
+    // Test exceed storage limit.
+    {
+        const char *str_1 = "12";
+        const char *str_2 = "34";
+        const char *str_3 = "5";
+
+        ShortString<4> short_string_1 (str_1);
+        short_string_1 += ShortString (str_2) + ShortString (str_3);
+        EXPECT_EQ (short_string_1.len (), 4);
+        EXPECT_STREQ (short_string_1.str (), "1234");
+
+        ShortString<3> short_string_2 (str_1);
+        short_string_2 += ShortString (str_2) + ShortString (str_3);
+        EXPECT_EQ (short_string_2.len (), 3);
+        EXPECT_STREQ (short_string_2.str (), "123");
+
+        ShortString<4> short_string_3 (str_1);
+        short_string_3 += ShortString (str_2) + str_3;
+        EXPECT_EQ (short_string_3.len (), 4);
+        EXPECT_STREQ (short_string_3.str (), "1234");
+    }
+}
+
+TEST (short_string, test_repeat)
+{
+    // Simple repeat.
+    {
+        const char *str_1 = "1";
+        const char *str_2 = "2";
+
+        ShortString short_string_1 (str_1);
+        short_string_1 *= 3;
+        short_string_1 += str_2;
+        short_string_1 *= 2;
+        EXPECT_EQ (short_string_1.len (), 8);
+        EXPECT_STREQ (short_string_1.str (), "11121112");
+
+        ShortString short_string_2 (str_1);
+        short_string_2 *= 3;
+        short_string_2 += ShortString (str_2) * 2;
+        short_string_2 *= 3;
+        EXPECT_EQ (short_string_2.len (), 15);
+        EXPECT_STREQ (short_string_2.str (), "111221112211122");
+
+        ShortString short_string_3 (str_1);
+        const ShortString short_string_4 (str_2);
+        short_string_3 += short_string_4 * 2;
+        short_string_3 *= 3;
+        EXPECT_EQ (short_string_3.len (), 9);
+        EXPECT_STREQ (short_string_3.str (), "122122122");
     }
 }

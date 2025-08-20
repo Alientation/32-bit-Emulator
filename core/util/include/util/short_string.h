@@ -51,6 +51,42 @@ class ShortString
         return m_str;
     }
 
+    inline ShortString &operator*= (U32 rhs) noexcept
+    {
+        const U32 original_len = m_len;
+        const U32 target_len = m_len * rhs;
+        m_len = (target_len > kMaxLength) ? kMaxLength : target_len;
+
+        const U32 max_copies = m_len / original_len;
+
+        for (U32 i = 1; i < max_copies; i++)
+        {
+            memcpy (m_str + i * original_len, m_str, original_len);
+        }
+
+        const U32 start_partial_copy = max_copies * original_len;
+        for (U32 i = start_partial_copy; i < m_len; i++)
+        {
+            m_str[i] = m_str[i - start_partial_copy];
+        }
+
+        m_str[m_len] = '\0';
+        return *this;
+    }
+
+    inline friend ShortString operator* (ShortString &&lhs, U32 rhs) noexcept
+    {
+        lhs *= rhs;
+        return lhs;
+    }
+
+    inline friend ShortString operator* (const ShortString &lhs, U32 rhs) noexcept
+    {
+        ShortString ss = lhs;
+        ss *= rhs;
+        return ss;
+    }
+
     template<U32 kMaxLength2>
     inline ShortString &operator+= (const ShortString<kMaxLength2> &rhs) noexcept
     {
