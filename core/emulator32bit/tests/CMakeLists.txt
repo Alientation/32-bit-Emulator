@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 enable_testing()
 
-add_executable(emulator32bit_tests
+add_executable(${PROJECT_NAME}
 	./emulator32bit_test.cpp
 
 	./emulator_tests/emulator_test.cpp
@@ -47,12 +47,13 @@ add_executable(emulator32bit_tests
 )
 
 target_include_directories(
-	emulator32bit_tests
+	${PROJECT_NAME}
 	PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(emulator32bit_tests
+target_link_libraries(
+	${PROJECT_NAME}
 	PRIVATE
 	util
 	emulator32bit
@@ -66,4 +67,4 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 include(GoogleTest)
-gtest_discover_tests(emulator32bit_tests)
+gtest_discover_tests(${PROJECT_NAME})

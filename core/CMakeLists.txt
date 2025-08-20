@@ -22,6 +22,6 @@ enable_testing()
 # Add subdirectories (these will also define their own libraries, tests, etc.)
 add_subdirectory(util)
 add_subdirectory(emulator32bit)
-add_subdirectory(ccompiler)
+# add_subdirectory(ccompiler) TODO: Temporary until ccompiler is fully updated.. shouldnt have pushed unfinished changes to main.
 add_subdirectory(assembler)
 add_subdirectory(app)
