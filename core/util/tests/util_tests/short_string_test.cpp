@@ -152,4 +152,32 @@ TEST (short_string, test_repeat)
         EXPECT_EQ (short_string_3.len (), 9);
         EXPECT_STREQ (short_string_3.str (), "122122122");
     }
+
+    // Edge cases
+    {
+        const char *str_1 = "1";
+        const char *str_2 = "2";
+
+        ShortString short_string_1 (str_1);
+        short_string_1 *= 0;
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString<2> short_string_2 (str_1);
+        short_string_2 *= 3;
+        EXPECT_EQ (short_string_2.len (), 2);
+        EXPECT_STREQ (short_string_2.str (), "11");
+
+        ShortString<3> short_string_3 (str_1);
+        short_string_3 += ShortString (str_2) * 2;
+        short_string_3 *= 2;
+        EXPECT_EQ (short_string_3.len (), 3);
+        EXPECT_STREQ (short_string_3.str (), "122");
+
+        ShortString<7> short_string_4 (str_1);
+        short_string_4 += ShortString (str_2) * 2;
+        short_string_4 *= 3;
+        EXPECT_EQ (short_string_4.len (), 7);
+        EXPECT_STREQ (short_string_4.str (), "1221221");
+    }
 }
