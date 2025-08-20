@@ -61,7 +61,7 @@ class ShortString
         return *this;
     }
 
-    inline ShortString &operator+= (const char *rhs) noexcept
+    inline ShortString &operator+= (const char *__restrict__ rhs) noexcept
     {
         const size_t slen = strlen (rhs);
         const U32 add_len = (m_len + slen) > kMaxLength ? (kMaxLength - m_len) : slen;
@@ -89,7 +89,7 @@ class ShortString
     }
 
     template<U32 kMaxLength2>
-    inline friend ShortString operator+ (const char *lhs,
+    inline friend ShortString operator+ (const char *__restrict__ lhs,
                                          const ShortString<kMaxLength2> &rhs) noexcept
     {
         ShortString ss (lhs);
@@ -98,7 +98,8 @@ class ShortString
     }
 
     template<U32 kMaxLength2>
-    inline friend ShortString operator+ (ShortString<kMaxLength2> &&lhs, const char *rhs) noexcept
+    inline friend ShortString operator+ (ShortString<kMaxLength2> &&lhs,
+                                         const char *__restrict__ rhs) noexcept
     {
         lhs += rhs;
         return lhs;
@@ -106,7 +107,7 @@ class ShortString
 
     template<U32 kMaxLength2>
     inline friend ShortString operator+ (const ShortString<kMaxLength2> &lhs,
-                                         const char *rhs) noexcept
+                                         const char *__restrict__ rhs) noexcept
     {
         ShortString ss (lhs);
         ss += rhs;
