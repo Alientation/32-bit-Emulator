@@ -26,9 +26,12 @@ void ccompile (const char *filepath)
 
     struct LexerData lexer;
     lexer_init (&lexer);
-    lex (filepath, &lexer);
+    lex_file (filepath, &lexer);
     lexer_print (&lexer);
     printf ("\n");
+
+    printf("JUST TESTING LEXER\n");
+    exit(EXIT_SUCCESS);
 
     struct ParserData parser;
     parser_init (&parser);
@@ -57,7 +60,7 @@ void ccompile (const char *filepath)
 
     codegen (&parser, output_filepath);
 
-    
+
 
     free (output_filepath);
     lexer_free (&lexer);

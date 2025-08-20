@@ -451,7 +451,7 @@ static astnode_t *parse_expr (parser_data_t *parser)
 
 static bool to_int (parser_data_t *parser, token_t *tok, int *out)
 {
-    if (tok->type != TOKEN_LITERAL_INT)
+    if (tok->type != TOKEN_I_CONSTANT)
     {
         err (parser, "Expected literal int\n");
         return false;
@@ -472,7 +472,7 @@ static astnode_t *parse_literal_int (parser_data_t *parser)
 {
     parser_checkpoint (parser);
     astnode_t *literal_int = allocate_astnode (AST_LITERAL_INT);
-    if (!(literal_int->as.literal_int.tok_int = exp_nxttok_is (parser, TOKEN_LITERAL_INT, "Expected integer literal\n")) ||
+    if (!(literal_int->as.literal_int.tok_int = exp_nxttok_is (parser, TOKEN_I_CONSTANT, "Expected integer literal\n")) ||
         !to_int (parser, literal_int->as.literal_int.tok_int, &literal_int->as.literal_int.value))
     {
         parser_rollback (parser);

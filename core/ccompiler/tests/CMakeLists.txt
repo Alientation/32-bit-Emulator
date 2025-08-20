@@ -12,6 +12,7 @@ add_executable(${PROJECT_NAME}
     ./ccompiler_test.cpp
 
     ./util_test/stringbuffer_test.cpp
+    ./ccompiler_test/lexer_test.cpp
 )
 
 target_include_directories(

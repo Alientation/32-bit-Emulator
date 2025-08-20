@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define UNUSED(x) (void)(x)
+
 static void codegen_ast (codegen_data_t *codegen, astnode_t *node);
 static void codegen_prog (codegen_data_t *codegen, astnode_t *node);
 static void codegen_func (codegen_data_t *codegen, astnode_t *node);
@@ -152,6 +154,7 @@ static regid_t reg_alloc (codegen_func_t *func)
 
 static regid_t reg_evict (codegen_func_t *func)
 {
+    UNUSED(func);
     M_UNREACHABLE ("unimplemented");
     return -1;
 }
@@ -255,8 +258,10 @@ static void codegen_ast (codegen_data_t *codegen, astnode_t *node)
         case AST_STATEMENT:
         case AST_FUNC:
             M_UNREACHABLE ("Unexpected ASTNODE_TYPE in codegen: %s", parser_astnode_type_to_str (node->type));
+            break;
         case AST_PROG:
-            return codegen_prog (codegen, node);
+            codegen_prog (codegen, node);
+            break;
         default:
             UNREACHABLE ();
     }
@@ -308,7 +313,7 @@ static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
     massert (codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
 
     codegen_expr (codegen, node->as.statement.body);
-    stringbuffer_append (&codegen->cur_txt_sect, "\tret\n");
+    stringbuffer_append (codegen->cur_txt_sect, "\tret\n");
 }
 
 static regid_t codegen_expr (codegen_data_t *codegen, astnode_t *node)
@@ -346,13 +351,15 @@ static regid_t codegen_factor (codegen_data_t *codegen, astnode_t *node)
             // but we don't have IR, so... should we implement IR to allow easier compiler otpimizations?
 
             // TODO last left off here, for now, just allocate a register for the immediate constant...
-            stringbuffer_append (&codegen->cur_txt_sect, "\tmov x0, ");
-            codegenblock_addtok (&codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
-            stringbuffer_append (&codegen->cur_txt_sect, "\n");
+            stringbuffer_append (codegen->cur_txt_sect, "\tmov x0, ");
+            codegenblock_addtok (codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
+            stringbuffer_append (codegen->cur_txt_sect, "\n");
             break;
         default:
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.factor.body->type);
     }
+
+    return -1;
 }
 
 static regid_t codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node)
@@ -374,11 +381,17 @@ static regid_t codegen_binary_expr_2 (codegen_data_t *codegen, astnode_t *node)
         default:
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.binary_expr_2.operand_b->type);
     }
+
+    UNUSED (codegen);
+    UNUSED (node);
+    return -1;
 }
 
 static regid_t codegen_binary_expr_1 (codegen_data_t *codegen, astnode_t *node)
 {
-
+    UNUSED (codegen);
+    UNUSED (node);
+    return -1;
 }
 
 static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
@@ -388,7 +401,7 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
     switch (node->as.unary_expr.tok_op->type)
     {
         case TOKEN_EXCLAMATION_MARK:
-            stringbuffer_append (&codegen->cur_txt_sect,
+            stringbuffer_append (codegen->cur_txt_sect,
                 ".scope\n"
                     "\tcmp x0, 0\n"
                     "\tb.eq __set\n"
@@ -401,12 +414,12 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
             );
             break;
         case TOKEN_HYPEN:
-            stringbuffer_append (&codegen->cur_txt_sect,
+            stringbuffer_append (codegen->cur_txt_sect,
                 "\tsub x0, xzr, x0\n"
             );
             break;
         case TOKEN_TILDE:
-            stringbuffer_append (&codegen->cur_txt_sect,
+            stringbuffer_append (codegen->cur_txt_sect,
                 "\tmvn x0, x0\n"
             );
             break;
@@ -414,6 +427,8 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
             fprintf (stderr, "ERROR: unknown unary op \'%s\'\n", token_tostr (node->as.unary_expr.tok_op));
             exit (EXIT_FAILURE);
     }
+
+    return -1;
 }
 
 
