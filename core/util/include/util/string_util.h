@@ -6,7 +6,7 @@
 
 namespace string_util
 {
-inline std::string repeat (std::string str, int times)
+inline static std::string repeat (std::string str, int times)
 {
     std::string res;
     for (int i = 0; i < times; i++)
@@ -16,8 +16,8 @@ inline std::string repeat (std::string str, int times)
     return res;
 }
 
-inline std::string replace_all (std::string str, const std::string &pattern,
-                                const std::string &replacement)
+inline static std::string replace_all (std::string str, const std::string &pattern,
+                                       const std::string &replacement)
 {
     size_t pos;
     while ((pos = str.find (pattern)) != std::string::npos)
@@ -27,8 +27,8 @@ inline std::string replace_all (std::string str, const std::string &pattern,
     return str;
 }
 
-[[maybe_unused]] inline std::string replaceFirst (std::string str, const std::string &match,
-                                                  const std::string &replacement)
+inline static std::string replaceFirst (std::string str, const std::string &match,
+                                        const std::string &replacement)
 {
     size_t index = str.find_first_of (match);
     if (index == std::string::npos)
@@ -46,7 +46,7 @@ inline std::string replace_all (std::string str, const std::string &pattern,
      *
      * @return the trimmed string
      */
-[[maybe_unused]] inline std::string leftTrim (std::string str)
+inline static std::string leftTrim (std::string str)
 {
     str.erase (str.begin (), std::find_if (str.begin (), str.end (),
                                            [] (unsigned char c) { return !std::isspace (c); }));
@@ -60,7 +60,7 @@ inline std::string replace_all (std::string str, const std::string &pattern,
      *
      * @return the trimmed string
      */
-[[maybe_unused]] inline std::string rightTrim (std::string str)
+inline static std::string rightTrim (std::string str)
 {
     str.erase (std::find_if (str.rbegin (), str.rend (),
                              [] (unsigned char c) { return !std::isspace (c); })
@@ -76,7 +76,7 @@ inline std::string replace_all (std::string str, const std::string &pattern,
      *
      * @return the trimmed string
      */
-[[maybe_unused]] inline std::string trimString (std::string str)
+inline static std::string trimString (std::string str)
 {
     return leftTrim (rightTrim (str));
 }
@@ -90,7 +90,7 @@ inline std::string replace_all (std::string str, const std::string &pattern,
      *
      * @return the trimmed string
      */
-[[maybe_unused]] inline std::string trimString (std::string str, int leftTrim, int rightTrim)
+inline static std::string trimString (std::string str, int leftTrim, int rightTrim)
 {
     return str.substr (leftTrim, str.length () - rightTrim);
 }
@@ -104,8 +104,8 @@ inline std::string replace_all (std::string str, const std::string &pattern,
      *
      * @return a vector of strings separated by the given regex delimiter
      */
-[[maybe_unused]] inline std::vector<std::string> split (std::string str, std::string delimRegex,
-                                                        bool trim = false)
+inline static std::vector<std::string> split (std::string str, std::string delimRegex,
+                                              bool trim = false)
 {
     std::vector<std::string> result;
 
@@ -134,8 +134,7 @@ inline std::string replace_all (std::string str, const std::string &pattern,
 }
 
 template<typename T>
-[[maybe_unused]] inline void format_helper (std::ostringstream &oss, std::string &str,
-                                            const T &value)
+inline static void format_helper (std::ostringstream &oss, std::string &str, const T &value)
 {
     std::size_t openBracket = str.find ('{');
     if (openBracket == std::string::npos)
@@ -152,7 +151,7 @@ template<typename T>
 }
 
 template<class... Targ>
-[[maybe_unused]] inline std::string format (std::string str, Targ &&...args)
+inline static std::string format (std::string str, Targ &&...args)
 {
     std::ostringstream oss;
     (format_helper (oss, str, args), ...);
