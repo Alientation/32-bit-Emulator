@@ -20,6 +20,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/directory.cpp
     src/file.cpp
 	src/logger.cpp
+	src/logger_v3.cpp
 	src/types.cpp
 )
 
