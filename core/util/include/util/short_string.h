@@ -127,35 +127,6 @@ class ShortString
     }
 
     ///
-    /// @brief              Repeat operator.
-    ///
-    /// @param lhs          R-value reference to temporary object to repeat.
-    /// @param rhs          Number of times to repeat.
-    ///
-    /// @return             New ShortString object. Same buffer size as the lhs string.
-    ///
-    inline friend ShortString operator* (ShortString &&lhs, U32 rhs) noexcept
-    {
-        lhs *= rhs;
-        return lhs;
-    }
-
-    ///
-    /// @brief              Repeat operator.
-    ///
-    /// @param lhs          Reference to ShortString to repeat, not modified.
-    /// @param rhs          Number of times to repeat.
-    ///
-    /// @return             New ShortString object. Same buffer size as the lhs string.
-    ///
-    inline friend ShortString operator* (const ShortString &lhs, U32 rhs) noexcept
-    {
-        ShortString ss = lhs;
-        ss *= rhs;
-        return ss;
-    }
-
-    ///
     /// @brief              Concatenation operator.
     ///                     Adds a ShortString to this and truncates if necessary.
     ///
@@ -193,87 +164,6 @@ class ShortString
         return *this;
     }
 
-    ///
-    /// @brief              Concatenation operator.
-    ///                     Adds two ShortStrings together.
-    ///
-    /// @tparam kMaxLength2 Buffer size of second string.
-    ///
-    /// @param lhs          R-value reference to the temporary string object on the left hand
-    ///                     side of the operator.
-    /// @param rhs          Reference to string object on the right hand side of the operator.
-    ///
-    /// @return             New ShortString. Same buffer size as lhs.
-    ///
-    template<U32 kMaxLength2>
-    inline friend ShortString operator+ (ShortString &&lhs,
-                                         const ShortString<kMaxLength2> &rhs) noexcept
-    {
-        lhs += rhs;
-        return lhs;
-    }
-
-    ///
-    /// @brief              Concatenation operator.
-    ///                     Adds two ShortStrings together.
-    ///
-    /// @tparam kMaxLength2 Buffer size of second string.
-    ///
-    /// @param lhs          Reference to string object on the left hand side of the operator.
-    /// @param rhs          Reference to string object on the right hand side of the operator.
-    ///
-    /// @return             New ShortString. Same buffer size as lhs.
-    ///
-    template<U32 kMaxLength2>
-    inline friend ShortString operator+ (const ShortString &lhs,
-                                         const ShortString<kMaxLength2> &rhs) noexcept
-    {
-        ShortString ss = lhs;
-        ss += rhs;
-        return ss;
-    }
-
-    ///
-    /// @brief              Adds a C style string to a ShortString.
-    ///                     Avoids an extra copy with the user having to convert the C style string
-    ///                     to a ShortString.
-    ///
-    /// @tparam kMaxLength2 Buffer size of the first string.
-    ///
-    /// @param lhs          R-value reference to the string object on the left hand side of the operator.
-    /// @param rhs          C style string on the right hand side of the operator.
-    ///
-    /// @return             New ShortString. Same buffer size as rhs string.
-    ///
-    template<U32 kMaxLength1>
-    inline friend ShortString operator+ (ShortString<kMaxLength1> &&lhs,
-                                         const char *__restrict__ rhs) noexcept
-    {
-        lhs += rhs;
-        return lhs;
-    }
-
-    ///
-    /// @brief              Adds a C style string to a ShortString.
-    ///                     Avoids an extra copy with the user having to convert the C style string
-    ///                     to a ShortString.
-    ///
-    /// @tparam kMaxLength1 Buffer size of the first string.
-    ///
-    /// @param lhs          Reference to the string object on the left hand side of the operator.
-    /// @param rhs          C style string on the right hand side of the operator.
-    ///
-    /// @return             New ShortString. Same buffer size as lhs string.
-    ///
-    template<U32 kMaxLength1>
-    inline friend ShortString operator+ (const ShortString<kMaxLength1> &lhs,
-                                         const char *__restrict__ rhs) noexcept
-    {
-        ShortString<kMaxLength1> ss (lhs);
-        ss += rhs;
-        return ss;
-    }
-
   private:
     /// @brief              Internal buffer for string.
     ///                     Sized to accomodate ending null terminator.
@@ -282,3 +172,141 @@ class ShortString
     /// @brief              Length of string, not including null terminator.
     U32 m_len;
 };
+
+///
+/// @brief              Repeat operator.
+///
+/// @tparam kMaxLength1 Buffer size of first string.
+///
+/// @param lhs          R-value reference to temporary object to repeat.
+/// @param rhs          Number of times to repeat.
+///
+/// @return             New ShortString object. Same buffer size as the lhs string.
+///
+template<U32 kMaxLength1>
+inline ShortString<kMaxLength1> operator* (ShortString<kMaxLength1> &&lhs, U32 rhs) noexcept
+{
+    lhs *= rhs;
+    return lhs;
+}
+
+///
+/// @brief              Repeat operator.
+///
+/// @tparam kMaxLength1 Buffer size of first string.
+///
+/// @param lhs          Reference to ShortString to repeat, not modified.
+/// @param rhs          Number of times to repeat.
+///
+/// @return             New ShortString object. Same buffer size as the lhs string.
+///
+template<U32 kMaxLength1>
+inline ShortString<kMaxLength1> operator* (const ShortString<kMaxLength1> &lhs, U32 rhs) noexcept
+{
+    ShortString<kMaxLength1> ss = lhs;
+    ss *= rhs;
+    return ss;
+}
+
+///
+/// @brief              Concatenation operator.
+///                     Adds a C style string to a ShortString.
+///
+/// @tparam kMaxLength2 Buffer size of second string.
+///
+/// @param lhs          C style string.
+/// @param rhs          Reference to string object on the right hand side of the operator.
+///
+/// @return             New ShortString. Same buffer size as rhs.
+///
+template<U32 kMaxLength2>
+inline ShortString<kMaxLength2> operator+ (const char *lhs,
+                                           const ShortString<kMaxLength2> &rhs) noexcept
+{
+    ShortString<kMaxLength2> ss (lhs);
+    ss += rhs;
+    return ss;
+}
+
+///
+/// @brief              Concatenation operator.
+///                     Adds two ShortStrings together.
+///
+/// @tparam kMaxLength1 Buffer size of first string.
+/// @tparam kMaxLength2 Buffer size of second string.
+///
+/// @param lhs          R-value reference to the temporary string object on the left hand
+///                     side of the operator.
+/// @param rhs          Reference to string object on the right hand side of the operator.
+///
+/// @return             New ShortString. Same buffer size as lhs.
+///
+template<U32 kMaxLength1, U32 kMaxLength2>
+inline ShortString<kMaxLength1> operator+ (ShortString<kMaxLength1> &&lhs,
+                                           const ShortString<kMaxLength2> &rhs) noexcept
+{
+    lhs += rhs;
+    return lhs;
+}
+
+///
+/// @brief              Concatenation operator.
+///                     Adds two ShortStrings together.
+///
+/// @tparam kMaxLength1 Buffer size of first string.
+/// @tparam kMaxLength2 Buffer size of second string.
+///
+/// @param lhs          Reference to string object on the left hand side of the operator.
+/// @param rhs          Reference to string object on the right hand side of the operator.
+///
+/// @return             New ShortString. Same buffer size as lhs.
+///
+template<U32 kMaxLength1, U32 kMaxLength2>
+inline ShortString<kMaxLength1> operator+ (const ShortString<kMaxLength1> &lhs,
+                                           const ShortString<kMaxLength2> &rhs) noexcept
+{
+    ShortString ss = lhs;
+    ss += rhs;
+    return ss;
+}
+
+///
+/// @brief              Adds a C style string to a ShortString.
+///                     Avoids an extra copy with the user having to convert the C style string
+///                     to a ShortString.
+///
+/// @tparam kMaxLength1 Buffer size of the first string.
+///
+/// @param lhs          R-value reference to the string object on the left hand side of the operator.
+/// @param rhs          C style string on the right hand side of the operator.
+///
+/// @return             New ShortString. Same buffer size as rhs string.
+///
+template<U32 kMaxLength1>
+inline ShortString<kMaxLength1> operator+ (ShortString<kMaxLength1> &&lhs,
+                                           const char *__restrict__ rhs) noexcept
+{
+    lhs += rhs;
+    return lhs;
+}
+
+///
+/// @brief              Adds a C style string to a ShortString.
+///                     Avoids an extra copy with the user having to convert the C style string
+///                     to a ShortString.
+///
+/// @tparam kMaxLength1 Buffer size of the first string.
+///
+/// @param lhs          Reference to the string object on the left hand side of the operator.
+/// @param rhs          C style string on the right hand side of the operator.
+///
+/// @return             New ShortString. Same buffer size as lhs string.
+///
+template<U32 kMaxLength1>
+inline ShortString<kMaxLength1> operator+ (const ShortString<kMaxLength1> &lhs,
+                                           const char *__restrict__ rhs) noexcept
+{
+    ShortString<kMaxLength1> ss (lhs);
+    ss += rhs;
+    return ss;
+}
