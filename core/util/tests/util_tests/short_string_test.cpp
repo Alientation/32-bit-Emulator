@@ -197,5 +197,15 @@ TEST (short_string, test_replace_all)
         EXPECT_STREQ (short_string_2.str (), "Hello World!");
 
         short_string_2.replace_all (ShortString ("!"), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World");
+
+        short_string_2.replace_all (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("HeLLo World"));
+        EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
+
+        short_string_2.replace_all (ShortString ("h"), ShortString ("H"));
+        EXPECT_EQ (short_string_2.len (), strlen ("HeLLo WorLd"));
+        EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
     }
 }

@@ -157,7 +157,7 @@ class ShortString
                 const U32 add_len =
                     (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
 
-                memcpy (&m_str[i], replacement.str (), add_len);
+                memcpy (&new_str.m_str[i], replacement.str (), add_len);
                 new_str.m_len += add_len;
             }
             else
