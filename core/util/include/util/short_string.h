@@ -115,7 +115,7 @@ class ShortString
     }
 
     ///
-    /// @brief              Replace all occurences of a pattern.
+    /// @brief              Replace all occurences of the pattern.
     ///                     Truncates to fit inside the internal buffer.
     ///
     /// @tparam kMaxPatternLength       Size of buffer in pattern string.
@@ -171,6 +171,122 @@ class ShortString
 
         memcpy (m_str, new_str.m_str, new_str.m_len);
         m_len = new_str.m_len;
+        m_str[m_len] = '\0';
+        return *this;
+    }
+
+    ///
+    /// @brief              Replace first occurence of the pattern.
+    ///                     Truncates to fit inside the internal buffer.
+    ///
+    /// @tparam kMaxPatternLength       Size of buffer in pattern string.
+    /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
+    ///
+    /// @param pattern      Pattern to replace.
+    /// @param replacement  Replacement string.
+    ///
+    /// @return             This.
+    ///
+    template<U32 kMaxPatternLength, U32 kMaxReplacementLength>
+    inline ShortString &replace_first (const ShortString<kMaxPatternLength> &pattern,
+                                       const ShortString<kMaxReplacementLength> &replacement)
+    {
+        const U32 pat_len = pattern.len ();
+        const U32 replace_len = replacement.len ();
+
+        if (pat_len == 0 || pat_len > m_len)
+        {
+            return *this;
+        }
+
+        // Temporary buffer to contain the final string.
+        ShortString new_str;
+        for (U32 i = 0; i <= m_len - pat_len; i++)
+        {
+            // Whether the patern matches the substring starting at character i.
+            bool matches = true;
+            for (U32 j = 0; j < pat_len && matches; j++)
+            {
+                matches = m_str[i + j] == pattern.str ()[j];
+            }
+
+            if (matches)
+            {
+                // Add the replacement string and truncate.
+                const U32 add_len = (new_str.m_len + replace_len > kMaxLength)
+                                        ? (kMaxLength - new_str.m_len)
+                                        : replace_len;
+
+                memcpy (new_str.m_str + new_str.m_len, replacement.str (), add_len);
+                new_str.m_len += add_len;
+
+                break;
+            }
+
+            // Keep the character.
+            new_str.m_str[new_str.m_len++] = m_str[i];
+        }
+
+        memcpy (m_str, new_str.m_str, new_str.m_len);
+        m_len = new_str.m_len;
+        m_str[m_len] = '\0';
+        return *this;
+    }
+
+    ///
+    /// @brief              Replace last occurence of the pattern.
+    ///                     Truncates to fit inside the internal buffer.
+    ///
+    /// @tparam kMaxPatternLength       Size of buffer in pattern string.
+    /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
+    ///
+    /// @param pattern      Pattern to replace.
+    /// @param replacement  Replacement string.
+    ///
+    /// @return             This.
+    ///
+    template<U32 kMaxPatternLength, U32 kMaxReplacementLength>
+    inline ShortString &replace_last (const ShortString<kMaxPatternLength> &pattern,
+                                      const ShortString<kMaxReplacementLength> &replacement)
+    {
+        const U32 pat_len = pattern.len ();
+        const U32 replace_len = replacement.len ();
+
+        if (pat_len == 0 || pat_len > m_len)
+        {
+            return *this;
+        }
+
+        U32 pos;
+        for (pos = m_len - pat_len; pos != U32 (-1); pos--)
+        {
+            // Whether the patern matches the substring starting at character i.
+            bool matches = true;
+            for (U32 j = 0; j < pat_len && matches; j++)
+            {
+                matches = m_str[pos + j] == pattern.str ()[j];
+            }
+
+            if (matches)
+            {
+                break;
+            }
+        }
+
+        // Did not find occurence of pattern.
+        if (pos == U32 (-1))
+        {
+            return *this;
+        }
+
+        const U32 add_len = (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
+
+        // Move down to make room for replacement string. Could overlap.
+        memmove (m_str + pos + pat_len, m_str + pos + pat_len + add_len, m_len - pos - pat_len);
+
+        // Copy in replacement string.
+        memcpy (m_str + pos, replacement.str (), replace_len);
+        m_len += add_len;
         m_str[m_len] = '\0';
         return *this;
     }
