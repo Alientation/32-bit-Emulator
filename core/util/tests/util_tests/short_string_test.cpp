@@ -191,21 +191,39 @@ TEST (short_string, test_replace_all)
         EXPECT_EQ (short_string_1.len (), 0);
         EXPECT_STREQ (short_string_1.str (), "");
 
+        // Pattern string longer than given string.
         ShortString short_string_2 = "Hello World!";
         short_string_2.replace_all (ShortString ("Hello World!!"), ShortString ("hello world!"));
         EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
         EXPECT_STREQ (short_string_2.str (), "Hello World!");
 
+        // Replace last character.
         short_string_2.replace_all (ShortString ("!"), ShortString (""));
         EXPECT_EQ (short_string_2.len (), strlen ("Hello World"));
         EXPECT_STREQ (short_string_2.str (), "Hello World");
 
+        // Replace multiple instances.
         short_string_2.replace_all (ShortString ("l"), ShortString ("L"));
         EXPECT_EQ (short_string_2.len (), strlen ("HeLLo World"));
         EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
 
+        // Case sensitive.
         short_string_2.replace_all (ShortString ("h"), ShortString ("H"));
         EXPECT_EQ (short_string_2.len (), strlen ("HeLLo WorLd"));
         EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
+
+        // Replacements exceend internal storage buffer limit.
+        ShortString<5> short_string_3 = "aabc";
+        short_string_3.replace_all (ShortString ("a"), ShortString ("bc"));
+        EXPECT_EQ (short_string_3.len (), strlen ("bcbcb"));
+        EXPECT_STREQ (short_string_3.str (), "bcbcb");
+
+        short_string_3.replace_all (ShortString ("b"), ShortString ("ac"));
+        EXPECT_EQ (short_string_3.len (), strlen ("accac"));
+        EXPECT_STREQ (short_string_3.str (), "accac");
+
+        short_string_3.replace_all (ShortString ("a"), ShortString ("aa"));
+        EXPECT_EQ (short_string_3.len (), strlen ("aacca"));
+        EXPECT_STREQ (short_string_3.str (), "aacca");
     }
 }

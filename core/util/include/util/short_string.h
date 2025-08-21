@@ -116,8 +116,7 @@ class ShortString
 
     ///
     /// @brief              Replace all occurences of a pattern.
-    ///                     Truncates each replacement instance to fit inside the internal buffer.
-    ///                     This means there may be several truncations.
+    ///                     Truncates to fit inside the internal buffer.
     ///
     /// @tparam kMaxPatternLength       Size of buffer in pattern string.
     /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
@@ -141,7 +140,7 @@ class ShortString
 
         // Temporary buffer to contain the final string.
         ShortString new_str;
-        for (U32 i = 0; i <= m_len - pat_len; i++)
+        for (U32 i = 0; i <= m_len - pat_len && new_str.m_len != kMaxLength; i++)
         {
             // Whether the patern matches the substring starting at character i.
             bool matches = true;
@@ -152,13 +151,16 @@ class ShortString
 
             if (matches)
             {
-                // Add the replacement string.
-                i += pat_len - 1;
-                const U32 add_len =
-                    (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
+                // Add the replacement string and truncate.
+                const U32 add_len = (new_str.m_len + replace_len > kMaxLength)
+                                        ? (kMaxLength - new_str.m_len)
+                                        : replace_len;
 
-                memcpy (&new_str.m_str[i], replacement.str (), add_len);
+                memcpy (new_str.m_str + new_str.m_len, replacement.str (), add_len);
                 new_str.m_len += add_len;
+
+                // Skip past the pattern characters.
+                i += pat_len - 1;
             }
             else
             {
