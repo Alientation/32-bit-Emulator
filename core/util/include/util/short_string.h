@@ -7,7 +7,8 @@
 #include <string>
 
 ///
-/// @brief                  Static string class. Will not dynamically resize.
+/// @brief                  Static string class. Will not dynamically resize, instead truncates.
+/// @todo                   TODO: we should warn if this happens, I think we can bring in the logger here.
 ///
 /// @tparam kMaxLength      Max characters that this can hold excluding the null terminator.
 ///
@@ -27,7 +28,6 @@ class ShortString
     ///
     /// @brief              Constructs a string from a c string.
     ///                     Truncates the string to fit within the buffer.
-    /// @todo               TODO: maybe we should warn if this happens? I think we can bring in the logger here.
     ///
     /// @param str          C style string.
     ///
@@ -115,19 +115,21 @@ class ShortString
     }
 
     ///
-    /// @brief
+    /// @brief              Replace all occurences of a pattern.
+    ///                     Truncates each replacement instance to fit inside the internal buffer.
+    ///                     This means there may be several truncations.
     ///
-    /// @tparam kMaxLength1
-    /// @tparam kMaxLength2
+    /// @tparam kMaxPatternLength       Size of buffer in pattern string.
+    /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
     ///
-    /// @param pattern
-    /// @param replacement
+    /// @param pattern      Pattern to replace.
+    /// @param replacement  Replacement string.
     ///
-    /// @return
+    /// @return             This.
     ///
-    template<U32 kMaxLength1, U32 kMaxLength2>
-    inline ShortString &replace_all (const ShortString<kMaxLength1> &pattern,
-                                     const ShortString<kMaxLength2> &replacement)
+    template<U32 kMaxPatternLength, U32 kMaxReplacementLength>
+    inline ShortString &replace_all (const ShortString<kMaxPatternLength> &pattern,
+                                     const ShortString<kMaxReplacementLength> &replacement)
     {
         const U32 pat_len = pattern.len ();
         const U32 replace_len = replacement.len ();
@@ -150,6 +152,7 @@ class ShortString
 
             if (matches)
             {
+                // Add the replacement string.
                 i += pat_len - 1;
                 const U32 add_len =
                     (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
