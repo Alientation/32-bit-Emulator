@@ -226,4 +226,25 @@ TEST (short_string, test_replace_all)
         EXPECT_EQ (short_string_3.len (), strlen ("aacca"));
         EXPECT_STREQ (short_string_3.str (), "aacca");
     }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 ("apple orange apple apple watermelon");
+        short_string_1.replace_all (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (),
+                   strlen ("pineapple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple watermelon");
+
+        ShortString<127> short_string_2 ("(apple) orange (apple) apple watermelon");
+        short_string_2.replace_all (ShortString ("(apple)"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_2.len (), strlen ("pineapple orange pineapple apple watermelon"));
+        EXPECT_STREQ (short_string_2.str (), "pineapple orange pineapple apple watermelon");
+    }
+}
+
+TEST (short_string, test_replace_first)
+{
+    // Edge cases.
+    {
+    }
 }

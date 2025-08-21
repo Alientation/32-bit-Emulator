@@ -68,9 +68,6 @@ class ShortString
     inline ShortString (const ShortString &other) noexcept :
         m_len (other.len ())
     {
-        // TODO: temporary print.
-        printf ("COPY CTOR\n");
-
         // No need to truncate since both have the same buffer size.
         memcpy (m_str, other.str (), m_len);
         m_str[m_len] = '\0';
@@ -86,8 +83,6 @@ class ShortString
     template<U32 kMaxLength2>
     inline ShortString (const ShortString<kMaxLength2> &other) noexcept
     {
-        // TODO: temporary print.
-        printf ("COPY CTOR\n");
         m_len = (other.len () > kMaxLength) ? kMaxLength : other.len ();
         memcpy (m_str, other.str (), m_len);
         m_str[m_len] = '\0';
@@ -169,6 +164,12 @@ class ShortString
             }
         }
 
+        // Copy end of string.
+        for (U32 i = m_len - pat_len + 1; i < m_len && new_str.m_len != kMaxLength; i++)
+        {
+            new_str.m_str[new_str.m_len++] = m_str[i];
+        }
+
         memcpy (m_str, new_str.m_str, new_str.m_len);
         m_len = new_str.m_len;
         m_str[m_len] = '\0';
@@ -224,6 +225,12 @@ class ShortString
             }
 
             // Keep the character.
+            new_str.m_str[new_str.m_len++] = m_str[i];
+        }
+
+        // Copy end of string.
+        for (U32 i = m_len - pat_len + 1; i < m_len && new_str.m_len != kMaxLength; i++)
+        {
             new_str.m_str[new_str.m_len++] = m_str[i];
         }
 
