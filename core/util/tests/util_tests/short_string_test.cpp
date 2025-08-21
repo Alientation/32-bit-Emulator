@@ -87,6 +87,7 @@ TEST (short_string, test_addition)
         EXPECT_EQ (short_string_1.len (), 3);
         EXPECT_STREQ (short_string_1.str (), "abc");
 
+        // TODO: investigate why this compiles? I removed the operator overload for const char * on the LHS.
         const ShortString<3> short_string_2 = str_1 + ShortString (str_2) + str_3;
         EXPECT_EQ (short_string_2.len (), 3);
         EXPECT_STREQ (short_string_2.str (), "abc");
