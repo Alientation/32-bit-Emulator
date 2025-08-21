@@ -6,7 +6,7 @@ TEST (short_string, test_constructor)
 {
     // Test default constructor.
     {
-        const ShortString<> short_string;
+        const ShortString short_string;
 
         EXPECT_EQ (short_string.len (), 0);
         EXPECT_STREQ (short_string.str (), "");
@@ -31,7 +31,7 @@ TEST (short_string, test_constructor)
     // Test regular case.
     {
         const char *str = "Hello World!";
-        const ShortString<> short_string (str);
+        const ShortString short_string = "Hello World!";
 
         EXPECT_EQ (short_string.len (), strlen (str));
         EXPECT_STREQ (short_string.str (), str);
@@ -40,7 +40,7 @@ TEST (short_string, test_constructor)
     // Test regular case.
     {
         const std::string str = "Hello World!";
-        const ShortString<> short_string (str.c_str ());
+        const ShortString short_string (str.c_str ());
 
         EXPECT_EQ (short_string.len (), str.length ());
         EXPECT_STREQ (short_string.str (), str.c_str ());
@@ -179,5 +179,23 @@ TEST (short_string, test_repeat)
         short_string_4 *= 3;
         EXPECT_EQ (short_string_4.len (), 7);
         EXPECT_STREQ (short_string_4.str (), "1221221");
+    }
+}
+
+TEST (short_string, test_replace_all)
+{
+    // Edge cases.
+    {
+        ShortString<0> short_string_1;
+        short_string_1.replace_all (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_all (ShortString ("Hello World!!"), ShortString ("hello world!"));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        short_string_2.replace_all (ShortString ("!"), ShortString (""));
     }
 }

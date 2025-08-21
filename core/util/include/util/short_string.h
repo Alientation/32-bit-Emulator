@@ -40,6 +40,27 @@ class ShortString
     }
 
     ///
+    /// @brief              Compile time construction of a ShortString from a C string.
+    ///
+    /// @tparam kN          Length of compile time C string.
+    ///
+    /// @param str          C style string.
+    ///
+    template<U32 kN>
+    inline constexpr ShortString (const char (&str)[kN]) noexcept :
+        m_len (kN - 1)
+    {
+        static_assert (kN > 0, "String cannot be empty.");
+        static_assert (kMaxLength >= kN, "String literal is too long for ShortString capacity.");
+
+        for (U32 i = 0; i < kN - 1; i++)
+        {
+            m_str[i] = str[i];
+        }
+        m_str[m_len] = '\0';
+    }
+
+    ///
     /// @brief              Copy constructs a string of the same capacity.
     ///
     /// @param other        Other ShortString.
@@ -91,6 +112,62 @@ class ShortString
     inline const char *str () const noexcept
     {
         return m_str;
+    }
+
+    ///
+    /// @brief
+    ///
+    /// @tparam kMaxLength1
+    /// @tparam kMaxLength2
+    ///
+    /// @param pattern
+    /// @param replacement
+    ///
+    /// @return
+    ///
+    template<U32 kMaxLength1, U32 kMaxLength2>
+    inline ShortString &replace_all (const ShortString<kMaxLength1> &pattern,
+                                     const ShortString<kMaxLength2> &replacement)
+    {
+        const U32 pat_len = pattern.len ();
+        const U32 replace_len = replacement.len ();
+
+        if (pat_len == 0 || pat_len > m_len)
+        {
+            return *this;
+        }
+
+        // Temporary buffer to contain the final string.
+        ShortString new_str;
+        for (U32 i = 0; i <= m_len - pat_len; i++)
+        {
+            // Whether the patern matches the substring starting at character i.
+            bool matches = true;
+            for (U32 j = 0; j < pat_len && matches; j++)
+            {
+                matches = m_str[i + j] == pattern.str ()[j];
+            }
+
+            if (matches)
+            {
+                i += pat_len - 1;
+                const U32 add_len =
+                    (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
+
+                memcpy (&m_str[i], replacement.str (), add_len);
+                new_str.m_len += add_len;
+            }
+            else
+            {
+                // Keep the character.
+                new_str.m_str[new_str.m_len++] = m_str[i];
+            }
+        }
+
+        memcpy (m_str, new_str.m_str, new_str.m_len);
+        m_len = new_str.m_len;
+        m_str[m_len] = '\0';
+        return *this;
     }
 
     ///
@@ -310,3 +387,8 @@ inline ShortString<kMaxLength1> operator+ (const ShortString<kMaxLength1> &lhs,
     ss += rhs;
     return ss;
 }
+
+/// @brief              Class Template Argument Deduction to guide the compiler to
+///                     reserve only necessary space for compile time c strings.
+template<U32 N>
+ShortString (const char (&str)[N]) -> ShortString<N - 1>;
