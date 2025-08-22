@@ -159,18 +159,52 @@ class ShortString
         return *this;
     }
 
+    ///
+    /// @brief              Finds the position of the first occurence of a string.
+    ///
+    /// @tparam kMaxPatternLength   Max length of the pattern string.
+    ///
+    /// @param pattern      Pattern string.
+    ///
+    /// @return             Position of first occurence, U32(-1) if not found.
+    ///
     template<U32 kMaxPatternLength>
     inline U32 find (const ShortString<kMaxPatternLength> &pattern)
     {
-        return 0;
+        return find_from (pattern, 0);
     }
 
+    ///
+    /// @brief              Finds the position of the first occurence of a string after pos.
+    ///
+    /// @tparam kMaxPatternLength   Max length of the pattern string.
+    ///
+    /// @param pattern      Pattern string.
+    /// @param pos          Position to start searching for occurence.
+    ///
+    /// @return             Position of first occurence after pos, U32(-1) if not found.
+    ///
     template<U32 kMaxPatternLength>
     inline U32 find_from (const ShortString<kMaxPatternLength> &pattern, const U32 pos)
     {
-        return 0;
+        for (U32 i = pos; i < m_len - pattern.len (); i++)
+        {
+            bool matches = true;
+            for (U32 j = 0; j < pattern.len () && matches; j++)
+            {
+                matches = m_str[i + j] == pattern.str ()[j];
+            }
+
+            if (matches)
+            {
+                return i;
+            }
+        }
+
+        return U32 (-1);
     }
 
+    
     inline ShortString split (const U32 pos, const U32 len = 0)
     {
         return "";
@@ -191,7 +225,7 @@ class ShortString
     ///
     /// @brief              Inserts a string at a position.
     ///                     If position is past the length of the string (including null terminator)
-    ///                     no operation is performed.
+    ///                     spaces are inserted. Truncated to fit inside buffer.
     ///
     /// @tparam kMaxInsertLength    Max buffer size of insert string.
     ///
@@ -205,10 +239,20 @@ class ShortString
     {
         if (pos > m_len)
         {
+            for (; m_len < pos && m_len < kMaxLength; m_len++)
+            {
+                m_str[m_len] = '\0';
+            }
+
+            *this += insert;
             return *this;
         }
 
-        // TODO:
+        const U32 add_len = (pos + insert.len () > kMaxLength) ? kMaxLength - pos : insert.len ();
+        memmove (m_str + pos, m_str + pos + add_len, m_len - pos);
+        memcpy (m_str + pos, insert.str (), add_len);
+        m_len += add_len;
+        m_str[m_len] = '\0';
         return *this;
     }
 

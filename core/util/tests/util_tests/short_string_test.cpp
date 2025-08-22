@@ -153,7 +153,7 @@ TEST (short_string, test_repeat)
         EXPECT_STREQ (short_string_3.str (), "122122122");
     }
 
-    // Edge cases
+    // Edge cases.
     {
         const char *str_1 = "1";
         const char *str_2 = "2";
@@ -242,6 +242,27 @@ TEST (short_string, test_substring)
         short_string_2.substring (0, 0);
         EXPECT_EQ (short_string_2.len (), strlen (""));
         EXPECT_STREQ (short_string_2.str (), "");
+    }
+}
+
+TEST (short_string, test_find)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_find_from)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_insert)
+{
+    // Edge cases.
+    {
     }
 }
 
