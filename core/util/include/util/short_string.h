@@ -200,43 +200,49 @@ class ShortString
             return *this;
         }
 
-        // Temporary buffer to contain the final string.
-        ShortString new_str;
-        for (U32 i = 0; i <= m_len - pat_len; i++)
+        U32 pos;
+        for (pos = 0; pos <= m_len - pat_len; pos++)
         {
-            // Whether the patern matches the substring starting at character i.
+            // Whether the patern matches the substring starting at pos.
             bool matches = true;
             for (U32 j = 0; j < pat_len && matches; j++)
             {
-                matches = m_str[i + j] == pattern.str ()[j];
+                matches = m_str[pos + j] == pattern.str ()[j];
             }
 
             if (matches)
             {
-                // Add the replacement string and truncate.
-                const U32 add_len = (new_str.m_len + replace_len > kMaxLength)
-                                        ? (kMaxLength - new_str.m_len)
-                                        : replace_len;
-
-                memcpy (new_str.m_str + new_str.m_len, replacement.str (), add_len);
-                new_str.m_len += add_len;
-
                 break;
             }
-
-            // Keep the character.
-            new_str.m_str[new_str.m_len++] = m_str[i];
         }
 
-        // Copy end of string.
-        for (U32 i = m_len - pat_len + 1; i < m_len && new_str.m_len != kMaxLength; i++)
+        if (pos > m_len - pat_len)
         {
-            new_str.m_str[new_str.m_len++] = m_str[i];
+            return *this;
         }
 
-        memcpy (m_str, new_str.m_str, new_str.m_len);
-        m_len = new_str.m_len;
+        // How many characters at the end should be truncated.
+        const U32 truncated = (replace_len > pat_len && replace_len - pat_len + m_len > kMaxLength)
+                                  ? replace_len - pat_len + m_len - kMaxLength
+                                  : 0;
+        const S32 diff = replace_len - pat_len;
+
+        // If replacing with replacement string exceeds internal storage buffer.
+        if (pos + replace_len > kMaxLength)
+        {
+            memcpy (m_str + pos, replacement.str (), kMaxLength - pos);
+            m_len = kMaxLength;
+            m_str[m_len] = '\0';
+            return *this;
+        }
+
+        // Shift to make just enough room for replacement string.
+        memmove (m_str + pos + replace_len, m_str + pos + pat_len,
+                 m_len - pos - pat_len - truncated);
+        m_len += diff - truncated;
+        memcpy (m_str + pos, replacement.str (), replace_len);
         m_str[m_len] = '\0';
+
         return *this;
     }
 

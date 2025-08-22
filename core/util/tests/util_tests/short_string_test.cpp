@@ -212,7 +212,7 @@ TEST (short_string, test_replace_all)
         EXPECT_EQ (short_string_2.len (), strlen ("HeLLo WorLd"));
         EXPECT_STREQ (short_string_2.str (), "HeLLo WorLd");
 
-        // Replacements exceend internal storage buffer limit.
+        // Replacements exceed internal storage buffer limit.
         ShortString<5> short_string_3 = "aabc";
         short_string_3.replace_all (ShortString ("a"), ShortString ("bc"));
         EXPECT_EQ (short_string_3.len (), strlen ("bcbcb"));
@@ -246,5 +246,71 @@ TEST (short_string, test_replace_first)
 {
     // Edge cases.
     {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace_first (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_first (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Replace first.
+        short_string_2.replace_first (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // No match.
+        short_string_2.replace_first (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // Replace only 1.
+        short_string_2.replace_first (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLlo World!"));
+        EXPECT_STREQ (short_string_2.str (), "heLlo World!");
+
+        // Case sensitive.
+        short_string_2.replace_first (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLLo World!"));
+        EXPECT_STREQ (short_string_2.str (), "heLLo World!");
+
+        // Replace last.
+        short_string_2.replace_first (ShortString ("!"), ShortString ("."));
+        EXPECT_EQ (short_string_2.len (), strlen ("heLLo World."));
+        EXPECT_STREQ (short_string_2.str (), "heLLo World.");
+
+        // Exceed internal storage buffer.
+        ShortString<4> short_string_3 = "abc";
+        short_string_3.replace_first (ShortString ("a"), ShortString ("AAA"));
+        EXPECT_EQ (short_string_3.len (), strlen ("AAAb"));
+        EXPECT_STREQ (short_string_3.str (), "AAAb");
+    }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.replace_first (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange apple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange apple apple watermelon");
+
+        short_string_1.replace_first (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange pineapple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple apple watermelon");
+
+        short_string_1.replace_first (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (),
+                   strlen ("pineapple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple watermelon");
+
+        short_string_1.replace_first (ShortString ("watermelon"), ShortString ("orange"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple orange pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple orange pineapple pineapple orange");
+
+        short_string_1.replace_first (ShortString ("orange"), ShortString ("apple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("pineapple apple pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "pineapple apple pineapple pineapple orange");
     }
 }
