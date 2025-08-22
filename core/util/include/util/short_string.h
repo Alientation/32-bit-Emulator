@@ -9,6 +9,7 @@
 ///
 /// @brief                  Static string class. Will not dynamically resize, instead truncates.
 /// @todo                   TODO: we should warn if this happens, I think we can bring in the logger here.
+/// @todo                   TODO: easy string conversions from basic types. ints, floats, etc.
 ///
 /// @tparam kMaxLength      Max characters that this can hold excluding the null terminator.
 ///
@@ -151,19 +152,89 @@ class ShortString
             return *this;
         }
 
-        const U32 new_len = (pos + len > m_len) ? (pos + len - m_len) : len;
+        const U32 new_len = (pos + len > m_len) ? (m_len - pos) : len;
         memmove (m_str, m_str + pos, new_len);
         m_len = new_len;
         m_str[m_len] = '\0';
         return *this;
     }
 
+    template<U32 kMaxPatternLength>
+    inline U32 find (const ShortString<kMaxPatternLength> &pattern)
+    {
+        return 0;
+    }
+
+    template<U32 kMaxPatternLength>
+    inline U32 find_from (const ShortString<kMaxPatternLength> &pattern, const U32 pos)
+    {
+        return 0;
+    }
+
+    inline ShortString split (const U32 pos, const U32 len = 0)
+    {
+        return "";
+    }
+
+    template<U32 kMaxPatternLength>
+    inline ShortString split (const ShortString<kMaxPatternLength> &pattern)
+    {
+        return "";
+    }
+
+    template<U32 kMaxPatternLength>
+    inline ShortString split_from (const ShortString<kMaxPatternLength> &pattern, const U32 pos)
+    {
+        return "";
+    }
+
+    ///
+    /// @brief              Inserts a string at a position.
+    ///                     If position is past the length of the string (including null terminator)
+    ///                     no operation is performed.
+    ///
+    /// @tparam kMaxInsertLength    Max buffer size of insert string.
+    ///
+    /// @param insert       String to insert.
+    /// @param pos          Positon to insert at. Insert string will begin at this position.
+    ///
+    /// @return             This.
+    ///
+    template<U32 kMaxInsertLength>
+    inline ShortString &insert (const ShortString<kMaxInsertLength> &insert, const U32 pos)
+    {
+        if (pos > m_len)
+        {
+            return *this;
+        }
+
+        // TODO:
+        return *this;
+    }
+
+    ///
+    /// @brief              Removes a section of the string.
+    ///                     If pos is outside of the string, then no operation is performed.
+    ///                     If the specified section exceeds the string length, length of section
+    ///                     is reduced.
+    ///
+    /// @param pos          Position of the section to remove.
+    /// @param len          Length of sectio nto remove.
+    ///
+    /// @return             This.
+    ///
+    inline ShortString &remove (const U32 pos, const U32 len)
+    {
+        return replace (pos, len, ShortString (""));
+    }
+
     ///
     /// @brief              Replace section of string.
     ///                     Truncates end of string to fit inside the internal buffer.
     ///
-    ///                     If the parameters do not describe a valid substring (starts or ends outside the string),
-    ///                     then no change is applied.
+    ///                     If pos is outside of the string, then no operation is performed.
+    ///                     If the specified section exceeds the string length, length of section
+    ///                     is reduced.
     ///
     /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
     ///
@@ -179,10 +250,12 @@ class ShortString
     {
         const U32 replace_len = replacement.len ();
 
-        if (pos > m_len || pos + len > m_len)
+        if (pos > m_len)
         {
             return *this;
         }
+
+        const U32 section_len = (pos + len > m_len) ? (m_len - pos) : len;
 
         // If replacing with replacement string exceeds internal storage buffer.
         if (pos + replace_len > kMaxLength)
@@ -194,13 +267,15 @@ class ShortString
         }
 
         // How many characters at the end should be truncated.
-        const U32 truncated = (replace_len > len && replace_len - len + m_len > kMaxLength)
-                                  ? replace_len - len + m_len - kMaxLength
-                                  : 0;
-        const S32 diff = replace_len - len;
+        const U32 truncated =
+            (replace_len > section_len && replace_len - section_len + m_len > kMaxLength)
+                ? replace_len - section_len + m_len - kMaxLength
+                : 0;
+        const S32 diff = replace_len - section_len;
 
         // Shift to make just enough room for replacement string.
-        memmove (m_str + pos + replace_len, m_str + pos + len, m_len - pos - len - truncated);
+        memmove (m_str + pos + replace_len, m_str + pos + section_len,
+                 m_len - pos - section_len - truncated);
         m_len += diff - truncated;
         memcpy (m_str + pos, replacement.str (), replace_len);
         m_str[m_len] = '\0';

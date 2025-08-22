@@ -184,12 +184,121 @@ TEST (short_string, test_repeat)
 
 TEST (short_string, test_substring)
 {
+    // Edge cases - substring (pos).
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.substring (0);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Beginning.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.substring (0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Middle.
+        short_string_2.substring (6);
+        EXPECT_EQ (short_string_2.len (), strlen ("World!"));
+        EXPECT_STREQ (short_string_2.str (), "World!");
+
+        // End.
+        short_string_2.substring (6);
+        EXPECT_EQ (short_string_2.len (), strlen (""));
+        EXPECT_STREQ (short_string_2.str (), "");
+    }
+
+    // Edge cases - substring (pos, len).
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.substring (0, 0);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Empty, nonzero length.
+        short_string_1.substring (0, 1);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Just within boundary.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.substring (0, 12);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Just outside boundary.
+        short_string_2.substring (0, 13);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // End.
+        short_string_2.substring (6, 12);
+        EXPECT_EQ (short_string_2.len (), strlen ("World!"));
+        EXPECT_STREQ (short_string_2.str (), "World!");
+
+        // Length 0.
+        short_string_2.substring (0, 0);
+        EXPECT_EQ (short_string_2.len (), strlen (""));
+        EXPECT_STREQ (short_string_2.str (), "");
+    }
+}
+
+TEST (short_string, test_remove)
+{
     // Edge cases.
     {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.remove (0, 0);
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Zero length.
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.remove (0, 0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Zero length end of string.
+        short_string_2.remove (12, 0);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // End of string.
+        short_string_2.remove (12, 1);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Larger section
+        short_string_2.remove (11, 2);
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World");
+
+        short_string_2.remove (1, 20);
+        EXPECT_EQ (short_string_2.len (), strlen ("H"));
+        EXPECT_STREQ (short_string_2.str (), "H");
     }
 
     // Normal.
     {
+        ShortString short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.remove (0, 6);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple apple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple apple watermelon");
+
+        short_string_1.remove (18, 11);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple apple"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple apple");
+
+        short_string_1.remove (6, 6);
+        EXPECT_EQ (short_string_1.len (), strlen ("orange apple"));
+        EXPECT_STREQ (short_string_1.str (), "orange apple");
+
+        short_string_1.remove (0, 12);
+        EXPECT_EQ (short_string_1.len (), strlen (""));
+        EXPECT_STREQ (short_string_1.str (), "");
     }
 }
 
@@ -237,8 +346,8 @@ TEST (short_string, test_replace)
 
         // Just outside bounds.
         short_string_3.replace (0, 13, ShortString ("Hello World!"));
-        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
-        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+        EXPECT_EQ (short_string_3.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hello World!");
 
         // Truncation.
         short_string_3.replace (0, 2, ShortString ("Hello World!"));
