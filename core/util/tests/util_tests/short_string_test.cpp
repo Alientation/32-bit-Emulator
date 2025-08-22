@@ -259,6 +259,20 @@ TEST (short_string, test_find_from)
     }
 }
 
+TEST (short_string, test_split)
+{
+    // Edge cases.
+    {
+    }
+}
+
+TEST (short_string, test_split_from)
+{
+    // Edge cases.
+    {
+    }
+}
+
 TEST (short_string, test_insert)
 {
     // Edge cases.

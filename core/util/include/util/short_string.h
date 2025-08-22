@@ -204,22 +204,65 @@ class ShortString
         return U32 (-1);
     }
 
-    
+    ///
+    /// @brief
+    ///
+    /// @param pos
+    /// @param len
+    ///
+    /// @return
+    ///
     inline ShortString split (const U32 pos, const U32 len = 0)
     {
-        return "";
+        if (UNLIKELY (pos >= m_len))
+        {
+            return ShortString ("");
+        }
+
+        ShortString str;
+        memcpy (str.m_str, m_str, pos);
+        str.m_len = pos;
+
+        const U32 remaining_len = (pos + len > m_len) ? 0 : m_len - pos - len;
+        m_len = remaining_len;
+        if (UNLIKELY (remaining_len == 0))
+        {
+            return str;
+        }
+
+        memmove (m_str, m_str + pos + len, remaining_len);
+        return str;
     }
 
+    ///
+    /// @brief
+    ///
+    /// @tparam kMaxPatternLength
+    ///
+    /// @param pattern
+    ///
+    /// @return
+    ///
     template<U32 kMaxPatternLength>
     inline ShortString split (const ShortString<kMaxPatternLength> &pattern)
     {
-        return "";
+        return split (find (pattern), pattern.len ());
     }
 
+    ///
+    /// @brief
+    ///
+    /// @tparam kMaxPatternLength
+    ///
+    /// @param pattern
+    /// @param pos
+    ///
+    /// @return
+    ///
     template<U32 kMaxPatternLength>
     inline ShortString split_from (const ShortString<kMaxPatternLength> &pattern, const U32 pos)
     {
-        return "";
+        return split (find_from (pattern, pos), pattern.len ());
     }
 
     ///
