@@ -182,6 +182,60 @@ TEST (short_string, test_repeat)
     }
 }
 
+TEST (short_string, test_replace)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace (0, 0, ShortString ("Hello"));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        // Out of bounds.
+        ShortString short_string_2 = "Hi";
+        short_string_2.replace (2, 0, ShortString ("Hello"));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hi"));
+        EXPECT_STREQ (short_string_2.str (), "Hi");
+
+        // Truncation.
+        short_string_2.replace (0, 2, ShortString ("Hello"));
+        EXPECT_EQ (short_string_2.len (), strlen ("He"));
+        EXPECT_STREQ (short_string_2.str (), "He");
+
+        // Reduction.
+        short_string_2.replace (0, 2, ShortString ("I"));
+        EXPECT_EQ (short_string_2.len (), strlen ("I"));
+        EXPECT_STREQ (short_string_2.str (), "I");
+
+        // Replacement.
+        ShortString short_string_3 = "Hello World!";
+        short_string_3.replace (0, 5, ShortString ("Hi"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+
+        // Truncation.
+        short_string_3.replace (0, 2, ShortString ("Helloo"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Helloo World"));
+        EXPECT_STREQ (short_string_3.str (), "Helloo World");
+
+        // Just within bounds.
+        short_string_3.replace (0, 12, ShortString ("Hi World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+
+        // Just outside bounds.
+        short_string_3.replace (0, 13, ShortString ("Hello World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hi World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hi World!");
+
+        // Truncation.
+        short_string_3.replace (0, 2, ShortString ("Hello World!"));
+        EXPECT_EQ (short_string_3.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_3.str (), "Hello World!");
+    }
+}
+
 TEST (short_string, test_replace_all)
 {
     // Edge cases.

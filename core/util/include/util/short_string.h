@@ -113,8 +113,13 @@ class ShortString
     /// @brief              Replace section of string.
     ///                     Truncates end of string to fit inside the internal buffer.
     ///
+    ///                     If the parameters do not describe a valid substring (starts or ends outside the string),
+    ///                     then no change is applied.
+    ///
     /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
     ///
+    /// @param pos          Position of substring to replace.
+    /// @param len          Length of substring to replace.
     /// @param replacement  Replacement string.
     ///
     /// @return             This.
@@ -125,7 +130,7 @@ class ShortString
     {
         const U32 replace_len = replacement.len ();
 
-        if (pos > kMaxLength || pos + len > kMaxLength)
+        if (pos > m_len || pos + len > m_len)
         {
             return *this;
         }
