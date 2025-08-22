@@ -110,6 +110,51 @@ class ShortString
     }
 
     ///
+    /// @brief              Replace section of string.
+    ///                     Truncates end of string to fit inside the internal buffer.
+    ///
+    /// @tparam kMaxReplacementLength   Size of buffer in replacement string.
+    ///
+    /// @param replacement  Replacement string.
+    ///
+    /// @return             This.
+    ///
+    template<U32 kMaxReplacementLength>
+    inline ShortString &replace (U32 pos, U32 len,
+                                 const ShortString<kMaxReplacementLength> &replacement)
+    {
+        const U32 replace_len = replacement.len ();
+
+        if (pos > kMaxLength || pos + len > kMaxLength)
+        {
+            return *this;
+        }
+
+        // If replacing with replacement string exceeds internal storage buffer.
+        if (pos + replace_len > kMaxLength)
+        {
+            memcpy (m_str + pos, replacement.str (), kMaxLength - pos);
+            m_len = kMaxLength;
+            m_str[m_len] = '\0';
+            return *this;
+        }
+
+        // How many characters at the end should be truncated.
+        const U32 truncated = (replace_len > len && replace_len - len + m_len > kMaxLength)
+                                  ? replace_len - len + m_len - kMaxLength
+                                  : 0;
+        const S32 diff = replace_len - len;
+
+        // Shift to make just enough room for replacement string.
+        memmove (m_str + pos + replace_len, m_str + pos + len, m_len - pos - len - truncated);
+        m_len += diff - truncated;
+        memcpy (m_str + pos, replacement.str (), replace_len);
+        m_str[m_len] = '\0';
+
+        return *this;
+    }
+
+    ///
     /// @brief              Replace all occurences of the pattern.
     ///                     Truncates to fit inside the internal buffer.
     ///
@@ -193,7 +238,6 @@ class ShortString
                                        const ShortString<kMaxReplacementLength> &replacement)
     {
         const U32 pat_len = pattern.len ();
-        const U32 replace_len = replacement.len ();
 
         if (pat_len == 0 || pat_len > m_len)
         {
@@ -216,34 +260,7 @@ class ShortString
             }
         }
 
-        if (pos > m_len - pat_len)
-        {
-            return *this;
-        }
-
-        // How many characters at the end should be truncated.
-        const U32 truncated = (replace_len > pat_len && replace_len - pat_len + m_len > kMaxLength)
-                                  ? replace_len - pat_len + m_len - kMaxLength
-                                  : 0;
-        const S32 diff = replace_len - pat_len;
-
-        // If replacing with replacement string exceeds internal storage buffer.
-        if (pos + replace_len > kMaxLength)
-        {
-            memcpy (m_str + pos, replacement.str (), kMaxLength - pos);
-            m_len = kMaxLength;
-            m_str[m_len] = '\0';
-            return *this;
-        }
-
-        // Shift to make just enough room for replacement string.
-        memmove (m_str + pos + replace_len, m_str + pos + pat_len,
-                 m_len - pos - pat_len - truncated);
-        m_len += diff - truncated;
-        memcpy (m_str + pos, replacement.str (), replace_len);
-        m_str[m_len] = '\0';
-
-        return *this;
+        return replace (pos, pat_len, replacement);
     }
 
     ///
@@ -263,7 +280,6 @@ class ShortString
                                       const ShortString<kMaxReplacementLength> &replacement)
     {
         const U32 pat_len = pattern.len ();
-        const U32 replace_len = replacement.len ();
 
         if (pat_len == 0 || pat_len > m_len)
         {
@@ -286,34 +302,7 @@ class ShortString
             }
         }
 
-        if (pos == U32 (-1))
-        {
-            return *this;
-        }
-
-        // How many characters at the end should be truncated.
-        const U32 truncated = (replace_len > pat_len && replace_len - pat_len + m_len > kMaxLength)
-                                  ? replace_len - pat_len + m_len - kMaxLength
-                                  : 0;
-        const S32 diff = replace_len - pat_len;
-
-        // If replacing with replacement string exceeds internal storage buffer.
-        if (pos + replace_len > kMaxLength)
-        {
-            memcpy (m_str + pos, replacement.str (), kMaxLength - pos);
-            m_len = kMaxLength;
-            m_str[m_len] = '\0';
-            return *this;
-        }
-
-        // Shift to make just enough room for replacement string.
-        memmove (m_str + pos + replace_len, m_str + pos + pat_len,
-                 m_len - pos - pat_len - truncated);
-        m_len += diff - truncated;
-        memcpy (m_str + pos, replacement.str (), replace_len);
-        m_str[m_len] = '\0';
-
-        return *this;
+        return replace (pos, pat_len, replacement);
     }
 
     ///
