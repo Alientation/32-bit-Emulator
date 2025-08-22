@@ -182,6 +182,17 @@ TEST (short_string, test_repeat)
     }
 }
 
+TEST (short_string, test_substring)
+{
+    // Edge cases.
+    {
+    }
+
+    // Normal.
+    {
+    }
+}
+
 TEST (short_string, test_replace)
 {
     // Edge cases.

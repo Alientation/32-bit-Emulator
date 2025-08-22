@@ -110,6 +110,55 @@ class ShortString
     }
 
     ///
+    /// @brief              Substring starting at pos through the end of the string.
+    ///                     If pos is outside the string, substring is the empty string.
+    ///
+    /// @param pos          Position of the substring.
+    ///
+    /// @return             This.
+    ///
+    inline ShortString &substring (const U32 pos)
+    {
+        if (UNLIKELY (pos >= m_len))
+        {
+            m_len = 0;
+            m_str[m_len] = '\0';
+            return *this;
+        }
+
+        memmove (m_str, m_str + pos, m_len - pos);
+        m_len -= pos;
+        m_str[m_len] = '\0';
+        return *this;
+    }
+
+    ///
+    /// @brief              Substring at pos with length of len.
+    ///                     If pos is outside the string, substring is the empty string.
+    ///                     Length is truncated to valid length.
+    ///
+    /// @param pos          Position of the substring.
+    /// @param len          Length of the substring.
+    ///
+    /// @return             This.
+    ///
+    inline ShortString &substring (const U32 pos, const U32 len)
+    {
+        if (UNLIKELY (pos >= m_len))
+        {
+            m_len = 0;
+            m_str[m_len] = '\0';
+            return *this;
+        }
+
+        const U32 new_len = (pos + len > m_len) ? (pos + len - m_len) : len;
+        memmove (m_str, m_str + pos, new_len);
+        m_len = new_len;
+        m_str[m_len] = '\0';
+        return *this;
+    }
+
+    ///
     /// @brief              Replace section of string.
     ///                     Truncates end of string to fit inside the internal buffer.
     ///
@@ -125,7 +174,7 @@ class ShortString
     /// @return             This.
     ///
     template<U32 kMaxReplacementLength>
-    inline ShortString &replace (U32 pos, U32 len,
+    inline ShortString &replace (const U32 pos, const U32 len,
                                  const ShortString<kMaxReplacementLength> &replacement)
     {
         const U32 replace_len = replacement.len ();
@@ -319,7 +368,7 @@ class ShortString
     ///
     /// @return             This.
     ///
-    inline ShortString &operator*= (U32 rhs) noexcept
+    inline ShortString &operator*= (const U32 rhs) noexcept
     {
         const U32 original_len = m_len;
         const U32 target_len = m_len * rhs;
@@ -371,7 +420,7 @@ class ShortString
     ///
     /// @return             This.
     ///
-    inline ShortString &operator+= (const char *__restrict__ rhs) noexcept
+    inline ShortString &operator+= (const char *__restrict__ const rhs) noexcept
     {
         const size_t slen = strlen (rhs);
         const U32 add_len = (m_len + slen) > kMaxLength ? (kMaxLength - m_len) : slen;
@@ -401,7 +450,7 @@ class ShortString
 /// @return             New ShortString object. Same buffer size as the lhs string.
 ///
 template<U32 kMaxLength1>
-inline ShortString<kMaxLength1> operator* (ShortString<kMaxLength1> &&lhs, U32 rhs) noexcept
+inline ShortString<kMaxLength1> operator* (ShortString<kMaxLength1> &&lhs, const U32 rhs) noexcept
 {
     lhs *= rhs;
     return lhs;
@@ -418,7 +467,8 @@ inline ShortString<kMaxLength1> operator* (ShortString<kMaxLength1> &&lhs, U32 r
 /// @return             New ShortString object. Same buffer size as the lhs string.
 ///
 template<U32 kMaxLength1>
-inline ShortString<kMaxLength1> operator* (const ShortString<kMaxLength1> &lhs, U32 rhs) noexcept
+inline ShortString<kMaxLength1> operator* (const ShortString<kMaxLength1> &lhs,
+                                           const U32 rhs) noexcept
 {
     ShortString<kMaxLength1> ss = lhs;
     ss *= rhs;
@@ -437,7 +487,7 @@ inline ShortString<kMaxLength1> operator* (const ShortString<kMaxLength1> &lhs, 
 /// @return             New ShortString. Same buffer size as rhs.
 ///
 template<U32 kMaxLength2>
-inline ShortString<kMaxLength2> operator+ (const char *lhs,
+inline ShortString<kMaxLength2> operator+ (const char *const lhs,
                                            const ShortString<kMaxLength2> &rhs) noexcept
 {
     ShortString<kMaxLength2> ss (lhs);
@@ -501,7 +551,7 @@ inline ShortString<kMaxLength1> operator+ (const ShortString<kMaxLength1> &lhs,
 ///
 template<U32 kMaxLength1>
 inline ShortString<kMaxLength1> operator+ (ShortString<kMaxLength1> &&lhs,
-                                           const char *__restrict__ rhs) noexcept
+                                           const char *__restrict__ const rhs) noexcept
 {
     lhs += rhs;
     return lhs;
@@ -521,7 +571,7 @@ inline ShortString<kMaxLength1> operator+ (ShortString<kMaxLength1> &&lhs,
 ///
 template<U32 kMaxLength1>
 inline ShortString<kMaxLength1> operator+ (const ShortString<kMaxLength1> &lhs,
-                                           const char *__restrict__ rhs) noexcept
+                                           const char *__restrict__ const rhs) noexcept
 {
     ShortString<kMaxLength1> ss (lhs);
     ss += rhs;
