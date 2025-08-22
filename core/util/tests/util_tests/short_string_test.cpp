@@ -314,3 +314,71 @@ TEST (short_string, test_replace_first)
         EXPECT_STREQ (short_string_1.str (), "pineapple apple pineapple pineapple orange");
     }
 }
+
+TEST (short_string, test_replace_last)
+{
+    // Edge cases.
+    {
+        // Empty.
+        ShortString<0> short_string_1;
+        short_string_1.replace_last (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_1.len (), 0);
+        EXPECT_STREQ (short_string_1.str (), "");
+
+        ShortString short_string_2 = "Hello World!";
+        short_string_2.replace_last (ShortString (""), ShortString (""));
+        EXPECT_EQ (short_string_2.len (), strlen ("Hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "Hello World!");
+
+        // Replace first.
+        short_string_2.replace_last (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // No match.
+        short_string_2.replace_last (ShortString ("H"), ShortString ("h"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello World!"));
+        EXPECT_STREQ (short_string_2.str (), "hello World!");
+
+        // Replace only 1.
+        short_string_2.replace_last (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("hello WorLd!"));
+        EXPECT_STREQ (short_string_2.str (), "hello WorLd!");
+
+        // Case sensitive.
+        short_string_2.replace_last (ShortString ("l"), ShortString ("L"));
+        EXPECT_EQ (short_string_2.len (), strlen ("helLo WorLd!"));
+        EXPECT_STREQ (short_string_2.str (), "helLo WorLd!");
+
+        // Replace last.
+        short_string_2.replace_last (ShortString ("!"), ShortString ("."));
+        EXPECT_EQ (short_string_2.len (), strlen ("helLo WorLd."));
+        EXPECT_STREQ (short_string_2.str (), "helLo WorLd.");
+
+        // Exceed internal storage buffer.
+        ShortString<4> short_string_3 = "abc";
+        short_string_3.replace_last (ShortString ("a"), ShortString ("AAA"));
+        EXPECT_EQ (short_string_3.len (), strlen ("AAAb"));
+        EXPECT_STREQ (short_string_3.str (), "AAAb");
+    }
+
+    // Normal.
+    {
+        ShortString<127> short_string_1 = "apple orange apple apple watermelon";
+        short_string_1.replace_last (ShortString ("apple"), ShortString ("pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange apple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange apple pineapple watermelon");
+
+        short_string_1.replace_last (ShortString (" apple"), ShortString (" pineapple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple watermelon"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple watermelon");
+
+        short_string_1.replace_last (ShortString ("watermelon"), ShortString ("orange"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple orange"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple orange");
+
+        short_string_1.replace_last (ShortString ("orange"), ShortString ("apple"));
+        EXPECT_EQ (short_string_1.len (), strlen ("apple orange pineapple pineapple apple"));
+        EXPECT_STREQ (short_string_1.str (), "apple orange pineapple pineapple apple");
+    }
+}

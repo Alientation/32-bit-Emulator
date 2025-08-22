@@ -273,7 +273,7 @@ class ShortString
         U32 pos;
         for (pos = m_len - pat_len; pos != U32 (-1); pos--)
         {
-            // Whether the patern matches the substring starting at character i.
+            // Whether the patern matches the substring starting at pos.
             bool matches = true;
             for (U32 j = 0; j < pat_len && matches; j++)
             {
@@ -286,21 +286,33 @@ class ShortString
             }
         }
 
-        // Did not find occurence of pattern.
         if (pos == U32 (-1))
         {
             return *this;
         }
 
-        const U32 add_len = (m_len + replace_len > kMaxLength) ? (kMaxLength - m_len) : replace_len;
+        // How many characters at the end should be truncated.
+        const U32 truncated = (replace_len > pat_len && replace_len - pat_len + m_len > kMaxLength)
+                                  ? replace_len - pat_len + m_len - kMaxLength
+                                  : 0;
+        const S32 diff = replace_len - pat_len;
 
-        // Move down to make room for replacement string. Could overlap.
-        memmove (m_str + pos + pat_len, m_str + pos + pat_len + add_len, m_len - pos - pat_len);
+        // If replacing with replacement string exceeds internal storage buffer.
+        if (pos + replace_len > kMaxLength)
+        {
+            memcpy (m_str + pos, replacement.str (), kMaxLength - pos);
+            m_len = kMaxLength;
+            m_str[m_len] = '\0';
+            return *this;
+        }
 
-        // Copy in replacement string.
+        // Shift to make just enough room for replacement string.
+        memmove (m_str + pos + replace_len, m_str + pos + pat_len,
+                 m_len - pos - pat_len - truncated);
+        m_len += diff - truncated;
         memcpy (m_str + pos, replacement.str (), replace_len);
-        m_len += add_len;
         m_str[m_len] = '\0';
+
         return *this;
     }
 
