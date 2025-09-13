@@ -1,5 +1,12 @@
 @echo off
 
+IF NOT EXIST "./build/debug" md "./build/debug"
+IF NOT EXIST "./build/release" md "./build/release"
+
+:: Configure Debug and Release if not already done
+cmake -S . -B build/debug -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
 :: Build Debug and Release configurations
 cmake --build build/debug --config Debug || exit /b
 cmake --build build/release --config RelWithDebInfo  || exit /b

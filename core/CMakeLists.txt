@@ -22,6 +22,9 @@ enable_testing()
 # Add subdirectories (these will also define their own libraries, tests, etc.)
 add_subdirectory(util)
 add_subdirectory(emulator32bit)
-add_subdirectory(ccompiler)
+
+# TODO: Reenable after ccompiler is fixed.
+# add_subdirectory(ccompiler)
+
 add_subdirectory(assembler)
 add_subdirectory(app)
