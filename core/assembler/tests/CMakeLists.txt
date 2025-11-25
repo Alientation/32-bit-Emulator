@@ -40,5 +40,5 @@ if(BUILD_TESTS)
 
     # Discover GoogleTest tests automatically
     include(GoogleTest)
-    gtest_discover_tests(assembler_tests)
+    gtest_discover_tests(assembler_tests PROPERTIES LABELS assembler)
 endif()

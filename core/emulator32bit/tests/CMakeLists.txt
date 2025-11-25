@@ -68,5 +68,5 @@ if(BUILD_TESTS)
 
     # Discover GoogleTest tests automatically
     include(GoogleTest)
-    gtest_discover_tests(emulator32bit_tests)
+    gtest_discover_tests(emulator32bit_tests PROPERTIES LABELS emulator32bit)
 endif()

@@ -29,5 +29,5 @@ if(BUILD_TESTS)
 
     # Auto-discover tests with GoogleTest
     include(GoogleTest)
-    gtest_discover_tests(ccompiler_test)
+    gtest_discover_tests(ccompiler_test PROPERTIES LABELS ccompiler)
 endif()
