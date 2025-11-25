@@ -500,12 +500,12 @@ class VirtualMemory
      */
     inline word translate_address (PageTable *ptable, word address, Exception &exception)
     {
-        // DEBUG("Mapping address %u.", address);
+        // DEBUG("Mapping address {}.", address);
 
         word vpage = address >> kNumPageOffsetBits;
         word ppage = access_vpage (ptable, vpage, exception);
 
-        // DEBUG("Accessing virtual memory page %u which is physical page %u.", vpage, ppage);
+        // DEBUG("Accessing virtual memory page {} which is physical page {}.", vpage, ppage);
 
         return (ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
     }
@@ -566,7 +566,7 @@ class VirtualMemory
          */
         if (LIKELY (!entry->disk))
         {
-            // DEBUG("accessing virtual page (NOT ON DISK) %u (maps to %u) of process %llu",
+            // DEBUG("accessing virtual page (NOT ON DISK) {} (maps to {}) of process {}",
             // vpage, entry->ppage, ptable->pid);
             return entry->ppage;
         }
@@ -606,7 +606,7 @@ class VirtualMemory
             map_vpage_to_ppage (ptable->pid, vpage, ppage, exception);
         }
 
-        // DEBUG("Accessing virtual page %u (maps to %u) of process %llu.",
+        // DEBUG("Accessing virtual page {} (maps to {}) of process {}.",
         // vpage, entry->ppage, ptable->pid);
 
         return entry->ppage;

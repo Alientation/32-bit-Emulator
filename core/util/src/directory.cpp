@@ -10,7 +10,7 @@ Directory::Directory (const std::string &path, bool create_if_not_present)
 
     if (!valid_path (path))
     {
-        ERROR ("Directory::Directory() - Invalid directory path: %s", path.c_str ());
+        ERROR ("Directory::Directory() - Invalid directory path: {}", path.c_str ());
     }
 
     if (create_if_not_present && !exists ())

@@ -73,7 +73,7 @@ void Disk::read_disk_files ()
          * to match the request so stop here.
          */
         disk_file.close ();
-        ERROR ("Disk file is larger than what is requested. %llu > %llu.", actual_size,
+        ERROR ("Disk file is larger than what is requested. {} > {}.", actual_size,
                target_size);
         return;
     }
@@ -83,13 +83,13 @@ void Disk::read_disk_files ()
      * we can correct this by increasing the size to what we want.
      */
     std::streamsize padding_size = target_size - actual_size;
-    DEBUG ("Padding disk file of size %llu bytes with %llu bytes.", actual_size, padding_size);
+    DEBUG ("Padding disk file of size {} bytes with {} bytes.", actual_size, padding_size);
 
     std::vector<char> padding (padding_size, 0);
     disk_file.write (padding.data (), padding_size);
 
     disk_file.close ();
-    DEBUG ("Successfully created disk file of size %llu pages.", m_npages);
+    DEBUG ("Successfully created disk file of size {} pages.", m_npages);
 }
 
 void Disk::read_disk_manager_file ()
@@ -151,7 +151,7 @@ word Disk::get_free_page ()
 {
     word addr = m_free_list.get_free_block (1);
 
-    DEBUG ("Getting free disk page %u.", addr);
+    DEBUG ("Getting free disk page {}.", addr);
     return addr;
 }
 
@@ -159,7 +159,7 @@ void Disk::return_page (word page)
 {
     m_free_list.return_block (page, 1);
 
-    DEBUG ("Returning disk page %u back to disk.", page);
+    DEBUG ("Returning disk page {} back to disk.", page);
 }
 
 void Disk::return_all_pages ()
@@ -173,7 +173,7 @@ void Disk::return_pages (word page_lo, word page_hi)
 {
     m_free_list.force_return_block (page_lo, page_hi - page_lo + 1);
 
-    DEBUG ("Returned all disk pages from %u to %u back to disk.", page_lo, page_hi);
+    DEBUG ("Returned all disk pages from {} to {} back to disk.", page_lo, page_hi);
 }
 
 std::vector<byte> Disk::read_page (word page)
@@ -186,7 +186,7 @@ std::vector<byte> Disk::read_page (word page)
         data.push_back (cpage.data[i]);
     }
 
-    DEBUG ("Reading disk page %u.", page);
+    DEBUG ("Reading disk page {}.", page);
     return data;
 }
 
@@ -255,7 +255,7 @@ void Disk::write_page (word page, std::vector<byte> data)
         cpage.data[i] = data.at (i);
     }
 
-    DEBUG ("Wrote to disk page %u.", cpage.page);
+    DEBUG ("Wrote to disk page {}.", cpage.page);
 }
 
 void Disk::write_byte (word address, byte data)
@@ -330,7 +330,7 @@ Disk::CachePage &Disk::get_cpage (word addr)
     cpage.page = addr;
     read_cpage (cpage);
 
-    DEBUG ("Getting cached page %u.", cpage.page);
+    DEBUG ("Getting cached page {}.", cpage.page);
     return cpage;
 }
 
@@ -362,7 +362,7 @@ void Disk::write_cpage (CachePage &cpage)
     file.write (data.data (), kPageSize);
 
     file.close ();
-    DEBUG ("Successfully wrote page %u to disk.", cpage.page);
+    DEBUG ("Successfully wrote page {} to disk.", cpage.page);
 }
 
 void Disk::read_cpage (CachePage &cpage)
@@ -379,7 +379,7 @@ void Disk::read_cpage (CachePage &cpage)
     if (!file)
     {
         file.close ();
-        ERROR ("Error seeking position of page %u in disk file.", cpage.page);
+        ERROR ("Error seeking position of page {} in disk file.", cpage.page);
         return;
     }
 
@@ -389,7 +389,7 @@ void Disk::read_cpage (CachePage &cpage)
     if (!file)
     {
         file.close ();
-        ERROR ("Error reading page %u from disk file", cpage.page);
+        ERROR ("Error reading page {} from disk file", cpage.page);
         return;
     }
 
@@ -398,7 +398,7 @@ void Disk::read_cpage (CachePage &cpage)
         cpage.data[i] = buffer[i];
     }
     file.close ();
-    DEBUG ("Successfully read page %u from disk.", cpage.page);
+    DEBUG ("Successfully read page {} from disk.", cpage.page);
 }
 
 /*  When the program ends, we want to save all the pages in cache to disk. Instead of
@@ -443,7 +443,7 @@ void Disk::save ()
             return;
         }
 
-        DEBUG ("WRITING CACHE PAGE TO DISK %u.", cpage.page);
+        DEBUG ("WRITING CACHE PAGE TO DISK {}.", cpage.page);
     }
     file.close ();
     DEBUG ("Successfully wrote dirty cache pages to disk");

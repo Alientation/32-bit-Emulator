@@ -4,6 +4,7 @@
 #include "util/string_util.h"
 
 #include <iostream>
+#include <format>
 
 /*
     what i want for a logger
@@ -197,8 +198,7 @@ inline void log_debug (const char *format, const char *file, int line, const cha
         if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG)
         {
             print_header (ccolor::MAGENTA + "DBG", file, line, func);
-            printf (format, args...);
-            std::cout << "\n";
+            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
         }
 
         track ("DBG", format, file, line, func, args...);
@@ -227,8 +227,7 @@ inline void log_info (const char *format, const char *file, int line, const char
         if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_INFO)
         {
             print_header (ccolor::BLUE + "INF", file, line, func);
-            printf (format, args...);
-            std::cout << "\n";
+            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
         }
 
         track ("INF", format, file, line, func, args...);
@@ -254,8 +253,7 @@ inline void log_warn (const char *format, const char *file, int line, const char
         if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_WARN)
         {
             print_header (ccolor::YELLOW + "WRN", file, line, func);
-            printf (format, args...);
-            std::cout << "\n";
+            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
         }
 
         track ("WRN", format, file, line, func, args...);
@@ -282,8 +280,7 @@ inline void log_error (const char *format, const char *file, int line, const cha
         if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_ERROR)
         {
             print_header (ccolor::RED + "ERR", file, line, func);
-            printf (format, args...);
-            std::cout << "\n";
+            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
         }
 
         track ("ERR", format, file, line, func, args...);
@@ -412,27 +409,40 @@ inline void expect_not_equal (T1 t1, T2 t2, const char *format, const char *file
      */
 #define ERROR_SS(msg) logger::log_error ((msg).str ().c_str (), __FILE__, __LINE__, __func__)
 
+#undef EXPECT_TRUE
 #define EXPECT_TRUE(condition, format, ...)                                                        \
     logger::expect_true (condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#undef EXPECT_TRUE_SS
 #define EXPECT_TRUE_SS(condition, msg)                                                             \
     logger::expect_true (condition, (msg).str ().c_str (), __FILE__, __LINE__, __func__)
+#undef EXPECT_FALSE
 #define EXPECT_FALSE(condition, format, ...)                                                       \
     logger::expect_false (condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#undef EXPECT_FALSE_SS
 #define EXPECT_FALSE_SS(condition, msg)                                                            \
     logger::expect_false (condition, (msg).str ().c_str (), __FILE__, __LINE__, __func__)
+#undef EXPECT_EQUAL
 #define EXPECT_EQUAL(t1, t2, format, ...)                                                          \
     logger::expect_equal (t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#undef EXPECT_EQUAL_SS
 #define EXPECT_EQUAL_SS(t1, t2, msg)                                                               \
     logger::expect_equal (t1, t2, (msg).str ().c_str (), __FILE__, __LINE__, __func__)
+#undef EXPECT_NOT_EQUAL
 #define EXPECT_NOT_EQUAL(t1, t2, format, ...)                                                      \
     logger::expect_equal (t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#undef EXPECT_NOT_EQUAL_SS
 #define EXPECT_NOT_EQUAL_SS(t1, t2, msg)                                                           \
     logger::expect_equal (t1, t2, (msg).str ().c_str (), __FILE__, __LINE__, __func__)
 
+#undef PROFILE_START
 #define PROFILE_START logger::clock_start_master (__FILE__, __LINE__, __func__);
+#undef PROFILE_STOP
 #define PROFILE_STOP logger::clock_stop_master ();
+#undef CLOCK_START
 #define CLOCK_START(tag) logger::clock_start (tag, __FILE__, __LINE__, __func__);
+#undef CLOCK_STOP
 #define CLOCK_STOP logger::clock_stop ();
+#undef CLOCK_END
 #define CLOCK_END logger::clock_end ();
 
 }; // namespace logger

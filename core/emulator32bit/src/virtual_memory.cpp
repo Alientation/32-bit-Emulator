@@ -119,7 +119,7 @@ void VirtualMemory::set_process (long long pid)
     }
 
     m_cur_ptable = m_process_ptable_map.at (pid);
-    DEBUG ("Setting memory map to process %llu.", pid);
+    DEBUG ("Setting memory map to process {}.", pid);
 }
 
 long long VirtualMemory::begin_process (bool kernel_privilege)
@@ -141,7 +141,7 @@ long long VirtualMemory::begin_process (bool kernel_privilege)
     m_process_ptable_map.insert (std::make_pair (pid, new_pagetable));
     m_cur_ptable = new_pagetable;
 
-    DEBUG ("Beginning process %llu.", pid);
+    DEBUG ("Beginning process {}.", pid);
     return pid;
 }
 
@@ -179,7 +179,7 @@ void VirtualMemory::end_process (long long pid)
     delete m_process_ptable_map.at (pid);
     m_process_ptable_map.erase (pid);
     m_freepids.return_block (pid, 1);
-    DEBUG ("Ending process %llu.", pid);
+    DEBUG ("Ending process {}.", pid);
 }
 
 long long VirtualMemory::current_process ()
@@ -277,7 +277,7 @@ void VirtualMemory::add_vpage (long long pid, word vpage, word length, bool writ
         throw InvalidPIDException ("Cannot add virtual pages because pid is invalid.", pid);
     }
 
-    DEBUG ("Adding vpages from %u to %u.", vpage, vpage + length - 1);
+    DEBUG ("Adding vpages from {} to {}.", vpage, vpage + length - 1);
 
     PageTable *ptable = m_process_ptable_map.at (pid);
     word last_vpage = vpage + length - 1;
@@ -295,7 +295,7 @@ void VirtualMemory::add_vpage (long long pid, word vpage, word length, bool writ
         ptable->entries.insert (std::make_pair (
             vpage, new PageTableEntry (pid, vpage, m_disk->get_free_page (), write, execute)));
 
-        DEBUG ("Adding virtual page %u to process %llu.", vpage, pid);
+        DEBUG ("Adding virtual page {} to process {}.", vpage, pid);
     }
 }
 
@@ -353,7 +353,7 @@ void VirtualMemory::remove_vpage (long long pid, word vpage)
     {
         m_disk->return_page (entry->diskpage);
 
-        DEBUG ("Returning disk page %u coressponding to virtual page %u.", entry->diskpage, vpage);
+        DEBUG ("Returning disk page {} coressponding to virtual page {}.", entry->diskpage, vpage);
     }
     else
     {
@@ -362,7 +362,7 @@ void VirtualMemory::remove_vpage (long long pid, word vpage)
         /* add back to free list */
         m_freelist.return_block (entry->ppage, 1);
 
-        DEBUG ("Returning physical page %u corresponding to virtual page %u.", entry->ppage, vpage);
+        DEBUG ("Returning physical page {} corresponding to virtual page {}.", entry->ppage, vpage);
     }
 
     delete entry;
@@ -390,11 +390,11 @@ void VirtualMemory::check_vm ()
 
     for (std::pair<long long, PageTable *> pair : m_process_ptable_map)
     {
-        DEBUG ("Checking process %llu.", pair.first);
+        DEBUG ("Checking process {}.", pair.first);
         EXPECT_TRUE (pair.second->pid == pair.first, "Expected Process ID to match");
         for (std::pair<word, PageTableEntry *> entry : pair.second->entries)
         {
-            DEBUG ("Checking page entry at vpage %u.", entry.first);
+            DEBUG ("Checking page entry at vpage {}.", entry.first);
 
             EXPECT_TRUE (entry.second->vpage == entry.first, "Expected virtual memory to match");
         }
@@ -403,7 +403,7 @@ void VirtualMemory::check_vm ()
 
 void VirtualMemory::evict_ppage (word ppage, Exception &exception)
 {
-    DEBUG ("Evicting physical page %u to disk.", ppage);
+    DEBUG ("Evicting physical page {} to disk.", ppage);
 
     /*
      * NOTE: this location will be overwritten below since we return the
@@ -449,7 +449,7 @@ void VirtualMemory::map_vpage_to_ppage (long long pid, word vpage, word ppage, E
     PageTableEntry *entry = ptable->entries.at (vpage);
     exception.disk_fetch = m_disk->read_page (entry->diskpage);
 
-    DEBUG ("Disk Fetch from page %u to physical page %u.", entry->diskpage, ppage);
+    DEBUG ("Disk Fetch from page {} to physical page {}.", entry->diskpage, ppage);
 
     m_disk->return_page (entry->diskpage);
 
@@ -505,7 +505,7 @@ void VirtualMemory::ensure_physical_page_mapping (long long pid, word vpage, wor
                                    vpage, ptable->entries.at (vpage)->ppage, ppage);
     }
 
-    DEBUG ("Mapping physical page %u to virtual page %u.", ppage, vpage);
+    DEBUG ("Mapping physical page {} to virtual page {}.", ppage, vpage);
 
     map_ppage (pid, vpage, ppage, exception);
 }

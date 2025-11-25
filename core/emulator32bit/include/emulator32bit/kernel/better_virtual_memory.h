@@ -7,6 +7,7 @@
 #include "util/logger.h"
 
 #include <string>
+#include <cstring>
 
 #define N_VPAGES (1 << 20)
 
@@ -114,7 +115,7 @@ class MMU
             entry->ppage = free_ppage;
 
             word mapped_address = (free_ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
-            memcpy (&ram->m_data[mapped_address], disk_page.data (), kPageSize);
+            std::memcpy (&ram->m_data[mapped_address], disk_page.data (), kPageSize);
             return mapped_address;
         }
 

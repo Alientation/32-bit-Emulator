@@ -39,12 +39,12 @@ void Assembler::assemble ()
 {
     if (m_state != State::NOT_ASSEMBLED)
     {
-        DEBUG ("Assembler::assemble() - Already assembled file: %s",
+        DEBUG ("Assembler::assemble() - Already assembled file: {}",
                m_in_file.get_name ().c_str ());
         return;
     }
 
-    DEBUG ("Assembler::assemble() - Assembling file: %s", m_in_file.get_name ().c_str ());
+    DEBUG ("Assembler::assemble() - Assembling file: {}", m_in_file.get_name ().c_str ());
 
     m_state = State::ASSEMBLING;
 
@@ -66,7 +66,7 @@ void Assembler::assemble ()
     while (m_tokenizer.has_next ())
     {
         const Tokenizer::Token &token = m_tokenizer.get_token ();
-        DEBUG ("Assembler::assemble() - Assembling token %d: %s", i, token.to_string ().c_str ());
+        DEBUG ("Assembler::assemble() - Assembling token {}: {}", i, token.to_string ().c_str ());
 
         if (token.type == Tokenizer::LABEL)
         {
@@ -106,7 +106,7 @@ void Assembler::assemble ()
             }
             else
             {
-                ERROR ("Assembler::assemble() - Label %s is not located in a valid "
+                ERROR ("Assembler::assemble() - Label {} is not located in a valid "
                        "section. Valid sections are TEXT, DATA, and BSS",
                        token.value.c_str ());
                 m_state = State::ASSEMBLER_ERROR;
@@ -133,7 +133,7 @@ void Assembler::assemble ()
         else
         {
             // Unknown token.
-            ERROR ("Assembler::assemble() - Cannot parse token %d %s", m_tokenizer.get_toki (),
+            ERROR ("Assembler::assemble() - Cannot parse token {} {}", m_tokenizer.get_toki (),
                    token.to_string ().c_str ());
             m_state = State::ASSEMBLER_ERROR;
             break;
@@ -148,7 +148,7 @@ void Assembler::assemble ()
         fill_local ();
 
         m_obj.write_object_file (m_out_obj_file);
-        DEBUG ("Assembler::assemble() - Assembled file: %s", m_in_file.get_name ().c_str ());
+        DEBUG ("Assembler::assemble() - Assembled file: {}", m_in_file.get_name ().c_str ());
     }
 
     if (m_state == State::ASSEMBLING)
@@ -178,7 +178,7 @@ void Assembler::fill_local ()
     for (size_t i = 0; i < m_obj.rel_text.size (); i++)
     {
         ObjectFile::RelocationEntry &rel = m_obj.rel_text.at (i);
-        DEBUG ("Assembler::fill_local() - Evaluating relocation entry %s",
+        DEBUG ("Assembler::fill_local() - Evaluating relocation entry {}",
                m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name].c_str ());
 
         while (tok_i < rel.token && tok_i < tokens.size ())

@@ -1,27 +1,14 @@
 cmake_minimum_required(VERSION 3.15)
 project(ccompiler LANGUAGES C)
 
+# Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_C_FLAGS "-Wall -Wextra ")
-set(CMAKE_C_FLAGS_DEBUG "-g --coverage")
 
-# Use -flto only on non-Windows platforms (MinGW has issues with aggressive LTO)
-if(NOT WIN32)
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -flto=8")
-    set(CMAKE_C_FLAGS_RELEASE "-O3 -flto=8")
-else()
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3")
-    set(CMAKE_C_FLAGS_RELEASE "-O3")
-endif()
-
-# create final executable
-add_executable(${PROJECT_NAME}_exec)
-add_library(${PROJECT_NAME})
-
-target_sources(${PROJECT_NAME} PRIVATE
+# Create target
+add_library(ccompiler STATIC
     src/ccompiler.c
     src/lexer.c
     src/parser.c
@@ -30,29 +17,49 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/massert.c
 )
 
-target_sources(${PROJECT_NAME}_exec PRIVATE
+# Create final executable
+add_executable(ccompiler_exec
     src/main.c
 )
 
-# Link POSIX regex library if necessary
-if(WIN32)
-    # On Windows, explicitly link the regex library (MinGW/Cygwin)
-    target_link_libraries(${PROJECT_NAME} regex)
-endif()
+# Apply warnings and flags to both the library and the executable
+foreach(tgt ccompiler ccompiler_exec)
+    target_compile_options(${tgt} PRIVATE
+        -Wall
+        -Wextra
+    )
 
-# sets the search paths for the include files after installation
-# as well as during when building the library (as these may differ)
-# this allows the library itself and users to #include the library headers
-target_include_directories(
-    ${PROJECT_NAME}
+    target_compile_options(${tgt} PRIVATE
+        $<$<CONFIG:Debug>:-g --coverage>
+        $<$<CONFIG:RelWithDebInfo>:-O3 -flto=8>
+        $<$<CONFIG:Release>:-O3 -flto=8>
+    )
+
+    if(WIN32)
+        # Windows LTO workaround
+        target_compile_options(${tgt} PRIVATE
+            $<$<CONFIG:RelWithDebInfo>:-O3>
+            $<$<CONFIG:Release>:-O3>
+        )
+    endif()
+endforeach()
+
+# Include directories
+target_include_directories(ccompiler
     PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_link_libraries(${PROJECT_NAME}_exec ${PROJECT_NAME})
+# Link libraries
+target_link_libraries(ccompiler_exec PRIVATE ccompiler)
+
+if(WIN32)
+    # MinGW/Cygwin regex
+    target_link_libraries(ccompiler PRIVATE regex)
+endif()
 
 add_subdirectory(tests)
 
 # Output a summary message for clarity
-message(STATUS "Building ${PROJECT_NAME} on ${CMAKE_SYSTEM_NAME}")
+message(STATUS "Building ccompiler on ${CMAKE_SYSTEM_NAME}")

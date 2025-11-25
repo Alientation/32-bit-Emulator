@@ -156,7 +156,7 @@ static std::string disassemble_format_m (word instruction, std::string op)
         && adr_mode != U8 (Emulator32bit::AddrType::ADDR_POST_INC))
     {
         ERROR ("disassemble_format_m() - Invalid addressing mode "
-               "in the disassembly of instruction (%s) %u",
+               "in the disassembly of instruction ({}) {}",
                op.c_str (), instruction);
     }
 

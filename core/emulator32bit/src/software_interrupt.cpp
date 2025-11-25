@@ -268,7 +268,7 @@ void Emulator32bit::_emu_err (word err)
 void Emulator32bit::_swi (word instr)
 {
     byte cond = bitfield_unsigned (instr, 22, 4);
-    DEBUG ("swi %d", cond);
+    DEBUG ("swi {}", cond);
 
     if (!check_cond (m_pstate, cond))
     {
