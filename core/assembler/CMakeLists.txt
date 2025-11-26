@@ -24,7 +24,7 @@ target_compile_features(assembler PUBLIC cxx_std_20)
 
 target_link_libraries(assembler PUBLIC util emulator32bit)
 
-# Optional debug postfix
+# Debug postfix
 set_target_properties(assembler PROPERTIES DEBUG_POSTFIX "d")
 
 # Executable
@@ -63,5 +63,4 @@ install(EXPORT assembler-targets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/assembler
 )
 
-# Conditional test build
 add_subdirectory(tests)
