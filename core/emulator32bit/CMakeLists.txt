@@ -33,7 +33,7 @@ set_target_properties(emulator32bit PROPERTIES DEBUG_POSTFIX "d")
 
 # Executable to take in cmd line arguments
 add_executable(emu32 src/main.cpp)
-target_link_libraries(emu32 PRIVATE emulator32bit)
+target_link_libraries(emu32 PRIVATE emulator32bit cxxopts)
 target_compile_features(emu32 PRIVATE cxx_std_20)
 
 # Compiler flags per target

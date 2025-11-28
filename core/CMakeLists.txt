@@ -12,7 +12,7 @@ set(CMAKE_C_STANDARD 11)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 # Config specific global flags
-set(CMAKE_CXX_FLAGS_DEBUG "-g --coverage")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 --coverage")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
@@ -39,7 +39,10 @@ if (BUILD_TESTS)
 endif()
 
 
-# Add subdirectories (these will also define their own libraries, tests, etc.)
+# External dependency
+add_subdirectory(external/cxxopts)
+
+# Submodules
 add_subdirectory(util)
 add_subdirectory(emulator32bit)
 

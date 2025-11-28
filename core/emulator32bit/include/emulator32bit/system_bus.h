@@ -191,6 +191,8 @@ class SystemBus
     void reset ();
 
   private:
+    void validate_memory ();
+
     inline void handle_mmu_exception (VirtualMemory::Exception &exception)
     {
         if (exception.type == VirtualMemory::Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
@@ -243,6 +245,7 @@ class SystemBus
 
     inline BaseMemory *route_memory (const word address)
     {
+        // TODO: 'Likely' specifiers would help
         if (ram->in_bounds (address))
         {
             return ram;

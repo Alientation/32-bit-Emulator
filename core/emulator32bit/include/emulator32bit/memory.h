@@ -18,25 +18,31 @@ class BaseMemory
     virtual inline void write_hword (word address, hword value) = 0;
     virtual inline void write_word (word address, word value) = 0;
 
-    inline word get_mem_pages ()
+    inline word get_mem_pages () const
     {
         return m_npages;
     }
 
-    inline word get_lo_page ()
+    inline word get_lo_page () const
     {
         return m_start_page;
     }
 
-    inline word get_hi_page ()
+    inline word get_hi_page () const
     {
         return m_start_page + m_npages - 1;
     }
 
-    inline bool in_bounds (word address)
+    inline bool in_bounds (word address) const
     {
         return address >= (m_start_page << kNumPageOffsetBits)
                && address < ((get_hi_page () + 1) << kNumPageOffsetBits);
+    }
+
+    inline bool overlap (const BaseMemory &other) const
+    {
+        return m_start_page <= other.get_hi_page () && other.m_start_page <= get_hi_page ()
+               && m_npages != 0 && other.m_npages != 0;
     }
 
   protected:

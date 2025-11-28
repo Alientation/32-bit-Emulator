@@ -117,8 +117,8 @@ void Emulator32bit::print ()
 {
     std::printf ("32 bit emulator\nRegisters:\n");
     std::printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
-            to_color_hex_str (read_reg (Register::SP)).c_str (),
-            to_color_hex_str (word (0)).c_str ());
+                 to_color_hex_str (read_reg (Register::SP)).c_str (),
+                 to_color_hex_str (word (0)).c_str ());
     for (U8 i = 0; i < register_to_U8 (Register::X29); i++)
     {
         std::printf ("x%.2d: %s\n", i, to_color_hex_str (read_reg (i)).c_str ());
