@@ -188,20 +188,12 @@ std::string File::get_dir_str () const
 /**
  * Gets the size of the file in bytes
  *
+ * @throw 
  * @return the size of the file in bytes
  */
 int File::get_size () const
 {
-    int fileSize = 0;
-
-    std::ifstream file_stream = std::ifstream (this->get_path (), std::ifstream::in);
-    while (file_stream.peek () != EOF)
-    {
-        file_stream.get ();
-        fileSize++;
-    }
-
-    return fileSize;
+    return std::filesystem::file_size (this->get_path ());
 }
 
 /**
