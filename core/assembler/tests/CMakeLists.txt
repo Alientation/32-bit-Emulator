@@ -1,41 +1,44 @@
 cmake_minimum_required(VERSION 3.15)
-project(assembler_test LANGUAGES CXX)
+project(assembler_tests LANGUAGES CXX)
 
-# GoogleTest requires at least C++14
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(BUILD_TESTS)
+    # Create the test executable
+    add_executable(assembler_tests
+        ./preprocessor_test/include.cpp
+        ./preprocessor_test/macro.cpp
+        ./preprocessor_test/define.cpp
+        ./preprocessor_test/conditional.cpp
+    )
 
-# link gtest
-enable_testing()
+    # Include directories (PRIVATE for test only)
+    target_include_directories(assembler_tests
+        PRIVATE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
 
-add_executable(${PROJECT_NAME}
-	./assembler_test.cpp
+    # Link required libraries
+    target_link_libraries(assembler_tests
+        PRIVATE
+            assembler
+            util
+            emulator32bit
+            GTest::gtest_main
+    )
 
-	./preprocessor_test/include.cpp
-	./preprocessor_test/macro.cpp
-	./preprocessor_test/define.cpp
-	./preprocessor_test/conditional.cpp
-)
+    # Compiler flags per target
+    target_compile_options(assembler_tests PRIVATE
+        -Wall -Wextra -Wpedantic
+        $<$<CONFIG:Debug>:-g --coverage>
+        $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
+        $<$<CONFIG:Release>:-O3 -flto=auto>
+    )
 
-target_include_directories(
-	${PROJECT_NAME}
-	PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-target_link_libraries(${PROJECT_NAME}
-	PRIVATE
-	util
-	emulator32bit
-	assembler
-	GTest::gtest_main)
+    # GCC: link gcov for coverage
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_libraries(assembler_tests PRIVATE gcov)
+    endif()
 
-# GCC, use gcov to display code coverage
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	target_link_libraries(${PROJECT_NAME}
-		PRIVATE
-		gcov)
+    # Discover GoogleTest tests automatically
+    include(GoogleTest)
+    gtest_discover_tests(assembler_tests PROPERTIES LABELS assembler)
 endif()
-
-include(GoogleTest)
-gtest_discover_tests(${PROJECT_NAME})

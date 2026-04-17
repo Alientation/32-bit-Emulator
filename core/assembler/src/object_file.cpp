@@ -73,8 +73,8 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
     flags = reader.read_hword ();          /* 20-21 */
     n_sections = reader.read_hword ();     /* 22-23 */
 
-    DEBUG ("ObjectFile::disassemble() - Belf Header = (filetype=%hu, target_machine=%hu, "
-           "flags=%hu, n_sections=%hu)",
+    DEBUG ("ObjectFile::disassemble() - Belf Header = (filetype={}, target_machine={}, "
+           "flags={}, n_sections={})",
            file_type, target_machine, flags, n_sections);
 
     /* Section headers */
@@ -83,7 +83,7 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
     ByteReader section_headers_start_reader (bytes);
     section_headers_start_reader.skip_bytes (bytes.size () - 8);
     dword section_header_start = section_headers_start_reader.read_dword ();
-    DEBUG ("ObjectFile::disassemble() - Section Header Start = %llu", section_header_start);
+    DEBUG ("ObjectFile::disassemble() - Section Header Start = {}", section_header_start);
     section_headers_reader.skip_bytes (section_header_start);
     for (int i = 0; i < n_sections; i++)
     {
@@ -103,15 +103,15 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
 
         sections.push_back (section_header);
 
-        DEBUG ("ObjectFile::disassemble() - Reading section %d (name = %u, type=%u, "
-               "section_start=%u, section_size=%u, entry_size=%u)",
+        DEBUG ("ObjectFile::disassemble() - Reading section {} (name = {}, type={}, "
+               "section_start={}, section_size={}, entry_size={})",
                i, section_header.section_name, U32 (section_header.type),
                section_header.section_start, section_header.section_size,
                section_header.entry_size);
     }
 
     /* Sections */
-    DEBUG ("ObjectFile::disassemble() - Reading %hu sections.", n_sections);
+    DEBUG ("ObjectFile::disassemble() - Reading {} sections.", n_sections);
     for (hword section_i = 0; section_i < n_sections; section_i++)
     {
         SectionHeader &section_header = sections[section_i];
@@ -147,8 +147,8 @@ void ObjectFile::disassemble (std::vector<byte> &bytes)
                 };
 
                 symbol_table[symbol.symbol_name] = symbol;
-                DEBUG ("ObjectFile::disassemble() - Symbol entry = (symbol_name=%u, "
-                       "symbol_value=%u, binding_info=%u, section=%u)",
+                DEBUG ("ObjectFile::disassemble() - Symbol entry = (symbol_name={}, "
+                       "symbol_value={}, binding_info={}, section={})",
                        symbol.symbol_name, symbol.symbol_value, U32 (symbol.binding_info),
                        symbol.section);
             }
@@ -313,7 +313,7 @@ void ObjectFile::add_symbol (const std::string &symbol, word value,
     {
         string_table[symbol] = U32 (strings.size ());
         strings.push_back (symbol);
-        symbol_table[string_table[symbol]] = (SymbolTableEntry) {
+        symbol_table[string_table[symbol]] = {
             .symbol_name = string_table[symbol],
             .symbol_value = value,
             .binding_info = binding_info,
@@ -331,7 +331,7 @@ void ObjectFile::add_symbol (const std::string &symbol, word value,
         else if (symbol_entry.section != U32 (-1) && section != U32 (-1))
         {
             ERROR (
-                "ObjectFile::add_symbol() - Multiple definition of symbol %s at sections %s and %s",
+                "ObjectFile::add_symbol() - Multiple definition of symbol {} at sections {} and {}",
                 symbol.c_str (), strings[sections[section].section_name].c_str (),
                 strings[sections[symbol_entry.section].section_name].c_str ());
             return;
@@ -394,7 +394,7 @@ void ObjectFile::write_object_file (File obj_file)
     current_byte += data_section.size ();
 
     /* BSS Section */
-    DEBUG ("ObjectFile::write_object_file() - Writing .bss section. Size %u bytes.", bss_section);
+    DEBUG ("ObjectFile::write_object_file() - Writing .bss section. Size {} bytes.", bss_section);
     byte_writer << ByteWriter::Data (bss_section, kBSSSectionSize);
     sections[section_table[".bss"]].section_size = bss_section;
     sections[section_table[".bss"]].section_start = current_byte;
@@ -409,7 +409,7 @@ void ObjectFile::write_object_file (File obj_file)
         byte_writer << ByteWriter::Data (S16 (symbol.second.binding_info), 2);
         byte_writer << ByteWriter::Data (symbol.second.section, 8);
 
-        DEBUG ("ObjectFile::write_object_file() - symbol %s = %u (%d)[%d]",
+        DEBUG ("ObjectFile::write_object_file() - symbol {} = {} ({})[{}]",
                strings[symbol.second.symbol_name].c_str (), symbol.second.symbol_value,
                U32 (symbol.second.binding_info), symbol.second.section);
     }

@@ -36,20 +36,20 @@ static word calc_shift (word val, const Emulator32bit::ShiftType shift_type, con
     switch (shift_type)
     {
     case Emulator32bit::ShiftType::SHIFT_LSL:
-        DEBUG ("LSL %u", word (imm5));
+        DEBUG ("LSL {}", word (imm5));
         val <<= imm5;
         break;
     case Emulator32bit::ShiftType::SHIFT_LSR:
-        DEBUG ("LSR %u", word (imm5));
+        DEBUG ("LSR {}", word (imm5));
         val >>= imm5;
         break;
     case Emulator32bit::ShiftType::SHIFT_ASR:
-        DEBUG ("ASR %u", word (imm5));
+        DEBUG ("ASR {}", word (imm5));
         val = S32 (val) >> imm5;
         break;
     case Emulator32bit::ShiftType::SHIFT_ROR:
     {
-        DEBUG ("ROR %u", word (imm5));
+        DEBUG ("ROR {}", word (imm5));
         word rot_bits = val & ((1 << imm5) - 1);
         rot_bits <<= (kNumWordBits - imm5);
         val >>= imm5;

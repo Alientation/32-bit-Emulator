@@ -43,8 +43,8 @@ bool Process::valid_exe_file (const File &file)
  */
 Process::Process (const std::string &assembler_args)
 {
-    INFO ("Building Process: args(%s).", assembler_args.c_str ());
-    INFO ("Current Working Directory: %s", std::filesystem::current_path ().string ().c_str ());
+    INFO ("Building Process: args({}).", assembler_args.c_str ());
+    INFO ("Current Working Directory: {}", std::filesystem::current_path ().string ().c_str ());
 
     flags = {
         {"--", &Process::_ignore},  /* Treats everything after as a regular argument */
@@ -102,10 +102,10 @@ Process::Process (const std::string &assembler_args)
     std::vector<std::string> args_list;
     parse_args (assembler_args, args_list);
 
-    DEBUG ("Process::Process() - args_list.size(): %llu.", args_list.size ());
+    DEBUG ("Process::Process() - args_list.size(): {}.", args_list.size ());
     for (size_t i = 0; i < args_list.size (); i++)
     {
-        DEBUG ("Process::Process() - args_list[%llu]: %s", i, args_list[i].c_str ());
+        DEBUG ("Process::Process() - args_list[{}]: {}", i, args_list[i].c_str ());
     }
 
     evaluate_args (args_list);
@@ -179,7 +179,7 @@ void Process::evaluate_args (std::vector<std::string> &args_list)
     // evaluate arguments
     for (size_t i = 0; i < args_list.size (); i++)
     {
-        DEBUG ("arg %llu: %s", i, args_list[i].c_str ());
+        DEBUG ("arg {}: {}", i, args_list[i].c_str ());
 
         std::string &arg = args_list[i];
         if (m_parse_options && arg[0] == '-')
@@ -196,7 +196,7 @@ void Process::evaluate_args (std::vector<std::string> &args_list)
             // this should be a file
             File file (arg);
 
-            DEBUG ("Process::evaluate_args() - Adding file %s", file.get_path ().c_str ());
+            DEBUG ("Process::evaluate_args() - Adding file {}", file.get_path ().c_str ());
 
             // check the extension
             EXPECT_TRUE_SS (file.get_extension () == SOURCE_EXTENSION,
@@ -250,15 +250,15 @@ void Process::preprocess ()
     {
         if (!file.exists ())
         {
-            WARN ("File %s does not exist.", file.get_path ().c_str ());
+            WARN ("File {} does not exist.", file.get_path ().c_str ());
             Directory dir (file.get_dir_str ());
             if (dir.exists ())
             {
-                DEBUG ("But it's parent directory exists at %s with files",
+                DEBUG ("But it's parent directory exists at {} with files",
                        dir.get_abs_path ().c_str ());
                 for (File f : dir.get_subfiles ())
                 {
-                    DEBUG ("%s", f.get_name ().c_str ());
+                    DEBUG ("{}", f.get_name ().c_str ());
                 }
             }
         }
@@ -350,7 +350,7 @@ void Process::link ()
     }
 
     m_exe_file = File (m_output_file + "." + EXECUTABLE_EXTENSION);
-    DEBUG ("Process::link() - output file name: %s", m_exe_file.get_path ().c_str ());
+    DEBUG ("Process::link() - output file name: {}", m_exe_file.get_path ().c_str ());
 
     if (m_has_ld_file)
     {

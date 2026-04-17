@@ -226,10 +226,10 @@ std::vector<std::pair<word, word>> FreeBlockList::get_blocks ()
 void FreeBlockList::print_blocks ()
 {
     std::vector<std::pair<word, word>> blocks = get_blocks ();
-    printf ("Printing FBL List\n");
+    std::printf ("Printing FBL List\n");
     for (auto pair : blocks)
     {
-        printf ("Block {addr=%x, len=%x}\n", pair.first, pair.second);
+        std::printf ("Block {addr=%x, len=%x}\n", pair.first, pair.second);
     }
 }
 

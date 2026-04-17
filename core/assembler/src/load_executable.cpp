@@ -21,7 +21,7 @@ void LoadExecutable::load ()
         /* all symbols should have a corresponding definition */
         if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)
         {
-            ERROR ("Linker::link() - Undefined symbol %s",
+            ERROR ("Linker::link() - Undefined symbol {}",
                    obj.strings.at (symbol_entry.symbol_name).c_str ());
             continue;
         }
@@ -58,7 +58,7 @@ void LoadExecutable::load ()
             break;
         case ObjectFile::RelocationEntry::Type::UNDEFINED:
         default:
-            ERROR ("Assembler::fill_local() - Unknown relocation entry type (%d)", int (rel.type));
+            ERROR ("Assembler::fill_local() - Unknown relocation entry type ({})", int (rel.type));
         }
     }
 
@@ -146,7 +146,7 @@ void LoadExecutable::load ()
     word entry_point = obj.symbol_table.at (obj.string_table.at ("_start")).symbol_value;
     m_emu.set_pc (m_emu.system_bus->mmu->translate_address (entry_point, vm_exception));
 
-    INFO ("Starting emulator at entry point _start at virtual address %x mapped to physical "
-          "address %x",
+    INFO ("Starting emulator at entry point _start at virtual address {:x} mapped to physical "
+          "address {:x}",
           entry_point, m_emu.get_pc ());
 };

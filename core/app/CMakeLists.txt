@@ -1,44 +1,55 @@
 cmake_minimum_required(VERSION 3.15)
-project(emulator-app LANGUAGES CXX)
+project(emulator_app VERSION 0.0.1 LANGUAGES CXX)
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
+# Version header generation
+set(VERSION_HEADER "${CMAKE_SOURCE_DIR}/src/version.h")
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra ")
-set(CMAKE_CXX_FLAGS_DEBUG "-g --coverage")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
+# Define custom command to generate version header
+add_custom_command(
+    OUTPUT ${VERSION_HEADER}
+    COMMAND ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/src/version.h.in
+                             -D DST=${VERSION_HEADER}
+                             -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
+    COMMENT "Generating version header"
+    VERBATIM
+)
 
-# Generate version header
-add_custom_target(version
-    ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/src/version.h.in
-                     -D DST=${CMAKE_SOURCE_DIR}/src/version.h
-                     -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
+# Wrap it in a custom target
+add_custom_target(generate_version_header
+    DEPENDS ${VERSION_HEADER}
 )
 
 # Main executable
-add_executable(${PROJECT_NAME})
-target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+    ${VERSION_HEADER}   # Ensure dependency is visible
+)
 
-target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC
+# Include directories (PRIVATE)
+target_include_directories(${PROJECT_NAME} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
+# Link required libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE
     util
     emulator32bit
     assembler
 )
 
-add_dependencies(${PROJECT_NAME} version)
+# Ensure version header is generated before building
+add_dependencies(${PROJECT_NAME} generate_version_header)
 
+# Compiler flags per target
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall -Wextra -Wpedantic
+    $<$<CONFIG:Debug>:-g --coverage>
+    $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
+    $<$<CONFIG:Release>:-O3 -flto=auto>
+)
 
-# create executable to run the kernel on the emulator
-# add_executable(kernel)
-# target_sources(kernel PRIVATE src/kernel.cpp)
-# target_link_libraries(kernel PUBLIC util::util emulator32bit::emulator32bit assembler::assembler)
-# add_dependencies(kernel version)
+# Optional: additional executables (kernel)
+# add_executable(kernel src/kernel.cpp ${VERSION_HEADER})
+# target_include_directories(kernel PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+# target_link_libraries(kernel PRIVATE util emulator32bit assembler)
+# add_dependencies(kernel generate_version_header)

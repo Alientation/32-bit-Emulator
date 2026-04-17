@@ -420,7 +420,7 @@ class Tokenizer
     /// @param option
     ///
     Tokenizer (File src,
-               Options option = (Options) {.keep_comments = true, .keep_whitespace = true});
+               Options option = {.keep_comments = true, .keep_whitespace = true});
 
     ///
     /// @brief              TODO:
@@ -429,7 +429,7 @@ class Tokenizer
     /// @param option
     ///
     Tokenizer (std::string src,
-               Options option = (Options) {.keep_comments = true, .keep_whitespace = true});
+               Options option = {.keep_comments = true, .keep_whitespace = true});
 
     ///
     /// @brief              Get token pointer.
@@ -646,8 +646,8 @@ class Tokenizer
     ///
     /// @return             Vector of the tokens.
     static std::vector<Token> tokenize (File src_file,
-                                        Options option = (Options) {.keep_comments = true,
-                                                                    .keep_whitespace = true});
+                                        Options option = {.keep_comments = true,
+                                                          .keep_whitespace = true});
 
     ///
     /// @brief              Tokenizes a string representing the source code.

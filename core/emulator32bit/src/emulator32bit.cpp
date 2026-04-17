@@ -5,7 +5,7 @@
 #include "emulator32bit/virtual_memory.h"
 #include "util/types.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 Emulator32bit::Emulator32bit (word ram_npages, word ram_start_page, const byte rom_data[],
                               word rom_npages, word rom_start_page) :
@@ -48,11 +48,11 @@ void Emulator32bit::fill_out_instructions ()
 {
     for (int i = 0; i < kMaxInstructions; i++)
     {
-        m_instruction_handler[i] = Emulator32bit::_hlt;
+        m_instruction_handler[i] = &Emulator32bit::_hlt;
     }
 
 /* fill out instruction functions and construct disassembler instruction mapping */
-#define _INSTR(op) m_instruction_handler[_op_##op] = Emulator32bit::_##op;
+#define _INSTR(op) m_instruction_handler[_op_##op] = &Emulator32bit::_##op;
 
     _INSTR (special_instructions)
 
@@ -115,16 +115,16 @@ void Emulator32bit::fill_out_instructions ()
 
 void Emulator32bit::print ()
 {
-    printf ("32 bit emulator\nRegisters:\n");
-    printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
+    std::printf ("32 bit emulator\nRegisters:\n");
+    std::printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
             to_color_hex_str (read_reg (Register::SP)).c_str (),
             to_color_hex_str (word (0)).c_str ());
     for (U8 i = 0; i < register_to_U8 (Register::X29); i++)
     {
-        printf ("x%.2d: %s\n", i, to_color_hex_str (read_reg (i)).c_str ());
+        std::printf ("x%.2d: %s\n", i, to_color_hex_str (read_reg (i)).c_str ());
     }
 
-    printf ("\nMemory Dump: TODO");
+    std::printf ("\nMemory Dump: TODO");
 }
 
 void Emulator32bit::run (U64 instructions)
@@ -164,7 +164,7 @@ void Emulator32bit::run (U64 instructions)
         std::cerr << "Caught System Bus Exception: " << e.what () << std::endl;
     }
 
-    printf ("Ran %llu instructions\n", num_instructions_ran);
+    std::printf ("Ran %lu instructions\n", num_instructions_ran);
 }
 
 void Emulator32bit::reset ()

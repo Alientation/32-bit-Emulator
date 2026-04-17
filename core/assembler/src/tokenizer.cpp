@@ -20,7 +20,7 @@ Tokenizer::Tokenizer (File src, Options option) :
     }
     else
     {
-        WARN ("Tokenizing an empty file \'%s\'", src.get_abs_path ().c_str ());
+        WARN ("Tokenizing an empty file \'{}\'", src.get_abs_path ().c_str ());
     }
     verify ();
 }
@@ -352,7 +352,7 @@ Tokenizer::Token &Tokenizer::consume (Tokenizer::Type expected_type, const std::
  */
 std::vector<Tokenizer::Token> Tokenizer::tokenize (File src_file, Options option)
 {
-    DEBUG ("Tokenizer::tokenize() - Tokenizing file: %s", src_file.get_name ().c_str ());
+    DEBUG ("Tokenizer::tokenize() - Tokenizing file: {}", src_file.get_name ().c_str ());
     FileReader reader (src_file);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -360,7 +360,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize (File src_file, Options option
     reader.close ();
 
     std::vector<Token> tokens = tokenize (source_code, option);
-    DEBUG ("Tokenizer::tokenize() - Tokenized file: %s", src_file.get_name ().c_str ());
+    DEBUG ("Tokenizer::tokenize() - Tokenized file: {}", src_file.get_name ().c_str ());
     return tokens;
 }
 
@@ -631,7 +631,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize (std::string source_code, Opti
         }
 
         // check if regex matched
-        EXPECT_TRUE (matched, "Tokenizer::tokenize() - Could not match regex to source code: %s",
+        EXPECT_TRUE (matched, "Tokenizer::tokenize() - Could not match regex to source code: {}",
                      source_code.c_str ());
     }
 
@@ -639,7 +639,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize (std::string source_code, Opti
     {
         UNUSED (i);
         // TODO: TEMP
-        WARN ("Token %llu: %s", i, tokens[i].to_string ().c_str ());
+        WARN ("Token {}: {}", i, tokens[i].to_string ().c_str ());
     }
 
     return tokens;

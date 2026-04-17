@@ -75,21 +75,18 @@ void Linker::_sections (size_t &tok_i)
         {
         case Token::Type::TEXT:
             consume (tok_i);
-            m_sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::TEXT, .physical = m_physical});
+            m_sections.push_back ({.type = SectionAddress::Type::TEXT, .physical = m_physical});
             break;
         case Token::Type::DATA:
             consume (tok_i);
-            m_sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::DATA, .physical = m_physical});
+            m_sections.push_back ({.type = SectionAddress::Type::DATA, .physical = m_physical});
             break;
         case Token::Type::BSS:
             consume (tok_i);
-            m_sections.push_back (
-                (SectionAddress) {.type = SectionAddress::Type::BSS, .physical = m_physical});
+            m_sections.push_back ({.type = SectionAddress::Type::BSS, .physical = m_physical});
             break;
         default:
-            ERROR ("Invalid token %s in SECTIONS command.", m_tokens[tok_i].val.c_str ());
+            ERROR ("Invalid token {} in SECTIONS command.", m_tokens[tok_i].val.c_str ());
         }
 
         skip_tokens (tok_i, {Token::Type::WHITESPACE});
@@ -127,7 +124,7 @@ void Linker::parse_ld ()
             _sections (i);
             break;
         default:
-            ERROR ("Invalid token %s", m_tokens[i].val.c_str ());
+            ERROR ("Invalid token {}", m_tokens[i].val.c_str ());
         }
     }
 }
@@ -303,7 +300,7 @@ void Linker::link ()
             }
 
             /* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */
-            exe_obj_file.rel_text.push_back ((ObjectFile::RelocationEntry) {
+            exe_obj_file.rel_text.push_back ({
                 .offset = rel.offset + offset_text + text_section_size,
                 .symbol = obj_file.symbol_table.at (rel.symbol).symbol_name,
                 .type = rel.type,
@@ -431,7 +428,7 @@ word Linker::parse_value (size_t &tok_i)
             }
             else
             {
-                ERROR ("Invalid hexadecimal digit %c", c);
+                ERROR ("Invalid hexadecimal digit {}", c);
                 return 0;
             }
         };
@@ -442,7 +439,7 @@ word Linker::parse_value (size_t &tok_i)
         break;
     }
     default:
-        ERROR ("Expected numeric token but got %s", tok.val.c_str ());
+        ERROR ("Expected numeric token but got {}", tok.val.c_str ());
     }
     return val;
 }

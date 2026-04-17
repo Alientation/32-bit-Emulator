@@ -65,7 +65,7 @@ struct ProfileLog
 };
 
 static long long master_total_time = 0;
-static ProfileLog master_profile_log = (ProfileLog) {
+static ProfileLog master_profile_log = {
     .tag = "MASTER",
 };
 
@@ -93,7 +93,7 @@ void logger::clock_start_master (const char *file, int line, const char *func)
 {
     if (AEMU_PROFILER_ENABLED)
     {
-        ProfileLog::Log log = (ProfileLog::Log) {
+        ProfileLog::Log log = {
             .file = file,
             .line = line,
             .func = func,
@@ -132,7 +132,7 @@ void logger::clock_start (const std::string &tag, const char *file, int line, co
             clock_start_master (file, line, func);
         }
 
-        ProfileLog::Log log = (ProfileLog::Log) {
+        ProfileLog::Log log = {
             .file = file,
             .line = line,
             .func = func,
@@ -152,7 +152,7 @@ void logger::clock_start (const std::string &tag, const char *file, int line, co
             return;
         }
 
-        ProfileLog profile_log = (ProfileLog) {
+        ProfileLog profile_log = {
             .tag = tag,
         };
         profile_log.logs.push_back (log);
@@ -209,7 +209,7 @@ void logger::clock_stop ()
             auto elapsed_simpl = simplify_clocktime (elapsed);
             auto tot_elapsed_simpl = simplify_clocktime (profile_log.total_elapsed);
 
-            log_profile ("%s took %.2f%s, total %.2f%s", log.file.c_str (), log.line,
+            log_profile ("{} took {:.2f}{}, total {:.2f}{}", log.file.c_str (), log.line,
                          log.func.c_str (), current_clocks.top ().c_str (),
                          std::get<0> (elapsed_simpl), std::get<1> (elapsed_simpl).c_str (),
                          std::get<0> (tot_elapsed_simpl), std::get<1> (tot_elapsed_simpl).c_str ());

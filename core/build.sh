@@ -1,16 +1,42 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-cmake --build build/debug
-cmake --build build/release
+# Optional: pass "clean" as first argument to remove previous build
+CLEAN=${1:-false}
 
-# Run tests for both Debug and Release configurations
-echo Running Debug tests...
-cd build/debug
-ctest --build-config Debug --progress --output-on-failure
+BUILD_DIR="build"
+DEBUG_DIR="$BUILD_DIR/debug"
+RELEASE_DIR="$BUILD_DIR/release"
 
-cd ../../
+if [[ "$CLEAN" == "clean" ]]; then
+    echo "Cleaning previous build directories..."
+    rm -rf "$BUILD_DIR"
+fi
 
-echo Running Release tests...
-cd build/release
-ctest --build-config Release --progress --output-on-failure
+# Create build directories
+mkdir -p "$DEBUG_DIR" "$RELEASE_DIR"
+
+# --- Configure builds ---
+echo "Configuring Debug build..."
+cmake -S . -B "$DEBUG_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+
+echo "Configuring Release build..."
+cmake -S . -B "$RELEASE_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+# --- Build ---
+echo "Building Debug..."
+cmake --build "$DEBUG_DIR"
+
+echo "Building Release..."
+cmake --build "$RELEASE_DIR"
+
+# --- Run tests ---
+# Run tests for Debug
+echo "Running Debug tests..."
+ctest --test-dir "$DEBUG_DIR" --progress --output-on-failure
+
+# Run tests for Release
+echo "Running Release tests..."
+ctest --test-dir "$RELEASE_DIR" --progress --output-on-failure
+
+echo "Build and test completed successfully!"

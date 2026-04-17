@@ -13,7 +13,7 @@ byte Assembler::parse_sysreg ()
         return Emulator32bit::kSysregId_pstate;
     }
 
-    ERROR ("Assembler::parse_sysreg() - Invalid System Register %s.", sysreg.c_str ());
+    ERROR ("Assembler::parse_sysreg() - Invalid System Register {}.", sysreg.c_str ());
     return 0;
 }
 
@@ -88,8 +88,8 @@ void Assembler::parse_shift (Emulator32bit::ShiftType &shift, int &shift_amt)
 
     EXPECT_TRUE (
         word (shift_amt) < (1ULL << 5),
-        "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: %d. "
-        "Error in line %llu.",
+        "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: {}. "
+        "Error in line {}.",
         shift_amt, m_tokenizer.get_linei ());
 }
 
@@ -161,7 +161,7 @@ word Assembler::parse_format_b1 (byte opcode)
         const std::string &symbol = m_tokenizer.consume ().value;
         m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
-        m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
+        m_obj.rel_text.push_back ({
             .offset = word (m_obj.text_section.size () * 4),
             .symbol = m_obj.string_table[symbol],
             .type = ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22,
@@ -174,12 +174,12 @@ word Assembler::parse_format_b1 (byte opcode)
         const word imm = parse_expression ();
         EXPECT_TRUE (imm < (1ULL << 24),
                      "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
-                     "Error at %s in line %llu.",
+                     "Error at {} in line {}.",
                      Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
                      m_tokenizer.get_linei ());
         EXPECT_TRUE ((imm & 0b11) == 0,
                      "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
-                     "Error at %s in line %llu.",
+                     "Error at {} in line {}.",
                      Emulator32bit::Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
                      m_tokenizer.get_linei ());
         value = bitfield_signed (imm, 0, 24) >> 2;
@@ -226,7 +226,7 @@ word Assembler::parse_format_m1 (byte opcode)
             .value;
     m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
-    m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
+    m_obj.rel_text.push_back ({
         .offset = word (m_obj.text_section.size () * 4),
         .symbol = m_obj.string_table[symbol],
         .type = ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
@@ -388,7 +388,7 @@ word Assembler::parse_format_o3 (byte opcode)
                     .value;
             m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
-            m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
+            m_obj.rel_text.push_back ({
                 .offset = word (m_obj.text_section.size () * 4),
                 .symbol = m_obj.string_table[symbol],
                 .type = (relocation == Tokenizer::RELOCATION_EMU32_MOV_HI13
@@ -407,7 +407,7 @@ word Assembler::parse_format_o3 (byte opcode)
 
             EXPECT_TRUE (imm < (1ULL << 14),
                          "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
-                         "Error at %s in line %llu.",
+                         "Error at {} in line {}.",
                          Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
                          m_tokenizer.get_linei ());
             return Emulator32bit::asm_format_o3 (opcode, s, reg1, imm);
@@ -454,8 +454,8 @@ word Assembler::parse_format_o1 (byte opcode)
         const int shift_amt = parse_expression ();
         EXPECT_TRUE (word (shift_amt) < (1ULL << 5),
                      "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < "
-                     "32, Got: %d. "
-                     "Error at %s in line %llu.",
+                     "32, Got: {}. "
+                     "Error at {} in line {}.",
                      shift_amt, Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
                      m_tokenizer.get_linei ());
         return Emulator32bit::asm_format_o1 (opcode, reg1, reg2, true, 0, shift_amt);
@@ -500,7 +500,7 @@ word Assembler::parse_format_o (byte opcode)
                     .value;
             m_obj.add_symbol (symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 
-            m_obj.rel_text.push_back ((ObjectFile::RelocationEntry) {
+            m_obj.rel_text.push_back ({
                 .offset = word (m_obj.text_section.size () * 4),
                 .symbol = m_obj.string_table[symbol],
                 .type = ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12,
@@ -519,14 +519,14 @@ word Assembler::parse_format_o (byte opcode)
         else
         {
             m_state = Assembler::State::ASSEMBLER_ERROR;
-            ERROR ("Assembler::parse_format_o() - Could not parse token. Error at %s in line %d.",
+            ERROR ("Assembler::parse_format_o() - Could not parse token. Error at {} in line {}.",
                    m_tokenizer.get_token ().to_string ().c_str (), m_tokenizer.get_linei ());
         }
 
         EXPECT_TRUE (
             operand < (1ULL << 14),
             "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
-            "Error at %s in line %llu.",
+            "Error at {} in line {}.",
             Emulator32bit::disassemble_instr (word (opcode) << 26).c_str (),
             m_tokenizer.get_linei ());
 

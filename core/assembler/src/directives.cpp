@@ -59,7 +59,7 @@ dword Assembler::parse_expression (dword min, dword max)
                 exp_value *= value;
                 break;
             default:
-                ERROR ("Assembler::parse_expression() - Expected operator token but got %s",
+                ERROR ("Assembler::parse_expression() - Expected operator token but got {}",
                        operator_token->value.c_str ());
             }
             operator_token = nullptr;
@@ -85,13 +85,13 @@ dword Assembler::parse_expression (dword min, dword max)
     if (exp_value < min || exp_value > max)
     {
         m_state = Assembler::State::ASSEMBLER_WARNING;
-        WARN ("Assembler::parse_expression() - Parsed value %llu is outside of the target range "
-              "%llu - %llu.",
+        WARN ("Assembler::parse_expression() - Parsed value {} is outside of the target range "
+              "{} - {}.",
               exp_value, min, max);
     }
     else
     {
-        DEBUG ("Assembler::parse_expression() - Parsed value %llu.", exp_value);
+        DEBUG ("Assembler::parse_expression() - Parsed value {}.", exp_value);
     }
 
     return exp_value;
@@ -154,7 +154,7 @@ void Assembler::_org ()
     if (val >= 0xffffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN ("Assembler::_org() - new value is large and likely unintentional. (%d).", val);
+        WARN ("Assembler::_org() - new value is large and likely unintentional. ({}).", val);
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
@@ -165,7 +165,7 @@ void Assembler::_org ()
         if (val < m_obj.bss_section)
         {
             ERROR ("Assembler::_org() - .org directive cannot move "
-                   "assembler pc backwards. Expected >= %u. Got %u.",
+                   "assembler pc backwards. Expected >= {}. Got {}.",
                    m_obj.bss_section, val);
             m_state = State::ASSEMBLER_ERROR;
             return;
@@ -176,7 +176,7 @@ void Assembler::_org ()
         if (val < m_obj.data_section.size ())
         {
             ERROR ("Assembler::_org() - .org directive cannot move "
-                   "assembler pc backwards. Expected >= %llu. Got %u.",
+                   "assembler pc backwards. Expected >= {}. Got {}.",
                    m_obj.data_section.size (), val);
             m_state = State::ASSEMBLER_ERROR;
             return;
@@ -192,7 +192,7 @@ void Assembler::_org ()
         if (val < m_obj.text_section.size () * 4)
         {
             ERROR ("Assembler::_org() - .org directive cannot move "
-                   "assembler pc backwards. Expected >= %llu. Got %u.",
+                   "assembler pc backwards. Expected >= {}. Got {}.",
                    m_obj.text_section.size () * 4, val);
             m_state = State::ASSEMBLER_ERROR;
             return;
@@ -202,7 +202,7 @@ void Assembler::_org ()
         {
             ERROR ("Assembler::_org() - .org directive cannot move "
                    "assembler pc to a non-word aligned byte in .text section. Expected aligned "
-                   "4 byte. Got %u.",
+                   "4 byte. Got {}.",
                    val);
             m_state = State::ASSEMBLER_ERROR;
             return;
@@ -263,7 +263,7 @@ void Assembler::_advance ()
     if (val >= 0xffffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN ("Assembler::_advance() - offset value is large and likely unintentional. (%u).", val);
+        WARN ("Assembler::_advance() - offset value is large and likely unintentional. ({}).", val);
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
@@ -287,7 +287,7 @@ void Assembler::_advance ()
             ERROR ("Assembler::_advance() - .advance directive cannot"
                    " move assembler pc to a non-word aligned byte in .text section. Expected "
                    "aligned 4 byte."
-                   " Got %u.",
+                   " Got {}.",
                    val);
             m_state = State::ASSEMBLER_ERROR;
             return;
@@ -319,7 +319,7 @@ void Assembler::_align ()
     if (val >= 0xffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN ("Assembler::_align() - Alignment value is large and likely unintentional. (%u).",
+        WARN ("Assembler::_align() - Alignment value is large and likely unintentional. ({}).",
               val);
         m_state = State::ASSEMBLER_WARNING;
         return;
@@ -344,7 +344,7 @@ void Assembler::_align ()
             ERROR ("Assembler::_advance() - .advance directive cannot "
                    "move assembler pc to a non-word aligned byte in .text section. Expected "
                    "aligned 4 byte."
-                   " Got %u.",
+                   " Got {}.",
                    val);
             m_state = State::ASSEMBLER_ERROR;
             return;
