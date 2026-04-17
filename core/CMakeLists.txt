@@ -50,7 +50,7 @@ add_subdirectory(util)
 add_subdirectory(emulator32bit)
 
 # TODO: Reenable after ccompiler is fixed.
-# add_subdirectory(ccompiler)
+add_subdirectory(ccompiler)
 
 add_subdirectory(assembler)
 add_subdirectory(app)

@@ -255,7 +255,7 @@ char *token_tostr (token_t *tok)
     static char strbuffer[256];
     if ((unsigned long) tok->length >= sizeof (strbuffer))
     {
-        fprintf (stderr, "ERROR: failed to print token at \'%s\' of length %lu\n", tok->src, tok->length);
+        fprintf (stderr, "ERROR: token too long to print, length %zu at line %zu\n", tok->length, tok->line);
         exit (EXIT_FAILURE);
     }
 
@@ -301,7 +301,7 @@ void token_print (token_t *tok)
     char *buffer = token_tostr (tok);
     if (tok->type < ARRAY_LEN (tokentype_to_str))
     {
-        printf ("%s: \'%s\'", buffer, tokentype_to_str[tok->type]);
+        printf ("%s: \'%s\'", tokentype_to_str[tok->type], buffer);
     }
     else
     {
@@ -358,30 +358,6 @@ static bool _phase_1_2 (lexer_data_t *lexer)
             /* Handle linebreak escapes. */
             i++;
         }
-        else if (cur == '/' && nxt == '/')
-        {
-            /* Replace single line comments with a single space. */
-            while (lexer->src[i] != '\0' && lexer->src[i] != '\n')
-            {
-                i++;
-            }
-            lexer->src[new_length++] = ' ';
-        }
-        else if (cur == '/' && nxt == '*')
-        {
-            /* Replace multi-line comments with a single space. */
-            i += 2;
-            while (lexer->src[i] != '*' && lexer->src[i + 1] != '/')
-            {
-                if (lexer->src[i] == '\0')
-                {
-                    fprintf(stderr, "ERROR: Unclosed multi-line comment\n");
-                    return false;
-                }
-                i++;
-            }
-            lexer->src[new_length++] = ' ';
-        }
         else
         {
             lexer->src[new_length++] = lexer->src[i];
@@ -391,23 +367,6 @@ static bool _phase_1_2 (lexer_data_t *lexer)
     lexer->src[new_length] = '\0';
     lexer->length = new_length;
     return true;
-}
-
-static void _update_line (char c, size_t *cur_line, size_t *cur_column)
-{
-    switch (c)
-    {
-        case ' ':
-            (*cur_column)++;
-            break;
-        case '\t':
-            (*cur_column) += TAB_SIZE;
-            break;
-        case '\n':
-            (*cur_column) = 1;
-            (*cur_line)++;
-            break;
-    }
 }
 
 // Tokenize (including preprocessor tokens)
@@ -423,51 +382,196 @@ static bool _phase_3 (lexer_data_t *lexer)
         }
     }
 
-    /* Where in the str buffer the next character should be moved to. Handles removing characters mid-processing. */
-    size_t new_length = 0;
-
+    size_t offset = 0;
     size_t cur_line = 1;
     size_t cur_column = 1;
 
-    for (size_t offset = 0; offset < lexer->length; offset++)
+    while (offset < lexer->length)
     {
         const char cur = lexer->src[offset];
+        const char nxt = lexer->src[offset + 1];
 
         if (isspace (cur))
         {
-            _update_line (cur, &cur_line, &cur_column);
+            switch (cur)
+            {
+                case ' ':
+                    cur_column++;
+                    break;
+                case '\t':
+                    cur_column += TAB_SIZE;
+                    break;
+                case '\n':
+                    cur_column = 1;
+                    cur_line++;
+                    break;
+            }
+            offset++;
+            continue;
+        }
+
+        if (cur == '/' && nxt == '/')
+        {
+            while (offset < lexer->length && lexer->src[offset] != '\n')
+            {
+                offset++;
+                cur_column++;
+            }
+            continue;
+        }
+
+        if (cur == '/' && nxt == '*')
+        {
+            offset += 2;
+            cur_column += 2;
+            while (offset < lexer->length)
+            {
+                if (lexer->src[offset] == '\n')
+                {
+                    cur_line++;
+                    cur_column = 1;
+                }
+                else if (lexer->src[offset] == '*' && lexer->src[offset+1] == '/')
+                {
+                    offset += 2;
+                    cur_column += 2;
+                    break;
+                }
+                else
+                {
+                    cur_column++;
+                }
+                offset++;
+            }
             continue;
         }
 
         /* Handle C string. */
-        if (cur == '\"')
+        if (cur == '"')
         {
-            token_t string = {
-                .type = TOKEN_STRING_LITERAL,
-                .line = cur_line,
-                .column = cur_column,
-                .length = 0,
-                .src = lexer->src + new_length,
-            };
+            const size_t start = offset;
+            const size_t start_line = cur_line;
+            const size_t start_column = cur_column;
 
+            /* Skip first quote. */
             offset++;
-            while (lexer->src[offset] != '\"')
+            cur_column++;
+
+            while (offset <= lexer->length)
             {
-                if (lexer->src[offset] == '\n')
+                const char c = lexer->src[offset];
+
+                if (c == '\n')
                 {
-                    fprintf (stderr, "ERROR: Unclosed string\n");
+                    fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
+                             start_line, start_column);
                     return false;
                 }
-                else if (lexer->src[offset] == '\\' && lexer->src[offset + 1] == '\"')
+                else if (c == '"')
                 {
+                    /* Consume closing quote. */
                     offset++;
+                    cur_column++;
+                    break;
+                }
+                else if (c == '\\')
+                {
+                    /* Validate and skip the escape sequence. */
+                    offset++;
+                    cur_column++;
+                    const char esc = lexer->src[offset];
+                    switch (esc)
+                    {
+                        /* Single character escapes, skip one char. */
+                        case '"': case '\\': case '/':
+                        case 'a': case 'b':  case 'f':
+                        case 'n': case 'r':  case 't':
+                        case 'v':
+                            offset++;
+                            cur_column++;
+                            break;
+
+                        /* Hex escape \xNN..., skip hex digits. */
+                        case 'x':
+                            offset++;
+                            cur_column++;
+                            if (!isxdigit (lexer->src[offset]))
+                            {
+                                fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
+                                         cur_line, cur_column);
+                                return false;
+                            }
+                            while (isxdigit (lexer->src[offset]))
+                            {
+                                offset++;
+                                cur_column++;
+                            }
+                            break;
+
+                        // Octal escape \NNN — 1 to 3 octal digits
+                        case '0': case '1': case '2': case '3':
+                        case '4': case '5': case '6': case '7':
+                        {
+                            int count = 0;
+                            while (count < 3 && lexer->src[offset] >= '0' && lexer->src[offset] <= '7')
+                            {
+                                offset++;
+                                cur_column++;
+                                count++;
+                            }
+                            break;
+                        }
+
+                        /* Unicode \uNNNN. */
+                        case 'u':
+                        {
+                            offset++;
+                            cur_column++;
+                            for (int i = 0; i < 4; i++)
+                            {
+                                if (!isxdigit (lexer->src[offset]))
+                                {
+                                    fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
+                                             cur_line, cur_column);
+                                    return false;
+                                }
+                                offset++;
+                                cur_column++;
+                            }
+                            break;
+                        }
+
+                        default:
+                            fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
+                                     esc, cur_line, cur_column);
+                            return false;
+                    }
+                    continue;
                 }
 
-                string.length++;
-                lexer->src[new_length++] = lexer->src[offset++];
+                // Ordinary character
+                offset++;
+                cur_column++;
             }
 
-            _add_token (lexer, &string);
+            if (offset >= lexer->length)
+            {
+                fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
+                         start_line, start_column);
+                return false;
+            }
+
+            // Token spans from start to current offset
+            // Includes the surrounding quotes — strip them in the parser
+            // or semantic phase if needed
+            token_t tok = {
+                .type   = TOKEN_STRING_LITERAL,
+                .src = lexer->src + start,
+                .length = offset - start,
+                .line   = start_line,
+                .column = start_column,
+            };
+            _add_token(lexer, &tok);
             continue;
         }
 
@@ -481,7 +585,7 @@ static bool _phase_3 (lexer_data_t *lexer)
             const size_t len = strlen (CTOK_FIXED_PATTERNS[i].pattern);
             const char endc = lexer->src[offset + len];
             if (strncmp (CTOK_FIXED_PATTERNS[i].pattern, lexer->src + offset,
-                strlen (CTOK_FIXED_PATTERNS[i].pattern)) == 0 && (endc == '_' || isalnum (endc)))
+                strlen (CTOK_FIXED_PATTERNS[i].pattern)) == 0 && (endc != '_' && !isalnum (endc)))
             {
                 regmatch.rm_eo = len;
                 regmatch.rm_so = 0;
@@ -519,13 +623,11 @@ static bool _phase_3 (lexer_data_t *lexer)
             .line = cur_line,
             .column = cur_column,
             .length = length,
-            .src = lexer->src + new_length,
+            .src = lexer->src + offset,
         };
 
-        memmove (lexer->src + new_length, lexer->src + offset, length);
         _add_token (lexer, &token);
 
-        new_length += length;
         offset += length;
         cur_column += length;
     }
@@ -535,7 +637,5 @@ static bool _phase_3 (lexer_data_t *lexer)
         regfree (&regex[i]);
     }
 
-    lexer->src[new_length] = '\0';
-    lexer->length = new_length;
     return true;
 }
