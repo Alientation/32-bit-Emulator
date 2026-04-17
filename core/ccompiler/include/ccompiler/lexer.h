@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 typedef struct Token token_t;
 
 typedef struct LexerData
@@ -14,8 +16,7 @@ typedef struct LexerData
 
 typedef enum TokenType
 {
-    TOKEN_ERROR = -1,
-
+    TOKEN_ERROR,
     TOKEN_KEYWORD_AUTO,
     TOKEN_KEYWORD_BREAK,
     TOKEN_KEYWORD_CASE,
@@ -116,6 +117,8 @@ typedef enum TokenType
     TOKEN_QUESTION_MARK,
 } tokentype_t;
 
+static const int NUM_TOKEN_TYPES = TOKEN_QUESTION_MARK + 1;
+
 struct Token
 {
     tokentype_t type;
@@ -128,10 +131,10 @@ struct Token
     int column;
 };
 
-void lex_file (const char *filepath,
-               lexer_data_t *lexer);
-void lex_str (const char *str,
+bool lex_file (const char *filepath,
               lexer_data_t *lexer);
+bool lex_str (const char *str,
+             lexer_data_t *lexer);
 
 void lexer_init (lexer_data_t *lexer);
 void lexer_print (const lexer_data_t *lexer);

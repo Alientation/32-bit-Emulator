@@ -28,6 +28,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/codegen.c
     src/stringbuffer.c
     src/massert.c
+    src/util.c
 )
 
 target_sources(${PROJECT_NAME}_exec PRIVATE

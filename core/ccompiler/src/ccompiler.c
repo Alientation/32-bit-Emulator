@@ -19,14 +19,18 @@ void ccompile (const char *filepath)
 
     if (last_dot <= 0 || strcmp (filepath + last_dot + 1, "c") != 0)
     {
-        fprintf (stderr, "ERROR: invalid filepath %s, expected *.c", filepath);
+        fprintf (stderr, "ERROR: invalid filepath %s, expected *.c\n", filepath);
         exit (EXIT_FAILURE);
     }
     printf ("Compiling \'%s\'.\n\n", filepath);
 
     struct LexerData lexer;
     lexer_init (&lexer);
-    lex_file (filepath, &lexer);
+    if (!lex_file (filepath, &lexer))
+    {
+        fprintf (stderr, "ERROR: failed to lex file %s\n", filepath);
+        exit (EXIT_FAILURE);
+    }
     lexer_print (&lexer);
     printf ("\n");
 
