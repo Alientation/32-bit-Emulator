@@ -16,6 +16,12 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g --coverage")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
+set(CMAKE_C_FLAGS_DEBUG "-g --coverage")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -flto=auto")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -flto=auto")
+
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "--coverage")
+
 # Set default build type for single-config generators
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release)

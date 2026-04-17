@@ -40,6 +40,12 @@ foreach(tgt assembler basm)
         $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
         $<$<CONFIG:Release>:-O3 -flto=auto>
     )
+
+    target_link_options(${tgt} PRIVATE
+        $<$<CONFIG:Debug>:--coverage>
+        $<$<CONFIG:RelWithDebInfo>:-flto=auto>
+        $<$<CONFIG:Release>:-flto=auto>
+    )
 endforeach()
 
 # Installation rules
