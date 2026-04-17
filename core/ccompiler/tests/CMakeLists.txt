@@ -6,7 +6,7 @@ if(BUILD_TESTS)
     add_executable(ccompiler_test
         ./util_test/stringbuffer_test.cpp
         ./ccompiler_test/lexer_test.cpp
-)
+    )
 
     # Include directories
     target_include_directories(

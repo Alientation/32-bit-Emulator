@@ -1,11 +1,54 @@
 #include <ccompiler_test/ccompiler_test.h>
 
+#include <stdio.h>
+
 TEST (lexer, lexer_print_empty)
 {
     lexer_data_t lexer;
     lexer_init (&lexer);
     lexer_print (&lexer);
     lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_os_linebreaks)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int x = 0;\r\nint y = 0;\nint z = 0;\r\nreturn x + y + z;\n", &lexer));
+
+    EXPECT_EQ (lexer.tok_cnt, 22);
+    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].line, 1);
+
+    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].line, 2);
+
+    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].line, 3);
+
+    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].line, 4);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_file)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    const char *TEMPFILE = "test_lexer_file.s";
+
+    FILE *file = fopen (TEMPFILE, "w");
+    ASSERT_TRUE (file != NULL);
+
+    fprintf (file, "int x = 0;\r\nint y = 0;\nint z = 0;\r\nreturn x + y + z;\n");
+    ASSERT_EQ (fclose(file), 0);
+
+    EXPECT_TRUE (lex_file (TEMPFILE, &lexer));
+
+    ASSERT_EQ (remove (TEMPFILE), 0);
 }
 
 TEST (lexer, lexer_keywords)
@@ -80,6 +123,7 @@ TEST (lexer, lexer_keywords)
         EXPECT_EQ (lexer.toks[i].type, toks[i]);
     }
 
+    lexer_print (&lexer);
     lexer_free (&lexer);
 }
 
