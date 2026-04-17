@@ -18,15 +18,13 @@ static bool _process_lexer (lexer_data_t *lexer);
 static bool _phase_1_2 (lexer_data_t *lexer);
 static bool _phase_3 (lexer_data_t *lexer);
 
-static const int TAB_SIZE = 4;
-
 typedef struct Token_Pattern
 {
     enum TokenType type;
     const char *pattern;
 } tokpat_t;
 
-static tokpat_t CTOK_FIXED_PATTERNS[] =
+static tokpat_t CTOK_KEYWORDS[] =
 {
     { TOKEN_KEYWORD_AUTO, "auto" },
     { TOKEN_KEYWORD_BREAK, "break" },
@@ -73,7 +71,11 @@ static tokpat_t CTOK_FIXED_PATTERNS[] =
     { TOKEN_KEYWORD_STATIC_ASSERT, "_Static_assert" },
     { TOKEN_KEYWORD_THREAD_LOCAL, "_Thread_local" },
     { TOKEN_KEYWORD_FUNC_NAME, "__func__" },
+};
 
+
+static tokpat_t CTOK_OPERATORS[] =
+{
     { TOKEN_ELLIPSIS, "..." },
     { TOKEN_RIGHT_ASSIGN, ">>=" },
     { TOKEN_LEFT_ASSIGN, "<<=" },
@@ -126,11 +128,20 @@ static tokpat_t CTOK_FIXED_PATTERNS[] =
 static const tokpat_t CTOK_PATTERNS[] =
 {
     // Float expressed in scientific notation.
-    { TOKEN_F_CONSTANT, "^[0-9]+([Ee][+-]?[0-9]+)(f|F|l|L)?" },
+    // { TOKEN_F_CONSTANT, "^[0-9]+([Ee][+-]?[0-9]+)(f|F|l|L)?" },
     // Float with decimal point.
-    { TOKEN_F_CONSTANT, "^[0-9]*\\.[0-9]+([Ee][+-]?[0-9]+)?(f|F|l|L)?" },
+    // { TOKEN_F_CONSTANT, "^[0-9]*\\.[0-9]+([Ee][+-]?[0-9]+)?(f|F|l|L)?" },
     //Float with decimal point but no digits after.
-    { TOKEN_F_CONSTANT, "^[0-9]+\\.[Ee][+-]?[0-9]+?(f|F|l|L)?" },
+    // { TOKEN_F_CONSTANT, "^[0-9]+\\.[Ee][+-]?[0-9]+?(f|F|l|L)?" },
+
+    // Float with leading digits.
+    { TOKEN_F_CONSTANT, "^[0-9]+\\.[0-9]*([Ee][+-]?[0-9]+)?[fFlL]?" },
+
+    // Float with leading dot.
+    { TOKEN_F_CONSTANT, "^\\.[0-9]+([Ee][+-]?[0-9]+)?[fFlL]?" },
+
+    // Float without dot.
+    { TOKEN_F_CONSTANT, "^[0-9]+[Ee][+-]?[0-9]+[fFlL]?" },
 
     // Float in hex. Not really within scope.
     // {HP}{H}+{P}{FS}?
@@ -205,10 +216,7 @@ bool lex_str (const char *str,
     lexer->length = strlen (str);
     lexer->src = (char *) calloc (lexer->length + 1, sizeof (char));
     memcpy (lexer->src, str, lexer->length);
-
-    _process_lexer (lexer);
-
-    return true;
+    return _process_lexer (lexer);
 }
 
 void lexer_init (lexer_data_t *lexer)
@@ -336,14 +344,14 @@ static bool _process_lexer (lexer_data_t *lexer)
 // https://en.cppreference.com/w/c/language/translation_phases
 static bool _phase_1_2 (lexer_data_t *lexer)
 {
-    /* Does not handle trigraphs. */
+    // Note, does not handle trigraphs.
     size_t new_length = 0;
     for (size_t i = 0; i < lexer->length; i++)
     {
         const char cur = lexer->src[i];
         const char nxt = lexer->src[i + 1];
 
-        /* Handle OS specific linebreaks. */
+        // Handle OS specific linebreaks.
         if (cur == '\r')
         {
             if (nxt == '\n')
@@ -355,7 +363,7 @@ static bool _phase_1_2 (lexer_data_t *lexer)
         }
         else if (cur == '\\' && nxt == '\n')
         {
-            /* Handle linebreak escapes. */
+            // Handle linebreak escapes.
             i++;
         }
         else
@@ -446,43 +454,39 @@ static bool _phase_3 (lexer_data_t *lexer)
             continue;
         }
 
-        /* Handle C string. */
+        // Handle C string.
         if (cur == '"')
         {
             const size_t start = offset;
             const size_t start_line = cur_line;
             const size_t start_column = cur_column;
 
-            /* Skip first quote. */
+            // Skip first quote.
             offset++;
             cur_column++;
 
-            while (offset <= lexer->length)
+            bool closed = false;
+            while (offset <= lexer->length && lexer->src[offset] != '\n')
             {
                 const char c = lexer->src[offset];
 
-                if (c == '\n')
+                if (c == '\"')
                 {
-                    fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
-                             start_line, start_column);
-                    return false;
-                }
-                else if (c == '"')
-                {
-                    /* Consume closing quote. */
+                    // Consume closing quote.
                     offset++;
                     cur_column++;
+                    closed = true;
                     break;
                 }
                 else if (c == '\\')
                 {
-                    /* Validate and skip the escape sequence. */
+                    // Validate and skip the escape sequence.
                     offset++;
                     cur_column++;
                     const char esc = lexer->src[offset];
                     switch (esc)
                     {
-                        /* Single character escapes, skip one char. */
+                        // Single character escapes, skip one char.
                         case '"': case '\\': case '/':
                         case 'a': case 'b':  case 'f':
                         case 'n': case 'r':  case 't':
@@ -491,7 +495,7 @@ static bool _phase_3 (lexer_data_t *lexer)
                             cur_column++;
                             break;
 
-                        /* Hex escape \xNN..., skip hex digits. */
+                        // Hex escape \xNN..., skip hex digits.
                         case 'x':
                             offset++;
                             cur_column++;
@@ -522,7 +526,7 @@ static bool _phase_3 (lexer_data_t *lexer)
                             break;
                         }
 
-                        /* Unicode \uNNNN. */
+                        // Unicode \uNNNN.
                         case 'u':
                         {
                             offset++;
@@ -549,21 +553,18 @@ static bool _phase_3 (lexer_data_t *lexer)
                     continue;
                 }
 
-                // Ordinary character
+                // Ordinary character.
                 offset++;
                 cur_column++;
             }
 
-            if (offset >= lexer->length)
+            if (!closed)
             {
                 fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
                          start_line, start_column);
                 return false;
             }
 
-            // Token spans from start to current offset
-            // Includes the surrounding quotes — strip them in the parser
-            // or semantic phase if needed
             token_t tok = {
                 .type   = TOKEN_STRING_LITERAL,
                 .src = lexer->src + start,
@@ -579,22 +580,22 @@ static bool _phase_3 (lexer_data_t *lexer)
         regmatch_t regmatch;
         tokentype_t type;
 
-        /* Cheap check if we can match prefix to keyword. TODO: Perhaps change to hashtable approach. */
-        for (size_t i = 0; i < ARRAY_LEN (CTOK_FIXED_PATTERNS) && !matched; i++)
+        // Cheap check if we can match prefix to keyword. TODO: Perhaps change to hashtable approach.
+        for (size_t i = 0; i < ARRAY_LEN (CTOK_KEYWORDS) && !matched; i++)
         {
-            const size_t len = strlen (CTOK_FIXED_PATTERNS[i].pattern);
+            const size_t len = strlen (CTOK_KEYWORDS[i].pattern);
             const char endc = lexer->src[offset + len];
-            if (strncmp (CTOK_FIXED_PATTERNS[i].pattern, lexer->src + offset,
-                strlen (CTOK_FIXED_PATTERNS[i].pattern)) == 0 && (endc != '_' && !isalnum (endc)))
+            if (strncmp (CTOK_KEYWORDS[i].pattern, lexer->src + offset,
+                strlen (CTOK_KEYWORDS[i].pattern)) == 0 && (endc != '_' && !isalnum (endc)))
             {
                 regmatch.rm_eo = len;
                 regmatch.rm_so = 0;
-                type = CTOK_FIXED_PATTERNS[i].type;
+                type = CTOK_KEYWORDS[i].type;
                 matched = true;
             }
         }
 
-        /* Try the regex if not matched to any keyword. */
+        // Try the regex if not matched to any keyword.
         for (size_t i = 0; i < ARRAY_LEN (regex) && !matched; i++)
         {
             if (regexec (&regex[i], lexer->src + offset, 1, &regmatch, 0) != 0)
@@ -605,9 +606,32 @@ static bool _phase_3 (lexer_data_t *lexer)
             matched = true;
         }
 
+        // Match to longest operator.
         if (!matched)
         {
-            fprintf (stderr, "Failed to tokenize at line %lu, column %lu\n", cur_line, cur_column);
+            for (size_t i = 0; i < ARRAY_LEN (CTOK_OPERATORS); i++)
+            {
+                const size_t len = strlen (CTOK_OPERATORS[i].pattern);
+                if (strncmp (CTOK_OPERATORS[i].pattern, lexer->src + offset,
+                    strlen (CTOK_OPERATORS[i].pattern)) == 0)
+                {
+                    // Must not match multiple operators of the same length.
+                    assert (!matched || len != SIZE_T (regmatch.rm_eo));
+                    if (!matched || len > SIZE_T (regmatch.rm_eo) )
+                    {
+                        regmatch.rm_eo = len;
+                        regmatch.rm_so = 0;
+                        type = CTOK_OPERATORS[i].type;
+                        matched = true;
+                    }
+                }
+            }
+        }
+
+        if (!matched)
+        {
+            fprintf (stderr, "Failed to tokenize \'%.10s\' at line %lu, column %lu\n",
+                     lexer->src + offset, cur_line, cur_column);
             return false;
         }
 

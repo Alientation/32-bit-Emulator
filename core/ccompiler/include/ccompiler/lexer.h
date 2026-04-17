@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#ifndef TAB_SIZE
+    #define TAB_SIZE 4
+#endif
+
 typedef struct Token token_t;
 
 typedef struct LexerData
