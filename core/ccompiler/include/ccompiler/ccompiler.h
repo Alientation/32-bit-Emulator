@@ -1,8 +1,10 @@
 #pragma once
 
+#include <stddef.h>
+
 struct CompilerOptions
 {
-    int n_src_files;
+    size_t n_src_files;
     const char **src_files;
 
 

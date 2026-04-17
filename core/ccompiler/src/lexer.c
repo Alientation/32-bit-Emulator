@@ -230,9 +230,9 @@ void lexer_init (lexer_data_t *lexer)
 void lexer_print (const lexer_data_t *lexer)
 {
     printf ("PRINTING TOKENS");
-    for (int i = 0; i < lexer->tok_cnt; i++)
+    for (size_t i = 0; i < lexer->tok_cnt; i++)
     {
-        printf("\n[%d] ", i);
+        printf("\n[%lu] ", i);
         token_print (&lexer->toks[i]);
     }
     printf ("\n");
@@ -255,7 +255,7 @@ char *token_tostr (token_t *tok)
     static char strbuffer[256];
     if ((unsigned long) tok->length >= sizeof (strbuffer))
     {
-        fprintf (stderr, "ERROR: failed to print token at \'%s\' of length %d\n", tok->src, tok->length);
+        fprintf (stderr, "ERROR: failed to print token at \'%s\' of length %lu\n", tok->src, tok->length);
         exit (EXIT_FAILURE);
     }
 
@@ -298,14 +298,14 @@ void token_print (token_t *tok)
 
     static_assert (NUM_TOKEN_TYPES == ARRAY_LEN (tokentype_to_str));
 
+    char *buffer = token_tostr (tok);
     if (tok->type < ARRAY_LEN (tokentype_to_str))
     {
-        char *buffer = token_tostr (tok);
         printf ("%s: \'%s\'", buffer, tokentype_to_str[tok->type]);
     }
     else
     {
-        fprintf (stderr, "UNKNOWN_TYPE: \'%s\'\n");
+        fprintf (stderr, "UNKNOWN_TYPE: \'%s\'\n", buffer);
         exit (EXIT_FAILURE);
     }
 }
@@ -316,7 +316,7 @@ static void _add_token (lexer_data_t *lexer, token_t *tok)
     {
         const int new_cap = lexer->tok_cap * 2 + 10;
         lexer->toks = realloc (lexer->toks, new_cap * sizeof (lexer->toks[0]));
-        lexer->toks = new_cap;
+        lexer->tok_cap = new_cap;
 
         if (lexer->toks == NULL)
         {
@@ -337,8 +337,8 @@ static bool _process_lexer (lexer_data_t *lexer)
 static bool _phase_1_2 (lexer_data_t *lexer)
 {
     /* Does not handle trigraphs. */
-    int new_length = 0;
-    for (int i = 0; i < lexer->length; i++)
+    size_t new_length = 0;
+    for (size_t i = 0; i < lexer->length; i++)
     {
         const char cur = lexer->src[i];
         const char nxt = lexer->src[i + 1];
@@ -393,7 +393,7 @@ static bool _phase_1_2 (lexer_data_t *lexer)
     return true;
 }
 
-static void _update_line (char c, int *cur_line, int *cur_column)
+static void _update_line (char c, size_t *cur_line, size_t *cur_column)
 {
     switch (c)
     {
@@ -424,12 +424,12 @@ static bool _phase_3 (lexer_data_t *lexer)
     }
 
     /* Where in the str buffer the next character should be moved to. Handles removing characters mid-processing. */
-    int new_length = 0;
+    size_t new_length = 0;
 
-    int cur_line = 1;
-    int cur_column = 1;
+    size_t cur_line = 1;
+    size_t cur_column = 1;
 
-    for (int offset = 0; offset < lexer->length; offset++)
+    for (size_t offset = 0; offset < lexer->length; offset++)
     {
         const char cur = lexer->src[offset];
 
@@ -503,7 +503,7 @@ static bool _phase_3 (lexer_data_t *lexer)
 
         if (!matched)
         {
-            fprintf (stderr, "Failed to tokenize at line %d, column %d\n", cur_line, cur_column);
+            fprintf (stderr, "Failed to tokenize at line %lu, column %lu\n", cur_line, cur_column);
             return false;
         }
 

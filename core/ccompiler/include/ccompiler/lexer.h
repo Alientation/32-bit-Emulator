@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdbool.h>
 
 typedef struct Token token_t;
@@ -7,11 +8,11 @@ typedef struct Token token_t;
 typedef struct LexerData
 {
     char *src;
-    int length;
+    size_t length;
 
     token_t *toks;
-    int tok_cnt;
-    int tok_cap;
+    size_t tok_cnt;
+    size_t tok_cap;
 } lexer_data_t;
 
 typedef enum TokenType
@@ -117,18 +118,18 @@ typedef enum TokenType
     TOKEN_QUESTION_MARK,
 } tokentype_t;
 
-static const int NUM_TOKEN_TYPES = TOKEN_QUESTION_MARK + 1;
+#define NUM_TOKEN_TYPES (TOKEN_QUESTION_MARK + 1)
 
 struct Token
 {
     tokentype_t type;
 
     const char *src;
-    int length;
+    size_t length;
 
     const char *file;
-    int line;
-    int column;
+    size_t line;
+    size_t column;
 };
 
 bool lex_file (const char *filepath,

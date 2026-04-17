@@ -21,10 +21,6 @@ static bool istok (parser_data_t *parser, tokentype_t type);
 
 static void err (parser_data_t *parser, const char * fmt, ...);
 
-static void parser_commit (parser_data_t *parser);
-static void parser_checkpoint (parser_data_t *parser);
-static void parser_rollback (parser_data_t *parser);
-
 static astnode_t *allocate_astnode (astnodetype_t type);
 
 static astnode_t *parse_prog (parser_data_t *parser);
@@ -48,13 +44,6 @@ void parse (const lexer_data_t *lexer,
 {
     parser->lexer = lexer;
     parser->ast = parse_prog (parser);
-
-    if (parser->history.length != 0)
-    {
-        fprintf (stderr, "ERROR: parser is malformed, expected checkpoint history to be empty but has %d elements\n",
-                parser->history.length);
-        exit (EXIT_FAILURE);
-    }
 }
 
 
@@ -63,9 +52,6 @@ void parser_init (parser_data_t *parser)
     parser->lexer = NULL;
     parser->tok_i = 0;
     parser->ast = NULL;
-    parser->history.checkpoints = NULL;
-    parser->history.length = 0;
-    parser->history.capacity = 0;
 
     stringbuffer_init (&parser->err_msg_buffer);
 }
@@ -243,60 +229,6 @@ static void tokerr (parser_data_t *parser, token_t *tok)
                token_tostr (tok), tok->line, tok->column);
 }
 
-static void parser_commit (parser_data_t *parser)
-{
-    if (parser->history.length <= 0)
-    {
-        fprintf (stderr, "ERROR: failed to commit parser state, no checkpoint in history\n");
-        exit (EXIT_FAILURE);
-    }
-
-    parser->history.length--;
-    stringbuffer_clear (&parser->err_msg_buffer);
-}
-
-static void parser_checkpoint (parser_data_t *parser)
-{
-    if (parser->history.length + 1 > parser->history.capacity)
-    {
-        int capacity = parser->history.capacity * 2;
-        if (capacity < parser->history.length + 1)
-        {
-            capacity = parser->history.length + 1;
-        }
-
-        parser_state_t *old = parser->history.checkpoints;
-        parser->history.checkpoints = calloc (capacity, sizeof (parser_state_t));
-
-        if (!parser->history.checkpoints)
-        {
-            fprintf (stderr, "ERROR: failed to allocate memory\n");
-            exit (EXIT_FAILURE);
-        }
-
-        if (old)
-        {
-            memcpy (parser->history.checkpoints, old, parser->history.length * sizeof (parser_state_t));
-            free (old);
-        }
-    }
-
-    parser->history.checkpoints[parser->history.length].tok_i = parser->tok_i;
-    parser->history.length++;
-}
-
-static void parser_rollback (parser_data_t *parser)
-{
-    if (parser->history.length <= 0)
-    {
-        fprintf (stderr, "ERROR: failed to rollback parser, no checkpoint saved\n");
-        exit (EXIT_FAILURE);
-    }
-
-    parser->history.length--;
-    parser->tok_i = parser->history.checkpoints[parser->history.length].tok_i;
-}
-
 static token_t *nxttok (parser_data_t *parser)
 {
     if (parser->tok_i < parser->lexer->tok_cnt)
@@ -377,23 +309,19 @@ static astnode_t *allocate_astnode (astnodetype_t type)
 
 static astnode_t *parse_prog (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *prog = allocate_astnode (AST_PROG);
 
     if (!(prog->as.prog.func = parse_func (parser)))
     {
         ASTNode_free (prog);
-        parser_rollback (parser);
         return NULL;
     }
 
-    parser_commit (parser);
     return prog;
 }
 
 static astnode_t *parse_func (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *func = allocate_astnode (AST_FUNC);
 
     if (!exp_nxttok_is (parser, TOKEN_KEYWORD_INT, "Expected an 'int' return type for function\n") ||
@@ -404,48 +332,37 @@ static astnode_t *parse_func (parser_data_t *parser)
         !(func->as.func.body = parse_statement (parser)) ||
         !exp_nxttok_is (parser, TOKEN_CLOSE_BRACE, "Expected '}' to close function body\n"))
     {
-
-        parser_rollback (parser);
         ASTNode_free (func);
         return NULL;
     }
 
-    parser_commit (parser);
     return func;
 }
 
 static astnode_t *parse_statement (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *statement = allocate_astnode (AST_STATEMENT);
 
     if (!exp_nxttok_is (parser, TOKEN_KEYWORD_RETURN, "Expected \'return\' statement\n") ||
         !(statement->as.statement.body = parse_expr (parser)) ||
         !exp_nxttok_is (parser, TOKEN_SEMICOLON, "Expected \';\' to end statement\n"))
     {
-        parser_rollback (parser);
         ASTNode_free (statement);
         return NULL;
     }
-
-    parser_commit(parser);
     return statement;
 }
 
 static astnode_t *parse_expr (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *expr = allocate_astnode (AST_EXPR);
 
     if (!(expr->as.expr.body = parse_factor (parser)) ||
         !(expr->as.expr.body = parse_binary_expr_2 (parser)))
     {
-        parser_rollback (parser);
         ASTNode_free (expr);
         return NULL;
     }
-
-    parser_commit (parser);
     return expr;
 }
 
@@ -458,7 +375,7 @@ static bool to_int (parser_data_t *parser, token_t *tok, int *out)
     }
 
     int val = 0;
-    for (int i = 0; i < tok->length; i++)
+    for (size_t i = 0; i < tok->length; i++)
     {
         val *= 10;
         val += tok->src[i] - '0';
@@ -470,17 +387,13 @@ static bool to_int (parser_data_t *parser, token_t *tok, int *out)
 
 static astnode_t *parse_literal_int (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *literal_int = allocate_astnode (AST_LITERAL_INT);
     if (!(literal_int->as.literal_int.tok_int = exp_nxttok_is (parser, TOKEN_I_CONSTANT, "Expected integer literal\n")) ||
         !to_int (parser, literal_int->as.literal_int.tok_int, &literal_int->as.literal_int.value))
     {
-        parser_rollback (parser);
         ASTNode_free (literal_int);
         return NULL;
     }
-
-    parser_commit (parser);
     return literal_int;
 }
 
@@ -503,18 +416,14 @@ static token_t *get_unary_op (parser_data_t *parser)
 
 static astnode_t *parse_unary_expr (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *unary_expr = allocate_astnode (AST_UNARY_EXPR);
 
     if (!(unary_expr->as.unary_expr.tok_op = get_unary_op (parser)) ||
         !(unary_expr->as.unary_expr.operand = parse_factor (parser)))
     {
-        parser_rollback (parser);
         ASTNode_free (unary_expr);
         return NULL;
     }
-
-    parser_commit (parser);
     return unary_expr;
 }
 
@@ -539,19 +448,15 @@ static token_t *get_binary_op_1 (parser_data_t *parser)
 
 static astnode_t *parse_binary_expr_1 (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *binary_expr_1 = allocate_astnode (AST_BINARY_EXPR_1);
 
     if (!(binary_expr_1->as.binary_expr_1.operand_a = parse_factor (parser)) ||
         !(binary_expr_1->as.binary_expr_1.tok_op = get_binary_op_1 (parser)) ||
         !(binary_expr_1->as.binary_expr_1.operand_b = parse_factor (parser)))
     {
-        parser_rollback (parser);
         ASTNode_free (binary_expr_1);
         return NULL;
     }
-
-    parser_commit (parser);
     return binary_expr_1;
 }
 
@@ -575,61 +480,46 @@ static token_t *get_binary_op_2 (parser_data_t *parser)
 
 static astnode_t *parse_binary_expr_2 (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *binary_expr_2 = allocate_astnode (AST_BINARY_EXPR_2);
 
     if (!(binary_expr_2->as.binary_expr_2.operand_a = parse_binary_expr_1 (parser)) ||
         !(binary_expr_2->as.binary_expr_2.tok_op = get_binary_op_2 (parser)) ||
         !(binary_expr_2->as.binary_expr_2.operand_b = parse_binary_expr_1 (parser)))
     {
-        parser_rollback (parser);
         ASTNode_free (binary_expr_2);
         return NULL;
     }
-
-    parser_commit (parser);
     return binary_expr_2;
 }
 
 static astnode_t *parse_factor (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *factor = allocate_astnode (AST_FACTOR);
 
     if (exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS, "Expected open parenthesis\n") &&
         (factor->as.factor.body = parse_expr (parser)))
     {
-        parser_commit (parser);
         return factor;
     }
-
-    parser_rollback (parser);
-    parser_checkpoint (parser);
 
     if (!(factor->as.factor.body = parse_unary_expr (parser)) ||
         !(factor->as.factor.body = parse_literal_int (parser)))
     {
-        parser_rollback (parser);
         ASTNode_free (factor);
         return NULL;
     }
 
-    parser_commit (parser);
     return factor;
 }
 
 static astnode_t *parse_ident (parser_data_t *parser)
 {
-    parser_checkpoint (parser);
     astnode_t *ident = allocate_astnode (AST_IDENT);
 
     if (!(ident->as.ident.tok_id = exp_nxttok_is (parser, TOKEN_IDENTIFIER, "Expected identifier\n")))
     {
-        parser_rollback (parser);
         ASTNode_free (ident);
         return NULL;
     }
-
-    parser_commit (parser);
     return ident;
 }

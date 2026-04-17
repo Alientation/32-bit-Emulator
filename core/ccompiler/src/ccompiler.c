@@ -10,9 +10,9 @@
 
 void ccompile (const char *filepath)
 {
-    int filepath_len = strlen (filepath);
-    int last_dot = filepath_len - 1;
-    while (last_dot >= 0 && filepath[last_dot] != '.')
+    size_t filepath_len = strlen (filepath);
+    size_t last_dot = filepath_len - 1;
+    while (last_dot + 1 > 0 && filepath[last_dot] != '.')
     {
         last_dot--;
     }
@@ -28,6 +28,7 @@ void ccompile (const char *filepath)
     lexer_init (&lexer);
     if (!lex_file (filepath, &lexer))
     {
+        lexer_free (&lexer);
         fprintf (stderr, "ERROR: failed to lex file %s\n", filepath);
         exit (EXIT_FAILURE);
     }
@@ -43,6 +44,8 @@ void ccompile (const char *filepath)
 
     if (parser.had_error)
     {
+        parser_free (&parser);
+        lexer_free (&lexer);
         fprintf (stderr, "ERROR: %s\n", parser.err_msg_buffer.buf);
         exit (EXIT_FAILURE);
     }
@@ -67,6 +70,6 @@ void ccompile (const char *filepath)
 
 
     free (output_filepath);
-    lexer_free (&lexer);
     parser_free (&parser);
+    lexer_free (&lexer);
 }

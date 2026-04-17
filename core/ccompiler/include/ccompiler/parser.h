@@ -108,29 +108,16 @@ typedef struct ASTNode
 
 } astnode_t;
 
-typedef struct ParserState
-{
-    int tok_i;
-} parser_state_t;
-
-typedef struct ParserHistory
-{
-    parser_state_t *checkpoints;
-    int length;
-    int capacity;
-} parser_history_t;
 
 typedef struct ParserData
 {
     const lexer_data_t *lexer;
-    int tok_i;
+    size_t tok_i;
 
     astnode_t *ast;
 
     bool had_error;
     stringbuffer_t err_msg_buffer;
-
-    parser_history_t history;
 } parser_data_t;
 
 void parse (const lexer_data_t *lexer,
