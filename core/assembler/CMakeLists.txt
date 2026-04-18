@@ -21,18 +21,13 @@ target_include_directories(assembler
 )
 
 target_compile_features(assembler PUBLIC cxx_std_20)
-
 target_link_libraries(assembler PUBLIC util emulator32bit)
 
-# Debug postfix
 set_target_properties(assembler PROPERTIES DEBUG_POSTFIX "d")
 
-# Executable
 add_executable(basm src/main.cpp)
 target_link_libraries(basm PRIVATE assembler)
-target_compile_features(basm PRIVATE cxx_std_20)
 
-# Compiler flags per target
 foreach(tgt assembler basm)
     target_compile_options(${tgt} PRIVATE
         -Wall -Wextra -Wpedantic
@@ -48,7 +43,6 @@ foreach(tgt assembler basm)
     )
 endforeach()
 
-# Installation rules
 include(GNUInstallDirs)
 
 install(TARGETS assembler

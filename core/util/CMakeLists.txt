@@ -15,13 +15,23 @@ target_include_directories(util
         $<INSTALL_INTERFACE:include>
 )
 
-# Enforce C++17
 target_compile_features(util PUBLIC cxx_std_20)
 
-# Optional debug postfix
+target_compile_options(util PRIVATE
+    -Wall -Wextra -Wpedantic
+    $<$<CONFIG:Debug>:-g --coverage>
+    $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
+    $<$<CONFIG:Release>:-O3 -flto=auto>
+)
+
+target_link_options(util PRIVATE
+    $<$<CONFIG:Debug>:--coverage>
+    $<$<CONFIG:RelWithDebInfo>:-flto=auto>
+    $<$<CONFIG:Release>:-flto=auto>
+)
+
 set_target_properties(util PROPERTIES DEBUG_POSTFIX "d")
 
-# Installation
 include(GNUInstallDirs)
 install(TARGETS util
     EXPORT util-targets
@@ -31,14 +41,11 @@ install(TARGETS util
 )
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} FILES_MATCHING PATTERN "*.h")
 
-# Export config for find_package
 install(EXPORT util-targets
     NAMESPACE util::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/util
 )
 
-# TODO: add util tests
-# Build tests if requested
 # if(BUILD_TESTS)
-    # add_subdirectory(tests)
+#     add_subdirectory(tests)
 # endif()

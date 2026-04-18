@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 project(emulator32bit_tests LANGUAGES CXX)
 
 if(BUILD_TESTS)
-    # Create test executable
     add_executable(emulator32bit_tests
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
@@ -39,13 +38,11 @@ if(BUILD_TESTS)
         ./instruction_tests/swp_test.cpp
     )
 
-    # Include directories (test-private)
     target_include_directories(emulator32bit_tests
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
 
-    # Link libraries
     target_link_libraries(emulator32bit_tests
         PRIVATE
             emulator32bit
@@ -53,7 +50,6 @@ if(BUILD_TESTS)
             GTest::gtest_main
     )
 
-    # Compiler flags
     target_compile_options(emulator32bit_tests PRIVATE
         -Wall -Wextra -Wpedantic
         $<$<CONFIG:Debug>:-g --coverage>
@@ -61,12 +57,12 @@ if(BUILD_TESTS)
         $<$<CONFIG:Release>:-O3 -flto=auto>
     )
 
-    # GCC: link gcov for coverage
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_link_libraries(emulator32bit_tests PRIVATE gcov)
-    endif()
+    target_link_options(emulator32bit_tests PRIVATE
+        $<$<CONFIG:Debug>:--coverage>
+        $<$<CONFIG:RelWithDebInfo>:-flto=auto>
+        $<$<CONFIG:Release>:-flto=auto>
+    )
 
-    # Discover GoogleTest tests automatically
     include(GoogleTest)
     gtest_discover_tests(emulator32bit_tests PROPERTIES LABELS emulator32bit)
 endif()
