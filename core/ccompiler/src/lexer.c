@@ -16,7 +16,7 @@ static void _add_token (lexer_data_t *lexer, token_t *tok);
 
 static bool _process_lexer (lexer_data_t *lexer);
 static bool _phase_1_2 (lexer_data_t *lexer);
-static bool _phase_3 (lexer_data_t *lexer);
+static bool _phase_3_4 (lexer_data_t *lexer);
 
 typedef struct Token_Pattern
 {
@@ -342,7 +342,7 @@ static void _add_token (lexer_data_t *lexer, token_t *tok)
 
 static bool _process_lexer (lexer_data_t *lexer)
 {
-    return _phase_1_2 (lexer) && _phase_3 (lexer);
+    return _phase_1_2 (lexer) && _phase_3_4 (lexer);
 }
 
 // https://en.cppreference.com/w/c/language/translation_phases
@@ -381,8 +381,185 @@ static bool _phase_1_2 (lexer_data_t *lexer)
     return true;
 }
 
-// Tokenize (including preprocessor tokens)
-static bool _phase_3 (lexer_data_t *lexer)
+/* Handle comment if exists otherwise skip. Returns if comment is processed. */
+static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+{
+    const char cur = lexer->src[*offset];
+    const char nxt = lexer->src[*offset + 1];
+
+    if (cur == '/' && nxt == '/')
+    {
+        while (*offset < lexer->length && lexer->src[*offset] != '\n')
+        {
+            (*offset)++;
+            (*cur_column)++;
+        }
+
+        return true;
+    }
+
+    if (cur == '/' && nxt == '*')
+    {
+        (*offset) += 2;
+        (*cur_column) += 2;
+        while (*offset < lexer->length)
+        {
+            if (lexer->src[*offset] == '\n')
+            {
+                (*cur_line)++;
+                (*cur_column) = 1;
+            }
+            else if (lexer->src[*offset] == '*' && lexer->src[*offset + 1] == '/')
+            {
+                (*offset) += 2;
+                (*cur_column) += 2;
+                break;
+            }
+            else
+            {
+                (*cur_column)++;
+            }
+            (*offset)++;
+        }
+
+        return true;
+    }
+    return false;
+}
+
+/* Process C string. Returns false if it is not valid. */
+static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+{
+    const size_t start = *offset;
+    const size_t start_line = *cur_line;
+    const size_t start_column = *cur_column;
+
+    // Skip first quote.
+    (*offset)++;
+    (*cur_column)++;
+
+    bool closed = false;
+    while (*offset <= lexer->length && lexer->src[*offset] != '\n')
+    {
+        const char c = lexer->src[*offset];
+
+        if (c == '\"')
+        {
+            // Consume closing quote.
+            (*offset)++;
+            (*cur_column)++;
+            closed = true;
+            break;
+        }
+        else if (c == '\\')
+        {
+            // Validate and skip the escape sequence.
+            (*offset)++;
+            (*cur_column)++;
+            const char esc = lexer->src[*offset];
+            switch (esc)
+            {
+                // Single character escapes, skip one char.
+                case '"': case '\\': case '/':
+                case 'a': case 'b':  case 'f':
+                case 'n': case 'r':  case 't':
+                case 'v':
+                    (*offset)++;
+                    (*cur_column)++;
+                    break;
+
+                // Hex escape \xNN..., skip hex digits.
+                case 'x':
+                    (*offset)++;
+                    (*cur_column)++;
+                    if (!isxdigit (lexer->src[*offset]))
+                    {
+                        fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
+                                    *cur_line, *cur_column);
+                        return false;
+                    }
+                    while (isxdigit (lexer->src[*offset]))
+                    {
+                        (*offset)++;
+                        (*cur_column)++;
+                    }
+                    break;
+
+                // Octal escape \NNN — 1 to 3 octal digits
+                case '0': case '1': case '2': case '3':
+                case '4': case '5': case '6': case '7':
+                {
+                    int count = 0;
+                    while (count < 3 && lexer->src[*offset] >= '0' && lexer->src[*offset] <= '7')
+                    {
+                        (*offset)++;
+                        (*cur_column)++;
+                        count++;
+                    }
+                    break;
+                }
+
+                // Unicode \uNNNN.
+                case 'u':
+                {
+                    (*offset)++;
+                    (*cur_column)++;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (!isxdigit (lexer->src[*offset]))
+                        {
+                            fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
+                                        *cur_line, *cur_column);
+                            return false;
+                        }
+                        (*offset)++;
+                        (*cur_column)++;
+                    }
+                    break;
+                }
+
+                default:
+                    fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
+                                esc, *cur_line, *cur_column);
+                    return false;
+            }
+            continue;
+        }
+
+        // Ordinary character.
+        (*offset)++;
+        (*cur_column)++;
+    }
+
+    if (!closed)
+    {
+        fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
+                    start_line, start_column);
+        return false;
+    }
+
+    token_t tok = {
+        .type   = TOKEN_STRING_LITERAL,
+        .src = lexer->src + start,
+        .length = *offset - start,
+        .line   = start_line,
+        .column = start_column,
+    };
+    _add_token(lexer, &tok);
+    return true;
+
+}
+
+/* Process a preprocessor directive. Assumption is that the '#' at offset is the
+   first non-whitespace character in the line. Returns false if invalid preprocessor. */
+static bool _handle_preprocessor (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+{
+
+    return true;
+}
+
+// Tokenize while handling preprocessor directives.
+static bool _phase_3_4 (lexer_data_t *lexer)
 {
     regex_t regex[ARRAY_LEN (CTOK_PATTERNS)];
     for (size_t i = 0; i < ARRAY_LEN (CTOK_PATTERNS); i++)
@@ -398,10 +575,12 @@ static bool _phase_3 (lexer_data_t *lexer)
     size_t cur_line = 1;
     size_t cur_column = 1;
 
+    // Used for checking if preprocessor directive.
+    bool first_non_whitespace_char_on_line = true;
+
     while (offset < lexer->length)
     {
         const char cur = lexer->src[offset];
-        const char nxt = lexer->src[offset + 1];
 
         if (isspace (cur))
         {
@@ -416,167 +595,36 @@ static bool _phase_3 (lexer_data_t *lexer)
                 case '\n':
                     cur_column = 1;
                     cur_line++;
+                    first_non_whitespace_char_on_line = true;
                     break;
             }
             offset++;
             continue;
         }
+        first_non_whitespace_char_on_line = false;
 
-        if (cur == '/' && nxt == '/')
+        if (_handle_comment (lexer, &offset, &cur_line, &cur_column))
         {
-            while (offset < lexer->length && lexer->src[offset] != '\n')
-            {
-                offset++;
-                cur_column++;
-            }
-            continue;
-        }
-
-        if (cur == '/' && nxt == '*')
-        {
-            offset += 2;
-            cur_column += 2;
-            while (offset < lexer->length)
-            {
-                if (lexer->src[offset] == '\n')
-                {
-                    cur_line++;
-                    cur_column = 1;
-                }
-                else if (lexer->src[offset] == '*' && lexer->src[offset+1] == '/')
-                {
-                    offset += 2;
-                    cur_column += 2;
-                    break;
-                }
-                else
-                {
-                    cur_column++;
-                }
-                offset++;
-            }
             continue;
         }
 
         // Handle C string.
-        if (cur == '"')
+        if (cur == '\"')
         {
-            const size_t start = offset;
-            const size_t start_line = cur_line;
-            const size_t start_column = cur_column;
-
-            // Skip first quote.
-            offset++;
-            cur_column++;
-
-            bool closed = false;
-            while (offset <= lexer->length && lexer->src[offset] != '\n')
+            if (!_handle_c_str (lexer, &offset, &cur_line, &cur_column))
             {
-                const char c = lexer->src[offset];
-
-                if (c == '\"')
-                {
-                    // Consume closing quote.
-                    offset++;
-                    cur_column++;
-                    closed = true;
-                    break;
-                }
-                else if (c == '\\')
-                {
-                    // Validate and skip the escape sequence.
-                    offset++;
-                    cur_column++;
-                    const char esc = lexer->src[offset];
-                    switch (esc)
-                    {
-                        // Single character escapes, skip one char.
-                        case '"': case '\\': case '/':
-                        case 'a': case 'b':  case 'f':
-                        case 'n': case 'r':  case 't':
-                        case 'v':
-                            offset++;
-                            cur_column++;
-                            break;
-
-                        // Hex escape \xNN..., skip hex digits.
-                        case 'x':
-                            offset++;
-                            cur_column++;
-                            if (!isxdigit (lexer->src[offset]))
-                            {
-                                fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
-                                         cur_line, cur_column);
-                                return false;
-                            }
-                            while (isxdigit (lexer->src[offset]))
-                            {
-                                offset++;
-                                cur_column++;
-                            }
-                            break;
-
-                        // Octal escape \NNN — 1 to 3 octal digits
-                        case '0': case '1': case '2': case '3':
-                        case '4': case '5': case '6': case '7':
-                        {
-                            int count = 0;
-                            while (count < 3 && lexer->src[offset] >= '0' && lexer->src[offset] <= '7')
-                            {
-                                offset++;
-                                cur_column++;
-                                count++;
-                            }
-                            break;
-                        }
-
-                        // Unicode \uNNNN.
-                        case 'u':
-                        {
-                            offset++;
-                            cur_column++;
-                            for (int i = 0; i < 4; i++)
-                            {
-                                if (!isxdigit (lexer->src[offset]))
-                                {
-                                    fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
-                                             cur_line, cur_column);
-                                    return false;
-                                }
-                                offset++;
-                                cur_column++;
-                            }
-                            break;
-                        }
-
-                        default:
-                            fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
-                                     esc, cur_line, cur_column);
-                            return false;
-                    }
-                    continue;
-                }
-
-                // Ordinary character.
-                offset++;
-                cur_column++;
-            }
-
-            if (!closed)
-            {
-                fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
-                         start_line, start_column);
                 return false;
             }
+            continue;
+        }
 
-            token_t tok = {
-                .type   = TOKEN_STRING_LITERAL,
-                .src = lexer->src + start,
-                .length = offset - start,
-                .line   = start_line,
-                .column = start_column,
-            };
-            _add_token(lexer, &tok);
+        // Check if preprocessor directive. '#' must be the first non-whitespace character of the line.
+        if (first_non_whitespace_char_on_line && cur == '#')
+        {
+            if (!_handle_preprocessor (lexer, &offset, &cur_line, &cur_column))
+            {
+                return false;
+            }
             continue;
         }
 
