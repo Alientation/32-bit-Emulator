@@ -59,7 +59,7 @@ cmake --version
 Ninja --version
 
 # Run the build script or CMake to configure and build directly
-# Requires C++17 to build (and gcc/gcov for code coverage)
+# Requires C++17 and Ninja to build (and gcc/gcov, lcov for code coverage)
 ./build.bat
 ./build.sh
 ```
