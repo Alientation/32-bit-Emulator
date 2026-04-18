@@ -1,5 +1,7 @@
 #include "ccompiler/stringbuffer.h"
 
+#include "ccompiler/massert.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,8 +24,7 @@ static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t targ
 
     if (!stringbuffer->buf)
     {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
+        M_UNREACHABLE ("ERROR: failed to allocat memory.");
     }
 
     if (old_buf)
@@ -53,33 +54,31 @@ void stringbuffer_free (stringbuffer_t *stringbuffer)
 void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    va_start (args, fmt);
 
     // find required size
     va_list args_copy;
-    va_copy(args_copy, args);
-    int size = vsnprintf(NULL, 0, fmt, args_copy);
-    va_end(args_copy);
+    va_copy (args_copy, args);
+    int size = vsnprintf (NULL, 0, fmt, args_copy);
+    va_end (args_copy);
 
-    if (size < 0) {
-        va_end(args);
-
-        fprintf (stderr, "ERROR: vsnprintf failed\n");
-        exit (EXIT_FAILURE);
+    if (size < 0)
+    {
+        va_end (args);
+        M_UNREACHABLE ("ERROR: vsnprintf failed.");
     }
 
     // allocate space for string (+1 for null terminator)
-    char* buffer = calloc(size + 1, sizeof (char));
-    if (!buffer) {
-        va_end(args);
-
-        fprintf (stderr, "ERROR: memory allocation failed\n");
-        exit (EXIT_FAILURE);
+    char* buffer = calloc (size + 1, sizeof (char));
+    if (!buffer)
+    {
+        va_end (args);
+        M_UNREACHABLE ("ERROR: memory allocation failed.");
     }
 
     // output into buffer
-    vsnprintf(buffer, size + 1, fmt, args);
-    va_end(args);
+    vsnprintf (buffer, size + 1, fmt, args);
+    va_end (args);
 
     // append to string buffer
     stringbuffer_appendl (stringbuffer, buffer, size);
