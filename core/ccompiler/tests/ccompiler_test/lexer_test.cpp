@@ -56,6 +56,30 @@ TEST (lexer, lexer_escaping_os_linebreaks)
     lexer_free (&lexer);
 }
 
+TEST (lexer, lexer_whitespace)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("\vint x \f= 0;\f\r\nint \fy \f= 0;\v\n\fint z =\v 0;\v\r\freturn x + y + z;\n\v\f", &lexer));
+
+    EXPECT_EQ (lexer.tok_cnt, 22);
+    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].line, 1);
+
+    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].line, 2);
+
+    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].line, 3);
+
+    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].line, 4);
+
+    lexer_free (&lexer);
+}
+
+
 TEST (lexer, lexer_file)
 {
     lexer_data_t lexer;
