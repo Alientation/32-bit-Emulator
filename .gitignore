@@ -5,6 +5,7 @@ install/
 
 *.bin
 *.info
+coverage/
 
 # Important files for units tests. TODO: Explore removing this requirement. instead we can mock disk?
 !core/assembler/tests/disk.bin

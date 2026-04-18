@@ -166,24 +166,25 @@ static const tokpat_t CTOK_PATTERNS[] =
 bool lex_file (const char* filepath,
               lexer_data_t *lexer)
 {
-    char *buffer = NULL;
+    _cleanup_free_ char *buffer = NULL;
+    _cleanup_fclose_ FILE *file = NULL;
     long file_size = 0;
 
-    FILE *file = fopen (filepath, "rb");
-    if (!file)
+    if (!(file = fopen (filepath, "rb")))
     {
+        fprintf (stderr, "ERROR: failed to find file '%s'\n", filepath);
         return false;
     }
 
     if (fseek (file, 0, SEEK_END) == -1)
     {
-        fclose (file);
+        fprintf (stderr, "ERROR: fseek failed for file '%s'\n", filepath);
         return false;
     }
 
     if ((file_size = ftell (file)) == -1)
     {
-        fclose (file);
+        fprintf (stderr, "ERROR: ftell failed for file '%s'\n", filepath);
         return false;
     }
     rewind (file);
@@ -192,21 +193,17 @@ bool lex_file (const char* filepath,
     if (buffer == NULL)
     {
         fprintf (stderr, "ERROR: failed to allocate memory\n");
-        fclose (file);
         return false;
     }
 
     if (fread (buffer, 1, file_size, file) != (size_t) file_size)
     {
         fprintf (stderr, "ERROR: failed to read file\n");
-        free (buffer);
-        fclose (file);
         return false;
     }
-    fclose (file);
 
-    lexer->src = buffer;
     lexer->length = strlen (buffer);
+    lexer->src = STEAL (buffer);
     return _process_lexer (lexer);
 }
 
@@ -215,6 +212,13 @@ bool lex_str (const char *str,
 {
     lexer->length = strlen (str);
     lexer->src = (char *) calloc (lexer->length + 1, sizeof (char));
+
+    if (!lexer->src)
+    {
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        return false;
+    }
+
     memcpy (lexer->src, str, lexer->length);
     return _process_lexer (lexer);
 }
@@ -261,7 +265,7 @@ void lexer_free (lexer_data_t *lexer)
 char *token_tostr (token_t *tok)
 {
     static char strbuffer[256];
-    if ((unsigned long) tok->length >= sizeof (strbuffer))
+    if ((unsigned long) tok->length >= ARRAY_LEN (strbuffer))
     {
         fprintf (stderr, "ERROR: token too long to print, length %zu at line %zu\n", tok->length, tok->line);
         exit (EXIT_FAILURE);

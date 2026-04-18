@@ -15,7 +15,7 @@ TEST (lexer, lexer_os_linebreaks)
     lexer_data_t lexer;
     lexer_init (&lexer);
 
-    EXPECT_TRUE (lex_str ("int x = 0;\r\nint y = 0;\nint z = 0;\r\nreturn x + y + z;\n", &lexer));
+    EXPECT_TRUE (lex_str ("int x = 0;\r\nint y = 0;\nint z = 0;\rreturn x + y + z;\n", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 22);
     EXPECT_EQ (lexer.toks[0].column, 1);
@@ -49,6 +49,18 @@ TEST (lexer, lexer_file)
     EXPECT_TRUE (lex_file (TEMPFILE, &lexer));
 
     ASSERT_EQ (remove (TEMPFILE), 0);
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_file_error)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    const char *TEMPFILE = "test_lexer_file_error.s";
+
+    EXPECT_FALSE (lex_file (TEMPFILE, &lexer));
+    lexer_free (&lexer);
 }
 
 TEST (lexer, lexer_keywords)

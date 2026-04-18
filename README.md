@@ -60,8 +60,7 @@ Ninja --version
 
 # Run the build script or CMake to configure and build directly
 # Requires C++17 and Ninja to build (and gcc/gcov, lcov for code coverage)
-./build.bat
-./build.sh
+./build.sh [clean]
 ```
 
 
@@ -71,18 +70,22 @@ Ninja --version
 
 # Executables should be located under the corresponding subdirectory in build/debug or build/release
 # Examples
-build/release/app/emulator-app[.exe] ...
-build/release/assembler/basm[.exe] ...
-build/release/ccompiler/ccompiler[.exe] ...
-build/release/assembler/basm[.exe] ...
+build/release/app/emulator-app ...
+build/release/assembler/basm ...
+build/release/ccompiler/ccompiler ...
+build/release/assembler/basm ...
 ```
 
 
 ## **Running Tests**
 ```
-# For now, tests are automatically ran whenever the build scripts are executed
-./build.bat
+# For now, tests are automatically ran whenever the build scripts are executed.
 ./build.sh
+
+# Code Coverage is generated automatically for the debug build. To generate lcov coverage info to display, use the coverage argument.
+./build.sh coverage
+
+# Then use the Coverage Gutters and Live Preview extension to view the coverage page.
 ```
 
 
@@ -90,7 +93,7 @@ build/release/assembler/basm[.exe] ...
 To build a specific basm program and run it on the emulator, pass a build argument to the app/emulator-app executable\
 Note, currently the build process argument parser is extremely rudimentary so options that take an argument must have a space in between\
 \
-*Windows Example:* `-I .\programs\include -o .\programs\build\palindrome .\programs\src\palindrome.basm -outdir .\programs\build`
+*Example:* `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`
 #### Some useful options
 * -o <path>: output file path relative to the current directory (output file is an executable `.bexe` unless otherwise specified)
 * -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
@@ -102,6 +105,11 @@ Note, currently the build process argument parser is extremely rudimentary so op
 ## **Documentation**
 *todo*
 
+## **Current Work**
+* C Compiler (written in C)
+* - Working on Lexer
+* Improving/modernizing build and test system
+* - Added code coverage tools to assist in unit test development
 
 ## **Future Goals**
 * Add floating point instructions, relocation entry types, and section directives to help partition code

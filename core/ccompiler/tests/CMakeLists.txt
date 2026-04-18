@@ -23,7 +23,15 @@ if(BUILD_TESTS)
             GTest::gtest_main
     )
 
-    # GCC-specific code coverage library
+    target_compile_options(ccompiler_test PRIVATE
+        -Wall -Wextra -Wpedantic
+        $<$<CONFIG:Debug>:-g --coverage>
+    )
+
+    target_link_options(ccompiler_test PRIVATE
+        $<$<CONFIG:Debug>:--coverage>
+    )
+
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_link_libraries(ccompiler_test PRIVATE gcov)
     endif()

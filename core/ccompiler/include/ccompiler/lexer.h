@@ -145,5 +145,7 @@ void lexer_init (lexer_data_t *lexer);
 void lexer_print (const lexer_data_t *lexer);
 void lexer_free (lexer_data_t *lexer);
 
+/* Returns a string representation of a token. String is valid until the next token_tostr() call.
+   Memory is not dynamically allocated. */
 char *token_tostr (token_t *tok);
 void token_print (token_t *tok);
