@@ -35,7 +35,7 @@ if [ $# -gt 0 ]; then
             --directory build/debug \
             --output-file coverage.info \
             --rc branch_coverage=1 \
-            --ignore-errors mismatch \
+            --ignore-errors mismatch,mismatch \
             --ignore-errors gcov
 
         lcov --remove coverage.info \

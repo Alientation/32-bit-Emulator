@@ -33,6 +33,29 @@ TEST (lexer, lexer_os_linebreaks)
     lexer_free (&lexer);
 }
 
+TEST (lexer, lexer_escaping_os_linebreaks)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int x = 0;\\\r\nint y = 0;\\\nint z = 0;\\\rreturn x + y + z;\\\n", &lexer));
+
+    EXPECT_EQ (lexer.tok_cnt, 22);
+    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].line, 1);
+
+    EXPECT_EQ (lexer.toks[5].column, 11);
+    EXPECT_EQ (lexer.toks[5].line, 1);
+
+    EXPECT_EQ (lexer.toks[10].column, 21);
+    EXPECT_EQ (lexer.toks[10].line, 1);
+
+    EXPECT_EQ (lexer.toks[15].column, 31);
+    EXPECT_EQ (lexer.toks[15].line, 1);
+
+    lexer_free (&lexer);
+}
+
 TEST (lexer, lexer_file)
 {
     lexer_data_t lexer;

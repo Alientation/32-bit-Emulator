@@ -354,6 +354,7 @@ static bool _phase_1_2 (lexer_data_t *lexer)
     {
         const char cur = lexer->src[i];
         const char nxt = lexer->src[i + 1];
+        const char nxtnxt = i + 2 <= lexer->length ? lexer->src[i + 2] : '\0';
 
         // Handle OS specific linebreaks.
         if (cur == '\r')
@@ -365,10 +366,14 @@ static bool _phase_1_2 (lexer_data_t *lexer)
 
             lexer->src[new_length++] = '\n';
         }
-        else if (cur == '\\' && nxt == '\n')
+        else if (cur == '\\' && (nxt == '\n' || nxt == '\r'))
         {
             // Handle linebreak escapes.
             i++;
+            if (nxt == '\r' && nxtnxt == '\n')
+            {
+                i++;
+            }
         }
         else
         {
@@ -387,7 +392,12 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
     const char cur = lexer->src[*offset];
     const char nxt = lexer->src[*offset + 1];
 
-    if (cur == '/' && nxt == '/')
+    if (cur != '/')
+    {
+        return false;
+    }
+
+    if (nxt == '/')
     {
         while (*offset < lexer->length && lexer->src[*offset] != '\n')
         {
@@ -397,8 +407,7 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
 
         return true;
     }
-
-    if (cur == '/' && nxt == '*')
+    else if (nxt == '*')
     {
         (*offset) += 2;
         (*cur_column) += 2;
@@ -430,6 +439,8 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
 /* Process C string. Returns false if it is not valid. */
 static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
 {
+    assert (lexer->src[*offset] == '\"');
+
     const size_t start = *offset;
     const size_t start_line = *cur_line;
     const size_t start_column = *cur_column;
@@ -554,6 +565,12 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
    first non-whitespace character in the line. Returns false if invalid preprocessor. */
 static bool _handle_preprocessor (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
 {
+    assert (lexer->src[*offset] == '#');
+
+    UNUSED (lexer);
+    UNUSED (offset);
+    UNUSED (cur_line);
+    UNUSED (cur_column);
 
     return true;
 }
@@ -589,14 +606,20 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 case ' ':
                     cur_column++;
                     break;
+                case '\f':
+                    break;
                 case '\t':
                     cur_column += TAB_SIZE;
                     break;
+                case '\v':
+                    break;
                 case '\n':
-                    cur_column = 1;
                     cur_line++;
+                    cur_column = 1;
                     first_non_whitespace_char_on_line = true;
                     break;
+                default:
+                    UNREACHABLE ();
             }
             offset++;
             continue;

@@ -7,6 +7,8 @@
 #include <stdio.h>
 
 #define ARRAY_LEN(arr) (sizeof (arr) / sizeof (arr[0]))
+#define UNUSED(var) ((void) var)
+
 
 #define SIZE_T(val) ((size_t) val)
 #define ULONG_T(val) ((unsigned long) val)
