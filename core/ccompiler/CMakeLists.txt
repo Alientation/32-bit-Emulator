@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(ccompiler LANGUAGES C)
 
-# Create targets
 add_library(ccompiler STATIC
     src/ccompiler.c
     src/lexer.c
@@ -13,6 +12,18 @@ add_library(ccompiler STATIC
 )
 
 add_executable(ccompiler_exec src/main.c)
+
+target_include_directories(ccompiler
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(ccompiler_exec PRIVATE ccompiler)
+
+if(WIN32)
+    target_link_libraries(ccompiler PRIVATE regex)
+endif()
 
 foreach(tgt ccompiler ccompiler_exec)
     target_compile_options(${tgt} PRIVATE
@@ -28,20 +39,5 @@ foreach(tgt ccompiler ccompiler_exec)
         $<$<CONFIG:Release>:-flto=auto>
     )
 endforeach()
-
-# Include directories
-target_include_directories(ccompiler
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
-# Linkage
-target_link_libraries(ccompiler_exec PRIVATE ccompiler)
-
-if(WIN32)
-    # MinGW/Cygwin regex support
-    target_link_libraries(ccompiler PRIVATE regex)
-endif()
 
 add_subdirectory(tests)
