@@ -519,6 +519,36 @@ TEST (lexer, slash_not_comment)
     lexer_free (&lexer);
 }
 
+TEST (lexer, character_basic)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'H' + 'e' + 'l' + 'l' + 'o' + ' ' + 'W' + 'o' + 'r' + 'l' + 'd' + '!' ", &lexer));
+
+    EXPECT_EQ (lexer.tok_cnt, 12 + 11);
+
+    for (size_t i = 0; i < 12 + 11; i += 2)
+    {
+        EXPECT_EQ (lexer.toks[i].type, TOKEN_I_CONSTANT);
+        EXPECT_EQ (lexer.toks[i].length, 3);
+        EXPECT_EQ (lexer.toks[i].src[0], '\'');
+        EXPECT_EQ (lexer.toks[i].src[2], '\'');
+    }
+}
+
+TEST (lexer, character_escape_sequences)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'\\\"'", &lexer));
+
+    EXPECT_EQ (lexer.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.toks[0].length, strlen ("'\\\"'"));
+    EXPECT_EQ (strncmp (lexer.toks[0].src, "'\\\"'", strlen ("'\\\"'")), 0);
+}
+
 TEST (lexer, string_basic)
 {
     lexer_data_t lexer;

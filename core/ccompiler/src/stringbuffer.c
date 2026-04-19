@@ -16,10 +16,11 @@ static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t targ
     {
         new_capacity = 2 * target_cap;
     }
+    new_capacity++;
     stringbuffer->capacity = new_capacity;
 
     char *old_buf = stringbuffer->buf;
-    stringbuffer->buf = calloc (new_capacity + 1, sizeof (char));
+    stringbuffer->buf = calloc (new_capacity, sizeof (char));
 
     if (!stringbuffer->buf)
     {
@@ -97,7 +98,7 @@ void stringbuffer_append (stringbuffer_t *stringbuffer, const char *str)
 
 void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const size_t len)
 {
-    if (stringbuffer->length + len > stringbuffer->capacity)
+    if (stringbuffer->length + len + 1 > stringbuffer->capacity)
     {
         stringbuffer_extend (stringbuffer, stringbuffer->length + len);
     }

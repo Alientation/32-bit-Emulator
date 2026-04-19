@@ -4,6 +4,9 @@ TEST (stringbuffer, stringbuffer_buffer_null_buffer_ptr)
 {
     stringbuffer_t sb{};
     stringbuffer_init (&sb);
+
+    stringbuffer_append (&sb, "");
+
     stringbuffer_free (&sb);
 
     EXPECT_EQ (sb.buf, nullptr);

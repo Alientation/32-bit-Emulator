@@ -693,8 +693,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 if (offset + 3 < lexer->length && lexer->src[offset + 3] == '\'')
                 {
                     type = TOKEN_I_CONSTANT;
-                    regmatch.rm_eo = 3;
-                    offset += 3;
+                    regmatch.rm_eo = 4;
                     matched = true;
                 }
                 else
@@ -704,17 +703,16 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                     return false;
                 }
             }
-            else if (offset + 2 < lexer->length && lexer->src[offset + 2])
+            else if (offset + 2 < lexer->length && lexer->src[offset + 2] == '\'')
             {
                 type = TOKEN_I_CONSTANT;
-                regmatch.rm_eo = 2;
-                offset += 2;
+                regmatch.rm_eo = 3;
                 matched = true;
             }
             else
             {
                 fprintf (stderr, "ERROR: Invalid character \'%.6s\' at line %lu, column %lu\n",
-                         lexer->src, cur_line, cur_column);
+                         lexer->src + offset, cur_line, cur_column);
                 return false;
             }
         }
