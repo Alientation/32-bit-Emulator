@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdarg.h>
 #include <stddef.h>
 
 typedef struct StringBuffer
@@ -14,6 +15,7 @@ void stringbuffer_init (stringbuffer_t *stringbuffer);
 void stringbuffer_free (stringbuffer_t *stringbuffer);
 
 void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...);
+void stringbuffer_vappendf (stringbuffer_t *stringbuffer, const char *fmt, va_list args);
 void stringbuffer_append (stringbuffer_t *stringbuffer, const char *str);
 void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const size_t len);
 

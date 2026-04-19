@@ -11,7 +11,9 @@ void _M_ASSERT (bool cond, const char *cond_str, const char *file, int line, con
         va_list args;
         va_start(args, msg_fmt);
 
-        fprintf (stderr, msg_fmt, args);
+        vfprintf (stderr, msg_fmt, args);
+        va_end (args);
+
         fprintf (stderr, "\nAssert failed condition %s at %s:%d\n", cond_str, file, line);
         exit (EXIT_FAILURE);
     }

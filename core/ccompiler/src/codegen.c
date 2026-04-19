@@ -279,11 +279,11 @@ static void codegen_func (codegen_data_t *codegen, astnode_t *node)
 
     // mark symbol as global '.global <func.name>'
     stringbuffer_appendf (&codegen->glob_sym_decl, ".global %.*s\n",
-            ident->as.ident.tok_id->length, ident->as.ident.tok_id->length);
+            ident->as.ident.tok_id->length, ident->as.ident.tok_id->src);
 
     // label in text section '<func.name>:'
     stringbuffer_appendf (&codegen->txt_sect, "%.*s:\n",
-            ident->as.ident.tok_id->length, ident->as.ident.tok_id->length);
+            ident->as.ident.tok_id->length, ident->as.ident.tok_id->src);
 
     codegen_func_t func;
     func_init (&func, node);

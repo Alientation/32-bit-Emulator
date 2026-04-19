@@ -44,14 +44,14 @@ TEST (lexer, lexer_escaping_os_linebreaks)
     EXPECT_EQ (lexer.toks[0].column, 1);
     EXPECT_EQ (lexer.toks[0].line, 1);
 
-    EXPECT_EQ (lexer.toks[5].column, 11);
-    EXPECT_EQ (lexer.toks[5].line, 1);
+    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].line, 2);
 
-    EXPECT_EQ (lexer.toks[10].column, 21);
-    EXPECT_EQ (lexer.toks[10].line, 1);
+    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].line, 4);
 
-    EXPECT_EQ (lexer.toks[15].column, 31);
-    EXPECT_EQ (lexer.toks[15].line, 1);
+    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].line, 6);
 
     lexer_free (&lexer);
 }
@@ -432,19 +432,6 @@ TEST (lexer, column_tracking_multiline)
 
     EXPECT_EQ (lexer.toks[2].line,   3);
     EXPECT_EQ (lexer.toks[2].column, 3);
-
-    lexer_free (&lexer);
-}
-
-TEST (lexer, column_tracking_tab)
-{
-    lexer_data_t lexer;
-    lexer_init (&lexer);
-
-    EXPECT_TRUE (lex_str ("\tx", &lexer));
-
-    EXPECT_EQ (lexer.tok_cnt, 1);
-    EXPECT_EQ (lexer.toks[0].column, 1 + TAB_SIZE);
 
     lexer_free (&lexer);
 }

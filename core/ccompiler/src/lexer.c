@@ -228,6 +228,9 @@ void lexer_init (lexer_data_t *lexer)
     lexer->toks = NULL;
     lexer->length = 0;
 
+    lexer->lines = NULL;
+    lexer->nlines = 0;
+
     lexer->tok_cnt = 0;
     lexer->tok_cap = 4;
     lexer->toks = calloc (lexer->tok_cap, sizeof (*lexer->toks));
@@ -251,14 +254,11 @@ void lexer_print (const lexer_data_t *lexer)
 
 void lexer_free (lexer_data_t *lexer)
 {
-    free ((void *) lexer->src);
+    free (lexer->src);
     free (lexer->toks);
+    free (lexer->lines);
 
-    lexer->src = NULL;
-    lexer->length = 0;
-    lexer->tok_cnt = 0;
-    lexer->tok_cap = 0;
-    lexer->toks = NULL;
+    *lexer = (lexer_data_t) {0};
 }
 
 char *token_tostr (token_t *tok)
@@ -350,15 +350,14 @@ static bool _process_lexer (lexer_data_t *lexer)
 // https://en.cppreference.com/w/c/language/translation_phases
 static bool _phase_1_2 (lexer_data_t *lexer)
 {
-    // Note, does not handle trigraphs.
+    // First count how many lines are in the file. Does not account for escaped newlines.
     size_t new_length = 0;
+    lexer->nlines = 1;
     for (size_t i = 0; i < lexer->length; i++)
     {
         const char cur = lexer->src[i];
         const char nxt = lexer->src[i + 1];
-        const char nxtnxt = i + 2 <= lexer->length ? lexer->src[i + 2] : '\0';
 
-        // Handle OS specific linebreaks.
         if (cur == '\r')
         {
             if (nxt == '\n')
@@ -367,25 +366,79 @@ static bool _phase_1_2 (lexer_data_t *lexer)
             }
 
             lexer->src[new_length++] = '\n';
+            lexer->nlines++;
         }
-        else if (cur == '\\' && (nxt == '\n' || nxt == '\r'))
+        else if (cur == '\v' || cur == '\f')
         {
-            // Handle linebreak escapes.
-            i++;
-            if (nxt == '\r' && nxtnxt == '\n')
-            {
-                i++;
-            }
+            continue;
         }
         else
         {
             lexer->src[new_length++] = lexer->src[i];
+
+            if (cur == '\n')
+            {
+                lexer->nlines++;
+            }
         }
     }
 
     lexer->src[new_length] = '\0';
     lexer->length = new_length;
+
+    lexer->lines = calloc (lexer->nlines, sizeof (lexer->lines[0]));
+    if (!lexer->lines)
+    {
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        return false;
+    }
+
+    // Handle escaped line breaks.
+    new_length = 0;
+    size_t cur_line_idx = 0;
+    lexer->lines[cur_line_idx] = 0;
+    for (size_t i = 0; i < lexer->length; i++)
+    {
+        const char cur = lexer->src[i];
+        const char nxt = lexer->src[i + 1];
+
+        // Handle OS specific linebreaks.
+        if (cur == '\\' && nxt == '\n')
+        {
+            i++;
+
+            // Still need to keep track of the new line in the source file.
+            lexer->lines[++cur_line_idx] = new_length;
+        }
+        else
+        {
+            lexer->src[new_length++] = lexer->src[i];
+
+            if (cur == '\n')
+            {
+                lexer->lines[++cur_line_idx] = new_length;
+            }
+        }
+    }
+
+    assert (cur_line_idx + 1 == lexer->nlines);
+
+    lexer->src[new_length] = '\0';
+    lexer->length = new_length;
     return true;
+}
+
+static inline void _update_linecol (lexer_data_t *lexer, size_t offset, size_t *cur_line, size_t *cur_column)
+{
+    size_t cur_lineidx = (*cur_line) - 1;
+
+    while (cur_lineidx + 1 < lexer->nlines && lexer->lines[cur_lineidx+ 1] <= offset)
+    {
+        cur_lineidx++;
+    }
+
+    *cur_line = cur_lineidx + 1;
+    *cur_column = offset - lexer->lines[cur_lineidx] + 1;
 }
 
 /* Handle comment if exists otherwise skip. Returns if comment is processed. */
@@ -404,7 +457,6 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
         while (*offset < lexer->length && lexer->src[*offset] != '\n')
         {
             (*offset)++;
-            (*cur_column)++;
         }
 
         return true;
@@ -412,23 +464,16 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
     else if (nxt == '*')
     {
         (*offset) += 2;
-        (*cur_column) += 2;
         while (*offset < lexer->length)
         {
-            if (lexer->src[*offset] == '\n')
-            {
-                (*cur_line)++;
-                (*cur_column) = 1;
-            }
-            else if (lexer->src[*offset] == '*' && lexer->src[*offset + 1] == '/')
+            if (lexer->src[*offset] == '*' && lexer->src[*offset + 1] == '/')
             {
                 (*offset) += 2;
-                (*cur_column) += 2;
                 break;
             }
             else
             {
-                (*cur_column)++;
+                _update_linecol (lexer, *offset, cur_line, cur_column);
             }
             (*offset)++;
         }
@@ -444,12 +489,13 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
     assert (lexer->src[*offset] == '\"');
 
     const size_t start = *offset;
+
+    _update_linecol (lexer, *offset, cur_line, cur_column);
     const size_t start_line = *cur_line;
     const size_t start_column = *cur_column;
 
     // Skip first quote.
     (*offset)++;
-    (*cur_column)++;
 
     bool closed = false;
     while (*offset <= lexer->length && lexer->src[*offset] != '\n')
@@ -460,7 +506,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
         {
             // Consume closing quote.
             (*offset)++;
-            (*cur_column)++;
             closed = true;
             break;
         }
@@ -468,7 +513,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
         {
             // Validate and skip the escape sequence.
             (*offset)++;
-            (*cur_column)++;
             const char esc = lexer->src[*offset];
             switch (esc)
             {
@@ -478,13 +522,11 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
                 case 'n': case 'r':  case 't':
                 case 'v':
                     (*offset)++;
-                    (*cur_column)++;
                     break;
 
                 // Hex escape \xNN..., skip hex digits.
                 case 'x':
                     (*offset)++;
-                    (*cur_column)++;
                     if (!isxdigit (lexer->src[*offset]))
                     {
                         fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
@@ -494,7 +536,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
                     while (isxdigit (lexer->src[*offset]))
                     {
                         (*offset)++;
-                        (*cur_column)++;
                     }
                     break;
 
@@ -506,7 +547,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
                     while (count < 3 && lexer->src[*offset] >= '0' && lexer->src[*offset] <= '7')
                     {
                         (*offset)++;
-                        (*cur_column)++;
                         count++;
                     }
                     break;
@@ -516,7 +556,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
                 case 'u':
                 {
                     (*offset)++;
-                    (*cur_column)++;
                     for (int i = 0; i < 4; i++)
                     {
                         if (!isxdigit (lexer->src[*offset]))
@@ -526,7 +565,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
                             return false;
                         }
                         (*offset)++;
-                        (*cur_column)++;
                     }
                     break;
                 }
@@ -541,7 +579,6 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
 
         // Ordinary character.
         (*offset)++;
-        (*cur_column)++;
     }
 
     if (!closed)
@@ -576,7 +613,7 @@ static bool _handle_preprocessor (lexer_data_t *lexer, size_t *offset, size_t *c
 
     if (strncmp (lexer->src + (*offset), "", strlen ("")) == 0)
     {
-
+        // TODO:
     }
 
 
@@ -609,25 +646,9 @@ static bool _phase_3_4 (lexer_data_t *lexer)
 
         if (isspace (cur))
         {
-            switch (cur)
+            if (cur == '\n')
             {
-                case ' ':
-                    cur_column++;
-                    break;
-                case '\f':
-                    break;
-                case '\t':
-                    cur_column += TAB_SIZE;
-                    break;
-                case '\v':
-                    break;
-                case '\n':
-                    cur_line++;
-                    cur_column = 1;
-                    first_non_whitespace_char_on_line = true;
-                    break;
-                default:
-                    UNREACHABLE ();
+                first_non_whitespace_char_on_line = true;
             }
             offset++;
             continue;
@@ -674,6 +695,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                     type = TOKEN_I_CONSTANT;
                     regmatch.rm_eo = 3;
                     offset += 3;
+                    matched = true;
                 }
                 else
                 {
@@ -687,6 +709,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 type = TOKEN_I_CONSTANT;
                 regmatch.rm_eo = 2;
                 offset += 2;
+                matched = true;
             }
             else
             {
@@ -755,6 +778,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         assert (regmatch.rm_so == 0);
         const int length = regmatch.rm_eo - regmatch.rm_so;
 
+        _update_linecol (lexer, offset, &cur_line, &cur_column);
         token_t token =
         {
             .type = type,
@@ -767,7 +791,6 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         _add_token (lexer, &token);
 
         offset += length;
-        cur_column += length;
     }
 
     for (size_t i = 0; i < ARRAY_LEN (regex); i++)

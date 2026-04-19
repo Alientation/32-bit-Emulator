@@ -3,19 +3,30 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#ifndef TAB_SIZE
-    #define TAB_SIZE 4
-#endif
-
 typedef struct Token token_t;
 
 typedef struct LexerData
 {
+    // NUL terminated string representing the source to run the lexer on.
     char *src;
+
+    // Length of the string not including the NUL terminator.
     size_t length;
 
+    // Track the offset into the source string each line starts at. 0 indexed so line 1 starts at
+    // the offset in lines[0].
+    size_t *lines;
+
+    // Number of lines in the file.
+    size_t nlines;
+
+    // Processed array of tokens.
     token_t *toks;
+
+    // The number of valid tokens in the array.
     size_t tok_cnt;
+
+    // The amount of memory (in terms of tokens) allocated for the array. Used for resizing.
     size_t tok_cap;
 } lexer_data_t;
 
@@ -137,11 +148,16 @@ struct Token
 {
     tokentype_t type;
 
+    // Pointer into the overall source string, a lexeme of sorts.
     const char *src;
+
+    // Length of token in the source string.
     size_t length;
 
-    const char *file;
+    // Line in the source file.
     size_t line;
+
+    // Column in the source file.
     size_t column;
 };
 

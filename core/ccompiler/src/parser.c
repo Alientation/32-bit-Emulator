@@ -290,7 +290,8 @@ static void err (parser_data_t *parser, const char * fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    stringbuffer_appendf (&parser->err_msg_buffer, fmt, args);
+    stringbuffer_vappendf (&parser->err_msg_buffer, fmt, args);
+    va_end (args);
 }
 
 static astnode_t *allocate_astnode (astnodetype_t type)

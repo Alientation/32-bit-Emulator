@@ -2,7 +2,6 @@
 
 #include "ccompiler/massert.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +23,8 @@ static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t targ
 
     if (!stringbuffer->buf)
     {
-        M_UNREACHABLE ("ERROR: failed to allocat memory.");
+        free (old_buf);
+        M_UNREACHABLE ("ERROR: failed to allocate memory.");
     }
 
     if (old_buf)
@@ -55,7 +55,12 @@ void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
+    stringbuffer_vappendf (stringbuffer, fmt, args);
+    va_end (args);
+}
 
+void stringbuffer_vappendf (stringbuffer_t *stringbuffer, const char *fmt, va_list args)
+{
     // find required size
     va_list args_copy;
     va_copy (args_copy, args);
@@ -78,10 +83,10 @@ void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...)
 
     // output into buffer
     vsnprintf (buffer, size + 1, fmt, args);
-    va_end (args);
 
     // append to string buffer
     stringbuffer_appendl (stringbuffer, buffer, size);
+    free (buffer);
 }
 
 void stringbuffer_append (stringbuffer_t *stringbuffer, const char *str)
