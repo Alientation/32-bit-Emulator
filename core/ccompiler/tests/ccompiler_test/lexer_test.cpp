@@ -38,7 +38,7 @@ TEST (lexer, lexer_escaping_os_linebreaks)
     lexer_data_t lexer;
     lexer_init (&lexer);
 
-    EXPECT_TRUE (lex_str ("int x = 0;\\\r\nint y = 0;\\\nint z = 0;\\\rreturn x + y + z;\\\n", &lexer));
+    EXPECT_TRUE (lex_str ("int x = 0;\\\r\ni\\\nnt y = 0;\\\nin\\\nt z = 0;\\\rr\\\ne\\\nt\\\nu\\\nr\\\nn x + y + z;\\\n", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 22);
     EXPECT_EQ (lexer.toks[0].column, 1);
@@ -118,10 +118,12 @@ TEST (lexer, lexer_keywords)
     TokenType toks[] =
     {
         TOKEN_KEYWORD_AUTO,
+        TOKEN_KEYWORD_BOOL,
         TOKEN_KEYWORD_BREAK,
         TOKEN_KEYWORD_CASE,
         TOKEN_KEYWORD_CHAR,
         TOKEN_KEYWORD_CONST,
+        TOKEN_KEYWORD_CONSTEXPR,
         TOKEN_KEYWORD_CONTINUE,
         TOKEN_KEYWORD_DEFAULT,
         TOKEN_KEYWORD_DO,
@@ -129,6 +131,7 @@ TEST (lexer, lexer_keywords)
         TOKEN_KEYWORD_ELSE,
         TOKEN_KEYWORD_ENUM,
         TOKEN_KEYWORD_EXTERN,
+        TOKEN_KEYWORD_FALSE,
         TOKEN_KEYWORD_FLOAT,
         TOKEN_KEYWORD_FOR,
         TOKEN_KEYWORD_GOTO,
@@ -136,6 +139,7 @@ TEST (lexer, lexer_keywords)
         TOKEN_KEYWORD_INLINE,
         TOKEN_KEYWORD_INT,
         TOKEN_KEYWORD_LONG,
+        TOKEN_KEYWORD_NULLPTR,
         TOKEN_KEYWORD_REGISTER,
         TOKEN_KEYWORD_RESTRICT,
         TOKEN_KEYWORD_RETURN,
@@ -143,9 +147,14 @@ TEST (lexer, lexer_keywords)
         TOKEN_KEYWORD_SIGNED,
         TOKEN_KEYWORD_SIZEOF,
         TOKEN_KEYWORD_STATIC,
+        TOKEN_KEYWORD_STATIC_ASSERT,
         TOKEN_KEYWORD_STRUCT,
         TOKEN_KEYWORD_SWITCH,
+        TOKEN_KEYWORD_THREAD_LOCAL,
+        TOKEN_KEYWORD_TRUE,
         TOKEN_KEYWORD_TYPEDEF,
+        TOKEN_KEYWORD_TYPEOF,
+        TOKEN_KEYWORD_TYPEOF_UNQUAL,
         TOKEN_KEYWORD_UNION,
         TOKEN_KEYWORD_UNSIGNED,
         TOKEN_KEYWORD_VOID,
@@ -154,24 +163,77 @@ TEST (lexer, lexer_keywords)
         TOKEN_KEYWORD_ALIGNAS,
         TOKEN_KEYWORD_ALIGNOF,
         TOKEN_KEYWORD_ATOMIC,
+        TOKEN_KEYWORD_BIGINT,
         TOKEN_KEYWORD_BOOL,
         TOKEN_KEYWORD_COMPLEX,
+        TOKEN_KEYWORD_DECIMAL128,
+        TOKEN_KEYWORD_DECIMAL32,
+        TOKEN_KEYWORD_DECIMAL64,
         TOKEN_KEYWORD_GENERIC,
         TOKEN_KEYWORD_IMAGINARY,
         TOKEN_KEYWORD_NORETURN,
         TOKEN_KEYWORD_STATIC_ASSERT,
-        TOKEN_KEYWORD_THREAD_LOCAL,
-        TOKEN_KEYWORD_FUNC_NAME
+        TOKEN_KEYWORD_THREAD_LOCAL
     };
 
     EXPECT_TRUE (lex_str (
-        "auto " "break " "case " "char " "const " "continue "
-        "default " "do " "double " "else " "enum " "extern "
-        "float " "for " "goto " "if " "inline " "int " "long " "register "
-        "restrict " "return " "short " "signed " "sizeof " "static " "struct "
-        "switch " "typedef " "union " "unsigned " "void " "volatile " "while "
-        "_Alignas " "_Alignof " "_Atomic " "_Bool " "_Complex " "_Generic "
-        "_Imaginary " "_Noreturn " "_Static_assert " "_Thread_local " "__func__ ",
+        " auto "
+        " bool "
+        " break "
+        " case "
+        " char "
+        " const "
+        " constexpr "
+        " continue "
+        " default "
+        " do "
+        " double "
+        " else "
+        " enum "
+        " extern "
+        " false "
+        " float "
+        " for "
+        " goto "
+        " if "
+        " inline "
+        " int "
+        " long "
+        " nullptr "
+        " register "
+        " restrict "
+        " return "
+        " short "
+        " signed "
+        " sizeof "
+        " static "
+        " static_assert "
+        " struct "
+        " switch "
+        " thread_local "
+        " true "
+        " typedef "
+        " typeof "
+        " typeof_unqual "
+        " union "
+        " unsigned "
+        " void "
+        " volatile "
+        " while "
+        " _Alignas "
+        " _Alignof "
+        " _Atomic "
+        " _BigInt "
+        " _Bool "
+        " _Complex "
+        " _Decimal128 "
+        " _Decimal32 "
+        " _Decimal64 "
+        " _Generic "
+        " _Imaginary "
+        " _Noreturn "
+        " _Static_assert "
+        " _Thread_local ",
         &lexer));
 
     EXPECT_GE (lexer.tok_cap, lexer.tok_cnt);
