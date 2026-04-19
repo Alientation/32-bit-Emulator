@@ -139,13 +139,6 @@ static tokpat_t CTOK_OPERATORS[] =
 
 static const tokpat_t CTOK_PATTERNS[] =
 {
-    // Float expressed in scientific notation.
-    // { TOKEN_F_CONSTANT, "^[0-9]+([Ee][+-]?[0-9]+)(f|F|l|L)?" },
-    // Float with decimal point.
-    // { TOKEN_F_CONSTANT, "^[0-9]*\\.[0-9]+([Ee][+-]?[0-9]+)?(f|F|l|L)?" },
-    //Float with decimal point but no digits after.
-    // { TOKEN_F_CONSTANT, "^[0-9]+\\.[Ee][+-]?[0-9]+?(f|F|l|L)?" },
-
     // Float with leading digits.
     { TOKEN_F_CONSTANT, "^[0-9]+\\.[0-9]*([Ee][+-]?[0-9]+)?[fFlL]?" },
 
@@ -155,20 +148,14 @@ static const tokpat_t CTOK_PATTERNS[] =
     // Float without dot.
     { TOKEN_F_CONSTANT, "^[0-9]+[Ee][+-]?[0-9]+[fFlL]?" },
 
-    // Float in hex. Not really within scope.
-    // {HP}{H}+{P}{FS}?
-    // {HP}{H}*"."{H}+{P}{FS}?
-    // {HP}{H}+"."{P}{FS}?
-
     // Decimal.
     { TOKEN_I_CONSTANT, "^[1-9][0-9]*(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
-    // Hexadecimal
+    // Hexadecimal.
     { TOKEN_I_CONSTANT, "^0[xX][0-9a-fA-F]+(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
-    // Octal
+    // Octal.
     { TOKEN_I_CONSTANT, "^0[0-7]*(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
-
-    // Character
-    { TOKEN_I_CONSTANT, "^[uUL]?'([^'\\\\\n]|(\\\\(['\"?\\\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))'+" },
+    // Binary.
+    { TOKEN_I_CONSTANT, "^0[bB][01]+(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
 
     // Identifiers can only start with an alphabet or underscore character then
     // followed by a alphanumeric characters.
@@ -673,8 +660,41 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         }
 
         bool matched = false;
-        regmatch_t regmatch;
+        regmatch_t regmatch = {0};
         tokentype_t type;
+
+        // Handle character.
+        if (cur == '\'')
+        {
+            // Escape sequence.
+            if (lexer->src[offset + 1] == '\\')
+            {
+                if (offset + 3 < lexer->length && lexer->src[offset + 3] == '\'')
+                {
+                    type = TOKEN_I_CONSTANT;
+                    regmatch.rm_eo = 3;
+                    offset += 3;
+                }
+                else
+                {
+                    fprintf (stderr, "ERROR: Unknown escape sequence \'%.6s\' at line %lu, column %lu\n",
+                         lexer->src, cur_line, cur_column);
+                    return false;
+                }
+            }
+            else if (offset + 2 < lexer->length && lexer->src[offset + 2])
+            {
+                type = TOKEN_I_CONSTANT;
+                regmatch.rm_eo = 2;
+                offset += 2;
+            }
+            else
+            {
+                fprintf (stderr, "ERROR: Invalid character \'%.6s\' at line %lu, column %lu\n",
+                         lexer->src, cur_line, cur_column);
+                return false;
+            }
+        }
 
         // Cheap check if we can match prefix to keyword. TODO: Perhaps change to hashtable approach.
         for (size_t i = 0; i < ARRAY_LEN (CTOK_KEYWORDS) && !matched; i++)
@@ -685,7 +705,6 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 strlen (CTOK_KEYWORDS[i].pattern)) == 0 && (endc != '_' && !isalnum (endc)))
             {
                 regmatch.rm_eo = len;
-                regmatch.rm_so = 0;
                 type = CTOK_KEYWORDS[i].type;
                 matched = true;
             }
@@ -716,7 +735,6 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                     if (!matched || len > SIZE_T (regmatch.rm_eo) )
                     {
                         regmatch.rm_eo = len;
-                        regmatch.rm_so = 0;
                         type = CTOK_OPERATORS[i].type;
                         matched = true;
                     }
