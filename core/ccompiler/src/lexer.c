@@ -483,6 +483,86 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
     return false;
 }
 
+static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+{
+    if (lexer->src[*offset] == '\"')
+    {
+        return false;
+    }
+
+    if (lexer->src[*offset] == '\\')
+    {
+        (*offset)++;
+        const char esc = lexer->src[*offset];
+        switch (esc)
+        {
+            // Single character escapes, skip one char.
+            case '"': case '\\': case '/':
+            case 'a': case 'b':  case 'f':
+            case 'n': case 'r':  case 't':
+            case 'v':
+                (*offset)++;
+                break;
+
+            // Hex escape \xNN..., skip hex digits.
+            case 'x':
+                (*offset)++;
+                if (!isxdigit (lexer->src[*offset]))
+                {
+                    fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
+                             *cur_line, *cur_column);
+                    return false;
+                }
+                while (isxdigit (lexer->src[*offset]))
+                {
+                    (*offset)++;
+                }
+                break;
+
+            // Octal escape \NNN — 1 to 3 octal digits
+            case '0': case '1': case '2': case '3':
+            case '4': case '5': case '6': case '7':
+            {
+                int count = 0;
+                while (count < 3 && lexer->src[*offset] >= '0' && lexer->src[*offset] <= '7')
+                {
+                    (*offset)++;
+                    count++;
+                }
+                break;
+            }
+
+            // Unicode \uNNNN.
+            case 'u':
+            {
+                (*offset)++;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (!isxdigit (lexer->src[*offset]))
+                    {
+                        fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
+                                 *cur_line, *cur_column);
+                        return false;
+                    }
+                    (*offset)++;
+                }
+                break;
+            }
+
+            default:
+                fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
+                         esc, *cur_line, *cur_column);
+                return false;
+        }
+    }
+    else
+    {
+        (*offset)++;
+    }
+
+    return true;
+}
+
 /* Process C string. Returns false if it is not valid. */
 static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
 {
@@ -509,76 +589,11 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
             closed = true;
             break;
         }
-        else if (c == '\\')
+
+        if (!_handle_char (lexer, offset, cur_line, cur_column))
         {
-            // Validate and skip the escape sequence.
-            (*offset)++;
-            const char esc = lexer->src[*offset];
-            switch (esc)
-            {
-                // Single character escapes, skip one char.
-                case '"': case '\\': case '/':
-                case 'a': case 'b':  case 'f':
-                case 'n': case 'r':  case 't':
-                case 'v':
-                    (*offset)++;
-                    break;
-
-                // Hex escape \xNN..., skip hex digits.
-                case 'x':
-                    (*offset)++;
-                    if (!isxdigit (lexer->src[*offset]))
-                    {
-                        fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
-                                    *cur_line, *cur_column);
-                        return false;
-                    }
-                    while (isxdigit (lexer->src[*offset]))
-                    {
-                        (*offset)++;
-                    }
-                    break;
-
-                // Octal escape \NNN — 1 to 3 octal digits
-                case '0': case '1': case '2': case '3':
-                case '4': case '5': case '6': case '7':
-                {
-                    int count = 0;
-                    while (count < 3 && lexer->src[*offset] >= '0' && lexer->src[*offset] <= '7')
-                    {
-                        (*offset)++;
-                        count++;
-                    }
-                    break;
-                }
-
-                // Unicode \uNNNN.
-                case 'u':
-                {
-                    (*offset)++;
-                    for (int i = 0; i < 4; i++)
-                    {
-                        if (!isxdigit (lexer->src[*offset]))
-                        {
-                            fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
-                                        *cur_line, *cur_column);
-                            return false;
-                        }
-                        (*offset)++;
-                    }
-                    break;
-                }
-
-                default:
-                    fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
-                                esc, *cur_line, *cur_column);
-                    return false;
-            }
-            continue;
+            return false;
         }
-
-        // Ordinary character.
-        (*offset)++;
     }
 
     if (!closed)
@@ -688,33 +703,22 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         if (cur == '\'')
         {
             // Escape sequence.
-            if (lexer->src[offset + 1] == '\\')
+            size_t temp_offset = offset + 1;
+            if (!_handle_char (lexer, &temp_offset, &cur_line, &cur_column))
             {
-                if (offset + 3 < lexer->length && lexer->src[offset + 3] == '\'')
-                {
-                    type = TOKEN_I_CONSTANT;
-                    regmatch.rm_eo = 4;
-                    matched = true;
-                }
-                else
-                {
-                    fprintf (stderr, "ERROR: Unknown escape sequence \'%.6s\' at line %lu, column %lu\n",
-                         lexer->src, cur_line, cur_column);
-                    return false;
-                }
+                return false;
             }
-            else if (offset + 2 < lexer->length && lexer->src[offset + 2] == '\'')
+
+            if (lexer->src[temp_offset] != '\'')
             {
-                type = TOKEN_I_CONSTANT;
-                regmatch.rm_eo = 3;
-                matched = true;
-            }
-            else
-            {
-                fprintf (stderr, "ERROR: Invalid character \'%.6s\' at line %lu, column %lu\n",
+                fprintf (stderr, "ERROR: Invalid char '%.6s' at line %lu, column %lu\n",
                          lexer->src + offset, cur_line, cur_column);
                 return false;
             }
+
+            type = TOKEN_I_CONSTANT;
+            regmatch.rm_eo = temp_offset - offset + 1;
+            matched = true;
         }
 
         // Cheap check if we can match prefix to keyword. TODO: Perhaps change to hashtable approach.
