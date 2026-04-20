@@ -1,5 +1,6 @@
 #pragma once
 
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -159,7 +160,30 @@ struct Token
 
     // Column in the source file.
     size_t column;
+
+    // Value associated with this token.
+    union TokenData
+    {
+        uint64_t i_constant;
+        double f_constant;
+        char *str;
+    } val;
+
+    // Flags associated with this token.
+    uint64_t flags;
 };
+
+// Flags for integer constants.
+#define LFLAGS_INT      (0b000)
+#define LFLAGS_LONG     (0b001)
+#define LFLAGS_LONGLONG (0b011)
+#define LFLAGS_BITINT   (0b100)
+#define LFLAGS_GET_SIZE (0b111)
+
+#define LFLAGS_SIGNED   (0b1 << 3)
+#define LFLAGS_UNSIGNED (0b0 << 3)
+#define LFLAGS_GET_SIGN (0b1 << 3)
+
 
 bool lex_file (const char *filepath,
               lexer_data_t *lexer);
