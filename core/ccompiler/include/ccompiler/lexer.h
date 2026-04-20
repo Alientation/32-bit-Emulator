@@ -4,6 +4,15 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+/**
+ * TODOS:
+ * - Extract Integer(char)/Float/String values from tokens.
+ *      - Strings need to be compressed (ex, "\\n" should produce a single character '\n').
+ *      - Add these checks to unit tests.
+ * - Preprocessors need to be handled inline with lexing.
+ * - Ensure line/column information is correct in all cases.
+ */
+
 typedef struct Token token_t;
 
 typedef struct LexerData
@@ -172,6 +181,7 @@ struct Token
     // Flags associated with this token.
     uint64_t flags;
 };
+
 
 // Flags for integer constants.
 #define LFLAGS_INT      (0b000)

@@ -10,6 +10,23 @@ TEST (lexer, lexer_print_empty)
     lexer_free (&lexer);
 }
 
+TEST (lexer, lexer_newline_in_string)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("\"Hello\\nWorld!\";", &lexer));
+
+    EXPECT_EQ (lexer.tok_cnt, 2);
+    EXPECT_EQ (lexer.toks[0].line, 1);
+    EXPECT_EQ (lexer.toks[0].column, 1);
+
+    EXPECT_EQ (lexer.toks[1].line, 1);
+    EXPECT_EQ (lexer.toks[1].column, 16);
+
+    lexer_free (&lexer);
+}
+
 TEST (lexer, lexer_os_linebreaks)
 {
     lexer_data_t lexer;
