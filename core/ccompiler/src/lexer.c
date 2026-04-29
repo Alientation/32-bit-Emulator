@@ -329,7 +329,9 @@ void lexer_init (lexer_data_t * const lexer)
 
 void lexer_free (lexer_data_t * const lexer)
 {
+    free (lexer->file);
     free (lexer->src);
+    free (lexer->src_orig);
     free (lexer->toks);
     srcmap_free (&lexer->srcmap);
 
