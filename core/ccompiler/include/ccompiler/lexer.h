@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ccompiler/ccompiler_options.h>
+
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -17,6 +19,11 @@ typedef struct Token token_t;
 
 typedef struct LexerData
 {
+    compiler_options_t *options;
+
+    // Shared pointer to file that is lexed.
+    char *file;
+
     // NUL terminated string representing the source to run the lexer on.
     char *src;
 
@@ -39,6 +46,9 @@ typedef struct LexerData
     // The amount of memory (in terms of tokens) allocated for the array. Used for resizing.
     size_t tok_cap;
 } lexer_data_t;
+
+#define LEXER_INIT {.options=NULL, .file=NULL, .src=NULL, .length=0,                 \
+                    .lines=NULL, .nlines=0, .toks=NULL, .tok_cnt=0, .tok_cap=0}
 
 typedef enum TokenType
 {
@@ -158,11 +168,14 @@ struct Token
 {
     tokentype_t type;
 
-    // Pointer into the overall source string, a lexeme of sorts.
+    // Pointer into the shared overall source string, a lexeme of sorts.
     const char *src;
 
     // Length of token in the source string.
     size_t length;
+
+    // Shared pointer to file this token is sourced from.
+    const char *file;
 
     // Line in the source file.
     size_t line;
@@ -200,7 +213,6 @@ bool lex_file (const char *filepath,
 bool lex_str (const char *str,
              lexer_data_t *lexer);
 
-void lexer_init (lexer_data_t *lexer);
 void lexer_print (const lexer_data_t *lexer);
 void lexer_free (lexer_data_t *lexer);
 

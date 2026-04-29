@@ -222,25 +222,6 @@ bool lex_str (const char *str,
     return _process_lexer (lexer);
 }
 
-void lexer_init (lexer_data_t *lexer)
-{
-    lexer->src = NULL;
-    lexer->toks = NULL;
-    lexer->length = 0;
-
-    lexer->lines = NULL;
-    lexer->nlines = 0;
-
-    lexer->tok_cnt = 0;
-    lexer->tok_cap = 4;
-    lexer->toks = calloc (lexer->tok_cap, sizeof (*lexer->toks));
-    if (!lexer->toks)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
-    }
-}
-
 void lexer_print (const lexer_data_t *lexer)
 {
     printf ("PRINTING TOKENS");
@@ -266,7 +247,8 @@ char *token_tostr (token_t *tok)
     static char strbuffer[256];
     if ((unsigned long) tok->length >= ARRAY_LEN (strbuffer))
     {
-        fprintf (stderr, "ERROR: token too long to print, length %zu at line %zu\n", tok->length, tok->line);
+        fprintf (stderr, "ERROR: token too long to print, length %zu at line %zu\n",
+                 tok->length, tok->line);
         exit (EXIT_FAILURE);
     }
 
@@ -428,7 +410,8 @@ static bool _phase_1_2 (lexer_data_t *lexer)
     return true;
 }
 
-static inline void _update_linecol (lexer_data_t *lexer, size_t offset, size_t *cur_line, size_t *cur_column)
+static inline void _update_linecol (lexer_data_t *lexer, size_t offset, size_t *cur_line,
+                                    size_t *cur_column)
 {
     size_t cur_lineidx = (*cur_line) - 1;
 
@@ -442,7 +425,8 @@ static inline void _update_linecol (lexer_data_t *lexer, size_t offset, size_t *
 }
 
 /* Handle comment if exists otherwise skip. Returns if comment is processed. */
-static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
+                                    size_t *cur_column)
 {
     const char cur = lexer->src[*offset];
     const char nxt = lexer->src[*offset + 1];
@@ -483,7 +467,8 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
     return false;
 }
 
-static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
+                                 size_t *cur_column)
 {
     if (lexer->src[*offset] == '\"')
     {
@@ -564,7 +549,8 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cu
 }
 
 /* Process C string. Returns false if it is not valid. */
-static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
+                                  size_t *cur_column)
 {
     assert (lexer->src[*offset] == '\"');
 
@@ -606,6 +592,7 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
     token_t tok = {
         .type   = TOKEN_STRING_LITERAL,
         .src = lexer->src + start,
+        .file = lexer->file,
         .length = *offset - start,
         .line   = start_line,
         .column = start_column,
@@ -617,20 +604,75 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
 
 /* Process a preprocessor directive. Assumption is that the '#' at offset is the
    first non-whitespace character in the line. Returns false if invalid preprocessor. */
-static bool _handle_preprocessor (lexer_data_t *lexer, size_t *offset, size_t *cur_line, size_t *cur_column)
+static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const offset,
+                                  size_t * const cur_line, size_t * const cur_column)
 {
     assert (lexer->src[*offset] == '#');
 
-    UNUSED (lexer);
-    UNUSED (offset);
-    UNUSED (cur_line);
-    UNUSED (cur_column);
+    // TODO:
 
-    if (strncmp (lexer->src + (*offset), "", strlen ("")) == 0)
+    #define STREQ(directive) (strncmp (lexer->src + (*offset), directive, strlen(directive)) == 0)
+
+    if (STREQ("#include"))
     {
+        // Expect argument that follows to be of the form '<file>' or '"file"'.
+        (*offset) += strlen("#include");
+        while (lexer->src[*offset] == ' ')
+        {
+            (*offset)++;
+        }
+
+        if (lexer->src[*offset] != '<' && lexer->src[*offset] != '\"')
+        {
+            fprintf (stderr, "ERROR: invalid #include syntax '%.8s' at line %zu col %zu\n",
+                     lexer->src + (*offset), *cur_line, *cur_column);
+            return false;
+        }
+        (*offset)++;
+
+        const char * const start = lexer->src + (*offset);
+        const char *end = start;
+        while (*end != '>' && *end != '\"')
+        {
+            end++;
+        }
+
+        const size_t len = (uintptr_t) end - (uintptr_t) start;
+        if (len == 0)
+        {
+            fprintf (stderr, "ERROR: invalid #include syntax '%.8s' at line %zu col %zu\n",
+                        start, *cur_line, *cur_column);
+            return false;
+        }
+
+        if (*end != *(start - 1))
+        {
+            fprintf (stderr, "ERROR: invalid #include syntax '%.*s' at line %zu col %zu\n",
+                        (int) len, start, *cur_line, *cur_column);
+            return false;
+        }
+
+        char * const filepath = calloc(len + 1, sizeof(char));
+        memcpy (filepath, start, len);
+
         // TODO:
+        // https://gcc.gnu.org/onlinedocs/cpp/Include-Syntax.html
+        // #include <file> searches for files in system directories included with -I
+        // #include "file" searches first for file in the directory of the current file,
+        // then in quote directories, and then finally in system directories.
+    }
+    else if (STREQ("define"))
+    {
+
+    }
+    else
+    {
+        fprintf (stderr, "ERROR: unknown preprocessor directive '%.8s' at line %zu col %zu\n",
+                 lexer->src + (*offset), *cur_line, *cur_column);
+        return false;
     }
 
+    #undef STREQ
 
     return true;
 }
@@ -685,7 +727,8 @@ static bool _phase_3_4 (lexer_data_t *lexer)
             continue;
         }
 
-        // Check if preprocessor directive. '#' must be the first non-whitespace character of the line.
+        // Check if preprocessor directive.
+        // '#' must be the first non-whitespace character of the line.
         if (first_non_whitespace_char_on_line && cur == '#')
         {
             if (!_handle_preprocessor (lexer, &offset, &cur_line, &cur_column))
@@ -721,7 +764,8 @@ static bool _phase_3_4 (lexer_data_t *lexer)
             matched = true;
         }
 
-        // Cheap check if we can match prefix to keyword. TODO: Perhaps change to hashtable approach.
+        // Cheap check if we can match prefix to keyword.
+        // TODO: Perhaps change to hashtable approach.
         for (size_t i = 0; i < ARRAY_LEN (CTOK_KEYWORDS) && !matched; i++)
         {
             const size_t len = strlen (CTOK_KEYWORDS[i].pattern);
@@ -785,11 +829,11 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         {
             .type = type,
             .line = cur_line,
+            .file = lexer->file,
             .column = cur_column,
             .length = length,
             .src = lexer->src + offset,
         };
-
         _add_token (lexer, &token);
 
         offset += length;

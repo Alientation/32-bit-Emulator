@@ -24,8 +24,7 @@ void ccompile (const char *filepath)
     }
     printf ("Compiling \'%s\'.\n\n", filepath);
 
-    struct LexerData lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
     if (!lex_file (filepath, &lexer))
     {
         lexer_free (&lexer);
@@ -38,7 +37,7 @@ void ccompile (const char *filepath)
     printf("JUST TESTING LEXER\n");
     exit(EXIT_SUCCESS);
 
-    struct ParserData parser;
+    parser_data_t parser;
     parser_init (&parser);
     parse (&lexer, &parser);
 

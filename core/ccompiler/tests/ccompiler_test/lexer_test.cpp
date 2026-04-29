@@ -4,16 +4,15 @@
 
 TEST (lexer, lexer_print_empty)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
     lexer_print (&lexer);
     lexer_free (&lexer);
 }
 
 TEST (lexer, lexer_newline_in_string)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"Hello\\nWorld!\";", &lexer));
 
@@ -29,8 +28,8 @@ TEST (lexer, lexer_newline_in_string)
 
 TEST (lexer, lexer_os_linebreaks)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+    
 
     EXPECT_TRUE (lex_str ("int x = 0;\r\nint y = 0;\nint z = 0;\rreturn x + y + z;\n", &lexer));
 
@@ -52,8 +51,8 @@ TEST (lexer, lexer_os_linebreaks)
 
 TEST (lexer, lexer_escaping_os_linebreaks)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int x = 0;\\\r\ni\\\nnt y = 0;\\\nin\\\nt z = 0;\\\rr\\\ne\\\nt\\\nu\\\nr\\\nn x + y + z;\\\n", &lexer));
 
@@ -75,8 +74,8 @@ TEST (lexer, lexer_escaping_os_linebreaks)
 
 TEST (lexer, lexer_whitespace)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\vint x \f= 0;\f\r\nint \fy \f= 0;\v\n\fint z =\v 0;\v\r\freturn x + y + z;\n\v\f", &lexer));
 
@@ -99,8 +98,8 @@ TEST (lexer, lexer_whitespace)
 
 TEST (lexer, lexer_file)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     const char *TEMPFILE = "test_lexer_file.s";
 
@@ -118,8 +117,8 @@ TEST (lexer, lexer_file)
 
 TEST (lexer, lexer_file_error)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     const char *TEMPFILE = "test_lexer_file_error.s";
 
@@ -129,8 +128,8 @@ TEST (lexer, lexer_file_error)
 
 TEST (lexer, lexer_keywords)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     TokenType toks[] =
     {
@@ -267,8 +266,8 @@ TEST (lexer, lexer_keywords)
 
 TEST (lexer, lexer_identifier)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str (
         "hello\n_this_is_AnOtHer Hello9_ ",
@@ -304,8 +303,8 @@ TEST (lexer, lexer_identifier)
 
 TEST (lexer, lexer_operators)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     TokenType toks[] =
     {
@@ -420,8 +419,8 @@ TEST (lexer, lexer_operators)
 
 TEST (lexer, lexer_integer)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str (
         "07213 0x1242fFaB 0XFFFF30 209419340 ",
@@ -462,8 +461,8 @@ TEST (lexer, lexer_integer)
 
 TEST (lexer, lexer_float)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str (
         "0.0901 1. 1e3 1E5 1e+4 7e-6 1.6e+0 2.f 3.4F 1e3l 1e34L",
@@ -518,8 +517,8 @@ TEST (lexer, lexer_float)
 
 TEST (lexer, column_tracking_single_line)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int x = 42;", &lexer));
 
@@ -550,8 +549,8 @@ TEST (lexer, column_tracking_single_line)
 
 TEST (lexer, column_tracking_multiline)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int\nfloat\n  x", &lexer));
 
@@ -571,8 +570,8 @@ TEST (lexer, column_tracking_multiline)
 
 TEST (lexer, column_resets_after_newline)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("abc\ndef", &lexer));
 
@@ -585,8 +584,8 @@ TEST (lexer, column_resets_after_newline)
 
 TEST (lexer, single_line_comment_ignored)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int // this is a comment\nx", &lexer));
 
@@ -600,8 +599,8 @@ TEST (lexer, single_line_comment_ignored)
 
 TEST (lexer, multi_line_comment_ignored)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int /* this spans\nmultiple lines */ x", &lexer));
 
@@ -614,8 +613,8 @@ TEST (lexer, multi_line_comment_ignored)
 
 TEST (lexer, multi_line_comment_updates_line_count)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("/* line1\nline2\nline3 */\nx", &lexer));
 
@@ -627,8 +626,8 @@ TEST (lexer, multi_line_comment_updates_line_count)
 
 TEST (lexer, comment_between_tokens_no_space)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int/*comment*/x", &lexer));
 
@@ -641,8 +640,8 @@ TEST (lexer, comment_between_tokens_no_space)
 
 TEST (lexer, slash_not_comment)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("a / b", &lexer));
 
@@ -654,8 +653,8 @@ TEST (lexer, slash_not_comment)
 
 TEST (lexer, character_basic)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("'H' + 'e' + 'l' + 'l' + 'o' + ' ' + 'W' + 'o' + 'r' + 'l' + 'd' + '!' ", &lexer));
 
@@ -672,8 +671,8 @@ TEST (lexer, character_basic)
 
 TEST (lexer, character_escape_sequences)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("'\\\"'", &lexer));
 
@@ -684,8 +683,8 @@ TEST (lexer, character_escape_sequences)
 
 TEST (lexer, string_basic)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"hello\"", &lexer));
 
@@ -698,8 +697,8 @@ TEST (lexer, string_basic)
 
 TEST (lexer, string_empty)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"\"", &lexer));
 
@@ -712,8 +711,8 @@ TEST (lexer, string_empty)
 
 TEST (lexer, string_escape_sequences)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"\\n\\t\\r\\a\\b\\f\\v\\\\\\\"\"", &lexer));
 
@@ -725,8 +724,8 @@ TEST (lexer, string_escape_sequences)
 
 TEST (lexer, string_hex_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"\\x41\\xFF\"", &lexer));
 
@@ -738,8 +737,8 @@ TEST (lexer, string_hex_escape)
 
 TEST (lexer, string_octal_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"\\0\\07\\177\"", &lexer));
 
@@ -751,8 +750,8 @@ TEST (lexer, string_octal_escape)
 
 TEST (lexer, string_unicode_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"\\u0041\"", &lexer));
 
@@ -764,8 +763,8 @@ TEST (lexer, string_unicode_escape)
 
 TEST (lexer, string_column_after)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"hi\" x", &lexer));
 
@@ -777,8 +776,8 @@ TEST (lexer, string_column_after)
 
 TEST (lexer, adjacent_strings)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("\"hello\" \"world\"", &lexer));
 
@@ -791,8 +790,8 @@ TEST (lexer, adjacent_strings)
 
 TEST (lexer, error_unterminated_string)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_FALSE (lex_str ("\"unterminated", &lexer));
 
@@ -801,8 +800,8 @@ TEST (lexer, error_unterminated_string)
 
 TEST (lexer, error_string_with_newline)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* Newline inside string without escape is illegal */
     EXPECT_FALSE (lex_str ("\"line1\nline2\"", &lexer));
@@ -812,8 +811,8 @@ TEST (lexer, error_string_with_newline)
 
 TEST (lexer, error_unknown_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* \q is not a valid escape sequence */
     EXPECT_FALSE (lex_str ("\"\\q\"", &lexer));
@@ -823,8 +822,8 @@ TEST (lexer, error_unknown_escape)
 
 TEST (lexer, error_invalid_hex_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* \x with no hex digits following */
     EXPECT_FALSE (lex_str ("\"\\xGG\"", &lexer));
@@ -834,8 +833,8 @@ TEST (lexer, error_invalid_hex_escape)
 
 TEST (lexer, error_invalid_unicode_escape)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* \u must be followed by exactly 4 hex digits */
     EXPECT_FALSE (lex_str ("\"\\u004\"", &lexer));
@@ -845,8 +844,8 @@ TEST (lexer, error_invalid_unicode_escape)
 
 TEST (lexer, error_unrecognized_character)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* '@' is not a valid C token */
     EXPECT_FALSE (lex_str ("@", &lexer));
@@ -856,8 +855,8 @@ TEST (lexer, error_unrecognized_character)
 
 TEST (lexer, operator_disambiguation)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* Each pair should produce the longer token, not two short ones. */
     EXPECT_TRUE (lex_str ("++ -- -> == != <= >= && || << >> += -= *= /= %= &= ^= |= <<= >>=", &lexer));
@@ -883,8 +882,8 @@ TEST (lexer, operator_disambiguation)
 
 TEST (lexer, operator_single_chars)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("+ - * / % & | ^ ~ ! < > = ? : ; , . ( ) [ ] { }", &lexer));
 
@@ -910,8 +909,8 @@ TEST (lexer, operator_single_chars)
 
 TEST (lexer, ellipsis)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("...", &lexer));
 
@@ -923,8 +922,8 @@ TEST (lexer, ellipsis)
 
 TEST (lexer, keyword_prefix_is_identifier)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("integer", &lexer));
 
@@ -936,8 +935,8 @@ TEST (lexer, keyword_prefix_is_identifier)
 
 TEST (lexer, keyword_with_trailing_underscore_is_identifier)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int_ return_ while_loop", &lexer));
 
@@ -952,8 +951,8 @@ TEST (lexer, keyword_with_trailing_underscore_is_identifier)
 
 TEST (lexer, keyword_with_trailing_digit_is_identifier)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int2 for3", &lexer));
 
@@ -966,8 +965,8 @@ TEST (lexer, keyword_with_trailing_digit_is_identifier)
 
 TEST (lexer, keyword_immediately_followed_by_operator)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int*x", &lexer));
 
@@ -981,8 +980,8 @@ TEST (lexer, keyword_immediately_followed_by_operator)
 
 TEST (lexer, integer_zero)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("0", &lexer));
 
@@ -995,8 +994,8 @@ TEST (lexer, integer_zero)
 
 TEST (lexer, integer_suffixes)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("1u 1U 1l 1L 1ll 1LL 1ul 1ULL", &lexer));
 
@@ -1011,8 +1010,8 @@ TEST (lexer, integer_suffixes)
 
 TEST (lexer, integer_hex_uppercase_x)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("0XDEADBEEF", &lexer));
 
@@ -1025,8 +1024,8 @@ TEST (lexer, integer_hex_uppercase_x)
 
 TEST (lexer, float_leading_dot)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str (".5", &lexer));
 
@@ -1038,8 +1037,8 @@ TEST (lexer, float_leading_dot)
 
 TEST (lexer, float_trailing_dot)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("1.", &lexer));
 
@@ -1051,8 +1050,8 @@ TEST (lexer, float_trailing_dot)
 
 TEST (lexer, float_vs_member_access)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("1 . x", &lexer));
 
@@ -1066,8 +1065,8 @@ TEST (lexer, float_vs_member_access)
 
 TEST (lexer, line_splice_joins_tokens)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     /* Backslash-newline should be erased, joining "in" and "t" into "int". */
     EXPECT_TRUE (lex_str ("in\\\nt", &lexer));
@@ -1080,8 +1079,8 @@ TEST (lexer, line_splice_joins_tokens)
 
 TEST (lexer, snippet_function_decl)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int add(int a, int b);", &lexer));
 
@@ -1105,8 +1104,8 @@ TEST (lexer, snippet_function_decl)
 
 TEST (lexer, snippet_for_loop)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("for (i = 0; i < 10; i++)", &lexer));
 
@@ -1130,8 +1129,8 @@ TEST (lexer, snippet_for_loop)
 
 TEST (lexer, snippet_pointer_decl)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("int *p = &x;", &lexer));
 
@@ -1152,8 +1151,8 @@ TEST (lexer, snippet_pointer_decl)
 
 TEST (lexer, snippet_struct_member_access)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("p->x = s.y;", &lexer));
 
@@ -1173,8 +1172,8 @@ TEST (lexer, snippet_struct_member_access)
 
 TEST (lexer, snippet_ternary)
 {
-    lexer_data_t lexer;
-    lexer_init (&lexer);
+    lexer_data_t lexer = LEXER_INIT;
+
 
     EXPECT_TRUE (lex_str ("x > 0 ? x : -x", &lexer));
 

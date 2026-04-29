@@ -2,13 +2,15 @@
 
 #include <stddef.h>
 
-struct CompilerOptions
-{
-    size_t n_src_files;
-    const char **src_files;
+// TODO:
+// - Lexer
+//      - Better error message system
+//          - Print whole line with arrow to the offending character
+//          - Have a similar system for warnings/logs
+//      - Preprocessor
+//          - Directives
+//          - Macros
 
-
-};
 
 /**
  * @brief Compiles a .c file into a .basm assembly file
