@@ -24,6 +24,8 @@ static void _find_line(const char *src, size_t target_line,
 static void _lex_error_at (const lexer_data_t *lexer, size_t proc_offset,
                            const char *msg_fmt, ...);
 
+static char *_file_read (const char *filepath);
+
 static void _add_token (lexer_data_t *lexer, token_t *tok);
 
 static bool _process_lexer (lexer_data_t *lexer);
@@ -196,7 +198,22 @@ static void _lex_error_at (const lexer_data_t * const lexer, const size_t proc_o
 
     const char *line_start;
     size_t line_length;
-    _find_line (lexer->src_orig, line, &line_start, &line_length);
+    if (file && strcmp (file, lexer->file) != 0)
+    {
+        // Need to grab the file and reread the contents of it instead.
+        _cleanup_free_ const char *new_src = _file_read (file);
+        if (!new_src)
+        {
+            fprintf (stderr, "[ERROR]: failed to read '%s'\n", file);
+            return;
+        }
+
+        _find_line (new_src, line, &line_start, &line_length);
+    }
+    else
+    {
+        _find_line (lexer->src_orig, line, &line_start, &line_length);
+    }
 
     fprintf (stderr, "%-5zu | %.*s\n", line, (int) line_length, line_start);
     fprintf (stderr, "%-5s    ", "");
@@ -237,9 +254,7 @@ static void _find_line(const char * const src, const size_t target_line,
     *out_length = (size_t) (end - p);
 }
 
-
-bool lex_file (const char* filepath,
-              lexer_data_t *lexer)
+static char *_file_read (const char * const filepath)
 {
     _cleanup_free_ char *buffer = NULL;
     _cleanup_fclose_ FILE *file = NULL;
@@ -248,19 +263,19 @@ bool lex_file (const char* filepath,
     if (!(file = fopen (filepath, "rb")))
     {
         fprintf (stderr, "ERROR: failed to find file '%s'\n", filepath);
-        return false;
+        return NULL;
     }
 
     if (fseek (file, 0, SEEK_END) == -1)
     {
         fprintf (stderr, "ERROR: fseek failed for file '%s'\n", filepath);
-        return false;
+        return NULL;
     }
 
     if ((file_size = ftell (file)) == -1)
     {
         fprintf (stderr, "ERROR: ftell failed for file '%s'\n", filepath);
-        return false;
+        return NULL;
     }
     rewind (file);
 
@@ -268,17 +283,29 @@ bool lex_file (const char* filepath,
     if (buffer == NULL)
     {
         fprintf (stderr, "ERROR: failed to allocate memory\n");
-        return false;
+        return NULL;
     }
 
     if (fread (buffer, 1, file_size, file) != (size_t) file_size)
     {
         fprintf (stderr, "ERROR: failed to read file\n");
+        return NULL;
+    }
+
+    return STEAL (buffer);
+}
+
+bool lex_file (const char *filepath,
+              lexer_data_t *lexer)
+{
+    char *buffer = _file_read (filepath);
+    if (!buffer)
+    {
         return false;
     }
 
+    lexer->src = buffer;
     lexer->length = strlen (buffer);
-    lexer->src = STEAL (buffer);
 
     lexer->file = calloc (strlen (filepath), sizeof (char));
     if (!lexer->file)
