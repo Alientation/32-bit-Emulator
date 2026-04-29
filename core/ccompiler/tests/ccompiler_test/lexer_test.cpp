@@ -302,6 +302,122 @@ TEST (lexer, lexer_identifier)
     lexer_free (&lexer);
 }
 
+TEST (lexer, lexer_operators)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    TokenType toks[] =
+    {
+        TOKEN_ELLIPSIS,
+        TOKEN_RIGHT_ASSIGN,
+        TOKEN_LEFT_ASSIGN,
+        TOKEN_ADD_ASSIGN,
+        TOKEN_SUB_ASSIGN,
+        TOKEN_MUL_ASSIGN,
+        TOKEN_DIV_ASSIGN,
+        TOKEN_MOD_ASSIGN,
+        TOKEN_AND_ASSIGN,
+        TOKEN_XOR_ASSIGN,
+        TOKEN_OR_ASSIGN,
+        TOKEN_RIGHT_OP,
+        TOKEN_LEFT_OP,
+        TOKEN_INC_OP,
+        TOKEN_DEC_OP,
+        TOKEN_PTR_OP,
+        TOKEN_AND_OP,
+        TOKEN_OR_OP,
+        TOKEN_LE_OP,
+        TOKEN_GE_OP,
+        TOKEN_EQ_OP,
+        TOKEN_NE_OP,
+        TOKEN_SEMICOLON,
+        TOKEN_OPEN_BRACE,
+        TOKEN_CLOSE_BRACE,
+        TOKEN_COMMA,
+        TOKEN_COLON,
+        TOKEN_EQUAL_SIGN,
+        TOKEN_OPEN_PARENTHESIS,
+        TOKEN_CLOSE_PARENTHESIS,
+        TOKEN_OPEN_BRACKET,
+        TOKEN_CLOSE_BRACKET,
+        TOKEN_PERIOD,
+        TOKEN_AMPERSAND,
+        TOKEN_EXCLAMATION_MARK,
+        TOKEN_TILDE,
+        TOKEN_HYPEN,
+        TOKEN_PLUS,
+        TOKEN_ASTERICK,
+        TOKEN_FORWARD_SLASH,
+        TOKEN_PERCENT_SIGN,
+        TOKEN_LEFT_ARROW,
+        TOKEN_RIGHT_ARROW,
+        TOKEN_CARROT,
+        TOKEN_PIPE,
+        TOKEN_QUESTION_MARK
+    };
+
+    EXPECT_TRUE (lex_str (
+        "..."
+        ">>="
+        "<<="
+        "+="
+        "-="
+        "*="
+        "/="
+        "%="
+        "&="
+        "^="
+        "|="
+        ">>"
+        "<<"
+        "++"
+        "--"
+        "->"
+        "&&"
+        "||"
+        "<="
+        ">="
+        "=="
+        "!="
+        ";"
+        "{"
+        "}"
+        ","
+        ":"
+        "="
+        "("
+        ")"
+        "["
+        "]"
+        "."
+        "&"
+        "!"
+        "~"
+        "-"
+        "+"
+        "*"
+        "/"
+        "%"
+        "<"
+        ">"
+        "^"
+        "|"
+        "?",
+        &lexer));
+
+    EXPECT_GE (lexer.tok_cap, lexer.tok_cnt);
+    EXPECT_EQ (lexer.tok_cnt, sizeof (toks) / sizeof (*toks));
+
+    for (size_t i = 0; i < lexer.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.toks[i].type, toks[i]);
+    }
+
+    lexer_print (&lexer);
+    lexer_free (&lexer);
+}
+
 TEST (lexer, lexer_integer)
 {
     lexer_data_t lexer;
