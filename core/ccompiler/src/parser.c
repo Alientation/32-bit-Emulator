@@ -53,13 +53,13 @@ void parser_init (parser_data_t *parser)
     parser->tok_i = 0;
     parser->ast = NULL;
 
-    stringbuffer_init (&parser->err_msg_buffer);
+    sb_init (&parser->err_msg_buffer);
 }
 
 void parser_free (parser_data_t *parser)
 {
     ASTNode_free (parser->ast);
-    stringbuffer_free (&parser->err_msg_buffer);
+    sb_free (&parser->err_msg_buffer);
 }
 
 
@@ -290,7 +290,7 @@ static void err (parser_data_t *parser, const char * fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    stringbuffer_vappendf (&parser->err_msg_buffer, fmt, args);
+    sb_vappendf (&parser->err_msg_buffer, fmt, args);
     va_end (args);
 }
 

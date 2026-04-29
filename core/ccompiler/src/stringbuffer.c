@@ -9,7 +9,7 @@
 static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t target_cap);
 
 
-static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t target_cap)
+static void stringbuffer_extend (stringbuffer_t * const stringbuffer, const size_t target_cap)
 {
     size_t new_capacity = stringbuffer->capacity * 2;
     if (new_capacity < 2 * target_cap)
@@ -37,14 +37,14 @@ static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t targ
 }
 
 
-void stringbuffer_init (stringbuffer_t *stringbuffer)
+void sb_init (stringbuffer_t * const stringbuffer)
 {
     stringbuffer->buf = NULL;
     stringbuffer->capacity = 0;
     stringbuffer->length = 0;
 }
 
-void stringbuffer_free (stringbuffer_t *stringbuffer)
+void sb_free (stringbuffer_t * const stringbuffer)
 {
     free (stringbuffer->buf);
     stringbuffer->buf = NULL;
@@ -52,15 +52,15 @@ void stringbuffer_free (stringbuffer_t *stringbuffer)
     stringbuffer->length = 0;
 }
 
-void stringbuffer_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...)
+void sb_appendf (stringbuffer_t * const stringbuffer, const char * const fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    stringbuffer_vappendf (stringbuffer, fmt, args);
+    sb_vappendf (stringbuffer, fmt, args);
     va_end (args);
 }
 
-void stringbuffer_vappendf (stringbuffer_t *stringbuffer, const char *fmt, va_list args)
+void sb_vappendf (stringbuffer_t * const stringbuffer, const char * const fmt, va_list args)
 {
     // find required size
     va_list args_copy;
@@ -86,17 +86,23 @@ void stringbuffer_vappendf (stringbuffer_t *stringbuffer, const char *fmt, va_li
     vsnprintf (buffer, size + 1, fmt, args);
 
     // append to string buffer
-    stringbuffer_appendl (stringbuffer, buffer, size);
+    sb_appendl (stringbuffer, buffer, size);
     free (buffer);
 }
 
-void stringbuffer_append (stringbuffer_t *stringbuffer, const char *str)
+void sb_append (stringbuffer_t * const stringbuffer, const char *str)
 {
     int len = strlen (str);
-    stringbuffer_appendl (stringbuffer, str, len);
+    sb_appendl (stringbuffer, str, len);
 }
 
-void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const size_t len)
+void sb_appendc (stringbuffer_t * const stringbuffer, const char ch)
+{
+    char cstr[2] = {ch, '\0'};
+    sb_append (stringbuffer, cstr);
+}
+
+void sb_appendl (stringbuffer_t * const stringbuffer, const char * const str, const size_t len)
 {
     if (stringbuffer->length + len + 1 > stringbuffer->capacity)
     {
@@ -108,17 +114,17 @@ void stringbuffer_appendl (stringbuffer_t *stringbuffer, const char *str, const 
     stringbuffer->buf[stringbuffer->length] = '\0';
 }
 
-void stringbuffer_appendsb (stringbuffer_t *dest, const stringbuffer_t *src)
+void sb_appendsb (stringbuffer_t * const dest, const stringbuffer_t * const src)
 {
     if (src->length == 0)
     {
         return;
     }
 
-    stringbuffer_appendl (dest, src->buf, src->length);
+    sb_appendl (dest, src->buf, src->length);
 }
 
-void stringbuffer_clear (stringbuffer_t *stringbuffer)
+void sb_clear (stringbuffer_t * const stringbuffer)
 {
     if (stringbuffer->capacity > 0)
     {

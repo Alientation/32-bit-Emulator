@@ -21,8 +21,11 @@ static void srcmap_push (srcmap_t *map, size_t proc_offset, const char *file,
 
 static void _find_line(const char *src, size_t target_line,
                        const char **out_start, size_t *out_length);
-static void _lex_error_at (const lexer_data_t *lexer, size_t proc_offset,
-                           const char *msg_fmt, ...);
+
+static void _lex_msg_at (const char *msg_type, const lexer_data_t *lexer, size_t proc_offset,
+                         const char *msg_fmt, ...);
+#define LEX_ERROR(lexer, proc_offset, ...) _lex_msg_at ("[ERR]", lexer, proc_offset, __VA_ARGS__)
+#define LEX_WARN(lexer, proc_offset, ...) _lex_msg_at ("[WRN]", lexer, proc_offset, __VA_ARGS__)
 
 static char *_file_read (const char *filepath);
 
@@ -176,16 +179,17 @@ static const tokpat_t CTOK_PATTERNS[] =
     { TOKEN_IDENTIFIER, "^[a-zA-Z_][a-zA-Z0-9_]*" },
 };
 
-static void _lex_error_at (const lexer_data_t * const lexer, const size_t proc_offset,
-                           const char * const msg_fmt, ...)
+static void _lex_msg_at (const char * const msg_type, const lexer_data_t * const lexer,
+                         const size_t proc_offset, const char * const msg_fmt, ...)
 {
     const char *file;
     size_t line, col;
     srcmap_lookup (&lexer->srcmap, proc_offset, &file, &line, &col);
 
+    fprintf (stderr, "%s: ", msg_type);
     if (file)
     {
-        fprintf (stderr, "[ERROR]: %s:%zu:%zu: ", file, line, col);
+        fprintf (stderr, "%s:%zu:%zu: ", file, line, col);
     }
 
     va_list args;
@@ -351,6 +355,11 @@ void lexer_init (lexer_data_t * const lexer)
 {
     *lexer = (lexer_data_t) {0};
     srcmap_init (&lexer->srcmap);
+}
+
+void lexer_register_compiler_options (lexer_data_t * const lexer, compiler_options_t const options)
+{
+    lexer->options = options;
 }
 
 void lexer_free (lexer_data_t * const lexer)
@@ -667,7 +676,7 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset)
     return false;
 }
 
-static inline bool _handle_char (lexer_data_t *lexer, size_t *offset)
+static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, char *ch)
 {
     if (lexer->src[*offset] == '\"')
     {
@@ -681,49 +690,91 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset)
         switch (esc)
         {
             // Single character escapes, skip one char.
-            case '"': case '\\': case '/':
-            case 'a': case 'b':  case 'f':
-            case 'n': case 'r':  case 't':
-            case 'v':
-                (*offset)++;
+            #define SINGLE_ESCAPES(src_ch, dst_ch)                                                  \
+            case src_ch:                                                                            \
+                *ch = dst_ch;                                                                       \
+                (*offset)++;                                                                        \
                 break;
 
-            // Hex escape \xNN..., skip hex digits.
+            SINGLE_ESCAPES ('\"', '\"')
+            SINGLE_ESCAPES ('\'', '\'')
+            SINGLE_ESCAPES ('\\', '\\')
+            SINGLE_ESCAPES ('a', '\a')
+            SINGLE_ESCAPES ('b', '\b')
+            SINGLE_ESCAPES ('f', '\f')
+            SINGLE_ESCAPES ('n', '\n')
+            SINGLE_ESCAPES ('r', '\r')
+            SINGLE_ESCAPES ('t', '\t')
+            SINGLE_ESCAPES ('v', '\v')
+
+            #undef SINGLE_ESCAPES
+
+            // Hex escape \xNN, skip hex digits.
             case 'x':
+            {
                 (*offset)++;
+
                 if (!isxdigit (lexer->src[*offset]))
                 {
-                    _lex_error_at (lexer, *offset, "invalid hex escape");
+                    LEX_ERROR (lexer, *offset, "invalid hex escape");
                     return false;
                 }
-                while (isxdigit (lexer->src[*offset]))
+
+                size_t len = 0;
+                char val = 0;
+                while (len < 2 && isxdigit (lexer->src[*offset]))
                 {
+                    val = val * 16 + hex_to_int (lexer->src[*offset]);
                     (*offset)++;
+                    len++;
                 }
+                *ch = val;
                 break;
+            }
 
             // Octal escape \NNN — 1 to 3 octal digits
             case '0': case '1': case '2': case '3':
             case '4': case '5': case '6': case '7':
             {
-                int count = 0;
+                size_t count = 0;
+                char val = 0;
                 while (count < 3 && lexer->src[*offset] >= '0' && lexer->src[*offset] <= '7')
                 {
+                    val = val * 8 + lexer->src[*offset] - '0';
                     (*offset)++;
                     count++;
+                }
+                *ch = val;
+                break;
+            }
+
+            // 16 bit Unicode \uNNNN.
+            case 'u':
+            {
+                LEX_WARN (lexer, *offset, "unicode characters not supported");
+                (*offset)++;
+                for (size_t i = 0; i < 4; i++)
+                {
+                    if (!isxdigit (lexer->src[*offset]))
+                    {
+                        LEX_ERROR (lexer, *offset, "invalid unicode escape");
+                        return false;
+                    }
+                    (*offset)++;
                 }
                 break;
             }
 
-            // Unicode \uNNNN.
-            case 'u':
+            // 32 bit Unicode
+            case 'U':
             {
+                LEX_WARN (lexer, *offset, "unicode characters not supported");
                 (*offset)++;
-                for (int i = 0; i < 4; i++)
+                for (size_t i = 0; i < 8; i++)
                 {
                     if (!isxdigit (lexer->src[*offset]))
                     {
-                        _lex_error_at (lexer, *offset, "invalid unicode escape");
+                        LEX_ERROR (lexer, *offset, "invalid unicode escape");
                         return false;
                     }
                     (*offset)++;
@@ -732,7 +783,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset)
             }
 
             default:
-                _lex_error_at (lexer, *offset, "unknown escape sequence '\\%c'", esc);
+                LEX_ERROR (lexer, *offset, "unknown escape sequence '\\%c'", esc);
                 return false;
         }
     }
@@ -745,11 +796,13 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset)
 }
 
 /* Process C string. Returns false if it is not valid. */
-static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset)
+static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
 {
     assert (lexer->src[*offset] == '\"');
 
     const size_t start = *offset;
+    stringbuffer_t sb;
+    sb_init (&sb);
 
     // Skip first quote.
     (*offset)++;
@@ -767,15 +820,17 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset)
             break;
         }
 
-        if (!_handle_char (lexer, offset))
+        char ch;
+        if (!_handle_char (lexer, offset, &ch))
         {
             return false;
         }
+        sb_appendc (&sb, ch);
     }
 
     if (!closed)
     {
-        _lex_error_at (lexer, *offset, "unterminated string literal");
+        LEX_ERROR (lexer, *offset, "unterminated string literal");
         return false;
     }
 
@@ -790,7 +845,10 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset)
         .file = file,
         .line = line,
         .col = col,
+        .cval.s_constant = sb.buf,
+        .flags = 0,
     };
+
     _add_token(lexer, &tok);
     return true;
 
@@ -817,7 +875,7 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
 
         if (lexer->src[*offset] != '<' && lexer->src[*offset] != '\"')
         {
-            _lex_error_at (lexer, *offset, "invalid #include syntax");
+            LEX_ERROR (lexer, *offset, "invalid #include syntax");
             return false;
         }
         (*offset)++;
@@ -832,13 +890,13 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
         const size_t len = (uintptr_t) end - (uintptr_t) start;
         if (len == 0)
         {
-            _lex_error_at (lexer, *offset, "invalid #include syntax");
+            LEX_ERROR (lexer, *offset, "invalid #include syntax");
             return false;
         }
 
         if (*end != *(start - 1))
         {
-            _lex_error_at (lexer, *offset, "invalid #include syntax");
+            LEX_ERROR (lexer, *offset, "invalid #include syntax");
             return false;
         }
 
@@ -857,7 +915,7 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
     }
     else
     {
-        _lex_error_at (lexer, *offset, "unknown preprocessor directive");
+        LEX_ERROR (lexer, *offset, "unknown preprocessor directive");
         return false;
     }
 
@@ -905,7 +963,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         // Handle C string.
         if (cur == '\"')
         {
-            if (!_handle_c_str (lexer, &offset))
+            if (!_handle_cstr (lexer, &offset))
             {
                 return false;
             }
@@ -920,7 +978,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 // '#' must be the first non-whitespace character of the line.
                 if (!isspace (*ch))
                 {
-                    _lex_error_at (lexer, offset, "preprocessor directive expected on new line");
+                    LEX_ERROR (lexer, offset, "preprocessor directive expected on new line");
                     return false;
                 }
             }
@@ -941,20 +999,39 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         {
             // Escape sequence.
             size_t temp_offset = offset + 1;
-            if (!_handle_char (lexer, &temp_offset))
+            char ch;
+            if (!_handle_char (lexer, &temp_offset, &ch))
             {
                 return false;
             }
 
             if (lexer->src[temp_offset] != '\'')
             {
-                _lex_error_at (lexer, offset, "Invalid char");
+                LEX_ERROR (lexer, offset, "Invalid char");
                 return false;
             }
 
             type = TOKEN_I_CONSTANT;
-            regmatch.rm_eo = temp_offset - offset + 1;
-            matched = true;
+            const int length = temp_offset - offset + 1;
+            const char *file;
+            size_t line, col;
+            srcmap_lookup (&lexer->srcmap, offset, &file, &line, &col);
+
+            token_t token =
+            {
+                .type = type,
+                .file = file,
+                .line = line,
+                .col = col,
+                .len = length,
+                .src = lexer->src + offset,
+                .cval.i_constant = ch,
+                .flags = 0,
+            };
+            _add_token (lexer, &token);
+
+            offset += length;
+            continue;
         }
 
         // Cheap check if we can match prefix to keyword.
@@ -1006,7 +1083,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
 
         if (!matched)
         {
-            _lex_error_at (lexer, offset, "failed to tokenize");
+            LEX_ERROR (lexer, offset, "failed to tokenize");
             return false;
         }
 

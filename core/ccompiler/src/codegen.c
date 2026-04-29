@@ -45,7 +45,7 @@ static void func_init (codegen_func_t *func, astnode_t *node)
     func->stack_used = 16;
     func->stack_capacity = 16;
 
-    stringbuffer_init (&func->body);
+    sb_init (&func->body);
     reg_init (func);
 }
 
@@ -61,7 +61,7 @@ static void func_push_reg (codegen_func_t *func, regid_t rid)
     }
 
     // save register to stack 'str <r>, [sp, <offset>]'
-    stringbuffer_appendf (&func->body, "str %s, [sp, %d]\n", reg->name, reg->stack_offset);
+    sb_appendf (&func->body, "str %s, [sp, %d]\n", reg->name, reg->stack_offset);
 }
 
 static void func_pop_reg (codegen_func_t *func, regid_t rid)
@@ -72,7 +72,7 @@ static void func_pop_reg (codegen_func_t *func, regid_t rid)
     massert (reg->stack_offset >= 0, "expected stack offset to be positive since SP points to the bottom of the stack");
 
     // restore reg from stack 'ldr <r>, [sp, <offset>]'
-    stringbuffer_appendf (&func->body, "ldr %s, [sp, %d]\n", reg->name, reg->stack_offset);
+    sb_appendf (&func->body, "ldr %s, [sp, %d]\n", reg->name, reg->stack_offset);
 
     reg->stack_offset = -1;
     func->stack_used -= 8;
@@ -226,8 +226,8 @@ void codegen (parser_data_t *parser, const char *output_filepath)
     codegen.output_file = file;
     codegen.cur_func = NULL;
     codegen.cur_txt_sect = &codegen.txt_sect;
-    stringbuffer_init (&codegen.glob_sym_decl);
-    stringbuffer_init (&codegen.txt_sect);
+    sb_init (&codegen.glob_sym_decl);
+    sb_init (&codegen.txt_sect);
 
     codegen_ast (&codegen, (astnode_t *) parser->ast);
 
@@ -238,8 +238,8 @@ void codegen (parser_data_t *parser, const char *output_filepath)
     printf ("%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
 
     fclose (file);
-    stringbuffer_free (&codegen.glob_sym_decl);
-    stringbuffer_free (&codegen.txt_sect);
+    sb_free (&codegen.glob_sym_decl);
+    sb_free (&codegen.txt_sect);
 }
 
 
@@ -278,11 +278,11 @@ static void codegen_func (codegen_data_t *codegen, astnode_t *node)
     astnode_t *ident = node->as.func.name;
 
     // mark symbol as global '.global <func.name>'
-    stringbuffer_appendf (&codegen->glob_sym_decl, ".global %.*s\n",
+    sb_appendf (&codegen->glob_sym_decl, ".global %.*s\n",
             ident->as.ident.tok_id->len, ident->as.ident.tok_id->src);
 
     // label in text section '<func.name>:'
-    stringbuffer_appendf (&codegen->txt_sect, "%.*s:\n",
+    sb_appendf (&codegen->txt_sect, "%.*s:\n",
             ident->as.ident.tok_id->len, ident->as.ident.tok_id->src);
 
     codegen_func_t func;
@@ -293,17 +293,17 @@ static void codegen_func (codegen_data_t *codegen, astnode_t *node)
     codegen_statement (codegen, node->as.func.body);
 
     // prologue, set up stack frame
-    stringbuffer_appendf (&codegen->txt_sect, "sub sp, sp, %d\n", func.stack_capacity);
-    stringbuffer_appendf (&codegen->txt_sect, "str x28, [sp]\n");
-    stringbuffer_appendf (&codegen->txt_sect, "str x29, [sp, 8]\n");
+    sb_appendf (&codegen->txt_sect, "sub sp, sp, %d\n", func.stack_capacity);
+    sb_appendf (&codegen->txt_sect, "str x28, [sp]\n");
+    sb_appendf (&codegen->txt_sect, "str x29, [sp, 8]\n");
 
     // body
-    stringbuffer_appendf (&codegen->txt_sect, "\n%s\n", func.body.buf);
+    sb_appendf (&codegen->txt_sect, "\n%s\n", func.body.buf);
 
     // epliogue
-    stringbuffer_appendf (&codegen->txt_sect, "ldr x28, [sp]\n");
-    stringbuffer_appendf (&codegen->txt_sect, "ldr x29, [sp, 8]\n");
-    stringbuffer_appendf (&codegen->txt_sect, "add sp, sp, %d\n", func.stack_capacity);
+    sb_appendf (&codegen->txt_sect, "ldr x28, [sp]\n");
+    sb_appendf (&codegen->txt_sect, "ldr x29, [sp, 8]\n");
+    sb_appendf (&codegen->txt_sect, "add sp, sp, %d\n", func.stack_capacity);
     codegen->cur_func = NULL;
     codegen->cur_txt_sect = &codegen->txt_sect;
 }
@@ -313,7 +313,7 @@ static void codegen_statement (codegen_data_t *codegen, astnode_t *node)
     massert (codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
 
     codegen_expr (codegen, node->as.statement.body);
-    stringbuffer_append (codegen->cur_txt_sect, "\tret\n");
+    sb_append (codegen->cur_txt_sect, "\tret\n");
 }
 
 static regid_t codegen_expr (codegen_data_t *codegen, astnode_t *node)
@@ -351,9 +351,9 @@ static regid_t codegen_factor (codegen_data_t *codegen, astnode_t *node)
             // but we don't have IR, so... should we implement IR to allow easier compiler otpimizations?
 
             // TODO last left off here, for now, just allocate a register for the immediate constant...
-            stringbuffer_append (codegen->cur_txt_sect, "\tmov x0, ");
+            sb_append (codegen->cur_txt_sect, "\tmov x0, ");
             codegenblock_addtok (codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
-            stringbuffer_append (codegen->cur_txt_sect, "\n");
+            sb_append (codegen->cur_txt_sect, "\n");
             break;
         default:
             fprintf (stderr, "ERROR: unexpected ASTNode type %d\n", node->as.factor.body->type);
@@ -401,7 +401,7 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
     switch (node->as.unary_expr.tok_op->type)
     {
         case TOKEN_EXCLAMATION_MARK:
-            stringbuffer_append (codegen->cur_txt_sect,
+            sb_append (codegen->cur_txt_sect,
                 ".scope\n"
                     "\tcmp x0, 0\n"
                     "\tb.eq __set\n"
@@ -414,12 +414,12 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
             );
             break;
         case TOKEN_HYPEN:
-            stringbuffer_append (codegen->cur_txt_sect,
+            sb_append (codegen->cur_txt_sect,
                 "\tsub x0, xzr, x0\n"
             );
             break;
         case TOKEN_TILDE:
-            stringbuffer_append (codegen->cur_txt_sect,
+            sb_append (codegen->cur_txt_sect,
                 "\tmvn x0, x0\n"
             );
             break;
@@ -434,5 +434,5 @@ static regid_t codegen_unary_expr (codegen_data_t *codegen, astnode_t *node)
 
 static void codegenblock_addtok (stringbuffer_t *block, token_t *tok)
 {
-    stringbuffer_appendl (block, tok->src, tok->len);
+    sb_appendl (block, tok->src, tok->len);
 }

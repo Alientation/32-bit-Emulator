@@ -50,7 +50,7 @@ typedef struct SrcMap
 typedef struct LexerData
 {
     // Compiler options.
-    compiler_options_t *options;
+    compiler_options_t options;
 
     // Shared pointer to file that is lexed.
     char *file;
@@ -219,8 +219,8 @@ struct Token
     {
         uint64_t i_constant;
         double f_constant;
-        char *str;
-    } val;
+        char *s_constant;
+    } cval;
 
     // Flags associated with this token.
     uint64_t flags;
@@ -228,15 +228,20 @@ struct Token
 
 
 // Flags for integer constants.
-#define LFLAGS_INT      (0b000)
-#define LFLAGS_LONG     (0b001)
-#define LFLAGS_LONGLONG (0b011)
-#define LFLAGS_BITINT   (0b100)
-#define LFLAGS_GET_SIZE (0b111)
+#define LFLAGS_INT          (0b000)
+#define LFLAGS_LONG         (0b001)
+#define LFLAGS_LONGLONG     (0b011)
+#define LFLAGS_BITINT       (0b100)
+#define LFLAGS_IGET_SIZE    (0b111)
 
-#define LFLAGS_SIGNED   (0b1 << 3)
-#define LFLAGS_UNSIGNED (0b0 << 3)
-#define LFLAGS_GET_SIGN (0b1 << 3)
+#define LFLAGS_SIGNED       (0b1 << 3)
+#define LFLAGS_UNSIGNED     (0b0 << 3)
+#define LFLAGS_GET_SIGN     (0b1 << 3)
+
+// Flags for float constants.
+#define LFLAGS_FLOAT        (0b00)
+#define LFLAGS_DOUBLE       (0b01)
+#define LFLAGS_FGET_SIZE    (0b11)
 
 
 bool lex_file (const char *filepath,
@@ -246,6 +251,7 @@ bool lex_str (const char *str,
 
 void lexer_print (const lexer_data_t *lexer);
 void lexer_init (lexer_data_t *lexer);
+void lexer_register_compiler_options (lexer_data_t *lexer, compiler_options_t options);
 void lexer_free (lexer_data_t *lexer);
 
 /* Returns a string representation of a token. String is valid until the next token_tostr() call.
