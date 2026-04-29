@@ -194,7 +194,6 @@ static void _lex_error_at (const lexer_data_t * const lexer, const size_t proc_o
 
     fprintf (stderr, "\n");
 
-    // TODO: NEED TO LOOK UP SRC_ORIG CORRESPONDING TO FILE IN A CACHE.
     const char *line_start;
     size_t line_length;
     _find_line (lexer->src_orig, line, &line_start, &line_length);
@@ -313,10 +312,10 @@ bool lex_str (const char *str,
 void lexer_print (const lexer_data_t *lexer)
 {
     printf ("PRINTING TOKENS");
-    for (size_t i = 0; i < lexer->tok_cnt; i++)
+    for (size_t i = 0; i < lexer->tokarr.tok_cnt; i++)
     {
         printf("\n[%lu] ", i);
-        token_print (&lexer->toks[i]);
+        token_print (&lexer->tokarr.toks[i]);
     }
     printf ("\n");
 }
@@ -332,7 +331,7 @@ void lexer_free (lexer_data_t * const lexer)
     free (lexer->file);
     free (lexer->src);
     free (lexer->src_orig);
-    free (lexer->toks);
+    free (lexer->tokarr.toks);
     srcmap_free (&lexer->srcmap);
 
     *lexer = (lexer_data_t) {0};
@@ -404,20 +403,21 @@ void token_print (token_t *tok)
 
 static void _add_token (lexer_data_t *lexer, token_t *tok)
 {
-    if (lexer->tok_cnt + 1 > lexer->tok_cap)
+    if (lexer->tokarr.tok_cnt + 1 > lexer->tokarr.tok_cap)
     {
-        const int new_cap = lexer->tok_cap * 2 + 10;
-        lexer->toks = realloc (lexer->toks, new_cap * sizeof (lexer->toks[0]));
-        lexer->tok_cap = new_cap;
-
-        if (lexer->toks == NULL)
+        const int new_cap = lexer->tokarr.tok_cap * 2 + 10;
+        token_t * const new_arr = realloc (lexer->tokarr.toks, new_cap * sizeof (token_t));
+        if (new_arr == NULL)
         {
             fprintf (stderr, "ERROR: failed to allocate memory\n");
             exit (EXIT_FAILURE);
         }
+
+        lexer->tokarr.toks = new_arr;
+        lexer->tokarr.tok_cap = new_cap;
     }
 
-    lexer->toks[lexer->tok_cnt++] = *tok;
+    lexer->tokarr.toks[lexer->tokarr.tok_cnt++] = *tok;
 }
 
 static void srcmap_init (srcmap_t * const map)

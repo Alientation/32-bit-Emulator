@@ -16,6 +16,7 @@
  */
 
 typedef struct Token token_t;
+typedef struct TokenArray token_array_t;
 
 typedef struct SrcSpan
 {
@@ -67,13 +68,17 @@ typedef struct LexerData
     srcmap_t srcmap;
 
     // Processed array of tokens.
-    token_t *toks;
+    struct TokenArray_t
+    {
+        token_t *toks;
 
-    // The number of valid tokens in the array.
-    size_t tok_cnt;
+        // The number of valid tokens in the array.
+        size_t tok_cnt;
 
-    // The amount of memory (in terms of tokens) allocated for the array. Used for resizing.
-    size_t tok_cap;
+        // The amount of memory (in terms of tokens) allocated for the array. Used for resizing.
+        size_t tok_cap;
+    } tokarr;
+
 } lexer_data_t;
 
 typedef enum TokenType
