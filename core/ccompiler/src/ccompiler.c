@@ -24,7 +24,8 @@ void ccompile (const char *filepath)
     }
     printf ("Compiling \'%s\'.\n\n", filepath);
 
-    lexer_data_t lexer = LEXER_INIT;
+    lexer_data_t lexer;
+    lexer_init (&lexer);
     if (!lex_file (filepath, &lexer))
     {
         lexer_free (&lexer);

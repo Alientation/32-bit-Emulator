@@ -76,10 +76,6 @@ typedef struct LexerData
     size_t tok_cap;
 } lexer_data_t;
 
-#define SRCMAP_INIT {.spans=NULL, .count=0, .capacity=0}
-#define LEXER_INIT {.options=NULL, .file=NULL, .src=NULL, .src_orig=NULL, .length=0,                                \
-                    .srcmap = SRCMAP_INIT, .toks=NULL, .tok_cnt=0, .tok_cap=0}
-
 typedef enum TokenType
 {
     TOKEN_ERROR,
@@ -244,6 +240,7 @@ bool lex_str (const char *str,
              lexer_data_t *lexer);
 
 void lexer_print (const lexer_data_t *lexer);
+void lexer_init (lexer_data_t *lexer);
 void lexer_free (lexer_data_t *lexer);
 
 /* Returns a string representation of a token. String is valid until the next token_tostr() call.

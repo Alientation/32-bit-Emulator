@@ -321,7 +321,13 @@ void lexer_print (const lexer_data_t *lexer)
     printf ("\n");
 }
 
-void lexer_free (lexer_data_t *lexer)
+void lexer_init (lexer_data_t * const lexer)
+{
+    *lexer = (lexer_data_t) {0};
+    srcmap_init (&lexer->srcmap);
+}
+
+void lexer_free (lexer_data_t * const lexer)
 {
     free (lexer->src);
     free (lexer->toks);
@@ -503,8 +509,6 @@ static bool _process_lexer (lexer_data_t *lexer)
 // https://en.cppreference.com/w/c/language/translation_phases
 static bool _phase_1_2 (lexer_data_t *lexer)
 {
-    srcmap_init(&lexer->srcmap);
-
     // The first span, processed offset 0 maps to line 1, col 1.
     srcmap_push(&lexer->srcmap, 0, lexer->file, 1, 1);
 
@@ -836,14 +840,21 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
 // Tokenize while handling preprocessor directives.
 static bool _phase_3_4 (lexer_data_t *lexer)
 {
-    regex_t regex[ARRAY_LEN (CTOK_PATTERNS)];
-    for (size_t i = 0; i < ARRAY_LEN (CTOK_PATTERNS); i++)
+    // Compile the regex only once.
+    static regex_t regex[ARRAY_LEN (CTOK_PATTERNS)];
+    static bool regex_init = false;
+    if (!regex_init)
     {
-        if (regcomp (&regex[i], CTOK_PATTERNS[i].pattern, REG_EXTENDED) != 0)
+        // TODO: not thread safe.
+        for (size_t i = 0; i < ARRAY_LEN (CTOK_PATTERNS); i++)
         {
-            M_UNREACHABLE ("Failed to compile regex '%s'\n", CTOK_PATTERNS[i].pattern);
-            return false;
+            if (regcomp (&regex[i], CTOK_PATTERNS[i].pattern, REG_EXTENDED) != 0)
+            {
+                M_UNREACHABLE ("Failed to compile regex '%s'\n", CTOK_PATTERNS[i].pattern);
+                return false;
+            }
         }
+        regex_init = true;
     }
 
     size_t offset = 0;
