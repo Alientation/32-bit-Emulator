@@ -1007,10 +1007,5 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         offset += length;
     }
 
-    for (size_t i = 0; i < ARRAY_LEN (regex); i++)
-    {
-        regfree (&regex[i]);
-    }
-
     return true;
 }
