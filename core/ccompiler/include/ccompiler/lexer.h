@@ -17,8 +17,38 @@
 
 typedef struct Token token_t;
 
+typedef struct SrcSpan
+{
+    // Offset into processed buffer.
+    size_t proc_offset;
+
+    // Source file.
+    const char *file;
+
+    // Line index in original source.
+    size_t orig_line;
+
+    // Starting column index in original source.
+    size_t orig_col;
+} srcspan_t;
+
+
+typedef struct SrcMap
+{
+    // Array of spans.
+    srcspan_t *spans;
+
+    // Size of array.
+    size_t count;
+
+    // Capacity of array.
+    size_t capacity;
+} srcmap_t;
+
+
 typedef struct LexerData
 {
+    // Compiler options.
     compiler_options_t *options;
 
     // Shared pointer to file that is lexed.
@@ -27,15 +57,14 @@ typedef struct LexerData
     // NUL terminated string representing the source to run the lexer on.
     char *src;
 
+    // NUL terminated string containing the original source.
+    char *src_orig;
+
     // Length of the string not including the NUL terminator.
     size_t length;
 
-    // Track the offset into the source string each line starts at. 0 indexed so line 1 starts at
-    // the offset in lines[0].
-    size_t *lines;
-
-    // Number of lines in the file.
-    size_t nlines;
+    // Map offsets into processed buffer into an offset in the source file.
+    srcmap_t srcmap;
 
     // Processed array of tokens.
     token_t *toks;
@@ -47,8 +76,9 @@ typedef struct LexerData
     size_t tok_cap;
 } lexer_data_t;
 
-#define LEXER_INIT {.options=NULL, .file=NULL, .src=NULL, .length=0,                 \
-                    .lines=NULL, .nlines=0, .toks=NULL, .tok_cnt=0, .tok_cap=0}
+#define SRCMAP_INIT {.spans=NULL, .count=0, .capacity=0}
+#define LEXER_INIT {.options=NULL, .file=NULL, .src=NULL, .src_orig=NULL, .length=0,                                \
+                    .srcmap = SRCMAP_INIT, .toks=NULL, .tok_cnt=0, .tok_cap=0}
 
 typedef enum TokenType
 {
@@ -172,7 +202,7 @@ struct Token
     const char *src;
 
     // Length of token in the source string.
-    size_t length;
+    size_t len;
 
     // Shared pointer to file this token is sourced from.
     const char *file;
@@ -181,7 +211,7 @@ struct Token
     size_t line;
 
     // Column in the source file.
-    size_t column;
+    size_t col;
 
     // Value associated with this token.
     union TokenData

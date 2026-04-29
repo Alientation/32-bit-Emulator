@@ -18,10 +18,10 @@ TEST (lexer, lexer_newline_in_string)
 
     EXPECT_EQ (lexer.tok_cnt, 2);
     EXPECT_EQ (lexer.toks[0].line, 1);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
 
     EXPECT_EQ (lexer.toks[1].line, 1);
-    EXPECT_EQ (lexer.toks[1].column, 16);
+    EXPECT_EQ (lexer.toks[1].col, 16);
 
     lexer_free (&lexer);
 }
@@ -29,21 +29,21 @@ TEST (lexer, lexer_newline_in_string)
 TEST (lexer, lexer_os_linebreaks)
 {
     lexer_data_t lexer = LEXER_INIT;
-    
+
 
     EXPECT_TRUE (lex_str ("int x = 0;\r\nint y = 0;\nint z = 0;\rreturn x + y + z;\n", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 22);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
     EXPECT_EQ (lexer.toks[0].line, 1);
 
-    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].col, 1);
     EXPECT_EQ (lexer.toks[5].line, 2);
 
-    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].col, 1);
     EXPECT_EQ (lexer.toks[10].line, 3);
 
-    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].col, 1);
     EXPECT_EQ (lexer.toks[15].line, 4);
 
     lexer_free (&lexer);
@@ -57,16 +57,16 @@ TEST (lexer, lexer_escaping_os_linebreaks)
     EXPECT_TRUE (lex_str ("int x = 0;\\\r\ni\\\nnt y = 0;\\\nin\\\nt z = 0;\\\rr\\\ne\\\nt\\\nu\\\nr\\\nn x + y + z;\\\n", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 22);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
     EXPECT_EQ (lexer.toks[0].line, 1);
 
-    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].col, 1);
     EXPECT_EQ (lexer.toks[5].line, 2);
 
-    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].col, 1);
     EXPECT_EQ (lexer.toks[10].line, 4);
 
-    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].col, 1);
     EXPECT_EQ (lexer.toks[15].line, 6);
 
     lexer_free (&lexer);
@@ -80,16 +80,16 @@ TEST (lexer, lexer_whitespace)
     EXPECT_TRUE (lex_str ("\vint x \f= 0;\f\r\nint \fy \f= 0;\v\n\fint z =\v 0;\v\r\freturn x + y + z;\n\v\f", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 22);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
     EXPECT_EQ (lexer.toks[0].line, 1);
 
-    EXPECT_EQ (lexer.toks[5].column, 1);
+    EXPECT_EQ (lexer.toks[5].col, 1);
     EXPECT_EQ (lexer.toks[5].line, 2);
 
-    EXPECT_EQ (lexer.toks[10].column, 1);
+    EXPECT_EQ (lexer.toks[10].col, 1);
     EXPECT_EQ (lexer.toks[10].line, 3);
 
-    EXPECT_EQ (lexer.toks[15].column, 1);
+    EXPECT_EQ (lexer.toks[15].col, 1);
     EXPECT_EQ (lexer.toks[15].line, 4);
 
     lexer_free (&lexer);
@@ -283,20 +283,20 @@ TEST (lexer, lexer_identifier)
         EXPECT_EQ (lexer.toks[i].type, TOKEN_IDENTIFIER);
     }
 
-    EXPECT_EQ (lexer.toks[0].length, strlen ("hello"));
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].len, strlen ("hello"));
+    EXPECT_EQ (lexer.toks[0].col, 1);
     EXPECT_EQ (lexer.toks[0].line, 1);
-    EXPECT_EQ (strncmp (lexer.toks[0].src, "hello", lexer.toks[0].length), 0);
+    EXPECT_EQ (strncmp (lexer.toks[0].src, "hello", lexer.toks[0].len), 0);
 
-    EXPECT_EQ (lexer.toks[1].length, strlen ("_this_is_AnOtHer"));
-    EXPECT_EQ (lexer.toks[1].column, 1);
+    EXPECT_EQ (lexer.toks[1].len, strlen ("_this_is_AnOtHer"));
+    EXPECT_EQ (lexer.toks[1].col, 1);
     EXPECT_EQ (lexer.toks[1].line, 2);
-    EXPECT_EQ (strncmp (lexer.toks[1].src, "_this_is_AnOtHer", lexer.toks[1].length), 0);
+    EXPECT_EQ (strncmp (lexer.toks[1].src, "_this_is_AnOtHer", lexer.toks[1].len), 0);
 
-    EXPECT_EQ (lexer.toks[2].length, strlen ("Hello9_"));
-    EXPECT_EQ (lexer.toks[2].column, 18);
+    EXPECT_EQ (lexer.toks[2].len, strlen ("Hello9_"));
+    EXPECT_EQ (lexer.toks[2].col, 18);
     EXPECT_EQ (lexer.toks[2].line, 2);
-    EXPECT_EQ (strncmp (lexer.toks[2].src, "Hello9_", lexer.toks[2].length), 0);
+    EXPECT_EQ (strncmp (lexer.toks[2].src, "Hello9_", lexer.toks[2].len), 0);
 
     lexer_free (&lexer);
 }
@@ -436,25 +436,25 @@ TEST (lexer, lexer_integer)
         EXPECT_EQ (lexer.toks[i].type, TOKEN_I_CONSTANT);
     }
 
-    EXPECT_EQ (lexer.toks[0].length, strlen ("07213"));
+    EXPECT_EQ (lexer.toks[0].len, strlen ("07213"));
     EXPECT_EQ (lexer.toks[0].line, 1);
-    EXPECT_EQ (lexer.toks[0].column, 1);
-    EXPECT_EQ (strncmp (lexer.toks[0].src, "07213", lexer.toks[0].length), 0);
+    EXPECT_EQ (lexer.toks[0].col, 1);
+    EXPECT_EQ (strncmp (lexer.toks[0].src, "07213", lexer.toks[0].len), 0);
 
-    EXPECT_EQ (lexer.toks[1].length, strlen ("0x1242fFaB"));
+    EXPECT_EQ (lexer.toks[1].len, strlen ("0x1242fFaB"));
     EXPECT_EQ (lexer.toks[1].line, 1);
-    EXPECT_EQ (lexer.toks[1].column, 7);
-    EXPECT_EQ (strncmp (lexer.toks[1].src, "0x1242fFaB", lexer.toks[1].length), 0);
+    EXPECT_EQ (lexer.toks[1].col, 7);
+    EXPECT_EQ (strncmp (lexer.toks[1].src, "0x1242fFaB", lexer.toks[1].len), 0);
 
-    EXPECT_EQ (lexer.toks[2].length, strlen ("0XFFFF30"));
+    EXPECT_EQ (lexer.toks[2].len, strlen ("0XFFFF30"));
     EXPECT_EQ (lexer.toks[2].line, 1);
-    EXPECT_EQ (lexer.toks[2].column, 18);
-    EXPECT_EQ (strncmp (lexer.toks[2].src, "0XFFFF30", lexer.toks[2].length), 0);
+    EXPECT_EQ (lexer.toks[2].col, 18);
+    EXPECT_EQ (strncmp (lexer.toks[2].src, "0XFFFF30", lexer.toks[2].len), 0);
 
-    EXPECT_EQ (lexer.toks[3].length, strlen ("209419340"));
+    EXPECT_EQ (lexer.toks[3].len, strlen ("209419340"));
     EXPECT_EQ (lexer.toks[3].line, 1);
-    EXPECT_EQ (lexer.toks[3].column, 27);
-    EXPECT_EQ (strncmp (lexer.toks[3].src, "209419340", lexer.toks[3].length), 0);
+    EXPECT_EQ (lexer.toks[3].col, 27);
+    EXPECT_EQ (strncmp (lexer.toks[3].src, "209419340", lexer.toks[3].len), 0);
 
     lexer_free (&lexer);
 }
@@ -478,38 +478,38 @@ TEST (lexer, lexer_float)
         EXPECT_EQ (lexer.toks[i].type, TOKEN_F_CONSTANT);
     }
 
-    EXPECT_EQ (lexer.toks[0].length, strlen ("0.0901"));
-    EXPECT_EQ (strncmp (lexer.toks[0].src, "0.0901", lexer.toks[0].length), 0);
+    EXPECT_EQ (lexer.toks[0].len, strlen ("0.0901"));
+    EXPECT_EQ (strncmp (lexer.toks[0].src, "0.0901", lexer.toks[0].len), 0);
 
-    EXPECT_EQ (lexer.toks[1].length, strlen ("1."));
-    EXPECT_EQ (strncmp (lexer.toks[1].src, "1.", lexer.toks[1].length), 0);
+    EXPECT_EQ (lexer.toks[1].len, strlen ("1."));
+    EXPECT_EQ (strncmp (lexer.toks[1].src, "1.", lexer.toks[1].len), 0);
 
-    EXPECT_EQ (lexer.toks[2].length, strlen ("1e3"));
-    EXPECT_EQ (strncmp (lexer.toks[2].src, "1e3", lexer.toks[2].length), 0);
+    EXPECT_EQ (lexer.toks[2].len, strlen ("1e3"));
+    EXPECT_EQ (strncmp (lexer.toks[2].src, "1e3", lexer.toks[2].len), 0);
 
-    EXPECT_EQ (lexer.toks[3].length, strlen ("1E5"));
-    EXPECT_EQ (strncmp (lexer.toks[3].src, "1E5", lexer.toks[3].length), 0);
+    EXPECT_EQ (lexer.toks[3].len, strlen ("1E5"));
+    EXPECT_EQ (strncmp (lexer.toks[3].src, "1E5", lexer.toks[3].len), 0);
 
-    EXPECT_EQ (lexer.toks[4].length, strlen ("1e+4"));
-    EXPECT_EQ (strncmp (lexer.toks[4].src, "1e+4", lexer.toks[4].length), 0);
+    EXPECT_EQ (lexer.toks[4].len, strlen ("1e+4"));
+    EXPECT_EQ (strncmp (lexer.toks[4].src, "1e+4", lexer.toks[4].len), 0);
 
-    EXPECT_EQ (lexer.toks[5].length, strlen ("7e-6"));
-    EXPECT_EQ (strncmp (lexer.toks[5].src, "7e-6", lexer.toks[5].length), 0);
+    EXPECT_EQ (lexer.toks[5].len, strlen ("7e-6"));
+    EXPECT_EQ (strncmp (lexer.toks[5].src, "7e-6", lexer.toks[5].len), 0);
 
-    EXPECT_EQ (lexer.toks[6].length, strlen ("1.6e+0"));
-    EXPECT_EQ (strncmp (lexer.toks[6].src, "1.6e+0", lexer.toks[6].length), 0);
+    EXPECT_EQ (lexer.toks[6].len, strlen ("1.6e+0"));
+    EXPECT_EQ (strncmp (lexer.toks[6].src, "1.6e+0", lexer.toks[6].len), 0);
 
-    EXPECT_EQ (lexer.toks[7].length, strlen ("2.f"));
-    EXPECT_EQ (strncmp (lexer.toks[7].src, "2.f", lexer.toks[7].length), 0);
+    EXPECT_EQ (lexer.toks[7].len, strlen ("2.f"));
+    EXPECT_EQ (strncmp (lexer.toks[7].src, "2.f", lexer.toks[7].len), 0);
 
-    EXPECT_EQ (lexer.toks[8].length, strlen ("3.4F"));
-    EXPECT_EQ (strncmp (lexer.toks[8].src, "3.4F", lexer.toks[8].length), 0);
+    EXPECT_EQ (lexer.toks[8].len, strlen ("3.4F"));
+    EXPECT_EQ (strncmp (lexer.toks[8].src, "3.4F", lexer.toks[8].len), 0);
 
-    EXPECT_EQ (lexer.toks[9].length, strlen ("1e3l"));
-    EXPECT_EQ (strncmp (lexer.toks[9].src, "1e3l", lexer.toks[9].length), 0);
+    EXPECT_EQ (lexer.toks[9].len, strlen ("1e3l"));
+    EXPECT_EQ (strncmp (lexer.toks[9].src, "1e3l", lexer.toks[9].len), 0);
 
-    EXPECT_EQ (lexer.toks[10].length, strlen ("1e34L"));
-    EXPECT_EQ (strncmp (lexer.toks[10].src, "1e34L", lexer.toks[10].length), 0);
+    EXPECT_EQ (lexer.toks[10].len, strlen ("1e34L"));
+    EXPECT_EQ (strncmp (lexer.toks[10].src, "1e34L", lexer.toks[10].len), 0);
 
     lexer_free (&lexer);
 }
@@ -526,23 +526,23 @@ TEST (lexer, column_tracking_single_line)
 
     EXPECT_EQ (lexer.toks[0].type,   TOKEN_KEYWORD_INT);
     EXPECT_EQ (lexer.toks[0].line,   1);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
 
     EXPECT_EQ (lexer.toks[1].type,   TOKEN_IDENTIFIER);
     EXPECT_EQ (lexer.toks[1].line,   1);
-    EXPECT_EQ (lexer.toks[1].column, 5);
+    EXPECT_EQ (lexer.toks[1].col, 5);
 
     EXPECT_EQ (lexer.toks[2].type,   TOKEN_EQUAL_SIGN);
     EXPECT_EQ (lexer.toks[2].line,   1);
-    EXPECT_EQ (lexer.toks[2].column, 7);
+    EXPECT_EQ (lexer.toks[2].col, 7);
 
     EXPECT_EQ (lexer.toks[3].type,   TOKEN_I_CONSTANT);
     EXPECT_EQ (lexer.toks[3].line,   1);
-    EXPECT_EQ (lexer.toks[3].column, 9);
+    EXPECT_EQ (lexer.toks[3].col, 9);
 
     EXPECT_EQ (lexer.toks[4].type,   TOKEN_SEMICOLON);
     EXPECT_EQ (lexer.toks[4].line,   1);
-    EXPECT_EQ (lexer.toks[4].column, 11);
+    EXPECT_EQ (lexer.toks[4].col, 11);
 
     lexer_free (&lexer);
 }
@@ -557,13 +557,13 @@ TEST (lexer, column_tracking_multiline)
     EXPECT_EQ (lexer.tok_cnt, 3);
 
     EXPECT_EQ (lexer.toks[0].line,   1);
-    EXPECT_EQ (lexer.toks[0].column, 1);
+    EXPECT_EQ (lexer.toks[0].col, 1);
 
     EXPECT_EQ (lexer.toks[1].line,   2);
-    EXPECT_EQ (lexer.toks[1].column, 1);
+    EXPECT_EQ (lexer.toks[1].col, 1);
 
     EXPECT_EQ (lexer.toks[2].line,   3);
-    EXPECT_EQ (lexer.toks[2].column, 3);
+    EXPECT_EQ (lexer.toks[2].col, 3);
 
     lexer_free (&lexer);
 }
@@ -577,7 +577,7 @@ TEST (lexer, column_resets_after_newline)
 
     EXPECT_EQ (lexer.tok_cnt, 2);
     EXPECT_EQ (lexer.toks[1].line,   2);
-    EXPECT_EQ (lexer.toks[1].column, 1);
+    EXPECT_EQ (lexer.toks[1].col, 1);
 
     lexer_free (&lexer);
 }
@@ -663,7 +663,7 @@ TEST (lexer, character_basic)
     for (size_t i = 0; i < 12 + 11; i += 2)
     {
         EXPECT_EQ (lexer.toks[i].type, TOKEN_I_CONSTANT);
-        EXPECT_EQ (lexer.toks[i].length, 3);
+        EXPECT_EQ (lexer.toks[i].len, 3);
         EXPECT_EQ (lexer.toks[i].src[0], '\'');
         EXPECT_EQ (lexer.toks[i].src[2], '\'');
     }
@@ -677,7 +677,7 @@ TEST (lexer, character_escape_sequences)
     EXPECT_TRUE (lex_str ("'\\\"'", &lexer));
 
     EXPECT_EQ (lexer.toks[0].type, TOKEN_I_CONSTANT);
-    EXPECT_EQ (lexer.toks[0].length, strlen ("'\\\"'"));
+    EXPECT_EQ (lexer.toks[0].len, strlen ("'\\\"'"));
     EXPECT_EQ (strncmp (lexer.toks[0].src, "'\\\"'", strlen ("'\\\"'")), 0);
 }
 
@@ -690,7 +690,7 @@ TEST (lexer, string_basic)
 
     EXPECT_EQ (lexer.tok_cnt, 1);
     EXPECT_EQ (lexer.toks[0].type, TOKEN_STRING_LITERAL);
-    EXPECT_EQ (lexer.toks[0].length, strlen ("\"hello\""));
+    EXPECT_EQ (lexer.toks[0].len, strlen ("\"hello\""));
 
     lexer_free (&lexer);
 }
@@ -704,7 +704,7 @@ TEST (lexer, string_empty)
 
     EXPECT_EQ (lexer.tok_cnt, 1);
     EXPECT_EQ (lexer.toks[0].type,   TOKEN_STRING_LITERAL);
-    EXPECT_EQ (lexer.toks[0].length, 2);
+    EXPECT_EQ (lexer.toks[0].len, 2);
 
     lexer_free (&lexer);
 }
@@ -769,7 +769,7 @@ TEST (lexer, string_column_after)
     EXPECT_TRUE (lex_str ("\"hi\" x", &lexer));
 
     EXPECT_EQ (lexer.tok_cnt, 2);
-    EXPECT_EQ (lexer.toks[1].column, 6);
+    EXPECT_EQ (lexer.toks[1].col, 6);
 
     lexer_free (&lexer);
 }
@@ -987,7 +987,7 @@ TEST (lexer, integer_zero)
 
     EXPECT_EQ (lexer.tok_cnt, 1);
     EXPECT_EQ (lexer.toks[0].type, TOKEN_I_CONSTANT);
-    EXPECT_EQ (lexer.toks[0].length, 1);
+    EXPECT_EQ (lexer.toks[0].len, 1);
 
     lexer_free (&lexer);
 }
@@ -1017,7 +1017,7 @@ TEST (lexer, integer_hex_uppercase_x)
 
     EXPECT_EQ (lexer.tok_cnt, 1);
     EXPECT_EQ (lexer.toks[0].type, TOKEN_I_CONSTANT);
-    EXPECT_EQ (lexer.toks[0].length, strlen ("0XDEADBEEF"));
+    EXPECT_EQ (lexer.toks[0].len, strlen ("0XDEADBEEF"));
 
     lexer_free (&lexer);
 }

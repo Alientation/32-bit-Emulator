@@ -226,7 +226,7 @@ static void ASTNode_free (void *node)
 static void tokerr (parser_data_t *parser, token_t *tok)
 {
     err (parser, "ERROR: at tok %d \'%s\' at line %d, column %d\n", parser->tok_i - 1,
-               token_tostr (tok), tok->line, tok->column);
+               token_tostr (tok), tok->line, tok->col);
 }
 
 static token_t *nxttok (parser_data_t *parser)
@@ -376,7 +376,7 @@ static bool to_int (parser_data_t *parser, token_t *tok, int *out)
     }
 
     int val = 0;
-    for (size_t i = 0; i < tok->length; i++)
+    for (size_t i = 0; i < tok->len; i++)
     {
         val *= 10;
         val += tok->src[i] - '0';

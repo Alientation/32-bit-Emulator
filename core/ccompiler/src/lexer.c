@@ -11,6 +11,18 @@
 #include <stdbool.h>
 #include <assert.h>
 
+static void srcmap_init (srcmap_t *map);
+static void srcmap_free (srcmap_t *map);
+static void srcmap_lookup (const srcmap_t *map, size_t proc_offset, const char **out_file,
+                           size_t *out_line, size_t *out_col);
+static void srcmap_extend (srcmap_t *map);
+static void srcmap_push (srcmap_t *map, size_t proc_offset, const char *file,
+                         size_t orig_line, size_t orig_col);
+
+static void _find_line(const char *src, size_t target_line,
+                       const char **out_start, size_t *out_length);
+static void _lex_error_at (const lexer_data_t *lexer, size_t proc_offset,
+                           const char *msg_fmt, ...);
 
 static void _add_token (lexer_data_t *lexer, token_t *tok);
 
@@ -162,6 +174,71 @@ static const tokpat_t CTOK_PATTERNS[] =
     { TOKEN_IDENTIFIER, "^[a-zA-Z_][a-zA-Z0-9_]*" },
 };
 
+static void _lex_error_at (const lexer_data_t * const lexer, const size_t proc_offset,
+                           const char * const msg_fmt, ...)
+{
+    const char *file;
+    size_t line, col;
+    srcmap_lookup (&lexer->srcmap, proc_offset, &file, &line, &col);
+
+    if (file)
+    {
+        fprintf (stderr, "[ERROR]: %s:%zu:%zu: ", file, line, col);
+    }
+
+    va_list args;
+    va_start (args, msg_fmt);
+
+    vfprintf (stderr, msg_fmt, args);
+    va_end (args);
+
+    fprintf (stderr, "\n");
+
+    // TODO: NEED TO LOOK UP SRC_ORIG CORRESPONDING TO FILE IN A CACHE.
+    const char *line_start;
+    size_t line_length;
+    _find_line (lexer->src_orig, line, &line_start, &line_length);
+
+    fprintf (stderr, "%-5zu | %.*s\n", line, (int) line_length, line_start);
+    fprintf (stderr, "%-5s    ", "");
+
+    for (size_t i = 1; i < col; i++)
+    {
+        // Preserve tabs so the caret lines up correctly even if the source line has tab characters.
+        fprintf (stderr, "%c", line_start[i - 1] == '\t' ? '\t' : ' ');
+    }
+    fprintf(stderr, "^\n");
+}
+
+static void _find_line(const char * const src, const size_t target_line,
+                       const char ** const out_start, size_t * const out_length)
+{
+    size_t cur_line = 1;
+    const char *p = src;
+
+    // Walk forward until we reach the target line.
+    while (*p != '\0' && cur_line < target_line)
+    {
+        if (*p == '\n' || (*p == '\r' && *(p + 1) != '\n'))
+        {
+            cur_line++;
+        }
+        p++;
+    }
+
+    *out_start = p;
+
+    // Walk to end of line.
+    const char *end = p;
+    while (*end != '\0' && *end != '\n' && *end != '\r')
+    {
+        end++;
+    }
+
+    *out_length = (size_t) (end - p);
+}
+
+
 bool lex_file (const char* filepath,
               lexer_data_t *lexer)
 {
@@ -203,6 +280,16 @@ bool lex_file (const char* filepath,
 
     lexer->length = strlen (buffer);
     lexer->src = STEAL (buffer);
+
+    lexer->file = calloc (strlen (filepath), sizeof (char));
+    if (!lexer->file)
+    {
+        fprintf (stderr, "ERROR: failed to allocate memory\n");
+        return false;
+    }
+
+    memcpy (lexer->file, filepath, strlen (filepath));
+
     return _process_lexer (lexer);
 }
 
@@ -211,6 +298,7 @@ bool lex_str (const char *str,
 {
     lexer->length = strlen (str);
     lexer->src = (char *) calloc (lexer->length + 1, sizeof (char));
+    lexer->file = NULL;
 
     if (!lexer->src)
     {
@@ -237,7 +325,7 @@ void lexer_free (lexer_data_t *lexer)
 {
     free (lexer->src);
     free (lexer->toks);
-    free (lexer->lines);
+    srcmap_free (&lexer->srcmap);
 
     *lexer = (lexer_data_t) {0};
 }
@@ -245,15 +333,15 @@ void lexer_free (lexer_data_t *lexer)
 char *token_tostr (token_t *tok)
 {
     static char strbuffer[256];
-    if ((unsigned long) tok->length >= ARRAY_LEN (strbuffer))
+    if ((unsigned long) tok->len >= ARRAY_LEN (strbuffer))
     {
         fprintf (stderr, "ERROR: token too long to print, length %zu at line %zu\n",
-                 tok->length, tok->line);
+                 tok->len, tok->line);
         exit (EXIT_FAILURE);
     }
 
-    memcpy (strbuffer, tok->src, tok->length);
-    strbuffer[tok->length] = '\0';
+    memcpy (strbuffer, tok->src, tok->len);
+    strbuffer[tok->len] = '\0';
     return strbuffer;
 }
 
@@ -324,109 +412,192 @@ static void _add_token (lexer_data_t *lexer, token_t *tok)
     lexer->toks[lexer->tok_cnt++] = *tok;
 }
 
+static void srcmap_init (srcmap_t * const map)
+{
+    map->capacity = 0;
+    map->count = 0;
+    map->spans = NULL;
+}
+
+static void srcmap_free (srcmap_t * const map)
+{
+    free (map->spans);
+    map->capacity = 0;
+    map->count = 0;
+    map->spans = NULL;
+}
+
+static void srcmap_lookup (const srcmap_t * const map, const size_t proc_offset,
+                           const char ** const out_file, size_t * const out_line,
+                           size_t * const out_col)
+{
+    massert(map->count > 0, "srcmap is empty");
+
+    // Binary search for largest span where span.proc_offset <= proc_offset
+    size_t lo = 0;
+    size_t hi = map->count - 1;
+    while (lo < hi)
+    {
+        const size_t mid = lo + (hi - lo + 1) / 2;
+        if (map->spans[mid].proc_offset <= proc_offset)
+        {
+            lo = mid;
+        }
+        else
+        {
+            hi = mid - 1;
+        }
+    }
+
+    const srcspan_t *s = &map->spans[lo];
+    const size_t delta = proc_offset - s->proc_offset;
+
+    *out_file = s->file;
+    *out_line = s->orig_line;
+    *out_col = s->orig_col + delta;
+}
+
+static void srcmap_extend (srcmap_t * const map)
+{
+    const size_t new_capacity = map->capacity * 2 + 10;
+    srcspan_t * const new_spans = realloc (map->spans, new_capacity * sizeof (srcspan_t));
+    if (!new_spans)
+    {
+        fprintf (stderr, "Error: memory allocation failed.\n");
+        exit (EXIT_FAILURE);
+    }
+
+    map->spans = new_spans;
+    map->capacity = new_capacity;
+}
+
+static void srcmap_push (srcmap_t * const map, const size_t proc_offset, const char * const file,
+                         const size_t orig_line, const size_t orig_col)
+{
+    if (map->count + 1 > map->capacity)
+    {
+        srcmap_extend (map);
+    }
+    map->spans[map->count++] = (srcspan_t)
+    {
+        .proc_offset = proc_offset,
+        .file = file,
+        .orig_line = orig_line,
+        .orig_col = orig_col
+    };
+}
+
 static bool _process_lexer (lexer_data_t *lexer)
 {
+    lexer->src_orig = calloc (strlen (lexer->src), sizeof (char));
+    if (!lexer->src_orig)
+    {
+        fprintf (stderr, "ERROR: memory allocation failed\n");
+        return false;
+    }
+    memcpy (lexer->src_orig, lexer->src, strlen (lexer->src));
+
     return _phase_1_2 (lexer) && _phase_3_4 (lexer);
 }
 
 // https://en.cppreference.com/w/c/language/translation_phases
 static bool _phase_1_2 (lexer_data_t *lexer)
 {
-    // First count how many lines are in the file. Does not account for escaped newlines.
-    size_t new_length = 0;
-    lexer->nlines = 1;
-    for (size_t i = 0; i < lexer->length; i++)
+    srcmap_init(&lexer->srcmap);
+
+    // The first span, processed offset 0 maps to line 1, col 1.
+    srcmap_push(&lexer->srcmap, 0, lexer->file, 1, 1);
+
+    size_t idx = 0;
+    size_t new_idx = 0;
+    size_t orig_line = 1;
+    size_t orig_col = 1;
+
+    while (idx < lexer->length)
     {
-        const char cur = lexer->src[i];
-        const char nxt = lexer->src[i + 1];
+        const char c  = lexer->src[idx];
+        const char c1 = (idx + 1 < lexer->length) ? lexer->src[idx + 1] : '\0';
+        const char c2 = (idx + 2 < lexer->length) ? lexer->src[idx + 2] : '\0';
 
-        if (cur == '\r')
+        // Escaped newline (concatenate the two lines together).
+        if (c == '\\' && (c1 == '\n' || (c1 == '\r' && c2 != '\n')))
         {
-            if (nxt == '\n')
-            {
-                continue;
-            }
+            // Erase '\' and '\n'.
+            orig_line++;
+            orig_col = 1;
+            idx += 2;
 
-            lexer->src[new_length++] = '\n';
-            lexer->nlines++;
-        }
-        else if (cur == '\v' || cur == '\f')
-        {
+            // Record a new span since we are on a new line in source.
+            srcmap_push (&lexer->srcmap, new_idx, lexer->file, orig_line, orig_col);
             continue;
         }
+
+        // Escaped newline (concatenate the two lines together).
+        if (c == '\\' && c1 == '\r' && c2 == '\n')
+        {
+            // Erase '\', '\r', '\n'.
+            orig_line++;
+            orig_col = 1;
+            idx += 3;
+
+            srcmap_push (&lexer->srcmap, new_idx, lexer->file, orig_line, orig_col);
+            continue;
+        }
+
+        // OS dependent newlines.
+        if (c == '\r' && c1 == '\n')
+        {
+            // Skip the '\r', let the '\n' be handled on the next iteration.
+            orig_col++;
+            idx++;
+            continue;
+        }
+
+        // OS dependent newlines.
+        if (c == '\r')
+        {
+            lexer->src[new_idx++] = '\n';
+            orig_line++;
+            orig_col = 1;
+            idx++;
+
+            srcmap_push (&lexer->srcmap, new_idx, lexer->file, orig_line, orig_col);
+            continue;
+        }
+
+        // Strip Vertical tabs and form feeds.
+        if (c == '\v' || c == '\f')
+        {
+            orig_col++;
+            idx++;
+            continue;
+        }
+
+        // Standard character, copy.
+        lexer->src[new_idx++] = c;
+        idx++;
+
+        if (c == '\n')
+        {
+            orig_line++;
+            orig_col = 1;
+
+            srcmap_push (&lexer->srcmap, new_idx, lexer->file, orig_line, orig_col);
+        }
         else
         {
-            lexer->src[new_length++] = lexer->src[i];
-
-            if (cur == '\n')
-            {
-                lexer->nlines++;
-            }
+            orig_col++;
         }
     }
 
-    lexer->src[new_length] = '\0';
-    lexer->length = new_length;
-
-    lexer->lines = calloc (lexer->nlines, sizeof (lexer->lines[0]));
-    if (!lexer->lines)
-    {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        return false;
-    }
-
-    // Handle escaped line breaks.
-    new_length = 0;
-    size_t cur_line_idx = 0;
-    lexer->lines[cur_line_idx] = 0;
-    for (size_t i = 0; i < lexer->length; i++)
-    {
-        const char cur = lexer->src[i];
-        const char nxt = lexer->src[i + 1];
-
-        // Handle OS specific linebreaks.
-        if (cur == '\\' && nxt == '\n')
-        {
-            i++;
-
-            // Still need to keep track of the new line in the source file.
-            lexer->lines[++cur_line_idx] = new_length;
-        }
-        else
-        {
-            lexer->src[new_length++] = lexer->src[i];
-
-            if (cur == '\n')
-            {
-                lexer->lines[++cur_line_idx] = new_length;
-            }
-        }
-    }
-
-    assert (cur_line_idx + 1 == lexer->nlines);
-
-    lexer->src[new_length] = '\0';
-    lexer->length = new_length;
+    lexer->src[new_idx] = '\0';
+    lexer->length = new_idx;
     return true;
 }
 
-static inline void _update_linecol (lexer_data_t *lexer, size_t offset, size_t *cur_line,
-                                    size_t *cur_column)
-{
-    size_t cur_lineidx = (*cur_line) - 1;
-
-    while (cur_lineidx + 1 < lexer->nlines && lexer->lines[cur_lineidx+ 1] <= offset)
-    {
-        cur_lineidx++;
-    }
-
-    *cur_line = cur_lineidx + 1;
-    *cur_column = offset - lexer->lines[cur_lineidx] + 1;
-}
 
 /* Handle comment if exists otherwise skip. Returns if comment is processed. */
-static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
-                                    size_t *cur_column)
+static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset)
 {
     const char cur = lexer->src[*offset];
     const char nxt = lexer->src[*offset + 1];
@@ -455,10 +626,6 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
                 (*offset) += 2;
                 break;
             }
-            else
-            {
-                _update_linecol (lexer, *offset, cur_line, cur_column);
-            }
             (*offset)++;
         }
 
@@ -467,8 +634,7 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset, size_t 
     return false;
 }
 
-static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
-                                 size_t *cur_column)
+static inline bool _handle_char (lexer_data_t *lexer, size_t *offset)
 {
     if (lexer->src[*offset] == '\"')
     {
@@ -494,8 +660,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cu
                 (*offset)++;
                 if (!isxdigit (lexer->src[*offset]))
                 {
-                    fprintf (stderr, "ERROR: invalid hex escape at line %zu col %zu\n",
-                             *cur_line, *cur_column);
+                    _lex_error_at (lexer, *offset, "invalid hex escape");
                     return false;
                 }
                 while (isxdigit (lexer->src[*offset]))
@@ -525,8 +690,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cu
                 {
                     if (!isxdigit (lexer->src[*offset]))
                     {
-                        fprintf (stderr, "ERROR: invalid unicode escape at line %zu col %zu\n",
-                                 *cur_line, *cur_column);
+                        _lex_error_at (lexer, *offset, "invalid unicode escape");
                         return false;
                     }
                     (*offset)++;
@@ -535,8 +699,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cu
             }
 
             default:
-                fprintf (stderr, "ERROR: unknown escape sequence '\\%c' at line %zu col %zu\n",
-                         esc, *cur_line, *cur_column);
+                _lex_error_at (lexer, *offset, "unknown escape sequence '\\%c'", esc);
                 return false;
         }
     }
@@ -549,16 +712,11 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, size_t *cu
 }
 
 /* Process C string. Returns false if it is not valid. */
-static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *cur_line,
-                                  size_t *cur_column)
+static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset)
 {
     assert (lexer->src[*offset] == '\"');
 
     const size_t start = *offset;
-
-    _update_linecol (lexer, *offset, cur_line, cur_column);
-    const size_t start_line = *cur_line;
-    const size_t start_column = *cur_column;
 
     // Skip first quote.
     (*offset)++;
@@ -576,7 +734,7 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
             break;
         }
 
-        if (!_handle_char (lexer, offset, cur_line, cur_column))
+        if (!_handle_char (lexer, offset))
         {
             return false;
         }
@@ -584,18 +742,21 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
 
     if (!closed)
     {
-        fprintf (stderr, "ERROR: unterminated string literal at line %zu col %zu\n",
-                    start_line, start_column);
+        _lex_error_at (lexer, *offset, "unterminated string literal");
         return false;
     }
+
+    const char *file;
+    size_t line, col;
+    srcmap_lookup (&lexer->srcmap, start, &file, &line, &col);
 
     token_t tok = {
         .type   = TOKEN_STRING_LITERAL,
         .src = lexer->src + start,
-        .file = lexer->file,
-        .length = *offset - start,
-        .line   = start_line,
-        .column = start_column,
+        .len = *offset - start,
+        .file = file,
+        .line = line,
+        .col = col,
     };
     _add_token(lexer, &tok);
     return true;
@@ -604,8 +765,7 @@ static inline bool _handle_c_str (lexer_data_t *lexer, size_t *offset, size_t *c
 
 /* Process a preprocessor directive. Assumption is that the '#' at offset is the
    first non-whitespace character in the line. Returns false if invalid preprocessor. */
-static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const offset,
-                                  size_t * const cur_line, size_t * const cur_column)
+static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const offset)
 {
     assert (lexer->src[*offset] == '#');
 
@@ -624,8 +784,7 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
 
         if (lexer->src[*offset] != '<' && lexer->src[*offset] != '\"')
         {
-            fprintf (stderr, "ERROR: invalid #include syntax '%.8s' at line %zu col %zu\n",
-                     lexer->src + (*offset), *cur_line, *cur_column);
+            _lex_error_at (lexer, *offset, "invalid #include syntax");
             return false;
         }
         (*offset)++;
@@ -640,15 +799,13 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
         const size_t len = (uintptr_t) end - (uintptr_t) start;
         if (len == 0)
         {
-            fprintf (stderr, "ERROR: invalid #include syntax '%.8s' at line %zu col %zu\n",
-                        start, *cur_line, *cur_column);
+            _lex_error_at (lexer, *offset, "invalid #include syntax");
             return false;
         }
 
         if (*end != *(start - 1))
         {
-            fprintf (stderr, "ERROR: invalid #include syntax '%.*s' at line %zu col %zu\n",
-                        (int) len, start, *cur_line, *cur_column);
+            _lex_error_at (lexer, *offset, "invalid #include syntax");
             return false;
         }
 
@@ -667,8 +824,7 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
     }
     else
     {
-        fprintf (stderr, "ERROR: unknown preprocessor directive '%.8s' at line %zu col %zu\n",
-                 lexer->src + (*offset), *cur_line, *cur_column);
+        _lex_error_at (lexer, *offset, "unknown preprocessor directive");
         return false;
     }
 
@@ -691,28 +847,17 @@ static bool _phase_3_4 (lexer_data_t *lexer)
     }
 
     size_t offset = 0;
-    size_t cur_line = 1;
-    size_t cur_column = 1;
-
-    // Used for checking if preprocessor directive.
-    bool first_non_whitespace_char_on_line = true;
-
     while (offset < lexer->length)
     {
         const char cur = lexer->src[offset];
 
         if (isspace (cur))
         {
-            if (cur == '\n')
-            {
-                first_non_whitespace_char_on_line = true;
-            }
             offset++;
             continue;
         }
-        first_non_whitespace_char_on_line = false;
 
-        if (_handle_comment (lexer, &offset, &cur_line, &cur_column))
+        if (_handle_comment (lexer, &offset))
         {
             continue;
         }
@@ -720,7 +865,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         // Handle C string.
         if (cur == '\"')
         {
-            if (!_handle_c_str (lexer, &offset, &cur_line, &cur_column))
+            if (!_handle_c_str (lexer, &offset))
             {
                 return false;
             }
@@ -728,10 +873,19 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         }
 
         // Check if preprocessor directive.
-        // '#' must be the first non-whitespace character of the line.
-        if (first_non_whitespace_char_on_line && cur == '#')
+        if (cur == '#')
         {
-            if (!_handle_preprocessor (lexer, &offset, &cur_line, &cur_column))
+            for (char *ch = lexer->src + offset; ch != lexer->src && *ch != '\n'; ch--)
+            {
+                // '#' must be the first non-whitespace character of the line.
+                if (!isspace (*ch))
+                {
+                    _lex_error_at (lexer, offset, "preprocessor directive expected on new line");
+                    return false;
+                }
+            }
+
+            if (!_handle_preprocessor (lexer, &offset))
             {
                 return false;
             }
@@ -747,15 +901,14 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         {
             // Escape sequence.
             size_t temp_offset = offset + 1;
-            if (!_handle_char (lexer, &temp_offset, &cur_line, &cur_column))
+            if (!_handle_char (lexer, &temp_offset))
             {
                 return false;
             }
 
             if (lexer->src[temp_offset] != '\'')
             {
-                fprintf (stderr, "ERROR: Invalid char '%.6s' at line %lu, column %lu\n",
-                         lexer->src + offset, cur_line, cur_column);
+                _lex_error_at (lexer, offset, "Invalid char");
                 return false;
             }
 
@@ -813,8 +966,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
 
         if (!matched)
         {
-            fprintf (stderr, "Failed to tokenize \'%.10s\' at line %lu, column %lu\n",
-                     lexer->src + offset, cur_line, cur_column);
+            _lex_error_at (lexer, offset, "failed to tokenize");
             return false;
         }
 
@@ -824,14 +976,17 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         assert (regmatch.rm_so == 0);
         const int length = regmatch.rm_eo - regmatch.rm_so;
 
-        _update_linecol (lexer, offset, &cur_line, &cur_column);
+        const char *file;
+        size_t line, col;
+        srcmap_lookup (&lexer->srcmap, offset, &file, &line, &col);
+
         token_t token =
         {
             .type = type,
-            .line = cur_line,
-            .file = lexer->file,
-            .column = cur_column,
-            .length = length,
+            .file = file,
+            .line = line,
+            .col = col,
+            .len = length,
             .src = lexer->src + offset,
         };
         _add_token (lexer, &token);
