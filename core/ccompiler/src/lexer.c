@@ -170,12 +170,13 @@ static const tokpat_t CTOK_PATTERNS[] =
 
     // Decimal.
     { TOKEN_I_CONSTANT, "^[1-9][0-9]*(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
+    // Binary.
+    { TOKEN_I_CONSTANT, "^0[bB][01]+(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
     // Hexadecimal.
     { TOKEN_I_CONSTANT, "^0[xX][0-9a-fA-F]+(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
     // Octal.
     { TOKEN_I_CONSTANT, "^0[0-7]*(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
-    // Binary.
-    { TOKEN_I_CONSTANT, "^0[bB][01]+(([uU][lL]{0,2})|([lL]{1,2}[uU]?))?" },
+
 
     // Identifiers can only start with an alphabet or underscore character then
     // followed by a alphanumeric characters.
@@ -316,7 +317,7 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
     {
         while (cur < end && isdigit (*cur))
         {
-            *val = (*val) * 10 + (*cur) - '0';
+            *val = (*val) * 10ULL + (*cur) - '0';
             cur++;
         }
     }
@@ -325,7 +326,7 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
         cur += 2;
         while (cur < end && isxdigit (*cur))
         {
-            *val = (*val) * 16 + hex_to_int (*cur);
+            *val = (*val) * 16ULL + (uint64_t) hex_to_int (*cur);
             cur++;
         }
     }
@@ -334,7 +335,7 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
         cur += 2;
         while (cur < end && (*cur == '0' || *cur == '1'))
         {
-            *val = (*val) * 2 + (*cur) - '0';
+            *val = (*val) * 2ULL + (*cur) - '0';
             cur++;
         }
     }
@@ -343,7 +344,7 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
         cur++;
         while (cur < end && *cur >= '0' && *cur <= '7')
         {
-            *val = (*val) * 8 + (*cur) - '0';
+            *val = (*val) * 8ULL + (*cur) - '0';
             cur++;
         }
     }
@@ -909,6 +910,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, char *ch)
                     }
                     (*offset)++;
                 }
+                *ch = 'u';
                 break;
             }
 
@@ -926,6 +928,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, char *ch)
                     }
                     (*offset)++;
                 }
+                *ch = 'U';
                 break;
             }
 
@@ -936,6 +939,7 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, char *ch)
     }
     else
     {
+        *ch = lexer->src[*offset];
         (*offset)++;
     }
 
@@ -950,6 +954,9 @@ static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
     const size_t start = *offset;
     stringbuffer_t sb;
     sb_init (&sb);
+    
+    // Ensure memory is allocated for it.
+    sb_reserve (&sb, 1);
 
     // Skip first quote.
     (*offset)++;
@@ -1152,7 +1159,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
 
             if (lexer->src[temp_offset] != '\'')
             {
-                LEX_ERROR (lexer, offset, "Invalid char");
+                LEX_ERROR (lexer, offset, "unclosed character quote");
                 return false;
             }
 
@@ -1170,7 +1177,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
                 .col = col,
                 .len = length,
                 .src = lexer->src + offset,
-                .cval.i_constant = ch,
+                .cval.i_constant = (uint64_t) ch,
                 .flags = 0,
             };
             _add_token (lexer, &token);

@@ -12,6 +12,7 @@ typedef struct StringBuffer
 
 
 void sb_init (stringbuffer_t *stringbuffer);
+void sb_reserve (stringbuffer_t *sb, size_t target_size);
 void sb_free (stringbuffer_t *stringbuffer);
 
 void sb_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...);

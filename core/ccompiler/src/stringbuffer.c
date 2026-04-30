@@ -6,23 +6,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void stringbuffer_extend (stringbuffer_t *stringbuffer, const size_t target_cap);
+static void sb_extend (stringbuffer_t *sb, const size_t target_cap);
 
-
-static void stringbuffer_extend (stringbuffer_t * const stringbuffer, const size_t target_cap)
+static void sb_extend (stringbuffer_t * const sb, const size_t target_cap)
 {
-    size_t new_capacity = stringbuffer->capacity * 2;
-    if (new_capacity < 2 * target_cap)
+    size_t new_cap = sb->capacity * 2;
+    if (new_cap < 2 * target_cap)
     {
-        new_capacity = 2 * target_cap;
+        new_cap = 2 * target_cap;
     }
-    new_capacity++;
-    stringbuffer->capacity = new_capacity;
+    new_cap++;
+    sb->capacity = new_cap;
 
-    char *old_buf = stringbuffer->buf;
-    stringbuffer->buf = calloc (new_capacity, sizeof (char));
+    char *old_buf = sb->buf;
+    sb->buf = calloc (new_cap, sizeof (char));
 
-    if (!stringbuffer->buf)
+    if (!sb->buf)
     {
         free (old_buf);
         M_UNREACHABLE ("ERROR: failed to allocate memory.");
@@ -30,37 +29,46 @@ static void stringbuffer_extend (stringbuffer_t * const stringbuffer, const size
 
     if (old_buf)
     {
-        memcpy (stringbuffer->buf, old_buf, stringbuffer->length);
+        memcpy (sb->buf, old_buf, sb->length);
         free (old_buf);
     }
-    stringbuffer->buf[stringbuffer->length] = '\0';
+    sb->buf[sb->length] = '\0';
 }
 
 
-void sb_init (stringbuffer_t * const stringbuffer)
+void sb_init (stringbuffer_t * const sb)
 {
-    stringbuffer->buf = NULL;
-    stringbuffer->capacity = 0;
-    stringbuffer->length = 0;
+    sb->buf = NULL;
+    sb->capacity = 0;
+    sb->length = 0;
 }
 
-void sb_free (stringbuffer_t * const stringbuffer)
+void sb_reserve (stringbuffer_t * const sb, const size_t target_size)
 {
-    free (stringbuffer->buf);
-    stringbuffer->buf = NULL;
-    stringbuffer->capacity = 0;
-    stringbuffer->length = 0;
+    if (sb->capacity >= target_size)
+    {
+        return;
+    }
+    sb_extend (sb, target_size);
 }
 
-void sb_appendf (stringbuffer_t * const stringbuffer, const char * const fmt, ...)
+void sb_free (stringbuffer_t * const sb)
+{
+    free (sb->buf);
+    sb->buf = NULL;
+    sb->capacity = 0;
+    sb->length = 0;
+}
+
+void sb_appendf (stringbuffer_t * const sb, const char * const fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    sb_vappendf (stringbuffer, fmt, args);
+    sb_vappendf (sb, fmt, args);
     va_end (args);
 }
 
-void sb_vappendf (stringbuffer_t * const stringbuffer, const char * const fmt, va_list args)
+void sb_vappendf (stringbuffer_t * const sb, const char * const fmt, va_list args)
 {
     // find required size
     va_list args_copy;
@@ -86,32 +94,32 @@ void sb_vappendf (stringbuffer_t * const stringbuffer, const char * const fmt, v
     vsnprintf (buffer, size + 1, fmt, args);
 
     // append to string buffer
-    sb_appendl (stringbuffer, buffer, size);
+    sb_appendl (sb, buffer, size);
     free (buffer);
 }
 
-void sb_append (stringbuffer_t * const stringbuffer, const char *str)
+void sb_append (stringbuffer_t * const sb, const char *str)
 {
     int len = strlen (str);
-    sb_appendl (stringbuffer, str, len);
+    sb_appendl (sb, str, len);
 }
 
-void sb_appendc (stringbuffer_t * const stringbuffer, const char ch)
+void sb_appendc (stringbuffer_t * const sb, const char ch)
 {
     char cstr[2] = {ch, '\0'};
-    sb_append (stringbuffer, cstr);
+    sb_append (sb, cstr);
 }
 
-void sb_appendl (stringbuffer_t * const stringbuffer, const char * const str, const size_t len)
+void sb_appendl (stringbuffer_t * const sb, const char * const str, const size_t len)
 {
-    if (stringbuffer->length + len + 1 > stringbuffer->capacity)
+    if (sb->length + len + 1 > sb->capacity)
     {
-        stringbuffer_extend (stringbuffer, stringbuffer->length + len);
+        sb_extend (sb, sb->length + len);
     }
 
-    memcpy (stringbuffer->buf + stringbuffer->length, str, len);
-    stringbuffer->length += len;
-    stringbuffer->buf[stringbuffer->length] = '\0';
+    memcpy (sb->buf + sb->length, str, len);
+    sb->length += len;
+    sb->buf[sb->length] = '\0';
 }
 
 void sb_appendsb (stringbuffer_t * const dest, const stringbuffer_t * const src)
@@ -124,11 +132,11 @@ void sb_appendsb (stringbuffer_t * const dest, const stringbuffer_t * const src)
     sb_appendl (dest, src->buf, src->length);
 }
 
-void sb_clear (stringbuffer_t * const stringbuffer)
+void sb_clear (stringbuffer_t * const sb)
 {
-    if (stringbuffer->capacity > 0)
+    if (sb->capacity > 0)
     {
-        stringbuffer->buf[0] = '\0';
+        sb->buf[0] = '\0';
     }
-    stringbuffer->length = 0;
+    sb->length = 0;
 }
