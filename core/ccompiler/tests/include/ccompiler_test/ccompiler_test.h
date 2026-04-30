@@ -9,4 +9,6 @@ extern "C" {
     #include "ccompiler/massert.h"
     #include "ccompiler/parser.h"
     #include "ccompiler/stringbuffer.h"
+    #include "ccompiler/vector.h"
+    #include "ccompiler/util.h"
 }

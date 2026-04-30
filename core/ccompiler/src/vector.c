@@ -6,7 +6,7 @@
 #define VEC_SIZE(v) ((size_t) ((v).end - (v).begin))
 #define VEC_CAP(v) ((size_t) ((v).cap - (v).begin))
 
-void vector_init (vector_t * const v, void (* const free)(void *))
+void vector_init (vector_t * const v, void (* const free)(const void *))
 {
     v->free = free;
     v->begin = NULL;
@@ -18,7 +18,7 @@ void vector_free (vector_t * const v)
 {
     if (v->free)
     {
-        for (void **cur = v->begin; cur < v->end; cur++)
+        for (const void **cur = v->begin; cur < v->end; cur++)
         {
             v->free (*cur);
         }
@@ -53,7 +53,7 @@ void vector_reserve (vector_t * const v, const size_t new_cap)
     }
 
     const size_t size = VEC_SIZE (*v);
-    void **new_begin = realloc (v->begin, new_cap * sizeof (void *));
+    const void **new_begin = realloc (v->begin, new_cap * sizeof (void *));
     if (new_begin == NULL)
     {
         fprintf (stderr, "failed memory allocation");
@@ -73,7 +73,7 @@ void vector_shrink_to_fit (vector_t * const v)
     }
 
     const size_t size = VEC_SIZE (*v);
-    void **new_begin = realloc (v->begin, size * sizeof (void *));
+    const void **new_begin = realloc (v->begin, size * sizeof (void *));
     if (new_begin == NULL)
     {
         fprintf (stderr, "failed memory reallocation");
@@ -92,25 +92,25 @@ void *vector_at (vector_t * const v, const size_t idx)
         return NULL;
     }
 
-    return v->begin[idx];
+    return (void *) v->begin[idx];
 }
 
 void *vector_front (vector_t * const v)
 {
-    return v->begin[0];
+    return (void *) v->begin[0];
 }
 
 void *vector_back (vector_t * const v)
 {
-    return v->end[-1];
+    return (void *) v->end[-1];
 }
 
 void **vector_data (vector_t * const v)
 {
-    return v->begin;
+    return (void **) v->begin;
 }
 
-void vector_assign (vector_t * const v, const size_t idx, void * const val)
+void vector_assign (vector_t * const v, const size_t idx, const void * const val)
 {
     if (v->free)
     {
@@ -120,7 +120,7 @@ void vector_assign (vector_t * const v, const size_t idx, void * const val)
     v->begin[idx] = val;
 }
 
-void vector_push_back (vector_t * const v, void * const e)
+void vector_push_back (vector_t * const v, const void * const e)
 {
     if (v->end == v->cap)
     {
