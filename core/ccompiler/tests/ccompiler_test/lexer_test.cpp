@@ -7,6 +7,21 @@ TEST (lexer, lexer_print_empty)
     lexer_data_t lexer;
     lexer_init (&lexer);
     lexer_print (&lexer);
+
+    EXPECT_TRUE (lex_str ("", &lexer));
+    EXPECT_EQ (lexer.tokarr.tok_cnt, 0);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_only_whitespace_produces_no_tokens)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("   \t  \n  \n  ", &lexer));
+    EXPECT_EQ (lexer.tokarr.tok_cnt, 0);
+
     lexer_free (&lexer);
 }
 
@@ -85,16 +100,16 @@ TEST (lexer, lexer_whitespace)
     EXPECT_TRUE (lex_str ("\vint x \f= 0;\f\r\nint \fy \f= 0;\v\n\fint z =\v 0;\v\r\freturn x + y + z;\n\v\f", &lexer));
 
     EXPECT_EQ (lexer.tokarr.tok_cnt, 22);
-    EXPECT_EQ (lexer.tokarr.toks[0].col, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].col, 2);
     EXPECT_EQ (lexer.tokarr.toks[0].line, 1);
 
     EXPECT_EQ (lexer.tokarr.toks[5].col, 1);
     EXPECT_EQ (lexer.tokarr.toks[5].line, 2);
 
-    EXPECT_EQ (lexer.tokarr.toks[10].col, 1);
+    EXPECT_EQ (lexer.tokarr.toks[10].col, 2);
     EXPECT_EQ (lexer.tokarr.toks[10].line, 3);
 
-    EXPECT_EQ (lexer.tokarr.toks[15].col, 1);
+    EXPECT_EQ (lexer.tokarr.toks[15].col, 2);
     EXPECT_EQ (lexer.tokarr.toks[15].line, 4);
 
     lexer_free (&lexer);
@@ -959,6 +974,22 @@ TEST (lexer, ellipsis)
     lexer_free (&lexer);
 }
 
+TEST (lexer, lexer_three_spaced_periods_are_three_tokens)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str (". . .", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 3);
+
+    for (int i = 0; i < 3; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, TOKEN_PERIOD);
+    }
+
+    lexer_free (&lexer);
+}
+
 TEST (lexer, keyword_prefix_is_identifier)
 {
     lexer_data_t lexer;
@@ -1241,6 +1272,533 @@ TEST (lexer, snippet_ternary)
     };
 
     EXPECT_EQ (lexer.tokarr.tok_cnt, (int)(sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_operator_src_pointer_single_char)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("+", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_PLUS);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 1u);
+    // src must point at the '+' character in the processed buffer
+    ASSERT_NE (lexer.tokarr.toks[0].src, nullptr);
+    EXPECT_EQ (lexer.tokarr.toks[0].src[0], '+');
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_operator_src_pointer_multi_char)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str(">>=", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_RIGHT_ASSIGN);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 3u);
+    ASSERT_NE (lexer.tokarr.toks[0].src, nullptr);
+    EXPECT_EQ (strncmp(lexer.tokarr.toks[0].src, ">>=", 3), 0);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_operator_col_single_char)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // "int +" — '+' is at column 5
+    EXPECT_TRUE (lex_str("int +", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_PLUS);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 5u);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 1u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_token_at_very_end_of_input_no_newline)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // No whitespace or newline after the semicolon.
+    EXPECT_TRUE (lex_str("x;", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_IDENTIFIER);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_SEMICOLON);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 2u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_integer_at_very_end_of_input_no_newline)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("42", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 2u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_negative_number_is_two_tokens)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // -1 must lex as TOKEN_HYPEN followed by TOKEN_I_CONSTANT; there is no
+    // negative integer literal in C.
+    EXPECT_TRUE (lex_str ("-1", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_HYPEN);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[1].len, 1u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer2, negative_float_is_two_tokens)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str("-3.14", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_HYPEN);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_F_CONSTANT);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_single_line_comment_at_eof_no_newline)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // The comment runs to EOF; there is no '\n' to terminate it.
+    EXPECT_TRUE (lex_str ("int // comment with no newline", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_KEYWORD_INT);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_unterminated_block_comment_fails)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_FALSE (lex_str ("/* never closed", &lexer));
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_vertical_tab_mid_line_stripped)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // \v between two tokens on the same logical line should be treated as
+    // whitespace and not alter the line count.
+    EXPECT_TRUE (lex_str ("int\vx", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_KEYWORD_INT);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_IDENTIFIER);
+    // Both tokens are on line 1 because \v does not count as a newline.
+    EXPECT_EQ (lexer.tokarr.toks[0].line, 1u);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 1u);
+
+    lexer_free (&lexer);
+}
+
+TEST(lexer, lexer_form_feed_mid_line_stripped)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int\fx", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].line, 1u);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 1u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_char_escape_alert)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'\\a'", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    // Verify the raw token span covers exactly the 4-character literal.
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_char_escape_backspace)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'\\b'", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_char_escape_form_feed)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'\\f'", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_char_escape_vertical_tab)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("'\\v'", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_float_col_tracking_single_line)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // "int 3.14" — float starts at column 5
+    EXPECT_TRUE (lex_str ("int 3.14", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].col, 1u);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_F_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 5u);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 1u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_float_col_tracking_after_newline)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int\n  1.5", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_F_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 2u);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 3u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_escaping_os_linebreaks_tok_cnt)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // Same input as the existing test; just pin tok_cnt.
+    EXPECT_TRUE (lex_str (
+        "int x = 0;\\\r\n"
+        "i\\\n"
+        "nt y = 0;\\\n"
+        "in\\\n"
+        "t z = 0;\\\r"
+        "r\\\n"
+        "e\\\n"
+        "t\\\n"
+        "u\\\n"
+        "r\\\n"
+        "n x + y + z;\\\n",
+        &lexer));
+
+    EXPECT_EQ (lexer.tokarr.tok_cnt, 22);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_escaping_os_linebreaks_last_statement_line)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str (
+        "int x = 0;\\\r\n"
+        "i\\\n"
+        "nt y = 0;\\\n"
+        "in\\\n"
+        "t z = 0;\\\r"
+        "r\\\n"
+        "e\\\n"
+        "t\\\n"
+        "u\\\n"
+        "r\\\n"
+        "n x + y + z;\\\n",
+        &lexer));
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 22);
+
+    // Tokens 15–21 belong to "return x + y + z;" which starts on logical
+    // line 6 (after the last unescaped newline).
+    EXPECT_EQ (lexer.tokarr.toks[15].line, 6u);
+    EXPECT_EQ (lexer.tokarr.toks[15].col,  1u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_identifier_leading_underscore_src_len)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("_foo", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 1);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_IDENTIFIER);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+    EXPECT_EQ (strncmp(lexer.tokarr.toks[0].src, "_foo", 4), 0);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_integer_immediately_followed_by_semicolon)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("42;", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 2u);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_SEMICOLON);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_float_immediately_followed_by_semicolon)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("3.14;", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_F_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_SEMICOLON);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 5u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_hex_immediately_followed_by_semicolon)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("0xff;", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
+    EXPECT_EQ (lexer.tokarr.toks[0].len, 4u);
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_SEMICOLON);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_token_col_after_inline_block_comment)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    // "x /* hi */ y" — 'y' is at column 12
+    EXPECT_TRUE (lex_str ("x /* hi */ y", &lexer));
+    ASSERT_EQ (lexer.tokarr.tok_cnt, 2);
+
+    EXPECT_EQ (lexer.tokarr.toks[1].type, TOKEN_IDENTIFIER);
+    EXPECT_EQ (lexer.tokarr.toks[1].line, 1u);
+    EXPECT_EQ (lexer.tokarr.toks[1].col, 12u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_minimal_function)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int main() { return 0; }", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_KEYWORD_INT, TOKEN_IDENTIFIER,
+        TOKEN_OPEN_PARENTHESIS, TOKEN_CLOSE_PARENTHESIS,
+        TOKEN_OPEN_BRACE,
+            TOKEN_KEYWORD_RETURN, TOKEN_I_CONSTANT, TOKEN_SEMICOLON,
+        TOKEN_CLOSE_BRACE,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    // "return" is at column 16
+    EXPECT_EQ (lexer.tokarr.toks[5].col, 14u);
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_variable_declaration_and_assign)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("int x = 10 + 20;", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_KEYWORD_INT, TOKEN_IDENTIFIER, TOKEN_EQUAL_SIGN,
+        TOKEN_I_CONSTANT, TOKEN_PLUS, TOKEN_I_CONSTANT,
+        TOKEN_SEMICOLON,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_while_loop)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("while (x != 0) { x--; }", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_KEYWORD_WHILE,
+        TOKEN_OPEN_PARENTHESIS,
+            TOKEN_IDENTIFIER, TOKEN_NE_OP, TOKEN_I_CONSTANT,
+        TOKEN_CLOSE_PARENTHESIS,
+        TOKEN_OPEN_BRACE,
+            TOKEN_IDENTIFIER, TOKEN_DEC_OP, TOKEN_SEMICOLON,
+        TOKEN_CLOSE_BRACE,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_bitwise_ops)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("a & b | c ^ ~d", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_IDENTIFIER, TOKEN_AMPERSAND,
+        TOKEN_IDENTIFIER, TOKEN_PIPE,
+        TOKEN_IDENTIFIER, TOKEN_CARROT,
+        TOKEN_TILDE, TOKEN_IDENTIFIER,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_shift_ops)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("x <<= 2; y >>= 3;", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_IDENTIFIER, TOKEN_LEFT_ASSIGN,  TOKEN_I_CONSTANT, TOKEN_SEMICOLON,
+        TOKEN_IDENTIFIER, TOKEN_RIGHT_ASSIGN, TOKEN_I_CONSTANT, TOKEN_SEMICOLON,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
+    for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
+    {
+        EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);
+    }
+
+    lexer_free (&lexer);
+}
+
+TEST (lexer, lexer_snippet_cast_and_sizeof)
+{
+    lexer_data_t lexer;
+    lexer_init (&lexer);
+
+    EXPECT_TRUE (lex_str ("(int)sizeof(x)", &lexer));
+
+    TokenType expected[] =
+    {
+        TOKEN_OPEN_PARENTHESIS, TOKEN_KEYWORD_INT, TOKEN_CLOSE_PARENTHESIS,
+        TOKEN_KEYWORD_SIZEOF,
+        TOKEN_OPEN_PARENTHESIS, TOKEN_IDENTIFIER, TOKEN_CLOSE_PARENTHESIS,
+    };
+
+    ASSERT_EQ (lexer.tokarr.tok_cnt, (int) (sizeof (expected) / sizeof (*expected)));
     for (size_t i = 0; i < lexer.tokarr.tok_cnt; i++)
     {
         EXPECT_EQ (lexer.tokarr.toks[i].type, expected[i]);

@@ -758,6 +758,7 @@ static bool _phase_1_2 (lexer_data_t *lexer)
         // Strip Vertical tabs and form feeds.
         if (c == '\v' || c == '\f')
         {
+            lexer->src[new_idx++] = ' ';
             orig_col++;
             idx++;
             continue;
@@ -814,12 +815,12 @@ static inline bool _handle_comment (lexer_data_t *lexer, size_t *offset)
             if (lexer->src[*offset] == '*' && lexer->src[*offset + 1] == '/')
             {
                 (*offset) += 2;
-                break;
+                return true;
             }
             (*offset)++;
         }
 
-        return true;
+        LEX_ERROR (lexer, *offset, "unclosed multi-line comment");
     }
     return false;
 }
@@ -949,12 +950,15 @@ static inline bool _handle_char (lexer_data_t *lexer, size_t *offset, char *ch)
 /* Process C string. Returns false if it is not valid. */
 static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
 {
-    assert (lexer->src[*offset] == '\"');
+    if (lexer->src[*offset] != '\"')
+    {
+        return false;
+    }
 
     const size_t start = *offset;
     stringbuffer_t sb;
     sb_init (&sb);
-    
+
     // Ensure memory is allocated for it.
     sb_reserve (&sb, 1);
 
@@ -1100,6 +1104,7 @@ static bool _phase_3_4 (lexer_data_t *lexer)
     while (offset < lexer->length)
     {
         const char cur = lexer->src[offset];
+        const char nxt = lexer->src[offset + 1];
 
         if (isspace (cur))
         {
@@ -1107,8 +1112,12 @@ static bool _phase_3_4 (lexer_data_t *lexer)
             continue;
         }
 
-        if (_handle_comment (lexer, &offset))
+        if (cur == '/' && (nxt == '/' || nxt == '*'))
         {
+            if (!_handle_comment (lexer, &offset))
+            {
+                return false;
+            }
             continue;
         }
 
