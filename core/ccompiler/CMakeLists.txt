@@ -7,6 +7,7 @@ add_library(ccompiler STATIC
     src/parser.c
     src/codegen.c
     src/stringbuffer.c
+    src/vector.c
     src/massert.c
     src/util.c
 )
