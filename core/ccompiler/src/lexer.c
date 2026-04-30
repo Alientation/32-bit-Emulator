@@ -29,6 +29,8 @@ static void _lex_msg_at (const char *msg_type, const lexer_data_t *lexer, size_t
 
 static char *_file_read (const char *filepath);
 
+static bool _str_to_int (const char *src, size_t length, uint64_t *val, uint64_t *flags);
+
 static void _add_token (lexer_data_t *lexer, token_t *tok);
 
 static bool _process_lexer (lexer_data_t *lexer);
@@ -297,6 +299,115 @@ static char *_file_read (const char * const filepath)
     }
 
     return STEAL (buffer);
+}
+
+static bool _str_to_int (const char * const src, const size_t length, uint64_t * const val,
+                         uint64_t * const flags)
+{
+    const char *cur = src;
+    const char * const end = src + length;
+    const char c = src[0];
+    const char c1 = (length > 1) ? src[1] : '\0';
+    *val = 0;
+    *flags = 0;
+
+    if (c >= '1' && c <= '9')
+    {
+        while (cur < end && isdigit (*cur))
+        {
+            *val = (*val) * 10 + (*cur) - '0';
+            cur++;
+        }
+    }
+    else if (c == '0' && (c1 == 'x' || c1 == 'X'))
+    {
+        cur += 2;
+        while (cur < end && isxdigit (*cur))
+        {
+            *val = (*val) * 16 + hex_to_int (*cur);
+            cur++;
+        }
+    }
+    else if (c == '0' && (c1 == 'b' || c1 == 'B'))
+    {
+        cur += 2;
+        while (cur < end && (*cur == '0' || *cur == '1'))
+        {
+            *val = (*val) * 2 + (*cur) - '0';
+            cur++;
+        }
+    }
+    else if (c == '0')
+    {
+        cur++;
+        while (cur < end && *cur >= '0' && *cur <= '7')
+        {
+            *val = (*val) * 8 + (*cur) - '0';
+            cur++;
+        }
+    }
+    else
+    {
+        return false;
+    }
+
+    // Parse integer suffix to evaluate flags.
+    if (cur != end)
+    {
+        if (*cur == 'u' || *cur == 'U')
+        {
+            *flags = LFLAGS_UNSIGNED;
+            cur++;
+        }
+        else
+        {
+            *flags = LFLAGS_SIGNED;
+        }
+
+        const char c = (cur != end) ? cur[0] : '\0';
+        const char c1 = (cur + 1 != end) ? cur[1] : '\0';
+        if ((c == 'l' || c == 'L') && (c1 == 'l' || c1 == 'L'))
+        {
+            *flags |= LFLAGS_LONGLONG;
+            cur += 2;
+        }
+        else if (c == 'l' || c == 'L')
+        {
+            *flags |= LFLAGS_LONG;
+            cur++;
+        }
+        else
+        {
+            *flags |= LFLAGS_INT;
+        }
+
+        if (cur != end)
+        {
+            fprintf (stderr, "invalid integer suffix characters\n");
+            return false;
+        }
+    }
+    else
+    {
+        // Determine the smallest type the integer can fit under.
+        if (val <= (1ULL << 31) - 1)
+        {
+            *flags = LFLAGS_INT | LFLAGS_SIGNED;
+        }
+        else if (val <= (1ULL < 32) - 1)
+        {
+            *flags = LFLAGS_INT | LFLAGS_UNSIGNED;
+        }
+        else if (val <= (1ULL < 63) - 1)
+        {
+            *flags = LFLAGS_LONGLONG | LFLAGS_SIGNED;
+        }
+        else
+        {
+            *flags = LFLAGS_LONGLONG | LFLAGS_UNSIGNED;
+        }
+    }
+    return true;
 }
 
 bool lex_file (const char *filepath,
@@ -860,8 +971,6 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
 {
     assert (lexer->src[*offset] == '#');
 
-    // TODO:
-
     #define STREQ(directive) (strncmp (lexer->src + (*offset), directive, strlen(directive)) == 0)
 
     if (STREQ("#include"))
@@ -911,7 +1020,7 @@ static bool _handle_preprocessor (lexer_data_t * const lexer, size_t * const off
     }
     else if (STREQ("define"))
     {
-
+        // TODO:
     }
     else
     {
@@ -1105,7 +1214,23 @@ static bool _phase_3_4 (lexer_data_t *lexer)
             .col = col,
             .len = length,
             .src = lexer->src + offset,
+            .cval = {0},
+            .flags = 0
         };
+
+        if (type == TOKEN_I_CONSTANT)
+        {
+            if (!_str_to_int (lexer->src + offset, length, &token.cval.i_constant, &token.flags))
+            {
+                LEX_ERROR (lexer, offset, "failed to convert string to int");
+                return false;
+            }
+        }
+        else if (type == TOKEN_F_CONSTANT)
+        {
+            // TODO:
+        }
+
         _add_token (lexer, &token);
 
         offset += length;

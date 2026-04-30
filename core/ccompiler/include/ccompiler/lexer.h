@@ -228,20 +228,20 @@ struct Token
 
 
 // Flags for integer constants.
-#define LFLAGS_INT          (0b000)
-#define LFLAGS_LONG         (0b001)
-#define LFLAGS_LONGLONG     (0b011)
-#define LFLAGS_BITINT       (0b100)
-#define LFLAGS_IGET_SIZE    (0b111)
+#define LFLAGS_INT          (0)
+#define LFLAGS_LONG         (1)
+#define LFLAGS_LONGLONG     (2)
+#define LFLAGS_BITINT       (3)
+#define LFLAGS_IGET_SIZE    (7)
 
-#define LFLAGS_SIGNED       (0b1 << 3)
-#define LFLAGS_UNSIGNED     (0b0 << 3)
-#define LFLAGS_GET_SIGN     (0b1 << 3)
+#define LFLAGS_SIGNED       (1 << 3)
+#define LFLAGS_UNSIGNED     (0 << 3)
+#define LFLAGS_GET_SIGN     (1 << 3)
 
 // Flags for float constants.
-#define LFLAGS_FLOAT        (0b00)
-#define LFLAGS_DOUBLE       (0b01)
-#define LFLAGS_FGET_SIZE    (0b11)
+#define LFLAGS_FLOAT        (0)
+#define LFLAGS_DOUBLE       (1)
+#define LFLAGS_FGET_SIZE    (1)
 
 
 bool lex_file (const char *filepath,
