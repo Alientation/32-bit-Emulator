@@ -47,7 +47,7 @@ static inline void scope_free (void *p)
         __ptr;              \
     })
 
-static int hex_to_int (const char hex)
+static inline int hex_to_int (const char hex)
 {
     if (hex >= '0' && hex <= '9') return hex - '0';
     if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
