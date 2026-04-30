@@ -1,4 +1,4 @@
-/.vscode
+/.vscode/*
 build/
 install/
 /.VSCodeCounter
@@ -11,3 +11,5 @@ coverage/
 !core/assembler/tests/disk.bin
 !core/assembler/tests/disk.bin.info
 !core/assembler/tests/rom.bin
+
+!.vscode/c_cpp_properties.json
