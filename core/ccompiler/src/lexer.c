@@ -30,6 +30,7 @@ static void _lex_msg_at (const char *msg_type, const lexer_data_t *lexer, size_t
 static char *_file_read (const char *filepath);
 
 static bool _str_to_int (const char *src, size_t length, uint64_t *val, uint64_t *flags);
+static bool _str_to_float (const char *src, size_t length, double *val, uint64_t *flags);
 
 static void _add_token (lexer_data_t *lexer, token_t *tok);
 
@@ -356,12 +357,12 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
     {
         if (*cur == 'u' || *cur == 'U')
         {
-            *flags = LFLAGS_UNSIGNED;
+            *flags |= LFLAGS_UNSIGNED;
             cur++;
         }
         else
         {
-            *flags = LFLAGS_SIGNED;
+            *flags |= LFLAGS_SIGNED;
         }
 
         const char c = (cur != end) ? cur[0] : '\0';
@@ -390,15 +391,15 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
     else
     {
         // Determine the smallest type the integer can fit under.
-        if (val <= (1ULL << 31) - 1)
+        if (*val <= (1ULL << 31) - 1)
         {
             *flags = LFLAGS_INT | LFLAGS_SIGNED;
         }
-        else if (val <= (1ULL < 32) - 1)
+        else if (*val <= (1ULL < 32) - 1)
         {
             *flags = LFLAGS_INT | LFLAGS_UNSIGNED;
         }
-        else if (val <= (1ULL < 63) - 1)
+        else if (*val <= (1ULL < 63) - 1)
         {
             *flags = LFLAGS_LONGLONG | LFLAGS_SIGNED;
         }
@@ -408,6 +409,41 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
         }
     }
     return true;
+}
+
+static bool _str_to_float (const char * const src, const size_t length, double * const val,
+                           uint64_t * const flags)
+{
+    *flags = 0;
+    char *endptr;
+    *val = strtod (src, &endptr);
+    if (endptr == src)
+    {
+        // Invalid number.
+        return false;
+    }
+
+    // Check suffix for width information.
+    if (*endptr == 'f' || *endptr == 'F')
+    {
+        // float suffix.
+        *flags |= LFLAGS_FLOAT;
+        endptr++;
+    }
+    else if (*endptr == 'l' || *endptr == 'L')
+    {
+        // double suffix.
+        *flags |= LFLAGS_DOUBLE;
+        endptr++;
+    }
+    else
+    {
+        // Default double.
+        *flags |= LFLAGS_DOUBLE;
+    }
+
+    // Ensure we consumed exactly 'length' characters.
+    return (size_t) (endptr - src) == length;
 }
 
 bool lex_file (const char *filepath,
@@ -1228,11 +1264,14 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         }
         else if (type == TOKEN_F_CONSTANT)
         {
-            // TODO:
+            if (!_str_to_float (lexer->src + offset, length, &token.cval.f_constant, &token.flags))
+            {
+                LEX_ERROR (lexer, offset, "failed to convert string to int");
+                return false;
+            }
         }
 
         _add_token (lexer, &token);
-
         offset += length;
     }
 
