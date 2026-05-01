@@ -1,9 +1,16 @@
 {
-   ignore_static_regex_init
+   ignore_libc_regex_internal
    Memcheck:Leak
    match-leak-kinds: reachable
-   fun:malloc
+   fun:*alloc
    ...
-   fun:regcomp
+   obj:*/libc.so.*
+}
+{
+   ignore_libc_regex_alt
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:*alloc
    ...
+   obj:*/libc-*.so*
 }

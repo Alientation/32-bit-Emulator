@@ -114,7 +114,7 @@ void sb_appendl (stringbuffer_t * const sb, const char * const str, const size_t
 {
     if (sb->length + len + 1 > sb->capacity)
     {
-        sb_extend (sb, sb->length + len);
+        sb_extend (sb, sb->length + len + 1);
     }
 
     memcpy (sb->buf + sb->length, str, len);

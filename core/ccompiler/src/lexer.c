@@ -515,6 +515,14 @@ void lexer_free (lexer_data_t * const lexer)
     free (lexer->file);
     free (lexer->src);
     free (lexer->src_orig);
+
+    for (size_t i = 0; i < lexer->tokarr.tok_cnt; i++)
+    {
+        if (lexer->tokarr.toks[i].type == TOKEN_STRING_LITERAL)
+        {
+            free (lexer->tokarr.toks[i].cval.s_constant);
+        }
+    }
     free (lexer->tokarr.toks);
     srcmap_free (&lexer->srcmap);
 
@@ -958,7 +966,7 @@ static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
     }
 
     const size_t start = *offset;
-    stringbuffer_t sb;
+    _cleanup_sb_ stringbuffer_t sb;
     sb_init (&sb);
 
     // Ensure memory is allocated for it.
@@ -1008,10 +1016,11 @@ static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
         .cval.s_constant = sb.buf,
         .flags = 0,
     };
+    sb.buf[sb.length] = '\0';
+    sb.buf = NULL;
 
     _add_token(lexer, &tok);
     return true;
-
 }
 
 /* Process a preprocessor directive. Assumption is that the '#' at offset is the

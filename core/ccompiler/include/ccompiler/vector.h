@@ -14,6 +14,12 @@ typedef struct Vector
 void vector_init (vector_t *v, void (*free)(void *));
 void vector_free (vector_t *v);
 
+static inline void scope_freev (vector_t *v)
+{
+    vector_free (v);
+}
+#define _cleanup_v_ _cleanup_(scope_freev)
+
 size_t vector_size (vector_t *v);
 size_t vector_capacity (vector_t *v);
 bool vector_empty (vector_t *v);

@@ -703,6 +703,8 @@ TEST (lexer, character_basic)
         EXPECT_EQ (lexer.tokarr.toks[i].src[0], '\'');
         EXPECT_EQ (lexer.tokarr.toks[i].src[2], '\'');
     }
+
+    lexer_free (&lexer);
 }
 
 TEST (lexer, character_escape_sequences)
@@ -716,6 +718,8 @@ TEST (lexer, character_escape_sequences)
     EXPECT_EQ (lexer.tokarr.toks[0].type, TOKEN_I_CONSTANT);
     EXPECT_EQ (lexer.tokarr.toks[0].len, strlen ("'\\\"'"));
     EXPECT_EQ (strncmp (lexer.tokarr.toks[0].src, "'\\\"'", strlen ("'\\\"'")), 0);
+
+    lexer_free (&lexer);
 }
 
 TEST (lexer, string_basic)

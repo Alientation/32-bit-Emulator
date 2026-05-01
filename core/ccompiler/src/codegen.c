@@ -1,13 +1,12 @@
 #include "ccompiler/codegen.h"
 
 #include "ccompiler/massert.h"
+#include "ccompiler/util.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define UNUSED(x) (void)(x)
 
 static void codegen_ast (codegen_data_t *codegen, astnode_t *node);
 static void codegen_prog (codegen_data_t *codegen, astnode_t *node);

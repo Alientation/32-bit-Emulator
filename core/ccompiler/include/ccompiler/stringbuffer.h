@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ccompiler/util.h"
+
 #include <stdarg.h>
 #include <stddef.h>
 
@@ -10,10 +12,15 @@ typedef struct StringBuffer
     size_t capacity;
 } stringbuffer_t;
 
-
 void sb_init (stringbuffer_t *stringbuffer);
 void sb_reserve (stringbuffer_t *sb, size_t target_size);
 void sb_free (stringbuffer_t *stringbuffer);
+
+static inline void scope_freesb (stringbuffer_t *sb)
+{
+    sb_free (sb);
+}
+#define _cleanup_sb_ _cleanup_(scope_freesb)
 
 void sb_appendf (stringbuffer_t *stringbuffer, const char *fmt, ...);
 void sb_vappendf (stringbuffer_t *stringbuffer, const char *fmt, va_list args);
