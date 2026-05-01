@@ -52,6 +52,15 @@ void vector_reserve (vector_t * const v, const size_t new_cap)
         return;
     }
 
+    if (new_cap == 0)
+    {
+        free (v->begin);
+        v->begin = NULL;
+        v->end = NULL;
+        v->cap = NULL;
+        return;
+    }
+
     const size_t size = VEC_SIZE (*v);
     void **new_begin = realloc (v->begin, new_cap * sizeof (void *));
     if (new_begin == NULL)
@@ -73,6 +82,16 @@ void vector_shrink_to_fit (vector_t * const v)
     }
 
     const size_t size = VEC_SIZE (*v);
+
+    if (size == 0)
+    {
+        free (v->begin);
+        v->begin = NULL;
+        v->end = NULL;
+        v->cap = NULL;
+        return;
+    }
+
     void **new_begin = realloc (v->begin, size * sizeof (void *));
     if (new_begin == NULL && size != 0)
     {

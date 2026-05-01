@@ -590,6 +590,7 @@ static void _add_token (lexer_data_t *lexer, token_t *tok)
     if (lexer->tokarr.tok_cnt + 1 > lexer->tokarr.tok_cap)
     {
         const int new_cap = lexer->tokarr.tok_cap * 2 + 10;
+        massert (new_cap > 0, "realloc with size 0 is UB");
         token_t * const new_arr = realloc (lexer->tokarr.toks, new_cap * sizeof (token_t));
         if (new_arr == NULL)
         {
@@ -652,6 +653,7 @@ static void srcmap_lookup (const srcmap_t * const map, const size_t proc_offset,
 static void srcmap_extend (srcmap_t * const map)
 {
     const size_t new_capacity = map->capacity * 2 + 10;
+    massert (new_capacity > 0, "realloc with size 0 is UB");
     srcspan_t * const new_spans = realloc (map->spans, new_capacity * sizeof (srcspan_t));
     if (!new_spans)
     {
