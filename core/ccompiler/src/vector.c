@@ -74,7 +74,7 @@ void vector_shrink_to_fit (vector_t * const v)
 
     const size_t size = VEC_SIZE (*v);
     const void **new_begin = realloc (v->begin, size * sizeof (void *));
-    if (new_begin == NULL)
+    if (new_begin == NULL && size != 0)
     {
         fprintf (stderr, "failed memory reallocation");
         exit (EXIT_FAILURE);
@@ -133,10 +133,17 @@ void vector_push_back (vector_t * const v, const void * const e)
 
 void vector_pop_back (vector_t * const v)
 {
+    if (v->free)
+    {
+        v->free (v->end[-1]);
+    }
     v->end--;
 }
 
 void vector_clear (vector_t * const v)
 {
-    v->end = v->begin;
+    while (VEC_SIZE (*v) > 0)
+    {
+        vector_pop_back (v);
+    }
 }
