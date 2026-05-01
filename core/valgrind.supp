@@ -1,0 +1,9 @@
+{
+   ignore_static_regex_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:regcomp
+   ...
+}

@@ -224,7 +224,7 @@ static void _lex_msg_at (const char * const msg_type, const lexer_data_t * const
     }
 
     fprintf (stderr, "%-5zu | %.*s\n", line, (int) line_length, line_start);
-    fprintf (stderr, "%-5s    ", "");
+    fprintf (stderr, "%-5s   ", "");
 
     for (size_t i = 1; i < col; i++)
     {
@@ -366,8 +366,8 @@ static bool _str_to_int (const char * const src, const size_t length, uint64_t *
             *flags |= LFLAGS_SIGNED;
         }
 
-        const char c = (cur != end) ? cur[0] : '\0';
-        const char c1 = (cur + 1 != end) ? cur[1] : '\0';
+        const char c = (cur < end) ? cur[0] : '\0';
+        const char c1 = (cur + 1 < end) ? cur[1] : '\0';
         if ((c == 'l' || c == 'L') && (c1 == 'l' || c1 == 'L'))
         {
             *flags |= LFLAGS_LONGLONG;
@@ -459,7 +459,7 @@ bool lex_file (const char *filepath,
     lexer->src = buffer;
     lexer->length = strlen (buffer);
 
-    lexer->file = calloc (strlen (filepath), sizeof (char));
+    lexer->file = calloc (strlen (filepath) + 1, sizeof (char));
     if (!lexer->file)
     {
         fprintf (stderr, "ERROR: failed to allocate memory\n");
@@ -683,7 +683,7 @@ static void srcmap_push (srcmap_t * const map, const size_t proc_offset, const c
 
 static bool _process_lexer (lexer_data_t *lexer)
 {
-    lexer->src_orig = calloc (strlen (lexer->src), sizeof (char));
+    lexer->src_orig = calloc (strlen (lexer->src) + 1, sizeof (char));
     if (!lexer->src_orig)
     {
         fprintf (stderr, "ERROR: memory allocation failed\n");
@@ -968,7 +968,7 @@ static inline bool _handle_cstr (lexer_data_t *lexer, size_t *offset)
     (*offset)++;
 
     bool closed = false;
-    while (*offset <= lexer->length && lexer->src[*offset] != '\n')
+    while (*offset < lexer->length && lexer->src[*offset] != '\n')
     {
         const char c = lexer->src[*offset];
 
@@ -1202,6 +1202,13 @@ static bool _phase_3_4 (lexer_data_t *lexer)
         for (size_t i = 0; i < ARRAY_LEN (CTOK_KEYWORDS) && !matched; i++)
         {
             const size_t len = strlen (CTOK_KEYWORDS[i].pattern);
+
+            // Not enough characters to match one for one.
+            if (offset + len > lexer->length)
+            {
+                continue;
+            }
+
             const char endc = lexer->src[offset + len];
             if (strncmp (CTOK_KEYWORDS[i].pattern, lexer->src + offset,
                 strlen (CTOK_KEYWORDS[i].pattern)) == 0 && (endc != '_' && !isalnum (endc)))

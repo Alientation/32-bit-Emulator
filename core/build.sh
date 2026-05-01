@@ -63,7 +63,8 @@ if $DO_TEST; then
         echo "Running Debug tests with Valgrind..."
         # Using -D to inject the path in case DartConfiguration.tcl is missing/empty
         ctest --test-dir "$DEBUG_DIR" -T memcheck --progress --output-on-failure \
-              -D MemoryCheckCommand="$(which valgrind)"
+              -D MemoryCheckCommand="$(which valgrind)" \
+              -D MemoryCheckCommandOptions="--leak-check=full --show-leak-kinds=all --suppressions=$(pwd)/valgrind.supp"
     else
         echo "Running Debug tests..."
         ctest --test-dir "$DEBUG_DIR" --progress --output-on-failure
