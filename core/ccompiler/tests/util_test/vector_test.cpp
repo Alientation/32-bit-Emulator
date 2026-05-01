@@ -1,11 +1,11 @@
 #include <ccompiler_test/ccompiler_test.h>
 
-static void free_int (const void *val)
+static void free_int (void *val)
 {
-    free ((void *) val);
+    free (val);
 }
 
-static const void *make_int (int n)
+static void *make_int (int n)
 {
     int *p = (int *) malloc (sizeof (int));
     *p = n;
@@ -303,6 +303,8 @@ TEST (vector, shrink_to_fit_capacity_equals_size)
     vector_shrink_to_fit (&v);
 
     EXPECT_EQ (vector_capacity (&v), vector_size (&v));
+
+    vector_shrink_to_fit (&v);
 
     vector_free (&v);
 }

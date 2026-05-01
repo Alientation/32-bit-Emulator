@@ -24,6 +24,12 @@ FetchContent_MakeAvailable(googletest)
 
 if (BUILD_TESTS)
     enable_testing()
+    include(CTest)
+    
+    find_program(MEMORYCHECK_COMMAND valgrind)
+    if(MEMORYCHECK_COMMAND)
+        set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --error-exitcode=1")
+    endif()
 endif()
 
 add_subdirectory(util)

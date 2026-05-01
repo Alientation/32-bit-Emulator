@@ -5,13 +5,13 @@
 
 typedef struct Vector
 {
-    void (*free)(const void *val);
-    const void **begin;
-    const void **end;
-    const void **cap;
+    void (*free)(void *val);
+    void **begin;
+    void **end;
+    void **cap;
 } vector_t;
 
-void vector_init (vector_t *v, void (*free)(const void *));
+void vector_init (vector_t *v, void (*free)(void *));
 void vector_free (vector_t *v);
 
 size_t vector_size (vector_t *v);
@@ -25,8 +25,8 @@ void *vector_front (vector_t *v);
 void *vector_back (vector_t *v);
 void **vector_data (vector_t *v);
 
-void vector_assign (vector_t *v, size_t idx, const void *val);
-void vector_push_back (vector_t *v, const void *e);
+void vector_assign (vector_t *v, size_t idx, void *val);
+void vector_push_back (vector_t *v, void *e);
 void vector_pop_back (vector_t *v);
 
 void vector_clear (vector_t *v);
