@@ -6,7 +6,7 @@
 
 | `SCTLR.M` | Translation |
 |-----------|-------------|
-| 0 (reset) | the original behavior: the emulator pages the virtual pages of a process in and out of RAM itself (LRU, a disk behind it), `emu32 -e` loads programs this way. Nothing below applies |
+| 0 (reset) | the original behavior: the emulator pages the virtual pages of a process in and out of RAM itself (a clock that approximates least recently used, a disk behind it), `emu32 -e` loads programs this way. Nothing below applies |
 | 1 | the page tables at `PTBR` |
 
 So existing programs and the toolchain keep working unchanged, and a kernel opts in by writing `PTBR` and then `SCTLR`. `reset()` turns it off. Everything below is about mode 1.

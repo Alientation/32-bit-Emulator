@@ -460,11 +460,15 @@ class VirtualMemory
         bool kernel_locked =
             false; /* Whether this physical page requires kernel level permission to access. */
 
-        /* The pages in use that can be swapped are on a list by the time they were last used. The
-           first is the one that was used the longest ago. */
-        PhysicalPage *lru_prev = nullptr;
-        PhysicalPage *lru_next = nullptr;
-        bool in_lru = false;
+        /* The pages in use that can be swapped are on the clock, a ring in the order they were
+           brought in (a list whose end is followed by its beginning). */
+        PhysicalPage *clock_prev = nullptr;
+        PhysicalPage *clock_next = nullptr;
+        bool in_clock = false;
+
+        /* Set by every access to the page, cleared when the hand of the clock passes it. A page
+           that is not set when the hand gets to it was not used for a whole turn. */
+        bool referenced = false;
     };
 
     /**
@@ -588,15 +592,17 @@ class VirtualMemory
     bool m_exec_cache_result = false;
 
     /**
-     * @brief            Beginning of the list of the pages that can be swapped. The page that was
-     *                     used the longest ago.
+     * @brief            Beginning and end of the list that makes up the clock, the pages that can be
+     *                     swapped. The end is followed by the beginning.
      */
-    PhysicalPage *m_lru_head = nullptr;
+    PhysicalPage *m_clock_head = nullptr;
+    PhysicalPage *m_clock_tail = nullptr;
 
     /**
-     * @brief            End of that list, the page that was used last.
+     * @brief            The page that the hand of the clock points to, the next one to look at when
+     *                     a page has to be evicted. Null stands for the beginning of the list.
      */
-    PhysicalPage *m_lru_tail = nullptr;
+    PhysicalPage *m_clock_hand = nullptr;
 
     /**
      * @brief             The information about a physical page, which is added if there is none.
@@ -634,38 +640,48 @@ class VirtualMemory
     void check_vm();
 
     /**
-     * @brief             Records that a physical page was just used: it goes to the end of the list.
-     *                     Pages that cannot be swapped are not on the list.
+     * @brief             Records that a physical page was just used, so that the clock gives it
+     *                     another turn. This is all an access costs, it is the reason for using
+     *                     the clock and not a list that is reordered by every access.
+     *
+     * @details           The mark is only written when it is not set. It stays set until the hand
+     *                     passes, so nearly every access just reads it, and the store that would
+     *                     make the compiler reload the state of the emulator (it may alias any
+     *                     byte) is left out of the translation of every instruction.
      */
-    inline void lru_touch(PhysicalPage &page)
+    static inline void mark_referenced(PhysicalPage &page)
     {
-        if (&page == m_lru_tail || !page.swappable)
+        if (UNLIKELY(!page.referenced))
         {
-            return;
+            page.referenced = true;
         }
-        lru_move_to_tail(page);
     }
 
-    void lru_move_to_tail(PhysicalPage &page);
-
     /**
-     * @brief             Takes a physical page off the list, if it is on it.
+     * @brief             Puts a physical page on the clock, just behind the hand (so that it is
+     *                     the last page the hand gets to), as used. A page that is on it already
+     *                     is moved.
      */
-    void lru_remove(PhysicalPage &page);
+    void clock_add(PhysicalPage &page);
 
     /**
-     * @brief             The page to evict to make room: the one used the longest ago that is a
-     *                     frame and can be swapped.
+     * @brief             Takes a physical page off the clock, if it is on it.
+     */
+    void clock_remove(PhysicalPage &page);
+
+    /**
+     * @brief             The page to evict to make room. The hand goes round: a page that was used
+     *                     since the hand was last there is passed over and marked as not used, the
+     *                     first page that is not marked and is a frame and can be swapped is it.
      *
      * @throws            VirtualMemoryException if there is none.
      */
-    word lru_victim();
+    word clock_victim();
 
     /**
-     * @brief            Ensures the LRU (least recently used) of the in use physical pages
-     *                     are valid.
+     * @brief            Ensures the clock of the in use physical pages is valid.
      */
-    void check_lru();
+    void check_clock();
 
     /**
      * @brief             Removes the physical page and writes it back to disk, freeing up a
@@ -749,7 +765,7 @@ class VirtualMemory
             {
                 throw_fault(PageFaultException::Reason::WRITE_DENIED, vpage, access);
             }
-            lru_touch(*tlb.page);
+            mark_referenced(*tlb.page);
             return tlb.ppage;
         }
 

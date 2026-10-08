@@ -245,7 +245,10 @@ TEST(virtual_memory, virtual_pages_are_only_put_in_the_frames)
     }
 }
 
-TEST(virtual_memory, the_page_used_the_longest_ago_is_evicted)
+// The pages that can be swapped are on a clock: an access marks its page, and the hand that looks
+// for a page to evict passes over the marked ones (clearing the mark) until it finds one that was
+// not used since it was last there.
+TEST(virtual_memory, when_every_page_was_used_the_one_brought_in_first_is_evicted)
 {
     Machine m(4, 2);
     const long long pid = m.vm.begin_process();
@@ -255,17 +258,63 @@ TEST(virtual_memory, the_page_used_the_longest_ago_is_evicted)
     const word second = ppage_of(m.vm, 11);
     ASSERT_NE(first, second);
 
-    // 10 is used again, so 11 is the one that was not used for the longest time.
+    // Both were used when they were brought in, and 10 again after that. The first turn of the
+    // hand clears the marks, the second one finds 10 first.
     ppage_of(m.vm, 10);
-    ppage_of(m.vm, 10); // a translation that is in the TLB counts as well
     m.physical.read.clear();
-    EXPECT_EQ(ppage_of(m.vm, 12), second);
-    EXPECT_EQ(m.physical.read, std::vector<word>{second}) << "11 was saved";
+    EXPECT_EQ(ppage_of(m.vm, 12), first);
+    EXPECT_EQ(m.physical.read, std::vector<word>{first}) << "10 was saved";
+}
 
-    // Now 10 is older than 12, and 11 is not in memory.
-    m.physical.read.clear();
+TEST(virtual_memory, a_page_used_since_the_hand_passed_it_is_not_evicted)
+{
+    Machine m(4, 3);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 5, true, false);
+
+    const word first = ppage_of(m.vm, 10);
+    const word second = ppage_of(m.vm, 11);
+    const word third = ppage_of(m.vm, 12);
+
+    // All three are marked, the hand clears them and 10 goes. 11 and 12 are not marked now.
+    EXPECT_EQ(ppage_of(m.vm, 13), first);
+
+    // 11 is used again (a translation that is in the TLB counts as well). The hand is at 11, so
+    // it passes it and 12, which was not used, is the one that goes.
     ppage_of(m.vm, 11);
-    EXPECT_EQ(m.physical.read, std::vector<word>{first}) << "10 was the oldest";
+    m.physical.read.clear();
+    EXPECT_EQ(ppage_of(m.vm, 14), third);
+    EXPECT_EQ(m.physical.read, std::vector<word>{third}) << "12 was saved";
+
+    // 11 is still in memory, it keeps its page.
+    EXPECT_EQ(ppage_of(m.vm, 11), second);
+}
+
+TEST(virtual_memory, the_clock_keeps_working_when_pages_are_released)
+{
+    Machine m(4, 3);
+    const long long first = m.vm.begin_process();
+    m.vm.add_vpage(first, 10, 3, true, false);
+    for (word vpage = 10; vpage < 13; vpage++)
+    {
+        ppage_of(m.vm, vpage);
+    }
+
+    // The second process uses the frames, which puts the hand on a page of the first one.
+    const long long second = m.vm.begin_process();
+    m.vm.add_vpage(second, 10, 5, true, false);
+    ppage_of(m.vm, 10);
+    ppage_of(m.vm, 11);
+
+    // Ending the first process releases the pages, the one under the hand as well.
+    m.vm.end_process(first);
+    for (word round = 0; round < 4; round++)
+    {
+        for (word vpage = 10; vpage < 15; vpage++)
+        {
+            EXPECT_NO_THROW(ppage_of(m.vm, vpage)) << "vpage " << vpage;
+        }
+    }
 }
 
 TEST(virtual_memory, a_page_that_is_not_swappable_is_not_evicted)

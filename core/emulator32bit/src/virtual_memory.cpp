@@ -76,63 +76,98 @@ void VirtualMemory::flush_tlb()
     }
 }
 
-void VirtualMemory::lru_remove(PhysicalPage &page)
+void VirtualMemory::clock_remove(PhysicalPage &page)
 {
-    if (!page.in_lru)
+    if (!page.in_clock)
     {
         return;
     }
 
-    if (page.lru_prev != nullptr)
+    // The hand goes on to the page after it. The end of the list is followed by the beginning,
+    // which is what a null hand stands for.
+    if (m_clock_hand == &page)
     {
-        page.lru_prev->lru_next = page.lru_next;
+        m_clock_hand = page.clock_next;
+    }
+
+    if (page.clock_prev != nullptr)
+    {
+        page.clock_prev->clock_next = page.clock_next;
     }
     else
     {
-        m_lru_head = page.lru_next;
+        m_clock_head = page.clock_next;
     }
 
-    if (page.lru_next != nullptr)
+    if (page.clock_next != nullptr)
     {
-        page.lru_next->lru_prev = page.lru_prev;
+        page.clock_next->clock_prev = page.clock_prev;
     }
     else
     {
-        m_lru_tail = page.lru_prev;
+        m_clock_tail = page.clock_prev;
     }
 
-    page.lru_prev = nullptr;
-    page.lru_next = nullptr;
-    page.in_lru = false;
+    page.clock_prev = nullptr;
+    page.clock_next = nullptr;
+    page.in_clock = false;
 }
 
-void VirtualMemory::lru_move_to_tail(PhysicalPage &page)
+void VirtualMemory::clock_add(PhysicalPage &page)
 {
-    lru_remove(page);
+    clock_remove(page);
 
-    page.lru_prev = m_lru_tail;
-    page.lru_next = nullptr;
-    if (m_lru_tail != nullptr)
+    // Just before the hand, or at the end of the list when the hand is at the beginning (null).
+    PhysicalPage *const next = m_clock_hand;
+    page.clock_next = next;
+    page.clock_prev = next != nullptr ? next->clock_prev : m_clock_tail;
+    if (page.clock_prev != nullptr)
     {
-        m_lru_tail->lru_next = &page;
+        page.clock_prev->clock_next = &page;
     }
     else
     {
-        m_lru_head = &page;
+        m_clock_head = &page;
     }
-    m_lru_tail = &page;
-    page.in_lru = true;
+    if (next != nullptr)
+    {
+        next->clock_prev = &page;
+    }
+    else
+    {
+        m_clock_tail = &page;
+    }
+
+    page.in_clock = true;
+    page.referenced = true;
 }
 
-word VirtualMemory::lru_victim()
+word VirtualMemory::clock_victim()
 {
-    // The pages on the list can be swapped. Only the frames can hold a page that is paged in, a
-    // page outside of them was mapped explicitly and stays.
-    for (PhysicalPage *page = m_lru_head; page != nullptr; page = page->lru_next)
+    // The pages on the clock can be swapped. Only the frames can hold a page that is paged in, a
+    // page outside of them was mapped explicitly and stays. The first turn clears the pages that
+    // were used, so the second one finds a page if the first did not, unless there is none.
+    PhysicalPage *const start = m_clock_hand != nullptr ? m_clock_hand : m_clock_head;
+    if (start != nullptr)
     {
-        if (is_frame(page->ppage))
+        for (int turn = 0; turn < 2; turn++)
         {
-            return page->ppage;
+            PhysicalPage *page = start;
+            do
+            {
+                PhysicalPage *const next =
+                    page->clock_next != nullptr ? page->clock_next : m_clock_head;
+                if (is_frame(page->ppage))
+                {
+                    if (!page->referenced)
+                    {
+                        m_clock_hand = next;
+                        return page->ppage;
+                    }
+                    page->referenced = false;
+                }
+                page = next;
+            } while (page != start);
         }
     }
 
@@ -381,11 +416,11 @@ void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, bool
 
         if (!swappable)
         {
-            lru_remove(page);
+            clock_remove(page);
         }
-        else if (page.used && !page.in_lru)
+        else if (page.used && !page.in_clock)
         {
-            lru_move_to_tail(page);
+            clock_add(page);
         }
 
         if (i == ppage_end)
@@ -608,7 +643,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
         if (physical.mapped_vpages.empty())
         {
             physical.used = false;
-            lru_remove(physical);
+            clock_remove(physical);
 
             /* add back to free list */
             release_frame(entry->ppage);
@@ -680,7 +715,7 @@ void VirtualMemory::evict_ppage(word ppage)
     }
     evicted_ppage.mapped_vpages.clear();
     evicted_ppage.used = false;
-    lru_remove(evicted_ppage);
+    clock_remove(evicted_ppage);
 
     release_frame(ppage);
 }
@@ -712,7 +747,11 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
     mapped_ppage.mapped_vpages.push_back(entry);
     mapped_ppage.used = true;
 
-    lru_touch(mapped_ppage);
+    if (mapped_ppage.swappable && !mapped_ppage.in_clock)
+    {
+        clock_add(mapped_ppage);
+    }
+    mark_referenced(mapped_ppage);
 }
 
 void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage)
@@ -811,7 +850,7 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
              */
             if (UNLIKELY(!m_freelist.can_fit(1)))
             {
-                evict_ppage(lru_victim());
+                evict_ppage(clock_victim());
             }
 
             word ppage = m_freelist.get_free_block(1);
@@ -834,29 +873,31 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
     tlb.write = entry->write;
     tlb.page = &page;
 
-    lru_touch(page);
+    mark_referenced(page);
     return entry->ppage;
 }
 
-void VirtualMemory::check_lru()
+void VirtualMemory::check_clock()
 {
-    AEMU_DEBUG("Checking LRU");
+    AEMU_DEBUG("Checking the clock");
 
     std::unordered_set<const PhysicalPage *> listed;
     const PhysicalPage *previous = nullptr;
-    for (const PhysicalPage *page = m_lru_head; page != nullptr; page = page->lru_next)
+    for (const PhysicalPage *page = m_clock_head; page != nullptr; page = page->clock_next)
     {
-        AEMU_CHECK(page->lru_prev == previous, "Expected the previous page to be linked back");
-        AEMU_CHECK(page->in_lru, "Expected a page on the list to be marked as on it");
+        AEMU_CHECK(page->clock_prev == previous, "Expected the previous page to be linked back");
+        AEMU_CHECK(page->in_clock, "Expected a page on the list to be marked as on it");
         AEMU_CHECK(page->swappable, "Expected a page on the list to be swappable");
         AEMU_CHECK(listed.insert(page).second, "Expected a page to be on the list once");
         previous = page;
     }
-    AEMU_CHECK(previous == m_lru_tail, "Expected the list to end at the tail");
+    AEMU_CHECK(previous == m_clock_tail, "Expected the list to end at the tail");
+    AEMU_CHECK(m_clock_hand == nullptr || listed.find(m_clock_hand) != listed.end(),
+               "Expected the hand to point to a page on the list");
 
     for (const auto &[ppage, page] : m_physical_memory_map)
     {
-        AEMU_CHECK(page.in_lru == (listed.find(&page) != listed.end()),
+        AEMU_CHECK(page.in_clock == (listed.find(&page) != listed.end()),
                    "Expected the marked pages to be the ones on the list, page {}", ppage);
     }
 }
