@@ -150,7 +150,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             AEMU_DEBUG("ObjectFile::disassemble() - Disassembling Text Section");
             for (word i = 0; i < section_header.section_size; i += 4)
             {
-                text_section.push_back(reader.read_word(false));
+                text_section.push_back(reader.read_word());
             }
             break;
         case SectionHeader::Type::DATA:
@@ -197,7 +197,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
                     .offset = word(reader.read_dword()),
                     .symbol = U32(reader.read_dword()),
                     .type = (RelocationEntry::Type) reader.read_word(),
-                    .shift = word(reader.read_dword()),
+                    .addend = sword(word(reader.read_dword())),
                     .token = 0,
                 };
                 relocations.push_back(rel);
@@ -464,7 +464,7 @@ void ObjectFile::write_object_file(File obj_file)
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .text section.");
     for (size_t i = 0; i < text_section.size(); i++)
     {
-        byte_writer << ByteWriter::Data(text_section.at(i), 4, false);
+        byte_writer << ByteWriter::Data(text_section.at(i), 4);
     }
     sections[section_table[".text"]].section_size = text_section.size() * 4;
     sections[section_table[".text"]].section_start = current_byte;
@@ -515,7 +515,7 @@ void ObjectFile::write_object_file(File obj_file)
             byte_writer << ByteWriter::Data(rel.offset, 8);
             byte_writer << ByteWriter::Data(rel.symbol, 8);
             byte_writer << ByteWriter::Data(U32(rel.type), 4);
-            byte_writer << ByteWriter::Data(rel.shift, 8);
+            byte_writer << ByteWriter::Data(S64(rel.addend), 8);
         }
         sections[section_table[name]].section_size = relocations.size() * kRelocationEntrySize;
         sections[section_table[name]].section_start = current_byte;

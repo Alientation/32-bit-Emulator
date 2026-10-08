@@ -37,6 +37,18 @@ const char *relocation_name(ObjectFile::RelocationEntry::Type type)
     return "<ERROR>";
 }
 
+/// The symbol of a relocation with its addend, `table+0x8`.
+std::string target_text(const ObjectFile &obj, const ObjectFile::RelocationEntry &rel)
+{
+    const std::string &name = obj.strings[obj.symbol_table.at(rel.symbol).symbol_name];
+    if (rel.addend == 0)
+    {
+        return name;
+    }
+    const S64 addend = rel.addend;
+    return std::format("{}{}{:#x}", name, addend < 0 ? '-' : '+', addend < 0 ? -addend : addend);
+}
+
 /// An address the way it is shown at the start of a line.
 std::string address_text(U64 address)
 {
@@ -111,8 +123,7 @@ void ObjectFile::print(std::ostream &out)
         for (const RelocationEntry &rel : rel_data)
         {
             out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, data_address_width,
-                               relocation_name(rel.type),
-                               strings[symbol_table.at(rel.symbol).symbol_name]);
+                               relocation_name(rel.type), target_text(*this, rel));
         }
     }
 
@@ -198,7 +209,7 @@ void ObjectFile::print(std::ostream &out)
             out << "\n" << std::string(text_address_width, ' ');
             out << std::format(" \t{:x}: {:<{}}{}", address, relocation_name(rel->second.type),
                                std::max(1, 29 - int(std::bit_width(i / 4))),
-                               strings[symbol_table.at(rel->second.symbol).symbol_name]);
+                               target_text(*this, rel->second));
         }
     }
     out << "\n";

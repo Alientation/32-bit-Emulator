@@ -126,8 +126,10 @@ class ObjectFile
             R_EMU32_ABS32,
         } type;
 
-        /// @brief          Constant to be added to the value of symbol.
-        word shift;
+        /// @brief          Signed constant added to the address of the symbol, so the relocation
+        ///                 refers to `symbol + addend` (`label + 4`). Stored in 8 bytes, the
+        ///                 reader keeps the low 32 bits. The 32 bit arithmetic wraps.
+        sword addend;
 
         /// @brief          Token index that the relocation entry is used on. Use to fill local symbols.
         size_t token;

@@ -632,14 +632,25 @@ TEST_F(AssemblerUnit, constants_and_labels_follow_scopes)
 
 TEST_F(AssemblerUnit, errors_of_constants_and_labels_in_expressions)
 {
-    EXPECT_TRUE(
-        contains(error(".data\n.byte later + 1\n"), "'later' is not defined before this point"));
+    EXPECT_TRUE(contains(error(".data\n.byte later\n"), "cannot hold the address of a symbol"));
+    EXPECT_TRUE(contains(error(".data\n.byte later - 1\n"), "cannot hold the address of a symbol"));
     EXPECT_TRUE(contains(error(".data\n.byte end - start\nstart:\nend:\n"),
                          "'end' is not defined before this point"));
     EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte label + 1\n"),
-                         "the address of 'label' is not known until linking"));
+                         "cannot hold the address of a symbol"));
     EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte 1 + label\n"),
+                         "cannot hold the address of a symbol"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.word 1 - label\n"),
                          "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.word 2 * label\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.word (label + 1) >> 1\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nfirst: .byte 1\nsecond: .byte 1\n.word first + second\n"),
+                         "the address of 'first' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.word label - later\n"),
+                         "'later' is not defined before this point"));
+    EXPECT_TRUE(contains(error(".data\n.word later + 99999999999\n"), "does not fit in 32 bits"));
     EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.equ L, label\n"),
                          "the address of 'label' is not known until linking"));
     EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte -label\n"),
@@ -781,7 +792,7 @@ TEST_F(AssemblerUnit, expression_errors)
         contains(error(".data\n.word 1 +\n"), "expected an operand after '+', got end of line"));
     EXPECT_TRUE(contains(error(".data\n.word 4 / 0\n"), "division by zero"));
     EXPECT_TRUE(
-        contains(error(".data\n.word 1 + foo\n"), "'foo' is not defined before this point"));
+        contains(error(".data\n.word 1 - foo\n"), "'foo' is not defined before this point"));
     EXPECT_TRUE(contains(error(".data\n.byte foo\n"),
                          ".byte cannot hold the address of a symbol, only .word can"));
     EXPECT_TRUE(contains(error(".data\n.word 1,\n"), "expected a number, got end of line"));
@@ -886,6 +897,100 @@ TEST_F(AssemblerUnit, word_with_a_symbol_of_another_file_leaves_it_undefined)
     EXPECT_EQ(symbol(object, "elsewhere").section, U32(-1));
     EXPECT_EQ(object.rel_data.size(), 1u);
 }
+
+// `symbol + number` is the symbol with an addend, whether the symbol is defined, comes later or is
+// in another file.
+TEST_F(AssemblerUnit, a_number_added_to_a_symbol_is_the_addend_of_its_relocation)
+{
+    const ObjectFile object =
+        assemble(".equ K, 8\n"
+                 ".data\nbuf: .word 1, 2, 3\n"
+                 "table: .word buf, buf + 8, 4 + buf, buf - 4, buf + 2 * 3 - 6\n"
+                 ".word buf + (table - buf), later + 4, elsewhere - 1, buf + K, K + buf\n"
+                 "later: .word 0\n");
+
+    const std::vector<std::pair<std::string, sword>> expected = {
+        {"buf", 0},  {"buf", 8},   {"buf", 4},        {"buf", -4}, {"buf", 0},
+        {"buf", 12}, {"later", 4}, {"elsewhere", -1}, {"buf", 8},  {"buf", 8}};
+    ASSERT_EQ(object.rel_data.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        EXPECT_EQ(name_of(object, object.rel_data[i]), expected[i].first) << i;
+        EXPECT_EQ(object.rel_data[i].addend, expected[i].second) << i;
+        EXPECT_EQ(object.rel_data[i].type, ObjectFile::RelocationEntry::Type::R_EMU32_ABS32);
+        EXPECT_EQ(object.rel_data[i].offset, 12 + i * 4);
+    }
+
+    // The words are left to the linker, the addend is not in them.
+    Bytes expected_data = {1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0};
+    expected_data.resize(12 + 4 * expected.size() + 4, 0);
+    EXPECT_EQ(object.data_section, expected_data);
+}
+
+TEST_F(AssemblerUnit, instructions_can_add_a_number_to_a_symbol)
+{
+    const ObjectFile object = assemble(".text\n"
+                                       "adrp x0, buf + 8\n"
+                                       "add x0, x0, :lo12:buf + 8\n"
+                                       "mov x1, :hi13:buf - 4\n"
+                                       "mov x1, :lo19:buf + $10\n"
+                                       "bl printf + 8\n"
+                                       ".data\nbuf: .word 1\n");
+    using Type = ObjectFile::RelocationEntry::Type;
+    const std::vector<std::pair<Type, sword>> expected = {{Type::R_EMU32_ADRP_HI20, 8},
+                                                          {Type::R_EMU32_O_LO12, 8},
+                                                          {Type::R_EMU32_MOV_HI13, -4},
+                                                          {Type::R_EMU32_MOV_LO19, 16},
+                                                          {Type::R_EMU32_B_OFFSET22, 8}};
+    ASSERT_EQ(object.rel_text.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        EXPECT_EQ(object.rel_text[i].type, expected[i].first) << i;
+        EXPECT_EQ(object.rel_text[i].addend, expected[i].second) << i;
+        EXPECT_EQ(object.rel_text[i].offset, i * 4);
+    }
+    EXPECT_EQ(name_of(object, object.rel_text[4]), "printf");
+
+    // The instruction itself does not change, only what the linker puts in it.
+    EXPECT_EQ(text("adrp x0, buf + 8\n"), text("adrp x0, buf\n"));
+}
+
+TEST_F(AssemblerUnit, a_branch_to_a_label_of_the_file_with_a_number_is_resolved)
+{
+    ObjectFile object = assemble(".text\nstart: nop\nnop\nnop\nb start + 8\n");
+    EXPECT_TRUE(object.rel_text.empty());
+    EXPECT_EQ(object.text_section[3],
+              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -1));
+
+    object = assemble(".text\nb later + 4\nnop\nlater: nop\nnop\n");
+    EXPECT_TRUE(object.rel_text.empty());
+    EXPECT_EQ(object.text_section[0],
+              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 3));
+
+    EXPECT_TRUE(contains(error(".text\nstart: nop\nb start + 2\n"), "4 byte aligned"));
+}
+
+TEST_F(AssemblerUnit, a_symbol_with_a_number_is_looked_up_in_the_scopes)
+{
+    const ObjectFile object = assemble(".text\n"
+                                       ".scope\nloop: nop\nb loop + 4\n.scend\n"
+                                       ".scope\nloop: nop\nb loop + 4\n.scend\n");
+    ASSERT_EQ(object.rel_text.size(), 2u);
+    EXPECT_EQ(name_of(object, object.rel_text[0]), "loop::SCOPE:0");
+    EXPECT_EQ(name_of(object, object.rel_text[1]), "loop::SCOPE:1");
+    EXPECT_EQ(object.rel_text[0].addend, 4);
+    EXPECT_EQ(object.rel_text[1].addend, 4);
+}
+
+TEST_F(AssemblerUnit, the_addend_is_kept_in_the_object_file)
+{
+    const ObjectFile object = assemble(".data\n.word target - 100, target + 2147483647\n");
+    ASSERT_EQ(object.rel_data.size(), 2u);
+    EXPECT_EQ(object.rel_data[0].addend, -100);
+    EXPECT_EQ(object.rel_data[1].addend, 2147483647);
+}
+
+// A label of a scope is not the label of the same name in another scope (a macro that is used twice).
 
 // A label of a scope is not the label of the same name in another scope (a macro that is used twice).
 TEST_F(AssemblerUnit, a_symbol_in_data_is_looked_up_in_the_scopes)

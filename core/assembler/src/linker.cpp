@@ -417,8 +417,9 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
 
             const word instr_i = (bases[i].text + rel.offset) / 4;
             const word instr_address = addresses.text + bases[i].text + rel.offset;
-            exe.text_section[instr_i] = apply_relocation(rel.type, obj.text_section[rel.offset / 4],
-                                                         instr_address, symbol.symbol_value);
+            exe.text_section[instr_i] =
+                apply_relocation(rel.type, obj.text_section[rel.offset / 4], instr_address,
+                                 symbol.symbol_value + word(rel.addend));
         }
 
         // The words of .data that hold the address of a symbol.
@@ -441,8 +442,8 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
             }
 
             const word index = bases[i].data + rel.offset;
-            const word patched =
-                apply_relocation(rel.type, current, addresses.data + index, symbol.symbol_value);
+            const word patched = apply_relocation(rel.type, current, addresses.data + index,
+                                                  symbol.symbol_value + word(rel.addend));
             for (size_t b = 0; b < sizeof(word); b++)
             {
                 exe.data_section[index + b] = byte(patched >> (8 * b));

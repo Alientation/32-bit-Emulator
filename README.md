@@ -134,9 +134,11 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 
 
 ## **Documentation**
+* [`docs/basm-syntax.md`](./docs/basm-syntax.md): the basm assembly language: expressions, `.equ` constants, labels and symbols (`label + 4`), instructions, directives and the preprocessor
+* [`docs/belf-format.md`](./docs/belf-format.md): the BELF binary formats (`.bo`, `.bexe`, `.ba`), relocations and addends, what the linker does, and linker scripts
 * Instruction encodings and the instruction set are described in [`core/emulator32bit/notes.txt`](./core/emulator32bit/notes.txt)
 * Sample programs are in `core/app/programs/`
-* Full documentation is still a *todo*
+* Documentation of the emulator and of the source code is still a *todo*
 
 ## **Current Work**
 * C Compiler (written in C, currently disabled in the build)

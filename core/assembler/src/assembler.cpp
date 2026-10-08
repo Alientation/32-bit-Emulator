@@ -257,8 +257,9 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
         {
             continue;
         }
-        m_obj.text_section[rel.offset / 4] = apply_relocation(
-            rel.type, m_obj.text_section[rel.offset / 4], rel.offset, symbol_entry.symbol_value);
+        m_obj.text_section[rel.offset / 4] =
+            apply_relocation(rel.type, m_obj.text_section[rel.offset / 4], rel.offset,
+                             symbol_entry.symbol_value + word(rel.addend));
 
         // For now, simply delete from vector.
         // TODO: In future look to optimize.

@@ -128,24 +128,19 @@ word Assembler::parse_format_b1(byte opcode)
     }
 
     sword value = 0;
-    // A symbol is the label to branch to, unless it names a constant: then it is a distance.
-    if (m_cursor.check(TokenType::SYMBOL) && !is_constant(m_cursor.peek().str()))
+    // A label (`b loop`, `b table + 8`) is the place to branch to. A constant or a number is a
+    // distance.
+    const ExprValue target = parse_binary_expression(1);
+    if (target.label != nullptr)
     {
-        const std::string symbol = m_cursor.next().str();
-        m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
-
-        m_obj.rel_text.push_back({.offset = word(m_obj.text_section.size() * 4),
-                                  .symbol = m_obj.string_table[symbol],
-                                  .type = ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22,
-                                  // TODO: Support shift in future.
-                                  .shift = 0,
-                                  .token = m_cursor.position()});
+        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                       ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22, target);
     }
     else
     {
         // The offset in bytes from this instruction, as a signed number: `b 8` is two
         // instructions ahead, `b -4` the one before. The field holds 22 bits of words.
-        const sdword offset = parse_signed_expression();
+        const sdword offset = target.value;
         check((offset & 0b11) == 0, "branch offset must be 4 byte aligned");
         check(offset >= -(sdword(1) << 23) && offset < (sdword(1) << 23),
               "branch offset must be between -8388608 and 8388604 bytes, got "
@@ -185,17 +180,9 @@ word Assembler::parse_format_m1(byte opcode)
     // Implicitly assume :hi20:
     m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
 
-    const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol").str();
-    m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
-
-    m_obj.rel_text.push_back({
-        .offset = word(m_obj.text_section.size() * 4),
-        .symbol = m_obj.string_table[symbol],
-        .type = ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
-        // TODO: Support shift in future.
-        .shift = 0,
-        .token = m_cursor.position(),
-    });
+    const ExprValue target = parse_symbol_operand("expected a symbol");
+    add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                   ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20, target);
 
     return Emulator32bit::asm_format_m1(opcode, reg, 0);
 }
@@ -355,20 +342,13 @@ word Assembler::parse_format_o3(byte opcode)
                 {TokenType::RELOCATION_EMU32_MOV_HI13, TokenType::RELOCATION_EMU32_MOV_LO19}))
         {
             const TokenType relocation = m_cursor.next().type;
-            const std::string symbol =
-                expect(TokenType::SYMBOL, "expected a symbol to follow the relocation").str();
-            m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
-
-            m_obj.rel_text.push_back(
-                {.offset = word(m_obj.text_section.size() * 4),
-                 .symbol = m_obj.string_table[symbol],
-                 .type = (relocation == TokenType::RELOCATION_EMU32_MOV_HI13
-                              ? ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13
-                              : ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19),
-
-                 // TODO: Support shift in future.
-                 .shift = 0,
-                 .token = m_cursor.position()});
+            const ExprValue target =
+                parse_symbol_operand("expected a symbol to follow the relocation");
+            add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                           relocation == TokenType::RELOCATION_EMU32_MOV_HI13
+                               ? ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13
+                               : ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19,
+                           target);
 
             return Emulator32bit::asm_format_o3(opcode, s, reg1, 0);
         }
@@ -458,19 +438,10 @@ word Assembler::parse_format_o(byte opcode, bool implicit_dest)
         word operand = 0;
         if (m_cursor.accept(TokenType::RELOCATION_EMU32_O_LO12))
         {
-            const std::string symbol =
-                expect(TokenType::SYMBOL, "expected a symbol to follow the relocation").str();
-            m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
-
-            m_obj.rel_text.push_back({
-                .offset = word(m_obj.text_section.size() * 4),
-                .symbol = m_obj.string_table[symbol],
-                .type = ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12,
-
-                // TODO: Support shift in future.
-                .shift = 0,
-                .token = m_cursor.position(),
-            });
+            const ExprValue target =
+                parse_symbol_operand("expected a symbol to follow the relocation");
+            add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                           ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
         }
         else if (at_expression())
         {
@@ -554,7 +525,7 @@ const InstructionSpec &instruction_spec(TokenType type)
 /// add x1, x2, #40
 /// add x1, x2, x3, lsl 4
 /// add x1, x2, :lo12:symbol
-/// NOT SUPPORTED -- add x1, x2, :lo12:symbol + 4
+/// add x1, x2, :lo12:symbol + 4
 ///
 /// cmp, cmn, tst and teq are the ALU operations without a destination, so they are written as
 /// `cmp xn, <operand>` and encoded with xzr as the destination.

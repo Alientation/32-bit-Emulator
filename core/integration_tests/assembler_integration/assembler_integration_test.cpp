@@ -1668,6 +1668,50 @@ _start:
     EXPECT_EQ(reg(1), 12u);
 }
 
+// `symbol + number` is a relocation with an addend, also for a symbol of another file: in a
+// data word, in adrp and :lo12:, and as a branch target.
+TEST_F(AssemblerIntegration, a_symbol_plus_a_number_is_resolved_by_the_linker)
+{
+    write_file("main.basm", R"(.global _start
+
+.data
+ptr:            .word table + 8
+
+.text
+_start:
+                adrp    x1, ptr
+                add     x1, x1, :lo12:ptr
+                ldr     x2, [x1]
+                ldr     x0, [x2]
+                adrp    x3, table + 4
+                add     x3, x3, :lo12:table + 4
+                ldr     x4, [x3]
+                bl      func + 4
+                b       over + 4
+over:           mov     x5, 1
+                mov     x6, 2
+                hlt
+)");
+    write_file("lib.basm", R"(.global table
+.global func
+
+.data
+table:          .word 10, 20, 30
+
+.text
+func:           mov     x7, 1
+                add     x7, x7, 5
+                ret
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o prog main.basm lib.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("prog.bexe"));
+    EXPECT_EQ(reg(0), 30u) << "the word holds the address of table + 8";
+    EXPECT_EQ(reg(4), 20u) << "adrp and :lo12: with table + 4";
+    EXPECT_EQ(reg(7), 5u) << "bl func + 4 skips the first instruction";
+    EXPECT_EQ(reg(5), 0u) << "b over + 4 skips the first instruction";
+    EXPECT_EQ(reg(6), 2u);
+}
+
 TEST_F(AssemblerIntegration, preprocessor_compares_numbers_by_value)
 {
     write_file("version.basm", R"(.global _start

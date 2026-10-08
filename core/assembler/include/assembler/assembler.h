@@ -135,11 +135,13 @@ class Assembler
     ///        (`.equ`) and labels. The arithmetic is 64 bit and wraps; `/ % >>` and the
     ///        comparisons treat the values as signed, the comparisons and `! && ||` give 1 or 0.
     ///        Fails if there is no operand, on division by zero and on a shift by a negative amount
-    ///        or by 64 or more. A constant or label has to be defined before the expression. The
-    ///        address of a label is only known when linking, so the only thing that can be done
-    ///        with one is the difference of two labels of the same section (`end - start`), a
-    ///        constant. Returns the bits of the signed result (so `0 - 1` is all ones). Warns if
-    ///        the value is outside of [min, max], as an unsigned number.
+    ///        or by 64 or more. A constant has to be defined before the expression. The address of
+    ///        a label is only known when linking, so the only things that can be done with one are
+    ///        the difference of two labels of the same section that are defined (`end - start`),
+    ///        a constant, and adding a number to it (`label + 4`), which is not a number but a
+    ///        relocation with an addend (see parse_symbol_operand). Returns the bits of the signed
+    ///        result (so `0 - 1` is all ones). Warns if the value is outside of [min, max], as an
+    ///        unsigned number.
     dword parse_expression(dword min = 0, dword max = -1);
 
     /// @brief Same as parse_expression() with the result as a signed number. For the operands
@@ -149,18 +151,34 @@ class Assembler
     /// @brief Whether the next token can start an expression.
     bool at_expression();
 
-    /// @brief A value while an expression is evaluated: a number, or the offset of a label in its
-    ///        section (which can only be subtracted from another label of the section).
+    /// @brief A value while an expression is evaluated: a number, or a symbol plus a number (the
+    ///        symbol's offset in its section, if it is defined yet, plus what was added to it).
+    ///        A symbol with a number added can be subtracted from another symbol of the same
+    ///        section, which makes a number, or be the target of a relocation, whose addend is
+    ///        `value - base`.
     struct ExprValue
     {
         sdword value = 0;
 
-        /// @brief The label that this value is the offset of, null for a number.
+        /// @brief The symbol this value is based on, null for a number.
         const basm::Token *label = nullptr;
 
-        /// @brief Section of that label.
+        /// @brief Section of that symbol, U32(-1) if it is not defined (yet).
         U32 section = U32(-1);
+
+        /// @brief Offset of the symbol in its section, 0 if it is not defined.
+        sdword base = 0;
     };
+
+    /// @brief Parses the operand `symbol`, `symbol + number` or `symbol - number` of a relocation
+    ///        (`adrp`, `:lo12:`, `.word`, a branch) and fails with `expected` if the expression
+    ///        is not based on a symbol.
+    ExprValue parse_symbol_operand(const std::string &expected);
+
+    /// @brief Adds the relocation of `target`, a symbol with an addend, to `relocations`. It is at
+    ///        `offset` in the section of the relocations.
+    void add_relocation(std::vector<ObjectFile::RelocationEntry> &relocations, word offset,
+                        ObjectFile::RelocationEntry::Type type, const ExprValue &target);
 
     /// @brief Precedence climbing: the part of an expression made of operators of at least
     ///        `min_precedence`.
@@ -173,9 +191,6 @@ class Assembler
 
     /// @brief Fails unless the value is a number and not the offset of a label.
     void require_number(const ExprValue &value);
-
-    /// @brief Whether `.equ` defined the name, visible from the scope that is open.
-    bool is_constant(const std::string &name) const;
 
     /// @brief Name of a constant or label in the scope that is open, the same as its symbol.
     std::string scoped_name(const std::string &name) const;

@@ -113,19 +113,28 @@ std::string Assembler::scoped_name(const std::string &name) const
 
 void Assembler::require_number(const ExprValue &value)
 {
-    if (value.label != nullptr)
+    if (value.label == nullptr)
     {
-        fail(*value.label,
-             "the address of '" + value.label->str()
-                 + "' is not known until linking; only the difference of two labels of the same "
-                   "section is a number");
+        return;
     }
+    if (value.section == U32(-1))
+    {
+        fail(*value.label, "'" + value.label->str()
+                               + "' is not defined before this point; an expression can use a "
+                                 "constant (.equ) or a label that comes earlier in the file");
+    }
+    fail(*value.label,
+         "the address of '" + value.label->str()
+             + "' is not known until linking, so it is not a number here; only the difference of "
+               "two labels of the same section is a number");
 }
 
 ///
 /// @brief              Looks `symbol` up like a label is: the scopes that are open from the
-///                     innermost out, then the file. A constant is a number and a label is its
-///                     offset in its section. Both have to be defined already.
+///                     innermost out, then the file. A constant is a number. A label that is
+///                     defined is its offset in its section. Anything else is a symbol that is
+///                     not defined yet (it can be later in the file, or in another file), which has
+///                     no value but can be the target of a relocation.
 ///
 Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
 {
@@ -148,31 +157,12 @@ Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
             {
                 return {.value = sdword(label.symbol_value),
                         .label = &symbol,
-                        .section = label.section};
+                        .section = label.section,
+                        .base = sdword(label.symbol_value)};
             }
         }
     }
-    fail(symbol, "'" + name
-                     + "' is not defined before this point; an expression can use a constant "
-                       "(.equ) or a label that comes earlier in the file");
-}
-
-bool Assembler::is_constant(const std::string &name) const
-{
-    for (size_t i = m_scopes.size() + 1; i-- > 0;)
-    {
-        const std::string key = i == 0 ? name : name + "::SCOPE:" + std::to_string(m_scopes[i - 1]);
-        if (m_constants.count(key) != 0)
-        {
-            return true;
-        }
-        if (m_obj.string_table.count(key) != 0)
-        {
-            // A label of this name shadows a constant of an outer scope.
-            return false;
-        }
-    }
-    return false;
+    return {.label = &symbol};
 }
 
 ///
@@ -270,11 +260,36 @@ Assembler::ExprValue Assembler::parse_binary_expression(int min_precedence)
 
         if (left.label != nullptr || right.label != nullptr)
         {
-            // The difference of two labels of a section does not depend on where the section
-            // ends up. Nothing else can be done with an address yet.
-            if (op.type == TokenType::OPERATOR_SUBTRACTION && left.label != nullptr
-                && right.label != nullptr)
+            // The address of a label is not known until linking. What can be done without it:
+            // adding a number to it or taking one off (the sum is a relocation with an addend),
+            // and the difference of two labels of a section, which does not depend on where the
+            // section ends up.
+            const bool is_add = op.type == TokenType::OPERATOR_ADDITION;
+            const bool is_sub = op.type == TokenType::OPERATOR_SUBTRACTION;
+            if ((is_add || is_sub) && left.label != nullptr && right.label == nullptr)
             {
+                left.value = sdword(is_add ? U64(left.value) + U64(right.value)
+                                           : U64(left.value) - U64(right.value));
+                continue;
+            }
+            if (is_add && left.label == nullptr && right.label != nullptr)
+            {
+                ExprValue sum = right;
+                sum.value = sdword(U64(left.value) + U64(right.value));
+                left = sum;
+                continue;
+            }
+            if (is_sub && left.label != nullptr && right.label != nullptr)
+            {
+                // A symbol that is not defined yet has no place in its section.
+                if (left.section == U32(-1))
+                {
+                    require_number(left);
+                }
+                if (right.section == U32(-1))
+                {
+                    require_number(right);
+                }
                 if (left.section != right.section)
                 {
                     fail(op, "'" + left.label->str() + "' and '" + right.label->str()
@@ -376,6 +391,39 @@ sdword Assembler::parse_signed_expression()
     const ExprValue value = parse_binary_expression(1);
     require_number(value);
     return value.value;
+}
+
+Assembler::ExprValue Assembler::parse_symbol_operand(const std::string &expected)
+{
+    if (!at_expression())
+    {
+        fail(m_cursor.peek(), expected + ", got " + basm::describe(m_cursor.peek()));
+    }
+    const Token &first = m_cursor.peek();
+    const ExprValue target = parse_binary_expression(1);
+    if (target.label == nullptr)
+    {
+        fail(first, expected + ", got a number");
+    }
+    return target;
+}
+
+void Assembler::add_relocation(std::vector<ObjectFile::RelocationEntry> &relocations, word offset,
+                               ObjectFile::RelocationEntry::Type type, const ExprValue &target)
+{
+    const S64 addend = S64(target.value) - S64(target.base);
+    check(addend >= INT32_MIN && addend <= INT32_MAX,
+          "the number added to '" + target.label->str() + "' does not fit in 32 bits");
+
+    // The name stays what was written. A symbol of a scope is resolved to the one of that scope
+    // when the file is done (fill_local), by the position of the relocation in the tokens.
+    const std::string name = target.label->str();
+    m_obj.add_symbol(name, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
+    relocations.push_back({.offset = offset,
+                           .symbol = m_obj.string_table[name],
+                           .type = type,
+                           .addend = sword(addend),
+                           .token = m_cursor.position()});
 }
 
 ///
@@ -723,26 +771,27 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
 
     m_cursor.next();
 
-    // `.word symbol` is the address of the symbol, which is only known when the program is linked.
-    // Zeros are there until then, and a relocation says where the address goes.
-    const auto define_address = [&]
-    {
-        check(n_bytes == sizeof(word),
-              std::string(directive) + " cannot hold the address of a symbol, only .word can");
-
-        const std::string symbol = m_cursor.next().str();
-        m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
-        m_obj.rel_data.push_back({.offset = word(m_obj.data_section.size()),
-                                  .symbol = m_obj.string_table[symbol],
-                                  .type = ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
-                                  .shift = 0,
-                                  .token = m_cursor.position()});
-        m_obj.data_section.insert(m_obj.data_section.end(), sizeof(word), 0);
-    };
-
     const auto define_value = [&]
     {
-        const dword value = parse_expression();
+        const Token &first = m_cursor.peek();
+        const ExprValue result = parse_binary_expression(1);
+        if (result.label != nullptr)
+        {
+            // `.word symbol + 4` is the address of the symbol plus a number, which is only known
+            // when the program is linked. Zeros are there until then, and a relocation says where
+            // the address goes.
+            if (n_bytes != sizeof(word))
+            {
+                fail(first, std::string(directive)
+                                + " cannot hold the address of a symbol, only .word can");
+            }
+            add_relocation(m_obj.rel_data, word(m_obj.data_section.size()),
+                           ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, result);
+            m_obj.data_section.insert(m_obj.data_section.end(), sizeof(word), 0);
+            return;
+        }
+
+        const dword value = dword(result.value);
 
         // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
         const S64 signed_value = S64(value);
@@ -763,21 +812,7 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
     }
     do
     {
-        // A symbol on its own is an address, unless it names a constant. In an expression it is a
-        // constant or the offset of a label (`end - start`).
-        const bool lone_symbol =
-            m_cursor.check(TokenType::SYMBOL)
-            && (m_cursor.peek(1).is_one_of(
-                {TokenType::COMMA, TokenType::NEWLINE, TokenType::END_OF_FILE}))
-            && !is_constant(m_cursor.peek().str());
-        if (lone_symbol)
-        {
-            define_address();
-        }
-        else
-        {
-            define_value();
-        }
+        define_value();
     } while (m_cursor.accept(TokenType::COMMA));
 }
 
