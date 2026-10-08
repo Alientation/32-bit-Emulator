@@ -226,6 +226,17 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
     }
 }
 
+bool VirtualMemory::has_vpage(long long pid, word vpage)
+{
+    if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
+    {
+        throw InvalidPIDException("Cannot check virtual page because pid is invalid.", pid);
+    }
+
+    const PageTable *ptable = m_process_ptable_map.at(pid);
+    return ptable->entries.find(vpage) != ptable->entries.end();
+}
+
 bool VirtualMemory::can_write_vpage(long long pid, word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))

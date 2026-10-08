@@ -62,17 +62,29 @@ void LoadExecutable::load()
         }
     }
 
+    // Sections can share a page (by default .bss directly follows .data), so only add the pages
+    // that are not mapped yet.
+    VirtualMemory *mmu = m_emu.system_bus->mmu;
+    auto add_vpages = [mmu](word start_addr, word size, bool write, bool execute)
+    {
+        const long long pid = mmu->current_process();
+        const word last_vpage = (start_addr + size - 1) >> kNumPageOffsetBits;
+        for (word vpage = start_addr >> kNumPageOffsetBits; vpage <= last_vpage; vpage++)
+        {
+            if (!mmu->has_vpage(pid, vpage))
+            {
+                mmu->add_vpage(pid, vpage, 1, write, execute);
+            }
+        }
+    };
+
     // text -> data -> bss
     word cur_addr = obj.sections[obj.section_table.at(".text")].address;
     bool physical = obj.sections[obj.section_table.at(".text")].load_at_physical_address;
 
     if (!physical && obj.text_section.size() > 0)
     {
-        // we are assuming that there is no overlap between pages of text, data, and bss sections
-        word start = cur_addr >> kNumPageOffsetBits;
-        word end = (cur_addr + 4 * obj.text_section.size() - 1) >> kNumPageOffsetBits;
-        m_emu.system_bus->mmu->add_vpage(m_emu.system_bus->mmu->current_process(), start,
-                                         end - start + 1, false, true);
+        add_vpages(cur_addr, 4 * obj.text_section.size(), false, true);
     }
 
     for (word instr : obj.text_section)
@@ -94,10 +106,7 @@ void LoadExecutable::load()
 
     if (!physical && obj.data_section.size() > 0)
     {
-        word start = cur_addr >> kNumPageOffsetBits;
-        word end = (cur_addr + obj.data_section.size() - 1) >> kNumPageOffsetBits;
-        m_emu.system_bus->mmu->add_vpage(m_emu.system_bus->mmu->current_process(), start,
-                                         end - start + 1, true, false);
+        add_vpages(cur_addr, obj.data_section.size(), true, false);
     }
 
     for (byte data : obj.data_section)
@@ -117,10 +126,7 @@ void LoadExecutable::load()
     physical = obj.sections[obj.section_table.at(".bss")].load_at_physical_address;
     if (!physical && obj.bss_section > 0)
     {
-        word start = cur_addr >> kNumPageOffsetBits;
-        word end = (cur_addr + obj.bss_section - 1) >> kNumPageOffsetBits;
-        m_emu.system_bus->mmu->add_vpage(m_emu.system_bus->mmu->current_process(), start,
-                                         end - start + 1, true, false);
+        add_vpages(cur_addr, obj.bss_section, true, false);
     }
 
     for (word i = 0; i < obj.bss_section; i++)

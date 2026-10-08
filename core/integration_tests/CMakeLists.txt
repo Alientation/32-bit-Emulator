@@ -12,6 +12,7 @@ add_dependencies(assembler_integration emu32 basm)
 target_compile_definitions(assembler_integration PRIVATE
     EMULATOR_PATH=\"$<TARGET_FILE:emu32>\"
     ASSEMBLER_PATH=\"$<TARGET_FILE:basm>\"
+    PROGRAMS_DIR=\"${PROJECT_SOURCE_DIR}/app/programs\"
 )
 
 # TODO: Comment back in when ccompiler is implemented.

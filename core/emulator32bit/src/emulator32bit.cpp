@@ -44,6 +44,11 @@ const char *Emulator32bit::Exception::what() const noexcept
     return message.c_str();
 }
 
+Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
+{
+    return type;
+}
+
 void Emulator32bit::fill_out_instructions()
 {
     for (int i = 0; i < kMaxInstructions; i++)
@@ -127,9 +132,9 @@ void Emulator32bit::print()
     std::printf("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run(U64 instructions)
+Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 {
-    U64 num_instructions_ran = 0;
+    RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
     try
     {
         if (instructions == 0)
@@ -139,32 +144,43 @@ void Emulator32bit::run(U64 instructions)
                 const word instr = system_bus->read_word_aligned_ram(m_pc);
                 execute(instr);
                 m_pc += 4;
-                num_instructions_ran++;
+                result.instructions_ran++;
             }
         }
         else
         {
-            const U64 start_instructions = instructions;
-            while (instructions > 0)
+            while (result.instructions_ran < instructions)
             {
                 const word instr = system_bus->read_word_aligned_ram(m_pc);
                 execute(instr);
                 m_pc += 4;
-                instructions--;
+                result.instructions_ran++;
             }
-            num_instructions_ran = start_instructions - instructions;
         }
     }
     catch (const Exception &e)
     {
         std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
+        result.status = e.get_type() == InterruptType::HALT_INSTR ? RunResult::Status::HALTED
+                                                                  : RunResult::Status::FAULT;
+        result.message = e.what();
     }
     catch (const SystemBus::Exception &e)
     {
         std::cerr << "Caught System Bus Exception: " << e.what() << std::endl;
+        result.status = RunResult::Status::FAULT;
+        result.message = e.what();
+    }
+    catch (const VirtualMemory::VirtualMemoryException &e)
+    {
+        // E.g. an access to an unmapped virtual page.
+        std::cerr << "Caught Virtual Memory Exception: " << e.what() << std::endl;
+        result.status = RunResult::Status::FAULT;
+        result.message = e.what();
     }
 
-    std::printf("Ran %lu instructions\n", num_instructions_ran);
+    std::printf("Ran %lu instructions\n", result.instructions_ran);
+    return result;
 }
 
 void Emulator32bit::reset()

@@ -261,6 +261,14 @@ word Assembler::parse_format_m(byte opcode)
     if (m_tokenizer.is_next(Tokenizer::CLOSE_BRACKET))
     {
         m_tokenizer.consume();
+
+        // A bare `[xn]` is a plain access with no offset. Only `[xn], <offset>` is post indexed.
+        if (!m_tokenizer.has_next() || !m_tokenizer.is_next(Tokenizer::COMMA))
+        {
+            return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0,
+                                               Emulator32bit::AddrType::ADDR_OFFSET);
+        }
+
         addressing_mode = Emulator32bit::AddrType::ADDR_POST_INC;
         parsed_addressing_mode = true;
     }
@@ -277,8 +285,12 @@ word Assembler::parse_format_m(byte opcode)
             EXPECT_TRUE(offset < (1ULL << 12),
                         "Assembler::parse_format_m() - Offset must be 12 bit value.");
 
-            m_tokenizer.consume(Tokenizer::CLOSE_BRACKET,
-                                "Assembler::parse_format_m() - Expected close bracket.");
+            // Post indexed (`[xn], offset`) already consumed the close bracket.
+            if (!parsed_addressing_mode)
+            {
+                m_tokenizer.consume(Tokenizer::CLOSE_BRACKET,
+                                    "Assembler::parse_format_m() - Expected close bracket.");
+            }
 
             // Only update addressing mode if not yet determined. Only ADDR_POST_INC mode has been
             // checked thus far. This reduces code repetition, since the way offsets are calculated
@@ -310,14 +322,17 @@ word Assembler::parse_format_m(byte opcode)
             // Shift argument.
             Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
             int shift_amount = 0;
-            if (m_tokenizer.is_next(Tokenizer::COMMA))
+            if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
             {
                 m_tokenizer.consume();
                 parse_shift(shift, shift_amount);
             }
 
-            m_tokenizer.consume(Tokenizer::CLOSE_BRACKET,
-                                "Assembler::parse_format_m() - Expected close bracket.");
+            if (!parsed_addressing_mode)
+            {
+                m_tokenizer.consume(Tokenizer::CLOSE_BRACKET,
+                                    "Assembler::parse_format_m() - Expected close bracket.");
+            }
 
             // Same logic as above, only update addressing mode if not yet determined.
             if (!parsed_addressing_mode)
@@ -360,7 +375,7 @@ word Assembler::parse_format_o3(byte opcode)
         const byte operand_reg = parse_register();
 
         word value = 0;
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
             value = parse_expression();
@@ -474,7 +489,7 @@ word Assembler::parse_format_o(byte opcode)
         // Shift.
         Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
         int shift_amt = 0;
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
             parse_shift(shift, shift_amt);
@@ -723,8 +738,8 @@ void Assembler::_ror()
 
 void insert_xzr(Tokenizer &tokenizer)
 {
+    // Whitespace has already been filtered out of the token stream, so don't insert any here.
     const std::vector<Tokenizer::Token> insert = {
-        Tokenizer::Token(Tokenizer::Type::WHITESPACE_SPACE, " "),
         Tokenizer::Token(Tokenizer::Type::REGISTER_XZR, "xzr"),
         Tokenizer::Token(Tokenizer::Type::COMMA, ","),
     };
@@ -991,7 +1006,6 @@ void Assembler::_ret()
 
     const std::vector<Tokenizer::Token> insert = {
         Tokenizer::Token(Tokenizer::Type::INSTRUCTION_BX, "bx"),
-        Tokenizer::Token(Tokenizer::Type::WHITESPACE_SPACE, " "),
         Tokenizer::Token(Tokenizer::Type::REGISTER_X29, "x29"),
     };
 

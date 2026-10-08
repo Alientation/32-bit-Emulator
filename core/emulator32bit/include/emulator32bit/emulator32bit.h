@@ -175,6 +175,7 @@ class Emulator32bit
       public:
         Exception(InterruptType type, const std::string &msg);
         const char *what() const noexcept override;
+        InterruptType get_type() const noexcept;
     };
 
     enum class ConditionCode : U8
@@ -253,14 +254,38 @@ class Emulator32bit
     ///                     process.
     word pagedir;
 
+    /// @brief              Why a call to run () stopped.
+    struct RunResult
+    {
+        enum class Status : U8
+        {
+            HALTED,        ///< Executed a HLT instruction.
+            LIMIT_REACHED, ///< Executed the requested number of instructions.
+            FAULT,         ///< Any other emulator or system bus exception.
+        };
+
+        Status status;
+        U64 instructions_ran;
+        std::string message; ///< Exception message, empty if the limit was reached.
+    };
+
+    /// @brief              Exit code of the emulator CLI interface.
+    enum class EmuCLIExitCode : U8
+    {
+        EXIT_HALTED = 0,
+        EXIT_USAGE_ERROR = 1,
+        EXIT_LIMIT_REACHED = 2,
+        EXIT_FAULT = 3,
+    };
+
     ///
     /// @brief                  Run the emulator for a given number of instructions.
     ///
     /// @param instructions     Number of instructions to run, if 0 run until HLT instruction or
     ///                         exception is thrown.
-    /// @throws                 Exception
+    /// @return                 Why execution stopped and how many instructions ran.
     ///
-    void run(U64 instructions);
+    RunResult run(U64 instructions);
 
     void print();
 

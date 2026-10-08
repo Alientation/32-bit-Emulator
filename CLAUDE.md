@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Always use the native Read, Edit, and Write tools for file operations. You MUST NOT use bash commands like sed, awk, or cat to read or modify code files.
+
 ## Overview
 An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assembler, and linker for **basm** assembly, plus an executable loader. All code lives under `core/`. A C compiler (`core/ccompiler`, written in C11) is in progress but is currently **commented out** of `core/CMakeLists.txt`.
 
@@ -32,11 +34,22 @@ Compile flags are not set per target. Every target calls `aemu_target_defaults(<
 `version.h` (`AEMU_VERSION`, from `git describe`) is generated on every build into `build/<config>/app/generated/` and is visible only to `emulator_app`.
 
 ## Executables (under build/<config>/...)
-- `emulator32bit/emu32`: runs the emulator from the command line (cxxopts). Options set RAM/ROM/disk page layout, a ROM/disk file, the initial PC, NZCV flags, register values, and an instruction limit. Run `--help` to see them.
+- `emulator32bit/emu32`: runs the emulator from the command line (cxxopts). It links `aemu::assembler` for the `.bexe` loader. Run `--help` to see the options.
+  - `-e prog.bexe` loads an executable and starts it at `_start`. Without `-e`, the program comes from `--rom-file`/`--pc`.
+  - `--reg x0=5,sp=0x2000` and `--flags 0b0100` set the starting state. The default flags are `0b0100` (Z set).
+  - `-l N` sets the instruction limit (0 means none). The `--ram-*`/`--rom-*`/`--disk-*` options set the memory layout. Without `--disk-file`, a `MockDisk` is used.
+  - `--format plain -o state.txt -m 0x1000:16` writes `key=value` lines: `status=halted|limit|fault`, `instructions`, `message`, `pc`, `x0`..`x29`, `sp`, `N`/`Z`/`C`/`V`, and `mem[0x00001000]=<hex bytes>`. Without `-o`, the dump goes to stdout mixed with the logs.
+  - Exit codes: 0 halted, 1 usage/load error, 2 limit reached, 3 fault (e.g. an unmapped access).
+  - `pc` is the physical address where execution stopped. On `hlt` it points at the `hlt` itself.
 - `assembler/basm`: the toolchain driver (preprocess → assemble → link). Its argument parser is hand-rolled (`assembler/src/build.cpp`, `Process`). Options that take a value need a space before the value, e.g. `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`. Useful flags: `-I`, `-l <lib.ba>`, `-o`, `-makedir` (produce a `.ba` library).
 - `app/emulator_app`: builds the program and runs it on the emulator. Sample programs are in `core/app/programs/`.
 
-Integration tests shell out to `emu32` and `basm`. They receive the binary paths as the `EMULATOR_PATH` / `ASSEMBLER_PATH` compile definitions.
+Integration tests receive the binary paths as the `EMULATOR_PATH` / `ASSEMBLER_PATH` compile definitions, and `PROGRAMS_DIR` (core/app/programs). The assembler suite (`integration_tests/assembler_integration/`) works like this:
+- It writes `.basm` sources into a per-test scratch dir under `/tmp/aemu_assembler_integration/`. The dir is kept when a test fails, with `basm.log`, `emu32.log` and `state.txt`.
+- It shells out to `basm`, then inspects the `.bo`/`.bexe` with `ObjectFile`.
+- It runs the `.bexe` with `emu32 --format plain -o state.txt`. The fixture's `run()`, `reg()`, `flag()`, `mem()` and `state()` helpers wrap this.
+
+Add a test by writing a `TEST_F (AssemblerIntegration, ...)` that calls `write_file`, then `build`, then `run`, then asserts.
 
 ## Architecture
 Static libraries with this dependency chain: `util` ← `emulator32bit` ← `assembler` ← `app`.
@@ -51,6 +64,27 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
 - **assembler**: the pipeline is `Preprocessor` (`#include`, `#define`, macros, conditionals) → `Tokenizer` → `Assembler` (directives in `directives.cpp`, instructions in `instructions.cpp`) → `ObjectFile` (.bo) → `Linker` (symbol resolution and relocation, with `default_linker.ld` as the default script) → `.bexe`, which `load_executable` loads into emulator memory. `StaticLibrary` handles `.ba` archives. `build.cpp` orchestrates all of it.
 
 **Adding or changing an instruction touches several places:** the `_INSTR` opcode list and the `asm_*` encoder (emulator32bit.h/instructions.cpp), the disassembler, the assembler tokenizer keyword map (`assembler/src/tokenizer.cpp`), the assembler handler (`assembler/src/instructions.cpp`), and a gtest in `emulator32bit/tests/instruction_tests/` that is registered in its CMakeLists.
+
+## basm language quick reference
+- Every program needs `.global _start` and a `_start:` label (the loader's entry point). Sections are `.text`, `.data` and `.bss`. Data directives (`.word`, `.byte`, `.ascii`, `.asciz`, ...) are only legal in `.data`. Reserve `.bss` space with `.advance N`. Cross-file symbols are exported with `.global`. A symbol that is referenced but not defined becomes a WEAK, section `-1` entry in the `.bo`, and the linker resolves it.
+- Comments: `; ...` and `;* ... *;`. Number literals: `42`, `$2A` (hex), `%101` (binary), `@17` (octal).
+- Registers: `x0`–`x29`, `sp` (x30), `xzr` (x31). x29 is the link register, x28 the frame pointer, x8 the syscall number, x0–x7 the arguments, and x0 the return value.
+- ALU ops are `op xd, xn, <xm[, shift] | imm14>`. The immediate is **unsigned 14-bit**. A trailing `s` sets flags (`adds`). `cmp`/`cmn`/`tst`/`teq` are assembled by injecting `xzr` as the destination. Conditional branches look like `b.le label`. `bl` stores the return address in x29, and `ret` is rewritten to `bx x29`.
+- Memory: `[xn]`, `[xn, imm12]`, `[xn, xm{, lsl n}]`, `[xn, imm]!` (pre-index), `[xn], imm` (post-index). Offsets are **unsigned** (there is no `[sp, -4]!`; use `sub sp, sp, 4` + `str`). `ldrsb`/`ldrsh` sign-extend. Take a symbol's address with `adrp xd, sym` + `add xd, xd, :lo12:sym`. That works for `.text` labels too (`blx xn` for indirect calls).
+- `mov`/`mvn` take a register or an unsigned 14-bit immediate. Expressions are numbers combined with `+ - * /`, evaluated left to right. Symbols can't appear in expressions.
+- Data directives: `.byte` (1 byte), `.dbyte` (2), `.word` (4), `.dword` (8), all little endian. Also `.char 'a'`, `.ascii`, `.asciz`, `.align N`, `.advance N`, `.org N` (an offset within the section, which can only move forward).
+- Preprocessor: `#include "rel/path.binc"` (relative to the source) or `#include <"file.binc">` (searched in `-I` dirs), `#define`, `#macro name(args)`/`#macend` + `#invoke name(...)`, `#ifdef`/`#ifndef`/`#ifequ A B`/`#else`/`#elsedef`/.../`#endif`. Macro parameter names must not be keywords (`b` is the branch instruction).
+- `hlt` encodes as `0x00000000`, so running into zeroed memory halts. Unused opcodes also dispatch to `_hlt`.
+- Default layout (`default_linker.ld`): `.text` at 0x0, `.data` at 0x1000, `.bss` directly after `.data` (so it can share `.data`'s page). Pages are 4 KiB (`kNumPageOffsetBits = 12`).
+
+## Toolchain/emulator quirks
+- `ERROR(...)` (util/logger.h) calls `exit(EXIT_FAILURE)`. An assembler error inside a gtest therefore kills the whole test binary, and `basm` exits nonzero.
+- `basm` needs at least one source file even when it's only linking libraries. `-o <name>` takes no extension (it produces `<name>.bexe`, or `<name>.ba` with `-ar`). Object files go to `-outdir` as `<src>.bo`. `-c` stops after the object files. `.bi` intermediates are deleted unless you pass `-kp`. Paths are relative to the cwd, and the default output name is `a`.
+- To run a `.bexe` in-process (this is what `emu32 -e` does): build `Emulator32bit (new RAM (16, 0), new ROM (16, 16), new MockDisk ())`, call `system_bus->mmu->begin_process ()`, then `LoadExecutable`, then `run (max_instructions)`. Every vpage gets a backing disk page. Use `MockDisk` when there's no disk file, because a default-constructed `Disk` errors on save.
+- `run` returns a `RunResult` (`HALTED`/`LIMIT_REACHED`/`FAULT`, the instruction count, the message). It catches emulator, system bus and virtual memory exceptions and prints e.g. "Caught Emulator Exception: HLT Exception" on a normal halt.
+- **Carry flag:** subtraction/`cmp`/`sbc`/`rsc` use the ARM convention (C = *no borrow*), consistent with `HI`/`LS`/`HS`/`LO`. `adc`/`add` carry is the usual carry-out.
+- The in-process preprocessor tests in `assembler/tests` share a static `Disk` and fail when run together in one gtest process. ctest runs each test in its own process, so they pass under ctest.
+- Logging is extremely verbose (DBG level) in every build. Pipe through `grep -v DBG`.
 
 ## Style
 `.clang-format` (repo root) is LLVM-based: 4-space indent, `SpaceBeforeParens: Always` (so `foo (x)`), right-aligned pointers (`int *p`). Filenames are all lowercase.

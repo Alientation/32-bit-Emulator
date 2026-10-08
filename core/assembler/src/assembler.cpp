@@ -50,6 +50,10 @@ void Assembler::assemble()
     // Clear the object file.
     m_out_obj_file.clear();
 
+    m_obj.file_type = ObjectFile::kRelocatableFileType;
+    m_obj.target_machine = ObjectFile::kEMU32MachineId;
+    m_obj.flags = 0;
+
     // Add appropriate sections to the object file.
     m_obj.add_section(".text", ObjectFile::SectionHeader::Type::TEXT);
     m_obj.add_section(".data", ObjectFile::SectionHeader::Type::DATA);
@@ -246,6 +250,13 @@ void Assembler::fill_local()
                 + bitfield_unsigned(
                     bitfield_signed(symbol_entry.symbol_value, 2, 22) - rel.offset / 4, 0, 22);
             break;
+        case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
+        case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
+        case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
+        case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
+            // Absolute addresses (e.g. adrp to a .text label) are only known after linking, so
+            // leave these for the linker/loader.
+            continue;
         case ObjectFile::RelocationEntry::Type::UNDEFINED:
         default:
             ERROR("Assembler::fill_local() - Unknown relocation entry type.");

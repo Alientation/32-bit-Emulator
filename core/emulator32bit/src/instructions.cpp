@@ -109,7 +109,27 @@ static bool get_v_flag_add(const word op1, const word op2)
  */
 static bool get_c_flag_sub(const word op1, const word op2)
 {
-    return (((~op1 & op2) | ((op1 - op2) & (~op1 | op2))) & (1U << 31));
+    // ARM convention: C is set when there is NO borrow
+    return op1 >= op2;
+}
+
+/**
+ * @internal
+ * @brief                   Get the carry flag after subtracting with borrow (ARM: C = no borrow)
+ */
+static bool get_c_flag_sbc(const word op1, const word op2, const bool borrow)
+{
+    return static_cast<uint64_t>(op1) >= static_cast<uint64_t>(op2) + borrow;
+}
+
+/**
+ * @internal
+ * @brief                   Get the overflow flag after subtracting with borrow
+ */
+static bool get_v_flag_sbc(const word op1, const word op2, const bool borrow)
+{
+    const word res = op1 - op2 - borrow;
+    return ((op1 ^ op2) & (op1 ^ res)) & (1U << 31);
 }
 
 /**
@@ -140,7 +160,7 @@ static bool get_v_flag_sub(const word op1, const word op2)
     (test_bit(instr, 14) ? bitfield_unsigned(instr, 0, 14)                                         \
                          : calc_shift(read_reg(_X3(instr)),                                        \
                                       (Emulator32bit::ShiftType) bitfield_unsigned(instr, 7, 2),   \
-                                      bitfield_unsigned(instr, 2, 2)))
+                                      bitfield_unsigned(instr, 2, 5)))
 
 /**
  * @internal
@@ -268,8 +288,8 @@ word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, c
 word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, const int xn,
                                   const int imm14)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << 0 << JPart(5, xn)
-                    << JPart(14, imm14);
+    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(1, 0)
+                    << JPart(5, xn) << JPart(14, imm14);
 }
 
 word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt, const int xn,
@@ -740,7 +760,7 @@ void Emulator32bit::_adc(const word instr)
 
 void Emulator32bit::_sbc(const word instr)
 {
-    const bool borrow = test_bit(m_pstate, kCFlagBit);
+    const bool borrow = !test_bit(m_pstate, kCFlagBit); // ARM: C set means no borrow
     const U8 xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
     const word sub_val = FORMAT_O__get_arg(instr);
@@ -749,9 +769,8 @@ void Emulator32bit::_sbc(const word instr)
     // check to update NZCV
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0,
-                 get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
-                 get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sbc(xn_val, sub_val, borrow),
+                 get_v_flag_sbc(xn_val, sub_val, borrow));
     }
 
     DEBUG_SS(std::stringstream() << "sbc " << std::to_string(sub_val) << " "
@@ -761,7 +780,7 @@ void Emulator32bit::_sbc(const word instr)
 
 void Emulator32bit::_rsc(const word instr)
 {
-    const bool borrow = test_bit(m_pstate, kCFlagBit);
+    const bool borrow = !test_bit(m_pstate, kCFlagBit); // ARM: C set means no borrow
     const U8 xd = _X1(instr);
     const word sub_val = read_reg(_X2(instr));
     const word xn_val = FORMAT_O__get_arg(instr);
@@ -770,9 +789,8 @@ void Emulator32bit::_rsc(const word instr)
     // check to update NZCV
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0,
-                 get_c_flag_sub(xn_val - borrow, sub_val) | get_c_flag_sub(xn_val, borrow),
-                 get_v_flag_sub(xn_val - borrow, sub_val) | get_v_flag_sub(xn_val, borrow));
+        set_NZCV(test_bit(dst_val, 31), dst_val == 0, get_c_flag_sbc(xn_val, sub_val, borrow),
+                 get_v_flag_sbc(xn_val, sub_val, borrow));
     }
 
     DEBUG_SS(std::stringstream() << "rsc " << std::to_string(xn_val) << " "
@@ -1191,11 +1209,9 @@ void Emulator32bit::_ldr(const word instr)
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
     sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
-    printf("OFFSET %d\n", offset);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    printf("MEMORY ADDRESS %u\n", mem_addr);
     const word read_val = system_bus->read_word(mem_addr);
 
     if (address_mode == 0)
@@ -1235,7 +1251,7 @@ void Emulator32bit::_ldrb(const word instr)
     word read_val = system_bus->read_byte(mem_addr);
     if (sign)
     {
-        read_val = sword(byte(read_val));
+        read_val = sword(S8(read_val));
     }
 
     if (address_mode == 0)
@@ -1273,7 +1289,7 @@ void Emulator32bit::_ldrh(const word instr)
     word read_val = system_bus->read_hword(mem_addr);
     if (sign)
     {
-        read_val = sword(hword(read_val));
+        read_val = sword(S16(read_val));
     }
 
     if (address_mode == 0)
@@ -1344,7 +1360,7 @@ void Emulator32bit::_strb(const word instr)
     word write_val = read_reg(xt);
     if (sign)
     {
-        write_val = sword(byte(write_val));
+        write_val = sword(S8(write_val));
     }
 
     if (address_mode == 0)
@@ -1382,7 +1398,7 @@ void Emulator32bit::_strh(const word instr)
     word write_val = read_reg(xt);
     if (sign)
     {
-        write_val = sword(hword(write_val));
+        write_val = sword(S16(write_val));
     }
 
     if (address_mode == 0)

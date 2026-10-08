@@ -185,6 +185,16 @@ class VirtualMemory
                                bool execute);
 
     /**
+     * @brief             Checks whether the virtual page has been added to the process.
+     *
+     * @throw            InvalidPIDException when pid is invalid.
+     * @param             pid: Process identifier.
+     * @param             vpage: Virtual page to check.
+     * @return             Whether the virtual page is mapped for the process.
+     */
+    bool has_vpage(long long pid, word vpage);
+
+    /**
      * @brief             Checks the write permissions of the virtual page by the process.
      *
      * @throw            InvalidPIDException when pid is invalid.

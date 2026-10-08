@@ -29,9 +29,10 @@ aemu_target_defaults(emulator32bit)
 # Debug postfix
 set_target_properties(emulator32bit PROPERTIES DEBUG_POSTFIX "d")
 
-# Executable to take in cmd line arguments
-add_executable(emu32 src/main.cpp)
-target_link_libraries(emu32 PRIVATE aemu::emulator32bit cxxopts::cxxopts)
+# Executable to take in cmd line arguments. It also links the assembler library because the .bexe
+# reader (LoadExecutable/ObjectFile) lives there; the libraries themselves stay layered.
+add_executable(emu32 src/cli.cpp)
+target_link_libraries(emu32 PRIVATE aemu::emulator32bit aemu::assembler cxxopts::cxxopts)
 aemu_target_defaults(emu32)
 
 # Installation rules

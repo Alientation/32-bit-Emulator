@@ -70,9 +70,11 @@ dword Assembler::parse_expression(dword min, dword max)
         }
 
         // Temporary only support 4 operations.
-        if (m_tokenizer.is_next({Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION,
-                                 Tokenizer::OPERATOR_MULTIPLICATION,
-                                 Tokenizer::OPERATOR_SUBTRACTION}))
+        // The expression may be the last thing in the file.
+        if (m_tokenizer.has_next()
+            && m_tokenizer.is_next({Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION,
+                                    Tokenizer::OPERATOR_MULTIPLICATION,
+                                    Tokenizer::OPERATOR_SUBTRACTION}))
         {
             operator_token = &m_tokenizer.consume();
         }
@@ -429,10 +431,10 @@ void Assembler::_stop()
 std::vector<dword> Assembler::parse_arguments()
 {
     std::vector<dword> args;
-    while (!m_tokenizer.is_next(Tokenizer::WHITESPACE_NEWLINE))
+    while (m_tokenizer.has_next() && !m_tokenizer.is_next(Tokenizer::WHITESPACE_NEWLINE))
     {
         args.push_back(parse_expression());
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
         }
@@ -598,7 +600,7 @@ void Assembler::_char()
 
         // Get the second character since literal chars are surrounded by single quotes.
         m_obj.data_section.push_back(m_tokenizer.consume().value.at(1));
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
         }
@@ -633,7 +635,7 @@ void Assembler::_ascii()
 
         // Note, does not automatically add the null terminator.
 
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
         }
@@ -667,7 +669,7 @@ void Assembler::_asciz()
         }
         m_obj.data_section.push_back('\0');
 
-        if (m_tokenizer.is_next(Tokenizer::COMMA))
+        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {
             m_tokenizer.consume();
         }

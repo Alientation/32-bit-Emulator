@@ -499,7 +499,7 @@ void ObjectFile::print()
     DEBUG("ObjectFile::print() - Printing object file.");
 
     /* Don't print object files that could not be disassembled */
-    if (m_state != State::DISASSEMBLED_SUCCESS)
+    if (m_state != State::DISASSEMBLED_SUCCESS || m_state != State::WRITING_SUCCESS)
     {
         printf("ERROR: Cannot print object file. Disassembly failed.");
         return;
@@ -556,7 +556,9 @@ void ObjectFile::print()
     std::unordered_map<int, int> label_map;
     for (std::pair<int, SymbolTableEntry> symbol : symbol_table)
     {
-        if (sections[symbol.second.section].type != SectionHeader::Type::TEXT
+        // Undefined symbols (section -1) have no section to look up.
+        if (symbol.second.section == U32(-1)
+            || sections[symbol.second.section].type != SectionHeader::Type::TEXT
             || strings[symbol.second.symbol_name].find("::SCOPE") != std::string::npos)
         {
             continue;

@@ -189,7 +189,7 @@ void Linker::link()
         else if (section.type == SectionAddress::Type::DATA)
         {
             section_header = &exe_obj_file.sections[exe_obj_file.section_table.at(".data")];
-            section_size = exe_obj_file.data_section.size() * 4;
+            section_size = exe_obj_file.data_section.size(); // bytes, unlike .text
             offset_data = section.set_address ? section.address : address;
         }
         else if (section.type == SectionAddress::Type::BSS)

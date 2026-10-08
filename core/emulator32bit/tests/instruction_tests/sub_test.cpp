@@ -75,7 +75,7 @@ TEST_F(EmulatorFixture, sub_negative_flag)
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kNFlagBit), 1) << "N flag should be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 0)
         << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0) << "C flag should not be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 0)
         << "operation should not cause V flag to be set";
 }
@@ -102,7 +102,7 @@ TEST_F(EmulatorFixture, sub_zero_flag)
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kNFlagBit), 0)
         << "operation should not cause N flag to be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 1) << "Z flag should be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0) << "C flag should be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 0)
         << "operation should not cause V flag to be set";
 }
@@ -129,7 +129,7 @@ TEST_F(EmulatorFixture, sub_carry_flag_1)
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kNFlagBit), 1) << "N flag should be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 0)
         << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0) << "C flag should not be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 0)
         << "operation should not cause V flag to be set";
 }
@@ -157,7 +157,7 @@ TEST_F(EmulatorFixture, sub_carry_flag_2)
         << "operation should not cause N flag to be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 0)
         << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0) << "C flag should not be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 0)
         << "operation should not cause V flag to be set";
 }
@@ -185,7 +185,7 @@ TEST_F(EmulatorFixture, sub_overflow_flag__positive_to_negative)
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kNFlagBit), 1) << "N flag should be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 0)
         << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0) << "C flag should not be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 1) << "V flag should be set";
 }
 
@@ -212,7 +212,6 @@ TEST_F(EmulatorFixture, sub_overflow_flag__negative_to_positive)
         << "operation should not cause N flag to be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kZFlagBit), 0)
         << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 0)
-        << "operation should not cause C flag to be set";
+    EXPECT_EQ(cpu->get_flag(Emulator32bit::kCFlagBit), 1) << "C flag should be set";
     EXPECT_EQ(cpu->get_flag(Emulator32bit::kVFlagBit), 1) << "V flag should be set";
 }

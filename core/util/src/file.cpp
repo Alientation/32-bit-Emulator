@@ -214,10 +214,17 @@ bool File::create()
 {
     std::filesystem::path fs_path(get_path());
 
-    // Create all necessary directories
-    if (!std::filesystem::create_directories(fs_path.parent_path()))
+    // Create all necessary directories. A bare file name has no parent directory, and
+    // create_directories returns false when the directories already exist, so check the error
+    // code instead of the return value.
+    if (fs_path.has_parent_path())
     {
-        return false;
+        std::error_code ec;
+        std::filesystem::create_directories(fs_path.parent_path(), ec);
+        if (ec)
+        {
+            return false;
+        }
     }
 
     std::ofstream file(get_path());

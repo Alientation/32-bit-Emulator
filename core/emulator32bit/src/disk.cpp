@@ -489,7 +489,9 @@ void MockDisk::return_pages(word page_lo, word page_hi)
 std::vector<byte> MockDisk::read_page(word page)
 {
     UNUSED(page);
-    return std::vector<byte>();
+    // Virtual memory fetches a full page from disk the first time a page is touched, so hand back
+    // a zeroed page rather than an empty one.
+    return std::vector<byte>(kPageSize, 0);
 }
 
 byte MockDisk::read_byte(word address)
