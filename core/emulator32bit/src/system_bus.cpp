@@ -46,6 +46,18 @@ void SystemBus::validate_memory()
                "Invalid memory layout. RAM overlaps with DISK memory. ({},{}) U ({},{})",
                ram->get_lo_page(), ram->get_hi_page(), disk->get_lo_page(), disk->get_hi_page());
 
+    for (const BaseMemory *memory :
+         {static_cast<const BaseMemory *>(ram.get()), static_cast<const BaseMemory *>(rom.get()),
+          static_cast<const BaseMemory *>(disk.get())})
+    {
+        AEMU_CHECK(memory->get_mem_pages() == 0
+                       || U64(memory->get_lo_page()) + memory->get_mem_pages()
+                              <= (kDeviceBase >> kNumPageOffsetBits),
+                   "Invalid memory layout. Memory ({},{}) overlaps the devices, which start at "
+                   "{:#x}.",
+                   memory->get_lo_page(), memory->get_hi_page(), kDeviceBase);
+    }
+
     AEMU_CHECK(!rom->overlap(*disk),
                "Invalid memory layout. ROM overlaps with DISK memory. ({},{}) U ({},{})",
                rom->get_lo_page(), rom->get_hi_page(), disk->get_lo_page(), disk->get_hi_page());
@@ -64,4 +76,7 @@ const char *SystemBus::Exception::what() const noexcept
 void SystemBus::reset()
 {
     ram->reset();
+    intc.reset();
+    timer.reset();
+    console.reset();
 }

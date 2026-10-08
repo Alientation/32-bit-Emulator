@@ -393,12 +393,18 @@ word Emulator32bit::asm_eret()
                     << Zeros(22);
 }
 
-// There is no interrupt source yet, so waiting would be forever: the program ends like it does
-// with hlt.
+// Waits until an interrupt is pending (masked or not, the next instruction then runs, and takes
+// the interrupt if it is not masked). Nothing else happens while waiting, so the only thing that
+// can raise one is the timer: time jumps to when it fires. With nothing to wait for the program
+// ends like it does with hlt, so that it does not hang.
 void Emulator32bit::_wfi(const word instr)
 {
     UNUSED(instr);
     require_kernel();
+    if (system_bus->intc.has_pending() || system_bus->timer.fast_forward())
+    {
+        return;
+    }
     throw Exception(InterruptType::HALT_INSTR, "WFI with no interrupt source");
 }
 

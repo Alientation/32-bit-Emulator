@@ -41,6 +41,9 @@ static inline constexpr T mask_0(T val, U8 bit_i, U8 len)
 static constexpr U8 kNumPageOffsetBits = 12;
 static constexpr U32 kPageSize = 1 << kNumPageOffsetBits;
 
+/// Physical addresses from here up belong to the memory mapped devices (devices.h).
+static constexpr word kDeviceBase = 0xF0000000;
+
 ///
 /// @brief              Flag bit locations in the _pstate register.
 ///

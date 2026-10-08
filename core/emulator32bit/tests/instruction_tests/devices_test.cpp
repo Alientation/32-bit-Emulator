@@ -1,0 +1,446 @@
+// The interrupt controller, timer and console (docs/devices.md), and what the CPU does with them:
+// taking an interrupt between instructions, WFI, and running code from the ROM.
+
+#include "emulator32bit_test/emulator32bit_test.h"
+
+#include <emulator32bit/devices.h>
+
+#include <sstream>
+
+namespace
+{
+
+using Class = Emulator32bit::ExceptionClass;
+using Status = Emulator32bit::RunResult::Status;
+using E = Emulator32bit;
+
+constexpr word kProgram = 0x100;
+constexpr word kVectors = 0x800;
+constexpr word kIrqVector = kVectors + 16 * word(Class::IRQ);
+constexpr word kIrqMask = 1 << kIrqMaskBit;
+
+word mov(const U8 xd, const word value)
+{
+    return E::asm_format_o3(E::_op_mov, false, xd, value);
+}
+
+word store_at(const U8 xt, const U8 xn, const int offset)
+{
+    return E::asm_format_m(E::_op_str, false, xt, xn, offset, E::AddrType::ADDR_OFFSET);
+}
+
+word load_at(const U8 xt, const U8 xn, const int offset)
+{
+    return E::asm_format_m(E::_op_ldr, false, xt, xn, offset, E::AddrType::ADDR_OFFSET);
+}
+
+word nop()
+{
+    return E::asm_nop();
+}
+
+/// The instructions that put a 32 bit value in a register: mov, lsl, orr.
+std::vector<word> constant(const U8 xd, const word value)
+{
+    return {mov(xd, value >> 14), E::asm_format_o1(E::_op_lsl, xd, xd, true, 0, 14),
+            E::asm_format_o(E::_op_orr, false, xd, xd, int(value & 0x3FFF))};
+}
+
+void append(std::vector<word> &code, const std::vector<word> &more)
+{
+    code.insert(code.end(), more.begin(), more.end());
+}
+
+class Devices : public ::testing::Test
+{
+  protected:
+    Emulator32bit cpu{new RAM(16, 0), new ROM(16, 16), new MockDisk()};
+    std::ostringstream m_console;
+
+    void SetUp() override
+    {
+        cpu.system_bus->console.set_output(&m_console);
+    }
+
+    void write(const word address, const std::vector<word> &code)
+    {
+        for (size_t i = 0; i < code.size(); i++)
+        {
+            cpu.system_bus->write_word(address + word(i) * 4, code[i]);
+        }
+    }
+
+    /// A vector table whose handlers halt, and the IRQ handler `irq`.
+    void install_vectors(const std::vector<word> &irq)
+    {
+        for (word c = 0; c < 8; c++)
+        {
+            write(kVectors + 16 * c, {E::asm_hlt()});
+        }
+        write(kIrqVector, irq);
+        cpu.write_sysreg(E::kSysregId_vbar, kVectors);
+    }
+
+    Emulator32bit::RunResult run(const std::vector<word> &program, const U64 limit = 1000)
+    {
+        write(kProgram, program);
+        cpu.set_pc(kProgram);
+        return cpu.run(limit);
+    }
+
+    word intc_read(const word offset)
+    {
+        return cpu.system_bus->read_word(kIntcBase + offset);
+    }
+};
+
+} // namespace
+
+// --- the interrupt controller -------------------------------------------------------------
+
+TEST(InterruptControllerUnit, lines_are_served_in_the_order_they_were_raised)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 0xFFFFFFFF);
+    intc.raise(5);
+    intc.raise(2);
+    intc.raise(9);
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 3u);
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x10), (1u << 5) | (1u << 2) | (1u << 9));
+    EXPECT_EQ(intc.read_word(kIntcBase), 5u);
+    EXPECT_EQ(intc.read_word(kIntcBase), 2u);
+    EXPECT_EQ(intc.read_word(kIntcBase), 9u);
+    EXPECT_EQ(intc.read_word(kIntcBase), 0xFFFFFFFFu) << "empty";
+    EXPECT_FALSE(intc.has_pending());
+}
+
+TEST(InterruptControllerUnit,
+     a_line_in_the_queue_is_not_queued_twice_but_can_be_after_it_is_claimed)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 0xFF);
+    intc.raise(1);
+    intc.raise(2);
+    intc.raise(1); // already waiting: it keeps its place
+    EXPECT_EQ(intc.claim(), 1u);
+    intc.raise(1); // now it waits behind line 2
+    EXPECT_EQ(intc.claim(), 2u);
+    EXPECT_EQ(intc.claim(), 1u);
+    EXPECT_EQ(intc.claim(), 0xFFFFFFFFu);
+}
+
+TEST(InterruptControllerUnit, a_line_that_is_not_enabled_is_lost)
+{
+    InterruptController intc;
+    intc.raise(3);
+    EXPECT_FALSE(intc.has_pending()) << "nothing is enabled after reset";
+    intc.write_word(kIntcBase + 0x08, 1u << 3);
+    intc.raise(3);
+    intc.raise(4);
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 1u);
+    intc.write_word(kIntcBase + 0x0C, 3); // a software interrupt
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 1u) << "already waiting";
+    intc.raise(40);                       // there are 32 lines
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 1u);
+}
+
+TEST(InterruptControllerUnit, reset_empties_the_queue_and_disables_the_lines)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 0xFF);
+    intc.raise(0);
+    intc.reset();
+    EXPECT_FALSE(intc.has_pending());
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x08), 0u);
+}
+
+// --- the timer -----------------------------------------------------------------------------
+
+TEST(TimerUnit, a_one_shot_timer_raises_its_line_once)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 1);
+    Timer timer(intc);
+    timer.write_word(kTimerBase + 0x04, 5); // compare
+    timer.write_word(kTimerBase + 0x08, Timer::kEnabled);
+
+    for (int i = 0; i < 4; i++)
+    {
+        timer.tick();
+    }
+    EXPECT_FALSE(intc.has_pending());
+    timer.tick();
+    EXPECT_TRUE(intc.has_pending());
+    EXPECT_EQ(timer.read_word(kTimerBase), 5u);
+    EXPECT_EQ(timer.read_word(kTimerBase + 0x08), 0u) << "it disabled itself";
+    intc.claim();
+    for (int i = 0; i < 100; i++)
+    {
+        timer.tick();
+    }
+    EXPECT_FALSE(intc.has_pending());
+}
+
+TEST(TimerUnit, a_periodic_timer_goes_on)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 1);
+    Timer timer(intc);
+    timer.write_word(kTimerBase + 0x04, 10);
+    timer.write_word(kTimerBase + 0x0C, 10);
+    timer.write_word(kTimerBase + 0x08, Timer::kEnabled | Timer::kPeriodic);
+
+    int interrupts = 0;
+    for (int i = 0; i < 35; i++)
+    {
+        timer.tick();
+        if (intc.has_pending())
+        {
+            interrupts++;
+            intc.claim();
+        }
+    }
+    EXPECT_EQ(interrupts, 3) << "at 10, 20 and 30";
+    EXPECT_EQ(timer.read_word(kTimerBase + 0x04), 40u);
+}
+
+TEST(TimerUnit, the_count_can_be_written_and_runs_with_the_timer_off)
+{
+    InterruptController intc;
+    Timer timer(intc);
+    timer.write_word(kTimerBase, 100);
+    timer.tick();
+    timer.tick();
+    EXPECT_EQ(timer.read_word(kTimerBase), 102u);
+}
+
+// --- the console ---------------------------------------------------------------------------
+
+TEST_F(Devices, a_byte_written_to_the_console_is_sent)
+{
+    cpu.system_bus->write_byte(kConsoleBase, 'h');
+    cpu.system_bus->write_word(kConsoleBase, 'i');
+    cpu.system_bus->write_hword(kConsoleBase, '!');
+    EXPECT_EQ(m_console.str(), "hi!");
+}
+
+TEST_F(Devices, received_bytes_are_read_one_by_one_and_the_status_says_when_there_are_some)
+{
+    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 2u) << "ready to send, nothing received";
+    cpu.system_bus->console.push_input("ab");
+    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 3u);
+    EXPECT_EQ(cpu.system_bus->read_byte(kConsoleBase), 'a');
+    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase), word('b'));
+    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 2u);
+    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase), 0u) << "nothing left";
+}
+
+TEST_F(Devices, input_raises_line_1_when_the_receive_interrupt_is_enabled)
+{
+    cpu.system_bus->write_word(kIntcBase + 8, 1u << kIrqLineConsole);
+    cpu.system_bus->console.push_input("x");
+    EXPECT_FALSE(cpu.system_bus->intc.has_pending()) << "not enabled yet";
+
+    cpu.system_bus->write_word(kConsoleBase + 8, 1); // enabling it with a byte waiting
+    EXPECT_EQ(intc_read(0x10), 1u << kIrqLineConsole);
+    EXPECT_EQ(intc_read(0x00), kIrqLineConsole);
+
+    cpu.system_bus->console.push_input("y");
+    EXPECT_TRUE(cpu.system_bus->intc.has_pending());
+}
+
+TEST_F(Devices, a_reset_clears_the_devices)
+{
+    cpu.system_bus->write_word(kIntcBase + 8, 0xFF);
+    cpu.system_bus->console.push_input("x");
+    cpu.reset();
+    EXPECT_EQ(intc_read(0x08), 0u);
+    EXPECT_FALSE(cpu.system_bus->console.input_waiting());
+}
+
+// --- the CPU takes interrupts --------------------------------------------------------------
+
+// The timer fires while a run of nops executes, the handler claims the line and returns.
+TEST_F(Devices, an_interrupt_runs_the_handler_between_two_instructions_and_eret_goes_on)
+{
+    install_vectors(
+        {mov(7, 1), load_at(8, 10, 0), E::asm_format_o(E::_op_add, false, 9, 9, 1), E::asm_eret()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kTimerBase));
+    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08),           // enable line 0
+                                   mov(1, 40), store_at(1, 11, 0x04),          // compare
+                                   mov(1, 1), store_at(1, 11, 0x08),           // start
+                                   E::asm_msr(E::kSysregId_pstate, true, 0)}); // unmask
+    const size_t nops_at = program.size();
+    program.insert(program.end(), 80, nop());
+    program.push_back(E::asm_hlt());
+
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineTimer) << "and claimed the timer's line";
+    EXPECT_EQ(cpu.read_reg(9), 1u) << "once";
+    EXPECT_FALSE(cpu.system_bus->intc.has_pending());
+
+    // It came back into the nops: the resume address was a nop, not the handler.
+    const word elr = cpu.read_sysreg(E::kSysregId_elr);
+    EXPECT_GE(elr, kProgram + 4 * nops_at);
+    EXPECT_LT(elr, kProgram + 4 * (nops_at + 80));
+    EXPECT_EQ(cpu.read_sysreg(E::kSysregId_esr) >> 26, word(Class::IRQ));
+    EXPECT_EQ(cpu.get_pc(), kProgram + 4 * (nops_at + 80)) << "the final hlt";
+    EXPECT_FALSE(cpu.get_flag(kIrqMaskBit)) << "ERET restored the unmasked state";
+}
+
+TEST_F(Devices, masked_interrupts_wait)
+{
+    install_vectors({mov(7, 1), E::asm_hlt()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08), mov(2, 0),
+                                   store_at(2, 10, 0x0C)}); // enable line 0, raise line 0
+    program.insert(program.end(), 20, nop());
+    program.push_back(E::asm_hlt());
+
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED);
+    EXPECT_EQ(cpu.read_reg(7), 0u) << "IRQs are masked after reset";
+    EXPECT_TRUE(cpu.system_bus->intc.has_pending());
+    EXPECT_TRUE(cpu.get_flag(kIrqMaskBit));
+}
+
+TEST_F(Devices, without_a_vector_table_nothing_is_taken)
+{
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    program.insert(program.end(),
+                   {mov(1, 1), store_at(1, 10, 0x08), mov(2, 0), store_at(2, 10, 0x0C),
+                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+    const auto result = run(program);
+    EXPECT_EQ(result.status, Status::HALTED);
+    EXPECT_TRUE(cpu.system_bus->intc.has_pending()) << "it was raised";
+    EXPECT_EQ(cpu.get_pc(), kProgram + 4 * (3 + 7 + 0)) << "and the program went on to its hlt";
+}
+
+TEST_F(Devices, interrupts_are_served_first_come_first_served)
+{
+    // Two lines are raised, line 1 before line 0. The handler claims both.
+    install_vectors({load_at(8, 10, 0), load_at(12, 10, 0), E::asm_eret()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    program.insert(program.end(),
+                   {mov(1, 3), store_at(1, 10, 0x08), // lines 0 and 1
+                    mov(1, 1), store_at(1, 10, 0x0C), // raise 1
+                    mov(1, 0), store_at(1, 10, 0x0C), // raise 0
+                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), 1u);
+    EXPECT_EQ(cpu.read_reg(12), 0u);
+}
+
+TEST_F(Devices, the_handler_runs_with_irqs_masked_in_kernel_mode_on_its_own_stack)
+{
+    install_vectors({E::asm_msr(E::kSysregId_spsr, true, 0), E::asm_hlt()});
+    cpu.write_reg(U8(Register::SP), 0x1000);
+    cpu.write_sysreg(E::kSysregId_usp, 0x2000);
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    program.insert(program.end(),
+                   {mov(1, 1), store_at(1, 10, 0x08), mov(2, 0), store_at(2, 10, 0x0C),
+                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+    ASSERT_EQ(run(program).status, Status::HALTED);
+    EXPECT_EQ(cpu.get_pc(), kIrqVector + 4) << "stopped in the handler";
+    EXPECT_FALSE(cpu.user_mode());
+    EXPECT_TRUE(cpu.get_flag(kIrqMaskBit));
+}
+
+TEST_F(Devices, an_interrupt_in_user_mode_comes_back_to_user_mode)
+{
+    // The handler claims the line (so it is not taken again), and runs on past its 16 bytes into the
+    // unused vector after it.
+    std::vector<word> handler = constant(10, kIntcBase);
+    append(handler, {load_at(8, 10, 0), mov(7, 1), E::asm_eret()});
+    install_vectors(handler);
+    cpu.system_bus->intc.write_word(kIntcBase + 8, 1);
+    cpu.system_bus->intc.raise(0);
+
+    // The user program is a few nops and the system call that stops the run (hlt is privileged).
+    write(kProgram, {nop(), nop(), E::asm_format_b1(E::_op_swi, ConditionCode::AL, 0)});
+    write(kVectors + 16 * word(Class::SUPERVISOR_CALL), {E::asm_hlt()});
+    cpu.write_sysreg(E::kSysregId_pstate, 1 << kUserModeBit); // user mode, IRQs unmasked
+    cpu.set_pc(kProgram);
+    const auto result = cpu.run(100);
+    ASSERT_EQ(result.status, Status::HALTED);
+    EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
+    EXPECT_EQ(cpu.read_sysreg(E::kSysregId_elr), kProgram + 4 * 2 + 4)
+        << "the system call was reached after the handler returned";
+}
+
+// --- WFI -----------------------------------------------------------------------------------
+
+TEST_F(Devices, wfi_jumps_to_the_moment_the_timer_fires)
+{
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kTimerBase));
+    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08), mov(1, 5000),
+                                   store_at(1, 11, 0x04), mov(1, 1), store_at(1, 11, 0x08),
+                                   E::asm_wfi(),      // IRQs are masked, so this just wakes up
+                                   load_at(8, 10, 0), // claim: the timer's line
+                                   E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineTimer);
+    EXPECT_LT(result.instructions_ran, 30u) << "it did not execute 5000 instructions";
+    EXPECT_GE(cpu.system_bus->timer.count(), 5000u) << "but time passed";
+}
+
+TEST_F(Devices, wfi_with_an_interrupt_already_pending_goes_on)
+{
+    cpu.system_bus->intc.write_word(kIntcBase + 8, 1);
+    cpu.system_bus->intc.raise(0);
+    const auto result = run({E::asm_wfi(), mov(3, 7), E::asm_hlt()});
+    EXPECT_EQ(result.status, Status::HALTED);
+    EXPECT_EQ(cpu.read_reg(3), 7u);
+}
+
+TEST_F(Devices, wfi_with_nothing_to_wait_for_ends_the_run)
+{
+    const auto result = run({E::asm_wfi(), mov(3, 7), E::asm_hlt()});
+    EXPECT_EQ(result.status, Status::HALTED);
+    EXPECT_EQ(cpu.read_reg(3), 0u);
+    EXPECT_NE(result.message.find("no interrupt source"), std::string::npos) << result.message;
+}
+
+// --- the boot ROM --------------------------------------------------------------------------
+
+TEST_F(Devices, code_can_run_from_the_rom)
+{
+    const word rom = 16 << kNumPageOffsetBits;
+    cpu.system_bus->rom->write_word(rom, mov(3, 99));
+    cpu.system_bus->rom->write_word(rom + 4, E::asm_hlt());
+    cpu.set_pc(rom);
+    const auto result = cpu.run(10);
+    EXPECT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(3), 99u);
+}
+
+TEST_F(Devices, the_console_works_from_a_program)
+{
+    std::vector<word> program;
+    append(program, constant(10, kConsoleBase));
+    program.insert(program.end(), {mov(1, 'O'), store_at(1, 10, 0), mov(1, 'K'), store_at(1, 10, 0),
+                                   E::asm_hlt()});
+    ASSERT_EQ(run(program).status, Status::HALTED);
+    EXPECT_EQ(m_console.str(), "OK");
+}
+
+TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
+{
+    EXPECT_THROW(cpu.system_bus->read_word(kDeviceBase + 0x5000), SystemBus::Exception);
+}

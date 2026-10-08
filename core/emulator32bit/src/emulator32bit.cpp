@@ -154,6 +154,17 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
             first = false;
 
+            // An interrupt is taken between two instructions, if the program has installed a
+            // vector table and unmasked IRQs. The resume address is the instruction that would
+            // have executed.
+            if (UNLIKELY(system_bus->intc.has_pending()) && m_vbar != 0
+                && !test_bit(m_pstate, kIrqMaskBit))
+            {
+                enter_exception(ExceptionClass::IRQ, 0, 0, m_pc);
+                m_pc_written = false;
+                continue;
+            }
+
             // With a vector table installed (VBAR != 0) the exceptions of the CPU are raised
             // instead of ending the run, and the next instruction is the first one of the handler.
             word instr;
@@ -210,6 +221,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             m_pc_written = false;
             m_retired_since_entry = true;
             result.instructions_ran++;
+            system_bus->timer.tick();
         }
     }
     catch (const Exception &e)

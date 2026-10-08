@@ -1,6 +1,6 @@
 # Exceptions, system registers and privilege
 
-**Status: implemented**, except what is listed under [Not done yet](#not-done-yet): interrupts (IRQs). The page tables are in [mmu.md](mmu.md). It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The instruction encodings are in [isa.md](isa.md#special-instructions-opcode-000000). In assembly a number is written without `#`: `swi 3`, `brk 3`.
+**Status: implemented**, including interrupts ([devices.md](devices.md)) and page tables ([mmu.md](mmu.md)); [Not done yet](#not-done-yet) has what is left. It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The instruction encodings are in [isa.md](isa.md#special-instructions-opcode-000000). In assembly a number is written without `#`: `swi 3`, `brk 3`.
 
 Goals:
 
@@ -41,7 +41,7 @@ An exception is **synchronous** (caused by the instruction that is executing) or
 | 3 | instruction abort | fetch from an unmapped, non-executable, kernel-only or misaligned address | the instruction itself |
 | 4 | data abort | load, store or atomic that is unmapped, not permitted or hits a missing physical address. (Unaligned data accesses are allowed, only the pc has to be aligned) | the instruction itself |
 | 5 | breakpoint | `BRK imm22` | the `BRK` itself |
-| 6 | IRQ | the interrupt controller has a pending, unmasked line | the next instruction to execute |
+| 6 | IRQ | the interrupt controller has a pending line, `PSTATE.I` is 0 and `VBAR` is set (ISS 0, FAR 0) | the next instruction to execute |
 | 7 | reserved | | |
 
 There is no exception for an arithmetic error: `UDIV`/`SDIV` by zero gives 0 (decided, see [abi.md](abi.md#division)).
@@ -129,7 +129,7 @@ All of them live in the special group (opcode `000000`), whose extended ops `010
 | ext. op | Instruction | Description |
 |---------|-------------|-------------|
 | `0101` | `ERET` | return from an exception (kernel only) |
-| `0110` | `WFI` | wait for interrupt (kernel only). There is no interrupt source yet, so for now it ends the run like `HLT`, which keeps a program from hanging |
+| `0110` | `WFI` | wait for interrupt (kernel only), see [devices.md](devices.md#wfi). With nothing that could wake it, it ends the run like `HLT`, which keeps a program from hanging |
 | `0111` | `BRK imm22` | raise the breakpoint exception, see [Debugging](#debugging) |
 
 `swi` keeps its opcode (`110001`) and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3` (`swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`). The number is unsigned and is not an offset.
@@ -156,6 +156,6 @@ An OS-less program keeps working: while `VBAR` is 0 no table is installed, and t
 
 ## Not done yet
 
-- **Interrupts.** Class 6 (IRQ) is reserved. There is no interrupt controller, and `WFI` halts. The first come, first served queue above is the design for it.
+- (Interrupts are done: the interrupt controller, timer and console, `WFI` and the IRQ exception are in [devices.md](devices.md). The IRQ is taken only when `VBAR != 0`.)
 - (`TLBI`, `PTBR`, `SCTLR` and kernel-only pages by privilege level are done: see [mmu.md](mmu.md). The old per-process MMU used while `SCTLR.M` is 0 still has its own kernel-only notion.)
 - **Alignment faults for data accesses** (only the pc is checked).

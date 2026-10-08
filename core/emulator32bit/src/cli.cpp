@@ -15,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -169,6 +170,8 @@ static int run_cli(int argc, char *argv[])
     options.add_options ("Debugging")
         ("debug", "Start an interactive debugger on stdin/stdout (type 'help'). Ignores --limit")
         ("t,trace", "Write every executed instruction and what it changed to this file (- for stdout)",
+            cxxopts::value<std::string> ())
+        ("console-input", "File whose bytes the console device receives (see docs/devices.md)",
             cxxopts::value<std::string> ())
         ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
@@ -395,6 +398,20 @@ static int run_cli(int argc, char *argv[])
     }
 
     emu->set_semihosting(result.count("no-semihosting") == 0);
+
+    if (result.count("console-input"))
+    {
+        const std::string input_path = result["console-input"].as<std::string>();
+        std::ifstream input(input_path, std::ios::binary);
+        if (!input)
+        {
+            std::cerr << "ERROR: Cannot read the console input: " << input_path << "\n";
+            return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+        }
+        std::stringstream bytes;
+        bytes << input.rdbuf();
+        emu->system_bus->console.push_input(bytes.str());
+    }
     emu->set_symbols(&symbols);
     emu->set_trace(trace);
     emu->set_history_size(history_size);

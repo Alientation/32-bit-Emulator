@@ -1,5 +1,6 @@
 #pragma once
 
+#include "emulator32bit/devices.h"
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
@@ -26,6 +27,11 @@ class SystemBus : private VirtualMemory::PhysicalPages
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
     std::unique_ptr<VirtualMemory> mmu;
+
+    /// The devices, at kIntcBase, kTimerBase and kConsoleBase.
+    InterruptController intc;
+    Timer timer{intc};
+    Console console{intc};
 
     class Exception : public std::exception
     {
@@ -184,7 +190,12 @@ class SystemBus : private VirtualMemory::PhysicalPages
         }
         if (UNLIKELY(!ram->in_bounds(real_addr)))
         {
-            throw Exception("Instruction fetch outside of RAM at address "
+            // Code can also run from the ROM, which is where a machine boots from.
+            if (rom->in_bounds(real_addr))
+            {
+                return rom->read_word_aligned(real_addr);
+            }
+            throw Exception("Instruction fetch outside of RAM and ROM at address "
                             + std::to_string(address));
         }
         return ram->read_word_aligned(real_addr);
@@ -314,6 +325,18 @@ class SystemBus : private VirtualMemory::PhysicalPages
         else if (disk->in_bounds(address))
         {
             return disk.get();
+        }
+        else if (address >= kDeviceBase)
+        {
+            for (Device *device : {static_cast<Device *>(&intc), static_cast<Device *>(&timer),
+                                   static_cast<Device *>(&console)})
+            {
+                if (device->in_bounds(address))
+                {
+                    return device;
+                }
+            }
+            throw Exception("Could not route address " + std::to_string(address) + " to memory.");
         }
         else
         {

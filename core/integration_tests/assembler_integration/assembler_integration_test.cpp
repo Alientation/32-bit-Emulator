@@ -2380,3 +2380,89 @@ l2:             .advance 4096
     EXPECT_EQ(reg(12), 123u);
     EXPECT_EQ(reg(13), 0xC003u | 0x10 | 0x20);
 }
+
+// The devices (docs/devices.md): a program prints through the console, reads its input, and waits
+// for a timer interrupt that its handler claims from the interrupt controller.
+TEST_F(AssemblerIntegration, console_timer_and_interrupt_controller)
+{
+    write_file("devices.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =$F0002000         ; console
+                ldr     x21, =$F0000000         ; interrupt controller
+                ldr     x22, =$F0001000         ; timer
+
+                adrp    x1, message
+                add     x1, x1, :lo12:message
+print:          ldrb    x2, [x1], 1
+                cmp     x2, 0
+                b.eq    printed
+                strb    x2, [x20]
+                b       print
+printed:
+                ldr     x3, [x20]               ; the two bytes of the input
+                ldr     x4, [x20]
+                ldr     x5, [x20, 4]            ; status: nothing left, ready to send
+
+                adrp    x0, vectors
+                add     x0, x0, :lo12:vectors
+                msr     vbar, x0
+                mov     x1, 1
+                str     x1, [x21, 8]            ; enable line 0, the timer
+                mov     x1, 200
+                str     x1, [x22, 4]            ; interrupt after 200 instructions
+                mov     x1, 1
+                str     x1, [x22, 8]
+                msr     pstate, 0               ; unmask
+spin:           cmp     x7, 0
+                b.eq    spin
+                hlt
+
+irq_handler:
+                ldr     x8, [x21]               ; claim
+                mov     x7, 1
+                eret
+
+.rodata
+message:        .asciz "ok\n"
+
+.text
+.align 16
+vectors:
+                hlt
+                nop
+                nop
+                nop
+                hlt
+                nop
+                nop
+                nop
+                hlt
+                nop
+                nop
+                nop
+                hlt
+                nop
+                nop
+                nop
+                hlt
+                nop
+                nop
+                nop
+                hlt
+                nop
+                nop
+                nop
+                b       irq_handler             ; 6: IRQ
+)");
+    write_file("input.txt", "ab");
+    ASSERT_NO_FATAL_FAILURE(build("-o devices devices.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("devices.bexe", "--console-input input.txt"));
+
+    EXPECT_NE(log_tail("emu32.log").find("ok\n"), std::string::npos) << log_tail("emu32.log");
+    EXPECT_EQ(reg(3), word('a'));
+    EXPECT_EQ(reg(4), word('b'));
+    EXPECT_EQ(reg(5), 2u);
+    EXPECT_EQ(reg(7), 1u) << "the handler ran";
+    EXPECT_EQ(reg(8), 0u) << "for the timer's line";
+}

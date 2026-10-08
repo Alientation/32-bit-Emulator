@@ -399,7 +399,8 @@ class VirtualMemory
             return walk_translate(address, access);
         }
 
-        if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+        // The devices are always where they are, so a program without page tables can use them.
+        if (UNLIKELY(m_cur_ptable == nullptr || !enabled || address >= kDeviceBase))
         {
             return address;
         }

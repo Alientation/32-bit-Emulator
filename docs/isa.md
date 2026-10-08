@@ -59,7 +59,7 @@ Reset value is `0x20`: kernel mode, IRQs masked.
 | 2 | C | carry |
 | 3 | V | overflow |
 | 4 | U | 1 = user mode, 0 = kernel (privileged) mode. The CPU starts in kernel mode |
-| 5 | I | 1 = IRQs masked (there are no interrupts yet) |
+| 5 | I | 1 = IRQs masked, see [devices.md](devices.md) |
 
 `MSR`/`MRS` access it as system register 1, see [exceptions.md](exceptions.md#system-registers). The other bits are not assigned yet. There are two stack pointers behind `sp`, one for each mode.
 
@@ -246,7 +246,7 @@ The extended op is bits 22–25. An unknown extended op is an [undefined instruc
 | `0011` | `TLBI{ xt}` | implemented. Privileged. Forgets cached page table translations |
 | `0100` | atomic operations | implemented |
 | `0101` | `ERET` | implemented. Privileged |
-| `0110` | `WFI` | privileged. Halts for now: there are no interrupts |
+| `0110` | `WFI` | implemented. Privileged. Waits for an interrupt, see [devices.md](devices.md#wfi) |
 | `0111` | `BRK imm22` | implemented |
 | `1000` | `SXTB`, `SXTH`, `UXTB`, `UXTH`, `CLZ`, `REV`, `REV16` | implemented, see [Unary operations](#unary-operations) |
 | `1111` | `NOP` | does nothing |
@@ -267,7 +267,7 @@ Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 
 ### WFI
 
-`000000 | 0110 | 0…0`. Waits for an interrupt. With no interrupt source it ends the run like `HLT`.
+`000000 | 0110 | 0…0`. Waits for an interrupt: returns when one is pending (the timer's moment is jumped to). With nothing that could produce one it ends the run like `HLT`.
 
 ### BRK
 
