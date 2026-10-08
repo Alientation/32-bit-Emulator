@@ -39,7 +39,7 @@ static word get_format_o_arg(Emulator32bit &cpu, const word instr)
     const auto type = ShiftType(bitfield_unsigned(instr, 7, 2));
     const U8 amount = bitfield_unsigned(instr, 2, 5);
 
-    return alu_shift(value, type, amount, false).result;
+    return alu_shift(value, type, amount, {}).result;
 }
 
 /**
@@ -444,36 +444,21 @@ word Emulator32bit::asm_atomic(word xt, word xn, word xm, U8 width, U8 atop)
 void Emulator32bit::_add(const word instr)
 {
     const AluResult result = alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), false);
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_sub(const word instr)
 {
     const AluResult result = alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), true);
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_rsb(const word instr)
 {
     const AluResult result = alu_sub(get_format_o_arg(*this, instr), read_reg(_X2(instr)), true);
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
@@ -481,12 +466,7 @@ void Emulator32bit::_adc(const word instr)
 {
     const AluResult result =
         alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), get_flag(kCFlagBit));
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
@@ -494,12 +474,7 @@ void Emulator32bit::_sbc(const word instr)
 {
     const AluResult result =
         alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), get_flag(kCFlagBit));
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
@@ -507,74 +482,34 @@ void Emulator32bit::_rsc(const word instr)
 {
     const AluResult result =
         alu_sub(get_format_o_arg(*this, instr), read_reg(_X2(instr)), get_flag(kCFlagBit));
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        set_NZCV(result.n, result.z, result.c, result.v);
-    }
-
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
     write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_mul(const word instr)
 {
-    const U8 xd = _X1(instr);
-    dword xn_val = read_reg(_X2(instr));
-    dword xm_val = get_format_o_arg(*this, instr);
-    dword dst_val = xn_val * xm_val;
+    const AluResult result =
+        alu_mul(read_reg(_X2(instr)), get_format_o_arg(*this, instr), get_NZCV());
 
-    // check to update NZCV
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/smull
-        // arm's MUL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(m_pstate, kCFlagBit),
-                 test_bit(m_pstate, kVFlagBit));
-    }
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
 
-    write_reg(xd, word(dst_val));
+    write_reg(_X1(instr), word(result.result));
 }
 
 void Emulator32bit::_umull(const word instr)
 {
-    const U8 xlo = _X1(instr);
-    const U8 xhi = _X2(instr);
-    dword xn_val = read_reg(_X3(instr));
-    dword xm_val = read_reg(_X4(instr));
-    dword dst_val = xn_val * xm_val;
-
-    // check to update NZCV
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        // according to https://developer.arm.com/documentation/dui0473/m/arm-and-thumb-instructions/umull
-        // arm's UMULL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(m_pstate, kCFlagBit),
-                 test_bit(m_pstate, kVFlagBit));
-    }
-
-    write_reg(xlo, word(dst_val));
-    write_reg(xhi, word(dst_val >> 32));
+    const AluResult result = alu_umull(read_reg(_X3(instr)), read_reg(_X4(instr)), get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), word(result.result));
+    write_reg(_X2(instr), word(result.result >> 32));
 }
 
 void Emulator32bit::_smull(const word instr)
 {
-    const U8 xlo = _X1(instr);
-    const U8 xhi = _X2(instr);
-    const signed long long xn_val = S64(read_reg(_X3(instr))) << 32 >> 32;
-    const signed long long xm_val = S64(read_reg(_X4(instr))) << 32 >> 32;
-    const signed long long dst_val = xn_val * xm_val;
-
-    // check to update NZCV
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        // according to https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/multiply-instructions/mul--mla--and-mls
-        // arm's UMULL instruction does not set carry or overflow flags
-        set_NZCV(test_bit(dst_val, 63), dst_val == 0, test_bit(m_pstate, kCFlagBit),
-                 test_bit(m_pstate, kVFlagBit));
-    }
-
-    write_reg(xlo, word(dst_val));
-    write_reg(xhi, word(dst_val >> 32));
+    const AluResult result = alu_smull(read_reg(_X3(instr)), read_reg(_X4(instr)), get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), word(result.result));
+    write_reg(_X2(instr), word(result.result >> 32));
 }
 
 // todo WILL DO LATER JUST NOT NOW
@@ -714,62 +649,62 @@ void Emulator32bit::_bic(const word instr)
     write_reg(xd, dst_val);
 }
 
-/**
- * @internal
- * @brief                   Shared implementation of LSL, LSR, ASR and ROR (format O1)
- * @details                 The shift amount is either imm5 or the low 8 bits of xm. Amounts of 32 or
- *                          more are handled like ARM. If the S bit is set, N and Z are set from the
- *                          result and C from the last bit shifted out (unchanged for a shift of 0).
- *                          V is never changed.
- */
-static void do_shift(Emulator32bit &cpu, const word instr, const ShiftType type)
-{
-    const unsigned amount =
-        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : (cpu.read_reg(_X3(instr)) & 0x1F);
-
-    const auto result = alu_shift(cpu.read_reg(_X2(instr)), type, amount, cpu.get_flag(kCFlagBit));
-
-    if (test_bit(instr, kInstructionUpdateFlagBit))
-    {
-        cpu.set_NZCV(test_bit(result.result, 31), result.result == 0, result.carry,
-                     cpu.get_flag(kVFlagBit));
-    }
-
-    cpu.write_reg(_X1(instr), result.result);
-}
-
 void Emulator32bit::_lsl(const word instr)
 {
-    do_shift(*this, instr, ShiftType::SHIFT_LSL);
+    const unsigned amount =
+        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : (read_reg(_X3(instr)) & 0x1F);
+
+    const AluResult result =
+        alu_shift(read_reg(_X2(instr)), ShiftType::SHIFT_LSL, amount, get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_lsr(const word instr)
 {
-    do_shift(*this, instr, ShiftType::SHIFT_LSR);
+    const unsigned amount =
+        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : (read_reg(_X3(instr)) & 0x1F);
+
+    const AluResult result =
+        alu_shift(read_reg(_X2(instr)), ShiftType::SHIFT_LSR, amount, get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_asr(const word instr)
 {
-    do_shift(*this, instr, ShiftType::SHIFT_ASR);
+    const unsigned amount =
+        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : (read_reg(_X3(instr)) & 0x1F);
+
+    const AluResult result =
+        alu_shift(read_reg(_X2(instr)), ShiftType::SHIFT_ASR, amount, get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), result.result);
 }
 
 void Emulator32bit::_ror(const word instr)
 {
-    do_shift(*this, instr, ShiftType::SHIFT_ROR);
+    const unsigned amount =
+        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : (read_reg(_X3(instr)) & 0x1F);
+
+    const AluResult result =
+        alu_shift(read_reg(_X2(instr)), ShiftType::SHIFT_ROR, amount, get_NZCV());
+    if (test_bit(instr, kInstructionUpdateFlagBit)) set_NZCV(result.flags);
+    write_reg(_X1(instr), result.result);
 }
 
 // alias to subs
 void Emulator32bit::_cmp(const word instr)
 {
     const AluResult result = alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), true);
-    set_NZCV(result.n, result.z, result.c, result.v);
+    set_NZCV(result.flags);
 }
 
 // alias to adds
 void Emulator32bit::_cmn(const word instr)
 {
     const AluResult result = alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), false);
-    set_NZCV(result.n, result.z, result.c, result.v);
+    set_NZCV(result.flags);
 }
 
 // alias to ands

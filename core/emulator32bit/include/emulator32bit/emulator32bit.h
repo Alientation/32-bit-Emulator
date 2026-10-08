@@ -175,6 +175,22 @@ class Emulator32bit
     }
 
     ///
+    /// @brief              Sets flags in the process state register.
+    ///
+    /// @param flag         Bit to set.
+    /// @param value        Flag value.
+    ///
+    inline void set_flag(U8 flag, bool value)
+    {
+        m_pstate = set_bit(m_pstate, flag, value);
+    }
+
+    inline bool get_flag(U8 flag)
+    {
+        return test_bit(m_pstate, flag);
+    }
+
+    ///
     /// @brief              Sets the @ref _pstate NZCV flags.
     ///
     /// @param N            Negative flag.
@@ -190,20 +206,19 @@ class Emulator32bit
         m_pstate = set_bit(m_pstate, kVFlagBit, V);
     }
 
-    ///
-    /// @brief              Sets flags in the process state register.
-    ///
-    /// @param flag         Bit to set.
-    /// @param value        Flag value.
-    ///
-    inline void set_flag(U8 flag, bool value)
+    inline void set_NZCV(NZCVFlags flags)
     {
-        m_pstate = set_bit(m_pstate, flag, value);
+        set_NZCV(flags.n, flags.z, flags.c, flags.v);
     }
 
-    inline bool get_flag(U8 flag)
+    inline NZCVFlags get_NZCV()
     {
-        return test_bit(m_pstate, flag);
+        return {
+            .n = test_bit(m_pstate, kNFlagBit),
+            .z = test_bit(m_pstate, kZFlagBit),
+            .c = test_bit(m_pstate, kCFlagBit),
+            .v = test_bit(m_pstate, kVFlagBit),
+        };
     }
 
     /// @todo               TODO: determine if fp registers are needed

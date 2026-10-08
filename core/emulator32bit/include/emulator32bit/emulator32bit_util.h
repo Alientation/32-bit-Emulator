@@ -5,7 +5,7 @@
 
 /* Tests if a bit is set. */
 template<typename T>
-static inline constexpr T test_bit(T val, U8 bit_i)
+static inline constexpr bool test_bit(T val, U8 bit_i)
 {
     return ((val & (T(1) << bit_i)) >> bit_i) & 1;
 }

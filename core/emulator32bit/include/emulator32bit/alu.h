@@ -188,13 +188,18 @@ enum class ShiftType : U8
     SHIFT_ROR
 };
 
-struct AluResult
+struct NZCVFlags
 {
-    word result;
     bool n;
     bool z;
     bool c;
     bool v;
+};
+
+struct AluResult
+{
+    dword result;
+    NZCVFlags flags;
 };
 
 static inline AluResult alu_add(const word a, const word b, const bool carry_in)
@@ -207,13 +212,13 @@ static inline AluResult alu_add(const word a, const word b, const bool carry_in)
     const bool c = extended > 0xFFFFFFFFULL;
     const bool v = ((~(a ^ b) & (a ^ result)) & kSignBit) != 0;
 
-    return {
-        .result = result,
-        .n = (result & kSignBit) != 0,
-        .z = result == 0,
-        .c = c,
-        .v = v,
-    };
+    return {.result = result,
+            .flags = {
+                .n = (result & kSignBit) != 0,
+                .z = result == 0,
+                .c = c,
+                .v = v,
+            }};
 }
 
 static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
@@ -231,20 +236,65 @@ static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
     const word effective_b = word(rhs);
     const bool v = ((a ^ effective_b) & (a ^ result) & kSignBit) != 0;
 
+    return {.result = result,
+            .flags = {
+                .n = (result & kSignBit) != 0,
+                .z = result == 0,
+                .c = c,
+                .v = v,
+            }};
+}
+
+static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flags)
+{
+    const word result = a * b;
+    const word result32 = word(result);
+
     return {
         .result = result,
-        .n = (result & kSignBit) != 0,
-        .z = result == 0,
-        .c = c,
-        .v = v,
+        .flags =
+            {
+                .n = test_bit(result32, 31),
+                .z = result32 == 0,
+                .c = flags.c,
+                .v = flags.v,
+            },
     };
 }
 
-struct ShiftResult
+static inline AluResult alu_umull(const word a, const word b, const NZCVFlags flags)
 {
-    word result;
-    bool carry;
-};
+    const dword result = dword(a) * dword(b);
+
+    return {
+        .result = result,
+        .flags =
+            {
+                .n = test_bit(result, 63),
+                .z = result == 0,
+                .c = flags.c,
+                .v = flags.v,
+            },
+    };
+}
+
+static inline AluResult alu_smull(const word a, const word b, const NZCVFlags flags)
+{
+    const S64 lhs = S64(S32(a));
+    const S64 rhs = S64(S32(b));
+    const dword result = dword(lhs * rhs);
+
+    return {
+        .result = result,
+        .flags =
+            {
+                .n = test_bit(result, 63),
+                .z = result == 0,
+                .c = flags.c,
+                .v = flags.v,
+            },
+    };
+}
 
 /**
  * Perform a shift operation.
@@ -253,31 +303,39 @@ struct ShiftResult
  * @param shift_amt Amount to shift by. Must be in the range [0,31].
  * @param carry_in Carry in
  */
-static inline ShiftResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
-                                    const bool carry_in)
+static inline AluResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
+                                  const NZCVFlags initial_flags)
 {
     AEMU_DCHECK(shift_amt < 32, "Expected shift amount to be [0,31], got {}.", shift_amt);
-    if (shift_amt == 0)
+
+    word result = value;
+    NZCVFlags flags = initial_flags;
+    if (shift_amt != 0)
     {
-        return {value, carry_in};
+        switch (type)
+        {
+        case ShiftType::SHIFT_LSL:
+            result = value << shift_amt;
+            flags.c = bool((value >> (32 - shift_amt)) & 1);
+            break;
+        case ShiftType::SHIFT_LSR:
+            result = value >> shift_amt;
+            flags.c = bool((value >> (shift_amt - 1)) & 1);
+            break;
+        case ShiftType::SHIFT_ASR:
+            result = word(sword(value) >> shift_amt);
+            flags.c = bool((value >> (shift_amt - 1)) & 1);
+            break;
+        case ShiftType::SHIFT_ROR:
+            result = (value >> shift_amt) | (value << (32 - shift_amt));
+            flags.c = bool((value >> (shift_amt - 1)) & 1);
+            break;
+        default:
+            AEMU_FATAL("Invalid shift type: {}", U32(type));
+        }
     }
 
-    switch (type)
-    {
-    case ShiftType::SHIFT_LSL:
-        return {value << shift_amt, bool((value >> (32 - shift_amt)) & 1)};
-
-    case ShiftType::SHIFT_LSR:
-        return {value >> shift_amt, bool((value >> (shift_amt - 1)) & 1)};
-
-    case ShiftType::SHIFT_ASR:
-        return {word(sword(value) >> shift_amt), bool((value >> (shift_amt - 1)) & 1)};
-
-    case ShiftType::SHIFT_ROR:
-        return {(value >> shift_amt) | (value << (32 - shift_amt)),
-                bool((value >> (shift_amt - 1)) & 1)};
-    }
-
-    AEMU_FATAL("Invalid shift type: {}", U32(type));
-    return {};
+    flags.n = test_bit(result, 31);
+    flags.z = result == 0;
+    return {.result = result, .flags = flags};
 }
