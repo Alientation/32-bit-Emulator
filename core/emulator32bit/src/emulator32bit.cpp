@@ -128,11 +128,9 @@ word Emulator32bit::fetch_instruction()
 Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 {
     RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
+    // the debugger may have changed it between runs
     m_watch_hit.clear();
-    for (RegisterWatch &watch : m_register_watches)
-    {
-        watch.last = read_reg(watch.reg); // the debugger may have changed it between runs
-    }
+    for (RegisterWatch &watch : m_register_watches) watch.last = read_reg(watch.reg);
 
     // True (and the result is set) when a watched register changed since it was last looked at.
     // Checked between instructions, which covers a retired instruction and an exception entry.
@@ -141,15 +139,9 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         for (RegisterWatch &watch : m_register_watches)
         {
             const word now = read_reg(watch.reg);
-            if (now == watch.last)
-            {
-                continue;
-            }
+            if (now == watch.last) continue;
             const word before = std::exchange(watch.last, now);
-            if (watch.value && now != *watch.value)
-            {
-                continue;
-            }
+            if (watch.value && now != *watch.value) continue;
             result.status = RunResult::Status::BREAKPOINT;
             result.message = std::format(
                 "Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
@@ -178,10 +170,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         bool first = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
-            if (UNLIKELY(!m_register_watches.empty()) && register_watch_hit())
-            {
-                break;
-            }
+            if (UNLIKELY(!m_register_watches.empty()) && register_watch_hit()) break;
 
             if (UNLIKELY(!m_breakpoints.empty()) && !first && m_breakpoints.contains(m_pc))
             {
@@ -211,50 +200,32 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
             catch (const std::exception &error)
             {
-                if (!deliver_exception(error, true))
-                {
-                    throw;
-                }
+                if (!deliver_exception(error, true)) throw;
                 m_pc_written = false;
                 continue;
             }
 
             if (UNLIKELY(m_history_size != 0))
             {
-                if (m_history.size() == m_history_size)
-                {
-                    m_history.pop_front();
-                }
+                if (m_history.size() == m_history_size) m_history.pop_front();
                 m_history.push_back({.pc = m_pc, .instruction = instr});
             }
 
             try
             {
-                if (UNLIKELY(m_trace != nullptr))
-                {
-                    execute_traced(instr);
-                }
-                else
-                {
-                    execute(instr);
-                }
+                if (UNLIKELY(m_trace != nullptr)) execute_traced(instr);
+                else execute(instr);
             }
             catch (const std::exception &error)
             {
-                if (!deliver_exception(error, false))
-                {
-                    throw;
-                }
+                if (!deliver_exception(error, false)) throw;
                 m_pc_written = false;
                 continue;
             }
 
             // Whatever wrote the pc (ERET, an exception) wrote the address of the next
             // instruction itself.
-            if (LIKELY(!m_pc_written))
-            {
-                m_pc += 4;
-            }
+            if (LIKELY(!m_pc_written)) m_pc += 4;
             m_pc_written = false;
             m_retired_since_entry = true;
             result.instructions_ran++;

@@ -33,8 +33,10 @@ const char *status_name(Emulator32bit::RunResult::Status status)
     case Emulator32bit::RunResult::Status::BREAKPOINT:
         return "breakpoint";
     case Emulator32bit::RunResult::Status::FAULT:
-    default:
         return "fault";
+    default:
+        AEMU_FATAL("Unknown Status: {}", static_cast<U8>(status));
+        return "error";
     }
 }
 
@@ -51,10 +53,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
 {
     out << "status=" << status_name(result.status) << "\n";
     out << "instructions=" << result.instructions_ran << "\n";
-    if (!result.message.empty())
-    {
-        out << "message=" << result.message << "\n";
-    }
+    if (!result.message.empty()) out << "message=" << result.message << "\n";
 
     out << "pc=" << hex(emu.get_pc()) << "\n";
     for (U8 reg = 0; reg < static_cast<U8>(Register::SP); reg++)
@@ -92,7 +91,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
             {
                 std::snprintf(buf, sizeof(buf), "??");
             }
-            out << (i ? " " : "") << buf;
+            out << (i == 0 ? "" : " ") << buf;
         }
         out << "\n";
     }
