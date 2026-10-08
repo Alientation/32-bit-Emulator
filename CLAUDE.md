@@ -107,4 +107,4 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
 - Logging is extremely verbose (DBG level) in every build. Pipe through `grep -v DBG`.
 
 ## Style
-`.clang-format` (repo root) is LLVM-based: 4-space indent, `SpaceBeforeParens: Always` (so `foo (x)`), right-aligned pointers (`int *p`). Filenames are all lowercase.
+`.clang-format` (repo root) is LLVM-based: 4-space indent, `SpaceBeforeParens: Custom` (control statements get a space, `if (x)`; function names do not, `foo(x)`), right-aligned pointers (`int *p`). Filenames are all lowercase.
