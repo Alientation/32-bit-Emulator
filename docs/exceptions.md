@@ -1,6 +1,6 @@
-# Exceptions, system registers and privilege (design draft)
+# Exceptions, system registers and privilege
 
-**Status: proposal, nothing here is implemented yet.** It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The current behavior is described in [isa.md](isa.md).
+**Status: implemented**, except what is listed under [Not done yet](#not-done-yet): interrupts (IRQs), `TLBI`, and enforcing kernel-only pages by privilege level. It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The instruction encodings are in [isa.md](isa.md#special-instructions-opcode-000000). In assembly a number is written without `#`: `swi 3`, `brk 3`.
 
 Goals:
 
@@ -22,8 +22,8 @@ PSTATE gets two new bits (reset value `0x20`: kernel mode, IRQs masked):
 In **user mode**:
 
 - `MSR`, `MRS` (except the NZCV bits of PSTATE), `TLBI`, `ERET`, `WFI` and `HLT` raise [undefined instruction](#exception-classes) (ISS = privileged).
-- Pages the MMU marks kernel only fault (already modeled by `set_ppage_permissions`).
 - `sp` is the user stack pointer (see [banked sp](#banked-stack-pointer)).
+- Pages the MMU marks kernel only are meant to fault. They do not yet: the MMU still has its own, per process, notion of privilege (`begin_process (kernel_privilege)`), which does not follow `PSTATE.U`. Tying the two together is part of the MMU redesign.
 
 The emulator **always starts in kernel (privileged) mode**, with IRQs masked. The only way into user mode is `ERET` with a `SPSR` whose `U` bit is set, so the kernel does it. Programs loaded by `emu32 -e` therefore run privileged, as they do now, and nothing changes for them.
 
@@ -39,8 +39,8 @@ An exception is **synchronous** (caused by the instruction that is executing) or
 | 1 | undefined instruction | unassigned opcode or extended op, a not implemented instruction (`v*`, `MRS` ...), a privileged instruction in user mode, bad register | the instruction itself |
 | 2 | supervisor call | `swi` | the next instruction |
 | 3 | instruction abort | fetch from an unmapped, non-executable, kernel-only or misaligned address | the instruction itself |
-| 4 | data abort | load, store or atomic that is unmapped, not permitted, misaligned or hits a missing physical address | the instruction itself |
-| 5 | breakpoint | `BRK #imm22` | the `BRK` itself |
+| 4 | data abort | load, store or atomic that is unmapped, not permitted or hits a missing physical address. (Unaligned data accesses are allowed, only the pc has to be aligned) | the instruction itself |
+| 5 | breakpoint | `BRK imm22` | the `BRK` itself |
 | 6 | IRQ | the interrupt controller has a pending, unmasked line | the next instruction to execute |
 | 7 | reserved | | |
 
@@ -66,7 +66,7 @@ Conditions that are not a CPU exception stay what they are today: `FatalError` a
 | instruction abort / data abort | bits 0–2 fault type: 1 translation (unmapped), 2 permission (write to read-only, execute of non-executable, kernel only), 3 alignment, 4 bus error (no such physical address). Data abort: bit 3 is set for a write |
 | breakpoint | the 22 bit immediate of `BRK` |
 
-`FAR` holds the faulting virtual address for the two aborts (for an instruction abort, the PC).
+`FAR` holds the faulting virtual address for the two aborts (for an instruction abort, the PC). An access that crosses into a page that faults reports the first address of that page. A bus error on a data access reports the address of the access.
 
 ## System registers
 
@@ -82,11 +82,13 @@ Conditions that are not a CPU exception stay what they are today: `FatalError` a
 | 5 | `FAR` | kernel | faulting address of the last abort |
 | 6 | `VBAR` | kernel | vector table base. 0 = no table installed (see [Migration](#migration)) |
 | 7 | `USP` | kernel | the user mode stack pointer (see below) |
-| 8 | `PTBR` | kernel | page table base, reserved for the MMU design |
-| 9 | `SCTLR` | kernel | system control, reserved (bit 0: MMU enable) |
+| 8 | `PTBR` | kernel | page table base, reserved for the MMU design: it can be written and read and has no effect yet |
+| 9 | `SCTLR` | kernel | system control, reserved (bit 0: MMU enable), no effect yet |
 | 10–31 | | | reserved. Devices (timer, interrupt controller) are memory mapped, not system registers |
 
-Reading or writing a number that is not listed is an undefined instruction with ISS = 4 (today `MSR` throws `BAD_REG`).
+Reading or writing a number that is not listed is an undefined instruction with ISS = 4. `SPSR` keeps the bits of PSTATE that exist, and `VBAR` is rounded down to a multiple of 16. In assembly the registers are written by name in any case: `msr vbar, x0`, `mrs x1, ESR`, `msr spsr, 16`.
+
+The emulator shows them: `emu32 --format plain` prints `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`, the debugger's `regs` prints them once a vector table is installed, and the trace has a line for each exception taken.
 
 ## Taking an exception
 
@@ -118,7 +120,7 @@ An exception taken in kernel mode is legal, and it overwrites `ELR`, `SPSR` and 
 
 There are no interrupt priorities. The interrupt controller (a memory mapped device, specified with the other devices) keeps the pending lines in a queue **in the order they were raised**, and a line that is already pending is not queued twice. Between two instructions, if the queue is not empty and `PSTATE.I` is 0, the CPU takes the IRQ exception. The handler asks the controller for the line at the head of the queue (reading its claim register removes it) and services it. An interrupt that arrives meanwhile waits its turn behind the ones before it. A handler that clears `I` can be interrupted, but only by the next line in the queue, never by a "more important" one.
 
-If an exception is raised again at the same PC with no instruction retired in between (a bad `VBAR`, a vector page that is unmapped), the emulator ends the run with `status=fault`, message `double fault at <pc>`, rather than looping forever.
+If an exception is raised again before any instruction ran since the last one was taken (a bad `VBAR`, a vector page that is unmapped, a handler whose first instruction faults), the emulator ends the run with `status=fault`, message `Double fault: ... raised at <pc> before any instruction of the handler ran`, rather than looping forever. A `swi` counts as an instruction that ran, and so does a `hlt` that stops the machine.
 
 ## New instructions
 
@@ -127,38 +129,34 @@ All of them live in the special group (opcode `000000`), whose extended ops `010
 | ext. op | Instruction | Description |
 |---------|-------------|-------------|
 | `0101` | `ERET` | return from an exception (kernel only) |
-| `0110` | `WFI` | wait for interrupt: the emulator stops fetching until an IRQ is pending (kernel only). With no interrupt source it ends the run, like `HLT`, so a program cannot hang |
-| `0111` | `BRK #imm22` | raise the breakpoint exception, see [Debugging](#debugging) |
+| `0110` | `WFI` | wait for interrupt (kernel only). There is no interrupt source yet, so for now it ends the run like `HLT`, which keeps a program from hanging |
+| `0111` | `BRK imm22` | raise the breakpoint exception, see [Debugging](#debugging) |
 
-`swi` keeps its opcode (`110001`) and gets an operand in the otherwise unused `simm22` field: `swi #imm22`. The assembler currently takes no operand, and `imm22` = 0 is what it emits today.
+`swi` keeps its opcode (`110001`) and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3` (`swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`). The number is unsigned and is not an offset.
 
-`MSR`/`MRS`/`TLBI` keep their encodings; the only change is that they work. The assembler needs names for the system registers (`msr vbar, x0`, `mrs x1, esr`).
+`MSR`/`MRS` keep their encodings and work now. `TLBI` still faults as not implemented (after its privilege check), it needs the MMU redesign.
 
 ## `swi` and the emulator calls
 
 The `emu_*` calls (`emu_print`, `emu_assert*`, `emu_log`, `emu_error`) are a debugging aid and an OS is not going to use them. They become **semihosting**:
 
-- `swi #0` is the system call of the OS: it raises the supervisor call exception. The call number is in `x8` and the arguments in `x0`–`x5`, the result in `x0` ([abi.md](abi.md#system-calls)).
-- `swi #1` is a semihosting call, handled by the emulator itself (the number is in `x8` as today). It does not raise an exception. With `emu32 --no-semihosting`, or when it is not allowed, it is an undefined instruction.
+- `swi 0` (and any number but 1) is the system call of the OS: it raises the supervisor call exception, with the number as syndrome. The call number is in `x8` and the arguments in `x0`–`x5`, the result in `x0` ([abi.md](abi.md#system-calls)).
+- `swi 1` is a semihosting call, handled by the emulator itself (the number is in `x8`, the calls are listed in `software_interrupt.cpp`). It does not raise an exception, in either mode. With `emu32 --no-semihosting` (`Emulator32bit::set_semihosting (false)`) it is an undefined instruction.
 
 ## Migration
 
-An OS-less program keeps working: while `VBAR` is 0 no table is installed, and the emulator behaves as it does now. An exception is a `status=fault` that stops the run, and a plain `swi` (immediate 0) is treated as a semihosting call. A program or kernel opts in by writing a non-zero `VBAR`.
+An OS-less program keeps working: while `VBAR` is 0 no table is installed, and the emulator behaves as before. An exception is a `status=fault` that stops the run, `swi` and `swi 1` are emulator calls, and any other `swi` number is a fault. A program or kernel opts in by writing a non-zero `VBAR`.
 
 (The vector table can then not be at address 0. That is fine, RAM starts with the reset code anyway.)
 
 ## Debugging
 
-- A `BRK` stops the emulator instead of raising the exception when a debugger is attached (`emu32 --debug`, see [debugging.md](debugging.md)); `ELR`-style resume works because the debugger continues at the next instruction.
-- The trace and the instruction history log an exception as a line (`-- exception: data abort, FAR=0x..., vector 4`), so the sequence "fault, handler, `ERET`, retry" is readable.
+- A `BRK` stops the run (`Status::BREAKPOINT`, the pc is the next instruction) instead of raising the exception when a debugger is attached: `emu32 --debug` does that (`Emulator32bit::set_brk_stops`). Without a debugger and without a vector table, `brk` is a fault.
+- The trace logs an exception taken as a line (`-- exception: data abort, ESR=0x..., ELR=0x..., FAR=0x... -> 0x<handler>`), so the sequence "fault, handler, `eret`, retry" is readable, and an `eret` shows the pc it goes to.
 
-## Implementation steps
+## Not done yet
 
-1. PSTATE bits `U` and `I`, `ESR/ELR/SPSR/FAR/VBAR/USP` and a real `MSR`/`MRS` (`emulator32bit.h`, `instructions.cpp`), the encoders and disassembler entries for `ERET`, `WFI`, `BRK`.
-2. `run()`: catch `Exception` and `PageFaultException` where they are thrown for an instruction, turn them into `take_exception(class, iss, far)` when `VBAR != 0`. `HALT_INSTR` and `FatalError` stay as they are. Keep the "no register changes on a fault" rule for all instruction handlers.
-3. Banked `sp`.
-4. Privilege checks, with `ISS = 2`.
-5. Assembler: `swi #imm`, system register names, the three new mnemonics (`BASM_INSTRUCTION_LIST`).
-6. Semihosting switch (`swi #1`, `--no-semihosting`).
-7. Tests, one family at a time: entry and `ERET` round trip, each class, privilege, double fault, retry after a page fault. The `basm` integration tests can run a small kernel stub that installs a vector table.
-8. Update `isa.md`, `CLAUDE.md`, and keep the `tlbi_test`, `swi_test` and `swp_test` expectations in step.
+- **Interrupts.** Class 6 (IRQ) is reserved. There is no interrupt controller, and `WFI` halts. The first come, first served queue above is the design for it.
+- **`TLBI`**, **`PTBR`** and **`SCTLR`**: part of the MMU design. The two registers store a value and do nothing.
+- **Kernel-only pages by privilege level**, see [Privilege](#privilege).
+- **Alignment faults for data accesses** (only the pc is checked).

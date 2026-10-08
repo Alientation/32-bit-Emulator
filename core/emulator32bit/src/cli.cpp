@@ -67,6 +67,15 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
     out << "C=" << emu.get_flag(kCFlagBit) << "\n";
     out << "V=" << emu.get_flag(kVFlagBit) << "\n";
 
+    // The mode and the state of the exceptions (docs/exceptions.md).
+    out << "mode=" << (emu.user_mode() ? "user" : "kernel") << "\n";
+    for (const U8 id : {Emulator32bit::kSysregId_pstate, Emulator32bit::kSysregId_elr,
+                        Emulator32bit::kSysregId_spsr, Emulator32bit::kSysregId_esr,
+                        Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_vbar})
+    {
+        out << Emulator32bit::sysreg_name(id) << "=" << hex(emu.read_sysreg(id)) << "\n";
+    }
+
     // mem[<addr>]=<hex bytes, space separated>
     for (const auto &[addr, len] : mem_ranges)
     {
@@ -161,6 +170,7 @@ static int run_cli(int argc, char *argv[])
         ("debug", "Start an interactive debugger on stdin/stdout (type 'help'). Ignores --limit")
         ("t,trace", "Write every executed instruction and what it changed to this file (- for stdout)",
             cxxopts::value<std::string> ())
+        ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
         ("history", "Keep the last N executed instructions and print them after the run",
@@ -384,6 +394,7 @@ static int run_cli(int argc, char *argv[])
         emu->write_reg(reg, val);
     }
 
+    emu->set_semihosting(result.count("no-semihosting") == 0);
     emu->set_symbols(&symbols);
     emu->set_trace(trace);
     emu->set_history_size(history_size);

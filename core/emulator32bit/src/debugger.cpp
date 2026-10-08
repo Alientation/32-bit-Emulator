@@ -103,6 +103,7 @@ Debugger::Debugger(Emulator32bit &emu, const SymbolMap &symbols, std::istream &i
         m_emu.set_history_size(kDebuggerHistory);
     }
     m_emu.set_symbols(&m_symbols);
+    m_emu.set_brk_stops(true);
 }
 
 void Debugger::run()
@@ -316,7 +317,21 @@ void Debugger::command_regs()
 
     m_out << "  NZCV " << (m_emu.get_flag(kNFlagBit) ? 'N' : 'n')
           << (m_emu.get_flag(kZFlagBit) ? 'Z' : 'z') << (m_emu.get_flag(kCFlagBit) ? 'C' : 'c')
-          << (m_emu.get_flag(kVFlagBit) ? 'V' : 'v') << "\n";
+          << (m_emu.get_flag(kVFlagBit) ? 'V' : 'v') << "  "
+          << (m_emu.user_mode() ? "user mode" : "kernel mode")
+          << (m_emu.get_flag(kIrqMaskBit) ? ", IRQs masked" : "") << "\n";
+
+    // The exception state, once a vector table is installed.
+    if (m_emu.read_sysreg(Emulator32bit::kSysregId_vbar) != 0)
+    {
+        for (const U8 id : {Emulator32bit::kSysregId_vbar, Emulator32bit::kSysregId_elr,
+                            Emulator32bit::kSysregId_spsr, Emulator32bit::kSysregId_esr,
+                            Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_usp})
+        {
+            m_out << std::format("  {:<5}{:#010x}\n", Emulator32bit::sysreg_name(id),
+                                 m_emu.read_sysreg(id));
+        }
+    }
 }
 
 void Debugger::command_mem(const std::vector<std::string> &args)

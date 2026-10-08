@@ -18,11 +18,15 @@ enum class InstructionFormat
     O3,        ///< mov, mvn: op xd, <xm | imm | :hi13:symbol | :lo19:symbol>
     M,         ///< loads and stores
     M1,        ///< adrp
-    B1,        ///< b, bl, swi: a label or an offset
+    B1,        ///< b, bl: a label or an offset
     B2,        ///< bx, blx: a register
+    SWI,       ///< swi[.cond] [number], a number of 22 bits (0 if left out)
     ATOMIC,    ///< swp and the ldadd, ldclr, ldset families
     HLT,
     NOP,
+    ERET,
+    WFI,
+    BRK, ///< brk [number], a number of 22 bits (0 if left out)
     MSR,
     MRS,
     RET,

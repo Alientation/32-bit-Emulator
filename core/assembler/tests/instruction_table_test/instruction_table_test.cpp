@@ -46,6 +46,8 @@ const char *operands_of(InstructionFormat format)
         return "8";
     case InstructionFormat::B2:
         return "x1";
+    case InstructionFormat::SWI:
+        return "5";
     case InstructionFormat::ATOMIC:
         return "x1, x2, [x3]";
     default:
@@ -95,9 +97,10 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
     {
         const InstructionFormat format = spec->format;
         if (format == InstructionFormat::HLT || format == InstructionFormat::NOP
-            || format == InstructionFormat::MSR || format == InstructionFormat::MRS
-            || format == InstructionFormat::RET || format == InstructionFormat::UNIMPLEMENTED
-            || format == InstructionFormat::ATOMIC)
+            || format == InstructionFormat::ERET || format == InstructionFormat::WFI
+            || format == InstructionFormat::BRK || format == InstructionFormat::MSR
+            || format == InstructionFormat::MRS || format == InstructionFormat::RET
+            || format == InstructionFormat::UNIMPLEMENTED || format == InstructionFormat::ATOMIC)
         {
             continue;
         }
@@ -163,4 +166,43 @@ TEST_F(InstructionTable, other_spellings_of_an_instruction)
     EXPECT_TRUE(contains(error_of([&] { assemble("vcflo.s32.f32 x1, x2"); }), "not implemented"));
     EXPECT_EQ(assemble("ldrsb x1, [x2]").size(), 1u);
     EXPECT_EQ(assemble("ldrsh x1, [x2]").size(), 1u);
+}
+
+// The instructions of the exception machinery (docs/exceptions.md).
+TEST_F(InstructionTable, swi_takes_a_number_and_a_condition)
+{
+    using Emulator = Emulator32bit;
+    const auto swi = [](const ConditionCode cond, const sword number)
+    { return Emulator::asm_format_b1(Emulator::_op_swi, cond, number); };
+
+    EXPECT_EQ(assemble("swi"), std::vector<word>{swi(ConditionCode::AL, 0)});
+    EXPECT_EQ(assemble("swi 5"), std::vector<word>{swi(ConditionCode::AL, 5)});
+    EXPECT_EQ(assemble("swi 1 + 1"), std::vector<word>{swi(ConditionCode::AL, 2)});
+    EXPECT_EQ(assemble("swi.eq 7"), std::vector<word>{swi(ConditionCode::EQ, 7)});
+    EXPECT_EQ(assemble("swi 4194303"), std::vector<word>{swi(ConditionCode::AL, 4194303)});
+    EXPECT_EQ(Emulator::disassemble_instr(assemble("swi.ne 9")[0]), "swi.ne 9");
+    EXPECT_TRUE(contains(error_of([&] { assemble("swi 4194304"); }), "22 bits"));
+}
+
+TEST_F(InstructionTable, eret_wfi_and_brk)
+{
+    EXPECT_EQ(assemble("eret"), std::vector<word>{Emulator32bit::asm_eret()});
+    EXPECT_EQ(assemble("wfi"), std::vector<word>{Emulator32bit::asm_wfi()});
+    EXPECT_EQ(assemble("brk"), std::vector<word>{Emulator32bit::asm_brk(0)});
+    EXPECT_EQ(assemble("brk 3"), std::vector<word>{Emulator32bit::asm_brk(3)});
+    EXPECT_TRUE(contains(error_of([&] { assemble("brk 4194304"); }), "22 bits"));
+}
+
+TEST_F(InstructionTable, msr_and_mrs_name_the_system_registers_in_any_case)
+{
+    EXPECT_EQ(assemble("msr vbar, x1"),
+              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_vbar, false, 1)});
+    EXPECT_EQ(assemble("mrs x2, ESR"),
+              std::vector<word>{Emulator32bit::asm_mrs(2, Emulator32bit::kSysregId_esr)});
+    EXPECT_EQ(assemble("msr SPSR, 16"),
+              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_spsr, true, 16)});
+    EXPECT_EQ(assemble("msr pstate, x0"),
+              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, false, 0)});
+    EXPECT_TRUE(
+        contains(error_of([&] { assemble("msr nothing, x1"); }), "invalid system register"));
 }

@@ -37,7 +37,7 @@ loop:       subs    x0, x0, 1
 | Numbers | `42` decimal, `$2A` hex, `%101` binary, `@17` octal |
 | Characters | `'a'`, with escapes such as `'\n'`; a character is a number |
 | Strings | `"text"` with escapes, in `.ascii`, `.asciz` and `#include` |
-| Names | letters, digits and `_`, not starting with a digit. A name cannot be a keyword (an instruction, a register, a condition code, `PSTATE`): a label or macro parameter called `b` is the branch instruction |
+| Names | letters, digits and `_`, not starting with a digit. A name cannot be a keyword (an instruction, a register, a condition code, `eret`, `wfi`, `brk`; the names of system registers are only special after `msr`/`mrs`): a label or macro parameter called `b` is the branch instruction |
 
 ## Registers
 
@@ -180,10 +180,13 @@ Atomics: `swp`, `ldadd`, `ldclr`, `ldset` with `b` (byte) and `h` (halfword) var
 | `bx[.cond] xn` | branch to the address in `xn` |
 | `blx[.cond] xn` | indirect call: return address in `x29` |
 | `ret` | `bx x29` |
-| `swi[.cond] n` | software interrupt; the call number is in `x8`, the arguments in `x0`–`x5` (`n` is ignored) |
+| `swi[.cond] [n]` | software interrupt, `n` is a number from 0 to 4194303 (0 if left out), not an offset. With a vector table installed it is a system call of an operating system; `swi 1` and (without a table) `swi` are the emulator calls, with the call number in `x8` and the arguments in `x0`–`x4`. See [exceptions.md](exceptions.md#swi-and-the-emulator-calls) |
 | `adrp xd, sym` | page of a symbol, see above |
-| `mrs xd, PSTATE` / `msr PSTATE, xn\|imm16` | read/write the flags register (they assemble, but the emulator faults when it runs them) |
-| `hlt`, `nop` | |
+| `mrs xd, sysreg` / `msr sysreg, xn\|imm16` | read/write a system register: `pstate` `elr` `spsr` `esr` `far` `vbar` `usp` `ptbr` `sctlr` (any case). Privileged, except the flags of `pstate`. See [exceptions.md](exceptions.md#system-registers) |
+| `eret` | return from an exception (privileged) |
+| `wfi` | wait for an interrupt (privileged; halts while there are no interrupts) |
+| `brk [n]` | breakpoint exception, `n` is a number up to 4194303 |
+| `hlt` (privileged), `nop` | |
 
 `target` is a label (also `label + 4`), or a number: a numeric target is a **signed byte distance from the branch itself**, 4 byte aligned, from -8388608 to 8388604 (`b 8` skips one instruction, `b.ne -2 * 4` goes back two). A constant is a number, not a label, so `b SKIP_BYTES` is a distance.
 

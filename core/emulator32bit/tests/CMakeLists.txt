@@ -21,5 +21,6 @@ aemu_add_gtest(emulator32bit_tests
         ./instruction_tests/tlbi_test.cpp
         ./instruction_tests/swp_test.cpp
         ./instruction_tests/swi_test.cpp
+        ./instruction_tests/exception_test.cpp
         ./instruction_tests/encoder_test.cpp
 )

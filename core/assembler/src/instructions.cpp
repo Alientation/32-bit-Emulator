@@ -12,9 +12,9 @@ using basm::TokenType;
 U8 Assembler::parse_sysreg()
 {
     const Token &sysreg = expect(TokenType::SYMBOL, "expected a system register");
-    if (sysreg.text == "PSTATE")
+    if (const std::optional<U8> id = Emulator32bit::sysreg_id(sysreg.str()))
     {
-        return Emulator32bit::kSysregId_pstate;
+        return *id;
     }
 
     fail(sysreg, "invalid system register '" + sysreg.str() + "'");
@@ -169,6 +169,32 @@ word Assembler::parse_format_b2(byte opcode)
 
     const byte reg = parse_register();
     return Emulator32bit::asm_format_b2(opcode, condition, reg);
+}
+
+// swi[.cond] [number]: the number is not an offset, a branch is not involved.
+word Assembler::parse_format_swi(byte opcode)
+{
+    m_cursor.next();
+
+    ConditionCode condition = ConditionCode::AL;
+    if (m_cursor.accept(TokenType::PERIOD))
+    {
+        const Token &cond = m_cursor.peek();
+        if (!basm::is_condition(cond.type))
+        {
+            fail(cond, "expected a condition code after '.', got " + basm::describe(cond));
+        }
+        m_cursor.next();
+        condition = get_cond_code(cond.type);
+    }
+
+    word number = 0;
+    if (at_expression())
+    {
+        number = parse_expression();
+        check(number < (1ULL << 22), "the number must fit in 22 bits");
+    }
+    return Emulator32bit::asm_format_b1(opcode, condition, sword(number));
 }
 
 word Assembler::parse_format_m1(byte opcode)
@@ -564,6 +590,9 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::B2:
         instruction = parse_format_b2(spec.a);
         break;
+    case Format::SWI:
+        instruction = parse_format_swi(spec.a);
+        break;
     case Format::ATOMIC:
         instruction = parse_format_atomic(spec.a, spec.b);
         break;
@@ -572,6 +601,15 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         return;
     case Format::NOP:
         _nop();
+        return;
+    case Format::ERET:
+        _eret();
+        return;
+    case Format::WFI:
+        _wfi();
+        return;
+    case Format::BRK:
+        _brk();
         return;
     case Format::MSR:
         _msr();
@@ -598,6 +636,31 @@ void Assembler::_nop()
 {
     m_cursor.next();
     m_obj.text_section.push_back(Emulator32bit::asm_nop());
+}
+
+void Assembler::_eret()
+{
+    m_cursor.next();
+    m_obj.text_section.push_back(Emulator32bit::asm_eret());
+}
+
+void Assembler::_wfi()
+{
+    m_cursor.next();
+    m_obj.text_section.push_back(Emulator32bit::asm_wfi());
+}
+
+void Assembler::_brk()
+{
+    m_cursor.next();
+
+    word number = 0;
+    if (at_expression())
+    {
+        number = parse_expression();
+        check(number < (1ULL << 22), "the number must fit in 22 bits");
+    }
+    m_obj.text_section.push_back(Emulator32bit::asm_brk(number));
 }
 
 void Assembler::_msr()

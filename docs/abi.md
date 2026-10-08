@@ -94,7 +94,7 @@ The prologue of a variadic function stores the argument registers that were not 
 
 ## System calls
 
-`swi #0` with the call number in `x8`, arguments in `x0`–`x5` and the result in `x0`. A value from `-4095` to `-1` is an error (the negated error number), anything else is a result. A system call preserves all registers except `x0` and the flags. The numbers are assigned with the kernel (see [exceptions.md](exceptions.md#swi-and-the-emulator-calls) for how `swi` reaches it). The emulator's own debugging calls (`emu_*`) are the separate *semihosting* interface, `swi #1`.
+`swi 0` with the call number in `x8`, arguments in `x0`–`x5` and the result in `x0`. A value from `-4095` to `-1` is an error (the negated error number), anything else is a result. A system call preserves all registers except `x0` and the flags. The numbers are assigned with the kernel (see [exceptions.md](exceptions.md#swi-and-the-emulator-calls) for how `swi` reaches it). The emulator's own debugging calls (`emu_*`) are the separate *semihosting* interface, `swi 1`.
 
 ## Division
 

@@ -323,6 +323,13 @@ static std::string disassemble_nop(word instruction)
     return "nop";
 }
 
+// The name of a system register as the assembler reads it.
+static std::string disassemble_sysreg(const U8 sysreg)
+{
+    const char *name = Emulator32bit::sysreg_name(sysreg);
+    return name != nullptr ? name : "sysreg" + std::to_string(sysreg);
+}
+
 static std::string disassemble_msr(word instruction)
 {
     const U8 sysreg = bitfield_unsigned(instruction, 17, 5);
@@ -330,18 +337,35 @@ static std::string disassemble_msr(word instruction)
     if (imm)
     {
         const word val = bitfield_unsigned(instruction, 0, 16);
-        return "msr sysreg" + std::to_string(sysreg) + " " + std::to_string(val);
+        return "msr " + disassemble_sysreg(sysreg) + ", " + std::to_string(val);
     }
     else
     {
-        return "msr sysreg" + std::to_string(sysreg) + " " + disassemble_gpr(instruction, 11);
+        return "msr " + disassemble_sysreg(sysreg) + ", " + disassemble_gpr(instruction, 11);
     }
 }
 
 static std::string disassemble_mrs(word instruction)
 {
     const U8 sysreg = bitfield_unsigned(instruction, 11, 5);
-    return "mrs " + disassemble_gpr(instruction, 17) + " sysreg " + std::to_string(sysreg);
+    return "mrs " + disassemble_gpr(instruction, 17) + ", " + disassemble_sysreg(sysreg);
+}
+
+static std::string disassemble_eret(word instruction)
+{
+    UNUSED(instruction);
+    return "eret";
+}
+
+static std::string disassemble_wfi(word instruction)
+{
+    UNUSED(instruction);
+    return "wfi";
+}
+
+static std::string disassemble_brk(word instruction)
+{
+    return "brk " + std::to_string(bitfield_unsigned(instruction, 0, 22));
 }
 
 static std::string disassemble_tlbi(word instruction)
@@ -414,6 +438,12 @@ static std::string disassemble_special_instructions(word instruction)
         return disassemble_tlbi(instruction);
     case Emulator32bit::kSpecialOpId_atomic:
         return disassemble_atomic(instruction);
+    case Emulator32bit::kSpecialOpId_eret:
+        return disassemble_eret(instruction);
+    case Emulator32bit::kSpecialOpId_wfi:
+        return disassemble_wfi(instruction);
+    case Emulator32bit::kSpecialOpId_brk:
+        return disassemble_brk(instruction);
     default:
         return "ERROR: INVALID SPECOP";
     }
@@ -660,9 +690,16 @@ static std::string disassemble_blx(word instruction)
     return disassemble_format_b2(instruction, "blx");
 }
 
+// The 22 bit field is a number, not an offset.
 static std::string disassemble_swi(word instruction)
 {
-    return disassemble_format_b1(instruction, "swi");
+    std::string disassemble = "swi";
+    const ConditionCode condition = (ConditionCode) bitfield_unsigned(instruction, 22, 4);
+    if (condition != ConditionCode::AL)
+    {
+        disassemble += "." + disassemble_condition(condition);
+    }
+    return disassemble + " " + std::to_string(bitfield_unsigned(instruction, 0, 22));
 }
 
 static std::string disassemble_adrp(word instruction)

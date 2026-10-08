@@ -150,8 +150,12 @@ void Emulator32bit::_emu_err(word err)
 }
 
 /**
- * @brief                   System calls, made with `swi`. The number of the call is in the register
- *                          SYSCALL (x8), the arguments in x0-x5.
+ * @brief                   `swi <imm22>`. With a vector table (VBAR != 0) it raises the supervisor
+ *                          call exception, except `swi 1`, which is an emulator call. Without one,
+ *                          `swi` and `swi 1` are emulator calls (see docs/exceptions.md).
+ *
+ *                          The emulator calls: the number of the call is in the register
+ *                          SYSCALL (x8), the arguments in x0-x4.
  *
  *                          In future, we need a vector table that contains various jump instructions
  *                          to handle various exceptions, and the system calls of an operating
@@ -188,6 +192,24 @@ void Emulator32bit::_swi(word instr)
     if (!check_cond(m_pstate, cond))
     {
         return;
+    }
+
+    // With a vector table installed every swi is a system call of the operating system (a
+    // supervisor call exception) except `swi 1`. Without one, `swi` and `swi 1` are both the
+    // emulator calls below, which is what programs without an operating system use.
+    const word imm = bitfield_unsigned(instr, 0, 22);
+    if (m_vbar != 0 && imm != kSwiSemihosting)
+    {
+        enter_exception(ExceptionClass::SUPERVISOR_CALL, imm, 0, m_pc + 4);
+        return;
+    }
+    if (imm > kSwiSemihosting || !m_semihosting)
+    {
+        throw Exception(InterruptType::BAD_INSTR,
+                        std::format("swi {} is not available ({})", imm,
+                                    m_semihosting ? "there is no vector table to take it"
+                                                  : "the emulator calls are off"),
+                        kUndefinedIss_unimplemented);
     }
 
     // software interrupts.. perfect to add functionality to this like console print,

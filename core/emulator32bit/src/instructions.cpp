@@ -3,6 +3,7 @@
 #include "util/logger.h"
 #include <util/common.h>
 
+#include <format>
 #include <string>
 
 /**
@@ -248,22 +249,33 @@ void Emulator32bit::_special_instructions(const word instr)
     case kSpecialOpId_atomic:
         _atomic(instr);
         break;
+    case kSpecialOpId_eret:
+        _eret(instr);
+        break;
+    case kSpecialOpId_wfi:
+        _wfi(instr);
+        break;
+    case kSpecialOpId_brk:
+        _brk(instr);
+        break;
     default:
         throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
-                        "Bad OPSPEC specifier " + std::to_string(opspec));
+                        "Bad OPSPEC specifier " + std::to_string(opspec), kUndefinedIss_ext_op);
     }
 }
 
 void Emulator32bit::_hlt(const word instr)
 {
     UNUSED(instr);
+    require_kernel();
     throw Exception(InterruptType::HALT_INSTR, "HLT Exception");
 }
 
 void Emulator32bit::_bad_opcode(const word instr)
 {
     throw Exception(InterruptType::BAD_INSTR,
-                    "Bad opcode " + std::to_string(bitfield_unsigned(instr, 26, 6)));
+                    "Bad opcode " + std::to_string(bitfield_unsigned(instr, 26, 6)),
+                    kUndefinedIss_opcode);
 }
 
 word Emulator32bit::asm_hlt()
@@ -284,21 +296,22 @@ word Emulator32bit::asm_nop()
                     << Zeros(22);
 }
 
+// PSTATE is the one register user code may use, and only for the flags.
 void Emulator32bit::_msr(const word instr)
 {
-    const word sysreg = _SX1(instr);
+    const U8 sysreg = _SX1(instr);
     const bool imm = test_bit(instr, 16);
-    word val = imm ? bitfield_unsigned(instr, 0, 16) : read_reg(_SX2(instr));
+    const word val = imm ? bitfield_unsigned(instr, 0, 16) : read_reg(_SX2(instr));
 
-    (void) (val);
-
-    // TODO
-    switch (sysreg)
+    if (sysreg == kSysregId_pstate && user_mode())
     {
-    default:
-        throw Exception(Emulator32bit::InterruptType::BAD_REG,
-                        "System register " + std::to_string(sysreg) + " unimplemented.");
+        constexpr word kNZCV = 0b1111;
+        m_pstate = (m_pstate & ~kNZCV) | (val & kNZCV);
+        return;
     }
+
+    require_kernel();
+    write_sysreg(sysreg, val);
 }
 
 word Emulator32bit::asm_msr(U8 sysreg, bool imm, word xn_or_imm16)
@@ -317,14 +330,17 @@ word Emulator32bit::asm_msr(U8 sysreg, bool imm, word xn_or_imm16)
 
 void Emulator32bit::_mrs(const word instr)
 {
-    word xn = _SX1(instr);
-    word sysreg = _SX2(instr);
+    const U8 xn = _SX1(instr);
+    const U8 sysreg = _SX2(instr);
 
-    // todo
-    (void) (xn);
-    (void) (sysreg);
+    if (sysreg == kSysregId_pstate && user_mode())
+    {
+        write_reg(xn, m_pstate & 0b1111);
+        return;
+    }
 
-    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "MRS unimplemented.");
+    require_kernel();
+    write_reg(xn, read_sysreg(sysreg));
 }
 
 word Emulator32bit::asm_mrs(U8 xn, U8 sysreg)
@@ -335,6 +351,8 @@ word Emulator32bit::asm_mrs(U8 xn, U8 sysreg)
 
 void Emulator32bit::_tlbi(const word instr)
 {
+    require_kernel();
+
     word xt = _SX1(instr);
     bool isxt = test_bit(instr, 16);
     word imm16 = bitfield_unsigned(instr, 0, 16);
@@ -344,13 +362,72 @@ void Emulator32bit::_tlbi(const word instr)
     (void) (isxt);
     (void) (imm16);
 
-    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "TLBI unimplemented.");
+    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "TLBI unimplemented.",
+                    kUndefinedIss_unimplemented);
 }
 
 word Emulator32bit::asm_tlbi(U8 xt, bool isxt, word imm16)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_tlbi)
                     << JPart(5, xt) << JPart(1, isxt) << JPart(16, imm16);
+}
+
+// PC = ELR and PSTATE = SPSR. The mode comes back with SPSR, and with it the stack pointer.
+void Emulator32bit::_eret(const word instr)
+{
+    UNUSED(instr);
+    require_kernel();
+
+    set_user_mode(test_bit(m_spsr, kUserModeBit));
+    m_pstate = m_spsr & kPstateMask;
+    m_pc = m_elr;
+    m_pc_written = true;
+}
+
+word Emulator32bit::asm_eret()
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_eret)
+                    << Zeros(22);
+}
+
+// There is no interrupt source yet, so waiting would be forever: the program ends like it does
+// with hlt.
+void Emulator32bit::_wfi(const word instr)
+{
+    UNUSED(instr);
+    require_kernel();
+    throw Exception(InterruptType::HALT_INSTR, "WFI with no interrupt source");
+}
+
+word Emulator32bit::asm_wfi()
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_wfi)
+                    << Zeros(22);
+}
+
+void Emulator32bit::_brk(const word instr)
+{
+    const word imm = bitfield_unsigned(instr, 0, 22);
+
+    if (m_brk_stops)
+    {
+        throw Exception(InterruptType::BREAK_INSTR, std::format("brk {} at {:#010x}", imm, m_pc));
+    }
+    if (m_vbar != 0)
+    {
+        enter_exception(ExceptionClass::BREAKPOINT, imm, 0, m_pc);
+        return;
+    }
+    throw Exception(
+        InterruptType::PROGRAM_ERROR,
+        std::format("brk {} executed at {:#010x}, there is no vector table and no debugger", imm,
+                    m_pc));
+}
+
+word Emulator32bit::asm_brk(const word imm22)
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_brk)
+                    << JPart(22, imm22);
 }
 
 void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operation)
@@ -360,6 +437,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     const U8 xm = _SX3(instr);
 
     const word mem_adr = read_reg(xm);
+    m_data_address = mem_adr;
     const U8 width = bitfield_unsigned(instr, 4, 2);
 
     const word val_reg = read_reg(xn);
@@ -382,7 +460,8 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        throw Exception(InterruptType::BAD_INSTR, "Invalid atomic width " + std::to_string(width));
+        throw Exception(InterruptType::BAD_INSTR, "Invalid atomic width " + std::to_string(width),
+                        kUndefinedIss_ext_op);
     }
 
     // The value in the source register is truncated to the
@@ -411,7 +490,8 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
 
     default:
         throw Exception(InterruptType::BAD_INSTR,
-                        "Invalid atomic operation " + std::to_string(static_cast<int>(operation)));
+                        "Invalid atomic operation " + std::to_string(static_cast<int>(operation)),
+                        kUndefinedIss_ext_op);
     }
 
     switch (width)
@@ -458,7 +538,8 @@ void Emulator32bit::_atomic(const word instr)
         break;
     default:
         throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
-                        "Atomic op " + std::to_string(atop) + " unimplemented.");
+                        "Atomic op " + std::to_string(atop) + " unimplemented.",
+                        kUndefinedIss_ext_op);
     }
 }
 
@@ -552,7 +633,8 @@ FLAGS_ONLY_OP(_teq, alu_eor(rn, op2, get_NZCV())) // alias to eors
     void Emulator32bit::name(const word instr)                                                     \
     {                                                                                              \
         UNUSED(instr);                                                                             \
-        throw Exception(InterruptType::BAD_INSTR, mnemonic " is not implemented.");                \
+        throw Exception(InterruptType::BAD_INSTR, mnemonic " is not implemented.",                 \
+                        kUndefinedIss_unimplemented);                                              \
     }
 
 UNIMPLEMENTED_OP(_vabs, "vabs")
@@ -599,16 +681,19 @@ Emulator32bit::MemOperand Emulator32bit::decode_mem_operand(const word instr)
     switch (AddrType(addr_mode))
     {
     case AddrType::ADDR_OFFSET:
+        m_data_address = base + offset;
         return {.address = base + offset, .base = xn, .base_after = base, .writes_back = false};
     case AddrType::ADDR_PRE_INC:
+        m_data_address = base + offset;
         return {
             .address = base + offset, .base = xn, .base_after = base + offset, .writes_back = true};
     case AddrType::ADDR_POST_INC:
+        m_data_address = base;
         return {.address = base, .base = xn, .base_after = base + offset, .writes_back = true};
     }
 
     throw Exception(InterruptType::BAD_INSTR,
-                    "Bad memory address mode " + std::to_string(addr_mode));
+                    "Bad memory address mode " + std::to_string(addr_mode), kUndefinedIss_ext_op);
 }
 
 void Emulator32bit::write_back_base(const MemOperand &operand)

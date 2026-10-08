@@ -57,6 +57,15 @@ static constexpr U8 kCFlagBit = 2;
 /// @brief              Overflow Flag.
 static constexpr U8 kVFlagBit = 3;
 
+/// @brief              1 in user mode, 0 in kernel (privileged) mode.
+static constexpr U8 kUserModeBit = 4;
+
+/// @brief              1 while IRQs are masked.
+static constexpr U8 kIrqMaskBit = 5;
+
+/// @brief              The bits of PSTATE that exist: NZCV, the mode and the IRQ mask.
+static constexpr word kPstateMask = 0b111111;
+
 /// @brief              Which bit of the instruction determines whether flags will be updated.
 static constexpr U8 kInstructionUpdateFlagBit = 25;
 

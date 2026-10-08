@@ -75,4 +75,12 @@ Two limits, both from how the records are made:
 
 - Watchpoints (stop when an address is written). They need a hook in `SystemBus`.
 - A gdb remote stub, for use from an IDE.
-- `BRK` ([exceptions.md](exceptions.md#debugging)), so a program can stop itself.
+- Showing the exception state in `bt` (a backtrace through a handler stops at the `ERET` frame).
+
+## `brk`
+
+A program can stop itself with the `brk [n]` instruction. Under `--debug` (or when a library user calls `Emulator32bit::set_brk_stops (true)`) the run stops with `Status::BREAKPOINT`, the message `brk n at <pc>`, and the pc at the instruction after the `brk`, so `continue` goes on. Without a debugger it raises the breakpoint exception when a vector table is installed ([exceptions.md](exceptions.md#debugging)), and is a fault otherwise.
+
+## Exceptions
+
+With a vector table installed the trace shows each exception taken (`-- exception: data abort, ESR=0x..., ELR=0x..., FAR=0x... -> 0x<handler>`) and the `pc=` of an `eret`; `regs` shows the mode, whether IRQs are masked, and the exception registers.

@@ -2,7 +2,7 @@
 
 A simplified ARM-like 32 bit ISA. Instructions are fixed width (4 bytes, little endian) with a 6 bit opcode. The encodings keep the register fields at the same bit positions across formats, as ARM does.
 
-Planned changes are drafted in [exceptions.md](exceptions.md) (traps, system registers, privilege levels, `ERET`) and [abi.md](abi.md) (calling convention, `UDIV`/`SDIV`). Debugging the emulator: [debugging.md](debugging.md).
+Exceptions, system registers and the privilege levels are in [exceptions.md](exceptions.md). A calling convention and `UDIV`/`SDIV` are drafted in [abi.md](abi.md) (not implemented). Debugging the emulator: [debugging.md](debugging.md).
 
 The source of truth for opcodes is `AEMU_OPCODES` in `core/emulator32bit/include/emulator32bit/opcodes.h`. The assembler syntax is in [basm-syntax.md](basm-syntax.md).
 
@@ -50,7 +50,7 @@ The stack grows downwards. `BX x29` is the same as `ret`.
 
 ### PSTATE
 
-Reset value is 0.
+Reset value is `0x20`: kernel mode, IRQs masked.
 
 | Bit | Flag | Meaning |
 |-----|------|---------|
@@ -58,8 +58,10 @@ Reset value is 0.
 | 1 | Z | zero |
 | 2 | C | carry |
 | 3 | V | overflow |
+| 4 | U | 1 = user mode, 0 = kernel (privileged) mode. The CPU starts in kernel mode |
+| 5 | I | 1 = IRQs masked (there are no interrupts yet) |
 
-Only NZCV is implemented. The other bits are not assigned yet. `MSR`/`MRS`, the intended way to access PSTATE, are not implemented.
+`MSR`/`MRS` access it as system register 1, see [exceptions.md](exceptions.md#system-registers). The other bits are not assigned yet. There are two stack pointers behind `sp`, one for each mode.
 
 ### Carry flag convention
 
@@ -191,7 +193,7 @@ The page offset is a signed 21 bit number of pages. `imm20` holds its low 20 bit
 
 ### B1: branch with offset
 
-`B{cd} simm22`, `BL{cd} simm22`, `SWI{cd}`
+`B{cd} simm22`, `BL{cd} simm22`, `SWI{cd} imm22`
 
 ```
  31   26 25  22 21                    0
@@ -200,7 +202,7 @@ The page offset is a signed 21 bit number of pages. `imm20` holds its low 20 bit
 +-------+------+-----------------------+
 ```
 
-`simm22` is a signed offset in words (multiplied by 4), relative to the address of the branch instruction itself. `SWI` ignores it.
+`simm22` is a signed offset in words (multiplied by 4), relative to the address of the branch instruction itself. For `SWI` the 22 bits are an unsigned number (`swi 3`, `swi` alone is `swi 0`), see [Software interrupts](#software-interrupts-swi).
 
 ### B2: branch to register
 
@@ -234,26 +236,43 @@ The original notes described `fimm` as a 14 bit significand plus a 7 bit exponen
 +-------+------+-----------------------+
 ```
 
-The extended op is bits 22–25. An unknown extended op faults with `BAD_INSTR`.
+The extended op is bits 22–25. An unknown extended op is an [undefined instruction](exceptions.md#exception-classes) (without a vector table: a fault with `BAD_INSTR`).
 
 | ext. op | Instruction | Status |
 |---------|-------------|--------|
-| `0000` | `HLT` | stops the program |
-| `0001` | `MSR sysreg, xn \| imm16` | not implemented, throws `BAD_REG` |
-| `0010` | `MRS xn, sysreg` | not implemented, throws `BAD_INSTR` |
-| `0011` | `TLBI flags{, xt}` | not implemented, throws `BAD_INSTR` |
+| `0000` | `HLT` | stops the program. Privileged |
+| `0001` | `MSR sysreg, xn \| imm16` | implemented. Privileged, except for the flags of PSTATE |
+| `0010` | `MRS xn, sysreg` | implemented. Privileged, except for the flags of PSTATE |
+| `0011` | `TLBI flags{, xt}` | privileged, not implemented (undefined instruction) |
 | `0100` | atomic operations | implemented |
+| `0101` | `ERET` | implemented. Privileged |
+| `0110` | `WFI` | privileged. Halts for now: there are no interrupts |
+| `0111` | `BRK imm22` | implemented |
 | `1111` | `NOP` | does nothing |
+
+**Privileged** instructions are an undefined instruction (ISS 2) in user mode.
 
 ### HLT
 
-Encoding `0x00000000`, so running into zeroed memory halts.
+Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 
 ### NOP
 
 `000000 | 1111 | 0…0`
 
-### MSR (not implemented)
+### ERET
+
+`000000 | 0101 | 0…0`. Returns from an exception: PC = `ELR`, PSTATE = `SPSR`, which also switches the mode and the stack pointer.
+
+### WFI
+
+`000000 | 0110 | 0…0`. Waits for an interrupt. With no interrupt source it ends the run like `HLT`.
+
+### BRK
+
+`000000 | 0111 | imm22`. Raises the breakpoint exception. With a debugger attached, the run stops instead.
+
+### MSR
 
 ```
  31   26 25  22 21  17 16 15          11 10      0
@@ -263,9 +282,9 @@ Encoding `0x00000000`, so running into zeroed memory halts.
 +-------+------+------+--+--------------+---------+
 ```
 
-Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register. Always throws `BAD_REG` ("System register N unimplemented.").
+Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register, see [exceptions.md](exceptions.md#system-registers) for the registers. A register that does not exist is an undefined instruction (ISS 4, "System register N unimplemented."). In user mode only the flags of PSTATE can be written.
 
-### MRS (not implemented)
+### MRS
 
 ```
  31   26 25  22 21  17 16 15   11 10      0
@@ -274,7 +293,7 @@ Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a 
 +-------+------+------+--+--------+---------+
 ```
 
-Moves from a system register. Always throws `BAD_INSTR` ("MRS unimplemented.").
+Moves from a system register. In user mode only the flags of PSTATE can be read.
 
 ### TLBI (not implemented)
 
@@ -285,7 +304,7 @@ Moves from a system register. Always throws `BAD_INSTR` ("MRS unimplemented.").
 +-------+------+------+--+--------------+
 ```
 
-Flushes the TLB, `imm16` says how. Always throws `BAD_INSTR` ("TLBI unimplemented.").
+Flushes the TLB, `imm16` says how. Privileged. Always an undefined instruction (ISS 3, "TLBI unimplemented.").
 
 ### Atomic operations
 
@@ -473,7 +492,12 @@ The memory address of the M format:
 
 ## Software interrupts (`swi`)
 
-The call number is in `x8`. The arguments are in `x0`–`x4` (no call needs more) and a result, if any, is written to `x0`. These are emulator specific. `SWI` is conditional, and a condition that is false skips the call.
+`SWI{cd} number` is conditional, and a condition that is false skips it. What it does depends on whether a vector table is installed (`VBAR` is not 0, see [exceptions.md](exceptions.md)):
+
+- With a vector table, every number but 1 raises the supervisor call exception (the system call of an operating system, the number is the syndrome).
+- `swi 1` is an **emulator call**, below. Without a vector table `swi` (number 0) is one too, which is what programs without an operating system use. `emu32 --no-semihosting` turns them off (undefined instruction).
+
+For an emulator call the call number is in `x8`. The arguments are in `x0`–`x4` (no call needs more) and a result, if any, is written to `x0`.
 
 | ID | Name | Arguments | Description |
 |----|------|-----------|-------------|

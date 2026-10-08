@@ -11,6 +11,7 @@
 #include <deque>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -53,23 +54,59 @@ class Emulator32bit
     /// Why an instruction did not complete.
     enum class InterruptType : U8
     {
-        BAD_REG,       ///< A register that does not exist.
-        BAD_INSTR,     ///< An instruction that does not exist, or is not implemented.
-        HALT_INSTR,    ///< hlt: the program is done, this is not a fault.
+        BAD_REG,    ///< A register that does not exist. Becomes an undefined instruction exception.
+        BAD_INSTR,  ///< An instruction that does not exist, is not implemented or is not allowed.
+                    ///< Becomes an undefined instruction exception.
+        HALT_INSTR, ///< hlt: the program is done, this is not a fault.
         FAILED_ASSERT, ///< An assertion of the program (emu_assert...) did not hold.
         PROGRAM_ERROR, ///< The program reported an error and stopped (emu_error).
+        BREAK_INSTR,   ///< brk with a debugger attached: run () stops with Status::BREAKPOINT.
+        DOUBLE_FAULT,  ///< An exception was raised again before any instruction ran.
     };
+
+    /// The exceptions the CPU raises, see docs/exceptions.md. The value is the number of the vector
+    /// (the handler is at VBAR + 16 * vector) and the EC field of ESR.
+    enum class ExceptionClass : U8
+    {
+        UNDEFINED_INSTRUCTION = 1,
+        SUPERVISOR_CALL = 2,
+        INSTRUCTION_ABORT = 3,
+        DATA_ABORT = 4,
+        BREAKPOINT = 5,
+        IRQ = 6,
+    };
+
+    /// ISS of an undefined instruction exception (and of the Exception that causes it).
+    static constexpr word kUndefinedIss_opcode = 0; ///< An opcode that is not assigned.
+    static constexpr word kUndefinedIss_ext_op =
+        1; ///< An extended op or encoding that is not assigned.
+    static constexpr word kUndefinedIss_privileged = 2; ///< A privileged instruction in user mode.
+    static constexpr word kUndefinedIss_unimplemented = 3;
+    static constexpr word kUndefinedIss_sysreg = 4;     ///< A system register that does not exist.
+
+    /// ISS of an instruction or data abort: the fault type, and for a data abort bit 3 is set for
+    /// a write.
+    static constexpr word kAbortIss_translation = 1; ///< Not mapped.
+    static constexpr word kAbortIss_permission =
+        2; ///< Write to read-only, execute of data, kernel only.
+    static constexpr word kAbortIss_alignment = 3; ///< A pc that is not a multiple of 4.
+    static constexpr word kAbortIss_bus = 4;       ///< No memory at the physical address.
+    static constexpr word kAbortIss_write = 1 << 3;
 
     class Exception : public std::exception
     {
       private:
         InterruptType type;
         std::string message;
+        word iss;
 
       public:
-        Exception(InterruptType type, const std::string &msg);
+        /// `iss` is the syndrome of the exception that this becomes when the CPU takes it (an
+        /// undefined instruction exception for BAD_INSTR and BAD_REG), kUndefinedIss_*.
+        Exception(InterruptType type, const std::string &msg, word iss = 0);
         const char *what() const noexcept override;
         InterruptType get_type() const noexcept;
+        word get_iss() const noexcept;
     };
 
     enum class AddrType : U8
@@ -245,6 +282,38 @@ class Emulator32bit
         };
     }
 
+    /// PSTATE: NZCV, the mode (kUserModeBit) and the IRQ mask (kIrqMaskBit).
+    inline word get_pstate() const
+    {
+        return m_pstate;
+    }
+
+    inline bool user_mode() const
+    {
+        return test_bit(m_pstate, kUserModeBit);
+    }
+
+    /// The system registers the way the kernel sees them (kSysregId_*), without the checks that
+    /// MRS and MSR make of the mode. Throws Exception (BAD_REG) for a register that does not exist.
+    /// Writing PSTATE changes the mode (and which stack pointer is in use) like ERET does.
+    word read_sysreg(U8 id) const;
+    void write_sysreg(U8 id, word value);
+
+    /// The name of a system register as written in assembly (lower case), nullptr if there is no
+    /// register with the number.
+    static const char *sysreg_name(U8 id);
+
+    /// The number of a system register from its name, in any case.
+    static std::optional<U8> sysreg_id(const std::string &name);
+
+    /// Whether `swi 1`, the emulator calls (print, assert, ...), is allowed. On by default. If it
+    /// is off, the instruction is an undefined instruction.
+    void set_semihosting(bool enabled);
+
+    /// With a debugger attached `brk` stops run () (Status::BREAKPOINT, the pc is the next
+    /// instruction) instead of raising the breakpoint exception. Off by default.
+    void set_brk_stops(bool stops);
+
     /// @todo               TODO: determine if fp registers are needed
     // word fpcr;
     // word fpsr;
@@ -259,8 +328,35 @@ class Emulator32bit
     /// @brief              Program counter.
     word m_pc;
 
-    /// @brief              Program state. Bits 0-3 are NZCV flags. Rest are TODO
+    /// @brief              Program state. Bits 0-3 are the NZCV flags, bit 4 the mode, bit 5 masks
+    ///                     IRQs.
     word m_pstate;
+
+    /// The stack pointer of the other mode: the user one while in kernel mode (what the USP system
+    /// register reads and writes) and the kernel one while in user mode. m_x[sp] is the one in use.
+    word m_sp_other = 0;
+
+    // System registers, see docs/exceptions.md.
+    word m_elr = 0;   ///< Where ERET goes back to.
+    word m_spsr = 0;  ///< PSTATE of the code that was interrupted.
+    word m_esr = 0;   ///< Class (bits 26-31) and syndrome of the last exception.
+    word m_far = 0;   ///< Address of the last abort.
+    word m_vbar = 0;  ///< Vector table. 0: there is none and nothing is raised, see below.
+    word m_ptbr = 0;  ///< Reserved for the page tables, has no effect.
+    word m_sctlr = 0; ///< Reserved for system control, has no effect.
+
+    /// The address of the last load, store or atomic, for FAR when it faults.
+    word m_data_address = 0;
+
+    /// Set by what writes the pc itself (ERET, taking an exception), run () then does not add 4.
+    bool m_pc_written = false;
+
+    /// Whether an instruction completed since an exception was taken. An exception that is raised
+    /// when none has is a double fault.
+    bool m_retired_since_entry = true;
+
+    bool m_semihosting = true;
+    bool m_brk_stops = false;
 
     using InstructionFunction = void (Emulator32bit::*)(word);
     InstructionFunction m_instruction_handler[kMaxInstructions];
@@ -292,6 +388,22 @@ class Emulator32bit
     /// execute () that writes the trace line of the instruction.
     void execute_traced(word instr);
 
+    /// Raises an exception: saves the state, goes to kernel mode and jumps to the vector. A
+    /// double fault is thrown instead if no instruction completed since the last one.
+    /// `elr` is where ERET returns to, `far` the address of an abort.
+    void enter_exception(ExceptionClass cls, word iss, word far, word elr);
+
+    /// If the exception that stopped an instruction (`fetching`: while fetching it) is one the CPU
+    /// raises, and a vector table is installed, raises it and returns true. Otherwise false and
+    /// the caller reports the fault.
+    bool deliver_exception(const std::exception &error, bool fetching);
+
+    /// Switches to user or kernel mode, and to the stack pointer of that mode.
+    void set_user_mode(bool user);
+
+    /// Throws the undefined instruction exception of a privileged instruction in user mode.
+    void require_kernel();
+
     std::set<word> m_breakpoints;
     std::ostream *m_trace = nullptr;
     const SymbolMap *m_symbols = nullptr;
@@ -318,6 +430,9 @@ class Emulator32bit
     void _msr(const word instr);
     void _mrs(const word instr);
     void _tlbi(const word instr);
+    void _eret(const word instr);
+    void _wfi(const word instr);
+    void _brk(const word instr);
     void _atomic(const word instr);
 
     enum class AtomicOperation
@@ -354,6 +469,9 @@ class Emulator32bit
     static word asm_msr(U8 sysreg, bool imm, word xn_or_imm16);
     static word asm_mrs(U8 xn, U8 sysreg);
     static word asm_tlbi(U8 xt, bool isxt, word imm16);
+    static word asm_eret();
+    static word asm_wfi();
+    static word asm_brk(word imm22);
     static word asm_atomic(word xt, word xn, word xm, U8 width, U8 atop);
 
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int imm14);
@@ -380,6 +498,9 @@ class Emulator32bit
     static constexpr word kSpecialOpId_mrs = 0b0010;
     static constexpr word kSpecialOpId_tlbi = 0b0011;
     static constexpr word kSpecialOpId_atomic = 0b0100;
+    static constexpr word kSpecialOpId_eret = 0b0101;
+    static constexpr word kSpecialOpId_wfi = 0b0110;
+    static constexpr word kSpecialOpId_brk = 0b0111;
 
     static constexpr word kAtomicId_swp = 0b0000;
     static constexpr word kAtomicId_ldadd = 0b0001;
@@ -390,5 +511,18 @@ class Emulator32bit
     static constexpr word kAtomicWidth_byte = 0b01;
     static constexpr word kAtomicWidth_hword = 0b10;
 
+    // The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
     static constexpr word kSysregId_pstate = 1;
+    static constexpr word kSysregId_elr = 2;
+    static constexpr word kSysregId_spsr = 3;
+    static constexpr word kSysregId_esr = 4;
+    static constexpr word kSysregId_far = 5;
+    static constexpr word kSysregId_vbar = 6;
+    static constexpr word kSysregId_usp = 7;
+    static constexpr word kSysregId_ptbr = 8;
+    static constexpr word kSysregId_sctlr = 9;
+
+    /// The immediate of `swi` that is an emulator call, see _swi. Every other one is a system call
+    /// of the operating system.
+    static constexpr word kSwiSemihosting = 1;
 };

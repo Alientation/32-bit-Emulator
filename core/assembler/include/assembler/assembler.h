@@ -220,6 +220,7 @@ class Assembler
     word parse_format_m1(byte opcode);
     word parse_format_b1(byte opcode);
     word parse_format_b2(byte opcode);
+    word parse_format_swi(byte opcode);
     word parse_format_atomic(byte width, byte atopcode);
     void fill_local();
     void fill_local(std::vector<ObjectFile::RelocationEntry> &relocations, bool fill_branches);
@@ -263,6 +264,9 @@ class Assembler
     // The instructions that have an operand syntax of their own.
     void _hlt();
     void _nop();
+    void _eret();
+    void _wfi();
+    void _brk();
     void _msr();
     void _mrs();
     void _ret();

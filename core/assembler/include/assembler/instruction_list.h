@@ -79,6 +79,9 @@
     F(X, MSR, "msr", false, MSR, 0, 0)                                                             \
     F(X, MRS, "mrs", false, MRS, 0, 0)                                                             \
     F(X, TLBI, "tlbi", false, UNIMPLEMENTED, 0, 0)                                                 \
+    F(X, ERET, "eret", false, ERET, 0, 0)                                                          \
+    F(X, WFI, "wfi", false, WFI, 0, 0)                                                             \
+    F(X, BRK, "brk", false, BRK, 0, 0)                                                             \
     F(X, LDADD, "ldadd", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                          \
       Emulator32bit::kAtomicId_ldadd)                                                              \
     F(X, LDADDB, "ldaddb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                        \
@@ -101,6 +104,6 @@
     F(X, BL, "bl", false, B1, Emulator32bit::_op_bl, 0)                                            \
     F(X, BX, "bx", false, B2, Emulator32bit::_op_bx, 0)                                            \
     F(X, BLX, "blx", false, B2, Emulator32bit::_op_blx, 0)                                         \
-    F(X, SWI, "swi", false, B1, Emulator32bit::_op_swi, 0)                                         \
+    F(X, SWI, "swi", false, SWI, Emulator32bit::_op_swi, 0)                                        \
     F(X, ADRP, "adrp", false, M1, Emulator32bit::_op_adrp, 0)                                      \
     F(X, RET, "ret", false, RET, 0, 0)

@@ -1858,3 +1858,134 @@ _start:
     EXPECT_NE(state("history[2]").find("str"), std::string::npos) << state("history[2]");
     EXPECT_TRUE(m_state.find("history[3]") == m_state.end());
 }
+
+// A vector table of 7 entries of 4 instructions (class 0 is unused), for the programs below.
+// Each entry is a branch to a handler of the program, the others are no-ops.
+constexpr const char *kVectorTable = R"(
+.align 16
+vectors:
+                hlt
+                nop
+                nop
+                nop
+                b       undefined_handler           ; 1: undefined instruction
+                nop
+                nop
+                nop
+                b       svc_handler                 ; 2: supervisor call
+                nop
+                nop
+                nop
+                hlt                                 ; 3: instruction abort
+                nop
+                nop
+                nop
+                hlt                                 ; 4: data abort
+                nop
+                nop
+                nop
+                hlt                                 ; 5: breakpoint
+                nop
+                nop
+                nop
+)";
+
+// A kernel that installs a vector table and takes system calls: `swi n` goes to the handler, which
+// counts it and returns with eret.
+TEST_F(AssemblerIntegration, supervisor_calls_go_through_the_vector_table)
+{
+    write_file("kernel.basm", std::string(R"(.global _start
+.text
+_start:
+                adrp    x0, vectors
+                add     x0, x0, :lo12:vectors
+                msr     vbar, x0
+                swi     7
+                swi     9
+                hlt
+
+svc_handler:
+                add     x10, x10, 1             ; count the calls
+                mrs     x11, esr
+                mrs     x12, elr
+                eret
+
+undefined_handler:
+                hlt
+)") + kVectorTable);
+    ASSERT_NO_FATAL_FAILURE(build("-o kernel kernel.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("kernel.bexe", "--trace trace.txt"));
+
+    EXPECT_EQ(reg(10), 2u);
+    EXPECT_EQ(reg(11), (2u << 26) | 9u) << "class 2, the number of the last call";
+    EXPECT_EQ(reg(12), 0x14u) << "the instruction after the second swi (the hlt)";
+    EXPECT_EQ(state("mode"), "kernel");
+    EXPECT_EQ(state_number("esr"), reg(11));
+    EXPECT_NE(state_number("vbar"), 0u);
+
+    std::ifstream in(m_dir / "trace.txt");
+    std::stringstream ss;
+    ss << in.rdbuf();
+    EXPECT_NE(ss.str().find("-- exception: supervisor call"), std::string::npos) << ss.str();
+}
+
+// eret into user mode, where hlt is not allowed: the handler sees why.
+TEST_F(AssemblerIntegration, hlt_in_user_mode_is_an_undefined_instruction)
+{
+    write_file("user.basm", std::string(R"(.global _start
+.global user
+.text
+_start:
+                adrp    x0, vectors
+                add     x0, x0, :lo12:vectors
+                msr     vbar, x0
+                adrp    x1, user
+                add     x1, x1, :lo12:user
+                msr     elr, x1
+                msr     spsr, 16                ; user mode, IRQs not masked
+                eret
+
+user:
+                add     x4, xzr, 5
+                hlt                             ; privileged
+
+svc_handler:
+                hlt
+
+undefined_handler:
+                mrs     x5, esr
+                mrs     x6, elr
+                mrs     x7, spsr
+                hlt
+)") + kVectorTable);
+    ASSERT_NO_FATAL_FAILURE(build("-o user user.basm -outdir ."));
+    ObjectFile exe(File(path("user.bexe")));
+    const ObjectFile::SymbolTableEntry *user = symbol(exe, "user");
+    ASSERT_NE(user, nullptr);
+
+    ASSERT_NO_FATAL_FAILURE(run("user.bexe"));
+    EXPECT_EQ(reg(4), 5u) << "the user code ran";
+    EXPECT_EQ(reg(5), (1u << 26) | 2u) << "undefined instruction, privileged";
+    EXPECT_EQ(reg(6), user->symbol_value + 4);
+    EXPECT_EQ(reg(7), 16u) << "it came from user mode";
+    EXPECT_EQ(state("mode"), "kernel");
+}
+
+TEST_F(AssemblerIntegration, emulator_calls_can_be_turned_off)
+{
+    write_file("call.basm", R"(.global _start
+.text
+_start:
+                add     x8, xzr, 1003
+                swi     1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o call call.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("call.bexe"));
+
+    EXPECT_EQ(emu32("-e call.bexe -l 100 --no-semihosting"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_NE(state("message").find("emulator calls are off"), std::string::npos)
+        << state("message");
+}

@@ -4,7 +4,9 @@
 #include "util/logger.h"
 #include "util/types.h"
 
+#include <cctype>
 #include <format>
+#include <utility>
 
 namespace
 {
@@ -63,10 +65,17 @@ Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
 
 Emulator32bit::~Emulator32bit() = default;
 
-Emulator32bit::Exception::Exception(Emulator32bit::InterruptType type, const std::string &msg) :
+Emulator32bit::Exception::Exception(Emulator32bit::InterruptType type, const std::string &msg,
+                                    const word iss) :
     type(type),
-    message(msg)
+    message(msg),
+    iss(iss)
 {
+}
+
+word Emulator32bit::Exception::get_iss() const noexcept
+{
+    return iss;
 }
 
 const char *Emulator32bit::Exception::what() const noexcept
@@ -145,7 +154,23 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
             first = false;
 
-            const word instr = fetch_instruction();
+            // With a vector table installed (VBAR != 0) the exceptions of the CPU are raised
+            // instead of ending the run, and the next instruction is the first one of the handler.
+            word instr;
+            try
+            {
+                instr = fetch_instruction();
+            }
+            catch (const std::exception &error)
+            {
+                if (!deliver_exception(error, true))
+                {
+                    throw;
+                }
+                m_pc_written = false;
+                continue;
+            }
+
             if (UNLIKELY(m_history_size != 0))
             {
                 if (m_history.size() == m_history_size)
@@ -155,15 +180,35 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 m_history.push_back({.pc = m_pc, .instruction = instr});
             }
 
-            if (UNLIKELY(m_trace != nullptr))
+            try
             {
-                execute_traced(instr);
+                if (UNLIKELY(m_trace != nullptr))
+                {
+                    execute_traced(instr);
+                }
+                else
+                {
+                    execute(instr);
+                }
             }
-            else
+            catch (const std::exception &error)
             {
-                execute(instr);
+                if (!deliver_exception(error, false))
+                {
+                    throw;
+                }
+                m_pc_written = false;
+                continue;
             }
-            m_pc += 4;
+
+            // Whatever wrote the pc (ERET, an exception) wrote the address of the next
+            // instruction itself.
+            if (LIKELY(!m_pc_written))
+            {
+                m_pc += 4;
+            }
+            m_pc_written = false;
+            m_retired_since_entry = true;
             result.instructions_ran++;
         }
     }
@@ -174,6 +219,17 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             AEMU_DEBUG("Emulator32bit::run() - Halted after {} instructions.",
                        result.instructions_ran);
             result.status = RunResult::Status::HALTED;
+            result.message = e.what();
+            // The hlt ran, if it was the first instruction of a handler that is not a double fault.
+            m_retired_since_entry = true;
+        }
+        else if (e.get_type() == InterruptType::BREAK_INSTR)
+        {
+            // The brk completed, the debugger goes on with the next instruction.
+            m_pc += 4;
+            m_retired_since_entry = true;
+            result.instructions_ran++;
+            result.status = RunResult::Status::BREAKPOINT;
             result.message = e.what();
         }
         else
@@ -332,12 +388,275 @@ void Emulator32bit::execute_traced(const word instr)
     {
         changes += " NZCV=" + flag_letters(pstate_before) + "->" + flag_letters(m_pstate);
     }
-    if (m_pc != pc)
+    const word next_pc = m_pc_written ? m_pc : m_pc + 4;
+    if (next_pc != pc + 4)
     {
-        changes += std::format(" pc={:#x}", m_pc + 4);
+        changes += std::format(" pc={:#x}", next_pc);
     }
 
     *m_trace << line << (changes.empty() ? "" : " ;" + changes) << "\n";
+}
+
+namespace
+{
+
+/// The system registers by name, in the order of their numbers.
+struct SysregName
+{
+    U8 id;
+    const char *name;
+};
+
+constexpr SysregName kSysregNames[] = {
+    {Emulator32bit::kSysregId_pstate, "pstate"}, {Emulator32bit::kSysregId_elr, "elr"},
+    {Emulator32bit::kSysregId_spsr, "spsr"},     {Emulator32bit::kSysregId_esr, "esr"},
+    {Emulator32bit::kSysregId_far, "far"},       {Emulator32bit::kSysregId_vbar, "vbar"},
+    {Emulator32bit::kSysregId_usp, "usp"},       {Emulator32bit::kSysregId_ptbr, "ptbr"},
+    {Emulator32bit::kSysregId_sctlr, "sctlr"},
+};
+
+const char *exception_class_name(const Emulator32bit::ExceptionClass cls)
+{
+    using Class = Emulator32bit::ExceptionClass;
+    switch (cls)
+    {
+    case Class::UNDEFINED_INSTRUCTION:
+        return "undefined instruction";
+    case Class::SUPERVISOR_CALL:
+        return "supervisor call";
+    case Class::INSTRUCTION_ABORT:
+        return "instruction abort";
+    case Class::DATA_ABORT:
+        return "data abort";
+    case Class::BREAKPOINT:
+        return "breakpoint";
+    case Class::IRQ:
+        return "irq";
+    }
+    return "?";
+}
+
+} // namespace
+
+const char *Emulator32bit::sysreg_name(const U8 id)
+{
+    for (const SysregName &sysreg : kSysregNames)
+    {
+        if (sysreg.id == id)
+        {
+            return sysreg.name;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<U8> Emulator32bit::sysreg_id(const std::string &name)
+{
+    std::string lower = name;
+    for (char &c : lower)
+    {
+        c = char(std::tolower(static_cast<unsigned char>(c)));
+    }
+    for (const SysregName &sysreg : kSysregNames)
+    {
+        if (lower == sysreg.name)
+        {
+            return sysreg.id;
+        }
+    }
+    return std::nullopt;
+}
+
+word Emulator32bit::read_sysreg(const U8 id) const
+{
+    switch (id)
+    {
+    case 0:
+        return 0;
+    case kSysregId_pstate:
+        return m_pstate;
+    case kSysregId_elr:
+        return m_elr;
+    case kSysregId_spsr:
+        return m_spsr;
+    case kSysregId_esr:
+        return m_esr;
+    case kSysregId_far:
+        return m_far;
+    case kSysregId_vbar:
+        return m_vbar;
+    case kSysregId_usp:
+        return m_sp_other;
+    case kSysregId_ptbr:
+        return m_ptbr;
+    case kSysregId_sctlr:
+        return m_sctlr;
+    default:
+        throw Exception(InterruptType::BAD_REG,
+                        "System register " + std::to_string(id) + " unimplemented.",
+                        kUndefinedIss_sysreg);
+    }
+}
+
+void Emulator32bit::write_sysreg(const U8 id, const word value)
+{
+    switch (id)
+    {
+    case 0:
+        break;
+    case kSysregId_pstate:
+        set_user_mode(test_bit(value, kUserModeBit));
+        m_pstate = value & kPstateMask;
+        break;
+    case kSysregId_elr:
+        m_elr = value;
+        break;
+    case kSysregId_spsr:
+        m_spsr = value & kPstateMask;
+        break;
+    case kSysregId_esr:
+        m_esr = value;
+        break;
+    case kSysregId_far:
+        m_far = value;
+        break;
+    case kSysregId_vbar:
+        m_vbar = value & ~word(0xF); // the entries are 16 bytes
+        break;
+    case kSysregId_usp:
+        m_sp_other = value;
+        break;
+    case kSysregId_ptbr:
+        m_ptbr = value;
+        break;
+    case kSysregId_sctlr:
+        m_sctlr = value;
+        break;
+    default:
+        throw Exception(InterruptType::BAD_REG,
+                        "System register " + std::to_string(id) + " unimplemented.",
+                        kUndefinedIss_sysreg);
+    }
+}
+
+void Emulator32bit::set_semihosting(const bool enabled)
+{
+    m_semihosting = enabled;
+}
+
+void Emulator32bit::set_brk_stops(const bool stops)
+{
+    m_brk_stops = stops;
+}
+
+void Emulator32bit::set_user_mode(const bool user)
+{
+    if (user != user_mode())
+    {
+        std::swap(m_x[register_to_U8(Register::SP)], m_sp_other);
+    }
+    m_pstate = set_bit(m_pstate, kUserModeBit, user);
+}
+
+void Emulator32bit::require_kernel()
+{
+    if (UNLIKELY(user_mode()))
+    {
+        throw Exception(InterruptType::BAD_INSTR, "Privileged instruction in user mode.",
+                        kUndefinedIss_privileged);
+    }
+}
+
+void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, const word far,
+                                    const word elr)
+{
+    if (!m_retired_since_entry)
+    {
+        throw Exception(InterruptType::DOUBLE_FAULT,
+                        std::format("Double fault: {} raised at {:#010x} before any instruction of "
+                                    "the handler ran",
+                                    exception_class_name(cls), m_pc));
+    }
+    m_retired_since_entry = false;
+
+    m_elr = elr;
+    m_spsr = m_pstate;
+    m_esr = (word(cls) << 26) | (iss & 0x3FFFFFF);
+    if (cls == ExceptionClass::INSTRUCTION_ABORT || cls == ExceptionClass::DATA_ABORT)
+    {
+        m_far = far;
+    }
+
+    set_user_mode(false);
+    m_pstate = set_bit(m_pstate, kIrqMaskBit, 1);
+    m_pc = m_vbar + 16 * word(cls);
+    m_pc_written = true;
+
+    if (m_trace != nullptr)
+    {
+        *m_trace << std::format("-- exception: {}, ESR={:#x}, ELR={:#x}, FAR={:#x} -> {:#x}\n",
+                                exception_class_name(cls), m_esr, m_elr, m_far, m_pc);
+    }
+}
+
+bool Emulator32bit::deliver_exception(const std::exception &error, const bool fetching)
+{
+    if (m_vbar == 0)
+    {
+        return false;
+    }
+
+    if (const auto *emu = dynamic_cast<const Exception *>(&error))
+    {
+        if (emu->get_type() != InterruptType::BAD_INSTR
+            && emu->get_type() != InterruptType::BAD_REG)
+        {
+            return false; // halt, a failed assertion, brk with a debugger, a double fault
+        }
+
+        if (fetching)
+        {
+            // Only a pc that is not word aligned fails like this.
+            enter_exception(ExceptionClass::INSTRUCTION_ABORT, kAbortIss_alignment, m_pc, m_pc);
+        }
+        else
+        {
+            enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);
+        }
+        return true;
+    }
+
+    const ExceptionClass abort_class =
+        fetching ? ExceptionClass::INSTRUCTION_ABORT : ExceptionClass::DATA_ABORT;
+
+    if (const auto *fault = dynamic_cast<const VirtualMemory::PageFaultException *>(&error))
+    {
+        using Reason = VirtualMemory::PageFaultException::Reason;
+        word iss =
+            fault->get_reason() == Reason::UNMAPPED ? kAbortIss_translation : kAbortIss_permission;
+        if (!fetching && fault->get_access() == VirtualMemory::AccessType::WRITE)
+        {
+            iss |= kAbortIss_write;
+        }
+
+        // The page that faulted is the one of the access, or the next one if the access crosses
+        // into it, which starts at the page boundary.
+        const word page_start = fault->get_vpage() << kNumPageOffsetBits;
+        const word far = fetching ? m_pc
+                                  : ((m_data_address >> kNumPageOffsetBits) == fault->get_vpage()
+                                         ? m_data_address
+                                         : page_start);
+        enter_exception(abort_class, iss, far, m_pc);
+        return true;
+    }
+
+    if (dynamic_cast<const SystemBus::Exception *>(&error) != nullptr)
+    {
+        enter_exception(abort_class, kAbortIss_bus, fetching ? m_pc : m_data_address, m_pc);
+        return true;
+    }
+
+    return false;
 }
 
 void Emulator32bit::reset()
@@ -348,6 +667,13 @@ void Emulator32bit::reset()
     {
         reg = 0;
     }
-    m_pstate = 0;
+    // Kernel mode with IRQs masked, and no vector table.
+    m_pstate = word(1) << kIrqMaskBit;
     m_pc = 0;
+
+    m_sp_other = 0;
+    m_elr = m_spsr = m_esr = m_far = m_vbar = m_ptbr = m_sctlr = 0;
+    m_data_address = 0;
+    m_pc_written = false;
+    m_retired_since_entry = true;
 }
