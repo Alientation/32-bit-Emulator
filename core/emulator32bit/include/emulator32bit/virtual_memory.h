@@ -3,6 +3,7 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/fbl.h"
+#include "emulator32bit/physical_pages.h"
 
 #include <unordered_map>
 
@@ -40,8 +41,11 @@ class VirtualMemory
      *                      are the pages of RAM. A page outside of this range (like ROM) can only
      *                      be used by mapping a virtual page to it explicitly.
      * @param frame_pages   Number of such pages.
+     * @param physical      Where the pages that are paged in are, see set_physical_pages. Without it
+     *                      the pages have no contents, which is enough to look at the mappings.
      */
-    VirtualMemory(Disk *disk, word frame_lo_page = 0, word frame_pages = kMaxPhysicalPages);
+    VirtualMemory(Disk *disk, word frame_lo_page = 0, word frame_pages = kMaxPhysicalPages,
+                  PhysicalPages *physical = nullptr);
     ~VirtualMemory();
     VirtualMemory(const VirtualMemory &) = delete;
     VirtualMemory &operator=(const VirtualMemory &) = delete;
@@ -143,29 +147,9 @@ class VirtualMemory
         word get_vpage() const noexcept;
     };
 
-    /**
-     * @brief             The physical memory that holds the pages that are paged in. The virtual
-     *                    memory copies a page to it when the page is brought in from the disk, and
-     *                    from it when the page is swapped out.
-     */
-    class PhysicalPages
-    {
-      public:
-        virtual ~PhysicalPages() = default;
-
-        /// Copies the physical page to `out`, which has room for kPageSize bytes.
-        virtual void read_page(word ppage, byte *out) = 0;
-
-        /// Copies kPageSize bytes to the physical page.
-        virtual void write_page(word ppage, const byte *data) = 0;
-
-        /// Reads the word at a physical address (the page table walker uses this). Returns
-        /// false if no memory is there.
-        virtual bool read_physical_word(word address, word &out) = 0;
-
-        /// Writes a word to a physical address. Returns false if no memory is there.
-        virtual bool write_physical_word(word address, word value) = 0;
-    };
+    /// The physical memory that holds the pages that are paged in. The virtual memory copies a page
+    /// to it when the page is brought in from the disk, and from it when the page is swapped out.
+    using PhysicalPages = ::PhysicalPages;
 
     /// @name Page tables in memory
     /// When the walk is enabled (`SCTLR.M`), virtual addresses are translated by walking a two

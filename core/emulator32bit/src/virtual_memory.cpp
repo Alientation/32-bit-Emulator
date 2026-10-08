@@ -4,12 +4,14 @@
 
 #include <unordered_set>
 
-VirtualMemory::VirtualMemory(Disk *disk, word frame_lo_page, word frame_pages) :
+VirtualMemory::VirtualMemory(Disk *disk, word frame_lo_page, word frame_pages,
+                             PhysicalPages *physical) :
     m_disk(disk),
     m_freepids(0, kMaxProcesses),
     m_frame_lo(frame_lo_page),
     m_frame_pages(frame_pages),
-    m_freelist(frame_lo_page, frame_pages, frame_pages > 0)
+    m_freelist(frame_lo_page, frame_pages, frame_pages > 0),
+    m_physical(physical)
 {
 }
 
