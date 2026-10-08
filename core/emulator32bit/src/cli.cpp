@@ -52,11 +52,11 @@ std::optional<U8> parse_register(const std::string &str)
 {
     if (str == "sp")
     {
-        return static_cast<U8>(Emulator32bit::Register::SP);
+        return static_cast<U8>(Register::SP);
     }
     if (str == "xzr")
     {
-        return static_cast<U8>(Emulator32bit::Register::XZR);
+        return static_cast<U8>(Register::XZR);
     }
 
     const std::string digits = (!str.empty() && str[0] == 'x') ? str.substr(1) : str;
@@ -66,7 +66,7 @@ std::optional<U8> parse_register(const std::string &str)
     }
 
     const std::optional<U64> reg = parse_number(digits);
-    if (!reg || *reg >= Emulator32bit::kNumReg)
+    if (!reg || *reg >= kNumReg)
     {
         return std::nullopt;
     }
@@ -106,16 +106,16 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
     }
 
     out << "pc=" << hex(emu.get_pc()) << "\n";
-    for (U8 reg = 0; reg < static_cast<U8>(Emulator32bit::Register::SP); reg++)
+    for (U8 reg = 0; reg < static_cast<U8>(Register::SP); reg++)
     {
         out << "x" << int(reg) << "=" << hex(emu.read_reg(reg)) << "\n";
     }
-    out << "sp=" << hex(emu.read_reg(Emulator32bit::Register::SP)) << "\n";
+    out << "sp=" << hex(emu.read_reg(Register::SP)) << "\n";
 
-    out << "N=" << emu.get_flag(Emulator32bit::kNFlagBit) << "\n";
-    out << "Z=" << emu.get_flag(Emulator32bit::kZFlagBit) << "\n";
-    out << "C=" << emu.get_flag(Emulator32bit::kCFlagBit) << "\n";
-    out << "V=" << emu.get_flag(Emulator32bit::kVFlagBit) << "\n";
+    out << "N=" << emu.get_flag(kNFlagBit) << "\n";
+    out << "Z=" << emu.get_flag(kZFlagBit) << "\n";
+    out << "C=" << emu.get_flag(kCFlagBit) << "\n";
+    out << "V=" << emu.get_flag(kVFlagBit) << "\n";
 
     // mem[<addr>]=<hex bytes, space separated>
     for (const auto &[addr, len] : mem_ranges)

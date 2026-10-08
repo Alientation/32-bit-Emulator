@@ -1,5 +1,6 @@
 #pragma once
 
+#include "emulator32bit/alu.h"
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
@@ -42,110 +43,6 @@ class Emulator32bit
     Emulator32bit(RAM *ram, ROM *rom, Disk *disk);
     ~Emulator32bit();
 
-    enum class Register : U8
-    {
-        X0 = 0,
-        X1 = 1,
-        X2 = 2,
-        X3 = 3,
-        X4 = 4,
-        X5 = 5,
-        X6 = 6,
-        X7 = 7,
-        X8 = 8,
-        SYSCALL = 8,
-        X9 = 9,
-        X10 = 10,
-        X11 = 11,
-        X12 = 12,
-        X13 = 13,
-        X14 = 14,
-        X15 = 15,
-        X16 = 16,
-        X17 = 17,
-        X18 = 18,
-        X19 = 19,
-        X20 = 20,
-        X21 = 21,
-        X22 = 22,
-        X23 = 23,
-        X24 = 24,
-        X25 = 25,
-        X26 = 26,
-        X27 = 27,
-        X28 = 28,
-        FP = 28,
-        X29 = 29,
-        LR = 29,
-        SP = 30,
-        XZR = 31,
-    };
-
-    ///
-    /// @brief                  IDs for special registers
-    ///
-    /// Stack grows downwards
-    /// <--------STACK_TOP-------->
-    ///          Saved FP
-    ///          Saved LR                <--- fp
-    ///  ---STACK_FRAME_BORDER---
-    ///      local variables
-    ///          <...>
-    ///          <...>
-    ///          <...>
-    ///      local variables             <---- sp
-    ///
-    /// Link register stores the previous pc, the next instruction is what will be
-    /// executed.
-    ///
-    /// Register Conventions
-    ///  - x0-x17: Caller Saved
-    ///     - x0-x7: Parameter Registers
-    ///     - x0: Return value
-    ///     - x8: Syscall Number
-    ///  - x19-27: Callee Saved
-    ///  - x28: Frame Register
-    ///  - x29: Link Register
-    ///
-
-    /// @brief              Number of general purpose stack registers.
-    static constexpr U8 kNumReg = 32;
-    static_assert(static_cast<U8>(Register::XZR) + 1 == kNumReg);
-
-    static constexpr inline U8 register_to_U8(Register reg)
-    {
-        return static_cast<U8>(reg);
-    }
-
-    ///
-    /// @brief              Flag bit locations in the _pstate register.
-    ///
-
-    /// @brief              Negative Flag.
-    static constexpr U8 kNFlagBit = 0;
-
-    /// @brief              Zero Flag.
-    static constexpr U8 kZFlagBit = 1;
-
-    /// @brief              Carry Flag.
-    static constexpr U8 kCFlagBit = 2;
-
-    /// @brief              Overflow Flag.
-    static constexpr U8 kVFlagBit = 3;
-
-    /// @brief              User mode flag.
-    static constexpr U8 kUserModeFlagBit = 8;
-
-    /// @brief              Real memory mode flag.
-    static constexpr U8 kRealModeFlagBit = 9;
-
-    /// @brief              Which bit of the instruction determines whether flags will be updated.
-    static constexpr U8 kInstructionUpdateFlagBit = 25;
-
-    /// @brief              Max supported instructions. 6 bits are used to represent the opcode for easy
-    ///                     look-up table translations.
-    static constexpr U8 kMaxInstructions = 64;
-
     // TODO:
     enum class InterruptType : U8
     {
@@ -176,67 +73,6 @@ class Emulator32bit
         Exception(InterruptType type, const std::string &msg);
         const char *what() const noexcept override;
         InterruptType get_type() const noexcept;
-    };
-
-    enum class ConditionCode : U8
-    {
-        /// @brief          Equal                           : Z==1
-        EQ = 0,
-
-        /// @brief          Not Equal                       : Z==0
-        NE = 1,
-
-        /// @brief          Unsigned higher or same         : C==1
-        CS = 2,
-        HS = 2,
-
-        /// @brief          Unsigned lower                  : C==0
-        CC = 3,
-        LO = 3,
-
-        /// @brief          Negative                        : N==1
-        MI = 4,
-
-        /// @brief          Nonnegative                     : N==0
-        PL = 5,
-
-        /// @brief          Signed overflow                 : V==1
-        VS = 6,
-
-        /// @brief          No signed overflow              : V==0
-        VC = 7,
-
-        /// @brief          Unsigned higher                 : C==1 && Z==0
-        HI = 8,
-
-        /// @brief          Unsigned lower or same          : C==0 || Z==0
-        LS = 9,
-
-        /// @brief          Signed greater than or equal    : N==V
-        GE = 10,
-
-        /// @brief          Signed less than                : N!=V
-        LT = 11,
-
-        /// @brief          Signed greater than             : Z==0 && N==V
-        GT = 12,
-
-        /// @brief          Signed less than or equal       : Z==1 || N!=V
-        LE = 13,
-
-        /// @brief          Always executed                 : NONE
-        AL = 14,
-
-        /// @brief          Never executed                  : NONE
-        NV = 15,
-    };
-
-    enum class ShiftType : U8
-    {
-        SHIFT_LSL,
-        SHIFT_LSR,
-        SHIFT_ASR,
-        SHIFT_ROR
     };
 
     enum class AddrType : U8
@@ -399,54 +235,6 @@ class Emulator32bit
     inline void execute(word instr)
     {
         (this->*m_instruction_handler[bitfield_unsigned(instr, 26, 6)])(instr);
-    }
-
-    inline bool check_cond(word pstate, U8 cond)
-    {
-        const bool N = test_bit(pstate, kNFlagBit);
-        const bool Z = test_bit(pstate, kZFlagBit);
-        const bool C = test_bit(pstate, kCFlagBit);
-        const bool V = test_bit(pstate, kVFlagBit);
-
-        switch (static_cast<ConditionCode>(cond))
-        {
-        case ConditionCode::EQ:
-            return Z == 1;
-        case ConditionCode::NE:
-            return Z == 0;
-        case ConditionCode::CS:
-            return C == 1;
-        case ConditionCode::CC:
-            return C == 0;
-        case ConditionCode::MI:
-            return N == 1;
-        case ConditionCode::PL:
-            return N == 0;
-        case ConditionCode::VS:
-            return V == 1;
-        case ConditionCode::VC:
-            return V == 0;
-        case ConditionCode::HI:
-            return C == 1 && Z == 0;
-        case ConditionCode::LS:
-            return C == 0 || Z == 1;
-        case ConditionCode::GE:
-            return N == V;
-        case ConditionCode::LT:
-            return N != V;
-        case ConditionCode::GT:
-            return Z == 0 && (N == V);
-        case ConditionCode::LE:
-            return Z == 1 || (N != V);
-        case ConditionCode::AL:
-            return true;
-        case ConditionCode::NV:
-            return false;
-        }
-
-        // Shouldn't ever reach this.
-        // TODO: figure out how to report this better?
-        return false;
     }
 
 #define _INSTR(func_name, opcode)                                                                  \

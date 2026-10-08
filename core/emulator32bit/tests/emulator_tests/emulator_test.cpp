@@ -193,24 +193,21 @@ static bool cond_holds(int cond, bool n, bool z, bool c, bool v)
 TEST_F(EmulatorFixture, branch_b_forward)
 {
     // b +3 instructions: target is the branch address + 12
-    step(0,
-         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, 3));
+    step(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 3));
     EXPECT_EQ(cpu.get_pc(), 12u);
 }
 
 TEST_F(EmulatorFixture, branch_b_backward)
 {
     // b -2 instructions from address 16 lands on address 8
-    step(16,
-         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, -2));
+    step(16, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -2));
     EXPECT_EQ(cpu.get_pc(), 8u);
 }
 
 TEST_F(EmulatorFixture, branch_b_does_not_touch_link_register)
 {
     cpu.write_reg(29, 0x1234);
-    step(0,
-         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, 3));
+    step(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 3));
     EXPECT_EQ(cpu.read_reg(29), 0x1234u);
 }
 
@@ -226,8 +223,7 @@ TEST_F(EmulatorFixture, branch_b_condition_codes_match_flags)
             const bool v = flags & 1;
 
             cpu.system_bus->write_word(
-                0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b,
-                                                Emulator32bit::ConditionCode(cond), 3));
+                0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode(cond), 3));
             cpu.set_pc(0);
             cpu.set_NZCV(n, z, c, v);
             cpu.run(1);

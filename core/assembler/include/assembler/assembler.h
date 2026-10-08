@@ -126,7 +126,7 @@ class Assembler
     /// @param tok_i
     /// @param shift
     /// @param shift_amt
-    void parse_shift(Emulator32bit::ShiftType &shift, int &shift_amt);
+    void parse_shift(ShiftType &shift, int &shift_amt);
 
     /// @brief TODO:
     /// @param tok_i

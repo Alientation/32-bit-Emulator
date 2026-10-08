@@ -20,14 +20,10 @@ TEST_F(EmulatorFixture, strb_offset)
            "written at address 8";
     EXPECT_EQ(cpu.read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu.read_reg(1), 5) << "operation should not change operand \'x1\'";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0)
-        << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0)
-        << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0)
-        << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kVFlagBit), 0)
-        << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu.get_flag(kNFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kZFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kCFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kVFlagBit), 0);
 }
 
 TEST_F(EmulatorFixture, strb_pre_indexed)
@@ -48,14 +44,10 @@ TEST_F(EmulatorFixture, strb_pre_indexed)
            "written at address 8";
     EXPECT_EQ(cpu.read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu.read_reg(1), 8) << "operation should preincrement \'x1\'";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0)
-        << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0)
-        << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0)
-        << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kVFlagBit), 0)
-        << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu.get_flag(kNFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kZFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kCFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kVFlagBit), 0);
 }
 
 TEST_F(EmulatorFixture, strb_post_indexed)
@@ -76,12 +68,8 @@ TEST_F(EmulatorFixture, strb_post_indexed)
            "written at address 8";
     EXPECT_EQ(cpu.read_reg(0), 9) << "operation should not change operand \'x0\'";
     EXPECT_EQ(cpu.read_reg(1), 11) << "operation should postincrement \'x1\'";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0)
-        << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0)
-        << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0)
-        << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kVFlagBit), 0)
-        << "operation should not cause V flag to be set";
+    EXPECT_EQ(cpu.get_flag(kNFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kZFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kCFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(kVFlagBit), 0);
 }

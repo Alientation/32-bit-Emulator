@@ -1,0 +1,284 @@
+#pragma once
+
+#include "emulator32bit/emulator32bit_util.h"
+#include <util/common.h>
+#define AEMU_ONLY_CRITICAL_LOG
+#include <util/logger.h>
+
+enum class Register : U8
+{
+    X0 = 0,
+    X1 = 1,
+    X2 = 2,
+    X3 = 3,
+    X4 = 4,
+    X5 = 5,
+    X6 = 6,
+    X7 = 7,
+    X8 = 8,
+    SYSCALL = 8,
+    X9 = 9,
+    X10 = 10,
+    X11 = 11,
+    X12 = 12,
+    X13 = 13,
+    X14 = 14,
+    X15 = 15,
+    X16 = 16,
+    X17 = 17,
+    X18 = 18,
+    X19 = 19,
+    X20 = 20,
+    X21 = 21,
+    X22 = 22,
+    X23 = 23,
+    X24 = 24,
+    X25 = 25,
+    X26 = 26,
+    X27 = 27,
+    X28 = 28,
+    FP = 28,
+    X29 = 29,
+    LR = 29,
+    SP = 30,
+    XZR = 31,
+    NUM_REG,
+};
+
+///
+/// @brief                  IDs for special registers
+///
+/// Stack grows downwards
+/// <--------STACK_TOP-------->
+///          Saved FP
+///          Saved LR                <--- fp
+///  ---STACK_FRAME_BORDER---
+///      local variables
+///          <...>
+///          <...>
+///          <...>
+///      local variables             <---- sp
+///
+/// Link register stores the previous pc, the next instruction is what will be
+/// executed.
+///
+/// Register Conventions
+///  - x0-x17: Caller Saved
+///     - x0-x7: Parameter Registers
+///     - x0: Return value
+///     - x8: Syscall Number
+///  - x19-27: Callee Saved
+///  - x28: Frame Register
+///  - x29: Link Register
+///
+
+/// @brief              Number of general purpose stack registers.
+static constexpr U8 kNumReg = static_cast<U8>(Register::NUM_REG);
+static_assert(kNumReg == 32);
+
+static constexpr inline U8 register_to_U8(Register reg)
+{
+    return static_cast<U8>(reg);
+}
+
+enum class ConditionCode : U8
+{
+    /// @brief          Equal                           : Z==1
+    EQ = 0,
+
+    /// @brief          Not Equal                       : Z==0
+    NE = 1,
+
+    /// @brief          Unsigned higher or same         : C==1
+    CS = 2,
+    HS = 2,
+
+    /// @brief          Unsigned lower                  : C==0
+    CC = 3,
+    LO = 3,
+
+    /// @brief          Negative                        : N==1
+    MI = 4,
+
+    /// @brief          Nonnegative                     : N==0
+    PL = 5,
+
+    /// @brief          Signed overflow                 : V==1
+    VS = 6,
+
+    /// @brief          No signed overflow              : V==0
+    VC = 7,
+
+    /// @brief          Unsigned higher                 : C==1 && Z==0
+    HI = 8,
+
+    /// @brief          Unsigned lower or same          : C==0 || Z==0
+    LS = 9,
+
+    /// @brief          Signed greater than or equal    : N==V
+    GE = 10,
+
+    /// @brief          Signed less than                : N!=V
+    LT = 11,
+
+    /// @brief          Signed greater than             : Z==0 && N==V
+    GT = 12,
+
+    /// @brief          Signed less than or equal       : Z==1 || N!=V
+    LE = 13,
+
+    /// @brief          Always executed                 : NONE
+    AL = 14,
+
+    /// @brief          Never executed                  : NONE
+    NV = 15,
+};
+
+static inline bool check_cond(word pstate, U8 cond)
+{
+    const bool N = test_bit(pstate, kNFlagBit);
+    const bool Z = test_bit(pstate, kZFlagBit);
+    const bool C = test_bit(pstate, kCFlagBit);
+    const bool V = test_bit(pstate, kVFlagBit);
+
+    switch (static_cast<ConditionCode>(cond))
+    {
+    case ConditionCode::EQ:
+        return Z == 1;
+    case ConditionCode::NE:
+        return Z == 0;
+    case ConditionCode::CS:
+        return C == 1;
+    case ConditionCode::CC:
+        return C == 0;
+    case ConditionCode::MI:
+        return N == 1;
+    case ConditionCode::PL:
+        return N == 0;
+    case ConditionCode::VS:
+        return V == 1;
+    case ConditionCode::VC:
+        return V == 0;
+    case ConditionCode::HI:
+        return C == 1 && Z == 0;
+    case ConditionCode::LS:
+        return C == 0 || Z == 1;
+    case ConditionCode::GE:
+        return N == V;
+    case ConditionCode::LT:
+        return N != V;
+    case ConditionCode::GT:
+        return Z == 0 && (N == V);
+    case ConditionCode::LE:
+        return Z == 1 || (N != V);
+    case ConditionCode::AL:
+        return true;
+    case ConditionCode::NV:
+        return false;
+    }
+
+    EXPECT_FALSE(true, "Unknown condition code: {}", U32(cond));
+    return false;
+}
+
+enum class ShiftType : U8
+{
+    SHIFT_LSL,
+    SHIFT_LSR,
+    SHIFT_ASR,
+    SHIFT_ROR
+};
+
+struct AluResult
+{
+    word result;
+    bool n;
+    bool z;
+    bool c;
+    bool v;
+};
+
+static inline AluResult alu_add(const word a, const word b, const bool carry_in)
+{
+    const U64 extended = U64(a) + U64(b) + U64(carry_in);
+    const word result = word(extended);
+
+    constexpr word kSignBit = 0x80000000U;
+
+    const bool c = extended > 0xFFFFFFFFULL;
+    const bool v = ((~(a ^ b) & (a ^ result)) & kSignBit) != 0;
+
+    return {
+        .result = result,
+        .n = (result & kSignBit) != 0,
+        .z = result == 0,
+        .c = c,
+        .v = v,
+    };
+}
+
+static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
+{
+    // ARM convention:
+    //   SUB: carry_in = true
+    //   SBC: carry_in = previous C flag
+    const U64 borrow = carry_in ? 0 : 1;
+    const U64 rhs = U64(b) + borrow;
+    const word result = word(U64(a) - rhs);
+
+    constexpr word kSignBit = 0x80000000U;
+
+    const bool c = U64(a) >= rhs;
+    const word effective_b = word(rhs);
+    const bool v = ((a ^ effective_b) & (a ^ result) & kSignBit) != 0;
+
+    return {
+        .result = result,
+        .n = (result & kSignBit) != 0,
+        .z = result == 0,
+        .c = c,
+        .v = v,
+    };
+}
+
+struct ShiftResult
+{
+    word result;
+    bool carry;
+};
+
+/**
+ * Perform a shift operation.
+ * @param value Value to shift.
+ * @param type Shift operation.
+ * @param shift_amt Amount to shift by. Must be in the range [0,31].
+ * @param carry_in Carry in
+ */
+static inline ShiftResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
+                                    const bool carry_in)
+{
+    EXPECT_TRUE(shift_amt < 32, "Expected shift amount to be [0,31], got {}.", shift_amt);
+    if (shift_amt == 0)
+    {
+        return {value, carry_in};
+    }
+
+    switch (type)
+    {
+    case ShiftType::SHIFT_LSL:
+        return {value << shift_amt, bool((value >> (32 - shift_amt)) & 1)};
+
+    case ShiftType::SHIFT_LSR:
+        return {value >> shift_amt, bool((value >> (shift_amt - 1)) & 1)};
+
+    case ShiftType::SHIFT_ASR:
+        return {word(sword(value) >> shift_amt), bool((value >> (shift_amt - 1)) & 1)};
+
+    case ShiftType::SHIFT_ROR:
+        return {(value >> shift_amt) | (value << (32 - shift_amt)),
+                bool((value >> (shift_amt - 1)) & 1)};
+    }
+
+    ERROR("Invalid shift type: {}", U32(type));
+    return {};
+}

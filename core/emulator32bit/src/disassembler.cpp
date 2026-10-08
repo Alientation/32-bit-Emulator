@@ -5,11 +5,11 @@
 static std::string disassemble_gpr(word instruction, U8 offset)
 {
     const U8 gpr = bitfield_unsigned(instruction, offset, 5);
-    if (gpr == Emulator32bit::register_to_U8(Emulator32bit::Register::SP))
+    if (gpr == register_to_U8(Register::SP))
     {
         return "sp";
     }
-    else if (gpr == Emulator32bit::register_to_U8(Emulator32bit::Register::XZR))
+    else if (gpr == register_to_U8(Register::XZR))
     {
         return "xzr";
     }
@@ -22,18 +22,18 @@ static std::string disassemble_gpr(word instruction, U8 offset)
 static std::string disassemble_shift(word instruction)
 {
     std::string disassemble;
-    switch (static_cast<Emulator32bit::ShiftType>(bitfield_unsigned(instruction, 7, 2)))
+    switch (static_cast<ShiftType>(bitfield_unsigned(instruction, 7, 2)))
     {
-    case Emulator32bit::ShiftType::SHIFT_LSL:
+    case ShiftType::SHIFT_LSL:
         disassemble = "lsl ";
         break;
-    case Emulator32bit::ShiftType::SHIFT_LSR:
+    case ShiftType::SHIFT_LSR:
         disassemble = "lsr ";
         break;
-    case Emulator32bit::ShiftType::SHIFT_ASR:
+    case ShiftType::SHIFT_ASR:
         disassemble = "asr ";
         break;
-    case Emulator32bit::ShiftType::SHIFT_ROR:
+    case ShiftType::SHIFT_ROR:
         disassemble = "ror ";
         break;
     default:
@@ -45,41 +45,41 @@ static std::string disassemble_shift(word instruction)
     return disassemble;
 }
 
-static std::string disassemble_condition(Emulator32bit::ConditionCode condition)
+static std::string disassemble_condition(ConditionCode condition)
 {
     switch (condition)
     {
-    case Emulator32bit::ConditionCode::EQ:
+    case ConditionCode::EQ:
         return "eq";
-    case Emulator32bit::ConditionCode::NE:
+    case ConditionCode::NE:
         return "ne";
-    case Emulator32bit::ConditionCode::CS:
+    case ConditionCode::CS:
         return "cs";
-    case Emulator32bit::ConditionCode::CC:
+    case ConditionCode::CC:
         return "cc";
-    case Emulator32bit::ConditionCode::MI:
+    case ConditionCode::MI:
         return "mi";
-    case Emulator32bit::ConditionCode::PL:
+    case ConditionCode::PL:
         return "pl";
-    case Emulator32bit::ConditionCode::VS:
+    case ConditionCode::VS:
         return "vs";
-    case Emulator32bit::ConditionCode::VC:
+    case ConditionCode::VC:
         return "vc";
-    case Emulator32bit::ConditionCode::HI:
+    case ConditionCode::HI:
         return "hi";
-    case Emulator32bit::ConditionCode::LS:
+    case ConditionCode::LS:
         return "ls";
-    case Emulator32bit::ConditionCode::GE:
+    case ConditionCode::GE:
         return "ge";
-    case Emulator32bit::ConditionCode::LT:
+    case ConditionCode::LT:
         return "lt";
-    case Emulator32bit::ConditionCode::GT:
+    case ConditionCode::GT:
         return "gt";
-    case Emulator32bit::ConditionCode::LE:
+    case ConditionCode::LE:
         return "le";
-    case Emulator32bit::ConditionCode::AL:
+    case ConditionCode::AL:
         return "al";
-    case Emulator32bit::ConditionCode::NV:
+    case ConditionCode::NV:
         return "nv";
     }
     return "ERROR_CONDITION";
@@ -88,9 +88,8 @@ static std::string disassemble_condition(Emulator32bit::ConditionCode condition)
 static std::string disassemble_format_b2(word instruction, std::string op)
 {
     std::string disassemble = op;
-    Emulator32bit::ConditionCode condition =
-        (Emulator32bit::ConditionCode) bitfield_unsigned(instruction, 22, 4);
-    if (condition != Emulator32bit::ConditionCode::AL)
+    ConditionCode condition = (ConditionCode) bitfield_unsigned(instruction, 22, 4);
+    if (condition != ConditionCode::AL)
     {
         disassemble += "." + disassemble_condition(condition);
     }
@@ -110,9 +109,8 @@ static std::string disassemble_format_b2(word instruction, std::string op)
 static std::string disassemble_format_b1(word instruction, std::string op)
 {
     std::string disassemble = op;
-    Emulator32bit::ConditionCode condition =
-        (Emulator32bit::ConditionCode) bitfield_unsigned(instruction, 22, 4);
-    if (condition != Emulator32bit::ConditionCode::AL)
+    ConditionCode condition = (ConditionCode) bitfield_unsigned(instruction, 22, 4);
+    if (condition != ConditionCode::AL)
     {
         disassemble += "." + disassemble_condition(condition);
     }
@@ -127,7 +125,7 @@ static std::string disassemble_format_m1(word instruction, std::string op)
     disassemble += ", ";
 
     int32_t offset = bitfield_unsigned(instruction, 0, 20);
-    if (test_bit(instruction, Emulator32bit::kInstructionUpdateFlagBit))
+    if (test_bit(instruction, kInstructionUpdateFlagBit))
     {
         offset -= 1 << 20;
     }
@@ -674,7 +672,7 @@ static std::string disassemble_adrp(word instruction)
 
 // Construct disassembler instruction mapping.
 using DisassemblerFunction = std::string (*)(word);
-static DisassemblerFunction _disassembler_instructions[Emulator32bit::kMaxInstructions];
+static DisassemblerFunction _disassembler_instructions[kMaxInstructions];
 
 static void disassembler_init()
 {
@@ -685,7 +683,7 @@ static void disassembler_init()
     }
     init = true;
 
-    for (U8 i = 0; i < Emulator32bit::kMaxInstructions; i++)
+    for (U8 i = 0; i < kMaxInstructions; i++)
     {
         _disassembler_instructions[i] = disassemble_nop;
     }

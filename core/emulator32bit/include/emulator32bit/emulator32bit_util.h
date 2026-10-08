@@ -40,3 +40,32 @@ static inline constexpr T mask_0(T val, U8 bit_i, U8 len)
 
 static constexpr U8 kNumPageOffsetBits = 12;
 static constexpr U32 kPageSize = 1 << kNumPageOffsetBits;
+
+///
+/// @brief              Flag bit locations in the _pstate register.
+///
+
+/// @brief              Negative Flag.
+static constexpr U8 kNFlagBit = 0;
+
+/// @brief              Zero Flag.
+static constexpr U8 kZFlagBit = 1;
+
+/// @brief              Carry Flag.
+static constexpr U8 kCFlagBit = 2;
+
+/// @brief              Overflow Flag.
+static constexpr U8 kVFlagBit = 3;
+
+/// @brief              User mode flag.
+static constexpr U8 kUserModeFlagBit = 8;
+
+/// @brief              Real memory mode flag.
+static constexpr U8 kRealModeFlagBit = 9;
+
+/// @brief              Which bit of the instruction determines whether flags will be updated.
+static constexpr U8 kInstructionUpdateFlagBit = 25;
+
+/// @brief              Max supported instructions. 6 bits are used to represent the opcode for easy
+///                     look-up table translations.
+static constexpr U8 kMaxInstructions = 64;

@@ -59,7 +59,7 @@ byte Assembler::parse_register()
     return byte(static_cast<U32>(type) - static_cast<U32>(Tokenizer::Type::REGISTER_X0));
 }
 
-void Assembler::parse_shift(Emulator32bit::ShiftType &shift, int &shift_amt)
+void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
 {
     m_tokenizer.expect_next({Tokenizer::INSTRUCTION_LSL, Tokenizer::INSTRUCTION_LSR,
                              Tokenizer::INSTRUCTION_ASR, Tokenizer::INSTRUCTION_ROR},
@@ -68,16 +68,16 @@ void Assembler::parse_shift(Emulator32bit::ShiftType &shift, int &shift_amt)
     switch (m_tokenizer.consume().type)
     {
     case Tokenizer::INSTRUCTION_LSL:
-        shift = Emulator32bit::ShiftType::SHIFT_LSL;
+        shift = ShiftType::SHIFT_LSL;
         break;
     case Tokenizer::INSTRUCTION_LSR:
-        shift = Emulator32bit::ShiftType::SHIFT_LSR;
+        shift = ShiftType::SHIFT_LSR;
         break;
     case Tokenizer::INSTRUCTION_ASR:
-        shift = Emulator32bit::ShiftType::SHIFT_ASR;
+        shift = ShiftType::SHIFT_ASR;
         break;
     case Tokenizer::INSTRUCTION_ROR:
-        shift = Emulator32bit::ShiftType::SHIFT_ROR;
+        shift = ShiftType::SHIFT_ROR;
         break;
     default:
         ERROR("Assembler::parse_shift() - Unreachable.");
@@ -93,49 +93,49 @@ void Assembler::parse_shift(Emulator32bit::ShiftType &shift, int &shift_amt)
         shift_amt, m_tokenizer.get_linei());
 }
 
-Emulator32bit::ConditionCode get_cond_code(Tokenizer::Type type)
+ConditionCode get_cond_code(Tokenizer::Type type)
 {
     switch (type)
     {
     case Tokenizer::Type::CONDITION_EQ:
-        return Emulator32bit::ConditionCode::EQ;
+        return ConditionCode::EQ;
     case Tokenizer::Type::CONDITION_NE:
-        return Emulator32bit::ConditionCode::NE;
+        return ConditionCode::NE;
     case Tokenizer::Type::CONDITION_CS:
-        return Emulator32bit::ConditionCode::CS;
+        return ConditionCode::CS;
     case Tokenizer::Type::CONDITION_HS:
-        return Emulator32bit::ConditionCode::HS;
+        return ConditionCode::HS;
     case Tokenizer::Type::CONDITION_CC:
-        return Emulator32bit::ConditionCode::CC;
+        return ConditionCode::CC;
     case Tokenizer::Type::CONDITION_LO:
-        return Emulator32bit::ConditionCode::LO;
+        return ConditionCode::LO;
     case Tokenizer::Type::CONDITION_MI:
-        return Emulator32bit::ConditionCode::MI;
+        return ConditionCode::MI;
     case Tokenizer::Type::CONDITION_PL:
-        return Emulator32bit::ConditionCode::PL;
+        return ConditionCode::PL;
     case Tokenizer::Type::CONDITION_VS:
-        return Emulator32bit::ConditionCode::VS;
+        return ConditionCode::VS;
     case Tokenizer::Type::CONDITION_VC:
-        return Emulator32bit::ConditionCode::VC;
+        return ConditionCode::VC;
     case Tokenizer::Type::CONDITION_HI:
-        return Emulator32bit::ConditionCode::HI;
+        return ConditionCode::HI;
     case Tokenizer::Type::CONDITION_LS:
-        return Emulator32bit::ConditionCode::LS;
+        return ConditionCode::LS;
     case Tokenizer::Type::CONDITION_GE:
-        return Emulator32bit::ConditionCode::GE;
+        return ConditionCode::GE;
     case Tokenizer::Type::CONDITION_LT:
-        return Emulator32bit::ConditionCode::LT;
+        return ConditionCode::LT;
     case Tokenizer::Type::CONDITION_GT:
-        return Emulator32bit::ConditionCode::GT;
+        return ConditionCode::GT;
     case Tokenizer::Type::CONDITION_LE:
-        return Emulator32bit::ConditionCode::LE;
+        return ConditionCode::LE;
     case Tokenizer::Type::CONDITION_AL:
-        return Emulator32bit::ConditionCode::AL;
+        return ConditionCode::AL;
     case Tokenizer::Type::CONDITION_NV:
-        return Emulator32bit::ConditionCode::NV;
+        return ConditionCode::NV;
     default:
         ERROR("Assembler::get_cond_code() - Unreachable.");
-        return Emulator32bit::ConditionCode::NV;
+        return ConditionCode::NV;
     }
 }
 
@@ -143,7 +143,7 @@ word Assembler::parse_format_b1(byte opcode)
 {
     m_tokenizer.consume();
 
-    Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
+    ConditionCode condition = ConditionCode::AL;
     if (m_tokenizer.is_next(Tokenizer::PERIOD))
     {
         m_tokenizer.consume();
@@ -190,11 +190,11 @@ word Assembler::parse_format_b2(byte opcode)
 {
     m_tokenizer.consume();
 
-    Emulator32bit::ConditionCode condition = Emulator32bit::ConditionCode::AL;
+    ConditionCode condition = ConditionCode::AL;
     if (m_tokenizer.is_next(Tokenizer::PERIOD))
     {
         m_tokenizer.consume();
-        condition = (Emulator32bit::ConditionCode) get_cond_code(
+        condition = (ConditionCode) get_cond_code(
             m_tokenizer
                 .consume(Tokenizer::CONDITIONS,
                          "Assembler::parse_format_b1() - Expected condition code to follow period.")
@@ -329,7 +329,7 @@ word Assembler::parse_format_m(byte opcode)
             const byte reg_b = parse_register();
 
             // Shift argument.
-            Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
+            ShiftType shift = ShiftType::SHIFT_LSL;
             int shift_amount = 0;
             if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
             {
@@ -496,7 +496,7 @@ word Assembler::parse_format_o(byte opcode)
         const byte operand_reg = parse_register();
 
         // Shift.
-        Emulator32bit::ShiftType shift = Emulator32bit::ShiftType::SHIFT_LSL;
+        ShiftType shift = ShiftType::SHIFT_LSL;
         int shift_amt = 0;
         if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
         {

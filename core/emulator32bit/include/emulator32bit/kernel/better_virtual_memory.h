@@ -39,8 +39,7 @@ class MMU
                 Null page directory or processor in real more implies no virtual
                 memory.
             */
-        if (UNLIKELY(!m_processor->pagedir
-                     || m_processor->get_flag(Emulator32bit::kRealModeFlagBit)))
+        if (UNLIKELY(!m_processor->pagedir || m_processor->get_flag(kRealModeFlagBit)))
         {
             return address;
         }
@@ -63,7 +62,7 @@ class MMU
             */
         if (UNLIKELY(vpage >= m_kernel_low_page && vpage <= m_kernel_high_page))
         {
-            if (UNLIKELY(m_processor->get_flag(Emulator32bit::kUserModeFlagBit)))
+            if (UNLIKELY(m_processor->get_flag(kUserModeFlagBit)))
             {
                 throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
                                                "User tried accessing kernel page.");
@@ -81,7 +80,7 @@ class MMU
             throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
                                            "Unmapped memory accessed.");
         }
-        else if (UNLIKELY(entry->kernel && m_processor->get_flag(Emulator32bit::kUserModeFlagBit)))
+        else if (UNLIKELY(entry->kernel && m_processor->get_flag(kUserModeFlagBit)))
         {
             throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
                                            "User tried accessing kernel page.");
