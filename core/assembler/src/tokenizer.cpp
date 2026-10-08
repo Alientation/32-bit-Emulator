@@ -307,80 +307,17 @@ const KeywordMap &assembly_keywords()
         add("sp", TokenType::REGISTER_SP);
         add("xzr", TokenType::REGISTER_XZR);
 
-#define I(text, name, s) add(text, TokenType::INSTRUCTION_##name, s)
-        I("hlt", HLT, false);
-        I("nop", NOP, false);
-        I("add", ADD, true);
-        I("sub", SUB, true);
-        I("rsb", RSB, true);
-        I("adc", ADC, true);
-        I("sbc", SBC, true);
-        I("rsc", RSC, true);
-        I("mul", MUL, true);
-        I("umull", UMULL, true);
-        I("smull", SMULL, true);
-        I("vabs.f32", VABS, false);
-        I("vneg.f32", VNEG, false);
-        I("vsqrt.f32", VSQRT, false);
-        I("vadd.f32", VADD, false);
-        I("vsub.f32", VSUB, false);
-        I("vdiv.f32", VDIV, false);
-        I("vmul.f32", VMUL, false);
-        I("vcmp.f32", VCMP, false);
-        I("vsel.f32", VSEL, false);
-        I("vcint.u32.f32", VCINT, false);
-        I("vcint.s32.f32", VCINT, false);
-        I("vcflo.u32.f32", VCFLO, false);
-        I("vcflo.s32.f32", VCFLO, false);
-        I("vmov.f32", VMOV, false);
-        I("and", AND, true);
-        I("orr", ORR, true);
-        I("eor", EOR, true);
-        I("bic", BIC, true);
-        I("lsl", LSL, true);
-        I("lsr", LSR, true);
-        I("asr", ASR, true);
-        I("ror", ROR, true);
-        I("cmp", CMP, false);
-        I("cmn", CMN, false);
-        I("tst", TST, false);
-        I("teq", TEQ, false);
-        I("mov", MOV, true);
-        I("mvn", MVN, true);
-        I("ldr", LDR, false);
-        I("str", STR, false);
-        I("swp", SWP, false);
-        I("ldrb", LDRB, false);
-        I("strb", STRB, false);
-        I("swpb", SWPB, false);
-        I("ldrh", LDRH, false);
-        I("strh", STRH, false);
-        I("swph", SWPH, false);
-        I("msr", MSR, false);
-        I("mrs", MRS, false);
-        I("tlbi", TLBI, false);
-        I("ldadd", LDADD, false);
-        I("ldaddb", LDADDB, false);
-        I("ldaddh", LDADDH, false);
-        I("ldclr", LDCLR, false);
-        I("ldclrb", LDCLRB, false);
-        I("ldclrh", LDCLRH, false);
-        I("ldset", LDSET, false);
-        I("ldsetb", LDSETB, false);
-        I("ldseth", LDSETH, false);
-        I("b", B, false);
-        I("bl", BL, false);
-        I("bx", BX, false);
-        I("blx", BLX, false);
-        I("swi", SWI, false);
-        I("adrp", ADRP, false);
-        I("ret", RET, false);
-#undef I
+        // Every instruction of instruction_list.h under the text of its row.
+#define BASM_KEYWORD(X, NAME, text, allows_s, ...)                                                 \
+    add(text, TokenType::INSTRUCTION_##NAME, allows_s);
+        BASM_INSTRUCTION_LIST(BASM_KEYWORD, )
+#undef BASM_KEYWORD
 
+        // Other spellings.
+        add("vcint.s32.f32", TokenType::INSTRUCTION_VCINT);
+        add("vcflo.s32.f32", TokenType::INSTRUCTION_VCFLO);
         add("ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
         add("ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
-        add("strsb", TokenType::INSTRUCTION_STRB, false, SIGN_EXTEND);
-        add("strsh", TokenType::INSTRUCTION_STRH, false, SIGN_EXTEND);
         return m;
     }();
     return map;

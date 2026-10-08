@@ -8,13 +8,16 @@ using basm::TokenType;
 
 void Assembler::fail(const Token &at, const std::string &message)
 {
-    m_state = State::ASSEMBLER_ERROR;
     basm::fatal_at(*m_sources, at.loc, message);
 }
 
 void Assembler::warn(const Token &at, const std::string &message)
 {
-    if (m_state != State::ASSEMBLER_ERROR) m_state = State::ASSEMBLER_WARNING;
+    if (m_warnings_as_errors)
+    {
+        fail(at, message + " (a warning, and warnings are errors)");
+    }
+
     std::string text =
         basm::format_diagnostic(*m_sources, {basm::Severity::WARNING, at.loc, message});
     while (!text.empty() && text.back() == '\n') text.pop_back();
@@ -47,81 +50,239 @@ void Assembler::expect_end_of_statement()
     }
 }
 
+namespace
+{
+
+/// Binding strength of a binary operator, 0 if the token is not one. Same order as C.
+int binary_precedence(TokenType type)
+{
+    switch (type)
+    {
+    case TokenType::OPERATOR_LOGICAL_OR:
+        return 1;
+    case TokenType::OPERATOR_LOGICAL_AND:
+        return 2;
+    case TokenType::OPERATOR_BITWISE_OR:
+        return 3;
+    case TokenType::OPERATOR_BITWISE_XOR:
+        return 4;
+    case TokenType::OPERATOR_BITWISE_AND:
+        return 5;
+    case TokenType::OPERATOR_LOGICAL_EQUAL:
+    case TokenType::OPERATOR_LOGICAL_NOT_EQUAL:
+        return 6;
+    case TokenType::OPERATOR_LOGICAL_LESS_THAN:
+    case TokenType::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL:
+    case TokenType::OPERATOR_LOGICAL_GREATER_THAN:
+    case TokenType::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL:
+        return 7;
+    case TokenType::OPERATOR_BITWISE_LEFT_SHIFT:
+    case TokenType::OPERATOR_BITWISE_RIGHT_SHIFT:
+        return 8;
+    case TokenType::OPERATOR_ADDITION:
+    case TokenType::OPERATOR_SUBTRACTION:
+        return 9;
+    case TokenType::OPERATOR_MULTIPLICATION:
+    case TokenType::OPERATOR_DIVISION:
+    case TokenType::OPERATOR_MODULUS:
+        return 10;
+    default:
+        return 0;
+    }
+}
+
+/// How many parentheses and unary operators may nest, so that a hostile source cannot overflow
+/// the stack.
+constexpr int kMaxExpressionDepth = 200;
+
+} // namespace
+
+bool Assembler::at_expression()
+{
+    return m_cursor.peek().is_one_of({TokenType::LITERAL_CHAR, TokenType::OPEN_PARENTHESIS,
+                                      TokenType::OPERATOR_SUBTRACTION, TokenType::OPERATOR_ADDITION,
+                                      TokenType::OPERATOR_BITWISE_COMPLEMENT,
+                                      TokenType::OPERATOR_LOGICAL_NOT})
+           || basm::is_integer_literal(m_cursor.peek().type);
+}
+
 ///
-/// @brief
-/// @todo               Implement full expression parser.
+/// @brief              operand := number | char | '(' expression ')' | ('-' | '+' | '~' | '!') operand
 ///
+sdword Assembler::parse_unary_expression()
+{
+    const Token &token = m_cursor.peek();
+    if (!at_expression())
+    {
+        fail(token, "expected a number, got " + basm::describe(token));
+    }
+    check(m_expression_depth < kMaxExpressionDepth, "the expression is nested too deeply");
+
+    struct Depth
+    {
+        int &depth;
+
+        explicit Depth(int &d) :
+            depth(d)
+        {
+            depth++;
+        }
+
+        ~Depth()
+        {
+            depth--;
+        }
+    } nesting(m_expression_depth);
+
+    m_cursor.next();
+    switch (token.type)
+    {
+    case TokenType::OPERATOR_SUBTRACTION:
+        return sdword(0 - U64(parse_unary_expression()));
+    case TokenType::OPERATOR_ADDITION:
+        return parse_unary_expression();
+    case TokenType::OPERATOR_BITWISE_COMPLEMENT:
+        return ~parse_unary_expression();
+    case TokenType::OPERATOR_LOGICAL_NOT:
+        return parse_unary_expression() == 0 ? 1 : 0;
+    case TokenType::OPEN_PARENTHESIS:
+    {
+        const sdword value = parse_binary_expression(1);
+        if (!m_cursor.accept(TokenType::CLOSE_PARENTHESIS))
+        {
+            fail(m_cursor.peek(), "expected ')' to close the '(' at column "
+                                      + std::to_string(token.loc.column) + ", got "
+                                      + basm::describe(m_cursor.peek()));
+        }
+        return value;
+    }
+    default:
+        // A number or a character.
+        return sdword(token.int_value);
+    }
+}
+
+///
+/// @brief              Precedence climbing. All the binary operators associate to the left.
+///
+sdword Assembler::parse_binary_expression(int min_precedence)
+{
+    sdword lhs = parse_unary_expression();
+    while (true)
+    {
+        const Token &op = m_cursor.peek();
+        const int precedence = binary_precedence(op.type);
+        if (precedence == 0 || precedence < min_precedence)
+        {
+            return lhs;
+        }
+        m_cursor.next();
+        if (!at_expression())
+        {
+            fail(m_cursor.peek(), "expected an operand after '" + op.str() + "', got "
+                                      + basm::describe(m_cursor.peek()));
+        }
+        const sdword rhs = parse_binary_expression(precedence + 1);
+
+        // The arithmetic wraps around, done on unsigned values where signed would overflow.
+        const U64 l = U64(lhs);
+        const U64 r = U64(rhs);
+        switch (op.type)
+        {
+        case TokenType::OPERATOR_ADDITION:
+            lhs = sdword(l + r);
+            break;
+        case TokenType::OPERATOR_SUBTRACTION:
+            lhs = sdword(l - r);
+            break;
+        case TokenType::OPERATOR_MULTIPLICATION:
+            lhs = sdword(l * r);
+            break;
+        case TokenType::OPERATOR_DIVISION:
+        case TokenType::OPERATOR_MODULUS:
+            if (rhs == 0)
+            {
+                fail(op, op.type == TokenType::OPERATOR_DIVISION
+                             ? "division by zero"
+                             : "remainder of a division by zero");
+            }
+            if (rhs == -1)
+            {
+                // The most negative number divided by -1 does not fit.
+                lhs = op.type == TokenType::OPERATOR_DIVISION ? sdword(0 - l) : 0;
+            }
+            else
+            {
+                lhs = op.type == TokenType::OPERATOR_DIVISION ? lhs / rhs : lhs % rhs;
+            }
+            break;
+        case TokenType::OPERATOR_BITWISE_LEFT_SHIFT:
+        case TokenType::OPERATOR_BITWISE_RIGHT_SHIFT:
+            if (rhs < 0 || rhs >= 64)
+            {
+                fail(op, "the shift amount must be 0 to 63, got " + std::to_string(rhs));
+            }
+            lhs = op.type == TokenType::OPERATOR_BITWISE_LEFT_SHIFT ? sdword(l << rhs) : lhs >> rhs;
+            break;
+        case TokenType::OPERATOR_BITWISE_AND:
+            lhs = sdword(l & r);
+            break;
+        case TokenType::OPERATOR_BITWISE_XOR:
+            lhs = sdword(l ^ r);
+            break;
+        case TokenType::OPERATOR_BITWISE_OR:
+            lhs = sdword(l | r);
+            break;
+        case TokenType::OPERATOR_LOGICAL_EQUAL:
+            lhs = lhs == rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_NOT_EQUAL:
+            lhs = lhs != rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_LESS_THAN:
+            lhs = lhs < rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL:
+            lhs = lhs <= rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_GREATER_THAN:
+            lhs = lhs > rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL:
+            lhs = lhs >= rhs;
+            break;
+        case TokenType::OPERATOR_LOGICAL_AND:
+            lhs = lhs != 0 && rhs != 0;
+            break;
+        case TokenType::OPERATOR_LOGICAL_OR:
+            lhs = lhs != 0 || rhs != 0;
+            break;
+        default:
+            fail(op, "expected an operator, got " + basm::describe(op));
+        }
+    }
+}
+
+sdword Assembler::parse_signed_expression()
+{
+    return parse_binary_expression(1);
+}
+
+///
+/// @brief              Parses and evaluates an expression, see the declaration.
 /// @return             Value of expression.
 ///
 dword Assembler::parse_expression(dword min, dword max)
 {
     AEMU_DEBUG("Assembler::parse_expression() - Parsing expression.");
 
-    // For now, only parse expressions sequentially, without care of precedence.
-    dword exp_value = 0;
-    const Token *operator_token = nullptr;
-    while (true)
-    {
-        const Token &token = m_cursor.peek();
-        if (!basm::is_integer_literal(token.type) && !token.is(TokenType::LITERAL_CHAR))
-        {
-            fail(token, (operator_token != nullptr
-                             ? "expected an operand after '" + operator_token->str() + "'"
-                             : std::string("expected a number"))
-                            + ", got " + basm::describe(token));
-        }
-        m_cursor.next();
-        const dword value = token.int_value;
-
-        if (operator_token != nullptr)
-        {
-            switch (operator_token->type)
-            {
-            case TokenType::OPERATOR_ADDITION:
-                exp_value += value;
-                break;
-            case TokenType::OPERATOR_SUBTRACTION:
-                exp_value -= value;
-                break;
-            case TokenType::OPERATOR_DIVISION:
-                if (value == 0)
-                {
-                    fail(*operator_token, "division by zero");
-                }
-                exp_value /= value;
-                break;
-            case TokenType::OPERATOR_MULTIPLICATION:
-                exp_value *= value;
-                break;
-            default:
-                fail(*operator_token,
-                     "expected an operator, got " + basm::describe(*operator_token));
-            }
-        }
-        else
-        {
-            exp_value = value;
-        }
-
-        // Temporary only support 4 operations.
-        if (m_cursor.check_any({TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_DIVISION,
-                                TokenType::OPERATOR_MULTIPLICATION,
-                                TokenType::OPERATOR_SUBTRACTION}))
-        {
-            operator_token = &m_cursor.next();
-        }
-        else
-        {
-            break;
-        }
-    }
+    const dword exp_value = dword(parse_signed_expression());
 
     if (exp_value < min || exp_value > max)
     {
-        m_state = Assembler::State::ASSEMBLER_WARNING;
-        AEMU_WARN("Assembler::parse_expression() - Parsed value {} is outside of the target range "
-                  "{} - {}.",
-                  exp_value, min, max);
+        warn(m_statement != nullptr ? *m_statement : m_cursor.peek(),
+             "the value " + std::to_string(exp_value) + " is outside of the target range "
+                 + std::to_string(min) + " - " + std::to_string(max));
     }
     else
     {
@@ -132,16 +293,12 @@ dword Assembler::parse_expression(dword min, dword max)
 }
 
 ///
-/// @brief               Declares a symbol to be global outside this compilation unit.
-///                      Must be declared outside any defined sections like .text, .bss, and .data.
+/// @brief               Declares a symbol to be global outside this compilation unit. It does not
+///                      depend on the section, so it can be anywhere (a macro can declare one).
 /// USAGE:               .global <symbol>
 ///
 void Assembler::_global()
 {
-    check(m_cur_section == Section::NONE,
-          "cannot declare a symbol as global inside a section, declare it outside of .text, "
-          ".bss, and .data");
-
     m_cursor.next();
 
     const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol after .global").str();
@@ -150,16 +307,12 @@ void Assembler::_global()
 
 ///
 /// @brief                Declares a symbol to exist in another compilation unit but not defined here.
-///                         Symbol's binding info will be marked as weak.
-///                         Must be declared outside any defined sections like .text, .bss, and .data.
+///                         Symbol's binding info will be marked as weak. Can be anywhere, like
+///                         .global.
 /// USAGE:                .extern <symbol>
 ///
 void Assembler::_extern()
 {
-    check(m_cur_section == Section::NONE,
-          "cannot declare a symbol as extern inside a section, declare it outside of .text, "
-          ".bss, and .data");
-
     m_cursor.next();
 
     const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol after .extern").str();
@@ -231,6 +384,7 @@ void Assembler::_scope()
 {
     m_cursor.next();
     m_scopes.push_back(m_total_scopes++);
+    m_scope_sites.push_back(m_statement);
 }
 
 ///
@@ -243,6 +397,7 @@ void Assembler::_scend()
 
     m_cursor.next();
     m_scopes.pop_back();
+    m_scope_sites.pop_back();
 }
 
 ///
@@ -254,14 +409,11 @@ void Assembler::_advance()
     m_cursor.next();
 
     const word val = parse_expression();
-    if (val >= 0xffffff)
-    {
-        // Safety exit. Likely unintentional behavior.
-        AEMU_WARN("Assembler::_advance() - offset value is large and likely unintentional. ({}).",
-                  val);
-        m_state = State::ASSEMBLER_WARNING;
-        return;
-    }
+
+    // Safety exit. Likely unintentional behavior, and it is no use to go on with a section of a
+    // different size than the program means.
+    check(val < 0xffffff,
+          ".advance is large and likely unintentional (" + std::to_string(val) + ")");
 
     switch (m_cur_section)
     {
@@ -301,14 +453,7 @@ void Assembler::_align()
     m_cursor.next();
 
     const word val = parse_expression();
-    if (val >= 0xffff)
-    {
-        // Safety exit. Likely unintentional behavior.
-        AEMU_WARN("Assembler::_align() - Alignment value is large and likely unintentional. ({}).",
-                  val);
-        m_state = State::ASSEMBLER_WARNING;
-        return;
-    }
+    check(val < 0xffff, ".align is large and likely unintentional (" + std::to_string(val) + ")");
     check(val != 0, ".align expects a non-zero alignment");
 
     switch (m_cur_section)
@@ -335,6 +480,11 @@ void Assembler::_align()
     case Section::NONE:
         fail(*m_statement, ".align is not inside a section, there is nothing to align");
     }
+
+    // The alignment is of the offset in this section. The section is put at an address, and joined
+    // with the same section of other files, in a way that keeps it.
+    ObjectFile::SectionHeader &header = m_obj.sections[m_cur_section_index];
+    header.alignment = std::max(header.alignment, val);
 }
 
 ///
@@ -396,6 +546,7 @@ void Assembler::_bss()
 ///
 void Assembler::_stop()
 {
+    m_stopped = true;
     while (!m_cursor.at_end())
     {
         m_cursor.next();
@@ -439,11 +590,55 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
 
     m_cursor.next();
 
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), n_bytes);
-    for (size_t i = 0; i < data.size(); i++)
+    // `.word symbol` is the address of the symbol, which is only known when the program is linked.
+    // Zeros are there until then, and a relocation says where the address goes.
+    const auto define_address = [&]
     {
-        m_obj.data_section.push_back(data.at(i));
+        check(n_bytes == sizeof(word),
+              std::string(directive) + " cannot hold the address of a symbol, only .word can");
+
+        const std::string symbol = m_cursor.next().str();
+        m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
+        m_obj.rel_data.push_back({.offset = word(m_obj.data_section.size()),
+                                  .symbol = m_obj.string_table[symbol],
+                                  .type = ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
+                                  .shift = 0,
+                                  .token = m_cursor.position()});
+        m_obj.data_section.insert(m_obj.data_section.end(), sizeof(word), 0);
+    };
+
+    const auto define_value = [&]
+    {
+        const dword value = parse_expression();
+
+        // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
+        const S64 signed_value = S64(value);
+        const dword limit = n_bytes < sizeof(dword) ? dword(1) << (8 * n_bytes) : 0;
+        check(limit == 0 || value < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
+              std::string(directive) + " value "
+                  + std::to_string(signed_value < 0 ? signed_value : S64(value))
+                  + " does not fit in " + std::to_string(n_bytes) + " byte(s)");
+
+        const std::vector<byte> data = convert_little_endian({value}, n_bytes);
+        m_obj.data_section.insert(m_obj.data_section.end(), data.begin(), data.end());
+    };
+
+    // The directive may have no arguments at all.
+    if (m_cursor.at_end() || m_cursor.check(TokenType::NEWLINE))
+    {
+        return;
     }
+    do
+    {
+        if (m_cursor.check(TokenType::SYMBOL))
+        {
+            define_address();
+        }
+        else
+        {
+            define_value();
+        }
+    } while (m_cursor.accept(TokenType::COMMA));
 }
 
 void Assembler::_byte()

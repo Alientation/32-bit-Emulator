@@ -3,6 +3,9 @@
 #include "assembler/object_file.h"
 #include "assembler/tokenizer.h"
 
+#include <unordered_map>
+#include <vector>
+
 /*
     Linker script
 
@@ -17,14 +20,23 @@
 class Linker
 {
   public:
+    /// Links with the default linker script.
     Linker(std::vector<ObjectFile> obj_files, File exe_file);
     Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file);
+
+    /// Reads the linker script, places the sections of all object files, resolves every symbol and
+    /// relocation, and writes the executable. Fatal on a bad script or an undefined symbol.
+    /// Call once.
+    void link();
 
   private:
     std::vector<ObjectFile> m_obj_files;
 
     File m_exe_file;
+
+    /// The linker script, unless the default one built into the linker is used.
     File m_ld_file;
+    bool m_use_default_script = false;
 
     /// Owns the text of the linker script that the tokens point into.
     basm::SourceManager m_sources;
@@ -51,7 +63,29 @@ class Linker
     bool m_physical = false;
     std::vector<SectionAddress> m_sections;
 
-    void link();
+    /// One value for each of .text, .data and .bss.
+    struct SectionBase
+    {
+        word text = 0;
+        word data = 0;
+        word bss = 0;
+    };
+
+    /// For one object file, maps each of its symbols (by index into its symbol table) to the
+    /// symbol of the executable.
+    using SymbolMap = std::unordered_map<U32, U32>;
+
+    // The stages of link().
+    static ObjectFile new_executable();
+    /// Returns the offset of the sections of each object file within the merged sections.
+    std::vector<SectionBase> merge_sections(ObjectFile &exe) const;
+    /// Returns the final address of each section.
+    SectionBase place_sections(ObjectFile &exe) const;
+    std::vector<SymbolMap> merge_symbols(ObjectFile &exe, const std::vector<SectionBase> &bases,
+                                         const SectionBase &addresses) const;
+    void define_entry(ObjectFile &exe) const;
+    void relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
+                  const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const;
 
     /// Lexes the linker script.
     void tokenize_ld();

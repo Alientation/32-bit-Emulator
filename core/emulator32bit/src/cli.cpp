@@ -2,6 +2,7 @@
 
 #include "assembler/load_executable.h"
 #include "util/file.h"
+#include "util/logger.h"
 
 #include "cxxopts.hpp"
 
@@ -140,7 +141,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
 
 } // namespace
 
-int main(int argc, char *argv[])
+static int run_cli(int argc, char *argv[])
 {
     cxxopts::Options options("emu32", "32 bit cpu emulator");
 
@@ -334,7 +335,7 @@ int main(int argc, char *argv[])
         }
 
         emu->system_bus->mmu->begin_process();
-        LoadExecutable(*emu, File(exe_path));
+        LoadExecutable(*emu, File(exe_path)).load();
     }
     else
     {
@@ -381,5 +382,25 @@ int main(int argc, char *argv[])
     case Emulator32bit::RunResult::Status::FAULT:
     default:
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    // Errors in the libraries (a bad executable, ...) are thrown. They are already logged by the
+    // time they get here, so all that is left to do is to fail.
+    aemu::log::set_fatal_action(aemu::log::FatalAction::Throw);
+    try
+    {
+        return run_cli(argc, argv);
+    }
+    catch (const aemu::log::FatalError &)
+    {
+        return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+    }
+    catch (const std::exception &error)
+    {
+        std::cerr << "ERROR: " << error.what() << "\n";
+        return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
     }
 }

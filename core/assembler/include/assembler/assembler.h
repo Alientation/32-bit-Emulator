@@ -1,7 +1,8 @@
 #pragma once
 
-#include "assembler/build.h"
+#include "assembler/instruction_table.h"
 #include "assembler/object_file.h"
+#include "assembler/options.h"
 #include "assembler/tokenizer.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
@@ -17,41 +18,19 @@
 class Assembler
 {
   public:
-    /// @brief          State of the Assembler.
-    enum State
-    {
-        /// @brief      Assembler has not started.
-        NOT_ASSEMBLED,
-
-        /// @brief      Assembler has begun, but has not finished.
-        ASSEMBLING,
-
-        /// @brief      Assembler has finished successfully and produced an object file.
-        ASSEMBLED,
-
-        /// @brief      Assembler encountered a warning but produced a valid object file.
-        ASSEMBLER_WARNING,
-
-        /// @brief      Assembler encountered an error and did not produce a valid object file.
-        ASSEMBLER_ERROR,
-    };
-
     /// @brief          Initializes the assembler and creates the output object file.
-    /// @param process          Build process.
     /// @param processed_file   Input file to process. Post preprocessor.
     /// @param output_path      Output file path to write the object file to. If left empty, creates
     ///                         the object file as the same path as the input file with the .bo
     ///                         extension.
-    Assembler(const Process *process, const File processed_file,
-              const std::string &output_path = "");
+    explicit Assembler(const File processed_file, const std::string &output_path = "");
 
     /// @brief          Same, but takes the tokens straight from the preprocessor instead of
     ///                 lexing the .bi file again. Errors then point at the original source.
-    /// @param process          Build process.
     /// @param processed_file   The .bi file the preprocessor wrote. Only used for its name.
     /// @param source           Result of Preprocessor::take_result().
     /// @param output_path      See above.
-    Assembler(const Process *process, const File processed_file, basm::PreprocessedSource source,
+    Assembler(const File processed_file, basm::PreprocessedSource source,
               const std::string &output_path = "");
 
     /// @brief          Assembles the input assembly into an object file.
@@ -61,13 +40,16 @@ class Assembler
     /// @return         The file.
     File get_output_file() const;
 
-    /// @brief          Get assembler state.
-    /// @return         Assembler state.
-    State get_state() const;
+    /// @brief          The object file that was assembled, the same that was written. Only valid
+    ///                 once assemble() is done.
+    const ObjectFile &object() const;
+
+    /// @brief          Whether a warning ends the assembling like an error does (-W error).
+    ///                 Off by default.
+    void set_warnings_as_errors(bool enabled);
 
   private:
-    /// @brief Build process container.
-    const Process *const m_process;
+    bool m_warnings_as_errors = false;
 
     /// @brief Input .bi file that will be assembled.
     const File m_in_file;
@@ -75,8 +57,8 @@ class Assembler
     /// @brief Output .bo object file.
     File m_out_obj_file;
 
-    /// @brief State of the assembler.
-    State m_state;
+    /// @brief Whether assemble() ran already (it does its work once).
+    bool m_assembled = false;
 
     /// @brief Owns the text that the tokens point into.
     std::shared_ptr<basm::SourceManager> m_sources;
@@ -122,6 +104,16 @@ class Assembler
     /// @brief Nested scope id.
     std::vector<U32> m_scopes;
 
+    /// @brief The .scope of each of the scopes that are open, to say which one is not closed.
+    std::vector<const basm::Token *> m_scope_sites;
+
+    /// @brief How deep the expression being parsed is nested (parentheses, unary operators).
+    int m_expression_depth = 0;
+
+    /// @brief Whether .stop ended the assembling, the rest of the source (like the end of a scope)
+    ///        was not looked at.
+    bool m_stopped = false;
+
     /// @brief Logs the error at the token (file, line, column, source line) and terminates.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 
@@ -137,9 +129,27 @@ class Assembler
     /// @brief A statement is followed by the end of its line.
     void expect_end_of_statement();
 
-    /// @brief Evaluates `number (op number)*` left to right, without precedence.
-    ///        Fails if there is no number. Warns if the value is outside of [min, max].
+    /// @brief Evaluates an expression with the operators of C and its precedence:
+    ///        `( )`, unary `- + ~ !`, `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`, `^`,
+    ///        `|`, `&&`, `||` (lowest). Operands are number and character literals. The
+    ///        arithmetic is 64 bit and wraps; `/ % >>` and the comparisons treat the values as
+    ///        signed, the comparisons and `! && ||` give 1 or 0. Fails if there is no operand,
+    ///        on division by zero and on a shift by a negative amount or by 64 or more.
+    ///        Returns the bits of the signed result (so `0 - 1` is all ones). Warns if the value
+    ///        is outside of [min, max], as an unsigned number.
     dword parse_expression(dword min = 0, dword max = -1);
+
+    /// @brief Same as parse_expression() with the result as a signed number. For the operands
+    ///        that can be negative (an offset). Does not check a range.
+    sdword parse_signed_expression();
+
+    /// @brief Whether the next token can start an expression.
+    bool at_expression();
+
+    /// @brief Precedence climbing: the part of an expression made of operators of at least
+    ///        `min_precedence`.
+    sdword parse_binary_expression(int min_precedence);
+    sdword parse_unary_expression();
 
     /// @brief Comma separated expressions.
     std::vector<dword> parse_arguments();
@@ -165,6 +175,7 @@ class Assembler
     word parse_format_b2(byte opcode);
     word parse_format_atomic(byte width, byte atopcode);
     void fill_local();
+    void fill_local(std::vector<ObjectFile::RelocationEntry> &relocations, bool fill_branches);
 
     ///
     /// Assembler directives.
@@ -197,70 +208,15 @@ class Assembler
     /// Instructions.
     ///
 
+    /// @brief Assembles the instruction at the cursor. How depends on its row in
+    ///        instruction_list.h.
+    void assemble_instruction(const basm::InstructionSpec &spec);
+
+    // The instructions that have an operand syntax of their own.
     void _hlt();
     void _nop();
-    void _add();
-    void _sub();
-    void _rsb();
-    void _adc();
-    void _sbc();
-    void _rsc();
-    void _mul();
-    void _umull();
-    void _smull();
-    void _vabs();
-    void _vneg();
-    void _vsqrt();
-    void _vadd();
-    void _vsub();
-    void _vdiv();
-    void _vmul();
-    void _vcmp();
-    void _vsel();
-    void _vcint();
-    void _vcflo();
-    void _vmov();
-    void _and();
-    void _orr();
-    void _eor();
-    void _bic();
-    void _lsl();
-    void _lsr();
-    void _asr();
-    void _ror();
-    void _cmp();
-    void _cmn();
-    void _tst();
-    void _teq();
-    void _mov();
-    void _mvn();
-    void _ldr();
-    void _str();
-    void _ldrb();
-    void _strb();
-    void _ldrh();
-    void _strh();
     void _msr();
     void _mrs();
-    void _tlbi();
-    void _swp();
-    void _swpb();
-    void _swph();
-    void _ldadd();
-    void _ldaddb();
-    void _ldaddh();
-    void _ldclr();
-    void _ldclrb();
-    void _ldclrh();
-    void _ldset();
-    void _ldsetb();
-    void _ldseth();
-    void _b();
-    void _bl();
-    void _bx();
-    void _blx();
-    void _swi();
-    void _adrp();
     void _ret();
 
     using DirectiveFunction = void (Assembler::*)();
@@ -289,81 +245,5 @@ class Assembler
         {basm::TokenType::ASSEMBLER_CHAR, &Assembler::_char},
         {basm::TokenType::ASSEMBLER_ASCII, &Assembler::_ascii},
         {basm::TokenType::ASSEMBLER_ASCIZ, &Assembler::_asciz},
-    };
-
-    using InstructionFunction = void (Assembler::*)();
-    /// @brief Function pointers assemble an instruction.
-    std::unordered_map<basm::TokenType, InstructionFunction> m_instruction_handlers = {
-        {basm::TokenType::INSTRUCTION_HLT, &Assembler::_hlt},
-        {basm::TokenType::INSTRUCTION_NOP, &Assembler::_nop},
-        {basm::TokenType::INSTRUCTION_ADD, &Assembler::_add},
-        {basm::TokenType::INSTRUCTION_SUB, &Assembler::_sub},
-        {basm::TokenType::INSTRUCTION_RSB, &Assembler::_rsb},
-        {basm::TokenType::INSTRUCTION_ADC, &Assembler::_adc},
-        {basm::TokenType::INSTRUCTION_SBC, &Assembler::_sbc},
-        {basm::TokenType::INSTRUCTION_RSC, &Assembler::_rsc},
-        {basm::TokenType::INSTRUCTION_MUL, &Assembler::_mul},
-        {basm::TokenType::INSTRUCTION_UMULL, &Assembler::_umull},
-        {basm::TokenType::INSTRUCTION_SMULL, &Assembler::_smull},
-        {basm::TokenType::INSTRUCTION_VABS, &Assembler::_vabs},
-        {basm::TokenType::INSTRUCTION_VNEG, &Assembler::_vneg},
-        {basm::TokenType::INSTRUCTION_VSQRT, &Assembler::_vsqrt},
-        {basm::TokenType::INSTRUCTION_VADD, &Assembler::_vadd},
-        {basm::TokenType::INSTRUCTION_VSUB, &Assembler::_vsub},
-        {basm::TokenType::INSTRUCTION_VDIV, &Assembler::_vdiv},
-        {basm::TokenType::INSTRUCTION_VMUL, &Assembler::_vmul},
-        {basm::TokenType::INSTRUCTION_VCMP, &Assembler::_vcmp},
-        {basm::TokenType::INSTRUCTION_VSEL, &Assembler::_vsel},
-        {basm::TokenType::INSTRUCTION_VCINT, &Assembler::_vcint},
-        {basm::TokenType::INSTRUCTION_VCFLO, &Assembler::_vcflo},
-        {basm::TokenType::INSTRUCTION_VMOV, &Assembler::_vmov},
-        {basm::TokenType::INSTRUCTION_AND, &Assembler::_and},
-        {basm::TokenType::INSTRUCTION_ORR, &Assembler::_orr},
-        {basm::TokenType::INSTRUCTION_EOR, &Assembler::_eor},
-        {basm::TokenType::INSTRUCTION_BIC, &Assembler::_bic},
-        {basm::TokenType::INSTRUCTION_LSL, &Assembler::_lsl},
-        {basm::TokenType::INSTRUCTION_LSR, &Assembler::_lsr},
-        {basm::TokenType::INSTRUCTION_ASR, &Assembler::_asr},
-        {basm::TokenType::INSTRUCTION_ROR, &Assembler::_ror},
-        {basm::TokenType::INSTRUCTION_CMP, &Assembler::_cmp},
-        {basm::TokenType::INSTRUCTION_CMN, &Assembler::_cmn},
-        {basm::TokenType::INSTRUCTION_TST, &Assembler::_tst},
-        {basm::TokenType::INSTRUCTION_TEQ, &Assembler::_teq},
-        {basm::TokenType::INSTRUCTION_MOV, &Assembler::_mov},
-        {basm::TokenType::INSTRUCTION_MVN, &Assembler::_mvn},
-        {basm::TokenType::INSTRUCTION_LDR, &Assembler::_ldr},
-        {basm::TokenType::INSTRUCTION_STR, &Assembler::_str},
-        {basm::TokenType::INSTRUCTION_LDRB, &Assembler::_ldrb},
-        {basm::TokenType::INSTRUCTION_STRB, &Assembler::_strb},
-        {basm::TokenType::INSTRUCTION_LDRH, &Assembler::_ldrh},
-        {basm::TokenType::INSTRUCTION_STRH, &Assembler::_strh},
-
-        {basm::TokenType::INSTRUCTION_MSR, &Assembler::_msr},
-        {basm::TokenType::INSTRUCTION_MRS, &Assembler::_mrs},
-        {basm::TokenType::INSTRUCTION_TLBI, &Assembler::_tlbi},
-
-        {basm::TokenType::INSTRUCTION_SWP, &Assembler::_swp},
-        {basm::TokenType::INSTRUCTION_SWPB, &Assembler::_swpb},
-        {basm::TokenType::INSTRUCTION_SWPH, &Assembler::_swph},
-
-        {basm::TokenType::INSTRUCTION_LDADD, &Assembler::_ldadd},
-        {basm::TokenType::INSTRUCTION_LDADDB, &Assembler::_ldaddb},
-        {basm::TokenType::INSTRUCTION_LDADDH, &Assembler::_ldaddh},
-
-        {basm::TokenType::INSTRUCTION_LDCLR, &Assembler::_ldclr},
-        {basm::TokenType::INSTRUCTION_LDCLRB, &Assembler::_ldclrb},
-        {basm::TokenType::INSTRUCTION_LDCLRH, &Assembler::_ldclrh},
-
-        {basm::TokenType::INSTRUCTION_LDSET, &Assembler::_ldset},
-        {basm::TokenType::INSTRUCTION_LDSETB, &Assembler::_ldsetb},
-        {basm::TokenType::INSTRUCTION_LDSETH, &Assembler::_ldseth},
-
-        {basm::TokenType::INSTRUCTION_B, &Assembler::_b},
-        {basm::TokenType::INSTRUCTION_BL, &Assembler::_bl},
-        {basm::TokenType::INSTRUCTION_BX, &Assembler::_bx},
-        {basm::TokenType::INSTRUCTION_BLX, &Assembler::_blx},
-        {basm::TokenType::INSTRUCTION_SWI, &Assembler::_swi},
-        {basm::TokenType::INSTRUCTION_ADRP, &Assembler::_adrp},
-        {basm::TokenType::INSTRUCTION_RET, &Assembler::_ret},
     };
 };

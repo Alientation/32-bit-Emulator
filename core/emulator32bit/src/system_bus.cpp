@@ -6,9 +6,10 @@ SystemBus::SystemBus(RAM *ram, ROM *rom) :
     ram(ram),
     rom(rom),
     disk(new MockDisk()),
-    mmu(new VirtualMemory(disk))
+    mmu(new VirtualMemory(disk.get(), ram->get_lo_page(), ram->get_mem_pages()))
 {
     validate_memory();
+    mmu->set_physical_pages(this);
 }
 
 SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu) :
@@ -18,29 +19,35 @@ SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu) :
     mmu(mmu)
 {
     validate_memory();
+    this->mmu->set_physical_pages(this);
 }
 
 SystemBus::~SystemBus()
 {
-    disk->save();
-    delete ram;
-    delete rom;
-    delete disk;
-    delete mmu;
+    // A destructor must not throw, and saving fails with an exception when the fatal action is
+    // Throw.
+    try
+    {
+        disk->save();
+    }
+    catch (const std::exception &error)
+    {
+        AEMU_ERROR("SystemBus::~SystemBus() - The disk could not be saved: {}", error.what());
+    }
 }
 
 void SystemBus::validate_memory()
 {
     AEMU_CHECK(!ram->overlap(*rom),
-               "Invalid memory layout. RAM overlaps with ROM memory. (%u,%u) U (%u,%u)",
+               "Invalid memory layout. RAM overlaps with ROM memory. ({},{}) U ({},{})",
                ram->get_lo_page(), ram->get_hi_page(), rom->get_lo_page(), rom->get_hi_page());
 
     AEMU_CHECK(!ram->overlap(*disk),
-               "Invalid memory layout. RAM overlaps with DISK memory. (%u,%u) U (%u,%u)",
+               "Invalid memory layout. RAM overlaps with DISK memory. ({},{}) U ({},{})",
                ram->get_lo_page(), ram->get_hi_page(), disk->get_lo_page(), disk->get_hi_page());
 
     AEMU_CHECK(!rom->overlap(*disk),
-               "Invalid memory layout. ROM overlaps with DISK memory. (%u,%u) U (%u,%u)",
+               "Invalid memory layout. ROM overlaps with DISK memory. ({},{}) U ({},{})",
                rom->get_lo_page(), rom->get_hi_page(), disk->get_lo_page(), disk->get_hi_page());
 }
 

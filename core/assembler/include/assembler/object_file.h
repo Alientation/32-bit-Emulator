@@ -3,6 +3,8 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
 
+#include <iosfwd>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -77,14 +79,20 @@ class ObjectFile
         /// @todo           TODO: Why is this necessary? ELF seems to have this but why.
         word entry_size;
 
-        /// @brief          TODO:
+        /// @brief          Whether the section is loaded at a physical address, as opposed to a
+        ///                 virtual one. Set by the linker.
         bool load_at_physical_address = false;
 
-        /// @brief          TODO:
+        /// @brief          Address the section is loaded at. Set by the linker.
         word address = 0;
+
+        /// @brief          What the address of the section, and of what it holds from an object file,
+        ///                 is a multiple of in bytes. The largest .align of the section.
+        word alignment = 1;
     };
 
-    /// @brief              TODO:
+    /// @brief              A place in a section that holds an address, which is not known until the
+    ///                     file is linked.
     struct RelocationEntry
     {
         /// @brief          Offset from the beginning of the section to symbol.
@@ -113,6 +121,9 @@ class ObjectFile
 
             /// @brief      Branch offset, +/- 24 bit value (last 2 bits are 0).
             R_EMU32_B_OFFSET22,
+
+            /// @brief      The 32 bit address of the symbol, in .data (`.word symbol`).
+            R_EMU32_ABS32,
         } type;
 
         /// @brief          Constant to be added to the value of symbol.
@@ -126,8 +137,9 @@ class ObjectFile
     /// @brief              TODO:
     static constexpr U32 kBELFHeaderSize = 24;
 
-    /// @brief              TODO:
-    static constexpr U32 kSectionHeaderSize = 45;
+    /// @brief              Name 8, type 4, start 8, size 8, entry size 8, physical 1, address 8,
+    ///                     alignment 8.
+    static constexpr U32 kSectionHeaderSize = 53;
 
     /// @brief              TODO:
     static constexpr U32 kBSSSectionSize = 8;
@@ -154,16 +166,16 @@ class ObjectFile
     static constexpr hword kEMU32MachineId = 1;
 
     /// @brief              What binary file type this object file represents.
-    hword file_type;
+    hword file_type = 0;
 
     /// @brief              Target machine that this object file is built for.
-    hword target_machine;
+    hword target_machine = 0;
 
     /// @brief              TODO:
-    hword flags;
+    hword flags = 0;
 
-    /// @brief              TODO:
-    hword n_sections;
+    /// @brief              Number of sections added so far.
+    hword n_sections = 0;
 
     /// @brief              Instructions stored in .text section.
     std::vector<word> text_section;
@@ -175,7 +187,9 @@ class ObjectFile
     word bss_section = 0;
 
     /// @brief              Maps string index to symbol.
-    std::unordered_map<U32, SymbolTableEntry> symbol_table;
+    ///                     In the order of the string table, which is the order the symbols were
+    ///                     added in, so a file is the same bytes whatever the standard library is.
+    std::map<U32, SymbolTableEntry> symbol_table;
 
     /// @brief              References to symbols that need to be relocated.
     std::vector<RelocationEntry> rel_text;
@@ -240,32 +254,19 @@ class ObjectFile
     /// @return             Size of .bss section in bytes.
     word get_bss_section_size();
 
+    /// @brief              Get the current size of a .text, .data or .bss section, which is the
+    ///                     offset that the next item added to it will have.
+    /// @param section      Index into the section table.
+    /// @return             Size of the section in bytes.
+    word get_section_size(U32 section);
+
+    /// @brief              Prints an objdump-style listing (symbols, .data, disassembled .text with
+    ///                     relocations) to the stream, stdout by default. Prints an error line
+    ///                     instead if the object has no sections (it was never read or assembled).
+    void print();
+    void print(std::ostream &out);
+
   private:
-    /// @brief              State of the disassembly.
-    enum class State
-    {
-        /// @brief          TODO:
-        NO_STATE,
-
-        /// @brief          TODO:
-        DISASSEMBLING,
-
-        /// @brief          TODO:
-        DISASSEMBLED_SUCCESS,
-
-        /// @brief          TODO:
-        DISASSEMBLED_ERROR,
-
-        /// @brief          TODO:
-        WRITING,
-
-        /// @brief          TODO:
-        WRITING_SUCCESS,
-
-        /// @brief          TODO:
-        WRITING_ERROR,
-    } m_state;
-
     /// @brief              TODO:
     File m_obj_file;
 
@@ -273,6 +274,11 @@ class ObjectFile
     /// @param bytes
     void disassemble(std::vector<byte> &bytes);
 
-    /// @brief              TODO:
-    void print();
+    /// @brief              disassemble() that reports a truncated or corrupt file as a fatal error.
+    void disassemble_checked(std::vector<byte> &bytes);
+
+    /// @brief              Fatal if what was read is not a file that the linker and the loader can
+    ///                     use: sections that are missing, and symbols, sections and relocations
+    ///                     that refer to something that is not there.
+    void validate() const;
 };

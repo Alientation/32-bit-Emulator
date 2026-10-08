@@ -3,6 +3,7 @@
 #include "util/logger.h"
 #include <util/common.h>
 
+#include <iterator>
 #include <string>
 
 using basm::Token;
@@ -141,10 +142,14 @@ word Assembler::parse_format_b1(byte opcode)
     }
     else
     {
-        const word imm = parse_expression();
-        check(imm < (1ULL << 24), "branch offset must fit in 24 bits");
-        check((imm & 0b11) == 0, "branch offset must be 4 byte aligned");
-        value = bitfield_signed(imm, 0, 24) >> 2;
+        // The offset in bytes from this instruction, as a signed number: `b 8` is two
+        // instructions ahead, `b -4` the one before. The field holds 22 bits of words.
+        const sdword offset = parse_signed_expression();
+        check((offset & 0b11) == 0, "branch offset must be 4 byte aligned");
+        check(offset >= -(sdword(1) << 23) && offset < (sdword(1) << 23),
+              "branch offset must be between -8388608 and 8388604 bytes, got "
+                  + std::to_string(offset));
+        value = sword(offset >> 2);
     }
 
     return Emulator32bit::asm_format_b1(opcode, condition, value);
@@ -267,13 +272,11 @@ word Assembler::parse_format_m(byte opcode)
     {
         if (!basm::is_register(m_cursor.peek().type))
         {
-            // The offset is a signed 12 bit value (sign extended by the emulator). A leading '-'
-            // negates the whole expression.
-            const bool negative = m_cursor.accept(TokenType::OPERATOR_SUBTRACTION);
-            const dword magnitude = parse_expression();
-            check(negative ? magnitude <= (1ULL << 11) : magnitude < (1ULL << 11),
+            // The offset is a signed 12 bit value (sign extended by the emulator).
+            const sdword value = parse_signed_expression();
+            check(value >= -(sdword(1) << 11) && value < (sdword(1) << 11),
                   "offset must be a signed 12 bit value (-2048 to 2047)");
-            const int offset = negative ? -int(magnitude) : int(magnitude);
+            const int offset = int(value);
 
             // Post indexed (`[xn], offset`) already consumed the close bracket.
             if (!parsed_addressing_mode)
@@ -468,8 +471,7 @@ word Assembler::parse_format_o(byte opcode, bool implicit_dest)
                 .token = m_cursor.position(),
             });
         }
-        else if (basm::is_integer_literal(m_cursor.peek().type)
-                 || m_cursor.check(TokenType::LITERAL_CHAR))
+        else if (at_expression())
         {
             operand = parse_expression();
             check(operand < (1ULL << 14), "immediate must be a 14 bit value");
@@ -502,8 +504,50 @@ word Assembler::parse_format_atomic(byte width, byte atopcode)
     return Emulator32bit::asm_atomic(xt, xn, xm, width, atopcode);
 }
 
+// The instructions that are encoded the same way as others of their format are described by a
+// row of instruction_list.h. The table is built from it.
+namespace basm
+{
+namespace
+{
+
+#define BASM_INSTRUCTION_SPEC(X, NAME, text, allows_s, format, a, b)                               \
+    {TokenType::INSTRUCTION_##NAME, text, InstructionFormat::format, byte(a), byte(b)},
+constexpr InstructionSpec kInstructionSpecs[] = {BASM_INSTRUCTION_LIST(BASM_INSTRUCTION_SPEC, )};
+#undef BASM_INSTRUCTION_SPEC
+
+/// The table is indexed by token type, so its rows must follow the order of the token types.
+constexpr bool specs_follow_the_token_order()
+{
+    constexpr size_t first = size_t(TokenType::INSTRUCTION_HLT);
+    constexpr size_t last = size_t(TokenType::INSTRUCTION_RET);
+    if (std::size(kInstructionSpecs) != last - first + 1)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < std::size(kInstructionSpecs); i++)
+    {
+        if (size_t(kInstructionSpecs[i].token) != first + i)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static_assert(specs_follow_the_token_order());
+
+} // namespace
+
+const InstructionSpec &instruction_spec(TokenType type)
+{
+    return kInstructionSpecs[size_t(type) - size_t(TokenType::INSTRUCTION_HLT)];
+}
+
+} // namespace basm
+
 ///
-/// @brief
+/// Assembles the instruction at the cursor and appends it to .text.
 ///
 /// add x1, x2, x3
 /// add x1, x2, #40
@@ -511,243 +555,64 @@ word Assembler::parse_format_atomic(byte width, byte atopcode)
 /// add x1, x2, :lo12:symbol
 /// NOT SUPPORTED -- add x1, x2, :lo12:symbol + 4
 ///
-void Assembler::_add()
+/// cmp, cmn, tst and teq are the ALU operations without a destination, so they are written as
+/// `cmp xn, <operand>` and encoded with xzr as the destination.
+///
+void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
 {
-    const word instruction = parse_format_o(Emulator32bit::_op_add);
-    m_obj.text_section.push_back(instruction);
-}
+    using Format = basm::InstructionFormat;
 
-void Assembler::_sub()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_sub);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_rsb()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_rsb);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_adc()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_adc);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_sbc()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_sbc);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_rsc()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_rsc);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_mul()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_mul);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_umull()
-{
-    const word instruction = parse_format_o2(Emulator32bit::_op_umull);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_smull()
-{
-    const word instruction = parse_format_o2(Emulator32bit::_op_smull);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_vabs()
-{
-    fail(*m_statement, "vabs.f32 is not implemented yet");
-}
-
-void Assembler::_vneg()
-{
-    fail(*m_statement, "vneg.f32 is not implemented yet");
-}
-
-void Assembler::_vsqrt()
-{
-    fail(*m_statement, "vsqrt.f32 is not implemented yet");
-}
-
-void Assembler::_vadd()
-{
-    fail(*m_statement, "vadd.f32 is not implemented yet");
-}
-
-void Assembler::_vsub()
-{
-    fail(*m_statement, "vsub.f32 is not implemented yet");
-}
-
-void Assembler::_vdiv()
-{
-    fail(*m_statement, "vdiv.f32 is not implemented yet");
-}
-
-void Assembler::_vmul()
-{
-    fail(*m_statement, "vmul.f32 is not implemented yet");
-}
-
-void Assembler::_vcmp()
-{
-    fail(*m_statement, "vcmp.f32 is not implemented yet");
-}
-
-void Assembler::_vsel()
-{
-    fail(*m_statement, "vsel.f32 is not implemented yet");
-}
-
-void Assembler::_vcint()
-{
-    fail(*m_statement, "vcint is not implemented yet");
-}
-
-void Assembler::_vcflo()
-{
-    fail(*m_statement, "vcflo is not implemented yet");
-}
-
-void Assembler::_vmov()
-{
-    fail(*m_statement, "vmov.f32 is not implemented yet");
-}
-
-void Assembler::_and()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_and);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_orr()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_orr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_eor()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_eor);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_bic()
-{
-    const word instruction = parse_format_o(Emulator32bit::_op_bic);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_lsl()
-{
-    const word instruction = parse_format_o1(Emulator32bit::_op_lsl);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_lsr()
-{
-    const word instruction = parse_format_o1(Emulator32bit::_op_lsr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_asr()
-{
-    const word instruction = parse_format_o1(Emulator32bit::_op_asr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ror()
-{
-    const word instruction = parse_format_o1(Emulator32bit::_op_ror);
-    m_obj.text_section.push_back(instruction);
-}
-
-// cmp, cmn, tst and teq are the ALU operations without a destination, so they are written as
-// `cmp xn, <operand>` and encoded with xzr as the destination.
-void Assembler::_cmp()
-{
-    // TODO: Alias subs.
-    const word instruction = parse_format_o(Emulator32bit::_op_cmp, true);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_cmn()
-{
-    // TODO: Alias adds.
-    const word instruction = parse_format_o(Emulator32bit::_op_cmn, true);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_tst()
-{
-    // TODO: Alias ands.
-    const word instruction = parse_format_o(Emulator32bit::_op_tst, true);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_teq()
-{
-    // TODO: Alias eors.
-    const word instruction = parse_format_o(Emulator32bit::_op_teq, true);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_mov()
-{
-    const word instruction = parse_format_o3(Emulator32bit::_op_mov);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_mvn()
-{
-    const word instruction = parse_format_o3(Emulator32bit::_op_mvn);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldr()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_ldr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_str()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_str);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldrb()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_ldrb);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_strb()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_strb);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldrh()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_ldrh);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_strh()
-{
-    const word instruction = parse_format_m(Emulator32bit::_op_strh);
+    word instruction;
+    switch (spec.format)
+    {
+    case Format::O:
+        instruction = parse_format_o(spec.a);
+        break;
+    case Format::O_NO_DEST:
+        instruction = parse_format_o(spec.a, true);
+        break;
+    case Format::O1:
+        instruction = parse_format_o1(spec.a);
+        break;
+    case Format::O2:
+        instruction = parse_format_o2(spec.a);
+        break;
+    case Format::O3:
+        instruction = parse_format_o3(spec.a);
+        break;
+    case Format::M:
+        instruction = parse_format_m(spec.a);
+        break;
+    case Format::M1:
+        instruction = parse_format_m1(spec.a);
+        break;
+    case Format::B1:
+        instruction = parse_format_b1(spec.a);
+        break;
+    case Format::B2:
+        instruction = parse_format_b2(spec.a);
+        break;
+    case Format::ATOMIC:
+        instruction = parse_format_atomic(spec.a, spec.b);
+        break;
+    case Format::HLT:
+        _hlt();
+        return;
+    case Format::NOP:
+        _nop();
+        return;
+    case Format::MSR:
+        _msr();
+        return;
+    case Format::MRS:
+        _mrs();
+        return;
+    case Format::RET:
+        _ret();
+        return;
+    case Format::UNIMPLEMENTED:
+        fail(*m_statement, std::string(spec.text) + " is not implemented yet");
+    }
     m_obj.text_section.push_back(instruction);
 }
 
@@ -799,127 +664,6 @@ void Assembler::_mrs()
     m_obj.text_section.push_back(instruction);
 }
 
-void Assembler::_tlbi()
-{
-    m_cursor.next();
-
-    fail(*m_statement, "tlbi is not implemented yet");
-}
-
-void Assembler::_swp()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_swp);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_swpb()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_swp);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_swph()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_swp);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldadd()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldadd);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldaddb()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldadd);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldaddh()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldadd);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldclr()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldclr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldclrb()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldclr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldclrh()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldclr);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldset()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_word, Emulator32bit::kAtomicId_ldset);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldsetb()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_byte, Emulator32bit::kAtomicId_ldset);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_ldseth()
-{
-    const word instruction =
-        parse_format_atomic(Emulator32bit::kAtomicWidth_hword, Emulator32bit::kAtomicId_ldset);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_b()
-{
-    const word instruction = parse_format_b1(Emulator32bit::_op_b);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_bl()
-{
-    const word instruction = parse_format_b1(Emulator32bit::_op_bl);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_bx()
-{
-    const word instruction = parse_format_b2(Emulator32bit::_op_bx);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_blx()
-{
-    const word instruction = parse_format_b2(Emulator32bit::_op_blx);
-    m_obj.text_section.push_back(instruction);
-}
-
-void Assembler::_swi()
-{
-    const word instruction = parse_format_b1(Emulator32bit::_op_swi);
-    m_obj.text_section.push_back(instruction);
-}
-
 /// `ret` is `bx x29`, x29 being the link register.
 void Assembler::_ret()
 {
@@ -928,10 +672,4 @@ void Assembler::_ret()
     constexpr byte kLinkRegister = 29;
     m_obj.text_section.push_back(
         Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, kLinkRegister));
-}
-
-void Assembler::_adrp()
-{
-    const word instruction = parse_format_m1(Emulator32bit::_op_adrp);
-    m_obj.text_section.push_back(instruction);
 }

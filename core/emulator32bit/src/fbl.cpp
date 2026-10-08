@@ -1,6 +1,9 @@
 
 #include "emulator32bit/fbl.h"
 
+#include <algorithm>
+#include <cstdio>
+
 FreeBlockList::FreeBlockList(word begin, word len, bool init) :
     m_begin(begin),
     m_len(len)
@@ -68,12 +71,12 @@ word FreeBlockList::get_free_block(word length)
 void FreeBlockList::remove_block(word addr, word length)
 {
     FreeBlock *cur = m_head;
-    while (cur->addr + cur->len <= addr)
+    while (cur != nullptr && cur->addr + cur->len <= addr)
     {
         cur = cur->next;
     }
 
-    if (cur->addr > addr || cur->addr + cur->len < addr + length)
+    if (cur == nullptr || cur->addr > addr || cur->addr + cur->len < addr + length)
     {
         throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
                                      + std::to_string(length) + ".");
@@ -82,12 +85,13 @@ void FreeBlockList::remove_block(word addr, word length)
 
     word remaining_before = addr - cur->addr;
     word remaining_after = cur->addr + cur->len - (addr + length);
+    const word block_addr = cur->addr;
 
     remove(cur);
 
     if (remaining_before > 0)
     {
-        return_block(addr, remaining_before);
+        return_block(block_addr, remaining_before);
     }
 
     if (remaining_after > 0)
@@ -122,7 +126,7 @@ FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, word length)
 
     FreeBlock *next = new FreeBlock{
         .addr = addr,
-        .len = 1,
+        .len = length,
         .next = cur->next,
         .prev = cur,
     };
@@ -135,9 +139,14 @@ FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, word length)
     return next;
 }
 
+bool FreeBlockList::in_range(word addr, word length) const
+{
+    return addr >= m_begin && U64(addr) + length <= U64(m_begin) + m_len;
+}
+
 void FreeBlockList::return_block(word addr, word length)
 {
-    if (addr < m_begin || addr + length > m_begin + m_len)
+    if (!in_range(addr, length))
     {
         throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
                                      + std::to_string(length) + ".");
@@ -150,51 +159,46 @@ void FreeBlockList::return_block(word addr, word length)
     bool intersect_next = ret_block->next && ret_block->next->addr < addr + length;
     if (intersect_prev || intersect_next)
     {
-        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
-                                     + std::to_string(length) + ".");
-
         /* Undo state change so that the caller can cleanly handle the exception. */
         remove(ret_block);
-        return;
+        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
+                                     + std::to_string(length) + ".");
     }
 
     coalesce(ret_block);
     coalesce(ret_block->prev);
 }
 
-// NO CONFIDENCE THAT THIS WORKS.. HAS TO BE TESTED
 void FreeBlockList::force_return_block(word addr, word length)
 {
-    if (addr < m_begin || addr + length > m_begin + m_len)
+    if (!in_range(addr, length))
     {
         throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
                                      + std::to_string(length) + ".");
+    }
+    if (length == 0)
+    {
         return;
     }
 
-    FreeBlock *ret_block = insert(addr, length);
-
-    while (ret_block->prev && ret_block->prev->addr + ret_block->prev->len > ret_block->addr)
+    /* The free blocks that overlap or touch the returned block become part of it. Ends are
+       exclusive, and fit in 64 bits where a block ending at the top of the range does not. */
+    U64 lo = addr;
+    U64 hi = U64(addr) + length;
+    for (FreeBlock *cur = m_head; cur != nullptr;)
     {
-        if (ret_block->prev->addr + ret_block->prev->len > ret_block->addr + ret_block->len)
+        FreeBlock *next = cur->next;
+        const U64 cur_hi = U64(cur->addr) + cur->len;
+        if (cur->addr <= hi && cur_hi >= lo)
         {
-            ret_block->len +=
-                ret_block->prev->addr + ret_block->prev->len - (ret_block->addr + ret_block->len);
+            lo = std::min<U64>(lo, cur->addr);
+            hi = std::max<U64>(hi, cur_hi);
+            remove(cur);
         }
-
-        ret_block->len += ret_block->addr - ret_block->prev->addr;
-        ret_block->addr = ret_block->prev->addr;
-
-        remove(ret_block->prev);
+        cur = next;
     }
 
-    while (ret_block->next && ret_block->next->addr < ret_block->addr + ret_block->len)
-    {
-        ret_block->len +=
-            ret_block->next->addr + ret_block->next->len - (ret_block->addr + ret_block->len);
-
-        remove(ret_block->next);
-    }
+    insert(word(lo), word(hi - lo));
 }
 
 void FreeBlockList::return_all()
@@ -207,10 +211,12 @@ void FreeBlockList::return_all()
         delete next;
     }
 
-    m_head = new FreeBlock{
-        .addr = m_begin,
-        .len = m_len,
-    };
+    // A range without anything in it has no free block.
+    m_head = m_len == 0 ? nullptr
+                        : new FreeBlock{
+                              .addr = m_begin,
+                              .len = m_len,
+                          };
 }
 
 std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
@@ -221,16 +227,6 @@ std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
         blocks.push_back(std::pair<word, word>(cur->addr, cur->len));
     }
     return blocks;
-}
-
-void FreeBlockList::print_blocks()
-{
-    std::vector<std::pair<word, word>> blocks = get_blocks();
-    std::printf("Printing FBL List\n");
-    for (auto pair : blocks)
-    {
-        std::printf("Block {addr=%x, len=%x}\n", pair.first, pair.second);
-    }
 }
 
 bool FreeBlockList::can_fit(word length)

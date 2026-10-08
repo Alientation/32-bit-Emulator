@@ -9,5 +9,9 @@ aemu_add_gtest(assembler_tests
         ./preprocessor_test/preprocessor_test.cpp
         ./assembler_test/assembler_test.cpp
         ./linker_test/linker_test.cpp
+        ./object_file_test/object_file_test.cpp
+        ./relocation_test/relocation_test.cpp
+        ./build_test/build_test.cpp
+        ./instruction_table_test/instruction_table_test.cpp
         ./tokenizer_test/tokenizer_test.cpp
 )

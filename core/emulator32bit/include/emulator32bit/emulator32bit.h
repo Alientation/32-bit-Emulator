@@ -4,14 +4,12 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
+#include "emulator32bit/opcodes.h"
 #include "emulator32bit/system_bus.h"
 
+#include <iostream>
+#include <memory>
 #include <string>
-
-// TODO: I think we can get rid of these forward declarations. They should not
-// need to know about this emulator class.
-class MMU;
-class Timer;
 
 ///
 /// @brief              32 bit Emulator
@@ -40,27 +38,22 @@ class Emulator32bit
     Emulator32bit();
     Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[], word rom_npages,
                   word rom_start_page);
+
+    /// The emulator owns the memories and the disk.
     Emulator32bit(RAM *ram, ROM *rom, Disk *disk);
     ~Emulator32bit();
 
-    // TODO:
+    Emulator32bit(const Emulator32bit &) = delete;
+    Emulator32bit &operator=(const Emulator32bit &) = delete;
+
+    /// Why an instruction did not complete.
     enum class InterruptType : U8
     {
-        BAD_REG,
-        BAD_INSTR,
-        HALT_INSTR,
-        FAILED_ASSERT,
-        BAD_PAGEDIR,
-        PAGEFAULT,
-    };
-
-    // TODO:
-    struct InterruptFrame
-    {
-        word saved_reg[kNumReg];
-        word saved_px;
-        word saved_pstate;
-        word saved_pagedir;
+        BAD_REG,       ///< A register that does not exist.
+        BAD_INSTR,     ///< An instruction that does not exist, or is not implemented.
+        HALT_INSTR,    ///< hlt: the program is done, this is not a fault.
+        FAILED_ASSERT, ///< An assertion of the program (emu_assert...) did not hold.
+        PROGRAM_ERROR, ///< The program reported an error and stopped (emu_error).
     };
 
     class Exception : public std::exception
@@ -82,13 +75,7 @@ class Emulator32bit
         ADDR_POST_INC
     };
 
-    SystemBus *const system_bus = nullptr;
-
-    Timer *const timer = nullptr;
-
-    /// @brief              Pointer to the page directory for the virtual address space of the
-    ///                     process.
-    word pagedir;
+    const std::unique_ptr<SystemBus> system_bus;
 
     /// @brief              Why a call to run () stopped.
     struct RunResult
@@ -123,7 +110,15 @@ class Emulator32bit
     ///
     RunResult run(U64 instructions);
 
+    /// Prints the registers and the flags to the output.
     void print();
+
+    /// Where the output of the program (the emulator calls that print or log) and of print ()
+    /// goes. std::cout by default.
+    void set_output(std::ostream &out);
+
+    /// Where the errors that a program reports go. std::cerr by default.
+    void set_error_output(std::ostream &err);
 
     ///
     /// @brief              Resets the processor state.
@@ -141,36 +136,28 @@ class Emulator32bit
         return m_pc;
     }
 
+    /// The value of a register. xzr is always 0, and so is a register that does not exist.
     inline word read_reg(Register reg)
     {
-        const U8 r = register_to_U8(reg);
-        // The lower 32 bits is the register mask, upper 32 bits contains the value.
-        return word(m_x[r]) & word(m_x[r] >> 32);
+        return m_x[register_to_U8(reg)];
     }
 
     inline word read_reg(U8 reg)
     {
-        if (LIKELY(reg < kNumReg))
-        {
-            // The lower 32 bits is the register mask, upper 32 bits contains the value.
-            return word(m_x[reg]) & word(m_x[reg] >> 32);
-        }
-        return 0;
+        return LIKELY(reg < kNumReg) ? m_x[reg] : 0;
     }
 
+    /// Writes a register. Writes to xzr, and to a register that does not exist, are discarded.
     inline void write_reg(Register reg, word val)
     {
-        const U8 r = register_to_U8(reg);
-        // The lower 32 bits is the register mask, upper 32 bits contains the value.
-        m_x[r] = word(m_x[r]) ^ dword(val) << 32;
+        write_reg(register_to_U8(reg), val);
     }
 
     inline void write_reg(U8 reg, word val)
     {
-        if (LIKELY(reg < kNumReg))
+        if (LIKELY(reg < kNumReg && reg != register_to_U8(Register::XZR)))
         {
-            // The lower 32 bits is the register mask, upper 32 bits contains the value.
-            m_x[reg] = word(m_x[reg]) ^ dword(val) << 32;
+            m_x[reg] = val;
         }
     }
 
@@ -228,11 +215,9 @@ class Emulator32bit
   private:
     ///
     /// @brief              General purpose registers, x0-x29, xzr, and SP. x29 is the link register.
+    ///                     The value of xzr is 0, it is never written.
     ///
-    ///                     Format: top 32 bits register value, bottom 32 bits mask value (for xzr
-    ///                     register)
-    ///
-    dword m_x[kNumReg];
+    word m_x[kNumReg];
 
     /// @brief              Program counter.
     word m_pc;
@@ -245,102 +230,49 @@ class Emulator32bit
 
     void fill_out_instructions();
 
-    word calc_mem_addr(word xn, sword offset, U8 addr_mode);
+    /// Fetches the instruction at the PC (a virtual address). Faults when the PC is not word
+    /// aligned, not mapped, not executable or not in RAM.
+    word fetch_instruction();
+
+    /// The address that a load or a store (format M) accesses, and what the base register is after
+    /// it. The base register is only written once the access happened, with write_back_base ().
+    struct MemOperand
+    {
+        word address;
+        U8 base;          ///< Register that the address is relative to.
+        word base_after;
+        bool writes_back; ///< Pre and post indexed accesses.
+    };
+
+    MemOperand decode_mem_operand(word instr);
+    void write_back_base(const MemOperand &operand);
 
     inline void execute(word instr)
     {
         (this->*m_instruction_handler[bitfield_unsigned(instr, 26, 6)])(instr);
     }
 
-#define _INSTR(func_name, opcode)                                                                  \
+    // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
+    // the opcode constant _op_<name>.
+#define AEMU_DECLARE_OPCODE(name, opcode)                                                          \
   private:                                                                                         \
-    void _##func_name(word instr);                                                                 \
+    void _##name(word instr);                                                                      \
                                                                                                    \
   public:                                                                                          \
-    static constexpr word _op_##func_name = opcode;
+    static constexpr word _op_##name = opcode;
 
-    // Instruction handling.
-    _INSTR(special_instructions, 0b000000)
+    AEMU_OPCODES(AEMU_DECLARE_OPCODE)
+#undef AEMU_DECLARE_OPCODE
 
+    // Operations of the special instruction, and the fallback of unused opcodes.
     void _hlt(const word instr);
+    /// Handler of every opcode that is not an instruction. Faults with BAD_INSTR.
+    void _bad_opcode(const word instr);
     void _nop(const word instr);
     void _msr(const word instr);
     void _mrs(const word instr);
     void _tlbi(const word instr);
     void _atomic(const word instr);
-
-    _INSTR(add, 0b000001)
-    _INSTR(sub, 0b000010)
-    _INSTR(rsb, 0b000011)
-    _INSTR(adc, 0b000100)
-    _INSTR(sbc, 0b000101)
-    _INSTR(rsc, 0b000110)
-    _INSTR(mul, 0b000111)
-    _INSTR(umull, 0b001000)
-    _INSTR(smull, 0b001001)
-
-    _INSTR(vabs, 0b001010)
-    _INSTR(vneg, 0b001011)
-    _INSTR(vsqrt, 0b001100)
-    _INSTR(vadd, 0b001101)
-    _INSTR(vsub, 0b001110)
-    _INSTR(vdiv, 0b001111)
-    _INSTR(vmul, 0b010000)
-    _INSTR(vcmp, 0b010001)
-    _INSTR(vsel, 0b010010)
-    _INSTR(vcint, 0b010011)
-    _INSTR(vcflo, 0b010100)
-    _INSTR(vmov, 0b010101)
-
-    _INSTR(and, 0b010110)
-    _INSTR(orr, 0b010111)
-    _INSTR(eor, 0b011000)
-    _INSTR(bic, 0b011001)
-    _INSTR(lsl, 0b011010)
-    _INSTR(lsr, 0b011011)
-    _INSTR(asr, 0b011100)
-    _INSTR(ror, 0b011101)
-
-    _INSTR(cmp, 0b011110)
-    _INSTR(cmn, 0b011111)
-    _INSTR(tst, 0b100000)
-    _INSTR(teq, 0b100001)
-
-    _INSTR(mov, 0b100010)
-    _INSTR(mvn, 0b100011)
-
-    _INSTR(ldr, 0b100100)
-    _INSTR(ldrb, 0b100101)
-    _INSTR(ldrh, 0b100110)
-    _INSTR(str, 0b100111)
-    _INSTR(strb, 0b101000)
-    _INSTR(strh, 0b101001)
-    // _INSTR(nop, 0b101010)
-    // _INSTR(nop, 0b101011)
-    // _INSTR(nop, 0b101100)
-    _INSTR(b, 0b101101)
-    _INSTR(bl, 0b101110)
-    _INSTR(bx, 0b101111)
-    _INSTR(blx, 0b110000)
-    _INSTR(swi, 0b110001)
-
-    _INSTR(adrp, 0b110010)
-
-    // _INSTR(nop_, 0b110100)
-    // _INSTR(nop_, 0b110101)
-    // _INSTR(nop_, 0b110110)
-    // _INSTR(nop_, 0b110111)
-    // _INSTR(nop_, 0b111000)
-    // _INSTR(nop_, 0b111001)
-    // _INSTR(nop_, 0b111010)
-    // _INSTR(nop_, 0b111011)
-    // _INSTR(nop_, 0b111100)
-    // _INSTR(nop_, 0b111101)
-    // _INSTR(nop_, 0b111110)
-
-    // _INSTR(nop, 0b111111)
-
-#undef _INSTR
 
     enum class AtomicOperation
     {
@@ -352,7 +284,13 @@ class Emulator32bit
 
     void _atomic_rmw(const word instr, AtomicOperation operation);
 
+    std::ostream *m_out = &std::cout;
+    std::ostream *m_err = &std::cerr;
+
     // Software interrupt handling.
+    U8 _emu_register_arg(word reg_id);
+    word _emu_read_value(word mem_addr, U8 size, bool little_endian);
+    std::string _emu_read_string(word address);
     void _emu_print();
     void _emu_printr(U8 reg_id);
     void _emu_printm(word mem_addr, U8 size, bool little_endian);

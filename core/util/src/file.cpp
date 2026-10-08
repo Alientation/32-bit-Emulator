@@ -313,10 +313,7 @@ FileWriter &FileWriter::operator<<(const char *str)
  */
 void FileWriter::write(const std::string text)
 {
-    if (m_closed)
-    {
-        exit(EXIT_FAILURE);
-    }
+    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << text;
     for (size_t i = 0; i < text.size(); i++)
@@ -377,10 +374,7 @@ ByteWriter &ByteWriter::operator<<(Data data)
  */
 void FileWriter::write(const char byte)
 {
-    if (m_closed)
-    {
-        exit(EXIT_FAILURE);
-    }
+    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << byte;
 
@@ -394,10 +388,7 @@ void FileWriter::write(const char byte)
  */
 void FileWriter::write(const char *bytes)
 {
-    if (m_closed)
-    {
-        exit(EXIT_FAILURE);
-    }
+    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << bytes;
 
@@ -433,11 +424,7 @@ char *FileWriter::last_bytes_written(unsigned int num_bytes)
 
 void FileWriter::flush()
 {
-    if (m_closed)
-    {
-        // error
-        exit(EXIT_FAILURE);
-    }
+    AEMU_CHECK(!m_closed, "FileWriter::flush() - The file is closed.");
 
     m_file_stream->flush();
 }

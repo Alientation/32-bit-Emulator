@@ -57,12 +57,6 @@ static constexpr U8 kCFlagBit = 2;
 /// @brief              Overflow Flag.
 static constexpr U8 kVFlagBit = 3;
 
-/// @brief              User mode flag.
-static constexpr U8 kUserModeFlagBit = 8;
-
-/// @brief              Real memory mode flag.
-static constexpr U8 kRealModeFlagBit = 9;
-
 /// @brief              Which bit of the instruction determines whether flags will be updated.
 static constexpr U8 kInstructionUpdateFlagBit = 25;
 

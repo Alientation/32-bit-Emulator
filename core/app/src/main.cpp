@@ -9,6 +9,10 @@
 #include "util/file.h"
 #include "util/logger.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 /*
     TODO:
     * CLEAN UP CODE
@@ -77,14 +81,6 @@
     Maybe have a toggle for virtual memory instead??, like using the mocks.
 */
 
-/*
-    KNOWN BUGS
-
-    the assembler will not check the bit lengths of any value that is passed as an immediate (problem likely extends beyond that too)
-    very few exceptions are thrown when encountering invalid states (invalid states that can produce unintended consequences should throw an exception)
-    leading to incorrect programs being runnable when it should not have been.
-*/
-
 const static std::string build_test =
     "-I ./tests/include -o ./tests/build/test ./tests/src/main.basm ./tests/src/other.basm -outdir "
     "./tests/build";
@@ -107,48 +103,35 @@ const static std::string build_long_loop =
 
 constexpr U64 kMaxCycles = 0x0;
 
-int main(int argc, char *argv[])
+static int run_app(int argc, char *argv[])
 {
-    std::string build_command = build_palindrome;
+    // The arguments of the program, or a sample build if there are none.
+    std::vector<std::string> args = Build::split_args(build_palindrome);
+    if (argc > 1)
     {
-        AEMU_SCOPED_TIMER("Parsing command arguments");
-        if (argc > 1)
-        {
-            AEMU_INFO("Parsing command arguments");
-            build_command = "";
-            for (int i = 1; i < argc; i++)
-            {
-                build_command += std::string(argv[i]);
-                if (i + 1 < argc)
-                {
-                    build_command += " ";
-                }
-            }
-        }
+        AEMU_INFO("Parsing command arguments");
+        args.assign(argv + 1, argv + argc);
     }
 
-    Process *process = nullptr;
-    ON_SCOPE_EXIT(delete process);
-
+    std::unique_ptr<Build> build;
     {
         AEMU_SCOPED_TIMER("Building program");
-        process = new Process(build_command);
+        build = std::make_unique<Build>(args);
+        build->run();
     }
 
-    if (process->does_create_exe())
+    if (build->has_work() && build->does_create_exe())
     {
+        std::unique_ptr<Emulator32bit> emulator;
         long long pid;
-        Emulator32bit *emulator = nullptr;
-        ON_SCOPE_EXIT(delete emulator);
         {
             AEMU_SCOPED_TIMER("Loading program into emulator");
-            RAM *ram = new RAM(16, 0);
-            ROM *rom = new ROM(File("../tests/rom.bin", true), 16, 16);
-            Disk *disk = new Disk(File("../tests/disk.bin", true), 32, 32);
-
-            emulator = new Emulator32bit(ram, rom, disk);
+            // The ROM and the disk are in memory, a sample does not need files of its own.
+            emulator =
+                std::make_unique<Emulator32bit>(new RAM(16, 0), new ROM(16, 16), new MockDisk());
             pid = emulator->system_bus->mmu->begin_process();
-            LoadExecutable loader(*emulator, process->get_exe_file());
+            LoadExecutable loader(*emulator, build->get_exe_file());
+            loader.load();
         }
 
         {
@@ -158,5 +141,26 @@ int main(int argc, char *argv[])
             emulator->print();
             emulator->system_bus->mmu->end_process(pid);
         }
+    }
+    return EXIT_SUCCESS;
+}
+
+int main(int argc, char *argv[])
+{
+    // Errors in the toolchain and emulator libraries are thrown. They are already logged by the
+    // time they get here.
+    aemu::log::set_fatal_action(aemu::log::FatalAction::Throw);
+    try
+    {
+        return run_app(argc, argv);
+    }
+    catch (const aemu::log::FatalError &)
+    {
+        return EXIT_FAILURE;
+    }
+    catch (const std::exception &error)
+    {
+        AEMU_ERROR("{}", error.what());
+        return EXIT_FAILURE;
     }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "assembler/object_file.h"
+#include "assembler/options.h"
 #include "assembler/tokenizer.h"
 #include "util/directory.h"
 #include "util/file.h"
@@ -8,23 +10,19 @@
 #include <set>
 #include <vector>
 
-class Process;
-static const std::string ASSEMBLER_VERSION = "0.0.1";
-static const int MAX_OPTIMIZATION_LEVEL = 3;
+inline const std::string ASSEMBLER_VERSION = "0.0.1";
+inline constexpr int MAX_OPTIMIZATION_LEVEL = 3;
 
-static const std::string SOURCE_EXTENSION = "basm";
-static const std::string INCLUDE_EXTENSION = "binc";
-static const std::string PROCESSED_EXTENSION = "bi";
-static const std::string OBJECT_EXTENSION = "bo";
-static const std::string EXECUTABLE_EXTENSION = "bexe";
-static const std::string STATIC_LIBRARY_EXTENSION = "ba";
-
-static const std::set<std::string> WARNINGS = {
+inline const std::set<std::string> WARNINGS = {
     "error",
 };
-static const std::string DEFAULT_OUTPUT_FILE = "a";
+inline const std::string DEFAULT_OUTPUT_FILE = "a";
 
-class Process
+/// The command line driver: preprocess -> assemble -> link.
+///
+/// The constructor only parses the arguments. run() does the build. Errors in either are fatal
+/// (AEMU_FATAL), which the caller chooses how to handle (see util/logger.h, FatalAction).
+class Build
 {
   public:
     static bool valid_src_file(const File &file);
@@ -32,7 +30,22 @@ class Process
     static bool valid_obj_file(const File &file);
     static bool valid_exe_file(const File &file);
 
-    Process(const std::string &assembler_args = "");
+    /// The arguments as they are in argv (without the program name). A path can have spaces.
+    explicit Build(const std::vector<std::string> &args);
+
+    /// The arguments as one line, which is split on whitespace (unless it is in quotes).
+    explicit Build(const std::string &assembler_args = "");
+
+    /// Splits a line of arguments on whitespace. Whitespace in "quotes" does not split, and a
+    /// backslash makes the next character part of the argument.
+    static std::vector<std::string> split_args(const std::string &line);
+
+    /// Builds what the arguments asked for. Does nothing for --help and --version, which only
+    /// print. Call once.
+    void run();
+
+    /// Whether the arguments asked to build something, as opposed to --help or --version.
+    bool has_work() const;
 
     bool does_create_exe() const;
     int get_optimization_level() const;
@@ -64,6 +77,10 @@ class Process
     std::string m_output_dir = "";
     bool m_has_output_dir = false;
     bool keep_proccessed_files = false;
+    bool m_dump = false;
+
+    /// Cleared by --help and --version, which only print.
+    bool m_has_work = true;
 
     File m_ld_file;
     bool m_has_ld_file = false;
@@ -75,15 +92,20 @@ class Process
     /// .bi files again.
     std::vector<basm::PreprocessedSource> m_preprocessed;
     std::vector<File> m_obj_files;
+
+    /// The object files as the assembler made them, which are the ones that get linked. The files
+    /// in m_obj_files are for the user (-c, -outdir), they are not read again.
+    std::vector<ObjectFile> m_objects;
     File m_exe_file;
 
-    void parse_args(std::string assembler_args, std::vector<std::string> &args_list);
     void evaluate_args(std::vector<std::string> &args_list);
     void build();
+    PreprocessorOptions preprocessor_options() const;
 
     void preprocess();
     void assemble();
     void link();
+    static void dump(const std::vector<File> &files);
 
     void _ignore(std::vector<std::string> &args, size_t &index);
     void _version(std::vector<std::string> &args, size_t &index);
@@ -101,8 +123,9 @@ class Process
     void _preprocessor_flag(std::vector<std::string> &args, size_t &index);
     void _keep_preprocessor_output(std::vector<std::string> &args, size_t &index);
     void _ld(std::vector<std::string> &args, size_t &index);
+    void _dump(std::vector<std::string> &args, size_t &index);
     void _help(std::vector<std::string> &args, size_t &index);
 
-    typedef void (Process::*FlagFunction)(std::vector<std::string> &args, size_t &index);
+    typedef void (Build::*FlagFunction)(std::vector<std::string> &args, size_t &index);
     std::map<std::string, FlagFunction> flags;
 };

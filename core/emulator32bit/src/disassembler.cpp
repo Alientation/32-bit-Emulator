@@ -114,7 +114,7 @@ static std::string disassemble_format_b1(word instruction, std::string op)
     {
         disassemble += "." + disassemble_condition(condition);
     }
-    disassemble += " " + std::to_string(bitfield_signed(instruction, 0, 22));
+    disassemble += " " + std::to_string(sword(bitfield_signed(instruction, 0, 22)));
     return disassemble;
 }
 
@@ -688,57 +688,10 @@ static void disassembler_init()
         _disassembler_instructions[i] = disassemble_nop;
     }
 
-#define _INSTR(op) _disassembler_instructions[Emulator32bit::_op_##op] = disassemble_##op;
-
-    _INSTR(special_instructions)
-
-    _INSTR(add)
-    _INSTR(sub)
-    _INSTR(rsb)
-    _INSTR(adc)
-    _INSTR(sbc)
-    _INSTR(rsc)
-    _INSTR(mul)
-    _INSTR(umull)
-    _INSTR(smull)
-    _INSTR(vabs)
-    _INSTR(vneg)
-    _INSTR(vsqrt)
-    _INSTR(vadd)
-    _INSTR(vsub)
-    _INSTR(vdiv)
-    _INSTR(vmul)
-    _INSTR(vcmp)
-    _INSTR(vsel)
-    _INSTR(vcint)
-    _INSTR(vcflo)
-    _INSTR(vmov)
-    _INSTR(and)
-    _INSTR(orr)
-    _INSTR(eor)
-    _INSTR(bic)
-    _INSTR(lsl)
-    _INSTR(lsr)
-    _INSTR(asr)
-    _INSTR(ror)
-    _INSTR(cmp)
-    _INSTR(cmn)
-    _INSTR(tst)
-    _INSTR(teq)
-    _INSTR(mov)
-    _INSTR(mvn)
-    _INSTR(ldr)
-    _INSTR(ldrb)
-    _INSTR(ldrh)
-    _INSTR(str)
-    _INSTR(strb)
-    _INSTR(strh)
-    _INSTR(b)
-    _INSTR(bl)
-    _INSTR(bx)
-    _INSTR(blx)
-    _INSTR(swi)
-    _INSTR(adrp)
+#define AEMU_SET_DISASSEMBLER(name, opcode)                                                        \
+    _disassembler_instructions[Emulator32bit::_op_##name] = disassemble_##name;
+    AEMU_OPCODES(AEMU_SET_DISASSEMBLER)
+#undef AEMU_SET_DISASSEMBLER
 }
 
 std::string Emulator32bit::disassemble_instr(word instr)

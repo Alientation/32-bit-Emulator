@@ -5,20 +5,27 @@
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
 
+#include <memory>
 #include <vector>
 
-class SystemBus
+class SystemBus : private VirtualMemory::PhysicalPages
 {
   public:
+    /// The bus owns what it is given. Uses a MockDisk, and a virtual memory over the RAM.
     SystemBus(RAM *ram, ROM *rom);
     SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu);
+
+    /// Saves the disk.
     ~SystemBus();
 
+    SystemBus(const SystemBus &) = delete;
+    SystemBus &operator=(const SystemBus &) = delete;
+
     /* expose for now */
-    RAM *ram;
-    ROM *rom;
-    Disk *disk;
-    VirtualMemory *mmu;
+    std::unique_ptr<RAM> ram;
+    std::unique_ptr<ROM> rom;
+    std::unique_ptr<Disk> disk;
+    std::unique_ptr<VirtualMemory> mmu;
 
     class Exception : public std::exception
     {
@@ -33,14 +40,8 @@ class SystemBus
 
     inline void ensure_unmapped_mapping(word address)
     {
-        VirtualMemory::Exception exception;
-        word ppage = address >> kNumPageOffsetBits;
-        mmu->ensure_physical_page_mapping(mmu->current_process(), ppage, ppage, exception);
-
-        if (UNLIKELY(exception.type != VirtualMemory::Exception::Type::AOK))
-        {
-            handle_mmu_exception(exception);
-        }
+        const word ppage = address >> kNumPageOffsetBits;
+        mmu->ensure_physical_page_mapping(mmu->current_process(), ppage, ppage);
     }
 
     /**
@@ -85,10 +86,16 @@ class SystemBus
      */
     inline void write_val(const word address, dword val, const U8 n_bytes)
     {
+        // Everything is translated before anything is written, so that a store that crosses into
+        // a page that cannot be written leaves memory as it was.
+        word real_adr[sizeof(dword)];
         for (U8 i = 0; i < n_bytes; i++)
         {
-            const word real_adr = translate_address(address + i);
-            route_memory(real_adr)->write_byte(real_adr, val & 0xFF);
+            real_adr[i] = translate_address(address + i, VirtualMemory::AccessType::WRITE);
+        }
+        for (U8 i = 0; i < n_bytes; i++)
+        {
+            route_memory(real_adr[i])->write_byte(real_adr[i], val & 0xFF);
             val >>= 8;
         }
     }
@@ -131,7 +138,7 @@ class SystemBus
     inline hword read_unmapped_hword(const word address)
     {
         ensure_unmapped_mapping(address);
-        return route_memory(address)->read_word(address);
+        return route_memory(address)->read_hword(address);
     }
 
     inline word read_word(const word address)
@@ -156,6 +163,30 @@ class SystemBus
         return ram->read_word_aligned(translate_address(address));
     }
 
+    /**
+     * Fetch an instruction. The address must be word aligned, which the caller checks.
+     *
+     * @param address The virtual address of the instruction.
+     * @throws VirtualMemory::PageFaultException if the address is unmapped or not executable.
+     * @throws SystemBus::Exception if the instruction is not in RAM.
+     */
+    inline word fetch_instruction(const word address)
+    {
+        const word real_addr = translate_address(address);
+        if (UNLIKELY(!mmu->can_execute_address(address)))
+        {
+            VirtualMemory::throw_fault(VirtualMemory::PageFaultException::Reason::EXECUTE_DENIED,
+                                       address >> kNumPageOffsetBits,
+                                       VirtualMemory::AccessType::EXECUTE);
+        }
+        if (UNLIKELY(!ram->in_bounds(real_addr)))
+        {
+            throw Exception("Instruction fetch outside of RAM at address "
+                            + std::to_string(address));
+        }
+        return ram->read_word_aligned(real_addr);
+    }
+
     inline word read_unmapped_word_aligned_ram(const word address)
     {
         return ram->read_word_aligned(address);
@@ -170,7 +201,7 @@ class SystemBus
      */
     inline void write_byte(const word address, const byte data)
     {
-        const word real_addr = translate_address(address);
+        const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
         route_memory(real_addr)->write_byte(real_addr, data);
     }
 
@@ -184,7 +215,7 @@ class SystemBus
     {
         if (LIKELY(is_within_page(address, sizeof(data))))
         {
-            const word real_addr = translate_address(address);
+            const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
             route_memory(real_addr)->write_hword(real_addr, data);
         }
         else
@@ -203,7 +234,7 @@ class SystemBus
     {
         if (LIKELY(is_within_page(address, sizeof(data))))
         {
-            const word real_addr = translate_address(address);
+            const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
             route_memory(real_addr)->write_word(real_addr, data);
         }
         else
@@ -223,54 +254,24 @@ class SystemBus
   private:
     void validate_memory();
 
-    inline void handle_mmu_exception(VirtualMemory::Exception &exception)
+    // The pages that the virtual memory pages in and out. A page is in one of the memories.
+    void read_page(word ppage, byte *out) override
     {
-        if (exception.type == VirtualMemory::Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
-        {
-            exception.type =
-                VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS; /* so the next conditional can
-                                                                       handle */
-
-            std::vector<byte> bytes(kPageSize);
-
-            // EXPECTS page to be part of single memory target
-            word p_addr = exception.ppage_return << kNumPageOffsetBits;
-            BaseMemory *target = route_memory(p_addr);
-
-            for (word i = 0; i < kPageSize; i++)
-            {
-                bytes.at(i) = target->read_byte(p_addr + i);
-            }
-
-            mmu->m_disk->write_page(exception.disk_page_return, bytes);
-        }
-
-        if (exception.type == VirtualMemory::Exception::Type::DISK_FETCH_SUCCESS)
-        {
-            /* handle exception by writing page fetched from disk to memory */
-            word paddr = exception.ppage_fetch << kNumPageOffsetBits;
-
-            // EXPECTS page to be part of single memory target
-            BaseMemory *target = route_memory(paddr);
-
-            for (word i = 0; i < kPageSize; i++)
-            {
-                target->write_byte(paddr + i, exception.disk_fetch.at(i));
-            }
-        }
+        const word address = ppage << kNumPageOffsetBits;
+        route_memory(address)->read_block(address, out, kPageSize);
     }
 
-    inline word translate_address(word address)
+    void write_page(word ppage, const byte *data) override
     {
-        VirtualMemory::Exception exception;
-        word addr = mmu->translate_address(address, exception);
+        const word address = ppage << kNumPageOffsetBits;
+        route_memory(address)->write_block(address, data, kPageSize);
+    }
 
-        if (exception.type != VirtualMemory::Exception::Type::AOK)
-        {
-            handle_mmu_exception(exception);
-        }
-
-        return addr;
+    inline word
+    translate_address(word address,
+                      VirtualMemory::AccessType access = VirtualMemory::AccessType::READ)
+    {
+        return mmu->translate_address(address, access);
     }
 
     inline BaseMemory *route_memory(const word address)
@@ -278,15 +279,15 @@ class SystemBus
         // TODO: 'Likely' specifiers would help
         if (ram->in_bounds(address))
         {
-            return ram;
+            return ram.get();
         }
         else if (rom->in_bounds(address))
         {
-            return rom;
+            return rom.get();
         }
         else if (disk->in_bounds(address))
         {
-            return disk;
+            return disk.get();
         }
         else
         {

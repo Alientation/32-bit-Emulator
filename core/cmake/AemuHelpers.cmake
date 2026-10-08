@@ -26,6 +26,14 @@ function(aemu_target_defaults target)
         target_compile_options(${target} PRIVATE $<$<AND:${gcc_like},$<CONFIG:Debug>>:--coverage>)
         # --coverage at link time pulls in libgcov, so no explicit gcov link is needed.
         target_link_options(${target} PRIVATE $<$<AND:${gcc_like},$<CONFIG:Debug>>:--coverage>)
+
+        # Whenever the target is relinked/re-archived (some object was recompiled), drop the
+        # old run data of its objects: it no longer matches the new .gcno and libgcov would
+        # report "profiling error" at the next test run.
+        add_custom_command(TARGET ${target} PRE_LINK
+            COMMAND ${CMAKE_COMMAND} "-DDIR=${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir"
+                    -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/remove_gcda.cmake"
+            VERBATIM)
     endif()
 endfunction()
 

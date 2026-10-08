@@ -6,10 +6,7 @@
 
 #include <fstream>
 
-ObjectFile::ObjectFile()
-{
-    this->m_state = State::NO_STATE;
-}
+ObjectFile::ObjectFile() = default;
 
 ObjectFile::ObjectFile(File obj_file) :
     ObjectFile()
@@ -21,9 +18,7 @@ void ObjectFile::read_object_file(std::vector<byte> &bytes)
 {
     // m_obj_file will not be set
     // this is way for static libraries to be decomposed into a list of object files easily
-    disassemble(bytes);
-
-    print();
+    disassemble_checked(bytes);
 }
 
 void ObjectFile::read_object_file(File obj_file)
@@ -39,31 +34,44 @@ void ObjectFile::read_object_file(File obj_file)
         bytes.push_back(file_reader.read_byte());
     }
 
-    disassemble(bytes);
+    disassemble_checked(bytes);
+}
 
-    /* since errors in disassemble will early return before setting state to success, check for early return */
-    if (m_state == State::DISASSEMBLING)
+void ObjectFile::disassemble_checked(std::vector<byte> &bytes)
+{
+    try
     {
-        m_state = State::DISASSEMBLED_ERROR;
+        disassemble(bytes);
     }
-
-    print();
+    catch (const std::out_of_range &e)
+    {
+        // ByteReader and the section/string lookups are bounds checked.
+        AEMU_FATAL("ObjectFile::disassemble() - '{}' is truncated or corrupt: {}",
+                   m_obj_file.get_path(), e.what());
+    }
 }
 
 void ObjectFile::disassemble(std::vector<byte> &bytes)
 {
     AEMU_DEBUG("ObjectFile::disassemble() - Disassembling");
-    m_state = State::DISASSEMBLING;
     ByteReader reader(bytes);
 
     /* BELF Header */
     AEMU_DEBUG("ObjectFile::disassemble() - Reading BELF Header");
+    if (bytes.size() < kBELFHeaderSize + 8)
+    {
+        AEMU_FATAL("ObjectFile::disassemble() - '{}' is too small ({} bytes) to be an object file.",
+                   m_obj_file.get_path(), bytes.size());
+        return;
+    }
+
     byte expected[4] = {'B', 'E', 'L', 'F'}; /* 0-3 */
     for (unsigned long long i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
     {
         if (expected[i] != reader.read_byte())
         {
-            // todo logger
+            AEMU_FATAL("ObjectFile::disassemble() - '{}' is not an object file, bad magic number.",
+                       m_obj_file.get_path());
             return;
         }
     }
@@ -84,6 +92,13 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
     section_headers_start_reader.skip_bytes(bytes.size() - 8);
     dword section_header_start = section_headers_start_reader.read_dword();
     AEMU_DEBUG("ObjectFile::disassemble() - Section Header Start = {}", section_header_start);
+    if (section_header_start >= bytes.size())
+    {
+        AEMU_FATAL("ObjectFile::disassemble() - '{}' is corrupt, the section headers start at {} "
+                   "but the file has {} bytes.",
+                   m_obj_file.get_path(), section_header_start, bytes.size());
+        return;
+    }
     section_headers_reader.skip_bytes(section_header_start);
     for (int i = 0; i < n_sections; i++)
     {
@@ -99,6 +114,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             /* TODO: Maybe should store a single bit? instead of wasting a whole byte for this. */
             .load_at_physical_address = (bool) section_headers_reader.read_byte(),
             .address = word(section_headers_reader.read_dword()),
+            .alignment = word(section_headers_reader.read_dword()),
         };
 
         sections.push_back(section_header);
@@ -110,11 +126,24 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
                    section_header.entry_size);
     }
 
-    /* Sections */
+    /* Sections. Each is read from where its header says it is. */
     AEMU_DEBUG("ObjectFile::disassemble() - Reading {} sections.", n_sections);
     for (hword section_i = 0; section_i < n_sections; section_i++)
     {
         SectionHeader &section_header = sections[section_i];
+        if (section_header.type != SectionHeader::Type::BSS
+            && U64(section_header.section_start) + section_header.section_size > bytes.size())
+        {
+            AEMU_FATAL("ObjectFile::disassemble() - '{}' is corrupt, section {} is at {} with "
+                       "{} bytes but the file has {} bytes.",
+                       m_obj_file.get_path(), section_i, section_header.section_start,
+                       section_header.section_size, bytes.size());
+            return;
+        }
+
+        ByteReader reader(bytes);
+        reader.skip_bytes(section_header.section_start);
+
         switch (section_header.type)
         {
         case SectionHeader::Type::TEXT:
@@ -154,35 +183,14 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             }
             break;
         case SectionHeader::Type::REL_TEXT:
-            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling Rel.Text Section");
-            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
-            {
-                RelocationEntry rel = {
-                    .offset = word(reader.read_dword()),
-                    .symbol = U32(reader.read_dword()),
-                    .type = (RelocationEntry::Type) reader.read_word(),
-                    .shift = word(reader.read_dword()),
-                    .token = 0,
-                };
-                rel_text.push_back(rel);
-            }
-            break;
         case SectionHeader::Type::REL_DATA:
-            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling Rel.Data Section");
-            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
-            {
-                RelocationEntry rel = {
-                    .offset = word(reader.read_dword()),
-                    .symbol = U32(reader.read_dword()),
-                    .type = (RelocationEntry::Type) reader.read_word(),
-                    .shift = word(reader.read_dword()),
-                    .token = 0,
-                };
-                rel_data.push_back(rel);
-            }
-            break;
         case SectionHeader::Type::REL_BSS:
-            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling Rel.BSS Section");
+        {
+            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling a relocation section");
+            std::vector<RelocationEntry> &relocations =
+                section_header.type == SectionHeader::Type::REL_TEXT   ? rel_text
+                : section_header.type == SectionHeader::Type::REL_DATA ? rel_data
+                                                                       : rel_bss;
             for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
                 RelocationEntry rel = {
@@ -192,9 +200,10 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
                     .shift = word(reader.read_dword()),
                     .token = 0,
                 };
-                rel_bss.push_back(rel);
+                relocations.push_back(rel);
             }
             break;
+        }
         case SectionHeader::Type::STRTAB:
         {
             AEMU_DEBUG("ObjectFile::disassemble() - Disassembling String Table section");
@@ -225,11 +234,91 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
     AEMU_DEBUG("ObjectFile::disassemble() - Filling in Section table");
     for (size_t i = 0; i < sections.size(); i++)
     {
+        if (sections[i].section_name >= strings.size())
+        {
+            AEMU_FATAL("ObjectFile::disassemble() - '{}' is corrupt, section {} has the invalid "
+                       "name index {}.",
+                       m_obj_file.get_path(), i, sections[i].section_name);
+            return;
+        }
         section_table[strings[sections[i].section_name]] = i;
     }
 
-    m_state = State::DISASSEMBLED_SUCCESS;
+    validate();
+
     AEMU_DEBUG("ObjectFile::disassemble() - Finished disassembling");
+}
+
+void ObjectFile::validate() const
+{
+    const std::string &path = m_obj_file.get_path();
+
+    // The sections that everything else is looked up in.
+    const auto require = [&](const char *name, SectionHeader::Type type)
+    {
+        const auto section = section_table.find(name);
+        AEMU_CHECK(
+            section != section_table.end() && sections[section->second].type == type,
+            "ObjectFile::disassemble() - '{}' is not an object file that can be used, it has "
+            "no {} section.",
+            path, name);
+    };
+    require(".text", SectionHeader::Type::TEXT);
+    require(".data", SectionHeader::Type::DATA);
+    require(".bss", SectionHeader::Type::BSS);
+    require(".symtab", SectionHeader::Type::SYMTAB);
+    require(".strtab", SectionHeader::Type::STRTAB);
+
+    for (const auto &[key, symbol] : symbol_table)
+    {
+        AEMU_CHECK(symbol.symbol_name == key && symbol.symbol_name < strings.size(),
+                   "ObjectFile::disassemble() - '{}' is corrupt, a symbol has the invalid name "
+                   "index {}.",
+                   path, symbol.symbol_name);
+        AEMU_CHECK(symbol.section == U32(-1) || symbol.section < sections.size(),
+                   "ObjectFile::disassemble() - '{}' is corrupt, the symbol '{}' is in the invalid "
+                   "section {}.",
+                   path, strings[symbol.symbol_name], symbol.section);
+        AEMU_CHECK(symbol.binding_info == SymbolTableEntry::BindingInfo::LOCAL
+                       || symbol.binding_info == SymbolTableEntry::BindingInfo::GLOBAL
+                       || symbol.binding_info == SymbolTableEntry::BindingInfo::WEAK,
+                   "ObjectFile::disassemble() - '{}' is corrupt, the symbol '{}' has the invalid "
+                   "binding {}.",
+                   path, strings[symbol.symbol_name], U32(symbol.binding_info));
+    }
+
+    // Where the relocation is, in the section that it is for.
+    const auto check_relocations = [&](const std::vector<RelocationEntry> &relocations,
+                                       const char *section, size_t size, size_t width)
+    {
+        for (const RelocationEntry &rel : relocations)
+        {
+            AEMU_CHECK(symbol_table.count(rel.symbol) != 0,
+                       "ObjectFile::disassemble() - '{}' is corrupt, a relocation of {} is for the "
+                       "symbol {}, which does not exist.",
+                       path, section, rel.symbol);
+            AEMU_CHECK(rel.type > RelocationEntry::Type::UNDEFINED
+                           && rel.type <= RelocationEntry::Type::R_EMU32_ABS32,
+                       "ObjectFile::disassemble() - '{}' is corrupt, a relocation of {} has the "
+                       "invalid type {}.",
+                       path, section, U32(rel.type));
+            AEMU_CHECK(U64(rel.offset) + width <= size,
+                       "ObjectFile::disassemble() - '{}' is corrupt, a relocation of {} is at {}, "
+                       "outside of the section.",
+                       path, section, rel.offset);
+        }
+    };
+    check_relocations(rel_text, ".text", text_section.size() * 4, 4);
+    check_relocations(rel_data, ".data", data_section.size(), 4);
+    check_relocations(rel_bss, ".bss", 0, 0);
+
+    for (const RelocationEntry &rel : rel_text)
+    {
+        AEMU_CHECK(rel.offset % 4 == 0,
+                   "ObjectFile::disassemble() - '{}' is corrupt, a relocation of .text is at {}, "
+                   "which is not the start of an instruction.",
+                   path, rel.offset);
+    }
 }
 
 U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type type)
@@ -249,6 +338,7 @@ U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type
     {
     case SectionHeader::Type::TEXT:
         header.entry_size = kTextEntrySize;
+        header.alignment = kTextEntrySize;
         break;
     case SectionHeader::Type::SYMTAB:
         header.entry_size = kSymbolTableEntrySize;
@@ -292,7 +382,7 @@ U32 ObjectFile::add_string(const std::string &string)
 
 std::string ObjectFile::get_symbol_name(U32 symbol)
 {
-    return strings[symbol_table[symbol].symbol_name];
+    return strings.at(symbol_table.at(symbol).symbol_name);
 }
 
 /**
@@ -347,7 +437,6 @@ void ObjectFile::add_symbol(const std::string &symbol, word value,
 void ObjectFile::write_object_file(File obj_file)
 {
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing to object file.");
-    m_state = State::WRITING;
     m_obj_file = obj_file;
 
     // clearing object file
@@ -367,7 +456,7 @@ void ObjectFile::write_object_file(File obj_file)
     byte_writer << ByteWriter::Data(0, 12);              /* Unused padding */
     byte_writer << ByteWriter::Data(file_type, 2);       /* Object file type */
     byte_writer << ByteWriter::Data(target_machine, 2);  /* Target machine */
-    byte_writer << ByteWriter::Data(0, 2);               /* Flags */
+    byte_writer << ByteWriter::Data(flags, 2);           /* Flags */
     byte_writer << ByteWriter::Data(sections.size(), 2); /* Number of sections */
     current_byte += kBELFHeaderSize;
 
@@ -401,59 +490,40 @@ void ObjectFile::write_object_file(File obj_file)
 
     /* Symbol Table */
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .symtab section.");
-    for (std::pair<int, SymbolTableEntry> symbol : symbol_table)
+    for (const auto &[key, symbol] : symbol_table)
     {
-        byte_writer << ByteWriter::Data(symbol.second.symbol_name, 8);
-        byte_writer << ByteWriter::Data(symbol.second.symbol_value, 8);
-        byte_writer << ByteWriter::Data(S16(symbol.second.binding_info), 2);
-        byte_writer << ByteWriter::Data(symbol.second.section, 8);
+        byte_writer << ByteWriter::Data(symbol.symbol_name, 8);
+        byte_writer << ByteWriter::Data(symbol.symbol_value, 8);
+        byte_writer << ByteWriter::Data(S16(symbol.binding_info), 2);
+        byte_writer << ByteWriter::Data(symbol.section, 8);
 
         AEMU_DEBUG("ObjectFile::write_object_file() - symbol {} = {} ({})[{}]",
-                   strings[symbol.second.symbol_name], symbol.second.symbol_value,
-                   U32(symbol.second.binding_info), symbol.second.section);
+                   strings[symbol.symbol_name], symbol.symbol_value, U32(symbol.binding_info),
+                   symbol.section);
     }
     sections[section_table[".symtab"]].section_size = symbol_table.size() * kSymbolTableEntrySize;
     sections[section_table[".symtab"]].section_start = current_byte;
     current_byte += symbol_table.size() * kSymbolTableEntrySize;
 
-    /* rel.text Section */
-    AEMU_DEBUG("ObjectFile::write_object_file() - Writing .rel.text section.");
-    for (size_t i = 0; i < rel_text.size(); i++)
+    /* Relocation sections */
+    const auto write_relocations =
+        [&](const char *name, const std::vector<RelocationEntry> &relocations)
     {
-        byte_writer << ByteWriter::Data(rel_text[i].offset, 8);
-        byte_writer << ByteWriter::Data(rel_text[i].symbol, 8);
-        byte_writer << ByteWriter::Data(U32(rel_text[i].type), 4);
-        byte_writer << ByteWriter::Data(rel_text[i].shift, 8);
-    }
-    sections[section_table[".rel.text"]].section_size = rel_text.size() * kRelocationEntrySize;
-    sections[section_table[".rel.text"]].section_start = current_byte;
-    current_byte += rel_text.size() * kRelocationEntrySize;
-
-    /* rel.data Section */
-    AEMU_DEBUG("ObjectFile::write_object_file() - Writing .rel.data section.");
-    for (size_t i = 0; i < rel_data.size(); i++)
-    {
-        byte_writer << ByteWriter::Data(rel_data[i].offset, 8);
-        byte_writer << ByteWriter::Data(rel_data[i].symbol, 8);
-        byte_writer << ByteWriter::Data(U32(rel_data[i].type), 4);
-        byte_writer << ByteWriter::Data(rel_data[i].shift, 8);
-    }
-    sections[section_table[".rel.data"]].section_size = rel_data.size() * kRelocationEntrySize;
-    sections[section_table[".rel.data"]].section_start = current_byte;
-    current_byte += rel_data.size() * kRelocationEntrySize;
-
-    /* rel.bss Section */
-    AEMU_DEBUG("ObjectFile::write_object_file() - Writing .rel.bss section.");
-    for (size_t i = 0; i < rel_bss.size(); i++)
-    {
-        byte_writer << ByteWriter::Data(rel_bss[i].offset, 8);
-        byte_writer << ByteWriter::Data(rel_bss[i].symbol, 8);
-        byte_writer << ByteWriter::Data(U32(rel_bss[i].type), 4);
-        byte_writer << ByteWriter::Data(rel_bss[i].shift, 8);
-    }
-    sections[section_table[".rel.bss"]].section_size = rel_bss.size() * kRelocationEntrySize;
-    sections[section_table[".rel.bss"]].section_start = current_byte;
-    current_byte += rel_bss.size() * kRelocationEntrySize;
+        AEMU_DEBUG("ObjectFile::write_object_file() - Writing {} section.", name);
+        for (const RelocationEntry &rel : relocations)
+        {
+            byte_writer << ByteWriter::Data(rel.offset, 8);
+            byte_writer << ByteWriter::Data(rel.symbol, 8);
+            byte_writer << ByteWriter::Data(U32(rel.type), 4);
+            byte_writer << ByteWriter::Data(rel.shift, 8);
+        }
+        sections[section_table[name]].section_size = relocations.size() * kRelocationEntrySize;
+        sections[section_table[name]].section_start = current_byte;
+        current_byte += relocations.size() * kRelocationEntrySize;
+    };
+    write_relocations(".rel.text", rel_text);
+    write_relocations(".rel.data", rel_data);
+    write_relocations(".rel.bss", rel_bss);
 
     /* String Table */
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .strtab section.");
@@ -480,6 +550,7 @@ void ObjectFile::write_object_file(File obj_file)
 
         byte_writer << ByteWriter::Data(sections[i].load_at_physical_address, 1);
         byte_writer << ByteWriter::Data(sections[i].address, 8);
+        byte_writer << ByteWriter::Data(sections[i].alignment, 8);
     }
     /* For easy access */
     byte_writer << ByteWriter::Data(current_byte, 8);
@@ -487,180 +558,6 @@ void ObjectFile::write_object_file(File obj_file)
     current_byte += sections.size() * kSectionHeaderSize;
 
     m_writer.close();
-
-    m_state = State::WRITING_SUCCESS;
-
-    print();
-}
-
-void ObjectFile::print()
-{
-    /* Print object file */
-    AEMU_DEBUG("ObjectFile::print() - Printing object file.");
-
-    /* Don't print object files that could not be disassembled */
-    if (m_state != State::DISASSEMBLED_SUCCESS || m_state != State::WRITING_SUCCESS)
-    {
-        printf("ERROR: Cannot print object file. Disassembly failed.");
-        return;
-    }
-
-    printf("%s:\tfile format %s\n\n", (m_obj_file.get_name() + "." + OBJECT_EXTENSION).c_str(),
-           "belf32-littleemu32");
-    printf("SYMBOL TABLE:\n");
-    for (std::pair<int, SymbolTableEntry> symbol : symbol_table)
-    {
-        char visibility = ' ';
-        if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::GLOBAL)
-        {
-            visibility = 'g';
-        }
-        else if (symbol.second.binding_info == SymbolTableEntry::BindingInfo::LOCAL)
-        {
-            visibility = 'l';
-        }
-
-        std::string section_name = "*UND*";
-        if (symbol.second.section != U32(-1))
-        {
-            section_name = strings[sections[symbol.second.section].section_name];
-        }
-
-        std::cout << color_val_str(to_hex_str(dword(symbol.second.symbol_value))) << " "
-                  << visibility << "\t " << section_name << "\t\t "
-                  << color_val_str(to_hex_str(dword(0))) << " "
-                  << strings[symbol.second.symbol_name] << "\n";
-    }
-
-    printf("\nContents of section .data:");
-    int data_address_width = std::__bit_width(data_section.size() / 16);
-    if (data_address_width < 4)
-    {
-        data_address_width = 4;
-    }
-    std::string data_address_format = "\n%." + std::to_string(data_address_width) + "hx ";
-    for (size_t i = 0; i < data_section.size(); i++)
-    {
-        if (i % 16 == 0)
-        {
-            printf(data_address_format.c_str(), i);
-        }
-        if (i % 4 == 0 && i % 16 != 0)
-        {
-            printf(" ");
-        }
-        printf("%.2hhx", data_section[i]);
-    }
-
-    printf("\n\nDisassembly of section .text:\n");
-    std::unordered_map<int, int> label_map;
-    for (std::pair<int, SymbolTableEntry> symbol : symbol_table)
-    {
-        // Undefined symbols (section -1) have no section to look up.
-        if (symbol.second.section == U32(-1)
-            || sections[symbol.second.section].type != SectionHeader::Type::TEXT
-            || strings[symbol.second.symbol_name].find("::SCOPE") != std::string::npos)
-        {
-            continue;
-        }
-
-        label_map[symbol.second.symbol_value] = symbol.second.symbol_name;
-    }
-
-    std::unordered_map<int, RelocationEntry> rel_text_map;
-    for (size_t i = 0; i < rel_text.size(); i++)
-    {
-        rel_text_map[rel_text[i].offset] = rel_text[i];
-    }
-
-    if (label_map.find(0) == label_map.end())
-    {
-        std::cout << color_val_str(to_hex_str(dword(0))) << ":";
-    }
-
-    int text_address_width = std::__bit_width(text_section.size() / 4);
-    if (text_address_width < 4)
-    {
-        text_address_width = 4;
-    }
-    std::string text_address_format = "\n%" + std::to_string(text_address_width) + "hx";
-    std::string relocation_spacing = "\n%" + std::to_string(text_address_width) + "s";
-    std::string current_label = "";
-    for (size_t i = 0; i < text_section.size(); i++)
-    {
-        if (label_map.find(i * 4) != label_map.end())
-        {
-            if (i != 0)
-            {
-                printf("\n\n");
-            }
-            current_label = strings[label_map[i * 4]];
-            std::cout << color_val_str(to_hex_str(dword(i * 4))) << " <" << current_label << ">:";
-        }
-        std::string disassembly = Emulator32bit::disassemble_instr(text_section[i]);
-        printf(text_address_format.c_str(), i * 4);
-
-        if (disassembly.find_first_of(' ') != std::string::npos)
-        {
-            std::string op = disassembly.substr(0, disassembly.find_first_of(' '));
-            std::string operands = disassembly.substr(disassembly.find_first_of(' ') + 1);
-            printf(":\t%.8x\t%.12s\t\t%s", text_section[i], op.c_str(), operands.c_str());
-            switch (bitfield_unsigned(text_section[i], 26, 6))
-            {
-            case Emulator32bit::_op_b:
-            case Emulator32bit::_op_bl:
-                sword offset = bitfield_signed(text_section[i], 0, 22) * 4;
-                if (offset < 0)
-                {
-                    printf(" <%s-0x%hx>", current_label.c_str(), -offset);
-                }
-                else
-                {
-                    printf(" <%s+0x%hx>", current_label.c_str(), offset);
-                }
-            }
-        }
-        else
-        {
-            printf(":\t%.8x\t%.12s", text_section[i], disassembly.c_str());
-        }
-
-        /* Check if there is a relocation record here */
-        if (rel_text_map.find(i * 4) != rel_text_map.end())
-        {
-            printf(relocation_spacing.c_str(), "");
-
-            RelocationEntry entry = rel_text_map[i * 4];
-            std::string print_str = "";
-            switch (entry.type)
-            {
-            case RelocationEntry::Type::R_EMU32_O_LO12:
-                print_str = "R_EMU32_O_LO12";
-                break;
-            case RelocationEntry::Type::R_EMU32_ADRP_HI20:
-                print_str = "R_EMU32_ADRP_HI20";
-                break;
-            case RelocationEntry::Type::R_EMU32_MOV_LO19:
-                print_str = "R_EMU32_MOV_LO19";
-                break;
-            case RelocationEntry::Type::R_EMU32_MOV_HI13:
-                print_str = "R_EMU32_MOV_HI13";
-                break;
-            case RelocationEntry::Type::R_EMU32_B_OFFSET22:
-                print_str = "R_EMU32_B_OFFSET22";
-                break;
-            case RelocationEntry::Type::UNDEFINED:
-                print_str = "<ERROR>";
-                break;
-            }
-
-            int print_str_width = 29 - std::__bit_width(i / 4);
-            printf((" \t%hx: %-" + std::to_string(print_str_width) + "s").c_str(), dword(i * 4),
-                   print_str.c_str());
-            printf("%s", strings[symbol_table[entry.symbol].symbol_name].c_str());
-        }
-    }
-    printf("\n");
 }
 
 word ObjectFile::get_text_section_size()
@@ -676,4 +573,21 @@ word ObjectFile::get_data_section_size()
 word ObjectFile::get_bss_section_size()
 {
     return bss_section;
+}
+
+word ObjectFile::get_section_size(U32 section)
+{
+    AEMU_CHECK(section < sections.size(), "ObjectFile::get_section_size() - No section {}.",
+               section);
+    switch (sections[section].type)
+    {
+    case SectionHeader::Type::TEXT:
+        return get_text_section_size();
+    case SectionHeader::Type::DATA:
+        return get_data_section_size();
+    case SectionHeader::Type::BSS:
+        return get_bss_section_size();
+    default:
+        AEMU_FATAL("ObjectFile::get_section_size() - Section {} holds no code or data.", section);
+    }
 }

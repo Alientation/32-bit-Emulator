@@ -49,15 +49,34 @@ static word get_format_o_arg(Emulator32bit &cpu, const word instr)
  */
 struct JPart
 {
+    // A value that does not fit in its bits would spill into the fields next to it, and the
+    // instruction would silently be another one.
     JPart(const int bits, const word val = 0) :
         bits(bits),
         val(val)
     {
+        AEMU_CHECK(bits >= int(sizeof(word) * 8) || val < (word(1) << bits),
+                   "Emulator32bit - The value {} does not fit in {} bits of an instruction.", val,
+                   bits);
     }
 
     const int bits; /* Number of bits stored in this part */
     const word
         val; /* Contents of the bits stored in this part, stored with the first bit in the most significant bit */
+};
+
+/**
+ * @internal
+ * @brief                    Bits of an instruction that are 0 (unused, or a flag that is off)
+ */
+struct Zeros
+{
+    explicit Zeros(const int bits) :
+        bits(bits)
+    {
+    }
+
+    const int bits;
 };
 
 /**
@@ -80,7 +99,7 @@ class Joiner
     Joiner &operator<<(const JPart &p)
     {
         val <<= p.bits;
-        val += p.val;
+        val |= p.val;
         return *this;
     }
 
@@ -88,12 +107,12 @@ class Joiner
          * @internal
          * @brief            Add filler bits all set to 0
          *
-         * @param             bits: Number of bits to add
+         * @param             zeros: The bits to add
          * @return             Reference to this object
          */
-    Joiner &operator<<(const int bits)
+    Joiner &operator<<(const Zeros &zeros)
     {
-        val <<= bits;
+        val <<= zeros.bits;
         return *this;
     }
 
@@ -141,22 +160,22 @@ word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, co
 word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, const int xn,
                                  const int xm, const ShiftType shift, const int imm5)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << 1
-                    << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5) << 2;
+    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << Zeros(1)
+                    << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5) << Zeros(2);
 }
 
 word Emulator32bit::asm_format_o1(const U8 opcode, const int xd, const int xn, const bool imm,
                                   const int xm, const int imm5, const bool s)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
-                    << JPart(1, imm) << JPart(5, xm) << 2 << JPart(5, imm5) << 2;
+                    << JPart(1, imm) << JPart(5, xm) << Zeros(2) << JPart(5, imm5) << Zeros(2);
 }
 
 word Emulator32bit::asm_format_o2(const U8 opcode, const bool s, const int xlo, const int xhi,
                                   const int xn, const int xm)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi) << 1
-                    << JPart(5, xn) << JPart(5, xm) << 4;
+    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi) << Zeros(1)
+                    << JPart(5, xn) << JPart(5, xm) << Zeros(4);
 }
 
 word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, const int imm19)
@@ -176,8 +195,9 @@ word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt,
                                  const int xm, const ShiftType shift, const int imm5,
                                  const AddrType adr)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn) << 1
-                    << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5) << JPart(2, U8(adr));
+    return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn)
+                    << Zeros(1) << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5)
+                    << JPart(2, U8(adr));
 }
 
 word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt, const int xn,
@@ -190,7 +210,7 @@ word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt,
 
 word Emulator32bit::asm_format_m1(const U8 opcode, const int xd, const int imm20)
 {
-    return Joiner() << JPart(6, opcode) << 1 << JPart(5, xd) << JPart(20, imm20);
+    return Joiner() << JPart(6, opcode) << Zeros(1) << JPart(5, xd) << JPart(20, imm20);
 }
 
 word Emulator32bit::asm_format_b1(const U8 opcode, const ConditionCode cond, const sword simm22)
@@ -201,7 +221,7 @@ word Emulator32bit::asm_format_b1(const U8 opcode, const ConditionCode cond, con
 
 word Emulator32bit::asm_format_b2(const U8 opcode, const ConditionCode cond, const int xd)
 {
-    return Joiner() << JPart(6, opcode) << JPart(4, word(cond)) << JPart(5, xd) << 17;
+    return Joiner() << JPart(6, opcode) << JPart(4, word(cond)) << JPart(5, xd) << Zeros(17);
 }
 
 void Emulator32bit::_special_instructions(const word instr)
@@ -240,9 +260,16 @@ void Emulator32bit::_hlt(const word instr)
     throw Exception(InterruptType::HALT_INSTR, "HLT Exception");
 }
 
+void Emulator32bit::_bad_opcode(const word instr)
+{
+    throw Exception(InterruptType::BAD_INSTR,
+                    "Bad opcode " + std::to_string(bitfield_unsigned(instr, 26, 6)));
+}
+
 word Emulator32bit::asm_hlt()
 {
-    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_hlt) << 22;
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_hlt)
+                    << Zeros(22);
 }
 
 void Emulator32bit::_nop(const word instr)
@@ -253,7 +280,8 @@ void Emulator32bit::_nop(const word instr)
 
 word Emulator32bit::asm_nop()
 {
-    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_nop) << 22;
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_nop)
+                    << Zeros(22);
 }
 
 void Emulator32bit::_msr(const word instr)
@@ -283,7 +311,7 @@ word Emulator32bit::asm_msr(U8 sysreg, bool imm, word xn_or_imm16)
     else
     {
         return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_msr)
-                        << JPart(5, sysreg) << JPart(1, imm) << JPart(5, xn_or_imm16) << 11;
+                        << JPart(5, sysreg) << JPart(1, imm) << JPart(5, xn_or_imm16) << Zeros(11);
     }
 }
 
@@ -302,7 +330,7 @@ void Emulator32bit::_mrs(const word instr)
 word Emulator32bit::asm_mrs(U8 xn, U8 sysreg)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_mrs)
-                    << JPart(5, xn) << 1 << JPart(5, sysreg) << 11;
+                    << JPart(5, xn) << Zeros(1) << JPart(5, sysreg) << Zeros(11);
 }
 
 void Emulator32bit::_tlbi(const word instr)
@@ -354,8 +382,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        AEMU_FATAL("Invalid ATOMIC_WIDTH: {}", width);
-        return;
+        throw Exception(InterruptType::BAD_INSTR, "Invalid atomic width " + std::to_string(width));
     }
 
     // The value in the source register is truncated to the
@@ -383,12 +410,9 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        AEMU_FATAL("Invalid atomic operation: {}", static_cast<int>(operation));
-        return;
+        throw Exception(InterruptType::BAD_INSTR,
+                        "Invalid atomic operation " + std::to_string(static_cast<int>(operation)));
     }
-
-    // Return the original memory value in Xt.
-    write_reg(xt, val_mem);
 
     switch (width)
     {
@@ -408,6 +432,10 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         // Already validated above.
         break;
     }
+
+    // Return the original memory value in Xt. Only once the memory is written, a write that
+    // faults leaves the registers as they were.
+    write_reg(xt, val_mem);
 }
 
 void Emulator32bit::_atomic(const word instr)
@@ -437,7 +465,7 @@ void Emulator32bit::_atomic(const word instr)
 word Emulator32bit::asm_atomic(word xt, word xn, word xm, U8 width, U8 atop)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_atomic)
-                    << JPart(5, xt) << 1 << JPart(5, xn) << JPart(5, xm) << JPart(2, width)
+                    << JPart(5, xt) << Zeros(1) << JPart(5, xn) << JPart(5, xm) << JPart(2, width)
                     << JPart(4, atop);
 }
 
@@ -518,66 +546,28 @@ FLAGS_ONLY_OP(_teq, alu_eor(rn, op2, get_NZCV())) // alias to eors
 #undef SHIFT_OP
 #undef LONG_MUL_OP
 
-// todo WILL DO LATER JUST NOT NOW
-void Emulator32bit::_vabs(const word instr)
-{
-    UNUSED(instr);
-}
+// Vector/floating point instructions are not implemented. Executing one is a fault instead of a
+// silent no-op.
+#define UNIMPLEMENTED_OP(name, mnemonic)                                                           \
+    void Emulator32bit::name(const word instr)                                                     \
+    {                                                                                              \
+        UNUSED(instr);                                                                             \
+        throw Exception(InterruptType::BAD_INSTR, mnemonic " is not implemented.");                \
+    }
 
-void Emulator32bit::_vneg(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vsqrt(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vadd(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vsub(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vdiv(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vmul(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vcmp(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vsel(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vcint(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vcflo(const word instr)
-{
-    UNUSED(instr);
-}
-
-void Emulator32bit::_vmov(const word instr)
-{
-    UNUSED(instr);
-}
+UNIMPLEMENTED_OP(_vabs, "vabs")
+UNIMPLEMENTED_OP(_vneg, "vneg")
+UNIMPLEMENTED_OP(_vsqrt, "vsqrt")
+UNIMPLEMENTED_OP(_vadd, "vadd")
+UNIMPLEMENTED_OP(_vsub, "vsub")
+UNIMPLEMENTED_OP(_vdiv, "vdiv")
+UNIMPLEMENTED_OP(_vmul, "vmul")
+UNIMPLEMENTED_OP(_vcmp, "vcmp")
+UNIMPLEMENTED_OP(_vsel, "vsel")
+UNIMPLEMENTED_OP(_vcint, "vcint")
+UNIMPLEMENTED_OP(_vcflo, "vcflo")
+UNIMPLEMENTED_OP(_vmov, "vmov")
+#undef UNIMPLEMENTED_OP
 
 static word get_mov_arg(Emulator32bit &cpu, const word instr)
 {
@@ -598,131 +588,94 @@ MOVE_OP(_mov, alu_mov)
 MOVE_OP(_mvn, alu_mvn)
 #undef MOVE_OP
 
-word Emulator32bit::calc_mem_addr(word xn, sword offset, U8 addr_mode)
+Emulator32bit::MemOperand Emulator32bit::decode_mem_operand(const word instr)
 {
-    word mem_addr = 0;
-    const word xn_val = read_reg(xn);
-    if (addr_mode == 0)
-    {
-        mem_addr = xn_val + offset;
-    }
-    else if (addr_mode == 1)
-    {
-        mem_addr = xn_val + offset;
-        write_reg(xn, mem_addr);
-    }
-    else if (addr_mode == 2)
-    {
-        mem_addr = xn_val;
-        write_reg(xn, xn_val + offset);
-    }
-    else
-    {
-        throw Exception(InterruptType::BAD_INSTR,
-                        "Bad memory address mode " + std::to_string(addr_mode));
-    }
-    return mem_addr;
-}
-
-void Emulator32bit::_ldr(const word instr)
-{
-    const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
+    const sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
+    const U8 addr_mode = bitfield_unsigned(instr, 0, 2);
 
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    const word read_val = system_bus->read_word(mem_addr);
-    write_reg(xt, read_val);
+    const word base = read_reg(xn);
+    switch (AddrType(addr_mode))
+    {
+    case AddrType::ADDR_OFFSET:
+        return {.address = base + offset, .base = xn, .base_after = base, .writes_back = false};
+    case AddrType::ADDR_PRE_INC:
+        return {
+            .address = base + offset, .base = xn, .base_after = base + offset, .writes_back = true};
+    case AddrType::ADDR_POST_INC:
+        return {.address = base, .base = xn, .base_after = base + offset, .writes_back = true};
+    }
+
+    throw Exception(InterruptType::BAD_INSTR,
+                    "Bad memory address mode " + std::to_string(addr_mode));
+}
+
+void Emulator32bit::write_back_base(const MemOperand &operand)
+{
+    if (operand.writes_back)
+    {
+        write_reg(operand.base, operand.base_after);
+    }
+}
+
+// The base register is written back after the access, so an access that faults changes nothing.
+// A load writes the loaded value after that, which is why it wins when xt is the base register.
+// A store has read xt before the write back, so `str x1, [x1, 8]!` stores the old x1.
+void Emulator32bit::_ldr(const word instr)
+{
+    const MemOperand mem = decode_mem_operand(instr);
+    const word read_val = system_bus->read_word(mem.address);
+    write_back_base(mem);
+    write_reg(_X1(instr), read_val);
 }
 
 void Emulator32bit::_ldrb(const word instr)
 {
     const bool sign = test_bit(instr, 25);
-    const U8 xt = _X1(instr);
-    const U8 xn = _X2(instr);
-    const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
-
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    word read_val = system_bus->read_byte(mem_addr);
+    const MemOperand mem = decode_mem_operand(instr);
+    word read_val = system_bus->read_byte(mem.address);
     if (sign)
     {
         read_val = sword(S8(read_val));
     }
-    write_reg(xt, read_val);
+    write_back_base(mem);
+    write_reg(_X1(instr), read_val);
 }
 
 void Emulator32bit::_ldrh(const word instr)
 {
     const bool sign = test_bit(instr, 25);
-    const U8 xt = _X1(instr);
-    const U8 xn = _X2(instr);
-    const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
-
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    word read_val = system_bus->read_hword(mem_addr);
+    const MemOperand mem = decode_mem_operand(instr);
+    word read_val = system_bus->read_hword(mem.address);
     if (sign)
     {
         read_val = sword(S16(read_val));
     }
-    write_reg(xt, read_val);
+    write_back_base(mem);
+    write_reg(_X1(instr), read_val);
 }
 
+// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
 void Emulator32bit::_str(const word instr)
 {
-    const U8 xt = _X1(instr);
-    const U8 xn = _X2(instr);
-    const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
-
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    // Read xt before calc_mem_addr writes the base back, so `str x1, [x1, 8]!` stores the old x1.
-    const word write_val = read_reg(xt);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    system_bus->write_word(mem_addr, write_val);
+    const MemOperand mem = decode_mem_operand(instr);
+    system_bus->write_word(mem.address, read_reg(_X1(instr)));
+    write_back_base(mem);
 }
 
 void Emulator32bit::_strb(const word instr)
 {
-    const bool sign = test_bit(instr, 25);
-    const U8 xt = _X1(instr);
-    const U8 xn = _X2(instr);
-    const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
-
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    // Read xt before calc_mem_addr writes the base back (see _str).
-    word write_val = read_reg(xt);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    if (sign)
-    {
-        write_val = sword(S8(write_val));
-    }
-    system_bus->write_byte(mem_addr, write_val);
+    const MemOperand mem = decode_mem_operand(instr);
+    system_bus->write_byte(mem.address, read_reg(_X1(instr)));
+    write_back_base(mem);
 }
 
 void Emulator32bit::_strh(const word instr)
 {
-    const bool sign = test_bit(instr, 25);
-    const U8 xt = _X1(instr);
-    const U8 xn = _X2(instr);
-    const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
-
-    const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    // Read xt before calc_mem_addr writes the base back (see _str).
-    word write_val = read_reg(xt);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
-    if (sign)
-    {
-        write_val = sword(S16(write_val));
-    }
-    system_bus->write_hword(mem_addr, write_val);
+    const MemOperand mem = decode_mem_operand(instr);
+    system_bus->write_hword(mem.address, read_reg(_X1(instr)));
+    write_back_base(mem);
 }
 
 void Emulator32bit::_b(const word instr)

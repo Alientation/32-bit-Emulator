@@ -6,35 +6,28 @@
 #include "util/file.h"
 
 #include <fstream>
+#include <unordered_map>
+#include <vector>
 
 /**
- * @def             AEMU_DISK_CACHE_PSIZE
- * @brief             The log base 2 of the @ref Disk cache size.
- *
- * @note             This defines the number of bits necessary to represent a cache location.
- *                     It is used to calculate the total cache size.
- * @see             AEMU_DISK_CACHE_SIZE
+ * @brief             The number of pages the cache of a @ref Disk holds. A power of 2, a page is
+ *                     in the cache slot of its number modulo this.
  */
-#define AEMU_DISK_CACHE_PSIZE 5
-
-/**
- * @def             AEMU_DISK_CACHE_SIZE
- * @brief             The size of @ref Disk cache.
- *
- * @note             This is calculated as 2 ^ @ref AEMU_DISK_CACHE_PSIZE
- */
-#define AEMU_DISK_CACHE_SIZE (1 << AEMU_DISK_CACHE_PSIZE)
+inline constexpr word kDiskCacheSize = 32;
+static_assert((kDiskCacheSize & (kDiskCacheSize - 1)) == 0, "The cache size is a power of 2");
 
 /**
  * @brief             Simulates disk memory with a file to maintain data across utilizations.
  *
  * @details         Disk memory is stored in terms of pages. Each page is of size
- *                     @ref AEMU_PAGE_SIZE bytes (currently 4096 bytes). Contains a cache that can hold
- *                     @ref AEMU_DISK_CACHE_SIZE pages and features optimized page eviction like
+ *                     @ref kPageSize bytes (currently 4096 bytes). Contains a cache that can hold
+ *                     @ref kDiskCacheSize pages and features optimized page eviction like
  *                     avoiding writing back clean pages. Disk memory is organized by a memory manager
  *                     that maintains a free block list of page blocks that are not in use. This means
  *                     that proper usage of this class requires that whenever a disk page is not used
  *                     anymore, it needs to be returned back.
+ *
+ *                     A disk without a file is a @ref MockDisk.
  *
  * @todo             TODO: Allow allocating multiple pages at times. Also add helper to check if the
  *                     disk can allocate such an amount.
@@ -49,8 +42,10 @@ class Disk : public BaseMemory
          * @param npages     the number of pages the disk should have.
          */
     Disk(File diskfile, word npages, word lo_page);
-    Disk();
     virtual ~Disk();
+
+    Disk(const Disk &) = delete;
+    Disk &operator=(const Disk &) = delete;
 
     class DiskReadException : public std::exception
     {
@@ -177,7 +172,7 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-    virtual void write_page(word page, std::vector<byte>);
+    virtual void write_page(word page, const std::vector<byte> &data);
 
     /**
          * @brief             Writes a byte to disk.
@@ -216,6 +211,10 @@ class Disk : public BaseMemory
          */
     virtual void save();
 
+  protected:
+    /// A disk with no file and no addresses, for a disk that keeps its pages some other way.
+    Disk();
+
   private:
     /**
          * @brief             Disk page located in cache
@@ -233,19 +232,15 @@ class Disk : public BaseMemory
 
         /// Whether the cache page refers to an actual disk page or is an empty page
         bool valid = false;
-
-        /// Not yet used, but for caches with multi-page lines can use for page eviction
-        long long last_acc;
     };
 
-    File m_diskfile;           ///< Where the contents of disk memory are stored at
-    File m_diskfile_manager;   ///< Where the disk memory manager data is stored at
-    std::streamsize m_npages;  ///< Number of pages the disk memory contains
-    CachePage *m_cache;        ///< Disk cache for read/write optimization
+    File m_diskfile;                ///< Where the contents of disk memory are stored at
+    File m_diskfile_manager;        ///< Where the disk memory manager data is stored at
+    std::fstream m_stream;          ///< The disk file, open for as long as the disk exists
+    std::streamsize m_npages = 0;   ///< Number of pages the disk memory contains
+    std::vector<CachePage> m_cache; ///< Disk cache for read/write optimization
 
-    long long n_acc = 0;       ///< Used for LRU calculations, number of accesses
-
-    FreeBlockList m_free_list; ///< Disk manager, which pages are free to use
+    FreeBlockList m_free_list;      ///< Disk manager, which pages are free to use
 
     /**
          * @brief             Reads a specified size little endian value from disk.
@@ -287,10 +282,13 @@ class Disk : public BaseMemory
          *                     Fetches the corresponding cache page of the disk page requested,
          *                     evicting a page from cache to make room when necessary.
          *
-         * @param addr        Address to fetch the page of.
+         * @param addr        Page to fetch.
+         * @param load         Whether the contents of the page are read from the disk file. Not
+         *                     needed when the whole page is about to be overwritten.
          * @return             Reference to the cache page.
+         * @throws             DiskReadException if the page is not on the disk.
          */
-    CachePage &get_cpage(word addr);
+    CachePage &get_cpage(word addr, bool load = true);
 
     /**
          * @brief             Writes a cache page to disk.
@@ -321,7 +319,10 @@ class Disk : public BaseMemory
 };
 
 /**
- * @brief             Mocks @ref Disk but doesn't actually perform any operations
+ * @brief             A @ref Disk in memory, without a file. It keeps the pages that are written
+ *                    to it for as long as it exists, and has as many pages as are needed. It is
+ *                    only a store of pages, it has no addresses (the byte, hword and word accesses
+ *                    do nothing).
  */
 class MockDisk : public Disk
 {
@@ -338,10 +339,20 @@ class MockDisk : public Disk
     hword read_hword(word addressn) override;
     word read_word(word address) override;
 
-    void write_page(word page, std::vector<byte>) override;
+    void write_page(word page, const std::vector<byte> &data) override;
     void write_byte(word address, byte data) override;
     void write_hword(word address, hword data) override;
     void write_word(word address, word data) override;
 
     void save() override;
+
+  private:
+    /// The pages that have contents. A page that is not here is zeros.
+    std::unordered_map<word, std::vector<byte>> m_pages;
+
+    /// Pages that were returned, and are handed out again before new ones.
+    std::vector<word> m_returned;
+
+    /// The next page that was never handed out.
+    word m_next_page = 0;
 };

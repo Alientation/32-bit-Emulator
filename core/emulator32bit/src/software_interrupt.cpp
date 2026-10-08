@@ -4,56 +4,101 @@
 #include "util/common.h"
 #include "util/logger.h"
 
+#include <format>
 #include <iostream>
+
+namespace
+{
+
+/// The longest string that a program can ask the emulator to print. A string that does not end
+/// before that is a program that lost track of its memory.
+constexpr word kMaxStringLength = 1 << 16;
+
+} // namespace
+
+void Emulator32bit::set_output(std::ostream &out)
+{
+    m_out = &out;
+}
+
+void Emulator32bit::set_error_output(std::ostream &err)
+{
+    m_err = &err;
+}
+
+// The value of the size bytes at the address, the most significant byte being the last one in memory
+// for a little endian value and the first one for a big endian value.
+word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
+{
+    if (size == 0 || size > sizeof(word))
+    {
+        throw Exception(InterruptType::BAD_INSTR,
+                        "A value in memory is 1 to 4 bytes, not " + std::to_string(size));
+    }
+
+    word val = 0;
+    for (U8 i = 0; i < size; i++)
+    {
+        const U8 index = little_endian ? size - 1 - i : i;
+        val = (val << 8) + system_bus->read_byte(mem_addr + index);
+    }
+    return val;
+}
+
+U8 Emulator32bit::_emu_register_arg(word reg_id)
+{
+    if (reg_id >= kNumReg)
+    {
+        throw Exception(InterruptType::BAD_REG, "There is no register " + std::to_string(reg_id));
+    }
+    return U8(reg_id);
+}
+
+std::string Emulator32bit::_emu_read_string(word address)
+{
+    std::string text;
+    for (word length = 0; length < kMaxStringLength; length++)
+    {
+        const byte c = system_bus->read_byte(address + length);
+        if (c == '\0')
+        {
+            return text;
+        }
+        text += char(c);
+    }
+
+    throw Exception(InterruptType::BAD_INSTR,
+                    "The string at address " + std::to_string(address) + " is not terminated");
+}
 
 void Emulator32bit::_emu_print()
 {
     print();
 }
 
-void Emulator32bit::_emu_printr(byte reg_id)
+void Emulator32bit::_emu_printr(U8 reg_id)
 {
-    printf("REG: %d = %x\n", reg_id, read_reg(reg_id));
+    *m_out << std::format("REG: {} = {:x}\n", reg_id, read_reg(reg_id));
 }
 
-void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian)
+void Emulator32bit::_emu_printm(word mem_addr, U8 size, bool little_endian)
 {
-    word val = 0;
-    if (little_endian)
-    {
-        for (byte i = 0; i < size; i++)
-        {
-            val <<= 8;
-            val += system_bus->read_byte(mem_addr + i);
-        }
-    }
-    else
-    {
-        for (int i = size - 1; i >= 0; i--)
-        {
-            val <<= 8;
-            val += system_bus->read_byte(mem_addr + i);
-        }
-    }
-
-    printf("MEM: %x = %.2x", mem_addr, val);
+    const word val = _emu_read_value(mem_addr, size, little_endian);
+    *m_out << std::format("MEM: {:x} = {:0{}x}\n", mem_addr, val, size * 2);
 }
 
 void Emulator32bit::_emu_printp()
 {
-    printf("PSTATE: N=%u,Z=%u,C=%u,V=%u", test_bit(m_pstate, kNFlagBit),
-           test_bit(m_pstate, kZFlagBit), test_bit(m_pstate, kCFlagBit),
-           test_bit(m_pstate, kVFlagBit));
+    *m_out << std::format("PSTATE: N={:d},Z={:d},C={:d},V={:d}\n", test_bit(m_pstate, kNFlagBit),
+                          test_bit(m_pstate, kZFlagBit), test_bit(m_pstate, kCFlagBit),
+                          test_bit(m_pstate, kVFlagBit));
 }
 
-void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value)
+void Emulator32bit::_emu_assertr(U8 reg_id, word min_value, word max_value)
 {
     word val = read_reg(reg_id);
 
-    if (val >= min_value && val <= max_value)
-    {
-    }
-    else
+    if (val < min_value || val > max_value)
     {
         throw Exception(InterruptType::FAILED_ASSERT,
                         "Failed system call assertion. Expected register " + std::to_string(reg_id)
@@ -63,26 +108,10 @@ void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value)
     }
 }
 
-void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, word min_value,
+void Emulator32bit::_emu_assertm(word mem_addr, U8 size, bool little_endian, word min_value,
                                  word max_value)
 {
-    word val = 0;
-    if (little_endian)
-    {
-        for (byte i = 0; i < size; i++)
-        {
-            val <<= 8;
-            val += system_bus->read_byte(mem_addr + i);
-        }
-    }
-    else
-    {
-        for (int i = size - 1; i >= 0; i--)
-        {
-            val <<= 8;
-            val += system_bus->read_byte(mem_addr + i);
-        }
-    }
+    const word val = _emu_read_value(mem_addr, size, little_endian);
 
     if (val < min_value || val > max_value)
     {
@@ -93,7 +122,7 @@ void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, w
     }
 }
 
-void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value)
+void Emulator32bit::_emu_assertp(U8 p_state_id, bool expected_value)
 {
     bool val = test_bit(m_pstate, p_state_id);
 
@@ -109,160 +138,47 @@ void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value)
 
 void Emulator32bit::_emu_log(word str)
 {
-    std::string msg;
-    while (system_bus->read_byte(str) != '\0')
-    {
-        msg += (char) system_bus->read_byte(str);
-        str++;
-    }
-
-    std::cout << msg << "\n";
+    *m_out << _emu_read_string(str) << "\n";
 }
 
 // TODO: raise interrupt so kernel can handle
 void Emulator32bit::_emu_err(word err)
 {
-    std::string msg;
-    while (system_bus->read_byte(err) != '\0')
-    {
-        msg += (char) system_bus->read_byte(err);
-        err++;
-    }
-
-    std::cerr << msg << "\n";
+    const std::string message = _emu_read_string(err);
+    *m_err << message << "\n";
+    throw Exception(InterruptType::PROGRAM_ERROR, "The program reported an error: " + message);
 }
 
 /**
- * @brief                   System Calls
- *                          https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit
- *                          Would prefer to implement these system calls directly in the kernel rather than abstracting it away
- *                          here. For now this would be fine until a higher level language is implemented for basm
+ * @brief                   System calls, made with `swi`. The number of the call is in the register
+ *                          SYSCALL (x8), the arguments in x0-x5.
  *
- *                          In future, we need a vector table that contains various jump instructions to handle various exceptions.
- *                          The kernel's vector table needs to be loaded into a fixed address location, which means we need a linker script
- *                          to specify memory layout of an executable. This also means the executable file format would have to slightly differ
- *                          and contain information about the physical/virtual address locations. We also would want to be able to access memory directly
- *                          instead of using virtual memory. We could store that information in the PSTATE variable of the processor.
+ *                          In future, we need a vector table that contains various jump instructions
+ *                          to handle various exceptions, and the system calls of an operating
+ *                          system (https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit)
+ *                          would be implemented in the kernel, not here. That needs a linker script
+ *                          that places the kernel at a fixed address, which exists now.
  *
- *                          File management would be simulated through creating a large file to represent a hard drive (something along the lines of ~16 MiB)
- * _______________________________________________________________________________________________________________________________________________________________________________________________
- * | ID |        NAME       |        arg x0         |        arg x1         |        arg x2         |        arg x3             |                arg x4                 |        arg x5          |
- * |____|___________________|_______________________|_______________________|_______________________|___________________________|_______________________________________|________________________|
- * |
- * |======================= Emulator Specific =======================
- **|1000: emu_print         -                       -                       -                       -                           -                                       -
- * |
- * |    prints emulator state to console
- * |
- **|1001: emu_printr        byte reg_id             -                       -                       -                           -                                       -
- * |
- * |    prints a register to console
- * |
- **|1002: emu_printm        word mem_addr           byte size               bool little_endian      -                           -                                       -
- * |
- * |    prints a specific value in memory to console
- * |
- **|1003: emu_printp        -                       -                       -                       -                           -                                       -
- * |
- * |    prints the pstate of the processor
- * |
- **|1010: emu_assertr       byte reg_id             word min_value          word max_value          -                           -                                       -
- * |
- * |    halts execution if reg val is not within bounds
- * |
- **|1011: emu_assertm       word mem_addr           byte size               bool little_endian      word min_value              word max_value                          -
- * |
- * |    halts execution if mem val is not within bounds
- * |
- **|1012: emu_assertp       byte p_state_id         bool expected_val       -                       -                           -                                       -
- * |
- * |    halts execution if the specified p_state is not the expected val
- * |
- **|1020: emu_log           char* str               -                       -                       -                           -                                       -
- * |
- * |    prints message to console
- * |
- **|1021: emu_error         char* err               -                       -                       -                           -                                       -
- * |
- * |    prints error to console and halts program
- * |
- * |
- * |
- * |======================= I/O Operations ==========================
- * |
- **|0000: io_setup          unsigned nr_reqs        aio_context_t *ctx      -                       -                           -                                       -
- * |
- * |     creates the context information for the I/O operation with space for #nr requests
- * |
- **|0001: io_destroy        aio_context_t ctx       -                       -                       -                           -                                       -
- * |
- * |     invalidates the previously created context information
- * |
- **|0002: io_submit         aio_context_t           long                    struct iocb **          -                           -                                       -
- * |
- * |     with the file descriptor (some unique number that identifies a specific file), begins an operation
- * |
- **|0003: io_cancel         aio_context_t ctx_id    struct iocb *iocb       struct io_event *result -                           -                                       -
- * |
- * |    cancels a specific I/O operation
- * |
- **|0004: io_getevents      aio_context_t ctx_id    long min_nr             long nr                 struct io_event *events     struct __kernel_timespec *timeout       -
- * |
- * |     waits for when a specific I/O operation finishes or timesout
- * |
- * |
- * |
- * |======================= File Operations =========================
- **|0005: setxattr          const char *path        const char *name        const void *value       size_t size                 int flags                               -
- * |
- * |
- * |
- **|0006: lsetxattr         const char *path        const char *name        const void *value       size_t size                 int flags                               -
- * |
- * |
- * |
- **|0007: fsetxattr         int fd                  const char *name        const void *value       size_t size                 int flags                               -
- * |
- * |
- * |
- **|0008: getxattr          const char *path        const char *name        void *value             size_t size                 -                                       -
- * |
- * |
- * |
- **|0009: lgetxattr         const char *path        const char *name        void *value             size_t size                 -                                       -
- * |
- * |
- * |
- **|0010: fgetxattr         int fd                  const char *name        void *value             size_t size                 -                                       -
- * |
- * |
- * |
- **|0011: listxattr         const char *path        char *list              size_t size             -                           -                                       -
- * |
- * |
- * |
- **|0012: llistxattr        const char *path        char *list              size_t size             -                           -                                       -
- * |
- * |
- * |
- **|0013: flistxattr        int fd                  char *list              size_t size             -                           -                                       -
- * |
- * |
- * |
- **|0014: removexattr       const char *path        const char *name        -                       -                           -                                       -
- * |
- * |
- * |
- **|0015: lremovexattr      const char *path        const char *name        -                       -                           -                                       -
- * |
- * |
- * |
- **|0016: fremovexattr      int fd                  const char *name        -                       -                           -                                       -
- * |
- * |
- * L____________________________________________________________________________________________________________________________________________________________________________________________|
- * @param instr
- * @param exception
+ * | ID   | NAME         | x0               | x1            | x2              | x3        | x4        |
+ * |------|--------------|------------------|---------------|-----------------|-----------|-----------|
+ * | 1000 | emu_print    |                  |               |                 |           |           |
+ * | 1001 | emu_printr   | byte reg_id      |               |                 |           |           |
+ * | 1002 | emu_printm   | word mem_addr    | byte size     | bool little_end |           |           |
+ * | 1003 | emu_printp   |                  |               |                 |           |           |
+ * | 1010 | emu_assertr  | byte reg_id      | word min      | word max        |           |           |
+ * | 1011 | emu_assertm  | word mem_addr    | byte size     | bool little_end | word min  | word max  |
+ * | 1012 | emu_assertp  | byte p_state_id  | bool expected |                 |           |           |
+ * | 1020 | emu_log      | char *str        |               |                 |           |           |
+ * | 1021 | emu_error    | char *str        |               |                 |           |           |
+ *
+ *  - emu_print prints the registers, emu_printr one register, emu_printm a value of 1 to 4 bytes in
+ *    memory and emu_printp the flags.
+ *  - The assertions stop the program with a fault when the value is not within the bounds (or the
+ *    flag is not the expected one).
+ *  - emu_log prints a message, and emu_error prints it to the error output and stops the program
+ *    with a fault.
+ *  - Output goes to the streams set with set_output () and set_error_output (), by default
+ *    std::cout and std::cerr.
  */
 void Emulator32bit::_swi(word instr)
 {
@@ -282,15 +198,13 @@ void Emulator32bit::_swi(word instr)
     word arg2 = read_reg(Register::X2);
     word arg3 = read_reg(Register::X3);
     word arg4 = read_reg(Register::X4);
-    word arg5 = read_reg(Register::X5);
-    UNUSED(arg5); // temporary
     switch (id)
     {
     case 1000:
         _emu_print();
         break;
     case 1001:
-        _emu_printr(arg0);
+        _emu_printr(_emu_register_arg(arg0));
         break;
     case 1002:
         _emu_printm(arg0, arg1, arg2);
@@ -300,13 +214,20 @@ void Emulator32bit::_swi(word instr)
         break;
 
     case 1010:
-        _emu_assertr(arg0, arg1, arg2);
+        _emu_assertr(_emu_register_arg(arg0), arg1, arg2);
         break;
     case 1011:
         _emu_assertm(arg0, arg1, arg2, arg3, arg4);
         break;
     case 1012:
         _emu_assertp(arg0, arg1);
+        break;
+
+    case 1020:
+        _emu_log(arg0);
+        break;
+    case 1021:
+        _emu_err(arg0);
         break;
     default:
         throw Exception(InterruptType::BAD_INSTR, "Invalid syscall number " + std::to_string(id));

@@ -5,14 +5,9 @@ add_library(emulator32bit STATIC
     src/software_interrupt.cpp
     src/memory.cpp
     src/virtual_memory.cpp
-    src/kernel/better_virtual_memory.cpp
     src/system_bus.cpp
     src/disk.cpp
     src/fbl.cpp
-    src/kernel/fbl_inmemory.cpp
-    src/kernel/process.cpp
-    src/kernel/malloc.cpp
-    src/timer.cpp
 )
 add_library(aemu::emulator32bit ALIAS emulator32bit)
 

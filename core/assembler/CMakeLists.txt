@@ -6,8 +6,10 @@ add_library(assembler STATIC
     src/load_executable.cpp
     src/linker.cpp
     src/object_file.cpp
+    src/object_file_print.cpp
     src/static_library.cpp
     src/preprocessor.cpp
+    src/relocation.cpp
     src/tokenizer.cpp
 )
 add_library(aemu::assembler ALIAS assembler)

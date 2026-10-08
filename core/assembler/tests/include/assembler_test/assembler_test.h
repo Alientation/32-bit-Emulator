@@ -10,6 +10,9 @@
 #include <assembler/tokenizer.h>
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <string>
+
 static constexpr U64 MAX_INSTRUCTIONS = 10000;
 
 class EmulatorFixture : public ::testing::Test
@@ -17,19 +20,31 @@ class EmulatorFixture : public ::testing::Test
   protected:
     Emulator32bit *machine = nullptr;
 
+    /// The tests build without `-o`, which writes `a.bexe` into the working directory. Every test
+    /// runs in a directory of its own so that tests running in parallel do not share that file.
+    std::filesystem::path m_previous_dir;
+    std::filesystem::path m_work_dir;
+
     void SetUp() override
     {
-        static ROM *rom = new ROM(
-            File(std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/tests/rom.bin", true), 16, 16);
-        static Disk *disk = new Disk(
-            File(std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/tests/disk.bin"), 32, 32);
+        const ::testing::TestInfo *info = ::testing::UnitTest::GetInstance()->current_test_info();
+        m_previous_dir = std::filesystem::current_path();
+        m_work_dir = std::filesystem::temp_directory_path() / "aemu_emulator_fixture"
+                     / (std::string(info->test_suite_name()) + "." + info->name());
+        std::filesystem::remove_all(m_work_dir);
+        std::filesystem::create_directories(m_work_dir);
+        std::filesystem::current_path(m_work_dir);
 
-        machine = new Emulator32bit(new RAM(16, 0), new ROM(*rom), new Disk(*disk));
+        // The ROM and the disk are in memory. A ROM or a disk backed by a file would be written
+        // back to it, and in the source tree, by every test, all at once when they run in parallel.
+        machine = new Emulator32bit(new RAM(16, 0), new ROM(16, 16), new MockDisk());
         machine->system_bus->mmu->begin_process();
     }
 
     void TearDown() override
     {
         delete machine;
+        std::filesystem::current_path(m_previous_dir);
+        std::filesystem::remove_all(m_work_dir);
     }
 };

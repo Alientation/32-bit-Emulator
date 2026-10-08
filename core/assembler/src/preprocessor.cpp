@@ -2,7 +2,10 @@
 #include "util/logger.h"
 
 #include <algorithm>
+#include <charconv>
+#include <filesystem>
 #include <fstream>
+#include <optional>
 #include <span>
 
 using basm::Token;
@@ -93,6 +96,38 @@ std::string join(const std::vector<Token> &tokens)
     return text;
 }
 
+/// The value of text that is a whole number written the way the assembler writes one: 42, $2A,
+/// %101 or @17, with an optional '-'.
+std::optional<long long> as_number(const std::string &text)
+{
+    std::size_t i = 0;
+    const bool negative = !text.empty() && text[0] == '-';
+    if (negative) i++;
+
+    int base = 10;
+    if (i < text.size() && text[i] == '$') base = 16;
+    else if (i < text.size() && text[i] == '%') base = 2;
+    else if (i < text.size() && text[i] == '@') base = 8;
+    if (base != 10) i++;
+    if (i >= text.size()) return std::nullopt;
+
+    long long value = 0;
+    const auto [end, error] =
+        std::from_chars(text.data() + i, text.data() + text.size(), value, base);
+    if (error != std::errc() || end != text.data() + text.size()) return std::nullopt;
+    return negative ? -value : value;
+}
+
+/// Compares the values of an #ifequ, #ifless, ... They are compared as numbers when both are
+/// numbers (9 is less than 10) and as text otherwise.
+int compare_values(const std::string &left, const std::string &right)
+{
+    const std::optional<long long> a = as_number(left);
+    const std::optional<long long> b = as_number(right);
+    if (a && b) return *a < *b ? -1 : (*a > *b ? 1 : 0);
+    return left.compare(right) < 0 ? -1 : (left == right ? 0 : 1);
+}
+
 constexpr bool is_ident_char(char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
@@ -112,24 +147,28 @@ bool would_merge(char last, char first)
 
 } // namespace
 
-Preprocessor::Preprocessor(Process *process, const File &input_file,
-                           const std::string &output_file_path) :
-    m_process(process),
+Preprocessor::Preprocessor(const File &input_file, const std::string &output_file_path,
+                           PreprocessorOptions options) :
+    m_options(std::move(options)),
     m_input_file(input_file),
     m_sources(std::make_shared<basm::SourceManager>())
 {
-    // default output file path if not supplied in the constructor
+    // default output file path if not supplied in the constructor. The file is only created if it
+    // is going to be written, there is nothing to leave behind (or to fail on a directory that
+    // cannot be written to) otherwise.
+    const bool create = m_options.write_output;
     if (output_file_path.empty())
     {
         m_output_file =
-            File(m_input_file.get_name(), PROCESSED_EXTENSION, m_input_file.get_dir_str(), true);
+            File(m_input_file.get_name(), PROCESSED_EXTENSION, m_input_file.get_dir_str(), create);
     }
     else
     {
-        m_output_file = File(output_file_path, true);
+        m_output_file = File(output_file_path, create);
     }
 
-    AEMU_CHECK(m_process->valid_src_file(input_file),
+    AEMU_CHECK(input_file.get_extension() == SOURCE_EXTENSION
+                   || input_file.get_extension() == INCLUDE_EXTENSION,
                "Preprocessor::Preprocessor() - Invalid source file: '{}'.",
                input_file.get_extension());
 
@@ -159,6 +198,7 @@ File Preprocessor::preprocess()
                "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
     m_state = State::PROCESSING;
 
+    define_from_options();
     push_file(m_input_file.get_path(), nullptr);
     run();
 
@@ -181,12 +221,16 @@ File Preprocessor::preprocess()
     eof.loc = end_loc;
     m_out_tokens.push_back(eof);
 
-    // Truncates the intermediate output file.
-    std::ofstream out(m_output_file.get_path(), std::ios::out | std::ios::trunc | std::ios::binary);
-    AEMU_CHECK(out.good(), "Preprocessor::preprocess() - Cannot write to '{}'.",
-               m_output_file.get_path());
-    out << m_out;
-    out.close();
+    if (m_options.write_output)
+    {
+        // Truncates the intermediate output file.
+        std::ofstream out(m_output_file.get_path(),
+                          std::ios::out | std::ios::trunc | std::ios::binary);
+        AEMU_CHECK(out.good(), "Preprocessor::preprocess() - Cannot write to '{}'.",
+                   m_output_file.get_path());
+        out << m_out;
+        out.close();
+    }
 
     m_state = State::PROCESSED_SUCCESS;
     AEMU_DEBUG("Preprocessor::preprocess() - Preprocessed file: {}", m_input_file.get_name());
@@ -599,18 +643,26 @@ void Preprocessor::_include(TokenCursor &line)
         // Files in the include directories (-I).
         bool found = false;
         // subfile_exists is not const, so the directories are copied.
-        for (Directory dir : m_process->get_system_dirs())
+        for (Directory dir : m_options.system_dirs)
         {
             if (!dir.subfile_exists(name))
             {
                 continue;
             }
-            if (found)
+
+            // The same directory listed twice is the same file, it is not a second one.
+            const std::string candidate = dir.get_path() + File::SEPARATOR + name;
+            if (found
+                && std::filesystem::weakly_canonical(candidate)
+                       != std::filesystem::weakly_canonical(path))
             {
                 fail(directive, "'" + name + "' found in more than one include directory");
             }
-            path = dir.get_path() + File::SEPARATOR + name;
-            found = true;
+            if (!found)
+            {
+                path = candidate;
+                found = true;
+            }
         }
 
         if (!found)
@@ -821,6 +873,23 @@ void Preprocessor::_define(TokenCursor &line)
     m_symbols[name.str()][symbol.params.size()] = std::move(symbol);
 }
 
+void Preprocessor::define_from_options()
+{
+    for (const auto &[name, value] : m_options.defines)
+    {
+        // Lexed as the line `#define name value`, so it means what that line means in a source
+        // and a bad name is reported the same way.
+        const basm::SourceId source =
+            m_sources->add("<-D " + name + ">", "#define " + name + " " + value + "\n");
+        basm::LexResult lexed = basm::lex(*m_sources, source);
+        basm::fatal_if_errors(*m_sources, lexed);
+
+        TokenCursor all(std::span<const Token>(lexed.tokens));
+        TokenCursor line(all.take_line());
+        _define(line);
+    }
+}
+
 void Preprocessor::_undef(TokenCursor &line)
 {
     line.next(); // '#undef'
@@ -914,15 +983,15 @@ bool Preprocessor::evaluate_condition(const Token &directive, TokenCursor &line)
     {
     case TokenType::PREPROCESSOR_IFEQU:
     case TokenType::PREPROCESSOR_ELSEEQU:
-        return symbol_value == value;
+        return compare_values(symbol_value, value) == 0;
     case TokenType::PREPROCESSOR_IFNEQU:
     case TokenType::PREPROCESSOR_ELSENEQU:
-        return symbol_value != value;
+        return compare_values(symbol_value, value) != 0;
     case TokenType::PREPROCESSOR_IFLESS:
     case TokenType::PREPROCESSOR_ELSELESS:
-        return symbol_value < value;
+        return compare_values(symbol_value, value) < 0;
     default:
-        return symbol_value > value;
+        return compare_values(symbol_value, value) > 0;
     }
 }
 

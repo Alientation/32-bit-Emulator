@@ -1,24 +1,43 @@
 #include "assembler/linker.h"
-#include "emulator32bit/fbl.h"
+#include "assembler/relocation.h"
+#include "emulator32bit/emulator32bit_util.h"
 #include "util/logger.h"
 
-#include <optional>
+#include <algorithm>
 #include <span>
 
-Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
-    m_obj_files(obj_files),
-    m_exe_file(exe_file),
-    m_ld_file(File("default_linker", "ld", std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/src"))
+namespace
 {
-    link();
+
+/// The layout used when no linker script is given. It is part of the program, so linking does not
+/// depend on where the source tree is. .data starts on the first page after .text, so that code
+/// and data never share a page however big the code is.
+std::string default_linker_script(word text_size)
+{
+    const word data_address = (text_size + kPageSize - 1) & ~(kPageSize - 1);
+    return "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n    .data = "
+           + std::to_string(data_address) + ";\n    .bss;\n)\n";
+}
+
+bool is_undefined(const ObjectFile::SymbolTableEntry &symbol)
+{
+    return symbol.section == U32(-1);
+}
+
+} // namespace
+
+Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
+    m_obj_files(std::move(obj_files)),
+    m_exe_file(exe_file),
+    m_use_default_script(true)
+{
 }
 
 Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file) :
-    m_obj_files(obj_files),
+    m_obj_files(std::move(obj_files)),
     m_exe_file(exe_file),
     m_ld_file(ld_file)
 {
-    link();
 }
 
 void Linker::fail(const basm::Token &at, const std::string &message)
@@ -124,201 +143,330 @@ void Linker::link()
     tokenize_ld();
     parse_ld();
 
-    ObjectFile exe_obj_file;
+    ObjectFile exe = new_executable();
+    const std::vector<SectionBase> bases = merge_sections(exe);
+    const SectionBase addresses = place_sections(exe);
+    const std::vector<SymbolMap> symbols = merge_symbols(exe, bases, addresses);
+    define_entry(exe);
+    relocate(exe, bases, addresses, symbols);
 
-    exe_obj_file.file_type = ObjectFile::kExecutableFileType;
-    exe_obj_file.target_machine = ObjectFile::kEMU32MachineId;
-    exe_obj_file.flags = 0;
+    /* There are no relocations in .data and .bss, and none are left in the executable. */
+    exe.write_object_file(m_exe_file);
+}
 
-    exe_obj_file.add_section(".text", ObjectFile::SectionHeader::Type::TEXT);
-    exe_obj_file.add_section(".data", ObjectFile::SectionHeader::Type::DATA);
-    exe_obj_file.add_section(".bss", ObjectFile::SectionHeader::Type::BSS);
-    exe_obj_file.add_section(".symtab", ObjectFile::SectionHeader::Type::SYMTAB);
-    exe_obj_file.add_section(".rel.text", ObjectFile::SectionHeader::Type::REL_TEXT);
-    exe_obj_file.add_section(".rel.data", ObjectFile::SectionHeader::Type::REL_DATA);
-    exe_obj_file.add_section(".rel.bss", ObjectFile::SectionHeader::Type::REL_BSS);
-    exe_obj_file.add_section(".strtab", ObjectFile::SectionHeader::Type::STRTAB);
+ObjectFile Linker::new_executable()
+{
+    ObjectFile exe;
 
-    /* Add all .text section together. order of obj files in list is the order they will be in memory */
-    for (ObjectFile &obj_file : m_obj_files)
+    exe.file_type = ObjectFile::kExecutableFileType;
+    exe.target_machine = ObjectFile::kEMU32MachineId;
+    exe.flags = 0;
+
+    exe.add_section(".text", ObjectFile::SectionHeader::Type::TEXT);
+    exe.add_section(".data", ObjectFile::SectionHeader::Type::DATA);
+    exe.add_section(".bss", ObjectFile::SectionHeader::Type::BSS);
+    exe.add_section(".symtab", ObjectFile::SectionHeader::Type::SYMTAB);
+    exe.add_section(".rel.text", ObjectFile::SectionHeader::Type::REL_TEXT);
+    exe.add_section(".rel.data", ObjectFile::SectionHeader::Type::REL_DATA);
+    exe.add_section(".rel.bss", ObjectFile::SectionHeader::Type::REL_BSS);
+    exe.add_section(".strtab", ObjectFile::SectionHeader::Type::STRTAB);
+    return exe;
+}
+
+/// The sections of the object files are put one after another, in the order of the object files.
+/// A section of an object file starts at a multiple of its alignment (what `.align` asked for), so
+/// that the offsets that it was assembled with stay aligned. The merged section has the largest
+/// alignment.
+/// Returns where each object file's sections start within the merged ones.
+std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
+{
+    const auto alignment_of = [](const ObjectFile &obj, const char *section)
+    { return std::max<word>(1, obj.sections[obj.section_table.at(section)].alignment); };
+    const auto pad_to = [](word size, word alignment)
+    { return (alignment - size % alignment) % alignment; };
+
+    SectionBase alignment = {.text = 4, .data = 1, .bss = 1};
+    std::vector<SectionBase> bases;
+    for (const ObjectFile &obj : m_obj_files)
     {
-        exe_obj_file.text_section.insert(exe_obj_file.text_section.end(),
-                                         obj_file.text_section.begin(),
-                                         obj_file.text_section.end());
+        const SectionBase wanted = {.text = alignment_of(obj, ".text"),
+                                    .data = alignment_of(obj, ".data"),
+                                    .bss = alignment_of(obj, ".bss")};
+        exe.text_section.insert(exe.text_section.end(),
+                                pad_to(word(exe.text_section.size() * 4), wanted.text) / 4, 0);
+        exe.data_section.insert(exe.data_section.end(),
+                                pad_to(word(exe.data_section.size()), wanted.data), 0);
+        exe.bss_section += pad_to(exe.bss_section, wanted.bss);
+        alignment = {.text = std::max(alignment.text, wanted.text),
+                     .data = std::max(alignment.data, wanted.data),
+                     .bss = std::max(alignment.bss, wanted.bss)};
+
+        bases.push_back({.text = word(exe.text_section.size() * 4),
+                         .data = word(exe.data_section.size()),
+                         .bss = exe.bss_section});
+
+        exe.text_section.insert(exe.text_section.end(), obj.text_section.begin(),
+                                obj.text_section.end());
+        exe.data_section.insert(exe.data_section.end(), obj.data_section.begin(),
+                                obj.data_section.end());
+        exe.bss_section += obj.bss_section;
     }
 
-    /* .data section */
-    for (ObjectFile &obj_file : m_obj_files)
-    {
-        exe_obj_file.data_section.insert(exe_obj_file.data_section.end(),
-                                         obj_file.data_section.begin(),
-                                         obj_file.data_section.end());
-    }
+    exe.sections[exe.section_table.at(".text")].alignment = alignment.text;
+    exe.sections[exe.section_table.at(".data")].alignment = alignment.data;
+    exe.sections[exe.section_table.at(".bss")].alignment = alignment.bss;
+    return bases;
+}
 
-    /* .bss section */
-    for (ObjectFile &obj_file : m_obj_files)
+/// Gives the sections their addresses according to the linker script. A section that the script
+/// does not give an address follows the previous one. Returns the address of each section.
+Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
+{
+    struct Placed
     {
-        exe_obj_file.bss_section += obj_file.bss_section;
-    }
+        const char *name;
+        word address;
+        word size;
+        bool physical;
+        bool executable;
+    };
 
-    // todo, add to freeblocklist a way to remove blocks of a certain range so we can mark the address space of these sections as taken
-    // FreeBlockList free_vm_address_space(0, 1 << (sizeof(word) * 8));
+    std::vector<Placed> placed;
+
+    SectionBase addresses;
     word address = 0;
-    word offset_text = 0;
-    word offset_data = 0;
-    word offset_bss = 0;
-    for (SectionAddress &section : m_sections)
+    for (const SectionAddress &section : m_sections)
     {
-        ObjectFile::SectionHeader *section_header = nullptr;
-        word section_size = 0;
-        if (section.type == SectionAddress::Type::TEXT)
+        const char *name;
+        word size;
+        word *section_address;
+        switch (section.type)
         {
-            section_header = &exe_obj_file.sections[exe_obj_file.section_table.at(".text")];
-            section_size = exe_obj_file.text_section.size() * 4;
-            offset_text = section.set_address ? section.address : address;
-        }
-        else if (section.type == SectionAddress::Type::DATA)
-        {
-            section_header = &exe_obj_file.sections[exe_obj_file.section_table.at(".data")];
-            section_size = exe_obj_file.data_section.size(); // bytes, unlike .text
-            offset_data = section.set_address ? section.address : address;
-        }
-        else if (section.type == SectionAddress::Type::BSS)
-        {
-            section_header = &exe_obj_file.sections[exe_obj_file.section_table.at(".bss")];
-            section_size = exe_obj_file.bss_section;
-            offset_bss = section.set_address ? section.address : address;
+        case SectionAddress::Type::TEXT:
+            name = ".text";
+            size = word(exe.text_section.size() * 4);
+            section_address = &addresses.text;
+            break;
+        case SectionAddress::Type::DATA:
+            name = ".data";
+            size = word(exe.data_section.size()); // bytes, unlike .text
+            section_address = &addresses.data;
+            break;
+        case SectionAddress::Type::BSS:
+            name = ".bss";
+            size = exe.bss_section;
+            section_address = &addresses.bss;
+            break;
         }
 
-        section_header->load_at_physical_address = section.physical;
-        section_header->address = section.set_address ? section.address : address;
-        address = section_header->address + section_size;
+        ObjectFile::SectionHeader &header = exe.sections[exe.section_table.at(name)];
+        const word alignment = std::max<word>(1, header.alignment);
+
+        // A section the script gives no address starts after the previous one, at an address that
+        // keeps what was aligned in the object files aligned. An address from the script has to.
+        if (section.set_address)
+        {
+            AEMU_CHECK(size == 0 || section.address % alignment == 0,
+                       "Linker::link() - The section {} is at {:#x} but is aligned to {} bytes.",
+                       name, section.address, alignment);
+            *section_address = section.address;
+        }
+        else
+        {
+            *section_address = address + (alignment - address % alignment) % alignment;
+        }
+
+        header.load_at_physical_address = section.physical;
+        header.address = *section_address;
+        address = header.address + size;
+
+        placed.push_back({name, header.address, size, section.physical,
+                          section.type == SectionAddress::Type::TEXT});
     }
 
-    /* .symtab section */
-    word text_section_size = 0;
-    word data_section_size = 0;
-    word bss_section_size = 0;
+    for (size_t i = 0; i < placed.size(); i++)
+    {
+        if (placed[i].size == 0)
+        {
+            continue;
+        }
+        for (size_t j = 0; j < i; j++)
+        {
+            const Placed &a = placed[j];
+            const Placed &b = placed[i];
+            if (a.size == 0 || a.physical != b.physical)
+            {
+                continue;
+            }
+
+            // Sizes are added in 64 bits, a section can end at the top of the address space.
+            const U64 a_end = U64(a.address) + a.size;
+            const U64 b_end = U64(b.address) + b.size;
+            AEMU_CHECK(a.address >= b_end || b.address >= a_end,
+                       "Linker::link() - The sections {} [{:#x}, {:#x}) and {} [{:#x}, {:#x}) "
+                       "overlap.",
+                       a.name, a.address, a_end, b.name, b.address, b_end);
+
+            // Code and data do not overlap but share a page. The loader gives such a page both
+            // permissions, which is probably not what the layout means.
+            if (a.executable != b.executable
+                && (a.address >> kNumPageOffsetBits) <= ((b_end - 1) >> kNumPageOffsetBits)
+                && (b.address >> kNumPageOffsetBits) <= ((a_end - 1) >> kNumPageOffsetBits))
+            {
+                AEMU_WARN("Linker::link() - {} and {} share a page, so it is both writable and "
+                          "executable. Start the section on a page boundary.",
+                          a.name, b.name);
+            }
+        }
+    }
+
+    return addresses;
+}
+
+/// Puts the symbols of all object files into the symbol table of the executable, with the final
+/// addresses. A symbol of one object file is the same symbol of another by name, unless it is local.
+/// Returns, for each object file, the executable's symbol for each of its symbols.
+std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
+                                                     const std::vector<SectionBase> &bases,
+                                                     const SectionBase &addresses) const
+{
+    std::vector<SymbolMap> maps(m_obj_files.size());
     for (size_t i = 0; i < m_obj_files.size(); i++)
     {
-        ObjectFile &obj_file = m_obj_files.at(i);
-        for (auto &pair : obj_file.symbol_table)
+        const ObjectFile &obj = m_obj_files[i];
+        const U32 text = obj.section_table.at(".text");
+        const U32 data = obj.section_table.at(".data");
+        const U32 bss = obj.section_table.at(".bss");
+
+        for (const auto &[key, symbol] : obj.symbol_table)
         {
-            std::string symbol_name = obj_file.strings[pair.first];
-
-            if (pair.second.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL)
+            std::string name = obj.strings[symbol.symbol_name];
+            if (symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL)
             {
-                symbol_name += ":LOCAL:" + std::to_string(i);
+                name += ":LOCAL:" + std::to_string(i);
             }
 
-            word val = pair.second.symbol_value;
-            if (pair.second.section == obj_file.section_table.at(".text"))
+            word value = symbol.symbol_value;
+            if (symbol.section == text)
             {
-                val += offset_text + text_section_size;
+                value += addresses.text + bases[i].text;
             }
-            else if (pair.second.section == obj_file.section_table.at(".data"))
+            else if (symbol.section == data)
             {
-                val += offset_data + data_section_size;
+                value += addresses.data + bases[i].data;
             }
-            else if (pair.second.section == obj_file.section_table.at(".bss"))
+            else if (symbol.section == bss)
             {
-                val += offset_bss + bss_section_size;
+                value += addresses.bss + bases[i].bss;
             }
 
-            exe_obj_file.add_symbol(symbol_name, val, pair.second.binding_info,
-                                    pair.second.section);
-            /* Updated current obj file symbol table (pair is passed as reference), this will be used to assist with
-                relocation by mapping this symbol to the corresponding symbol in the exe file */
-            pair.second.symbol_name = exe_obj_file.string_table.at(symbol_name);
-            pair.second.symbol_value = val;
-            pair.second.binding_info =
-                exe_obj_file.symbol_table[pair.second.symbol_name].binding_info;
+            exe.add_symbol(name, value, symbol.binding_info, symbol.section);
+            maps[i][key] = exe.string_table.at(name);
         }
-
-        text_section_size += obj_file.text_section.size() * 4;
-        data_section_size += obj_file.data_section.size();
-        bss_section_size += obj_file.bss_section;
     }
+    return maps;
+}
 
-    /* .rel.text section */
-    text_section_size = 0;
-    for (ObjectFile &obj_file : m_obj_files)
+/// The loader starts the program at _start. ENTRY(symbol) makes `symbol` the entry point by
+/// aliasing _start to it.
+void Linker::define_entry(ObjectFile &exe) const
+{
+    const auto defined = [&](const std::string &name)
     {
-        for (ObjectFile::RelocationEntry &rel : obj_file.rel_text)
-        {
-            /* exe file's symbol table contains the most recent updated version of the symbol across all obj files.
-                Since all obj file symbols have been converted to point towards the exe file symbol table, we have to find the symbol located
-                in this obj file which the symbol name will be the index into the combined string table. */
-            ObjectFile::SymbolTableEntry symbol_entry =
-                exe_obj_file.symbol_table.at(obj_file.symbol_table.at(rel.symbol).symbol_name);
+        const auto string = exe.string_table.find(name);
+        return string != exe.string_table.end()
+               && !is_undefined(exe.symbol_table.at(string->second));
+    };
 
-            /* all symbols should have a corresponding definition */
-            if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)
-            {
-                AEMU_FATAL("Linker::link() - Error, symbol definition is not found.");
-                continue;
-            }
+    if (m_entry_symbol != "_start")
+    {
+        AEMU_CHECK(defined(m_entry_symbol),
+                   "Linker::link() - The entry point '{}' set by ENTRY is not defined.",
+                   m_entry_symbol);
+        AEMU_CHECK(!defined("_start"),
+                   "Linker::link() - ENTRY({}) conflicts with the symbol _start that is also "
+                   "defined.",
+                   m_entry_symbol);
 
-            word instr_i = (offset_text + text_section_size + rel.offset) / 4;
-
-            /* Only fill in relocations that are relative offsets since we do not know where the exe file will be in memory */
-            switch (rel.type)
-            {
-            case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-                // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 14) + bitfield_unsigned(symbol_entry.symbol_value, 0, 12);
-            case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-                // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 20) + bitfield_unsigned(symbol_entry.symbol_value, 12, 20);
-            case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-                // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_unsigned(symbol_entry.symbol_value, 0, 19);
-            case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-                // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_unsigned(symbol_entry.symbol_value, 19, 13);
-                break;
-            case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
-                AEMU_CHECK((symbol_entry.symbol_value & 0b11) == 0,
-                           "Linker::fill_local() - Expected relocation value for "
-                           "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got {}",
-                           symbol_entry.symbol_value);
-                exe_obj_file.text_section[instr_i] =
-                    mask_0(obj_file.text_section[rel.offset / 4], 0, 22)
-                    + bitfield_unsigned(bitfield_signed(symbol_entry.symbol_value, 2, 22) - instr_i,
-                                        0, 22);
-                continue;
-            case ObjectFile::RelocationEntry::Type::UNDEFINED:
-            default:
-                AEMU_FATAL("Linker::fill_local() - Unknown relocation entry type.");
-            }
-
-            /* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */
-            exe_obj_file.rel_text.push_back({
-                .offset = rel.offset + offset_text + text_section_size,
-                .symbol = obj_file.symbol_table.at(rel.symbol).symbol_name,
-                .type = rel.type,
-                .shift = rel.shift,
-                .token = 0,
-            });
-        }
-
-        text_section_size += 4 * obj_file.text_section.size();
+        const ObjectFile::SymbolTableEntry entry =
+            exe.symbol_table.at(exe.string_table.at(m_entry_symbol));
+        exe.add_symbol("_start", entry.symbol_value,
+                       ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
     }
 
-    // offset_data = 0;
-    // offset_bss = 0;
-    /* .rel.data section */
-    /* .rel.bss section */
+    AEMU_CHECK(defined("_start"), "Linker::link() - The entry point '{}' is not defined.",
+               m_entry_symbol);
+}
 
-    // offset_data += obj_file.data_section.size();
-    // offset_bss += obj_file.bss_section;
+/// Every section has its final address by now, so each relocation is resolved here and the
+/// executable needs none at load time.
+void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
+                      const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const
+{
+    for (size_t i = 0; i < m_obj_files.size(); i++)
+    {
+        const ObjectFile &obj = m_obj_files[i];
+        for (const ObjectFile::RelocationEntry &rel : obj.rel_text)
+        {
+            const ObjectFile::SymbolTableEntry &symbol =
+                exe.symbol_table.at(symbols[i].at(rel.symbol));
 
-    exe_obj_file.write_object_file(m_exe_file);
+            AEMU_CHECK(!is_undefined(symbol),
+                       "Linker::link() - Error, undefined reference to '{}'.",
+                       exe.strings.at(symbol.symbol_name));
+
+            const word instr_i = (bases[i].text + rel.offset) / 4;
+            const word instr_address = addresses.text + bases[i].text + rel.offset;
+            exe.text_section[instr_i] = apply_relocation(rel.type, obj.text_section[rel.offset / 4],
+                                                         instr_address, symbol.symbol_value);
+        }
+
+        // The words of .data that hold the address of a symbol.
+        for (const ObjectFile::RelocationEntry &rel : obj.rel_data)
+        {
+            const ObjectFile::SymbolTableEntry &symbol =
+                exe.symbol_table.at(symbols[i].at(rel.symbol));
+
+            AEMU_CHECK(!is_undefined(symbol),
+                       "Linker::link() - Error, undefined reference to '{}'.",
+                       exe.strings.at(symbol.symbol_name));
+            AEMU_CHECK(rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
+                       "Linker::link() - A relocation in .data of type {} is not supported.",
+                       U32(rel.type));
+
+            word current = 0;
+            for (size_t b = 0; b < sizeof(word); b++)
+            {
+                current |= word(obj.data_section[rel.offset + b]) << (8 * b);
+            }
+
+            const word index = bases[i].data + rel.offset;
+            const word patched =
+                apply_relocation(rel.type, current, addresses.data + index, symbol.symbol_value);
+            for (size_t b = 0; b < sizeof(word); b++)
+            {
+                exe.data_section[index + b] = byte(patched >> (8 * b));
+            }
+        }
+    }
 }
 
 void Linker::tokenize_ld()
 {
+    word text_size = 0;
+    for (const ObjectFile &obj_file : m_obj_files)
+    {
+        text_size += obj_file.text_section.size() * 4;
+    }
+
     basm::LexOptions options;
     options.mode = basm::LexMode::LINKER_SCRIPT;
     options.keep_newlines = false;
 
-    const basm::SourceId source = m_sources.add_file(m_ld_file.get_path());
+    const basm::SourceId source =
+        m_use_default_script
+            ? m_sources.add("<default linker script>", default_linker_script(text_size))
+            : m_sources.add_file(m_ld_file.get_path());
     AEMU_CHECK(source != basm::kInvalidSource,
                "Linker::tokenize_ld() - Cannot read the linker script '{}'.", m_ld_file.get_path());
 

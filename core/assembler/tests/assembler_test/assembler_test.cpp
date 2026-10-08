@@ -4,6 +4,9 @@
 
 #include "assembler_test/toolchain_fixture.h"
 
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
 #include <vector>
 
 using Bytes = std::vector<byte>;
@@ -27,10 +30,8 @@ class AssemblerUnit : public ToolchainFixture
     ObjectFile assemble(const std::string &source, const std::string &name = "main")
     {
         m_last_input = write(name + ".bi", source);
-        Assembler assembler(m_process.get(), File(m_last_input),
-                            (m_dir / "out" / (name + ".bo")).string());
+        Assembler assembler(File(m_last_input), (m_dir / "out" / (name + ".bo")).string());
         assembler.assemble();
-        EXPECT_NE(assembler.get_state(), Assembler::ASSEMBLER_ERROR);
         return ObjectFile(assembler.get_output_file());
     }
 
@@ -308,6 +309,30 @@ TEST_F(AssemblerUnit, branch_with_an_immediate_offset)
                      Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::LT, 1)}));
 }
 
+TEST_F(AssemblerUnit, a_branch_offset_in_bytes_is_signed)
+{
+    using E = Emulator32bit;
+    EXPECT_EQ(text("b -4\nb.ne -8\nbl 4 * 3\nb 0 - 16\n"),
+              (Words{E::asm_format_b1(E::_op_b, ConditionCode::AL, -1),
+                     E::asm_format_b1(E::_op_b, ConditionCode::NE, -2),
+                     E::asm_format_b1(E::_op_bl, ConditionCode::AL, 3),
+                     E::asm_format_b1(E::_op_b, ConditionCode::AL, -4)}));
+
+    // The ends of the range: 22 bits of words, so -2^23 to 2^23 - 4 bytes.
+    EXPECT_EQ(text("b 8388604\nb -8388608\n"),
+              (Words{E::asm_format_b1(E::_op_b, ConditionCode::AL, (1 << 21) - 1),
+                     E::asm_format_b1(E::_op_b, ConditionCode::AL, -(1 << 21))}));
+}
+
+TEST_F(AssemblerUnit, a_branch_offset_out_of_range_is_an_error)
+{
+    // Used to wrap: 0x800000 was read as a jump backwards.
+    EXPECT_TRUE(contains(error(".text\nb 8388608\n"), "branch offset must be between"));
+    EXPECT_TRUE(contains(error(".text\nb -8388612\n"), "branch offset must be between"));
+    EXPECT_TRUE(contains(error(".text\nb $800000\n"), "branch offset must be between"));
+    EXPECT_TRUE(contains(error(".text\nb -6\n"), "branch offset must be 4 byte aligned"));
+}
+
 TEST_F(AssemblerUnit, condition_names_are_symbols_outside_of_a_branch)
 {
     // `eq` only means equal right after `b.`
@@ -445,9 +470,112 @@ TEST_F(AssemblerUnit, signed_data_directives_have_the_same_widths)
               (Bytes{1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0}));
 }
 
-TEST_F(AssemblerUnit, expressions_are_evaluated_left_to_right)
+// The value of `expression` as a `.sdword`.
+#define EXPECT_VALUE(expression, expected)                                                         \
+    do                                                                                             \
+    {                                                                                              \
+        const Bytes bytes = data(std::string(".sdword ") + expression + "\n");                     \
+        sdword value = 0;                                                                          \
+        std::memcpy(&value, bytes.data(), sizeof(value));                                          \
+        EXPECT_EQ(value, sdword(expected)) << expression;                                          \
+    } while (0)
+
+TEST_F(AssemblerUnit, multiplication_binds_tighter_than_addition)
 {
-    EXPECT_EQ(data(".word 1 + 2 * 3\n.word 10 - 4 / 2\n"), (Bytes{9, 0, 0, 0, 3, 0, 0, 0}));
+    EXPECT_EQ(data(".word 1 + 2 * 3\n.word 10 - 4 / 2\n"), (Bytes{7, 0, 0, 0, 8, 0, 0, 0}));
+    EXPECT_VALUE("2 * 3 + 4 * 5", 26);
+    EXPECT_VALUE("100 - 10 - 5", 85); // left associative
+    EXPECT_VALUE("100 / 10 / 5", 2);
+    EXPECT_VALUE("17 % 5 * 2", 4);
+}
+
+TEST_F(AssemblerUnit, parentheses_group)
+{
+    EXPECT_VALUE("(1 + 2) * 3", 9);
+    EXPECT_VALUE("((2))", 2);
+    EXPECT_VALUE("2 * (3 + (4 - 1)) - 1", 11);
+}
+
+TEST_F(AssemblerUnit, unary_operators)
+{
+    EXPECT_VALUE("-5", -5);
+    EXPECT_VALUE("- -5", 5);
+    EXPECT_VALUE("+5", 5);
+    EXPECT_VALUE("-2 + 1", -1);
+    EXPECT_VALUE("-(2 + 1)", -3);
+    EXPECT_VALUE("2 * -3", -6);
+    EXPECT_VALUE("~0", -1);
+    EXPECT_VALUE("~5 & 15", 10);
+    EXPECT_VALUE("!0", 1);
+    EXPECT_VALUE("!7", 0);
+    EXPECT_VALUE("!0 + 1", 2);
+    EXPECT_VALUE("-'a'", -97);
+}
+
+TEST_F(AssemblerUnit, bitwise_and_shift_operators_follow_the_precedence_of_c)
+{
+    EXPECT_VALUE("1 << 4", 16);
+    EXPECT_VALUE("256 >> 4", 16);
+    EXPECT_VALUE("-16 >> 2", -4);  // arithmetic shift
+    EXPECT_VALUE("1 << 2 + 1", 8); // + binds tighter than <<
+    EXPECT_VALUE("6 & 3", 2);
+    EXPECT_VALUE("6 | 3", 7);
+    EXPECT_VALUE("6 ^ 3", 5);
+    EXPECT_VALUE("1 | 2 & 0", 1); // & binds tighter than |
+    EXPECT_VALUE("1 | 2 ^ 3 & 1", 3);
+    EXPECT_VALUE("$FF & ~$0F", 0xF0);
+    EXPECT_VALUE("1 << 63", INT64_MIN);
+}
+
+TEST_F(AssemblerUnit, comparisons_and_logic_give_one_or_zero)
+{
+    EXPECT_VALUE("3 < 4", 1);
+    EXPECT_VALUE("4 < 4", 0);
+    EXPECT_VALUE("4 <= 4", 1);
+    EXPECT_VALUE("5 > 4", 1);
+    EXPECT_VALUE("4 >= 5", 0);
+    EXPECT_VALUE("4 == 4", 1);
+    EXPECT_VALUE("4 != 4", 0);
+    EXPECT_VALUE("-1 < 0", 1); // signed
+    EXPECT_VALUE("1 + 1 == 2 && 3 > 2", 1);
+    EXPECT_VALUE("0 || 0", 0);
+    EXPECT_VALUE("0 || 5", 1);
+    EXPECT_VALUE("1 || 0 && 0", 1); // && binds tighter than ||
+    EXPECT_VALUE("1 < 2 == 1", 1);
+}
+
+TEST_F(AssemblerUnit, division_follows_the_sign_of_c)
+{
+    EXPECT_VALUE("-7 / 2", -3);
+    EXPECT_VALUE("-7 % 3", -1);
+    EXPECT_VALUE("7 / -2", -3);
+    EXPECT_VALUE("(0 - 9223372036854775807 - 1) / -1", INT64_MIN);
+    EXPECT_VALUE("(0 - 9223372036854775807 - 1) % -1", 0);
+}
+
+TEST_F(AssemblerUnit, expressions_are_usable_wherever_a_number_is)
+{
+    EXPECT_EQ(text("mov x1, (3 + 4) * 2\nadd x1, x2, 1 << 4\n"),
+              (Words{Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, 14),
+                     Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 16)}));
+    EXPECT_EQ(text("ldr x0, [x1, -2 * 4]\nldr x0, [x1, (1 + 1) * 4]\n"),
+              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -8,
+                                                 Emulator32bit::AddrType::ADDR_OFFSET),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 8,
+                                                 Emulator32bit::AddrType::ADDR_OFFSET)}));
+    EXPECT_EQ(data(".byte -1, ~0 & 255, 3 * 3\n"), (Bytes{0xFF, 0xFF, 9}));
+}
+
+TEST_F(AssemblerUnit, a_negative_memory_offset_is_a_value_not_a_prefix)
+{
+    // The minus used to negate everything after it, so `-2 + 1` was -3.
+    EXPECT_EQ(text("ldr x0, [x1, -4 + 2]\n"),
+              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -2,
+                                                 Emulator32bit::AddrType::ADDR_OFFSET)}));
+    EXPECT_TRUE(
+        contains(error(".text\nldr x0, [x1, -2049]\n"), "offset must be a signed 12 bit value"));
+    EXPECT_TRUE(
+        contains(error(".text\nldr x0, [x1, 2048]\n"), "offset must be a signed 12 bit value"));
 }
 
 TEST_F(AssemblerUnit, characters_and_strings)
@@ -562,10 +690,6 @@ TEST_F(AssemblerUnit, section_errors)
     EXPECT_TRUE(contains(error(".bss\n.asciz \"x\"\n"),
                          ".asciz can only define data in the .data section"));
     EXPECT_TRUE(contains(error("foo:\n"), "label must be located in a section"));
-    EXPECT_TRUE(contains(error(".text\n.global x\n"),
-                         "cannot declare a symbol as global inside a section"));
-    EXPECT_TRUE(contains(error(".text\n.extern x\n"),
-                         "cannot declare a symbol as extern inside a section"));
     EXPECT_TRUE(contains(error(".global\n"), "expected a symbol after .global"));
     EXPECT_TRUE(contains(error(".text\n.section \"x\"\n"), ".section is not implemented yet"));
     EXPECT_TRUE(contains(error(".text\nx: nop\nx: nop\n"), "Multiple definition of symbol x"));
@@ -578,9 +702,35 @@ TEST_F(AssemblerUnit, expression_errors)
     EXPECT_TRUE(
         contains(error(".data\n.word 1 +\n"), "expected an operand after '+', got end of line"));
     EXPECT_TRUE(contains(error(".data\n.word 4 / 0\n"), "division by zero"));
-    EXPECT_TRUE(contains(error(".data\n.word foo\n"), "expected a number, got 'foo'"));
+    EXPECT_TRUE(
+        contains(error(".data\n.word 1 + foo\n"), "expected an operand after '+', got 'foo'"));
+    EXPECT_TRUE(contains(error(".data\n.byte foo\n"),
+                         ".byte cannot hold the address of a symbol, only .word can"));
+    EXPECT_TRUE(contains(error(".data\n.word 1,\n"), "expected a number, got end of line"));
     EXPECT_TRUE(contains(error(".data\n.char 'a', 5\n"), "expected a character literal, got '5'"));
     EXPECT_TRUE(contains(error(".data\n.ascii 5\n"), "expected a string literal, got '5'"));
+}
+
+TEST_F(AssemblerUnit, errors_of_the_expression_operators)
+{
+    EXPECT_TRUE(
+        contains(error(".data\n.word (1 + 2\n"), "expected ')' to close the '(' at column 7"));
+    EXPECT_TRUE(
+        contains(error(".data\n.word 1 + 2)\n"), "unexpected ')' at the end of the statement"));
+    EXPECT_TRUE(contains(error(".data\n.word ()\n"), "expected a number, got ')'"));
+    EXPECT_TRUE(contains(error(".data\n.word 5 % 0\n"), "remainder of a division by zero"));
+    EXPECT_TRUE(
+        contains(error(".data\n.word 1 << 64\n"), "the shift amount must be 0 to 63, got 64"));
+    EXPECT_TRUE(
+        contains(error(".data\n.word 1 >> -1\n"), "the shift amount must be 0 to 63, got -1"));
+    EXPECT_TRUE(
+        contains(error(".data\n.word 2 * * 3\n"), "expected an operand after '*', got '*'"));
+    EXPECT_TRUE(contains(error(".data\n.word -\n"), "expected a number, got end of line"));
+    EXPECT_TRUE(contains(
+        error(".data\n.word " + std::string(300, '(') + "1" + std::string(300, ')') + "\n"),
+        "the expression is nested too deeply"));
+    EXPECT_TRUE(contains(error(".data\n.word " + std::string(300, '-') + "1\n"),
+                         "the expression is nested too deeply"));
 }
 
 TEST_F(AssemblerUnit, layout_errors)
@@ -596,6 +746,105 @@ TEST_F(AssemblerUnit, layout_errors)
         contains(error(".text\nnop\n.org 2\n"), ".org cannot move the assembler backwards"));
     EXPECT_TRUE(
         contains(error(".text\n.org 6\n"), ".org cannot move to a byte that is not word aligned"));
+}
+
+// A declaration does not depend on the section, so a macro can declare a symbol.
+TEST_F(AssemblerUnit, global_and_extern_can_be_declared_in_a_section)
+{
+    const ObjectFile object = assemble(".text\n.global entry\n.extern other\nentry: nop\n");
+    EXPECT_EQ(symbol(object, "entry").binding_info,
+              ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL);
+    EXPECT_EQ(symbol(object, "other").binding_info,
+              ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
+    EXPECT_EQ(symbol(object, "other").section, U32(-1));
+}
+
+TEST_F(AssemblerUnit, a_size_that_is_too_big_is_an_error_and_not_skipped)
+{
+    EXPECT_TRUE(contains(error(".bss\n.advance 16777216\nend:\n"),
+                         ".advance is large and likely unintentional (16777216)"));
+    EXPECT_TRUE(contains(error(".data\n.align 65536\n"),
+                         ".align is large and likely unintentional (65536)"));
+    EXPECT_TRUE(contains(error(".bss\n.org 16777216\n"), "new value is large"));
+}
+
+TEST_F(AssemblerUnit, data_that_does_not_fit_its_size_is_an_error)
+{
+    EXPECT_TRUE(contains(error(".data\n.byte 256\n"), ".byte value 256 does not fit in 1 byte(s)"));
+    EXPECT_TRUE(
+        contains(error(".data\n.dbyte 65536\n"), ".dbyte value 65536 does not fit in 2 byte(s)"));
+    EXPECT_TRUE(contains(error(".data\n.word 4294967296\n"), ".word value"));
+    EXPECT_TRUE(contains(error(".data\n.byte 1, 2, 300\n"), "does not fit"));
+    EXPECT_TRUE(contains(error(".data\n.byte 0 - 129\n"), ".byte value -129 does not fit"));
+}
+
+TEST_F(AssemblerUnit, data_that_fits_its_size_is_stored)
+{
+    EXPECT_EQ(data(".byte 255, 0 - 1, 0 - 128\n"), (Bytes{0xFF, 0xFF, 0x80}));
+    EXPECT_EQ(data(".dbyte 65535, 0 - 2\n"), (Bytes{0xFF, 0xFF, 0xFE, 0xFF}));
+    EXPECT_EQ(data(".word 4294967295\n"), (Bytes{0xFF, 0xFF, 0xFF, 0xFF}));
+    EXPECT_EQ(data(".dword 0 - 1\n"), Bytes(8, 0xFF));
+}
+
+// `.word label` is the address of the label, which only the linker knows.
+TEST_F(AssemblerUnit, word_with_a_symbol_is_a_relocation)
+{
+    const ObjectFile object = assemble(".data\n.word 7, target, 9\nafter: .byte 1\n"
+                                       ".text\ntarget: nop\n");
+
+    EXPECT_EQ(object.data_section, (Bytes{7, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 1}))
+        << "a place for the address";
+    ASSERT_EQ(object.rel_data.size(), 1u);
+    EXPECT_EQ(object.rel_data[0].offset, 4u);
+    EXPECT_EQ(object.rel_data[0].type, ObjectFile::RelocationEntry::Type::R_EMU32_ABS32);
+    EXPECT_EQ(object.strings.at(object.symbol_table.at(object.rel_data[0].symbol).symbol_name),
+              "target");
+    EXPECT_TRUE(object.rel_text.empty());
+}
+
+TEST_F(AssemblerUnit, word_with_a_symbol_of_another_file_leaves_it_undefined)
+{
+    const ObjectFile object = assemble(".data\npointer: .word elsewhere\n");
+    EXPECT_EQ(symbol(object, "elsewhere").section, U32(-1));
+    EXPECT_EQ(object.rel_data.size(), 1u);
+}
+
+// A label of a scope is not the label of the same name in another scope (a macro that is used twice).
+TEST_F(AssemblerUnit, a_symbol_in_data_is_looked_up_in_the_scopes)
+{
+    const ObjectFile object = assemble(".data\n"
+                                       ".scope\nlocal: .word 5\nfirst: .word local\n.scend\n"
+                                       ".scope\nlocal: .word 6\nsecond: .word local\n.scend\n");
+
+    ASSERT_EQ(object.rel_data.size(), 2u);
+    EXPECT_EQ(object.strings.at(object.symbol_table.at(object.rel_data[0].symbol).symbol_name),
+              "local::SCOPE:0");
+    EXPECT_EQ(object.strings.at(object.symbol_table.at(object.rel_data[1].symbol).symbol_name),
+              "local::SCOPE:1");
+}
+
+TEST_F(AssemblerUnit, align_is_recorded_in_the_section)
+{
+    const ObjectFile object = assemble(".data\n.byte 1\n.align 8\n.align 4\n.text\nnop\n.align 16\n"
+                                       ".bss\n.advance 3\n.align 32\n");
+    const auto alignment = [&](const char *name)
+    { return object.sections.at(object.section_table.at(name)).alignment; };
+
+    EXPECT_EQ(alignment(".data"), 8u) << "the largest";
+    EXPECT_EQ(alignment(".text"), 16u);
+    EXPECT_EQ(alignment(".bss"), 32u);
+
+    const ObjectFile plain = assemble(".data\n.byte 1\n");
+    EXPECT_EQ(plain.sections.at(plain.section_table.at(".data")).alignment, 1u);
+    EXPECT_EQ(plain.sections.at(plain.section_table.at(".text")).alignment, 4u);
+}
+
+TEST_F(AssemblerUnit, a_scope_that_is_never_closed_is_an_error)
+{
+    const std::string message = error(".text\n.scope\nnop\n");
+    EXPECT_TRUE(contains(message, ".scope is never closed with .scend"));
+    EXPECT_TRUE(contains(message, "main.bi:2:"));
+    EXPECT_NO_THROW(assemble(".text\n.scope\nnop\n.scend\n"));
 }
 
 TEST_F(AssemblerUnit, errors_name_the_file_line_and_column)
@@ -619,18 +868,20 @@ TEST_F(AssemblerUnit, lexical_errors_end_the_assembler)
     EXPECT_TRUE(contains(error(".text\nmov x0, $G\n"), "lexical error"));
 }
 
-TEST_F(AssemblerUnit, state_after_assembling)
+TEST_F(AssemblerUnit, assembling_twice_does_the_work_once_and_an_error_writes_no_file)
 {
     m_last_input = write("state.bi", ".text\nnop\n");
-    Assembler assembler(m_process.get(), File(m_last_input), (m_dir / "out" / "state.bo").string());
-    EXPECT_EQ(assembler.get_state(), Assembler::NOT_ASSEMBLED);
+    Assembler assembler(File(m_last_input), (m_dir / "out" / "state.bo").string());
     assembler.assemble();
-    EXPECT_EQ(assembler.get_state(), Assembler::ASSEMBLED);
+    assembler.assemble();
+    EXPECT_EQ(assembler.object().text_section.size(), 1u);
 
     m_last_input = write("bad.bi", ".text\nhlt 1\n");
-    Assembler failing(m_process.get(), File(m_last_input), (m_dir / "out" / "bad.bo").string());
+    const std::string bad_path = (m_dir / "out" / "bad.bo").string();
+    Assembler failing(File(m_last_input), bad_path);
     EXPECT_THROW(failing.assemble(), aemu::log::FatalError);
-    EXPECT_EQ(failing.get_state(), Assembler::ASSEMBLER_ERROR);
+    EXPECT_EQ(std::filesystem::file_size(bad_path), 0u)
+        << "only the empty file the constructor made";
 }
 
 TEST_F(AssemblerUnit, tokens_from_the_preprocessor_assemble_like_the_bi_file)
@@ -639,15 +890,13 @@ TEST_F(AssemblerUnit, tokens_from_the_preprocessor_assemble_like_the_bi_file)
                                ".global _start\n.text\n_start:\n  #invoke bump(x3)\n"
                                "  mov x4, N\n  hlt\n.data\nvalue: .word N\n";
     const std::string path = write("main.basm", source);
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     const File bi = preprocessor.preprocess();
 
-    Assembler from_text(m_process.get(), bi, (m_dir / "out" / "text.bo").string());
+    Assembler from_text(bi, (m_dir / "out" / "text.bo").string());
     from_text.assemble();
-    Assembler from_tokens(m_process.get(), bi, preprocessor.take_result(),
-                          (m_dir / "out" / "tokens.bo").string());
+    Assembler from_tokens(bi, preprocessor.take_result(), (m_dir / "out" / "tokens.bo").string());
     from_tokens.assemble();
-    EXPECT_EQ(from_tokens.get_state(), Assembler::ASSEMBLED);
 
     const ObjectFile a(from_text.get_output_file());
     const ObjectFile b(from_tokens.get_output_file());
@@ -661,15 +910,13 @@ TEST_F(AssemblerUnit, errors_from_preprocessed_tokens_point_at_the_original_sour
 {
     const std::string path = write("main.basm", "#macro twice(r)\n    add r, r\n#macend\n.text\n"
                                                 "  nop\n  #invoke twice(x1)\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     const File bi = preprocessor.preprocess();
-    Assembler assembler(m_process.get(), bi, preprocessor.take_result(),
-                        (m_dir / "out" / "main.bo").string());
+    Assembler assembler(bi, preprocessor.take_result(), (m_dir / "out" / "main.bo").string());
 
     const std::string message = error_of([&] { assembler.assemble(); });
     EXPECT_TRUE(contains(message, "main.basm:2:"));
     EXPECT_TRUE(contains(message, "    add r, r"));
     EXPECT_TRUE(contains(message, "main.basm:6:3: note: in expansion of macro 'twice'"));
     EXPECT_FALSE(contains(message, "main.bi"));
-    EXPECT_EQ(assembler.get_state(), Assembler::ASSEMBLER_ERROR);
 }

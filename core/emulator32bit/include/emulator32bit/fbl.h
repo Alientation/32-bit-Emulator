@@ -33,6 +33,10 @@ class FreeBlockList
      */
     ~FreeBlockList();
 
+    /* The list owns its nodes, so a copy would free them twice. */
+    FreeBlockList(const FreeBlockList &) = delete;
+    FreeBlockList &operator=(const FreeBlockList &) = delete;
+
     class FreeBlockListException : public std::exception
     {
       private:
@@ -70,7 +74,8 @@ class FreeBlockList
 
     /**
      * @brief             Returns a block back to the list even if parts of the block may have not
-     *                     been used.
+     *                     been used, that is, even if parts of it are free already. Free blocks that
+     *                     overlap or touch it are merged into one.
      *
      * @param addr        Address of the start of block.
      * @param length    Length of the block.
@@ -115,11 +120,6 @@ class FreeBlockList
      */
     std::vector<std::pair<word, word>> get_blocks();
 
-    /**
-     * @brief            Prints all free blocks in the list.
-     */
-    void print_blocks();
-
   private:
     /**
      * @brief            Represents a free block node in the doubly linked list.
@@ -135,6 +135,11 @@ class FreeBlockList
     word m_begin;                  ///< Start of the range of blocks represented by list
     word m_len;                    ///< Length of the range of blocks represented by list
     FreeBlock *m_head = nullptr;   ///< Start of list
+
+    /**
+     * @brief            Whether the block lies within the range of the list.
+     */
+    bool in_range(word addr, word length) const;
 
     /**
      * @brief            Joins the given block with the next block if possible.

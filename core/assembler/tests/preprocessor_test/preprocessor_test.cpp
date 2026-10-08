@@ -14,8 +14,7 @@ class PreprocessorUnit : public ToolchainFixture
     std::string preprocess(const std::string &source, const std::string &name = "main.basm")
     {
         const std::string path = write(name, source);
-        Preprocessor preprocessor(m_process.get(), File(path),
-                                  (m_dir / "out" / (name + ".bi")).string());
+        Preprocessor preprocessor(File(path), (m_dir / "out" / (name + ".bi")).string(), m_options);
         const File output = preprocessor.preprocess();
         EXPECT_EQ(preprocessor.get_state(), Preprocessor::PROCESSED_SUCCESS);
         return read(output.get_path());
@@ -112,6 +111,31 @@ TEST_F(PreprocessorUnit, define_with_empty_value)
 TEST_F(PreprocessorUnit, define_is_looked_up_when_it_is_used)
 {
     EXPECT_EQ(preprocess("#define A B\n#define B 7\n.word A\n"), ".word 7\n");
+}
+
+// The -D flags of the command line.
+TEST_F(PreprocessorUnit, symbols_defined_by_the_options)
+{
+    m_options.defines = {{"N", "4"}, {"FLAG", ""}, {"EXPR", "1 + 2"}};
+    EXPECT_EQ(preprocess("mov x0, N\n.word EXPR\n"), "mov x0, 4\n.word 1 + 2\n");
+    EXPECT_EQ(preprocess("#ifdef FLAG\nhlt\n#else\nnop\n#endif\n"), "hlt\n");
+}
+
+TEST_F(PreprocessorUnit, the_source_can_redefine_a_symbol_of_the_options)
+{
+    m_options.defines = {{"N", "4"}};
+    EXPECT_EQ(preprocess("#define N 9\nmov x0, N\n"), "mov x0, 9\n");
+    EXPECT_EQ(preprocess("#undef N\n#ifdef N\nhlt\n#else\nnop\n#endif\n"), "nop\n");
+}
+
+TEST_F(PreprocessorUnit, a_symbol_of_the_options_with_a_bad_name_is_an_error)
+{
+    // An instruction is not a symbol, and neither is something that does not even lex.
+    m_options.defines = {{"mov", "4"}};
+    EXPECT_TRUE(contains(error("nop\n"), "expected a symbol after #define"));
+
+    m_options.defines = {{"1bad", "4"}};
+    EXPECT_TRUE(contains(error("nop\n"), "lexical error"));
 }
 
 TEST_F(PreprocessorUnit, define_with_parameters)
@@ -248,6 +272,17 @@ TEST_F(PreprocessorUnit, value_comparisons)
     EXPECT_EQ(preprocess(define + "#ifmore V 4\n.word 1\n#endif\n"), ".word 1\n");
     EXPECT_EQ(preprocess(define + "#ifless V 4\n.word 1\n#elsemore V 4\n.word 2\n#endif\n"),
               ".word 2\n");
+}
+
+// Numbers are compared as numbers: as text "9" would be more than "10".
+TEST_F(PreprocessorUnit, numbers_are_compared_by_value)
+{
+    EXPECT_EQ(preprocess("#define V 9\n#ifless V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V 9\n#ifmore V 10\n.word 1\n#endif\n"), "");
+    EXPECT_EQ(preprocess("#define V 10\n#ifmore V 9\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V $A\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V -2\n#ifless V 1\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V 010\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
 }
 
 TEST_F(PreprocessorUnit, comparisons_are_on_the_text_of_the_value)
@@ -462,6 +497,24 @@ TEST_F(PreprocessorUnit, include_from_the_include_directories)
     EXPECT_EQ(preprocess("#include <\"util.binc\">\n.word FROM_INCLUDE\n"), ".word 7\n");
 }
 
+TEST_F(PreprocessorUnit, the_same_include_directory_twice_is_not_an_ambiguity)
+{
+    write("include/util.binc", "#define FROM_INCLUDE 7\n");
+    const std::string dir = (m_dir / "include").string();
+    m_options.system_dirs = {Directory(dir), Directory(dir), Directory(dir + "/../include")};
+    EXPECT_EQ(preprocess("#include <\"util.binc\">\n.word FROM_INCLUDE\n"), ".word 7\n");
+}
+
+TEST_F(PreprocessorUnit, a_file_in_two_include_directories_is_an_ambiguity)
+{
+    write("include/util.binc", "#define FROM_INCLUDE 7\n");
+    write("other/util.binc", "#define FROM_INCLUDE 8\n");
+    m_options.system_dirs = {Directory((m_dir / "include").string()),
+                             Directory((m_dir / "other").string())};
+    EXPECT_TRUE(contains(error("#include <\"util.binc\">\n"),
+                         "'util.binc' found in more than one include directory"));
+}
+
 TEST_F(PreprocessorUnit, include_guard_keeps_a_file_from_being_included_twice)
 {
     write("guard.binc", "#ifndef GUARD\n#define GUARD\n.word 1\n#endif\n");
@@ -527,7 +580,7 @@ TEST_F(PreprocessorUnit, lexical_errors_end_the_preprocessor)
 TEST_F(PreprocessorUnit, state_is_error_after_a_failure)
 {
     const std::string path = write("fail.basm", "#endif\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "fail.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "fail.bi").string(), m_options);
     EXPECT_EQ(preprocessor.get_state(), Preprocessor::UNPROCESSED);
     EXPECT_THROW(preprocessor.preprocess(), aemu::log::FatalError);
     EXPECT_EQ(preprocessor.get_state(), Preprocessor::PROCESSED_ERROR);
@@ -556,7 +609,7 @@ std::string texts(const std::vector<basm::Token> &tokens)
 TEST_F(PreprocessorUnit, result_tokens_end_with_a_newline_and_end_of_file)
 {
     const std::string path = write("main.basm", "hlt");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     preprocessor.preprocess();
     const basm::PreprocessedSource result = preprocessor.take_result();
 
@@ -566,7 +619,7 @@ TEST_F(PreprocessorUnit, result_tokens_end_with_a_newline_and_end_of_file)
 
     // An empty program is just the end.
     const std::string empty_path = write("empty.basm", "; nothing\n");
-    Preprocessor empty(m_process.get(), File(empty_path), (m_dir / "out" / "empty.bi").string());
+    Preprocessor empty(File(empty_path), (m_dir / "out" / "empty.bi").string(), m_options);
     empty.preprocess();
     EXPECT_EQ(empty.take_result().tokens.back().type, basm::TokenType::END_OF_FILE);
 }
@@ -576,7 +629,7 @@ TEST_F(PreprocessorUnit, result_tokens_keep_their_original_locations)
     write("inc.binc", "nop\n");
     const std::string path =
         write("main.basm", "#define N 4\n\n  mov x0, N\n#include \"inc.binc\"\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     preprocessor.preprocess();
     const basm::PreprocessedSource result = preprocessor.take_result();
     EXPECT_EQ(texts(result.tokens), "mov x0 , 4 |nop |");
@@ -595,7 +648,7 @@ TEST_F(PreprocessorUnit, result_tokens_keep_their_original_locations)
 TEST_F(PreprocessorUnit, result_tokens_name_the_symbol_that_produced_them)
 {
     const std::string path = write("main.basm", "#define N 4\nmov x0, N\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     preprocessor.preprocess();
     const basm::PreprocessedSource result = preprocessor.take_result();
 
@@ -613,7 +666,7 @@ TEST_F(PreprocessorUnit, result_tokens_name_the_symbol_that_produced_them)
 TEST_F(PreprocessorUnit, macro_arguments_keep_the_location_they_were_written_at)
 {
     const std::string path = write("main.basm", "#macro m(r)\nmov r, 1\n#macend\n#invoke m(x5)\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     preprocessor.preprocess();
     const basm::PreprocessedSource result = preprocessor.take_result();
 
@@ -642,7 +695,7 @@ TEST_F(PreprocessorUnit, result_tokens_match_the_text_of_the_output_file)
     const std::string path = write("main.basm", "#macro twice(r)\nadd r, r, r\n#macend\n"
                                                 "#define K 3\n.text\n_start:\n  #invoke twice(x1)\n"
                                                 "  mov x2, K\n#ifdef K\n  hlt\n#endif\n");
-    Preprocessor preprocessor(m_process.get(), File(path), (m_dir / "out" / "main.bi").string());
+    Preprocessor preprocessor(File(path), (m_dir / "out" / "main.bi").string(), m_options);
     const File output = preprocessor.preprocess();
     const basm::PreprocessedSource result = preprocessor.take_result();
 

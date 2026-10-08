@@ -18,6 +18,8 @@
 
 #include "util/types.h"
 
+#include "assembler/instruction_list.h"
+
 #include <cstddef>
 #include <deque>
 #include <initializer_list>
@@ -112,9 +114,12 @@ class SourceManager
 // Token types
 // ---------------------------------------------------------------------------------------------
 
+// The instructions come from their own list (instruction_list.h), one token type per row.
+#define BASM_INSTRUCTION_TOKEN(X, NAME, ...) X(INSTRUCTION_##NAME)
+
 // Groups are contiguous so that classification is a range check. Do not reorder inside a group.
 // clang-format off
-#define BASM_TOKEN_TYPES(X)                                                                        \
+#define BASM_TOKEN_TYPES(X)                                                                      \
     X(END_OF_FILE) X(NEWLINE) X(INVALID)                                                           \
     X(COMMENT_SINGLE_LINE) X(COMMENT_MULTI_LINE)                                                   \
     X(LABEL) X(SYMBOL) X(BACK_SLASH)                                                               \
@@ -144,23 +149,7 @@ class SourceManager
     X(REGISTER_X22) X(REGISTER_X23) X(REGISTER_X24) X(REGISTER_X25) X(REGISTER_X26)                \
     X(REGISTER_X27) X(REGISTER_X28) X(REGISTER_X29) X(REGISTER_SP) X(REGISTER_XZR)                 \
                                                                                                    \
-    X(INSTRUCTION_HLT) X(INSTRUCTION_NOP) X(INSTRUCTION_ADD) X(INSTRUCTION_SUB)                    \
-    X(INSTRUCTION_RSB) X(INSTRUCTION_ADC) X(INSTRUCTION_SBC) X(INSTRUCTION_RSC)                    \
-    X(INSTRUCTION_MUL) X(INSTRUCTION_UMULL) X(INSTRUCTION_SMULL) X(INSTRUCTION_VABS)               \
-    X(INSTRUCTION_VNEG) X(INSTRUCTION_VSQRT) X(INSTRUCTION_VADD) X(INSTRUCTION_VSUB)               \
-    X(INSTRUCTION_VDIV) X(INSTRUCTION_VMUL) X(INSTRUCTION_VCMP) X(INSTRUCTION_VSEL)                \
-    X(INSTRUCTION_VCINT) X(INSTRUCTION_VCFLO) X(INSTRUCTION_VMOV) X(INSTRUCTION_AND)               \
-    X(INSTRUCTION_ORR) X(INSTRUCTION_EOR) X(INSTRUCTION_BIC) X(INSTRUCTION_LSL)                    \
-    X(INSTRUCTION_LSR) X(INSTRUCTION_ASR) X(INSTRUCTION_ROR) X(INSTRUCTION_CMP)                    \
-    X(INSTRUCTION_CMN) X(INSTRUCTION_TST) X(INSTRUCTION_TEQ) X(INSTRUCTION_MOV)                    \
-    X(INSTRUCTION_MVN) X(INSTRUCTION_LDR) X(INSTRUCTION_STR) X(INSTRUCTION_SWP)                    \
-    X(INSTRUCTION_LDRB) X(INSTRUCTION_STRB) X(INSTRUCTION_SWPB) X(INSTRUCTION_LDRH)                \
-    X(INSTRUCTION_STRH) X(INSTRUCTION_SWPH) X(INSTRUCTION_MSR) X(INSTRUCTION_MRS)                  \
-    X(INSTRUCTION_TLBI) X(INSTRUCTION_LDADD) X(INSTRUCTION_LDADDB) X(INSTRUCTION_LDADDH)           \
-    X(INSTRUCTION_LDCLR) X(INSTRUCTION_LDCLRB) X(INSTRUCTION_LDCLRH) X(INSTRUCTION_LDSET)          \
-    X(INSTRUCTION_LDSETB) X(INSTRUCTION_LDSETH) X(INSTRUCTION_B) X(INSTRUCTION_BL)                 \
-    X(INSTRUCTION_BX) X(INSTRUCTION_BLX) X(INSTRUCTION_SWI) X(INSTRUCTION_ADRP)                    \
-    X(INSTRUCTION_RET)                                                                             \
+    BASM_INSTRUCTION_LIST(BASM_INSTRUCTION_TOKEN, X)                                               \
                                                                                                    \
     X(CONDITION_EQ) X(CONDITION_NE) X(CONDITION_CS) X(CONDITION_HS) X(CONDITION_CC)                \
     X(CONDITION_LO) X(CONDITION_MI) X(CONDITION_PL) X(CONDITION_VS) X(CONDITION_VC)                \
@@ -276,7 +265,7 @@ enum TokenFlag : U8
     /// Instruction mnemonic carried the `s` suffix (adds, movs, lsls, ...).
     SETS_FLAGS = 1 << 2,
 
-    /// ldrsb / ldrsh / strsb / strsh.
+    /// ldrsb / ldrsh. A store has no sign, the bytes stored are the low ones of the register.
     SIGN_EXTEND = 1 << 3,
 
     /// Not produced by the lexer (see Token::synthetic).

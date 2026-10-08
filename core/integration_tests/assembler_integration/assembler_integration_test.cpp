@@ -563,6 +563,55 @@ _start:
     EXPECT_EQ(state_number("pc"), 8u); // the faulting ldr
 }
 
+// The code of a program cannot be written by the program.
+TEST_F(AssemblerIntegration, emu32_faults_on_a_store_to_the_code)
+{
+    write_file("selfmod.basm", R"(.global _start
+
+.text
+_start:
+                adrp    x1, _start
+                add     x1, x1, :lo12:_start
+                str     x1, [x1]                ; over the first instruction
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o selfmod selfmod.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e selfmod.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+    EXPECT_NE(state("message").find("read-only"), std::string::npos) << state("message");
+}
+
+// A program that uses more pages than there is RAM has its pages swapped out to the disk, it does
+// not run into the ROM or the end of the memory.
+TEST_F(AssemblerIntegration, emu32_swaps_pages_when_the_ram_is_full)
+{
+    write_file("pages.basm", R"(.global _start
+
+.bss
+buffer:         .advance 40960                  ; ten pages
+
+.text
+_start:
+                adrp    x1, buffer
+                add     x1, x1, :lo12:buffer
+                add     x3, xzr, 0
+loop:
+                add     x3, x3, 1
+                str     x3, [x1]
+                add     x1, x1, 4096
+                cmp     x3, 10
+                b.lt    loop
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o pages pages.basm -outdir ."));
+
+    // Four pages of RAM hold the code, the data and two of the pages of the buffer.
+    ASSERT_NO_FATAL_FAILURE(run("pages.bexe", "--ram-pages 4 --rom-start 4 --rom-pages 4"));
+    EXPECT_EQ(reg(3), 10u);
+}
+
 // Bad arguments are rejected before anything runs.
 TEST_F(AssemblerIntegration, emu32_usage_errors)
 {
@@ -1030,6 +1079,7 @@ shared_table:   .word 100, 20, 3
 
     ObjectFile exe(File(path("prog.bexe")));
     EXPECT_EQ(exe.data_section.size(), 24u); // both files' .data merged
+    EXPECT_TRUE(exe.rel_text.empty()) << "the linker resolves every relocation";
 
     ASSERT_NO_FATAL_FAILURE(run("prog.bexe"));
     EXPECT_EQ(reg(1), 20u);
@@ -1264,4 +1314,401 @@ _start:
 )");
     EXPECT_NE(basm("-o undef undef.basm -outdir ."), 0) << log_tail("basm.log");
     EXPECT_FALSE(exists("undef.bexe"));
+}
+
+// A linker script (-ld) can place .text away from address 0. Branches and the adrp/lo12 pair of
+// the data access have to be resolved against the moved sections.
+TEST_F(AssemblerIntegration, linker_script_moves_text)
+{
+    write_file("moved.basm", R"(.global _start
+
+.text
+_start:
+                adrp    x0, value
+                add     x0, x0, :lo12:value
+                ldr     x1, [x0]
+                bl      bump
+                b       done
+                add     x1, x1, 100             ; skipped
+done:
+                hlt
+
+bump:
+                add     x1, x1, 1
+                ret
+
+.data
+value:          .word 41
+)");
+    write_file("moved.ld", R"(ENTRY(_start)
+
+SECTIONS (
+    .text = 0x400;
+    .data = 0x2000;
+    .bss;
+)
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o moved moved.basm -outdir . -ld moved.ld"));
+
+    ObjectFile exe(File(path("moved.bexe")));
+    EXPECT_EQ(exe.sections[exe.section_table.at(".text")].address, 0x400u);
+    EXPECT_EQ(exe.sections[exe.section_table.at(".data")].address, 0x2000u);
+    EXPECT_EQ(symbol(exe, "_start")->symbol_value, 0x400u);
+
+    ASSERT_NO_FATAL_FAILURE(run("moved.bexe"));
+    EXPECT_EQ(reg(1), 42u);
+    EXPECT_EQ(state_number("pc"), 0x400u + 6 * 4); // the hlt
+}
+
+// ENTRY(symbol) starts the program at that symbol instead of _start.
+TEST_F(AssemblerIntegration, linker_script_entry_symbol)
+{
+    write_file("entry.basm", R"(.global main
+
+.text
+unused:
+                add     x0, xzr, 99
+                hlt
+main:
+                add     x0, xzr, 7
+                hlt
+)");
+    write_file("entry.ld", R"(ENTRY(main)
+
+SECTIONS (
+    .text = 0x0;
+    .data = 0x1000;
+    .bss;
+)
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o entry entry.basm -outdir . -ld entry.ld"));
+    ASSERT_NO_FATAL_FAILURE(run("entry.bexe"));
+    EXPECT_EQ(reg(0), 7u);
+    EXPECT_EQ(state_number("pc"), 12u);
+}
+
+TEST_F(AssemblerIntegration, linker_script_undefined_entry_fails)
+{
+    write_file("noentry.basm", R"(.global _start
+
+.text
+_start:
+                hlt
+)");
+    write_file("noentry.ld",
+               "ENTRY(nothing)\nSECTIONS (\n .text = 0x0;\n .data = 0x1000;\n .bss;\n)\n");
+    EXPECT_NE(basm("-o noentry noentry.basm -outdir . -ld noentry.ld"), 0);
+    EXPECT_NE(log_tail("basm.log").find("nothing"), std::string::npos) << log_tail("basm.log");
+    EXPECT_FALSE(exists("noentry.bexe"));
+}
+
+TEST_F(AssemblerIntegration, undefined_symbol_error_names_the_symbol)
+{
+    write_file("undef2.basm", R"(.global _start
+
+.text
+_start:
+                bl      missing_function
+                hlt
+)");
+    EXPECT_NE(basm("-o undef2 undef2.basm -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("missing_function"), std::string::npos)
+        << log_tail("basm.log");
+}
+
+// Garbage and truncated executables are rejected with a message instead of being loaded.
+TEST_F(AssemblerIntegration, loading_a_file_that_is_not_an_executable_fails)
+{
+    write_file("garbage.bexe", std::string(200, 'x'));
+    EXPECT_NE(emu32("-e garbage.bexe"), 0);
+    EXPECT_NE(log_tail("emu32.log").find("not an object file"), std::string::npos)
+        << log_tail("emu32.log");
+}
+
+TEST_F(AssemblerIntegration, loading_a_truncated_executable_fails)
+{
+    write_file("whole.basm", R"(.global _start
+
+.text
+_start:
+                add     x0, xzr, 1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o whole whole.basm -outdir ."));
+
+    std::ifstream in(m_dir / "whole.bexe", std::ios::binary);
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string bytes = ss.str();
+    ASSERT_GT(bytes.size(), 64u);
+    write_file("cut.bexe", bytes.substr(0, bytes.size() - 20));
+
+    EXPECT_NE(emu32("-e cut.bexe"), 0);
+    EXPECT_EQ(m_state.count("status"), 0u);
+}
+
+static const char *const kLoopProgram = R"(.global _start
+
+.text
+_start:
+                add     x0, xzr, 0
+loop:
+                add     x0, x0, 1
+                cmp     x0, 3
+                b.ne    loop
+                hlt
+)";
+
+static size_t count_of(const std::string &text, const std::string &needle)
+{
+    size_t n = 0;
+    for (size_t at = text.find(needle); at != std::string::npos; at = text.find(needle, at + 1))
+    {
+        ++n;
+    }
+    return n;
+}
+
+// Building or loading does not dump object files unless asked to.
+TEST_F(AssemblerIntegration, object_files_are_not_dumped_by_default)
+{
+    write_file("loop.basm", kLoopProgram);
+    ASSERT_NO_FATAL_FAILURE(build("-o loop loop.basm -outdir ."));
+    EXPECT_EQ(count_of(log_tail("basm.log", 1 << 20), "SYMBOL TABLE"), 0u);
+
+    ASSERT_NO_FATAL_FAILURE(run("loop.bexe"));
+    EXPECT_EQ(count_of(log_tail("emu32.log", 1 << 20), "SYMBOL TABLE"), 0u);
+    EXPECT_EQ(reg(0), 3u);
+}
+
+// -dump lists the symbols and disassembly of the object file and the executable, and names the
+// real target of a branch.
+TEST_F(AssemblerIntegration, dump_lists_object_file_and_executable)
+{
+    write_file("loop.basm", kLoopProgram);
+    ASSERT_NO_FATAL_FAILURE(build("-dump -o loop loop.basm -outdir ."));
+
+    const std::string log = log_tail("basm.log", 1 << 20);
+    EXPECT_EQ(count_of(log, "SYMBOL TABLE"), 2u) << log;
+    EXPECT_EQ(count_of(log, "Cannot print object file"), 0u) << log;
+    EXPECT_NE(log.find("loop.bo:"), std::string::npos) << log;
+    EXPECT_NE(log.find("loop.bexe:"), std::string::npos) << log;
+    EXPECT_NE(log.find("b.ne"), std::string::npos) << log;
+    // The branch goes back to `loop`, so the annotation is the label with no offset.
+    EXPECT_NE(log.find("<loop>\n"), std::string::npos) << log;
+}
+
+// -D defines a symbol for the preprocessor, with or without a value.
+TEST_F(AssemblerIntegration, command_line_defines)
+{
+    write_file("def.basm", R"(.global _start
+
+.text
+_start:
+                mov     x0, VALUE
+#ifdef EXTRA
+                add     x0, x0, 100
+#endif
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-D VALUE=9 -o plain def.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("plain.bexe"));
+    EXPECT_EQ(reg(0), 9u);
+
+    ASSERT_NO_FATAL_FAILURE(build("-D VALUE=9 -D EXTRA -o extra def.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("extra.bexe"));
+    EXPECT_EQ(reg(0), 109u);
+
+    EXPECT_NE(basm("-o none def.basm -outdir ."), 0) << "VALUE is not defined, so it is a symbol";
+}
+
+// A symbol that is declared but not defined anywhere is an error at link time, it used to be
+// linked at address 0.
+TEST_F(AssemblerIntegration, linking_an_undefined_symbol_fails)
+{
+    write_file("undef.basm", R"(.global _start
+.global missing
+
+.text
+_start:
+                bl      missing
+                hlt
+)");
+    EXPECT_NE(basm("-o undef undef.basm -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("undefined reference to 'missing'"), std::string::npos)
+        << log_tail("basm.log");
+    EXPECT_FALSE(exists("undef.bexe"));
+}
+
+// Code that is bigger than the 4 KiB before the data used to be written over by the data.
+TEST_F(AssemblerIntegration, big_programs_do_not_run_into_their_data)
+{
+    std::string source = ".global _start\n.data\nvalue: .word $12345678\n.text\n_start:\n";
+    for (int i = 0; i < 1100; i++) source += "                nop\n";
+    source += "                adrp    x1, value\n"
+              "                add     x1, x1, :lo12:value\n"
+              "                ldr     x0, [x1]\n"
+              "                hlt\n";
+    write_file("big.basm", source);
+    ASSERT_NO_FATAL_FAILURE(build("-o big big.basm -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("big.bexe"));
+    EXPECT_EQ(reg(0), 0x12345678u);
+    EXPECT_EQ(state_number("instructions"), 1103u);
+}
+
+// A table of function addresses in .data, filled in by the linker, and the functions called through it.
+TEST_F(AssemblerIntegration, a_table_of_addresses_in_data)
+{
+    write_file("table.basm", R"(.global _start
+
+.data
+table:          .word first, second
+
+.text
+_start:
+                adrp    x1, table
+                add     x1, x1, :lo12:table
+                ldr     x2, [x1]
+                ldr     x3, [x1, 4]
+                blx     x2
+                add     x4, x0, 0
+                blx     x3
+                hlt
+
+first:
+                mov     x0, 5
+                ret
+second:
+                mov     x0, 9
+                ret
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o table table.basm -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("table.bexe"));
+    EXPECT_EQ(reg(4), 5u) << "called through the first word";
+    EXPECT_EQ(reg(0), 9u) << "called through the second word";
+    EXPECT_EQ(reg(2), 8 * 4u) << "first is after the 8 instructions of _start";
+    EXPECT_EQ(reg(3), 10 * 4u) << "and second after the 2 instructions of first";
+}
+
+// The data of the files of a program is joined in a way that keeps what .align asked for.
+TEST_F(AssemblerIntegration, align_is_kept_when_files_are_linked)
+{
+    write_file("main.basm", R"(.global _start
+.global wide
+
+.data
+odd:            .byte 1, 2, 3
+
+.text
+_start:
+                adrp    x1, wide
+                add     x1, x1, :lo12:wide
+                ldr     x0, [x1]
+                hlt
+)");
+    write_file("wide.basm", R"(.global wide
+
+.data
+                .align 8
+wide:           .word $01020304
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o aligned main.basm wide.basm -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("aligned.bexe"));
+    EXPECT_EQ(reg(0), 0x01020304u);
+    EXPECT_EQ(reg(1) % 8, 0u);
+}
+
+// A branch offset written as a number is a signed distance in bytes from the branch itself, and
+// an expression can compute it.
+TEST_F(AssemblerIntegration, a_numeric_branch_offset_can_go_backwards)
+{
+    write_file("loop.basm", R"(.global _start
+
+.text
+_start:
+                mov     x0, 0
+                mov     x1, 5
+                add     x0, x0, 2
+                subs    x1, x1, 1
+                b.ne    -2 * 4
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o loop loop.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("loop.bexe"));
+    EXPECT_EQ(reg(0), 10u);
+}
+
+TEST_F(AssemblerIntegration, preprocessor_compares_numbers_by_value)
+{
+    write_file("version.basm", R"(.global _start
+
+.text
+_start:
+#ifless VERSION 10
+                mov     x0, 1
+#else
+                mov     x0, 2
+#endif
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-D VERSION=9 -o nine version.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("nine.bexe"));
+    EXPECT_EQ(reg(0), 1u);
+
+    ASSERT_NO_FATAL_FAILURE(build("-D VERSION=11 -o eleven version.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("eleven.bexe"));
+    EXPECT_EQ(reg(0), 2u);
+}
+
+// Only the linker resolves addresses, so an object file is not a program.
+TEST_F(AssemblerIntegration, loading_an_object_file_with_relocations_fails)
+{
+    write_file("data.basm", R"(.global _start
+
+.text
+_start:
+                adrp    x0, value
+                add     x0, x0, :lo12:value
+                hlt
+
+.data
+value:          .word 5
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-c -o data data.basm -outdir ."));
+    ASSERT_TRUE(exists("data.bo"));
+
+    EXPECT_NE(emu32("-e data.bo"), 0);
+    EXPECT_EQ(m_state.count("status"), 0u);
+    EXPECT_NE(log_tail("emu32.log").find("still has relocations"), std::string::npos)
+        << log_tail("emu32.log");
+}
+
+TEST_F(AssemblerIntegration, help_and_version_exit_cleanly_without_building)
+{
+    EXPECT_EQ(basm("--help"), 0) << log_tail("basm.log");
+    EXPECT_NE(log_tail("basm.log").find("basm [options] file..."), std::string::npos);
+
+    EXPECT_EQ(basm("--version"), 0) << log_tail("basm.log");
+    EXPECT_NE(log_tail("basm.log").find("Assembler Version"), std::string::npos);
+}
+
+TEST_F(AssemblerIntegration, basm_fails_with_a_message_instead_of_crashing)
+{
+    write_file("bad.basm", ".text\n  bogus x0\n");
+    EXPECT_EQ(basm("-o bad bad.basm -outdir ."), 1) << log_tail("basm.log");
+    EXPECT_NE(log_tail("basm.log").find("bad.basm:2:"), std::string::npos) << log_tail("basm.log");
+    EXPECT_FALSE(exists("bad.bexe"));
+
+    EXPECT_EQ(basm("--no-such-flag"), 1);
+    EXPECT_NE(log_tail("basm.log").find("Invalid flag"), std::string::npos);
+}
+
+TEST_F(AssemblerIntegration, dump_with_compile_only_lists_just_the_object_file)
+{
+    write_file("loop.basm", kLoopProgram);
+    ASSERT_NO_FATAL_FAILURE(build("-c -dump -o loop loop.basm -outdir ."));
+    EXPECT_EQ(count_of(log_tail("basm.log", 1 << 20), "SYMBOL TABLE"), 1u);
 }

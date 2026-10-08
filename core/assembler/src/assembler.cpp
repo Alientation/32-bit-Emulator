@@ -1,7 +1,7 @@
 #include "assembler/assembler.h"
+#include "assembler/relocation.h"
 #include "emulator32bit/emulator32bit.h"
 
-#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 #include "util/types.h"
 
@@ -9,9 +9,7 @@
 #include <optional>
 #include <span>
 
-Assembler::Assembler(const Process *process, const File processed_file,
-                     const std::string &output_path) :
-    m_process(process),
+Assembler::Assembler(const File processed_file, const std::string &output_path) :
     m_in_file(processed_file),
     m_sources(std::make_shared<basm::SourceManager>())
 {
@@ -27,9 +25,8 @@ Assembler::Assembler(const Process *process, const File processed_file,
     m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_tokens));
 }
 
-Assembler::Assembler(const Process *process, const File processed_file,
-                     basm::PreprocessedSource source, const std::string &output_path) :
-    m_process(process),
+Assembler::Assembler(const File processed_file, basm::PreprocessedSource source,
+                     const std::string &output_path) :
     m_in_file(processed_file),
     m_sources(std::move(source.sources)),
     m_tokens(std::move(source.tokens))
@@ -52,16 +49,14 @@ void Assembler::init(const File &processed_file, const std::string &output_path)
         m_out_obj_file = File(output_path, true);
     }
 
-    AEMU_CHECK(m_process->valid_processed_file(processed_file),
+    AEMU_CHECK(processed_file.get_extension() == PROCESSED_EXTENSION,
                "Assembler::Assembler() - Invalid processed file: {}",
                processed_file.get_extension());
-
-    m_state = State::NOT_ASSEMBLED;
 }
 
 void Assembler::assemble()
 {
-    if (m_state != State::NOT_ASSEMBLED)
+    if (m_assembled)
     {
         AEMU_DEBUG("Assembler::assemble() - Already assembled file: {}", m_in_file.get_name());
         return;
@@ -69,7 +64,7 @@ void Assembler::assemble()
 
     AEMU_DEBUG("Assembler::assemble() - Assembling file: {}", m_in_file.get_name());
 
-    m_state = State::ASSEMBLING;
+    m_assembled = true;
 
     // Clear the object file.
     m_out_obj_file.clear();
@@ -122,39 +117,20 @@ void Assembler::assemble()
                 + (m_scopes.empty() ? "" : "::SCOPE:" + std::to_string(m_scopes.back()));
 
             // Track the offset in the section that this label is in.
-            if (m_cur_section == Section::TEXT)
-            {
-                m_obj.add_symbol(symbol, m_obj.get_text_section_size(),
-                                 ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 0);
-            }
-            else if (m_cur_section == Section::DATA)
-            {
-                m_obj.add_symbol(symbol, m_obj.get_data_section_size(),
-                                 ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 1);
-            }
-            else if (m_cur_section == Section::BSS)
-            {
-                m_obj.add_symbol(symbol, m_obj.get_bss_section_size(),
-                                 ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, 2);
-            }
-            else
-            {
-                fail(token, "label '" + token.str()
-                                + "' is not located in a valid section, valid sections are .text, "
-                                  ".data, and .bss");
-            }
+            m_obj.add_symbol(symbol, m_obj.get_section_size(m_cur_section_index),
+                             ObjectFile::SymbolTableEntry::BindingInfo::LOCAL, m_cur_section_index);
 
             // A label is not a statement of its own, an instruction can follow on the same line.
             m_cursor.next();
         }
-        else if (m_instruction_handlers.find(token.type) != m_instruction_handlers.end())
+        else if (basm::is_instruction(token.type))
         {
             // Handle instruction.
             if (m_cur_section != Section::TEXT)
             {
                 fail(token, "code must be located in the .text section");
             }
-            (this->*m_instruction_handlers[token.type])();
+            assemble_instruction(basm::instruction_spec(token.type));
             expect_end_of_statement();
         }
         else if (m_directive_handlers.find(token.type) != m_directive_handlers.end())
@@ -171,20 +147,16 @@ void Assembler::assemble()
     }
     AEMU_DEBUG("Assembler::assemble() - Finished parsing tokens.");
 
-    // If there was a warning, the object file is still valid.
-    if (m_state == State::ASSEMBLING || m_state == State::ASSEMBLER_WARNING)
+    if (!m_scope_sites.empty() && !m_stopped)
     {
-        // Parse through second time to fill in local symbol values.
-        fill_local();
-
-        m_obj.write_object_file(m_out_obj_file);
-        AEMU_DEBUG("Assembler::assemble() - Assembled file: {}", m_in_file.get_name());
+        fail(*m_scope_sites.back(), ".scope is never closed with .scend");
     }
 
-    if (m_state == State::ASSEMBLING)
-    {
-        m_state = State::ASSEMBLED;
-    }
+    // Fill in the branches to labels of this file. An error above never gets here.
+    fill_local();
+
+    m_obj.write_object_file(m_out_obj_file);
+    AEMU_DEBUG("Assembler::assemble() - Assembled file: {}", m_in_file.get_name());
 }
 
 File Assembler::get_output_file() const
@@ -192,22 +164,39 @@ File Assembler::get_output_file() const
     return m_out_obj_file;
 }
 
-Assembler::State Assembler::get_state() const
+const ObjectFile &Assembler::object() const
 {
-    return this->m_state;
+    return m_obj;
+}
+
+void Assembler::set_warnings_as_errors(bool enabled)
+{
+    m_warnings_as_errors = enabled;
 }
 
 void Assembler::fill_local()
 {
+    AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
+    fill_local(m_obj.rel_text, true);
+    fill_local(m_obj.rel_data, false);
+    AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
+}
+
+// A relocation names the label of the innermost scope that has it, if there is one, and a branch
+// to a label of this file does not depend on where the file ends up, so it is filled in now.
+// Absolute addresses (e.g. adrp to a .text label) are only known after linking, so those are left
+// for the linker.
+void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations,
+                           bool fill_branches)
+{
     const std::vector<basm::Token> &tokens = m_tokens;
     size_t tok_i = 0;
 
-    AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
     std::vector<int> local_scope;
     int local_count_scope = 0;
-    for (size_t i = 0; i < m_obj.rel_text.size(); i++)
+    for (size_t i = 0; i < relocations.size(); i++)
     {
-        ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
+        ObjectFile::RelocationEntry &rel = relocations.at(i);
         AEMU_DEBUG("Assembler::fill_local() - Evaluating relocation entry {}",
                    m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
@@ -262,39 +251,18 @@ void Assembler::fill_local()
             continue;
         }
 
-        // Only fixes relative offsets, we cannot fix absolute references since
-        // that must be done when the executable is loaded into memory.
-        switch (rel.type)
+        if (!fill_branches || rel.type != ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22)
         {
-        case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
-            AEMU_CHECK((symbol_entry.symbol_value & 0b11) == 0,
-                       "Assembler::fill_local() - Expected relocation value for "
-                       "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got {}",
-                       symbol_entry.symbol_value);
-            m_obj.text_section[rel.offset / 4] =
-                mask_0(m_obj.text_section[rel.offset / 4], 0, 22)
-                + bitfield_unsigned(
-                    bitfield_signed(symbol_entry.symbol_value, 2, 22) - rel.offset / 4, 0, 22);
-            break;
-        case ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20:
-        case ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12:
-        case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19:
-        case ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13:
-            // Absolute addresses (e.g. adrp to a .text label) are only known after linking, so
-            // leave these for the linker/loader.
             continue;
-        case ObjectFile::RelocationEntry::Type::UNDEFINED:
-        default:
-            AEMU_FATAL("Assembler::fill_local() - Unknown relocation entry type.");
         }
+        m_obj.text_section[rel.offset / 4] = apply_relocation(
+            rel.type, m_obj.text_section[rel.offset / 4], rel.offset, symbol_entry.symbol_value);
 
         // For now, simply delete from vector.
         // TODO: In future look to optimize.
-        m_obj.rel_text.erase(m_obj.rel_text.begin() + i);
+        relocations.erase(relocations.begin() + i);
 
         // Offset the for loop increment.
         i--;
     }
-
-    AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }

@@ -4,26 +4,139 @@
 
 #include <unordered_set>
 
-VirtualMemory::VirtualMemory(Disk *disk) :
+VirtualMemory::VirtualMemory(Disk *disk, word frame_lo_page, word frame_pages) :
     m_disk(disk),
     m_freepids(0, kMaxProcesses),
-    m_freelist(0, kMaxPhysicalPages)
+    m_frame_lo(frame_lo_page),
+    m_frame_pages(frame_pages),
+    m_freelist(frame_lo_page, frame_pages, frame_pages > 0)
 {
-    for (U32 i = 0; i < kMaxPhysicalPages; i++)
-    {
-        m_physical_memory_map[i].ppage = word(i);
-    }
 }
 
 VirtualMemory::~VirtualMemory()
 {
-    LRU_Node *cur = m_lru_head;
-    while (cur != nullptr)
+    for (auto &[pid, ptable] : m_process_ptable_map)
     {
-        LRU_Node *next = cur->next;
-        delete cur;
-        cur = next;
+        for (auto &[vpage, entry] : ptable->entries)
+        {
+            delete entry;
+        }
+        delete ptable;
     }
+}
+
+void VirtualMemory::set_physical_pages(PhysicalPages *physical)
+{
+    m_physical = physical;
+}
+
+VirtualMemory::PhysicalPage &VirtualMemory::physical_page(word ppage)
+{
+    const auto [it, inserted] = m_physical_memory_map.try_emplace(ppage);
+    if (inserted)
+    {
+        it->second.ppage = ppage;
+    }
+    return it->second;
+}
+
+VirtualMemory::PhysicalPage *VirtualMemory::find_physical_page(word ppage)
+{
+    const auto it = m_physical_memory_map.find(ppage);
+    return it == m_physical_memory_map.end() ? nullptr : &it->second;
+}
+
+bool VirtualMemory::is_frame(word ppage) const
+{
+    return ppage >= m_frame_lo && U64(ppage) < U64(m_frame_lo) + m_frame_pages;
+}
+
+void VirtualMemory::release_frame(word ppage)
+{
+    if (is_frame(ppage))
+    {
+        m_freelist.return_block(ppage, 1);
+    }
+}
+
+void VirtualMemory::invalidate_tlb(long long pid, word vpage)
+{
+    TLB_Entry &tlb_entry = m_tlb[vpage & (kMaxTLBSize - 1)];
+    if (tlb_entry.valid && tlb_entry.pid == pid && tlb_entry.vpage == vpage)
+    {
+        tlb_entry.valid = false;
+    }
+}
+
+void VirtualMemory::flush_tlb()
+{
+    for (TLB_Entry &tlb_entry : m_tlb)
+    {
+        tlb_entry.valid = false;
+    }
+}
+
+void VirtualMemory::lru_remove(PhysicalPage &page)
+{
+    if (!page.in_lru)
+    {
+        return;
+    }
+
+    if (page.lru_prev != nullptr)
+    {
+        page.lru_prev->lru_next = page.lru_next;
+    }
+    else
+    {
+        m_lru_head = page.lru_next;
+    }
+
+    if (page.lru_next != nullptr)
+    {
+        page.lru_next->lru_prev = page.lru_prev;
+    }
+    else
+    {
+        m_lru_tail = page.lru_prev;
+    }
+
+    page.lru_prev = nullptr;
+    page.lru_next = nullptr;
+    page.in_lru = false;
+}
+
+void VirtualMemory::lru_move_to_tail(PhysicalPage &page)
+{
+    lru_remove(page);
+
+    page.lru_prev = m_lru_tail;
+    page.lru_next = nullptr;
+    if (m_lru_tail != nullptr)
+    {
+        m_lru_tail->lru_next = &page;
+    }
+    else
+    {
+        m_lru_head = &page;
+    }
+    m_lru_tail = &page;
+    page.in_lru = true;
+}
+
+word VirtualMemory::lru_victim()
+{
+    // The pages on the list can be swapped. Only the frames can hold a page that is paged in, a
+    // page outside of them was mapped explicitly and stays.
+    for (PhysicalPage *page = m_lru_head; page != nullptr; page = page->lru_next)
+    {
+        if (is_frame(page->ppage))
+        {
+            return page->ppage;
+        }
+    }
+
+    throw VirtualMemoryException("Out of physical memory, there is no page that can be swapped.");
 }
 
 VirtualMemory::VirtualMemoryException::VirtualMemoryException(const std::string &msg) :
@@ -34,6 +147,75 @@ VirtualMemory::VirtualMemoryException::VirtualMemoryException(const std::string 
 const char *VirtualMemory::VirtualMemoryException::what() const noexcept
 {
     return message.c_str();
+}
+
+namespace
+{
+
+const char *access_name(VirtualMemory::AccessType access)
+{
+    switch (access)
+    {
+    case VirtualMemory::AccessType::READ:
+        return "Read";
+    case VirtualMemory::AccessType::WRITE:
+        return "Write";
+    case VirtualMemory::AccessType::EXECUTE:
+        return "Execute";
+    }
+    return "Access";
+}
+
+std::string fault_message(VirtualMemory::PageFaultException::Reason reason, word vpage,
+                          VirtualMemory::AccessType access)
+{
+    using Reason = VirtualMemory::PageFaultException::Reason;
+    const std::string page = " virtual page " + std::to_string(vpage);
+    switch (reason)
+    {
+    case Reason::UNMAPPED:
+        return std::string("SIGSEGV: ") + access_name(access) + " of unmapped" + page;
+    case Reason::WRITE_DENIED:
+        return "Write to the read-only" + page;
+    case Reason::EXECUTE_DENIED:
+        return "Execute permission denied for" + page;
+    case Reason::KERNEL_ONLY:
+        return std::string(access_name(access)) + " of kernel memory in" + page
+               + " without kernel privilege";
+    }
+    return "Page fault";
+}
+
+} // namespace
+
+VirtualMemory::PageFaultException::PageFaultException(Reason reason, word vpage,
+                                                      AccessType access) :
+    VirtualMemoryException(fault_message(reason, vpage, access)),
+    reason(reason),
+    vpage(vpage),
+    access(access)
+{
+}
+
+VirtualMemory::PageFaultException::Reason
+VirtualMemory::PageFaultException::get_reason() const noexcept
+{
+    return reason;
+}
+
+word VirtualMemory::PageFaultException::get_vpage() const noexcept
+{
+    return vpage;
+}
+
+VirtualMemory::AccessType VirtualMemory::PageFaultException::get_access() const noexcept
+{
+    return access;
+}
+
+void VirtualMemory::throw_fault(PageFaultException::Reason reason, word vpage, AccessType access)
+{
+    throw PageFaultException(reason, vpage, access);
 }
 
 VirtualMemory::InvalidPIDException::InvalidPIDException(const std::string &msg,
@@ -98,15 +280,6 @@ VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word di
 {
 }
 
-VirtualMemory::PhysicalPage::PhysicalPage() :
-    mapped_vpages(std::vector<PageTableEntry *>()),
-    ppage(0),
-    used(false),
-    swappable(true),
-    kernel_locked(false)
-{
-}
-
 void VirtualMemory::set_process(long long pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
@@ -114,10 +287,10 @@ void VirtualMemory::set_process(long long pid)
         throw InvalidPIDException("Cannot set memory map of process " + std::to_string(pid)
                                       + " because it doesn't exist.",
                                   pid);
-        return;
     }
 
     m_cur_ptable = m_process_ptable_map.at(pid);
+    m_exec_cache_valid = false;
     AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
 
@@ -127,7 +300,6 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
     {
         throw VirtualMemoryException(
             "Reached the MAX_PROCESSES limit. Cannot create a new process.");
-        return -1;
     }
 
     word pid = m_freepids.get_free_block(1);
@@ -139,6 +311,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
 
     m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
     m_cur_ptable = new_pagetable;
+    m_exec_cache_valid = false;
 
     AEMU_DEBUG("Beginning process {}.", pid);
     return pid;
@@ -152,7 +325,6 @@ void VirtualMemory::end_process(long long pid)
                                       + " since it does "
                                         "not exist.",
                                   pid);
-        return;
     }
 
     /*
@@ -174,6 +346,7 @@ void VirtualMemory::end_process(long long pid)
     {
         m_cur_ptable = nullptr;
     }
+    m_exec_cache_valid = false;
 
     delete m_process_ptable_map.at(pid);
     m_process_ptable_map.erase(pid);
@@ -191,14 +364,38 @@ long long VirtualMemory::current_process()
     return m_cur_ptable->pid;
 }
 
-void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, word swappable,
-                                          word kernel_locked)
+void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, bool swappable,
+                                          bool kernel_locked)
 {
-    for (word i = ppage_begin; i <= ppage_end; i++)
+    if (ppage_begin > ppage_end)
     {
-        m_physical_memory_map[i].swappable = swappable;
-        m_physical_memory_map[i].kernel_locked = kernel_locked;
+        return;
     }
+
+    // Not `i <= ppage_end` in the loop condition, the last page can be the last one there is.
+    for (word i = ppage_begin;; i++)
+    {
+        PhysicalPage &page = physical_page(i);
+        page.swappable = swappable;
+        page.kernel_locked = kernel_locked;
+
+        if (!swappable)
+        {
+            lru_remove(page);
+        }
+        else if (page.used && !page.in_lru)
+        {
+            lru_move_to_tail(page);
+        }
+
+        if (i == ppage_end)
+        {
+            break;
+        }
+    }
+
+    // Translations that were allowed may not be anymore.
+    flush_tlb();
 }
 
 void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word vpage_end,
@@ -209,8 +406,14 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
         throw InvalidPIDException("Cannot set vpage permissions since pid is invalid.", pid);
     }
 
+    if (vpage_begin > vpage_end)
+    {
+        return;
+    }
+
+    m_exec_cache_valid = false;
     PageTable *ptable = m_process_ptable_map.at(pid);
-    for (word vpage = vpage_begin; vpage <= vpage_end; vpage++)
+    for (word vpage = vpage_begin;; vpage++)
     {
         if (ptable->entries.find(vpage) == ptable->entries.end())
         {
@@ -222,7 +425,15 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
             entry->write = write;
             entry->execute = execute;
         }
+
+        if (vpage == vpage_end)
+        {
+            break;
+        }
     }
+
+    // The translations hold whether the page can be written to.
+    flush_tlb();
 }
 
 bool VirtualMemory::has_vpage(long long pid, word vpage)
@@ -277,7 +488,8 @@ bool VirtualMemory::can_access_ppage(long long pid, word ppage)
     }
 
     PageTable *ptable = m_process_ptable_map.at(pid);
-    return !m_physical_memory_map[ppage].kernel_locked || ptable->kernel_privilege;
+    const PhysicalPage *page = find_physical_page(ppage);
+    return page == nullptr || !page->kernel_locked || ptable->kernel_privilege;
 }
 
 void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write, bool execute)
@@ -287,11 +499,23 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
         throw InvalidPIDException("Cannot add virtual pages because pid is invalid.", pid);
     }
 
+    if (length == 0)
+    {
+        return;
+    }
+    if (U64(vpage) + length > (U64(1) << (8 * sizeof(word) - kNumPageOffsetBits)))
+    {
+        throw InvalidVPageException(
+            "Cannot add " + std::to_string(length) + " virtual pages from virtual page "
+                + std::to_string(vpage) + ", they are not all in the address space.",
+            vpage);
+    }
+
     AEMU_DEBUG("Adding vpages from {} to {}.", vpage, vpage + length - 1);
 
     PageTable *ptable = m_process_ptable_map.at(pid);
-    word last_vpage = vpage + length - 1;
-    for (; vpage <= last_vpage; vpage++)
+    const word last_vpage = vpage + length - 1;
+    for (;; vpage++)
     {
         if (ptable->entries.find(vpage) != ptable->entries.end())
         {
@@ -299,17 +523,21 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
                                             + " because it is already mapped to process "
                                             + std::to_string(pid),
                                         vpage);
-            return;
         }
 
         ptable->entries.insert(std::make_pair(
             vpage, new PageTableEntry(pid, vpage, m_disk->get_free_page(), write, execute)));
 
         AEMU_DEBUG("Adding virtual page {} to process {}.", vpage, pid);
+
+        if (vpage == last_vpage)
+        {
+            break;
+        }
     }
 }
 
-void VirtualMemory::map_ppage(long long pid, word vpage, word ppage, Exception &exception)
+void VirtualMemory::map_ppage(long long pid, word vpage, word ppage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -325,15 +553,18 @@ void VirtualMemory::map_ppage(long long pid, word vpage, word ppage, Exception &
             vpage);
     }
 
-    add_vpage(vpage, 1, true, true, true);
+    add_vpage(pid, vpage, 1, true, true);
 
-    if (m_physical_memory_map[ppage].used)
+    if (physical_page(ppage).used)
     {
-        evict_ppage(ppage, exception);
+        evict_ppage(ppage);
     }
 
-    m_freelist.remove_block(ppage, 1);
-    map_vpage_to_ppage(pid, vpage, ppage, exception);
+    if (is_frame(ppage))
+    {
+        m_freelist.remove_block(ppage, 1);
+    }
+    map_vpage_to_ppage(pid, vpage, ppage);
 
     PageTableEntry *entry = ptable->entries.at(vpage);
     entry->mapped = true;
@@ -353,11 +584,13 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
     {
         throw InvalidVPageException(
             "Cannot remove virtual page because it is not mapped to process.", vpage);
-        return;
     }
 
     PageTableEntry *entry = ptable->entries.at(vpage);
     ptable->entries.erase(vpage);
+
+    invalidate_tlb(pid, vpage);
+    m_exec_cache_valid = false;
 
     if (entry->disk)
     {
@@ -368,13 +601,21 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
     }
     else
     {
-        m_physical_memory_map[entry->ppage].used = false;
+        PhysicalPage &physical = physical_page(entry->ppage);
+        std::erase(physical.mapped_vpages, entry);
 
-        /* add back to free list */
-        m_freelist.return_block(entry->ppage, 1);
+        /* The physical page is only free once no virtual page maps to it anymore. */
+        if (physical.mapped_vpages.empty())
+        {
+            physical.used = false;
+            lru_remove(physical);
 
-        AEMU_DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage,
-                   vpage);
+            /* add back to free list */
+            release_frame(entry->ppage);
+
+            AEMU_DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage,
+                       vpage);
+        }
     }
 
     delete entry;
@@ -382,16 +623,14 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 
 void VirtualMemory::check_vm()
 {
-    for (U32 i = 0; i < kMaxPhysicalPages; i++)
+    for (const auto &[ppage, page] : m_physical_memory_map)
     {
-        PhysicalPage &ppage = m_physical_memory_map[i];
+        AEMU_CHECK(ppage == page.ppage, "Expected physical memory to match");
 
-        AEMU_CHECK(word(i) == ppage.ppage, "Expected physical memory to match");
-
-        if (ppage.mapped_vpages.size() > 0)
+        if (page.mapped_vpages.size() > 0)
         {
-            word diskpage = ppage.mapped_vpages.at(0)->diskpage;
-            for (PageTableEntry *entry : ppage.mapped_vpages)
+            word diskpage = page.mapped_vpages.at(0)->diskpage;
+            for (PageTableEntry *entry : page.mapped_vpages)
             {
                 AEMU_CHECK(entry->diskpage == diskpage,
                            "Expected all virtual pages mapped to the "
@@ -413,42 +652,40 @@ void VirtualMemory::check_vm()
     }
 }
 
-void VirtualMemory::evict_ppage(word ppage, Exception &exception)
+void VirtualMemory::evict_ppage(word ppage)
 {
     AEMU_DEBUG("Evicting physical page {} to disk.", ppage);
 
-    /*
-     * NOTE: this location will be overwritten below since we return the
-     * block to the free list, and then request a free block immediately
-     */
-    PhysicalPage &evicted_ppage = m_physical_memory_map[ppage];
-    evicted_ppage.used = false;
+    PhysicalPage &evicted_ppage = physical_page(ppage);
+    if (evicted_ppage.mapped_vpages.empty())
+    {
+        throw VirtualMemoryException("Cannot evict physical page " + std::to_string(ppage)
+                                     + " because no virtual page is mapped to it.");
+    }
 
+    /* Every virtual page that maps to the physical page shares one disk page. The page is saved
+       before the pages are changed, if that fails they are still in memory. */
+    const word diskpage = m_disk->get_free_page();
+    if (m_physical != nullptr)
+    {
+        std::vector<byte> contents(kPageSize);
+        m_physical->read_page(ppage, contents.data());
+        m_disk->write_page(diskpage, contents);
+    }
     for (PageTableEntry *removed_entry : evicted_ppage.mapped_vpages)
     {
         removed_entry->disk = true;
-        removed_entry->diskpage = m_disk->get_free_page();
-        word tlb_addr = removed_entry->vpage & (kMaxTLBSize - 1);
-        TLB_Entry &tlb_entry = m_tlb[tlb_addr];
-        if (tlb_entry.valid && tlb_entry.ppage == ppage
-            && tlb_entry.vpage == removed_entry->vpage) // todo, this should check for pid i think.
-        {
-            tlb_entry.valid = false;
-        }
+        removed_entry->diskpage = diskpage;
+        invalidate_tlb(removed_entry->pid, removed_entry->vpage);
     }
     evicted_ppage.mapped_vpages.clear();
+    evicted_ppage.used = false;
+    lru_remove(evicted_ppage);
 
-    // exception to tell system bus to write to disk
-    exception.disk_page_return =
-        evicted_ppage.mapped_vpages.at(0)->diskpage; // there MUST be a mapped vpage or else we
-                                                     // should not be evicting this ppage.
-    exception.ppage_return = ppage;
-    exception.type = Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS;
-
-    m_freelist.return_block(ppage, 1);
+    release_frame(ppage);
 }
 
-void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Exception &exception)
+void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -459,29 +696,26 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Ex
     PageTable *ptable = m_process_ptable_map.at(pid);
 
     PageTableEntry *entry = ptable->entries.at(vpage);
-    exception.disk_fetch = m_disk->read_page(entry->diskpage);
-
     AEMU_DEBUG("Disk Fetch from page {} to physical page {}.", entry->diskpage, ppage);
 
+    // The contents are in place before the page is, a page that could not be read is still on disk.
+    if (m_physical != nullptr)
+    {
+        m_physical->write_page(ppage, m_disk->read_page(entry->diskpage).data());
+    }
     m_disk->return_page(entry->diskpage);
 
-    if (exception.type != Exception::Type::DISK_RETURN_AND_FETCH_SUCCESS)
-    {
-        exception.type = Exception::Type::DISK_FETCH_SUCCESS;
-    }
-    exception.ppage_fetch = ppage;
     entry->ppage = ppage;
     entry->disk = false;
 
-    PhysicalPage &mapped_ppage = m_physical_memory_map[ppage];
+    PhysicalPage &mapped_ppage = physical_page(ppage);
     mapped_ppage.mapped_vpages.push_back(entry);
     mapped_ppage.used = true;
 
-    add_lru(ppage);
+    lru_touch(mapped_ppage);
 }
 
-void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage,
-                                                 Exception &exception)
+void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage)
 {
     if (UNLIKELY(!enabled))
     {
@@ -501,146 +735,128 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
      */
     if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
     {
+        const PageTableEntry *entry = ptable->entries.at(vpage);
+
         /*
-         * It is likely that the virtual page maps to the same physical page.
+         * It is likely that the virtual page maps to the same physical page. A page that is on
+         * disk is still mapped to its physical page if it was mapped to it explicitly, otherwise it
+         * has none (its ppage is not valid).
          */
-        if (LIKELY(ptable->entries.at(vpage)->ppage == ppage))
+        if (LIKELY(entry->disk ? (entry->mapped && entry->mapped_ppage == ppage)
+                               : entry->ppage == ppage))
         {
             return;
         }
 
+        const word mapped_to = entry->mapped ? entry->mapped_ppage : entry->ppage;
         throw VPageRemapException("Virtual page " + std::to_string(vpage)
                                       + " is already "
                                         "mapped to a different physical page "
-                                      + std::to_string(ptable->entries.at(vpage)->ppage)
-                                      + " of process " + std::to_string(pid),
-                                  vpage, ptable->entries.at(vpage)->ppage, ppage);
+                                      + std::to_string(mapped_to) + " of process "
+                                      + std::to_string(pid),
+                                  vpage, mapped_to, ppage);
     }
 
     AEMU_DEBUG("Mapping physical page {} to virtual page {}.", ppage, vpage);
 
-    map_ppage(pid, vpage, ppage, exception);
+    map_ppage(pid, vpage, ppage);
+}
+
+word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType access)
+{
+    const auto it = ptable->entries.find(vpage);
+    if (UNLIKELY(it == ptable->entries.end()))
+    {
+        throw_fault(PageFaultException::Reason::UNMAPPED, vpage, access);
+    }
+    PageTableEntry *entry = it->second;
+
+    if (UNLIKELY(access == AccessType::WRITE && !entry->write))
+    {
+        throw_fault(PageFaultException::Reason::WRITE_DENIED, vpage, access);
+    }
+
+    /*
+     * Likely that the virtual page being accessed has not been evicted to the disk.
+     */
+    if (UNLIKELY(entry->disk))
+    {
+        /*
+         * Unlikely that the virtual page has been forcibly mapped to a physical page.
+         *
+         * Maintains any explicit mappings of virtual page to physical page, like
+         * writing/reading from memory mapped I/O or ports.
+         */
+        if (UNLIKELY(entry->mapped))
+        {
+            /*
+             * Since the virtual page is mapped to a physical page on disk, we can assume it was
+             * evicted and some other page may be in use at the spot.
+             */
+            if (physical_page(entry->mapped_ppage).used)
+            {
+                evict_ppage(entry->mapped_ppage);
+            }
+
+            if (is_frame(entry->mapped_ppage))
+            {
+                m_freelist.remove_block(entry->mapped_ppage, 1);
+            }
+            map_vpage_to_ppage(ptable->pid, vpage, entry->mapped_ppage);
+        }
+        else
+        {
+            /*
+             * Unlikely that all physical pages are in use.
+             */
+            if (UNLIKELY(!m_freelist.can_fit(1)))
+            {
+                evict_ppage(lru_victim());
+            }
+
+            word ppage = m_freelist.get_free_block(1);
+            map_vpage_to_ppage(ptable->pid, vpage, ppage);
+        }
+    }
+
+    PhysicalPage &page = physical_page(entry->ppage);
+    if (UNLIKELY(page.kernel_locked && !ptable->kernel_privilege))
+    {
+        throw_fault(PageFaultException::Reason::KERNEL_ONLY, vpage, access);
+    }
+
+    /* Update the TLB with the result of the translation of virtual page to physical page. */
+    TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
+    tlb.valid = true;
+    tlb.pid = ptable->pid;
+    tlb.vpage = vpage;
+    tlb.ppage = entry->ppage;
+    tlb.write = entry->write;
+    tlb.page = &page;
+
+    lru_touch(page);
+    return entry->ppage;
 }
 
 void VirtualMemory::check_lru()
 {
     AEMU_DEBUG("Checking LRU");
 
-    if (m_lru_head == nullptr || m_lru_tail == nullptr)
+    std::unordered_set<const PhysicalPage *> listed;
+    const PhysicalPage *previous = nullptr;
+    for (const PhysicalPage *page = m_lru_head; page != nullptr; page = page->lru_next)
     {
-        AEMU_CHECK(m_lru_head == m_lru_tail, "Expected list to be empty");
-        AEMU_CHECK(m_lru_map.size() == 0, "Expected lru map to be empty since list is empty");
-        return;
+        AEMU_CHECK(page->lru_prev == previous, "Expected the previous page to be linked back");
+        AEMU_CHECK(page->in_lru, "Expected a page on the list to be marked as on it");
+        AEMU_CHECK(page->swappable, "Expected a page on the list to be swappable");
+        AEMU_CHECK(listed.insert(page).second, "Expected a page to be on the list once");
+        previous = page;
     }
+    AEMU_CHECK(previous == m_lru_tail, "Expected the list to end at the tail");
 
-    LRU_Node *cur = m_lru_head;
-    std::unordered_set<word> mapped_ppages;
-    while (cur->next != nullptr)
+    for (const auto &[ppage, page] : m_physical_memory_map)
     {
-        AEMU_CHECK(cur == cur->next->prev, "Expected the next node's previous to point back");
-        AEMU_CHECK(m_lru_map.at(cur->ppage) == cur, "Expected lru map to match list");
-        mapped_ppages.insert(cur->ppage);
-        cur = cur->next;
+        AEMU_CHECK(page.in_lru == (listed.find(&page) != listed.end()),
+                   "Expected the marked pages to be the ones on the list, page {}", ppage);
     }
-    mapped_ppages.insert(cur->ppage);
-
-    AEMU_CHECK(cur == m_lru_tail, "Expected list to end at tail");
-
-    for (std::pair<word, LRU_Node *> pair : m_lru_map)
-    {
-        AEMU_CHECK(mapped_ppages.find(pair.first) != mapped_ppages.end(),
-                   "Expected LRU map to correspond to the LRU list. {} is not in the lru list",
-                   U32(pair.first));
-    }
-}
-
-/* Move an lru list node respective to a physical page address back to the tail */
-void VirtualMemory::add_lru(word ppage)
-{
-    // check_lru();
-
-    /* this node exists in the lru list, so access it */
-    if (m_lru_map.find(ppage) != m_lru_map.end())
-    {
-        LRU_Node *node = m_lru_map.at(ppage);
-
-        if (node == m_lru_tail)
-        {
-            return;
-        }
-
-        /* Update new list head */
-        if (node == m_lru_head)
-        {
-            m_lru_head = m_lru_head->next;
-        }
-        else
-        {
-            node->prev->next = node->next;
-        }
-        /* make the next node point back to the correct node */
-        node->next->prev = node->prev;
-
-        /* add node at the tail */
-        m_lru_tail->next = node;
-        node->prev = m_lru_tail;
-        node->next = nullptr;
-        m_lru_tail = node;
-
-        // check_lru();
-        return;
-    }
-
-    /* Empty list, just add it */
-    if (m_lru_head == nullptr)
-    {
-        m_lru_head = new LRU_Node{
-            .ppage = ppage,
-            .next = nullptr,
-            .prev = nullptr,
-        };
-        m_lru_tail = m_lru_head;
-        m_lru_map.insert(std::make_pair(ppage, m_lru_head));
-
-        // check_lru();
-        return;
-    }
-
-    /* Add node at the end since it does not already exist in the list */
-    LRU_Node *new_node = new LRU_Node{
-        .ppage = ppage,
-        .next = nullptr,
-        .prev = m_lru_tail,
-    };
-    m_lru_tail->next = new_node;
-    m_lru_tail = new_node;
-
-    /* Update the node map to maintain O(1) */
-    m_lru_map.insert(std::make_pair(ppage, m_lru_tail));
-
-    // check_lru();
-}
-
-word VirtualMemory::remove_lru()
-{
-    LRU_Node *removed_node = m_lru_head;
-    m_lru_head = m_lru_head->next;
-
-    /* Checks if it was the last node meaning tail pointer has to be updated */
-    if (m_lru_head == nullptr)
-    {
-        m_lru_tail = nullptr;
-    }
-    else
-    {
-        /* remove dangling pointer */
-        m_lru_head->prev = nullptr;
-    }
-
-    word lru_ppage = removed_node->ppage;
-    m_lru_map.erase(lru_ppage);
-    delete removed_node;
-
-    // check_lru();
-    return lru_ppage;
 }

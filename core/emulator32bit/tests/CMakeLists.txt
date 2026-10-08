@@ -5,7 +5,13 @@ aemu_add_gtest(emulator32bit_tests
         ./alu_tests/alu_test.cpp
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
+        ./emulator_tests/disk_test.cpp
+        ./emulator_tests/ram_test.cpp
+        ./emulator_tests/virtual_memory_test.cpp
         ./instruction_tests/hlt_test.cpp
+        ./instruction_tests/fetch_fault_test.cpp
+        ./instruction_tests/access_fault_test.cpp
+        ./instruction_tests/opcode_table_test.cpp
         ./instruction_tests/dataproc_test.cpp
         ./instruction_tests/shift_test.cpp
         ./instruction_tests/long_multiply_test.cpp
@@ -13,4 +19,6 @@ aemu_add_gtest(emulator32bit_tests
         ./instruction_tests/memory_test.cpp
         ./instruction_tests/tlbi_test.cpp
         ./instruction_tests/swp_test.cpp
+        ./instruction_tests/swi_test.cpp
+        ./instruction_tests/encoder_test.cpp
 )

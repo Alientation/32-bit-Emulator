@@ -1,6 +1,6 @@
 #pragma once
 
-#include "assembler/build.h"
+#include "assembler/options.h"
 #include "assembler/tokenizer.h"
 #include "util/file.h"
 
@@ -33,12 +33,12 @@ class Preprocessor
 
     /// Constructs a preprocessor object with the given file.
     ///
-    /// @param process the build process object.
     /// @param input_file the file to preprocess.
     /// @param output_file_path the path to the output file, default is the input file path with
     ///        the .bi extension.
-    Preprocessor(Process *process, const File &input_file,
-                 const std::string &output_file_path = "");
+    /// @param options include directories etc. of the build.
+    explicit Preprocessor(const File &input_file, const std::string &output_file_path = "",
+                          PreprocessorOptions options = {});
     ~Preprocessor();
 
     File preprocess();
@@ -107,7 +107,7 @@ class Preprocessor
 
     static constexpr std::size_t kMaxFrames = 256;
 
-    Process *m_process;
+    PreprocessorOptions m_options;
 
     // the .basm or .binc file being preprocessed
     File m_input_file;
@@ -201,6 +201,9 @@ class Preprocessor
      * USAGE: #define [symbol][?(param1, ..., paramn)] [?value]
      */
     void _define(basm::TokenCursor &line);
+
+    /// Defines the symbols of PreprocessorOptions::defines.
+    void define_from_options();
 
     /**
      * Undefines a symbol defined by #define. Works if the symbol was never defined.

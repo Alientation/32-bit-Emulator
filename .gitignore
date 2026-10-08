@@ -8,9 +8,8 @@ install/
 *.info
 coverage/
 
-# Important files for units tests. TODO: Explore removing this requirement. instead we can mock disk?
-!core/assembler/tests/disk.bin
-!core/assembler/tests/disk.bin.info
-!core/assembler/tests/rom.bin
+# The preprocessed text of a source, written by basm -kp.
+*.bi
+
 # Generated at build time into the build directory
 core/src/version.h

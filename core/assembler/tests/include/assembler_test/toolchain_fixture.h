@@ -27,9 +27,8 @@ class ToolchainFixture : public ::testing::Test
     /// Scratch directory of the test, removed if the test passes.
     fs::path m_dir;
 
-    /// The preprocessor and assembler want a build process (for the include directories). This one
-    /// builds a trivial program, with `<m_dir>/include` as the include directory.
-    std::unique_ptr<Process> m_process;
+    /// Options for the preprocessor: `<m_dir>/include` is the include directory.
+    PreprocessorOptions m_options;
 
     aemu::log::ScopedLevel m_quiet{aemu::log::Level::Off};
     aemu::log::ScopedFatalAction m_throw{aemu::log::FatalAction::Throw};
@@ -43,9 +42,7 @@ class ToolchainFixture : public ::testing::Test
         fs::create_directories(m_dir / "include");
         fs::create_directories(m_dir / "out");
 
-        const std::string seed = write("seed.basm", ".global _start\n.text\n_start:\nhlt\n");
-        m_process = std::make_unique<Process>("-c -I " + (m_dir / "include").string() + " " + seed
-                                              + " -outdir " + (m_dir / "out").string());
+        m_options.system_dirs = {Directory((m_dir / "include").string())};
     }
 
     void TearDown() override

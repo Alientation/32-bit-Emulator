@@ -15,18 +15,8 @@ BaseMemory::~BaseMemory()
 
 Memory::Memory(word npages, word start_page) :
     BaseMemory(npages, start_page),
-    m_data(new byte[(npages << kNumPageOffsetBits)])
+    m_data(new byte[(npages << kNumPageOffsetBits)]())
 {
-}
-
-Memory::Memory(Memory &other) :
-    BaseMemory(other.m_npages, other.m_start_page),
-    m_data(new byte[(other.m_npages << kNumPageOffsetBits)])
-{
-    for (word i = 0; i < m_npages << kNumPageOffsetBits; ++i)
-    {
-        m_data[i] = other.m_data[i];
-    }
 }
 
 Memory::~Memory()
@@ -76,9 +66,7 @@ ROM::ROM(word npages, word start_page) :
 }
 
 ROM::ROM(File file, word npages, word start_page) :
-    Memory(npages, start_page),
-    m_save_file(true),
-    m_file(file)
+    Memory(npages, start_page)
 {
     FileReader fr(file, std::ios::binary | std::ios::in);
     std::vector<byte> bytes;
@@ -100,18 +88,7 @@ ROM::ROM(File file, word npages, word start_page) :
     }
 }
 
-ROM::~ROM()
-{
-    if (m_save_file)
-    {
-        // save data to file
-        FileWriter fw(m_file, std::ios::out | std::ios::binary);
-        for (word i = 0; i < m_npages << kNumPageOffsetBits; ++i)
-        {
-            fw.write(m_data[i]);
-        }
-    }
-}
+ROM::~ROM() = default;
 
 ROM::ROM_Exception::ROM_Exception(std::string msg) :
     message(msg)
