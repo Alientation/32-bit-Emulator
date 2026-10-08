@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <string>
+#include <type_traits>
 
 class BaseMemory
 {
@@ -12,12 +13,12 @@ class BaseMemory
     BaseMemory(word npages, word start_page);
     virtual ~BaseMemory();
 
-    virtual inline byte read_byte(word address) = 0;
-    virtual inline hword read_hword(word address) = 0;
-    virtual inline word read_word(word address) = 0;
-    virtual inline void write_byte(word address, byte value) = 0;
-    virtual inline void write_hword(word address, hword value) = 0;
-    virtual inline void write_word(word address, word value) = 0;
+    virtual byte read_byte(word address) = 0;
+    virtual hword read_hword(word address) = 0;
+    virtual word read_word(word address) = 0;
+    virtual void write_byte(word address, byte value) = 0;
+    virtual void write_hword(word address, hword value) = 0;
+    virtual void write_word(word address, word value) = 0;
 
     /// Copies `size` bytes starting at the address to `out`. The bytes are all in this memory.
     virtual void read_block(word address, byte *out, word size)
@@ -55,9 +56,9 @@ class BaseMemory
     inline bool in_bounds(word address) const
     {
         // Compared as pages: the end of memory at the top of the address space is 2^32, which
-        // is not an address. Memory without pages has no address.
-        const word page = address >> kNumPageOffsetBits;
-        return m_npages != 0 && page >= m_start_page && U64(page) < U64(m_start_page) + m_npages;
+        // is not an address. A page below the start wraps around to a number that is larger than
+        // any page count, and memory without pages has no address, so this is the whole test.
+        return word((address >> kNumPageOffsetBits) - m_start_page) < m_npages;
     }
 
     inline bool overlap(const BaseMemory &other) const
@@ -71,6 +72,27 @@ class BaseMemory
     word m_start_page;
     word m_start_addr;
 };
+
+/**
+ * Reads a byte, half word or word (T is `byte`, `hword` or `word`) from a memory. Called with a
+ * RAM or ROM the access is not virtual, called with a BaseMemory it is.
+ */
+template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
+{
+    static_assert(std::is_unsigned_v<T> && sizeof(T) <= sizeof(word), "byte, hword or word");
+    if constexpr (sizeof(T) == sizeof(byte)) return memory.read_byte(address);
+    else if constexpr (sizeof(T) == sizeof(hword)) return memory.read_hword(address);
+    else return memory.read_word(address);
+}
+
+/// The counterpart of mem_read.
+template <class T, class Mem> inline void mem_write(Mem &memory, const word address, const T value)
+{
+    static_assert(std::is_unsigned_v<T> && sizeof(T) <= sizeof(word), "byte, hword or word");
+    if constexpr (sizeof(T) == sizeof(byte)) memory.write_byte(address, value);
+    else if constexpr (sizeof(T) == sizeof(hword)) memory.write_hword(address, value);
+    else memory.write_word(address, value);
+}
 
 class Memory : public BaseMemory
 {
@@ -91,19 +113,20 @@ class Memory : public BaseMemory
         return m_data[address - m_start_addr];
     }
 
-    inline hword read_hword(word address)
+    inline hword read_hword(word address) override
     {
         const byte *p = m_data + (address - m_start_addr);
         return hword(p[0] | (hword(p[1]) << 8));
     }
 
-    inline word read_word(word address)
+    inline word read_word(word address) override
     {
         const byte *p = m_data + (address - m_start_addr);
         return word(p[0]) | (word(p[1]) << 8) | (word(p[2]) << 16) | (word(p[3]) << 24);
     }
 
-    virtual inline word read_word_aligned(word address)
+    /// For an address that is a multiple of 4 (instruction fetch).
+    inline word read_word_aligned(word address)
     {
         return read_word(address);
     }
@@ -118,19 +141,19 @@ class Memory : public BaseMemory
         std::copy_n(data, size, m_data + (address - m_start_addr));
     }
 
-    inline void write_byte(word address, byte value)
+    inline void write_byte(word address, byte value) override
     {
         m_data[address - m_start_addr] = value;
     }
 
-    inline void write_hword(word address, hword value)
+    inline void write_hword(word address, hword value) override
     {
         byte *p = m_data + (address - m_start_addr);
         p[0] = byte(value);
         p[1] = byte(value >> 8);
     }
 
-    inline void write_word(word address, word value)
+    inline void write_word(word address, word value) override
     {
         byte *p = m_data + (address - m_start_addr);
         p[0] = byte(value);
@@ -145,13 +168,14 @@ class Memory : public BaseMemory
     byte *m_data;
 };
 
-class RAM : public Memory
+/// RAM and ROM are final so that a call on one of them is not virtual and can be inlined.
+class RAM final : public Memory
 {
   public:
     RAM(word npages, word start_pages);
 };
 
-class ROM : public Memory
+class ROM final : public Memory
 {
   public:
     ROM(const byte *data, word npages, word start_page);

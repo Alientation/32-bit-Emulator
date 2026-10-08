@@ -6,8 +6,10 @@
 #include "emulator32bit/memory.h"
 #include "emulator32bit/virtual_memory.h"
 
+#include <array>
 #include <memory>
-#include <vector>
+#include <stdexcept>
+#include <string>
 
 class SystemBus : private VirtualMemory::PhysicalPages
 {
@@ -16,7 +18,7 @@ class SystemBus : private VirtualMemory::PhysicalPages
     SystemBus(RAM *ram, ROM *rom);
     SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu);
 
-    /// Saves the disk.
+    /// Saves the disk and the block device.
     ~SystemBus();
 
     SystemBus(const SystemBus &) = delete;
@@ -28,21 +30,17 @@ class SystemBus : private VirtualMemory::PhysicalPages
     std::unique_ptr<Disk> disk;
     std::unique_ptr<VirtualMemory> mmu;
 
-    /// The devices, at kIntcBase, kTimerBase and kConsoleBase.
+    /// The devices, at kIntcBase, kTimerBase, kConsoleBase and kBlockBase.
     InterruptController intc;
     Timer timer{intc};
     Console console{intc};
     BlockDevice block{intc};
 
-    class Exception : public std::exception
+    /// An address that no memory or device answers to.
+    class Exception : public std::runtime_error
     {
-      private:
-        std::string message;
-
       public:
-        Exception(const std::string &msg);
-
-        const char *what() const noexcept override;
+        using std::runtime_error::runtime_error;
     };
 
     inline void ensure_unmapped_mapping(word address)
@@ -65,109 +63,87 @@ class SystemBus : private VirtualMemory::PhysicalPages
     }
 
     /**
-     * Read a 1-8 byte value from system bus. The data is assumed to be in little endian format.
+     * Read a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
+     * value is little endian in memory, and may cross a page.
      *
-     * @param address The start address (lowest address of the block of data).
-     * @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].
-     * @return The value read from memory. If less than 8 bytes are read, the read value is stored
-     *         in the lower bytes of the return value.
+     * @throws VirtualMemory::PageFaultException if the access is not allowed.
+     * @throws SystemBus::Exception if no memory is at the physical address.
      */
-    inline dword read_val(const word address, const U8 n_bytes)
+    template <class T> inline T read(const word address)
     {
-        dword val = 0;
-        for (U8 i = 0; i < n_bytes; i++)
+        if constexpr (sizeof(T) > sizeof(byte))
         {
-            const word real_addr = translate_address(address + n_bytes - i - 1);
-            val = (val << 8) + route_memory(real_addr)->read_byte(real_addr);
+            if (UNLIKELY(!is_within_page(address, sizeof(T)))) return T(read_val(address, sizeof(T)));
         }
-        return val;
+
+        const word real_addr = translate_address(address);
+        if (LIKELY(ram->in_bounds(real_addr))) return mem_read<T>(*ram, real_addr);
+        return mem_read<T>(route_memory(real_addr), real_addr);
     }
 
     /**
-     * Write a 1-8 byte value to system bus. The data will be written in little endian format.
+     * Write a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
+     * value is little endian in memory, and may cross a page. A store that crosses into a page
+     * that cannot be written leaves memory as it was.
      *
-     * @param address The start address (lowest address of the block of data).
-     * @param val The value to write. If less than 8 bytes are to be written, the write value is
-     *            stored in the lower bytes of this value.
-     * @param n_bytes The size of the data. Data will be written to [address, address + n_bytes - 1].
+     * @throws VirtualMemory::PageFaultException if the access is not allowed.
+     * @throws SystemBus::Exception if no memory is at the physical address.
      */
-    inline void write_val(const word address, dword val, const U8 n_bytes)
+    template <class T> inline void write(const word address, const T data)
     {
-        // Everything is translated before anything is written, so that a store that crosses into
-        // a page that cannot be written leaves memory as it was.
-        word real_adr[sizeof(dword)];
-        for (U8 i = 0; i < n_bytes; i++)
+        if constexpr (sizeof(T) > sizeof(byte))
         {
-            real_adr[i] = translate_address(address + i, VirtualMemory::AccessType::WRITE);
+            if (UNLIKELY(!is_within_page(address, sizeof(T))))
+            {
+                write_val(address, data, sizeof(T));
+                return;
+            }
         }
-        for (U8 i = 0; i < n_bytes; i++)
+
+        const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
+        if (LIKELY(ram->in_bounds(real_addr)))
         {
-            route_memory(real_adr[i])->write_byte(real_adr[i], val & 0xFF);
-            val >>= 8;
+            mem_write<T>(*ram, real_addr, data);
+            return;
         }
+        mem_write<T>(route_memory(real_addr), real_addr, data);
     }
 
-    /**
-     * Read a byte from the system bus.
-     *
-     * @param address The address of the byte to read.
-     * @return The byte read.
-     */
     inline byte read_byte(const word address)
     {
-        const word real_addr = translate_address(address);
-        return route_memory(real_addr)->read_byte(real_addr);
-    }
-
-    /**
-     * Read an unmapped byte from the system bus.
-     *
-     * @param address The unmapped address of the byte to read.
-     * @return The byte read.
-     */
-    inline byte read_unmapped_byte(const word address)
-    {
-        ensure_unmapped_mapping(address);
-        return route_memory(address)->read_byte(address);
+        return read<byte>(address);
     }
 
     inline hword read_hword(const word address)
     {
-        if (LIKELY(is_within_page(address, sizeof(hword))))
-        {
-            const word real_addr = translate_address(address);
-            return route_memory(real_addr)->read_hword(real_addr);
-        }
-
-        return read_val(address, sizeof(hword));
-    }
-
-    inline hword read_unmapped_hword(const word address)
-    {
-        ensure_unmapped_mapping(address);
-        return route_memory(address)->read_hword(address);
+        return read<hword>(address);
     }
 
     inline word read_word(const word address)
     {
-        if (LIKELY(is_within_page(address, sizeof(word))))
-        {
-            const word real_addr = translate_address(address);
-            return route_memory(real_addr)->read_word(real_addr);
-        }
-
-        return read_val(address, sizeof(word));
+        return read<word>(address);
     }
 
-    inline word read_unmapped_word(const word address)
+    inline void write_byte(const word address, const byte data)
+    {
+        write<byte>(address, data);
+    }
+
+    inline void write_hword(const word address, const hword data)
+    {
+        write<hword>(address, data);
+    }
+
+    inline void write_word(const word address, const word data)
+    {
+        write<word>(address, data);
+    }
+
+    /// Writes a byte to a physical address, which the current process gets mapped to itself.
+    inline void write_unmapped_byte(const word address, const byte data)
     {
         ensure_unmapped_mapping(address);
-        return route_memory(address)->read_word(address);
-    }
-
-    inline word read_word_aligned_ram(const word address)
-    {
-        return ram->read_word_aligned(translate_address(address));
+        route_memory(address).write_byte(address, data);
     }
 
     /**
@@ -189,118 +165,53 @@ class SystemBus : private VirtualMemory::PhysicalPages
                                        address >> kNumPageOffsetBits,
                                        VirtualMemory::AccessType::EXECUTE);
         }
-        if (UNLIKELY(!ram->in_bounds(real_addr)))
-        {
-            // Code can also run from the ROM, which is where a machine boots from.
-            if (rom->in_bounds(real_addr))
-            {
-                return rom->read_word_aligned(real_addr);
-            }
-            throw Exception("Instruction fetch outside of RAM and ROM at address "
-                            + std::to_string(address));
-        }
-        return ram->read_word_aligned(real_addr);
+        if (LIKELY(ram->in_bounds(real_addr))) return ram->read_word_aligned(real_addr);
+        return fetch_outside_ram(real_addr, address);
     }
 
-    inline word read_unmapped_word_aligned_ram(const word address)
-    {
-        return ram->read_word_aligned(address);
-    }
-
-    /**
-     * Write a byte to the system bus
-     *
-     * @param address The address to write to
-     * @param exception The exception raised by the write operation
-     * @param data The byte to write
-     */
-    inline void write_byte(const word address, const byte data)
-    {
-        const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
-        route_memory(real_addr)->write_byte(real_addr, data);
-    }
-
-    inline void write_unmapped_byte(const word address, const byte data)
-    {
-        ensure_unmapped_mapping(address);
-        route_memory(address)->write_byte(address, data);
-    }
-
-    inline void write_hword(const word address, const hword data)
-    {
-        if (LIKELY(is_within_page(address, sizeof(data))))
-        {
-            const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
-            route_memory(real_addr)->write_hword(real_addr, data);
-        }
-        else
-        {
-            write_val(address, data, sizeof(data));
-        }
-    }
-
-    inline void write_unmapped_hword(const word address, const hword data)
-    {
-        ensure_unmapped_mapping(address);
-        route_memory(address)->write_hword(address, data);
-    }
-
-    inline void write_word(const word address, const word data)
-    {
-        if (LIKELY(is_within_page(address, sizeof(data))))
-        {
-            const word real_addr = translate_address(address, VirtualMemory::AccessType::WRITE);
-            route_memory(real_addr)->write_word(real_addr, data);
-        }
-        else
-        {
-            write_val(address, data, sizeof(data));
-        }
-    }
-
-    inline void write_unmapped_word(const word address, const word data)
-    {
-        ensure_unmapped_mapping(address);
-        route_memory(address)->write_word(address, data);
-    }
-
+    /// Resets the RAM and the devices. The ROM, the disk and the MMU are left as they are.
     void reset();
 
   private:
+    /// For `SystemBus(RAM *, ROM *)`: the virtual memory is made over the disk and the RAM.
+    SystemBus(RAM *ram, ROM *rom, Disk *disk);
+
     void validate_memory();
+
+    /// A value that crosses a page, put together byte by byte. The pages are translated one by
+    /// one, and the stores only after all of them were.
+    dword read_val(word address, U8 n_bytes);
+    void write_val(word address, dword val, U8 n_bytes);
+
+    /// What is left of a fetch that is not in RAM: the ROM, or an exception.
+    word fetch_outside_ram(word real_addr, word address);
 
     // The pages that the virtual memory pages in and out. A page is in one of the memories.
     void read_page(word ppage, byte *out) override
     {
         const word address = ppage << kNumPageOffsetBits;
-        route_memory(address)->read_block(address, out, kPageSize);
+        route_memory(address).read_block(address, out, kPageSize);
     }
 
     void write_page(word ppage, const byte *data) override
     {
         const word address = ppage << kNumPageOffsetBits;
-        route_memory(address)->write_block(address, data, kPageSize);
+        route_memory(address).write_block(address, data, kPageSize);
     }
 
-    // For the page table walker: a missing address is reported to it, not thrown.
+    // For the page table walker: a missing address is reported to it, not thrown. A device is
+    // not read, that could have an effect.
     bool read_physical_word(word address, word &out) override
     {
-        if (UNLIKELY(address % sizeof(word) != 0
-                     || !(ram->in_bounds(address) || rom->in_bounds(address)
-                          || disk->in_bounds(address))))
-        {
-            return false;
-        }
-        out = route_memory(address)->read_word(address);
+        BaseMemory *memory = address % sizeof(word) == 0 ? find_storage(address) : nullptr;
+        if (UNLIKELY(memory == nullptr)) return false;
+        out = memory->read_word(address);
         return true;
     }
 
     bool write_physical_word(word address, word value) override
     {
-        if (UNLIKELY(address % sizeof(word) != 0 || !ram->in_bounds(address)))
-        {
-            return false;
-        }
+        if (UNLIKELY(address % sizeof(word) != 0 || !ram->in_bounds(address))) return false;
         ram->write_word(address, value);
         return true;
     }
@@ -312,36 +223,15 @@ class SystemBus : private VirtualMemory::PhysicalPages
         return mmu->translate_address(address, access);
     }
 
-    inline BaseMemory *route_memory(const word address)
-    {
-        // TODO: 'Likely' specifiers would help
-        if (ram->in_bounds(address))
-        {
-            return ram.get();
-        }
-        else if (rom->in_bounds(address))
-        {
-            return rom.get();
-        }
-        else if (disk->in_bounds(address))
-        {
-            return disk.get();
-        }
-        else if (address >= kDeviceBase)
-        {
-            for (Device *device : {static_cast<Device *>(&intc), static_cast<Device *>(&timer),
-                                   static_cast<Device *>(&console), static_cast<Device *>(&block)})
-            {
-                if (device->in_bounds(address))
-                {
-                    return device;
-                }
-            }
-            throw Exception("Could not route address " + std::to_string(address) + " to memory.");
-        }
-        else
-        {
-            throw Exception("Could not route address " + std::to_string(address) + " to memory.");
-        }
-    }
+    /// The RAM, ROM or disk that has the address, or null.
+    BaseMemory *find_storage(word address);
+
+    /// The memory or device that has the address, or null.
+    BaseMemory *find_memory(word address);
+
+    /// The memory or device that has the address.
+    /// @throws SystemBus::Exception if there is none.
+    BaseMemory &route_memory(word address);
+
+    const std::array<Device *, 4> m_devices{&intc, &timer, &console, &block};
 };
