@@ -465,10 +465,6 @@ class Emulator32bit
     void _mrs(const word instr);
     void _tlbi(const word instr);
     void _atomic(const word instr);
-    void _swp(const word instr);
-    void _ldadd(const word instr);
-    void _ldclr(const word instr);
-    void _ldset(const word instr);
 
     _INSTR(add, 0b000001)
     _INSTR(sub, 0b000010)
@@ -542,6 +538,16 @@ class Emulator32bit
     // _INSTR(nop, 0b111111)
 
 #undef _INSTR
+
+    enum class AtomicOperation
+    {
+        SWP,
+        LDADD,
+        LDCLR,
+        LDSET
+    };
+
+    void _atomic_rmw(const word instr, AtomicOperation operation);
 
     // Software interrupt handling.
     void _emu_print();

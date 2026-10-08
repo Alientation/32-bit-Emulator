@@ -187,7 +187,7 @@ std::string File::get_dir_str() const
 /**
  * Gets the size of the file in bytes
  *
- * @throw 
+ * @throw
  * @return the size of the file in bytes
  */
 int File::get_size() const

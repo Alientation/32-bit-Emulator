@@ -82,10 +82,10 @@ TEST_F(EmulatorFixture, reg_shift_of_32_or_more)
     cpu.set_NZCV(1, 0, 1, 0);
     cpu.run(1);
 
-    EXPECT_EQ(cpu.read_reg(0), 0u);
+    EXPECT_EQ(cpu.read_reg(0), 6);
     EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0);
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 1);
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0) << "lsl by more than 32 clears C";
+    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0);
+    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0) << "lsl's shift is modulo 32";
 }
 
 TEST_F(EmulatorFixture, shift_disassembles_s_suffix)

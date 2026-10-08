@@ -31,90 +31,132 @@ class SystemBus
         const char *what() const noexcept override;
     };
 
-    inline dword read_val(word address, int n_bytes)
-    {
-        dword val = 0;
-        for (int i = 0; i < n_bytes; i++)
-        {
-            val <<= 8;
-            word real_adr = address;
-            real_adr = translate_address(address + n_bytes - i - 1);
-            BaseMemory *target = route_memory(real_adr);
-            val += target->read_byte(real_adr);
-        }
-        return val;
-    }
-
     inline void ensure_unmapped_mapping(word address)
     {
         VirtualMemory::Exception exception;
         word ppage = address >> kNumPageOffsetBits;
         mmu->ensure_physical_page_mapping(mmu->current_process(), ppage, ppage, exception);
 
-        if (exception.type != VirtualMemory::Exception::Type::AOK)
+        if (UNLIKELY(exception.type != VirtualMemory::Exception::Type::AOK))
         {
             handle_mmu_exception(exception);
         }
     }
 
     /**
-     * Read a byte from the system bus
+     * Check if data at an address is in one page. This allows using a single virtual address
+     * translation.
      *
-     * @param address The address to read from
-     * @return The byte read from the address
+     * @param address The start address (lowest address of the block of data).
+     * @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].
+     * @return True of the data lies within one page, False otherwise.
      */
-    inline byte read_byte(word address)
+    static constexpr bool is_within_page(const word address, const U8 n_bytes)
     {
-        address = translate_address(address);
-        return route_memory(address)->read_byte(address);
+        return (address >> kNumPageOffsetBits) == ((address + n_bytes - 1) >> kNumPageOffsetBits);
     }
 
-    inline byte read_unmapped_byte(word address)
+    /**
+     * Read a 1-8 byte value from system bus. The data is assumed to be in little endian format.
+     *
+     * @param address The start address (lowest address of the block of data).
+     * @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].
+     * @return The value read from memory. If less than 8 bytes are read, the read value is stored
+     *         in the lower bytes of the return value.
+     */
+    inline dword read_val(const word address, const U8 n_bytes)
+    {
+        dword val = 0;
+        for (U8 i = 0; i < n_bytes; i++)
+        {
+            const word real_addr = translate_address(address + n_bytes - i - 1);
+            val = (val << 8) + route_memory(real_addr)->read_byte(real_addr);
+        }
+        return val;
+    }
+
+    /**
+     * Write a 1-8 byte value to system bus. The data will be written in little endian format.
+     *
+     * @param address The start address (lowest address of the block of data).
+     * @param val The value to write. If less than 8 bytes are to be written, the write value is
+     *            stored in the lower bytes of this value.
+     * @param n_bytes The size of the data. Data will be written to [address, address + n_bytes - 1].
+     */
+    inline void write_val(const word address, dword val, const U8 n_bytes)
+    {
+        for (U8 i = 0; i < n_bytes; i++)
+        {
+            const word real_adr = translate_address(address + i);
+            route_memory(real_adr)->write_byte(real_adr, val & 0xFF);
+            val >>= 8;
+        }
+    }
+
+    /**
+     * Read a byte from the system bus.
+     *
+     * @param address The address of the byte to read.
+     * @return The byte read.
+     */
+    inline byte read_byte(const word address)
+    {
+        const word real_addr = translate_address(address);
+        return route_memory(real_addr)->read_byte(real_addr);
+    }
+
+    /**
+     * Read an unmapped byte from the system bus.
+     *
+     * @param address The unmapped address of the byte to read.
+     * @return The byte read.
+     */
+    inline byte read_unmapped_byte(const word address)
     {
         ensure_unmapped_mapping(address);
         return route_memory(address)->read_byte(address);
     }
 
-    inline hword read_hword(word address)
+    inline hword read_hword(const word address)
     {
-        if ((address >> kNumPageOffsetBits) == ((address + 1) >> kNumPageOffsetBits))
+        if (LIKELY(is_within_page(address, sizeof(hword))))
         {
-            address = translate_address(address);
-            return route_memory(address)->read_hword(address);
+            const word real_addr = translate_address(address);
+            return route_memory(real_addr)->read_hword(real_addr);
         }
 
-        return read_val(address, 2);
+        return read_val(address, sizeof(hword));
     }
 
-    inline hword read_unmapped_hword(word address)
+    inline hword read_unmapped_hword(const word address)
     {
         ensure_unmapped_mapping(address);
         return route_memory(address)->read_word(address);
     }
 
-    inline word read_word(word address)
+    inline word read_word(const word address)
     {
-        if ((address >> kNumPageOffsetBits) == ((address + 3) >> kNumPageOffsetBits))
+        if (LIKELY(is_within_page(address, sizeof(word))))
         {
-            address = translate_address(address);
-            return route_memory(address)->read_word(address);
+            const word real_addr = translate_address(address);
+            return route_memory(real_addr)->read_word(real_addr);
         }
 
-        return read_val(address, 4);
+        return read_val(address, sizeof(word));
     }
 
-    inline word read_unmapped_word(word address)
+    inline word read_unmapped_word(const word address)
     {
         ensure_unmapped_mapping(address);
         return route_memory(address)->read_word(address);
     }
 
-    inline word read_word_aligned_ram(word address)
+    inline word read_word_aligned_ram(const word address)
     {
         return ram->read_word_aligned(translate_address(address));
     }
 
-    inline word read_unmapped_word_aligned_ram(word address)
+    inline word read_unmapped_word_aligned_ram(const word address)
     {
         return ram->read_word_aligned(address);
     }
@@ -126,66 +168,54 @@ class SystemBus
      * @param exception The exception raised by the write operation
      * @param data The byte to write
      */
-    inline void write_byte(word address, byte data)
+    inline void write_byte(const word address, const byte data)
     {
-        address = translate_address(address);
-        route_memory(address)->write_byte(address, data);
+        const word real_addr = translate_address(address);
+        route_memory(real_addr)->write_byte(real_addr, data);
     }
 
-    inline void write_unmapped_byte(word address, byte data)
+    inline void write_unmapped_byte(const word address, const byte data)
     {
         ensure_unmapped_mapping(address);
         route_memory(address)->write_byte(address, data);
     }
 
-    inline void write_hword(word address, hword data)
+    inline void write_hword(const word address, const hword data)
     {
-        if ((address >> kNumPageOffsetBits) == ((address + 1) >> kNumPageOffsetBits))
+        if (LIKELY(is_within_page(address, sizeof(data))))
         {
-            address = translate_address(address);
-            route_memory(address)->write_hword(address, data);
+            const word real_addr = translate_address(address);
+            route_memory(real_addr)->write_hword(real_addr, data);
         }
         else
         {
-            write_val(address, data, 2);
+            write_val(address, data, sizeof(data));
         }
     }
 
-    inline void write_unmapped_hword(word address, hword data)
+    inline void write_unmapped_hword(const word address, const hword data)
     {
         ensure_unmapped_mapping(address);
         route_memory(address)->write_hword(address, data);
     }
 
-    inline void write_word(word address, word data)
+    inline void write_word(const word address, const word data)
     {
-        if ((address >> kNumPageOffsetBits) == ((address + 3) >> kNumPageOffsetBits))
+        if (LIKELY(is_within_page(address, sizeof(data))))
         {
-            address = translate_address(address);
-            route_memory(address)->write_word(address, data);
+            const word real_addr = translate_address(address);
+            route_memory(real_addr)->write_word(real_addr, data);
         }
         else
         {
-            write_val(address, data, 4);
+            write_val(address, data, sizeof(data));
         }
     }
 
-    inline void write_unmapped_word(word address, word data)
+    inline void write_unmapped_word(const word address, const word data)
     {
         ensure_unmapped_mapping(address);
         route_memory(address)->write_word(address, data);
-    }
-
-    inline void write_val(word address, dword val, int n_bytes)
-    {
-        for (int i = 0; i < n_bytes; i++)
-        {
-            word real_adr = address;
-            real_adr = translate_address(address + i);
-            BaseMemory *target = route_memory(real_adr);
-            target->write_byte(real_adr, val & 0xFF);
-            val >>= 8;
-        }
     }
 
     void reset();

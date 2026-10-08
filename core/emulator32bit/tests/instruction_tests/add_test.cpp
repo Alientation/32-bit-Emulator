@@ -2,24 +2,45 @@
 
 TEST_F(EmulatorFixture, add_register_add_immediate)
 {
-    // add x0, x1, #10
-    // x1: 1
-    cpu.system_bus->write_word(
-        0, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 1, 10));
-    cpu.set_pc(0);
-    cpu.write_reg(1, 1);
+    constexpr word regval[] = {~word(0), ~word(0) - 1, 2, 1};
+    constexpr word imm14[] = {0, 1, (1 << 14) - 2, (1 << 14) - 1};
 
-    cpu.run(1);
-    EXPECT_EQ(cpu.read_reg(0), 11) << "\'add x0, x1 #10\' : where x1=1, should result in x0=11";
-    EXPECT_EQ(cpu.read_reg(1), 1) << "operation should not alter operand register \'x1\'";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0)
-        << "operation should not cause N flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0)
-        << "operation should not cause Z flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0)
-        << "operation should not cause C flag to be set";
-    EXPECT_EQ(cpu.get_flag(Emulator32bit::kVFlagBit), 0)
-        << "operation should not cause V flag to be set";
+    for (U32 testcase = 0; testcase < ARRAY_LEN(regval); ++testcase)
+    {
+        for (U8 xd = 0; xd < Emulator32bit::kNumReg; ++xd)
+        {
+            for (U8 xn = 0; xn < Emulator32bit::kNumReg; ++xn)
+            {
+                SCOPED_TRACE("Testcase " + std::to_string(testcase) + " | xd: " + std::to_string(xd)
+                             + ", xn: " + std::to_string(xn));
+
+                cpu.reset();
+                cpu.write_reg(xd, 0xF00DBEEF);
+                cpu.write_reg(xn, regval[testcase]);
+
+                // Handle the case when xn == XZR.
+                const word initial_xn = cpu.read_reg(xn);
+
+                step(0, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xn,
+                                                    imm14[testcase]));
+
+                // If xd == XZR, expect 0.
+                const word expected_output =
+                    xd == U8(Emulator32bit::Register::XZR) ? 0 : initial_xn + imm14[testcase];
+
+                EXPECT_EQ(cpu.read_reg(xd), expected_output);
+
+                // Nominally, xn should not change unless xd == xn.
+                EXPECT_EQ(cpu.read_reg(xn), xn == xd ? expected_output : initial_xn);
+
+                // No flags should be set by this operation.
+                EXPECT_EQ(cpu.get_flag(Emulator32bit::kNFlagBit), 0);
+                EXPECT_EQ(cpu.get_flag(Emulator32bit::kZFlagBit), 0);
+                EXPECT_EQ(cpu.get_flag(Emulator32bit::kCFlagBit), 0);
+                EXPECT_EQ(cpu.get_flag(Emulator32bit::kVFlagBit), 0);
+            }
+        }
+    }
 }
 
 TEST_F(EmulatorFixture, add_register_add_register)
@@ -134,8 +155,8 @@ TEST_F(EmulatorFixture, add_zero_flag)
 TEST_F(EmulatorFixture, add_carry_flag_1)
 {
     // add x0, x1, x2
-    // x1: 0
-    // x2: 0
+    // x1: -1
+    // x2: -1
     cpu.system_bus->write_word(0,
                                Emulator32bit::asm_format_o(Emulator32bit::_op_add, true, 0, 1, 2,
                                                            Emulator32bit::ShiftType::SHIFT_LSL, 0));

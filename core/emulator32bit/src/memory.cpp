@@ -23,7 +23,7 @@ Memory::Memory(Memory &other) :
     BaseMemory(other.m_npages, other.m_start_page),
     m_data(new byte[(other.m_npages << kNumPageOffsetBits)])
 {
-    for (word i = 0; i < (m_npages << kNumPageOffsetBits); i++)
+    for (word i = 0; i < m_npages << kNumPageOffsetBits; ++i)
     {
         m_data[i] = other.m_data[i];
     }
@@ -39,10 +39,9 @@ Memory::~Memory()
 
 void Memory::reset()
 {
-    for (word addr = m_start_page << kNumPageOffsetBits; addr < get_hi_page() << kNumPageOffsetBits;
-         addr++)
+    for (word i = 0; i < m_npages << kNumPageOffsetBits; ++i)
     {
-        Memory::write_byte(addr, 0);
+        m_data[i] = 0;
     }
 }
 
@@ -61,7 +60,7 @@ RAM::RAM(word npages, word start_page) :
 ROM::ROM(const byte *rom_data, word npages, word start_page) :
     Memory(npages, start_page)
 {
-    for (word i = 0; i < npages << kNumPageOffsetBits; i++)
+    for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
     {
         m_data[i] = rom_data[i];
     }
@@ -70,7 +69,7 @@ ROM::ROM(const byte *rom_data, word npages, word start_page) :
 ROM::ROM(word npages, word start_page) :
     Memory(npages, start_page)
 {
-    for (word i = 0; i < npages << kNumPageOffsetBits; i++)
+    for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
     {
         m_data[i] = 0;
     }
@@ -95,7 +94,7 @@ ROM::ROM(File file, word npages, word start_page) :
                             + std::to_string(bytes.size()) + " bytes.");
     }
 
-    for (size_t i = 0; i < bytes.size(); i++)
+    for (size_t i = 0; i < bytes.size(); ++i)
     {
         m_data[i] = bytes[i];
     }
@@ -107,7 +106,7 @@ ROM::~ROM()
     {
         // save data to file
         FileWriter fw(m_file, std::ios::out | std::ios::binary);
-        for (word i = 0; i < m_npages << kNumPageOffsetBits; i++)
+        for (word i = 0; i < m_npages << kNumPageOffsetBits; ++i)
         {
             fw.write(m_data[i]);
         }

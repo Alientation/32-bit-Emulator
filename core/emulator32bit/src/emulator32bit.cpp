@@ -179,7 +179,6 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         result.message = e.what();
     }
 
-    std::printf("Ran %lu instructions\n", result.instructions_ran);
     return result;
 }
 
