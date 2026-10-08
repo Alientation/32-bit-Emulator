@@ -15,26 +15,39 @@ namespace
 
 } // namespace
 
-SystemBus::SystemBus(RAM *ram, ROM *rom) :
-    SystemBus(ram, rom, new MockDisk())
+SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom) :
+    SystemBus(std::move(ram), std::move(rom), std::make_unique<MockDisk>())
 {
 }
 
-SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk) :
-    SystemBus(ram, rom, disk,
-              new VirtualMemory(disk, ram->get_lo_page(), ram->get_mem_pages()))
+// The virtual memory is made after the members before it own the memories (the parameters are
+// moved from by then, hence this->), so that it is freed with them if making it throws.
+SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
+                     std::unique_ptr<Disk> disk) :
+    ram(std::move(ram)),
+    rom(std::move(rom)),
+    disk(std::move(disk)),
+    mmu(std::make_unique<VirtualMemory>(this->disk.get(), this->ram->get_lo_page(),
+                                        this->ram->get_mem_pages()))
 {
+    attach();
 }
 
-SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu) :
-    ram(ram),
-    rom(rom),
-    disk(disk),
-    mmu(mmu)
+SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
+                     std::unique_ptr<Disk> disk, std::unique_ptr<VirtualMemory> mmu) :
+    ram(std::move(ram)),
+    rom(std::move(rom)),
+    disk(std::move(disk)),
+    mmu(std::move(mmu))
+{
+    attach();
+}
+
+void SystemBus::attach()
 {
     validate_memory();
-    this->mmu->set_physical_pages(this);
-    block.set_dma_memory(this->ram.get());
+    mmu->set_physical_pages(this);
+    block.set_dma_memory(ram.get());
 }
 
 SystemBus::~SystemBus()

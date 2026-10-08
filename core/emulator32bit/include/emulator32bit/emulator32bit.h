@@ -45,7 +45,7 @@ class Emulator32bit
                   word rom_start_page);
 
     /// The emulator owns the memories and the disk.
-    Emulator32bit(RAM *ram, ROM *rom, Disk *disk);
+    Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
     ~Emulator32bit();
 
     Emulator32bit(const Emulator32bit &) = delete;

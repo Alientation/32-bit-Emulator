@@ -127,8 +127,9 @@ static int run_app(int argc, char *argv[])
         {
             AEMU_SCOPED_TIMER("Loading program into emulator");
             // The ROM and the disk are in memory, a sample does not need files of its own.
-            emulator =
-                std::make_unique<Emulator32bit>(new RAM(16, 0), new ROM(16, 16), new MockDisk());
+            emulator = std::make_unique<Emulator32bit>(std::make_unique<RAM>(16, 0),
+                                                       std::make_unique<ROM>(16, 16),
+                                                       std::make_unique<MockDisk>());
             pid = emulator->system_bus->mmu->begin_process();
             LoadExecutable loader(*emulator, build->get_exe_file());
             loader.load();

@@ -14,9 +14,12 @@
 class SystemBus : private VirtualMemory::PhysicalPages
 {
   public:
-    /// The bus owns what it is given. Uses a MockDisk, and a virtual memory over the RAM.
-    SystemBus(RAM *ram, ROM *rom);
-    SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu);
+    /// The bus owns what it is given. Without a disk it uses a MockDisk, and without a virtual
+    /// memory it makes one over the frames of the RAM.
+    SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom);
+    SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
+    SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk,
+              std::unique_ptr<VirtualMemory> mmu);
 
     /// Saves the disk and the block device.
     ~SystemBus();
@@ -173,8 +176,9 @@ class SystemBus : private VirtualMemory::PhysicalPages
     void reset();
 
   private:
-    /// For `SystemBus(RAM *, ROM *)`: the virtual memory is made over the disk and the RAM.
-    SystemBus(RAM *ram, ROM *rom, Disk *disk);
+    /// What the constructors do once they own the memories: checks the layout and tells the
+    /// virtual memory and the block device where the physical memory is.
+    void attach();
 
     void validate_memory();
 

@@ -16,7 +16,8 @@ constexpr word kUnmapped = 0x5000;
 class AccessFault : public ::testing::Test
 {
   protected:
-    Emulator32bit cpu{new RAM(16, 0), new ROM(16, 16), new MockDisk()};
+    Emulator32bit cpu{std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>()};
 
     void SetUp() override
     {

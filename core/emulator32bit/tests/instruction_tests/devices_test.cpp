@@ -55,7 +55,8 @@ void append(std::vector<word> &code, const std::vector<word> &more)
 class Devices : public ::testing::Test
 {
   protected:
-    Emulator32bit cpu{new RAM(16, 0), new ROM(16, 16), new MockDisk()};
+    Emulator32bit cpu{std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>()};
     std::ostringstream m_console;
 
     void SetUp() override

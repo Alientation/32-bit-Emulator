@@ -55,7 +55,8 @@ word swi()
 class Mmu : public ::testing::Test
 {
   protected:
-    Emulator32bit cpu{new RAM(64, 0), new ROM(16, 64), new MockDisk()};
+    Emulator32bit cpu{std::make_unique<RAM>(64, 0), std::make_unique<ROM>(16, 64),
+                      std::make_unique<MockDisk>()};
     word m_next_table = 2; // the physical page of the next second level table
 
     word read_physical(const word address)

@@ -37,7 +37,8 @@ class EmulatorFixture : public ::testing::Test
 
         // The ROM and the disk are in memory. A ROM or a disk backed by a file would be written
         // back to it, and in the source tree, by every test, all at once when they run in parallel.
-        machine = new Emulator32bit(new RAM(16, 0), new ROM(16, 16), new MockDisk());
+        machine = new Emulator32bit(std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                                    std::make_unique<MockDisk>());
         machine->system_bus->mmu->begin_process();
     }
 

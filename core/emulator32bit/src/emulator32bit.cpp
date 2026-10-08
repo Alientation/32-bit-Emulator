@@ -43,8 +43,9 @@ static_assert(opcodes_are_valid(), "AEMU_OPCODES has an opcode that is used twic
 
 Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[],
                              word rom_npages, word rom_start_page) :
-    system_bus(new SystemBus(new RAM(ram_npages, ram_start_page),
-                             new ROM(rom_data, rom_npages, rom_start_page)))
+    system_bus(std::make_unique<SystemBus>(
+        std::make_unique<RAM>(ram_npages, ram_start_page),
+        std::make_unique<ROM>(rom_data, rom_npages, rom_start_page)))
 {
     fill_out_instructions();
     reset();
@@ -55,9 +56,9 @@ Emulator32bit::Emulator32bit() :
 {
 }
 
-Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
-    system_bus(new SystemBus(ram, rom, disk,
-                             new VirtualMemory(disk, ram->get_lo_page(), ram->get_mem_pages())))
+Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
+                             std::unique_ptr<Disk> disk) :
+    system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk)))
 {
     fill_out_instructions();
     reset();

@@ -396,23 +396,26 @@ static int run_cli(int argc, char *argv[])
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
     }
 
-    RAM *ram = new RAM(ram_npages, ram_start_page);
-    ROM *rom = result.count("rom-file")
-                   ? new ROM(File(result["rom-file"].as<std::string>()), rom_npages, rom_start_page)
-                   : new ROM(rom_npages, rom_start_page);
+    auto ram = std::make_unique<RAM>(ram_npages, ram_start_page);
+    auto rom = result.count("rom-file")
+                   ? std::make_unique<ROM>(File(result["rom-file"].as<std::string>()), rom_npages,
+                                           rom_start_page)
+                   : std::make_unique<ROM>(rom_npages, rom_start_page);
 
-    Disk *disk;
+    std::unique_ptr<Disk> disk;
     if (result.count("disk-file"))
     {
-        disk = new Disk(File(result["disk-file"].as<std::string>()), disk_npages, disk_start_page);
+        disk = std::make_unique<Disk>(File(result["disk-file"].as<std::string>()), disk_npages,
+                                      disk_start_page);
     }
     else
     {
         // A default constructed Disk has no backing file and errors when it saves.
-        disk = new MockDisk();
+        disk = std::make_unique<MockDisk>();
     }
 
-    auto emu = std::make_unique<Emulator32bit>(ram, rom, disk);
+    auto emu =
+        std::make_unique<Emulator32bit>(std::move(ram), std::move(rom), std::move(disk));
 
     if (result.count("exe"))
     {
