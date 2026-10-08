@@ -363,6 +363,7 @@ const KeywordMap &assembler_directives()
     m[text] = Keyword{.type = TokenType::ASSEMBLER_##name, .flags = 0, .allows_s = false}
         D(".global", GLOBAL);
         D(".extern", EXTERN);
+        D(".equ", EQU);
         D(".org", ORG);
         D(".scope", SCOPE);
         D(".scend", SCEND);

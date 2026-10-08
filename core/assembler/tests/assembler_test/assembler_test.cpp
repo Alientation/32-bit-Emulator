@@ -578,6 +578,82 @@ TEST_F(AssemblerUnit, a_negative_memory_offset_is_a_value_not_a_prefix)
         contains(error(".text\nldr x0, [x1, 2048]\n"), "offset must be a signed 12 bit value"));
 }
 
+TEST_F(AssemblerUnit, equ_names_a_number)
+{
+    EXPECT_EQ(data(".equ SIZE, 3 * 4\n.byte SIZE, SIZE + 1\n.equ DOUBLE, SIZE * 2\n.byte DOUBLE\n"),
+              (Bytes{12, 13, 24}));
+
+    // Wherever a number is.
+    EXPECT_EQ(
+        text(".equ N, 5\nmov x1, N * 2\nadd x1, x2, N\nldr x0, [x1, -N]\nb.ne N - 1 + 3 - 3 + 4\n"),
+        (Words{Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, 10),
+               Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 5),
+               Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -5,
+                                           Emulator32bit::AddrType::ADDR_OFFSET),
+               Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::NE, 2)}));
+
+    // A constant is not a symbol of the object file.
+    EXPECT_EQ(assemble(".equ N, 5\n").symbol_table.size(), 0u);
+}
+
+TEST_F(AssemblerUnit, a_constant_alone_in_a_data_directive_is_its_value_not_an_address)
+{
+    EXPECT_EQ(data(".equ N, 7\n.word N\n"), (Bytes{7, 0, 0, 0}));
+    // A label alone is still an address, for the linker.
+    const ObjectFile object = assemble(".data\nfirst: .word first\n");
+    EXPECT_EQ(object.rel_data.size(), 1u);
+}
+
+TEST_F(AssemblerUnit, a_constant_can_be_a_branch_distance)
+{
+    EXPECT_EQ(text(".equ BACK, -8\nnop\nnop\nb BACK\n").back(),
+              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -2));
+}
+
+TEST_F(AssemblerUnit, the_distance_between_two_labels_is_a_number)
+{
+    EXPECT_EQ(data("start: .byte 1, 2, 3\nend:\n.byte end - start\n.word (end - start) * 2\n"),
+              (Bytes{1, 2, 3, 3, 6, 0, 0, 0}));
+    EXPECT_EQ(data("lo: .word 0\nhi: .word 0\n.byte hi - lo, lo - hi\n").back(), 0xFC);
+
+    // A constant takes the distance, and the labels need not be in .data.
+    EXPECT_EQ(text("first: nop\nnop\nlast:\n.equ LEN, last - first\nmov x0, LEN\n").back(),
+              Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 0, 8));
+}
+
+TEST_F(AssemblerUnit, constants_and_labels_follow_scopes)
+{
+    const Bytes bytes = data(".equ X, 1\n.scope\n.equ X, 2\n.byte X\n.scend\n.byte X\n"
+                             ".scope\n.byte X\n.scend\n");
+    EXPECT_EQ(bytes, (Bytes{2, 1, 1}));
+
+    EXPECT_EQ(data("one: .byte 0\n.scope\ntwo: .byte 0\n.byte two - one\n.scend\n").back(), 1);
+}
+
+TEST_F(AssemblerUnit, errors_of_constants_and_labels_in_expressions)
+{
+    EXPECT_TRUE(
+        contains(error(".data\n.byte later + 1\n"), "'later' is not defined before this point"));
+    EXPECT_TRUE(contains(error(".data\n.byte end - start\nstart:\nend:\n"),
+                         "'end' is not defined before this point"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte label + 1\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte 1 + label\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.equ L, label\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\nlabel: .byte 1\n.byte -label\n"),
+                         "the address of 'label' is not known until linking"));
+    EXPECT_TRUE(contains(error(".data\ndata_label: .byte 1\n.text\ncode_label: nop\n.data\n.byte "
+                               "code_label - data_label\n"),
+                         "are in different sections"));
+    EXPECT_TRUE(contains(error(".equ A, 1\n.equ A, 2\n"), "'A' is already a constant"));
+    EXPECT_TRUE(contains(error(".data\nA: .byte 1\n.equ A, 2\n"), "'A' is already a label"));
+    EXPECT_TRUE(contains(error(".equ A, 1\n.data\nA: .byte 1\n"), "'A' is already a constant"));
+    EXPECT_TRUE(contains(error(".equ\n"), "expected a name after .equ"));
+    EXPECT_TRUE(contains(error(".equ A 1\n"), "expected ',' and the value of the constant"));
+}
+
 TEST_F(AssemblerUnit, characters_and_strings)
 {
     EXPECT_EQ(data(R"(.char 'a', '\n'
@@ -633,8 +709,10 @@ TEST_F(AssemblerUnit, operand_errors)
     EXPECT_TRUE(contains(error(".text\nadd x0, x1\n"), "expected ',', got end of line"));
     EXPECT_TRUE(contains(error(".text\nadd x0 x1, 2\n"), "expected ',', got 'x1'"));
     EXPECT_TRUE(contains(error(".text\nadd 5, x1, 2\n"), "expected a register, got '5'"));
-    EXPECT_TRUE(contains(error(".text\nadd x0, x1, foo\n"),
-                         "expected a register, a number or a relocation, got 'foo'"));
+    EXPECT_TRUE(
+        contains(error(".text\nadd x0, x1, foo\n"), "'foo' is not defined before this point"));
+    EXPECT_TRUE(contains(error(".text\nadd x0, x1, ,\n"),
+                         "expected a register, a number or a relocation, got ','"));
     EXPECT_TRUE(contains(error(".text\nadd x0, x1, 99999\n"), "immediate must be a 14 bit value"));
     EXPECT_TRUE(contains(error(".text\nmov x0,\n"), "expected a number, got end of line"));
     EXPECT_TRUE(contains(error(".text\nlsl x0, x1, 40\n"), "shift amount must fit in 5 bits"));
@@ -703,7 +781,7 @@ TEST_F(AssemblerUnit, expression_errors)
         contains(error(".data\n.word 1 +\n"), "expected an operand after '+', got end of line"));
     EXPECT_TRUE(contains(error(".data\n.word 4 / 0\n"), "division by zero"));
     EXPECT_TRUE(
-        contains(error(".data\n.word 1 + foo\n"), "expected an operand after '+', got 'foo'"));
+        contains(error(".data\n.word 1 + foo\n"), "'foo' is not defined before this point"));
     EXPECT_TRUE(contains(error(".data\n.byte foo\n"),
                          ".byte cannot hold the address of a symbol, only .word can"));
     EXPECT_TRUE(contains(error(".data\n.word 1,\n"), "expected a number, got end of line"));

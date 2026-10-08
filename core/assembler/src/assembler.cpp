@@ -112,9 +112,11 @@ void Assembler::assemble()
             // cause the later symbol to overshadow the prior symbol and likely is unintended.
             // TODO: Warn the user if this is the case. Keep track at each scope level what are
             // the registered labels thus far.
-            const std::string symbol =
-                token.str()
-                + (m_scopes.empty() ? "" : "::SCOPE:" + std::to_string(m_scopes.back()));
+            const std::string symbol = scoped_name(token.str());
+            if (m_constants.count(symbol) != 0)
+            {
+                fail(token, "'" + token.str() + "' is already a constant");
+            }
 
             // Track the offset in the section that this label is in.
             m_obj.add_symbol(symbol, m_obj.get_section_size(m_cur_section_index),

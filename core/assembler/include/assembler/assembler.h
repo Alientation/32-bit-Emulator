@@ -131,12 +131,15 @@ class Assembler
 
     /// @brief Evaluates an expression with the operators of C and its precedence:
     ///        `( )`, unary `- + ~ !`, `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`, `^`,
-    ///        `|`, `&&`, `||` (lowest). Operands are number and character literals. The
-    ///        arithmetic is 64 bit and wraps; `/ % >>` and the comparisons treat the values as
-    ///        signed, the comparisons and `! && ||` give 1 or 0. Fails if there is no operand,
-    ///        on division by zero and on a shift by a negative amount or by 64 or more.
-    ///        Returns the bits of the signed result (so `0 - 1` is all ones). Warns if the value
-    ///        is outside of [min, max], as an unsigned number.
+    ///        `|`, `&&`, `||` (lowest). Operands are number and character literals, constants
+    ///        (`.equ`) and labels. The arithmetic is 64 bit and wraps; `/ % >>` and the
+    ///        comparisons treat the values as signed, the comparisons and `! && ||` give 1 or 0.
+    ///        Fails if there is no operand, on division by zero and on a shift by a negative amount
+    ///        or by 64 or more. A constant or label has to be defined before the expression. The
+    ///        address of a label is only known when linking, so the only thing that can be done
+    ///        with one is the difference of two labels of the same section (`end - start`), a
+    ///        constant. Returns the bits of the signed result (so `0 - 1` is all ones). Warns if
+    ///        the value is outside of [min, max], as an unsigned number.
     dword parse_expression(dword min = 0, dword max = -1);
 
     /// @brief Same as parse_expression() with the result as a signed number. For the operands
@@ -146,10 +149,39 @@ class Assembler
     /// @brief Whether the next token can start an expression.
     bool at_expression();
 
+    /// @brief A value while an expression is evaluated: a number, or the offset of a label in its
+    ///        section (which can only be subtracted from another label of the section).
+    struct ExprValue
+    {
+        sdword value = 0;
+
+        /// @brief The label that this value is the offset of, null for a number.
+        const basm::Token *label = nullptr;
+
+        /// @brief Section of that label.
+        U32 section = U32(-1);
+    };
+
     /// @brief Precedence climbing: the part of an expression made of operators of at least
     ///        `min_precedence`.
-    sdword parse_binary_expression(int min_precedence);
-    sdword parse_unary_expression();
+    ExprValue parse_binary_expression(int min_precedence);
+    ExprValue parse_unary_expression();
+
+    /// @brief Value of the constant or label that `symbol` names here (the innermost scope that has
+    ///        it), or fails if there is none yet.
+    ExprValue lookup_symbol(const basm::Token &symbol);
+
+    /// @brief Fails unless the value is a number and not the offset of a label.
+    void require_number(const ExprValue &value);
+
+    /// @brief Whether `.equ` defined the name, visible from the scope that is open.
+    bool is_constant(const std::string &name) const;
+
+    /// @brief Name of a constant or label in the scope that is open, the same as its symbol.
+    std::string scoped_name(const std::string &name) const;
+
+    /// @brief The values of `.equ`, by name (with the scope for those defined in one).
+    std::unordered_map<std::string, sdword> m_constants;
 
     /// @brief Comma separated expressions.
     std::vector<dword> parse_arguments();
@@ -182,6 +214,7 @@ class Assembler
     ///
     void _global();
     void _extern();
+    void _equ();
     void _org();
     void _scope();
     void _scend();
@@ -224,6 +257,7 @@ class Assembler
     std::unordered_map<basm::TokenType, DirectiveFunction> m_directive_handlers = {
         {basm::TokenType::ASSEMBLER_GLOBAL, &Assembler::_global},
         {basm::TokenType::ASSEMBLER_EXTERN, &Assembler::_extern},
+        {basm::TokenType::ASSEMBLER_EQU, &Assembler::_equ},
         {basm::TokenType::ASSEMBLER_ORG, &Assembler::_org},
         {basm::TokenType::ASSEMBLER_SCOPE, &Assembler::_scope},
         {basm::TokenType::ASSEMBLER_SCEND, &Assembler::_scend},

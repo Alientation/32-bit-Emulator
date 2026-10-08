@@ -1641,6 +1641,33 @@ _start:
     EXPECT_EQ(reg(0), 10u);
 }
 
+// .equ names a number, and the distance between two labels of a section is one too, which gives
+// the size of a table without counting it by hand.
+TEST_F(AssemblerIntegration, the_size_of_a_table_is_the_distance_between_its_labels)
+{
+    write_file("table.basm", R"(.global _start
+
+.data
+table:          .word 10, 20, 30
+table_end:
+.equ            TABLE_BYTES, table_end - table
+.equ            SHIFT, 2
+size:           .word TABLE_BYTES
+
+.text
+_start:
+                mov     x0, TABLE_BYTES >> SHIFT
+                adrp    x2, size
+                add     x2, x2, :lo12:size
+                ldr     x1, [x2]
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o table table.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("table.bexe"));
+    EXPECT_EQ(reg(0), 3u);
+    EXPECT_EQ(reg(1), 12u);
+}
+
 TEST_F(AssemblerIntegration, preprocessor_compares_numbers_by_value)
 {
     write_file("version.basm", R"(.global _start

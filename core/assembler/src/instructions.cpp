@@ -128,7 +128,8 @@ word Assembler::parse_format_b1(byte opcode)
     }
 
     sword value = 0;
-    if (m_cursor.check(TokenType::SYMBOL))
+    // A symbol is the label to branch to, unless it names a constant: then it is a distance.
+    if (m_cursor.check(TokenType::SYMBOL) && !is_constant(m_cursor.peek().str()))
     {
         const std::string symbol = m_cursor.next().str();
         m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);

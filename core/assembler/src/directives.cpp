@@ -102,14 +102,84 @@ bool Assembler::at_expression()
     return m_cursor.peek().is_one_of({TokenType::LITERAL_CHAR, TokenType::OPEN_PARENTHESIS,
                                       TokenType::OPERATOR_SUBTRACTION, TokenType::OPERATOR_ADDITION,
                                       TokenType::OPERATOR_BITWISE_COMPLEMENT,
-                                      TokenType::OPERATOR_LOGICAL_NOT})
+                                      TokenType::OPERATOR_LOGICAL_NOT, TokenType::SYMBOL})
            || basm::is_integer_literal(m_cursor.peek().type);
 }
 
+std::string Assembler::scoped_name(const std::string &name) const
+{
+    return m_scopes.empty() ? name : name + "::SCOPE:" + std::to_string(m_scopes.back());
+}
+
+void Assembler::require_number(const ExprValue &value)
+{
+    if (value.label != nullptr)
+    {
+        fail(*value.label,
+             "the address of '" + value.label->str()
+                 + "' is not known until linking; only the difference of two labels of the same "
+                   "section is a number");
+    }
+}
+
 ///
-/// @brief              operand := number | char | '(' expression ')' | ('-' | '+' | '~' | '!') operand
+/// @brief              Looks `symbol` up like a label is: the scopes that are open from the
+///                     innermost out, then the file. A constant is a number and a label is its
+///                     offset in its section. Both have to be defined already.
 ///
-sdword Assembler::parse_unary_expression()
+Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
+{
+    const std::string name = symbol.str();
+    for (size_t i = m_scopes.size() + 1; i-- > 0;)
+    {
+        const std::string key = i == 0 ? name : name + "::SCOPE:" + std::to_string(m_scopes[i - 1]);
+
+        const auto constant = m_constants.find(key);
+        if (constant != m_constants.end())
+        {
+            return {.value = constant->second};
+        }
+
+        const auto entry = m_obj.string_table.find(key);
+        if (entry != m_obj.string_table.end())
+        {
+            const ObjectFile::SymbolTableEntry &label = m_obj.symbol_table.at(entry->second);
+            if (label.section != U32(-1))
+            {
+                return {.value = sdword(label.symbol_value),
+                        .label = &symbol,
+                        .section = label.section};
+            }
+        }
+    }
+    fail(symbol, "'" + name
+                     + "' is not defined before this point; an expression can use a constant "
+                       "(.equ) or a label that comes earlier in the file");
+}
+
+bool Assembler::is_constant(const std::string &name) const
+{
+    for (size_t i = m_scopes.size() + 1; i-- > 0;)
+    {
+        const std::string key = i == 0 ? name : name + "::SCOPE:" + std::to_string(m_scopes[i - 1]);
+        if (m_constants.count(key) != 0)
+        {
+            return true;
+        }
+        if (m_obj.string_table.count(key) != 0)
+        {
+            // A label of this name shadows a constant of an outer scope.
+            return false;
+        }
+    }
+    return false;
+}
+
+///
+/// @brief              operand := number | char | constant | label
+///                             | '(' expression ')' | ('-' | '+' | '~' | '!') operand
+///
+Assembler::ExprValue Assembler::parse_unary_expression()
 {
     const Token &token = m_cursor.peek();
     if (!at_expression())
@@ -138,16 +208,30 @@ sdword Assembler::parse_unary_expression()
     switch (token.type)
     {
     case TokenType::OPERATOR_SUBTRACTION:
-        return sdword(0 - U64(parse_unary_expression()));
+    {
+        const ExprValue operand = parse_unary_expression();
+        require_number(operand);
+        return {.value = sdword(0 - U64(operand.value))};
+    }
     case TokenType::OPERATOR_ADDITION:
         return parse_unary_expression();
     case TokenType::OPERATOR_BITWISE_COMPLEMENT:
-        return ~parse_unary_expression();
+    {
+        const ExprValue operand = parse_unary_expression();
+        require_number(operand);
+        return {.value = ~operand.value};
+    }
     case TokenType::OPERATOR_LOGICAL_NOT:
-        return parse_unary_expression() == 0 ? 1 : 0;
+    {
+        const ExprValue operand = parse_unary_expression();
+        require_number(operand);
+        return {.value = operand.value == 0 ? 1 : 0};
+    }
+    case TokenType::SYMBOL:
+        return lookup_symbol(token);
     case TokenType::OPEN_PARENTHESIS:
     {
-        const sdword value = parse_binary_expression(1);
+        const ExprValue value = parse_binary_expression(1);
         if (!m_cursor.accept(TokenType::CLOSE_PARENTHESIS))
         {
             fail(m_cursor.peek(), "expected ')' to close the '(' at column "
@@ -158,23 +242,23 @@ sdword Assembler::parse_unary_expression()
     }
     default:
         // A number or a character.
-        return sdword(token.int_value);
+        return {.value = sdword(token.int_value)};
     }
 }
 
 ///
 /// @brief              Precedence climbing. All the binary operators associate to the left.
 ///
-sdword Assembler::parse_binary_expression(int min_precedence)
+Assembler::ExprValue Assembler::parse_binary_expression(int min_precedence)
 {
-    sdword lhs = parse_unary_expression();
+    ExprValue left = parse_unary_expression();
     while (true)
     {
         const Token &op = m_cursor.peek();
         const int precedence = binary_precedence(op.type);
         if (precedence == 0 || precedence < min_precedence)
         {
-            return lhs;
+            return left;
         }
         m_cursor.next();
         if (!at_expression())
@@ -182,7 +266,30 @@ sdword Assembler::parse_binary_expression(int min_precedence)
             fail(m_cursor.peek(), "expected an operand after '" + op.str() + "', got "
                                       + basm::describe(m_cursor.peek()));
         }
-        const sdword rhs = parse_binary_expression(precedence + 1);
+        const ExprValue right = parse_binary_expression(precedence + 1);
+
+        if (left.label != nullptr || right.label != nullptr)
+        {
+            // The difference of two labels of a section does not depend on where the section
+            // ends up. Nothing else can be done with an address yet.
+            if (op.type == TokenType::OPERATOR_SUBTRACTION && left.label != nullptr
+                && right.label != nullptr)
+            {
+                if (left.section != right.section)
+                {
+                    fail(op, "'" + left.label->str() + "' and '" + right.label->str()
+                                 + "' are in different sections, so their distance is not known "
+                                   "until linking");
+                }
+                left = {.value = sdword(U64(left.value) - U64(right.value))};
+                continue;
+            }
+            require_number(left);
+            require_number(right);
+        }
+
+        sdword lhs = left.value;
+        const sdword rhs = right.value;
 
         // The arithmetic wraps around, done on unsigned values where signed would overflow.
         const U64 l = U64(lhs);
@@ -260,12 +367,38 @@ sdword Assembler::parse_binary_expression(int min_precedence)
         default:
             fail(op, "expected an operator, got " + basm::describe(op));
         }
+        left = {.value = lhs};
     }
 }
 
 sdword Assembler::parse_signed_expression()
 {
-    return parse_binary_expression(1);
+    const ExprValue value = parse_binary_expression(1);
+    require_number(value);
+    return value.value;
+}
+
+///
+/// @brief               Gives a number a name, to be used in the expressions that follow. It is a
+///                      constant of the file (of the scope, if there is one), not a symbol of the
+///                      object file. Can be anywhere, also in a macro.
+/// USAGE:               .equ <name>, <expression>
+///
+void Assembler::_equ()
+{
+    m_cursor.next();
+
+    const Token &name = expect(TokenType::SYMBOL, "expected a name after .equ");
+    expect(TokenType::COMMA, "expected ',' and the value of the constant");
+    const sdword value = parse_signed_expression();
+
+    const std::string key = scoped_name(name.str());
+    const auto label = m_obj.string_table.find(key);
+    check(m_constants.count(key) == 0, "'" + name.str() + "' is already a constant");
+    check(label == m_obj.string_table.end()
+              || m_obj.symbol_table.at(label->second).section == U32(-1),
+          "'" + name.str() + "' is already a label");
+    m_constants[key] = value;
 }
 
 ///
@@ -630,7 +763,14 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
     }
     do
     {
-        if (m_cursor.check(TokenType::SYMBOL))
+        // A symbol on its own is an address, unless it names a constant. In an expression it is a
+        // constant or the offset of a label (`end - start`).
+        const bool lone_symbol =
+            m_cursor.check(TokenType::SYMBOL)
+            && (m_cursor.peek(1).is_one_of(
+                {TokenType::COMMA, TokenType::NEWLINE, TokenType::END_OF_FILE}))
+            && !is_constant(m_cursor.peek().str());
+        if (lone_symbol)
         {
             define_address();
         }
