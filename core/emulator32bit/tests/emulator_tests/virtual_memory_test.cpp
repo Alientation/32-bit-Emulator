@@ -477,6 +477,122 @@ TEST(virtual_memory, a_virtual_memory_is_cheap_to_create)
 }
 
 // ---------------------------------------------------------------------------------------------
+// The translation of the pages of the current process is looked up in the TLB by one key, the
+// process and the virtual page. Whatever changes which process that is, or whether its pages are
+// translated at all, has to change the key that is looked up with.
+// ---------------------------------------------------------------------------------------------
+
+TEST(virtual_memory_tlb, the_pages_of_two_processes_do_not_get_mixed_up)
+{
+    Machine m(4, 4);
+    const long long first = m.vm.begin_process();
+    m.vm.add_vpage(first, 10, 1, true, false);
+    const word first_ppage = ppage_of(m.vm, 10);
+
+    const long long second = m.vm.begin_process();
+    m.vm.add_vpage(second, 10, 1, true, false);
+    const word second_ppage = ppage_of(m.vm, 10);
+    ASSERT_NE(first_ppage, second_ppage);
+
+    // The same virtual page of both is in the TLB, in the same slot, and each is found for its
+    // process.
+    for (int round = 0; round < 3; round++)
+    {
+        m.vm.set_process(first);
+        EXPECT_EQ(ppage_of(m.vm, 10), first_ppage);
+        m.vm.set_process(second);
+        EXPECT_EQ(ppage_of(m.vm, 10), second_ppage);
+    }
+}
+
+TEST(virtual_memory_tlb, a_page_of_another_process_is_not_translated_by_the_current_one)
+{
+    Machine m;
+    const long long first = m.vm.begin_process();
+    m.vm.add_vpage(first, 10, 1, true, false);
+    ppage_of(m.vm, 10);
+
+    const long long second = m.vm.begin_process();
+    EXPECT_EQ(fault_of(m.vm, 10, Access::READ), Fault::Reason::UNMAPPED);
+    m.vm.set_process(first);
+    EXPECT_EQ(fault_of(m.vm, 10, Access::READ), std::nullopt);
+    m.vm.end_process(second);
+}
+
+TEST(virtual_memory_tlb, addresses_are_physical_without_a_process_and_when_the_memory_is_off)
+{
+    Machine m(4, 2);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, false);
+    const word mapped = ppage_of(m.vm, 10);
+    ASSERT_NE(mapped, 10u);
+
+    m.vm.set_enabled(false);
+    EXPECT_EQ(ppage_of(m.vm, 10), 10u);
+    m.vm.set_enabled(true);
+    EXPECT_EQ(ppage_of(m.vm, 10), mapped);
+
+    m.vm.end_process(pid);
+    EXPECT_EQ(ppage_of(m.vm, 10), 10u) << "there is no process whose pages could be translated";
+}
+
+TEST(virtual_memory_tlb, the_devices_are_where_they_are_for_a_process)
+{
+    Machine m(4, 2);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, false);
+    ppage_of(m.vm, 10);
+
+    EXPECT_EQ(m.vm.translate_address(kDeviceBase + 0x24), kDeviceBase + 0x24);
+    EXPECT_EQ(m.vm.translate_address(kDeviceBase + 0x24, Access::WRITE), kDeviceBase + 0x24);
+}
+
+TEST(virtual_memory_tlb, the_page_tables_and_the_swapping_memory_take_over_from_each_other)
+{
+    Machine m(4, 2);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 5, 1, true, false);
+    const word mapped = ppage_of(m.vm, 5); // the entry of the TLB of the swapping memory
+    EXPECT_EQ(ppage_of(m.vm, 5), mapped);
+
+    // The page tables are on: they translate, and the entry of the process is not used.
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute | VirtualMemory::kPteWrite, 2);
+    m.vm.set_page_table_base(kTableBase);
+    m.vm.set_walk_enabled(true);
+    ASSERT_NE(mapped, 8u);
+    EXPECT_EQ(ppage_of(m.vm, 5), 8u);
+    EXPECT_EQ(m.vm.translate_address(vaddr(5, 4)), vaddr(8, 4));
+
+    // And off again: the process translates.
+    m.vm.set_walk_enabled(false);
+    EXPECT_EQ(ppage_of(m.vm, 5), mapped);
+}
+
+TEST(virtual_memory_tlb, a_translation_that_was_made_for_reading_does_not_allow_a_write)
+{
+    Machine m;
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, false, false);
+
+    EXPECT_EQ(fault_of(m.vm, 10, Access::READ), std::nullopt);
+    EXPECT_EQ(fault_of(m.vm, 10, Access::READ), std::nullopt) << "from the TLB";
+    EXPECT_EQ(fault_of(m.vm, 10, Access::WRITE), Fault::Reason::WRITE_DENIED);
+    EXPECT_EQ(fault_of(m.vm, 10, Access::READ), std::nullopt);
+}
+
+TEST(virtual_memory_tlb, a_page_that_stops_being_writable_cannot_be_written_to)
+{
+    Machine m;
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, false);
+
+    EXPECT_EQ(fault_of(m.vm, 10, Access::WRITE), std::nullopt);
+    EXPECT_EQ(fault_of(m.vm, 10, Access::WRITE), std::nullopt) << "from the TLB";
+    m.vm.set_vpage_permissions(pid, 10, 10, false, false);
+    EXPECT_EQ(fault_of(m.vm, 10, Access::WRITE), Fault::Reason::WRITE_DENIED);
+}
+
+// ---------------------------------------------------------------------------------------------
 // The page that instructions are fetched from is remembered (translate_fetch), and has to be
 // forgotten whenever the answer could change.
 // ---------------------------------------------------------------------------------------------

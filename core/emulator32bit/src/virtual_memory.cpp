@@ -64,9 +64,9 @@ void VirtualMemory::release_frame(word ppage)
 void VirtualMemory::invalidate_tlb(long long pid, word vpage)
 {
     TLB_Entry &tlb_entry = m_tlb[vpage & (kMaxTLBSize - 1)];
-    if (tlb_entry.valid && tlb_entry.pid == pid && tlb_entry.vpage == vpage)
+    if (tlb_entry.key == tlb_key(pid, vpage))
     {
-        tlb_entry.valid = false;
+        tlb_entry.key = kNoKey;
     }
 
     // The page of the current process that is fetched from. A page of another process with the
@@ -81,7 +81,7 @@ void VirtualMemory::flush_tlb()
 {
     for (TLB_Entry &tlb_entry : m_tlb)
     {
-        tlb_entry.valid = false;
+        tlb_entry.key = kNoKey;
     }
     drop_fetch_cache();
 }
@@ -157,6 +157,21 @@ word VirtualMemory::clock_victim()
     // The pages on the clock can be swapped. Only the frames can hold a page that is paged in, a
     // page outside of them was mapped explicitly and stays. The first turn clears the pages that
     // were used, so the second one finds a page if the first did not, unless there is none.
+    //
+    // A hit on the TLB does not mark a page (that would be work in every translation), so when
+    // marks are cleared the TLB is dropped, and the next access to each page that is still in use
+    // fills its entry again and marks it. The page that instructions are fetched from is
+    // remembered in the same way, and goes with it. This is the clock without a cost for the
+    // accesses, the way the accessed bit of a real MMU works.
+    bool cleared = false;
+    const auto done = [&]
+    {
+        if (cleared)
+        {
+            flush_tlb();
+        }
+    };
+
     PhysicalPage *const start = m_clock_hand != nullptr ? m_clock_hand : m_clock_head;
     if (start != nullptr)
     {
@@ -172,23 +187,18 @@ word VirtualMemory::clock_victim()
                     if (!page->referenced)
                     {
                         m_clock_hand = next;
+                        done();
                         return page->ppage;
                     }
                     page->referenced = false;
-
-                    // Fetching from the page does not mark it while it is remembered (that is
-                    // the point of remembering it), so the next fetch has to go the long way
-                    // and mark it, or the page would look unused and be evicted while it runs.
-                    if (page->ppage == m_fetch_ppage)
-                    {
-                        drop_fetch_cache();
-                    }
+                    cleared = true;
                 }
                 page = next;
             } while (page != start);
         }
     }
 
+    done();
     throw VirtualMemoryException("Out of physical memory, there is no page that can be swapped.");
 }
 
@@ -343,6 +353,7 @@ void VirtualMemory::set_process(long long pid)
     }
 
     m_cur_ptable = m_process_ptable_map.at(pid);
+    update_swap_key();
     drop_fetch_cache();
     AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
@@ -364,6 +375,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
 
     m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
     m_cur_ptable = new_pagetable;
+    update_swap_key();
     drop_fetch_cache();
 
     AEMU_DEBUG("Beginning process {}.", pid);
@@ -399,6 +411,7 @@ void VirtualMemory::end_process(long long pid)
     {
         m_cur_ptable = nullptr;
     }
+    update_swap_key();
     drop_fetch_cache();
 
     delete m_process_ptable_map.at(pid);
@@ -883,13 +896,11 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
 
     /* Update the TLB with the result of the translation of virtual page to physical page. */
     TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
-    tlb.valid = true;
-    tlb.pid = ptable->pid;
-    tlb.vpage = vpage;
+    tlb.key = tlb_key(ptable->pid, vpage);
     tlb.ppage = entry->ppage;
     tlb.write = entry->write;
-    tlb.page = &page;
 
+    // Only the access that fills the entry marks the page, a hit on it does not (see m_tlb).
     mark_referenced(page);
     return entry->ppage;
 }
@@ -922,6 +933,7 @@ void VirtualMemory::check_clock()
 void VirtualMemory::set_walk_enabled(const bool enabled)
 {
     m_walk = enabled;
+    update_swap_key();
     invalidate_translations();
 }
 
@@ -954,6 +966,31 @@ void VirtualMemory::invalidate_translation(const word address)
     {
         drop_fetch_cache();
     }
+}
+
+word VirtualMemory::translate_address_slow(const word address, const AccessType access)
+{
+    const word vpage = address >> kNumPageOffsetBits;
+
+    if (m_walk)
+    {
+        const WalkEntry &entry = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
+        if (LIKELY(entry.valid && entry.vpage == vpage && walk_allows(entry, access)))
+        {
+            return (entry.ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
+        }
+        return walk_translate(address, access);
+    }
+
+    // The devices are always where they are, so a program without page tables can use them.
+    if (m_cur_ptable == nullptr || !m_enabled || address >= kDeviceBase)
+    {
+        return address;
+    }
+
+    // Not in the TLB, or in it without the permission to write (which is looked at again).
+    const word ppage = access_vpage_slow(m_cur_ptable, vpage, access);
+    return (ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
 }
 
 word VirtualMemory::translate_fetch_slow(const word address)

@@ -61,6 +61,7 @@ class VirtualMemory
     void set_enabled(bool enabled)
     {
         m_enabled = enabled;
+        update_swap_key();
         drop_fetch_cache();
     }
 
@@ -404,24 +405,27 @@ class VirtualMemory
      */
     inline word translate_address(word address, AccessType access = AccessType::READ)
     {
+        // The translation of a page of the current process, in the swapping memory, is what
+        // nearly every access finds. It is one comparison: when the virtual memory is off, or the
+        // page tables are used, the key never matches and translate_address_slow decides.
+        const word vpage = address >> kNumPageOffsetBits;
+        const TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
+        if (LIKELY(tlb.key == (m_swap_key | vpage) && (access != AccessType::WRITE || tlb.write)))
+        {
+            return (tlb.ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
+        }
+
+        // The page tables are what the key of the swapping memory never matches for, and their TLB
+        // is just as hot.
         if (UNLIKELY(m_walk))
         {
-            const word vpage = address >> kNumPageOffsetBits;
             const WalkEntry &entry = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
             if (LIKELY(entry.valid && entry.vpage == vpage && walk_allows(entry, access)))
             {
                 return (entry.ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
             }
-            return walk_translate(address, access);
         }
-
-        // The devices are always where they are, so a program without page tables can use them.
-        if (UNLIKELY(m_cur_ptable == nullptr || !m_enabled || address >= kDeviceBase))
-        {
-            return address;
-        }
-
-        return translate_address(m_cur_ptable, address, access);
+        return translate_address_slow(address, access);
     }
 
     /**
@@ -482,8 +486,9 @@ class VirtualMemory
         PhysicalPage *clock_next = nullptr;
         bool in_clock = false;
 
-        /* Set by every access to the page, cleared when the hand of the clock passes it. A page
-           that is not set when the hand gets to it was not used for a whole turn. */
+        /* Set when a translation of the page is filled into the TLB, cleared when the hand of the
+           clock passes it (which also drops the TLB, so that the next access sets it again). A
+           page that is not set when the hand gets to it was not used for a whole turn. */
         bool referenced = false;
     };
 
@@ -501,17 +506,30 @@ class VirtualMemory
         bool kernel_privilege;
     };
 
+    /// What an entry of the TLB is looked up by: the process in the upper half, the virtual page
+    /// in the lower, so that the lookup is one comparison. No entry has the key of a process that
+    /// does not exist (processes are numbered below kMaxProcesses).
+    static constexpr U64 tlb_key(long long pid, word vpage)
+    {
+        return (U64(pid) << 32) | vpage;
+    }
+
+    /// The key of an entry that has no translation, which no lookup has.
+    static constexpr U64 kNoKey = ~U64(0);
+
+    /// What is looked up with when there is no process whose pages are translated (virtual memory
+    /// is off, the page tables are used, or there is no process): not a key that an entry has,
+    /// or that is kNoKey, so that the lookup fails and the slow path decides.
+    static constexpr U64 kNoProcessKey = U64(1) << 62;
+
     /**
      * @brief            TBL Entry.
      */
     struct TLB_Entry
     {
-        bool valid = false;           /* Whether the TLB_Entry is a valid translation. */
-        long long pid = -1;           /* Corresponding process of the translation. */
-        word vpage = 0;               /* Virtual page address of the translation. */
-        word ppage = 0;               /* Resulting physical page address of the translation. */
-        bool write = false;           /* Whether the translation can be used to write. */
-        PhysicalPage *page = nullptr; /* The physical page, to record that it is used. */
+        U64 key = kNoKey;   /* The process and the virtual page of the translation, see tlb_key. */
+        word ppage = 0;     /* Resulting physical page address of the translation. */
+        bool write = false; /* Whether the translation can be used to write. */
     };
 
     /**
@@ -519,8 +537,26 @@ class VirtualMemory
      *                     page address to physical page address. An entry is only filled when the
      *                     process may access the page, and has the permission to write that the
      *                     page had then.
+     *
+     * @details           Filling an entry marks the physical page as used (for the clock), and a
+     *                     hit does not. That is what the hand of the clock makes up for: when it
+     *                     clears the marks it drops the whole TLB, and the next access to a page
+     *                     that is still in use fills its entry and marks it again.
      */
     TLB_Entry m_tlb[kMaxTLBSize];
+
+    /// The upper half of the key of the entries of the current process, or kNoProcessKey if the
+    /// pages of no process are translated through m_tlb. Kept up to date by update_swap_key.
+    U64 m_swap_key = kNoProcessKey;
+
+    /// To be called when the current process, whether the virtual memory is on or the use of the
+    /// page tables changes.
+    inline void update_swap_key()
+    {
+        m_swap_key = (m_cur_ptable != nullptr && m_enabled && !m_walk)
+                         ? tlb_key(m_cur_ptable->pid, 0)
+                         : kNoProcessKey;
+    }
 
     /// A cached translation of the page table walk. Keeps the bits of the entry, so a later access
     /// of another kind (a write to a page that is not dirty yet) takes the slow path.
@@ -669,20 +705,13 @@ class VirtualMemory
 
     /**
      * @brief             Records that a physical page was just used, so that the clock gives it
-     *                     another turn. This is all an access costs, it is the reason for using
-     *                     the clock and not a list that is reordered by every access.
-     *
-     * @details           The mark is only written when it is not set. It stays set until the hand
-     *                     passes, so nearly every access just reads it, and the store that would
-     *                     make the compiler reload the state of the emulator (it may alias any
-     *                     byte) is left out of the translation of every instruction.
+     *                     another turn. A translation that fills the TLB does it, a hit on the
+     *                     TLB does not (see m_tlb), which is why the clock costs a translation
+     *                     nothing.
      */
     static inline void mark_referenced(PhysicalPage &page)
     {
-        if (UNLIKELY(!page.referenced))
-        {
-            page.referenced = true;
-        }
+        page.referenced = true;
     }
 
     /**
@@ -787,13 +816,9 @@ class VirtualMemory
     inline word access_vpage(PageTable *ptable, word vpage, AccessType access)
     {
         const TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
-        if (LIKELY(tlb.valid && tlb.pid == ptable->pid && tlb.vpage == vpage))
+        if (LIKELY(tlb.key == tlb_key(ptable->pid, vpage)
+                   && (access != AccessType::WRITE || tlb.write)))
         {
-            if (UNLIKELY(access == AccessType::WRITE && !tlb.write))
-            {
-                throw_fault(PageFaultException::Reason::WRITE_DENIED, vpage, access);
-            }
-            mark_referenced(*tlb.page);
             return tlb.ppage;
         }
 
@@ -801,9 +826,16 @@ class VirtualMemory
     }
 
     /**
-     * @brief             Translates a virtual page that has no translation in the TLB: checks the
-     *                     permissions, brings the page in from disk if it is not in memory, and
-     *                     fills in the TLB.
+     * @brief             Translates a virtual page that has no translation in the TLB, or that the
+     *                     translation does not allow to write: checks the permissions, brings the
+     *                     page in from disk if it is not in memory, and fills in the TLB.
      */
     word access_vpage_slow(PageTable *ptable, word vpage, AccessType access);
+
+    /**
+     * @brief             translate_address for everything that is not in the TLB of the current
+     *                     process: the page tables, addresses that are physical (virtual memory
+     *                     off, no process, the devices) and the first access to a page.
+     */
+    word translate_address_slow(word address, AccessType access);
 };
