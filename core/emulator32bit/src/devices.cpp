@@ -1,6 +1,9 @@
 #include "emulator32bit/devices.h"
 
+#include <algorithm>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 
 Device::Device(const word base_address) :
     BaseMemory(1, base_address >> kNumPageOffsetBits)
@@ -128,14 +131,23 @@ void Timer::fire()
     }
 }
 
-bool Timer::fast_forward()
+std::optional<word> Timer::cycles_until_event() const
 {
-    if (m_ctrl & kEnabled)
+    // A compare equal to the count only matches after the count wraps, which is not waited for.
+    if ((m_ctrl & kEnabled) && m_compare != m_count)
     {
-        m_count = m_compare;
+        return m_compare - m_count;
+    }
+    return std::nullopt;
+}
+
+void Timer::advance(const word count)
+{
+    m_count += count;
+    if ((m_ctrl & kEnabled) && m_count == m_compare)
+    {
         fire();
     }
-    return m_intc.has_pending();
 }
 
 void Timer::reset()
@@ -255,6 +267,230 @@ void Console::write_register(const word offset, const word value)
         {
             m_intc.raise(kIrqLineConsole);
         }
+        break;
+    default:
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Block device
+
+BlockDevice::BlockDevice(InterruptController &intc) :
+    Device(kBlockBase),
+    m_intc(intc)
+{
+}
+
+void BlockDevice::set_capacity(const word sectors)
+{
+    m_storage.assign(size_t(sectors) * kSectorSize, 0);
+    m_path.clear();
+}
+
+bool BlockDevice::open_file(const std::string &path, const word sectors)
+{
+    m_path = path;
+    m_storage.clear();
+
+    std::ifstream in(path, std::ios::binary);
+    if (in)
+    {
+        m_storage.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+    else if (std::ifstream(path).good())
+    {
+        return false; // exists, cannot be read
+    }
+
+    const size_t wanted =
+        std::max<size_t>(size_t(sectors) * kSectorSize,
+                         (m_storage.size() + kSectorSize - 1) / kSectorSize * kSectorSize);
+    m_storage.resize(wanted, 0);
+    return true;
+}
+
+bool BlockDevice::save()
+{
+    if (m_path.empty())
+    {
+        return true;
+    }
+    std::ofstream out(m_path, std::ios::binary | std::ios::trunc);
+    out.write(reinterpret_cast<const char *>(m_storage.data()), std::streamsize(m_storage.size()));
+    return bool(out);
+}
+
+std::vector<byte> BlockDevice::sector(const word number) const
+{
+    const size_t start = size_t(number) * kSectorSize;
+    if (start + kSectorSize > m_storage.size())
+    {
+        return {};
+    }
+    return {m_storage.begin() + std::ptrdiff_t(start),
+            m_storage.begin() + std::ptrdiff_t(start + kSectorSize)};
+}
+
+void BlockDevice::start(const word command)
+{
+    if (m_busy)
+    {
+        m_status |= kError; // not accepted
+        return;
+    }
+    if (command != kCmdRead && command != kCmdWrite && command != kCmdFlush)
+    {
+        m_status |= kError;
+        return;
+    }
+
+    m_status &= ~(kDone | kError);
+    m_busy = true;
+    m_command = command;
+    m_command_sector = m_sector;
+    m_remaining = std::max<word>(1, m_latency);
+    if (command == kCmdWrite)
+    {
+        std::copy(std::begin(m_buffer), std::end(m_buffer), std::begin(m_write_data));
+    }
+}
+
+void BlockDevice::complete()
+{
+    const size_t start = size_t(m_command_sector) * kSectorSize;
+    bool error = false;
+    switch (m_command)
+    {
+    case kCmdRead:
+        if (start + kSectorSize > m_storage.size())
+        {
+            error = true;
+            break;
+        }
+        std::copy_n(m_storage.begin() + std::ptrdiff_t(start), kSectorSize, std::begin(m_buffer));
+        m_cursor = 0;
+        break;
+    case kCmdWrite:
+        if (start + kSectorSize > m_storage.size())
+        {
+            error = true;
+            break;
+        }
+        std::copy(std::begin(m_write_data), std::end(m_write_data),
+                  m_storage.begin() + std::ptrdiff_t(start));
+        break;
+    default:
+        error = !save();
+        break;
+    }
+
+    m_busy = false;
+    m_remaining = 0;
+    m_status |= kDone | (error ? kError : 0);
+    if (m_ctrl & 1)
+    {
+        m_intc.raise(kIrqLineBlock);
+    }
+}
+
+std::optional<word> BlockDevice::cycles_until_event() const
+{
+    if (m_busy)
+    {
+        return m_remaining;
+    }
+    return std::nullopt;
+}
+
+void BlockDevice::advance(const word count)
+{
+    if (m_busy)
+    {
+        m_remaining = count >= m_remaining ? 0 : m_remaining - count;
+        if (m_remaining == 0)
+        {
+            complete();
+        }
+    }
+}
+
+// A power cycle of the controller: the contents of the disk stay.
+void BlockDevice::reset()
+{
+    m_busy = false;
+    m_remaining = 0;
+    m_status = 0;
+    m_cursor = 0;
+    m_sector = 0;
+    m_ctrl = 0;
+    m_latency = 100;
+    std::fill(std::begin(m_buffer), std::end(m_buffer), byte(0));
+}
+
+word BlockDevice::read_register(const word offset)
+{
+    switch (offset)
+    {
+    case 0x04:
+        return m_status | (m_busy ? kBusy : 0);
+    case 0x08:
+        return m_sector;
+    case 0x0C:
+    {
+        if (m_cursor >= kSectorSize)
+        {
+            return 0;
+        }
+        const byte *p = m_buffer + m_cursor;
+        m_cursor += 4;
+        return word(p[0]) | (word(p[1]) << 8) | (word(p[2]) << 16) | (word(p[3]) << 24);
+    }
+    case 0x10:
+        return m_cursor;
+    case 0x14:
+        return word(m_storage.size() / kSectorSize);
+    case 0x18:
+        return m_ctrl;
+    case 0x1C:
+        return m_latency;
+    default:
+        return 0;
+    }
+}
+
+void BlockDevice::write_register(const word offset, const word value)
+{
+    switch (offset)
+    {
+    case 0x00:
+        start(value);
+        break;
+    case 0x04:
+        m_status &= ~(kDone | kError);
+        break;
+    case 0x08:
+        m_sector = value;
+        break;
+    case 0x0C:
+        if (m_cursor < kSectorSize)
+        {
+            byte *p = m_buffer + m_cursor;
+            p[0] = byte(value);
+            p[1] = byte(value >> 8);
+            p[2] = byte(value >> 16);
+            p[3] = byte(value >> 24);
+            m_cursor += 4;
+        }
+        break;
+    case 0x10:
+        m_cursor = value & ~word(3);
+        break;
+    case 0x18:
+        m_ctrl = value & 1;
+        break;
+    case 0x1C:
+        m_latency = value;
         break;
     default:
         break;

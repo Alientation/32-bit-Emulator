@@ -173,6 +173,10 @@ static int run_cli(int argc, char *argv[])
             cxxopts::value<std::string> ())
         ("console-input", "File whose bytes the console device receives (see docs/devices.md)",
             cxxopts::value<std::string> ())
+        ("block-file", "File that holds the block device's disk (512 byte sectors); made if it does not exist",
+            cxxopts::value<std::string> ())
+        ("block-sectors", "Number of sectors of the block device (at least the size of --block-file)",
+            cxxopts::value<std::string> ())
         ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
@@ -398,6 +402,34 @@ static int run_cli(int argc, char *argv[])
     }
 
     emu->set_semihosting(result.count("no-semihosting") == 0);
+
+    {
+        word block_sectors = 0;
+        if (result.count("block-sectors"))
+        {
+            const std::optional<U64> number =
+                parse_number(result["block-sectors"].as<std::string>());
+            if (!number)
+            {
+                std::cerr << "ERROR: Invalid number for --block-sectors\n";
+                return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+            }
+            block_sectors = static_cast<word>(*number);
+        }
+        if (result.count("block-file"))
+        {
+            const std::string block_path = result["block-file"].as<std::string>();
+            if (!emu->system_bus->block.open_file(block_path, block_sectors))
+            {
+                std::cerr << "ERROR: Cannot read the block device file: " << block_path << "\n";
+                return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+            }
+        }
+        else if (block_sectors != 0)
+        {
+            emu->system_bus->block.set_capacity(block_sectors);
+        }
+    }
 
     if (result.count("console-input"))
     {

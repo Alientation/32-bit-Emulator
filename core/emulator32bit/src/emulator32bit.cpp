@@ -222,6 +222,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             m_retired_since_entry = true;
             result.instructions_ran++;
             system_bus->timer.tick();
+            system_bus->block.tick();
         }
     }
     catch (const Exception &e)

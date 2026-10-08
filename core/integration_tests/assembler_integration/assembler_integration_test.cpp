@@ -2466,3 +2466,57 @@ vectors:
     EXPECT_EQ(reg(7), 1u) << "the handler ran";
     EXPECT_EQ(reg(8), 0u) << "for the timer's line";
 }
+
+// The block device with a disk image file: a program writes a sector, polls until it is done,
+// reads it back, and the host sees the sector in the file after the run.
+TEST_F(AssemblerIntegration, block_device_with_a_disk_image)
+{
+    write_file("disk.basm", R"(.global _start
+.text
+_start:
+                ldr     x22, =$F0003000         ; block device
+                ldr     x3, [x22, $14]          ; capacity
+                mov     x1, 1
+                str     x1, [x22, 8]            ; sector 1
+                mov     x4, 0
+                str     x4, [x22, $10]          ; cursor 0
+                ldr     x5, =$1234
+                str     x5, [x22, $C]           ; first word of the buffer
+                mov     x1, 2
+                str     x1, [x22, 0]            ; write
+wait1:          ldr     x6, [x22, 4]
+                tst     x6, 1
+                b.ne    wait1
+                str     xzr, [x22, 4]           ; acknowledge
+
+                mov     x1, 3
+                str     x1, [x22, 0]            ; flush
+wait2:          ldr     x6, [x22, 4]
+                tst     x6, 1
+                b.ne    wait2
+                str     xzr, [x22, 4]
+
+                str     x4, [x22, $10]
+                str     x4, [x22, $C]           ; scribble over the buffer
+                mov     x1, 1
+                str     x1, [x22, 0]            ; read sector 1 back
+wait3:          ldr     x6, [x22, 4]
+                tst     x6, 1
+                b.ne    wait3
+                ldr     x7, [x22, $C]
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o disk disk.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("disk.bexe", "--block-file disk.img --block-sectors 4"));
+
+    EXPECT_EQ(reg(3), 4u);
+    EXPECT_EQ(reg(7), 0x1234u);
+
+    std::ifstream image(m_dir / "disk.img", std::ios::binary);
+    std::vector<char> bytes((std::istreambuf_iterator<char>(image)),
+                            std::istreambuf_iterator<char>());
+    ASSERT_EQ(bytes.size(), 4u * 512);
+    EXPECT_EQ(bytes[512], 0x34);
+    EXPECT_EQ(bytes[513], 0x12);
+    EXPECT_EQ(bytes[0], 0);
+}

@@ -5,6 +5,7 @@
 
 #include <emulator32bit/devices.h>
 
+#include <filesystem>
 #include <sstream>
 
 namespace
@@ -438,6 +439,241 @@ TEST_F(Devices, the_console_works_from_a_program)
                                    E::asm_hlt()});
     ASSERT_EQ(run(program).status, Status::HALTED);
     EXPECT_EQ(m_console.str(), "OK");
+}
+
+// --- the block device ----------------------------------------------------------------------
+
+namespace
+{
+
+/// A block device with a disk of `sectors` sectors, and helpers to drive it like a driver.
+struct Disk512
+{
+    InterruptController intc;
+    BlockDevice block{intc};
+
+    explicit Disk512(const word sectors)
+    {
+        block.set_capacity(sectors);
+    }
+
+    word reg(const word offset)
+    {
+        return block.read_word(kBlockBase + offset);
+    }
+
+    void set(const word offset, const word value)
+    {
+        block.write_word(kBlockBase + offset, value);
+    }
+
+    void wait()
+    {
+        for (word i = 0; i < 1000 && (reg(0x04) & BlockDevice::kBusy); i++)
+        {
+            block.tick();
+        }
+    }
+
+    /// Fills the buffer with `base + word index` and writes it to the sector.
+    void write_sector(const word sector, const word base)
+    {
+        set(0x10, 0);
+        for (word i = 0; i < 128; i++)
+        {
+            set(0x0C, base + i);
+        }
+        set(0x08, sector);
+        set(0x00, BlockDevice::kCmdWrite);
+        wait();
+        set(0x04, 0);
+    }
+
+    /// Reads the sector into the buffer and returns its first and last word.
+    std::pair<word, word> read_sector(const word sector)
+    {
+        set(0x08, sector);
+        set(0x00, BlockDevice::kCmdRead);
+        wait();
+        set(0x04, 0);
+        word first = reg(0x0C), last = 0;
+        for (word i = 1; i < 128; i++)
+        {
+            last = reg(0x0C);
+        }
+        return {first, last};
+    }
+};
+
+} // namespace
+
+TEST(BlockDeviceUnit, a_sector_that_is_written_can_be_read_back)
+{
+    Disk512 disk(4);
+    EXPECT_EQ(disk.reg(0x14), 4u);
+    disk.write_sector(2, 1000);
+    disk.write_sector(1, 5000);
+
+    // Scribble over the buffer, then read the sector.
+    disk.set(0x10, 0);
+    disk.set(0x0C, 0xDEADBEEF);
+    const auto [first, last] = disk.read_sector(2);
+    EXPECT_EQ(first, 1000u);
+    EXPECT_EQ(last, 1127u);
+    EXPECT_EQ(disk.read_sector(1).first, 5000u);
+    EXPECT_EQ(disk.read_sector(0).first, 0u) << "the others are untouched";
+    EXPECT_EQ(disk.block.sector(2).size(), 512u);
+    EXPECT_EQ(disk.block.sector(2)[0], 1000 & 0xFF);
+    EXPECT_EQ(disk.block.sector(2)[1], 1000 >> 8);
+}
+
+TEST(BlockDeviceUnit, a_command_takes_latency_instructions)
+{
+    Disk512 disk(1);
+    disk.set(0x1C, 5);
+    disk.set(0x00, BlockDevice::kCmdRead);
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kBusy);
+    for (int i = 0; i < 4; i++)
+    {
+        disk.block.tick();
+    }
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kBusy) << "four of five";
+    disk.block.tick();
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kDone);
+    EXPECT_EQ(disk.reg(0x1C), 5u);
+
+    disk.set(0x04, 0); // acknowledge
+    EXPECT_EQ(disk.reg(0x04), 0u);
+}
+
+TEST(BlockDeviceUnit, a_sector_outside_of_the_disk_is_an_error_and_changes_nothing)
+{
+    Disk512 disk(2);
+    disk.write_sector(1, 77);
+    disk.set(0x10, 0);
+    disk.set(0x0C, 1);
+    disk.set(0x08, 2);
+    disk.set(0x00, BlockDevice::kCmdWrite);
+    disk.wait();
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kDone | BlockDevice::kError);
+    EXPECT_TRUE(disk.block.sector(2).empty());
+
+    Disk512 none(0);
+    none.set(0x00, BlockDevice::kCmdRead);
+    none.wait();
+    EXPECT_TRUE(none.reg(0x04) & BlockDevice::kError) << "no disk";
+    EXPECT_EQ(none.reg(0x14), 0u);
+}
+
+TEST(BlockDeviceUnit, a_command_while_busy_is_refused)
+{
+    Disk512 disk(2);
+    disk.set(0x00, BlockDevice::kCmdRead);
+    disk.set(0x00, BlockDevice::kCmdWrite);
+    EXPECT_TRUE(disk.reg(0x04) & BlockDevice::kError);
+    disk.wait();
+    EXPECT_TRUE(disk.reg(0x04) & BlockDevice::kDone);
+    disk.set(0x04, 0);
+    disk.set(0x00, 9); // not a command
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kError);
+}
+
+TEST(BlockDeviceUnit, the_data_register_walks_through_the_buffer)
+{
+    Disk512 disk(1);
+    disk.set(0x10, 8);
+    EXPECT_EQ(disk.reg(0x10), 8u);
+    disk.set(0x0C, 0x11223344);
+    EXPECT_EQ(disk.reg(0x10), 12u);
+    disk.set(0x10, 8);
+    EXPECT_EQ(disk.reg(0x0C), 0x11223344u);
+
+    disk.set(0x10, 512); // past the end: nothing to read or write
+    EXPECT_EQ(disk.reg(0x0C), 0u);
+    disk.set(0x0C, 5);
+    EXPECT_EQ(disk.reg(0x10), 512u);
+}
+
+TEST(BlockDeviceUnit, completion_raises_line_2_when_enabled)
+{
+    Disk512 disk(1);
+    disk.intc.write_word(kIntcBase + 8, 1u << kIrqLineBlock);
+    disk.set(0x00, BlockDevice::kCmdRead);
+    disk.wait();
+    EXPECT_FALSE(disk.intc.has_pending()) << "the disk's interrupt is off";
+    disk.set(0x04, 0);
+
+    disk.set(0x18, 1);
+    disk.set(0x00, BlockDevice::kCmdRead);
+    disk.wait();
+    EXPECT_EQ(disk.intc.claim(), kIrqLineBlock);
+}
+
+TEST(BlockDeviceUnit, the_disk_can_live_in_a_file_and_flush_writes_it)
+{
+    const auto path = std::filesystem::temp_directory_path() / "aemu_block_test.img";
+    std::filesystem::remove(path);
+    {
+        Disk512 disk(0);
+        ASSERT_TRUE(disk.block.open_file(path.string(), 3));
+        EXPECT_EQ(disk.reg(0x14), 3u) << "the file is made with 3 sectors";
+        disk.write_sector(2, 42);
+        disk.set(0x00, BlockDevice::kCmdFlush);
+        disk.wait();
+        EXPECT_EQ(disk.reg(0x04), BlockDevice::kDone);
+    }
+    EXPECT_EQ(std::filesystem::file_size(path), 3u * 512);
+
+    Disk512 again(0);
+    ASSERT_TRUE(again.block.open_file(path.string()));
+    EXPECT_EQ(again.reg(0x14), 3u) << "the size of the file";
+    EXPECT_EQ(again.read_sector(2).first, 42u);
+    std::filesystem::remove(path);
+}
+
+TEST(BlockDeviceUnit, a_reset_keeps_the_disk_but_not_the_controller)
+{
+    Disk512 disk(2);
+    disk.write_sector(1, 9);
+    disk.set(0x1C, 7);
+    disk.set(0x18, 1);
+    disk.block.reset();
+    EXPECT_EQ(disk.reg(0x1C), 100u);
+    EXPECT_EQ(disk.reg(0x18), 0u);
+    EXPECT_EQ(disk.reg(0x14), 2u);
+    EXPECT_EQ(disk.read_sector(1).first, 9u);
+}
+
+// WFI waits for the disk the way it does for the timer: the time jumps to its completion.
+TEST_F(Devices, wfi_waits_for_the_block_device)
+{
+    cpu.system_bus->block.set_capacity(4);
+    BlockDevice &block = cpu.system_bus->block;
+    block.write_word(kBlockBase + 0x0C, 0xCAFE);
+    block.write_word(kBlockBase + 0x08, 3);
+    block.write_word(kBlockBase + 0x00, BlockDevice::kCmdWrite);
+    block.advance(1000);
+    block.write_word(kBlockBase + 0x04, 0);
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kBlockBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineBlock), store_at(1, 10, 0x08), // enable line 2
+                    mov(1, 1), store_at(1, 11, 0x18),                   // interrupt on completion
+                    mov(1, 3), store_at(1, 11, 0x08),                   // sector 3
+                    mov(1, 5000), store_at(1, 11, 0x1C),                // slow disk
+                    mov(1, BlockDevice::kCmdRead), store_at(1, 11, 0x00), E::asm_wfi(),
+                    load_at(8, 10, 0),                                  // claim: the disk's line
+                    load_at(9, 11, 0x0C),  // the first word of the sector
+                    load_at(12, 11, 0x04), // status
+                    E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineBlock);
+    EXPECT_EQ(cpu.read_reg(9), 0xCAFEu);
+    EXPECT_EQ(cpu.read_reg(12), BlockDevice::kDone);
+    EXPECT_LT(result.instructions_ran, 60u) << "it did not execute 5000 instructions";
 }
 
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)

@@ -32,6 +32,7 @@ class SystemBus : private VirtualMemory::PhysicalPages
     InterruptController intc;
     Timer timer{intc};
     Console console{intc};
+    BlockDevice block{intc};
 
     class Exception : public std::exception
     {
@@ -329,7 +330,7 @@ class SystemBus : private VirtualMemory::PhysicalPages
         else if (address >= kDeviceBase)
         {
             for (Device *device : {static_cast<Device *>(&intc), static_cast<Device *>(&timer),
-                                   static_cast<Device *>(&console)})
+                                   static_cast<Device *>(&console), static_cast<Device *>(&block)})
             {
                 if (device->in_bounds(address))
                 {

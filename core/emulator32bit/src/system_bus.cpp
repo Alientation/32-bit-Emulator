@@ -29,6 +29,10 @@ SystemBus::~SystemBus()
     try
     {
         disk->save();
+        if (!block.save())
+        {
+            AEMU_ERROR("SystemBus::~SystemBus() - The block device could not be saved.");
+        }
     }
     catch (const std::exception &error)
     {
@@ -79,4 +83,5 @@ void SystemBus::reset()
     intc.reset();
     timer.reset();
     console.reset();
+    block.reset();
 }

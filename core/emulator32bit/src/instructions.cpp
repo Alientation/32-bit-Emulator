@@ -401,9 +401,24 @@ void Emulator32bit::_wfi(const word instr)
 {
     UNUSED(instr);
     require_kernel();
-    if (system_bus->intc.has_pending() || system_bus->timer.fast_forward())
+    SystemBus &bus = *system_bus;
+    if (bus.intc.has_pending())
     {
         return;
+    }
+
+    // Time jumps to the first event, whichever device it is.
+    const std::optional<word> timer = bus.timer.cycles_until_event();
+    const std::optional<word> block = bus.block.cycles_until_event();
+    if (timer || block)
+    {
+        const word wait = std::min(timer.value_or(~word(0)), block.value_or(~word(0)));
+        bus.timer.advance(wait);
+        bus.block.advance(wait);
+        if (bus.intc.has_pending())
+        {
+            return;
+        }
     }
     throw Exception(InterruptType::HALT_INSTR, "WFI with no interrupt source");
 }

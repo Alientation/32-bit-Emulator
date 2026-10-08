@@ -6,7 +6,9 @@
 #include <cstdint>
 #include <deque>
 #include <iosfwd>
+#include <optional>
 #include <string>
+#include <vector>
 
 /// The memory mapped devices (docs/devices.md). Each is one page of registers at a physical address
 /// in the device window, and is reached through the system bus like memory. A register is a word;
@@ -15,10 +17,12 @@
 inline constexpr word kIntcBase = kDeviceBase;
 inline constexpr word kTimerBase = kDeviceBase + 0x1000;
 inline constexpr word kConsoleBase = kDeviceBase + 0x2000;
+inline constexpr word kBlockBase = kDeviceBase + 0x3000;
 
 /// The interrupt lines.
 inline constexpr word kIrqLineTimer = 0;
 inline constexpr word kIrqLineConsole = 1;
+inline constexpr word kIrqLineBlock = 2;
 
 class Device : public BaseMemory
 {
@@ -108,9 +112,11 @@ class Timer : public Device
         }
     }
 
-    /// For WFI: if the timer is going to raise its interrupt, jump to that moment and raise it.
-    /// Returns whether an interrupt is pending afterwards.
-    bool fast_forward();
+    /// For WFI: the number of instructions until the timer raises its interrupt, if it is going to.
+    std::optional<word> cycles_until_event() const;
+
+    /// For WFI: `count` instructions pass at once (no more than cycles_until_event()).
+    void advance(word count);
 
     void reset() override;
 
@@ -171,4 +177,97 @@ class Console : public Device
     std::ostream *m_out;
     std::deque<byte> m_input;
     word m_ctrl = 0;
+};
+
+/// A block device for the operating system: a disk of 512 byte sectors that is read and written one
+/// sector at a time through a buffer in the device, with a data register (no DMA yet). A command
+/// takes `LATENCY` retired instructions to complete, then the status says so and line 2 is raised if
+/// that is enabled, so the kernel can wait with `WFI`.
+///
+/// | Offset | Name     | Access | |
+/// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file |
+/// | 0x04   | STATUS   | r/w    | bit 0: busy, bit 1: done, bit 2: error. A write clears done and error |
+/// | 0x08   | SECTOR   | r/w    | the sector number of the next command |
+/// | 0x0C   | DATA     | r/w    | the word of the buffer at CURSOR, and CURSOR moves on by 4 (use word accesses) |
+/// | 0x10   | CURSOR   | r/w    | byte offset in the buffer, a multiple of 4 below 512. Set to 0 when a read completes |
+/// | 0x14   | CAPACITY | read   | the number of sectors, 0 when there is no disk |
+/// | 0x18   | CTRL     | r/w    | bit 0: raise line 2 when a command completes |
+/// | 0x1C   | LATENCY  | r/w    | instructions a command takes (at least 1). Reset: 100 |
+///
+/// A command given while busy is ignored and sets error. A sector outside of the disk completes with
+/// error and changes nothing. The contents of the disk survive a reset; they are in memory, or in a
+/// file the host gave (`open_file`) that FLUSH, `save` and destroying the machine write.
+class BlockDevice : public Device
+{
+  public:
+    static constexpr word kSectorSize = 512;
+
+    static constexpr word kBusy = 1;
+    static constexpr word kDone = 2;
+    static constexpr word kError = 4;
+
+    static constexpr word kCmdRead = 1;
+    static constexpr word kCmdWrite = 2;
+    static constexpr word kCmdFlush = 3;
+
+    explicit BlockDevice(InterruptController &intc);
+
+    /// A disk in memory of this many sectors, all zeros.
+    void set_capacity(word sectors);
+
+    /// A disk kept in the file. A file that exists is read (its size, rounded up to sectors, is the
+    /// capacity unless `sectors` is more); one that does not is made with `sectors` sectors.
+    /// Returns false if the file cannot be read.
+    bool open_file(const std::string &path, word sectors = 0);
+
+    /// Writes the disk to its file, if it has one. Returns false on an error.
+    bool save();
+
+    /// One instruction retired.
+    void tick()
+    {
+        if (UNLIKELY(m_busy))
+        {
+            if (--m_remaining == 0)
+            {
+                complete();
+            }
+        }
+    }
+
+    /// For WFI: the number of instructions until the command in progress completes.
+    std::optional<word> cycles_until_event() const;
+
+    /// For WFI: `count` instructions pass at once (no more than cycles_until_event()).
+    void advance(word count);
+
+    void reset() override;
+
+    /// For tests: the bytes of a sector.
+    std::vector<byte> sector(word number) const;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    void start(word command);
+    void complete();
+
+    InterruptController &m_intc;
+    std::vector<byte> m_storage;
+    std::string m_path;
+
+    byte m_buffer[kSectorSize] = {};
+    word m_cursor = 0;
+    word m_sector = 0;
+    word m_ctrl = 0;
+    word m_latency = 100;
+    word m_status = 0;
+
+    bool m_busy = false;
+    word m_command = 0;
+    word m_command_sector = 0;
+    word m_remaining = 0;
+    byte m_write_data[kSectorSize] = {}; ///< the buffer when a write command was given
 };
