@@ -3,6 +3,7 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
 
+#include <array>
 #include <iosfwd>
 #include <map>
 #include <unordered_map>
@@ -39,8 +40,14 @@ class ObjectFile
             /// @brief      TODO:
             GLOBAL = 1,
 
-            /// @brief      TODO:
-            WEAK = 2
+            /// @brief      A reference that nothing defined in this file yet (what `.extern` and
+            ///             the use of a name give), which the linker resolves.
+            WEAK = 2,
+
+            /// @brief      Declared with `.weak`. A definition of it is used only if no other
+            ///             file has a (strong) definition, and if there is none at all the
+            ///             symbol is 0 instead of an undefined reference.
+            WEAK_DECLARED = 3
         } binding_info;
 
         /// @brief          Index into the section table that this symbol is defined in. U32(-1)
@@ -67,6 +74,12 @@ class ObjectFile
             REL_BSS,
             DEBUG,
             STRTAB,
+            RODATA,
+            INIT_ARRAY,
+            FINI_ARRAY,
+            REL_RODATA,
+            REL_INIT_ARRAY,
+            REL_FINI_ARRAY,
         } type;
 
         /// @brief          Offset this section starts at in bytes.
@@ -185,6 +198,15 @@ class ObjectFile
     /// @brief              Data stored in .data section.
     std::vector<byte> data_section;
 
+    /// @brief              Read only data, `.rodata`.
+    std::vector<byte> rodata_section;
+
+    /// @brief              The addresses of functions to call before `main`, `.init_array`. Words.
+    std::vector<byte> init_array_section;
+
+    /// @brief              The addresses of functions to call after `main`, `.fini_array`. Words.
+    std::vector<byte> fini_array_section;
+
     /// @brief              Size of .bss section. Zero initialized on program load.
     word bss_section = 0;
 
@@ -202,6 +224,39 @@ class ObjectFile
     /// @brief              For now, no purpose.
     /// @todo               TODO: Will this ever be used?
     std::vector<RelocationEntry> rel_bss;
+
+    /// @brief              `.word symbol` in .rodata, .init_array and .fini_array.
+    std::vector<RelocationEntry> rel_rodata;
+    std::vector<RelocationEntry> rel_init_array;
+    std::vector<RelocationEntry> rel_fini_array;
+
+    /// @brief              The sections that hold bytes (and the relocations for words in them)
+    ///                     as opposed to code or a size: .data, .rodata, .init_array and
+    ///                     .fini_array. They are handled the same everywhere; this lets the
+    ///                     assembler, linker, loader and file reader/writer loop over them.
+    struct ByteSection
+    {
+        const char *name;
+        const char *rel_name;
+        SectionHeader::Type type;
+        SectionHeader::Type rel_type;
+        std::vector<byte> ObjectFile::*bytes;
+        std::vector<RelocationEntry> ObjectFile::*relocations;
+
+        /// @brief          Whether the loaded section may be written by the program.
+        bool writable;
+
+        /// @brief          What the section is aligned to by default (the entries are words).
+        word alignment;
+    };
+
+    /// @brief              The four byte sections, in the order .data, .rodata, .init_array,
+    ///                     .fini_array.
+    static const std::array<ByteSection, 4> &byte_sections();
+
+    /// @brief              The byte section with the section type or relocation section type, or
+    ///                     null if the type is none of them.
+    static const ByteSection *byte_section_of(SectionHeader::Type type);
 
     // TODO: Possbly in future add separate string table for section headers like ELF files.
     // TODO: Refactor string table so that it stores the offset of the first character of a

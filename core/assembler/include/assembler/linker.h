@@ -3,6 +3,7 @@
 #include "assembler/object_file.h"
 #include "assembler/tokenizer.h"
 
+#include <array>
 #include <unordered_map>
 #include <vector>
 
@@ -50,10 +51,13 @@ class Linker
         enum class Type
         {
             TEXT,
-            DATA,
+            BYTES, ///< one of ObjectFile::byte_sections(), `byte_index` says which
             BSS
         };
         Type type;
+
+        /// Index into ObjectFile::byte_sections() (.data, .rodata, .init_array, .fini_array).
+        size_t byte_index = 0;
 
         bool set_address = false;
         word address = 0;
@@ -63,11 +67,12 @@ class Linker
     bool m_physical = false;
     std::vector<SectionAddress> m_sections;
 
-    /// One value for each of .text, .data and .bss.
+    /// One value for each of .text, .bss and the byte sections (.data, .rodata, .init_array,
+    /// .fini_array, in the order of ObjectFile::byte_sections()).
     struct SectionBase
     {
         word text = 0;
-        word data = 0;
+        std::array<word, 4> bytes = {};
         word bss = 0;
     };
 
@@ -84,6 +89,8 @@ class Linker
     std::vector<SymbolMap> merge_symbols(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                          const SectionBase &addresses) const;
     void define_entry(ObjectFile &exe) const;
+    /// Defines the bounds of .init_array and .fini_array as symbols.
+    void define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const;
     void relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                   const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const;
 

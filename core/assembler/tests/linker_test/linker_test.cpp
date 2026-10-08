@@ -451,7 +451,7 @@ TEST_F(LinkerScript, unknown_commands_are_errors)
 TEST_F(LinkerScript, lexical_errors)
 {
     EXPECT_TRUE(contains(error("SECTIONS(\n.text = 0xZZ;\n)\n"), "lexical error"));
-    EXPECT_TRUE(contains(error("SECTIONS(\n.rodata;\n)\n"), "lexical error"));
+    EXPECT_TRUE(contains(error("SECTIONS(\n.comment;\n)\n"), "lexical error"));
     EXPECT_TRUE(contains(error("/* never closed\n"), "lexical error"));
 }
 

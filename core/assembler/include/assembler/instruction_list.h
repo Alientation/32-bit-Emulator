@@ -78,12 +78,28 @@
       Emulator32bit::kAtomicId_swp)                                                                \
     F(X, UDIV, "udiv", true, O, Emulator32bit::_op_udiv, 0)                                        \
     F(X, SDIV, "sdiv", true, O, Emulator32bit::_op_sdiv, 0)                                        \
+    F(X, CSEL, "csel", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csel)          \
+    F(X, CSINC, "csinc", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)       \
+    F(X, CSINV, "csinv", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)       \
+    F(X, CSNEG, "csneg", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csneg)       \
+    F(X, CSET, "cset", false, CSET, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)         \
+    F(X, CSETM, "csetm", false, CSET, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)       \
+    F(X, CINC, "cinc", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)         \
+    F(X, CINV, "cinv", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)         \
+    F(X, CNEG, "cneg", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csneg)         \
     F(X, MSR, "msr", false, MSR, 0, 0)                                                             \
     F(X, MRS, "mrs", false, MRS, 0, 0)                                                             \
     F(X, TLBI, "tlbi", false, UNIMPLEMENTED, 0, 0)                                                 \
     F(X, ERET, "eret", false, ERET, 0, 0)                                                          \
     F(X, WFI, "wfi", false, WFI, 0, 0)                                                             \
     F(X, BRK, "brk", false, BRK, 0, 0)                                                             \
+    F(X, SXTB, "sxtb", false, UNARY, Emulator32bit::kUnaryId_sxtb, 0)                              \
+    F(X, SXTH, "sxth", false, UNARY, Emulator32bit::kUnaryId_sxth, 0)                              \
+    F(X, UXTB, "uxtb", false, UNARY, Emulator32bit::kUnaryId_uxtb, 0)                              \
+    F(X, UXTH, "uxth", false, UNARY, Emulator32bit::kUnaryId_uxth, 0)                              \
+    F(X, CLZ, "clz", false, UNARY, Emulator32bit::kUnaryId_clz, 0)                                 \
+    F(X, REV, "rev", false, UNARY, Emulator32bit::kUnaryId_rev, 0)                                 \
+    F(X, REV16, "rev16", false, UNARY, Emulator32bit::kUnaryId_rev16, 0)                           \
     F(X, LDADD, "ldadd", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                          \
       Emulator32bit::kAtomicId_ldadd)                                                              \
     F(X, LDADDB, "ldaddb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                        \

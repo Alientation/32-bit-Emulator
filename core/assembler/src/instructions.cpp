@@ -382,7 +382,7 @@ word Assembler::parse_format_o3(byte opcode)
         {
             const word imm = parse_expression();
 
-            check(imm < (1ULL << 14), "immediate value must be a 14 bit number");
+            check(imm < (1ULL << 19), "immediate value must be a 19 bit number");
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }
     }
@@ -484,6 +484,151 @@ word Assembler::parse_format_o(byte opcode, bool implicit_dest)
     }
 }
 
+ConditionCode Assembler::parse_condition()
+{
+    const Token &cond = m_cursor.peek();
+    if (!basm::is_condition(cond.type))
+    {
+        fail(cond, "expected a condition code (eq, ne, lt, ...), got " + basm::describe(cond));
+    }
+    m_cursor.next();
+    return get_cond_code(cond.type);
+}
+
+// The condition of the aliases is the one under which the *first* register is chosen, the
+// instruction stores the opposite one. al and nv have no opposite.
+ConditionCode Assembler::parse_inverted_condition()
+{
+    const Token &at = m_cursor.peek();
+    const ConditionCode condition = parse_condition();
+    if (condition == ConditionCode::AL || condition == ConditionCode::NV)
+    {
+        fail(at, "this instruction needs a condition other than al and nv");
+    }
+    return ConditionCode(U8(condition) ^ 1);
+}
+
+// csel xd, xn, xm, cond   (and csinc, csinv, csneg)
+word Assembler::parse_format_csel(byte opcode, byte variant)
+{
+    UNUSED(opcode);
+    m_cursor.next();
+
+    const byte xd = parse_register();
+    expect(TokenType::COMMA, "expected ','");
+    const byte xn = parse_register();
+    expect(TokenType::COMMA, "expected ','");
+    const byte xm = parse_register();
+    expect(TokenType::COMMA, "expected ',' and a condition");
+    const ConditionCode condition = parse_condition();
+    return Emulator32bit::asm_csel(variant, condition, xd, xn, xm);
+}
+
+// cset xd, cond   (and csetm): xd = cond ? 1 : 0, or all ones.
+word Assembler::parse_format_cset(byte opcode, byte variant)
+{
+    UNUSED(opcode);
+    m_cursor.next();
+
+    const byte xd = parse_register();
+    expect(TokenType::COMMA, "expected ',' and a condition");
+    const ConditionCode inverse = parse_inverted_condition();
+    constexpr byte kZero = byte(Register::XZR);
+    return Emulator32bit::asm_csel(variant, inverse, xd, kZero, kZero);
+}
+
+// cinc xd, xn, cond   (and cinv, cneg): xd = cond ? f(xn) : xn.
+word Assembler::parse_format_cinc(byte opcode, byte variant)
+{
+    UNUSED(opcode);
+    m_cursor.next();
+
+    const byte xd = parse_register();
+    expect(TokenType::COMMA, "expected ','");
+    const byte xn = parse_register();
+    expect(TokenType::COMMA, "expected ',' and a condition");
+    const ConditionCode inverse = parse_inverted_condition();
+    return Emulator32bit::asm_csel(variant, inverse, xd, xn, xn);
+}
+
+// sxtb xd, xn   (and the other unary operations)
+word Assembler::parse_format_unary(byte operation)
+{
+    m_cursor.next();
+
+    const byte xd = parse_register();
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xn = parse_register();
+    return Emulator32bit::asm_unary(operation, xd, xn);
+}
+
+// `ldr xd, =constant` or `ldr xd, =symbol`. A pseudo instruction, there is no literal pool: a
+// load cannot reach one (no pc relative addressing), and any constant is built in at most 3
+// instructions without touching memory. A constant is built with the shortest sequence:
+//   0 to 0x7FFFF:        mov  xd, value
+//   -0x80000 to -1:      mvn  xd, ~value
+//   anything else:       mov  xd, value >> 14 / lsl xd, xd, 14 / orr xd, xd, value & 0x3FFF
+// (the `orr` is left out when those bits are 0). A symbol is its address, adrp + add :lo12:.
+// Returns false if the statement is not this form.
+bool Assembler::assemble_load_constant()
+{
+    if (m_cursor.peek(3).type != TokenType::EQUAL)
+    {
+        return false;
+    }
+
+    m_cursor.next(); // ldr
+    const byte xd = parse_register();
+    expect(TokenType::COMMA, "expected ','");
+    m_cursor.next(); // =
+
+    const Token &first = m_cursor.peek();
+    const ExprValue target = parse_binary_expression(1);
+    if (target.label != nullptr)
+    {
+        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                       ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20, target);
+        m_obj.text_section.push_back(Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, xd, 0));
+
+        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+                       ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
+        m_obj.text_section.push_back(
+            Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xd, 0));
+        return true;
+    }
+
+    const sdword number = target.value;
+    if (number < INT32_MIN || number > sdword(UINT32_MAX))
+    {
+        fail(first, "the value " + std::to_string(number) + " does not fit in 32 bits");
+    }
+    const word value = word(number);
+
+    if (value < (1u << 19))
+    {
+        m_obj.text_section.push_back(
+            Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value)));
+    }
+    else if (~value < (1u << 19))
+    {
+        m_obj.text_section.push_back(
+            Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, xd, int(~value)));
+    }
+    else
+    {
+        m_obj.text_section.push_back(
+            Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value >> 14)));
+        m_obj.text_section.push_back(
+            Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, xd, xd, true, 0, 14));
+        if ((value & 0x3FFF) != 0)
+        {
+            m_obj.text_section.push_back(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false,
+                                                                     xd, xd, int(value & 0x3FFF)));
+        }
+    }
+    return true;
+}
+
 word Assembler::parse_format_atomic(byte width, byte atopcode)
 {
     m_cursor.next();
@@ -579,7 +724,23 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         instruction = parse_format_o3(spec.a);
         break;
     case Format::M:
+        if (spec.a == Emulator32bit::_op_ldr && assemble_load_constant())
+        {
+            return;
+        }
         instruction = parse_format_m(spec.a);
+        break;
+    case Format::CSEL:
+        instruction = parse_format_csel(spec.a, spec.b);
+        break;
+    case Format::CSET:
+        instruction = parse_format_cset(spec.a, spec.b);
+        break;
+    case Format::CINC:
+        instruction = parse_format_cinc(spec.a, spec.b);
+        break;
+    case Format::UNARY:
+        instruction = parse_format_unary(spec.a);
         break;
     case Format::M1:
         instruction = parse_format_m1(spec.a);

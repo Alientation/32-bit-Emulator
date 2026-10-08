@@ -50,6 +50,14 @@ const char *operands_of(InstructionFormat format)
         return "5";
     case InstructionFormat::ATOMIC:
         return "x1, x2, [x3]";
+    case InstructionFormat::CSEL:
+        return "x1, x2, x3, eq";
+    case InstructionFormat::CSET:
+        return "x1, eq";
+    case InstructionFormat::CINC:
+        return "x1, x2, eq";
+    case InstructionFormat::UNARY:
+        return "x1, x2";
     default:
         return "";
     }
@@ -108,7 +116,11 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         const std::string line = std::string(spec->text) + " " + operands_of(format);
         const std::vector<word> words = assemble(line);
         ASSERT_EQ(words.size(), 1u) << line;
-        EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), spec->a) << line;
+
+        // The unary instructions are in the special group, their row has the operation instead.
+        const word opcode =
+            format == InstructionFormat::UNARY ? Emulator32bit::_op_special_instructions : spec->a;
+        EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), opcode) << line;
         EXPECT_EQ(mnemonic_of(Emulator32bit::disassemble_instr(words[0])), spec->text) << line;
         checked++;
     }
@@ -205,4 +217,117 @@ TEST_F(InstructionTable, msr_and_mrs_name_the_system_registers_in_any_case)
               std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, false, 0)});
     EXPECT_TRUE(
         contains(error_of([&] { assemble("msr nothing, x1"); }), "invalid system register"));
+}
+
+TEST_F(InstructionTable, conditional_selects)
+{
+    using E = Emulator32bit;
+    constexpr word xzr = 31;
+    EXPECT_EQ(assemble("csel x1, x2, x3, lt"),
+              std::vector<word>{E::asm_csel(E::kCselId_csel, ConditionCode::LT, 1, 2, 3)});
+    EXPECT_EQ(assemble("csinc x1, x2, x3, hs"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::HS, 1, 2, 3)});
+    EXPECT_EQ(assemble("csinv x1, x2, xzr, ne"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::NE, 1, 2, xzr)});
+    EXPECT_EQ(assemble("csneg x1, x2, x3, mi"),
+              std::vector<word>{E::asm_csel(E::kCselId_csneg, ConditionCode::MI, 1, 2, 3)});
+
+    // The aliases store the opposite condition.
+    EXPECT_EQ(assemble("cset x1, lt"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::GE, 1, xzr, xzr)});
+    EXPECT_EQ(assemble("csetm x1, eq"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::NE, 1, xzr, xzr)});
+    EXPECT_EQ(assemble("cinc x1, x2, hi"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::LS, 1, 2, 2)});
+    EXPECT_EQ(assemble("cinv x1, x2, gt"),
+              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::LE, 1, 2, 2)});
+    EXPECT_EQ(assemble("cneg x1, x2, vs"),
+              std::vector<word>{E::asm_csel(E::kCselId_csneg, ConditionCode::VC, 1, 2, 2)});
+
+    // The alias disassembles back to what was written.
+    EXPECT_EQ(E::disassemble_instr(assemble("cset x1, lt")[0]), "cset x1, lt");
+    EXPECT_EQ(E::disassemble_instr(assemble("cneg x1, x2, vs")[0]), "cneg x1, x2, vs");
+
+    // A label may be called like a condition: only the last operand of these is one.
+    EXPECT_EQ(assemble("lt: csel x1, x2, x3, lt").size(), 1u);
+
+    EXPECT_TRUE(contains(error_of([&] { assemble("cset x1, al"); }), "other than al and nv"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("csel x1, x2, x3"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("csel x1, x2, x3, x4"); }), "condition code"));
+}
+
+TEST_F(InstructionTable, unary_instructions)
+{
+    using E = Emulator32bit;
+    EXPECT_EQ(assemble("sxtb x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_sxtb, 1, 2)});
+    EXPECT_EQ(assemble("sxth x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_sxth, 1, 2)});
+    EXPECT_EQ(assemble("uxtb x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_uxtb, 1, 2)});
+    EXPECT_EQ(assemble("uxth x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_uxth, 1, 2)});
+    EXPECT_EQ(assemble("clz x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_clz, 1, 2)});
+    EXPECT_EQ(assemble("rev x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_rev, 1, 2)});
+    EXPECT_EQ(assemble("rev16 x1, sp"), std::vector<word>{E::asm_unary(E::kUnaryId_rev16, 1, 30)});
+    EXPECT_TRUE(contains(error_of([&] { assemble("clz x1"); }), "expected ','"));
+}
+
+// `ldr xd, =value` builds the constant with the fewest instructions, there is no literal pool.
+TEST_F(InstructionTable, load_constant_pseudo_instruction)
+{
+    using E = Emulator32bit;
+    const auto mov = [](word v) { return E::asm_format_o3(E::_op_mov, false, 1, int(v)); };
+    const auto mvn = [](word v) { return E::asm_format_o3(E::_op_mvn, false, 1, int(v)); };
+    const auto lsl14 = E::asm_format_o1(E::_op_lsl, 1, 1, true, 0, 14);
+    const auto orr = [](word v) { return E::asm_format_o(E::_op_orr, false, 1, 1, int(v)); };
+
+    EXPECT_EQ(assemble("ldr x1, =0"), std::vector<word>{mov(0)});
+    EXPECT_EQ(assemble("ldr x1, =524287"), std::vector<word>{mov(0x7FFFF)});
+    EXPECT_EQ(assemble("ldr x1, =0 - 1"), std::vector<word>{mvn(0)});
+    EXPECT_EQ(assemble("ldr x1, =0 - 524288"), std::vector<word>{mvn(0x7FFFF)});
+    EXPECT_EQ(assemble("ldr x1, =$FFFFFFFF"), std::vector<word>{mvn(0)});
+
+    // 19 bits are not enough: shift in the high part, then the low 14 bits.
+    EXPECT_EQ(assemble("ldr x1, =$12345678"),
+              (std::vector<word>{mov(0x12345678u >> 14), lsl14, orr(0x12345678u & 0x3FFF)}));
+    // Nothing to add when those bits are zero.
+    EXPECT_EQ(assemble("ldr x1, =$80000000"), (std::vector<word>{mov(0x80000000u >> 14), lsl14}));
+    EXPECT_EQ(assemble("ldr x1, =524288"), (std::vector<word>{mov(524288u >> 14), lsl14}));
+
+    // The register is the destination: the others are not touched (x16 is not used).
+    EXPECT_EQ(assemble("ldr sp, =$12345678").size(), 3u);
+
+    // An ordinary load is still an ordinary load.
+    EXPECT_EQ(assemble("ldr x1, [x2]"), std::vector<word>{E::asm_format_m(
+                                            E::_op_ldr, false, 1, 2, 0, E::AddrType::ADDR_OFFSET)});
+
+    EXPECT_TRUE(
+        contains(error_of([&] { assemble("ldr x1, =$100000000"); }), "does not fit in 32 bits"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("ldrb x1, =5"); }), "expected '['"));
+}
+
+TEST_F(InstructionTable, load_address_pseudo_instruction_is_adrp_and_add)
+{
+    using E = Emulator32bit;
+    const std::string input =
+        write("addr.bi", ".global _start\n.text\n_start:\nldr x3, =_start + 8\n");
+    Assembler assembler(File(input), (m_dir / "out" / "addr.bo").string());
+    assembler.assemble();
+    const ObjectFile obj(assembler.get_output_file());
+
+    ASSERT_EQ(obj.text_section.size(), 2u);
+    EXPECT_EQ(obj.text_section[0], E::asm_format_m1(E::_op_adrp, 3, 0));
+    EXPECT_EQ(obj.text_section[1], E::asm_format_o(E::_op_add, false, 3, 3, 0));
+    ASSERT_EQ(obj.rel_text.size(), 2u);
+    EXPECT_EQ(obj.rel_text[0].type, ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20);
+    EXPECT_EQ(obj.rel_text[0].offset, 0u);
+    EXPECT_EQ(obj.rel_text[0].addend, 8);
+    EXPECT_EQ(obj.rel_text[1].type, ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12);
+    EXPECT_EQ(obj.rel_text[1].offset, 4u);
+    EXPECT_EQ(obj.rel_text[1].addend, 8);
+}
+
+TEST_F(InstructionTable, mov_takes_a_19_bit_immediate)
+{
+    using E = Emulator32bit;
+    EXPECT_EQ(assemble("mov x1, 524287"),
+              std::vector<word>{E::asm_format_o3(E::_op_mov, false, 1, 0x7FFFF)});
+    EXPECT_TRUE(contains(error_of([&] { assemble("mov x1, 524288"); }), "19 bit"));
 }

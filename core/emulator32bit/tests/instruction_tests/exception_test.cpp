@@ -65,7 +65,7 @@ word store(const U8 xt, const U8 xn)
 /// An opcode that is not assigned, an extended op of the special group that is not assigned, and a
 /// floating point instruction (reserved, not implemented).
 constexpr word kBadOpcode = 0xFC000000;
-constexpr word kBadExtOp = 0b1000u << 22;
+constexpr word kBadExtOp = 0b1001u << 22;
 constexpr word kNotImplemented = word(Emulator32bit::_op_vadd) << 26;
 
 class Exceptions : public ::testing::Test

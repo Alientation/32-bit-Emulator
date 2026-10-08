@@ -3,6 +3,7 @@
 #include "util/logger.h"
 #include <util/common.h>
 
+#include <bit>
 #include <format>
 #include <string>
 
@@ -258,6 +259,9 @@ void Emulator32bit::_special_instructions(const word instr)
     case kSpecialOpId_brk:
         _brk(instr);
         break;
+    case kSpecialOpId_unary:
+        _unary(instr);
+        break;
     default:
         throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
                         "Bad OPSPEC specifier " + std::to_string(opspec), kUndefinedIss_ext_op);
@@ -428,6 +432,89 @@ word Emulator32bit::asm_brk(const word imm22)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_brk)
                     << JPart(22, imm22);
+}
+
+// `op xd, xn`: sign and zero extension of the low byte or half-word, count of leading zeros, and
+// the byte reversals. No flags.
+void Emulator32bit::_unary(const word instr)
+{
+    const word op = bitfield_unsigned(instr, 0, 4);
+    const word xn = read_reg(_SX2(instr));
+
+    word result;
+    switch (op)
+    {
+    case kUnaryId_sxtb:
+        result = word(sword(S8(xn)));
+        break;
+    case kUnaryId_sxth:
+        result = word(sword(S16(xn)));
+        break;
+    case kUnaryId_uxtb:
+        result = xn & 0xFF;
+        break;
+    case kUnaryId_uxth:
+        result = xn & 0xFFFF;
+        break;
+    case kUnaryId_clz:
+        result = word(std::countl_zero(xn));
+        break;
+    case kUnaryId_rev:
+        result = (xn << 24) | ((xn & 0xFF00) << 8) | ((xn >> 8) & 0xFF00) | (xn >> 24);
+        break;
+    case kUnaryId_rev16:
+        result = ((xn & 0x00FF00FF) << 8) | ((xn >> 8) & 0x00FF00FF);
+        break;
+    default:
+        throw Exception(InterruptType::BAD_INSTR, "Bad unary operation " + std::to_string(op),
+                        kUndefinedIss_ext_op);
+    }
+    write_reg(_SX1(instr), result);
+}
+
+word Emulator32bit::asm_unary(const word op, const word xd, const word xn)
+{
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_unary)
+                    << JPart(5, xd) << Zeros(1) << JPart(5, xn) << Zeros(7) << JPart(4, op);
+}
+
+// Conditional select: xd = cond ? xn : f(xm), where f depends on the variant. The flags are
+// not changed. `cset` and the other aliases are these with the zero register and the opposite
+// condition.
+void Emulator32bit::_csel(const word instr)
+{
+    const U8 cond = bitfield_unsigned(instr, 22, 4);
+    const word variant = bitfield_unsigned(instr, 4, 2);
+    const word xn = read_reg(_SX2(instr));
+    const word xm = read_reg(bitfield_unsigned(instr, 6, 5));
+
+    word result = xn;
+    if (!check_cond(m_pstate, cond))
+    {
+        switch (variant)
+        {
+        case kCselId_csel:
+            result = xm;
+            break;
+        case kCselId_csinc:
+            result = xm + 1;
+            break;
+        case kCselId_csinv:
+            result = ~xm;
+            break;
+        default:
+            result = word(0) - xm;
+            break;
+        }
+    }
+    write_reg(_SX1(instr), result);
+}
+
+word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const word xd,
+                             const word xn, const word xm)
+{
+    return Joiner() << JPart(6, _op_csel) << JPart(4, word(cond)) << JPart(5, xd) << JPart(1, 0)
+                    << JPart(5, xn) << JPart(5, xm) << JPart(2, variant) << Zeros(4);
 }
 
 void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operation)

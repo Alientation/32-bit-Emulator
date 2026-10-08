@@ -82,6 +82,14 @@ void Assembler::assemble()
     m_obj.add_section(".rel.data", ObjectFile::SectionHeader::Type::REL_DATA);
     m_obj.add_section(".rel.bss", ObjectFile::SectionHeader::Type::REL_BSS);
     m_obj.add_section(".strtab", ObjectFile::SectionHeader::Type::STRTAB);
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        if (!m_obj.section_table.count(section.name))
+        {
+            m_obj.add_section(section.name, section.type);
+            m_obj.add_section(section.rel_name, section.rel_type);
+        }
+    }
 
     // Parse tokens.
     AEMU_DEBUG("Assembler::assemble() - Parsing tokens.");
@@ -180,7 +188,10 @@ void Assembler::fill_local()
 {
     AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
     fill_local(m_obj.rel_text, true);
-    fill_local(m_obj.rel_data, false);
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        fill_local(m_obj.*section.relocations, false);
+    }
     AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }
 
@@ -236,8 +247,11 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
 
         if (!found_local)
         {
+            // A weak symbol may be replaced by another file, so the branch is the linker's.
             if (m_obj.symbol_table.at(rel.symbol).binding_info
                     != ObjectFile::SymbolTableEntry::BindingInfo::WEAK
+                && m_obj.symbol_table.at(rel.symbol).binding_info
+                       != ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED
                 && m_obj.symbol_table.at(rel.symbol).section == m_obj.section_table[".text"])
             {
                 symbol_entry = m_obj.symbol_table.at(rel.symbol);

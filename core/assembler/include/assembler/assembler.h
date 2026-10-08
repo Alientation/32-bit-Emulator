@@ -88,8 +88,30 @@ class Assembler
         BSS,
 
         /// @brief      In the TEXT section.
-        TEXT
+        TEXT,
+
+        /// @brief      In the RODATA section.
+        RODATA,
+
+        /// @brief      In the INIT_ARRAY section.
+        INIT_ARRAY,
+
+        /// @brief      In the FINI_ARRAY section.
+        FINI_ARRAY
     } m_cur_section = Section::NONE;
+
+    /// @brief The section being assembled if it holds bytes (.data, .rodata, .init_array,
+    ///        .fini_array), null for .text, .bss and outside of a section.
+    const ObjectFile::ByteSection *current_byte_section() const;
+
+    /// @brief The bytes of that section.
+    std::vector<byte> &section_bytes();
+
+    /// @brief The relocations of that section.
+    std::vector<ObjectFile::RelocationEntry> &section_relocations();
+
+    /// @brief Switches the directive to a byte section and makes it the current one.
+    void enter_byte_section(Section section, const char *name);
 
     /// @brief Index into the section table of the current section.
     U32 m_cur_section_index = U32(-1);
@@ -221,6 +243,16 @@ class Assembler
     word parse_format_b1(byte opcode);
     word parse_format_b2(byte opcode);
     word parse_format_swi(byte opcode);
+    word parse_format_csel(byte opcode, byte variant);
+    word parse_format_cset(byte opcode, byte variant);
+    word parse_format_cinc(byte opcode, byte variant);
+    word parse_format_unary(byte operation);
+    ConditionCode parse_condition();
+    ConditionCode parse_inverted_condition();
+
+    /// @brief `ldr xd, =value`: loads a constant or an address with the instructions that make it.
+    ///        Returns false, having consumed nothing, if the statement is not of that form.
+    bool assemble_load_constant();
     word parse_format_atomic(byte width, byte atopcode);
     void fill_local();
     void fill_local(std::vector<ObjectFile::RelocationEntry> &relocations, bool fill_branches);
@@ -230,6 +262,11 @@ class Assembler
     ///
     void _global();
     void _extern();
+    void _weak();
+    void _comm();
+    void _rodata();
+    void _init_array();
+    void _fini_array();
     void _equ();
     void _org();
     void _scope();
@@ -276,6 +313,11 @@ class Assembler
     std::unordered_map<basm::TokenType, DirectiveFunction> m_directive_handlers = {
         {basm::TokenType::ASSEMBLER_GLOBAL, &Assembler::_global},
         {basm::TokenType::ASSEMBLER_EXTERN, &Assembler::_extern},
+        {basm::TokenType::ASSEMBLER_WEAK, &Assembler::_weak},
+        {basm::TokenType::ASSEMBLER_COMM, &Assembler::_comm},
+        {basm::TokenType::ASSEMBLER_RODATA, &Assembler::_rodata},
+        {basm::TokenType::ASSEMBLER_INIT_ARRAY, &Assembler::_init_array},
+        {basm::TokenType::ASSEMBLER_FINI_ARRAY, &Assembler::_fini_array},
         {basm::TokenType::ASSEMBLER_EQU, &Assembler::_equ},
         {basm::TokenType::ASSEMBLER_ORG, &Assembler::_org},
         {basm::TokenType::ASSEMBLER_SCOPE, &Assembler::_scope},

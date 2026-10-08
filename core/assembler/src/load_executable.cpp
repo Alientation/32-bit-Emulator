@@ -91,7 +91,12 @@ void LoadExecutable::load()
 {
     ObjectFile obj(m_exe_file);
 
-    AEMU_CHECK(obj.rel_text.empty() && obj.rel_data.empty() && obj.rel_bss.empty(),
+    bool has_relocations = !obj.rel_text.empty() || !obj.rel_bss.empty();
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        has_relocations |= !(obj.*section.relocations).empty();
+    }
+    AEMU_CHECK(!has_relocations,
                "LoadExecutable::load() - '{}' still has relocations. It was not produced by the "
                "linker.",
                m_exe_file.get_path());
@@ -109,7 +114,11 @@ void LoadExecutable::load()
 
     PagePermissions permissions;
     copy_section(m_emu, placement_of(obj, ".text"), text, false, true, permissions);
-    copy_section(m_emu, placement_of(obj, ".data"), obj.data_section, true, false, permissions);
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        copy_section(m_emu, placement_of(obj, section.name), obj.*section.bytes, section.writable,
+                     false, permissions);
+    }
     copy_section(m_emu, placement_of(obj, ".bss"), std::vector<byte>(obj.bss_section, 0), true,
                  false, permissions);
 

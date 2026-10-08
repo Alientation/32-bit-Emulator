@@ -102,28 +102,40 @@ void ObjectFile::print(std::ostream &out)
                            section_name, address_text(0), strings[symbol.symbol_name]);
     }
 
-    out << "\nContents of section .data:";
-    const int data_address_width = digits_for(data_section.size() / 16);
-    for (size_t i = 0; i < data_section.size(); i++)
+    // .data is always listed, the other byte sections only when they have contents.
+    for (const ByteSection &section : byte_sections())
     {
-        if (i % 16 == 0)
+        const std::vector<byte> &bytes_of_section = this->*section.bytes;
+        const std::vector<RelocationEntry> &relocations = this->*section.relocations;
+        if (section.type != SectionHeader::Type::DATA && bytes_of_section.empty())
         {
-            out << std::format("\n{:0{}x} ", i, data_address_width);
+            continue;
         }
-        if (i % 4 == 0 && i % 16 != 0)
-        {
-            out << ' ';
-        }
-        out << std::format("{:02x}", data_section[i]);
-    }
 
-    if (!rel_data.empty())
-    {
-        out << "\n\nRelocations of section .data:";
-        for (const RelocationEntry &rel : rel_data)
+        out << std::format("{}Contents of section {}:",
+                           &section == &byte_sections()[0] ? "\n" : "\n\n", section.name);
+        const int width = digits_for(bytes_of_section.size() / 16);
+        for (size_t i = 0; i < bytes_of_section.size(); i++)
         {
-            out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, data_address_width,
-                               relocation_name(rel.type), target_text(*this, rel));
+            if (i % 16 == 0)
+            {
+                out << std::format("\n{:0{}x} ", i, width);
+            }
+            if (i % 4 == 0 && i % 16 != 0)
+            {
+                out << ' ';
+            }
+            out << std::format("{:02x}", bytes_of_section[i]);
+        }
+
+        if (!relocations.empty())
+        {
+            out << std::format("\n\nRelocations of section {}:", section.name);
+            for (const RelocationEntry &rel : relocations)
+            {
+                out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, width,
+                                   relocation_name(rel.type), target_text(*this, rel));
+            }
         }
     }
 

@@ -2023,3 +2023,305 @@ _start:
     EXPECT_NE(state("message").find("emulator calls are off"), std::string::npos)
         << state("message");
 }
+
+// .rodata is read only, and the linker gives it a page of its own between the code and the data.
+TEST_F(AssemblerIntegration, rodata_is_read_only)
+{
+    write_file("ro.basm", R"(.global _start
+.text
+_start:
+                adrp    x0, table
+                add     x0, x0, :lo12:table
+                ldr     x1, [x0]                ; the address of func
+                ldr     x2, [x0, 4]
+                ldrb    x3, [x0, 8]             ; 'h'
+                blx     x1
+                adrp    x5, counter
+                add     x5, x5, :lo12:counter
+                ldr     x6, [x5]
+                hlt
+func:
+                mov     x4, 77
+                ret
+
+.rodata
+table:          .word func, $1234
+                .asciz "hi"
+.data
+counter:        .word 9
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o ro ro.basm -outdir ."));
+
+    ObjectFile obj(File(path("ro.bo")));
+    EXPECT_EQ(obj.rodata_section.size(), 8u + 3u);
+    ASSERT_EQ(obj.rel_rodata.size(), 1u) << ".word func is an address";
+    EXPECT_EQ(obj.rel_rodata[0].offset, 0u);
+    EXPECT_TRUE(obj.rel_data.empty());
+
+    ASSERT_NO_FATAL_FAILURE(run("ro.bexe"));
+    EXPECT_EQ(reg(2), 0x1234u);
+    EXPECT_EQ(reg(3), word('h'));
+    EXPECT_EQ(reg(4), 77u);
+    EXPECT_EQ(reg(6), 9u);
+
+    ObjectFile exe(File(path("ro.bexe")));
+    const word rodata = exe.sections[exe.section_table.at(".rodata")].address;
+    const word data = exe.sections[exe.section_table.at(".data")].address;
+    EXPECT_EQ(rodata, 0x1000u) << "the first page after the code";
+    EXPECT_EQ(data, 0x2000u) << "not on the page of the read only data";
+}
+
+TEST_F(AssemblerIntegration, rodata_cannot_be_written)
+{
+    write_file("rowrite.basm", R"(.global _start
+.text
+_start:
+                adrp    x1, constant
+                add     x1, x1, :lo12:constant
+                str     x1, [x1]
+                hlt
+.rodata
+constant:       .word 5
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o rowrite rowrite.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e rowrite.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_NE(state("message").find("read-only"), std::string::npos) << state("message");
+}
+
+// A section that the linker script does not place would be loaded at address 0.
+TEST_F(AssemblerIntegration, linker_script_must_place_sections_with_contents)
+{
+    write_file("noro.basm", R"(.global _start
+.text
+_start:         hlt
+.rodata
+value:          .word 1
+)");
+    write_file("noro.ld",
+               "ENTRY(_start)\nSECTIONS (\n .text = 0x0;\n .data = 0x1000;\n .bss;\n)\n");
+    EXPECT_NE(basm("-o noro noro.basm -ld noro.ld -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("does not place it"), std::string::npos)
+        << log_tail("basm.log");
+
+    write_file("ro.ld",
+               "ENTRY(_start)\nSECTIONS (\n .text = 0x0;\n .rodata = 0x3000;\n .data = 0x1000;\n "
+               ".bss;\n)\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o placed noro.basm -ld ro.ld -outdir ."));
+    ObjectFile exe(File(path("placed.bexe")));
+    EXPECT_EQ(exe.sections[exe.section_table.at(".rodata")].address, 0x3000u);
+}
+
+// `.weak`: a definition that another file replaces, and a reference that may stay undefined.
+TEST_F(AssemblerIntegration, weak_definitions_and_references)
+{
+    write_file("main.basm", R"(.global _start
+.weak greet
+.weak hook
+.text
+_start:
+                adrp    x0, hook                ; nothing defines it, so 0
+                add     x0, x0, :lo12:hook
+                bl      greet
+                hlt
+greet:          mov     x1, 1
+                ret
+)");
+    write_file("override.basm", R"(.global greet
+.text
+greet:          mov     x1, 2
+                ret
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o alone main.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("alone.bexe"));
+    EXPECT_EQ(reg(0), 0u) << "an undefined weak symbol is 0";
+    EXPECT_EQ(reg(1), 1u) << "the weak definition is used when there is no other";
+
+    ASSERT_NO_FATAL_FAILURE(build("-o strong_last main.basm override.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("strong_last.bexe"));
+    EXPECT_EQ(reg(1), 2u);
+
+    ASSERT_NO_FATAL_FAILURE(build("-o strong_first override.basm main.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("strong_first.bexe"));
+    EXPECT_EQ(reg(1), 2u) << "the strong definition wins whatever the order";
+}
+
+TEST_F(AssemblerIntegration, strong_references_still_need_a_definition)
+{
+    write_file("strong.basm", R"(.global _start
+.weak maybe
+.text
+_start:
+                bl      maybe                   ; weak
+                bl      missing                 ; not
+                hlt
+)");
+    EXPECT_NE(basm("-o strong strong.basm -outdir ."), 0);
+    const std::string log = log_tail("basm.log");
+    EXPECT_NE(log.find("undefined reference to 'missing'"), std::string::npos) << log;
+    EXPECT_EQ(log.find("undefined reference to 'maybe'"), std::string::npos) << log;
+}
+
+TEST_F(AssemblerIntegration, two_strong_definitions_still_conflict)
+{
+    write_file("one.basm", ".global _start\n.global f\n.text\n_start: hlt\nf: hlt\n");
+    write_file("two.basm", ".global f\n.text\nf: hlt\n");
+    EXPECT_NE(basm("-o dup one.basm two.basm -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("Multiple definition of symbol 'f'"), std::string::npos)
+        << log_tail("basm.log");
+}
+
+// `.comm` reserves .bss space for a symbol that several files declare.
+TEST_F(AssemblerIntegration, common_symbols_are_shared)
+{
+    write_file("a.basm", R"(.global _start
+.comm counter, 4, 4
+.text
+_start:
+                adrp    x1, counter
+                add     x1, x1, :lo12:counter
+                mov     x2, 5
+                str     x2, [x1]
+                bl      read_counter
+                hlt
+)");
+    write_file("b.basm", R"(.global read_counter
+.comm counter, 4, 4
+.text
+read_counter:
+                adrp    x1, counter
+                add     x1, x1, :lo12:counter
+                ldr     x3, [x1]
+                ret
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o common a.basm b.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("common.bexe"));
+    EXPECT_EQ(reg(3), 5u) << "both files use the same word";
+
+    ObjectFile obj(File(path("a.bo")));
+    const auto *counter = symbol(obj, "counter");
+    ASSERT_NE(counter, nullptr);
+    EXPECT_EQ(counter->binding_info, Binding::WEAK_DECLARED);
+    EXPECT_EQ(counter->section, obj.section_table.at(".bss"));
+}
+
+TEST_F(AssemblerIntegration, a_real_definition_replaces_a_common_symbol)
+{
+    write_file("a.basm", R"(.global _start
+.comm value, 4, 4
+.text
+_start:
+                adrp    x1, value
+                add     x1, x1, :lo12:value
+                ldr     x3, [x1]
+                hlt
+)");
+    write_file("b.basm", ".global value\n.data\nvalue: .word 42\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o real a.basm b.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("real.bexe"));
+    EXPECT_EQ(reg(3), 42u);
+}
+
+// .init_array collects function addresses from all files between two symbols.
+TEST_F(AssemblerIntegration, init_array_bounds)
+{
+    write_file("main.basm", R"(.global _start
+.text
+_start:
+                adrp    x10, __init_array_start
+                add     x10, x10, :lo12:__init_array_start
+                adrp    x11, __init_array_end
+                add     x11, x11, :lo12:__init_array_end
+                adrp    x13, __fini_array_start
+                add     x13, x13, :lo12:__fini_array_start
+                adrp    x14, __fini_array_end
+                add     x14, x14, :lo12:__fini_array_end
+                mov     x12, 0
+                sub     x15, x11, x10
+loop:
+                cmp     x10, x11
+                b.hs    done
+                ldr     x1, [x10], 4
+                blx     x1
+                b       loop
+done:
+                hlt
+init_a:         add     x12, x12, 1
+                ret
+init_b:         add     x12, x12, 10
+                ret
+
+.init_array
+                .word init_a, init_b
+)");
+    write_file("other.basm", R"(.global init_c
+.text
+init_c:         add     x12, x12, 100
+                ret
+.init_array
+                .word init_c
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o ctors main.basm other.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("ctors.bexe"));
+    EXPECT_EQ(reg(12), 111u) << "all three ran";
+    EXPECT_EQ(reg(15), 12u) << "three words";
+    EXPECT_EQ(reg(13), reg(14)) << "no .fini_array: the bounds are the same";
+}
+
+// What the C compiler is expected to use: ldr =, cset/csel and the extension and byte instructions.
+TEST_F(AssemblerIntegration, compiler_helper_instructions)
+{
+    write_file("helpers.basm", R"(.global _start
+.text
+_start:
+                ldr     x0, =$12345678          ; three instructions
+                ldr     x1, =0 - 5              ; mvn
+                ldr     x2, =$80000000
+                ldr     x3, =table + 4          ; an address
+                ldr     x4, [x3]                ; table[1]
+
+                mov     x5, 3
+                mov     x6, 9
+                cmp     x5, x6
+                cset    x7, lt                  ; 3 < 9
+                cset    x8, gt
+                csetm   x9, lt
+                csel    x10, x5, x6, gt         ; the larger
+                csel    x11, x5, x6, lt         ; the smaller
+                cneg    x12, x5, lt             ; -3
+
+                ldr     x13, =$FFFF8081
+                sxtb    x14, x13                ; 0xFFFFFF81
+                uxtb    x15, x13                ; 0x81
+                sxth    x16, x13                ; 0xFFFF8081
+                uxth    x17, x13                ; 0x8081
+                clz     x18, x5                 ; 30
+                rev     x19, x0                 ; 0x78563412
+                rev16   x20, x0                 ; 0x34127856
+                hlt
+
+.rodata
+table:          .word 11, 22, 33
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o helpers helpers.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("helpers.bexe"));
+
+    EXPECT_EQ(reg(0), 0x12345678u);
+    EXPECT_EQ(reg(1), 0xFFFFFFFBu);
+    EXPECT_EQ(reg(2), 0x80000000u);
+    EXPECT_EQ(reg(4), 22u);
+    EXPECT_EQ(reg(7), 1u);
+    EXPECT_EQ(reg(8), 0u);
+    EXPECT_EQ(reg(9), 0xFFFFFFFFu);
+    EXPECT_EQ(reg(10), 9u);
+    EXPECT_EQ(reg(11), 3u);
+    EXPECT_EQ(reg(12), 0xFFFFFFFDu);
+    EXPECT_EQ(reg(14), 0xFFFFFF81u);
+    EXPECT_EQ(reg(15), 0x81u);
+    EXPECT_EQ(reg(16), 0xFFFF8081u);
+    EXPECT_EQ(reg(17), 0x8081u);
+    EXPECT_EQ(reg(18), 30u);
+    EXPECT_EQ(reg(19), 0x78563412u);
+    EXPECT_EQ(reg(20), 0x34127856u);
+}

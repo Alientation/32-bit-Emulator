@@ -18,17 +18,23 @@ All numbers are **little endian**, the instruction words of `.text` too (the sam
  0        header                         24 bytes
           .text                          4 bytes per instruction
           .data                          raw bytes
+          .rodata                        raw bytes (read only data)
+          .init_array                    raw bytes (words)
+          .fini_array                    raw bytes (words)
           .bss                           8 bytes: the size of the section, no contents
           .symtab                        26 bytes per symbol
           .rel.text                      28 bytes per relocation
           .rel.data                      28 bytes per relocation
+          .rel.rodata                    28 bytes per relocation
+          .rel.init_array                28 bytes per relocation
+          .rel.fini_array                28 bytes per relocation
           .rel.bss                       28 bytes per relocation (never used)
           .strtab                        the names, each ended by a 0 byte
  H        section headers                53 bytes per section
  end - 8  H, the offset of the section headers   8 bytes
 ```
 
-The sections are written in this order and always all of them are there (an empty one has size 0). To read a file, take the last 8 bytes, go to the section headers, and read each section from the offset and size of its header. A reader fails with a message when the file is too small, the magic is wrong, a section lies outside of the file, or a symbol, name or relocation points to something that does not exist.
+The *contents* are written in this order and always all of them are there (an empty one has size 0). The section *headers* are in the order the assembler added the sections: `.text`, `.data`, `.bss`, `.symtab`, `.rel.text`, `.rel.data`, `.rel.bss`, `.strtab`, then `.rodata`, `.rel.rodata`, `.init_array`, `.rel.init_array`, `.fini_array`, `.rel.fini_array` (these six came later, and were added at the end so the indexes of the older sections, which the symbols hold, did not change). Files from before these sections existed have no `.rodata` and are refused with "has no .rodata section": build them again. To read a file, take the last 8 bytes, go to the section headers, and read each section from the offset and size of its header. A reader fails with a message when the file is too small, the magic is wrong, a section lies outside of the file, or a symbol, name or relocation points to something that does not exist.
 
 ### Header (24 bytes)
 
@@ -46,7 +52,7 @@ The sections are written in this order and always all of them are there (an empt
 | Size | Field | Meaning |
 |------|-------|---------|
 | 8 | name | index into the string table (the position in the list of names, not a byte offset) |
-| 4 | type | 1 `.text`, 2 `.data`, 3 `.bss`, 4 symbol table, 5 `.rel.text`, 6 `.rel.data`, 7 `.rel.bss`, 8 debug (unused), 9 string table |
+| 4 | type | 1 `.text`, 2 `.data`, 3 `.bss`, 4 symbol table, 5 `.rel.text`, 6 `.rel.data`, 7 `.rel.bss`, 8 debug (unused), 9 string table, 10 `.rodata`, 11 `.init_array`, 12 `.fini_array`, 13 `.rel.rodata`, 14 `.rel.init_array`, 15 `.rel.fini_array` |
 | 8 | start | offset of the section in the file |
 | 8 | size | size in bytes (for `.bss`, the size it has in memory) |
 | 8 | entry size | size of one entry of the table sections |
@@ -60,10 +66,10 @@ The sections are written in this order and always all of them are there (an empt
 |------|-------|---------|
 | 8 | name | index into the string table |
 | 8 | value | the offset of the symbol in its section (in an executable, its address) |
-| 2 | binding | 0 local, 1 global, 2 weak |
+| 2 | binding | 0 local, 1 global, 2 weak (an undefined reference), 3 declared weak (`.weak`, `.comm`) |
 | 8 | section | index of the section that defines the symbol, `0xFFFFFFFF` if it is not defined in this file |
 
-A label defined in a file is local, or global if `.global` named it. A symbol that is only used (a branch to it, `.word symbol`, `adrp`, ...), or named by `.extern`, is **weak and undefined**. The linker looks every undefined symbol up in the other files. The symbols of a `.scope` are stored as `name::SCOPE:<id>`; a relocation refers to the symbol of the scope it is in.
+A label defined in a file is local, or global if `.global` named it. A symbol that is only used (a branch to it, `.word symbol`, `adrp`, ...), or named by `.extern`, is **weak and undefined**. The linker looks every undefined symbol up in the other files. Binding 3 is for `.weak name` and `.comm name, size`: if the symbol is defined in the file it is a *weak definition* (used only if no file has a strong one), and if it is not defined it is a *weak reference* (0 if nothing defines it, instead of the undefined reference error). The symbols of a `.scope` are stored as `name::SCOPE:<id>`; a relocation refers to the symbol of the scope it is in.
 
 `.equ` constants are **not** in the symbol table, they only exist while their file is assembled (see [basm-syntax.md](basm-syntax.md#constants-equ)).
 
@@ -87,9 +93,9 @@ The patched value is `target = address(symbol) + addend`. In the table below `P`
 | 3 | `R_EMU32_MOV_LO19` | `mov xd, :lo19:sym` | bits 0-18 of `target` |
 | 4 | `R_EMU32_MOV_HI13` | `mov xd, :hi13:sym` | bits 19-31 of `target` |
 | 5 | `R_EMU32_B_OFFSET22` | `b`, `bl` with a label | `(target - P) / 4` as a signed 22 bit number; `target` has to be 4 byte aligned and within reach |
-| 6 | `R_EMU32_ABS32` | `.word sym` in `.data` | `target` is added to the 32 bit word that is already there |
+| 6 | `R_EMU32_ABS32` | `.word sym` in `.data`, `.rodata`, `.init_array`, `.fini_array` | `target` is added to the 32 bit word that is already there |
 
-A relocation of `.data` has to be `R_EMU32_ABS32`; the others are for `.text`.
+A relocation of one of the data sections has to be `R_EMU32_ABS32`; the others are for `.text`.
 
 The assembler itself resolves a branch to a label of the same file (a label outside of any `.scope`), because that distance does not depend on where the file ends up. It then writes no relocation. A branch to a label of a `.scope` keeps its relocation, pointed at the symbol of that scope. Everything else is left for the linker, so a `.bo` that came out of the assembler can have relocations of all six types.
 
@@ -101,17 +107,17 @@ Not representable, so rejected by the assembler: `-label`, `2 * label`, `label +
 
 ## What the linker does
 
-1. **Merge the sections.** The `.text`, `.data` and `.bss` of the object files are put one after another in the order of the files (the files from the command line, then the members of libraries that are needed). Each starts at a multiple of its alignment, and the merged section gets the largest alignment.
-2. **Place the sections** at the addresses of the linker script (a section without an address follows the previous one, rounded up to its alignment). Two overlapping sections, or an address that is not aligned, are an error.
-3. **Merge the symbols.** A symbol defined by two files is an error ("multiple definition"), except for local symbols: those are renamed `name:LOCAL:<file number>`, so two files can have a label of the same name. Each symbol gets its final address (section address + the offset of the file's part in the section + the symbol's value).
-4. **Check the entry point:** `_start` (or the symbol of `ENTRY(...)`) has to be defined.
-5. **Relocate.** For each relocation, `target = address(symbol) + addend`, patched in with the rule of its type. A symbol that is still undefined is the error `undefined reference to 'name'`, whether it was declared with `.global` or not.
+1. **Merge the sections.** The `.text`, `.data`, `.rodata`, `.init_array`, `.fini_array` and `.bss` of the object files are put one after another in the order of the files (the files from the command line, then the members of libraries that are needed). Each starts at a multiple of its alignment, and the merged section gets the largest alignment.
+2. **Place the sections** at the addresses of the linker script (a section without an address follows the previous one, rounded up to its alignment). Two overlapping sections, or an address that is not aligned, are an error. If the script has a `SECTIONS` command, a section with contents that it does not list is an error too (it would be loaded at address 0).
+3. **Merge the symbols.** A symbol defined by two files is an error ("multiple definition"), except for local symbols: those are renamed `name:LOCAL:<file number>`, so two files can have a label of the same name, and except for weak definitions (binding 3): a strong definition replaces a weak one whatever the order, and of two weak ones the first stays. A definition of any kind beats a reference. Each symbol gets its final address (section address + the offset of the file's part in the section + the symbol's value).
+4. **Check the entry point:** `_start` (or the symbol of `ENTRY(...)`) has to be defined. Then `__init_array_start`, `__init_array_end`, `__fini_array_start` and `__fini_array_end` are defined as the bounds of those two sections (unless the program defines them itself).
+5. **Relocate.** For each relocation, `target = address(symbol) + addend`, patched in with the rule of its type. A symbol that is still undefined is the error `undefined reference to 'name'`, whether it was declared with `.global` or not, except for a symbol that only `.weak` declarations name, which is 0.
 
 The result is written as an executable: the same layout, `file_type` 2, merged sections with their addresses, the merged symbol table, and empty relocation sections. `LoadExecutable` copies the sections to their addresses and refuses a file that still has relocations.
 
 ### Default layout
 
-Without `-ld`, the built-in script is used: `.text` at `0x0`, `.data` at the first page (4 KiB) after the code, `.bss` directly after `.data`, and `ENTRY(_start)`.
+Without `-ld`, the built-in script is used: `.text` at `0x0`, `.rodata` at the first page (4 KiB) after the code with `.init_array` and `.fini_array` directly after it, `.data` at the first page after those, `.bss` directly after `.data`, and `ENTRY(_start)`. So code, read only data and writable data are never on the same page, and the loader gives each page the permissions of its section: `.text` is executable, `.rodata` and the arrays are read only, `.data` and `.bss` are writable. (The page is writable if a custom script lets `.rodata` share a page with `.data`; the linker warns when code and writable data share one.)
 
 ## Static libraries (`.ba`)
 

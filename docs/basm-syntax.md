@@ -24,7 +24,7 @@ loop:       subs    x0, x0, 1
 ```
 
 * A program needs `.global _start` and a `_start:` label, which is where the loader starts it (`ENTRY(symbol)` in a linker script can pick another one).
-* Code is only legal in `.text`, data directives (`.word`, `.ascii`, ...) only in `.data`, and `.bss` only reserves space (`.advance`). A label must be inside a section.
+* Code is only legal in `.text`, data directives (`.word`, `.ascii`, ...) only in the sections that hold data (`.data`, `.rodata`, `.init_array`, `.fini_array`), and `.bss` only reserves space (`.advance`). A label must be inside a section.
 * A line holds at most one statement, optionally after a label: `loop: subs x0, x0, 1`.
 * `hlt` encodes as `0x00000000`, so running into zeroed memory halts the program. An opcode that is not used faults instead.
 
@@ -122,6 +122,8 @@ A constant or label has to be defined **before** an expression uses it as a numb
 * `.global name` makes the symbol visible to other files. `.extern name` declares a symbol of another file (using a symbol without declaring it works the same way; the linker finds it or reports `undefined reference`).
 * `.scope` / `.scend` open and close a local scope. A label defined inside is private to the scope and to the scopes inside it, and can have the same name as a label in another scope. A reference looks in the open scope, then outward, then at the file. Macros are wrapped in a scope, which is what makes a macro with a label usable twice.
 * Two labels with the same name in one scope are an error.
+* `.weak name` makes the symbol weak. If the file defines it, another file may define it too: a definition without `.weak` wins whatever the order of the files, and of several weak definitions the first one linked is used (a default that can be replaced). If **nothing** defines it, its value is 0 and it is not an error (`adrp x0, name` / `add x0, x0, :lo12:name` gives 0, a test for "is it there"). A weak reference does not pull a member out of a library. A branch to a weak symbol is left to the linker, even to a label of the same file.
+* `.comm name, size{, alignment}` reserves `size` zeroed bytes in `.bss` for a symbol that several files may declare, without being in a section when written (it does not change the current section). It is a weak definition in `.bss`: a file that defines `name` for real replaces it, and the files that only reserve it share the space of the first one linked. Give the same size in every file, the linker does not compare them (the others' space is wasted).
 
 Taking the address of a symbol takes two instructions, because an instruction cannot hold 32 bits:
 
@@ -150,10 +152,35 @@ add     x0, x0, :lo12:sym       ; x0 = the address of sym
 | `op xd, xn, xm[, shift]` or `op xd, xn, imm14` or `op xd, xn, :lo12:sym` | `add{s}` `sub{s}` `rsb{s}` `adc{s}` `sbc{s}` `rsc{s}` `mul{s}` `udiv{s}` `sdiv{s}` `and{s}` `orr{s}` `eor{s}` `bic{s}` (a division by zero is 0, there is no remainder instruction, see [abi.md](abi.md#division)) |
 | `op xd, xn, xm` or `op xd, xn, imm5` | `lsl{s}` `lsr{s}` `asr{s}` `ror{s}` (with `s`: N, Z and C from the last bit shifted out, V unchanged) |
 | `op xn, xm[, shift]` or `op xn, imm14` | `cmp` `cmn` `tst` `teq` (flags only; assembled with `xzr` as the destination) |
-| `mov{s} xd, xm` / `mov{s} xd, imm14` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` |
+| `mov{s} xd, xm` / `mov{s} xd, imm19` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` (`imm19` is an unsigned 19 bit number, 0 to 524287) |
+| `ldr xd, =constant` / `ldr xd, =symbol` | a **pseudo instruction** that loads any 32 bit constant or an address, see below |
 | `op xlo, xhi, xn, xm` | `umull{s}` `smull{s}` (the 64 bit product: low word in `xlo`, high word in `xhi`) |
 
 A shift is `lsl n`, `lsr n`, `asr n` or `ror n` after the last register: `add x0, x1, x2, lsl 2`.
+
+#### `ldr xd, =value`
+
+Loads a value an instruction cannot hold. There is **no literal pool**: a load cannot reach one (nothing is pc relative), and any constant takes at most three instructions that touch no memory and no other register:
+
+| Value | Code |
+|-------|------|
+| 0 to 524287 | `mov xd, value` |
+| -524288 to -1 (also `$FFF80000` and up) | `mvn xd, ~value` |
+| any other | `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & $3FFF` (the `orr` is left out when those bits are 0) |
+| a symbol (`=table`, `=table + 8`) | `adrp xd, sym` / `add xd, xd, :lo12:sym`, with the relocations of those |
+
+The value is an expression that is a number, -2147483648 to 4294967295, or a symbol with an optional offset. Only `ldr` has this form (not `ldrb`, `ldrh`).
+
+### Conditional select and unary operations
+
+| Form | Instructions |
+|------|--------------|
+| `op xd, xn, xm, cond` | `csel` (`xd = cond ? xn : xm`), `csinc` (`xm + 1`), `csinv` (`~xm`), `csneg` (`-xm`) |
+| `op xd, cond` | `cset` (1 or 0), `csetm` (all ones or 0) |
+| `op xd, xn, cond` | `cinc` (`cond ? xn + 1 : xn`), `cinv`, `cneg` |
+| `op xd, xn` | `sxtb` `sxth` (sign extend a byte / half-word), `uxtb` `uxth` (zero extend), `clz` (count leading zeros), `rev` (reverse the bytes), `rev16` (swap the bytes of each half-word) |
+
+`cond` is a bare condition code as the last operand (`cset x0, lt`), not `.lt`. None of these changes the flags, see [isa.md](isa.md#conditional-select-1). These mnemonics are keywords like the others, so a symbol cannot have one of these names where it is *used* (`b rev` is not a branch to a label `rev`).
 
 ### Memory
 
@@ -199,14 +226,16 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | Directive | Meaning |
 |-----------|---------|
 | `.text` `.data` `.bss` | switch to the section (code, initialised data, zeroed space). A section can be re-entered later and continues where it stopped |
-| `.global sym` / `.extern sym` | see [Labels and symbols](#labels-and-symbols); allowed anywhere, also in a macro |
+| `.rodata` | read only data: strings, tables, constants. Same directives as `.data`, but the program cannot write it and it is not executable. Starts on a page of its own |
+| `.init_array` / `.fini_array` | tables of function addresses (`.word start_up`) that the program's startup code calls before `main` and after it. The linker joins the arrays of all files and defines the symbols `__init_array_start`, `__init_array_end`, `__fini_array_start` and `__fini_array_end` around them (also when empty). Read only. Nothing calls the entries yet, that is for the C runtime (`crt0`) |
+| `.global sym` / `.extern sym` / `.weak sym` / `.comm sym, size` | see [Labels and symbols](#labels-and-symbols); allowed anywhere, also in a macro |
 | `.equ name, expr` | constant, see above |
 | `.scope` / `.scend` | local scope |
 | `.byte` `.dbyte` `.word` `.dword` | 1, 2, 4 and 8 byte values, little endian, comma separated: `.word 1, 2, table + 4`. A value has to fit. `.word` also takes an address (`symbol`, `symbol + 4`); the others cannot |
 | `.sbyte` `.sdbyte` `.sword` `.sdword` | the same as above |
 | `.char 'a', 'b'` | one byte for each character |
 | `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end |
-| `.advance n` | skip `n` bytes (zeros in `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error |
+| `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` |
 | `.org n` | move forward to the offset `n` of the section (never backward) |
 | `.align n` | pad to a multiple of `n`; the largest alignment of the section is kept in the object file and respected when files are linked |
 | `.stop` | stop assembling here and ignore the rest of the file |

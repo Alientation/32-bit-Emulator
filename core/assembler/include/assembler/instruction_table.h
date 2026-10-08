@@ -22,6 +22,10 @@ enum class InstructionFormat
     B2,        ///< bx, blx: a register
     SWI,       ///< swi[.cond] [number], a number of 22 bits (0 if left out)
     ATOMIC,    ///< swp and the ldadd, ldclr, ldset families
+    CSEL,      ///< csel, csinc, csinv, csneg: op xd, xn, xm, cond
+    CSET,      ///< cset, csetm: op xd, cond (xn and xm are xzr, the condition is inverted)
+    CINC,      ///< cinc, cinv, cneg: op xd, xn, cond (xn is also xm, the condition is inverted)
+    UNARY,     ///< sxtb, sxth, uxtb, uxth, clz, rev, rev16: op xd, xn
     HLT,
     NOP,
     ERET,

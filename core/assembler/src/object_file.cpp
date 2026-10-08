@@ -8,6 +8,34 @@
 
 ObjectFile::ObjectFile() = default;
 
+const std::array<ObjectFile::ByteSection, 4> &ObjectFile::byte_sections()
+{
+    using Type = SectionHeader::Type;
+    static const std::array<ByteSection, 4> sections = {{
+        {".data", ".rel.data", Type::DATA, Type::REL_DATA, &ObjectFile::data_section,
+         &ObjectFile::rel_data, true, 1},
+        {".rodata", ".rel.rodata", Type::RODATA, Type::REL_RODATA, &ObjectFile::rodata_section,
+         &ObjectFile::rel_rodata, false, 1},
+        {".init_array", ".rel.init_array", Type::INIT_ARRAY, Type::REL_INIT_ARRAY,
+         &ObjectFile::init_array_section, &ObjectFile::rel_init_array, false, 4},
+        {".fini_array", ".rel.fini_array", Type::FINI_ARRAY, Type::REL_FINI_ARRAY,
+         &ObjectFile::fini_array_section, &ObjectFile::rel_fini_array, false, 4},
+    }};
+    return sections;
+}
+
+const ObjectFile::ByteSection *ObjectFile::byte_section_of(SectionHeader::Type type)
+{
+    for (const ByteSection &section : byte_sections())
+    {
+        if (section.type == type || section.rel_type == type)
+        {
+            return &section;
+        }
+    }
+    return nullptr;
+}
+
 ObjectFile::ObjectFile(File obj_file) :
     ObjectFile()
 {
@@ -154,12 +182,19 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             }
             break;
         case SectionHeader::Type::DATA:
-            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling Data Section");
+        case SectionHeader::Type::RODATA:
+        case SectionHeader::Type::INIT_ARRAY:
+        case SectionHeader::Type::FINI_ARRAY:
+        {
+            AEMU_DEBUG("ObjectFile::disassemble() - Disassembling a byte section");
+            std::vector<byte> &bytes_of_section =
+                this->*byte_section_of(section_header.type)->bytes;
             for (word i = 0; i < section_header.section_size; i++)
             {
-                data_section.push_back(reader.read_byte());
+                bytes_of_section.push_back(reader.read_byte());
             }
             break;
+        }
         case SectionHeader::Type::BSS:
             AEMU_DEBUG("ObjectFile::disassemble() - Disassembling BSS Section");
             bss_section = reader.read_dword();
@@ -185,12 +220,16 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
         case SectionHeader::Type::REL_TEXT:
         case SectionHeader::Type::REL_DATA:
         case SectionHeader::Type::REL_BSS:
+        case SectionHeader::Type::REL_RODATA:
+        case SectionHeader::Type::REL_INIT_ARRAY:
+        case SectionHeader::Type::REL_FINI_ARRAY:
         {
             AEMU_DEBUG("ObjectFile::disassemble() - Disassembling a relocation section");
+            const ByteSection *of_bytes = byte_section_of(section_header.type);
             std::vector<RelocationEntry> &relocations =
-                section_header.type == SectionHeader::Type::REL_TEXT   ? rel_text
-                : section_header.type == SectionHeader::Type::REL_DATA ? rel_data
-                                                                       : rel_bss;
+                section_header.type == SectionHeader::Type::REL_TEXT ? rel_text
+                : of_bytes != nullptr                                ? this->*of_bytes->relocations
+                                                                     : rel_bss;
             for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
                 RelocationEntry rel = {
@@ -264,7 +303,10 @@ void ObjectFile::validate() const
             path, name);
     };
     require(".text", SectionHeader::Type::TEXT);
-    require(".data", SectionHeader::Type::DATA);
+    for (const ByteSection &section : byte_sections())
+    {
+        require(section.name, section.type);
+    }
     require(".bss", SectionHeader::Type::BSS);
     require(".symtab", SectionHeader::Type::SYMTAB);
     require(".strtab", SectionHeader::Type::STRTAB);
@@ -281,7 +323,8 @@ void ObjectFile::validate() const
                    path, strings[symbol.symbol_name], symbol.section);
         AEMU_CHECK(symbol.binding_info == SymbolTableEntry::BindingInfo::LOCAL
                        || symbol.binding_info == SymbolTableEntry::BindingInfo::GLOBAL
-                       || symbol.binding_info == SymbolTableEntry::BindingInfo::WEAK,
+                       || symbol.binding_info == SymbolTableEntry::BindingInfo::WEAK
+                       || symbol.binding_info == SymbolTableEntry::BindingInfo::WEAK_DECLARED,
                    "ObjectFile::disassemble() - '{}' is corrupt, the symbol '{}' has the invalid "
                    "binding {}.",
                    path, strings[symbol.symbol_name], U32(symbol.binding_info));
@@ -309,7 +352,11 @@ void ObjectFile::validate() const
         }
     };
     check_relocations(rel_text, ".text", text_section.size() * 4, 4);
-    check_relocations(rel_data, ".data", data_section.size(), 4);
+    for (const ByteSection &section : byte_sections())
+    {
+        check_relocations(this->*section.relocations, section.name, (this->*section.bytes).size(),
+                          4);
+    }
     check_relocations(rel_bss, ".bss", 0, 0);
 
     for (const RelocationEntry &rel : rel_text)
@@ -346,7 +393,14 @@ U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type
     case SectionHeader::Type::REL_TEXT:
     case SectionHeader::Type::REL_DATA:
     case SectionHeader::Type::REL_BSS:
+    case SectionHeader::Type::REL_RODATA:
+    case SectionHeader::Type::REL_INIT_ARRAY:
+    case SectionHeader::Type::REL_FINI_ARRAY:
         header.entry_size = kRelocationEntrySize;
+        break;
+    case SectionHeader::Type::INIT_ARRAY:
+    case SectionHeader::Type::FINI_ARRAY:
+        header.alignment = byte_section_of(type)->alignment;
         break;
     case SectionHeader::Type::DEBUG:
         AEMU_FATAL("Cannot add section of type DEBUG. Not implemented yet");
@@ -354,6 +408,7 @@ U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type
         break;
     case SectionHeader::Type::BSS:
     case SectionHeader::Type::DATA:
+    case SectionHeader::Type::RODATA:
     case SectionHeader::Type::STRTAB:
         header.entry_size = 0;
         break;
@@ -426,6 +481,7 @@ void ObjectFile::add_symbol(const std::string &symbol, word value,
         }
 
         if (binding_info == SymbolTableEntry::BindingInfo::GLOBAL
+            || binding_info == SymbolTableEntry::BindingInfo::WEAK_DECLARED
             || (binding_info == SymbolTableEntry::BindingInfo::LOCAL
                 && symbol_entry.binding_info == SymbolTableEntry::BindingInfo::WEAK))
         {
@@ -470,15 +526,19 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".text"]].section_start = current_byte;
     current_byte += text_section.size() * 4;
 
-    /* Data Section */
-    AEMU_DEBUG("ObjectFile::write_object_file() - Writing .data section.");
-    for (size_t i = 0; i < data_section.size(); i++)
+    /* Data, rodata and the arrays of functions */
+    for (const ByteSection &section : byte_sections())
     {
-        byte_writer << ByteWriter::Data(data_section.at(i), 1);
+        AEMU_DEBUG("ObjectFile::write_object_file() - Writing {} section.", section.name);
+        const std::vector<byte> &bytes_of_section = this->*section.bytes;
+        for (const byte b : bytes_of_section)
+        {
+            byte_writer << ByteWriter::Data(b, 1);
+        }
+        sections[section_table[section.name]].section_size = bytes_of_section.size();
+        sections[section_table[section.name]].section_start = current_byte;
+        current_byte += bytes_of_section.size();
     }
-    sections[section_table[".data"]].section_size = data_section.size();
-    sections[section_table[".data"]].section_start = current_byte;
-    current_byte += data_section.size();
 
     /* BSS Section */
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .bss section. Size {} bytes.",
@@ -522,7 +582,10 @@ void ObjectFile::write_object_file(File obj_file)
         current_byte += relocations.size() * kRelocationEntrySize;
     };
     write_relocations(".rel.text", rel_text);
-    write_relocations(".rel.data", rel_data);
+    for (const ByteSection &section : byte_sections())
+    {
+        write_relocations(section.rel_name, this->*section.relocations);
+    }
     write_relocations(".rel.bss", rel_bss);
 
     /* String Table */
@@ -584,7 +647,10 @@ word ObjectFile::get_section_size(U32 section)
     case SectionHeader::Type::TEXT:
         return get_text_section_size();
     case SectionHeader::Type::DATA:
-        return get_data_section_size();
+    case SectionHeader::Type::RODATA:
+    case SectionHeader::Type::INIT_ARRAY:
+    case SectionHeader::Type::FINI_ARRAY:
+        return word((this->*byte_section_of(sections[section].type)->bytes).size());
     case SectionHeader::Type::BSS:
         return get_bss_section_size();
     default:

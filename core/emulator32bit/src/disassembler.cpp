@@ -379,7 +379,7 @@ static std::string disassemble_tlbi(word instruction)
 static std::string disassemble_atomic(word instruction)
 {
     word atop = bitfield_unsigned(instruction, 0, 4);
-    const byte width = bitfield_unsigned(instruction, 0, 4);
+    const byte width = bitfield_unsigned(instruction, 4, 2);
 
     std::string disassemble;
     switch (atop)
@@ -420,6 +420,39 @@ static std::string disassemble_atomic(word instruction)
     return disassemble;
 }
 
+static std::string disassemble_unary(word instruction)
+{
+    const char *name;
+    switch (bitfield_unsigned(instruction, 0, 4))
+    {
+    case Emulator32bit::kUnaryId_sxtb:
+        name = "sxtb";
+        break;
+    case Emulator32bit::kUnaryId_sxth:
+        name = "sxth";
+        break;
+    case Emulator32bit::kUnaryId_uxtb:
+        name = "uxtb";
+        break;
+    case Emulator32bit::kUnaryId_uxth:
+        name = "uxth";
+        break;
+    case Emulator32bit::kUnaryId_clz:
+        name = "clz";
+        break;
+    case Emulator32bit::kUnaryId_rev:
+        name = "rev";
+        break;
+    case Emulator32bit::kUnaryId_rev16:
+        name = "rev16";
+        break;
+    default:
+        return "ERROR: INVALID UNARY OPERATION";
+    }
+    return std::string(name) + " " + disassemble_gpr(instruction, 17) + ", "
+           + disassemble_gpr(instruction, 11);
+}
+
 static std::string disassemble_special_instructions(word instruction)
 {
     word opsec = bitfield_unsigned(instruction, 22, 4);
@@ -444,6 +477,8 @@ static std::string disassemble_special_instructions(word instruction)
         return disassemble_wfi(instruction);
     case Emulator32bit::kSpecialOpId_brk:
         return disassemble_brk(instruction);
+    case Emulator32bit::kSpecialOpId_unary:
+        return disassemble_unary(instruction);
     default:
         return "ERROR: INVALID SPECOP";
     }
@@ -710,6 +745,43 @@ static std::string disassemble_udiv(word instruction)
 static std::string disassemble_sdiv(word instruction)
 {
     return disassemble_format_o(instruction, "sdiv");
+}
+
+// The aliases are shown the way they are written: `cset x0, lt` is `csinc x0, xzr, xzr, ge`.
+static std::string disassemble_csel(word instruction)
+{
+    const U8 cond_bits = bitfield_unsigned(instruction, 22, 4);
+    const U8 xn = bitfield_unsigned(instruction, 11, 5);
+    const U8 xm = bitfield_unsigned(instruction, 6, 5);
+    const word variant = bitfield_unsigned(instruction, 4, 2);
+    const bool zero_pair = xn == register_to_U8(Register::XZR) && xm == xn;
+    const bool same_pair = xn == xm && !zero_pair;
+    const bool invertible = cond_bits < U8(ConditionCode::AL);
+    const ConditionCode inverse = ConditionCode(cond_bits ^ 1);
+    const std::string xd = disassemble_gpr(instruction, 17);
+
+    if (invertible && variant != Emulator32bit::kCselId_csel && zero_pair
+        && variant != Emulator32bit::kCselId_csneg)
+    {
+        return std::string(variant == Emulator32bit::kCselId_csinc ? "cset " : "csetm ") + xd + ", "
+               + disassemble_condition(inverse);
+    }
+    if (invertible && variant != Emulator32bit::kCselId_csel && same_pair)
+    {
+        const char *name = variant == Emulator32bit::kCselId_csinc   ? "cinc "
+                           : variant == Emulator32bit::kCselId_csinv ? "cinv "
+                                                                     : "cneg ";
+        return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
+               + disassemble_condition(inverse);
+    }
+
+    const char *name = variant == Emulator32bit::kCselId_csel    ? "csel "
+                       : variant == Emulator32bit::kCselId_csinc ? "csinc "
+                       : variant == Emulator32bit::kCselId_csinv ? "csinv "
+                                                                 : "csneg ";
+    return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
+           + disassemble_gpr(instruction, 6) + ", "
+           + disassemble_condition(ConditionCode(cond_bits));
 }
 
 static std::string disassemble_adrp(word instruction)

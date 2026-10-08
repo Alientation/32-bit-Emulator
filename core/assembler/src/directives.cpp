@@ -501,6 +501,121 @@ void Assembler::_extern()
 }
 
 ///
+/// @brief                Declares a symbol weak. If this file defines it, another file may define it
+///                       too and that definition is used instead (a file that defines it without
+///                       `.weak` wins, and of several weak ones the first linked does). If nothing
+///                       defines it, its value is 0 and it is not an error. Can be anywhere, like
+///                       .global.
+/// USAGE:                .weak <symbol>
+///
+void Assembler::_weak()
+{
+    m_cursor.next();
+
+    const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol after .weak").str();
+    m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED);
+}
+
+///
+/// @brief                Reserves `size` zeroed bytes in .bss for a global symbol that other files
+///                       may reserve too. It is a weak definition in .bss, so a file that defines the
+///                       symbol for real wins, and when several files only reserve it they share the
+///                       space of the first one linked. Every file should give the same size, the
+///                       linker does not know it. Does not change the current section.
+/// USAGE:                .comm <symbol>, <size>{, <alignment>}
+///
+void Assembler::_comm()
+{
+    m_cursor.next();
+
+    const Token &name = expect(TokenType::SYMBOL, "expected a symbol after .comm");
+    expect(TokenType::COMMA, "expected ',' and the size after the symbol of .comm");
+    const word size = parse_expression();
+    word alignment = 1;
+    if (m_cursor.accept(TokenType::COMMA))
+    {
+        alignment = parse_expression();
+        check(alignment != 0 && alignment < 0xffff, ".comm expects an alignment from 1 to 65535");
+    }
+    check(size < 0xffffff,
+          ".comm size is large and likely unintentional (" + std::to_string(size) + ")");
+
+    const U32 bss = m_obj.section_table[".bss"];
+    const auto existing = m_obj.string_table.find(name.str());
+    check(existing == m_obj.string_table.end()
+              || m_obj.symbol_table.at(existing->second).section == U32(-1),
+          "'" + name.str() + "' is already defined");
+
+    m_obj.bss_section += (alignment - (m_obj.bss_section % alignment)) % alignment;
+    m_obj.sections[bss].alignment = std::max(m_obj.sections[bss].alignment, alignment);
+    m_obj.add_symbol(name.str(), m_obj.bss_section,
+                     ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED, bss);
+    m_obj.bss_section += size;
+}
+
+const ObjectFile::ByteSection *Assembler::current_byte_section() const
+{
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        if (m_cur_section_index != U32(-1) && m_cur_section_index < m_obj.sections.size()
+            && m_obj.sections[m_cur_section_index].type == section.type)
+        {
+            return &section;
+        }
+    }
+    return nullptr;
+}
+
+std::vector<byte> &Assembler::section_bytes()
+{
+    return m_obj.*current_byte_section()->bytes;
+}
+
+std::vector<ObjectFile::RelocationEntry> &Assembler::section_relocations()
+{
+    return m_obj.*current_byte_section()->relocations;
+}
+
+void Assembler::enter_byte_section(Section section, const char *name)
+{
+    m_cur_section = section;
+    m_cur_section_index = m_obj.section_table[name];
+}
+
+///
+/// @brief                  Read only data. The program cannot write it.
+/// USAGE:                  .rodata
+///
+void Assembler::_rodata()
+{
+    m_cursor.next();
+    enter_byte_section(Section::RODATA, ".rodata");
+}
+
+///
+/// @brief                  Words with the addresses of functions to call before `main` (`.word f`).
+///                         The linker joins them and defines `__init_array_start` and
+///                         `__init_array_end` around them. Read only.
+/// USAGE:                  .init_array
+///
+void Assembler::_init_array()
+{
+    m_cursor.next();
+    enter_byte_section(Section::INIT_ARRAY, ".init_array");
+}
+
+///
+/// @brief                  Same as .init_array, for the functions to call after `main`
+///                         (`__fini_array_start`, `__fini_array_end`).
+/// USAGE:                  .fini_array
+///
+void Assembler::_fini_array()
+{
+    m_cursor.next();
+    enter_byte_section(Section::FINI_ARRAY, ".fini_array");
+}
+
+///
 /// @brief                 Moves where the assembler is in a section. Can only move forward, not backward.
 /// USAGE:                .org <expression>
 ///
@@ -526,13 +641,13 @@ void Assembler::_org()
         m_obj.bss_section = val;
         break;
     case Section::DATA:
-        check(val >= m_obj.data_section.size(),
+    case Section::RODATA:
+    case Section::INIT_ARRAY:
+    case Section::FINI_ARRAY:
+        check(val >= section_bytes().size(),
               ".org cannot move the assembler backwards, expected >= "
-                  + std::to_string(m_obj.data_section.size()) + ", got " + std::to_string(val));
-        for (size_t i = m_obj.data_section.size(); i < val; i++)
-        {
-            m_obj.data_section.push_back(0);
-        }
+                  + std::to_string(section_bytes().size()) + ", got " + std::to_string(val));
+        section_bytes().resize(val, 0);
         break;
     case Section::TEXT:
         // It is likely not very useful to allow .org to move pc in a text section,
@@ -602,10 +717,10 @@ void Assembler::_advance()
         m_obj.bss_section += val;
         break;
     case Section::DATA:
-        for (word i = 0; i < val; i++)
-        {
-            m_obj.data_section.push_back(0);
-        }
+    case Section::RODATA:
+    case Section::INIT_ARRAY:
+    case Section::FINI_ARRAY:
+        section_bytes().insert(section_bytes().end(), val, 0);
         break;
     case Section::TEXT:
         // It is likely not very useful to allow .org to move pc in a text section,
@@ -643,9 +758,12 @@ void Assembler::_align()
         m_obj.bss_section += (val - (m_obj.bss_section % val)) % val;
         break;
     case Section::DATA:
-        while (m_obj.data_section.size() % val != 0)
+    case Section::RODATA:
+    case Section::INIT_ARRAY:
+    case Section::FINI_ARRAY:
+        while (section_bytes().size() % val != 0)
         {
-            m_obj.data_section.push_back(0);
+            section_bytes().push_back(0);
         }
         break;
     case Section::TEXT:
@@ -704,8 +822,7 @@ void Assembler::_data()
 {
     m_cursor.next();
 
-    m_cur_section = Section::DATA;
-    m_cur_section_index = m_obj.section_table[".data"];
+    enter_byte_section(Section::DATA, ".data");
 }
 
 ///
@@ -766,8 +883,10 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, U8 n_bytes)
 
 void Assembler::define_data(const char *directive, U8 n_bytes)
 {
-    check(m_cur_section == Section::DATA,
-          std::string(directive) + " can only define data in the .data section");
+    check(current_byte_section() != nullptr,
+          std::string(directive)
+              + " can only define data in the .data section or another "
+                "data section (.rodata, .init_array, .fini_array)");
 
     m_cursor.next();
 
@@ -785,9 +904,9 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
                 fail(first, std::string(directive)
                                 + " cannot hold the address of a symbol, only .word can");
             }
-            add_relocation(m_obj.rel_data, word(m_obj.data_section.size()),
+            add_relocation(section_relocations(), word(section_bytes().size()),
                            ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, result);
-            m_obj.data_section.insert(m_obj.data_section.end(), sizeof(word), 0);
+            section_bytes().insert(section_bytes().end(), sizeof(word), 0);
             return;
         }
 
@@ -802,7 +921,7 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
                   + " does not fit in " + std::to_string(n_bytes) + " byte(s)");
 
         const std::vector<byte> data = convert_little_endian({value}, n_bytes);
-        m_obj.data_section.insert(m_obj.data_section.end(), data.begin(), data.end());
+        section_bytes().insert(section_bytes().end(), data.begin(), data.end());
     };
 
     // The directive may have no arguments at all.
@@ -860,19 +979,21 @@ void Assembler::_sdword()
 
 void Assembler::_char()
 {
-    check(m_cur_section == Section::DATA, ".char can only define data in the .data section");
+    check(current_byte_section() != nullptr, ".char can only define data in the .data section or "
+                                             "another data section (.rodata, ...)");
     m_cursor.next();
 
     do
     {
         const Token &literal = expect(TokenType::LITERAL_CHAR, "expected a character literal");
-        m_obj.data_section.push_back(static_cast<byte>(literal.int_value));
+        section_bytes().push_back(static_cast<byte>(literal.int_value));
     } while (m_cursor.accept(TokenType::COMMA));
 }
 
 void Assembler::_ascii()
 {
-    check(m_cur_section == Section::DATA, ".ascii can only define data in the .data section");
+    check(current_byte_section() != nullptr, ".ascii can only define data in the .data section or "
+                                             "another data section (.rodata, ...)");
     m_cursor.next();
 
     // Note, does not automatically add the null terminator.
@@ -882,14 +1003,15 @@ void Assembler::_ascii()
             expect(TokenType::LITERAL_STRING, "expected a string literal"));
         for (const char c : str)
         {
-            m_obj.data_section.push_back(static_cast<byte>(c));
+            section_bytes().push_back(static_cast<byte>(c));
         }
     } while (m_cursor.accept(TokenType::COMMA));
 }
 
 void Assembler::_asciz()
 {
-    check(m_cur_section == Section::DATA, ".asciz can only define data in the .data section");
+    check(current_byte_section() != nullptr, ".asciz can only define data in the .data section or "
+                                             "another data section (.rodata, ...)");
     m_cursor.next();
 
     do
@@ -898,8 +1020,8 @@ void Assembler::_asciz()
             expect(TokenType::LITERAL_STRING, "expected a string literal"));
         for (const char c : str)
         {
-            m_obj.data_section.push_back(static_cast<byte>(c));
+            section_bytes().push_back(static_cast<byte>(c));
         }
-        m_obj.data_section.push_back('\0');
+        section_bytes().push_back('\0');
     } while (m_cursor.accept(TokenType::COMMA));
 }

@@ -363,6 +363,11 @@ const KeywordMap &assembler_directives()
     m[text] = Keyword{.type = TokenType::ASSEMBLER_##name, .flags = 0, .allows_s = false}
         D(".global", GLOBAL);
         D(".extern", EXTERN);
+        D(".weak", WEAK);
+        D(".comm", COMM);
+        D(".rodata", RODATA);
+        D(".init_array", INIT_ARRAY);
+        D(".fini_array", FINI_ARRAY);
         D(".equ", EQU);
         D(".org", ORG);
         D(".scope", SCOPE);
@@ -412,6 +417,11 @@ const KeywordMap &linker_directives()
         m[".text"] = Keyword{.type = TokenType::ASSEMBLER_TEXT, .flags = 0, .allows_s = false};
         m[".data"] = Keyword{.type = TokenType::ASSEMBLER_DATA, .flags = 0, .allows_s = false};
         m[".bss"] = Keyword{.type = TokenType::ASSEMBLER_BSS, .flags = 0, .allows_s = false};
+        m[".rodata"] = Keyword{.type = TokenType::ASSEMBLER_RODATA, .flags = 0, .allows_s = false};
+        m[".init_array"] =
+            Keyword{.type = TokenType::ASSEMBLER_INIT_ARRAY, .flags = 0, .allows_s = false};
+        m[".fini_array"] =
+            Keyword{.type = TokenType::ASSEMBLER_FINI_ARRAY, .flags = 0, .allows_s = false};
         return m;
     }();
     return map;
@@ -794,6 +804,29 @@ class Lexer
                    || mnemonic.type == TokenType::INSTRUCTION_SWI);
     }
 
+    /// The condition of the conditional select instructions is the last operand: `csel x0, x1, x2,
+    /// lt`, `cset x0, eq`. It follows a comma instead of a dot.
+    bool is_select_condition_position() const
+    {
+        const std::vector<Token> &toks = m_result.tokens;
+        if (toks.empty() || toks.back().type != TokenType::COMMA)
+        {
+            return false;
+        }
+
+        std::size_t first = toks.size();
+        while (first > 0 && toks[first - 1].type != TokenType::NEWLINE)
+        {
+            first--;
+        }
+        while (first < toks.size() && toks[first].type == TokenType::LABEL)
+        {
+            first++;
+        }
+        return first < toks.size() && toks[first].type >= TokenType::INSTRUCTION_CSEL
+               && toks[first].type <= TokenType::INSTRUCTION_CNEG;
+    }
+
     void lex_word(std::size_t begin, const SourceLocation &loc)
     {
         const std::size_t n = m_src.size();
@@ -834,7 +867,7 @@ class Lexer
         if (assembly())
         {
             std::optional<Keyword> kw;
-            if (is_condition_position(begin))
+            if (is_condition_position(begin) || is_select_condition_position())
             {
                 kw = find_keyword(condition_keywords(), text);
             }
@@ -1189,11 +1222,8 @@ class Lexer
             {
                 return two(TokenType::OPERATOR_LOGICAL_EQUAL);
             }
-            if (!assembly())
-            {
-                return one(TokenType::EQUAL);
-            }
-            break;
+            // In assembly it only means something in `ldr xd, =value`.
+            return one(TokenType::EQUAL);
         case ';':
             if (!assembly())
             {

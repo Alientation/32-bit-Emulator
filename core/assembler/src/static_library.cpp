@@ -138,6 +138,13 @@ std::vector<ObjectFile> select_library_members(const std::vector<ObjectFile> &ob
                 continue;
             }
 
+            // A weak reference does not need a definition, so it does not pull a member in.
+            if (symbol.section == U32(-1)
+                && symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED)
+            {
+                continue;
+            }
+
             const std::string &name = object.strings[symbol.symbol_name];
             (symbol.section == U32(-1) ? wanted : defined).insert(name);
         }

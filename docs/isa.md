@@ -248,6 +248,7 @@ The extended op is bits 22–25. An unknown extended op is an [undefined instruc
 | `0101` | `ERET` | implemented. Privileged |
 | `0110` | `WFI` | privileged. Halts for now: there are no interrupts |
 | `0111` | `BRK imm22` | implemented |
+| `1000` | `SXTB`, `SXTH`, `UXTB`, `UXTH`, `CLZ`, `REV`, `REV16` | implemented, see [Unary operations](#unary-operations) |
 | `1111` | `NOP` | does nothing |
 
 **Privileged** instructions are an undefined instruction (ISS 2) in user mode.
@@ -327,6 +328,29 @@ Flushes the TLB, `imm16` says how. Privileged. Always an undefined instruction (
 - `xn` is truncated to the width of the access. A byte or half-word read is zero extended into `xt`.
 - `xt` is written only after the memory write succeeded.
 - Other `atop` values fault with `BAD_INSTR`.
+
+### Unary operations
+
+`OP xd, xn`, one extended op (`1000`) for a family of operations on one register. They are what a compiler needs for conversions and byte order and would otherwise take two or more instructions. No flags are changed.
+
+```
+ 31   26 25  22 21  17 16 15  11 10        4 3    0
++-------+------+------+--+------+-----------+------+
+|000000 | 1000 |  xd  | -|  xn  |     -     |  op  |
++-------+------+------+--+------+-----------+------+
+```
+
+| op | Instruction | Result |
+|----|-------------|--------|
+| `0000` | `SXTB xd, xn` | the low byte of `xn`, sign extended |
+| `0001` | `SXTH xd, xn` | the low half-word, sign extended |
+| `0010` | `UXTB xd, xn` | the low byte, zero extended (`and xd, xn, 255`) |
+| `0011` | `UXTH xd, xn` | the low half-word, zero extended |
+| `0100` | `CLZ xd, xn` | the number of leading zero bits, 32 for 0 |
+| `0101` | `REV xd, xn` | the four bytes in reverse order |
+| `0110` | `REV16 xd, xn` | the bytes of each half-word swapped |
+
+Other values of `op` are an undefined instruction (ISS 1). `xd` and `xn` may be the same register.
 
 ## Instructions by opcode
 
@@ -422,6 +446,33 @@ All are format M. See [mem](#operands) for the addressing modes.
 | `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
 `S` updates N and Z from the result, C and V are unchanged. **Dividing by zero gives 0** and raises nothing, and `INT_MIN / -1` is `INT_MIN`. There is no remainder instruction: `r = n - (n / d) * d` (`sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`), which is `n` for a `d` of 0. See [abi.md](abi.md#division).
+
+### Conditional select (1)
+
+| Opcode | Instruction | Format | Operation |
+|--------|-------------|--------|-----------|
+| `101100` | `CSEL`, `CSINC`, `CSINV`, `CSNEG xd, xn, xm, cond` | C | `xd = cond ? xn : f(xm)` |
+
+```
+ 31   26 25  22 21  17 16 15  11 10   6 5  4 3    0
++-------+------+------+--+------+------+----+------+
+|opcode | cond |  xd  | -|  xn  |  xm  | v  |  -   |
++-------+------+------+--+------+------+----+------+
+```
+
+`cond` is a [condition code](#condition-codes). The variant `v` (bits 4–5) says what is written when the condition is false: `00` `CSEL` writes `xm`, `01` `CSINC` writes `xm + 1`, `10` `CSINV` writes `~xm`, `11` `CSNEG` writes `-xm`. When it is true `xd = xn`. The flags are only read. `xzr` reads as 0.
+
+The assembler writes the common cases as aliases, which store the **opposite** condition:
+
+| Alias | Is | Result |
+|-------|----|--------|
+| `CSET xd, cond` | `CSINC xd, xzr, xzr, !cond` | 1 if `cond` holds, else 0 |
+| `CSETM xd, cond` | `CSINV xd, xzr, xzr, !cond` | all ones if `cond` holds, else 0 |
+| `CINC xd, xn, cond` | `CSINC xd, xn, xn, !cond` | `xn + 1` if `cond` holds, else `xn` |
+| `CINV xd, xn, cond` | `CSINV xd, xn, xn, !cond` | `~xn` if `cond` holds, else `xn` |
+| `CNEG xd, xn, cond` | `CSNEG xd, xn, xn, !cond` | `-xn` if `cond` holds, else `xn` |
+
+`!cond` flips the lowest bit of the code (`EQ`↔`NE`, `LT`↔`GE`, ...). `AL` and `NV` have no opposite, so the aliases do not accept them. The disassembler shows these forms as the aliases. This is what `a < b` as a value, `abs` and the conditional negation of a compiler turn into, without a branch.
 
 ### Branching (5)
 
@@ -526,4 +577,4 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The free opcodes are:
 
-`101100`, `110011`, `110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`
+`110011`, `110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`

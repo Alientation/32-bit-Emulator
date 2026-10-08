@@ -433,6 +433,7 @@ class Emulator32bit
     void _eret(const word instr);
     void _wfi(const word instr);
     void _brk(const word instr);
+    void _unary(const word instr);
     void _atomic(const word instr);
 
     enum class AtomicOperation
@@ -472,6 +473,8 @@ class Emulator32bit
     static word asm_eret();
     static word asm_wfi();
     static word asm_brk(word imm22);
+    static word asm_unary(word op, word xd, word xn);
+    static word asm_csel(word variant, ConditionCode cond, word xd, word xn, word xm);
     static word asm_atomic(word xt, word xn, word xm, U8 width, U8 atop);
 
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int imm14);
@@ -501,6 +504,22 @@ class Emulator32bit
     static constexpr word kSpecialOpId_eret = 0b0101;
     static constexpr word kSpecialOpId_wfi = 0b0110;
     static constexpr word kSpecialOpId_brk = 0b0111;
+    static constexpr word kSpecialOpId_unary = 0b1000;
+
+    // The operations of the unary special instruction (`op xd, xn`, bits 0-3).
+    static constexpr word kUnaryId_sxtb = 0b0000;
+    static constexpr word kUnaryId_sxth = 0b0001;
+    static constexpr word kUnaryId_uxtb = 0b0010;
+    static constexpr word kUnaryId_uxth = 0b0011;
+    static constexpr word kUnaryId_clz = 0b0100;
+    static constexpr word kUnaryId_rev = 0b0101;
+    static constexpr word kUnaryId_rev16 = 0b0110;
+
+    // The variants of CSEL (bits 4-5): what is written when the condition is false.
+    static constexpr word kCselId_csel = 0b00;  ///< xm
+    static constexpr word kCselId_csinc = 0b01; ///< xm + 1
+    static constexpr word kCselId_csinv = 0b10; ///< ~xm
+    static constexpr word kCselId_csneg = 0b11; ///< -xm
 
     static constexpr word kAtomicId_swp = 0b0000;
     static constexpr word kAtomicId_ldadd = 0b0001;

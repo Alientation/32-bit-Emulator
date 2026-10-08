@@ -111,7 +111,7 @@ They sit directly after `STRH` in the opcode list (`opcodes.h`), take the same `
 - **`INT_MIN / -1`** gives `INT_MIN` (the result wraps, no exception).
 - **Remainder** has no instruction: `r = n - (n / d) * d`, i.e. `sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`. With `d = 0` that gives `n`, which is consistent with the quotient being 0.
 
-Costs: two of the 16 free primary opcodes, leaving 14. Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp` (operand forms, the S bit, aliasing), the two table checks, and `division_and_remainder` in the integration tests.
+Costs: two of the 16 free primary opcodes, leaving 14 (13 after `csel`). Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp` (operand forms, the S bit, aliasing), the two table checks, and `division_and_remainder` in the integration tests.
 
 ## Lowering of C operations
 
@@ -127,12 +127,14 @@ How the compiler should use the instruction set as it is:
 | `long long` multiply | `umull` for the low parts plus `mul` of the cross terms |
 | `long long` shifts, compares | inline sequences, or the runtime library |
 | constants up to `0x7FFFF` | `mov xd, imm` (`mvn` for the complement, so −1 to −524288 are one instruction) |
-| any other 32 bit constant | `mov xd, hi; lsl xd, xd, 19; mov x16, lo; orr xd, xd, x16`. An assembler pseudo-instruction `ldr xd, =value` with a literal pool is planned |
-| address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym` |
-| sign extension of 8/16 bits in a register | `lsl xd, xn, 24` + `asr xd, xd, 24` (`16` for half-words). Loads use `ldrsb`/`ldrsh` |
-| zero extension | `and xd, xn, 0xFF`, or `lsl` + `lsr` for 16 bits |
+| any other 32 bit constant | `ldr xd, =value`, which the assembler expands to `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (two instructions when the low 14 bits are 0). No literal pool, no scratch register |
+| address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym` |
+| sign extension of 8/16 bits in a register | `sxtb xd, xn` / `sxth xd, xn`. Loads use `ldrsb`/`ldrsh` |
+| zero extension | `uxtb` / `uxth` (or `and xd, xn, 255` for a byte) |
 | comparison for a branch | `cmp` + `b.lt`/`b.lo`/... (signed: `lt le gt ge`, unsigned: `lo ls hi hs`) |
-| comparison as a value (`a < b`) | a branch around two `mov`s, until a `cset` exists |
+| comparison as a value (`a < b`) | `cmp` + `cset xd, lt` (`csetm` for all ones) |
+| `c ? a : b`, `abs`, `-x` on a condition | `cmp` + `csel`, `csneg`, `cneg` |
+| count leading zeros, byte swap (`__builtin_clz`, `htonl`) | `clz`, `rev` (`rev16` swaps the bytes of each half-word) |
 | indirect call | `blx xn` |
 | `switch` jump table | `adrp` + `ldr` + `bx` |
 
@@ -148,7 +150,15 @@ Members are only linked when used (`select_library_members`), so an unused part 
 
 ## Assembler and linker features the ABI needs
 
-Not part of the ABI itself, but required to follow it, in order of need: `.rodata` (read only, not executable), `.weak`, a literal pool for `ldr xd, =value`, `cset`/`csel`, common symbols or a defined policy for tentative definitions, `.init_array`-style constructor sections.
+Not part of the ABI itself, but needed to follow it. All **implemented** (see [basm-syntax.md](basm-syntax.md)):
+
+- `.rodata`: string literals, `const` data and jump tables. Read only and not executable, on a page of its own.
+- `.weak` and `.comm`: weak symbols (a library function that a program may replace, an optional hook) and common symbols. A C compiler should place a tentative definition (`int x;` at file scope) in `.bss` as an ordinary global (`-fno-common`, the default of modern compilers) so that nothing depends on `.comm`, which cannot compare sizes: `.comm` is there for hand written code.
+- `.init_array` / `.fini_array` with the `__init_array_start`/`_end` and `__fini_array_start`/`_end` symbols: for `__attribute__((constructor))`. `crt0` calls what is between the bounds before `main` and after it.
+- `ldr xd, =value` (no literal pool, see the lowering table), `cset`/`csel` and their family, and `sxtb`/`sxth`/`uxtb`/`uxth`/`clz`/`rev`/`rev16`.
+- `mov xd, imm` takes the whole `imm19` (it was limited to 14 bits by the assembler although the encoding has 19).
+
+Not done: `adr` (a pc relative address within a few hundred KiB, in one instruction instead of the `adrp` pair, which would use a primary opcode); a `.section` directive for names other than the six sections.
 
 ## Open questions
 
