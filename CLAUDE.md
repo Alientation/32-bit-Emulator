@@ -20,7 +20,11 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compile
 ./build.sh test       # run tests only (must have built)
 ./build.sh clean      # rm -rf build, then full build + test
 ./build.sh coverage   # lcov/genhtml report from build/debug gcov data -> core/coverage/
+./build.sh asan       # separate build in build/asan (Debug) with AddressSanitizer + LeakSanitizer + UBSan, then ctest on it
+./build.sh ubsan      # the same with UBSan alone in build/ubsan (much faster)
 ```
+
+CI runs `./build.sh` and, as a second job, `./build.sh asan`.
 
 Run a single test or suite:
 ```bash
@@ -29,7 +33,7 @@ ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit |
 build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='DataProcessingTest.golden_*'
 ```
 
-Compile flags are not set per target. Every target calls `aemu_target_defaults(<tgt>)` from `core/cmake/AemuHelpers.cmake`, which adds the warnings, `-O3` for Release/RelWithDebInfo (compile and link), and `--coverage` for Debug. LTO comes from CMake's IPO support. CMake options: `AEMU_ENABLE_COVERAGE` (ON), `AEMU_WARNINGS_AS_ERRORS` (OFF), `AEMU_ENABLE_LTO` (ON), `BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched). In-tree code links the libraries through the `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
+Compile flags are not set per target. Every target calls `aemu_target_defaults(<tgt>)` from `core/cmake/AemuHelpers.cmake`, which adds the warnings, `-O3` for Release/RelWithDebInfo (compile and link), and `--coverage` for Debug. LTO comes from CMake's IPO support. CMake options: `AEMU_ENABLE_COVERAGE` (ON), `AEMU_WARNINGS_AS_ERRORS` (OFF), `AEMU_ENABLE_LTO` (ON), `AEMU_SANITIZE` (empty; a `;` list of `address`, `undefined`, `leak`, `thread`, which `aemu_target_defaults` turns into `-fsanitize=...` with `-fno-sanitize-recover=all` so a report fails the test, plus `_GLIBCXX_ASSERTIONS`; `thread` cannot be combined with `address`/`leak`; use a build directory of its own, `build.sh asan` does), `BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched). In-tree code links the libraries through the `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
 
 **New test files must be added by hand** to the `SOURCES` list of the `aemu_add_gtest(...)` call in that module's `tests/CMakeLists.txt`. Nothing globs them. Integration tests use the same helper in `core/integration_tests/CMakeLists.txt`.
 

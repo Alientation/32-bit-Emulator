@@ -6,6 +6,9 @@ set -euo pipefail
 #   'test': test only
 #   'clean': remove previous build
 #   'coverage': generate coverage from tests
+#   'asan': build and test with the address, leak and undefined behavior sanitizers (build/asan)
+#   'ubsan': build and test with the undefined behavior sanitizer alone (build/ubsan), which is
+#            a lot faster than 'asan'
 ARG1=${1:-false}
 
 BUILD_DIR="build"
@@ -16,6 +19,12 @@ COVERAGE_DIR="coverage"
 DO_COMPILE=true
 DO_TEST=true
 
+# A sanitizer build replaces the debug and release builds. It has a directory of its own, since
+# the whole tree has to be built with the same flags.
+DO_SANITIZE=false
+SANITIZE_DIR=""
+SANITIZE_LIST=""
+
 if [ $# -gt 0 ]; then
     if [[ "$ARG1" == "help" ]]; then
         echo "Optional arguments"
@@ -24,6 +33,9 @@ if [ $# -gt 0 ]; then
         echo "coverage:         Generate code coverage from gcov data. Run after completing tests."
         echo " compile:         Only compile the project. Does not run the unit tests."
         echo "    test:         Only test the project. Must have compiled previously."
+        echo "    asan:         Build (build/asan) and test with the address, leak and undefined"
+        echo "                  behavior sanitizers instead of the debug and release builds."
+        echo "   ubsan:         Same with the undefined behavior sanitizer alone (build/ubsan)."
         exit
     elif [[ "$ARG1" == "clean" ]]; then
         echo "Cleaning previous build directories..."
@@ -52,6 +64,17 @@ if [ $# -gt 0 ]; then
             --branch-coverage                   \
             --function-coverage
         exit
+    elif [[ "$ARG1" == "asan" || "$ARG1" == "ubsan" ]]; then
+        echo "Building and testing with sanitizers ($ARG1)..."
+        DO_COMPILE=false
+        DO_TEST=false
+        DO_SANITIZE=true
+        SANITIZE_DIR="$BUILD_DIR/$ARG1"
+        if [[ "$ARG1" == "asan" ]]; then
+            SANITIZE_LIST="address;undefined"
+        else
+            SANITIZE_LIST="undefined"
+        fi
     elif [[ "$ARG1" == "compile" ]]; then
         echo "Only compiling..."
         DO_COMPILE=true
@@ -99,4 +122,20 @@ if $DO_TEST; then
     # Run tests for Release
     echo "Running Release tests..."
     ctest --test-dir "$RELEASE_DIR" --progress --output-on-failure
+fi
+
+if $DO_SANITIZE; then
+    # Debug, so that the reports have the source lines. No coverage, it only slows the run down.
+    echo "Configuring sanitizer build ($SANITIZE_LIST)..."
+    cmake -S . -B "$SANITIZE_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DAEMU_ENABLE_COVERAGE=OFF \
+        "-DAEMU_SANITIZE=$SANITIZE_LIST"
+
+    echo "Building with sanitizers..."
+    cmake --build "$SANITIZE_DIR"
+
+    # The tests start basm and emu32, which are built with the sanitizers too and read these.
+    echo "Running sanitizer tests..."
+    ASAN_OPTIONS="detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1" \
+    UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" \
+        ctest --test-dir "$SANITIZE_DIR" --progress --output-on-failure
 fi

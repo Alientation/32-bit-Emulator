@@ -4,7 +4,26 @@
 # library still appears as $<LINK_ONLY:...> in the export sets of installed static libraries,
 # which would make install(EXPORT) fail.
 
-# Applies the project-wide warning, optimization, and coverage settings to a target.
+# Turns AEMU_SANITIZE into the -fsanitize flag that aemu_target_defaults adds (empty when off).
+set(AEMU_SANITIZE_FLAG "")
+if(AEMU_SANITIZE)
+    foreach(sanitizer IN LISTS AEMU_SANITIZE)
+        if(NOT sanitizer MATCHES "^(address|undefined|leak|thread)$")
+            message(FATAL_ERROR
+                "AEMU_SANITIZE: unknown sanitizer '${sanitizer}' (address, undefined, leak, thread)")
+        endif()
+    endforeach()
+    # The thread sanitizer cannot be combined with the address and leak sanitizers.
+    if("thread" IN_LIST AEMU_SANITIZE AND ("address" IN_LIST AEMU_SANITIZE
+                                           OR "leak" IN_LIST AEMU_SANITIZE))
+        message(FATAL_ERROR "AEMU_SANITIZE: thread cannot be combined with address or leak")
+    endif()
+    list(JOIN AEMU_SANITIZE "," sanitizer_list)
+    set(AEMU_SANITIZE_FLAG "-fsanitize=${sanitizer_list}")
+    message(STATUS "Sanitizers: ${sanitizer_list}")
+endif()
+
+# Applies the project-wide warning, optimization, sanitizer and coverage settings to a target.
 #   target: name of an existing library or executable target
 function(aemu_target_defaults target)
     set(gcc_like "$<OR:$<C_COMPILER_ID:GNU,Clang,AppleClang>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>")
@@ -21,6 +40,16 @@ function(aemu_target_defaults target)
     )
     # With LTO, code generation happens at link time, so the link step needs -O3 as well.
     target_link_options(${target} PRIVATE $<$<AND:${gcc_like},${optimized}>:-O3>)
+
+    if(AEMU_SANITIZE_FLAG)
+        # A report has to fail the test: by default the undefined behavior sanitizer prints the
+        # error and carries on. The frame pointer gives the reports usable stack traces, and the
+        # assertions of the standard library check the indices of vector, array and string.
+        target_compile_options(${target} PRIVATE
+            "$<${gcc_like}:${AEMU_SANITIZE_FLAG};-fno-sanitize-recover=all;-fno-omit-frame-pointer>")
+        target_compile_definitions(${target} PRIVATE "$<${gcc_like}:_GLIBCXX_ASSERTIONS>")
+        target_link_options(${target} PRIVATE "$<${gcc_like}:${AEMU_SANITIZE_FLAG}>")
+    endif()
 
     if(AEMU_ENABLE_COVERAGE)
         target_compile_options(${target} PRIVATE $<$<AND:${gcc_like},$<CONFIG:Debug>>:--coverage>)

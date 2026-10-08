@@ -9,6 +9,9 @@ option(BUILD_TESTS "Build tests" ON)
 option(AEMU_ENABLE_COVERAGE "Instrument Debug builds with --coverage" ON)
 option(AEMU_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(AEMU_ENABLE_LTO "Enable link-time optimization for Release/RelWithDebInfo" ON)
+# A ;-separated list of address, undefined, leak, thread, e.g. -DAEMU_SANITIZE="address;undefined".
+# Use a build directory of its own, since the whole tree has to be built with the same flags.
+set(AEMU_SANITIZE "" CACHE STRING "Sanitizers to build the project with")
 
 # Project-wide defaults (also applied to third-party targets). Our own libraries additionally
 # declare cxx_std_20 as a usage requirement for installed consumers.
