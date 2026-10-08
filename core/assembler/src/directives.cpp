@@ -3,6 +3,41 @@
 
 #include <string>
 
+using basm::Token;
+using basm::TokenType;
+
+void Assembler::fail(const Token &at, const std::string &message)
+{
+    m_state = State::ASSEMBLER_ERROR;
+    basm::fatal_at(*m_sources, at.loc, message);
+}
+
+const Token &Assembler::expect(TokenType type, const std::string &message)
+{
+    if (!m_cursor.check(type))
+    {
+        fail(m_cursor.peek(), message + ", got " + basm::describe(m_cursor.peek()));
+    }
+    return m_cursor.next();
+}
+
+void Assembler::check(bool condition, const std::string &message)
+{
+    if (!condition)
+    {
+        fail(m_statement != nullptr ? *m_statement : m_cursor.peek(), message);
+    }
+}
+
+void Assembler::expect_end_of_statement()
+{
+    if (!m_cursor.check(TokenType::NEWLINE) && !m_cursor.at_end())
+    {
+        fail(m_cursor.peek(),
+             "unexpected " + basm::describe(m_cursor.peek()) + " at the end of the statement");
+    }
+}
+
 ///
 /// @brief
 /// @todo               Implement full expression parser.
@@ -15,54 +50,44 @@ dword Assembler::parse_expression(dword min, dword max)
 
     // For now, only parse expressions sequentially, without care of precedence.
     dword exp_value = 0;
-    Tokenizer::Token *operator_token = nullptr;
+    const Token *operator_token = nullptr;
     while (true)
     {
-        const Tokenizer::Token &token = m_tokenizer.consume();
-
-        dword value = 0;
-        if (token.type == Tokenizer::LITERAL_NUMBER_DECIMAL)
+        const Token &token = m_cursor.peek();
+        if (!basm::is_integer_literal(token.type) && !token.is(TokenType::LITERAL_CHAR))
         {
-            value = std::stoull(token.value);
+            fail(token, (operator_token != nullptr
+                             ? "expected an operand after '" + operator_token->str() + "'"
+                             : std::string("expected a number"))
+                            + ", got " + basm::describe(token));
         }
-        else if (token.type == Tokenizer::LITERAL_NUMBER_HEXADECIMAL)
-        {
-            value = std::stoull(token.value.substr(1), nullptr, 16);
-        }
-        else if (token.type == Tokenizer::LITERAL_NUMBER_BINARY)
-        {
-            value = std::stoull(token.value.substr(1), nullptr, 2);
-        }
-        else if (token.type == Tokenizer::LITERAL_NUMBER_OCTAL)
-        {
-            value = std::stoull(token.value.substr(1), nullptr, 8);
-        }
-        else if (operator_token != nullptr)
-        {
-            AEMU_FATAL("Assembler::parse_expression() - Expected operand to follow operator.");
-        }
+        m_cursor.next();
+        const dword value = token.int_value;
 
         if (operator_token != nullptr)
         {
             switch (operator_token->type)
             {
-            case Tokenizer::OPERATOR_ADDITION:
+            case TokenType::OPERATOR_ADDITION:
                 exp_value += value;
                 break;
-            case Tokenizer::OPERATOR_SUBTRACTION:
+            case TokenType::OPERATOR_SUBTRACTION:
                 exp_value -= value;
                 break;
-            case Tokenizer::OPERATOR_DIVISION:
+            case TokenType::OPERATOR_DIVISION:
+                if (value == 0)
+                {
+                    fail(*operator_token, "division by zero");
+                }
                 exp_value /= value;
                 break;
-            case Tokenizer::OPERATOR_MULTIPLICATION:
+            case TokenType::OPERATOR_MULTIPLICATION:
                 exp_value *= value;
                 break;
             default:
-                AEMU_FATAL("Assembler::parse_expression() - Expected operator token but got {}",
-                           operator_token->value);
+                fail(*operator_token,
+                     "expected an operator, got " + basm::describe(*operator_token));
             }
-            operator_token = nullptr;
         }
         else
         {
@@ -70,13 +95,11 @@ dword Assembler::parse_expression(dword min, dword max)
         }
 
         // Temporary only support 4 operations.
-        // The expression may be the last thing in the file.
-        if (m_tokenizer.has_next()
-            && m_tokenizer.is_next({Tokenizer::OPERATOR_ADDITION, Tokenizer::OPERATOR_DIVISION,
-                                    Tokenizer::OPERATOR_MULTIPLICATION,
-                                    Tokenizer::OPERATOR_SUBTRACTION}))
+        if (m_cursor.check_any({TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_DIVISION,
+                                TokenType::OPERATOR_MULTIPLICATION,
+                                TokenType::OPERATOR_SUBTRACTION}))
         {
-            operator_token = &m_tokenizer.consume();
+            operator_token = &m_cursor.next();
         }
         else
         {
@@ -106,17 +129,13 @@ dword Assembler::parse_expression(dword min, dword max)
 ///
 void Assembler::_global()
 {
-    if (m_cur_section != Section::NONE)
-    {
-        AEMU_FATAL("Assembler::_global() - Cannot declare symbol as global "
-                   "inside a section. Must be declared outside of .text, .bss, and .data.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
-    }
+    check(m_cur_section == Section::NONE,
+          "cannot declare a symbol as global inside a section, declare it outside of .text, "
+          ".bss, and .data");
 
-    m_tokenizer.consume();
+    m_cursor.next();
 
-    const std::string symbol = m_tokenizer.consume().value;
+    const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol after .global").str();
     m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL);
 }
 
@@ -128,18 +147,13 @@ void Assembler::_global()
 ///
 void Assembler::_extern()
 {
-    if (m_cur_section != Section::NONE)
-    {
-        AEMU_FATAL("Assembler::_extern() - Cannot "
-                   "declare symbol as extern inside a section. Must be declared outside of "
-                   ".text, .bss, and .data.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
-    }
+    check(m_cur_section == Section::NONE,
+          "cannot declare a symbol as extern inside a section, declare it outside of .text, "
+          ".bss, and .data");
 
-    m_tokenizer.consume();
+    m_cursor.next();
 
-    const std::string symbol = m_tokenizer.consume().value;
+    const std::string symbol = expect(TokenType::SYMBOL, "expected a symbol after .extern").str();
     m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 }
 
@@ -149,40 +163,29 @@ void Assembler::_extern()
 ///
 void Assembler::_org()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     const word val = parse_expression();
 
     if (val >= 0xffffff)
     {
         // Safety exit. Likely unintentional behavior.
-        AEMU_FATAL("Assembler::_org() - new value is large and likely unintentional. ({}).", val);
-        m_state = State::ASSEMBLER_WARNING;
-        return;
+        fail(*m_statement,
+             "new value is large and likely unintentional (" + std::to_string(val) + ")");
     }
 
     switch (m_cur_section)
     {
     case Section::BSS:
-        if (val < m_obj.bss_section)
-        {
-            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
-                       "assembler pc backwards. Expected >= {}. Got {}.",
-                       m_obj.bss_section, val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
+        check(val >= m_obj.bss_section, ".org cannot move the assembler backwards, expected >= "
+                                            + std::to_string(m_obj.bss_section) + ", got "
+                                            + std::to_string(val));
         m_obj.bss_section = val;
         break;
     case Section::DATA:
-        if (val < m_obj.data_section.size())
-        {
-            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
-                       "assembler pc backwards. Expected >= {}. Got {}.",
-                       m_obj.data_section.size(), val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
+        check(val >= m_obj.data_section.size(),
+              ".org cannot move the assembler backwards, expected >= "
+                  + std::to_string(m_obj.data_section.size()) + ", got " + std::to_string(val));
         for (size_t i = m_obj.data_section.size(); i < val; i++)
         {
             m_obj.data_section.push_back(0);
@@ -191,24 +194,11 @@ void Assembler::_org()
     case Section::TEXT:
         // It is likely not very useful to allow .org to move pc in a text section,
         // comparatively to .data and .bss.
-        if (val < m_obj.text_section.size() * 4)
-        {
-            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
-                       "assembler pc backwards. Expected >= {}. Got {}.",
-                       m_obj.text_section.size() * 4, val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
-
-        if (val % 4 != 0)
-        {
-            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
-                       "assembler pc to a non-word aligned byte in .text section. Expected aligned "
-                       "4 byte. Got {}.",
-                       val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
+        check(val >= m_obj.text_section.size() * 4,
+              ".org cannot move the assembler backwards, expected >= "
+                  + std::to_string(m_obj.text_section.size() * 4) + ", got " + std::to_string(val));
+        check(val % 4 == 0, ".org cannot move to a byte that is not word aligned in .text, got "
+                                + std::to_string(val));
 
         for (size_t i = m_obj.text_section.size() * 4; i < val; i += 4)
         {
@@ -216,9 +206,7 @@ void Assembler::_org()
         }
         break;
     case Section::NONE:
-        AEMU_FATAL("Assembler::_org() - Not defined inside section. Cannot move section pointer.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
+        fail(*m_statement, ".org is not inside a section, there is nothing to move");
     }
 }
 
@@ -232,7 +220,7 @@ void Assembler::_org()
 ///
 void Assembler::_scope()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
     m_scopes.push_back(m_total_scopes++);
 }
 
@@ -242,14 +230,9 @@ void Assembler::_scope()
 ///
 void Assembler::_scend()
 {
-    if (m_scopes.empty())
-    {
-        AEMU_FATAL("Assembler::_scend() - .scend directive must have a matching .scope directive.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
-    }
+    check(!m_scopes.empty(), ".scend must have a matching .scope");
 
-    m_tokenizer.consume();
+    m_cursor.next();
     m_scopes.pop_back();
 }
 
@@ -259,7 +242,7 @@ void Assembler::_scend()
 ///
 void Assembler::_advance()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     const word val = parse_expression();
     if (val >= 0xffffff)
@@ -285,16 +268,8 @@ void Assembler::_advance()
     case Section::TEXT:
         // It is likely not very useful to allow .org to move pc in a text section,
         // comparatively to .data and .bss.
-        if (val % 4 != 0)
-        {
-            AEMU_FATAL("Assembler::_advance() - .advance directive cannot"
-                       " move assembler pc to a non-word aligned byte in .text section. Expected "
-                       "aligned 4 byte."
-                       " Got {}.",
-                       val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
+        check(val % 4 == 0, ".advance cannot move to a byte that is not word aligned in .text, got "
+                                + std::to_string(val));
 
         for (word i = 0; i < val; i += 4)
         {
@@ -302,10 +277,7 @@ void Assembler::_advance()
         }
         break;
     case Section::NONE:
-        AEMU_FATAL(
-            "Assembler::_advance() - Not defined inside section. Cannot move section pointer.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
+        fail(*m_statement, ".advance is not inside a section, there is nothing to move");
     }
 }
 
@@ -317,7 +289,7 @@ void Assembler::_advance()
 ///
 void Assembler::_align()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     const word val = parse_expression();
     if (val >= 0xffff)
@@ -328,6 +300,7 @@ void Assembler::_align()
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
+    check(val != 0, ".align expects a non-zero alignment");
 
     switch (m_cur_section)
     {
@@ -343,16 +316,7 @@ void Assembler::_align()
     case Section::TEXT:
         // It is likely not very useful to allow .org to move pc in a text section,
         // comparatively to .data and .bss.
-        if (val % 4 != 0)
-        {
-            AEMU_FATAL("Assembler::_advance() - .advance directive cannot "
-                       "move assembler pc to a non-word aligned byte in .text section. Expected "
-                       "aligned 4 byte."
-                       " Got {}.",
-                       val);
-            m_state = State::ASSEMBLER_ERROR;
-            return;
-        }
+        check(val % 4 == 0, ".align in .text must be a multiple of 4, got " + std::to_string(val));
 
         while (m_obj.text_section.size() * 4 % val != 0)
         {
@@ -360,10 +324,7 @@ void Assembler::_align()
         }
         break;
     case Section::NONE:
-        AEMU_FATAL(
-            "Assembler::_align() - Not defined inside a section. Cannot align section pointer.");
-        m_state = State::ASSEMBLER_ERROR;
-        return;
+        fail(*m_statement, ".align is not inside a section, there is nothing to align");
     }
 }
 
@@ -374,14 +335,11 @@ void Assembler::_align()
 ///
 void Assembler::_section()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
-    m_tokenizer.expect_next(Tokenizer::LITERAL_STRING, "Assembler::_section() - .section expects a "
-                                                       "string argument to follow.");
+    expect(TokenType::LITERAL_STRING, ".section expects a string argument");
 
-    AEMU_FATAL("Assembler::_section() - .section directive is not implemented yet.");
-    m_state = State::ASSEMBLER_ERROR;
-    return;
+    fail(*m_statement, ".section is not implemented yet");
 }
 
 ///
@@ -391,7 +349,7 @@ void Assembler::_section()
 ///
 void Assembler::_text()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     m_cur_section = Section::TEXT;
     m_cur_section_index = m_obj.section_table[".text"];
@@ -404,7 +362,7 @@ void Assembler::_text()
 ///
 void Assembler::_data()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     m_cur_section = Section::DATA;
     m_cur_section_index = m_obj.section_table[".data"];
@@ -417,7 +375,7 @@ void Assembler::_data()
 ///
 void Assembler::_bss()
 {
-    m_tokenizer.consume();
+    m_cursor.next();
 
     m_cur_section = Section::BSS;
     m_cur_section_index = m_obj.section_table[".bss"];
@@ -429,20 +387,19 @@ void Assembler::_bss()
 ///
 void Assembler::_stop()
 {
-    m_tokenizer.set_toki(m_tokenizer.get_tokens().size());
+    while (!m_cursor.at_end())
+    {
+        m_cursor.next();
+    }
 }
 
 std::vector<dword> Assembler::parse_arguments()
 {
     std::vector<dword> args;
-    while (m_tokenizer.has_next() && !m_tokenizer.is_next(Tokenizer::WHITESPACE_NEWLINE))
+    while (!m_cursor.at_end() && !m_cursor.check(TokenType::NEWLINE))
     {
         args.push_back(parse_expression());
-        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
-        {
-            m_tokenizer.consume();
-        }
-        else
+        if (!m_cursor.accept(TokenType::COMMA))
         {
             break;
         }
@@ -466,209 +423,104 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, U8 n_bytes)
     return little_endian_data;
 }
 
-void Assembler::_byte()
+void Assembler::define_data(const char *directive, U8 n_bytes)
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_byte() - Can only define data in .data section.");
+    check(m_cur_section == Section::DATA,
+          std::string(directive) + " can only define data in the .data section");
 
-    m_tokenizer.consume();
+    m_cursor.next();
 
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 1);
+    const std::vector<byte> data = convert_little_endian(parse_arguments(), n_bytes);
     for (size_t i = 0; i < data.size(); i++)
     {
         m_obj.data_section.push_back(data.at(i));
     }
+}
+
+void Assembler::_byte()
+{
+    define_data(".byte", 1);
 }
 
 void Assembler::_dbyte()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_dbyte() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 2);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".dbyte", 2);
 }
 
 void Assembler::_word()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_word() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    std::vector<byte> data = convert_little_endian(parse_arguments(), 4);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".word", 4);
 }
 
 void Assembler::_dword()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_dword() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 8);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".dword", 8);
 }
 
 // TODO: This is pointless, same as .byte.
 void Assembler::_sbyte()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_sbyte() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 1);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".sbyte", 1);
 }
 
 // TODO: Figure out why signed versions of these data defining directives are needed.
 void Assembler::_sdbyte()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_sdbyte() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 2);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".sdbyte", 2);
 }
 
 void Assembler::_sword()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_sword() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 4);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".sword", 4);
 }
 
 void Assembler::_sdword()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_sdword() - Can only define data in .data section.");
-
-    m_tokenizer.consume();
-
-    const std::vector<byte> data = convert_little_endian(parse_arguments(), 8);
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        m_obj.data_section.push_back(data.at(i));
-    }
+    define_data(".sdword", 8);
 }
 
 void Assembler::_char()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_char() - Can only define data in .data section.");
-    m_tokenizer.consume();
+    check(m_cur_section == Section::DATA, ".char can only define data in the .data section");
+    m_cursor.next();
 
-    while (true)
+    do
     {
-        m_tokenizer.expect_next(Tokenizer::Type::LITERAL_CHAR,
-                                "Assembler::_char() - Expected literal"
-                                " char. Got "
-                                    + m_tokenizer.get_token().value);
-
-        // Get the second character since literal chars are surrounded by single quotes.
-        m_obj.data_section.push_back(m_tokenizer.consume().value.at(1));
-        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
-        {
-            m_tokenizer.consume();
-        }
-        else
-        {
-            break;
-        }
-    }
+        const Token &literal = expect(TokenType::LITERAL_CHAR, "expected a character literal");
+        m_obj.data_section.push_back(static_cast<byte>(literal.int_value));
+    } while (m_cursor.accept(TokenType::COMMA));
 }
 
 void Assembler::_ascii()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_ascii() - Can only define data in .data section.");
-    m_tokenizer.consume();
+    check(m_cur_section == Section::DATA, ".ascii can only define data in the .data section");
+    m_cursor.next();
 
-    while (true)
+    // Note, does not automatically add the null terminator.
+    do
     {
-        m_tokenizer.expect_next(Tokenizer::Type::LITERAL_STRING,
-                                "Assembler::_ascii() - Expected "
-                                "literal string. Got "
-                                    + m_tokenizer.get_token().value);
-
-        const std::string str = m_tokenizer.consume().value;
-
-        // Ignore the surrounding double quotes.
-        for (size_t i = 1; i < str.size() - 1; i++)
+        const std::string str = basm::unescape_string_literal(
+            expect(TokenType::LITERAL_STRING, "expected a string literal"));
+        for (const char c : str)
         {
-            m_obj.data_section.push_back(str[i]);
+            m_obj.data_section.push_back(static_cast<byte>(c));
         }
-
-        // Note, does not automatically add the null terminator.
-
-        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
-        {
-            m_tokenizer.consume();
-        }
-        else
-        {
-            break;
-        }
-    }
+    } while (m_cursor.accept(TokenType::COMMA));
 }
 
 void Assembler::_asciz()
 {
-    AEMU_CHECK(m_cur_section == Section::DATA,
-               "Assembler::_asciz() - Can only define data in .data section.");
-    m_tokenizer.consume();
+    check(m_cur_section == Section::DATA, ".asciz can only define data in the .data section");
+    m_cursor.next();
 
-    while (true)
+    do
     {
-        m_tokenizer.expect_next(Tokenizer::Type::LITERAL_STRING,
-                                "Assembler::_ascii() - Expected "
-                                "literal string. Got "
-                                    + m_tokenizer.get_token().value);
-
-        const std::string str = m_tokenizer.consume().value;
-
-        // Ignore the surrounding double quotes.
-        for (size_t i = 1; i < str.size() - 1; i++)
+        const std::string str = basm::unescape_string_literal(
+            expect(TokenType::LITERAL_STRING, "expected a string literal"));
+        for (const char c : str)
         {
-            m_obj.data_section.push_back(str[i]);
+            m_obj.data_section.push_back(static_cast<byte>(c));
         }
         m_obj.data_section.push_back('\0');
-
-        if (m_tokenizer.has_next() && m_tokenizer.is_next(Tokenizer::COMMA))
-        {
-            m_tokenizer.consume();
-        }
-        else
-        {
-            break;
-        }
-    }
+    } while (m_cursor.accept(TokenType::COMMA));
 }

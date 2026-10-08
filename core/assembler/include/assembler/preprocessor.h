@@ -4,19 +4,22 @@
 #include "assembler/tokenizer.h"
 #include "util/file.h"
 
-#include <functional>
 #include <map>
-#include <stack>
+#include <memory>
 #include <string>
+#include <vector>
 
-/**
- * Plan
- *
- * Improve errors
- *  - supply more information like the problematic line, a specific error and maybe a way to resolve the error?
- *  - throw an exception for errors
- *  - unit test these exceptions
- */
+/// @brief  basm preprocessor. Runs on the tokens of basm::lex. Produces the preprocessed tokens
+///         (take_result) and also writes them as source text (.bi) to the output file.
+///
+/// Input is a stack of Frames. The main file is the bottom frame. #include pushes the included
+/// file and a macro or symbol expansion pushes its expanded tokens. A frame is popped when its
+/// tokens run out. Nothing is ever inserted into or removed from a token list, expansions are
+/// simply new frames, and conditional blocks are tracked with a stack of Cond so that the tokens
+/// of a block that is not taken are dropped as they are read.
+///
+/// Errors are reported with file, line and column of the offending token and terminate through
+/// AEMU_FATAL.
 class Preprocessor
 {
   public:
@@ -28,24 +31,12 @@ class Preprocessor
         PROCESSED_ERROR
     };
 
-    class BadTokenException : public std::exception
-    {
-      private:
-        std::string msg;
-        const Tokenizer::Token &tok;
-
-      public:
-        BadTokenException(const std::string &msg, const Tokenizer::Token &tok);
-        const char *what() const noexcept override;
-    };
-
-    /**
-         * Constructs a preprocessor object with the given file.
-         *
-         * @param process the build process object.
-         * @param file the file to preprocess.
-         * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
-         */
+    /// Constructs a preprocessor object with the given file.
+    ///
+    /// @param process the build process object.
+    /// @param input_file the file to preprocess.
+    /// @param output_file_path the path to the output file, default is the input file path with
+    ///        the .bi extension.
     Preprocessor(Process *process, const File &input_file,
                  const std::string &output_file_path = "");
     ~Preprocessor();
@@ -53,237 +44,185 @@ class Preprocessor
     File preprocess();
     State get_state();
 
-  private:
-    struct Argument
-    {
-        std::string name;
-        Tokenizer::Type type;
+    /// The tokens preprocess() produced. Call once, after preprocess().
+    basm::PreprocessedSource take_result();
 
-        Argument(std::string name, Tokenizer::Type type);
-        Argument(std::string name);
+  private:
+    using Tokens = std::vector<basm::Token>;
+
+    /// `#define NAME[(params)] value`. One symbol can have a definition per parameter count.
+    struct Symbol
+    {
+        std::vector<std::string> params;
+        Tokens value;
     };
 
+    /// `#macro name(params)` ... `#macend`. Keyed by "name/<parameter count>".
     struct Macro
     {
         std::string name;
-        std::vector<Argument> args;
-        Tokenizer::Type return_type;
-
-        std::vector<Tokenizer::Token> definition;
-
-        Macro(std::string name);
-
-        std::string to_string();
-        std::string header();
+        std::vector<std::string> params;
+        Tokens body;
     };
 
-    struct Symbol
+    /// One source of tokens. Expansions own their tokens, so a frame never refers to tokens
+    /// that can move.
+    struct Frame
     {
-        std::string name;
-        std::vector<std::string> parameters;
-        std::vector<Tokenizer::Token> value;
+        Tokens tokens;
+        basm::TokenCursor cursor;
 
-        Symbol(std::string name, std::vector<std::string> parameters,
-               std::vector<Tokenizer::Token> value);
+        /// Source file frames only: the directory #include "..." is resolved against.
+        bool is_file = false;
+        std::string dir;
+
+        /// Size of the conditional stack when the frame was pushed. A conditional block cannot
+        /// begin in one frame and end in another.
+        std::size_t cond_base = 0;
+
+        /// Set for a macro expansion. `output` is the symbol #macret assigns, `tail` is the index
+        /// of the `.scend` token that #macret jumps to.
+        const Macro *macro = nullptr;
+        std::string output;
+        std::size_t tail = 0;
     };
+
+    /// One open #if* block.
+    struct Cond
+    {
+        /// Whether the enclosing block was being taken. If not, nothing in this one is.
+        bool parent_active;
+
+        /// Whether some branch of the chain was already taken.
+        bool taken;
+
+        /// Whether tokens are being kept right now.
+        bool active;
+
+        /// #else was seen, no further branch is allowed.
+        bool seen_else;
+
+        basm::SourceLocation loc;
+    };
+
+    static constexpr std::size_t kMaxFrames = 256;
 
     Process *m_process;
 
     // the .basm or .binc file being preprocessed
     File m_input_file;
 
-    Tokenizer m_tokenizer;
-    static constexpr Tokenizer::Options kTokenizerOptions = {.keep_comments = false,
-                                                             .keep_whitespace = true};
-
     // the output file of the processed file, usually a .bi file
     File m_output_file;
     State m_state;
 
-    // the current processing macro stack with the output symbol and macro
-    std::stack<std::pair<std::string, Macro>> m_macro_stack;
+    std::shared_ptr<basm::SourceManager> m_sources;
+    std::vector<std::unique_ptr<Frame>> m_frames;
+    std::vector<Cond> m_conds;
 
-    std::map<std::string, std::map<int, Symbol>> m_def_symbols;
+    std::map<std::string, std::map<std::size_t, Symbol>> m_symbols;
     std::map<std::string, Macro> m_macros;
 
-    /**
-         * Returns the macros that match the given macro name and arguments list.
-         *
-         * @param macro_name the name of the macro.
-         * @param arguments the arguments passed to the macro.
-         *
-         * TODO:
-         * possibly in the future should consider filtering for macros that have the same order of argument types.
-         * This would require us knowing the types of symbols and expressions in the preprocessor state
-         * which is not ideal
-         *
-         * @return the macros with the given name and number of arguments.
-         */
-    std::vector<Macro> macros_with_header(const std::string &macro_name,
-                                          const std::vector<std::vector<Tokenizer::Token>> &args);
+    std::string m_out;
+    char m_last_char = '\n';
+    Tokens m_out_tokens;
+
+    [[noreturn]] void fail(const basm::Token &at, const std::string &message);
+
+    bool active() const;
+    bool is_symbol_def(const std::string &name, std::size_t num_params) const;
+
+    Frame &push_frame(Tokens tokens);
+    void push_file(const std::string &path, const basm::Token *include_site);
+    void run();
+    void finish_frame(Frame &frame);
+
+    void emit(const basm::Token &token);
+
+    /// Parses `( a, b, c )` with the cursor on the open parenthesis. Commas inside nested
+    /// brackets do not split. Returns false (cursor position unspecified) if the closing
+    /// parenthesis is not on the same line.
+    static bool parse_call_args(basm::TokenCursor &cursor, std::vector<Tokens> &args);
+
+    /// Parses `( a, b )` of a definition header into parameter names.
+    std::vector<std::string> parse_params(basm::TokenCursor &line);
+
+    /// Copy of `body` with every use of a parameter replaced by the matching argument. The
+    /// tokens that come from `body` are marked as produced by expansion `expansion`, the ones
+    /// from the arguments keep the location they were written at.
+    Tokens substitute(const Tokens &body, const std::vector<std::string> &params,
+                      const std::vector<Tokens> &args, U32 expansion) const;
+
+    /// Replaces a use of a defined symbol with its value. Returns false, consuming nothing, if
+    /// the token is to be emitted as it is.
+    bool expand_symbol(Frame &frame, const basm::Token &token);
+
+    void handle_directive(Frame &frame);
 
     /**
-         * Inserts the file contents into the current file.
-         *
-         * USAGE: #include "filepath"|<"filepath">
-         *
-         * TODO:
-         * make angled brackets <...> capture everything inside as a token to
-         * not have to surround inside with a string
-         *
-         * "filepath": looks for files located in the current directory.
-         * <filepath>: prioritizes files located in the include directory, if not found, looks in the
-         * current directory.
-         */
-    void _include();
+     * Inserts the file contents into the current file.
+     *
+     * USAGE: #include "filepath"|<"filepath">
+     *
+     * "filepath": looks for files relative to the directory of the including file.
+     * <"filepath">: looks for files in the include directories (-I).
+     */
+    void _include(basm::TokenCursor &line);
 
     /**
-         * Defines a macro symbol with n arguments and optionally a return type.
-         *
-         * USAGE: #macro [symbol]([arg1 ?: TYPE, arg2 ?: TYPE,..., argn ?: TYPE]) ?: TYPE
-         *
-         * If a return type is specified and the macro definition does not return a value an error is thrown.
-         * There cannot be a macro definition within this macro definition.
-         * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
-         */
-    void _macro();
+     * Defines a macro with n parameters.
+     *
+     * USAGE: #macro [name]([param1, param2,..., paramn])
+     *
+     * The body is everything up to #macend. It cannot contain another #macro.
+     */
+    void _macro(Frame &frame, basm::TokenCursor &line);
 
     /**
-         * Stops processing the macro and returns the value of the expression.
-         *
-         * USAGE: #macret [?expression]
-         *
-         * If the macro does not have a return type the macret must return nothing.
-         * If the macro has a return type the macret must return a value of that type
-         */
-    void _macret();
+     * Stops expanding the macro and assigns the value of the expression to the output symbol of
+     * the #invoke.
+     *
+     * USAGE: #macret [?expression]
+     */
+    void _macret(Frame &frame, basm::TokenCursor &line);
 
     /**
-         * Closes a macro definition.
-         *
-         * USAGE: #macend
-         *
-         * If a macro is not closed an error is thrown.
-         */
-    void _macend();
+     * Expands the macro with the given arguments inside a `.scope` / `.scend` pair.
+     *
+     * USAGE: #invoke [name]([arg1, arg2,..., argn]) [?output symbol]
+     */
+    void _invoke(basm::TokenCursor &line);
 
     /**
-         * Invokes the macro with the given arguments.
-         *
-         * USAGE: #invoke [symbol]([arg1, arg2,..., argn]) [?symbol]
-         *
-         * If provided an output symbol, the symbol will be associated with the return value of the macro.
-         * If the macro does not return a value but an output symbol is provided, an error is thrown.
-         */
-    void _invoke();
+     * Associates the symbol with a value. Uses of the symbol are replaced by the value. If the
+     * value is not specified it is empty. Parameters must start directly after the symbol, so
+     * `#define F(x) x` takes a parameter and `#define F (x)` is the value `(x)`.
+     *
+     * USAGE: #define [symbol][?(param1, ..., paramn)] [?value]
+     */
+    void _define(basm::TokenCursor &line);
 
     /**
-         * Associates the symbol with a value
-         *
-         * USAGE: #define [symbol] [?value]
-         *
-         * Replaces all instances of symbol with the value.
-         * If value is not specified, the default is empty.
-         */
-    void _define();
+     * Undefines a symbol defined by #define. Works if the symbol was never defined.
+     *
+     * USAGE: #undef [symbol] [?number of parameters]
+     *
+     * Without a number of parameters every definition of the symbol is removed.
+     */
+    void _undef(basm::TokenCursor &line);
 
     /**
-         * Handles a condition block
-         * Depending on whether the condition was met, keep/discard blocks
-         *
-         * @param cond_met
-         */
-    void cond_block(bool cond_met);
+     * Conditional blocks.
+     *
+     * USAGE: #ifdef [symbol], #ifndef [symbol]
+     *        #ifequ [symbol] [value], #ifnequ, #ifless, #ifmore (compares as text. The left
+     *        side can also be a single token that is not a symbol, such as the number a macro
+     *        parameter was replaced with)
+     *        #elsedef, #elsendef, #elseequ, #elsenequ, #elseless, #elsemore, #else
+     *        #endif
+     */
+    void _conditional(Frame &frame, basm::TokenCursor &line);
 
-    /**
-         * Returns whether the symbol is a defined symbol with the same number of parameters
-         *
-         * @param symbol_name
-         * @param num_params
-         */
-    bool is_symbol_def(const std::string &symbol_name, int num_params);
-
-    /**
-         * Begins a conditional block.
-         * Determines whether to include the following text block depending on whether the symbol is defined.
-         *
-         * USAGE: #ifdef [symbol], #ifndef [symbol] (top conditional blocks)
-         * USAGE: #elsedef [symbol], #elsendef [symbol] (lower conditional blocks)
-         *
-         * The top conditional block must be closed by a lower conditional block or an #endif.
-         * The lower conditional block must be closed by an #endif.
-         */
-    void _cond_on_def();
-
-    /**
-         * Begins a conditional block.
-         * Determines whether to include the following text block based on the symbol's value
-         * lexicographically ordering to a value.
-         *
-         * USAGE: #ifequ [symbol] [value], #ifnequ [symbol] [value], #ifless [symbol] [value], #ifmore [symbol] [value]
-         * USAGE: #elseequ [symbol] [value], #elsenequ [symbol] [value], #elseless [symbol] [value], #elsemore [symbol] [value]
-         *
-         * The top conditional block must be closed by a lower conditional block or an #endif.
-         * The lower conditional block must be closed by an #endif.
-         */
-    void _cond_on_value();
-
-    /**
-         * Closure of a top or lower conditional block, only includes the following text if all previous
-         * conditional blocks were not included.
-         *
-         * USAGE: #else
-         *
-         * Must be preceded by a top or inner conditional block.
-         * Must not be proceeded by an inner conditional block or closure.
-         */
-    void _else();
-
-    /**
-         * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
-         *
-         * USAGE: #endif
-         *
-         * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
-         */
-    void _endif();
-
-    /**
-         * Undefines a symbol defined by #define.
-         *
-         * USAGE: #undefine [symbol]
-         *
-         * This will still work if the symbol was never defined previously.
-         */
-    void _undefine();
-
-    typedef void (Preprocessor::*PreprocessorFunction)();
-    std::map<Tokenizer::Type, PreprocessorFunction> m_preprocessor_handlers = {
-        {Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
-        {Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},
-        {Tokenizer::PREPROCESSOR_MACRET, &Preprocessor::_macret},
-        {Tokenizer::PREPROCESSOR_MACEND, &Preprocessor::_macend},
-        {Tokenizer::PREPROCESSOR_INVOKE, &Preprocessor::_invoke},
-        {Tokenizer::PREPROCESSOR_DEFINE, &Preprocessor::_define},
-
-        {Tokenizer::PREPROCESSOR_IFDEF, &Preprocessor::_cond_on_def},
-        {Tokenizer::PREPROCESSOR_IFNDEF, &Preprocessor::_cond_on_def},
-
-        {Tokenizer::PREPROCESSOR_IFEQU, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_IFNEQU, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_IFLESS, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_IFMORE, &Preprocessor::_cond_on_value},
-
-        {Tokenizer::PREPROCESSOR_ELSE, &Preprocessor::_else},
-
-        {Tokenizer::PREPROCESSOR_ELSEDEF, &Preprocessor::_cond_on_def},
-        {Tokenizer::PREPROCESSOR_ELSENDEF, &Preprocessor::_cond_on_def},
-
-        {Tokenizer::PREPROCESSOR_ELSEEQU, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_ELSENEQU, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_ELSELESS, &Preprocessor::_cond_on_value},
-        {Tokenizer::PREPROCESSOR_ELSEMORE, &Preprocessor::_cond_on_value},
-
-        {Tokenizer::PREPROCESSOR_ENDIF, &Preprocessor::_endif},
-        {Tokenizer::PREPROCESSOR_UNDEF, &Preprocessor::_undefine}};
+    /// Evaluates the condition of an #if* / #else* directive.
+    bool evaluate_condition(const basm::Token &directive, basm::TokenCursor &line);
 };

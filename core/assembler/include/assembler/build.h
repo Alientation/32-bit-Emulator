@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assembler/tokenizer.h"
 #include "util/directory.h"
 #include "util/file.h"
 
@@ -69,6 +70,10 @@ class Process
 
     /* process files */
     std::vector<File> m_processed_files;
+
+    /// Tokens of m_processed_files (same order), handed to the assembler so it does not lex the
+    /// .bi files again.
+    std::vector<basm::PreprocessedSource> m_preprocessed;
     std::vector<File> m_obj_files;
     File m_exe_file;
 

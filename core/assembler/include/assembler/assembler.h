@@ -45,6 +45,15 @@ class Assembler
     Assembler(const Process *process, const File processed_file,
               const std::string &output_path = "");
 
+    /// @brief          Same, but takes the tokens straight from the preprocessor instead of
+    ///                 lexing the .bi file again. Errors then point at the original source.
+    /// @param process          Build process.
+    /// @param processed_file   The .bi file the preprocessor wrote. Only used for its name.
+    /// @param source           Result of Preprocessor::take_result().
+    /// @param output_path      See above.
+    Assembler(const Process *process, const File processed_file, basm::PreprocessedSource source,
+              const std::string &output_path = "");
+
     /// @brief          Assembles the input assembly into an object file.
     void assemble();
 
@@ -69,8 +78,17 @@ class Assembler
     /// @brief State of the assembler.
     State m_state;
 
-    /// @brief Tokenizer.
-    Tokenizer m_tokenizer;
+    /// @brief Owns the text that the tokens point into.
+    std::shared_ptr<basm::SourceManager> m_sources;
+
+    /// @brief Tokens of the input file.
+    std::vector<basm::Token> m_tokens;
+
+    /// @brief Sets up the output file and state. Common part of the constructors.
+    void init(const File &processed_file, const std::string &output_path);
+
+    /// @brief Read position in the tokens.
+    basm::TokenCursor m_cursor;
 
     /// @brief Produced object file.
     ObjectFile m_obj;
@@ -94,559 +112,255 @@ class Assembler
     /// @brief Index into the section table of the current section.
     U32 m_cur_section_index = U32(-1);
 
+    /// @brief First token of the statement being assembled, where errors about the statement as
+    ///        a whole (as opposed to one of its tokens) are reported.
+    const basm::Token *m_statement = nullptr;
+
     /// @brief Total number of declared scopes. Monotically increasing.
     U32 m_total_scopes = 0;
 
     /// @brief Nested scope id.
     std::vector<U32> m_scopes;
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param min
-    /// @param max
-    /// @return
+    /// @brief Logs the error at the token (file, line, column, source line) and terminates.
+    [[noreturn]] void fail(const basm::Token &at, const std::string &message);
+
+    /// @brief Consumes the next token if it has the type, otherwise fails with `message`.
+    const basm::Token &expect(basm::TokenType type, const std::string &message);
+
+    /// @brief Fails with `message` at the next token unless `condition` holds.
+    void check(bool condition, const std::string &message);
+
+    /// @brief A statement is followed by the end of its line.
+    void expect_end_of_statement();
+
+    /// @brief Evaluates `number (op number)*` left to right, without precedence.
+    ///        Fails if there is no number. Warns if the value is outside of [min, max].
     dword parse_expression(dword min = 0, dword max = -1);
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @return
+    /// @brief Comma separated expressions.
     std::vector<dword> parse_arguments();
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @return
+    /// @brief Shared by .byte, .dbyte, .word, ... Appends the arguments to .data, `n_bytes` each.
+    void define_data(const char *directive, U8 n_bytes);
+
     byte parse_sysreg();
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @return
     byte parse_register();
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param shift
-    /// @param shift_amt
     void parse_shift(ShiftType &shift, int &shift_amt);
 
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
-    word parse_format_o(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
+    /// @brief Operations of the form `op xd, xn, <xm[, shift] | imm14 | :lo12:symbol>`.
+    /// @param implicit_dest The destination is not written, it is xzr (cmp, cmn, tst, teq).
+    word parse_format_o(byte opcode, bool implicit_dest = false);
     word parse_format_o1(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_o2(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_o3(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_m(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_m1(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_b1(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param opcode
-    /// @return
     word parse_format_b2(byte opcode);
-
-    /// @brief TODO:
-    /// @param tok_i
-    /// @param width
-    /// @param atopcode
-    /// @return
     word parse_format_atomic(byte width, byte atopcode);
-
-    /// @brief TODO:
     void fill_local();
 
     ///
     /// Assembler directives.
     ///
-
-    /// @brief TODO:
-    /// @param tok_i
     void _global();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _extern();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _org();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _scope();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _scend();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _advance();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _align();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _section();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _text();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _data();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _bss();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _stop();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _byte();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _dbyte();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _word();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _dword();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sbyte();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sdbyte();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sword();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sdword();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _char();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ascii();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _asciz();
 
     ///
     /// Instructions.
     ///
 
-    /// @brief TODO:
-    /// @param tok_i
     void _hlt();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _nop();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _add();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sub();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _rsb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _adc();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _sbc();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _rsc();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _mul();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _umull();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _smull();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vabs();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vneg();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vsqrt();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vadd();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vsub();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vdiv();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vmul();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vcmp();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vsel();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vcint();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vcflo();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _vmov();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _and();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _orr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _eor();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _bic();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _lsl();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _lsr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _asr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ror();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _cmp();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _cmn();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _tst();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _teq();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _mov();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _mvn();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _str();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldrb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _strb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldrh();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _strh();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _msr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _mrs();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _tlbi();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _swp();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _swpb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _swph();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldadd();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldaddb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldaddh();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldclr();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldclrb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldclrh();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldset();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldsetb();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ldseth();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _b();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _bl();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _bx();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _blx();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _swi();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _adrp();
-
-    /// @brief TODO:
-    /// @param tok_i
     void _ret();
 
     using DirectiveFunction = void (Assembler::*)();
     /// @brief Function pointers to process an assembler directive.
-    std::unordered_map<Tokenizer::Type, DirectiveFunction> m_directive_handlers = {
-        {Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
-        {Tokenizer::ASSEMBLER_EXTERN, &Assembler::_extern},
-        {Tokenizer::ASSEMBLER_ORG, &Assembler::_org},
-        {Tokenizer::ASSEMBLER_SCOPE, &Assembler::_scope},
-        {Tokenizer::ASSEMBLER_SCEND, &Assembler::_scend},
-        {Tokenizer::ASSEMBLER_ADVANCE, &Assembler::_advance},
-        {Tokenizer::ASSEMBLER_ALIGN, &Assembler::_align},
-        {Tokenizer::ASSEMBLER_SECTION, &Assembler::_section},
-        {Tokenizer::ASSEMBLER_TEXT, &Assembler::_text},
-        {Tokenizer::ASSEMBLER_DATA, &Assembler::_data},
-        {Tokenizer::ASSEMBLER_BSS, &Assembler::_bss},
-        {Tokenizer::ASSEMBLER_STOP, &Assembler::_stop},
-        {Tokenizer::ASSEMBLER_BYTE, &Assembler::_byte},
-        {Tokenizer::ASSEMBLER_DBYTE, &Assembler::_dbyte},
-        {Tokenizer::ASSEMBLER_WORD, &Assembler::_word},
-        {Tokenizer::ASSEMBLER_DWORD, &Assembler::_dword},
-        {Tokenizer::ASSEMBLER_SBYTE, &Assembler::_sbyte},
-        {Tokenizer::ASSEMBLER_SDBYTE, &Assembler::_sdbyte},
-        {Tokenizer::ASSEMBLER_SWORD, &Assembler::_sword},
-        {Tokenizer::ASSEMBLER_SDWORD, &Assembler::_sdword},
-        {Tokenizer::ASSEMBLER_CHAR, &Assembler::_char},
-        {Tokenizer::ASSEMBLER_ASCII, &Assembler::_ascii},
-        {Tokenizer::ASSEMBLER_ASCIZ, &Assembler::_asciz},
+    std::unordered_map<basm::TokenType, DirectiveFunction> m_directive_handlers = {
+        {basm::TokenType::ASSEMBLER_GLOBAL, &Assembler::_global},
+        {basm::TokenType::ASSEMBLER_EXTERN, &Assembler::_extern},
+        {basm::TokenType::ASSEMBLER_ORG, &Assembler::_org},
+        {basm::TokenType::ASSEMBLER_SCOPE, &Assembler::_scope},
+        {basm::TokenType::ASSEMBLER_SCEND, &Assembler::_scend},
+        {basm::TokenType::ASSEMBLER_ADVANCE, &Assembler::_advance},
+        {basm::TokenType::ASSEMBLER_ALIGN, &Assembler::_align},
+        {basm::TokenType::ASSEMBLER_SECTION, &Assembler::_section},
+        {basm::TokenType::ASSEMBLER_TEXT, &Assembler::_text},
+        {basm::TokenType::ASSEMBLER_DATA, &Assembler::_data},
+        {basm::TokenType::ASSEMBLER_BSS, &Assembler::_bss},
+        {basm::TokenType::ASSEMBLER_STOP, &Assembler::_stop},
+        {basm::TokenType::ASSEMBLER_BYTE, &Assembler::_byte},
+        {basm::TokenType::ASSEMBLER_DBYTE, &Assembler::_dbyte},
+        {basm::TokenType::ASSEMBLER_WORD, &Assembler::_word},
+        {basm::TokenType::ASSEMBLER_DWORD, &Assembler::_dword},
+        {basm::TokenType::ASSEMBLER_SBYTE, &Assembler::_sbyte},
+        {basm::TokenType::ASSEMBLER_SDBYTE, &Assembler::_sdbyte},
+        {basm::TokenType::ASSEMBLER_SWORD, &Assembler::_sword},
+        {basm::TokenType::ASSEMBLER_SDWORD, &Assembler::_sdword},
+        {basm::TokenType::ASSEMBLER_CHAR, &Assembler::_char},
+        {basm::TokenType::ASSEMBLER_ASCII, &Assembler::_ascii},
+        {basm::TokenType::ASSEMBLER_ASCIZ, &Assembler::_asciz},
     };
 
     using InstructionFunction = void (Assembler::*)();
     /// @brief Function pointers assemble an instruction.
-    std::unordered_map<Tokenizer::Type, InstructionFunction> m_instruction_handlers = {
-        {Tokenizer::INSTRUCTION_HLT, &Assembler::_hlt},
-        {Tokenizer::INSTRUCTION_NOP, &Assembler::_nop},
-        {Tokenizer::INSTRUCTION_ADD, &Assembler::_add},
-        {Tokenizer::INSTRUCTION_SUB, &Assembler::_sub},
-        {Tokenizer::INSTRUCTION_RSB, &Assembler::_rsb},
-        {Tokenizer::INSTRUCTION_ADC, &Assembler::_adc},
-        {Tokenizer::INSTRUCTION_SBC, &Assembler::_sbc},
-        {Tokenizer::INSTRUCTION_RSC, &Assembler::_rsc},
-        {Tokenizer::INSTRUCTION_MUL, &Assembler::_mul},
-        {Tokenizer::INSTRUCTION_UMULL, &Assembler::_umull},
-        {Tokenizer::INSTRUCTION_SMULL, &Assembler::_smull},
-        {Tokenizer::INSTRUCTION_VABS, &Assembler::_vabs},
-        {Tokenizer::INSTRUCTION_VNEG, &Assembler::_vneg},
-        {Tokenizer::INSTRUCTION_VSQRT, &Assembler::_vsqrt},
-        {Tokenizer::INSTRUCTION_VADD, &Assembler::_vadd},
-        {Tokenizer::INSTRUCTION_VSUB, &Assembler::_vsub},
-        {Tokenizer::INSTRUCTION_VDIV, &Assembler::_vdiv},
-        {Tokenizer::INSTRUCTION_VMUL, &Assembler::_vmul},
-        {Tokenizer::INSTRUCTION_VCMP, &Assembler::_vcmp},
-        {Tokenizer::INSTRUCTION_VSEL, &Assembler::_vsel},
-        {Tokenizer::INSTRUCTION_VCINT, &Assembler::_vcint},
-        {Tokenizer::INSTRUCTION_VCFLO, &Assembler::_vcflo},
-        {Tokenizer::INSTRUCTION_VMOV, &Assembler::_vmov},
-        {Tokenizer::INSTRUCTION_AND, &Assembler::_and},
-        {Tokenizer::INSTRUCTION_ORR, &Assembler::_orr},
-        {Tokenizer::INSTRUCTION_EOR, &Assembler::_eor},
-        {Tokenizer::INSTRUCTION_BIC, &Assembler::_bic},
-        {Tokenizer::INSTRUCTION_LSL, &Assembler::_lsl},
-        {Tokenizer::INSTRUCTION_LSR, &Assembler::_lsr},
-        {Tokenizer::INSTRUCTION_ASR, &Assembler::_asr},
-        {Tokenizer::INSTRUCTION_ROR, &Assembler::_ror},
-        {Tokenizer::INSTRUCTION_CMP, &Assembler::_cmp},
-        {Tokenizer::INSTRUCTION_CMN, &Assembler::_cmn},
-        {Tokenizer::INSTRUCTION_TST, &Assembler::_tst},
-        {Tokenizer::INSTRUCTION_TEQ, &Assembler::_teq},
-        {Tokenizer::INSTRUCTION_MOV, &Assembler::_mov},
-        {Tokenizer::INSTRUCTION_MVN, &Assembler::_mvn},
-        {Tokenizer::INSTRUCTION_LDR, &Assembler::_ldr},
-        {Tokenizer::INSTRUCTION_STR, &Assembler::_str},
-        {Tokenizer::INSTRUCTION_LDRB, &Assembler::_ldrb},
-        {Tokenizer::INSTRUCTION_STRB, &Assembler::_strb},
-        {Tokenizer::INSTRUCTION_LDRH, &Assembler::_ldrh},
-        {Tokenizer::INSTRUCTION_STRH, &Assembler::_strh},
+    std::unordered_map<basm::TokenType, InstructionFunction> m_instruction_handlers = {
+        {basm::TokenType::INSTRUCTION_HLT, &Assembler::_hlt},
+        {basm::TokenType::INSTRUCTION_NOP, &Assembler::_nop},
+        {basm::TokenType::INSTRUCTION_ADD, &Assembler::_add},
+        {basm::TokenType::INSTRUCTION_SUB, &Assembler::_sub},
+        {basm::TokenType::INSTRUCTION_RSB, &Assembler::_rsb},
+        {basm::TokenType::INSTRUCTION_ADC, &Assembler::_adc},
+        {basm::TokenType::INSTRUCTION_SBC, &Assembler::_sbc},
+        {basm::TokenType::INSTRUCTION_RSC, &Assembler::_rsc},
+        {basm::TokenType::INSTRUCTION_MUL, &Assembler::_mul},
+        {basm::TokenType::INSTRUCTION_UMULL, &Assembler::_umull},
+        {basm::TokenType::INSTRUCTION_SMULL, &Assembler::_smull},
+        {basm::TokenType::INSTRUCTION_VABS, &Assembler::_vabs},
+        {basm::TokenType::INSTRUCTION_VNEG, &Assembler::_vneg},
+        {basm::TokenType::INSTRUCTION_VSQRT, &Assembler::_vsqrt},
+        {basm::TokenType::INSTRUCTION_VADD, &Assembler::_vadd},
+        {basm::TokenType::INSTRUCTION_VSUB, &Assembler::_vsub},
+        {basm::TokenType::INSTRUCTION_VDIV, &Assembler::_vdiv},
+        {basm::TokenType::INSTRUCTION_VMUL, &Assembler::_vmul},
+        {basm::TokenType::INSTRUCTION_VCMP, &Assembler::_vcmp},
+        {basm::TokenType::INSTRUCTION_VSEL, &Assembler::_vsel},
+        {basm::TokenType::INSTRUCTION_VCINT, &Assembler::_vcint},
+        {basm::TokenType::INSTRUCTION_VCFLO, &Assembler::_vcflo},
+        {basm::TokenType::INSTRUCTION_VMOV, &Assembler::_vmov},
+        {basm::TokenType::INSTRUCTION_AND, &Assembler::_and},
+        {basm::TokenType::INSTRUCTION_ORR, &Assembler::_orr},
+        {basm::TokenType::INSTRUCTION_EOR, &Assembler::_eor},
+        {basm::TokenType::INSTRUCTION_BIC, &Assembler::_bic},
+        {basm::TokenType::INSTRUCTION_LSL, &Assembler::_lsl},
+        {basm::TokenType::INSTRUCTION_LSR, &Assembler::_lsr},
+        {basm::TokenType::INSTRUCTION_ASR, &Assembler::_asr},
+        {basm::TokenType::INSTRUCTION_ROR, &Assembler::_ror},
+        {basm::TokenType::INSTRUCTION_CMP, &Assembler::_cmp},
+        {basm::TokenType::INSTRUCTION_CMN, &Assembler::_cmn},
+        {basm::TokenType::INSTRUCTION_TST, &Assembler::_tst},
+        {basm::TokenType::INSTRUCTION_TEQ, &Assembler::_teq},
+        {basm::TokenType::INSTRUCTION_MOV, &Assembler::_mov},
+        {basm::TokenType::INSTRUCTION_MVN, &Assembler::_mvn},
+        {basm::TokenType::INSTRUCTION_LDR, &Assembler::_ldr},
+        {basm::TokenType::INSTRUCTION_STR, &Assembler::_str},
+        {basm::TokenType::INSTRUCTION_LDRB, &Assembler::_ldrb},
+        {basm::TokenType::INSTRUCTION_STRB, &Assembler::_strb},
+        {basm::TokenType::INSTRUCTION_LDRH, &Assembler::_ldrh},
+        {basm::TokenType::INSTRUCTION_STRH, &Assembler::_strh},
 
-        {Tokenizer::INSTRUCTION_MSR, &Assembler::_msr},
-        {Tokenizer::INSTRUCTION_MRS, &Assembler::_mrs},
-        {Tokenizer::INSTRUCTION_TLBI, &Assembler::_tlbi},
+        {basm::TokenType::INSTRUCTION_MSR, &Assembler::_msr},
+        {basm::TokenType::INSTRUCTION_MRS, &Assembler::_mrs},
+        {basm::TokenType::INSTRUCTION_TLBI, &Assembler::_tlbi},
 
-        {Tokenizer::INSTRUCTION_SWP, &Assembler::_swp},
-        {Tokenizer::INSTRUCTION_SWPB, &Assembler::_swpb},
-        {Tokenizer::INSTRUCTION_SWPH, &Assembler::_swph},
+        {basm::TokenType::INSTRUCTION_SWP, &Assembler::_swp},
+        {basm::TokenType::INSTRUCTION_SWPB, &Assembler::_swpb},
+        {basm::TokenType::INSTRUCTION_SWPH, &Assembler::_swph},
 
-        {Tokenizer::INSTRUCTION_LDADD, &Assembler::_ldadd},
-        {Tokenizer::INSTRUCTION_LDADDB, &Assembler::_ldaddb},
-        {Tokenizer::INSTRUCTION_LDADDH, &Assembler::_ldaddh},
+        {basm::TokenType::INSTRUCTION_LDADD, &Assembler::_ldadd},
+        {basm::TokenType::INSTRUCTION_LDADDB, &Assembler::_ldaddb},
+        {basm::TokenType::INSTRUCTION_LDADDH, &Assembler::_ldaddh},
 
-        {Tokenizer::INSTRUCTION_LDCLR, &Assembler::_ldclr},
-        {Tokenizer::INSTRUCTION_LDCLRB, &Assembler::_ldclrb},
-        {Tokenizer::INSTRUCTION_LDCLRH, &Assembler::_ldclrh},
+        {basm::TokenType::INSTRUCTION_LDCLR, &Assembler::_ldclr},
+        {basm::TokenType::INSTRUCTION_LDCLRB, &Assembler::_ldclrb},
+        {basm::TokenType::INSTRUCTION_LDCLRH, &Assembler::_ldclrh},
 
-        {Tokenizer::INSTRUCTION_LDSET, &Assembler::_ldset},
-        {Tokenizer::INSTRUCTION_LDSETB, &Assembler::_ldsetb},
-        {Tokenizer::INSTRUCTION_LDSETH, &Assembler::_ldseth},
+        {basm::TokenType::INSTRUCTION_LDSET, &Assembler::_ldset},
+        {basm::TokenType::INSTRUCTION_LDSETB, &Assembler::_ldsetb},
+        {basm::TokenType::INSTRUCTION_LDSETH, &Assembler::_ldseth},
 
-        {Tokenizer::INSTRUCTION_B, &Assembler::_b},
-        {Tokenizer::INSTRUCTION_BL, &Assembler::_bl},
-        {Tokenizer::INSTRUCTION_BX, &Assembler::_bx},
-        {Tokenizer::INSTRUCTION_BLX, &Assembler::_blx},
-        {Tokenizer::INSTRUCTION_SWI, &Assembler::_swi},
-        {Tokenizer::INSTRUCTION_ADRP, &Assembler::_adrp},
-        {Tokenizer::INSTRUCTION_RET, &Assembler::_ret},
+        {basm::TokenType::INSTRUCTION_B, &Assembler::_b},
+        {basm::TokenType::INSTRUCTION_BL, &Assembler::_bl},
+        {basm::TokenType::INSTRUCTION_BX, &Assembler::_bx},
+        {basm::TokenType::INSTRUCTION_BLX, &Assembler::_blx},
+        {basm::TokenType::INSTRUCTION_SWI, &Assembler::_swi},
+        {basm::TokenType::INSTRUCTION_ADRP, &Assembler::_adrp},
+        {basm::TokenType::INSTRUCTION_RET, &Assembler::_ret},
     };
 };

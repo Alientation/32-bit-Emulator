@@ -1,1105 +1,1392 @@
 #include "assembler/tokenizer.h"
 
-#include "util/common.h"
-#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
-#include <regex>
-#include <utility>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <optional>
+#include <unordered_map>
 
-Tokenizer::Tokenizer()
+namespace basm
 {
-}
 
-Tokenizer::Tokenizer(File src, Options option) :
-    m_tokens(std::move(tokenize(src, option)))
+// ---------------------------------------------------------------------------------------------
+// SourceManager
+// ---------------------------------------------------------------------------------------------
+
+SourceId SourceManager::add(std::string name, std::string text)
 {
-    if (m_tokens.size() > 0)
+    Source source;
+    source.name = std::move(name);
+    source.text = std::move(text);
+
+    // A line ends with "\n", "\r\n" or a lone "\r".
+    source.line_starts.push_back(0);
+    const std::string &t = source.text;
+    for (std::size_t i = 0; i < t.size(); i++)
     {
-        m_tokenize_id = m_tokens[0].tokenize_id;
-    }
-    else
-    {
-        AEMU_WARN("Tokenizing an empty file \'{}\'", src.get_abs_path());
-    }
-    verify();
-}
-
-Tokenizer::Tokenizer(std::string src, Options option) :
-    m_tokens(std::move(tokenize(src, option)))
-{
-    if (m_tokens.size() > 0)
-    {
-        m_tokenize_id = m_tokens[0].tokenize_id;
-    }
-    else
-    {
-        AEMU_WARN("Tokenizing an empty string.");
-    }
-    verify();
-}
-
-void Tokenizer::verify()
-{
-    for (Token &tok : m_tokens)
-    {
-        AEMU_CHECK(tok.tokenize_id == m_tokenize_id,
-                   "Tokenizer::verify() - Something went wrong. Expected tokenize id to match at "
-                   "initialization.");
-    }
-}
-
-size_t Tokenizer::get_toki() const
-{
-    return m_state.toki;
-}
-
-void Tokenizer::set_toki(size_t toki)
-{
-    m_state.toki = toki;
-}
-
-struct Tokenizer::State Tokenizer::get_state() const
-{
-    return m_state;
-}
-
-void Tokenizer::set_state(Tokenizer::State state)
-{
-    m_state = state;
-}
-
-bool Tokenizer::fix_indent()
-{
-    if (m_state.cur_indent >= m_state.target_indent)
-    {
-        return false;
-    }
-
-    std::string added;
-    for (int indent = m_state.cur_indent; indent < m_state.target_indent; indent++)
-    {
-        added += "\t";
-    }
-
-    insert_tokens(tokenize(added), m_state.toki);
-    return true;
-}
-
-void Tokenizer::insert_tokens(const std::vector<Token> &tokens, size_t loc)
-{
-    m_tokens.insert(m_tokens.begin() + loc, tokens.begin(), tokens.end());
-}
-
-void Tokenizer::remove_tokens(size_t start, size_t end)
-{
-    AEMU_CHECK(start <= end,
-               "Tokenizer::remove_tokens() - Invalid range of tokens to remove. (start > end)");
-    AEMU_CHECK(start < m_tokens.size(),
-               "Tokenizer::remove_tokens() - Start of range is out of bounds.");
-    AEMU_CHECK(end <= m_tokens.size(),
-               "Tokenizer::remove_tokens() - End of range is out of bounds.");
-
-    while (start < end)
-    {
-        m_tokens[start].skip = true;
-        start++;
-    }
-}
-
-const std::vector<Tokenizer::Token> &Tokenizer::get_tokens()
-{
-    return m_tokens;
-}
-
-int Tokenizer::get_linei() const
-{
-    AEMU_CHECK(m_state.toki < m_tokens.size(),
-               "Tokenizer::get_linei() - Token index out of bounds.");
-    return m_tokens[m_state.toki].line;
-}
-
-int Tokenizer::get_linei(size_t toki) const
-{
-    AEMU_CHECK(toki < m_tokens.size(), "Tokenizer::get_linei() - Token index out of bounds.");
-
-    for (size_t i = toki; i <= toki; i--)
-    {
-        const Token &tok = m_tokens[i];
-        if (tok.tokenize_id != m_tokenize_id)
+        if (t[i] == '\n' || (t[i] == '\r' && (i + 1 >= t.size() || t[i + 1] != '\n')))
         {
-            continue;
+            source.line_starts.push_back(U32(i + 1));
         }
-
-        return tok.line;
     }
 
+    m_sources.push_back(std::move(source));
+    return SourceId(m_sources.size() - 1);
+}
+
+SourceId SourceManager::add_file(const std::string &path)
+{
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return kInvalidSource;
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    return add(path, std::move(text));
+}
+
+const SourceManager::Source *SourceManager::get(SourceId id) const
+{
+    return id < m_sources.size() ? &m_sources[id] : nullptr;
+}
+
+std::string_view SourceManager::name(SourceId id) const
+{
+    const Source *s = get(id);
+    return s ? std::string_view(s->name) : std::string_view();
+}
+
+std::string_view SourceManager::text(SourceId id) const
+{
+    const Source *s = get(id);
+    return s ? std::string_view(s->text) : std::string_view();
+}
+
+std::string_view SourceManager::line_text(SourceId id, U32 line) const
+{
+    const Source *s = get(id);
+    if (s == nullptr || line == 0 || line > s->line_starts.size()) return {};
+
+    const std::size_t begin = s->line_starts[line - 1];
+    std::size_t end = line < s->line_starts.size() ? s->line_starts[line] : s->text.size();
+    while (end > begin && (s->text[end - 1] == '\n' || s->text[end - 1] == '\r')) end--;
+    return std::string_view(s->text).substr(begin, end - begin);
+}
+
+U32 SourceManager::add_expansion(std::string name, bool is_macro, const SourceLocation &site)
+{
+    m_expansions.push_back({std::move(name), is_macro, site});
+    return static_cast<U32>(m_expansions.size());
+}
+
+const SourceManager::Expansion *SourceManager::expansion(U32 id) const
+{
+    if (id == 0 || id > m_expansions.size()) return nullptr;
+    return &m_expansions[id - 1];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Token helpers
+// ---------------------------------------------------------------------------------------------
+
+std::string_view to_string(TokenType type)
+{
+    static constexpr std::string_view kNames[] = {
+#define BASM_X(name) #name,
+        BASM_TOKEN_TYPES(BASM_X)
+#undef BASM_X
+    };
+    const std::size_t i = static_cast<std::size_t>(type);
+    return i < std::size(kNames) ? kNames[i] : std::string_view("UNKNOWN");
+}
+
+std::string describe(const Token &token)
+{
+    switch (token.type)
+    {
+    case TokenType::END_OF_FILE:
+        return "end of file";
+    case TokenType::NEWLINE:
+        return "end of line";
+    default:
+        return "'" + std::string(token.text) + "'";
+    }
+}
+
+namespace
+{
+
+static constexpr bool is_digit(char c)
+{
+    return c >= '0' && c <= '9';
+}
+
+static constexpr bool is_ident_start(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static constexpr bool is_ident_char(char c)
+{
+    return is_ident_start(c) || is_digit(c);
+}
+
+static constexpr bool is_newline(char c)
+{
+    return c == '\n' || c == '\r';
+}
+
+static constexpr int digit_value(char c)
+{
+    if (c >= '0' && c <= '9')
+    {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f')
+    {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F')
+    {
+        return c - 'A' + 10;
+    }
     return -1;
 }
 
-std::string Tokenizer::get_line(int linei) const
+static constexpr U64 escape_value(char c)
 {
-    std::string line;
-
-    int cur_linei;
-    for (const Token &tok : m_tokens)
+    switch (c)
     {
-        if (tok.tokenize_id != m_tokenize_id)
-        {
-            continue;
-        }
-
-        for (char c : tok.value)
-        {
-            if (c == '\n')
-            {
-                cur_linei++;
-            }
-
-            if (cur_linei == linei)
-            {
-                line += c;
-            }
-            else if (cur_linei > linei)
-            {
-                return line;
-            }
-        }
-    }
-    return line;
-}
-
-void Tokenizer::move_past_skipped_tokens()
-{
-    while (m_state.toki < m_tokens.size() && m_tokens[m_state.toki].skip)
-    {
-        handle_token();
-        m_state.toki++;
-    }
-}
-
-void Tokenizer::handle_token()
-{
-    // calculate some indent level information
-    switch (m_tokens[m_state.toki].type)
-    {
-    case WHITESPACE_NEWLINE:
-        m_state.prev_indent = m_state.cur_indent;
-        m_state.cur_indent = 0;
-        break;
-    case WHITESPACE_TAB:
-        m_state.cur_indent++;
-        break;
-    case LABEL:
-        m_state.target_indent = 1;
-        break;
-    case ASSEMBLER_SCOPE:
-        m_state.target_indent++;
-        break;
-    case PREPROCESSOR_MACRO:
-        m_state.target_indent = 1;
-        break;
-    case ASSEMBLER_SCEND:
-        m_state.target_indent--;
-        break;
-    case PREPROCESSOR_MACEND:
-        m_state.target_indent = 0;
-        break;
+    case 'n':
+        return '\n';
+    case 't':
+        return '\t';
+    case 'r':
+        return '\r';
+    case '0':
+        return '\0';
+    case 'a':
+        return '\a';
+    case 'b':
+        return '\b';
+    case 'f':
+        return '\f';
+    case 'v':
+        return '\v';
     default:
-        break;
+        return (unsigned char) (c);
+    }
+}
+
+bool digits_valid(std::string_view digits, int base)
+{
+    for (char c : digits)
+    {
+        const int d = digit_value(c);
+        if (d < 0 || d >= base) return false;
+    }
+    return true;
+}
+
+/// Digits must already be validated. Returns false on overflow.
+bool parse_uint(std::string_view digits, int base, U64 &out)
+{
+    U64 value = 0;
+    for (char c : digits)
+    {
+        const U64 d = U64(digit_value(c));
+        if (value > (UINT64_MAX - d) / U64(base)) return false;
+        value = value * U64(base) + d;
+    }
+    out = value;
+    return true;
+}
+
+} // namespace
+
+std::string unescape_string_literal(const Token &token)
+{
+    std::string_view body = token.text;
+    if (body.size() >= 2 && body.front() == '"' && body.back() == '"')
+    {
+        body = body.substr(1, body.size() - 2);
     }
 
-    if (m_state.toki + 1 < m_tokens.size())
+    std::string result;
+    result.reserve(body.size());
+    for (std::size_t i = 0; i < body.size(); i++)
     {
-        switch (m_tokens[m_state.toki + 1].type)
+        if (body[i] == '\\' && i + 1 < body.size())
         {
-        case LABEL:
-            m_state.target_indent = 0;
+            result.push_back(char(escape_value(body[++i])));
+        }
+        else
+        {
+            result.push_back(body[i]);
+        }
+    }
+    return result;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------------------------
+
+std::string format_diagnostic(const SourceManager &sources, const Diagnostic &diagnostic)
+{
+    const char *severity = diagnostic.severity == Severity::ERROR ? "error" : "warning";
+    const SourceLocation &loc = diagnostic.loc;
+
+    if (loc.line == 0 || loc.source == kInvalidSource)
+    {
+        return std::string(severity) + ": " + diagnostic.message + "\n";
+    }
+
+    // `file:line:col: <severity>: <message>`, the source line and a caret.
+    auto entry =
+        [&sources](const SourceLocation &at, const std::string &label, const std::string &message)
+    {
+        std::string out = std::string(sources.name(at.source)) + ":" + std::to_string(at.line) + ":"
+                          + std::to_string(at.column) + ": " + label + ": " + message + "\n";
+
+        const std::string_view line = sources.line_text(at.source, at.line);
+        out += "  " + std::string(line) + "\n  ";
+        for (std::size_t i = 0; i + 1 < at.column; i++)
+        {
+            // Keep tabs so the caret lines up whatever the tab width is.
+            out += (i < line.size() && line[i] == '\t') ? '\t' : ' ';
+        }
+        out += "^\n";
+        return out;
+    };
+
+    std::string out = entry(loc, severity, diagnostic.message);
+
+    // Where the macros and symbols that produced the token were used, innermost first. Every
+    // site was recorded before the expansion that refers to it, so the chain is finite.
+    for (U32 id = loc.expansion; id != 0;)
+    {
+        const SourceManager::Expansion *expansion = sources.expansion(id);
+        if (expansion == nullptr || expansion->site.line == 0
+            || expansion->site.source == kInvalidSource)
+        {
+            break;
+        }
+        out += entry(expansion->site, "note",
+                     std::string("in expansion of ") + (expansion->is_macro ? "macro" : "symbol")
+                         + " '" + expansion->name + "'");
+        id = expansion->site.expansion;
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keyword tables
+// ---------------------------------------------------------------------------------------------
+
+namespace
+{
+
+struct Keyword
+{
+    TokenType type;
+    U8 flags;
+    bool allows_s; ///< `<name>s` is the flag setting variant.
+};
+
+using KeywordMap = std::unordered_map<std::string_view, Keyword>;
+
+const KeywordMap &assembly_keywords()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+        auto add = [&m](std::string_view text, TokenType type, bool allows_s = false, U8 flags = 0)
+        { m[text] = Keyword{.type = type, .flags = flags, .allows_s = allows_s}; };
+
+        add("sp", TokenType::REGISTER_SP);
+        add("xzr", TokenType::REGISTER_XZR);
+
+#define I(text, name, s) add(text, TokenType::INSTRUCTION_##name, s)
+        I("hlt", HLT, false);
+        I("nop", NOP, false);
+        I("add", ADD, true);
+        I("sub", SUB, true);
+        I("rsb", RSB, true);
+        I("adc", ADC, true);
+        I("sbc", SBC, true);
+        I("rsc", RSC, true);
+        I("mul", MUL, true);
+        I("umull", UMULL, true);
+        I("smull", SMULL, true);
+        I("vabs.f32", VABS, false);
+        I("vneg.f32", VNEG, false);
+        I("vsqrt.f32", VSQRT, false);
+        I("vadd.f32", VADD, false);
+        I("vsub.f32", VSUB, false);
+        I("vdiv.f32", VDIV, false);
+        I("vmul.f32", VMUL, false);
+        I("vcmp.f32", VCMP, false);
+        I("vsel.f32", VSEL, false);
+        I("vcint.u32.f32", VCINT, false);
+        I("vcint.s32.f32", VCINT, false);
+        I("vcflo.u32.f32", VCFLO, false);
+        I("vcflo.s32.f32", VCFLO, false);
+        I("vmov.f32", VMOV, false);
+        I("and", AND, true);
+        I("orr", ORR, true);
+        I("eor", EOR, true);
+        I("bic", BIC, true);
+        I("lsl", LSL, true);
+        I("lsr", LSR, true);
+        I("asr", ASR, true);
+        I("ror", ROR, true);
+        I("cmp", CMP, false);
+        I("cmn", CMN, false);
+        I("tst", TST, false);
+        I("teq", TEQ, false);
+        I("mov", MOV, true);
+        I("mvn", MVN, true);
+        I("ldr", LDR, false);
+        I("str", STR, false);
+        I("swp", SWP, false);
+        I("ldrb", LDRB, false);
+        I("strb", STRB, false);
+        I("swpb", SWPB, false);
+        I("ldrh", LDRH, false);
+        I("strh", STRH, false);
+        I("swph", SWPH, false);
+        I("msr", MSR, false);
+        I("mrs", MRS, false);
+        I("tlbi", TLBI, false);
+        I("ldadd", LDADD, false);
+        I("ldaddb", LDADDB, false);
+        I("ldaddh", LDADDH, false);
+        I("ldclr", LDCLR, false);
+        I("ldclrb", LDCLRB, false);
+        I("ldclrh", LDCLRH, false);
+        I("ldset", LDSET, false);
+        I("ldsetb", LDSETB, false);
+        I("ldseth", LDSETH, false);
+        I("b", B, false);
+        I("bl", BL, false);
+        I("bx", BX, false);
+        I("blx", BLX, false);
+        I("swi", SWI, false);
+        I("adrp", ADRP, false);
+        I("ret", RET, false);
+#undef I
+
+        add("ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
+        add("ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
+        add("strsb", TokenType::INSTRUCTION_STRB, false, SIGN_EXTEND);
+        add("strsh", TokenType::INSTRUCTION_STRH, false, SIGN_EXTEND);
+        return m;
+    }();
+    return map;
+}
+
+const KeywordMap &condition_keywords()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+#define C(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::CONDITION_##name, .flags = 0, .allows_s = false}
+        C("eq", EQ);
+        C("ne", NE);
+        C("cs", CS);
+        C("hs", HS);
+        C("cc", CC);
+        C("lo", LO);
+        C("mi", MI);
+        C("pl", PL);
+        C("vs", VS);
+        C("vc", VC);
+        C("hi", HI);
+        C("ls", LS);
+        C("ge", GE);
+        C("lt", LT);
+        C("gt", GT);
+        C("le", LE);
+        C("al", AL);
+        C("nv", NV);
+#undef C
+        return m;
+    }();
+    return map;
+}
+
+const KeywordMap &assembler_directives()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+#define D(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::ASSEMBLER_##name, .flags = 0, .allows_s = false}
+        D(".global", GLOBAL);
+        D(".extern", EXTERN);
+        D(".org", ORG);
+        D(".scope", SCOPE);
+        D(".scend", SCEND);
+        D(".advance", ADVANCE);
+        D(".fill", FILL);
+        D(".align", ALIGN);
+        D(".section", SECTION);
+        D(".bss", BSS);
+        D(".data", DATA);
+        D(".text", TEXT);
+        D(".stop", STOP);
+        D(".byte", BYTE);
+        D(".dbyte", DBYTE);
+        D(".word", WORD);
+        D(".dword", DWORD);
+        D(".sbyte", SBYTE);
+        D(".sdbyte", SDBYTE);
+        D(".sword", SWORD);
+        D(".sdword", SDWORD);
+        D(".char", CHAR);
+        D(".ascii", ASCII);
+        D(".asciz", ASCIZ);
+#undef D
+        return m;
+    }();
+    return map;
+}
+
+const KeywordMap &linker_keywords()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+        m["ENTRY"] = Keyword{.type = TokenType::KEYWORD_ENTRY, .flags = 0, .allows_s = false};
+        m["SECTIONS"] = Keyword{.type = TokenType::KEYWORD_SECTIONS, .flags = 0, .allows_s = false};
+        return m;
+    }();
+    return map;
+}
+
+const KeywordMap &linker_directives()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+        m[".text"] = Keyword{.type = TokenType::ASSEMBLER_TEXT, .flags = 0, .allows_s = false};
+        m[".data"] = Keyword{.type = TokenType::ASSEMBLER_DATA, .flags = 0, .allows_s = false};
+        m[".bss"] = Keyword{.type = TokenType::ASSEMBLER_BSS, .flags = 0, .allows_s = false};
+        return m;
+    }();
+    return map;
+}
+
+const KeywordMap &preprocessor_directives()
+{
+    static const KeywordMap map = []
+    {
+        KeywordMap m;
+#define P(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::PREPROCESSOR_##name, .flags = 0, .allows_s = false}
+        P("#include", INCLUDE);
+        P("#macro", MACRO);
+        P("#macret", MACRET);
+        P("#macend", MACEND);
+        P("#invoke", INVOKE);
+        P("#define", DEFINE);
+        P("#undef", UNDEF);
+        P("#ifdef", IFDEF);
+        P("#ifndef", IFNDEF);
+        P("#ifequ", IFEQU);
+        P("#ifnequ", IFNEQU);
+        P("#ifless", IFLESS);
+        P("#ifmore", IFMORE);
+        P("#else", ELSE);
+        P("#elsedef", ELSEDEF);
+        P("#elsendef", ELSENDEF);
+        P("#elseequ", ELSEEQU);
+        P("#elsenequ", ELSENEQU);
+        P("#elseless", ELSELESS);
+        P("#elsemore", ELSEMORE);
+        P("#endif", ENDIF);
+#undef P
+        return m;
+    }();
+    return map;
+}
+
+/// Exact match, or the flag setting `s` variant of an instruction that allows it.
+std::optional<Keyword> find_keyword(const KeywordMap &map, std::string_view text)
+{
+    if (auto it = map.find(text); it != map.end()) return it->second;
+    if (text.size() > 1 && text.back() == 's')
+    {
+        if (auto it = map.find(text.substr(0, text.size() - 1));
+            it != map.end() && it->second.allows_s)
+        {
+            return Keyword{.type = it->second.type,
+                           .flags = U8(it->second.flags | SETS_FLAGS),
+                           .allows_s = false};
+        }
+    }
+    return std::nullopt;
+}
+
+/// x0 - x29 only (no leading zeros).
+std::optional<TokenType> parse_register(std::string_view text)
+{
+    if (text.size() < 2 || text.size() > 3 || text[0] != 'x' || !is_digit(text[1]))
+        return std::nullopt;
+    if (text.size() == 3 && (!is_digit(text[2]) || text[1] == '0')) return std::nullopt;
+    const int n = text.size() == 2 ? text[1] - '0' : (text[1] - '0') * 10 + (text[2] - '0');
+    if (n > 29) return std::nullopt;
+    return TokenType(U16(TokenType::REGISTER_X0) + n);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lexer
+// ---------------------------------------------------------------------------------------------
+
+class Lexer
+{
+  public:
+    Lexer(std::string_view src, SourceId id, const LexOptions &options) :
+        m_src(src),
+        m_id(id),
+        m_opts(options)
+    {
+    }
+
+    LexResult run()
+    {
+        const std::size_t n = m_src.size();
+        while (m_pos < n)
+        {
+            const char c = m_src[m_pos];
+            if (c == ' ' || c == '\t' || c == '\f' || c == '\v')
+            {
+                m_pos++;
+                m_space = true;
+            }
+            else if (is_newline(c))
+            {
+                lex_newline();
+            }
+            else if (c == '\\')
+            {
+                lex_backslash();
+            }
+            else if (!lex_comment())
+            {
+                lex_token();
+            }
+        }
+
+        // Every statement is terminated, including the last one.
+        if (m_opts.keep_newlines && !m_result.tokens.empty()
+            && m_result.tokens.back().type != TokenType::NEWLINE)
+        {
+            emit_text(TokenType::NEWLINE, n, 0, here());
+        }
+        m_space = false;
+        emit_text(TokenType::END_OF_FILE, n, 0, here());
+        return std::move(m_result);
+    }
+
+  private:
+    // ----- location / emit helpers -----
+
+    SourceLocation here() const
+    {
+        return {.source = m_id,
+                .offset = U32(m_pos),
+                .line = m_line,
+                .column = U32(m_pos - m_line_start + 1)};
+    }
+
+    char peek(std::size_t ahead = 0) const
+    {
+        return m_pos + ahead < m_src.size() ? m_src[m_pos + ahead] : '\0';
+    }
+
+    void emit_text(TokenType type, std::size_t begin, std::size_t len, const SourceLocation &loc,
+                   U8 flags = 0, U64 value = 0)
+    {
+        Token tok;
+        tok.type = type;
+        tok.flags = flags;
+        if (m_space) tok.flags |= SPACE_BEFORE;
+        if (m_first) tok.flags |= FIRST_ON_LINE;
+        tok.text = m_src.substr(begin, len);
+        tok.loc = loc;
+        tok.int_value = value;
+        m_result.tokens.push_back(tok);
+        m_space = false;
+        m_first = false;
+    }
+
+    /// Token covering [begin, m_pos).
+    void emit(TokenType type, std::size_t begin, const SourceLocation &loc, U8 flags = 0,
+              U64 value = 0)
+    {
+        emit_text(type, begin, m_pos - begin, loc, flags, value);
+    }
+
+    void report(Severity severity, const SourceLocation &loc, std::string message)
+    {
+        if (severity == Severity::ERROR) m_result.has_errors = true;
+        m_result.diagnostics.push_back({severity, loc, std::move(message)});
+    }
+
+    void error(const SourceLocation &loc, std::string message)
+    {
+        report(Severity::ERROR, loc, std::move(message));
+    }
+
+    /// Moves to `end`, keeping line information right for any line breaks skipped.
+    void advance_to(std::size_t end)
+    {
+        for (std::size_t i = m_pos; i < end; i++)
+        {
+            if (m_src[i] == '\n'
+                || (m_src[i] == '\r' && (i + 1 >= m_src.size() || m_src[i + 1] != '\n')))
+            {
+                m_line++;
+                m_line_start = i + 1;
+            }
+        }
+        m_pos = end;
+    }
+
+    bool prev_is_operand() const
+    {
+        if (m_result.tokens.empty())
+        {
+            return false;
+        }
+        const TokenType t = m_result.tokens.back().type;
+        return t == TokenType::SYMBOL || is_number_literal(t) || t == TokenType::LITERAL_CHAR
+               || t == TokenType::CLOSE_PARENTHESIS || t == TokenType::CLOSE_BRACKET;
+    }
+
+    bool prev_char_is_ident() const
+    {
+        return m_pos > 0 && is_ident_char(m_src[m_pos - 1]);
+    }
+
+    bool assembly() const
+    {
+        return m_opts.mode == LexMode::ASSEMBLY;
+    }
+
+    // ----- trivia -----
+
+    void lex_newline()
+    {
+        const std::size_t begin = m_pos;
+        const SourceLocation loc = here();
+        m_pos += (m_src[m_pos] == '\r' && peek(1) == '\n') ? 2 : 1;
+
+        const bool collapse =
+            m_opts.collapse_newlines
+            && (m_result.tokens.empty() || m_result.tokens.back().type == TokenType::NEWLINE);
+        if (m_opts.keep_newlines && !collapse) emit(TokenType::NEWLINE, begin, loc);
+
+        m_line++;
+        m_line_start = m_pos;
+        m_space = false;
+        m_first = true;
+    }
+
+    /// `\` + newline joins lines. Any other backslash is a BACK_SLASH token.
+    void lex_backslash()
+    {
+        std::size_t i = m_pos + 1;
+        while (i < m_src.size() && (m_src[i] == ' ' || m_src[i] == '\t')) i++;
+
+        if (i < m_src.size() && is_newline(m_src[i]))
+        {
+            i += (m_src[i] == '\r' && i + 1 < m_src.size() && m_src[i + 1] == '\n') ? 2 : 1;
+            advance_to(i);
+            m_space = true;
+            return;
+        }
+
+        const std::size_t begin = m_pos;
+        const SourceLocation loc = here();
+        m_pos++;
+        emit(TokenType::BACK_SLASH, begin, loc);
+    }
+
+    bool lex_comment()
+    {
+        const char c = m_src[m_pos];
+        const char d = peek(1);
+
+        bool single = false;
+        bool multi = false;
+        if (assembly())
+        {
+            single = c == ';' && d != '*';
+            multi = c == ';' && d == '*';
+        }
+        else
+        {
+            single = c == '/' && d == '/';
+            multi = c == '/' && d == '*';
+        }
+
+        if (!single && !multi) return false;
+
+        const std::size_t begin = m_pos;
+        const SourceLocation loc = here();
+        if (single)
+        {
+            while (m_pos < m_src.size() && !is_newline(m_src[m_pos])) m_pos++;
+        }
+        else
+        {
+            const std::string_view close = assembly() ? "*;" : "*/";
+            std::size_t end = m_src.find(close, m_pos + 2);
+            if (end == std::string_view::npos)
+            {
+                error(loc, "unterminated multi-line comment");
+                end = m_src.size();
+            }
+            else
+            {
+                end += 2;
+            }
+            advance_to(end);
+        }
+
+        if (m_opts.keep_comments)
+        {
+            const bool first = m_first;
+            emit(multi ? TokenType::COMMENT_MULTI_LINE : TokenType::COMMENT_SINGLE_LINE, begin,
+                 loc);
+            m_first = first;
+        }
+        m_space = true;
+        return true;
+    }
+
+    // ----- tokens -----
+
+    void lex_token()
+    {
+        const char c = m_src[m_pos];
+        const std::size_t begin = m_pos;
+        const SourceLocation loc = here();
+
+        if (is_ident_start(c))
+        {
+            lex_word(begin, loc);
+        }
+        else if (is_digit(c))
+        {
+            lex_number(begin, loc);
+        }
+        else
+        {
+            switch (c)
+            {
+            case '.':
+                lex_dot(begin, loc);
+                break;
+            case '#':
+                lex_hash(begin, loc);
+                break;
+            case '"':
+                lex_string(begin, loc);
+                break;
+            case '\'':
+                lex_char(begin, loc);
+                break;
+            case '$':
+                if (assembly())
+                {
+                    lex_prefixed(begin, loc, 1, 16, TokenType::LITERAL_NUMBER_HEXADECIMAL,
+                                 "hexadecimal", is_ident_char(peek(1)));
+                }
+                else
+                {
+                    lex_punct(begin, loc);
+                }
+                break;
+            case '%':
+                if (assembly() && (peek(1) == '0' || peek(1) == '1') && !prev_is_operand())
+                {
+                    lex_prefixed(begin, loc, 1, 2, TokenType::LITERAL_NUMBER_BINARY, "binary",
+                                 true);
+                }
+                else
+                {
+                    lex_punct(begin, loc);
+                }
+                break;
+            case '@':
+                if (assembly())
+                {
+                    lex_prefixed(begin, loc, 1, 8, TokenType::LITERAL_NUMBER_OCTAL, "octal",
+                                 is_ident_char(peek(1)));
+                }
+                else
+                {
+                    lex_punct(begin, loc);
+                }
+                break;
+            default:
+                lex_punct(begin, loc);
+                break;
+            }
+        }
+    }
+
+    bool is_condition_position(std::size_t begin) const
+    {
+        const std::vector<Token> &toks = m_result.tokens;
+        if (toks.size() < 2 || m_space) return false;
+        const Token &dot = toks[toks.size() - 1];
+        const Token &mnemonic = toks[toks.size() - 2];
+        return dot.type == TokenType::PERIOD && !dot.has(SPACE_BEFORE)
+               && dot.loc.offset + 1 == begin
+               && (mnemonic.type == TokenType::INSTRUCTION_B
+                   || mnemonic.type == TokenType::INSTRUCTION_BL
+                   || mnemonic.type == TokenType::INSTRUCTION_BX
+                   || mnemonic.type == TokenType::INSTRUCTION_BLX
+                   || mnemonic.type == TokenType::INSTRUCTION_SWI);
+    }
+
+    void lex_word(std::size_t begin, const SourceLocation &loc)
+    {
+        const std::size_t n = m_src.size();
+        std::size_t end = begin + 1;
+        while (end < n && is_ident_char(m_src[end])) end++;
+
+        // Floating point mnemonics contain dots: vadd.f32, vcint.u32.f32, ...
+        if (assembly() && m_src[begin] == 'v' && end < n && m_src[end] == '.')
+        {
+            for (std::string_view suffix : {std::string_view(".u32.f32"),
+                                            std::string_view(".s32.f32"), std::string_view(".f32")})
+            {
+                if (m_src.compare(end, suffix.size(), suffix) != 0) continue;
+                const std::size_t e2 = end + suffix.size();
+                if (e2 < n && is_ident_char(m_src[e2])) continue;
+                if (assembly_keywords().count(m_src.substr(begin, e2 - begin)) != 0)
+                {
+                    end = e2;
+                    break;
+                }
+            }
+        }
+
+        const std::string_view text = m_src.substr(begin, end - begin);
+
+        // `name:` is a label. The colon is consumed but not part of the token text.
+        if (assembly() && end < n && m_src[end] == ':')
+        {
+            m_pos = end + 1;
+            emit_text(TokenType::LABEL, begin, text.size(), loc);
+            return;
+        }
+
+        m_pos = end;
+        TokenType type = TokenType::SYMBOL;
+        U8 flags = 0;
+
+        if (assembly())
+        {
+            std::optional<Keyword> kw;
+            if (is_condition_position(begin))
+            {
+                kw = find_keyword(condition_keywords(), text);
+            }
+            if (!kw)
+            {
+                if (const std::optional<TokenType> reg = parse_register(text))
+                    kw = Keyword{*reg, 0, false};
+                else kw = find_keyword(assembly_keywords(), text);
+            }
+            if (kw)
+            {
+                type = kw->type;
+                flags = kw->flags;
+            }
+        }
+        else if (const std::optional<Keyword> kw = find_keyword(linker_keywords(), text))
+        {
+            type = kw->type;
+        }
+
+        emit(type, begin, loc, flags);
+    }
+
+    void lex_dot(std::size_t begin, const SourceLocation &loc)
+    {
+        const char d = peek(1);
+
+        // `.5`
+        if (assembly() && is_digit(d) && !prev_char_is_ident())
+        {
+            m_pos++;
+            while (is_digit(peek())) m_pos++;
+            finish_float(begin, loc);
+            return;
+        }
+
+        // `.global`. After an identifier character the dot is a separator (`b.eq`).
+        if (is_ident_start(d) && !prev_char_is_ident())
+        {
+            std::size_t end = begin + 2;
+            while (end < m_src.size() && is_ident_char(m_src[end])) end++;
+            m_pos = end;
+
+            const KeywordMap &table = assembly() ? assembler_directives() : linker_directives();
+            if (const std::optional<Keyword> kw =
+                    find_keyword(table, m_src.substr(begin, end - begin)))
+            {
+                emit(kw->type, begin, loc);
+            }
+            else
+            {
+                error(loc,
+                      "unknown directive '" + std::string(m_src.substr(begin, end - begin)) + "'");
+                emit(TokenType::INVALID, begin, loc);
+            }
+            return;
+        }
+
+        m_pos++;
+        emit(TokenType::PERIOD, begin, loc);
+    }
+
+    void lex_hash(std::size_t begin, const SourceLocation &loc)
+    {
+        if (!assembly() || !is_ident_start(peek(1)))
+        {
+            m_pos++;
+            error(loc, "stray '#'");
+            emit(TokenType::INVALID, begin, loc);
+            return;
+        }
+
+        std::size_t end = begin + 2;
+        while (end < m_src.size() && is_ident_char(m_src[end])) end++;
+        m_pos = end;
+
+        const std::string_view text = m_src.substr(begin, end - begin);
+        if (const std::optional<Keyword> kw = find_keyword(preprocessor_directives(), text))
+        {
+            emit(kw->type, begin, loc);
+        }
+        else
+        {
+            error(loc, "unknown preprocessor directive '" + std::string(text) + "'");
+            emit(TokenType::INVALID, begin, loc);
+        }
+    }
+
+    void lex_string(std::size_t begin, const SourceLocation &loc)
+    {
+        const std::size_t n = m_src.size();
+        std::size_t i = begin + 1;
+        while (i < n && m_src[i] != '"' && !is_newline(m_src[i]))
+        {
+            if (m_src[i] == '\\' && i + 1 < n && !is_newline(m_src[i + 1])) i++;
+            i++;
+        }
+
+        if (i < n && m_src[i] == '"')
+        {
+            m_pos = i + 1;
+            emit(TokenType::LITERAL_STRING, begin, loc);
+        }
+        else
+        {
+            m_pos = i;
+            error(loc, "unterminated string literal");
+            emit(TokenType::INVALID, begin, loc);
+        }
+    }
+
+    void lex_char(std::size_t begin, const SourceLocation &loc)
+    {
+        const std::size_t n = m_src.size();
+        std::size_t i = begin + 1;
+        U64 value = 0;
+        bool ok = i < n && !is_newline(m_src[i]);
+
+        if (ok && m_src[i] == '\\')
+        {
+            i++;
+            ok = i < n && !is_newline(m_src[i]);
+            if (ok) value = escape_value(m_src[i++]);
+        }
+        else if (ok)
+        {
+            value = static_cast<unsigned char>(m_src[i++]);
+        }
+
+        if (ok && i < n && m_src[i] == '\'')
+        {
+            m_pos = i + 1;
+            emit(TokenType::LITERAL_CHAR, begin, loc, 0, value);
+        }
+        else
+        {
+            m_pos = begin + 1;
+            error(loc, "malformed character literal");
+            emit(TokenType::INVALID, begin, loc);
+        }
+    }
+
+    // ----- numbers -----
+
+    void finish_float(std::size_t begin, const SourceLocation &loc)
+    {
+        if (is_ident_char(peek()))
+        {
+            while (is_ident_char(peek())) m_pos++;
+            error(loc, "invalid floating point literal '"
+                           + std::string(m_src.substr(begin, m_pos - begin)) + "'");
+            emit(TokenType::INVALID, begin, loc);
+            return;
+        }
+        emit(TokenType::LITERAL_FLOAT_32, begin, loc);
+    }
+
+    /// Integer literal whose digits start after `prefix_len` characters. The whole identifier
+    /// run is consumed so that `$12G` is one bad token instead of a number and a symbol.
+    /// `consume` false means there is nothing valid after the prefix character (stray `$`).
+    void lex_prefixed(std::size_t begin, const SourceLocation &loc, std::size_t prefix_len,
+                      int base, TokenType type, const char *name, bool consume)
+    {
+        std::size_t end = begin + prefix_len;
+        if (consume)
+        {
+            while (end < m_src.size() && is_ident_char(m_src[end])) end++;
+        }
+        m_pos = end;
+
+        const std::string_view text = m_src.substr(begin, end - begin);
+        const std::string_view digits = text.substr(prefix_len);
+
+        std::string hint;
+        if (base == 10 && text.size() > 1 && text[0] == '0'
+            && (text[1] == 'x' || text[1] == 'X' || text[1] == 'b' || text[1] == 'B'))
+        {
+            hint = " (hexadecimal is written $FF, binary %101, octal @17)";
+        }
+
+        if (digits.empty() || !digits_valid(digits, base))
+        {
+            error(loc,
+                  "invalid " + std::string(name) + " literal '" + std::string(text) + "'" + hint);
+            emit(TokenType::INVALID, begin, loc);
+            return;
+        }
+
+        U64 value = 0;
+        if (!parse_uint(digits, base, value))
+        {
+            error(loc, "integer literal '" + std::string(text) + "' is too large");
+            emit(TokenType::INVALID, begin, loc);
+            return;
+        }
+        emit(type, begin, loc, 0, value);
+    }
+
+    void lex_number(std::size_t begin, const SourceLocation &loc)
+    {
+        const std::size_t n = m_src.size();
+
+        if (assembly())
+        {
+            // 12.5
+            std::size_t i = begin;
+            while (i < n && is_digit(m_src[i]))
+            {
+                i++;
+            }
+            if (i + 1 < n && m_src[i] == '.' && is_digit(m_src[i + 1]))
+            {
+                i++;
+                while (i < n && is_digit(m_src[i]))
+                {
+                    i++;
+                }
+                m_pos = i;
+                finish_float(begin, loc);
+                return;
+            }
+            lex_prefixed(begin, loc, 0, 10, TokenType::LITERAL_NUMBER_DECIMAL, "decimal", true);
+            return;
+        }
+
+        // Linker script: 0x.., 0b.., decimal.
+        if (m_src[begin] == '0' && (peek(1) == 'x' || peek(1) == 'X'))
+        {
+            lex_prefixed(begin, loc, 2, 16, TokenType::LITERAL_NUMBER_HEXADECIMAL, "hexadecimal",
+                         true);
+        }
+        else if (m_src[begin] == '0' && (peek(1) == 'b' || peek(1) == 'B'))
+        {
+            lex_prefixed(begin, loc, 2, 2, TokenType::LITERAL_NUMBER_BINARY, "binary", true);
+        }
+        else
+        {
+            lex_prefixed(begin, loc, 0, 10, TokenType::LITERAL_NUMBER_DECIMAL, "decimal", true);
+        }
+    }
+
+    // ----- punctuation and operators -----
+
+    static std::string describe_byte(char c)
+    {
+        const unsigned char u = static_cast<unsigned char>(c);
+        if (u >= 0x20 && u < 0x7F) return std::string("'") + c + "'";
+        char buf[8];
+        std::snprintf(buf, sizeof(buf), "0x%02X", u);
+        return std::string("byte ") + buf;
+    }
+
+    void lex_punct(std::size_t begin, const SourceLocation &loc)
+    {
+        const char c = m_src[begin];
+        const char d = peek(1);
+
+        auto one = [&](TokenType type)
+        {
+            m_pos = begin + 1;
+            emit(type, begin, loc);
+        };
+        auto two = [&](TokenType type)
+        {
+            m_pos = begin + 2;
+            emit(type, begin, loc);
+        };
+
+        // Relocation specifiers: :lo12: :hi20: :lo19: :hi13:
+        if (assembly() && c == ':')
+        {
+            struct Reloc
+            {
+                std::string_view text;
+                TokenType type;
+            };
+
+            static constexpr Reloc kRelocs[] = {
+                {.text = ":lo12:", .type = TokenType::RELOCATION_EMU32_O_LO12},
+                {.text = ":hi20:", .type = TokenType::RELOCATION_EMU32_ADRP_HI20},
+                {.text = ":lo19:", .type = TokenType::RELOCATION_EMU32_MOV_LO19},
+                {.text = ":hi13:", .type = TokenType::RELOCATION_EMU32_MOV_HI13},
+            };
+            for (const Reloc &r : kRelocs)
+            {
+                if (m_src.compare(begin, r.text.size(), r.text) == 0)
+                {
+                    m_pos = begin + r.text.size();
+                    emit(r.type, begin, loc);
+                    return;
+                }
+            }
+        }
+
+        switch (c)
+        {
+        case ',':
+            return one(TokenType::COMMA);
+        case ':':
+            return one(TokenType::COLON);
+        case '(':
+            return one(TokenType::OPEN_PARENTHESIS);
+        case ')':
+            return one(TokenType::CLOSE_PARENTHESIS);
+        case '[':
+            return one(TokenType::OPEN_BRACKET);
+        case ']':
+            return one(TokenType::CLOSE_BRACKET);
+        case '{':
+            return one(TokenType::OPEN_BRACE);
+        case '}':
+            return one(TokenType::CLOSE_BRACE);
+        case '+':
+            return one(TokenType::OPERATOR_ADDITION);
+        case '-':
+            return one(TokenType::OPERATOR_SUBTRACTION);
+        case '*':
+            return one(TokenType::OPERATOR_MULTIPLICATION);
+        case '/':
+            return one(TokenType::OPERATOR_DIVISION);
+        case '%':
+            return one(TokenType::OPERATOR_MODULUS);
+        case '^':
+            return one(TokenType::OPERATOR_BITWISE_XOR);
+        case '~':
+            return one(TokenType::OPERATOR_BITWISE_COMPLEMENT);
+        case '|':
+            return d == '|' ? two(TokenType::OPERATOR_LOGICAL_OR)
+                            : one(TokenType::OPERATOR_BITWISE_OR);
+        case '&':
+            return d == '&' ? two(TokenType::OPERATOR_LOGICAL_AND)
+                            : one(TokenType::OPERATOR_BITWISE_AND);
+        case '!':
+            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_NOT_EQUAL)
+                            : one(TokenType::OPERATOR_LOGICAL_NOT);
+        case '<':
+            if (d == '<')
+            {
+                return two(TokenType::OPERATOR_BITWISE_LEFT_SHIFT);
+            }
+            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL)
+                            : one(TokenType::OPERATOR_LOGICAL_LESS_THAN);
+        case '>':
+            if (d == '>')
+            {
+                return two(TokenType::OPERATOR_BITWISE_RIGHT_SHIFT);
+            }
+            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL)
+                            : one(TokenType::OPERATOR_LOGICAL_GREATER_THAN);
+        case '=':
+            if (d == '=')
+            {
+                return two(TokenType::OPERATOR_LOGICAL_EQUAL);
+            }
+            if (!assembly())
+            {
+                return one(TokenType::EQUAL);
+            }
+            break;
+        case ';':
+            if (!assembly())
+            {
+                return one(TokenType::SEMICOLON);
+            }
+            break;
+        case '@':
+            if (!assembly())
+            {
+                return one(TokenType::AT);
+            }
             break;
         default:
             break;
         }
-    }
-}
 
-Tokenizer::Token &Tokenizer::get_token()
-{
-    move_past_skipped_tokens();
-    AEMU_CHECK(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
-    return m_tokens[m_state.toki];
-}
-
-void Tokenizer::skip_next()
-{
-    move_past_skipped_tokens();
-    AEMU_CHECK(has_next(), "Tokenizer::skip_next(): Unexpected end of file.");
-    handle_token();
-
-    m_state.toki++;
-}
-
-void Tokenizer::filter_all(const std::set<Tokenizer::Type> &tok_types)
-{
-    for (size_t i = 0; i < m_tokens.size(); i++)
-    {
-        if (m_tokens[i].is(tok_types))
+        // Unknown character. Swallow a whole UTF-8 sequence so one bad glyph is one error.
+        std::size_t end = begin + 1;
+        if (static_cast<unsigned char>(c) >= 0xC0)
         {
-            m_tokens[i].skip = true;
+            while (end < m_src.size() && (static_cast<unsigned char>(m_src[end]) & 0xC0) == 0x80)
+                end++;
+        }
+        m_pos = end;
+        error(loc, "unexpected character " + describe_byte(c));
+        emit(TokenType::INVALID, begin, loc);
+    }
+
+    std::string_view m_src;
+    SourceId m_id;
+    LexOptions m_opts;
+
+    std::size_t m_pos = 0;
+    U32 m_line = 1;
+    std::size_t m_line_start = 0;
+    bool m_space = false;
+    bool m_first = true;
+
+    LexResult m_result;
+};
+
+} // namespace
+
+LexResult lex(const SourceManager &sources, SourceId id, const LexOptions &options)
+{
+    return Lexer(sources.text(id), id, options).run();
+}
+
+LexResult lex_text(SourceManager &sources, std::string name, std::string text,
+                   const LexOptions &options)
+{
+    const SourceId id = sources.add(std::move(name), std::move(text));
+    return lex(sources, id, options);
+}
+
+void fatal_if_errors(const SourceManager &sources, const LexResult &result)
+{
+    std::size_t errors = 0;
+    for (const Diagnostic &d : result.diagnostics)
+    {
+        std::string text = format_diagnostic(sources, d);
+        while (!text.empty() && text.back() == '\n') text.pop_back();
+        if (d.severity == Severity::ERROR)
+        {
+            errors++;
+            AEMU_ERROR("{}", text);
+        }
+        else
+        {
+            AEMU_WARN("{}", text);
         }
     }
+
+    if (errors > 0) AEMU_FATAL("{} lexical error(s), see above.", errors);
 }
 
-void Tokenizer::skip_next_regex(const std::string &regex)
+void fatal_at(const SourceManager &sources, const SourceLocation &loc, const std::string &message)
 {
-    while (has_next() && std::regex_match(m_tokens[m_state.toki].value, std::regex(regex)))
-    {
-        skip_next();
-    }
+    std::string text = format_diagnostic(sources, {Severity::ERROR, loc, message});
+    while (!text.empty() && text.back() == '\n') text.pop_back();
+    AEMU_FATAL("{}", text);
 }
 
-void Tokenizer::skip_next(const std::set<Tokenizer::Type> &tok_types)
+// ---------------------------------------------------------------------------------------------
+// TokenCursor
+// ---------------------------------------------------------------------------------------------
+
+const Token &TokenCursor::peek(std::size_t ahead) const
 {
-    while (has_next() && tok_types.find(m_tokens[m_state.toki].type) != tok_types.end())
-    {
-        skip_next();
-    }
+    static const Token kEof{};
+    if (m_pos + ahead < m_tokens.size()) return m_tokens[m_pos + ahead];
+    if (!m_tokens.empty() && m_tokens.back().type == TokenType::END_OF_FILE) return m_tokens.back();
+    return kEof;
 }
 
-void Tokenizer::skip_next(Tokenizer::Type tok_type)
+const Token &TokenCursor::next()
 {
-    while (has_next() && m_tokens[m_state.toki].type != tok_type)
-    {
-        skip_next();
-    }
+    const Token &tok = peek();
+    if (tok.type != TokenType::END_OF_FILE && m_pos < m_tokens.size()) m_pos++;
+    return tok;
 }
 
-void Tokenizer::expect_next(const std::string &error_msg)
+bool TokenCursor::accept(TokenType type)
 {
-    // TODO: This should not use these asserts. Instead return an error.
-    AEMU_CHECK(has_next(), "{}", error_msg);
+    return try_next(type) != nullptr;
 }
 
-void Tokenizer::expect_next(const std::set<Tokenizer::Type> &expected_types,
-                            const std::string &error_msg)
+const Token *TokenCursor::try_next(TokenType type)
 {
-    // TODO: This should not use these asserts. Instead return an error.
-    AEMU_CHECK(has_next(), "{}", error_msg);
-    AEMU_CHECK(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(), "{}",
-               error_msg);
+    if (!check(type)) return nullptr;
+    return &next();
 }
 
-void Tokenizer::expect_next(Tokenizer::Type expected_type, const std::string &error_msg)
+void TokenCursor::skip_newlines()
 {
-    // TODO: This should not use these asserts. Instead return an error.
-    AEMU_CHECK(has_next(), "{}", error_msg);
-    AEMU_CHECK(m_tokens[m_state.toki].type == expected_type, "{}", error_msg);
+    while (check(TokenType::NEWLINE)) next();
 }
 
-bool Tokenizer::is_next(const std::set<Tokenizer::Type> &tok_types, const std::string &error_msg)
+void TokenCursor::skip_line()
 {
-    expect_next(error_msg);
-    return tok_types.find(m_tokens[m_state.toki].type) != tok_types.end();
+    while (!at_end() && !check(TokenType::NEWLINE)) next();
+    accept(TokenType::NEWLINE);
 }
 
-bool Tokenizer::is_next(Tokenizer::Type tok_type, const std::string &error_msg)
+std::span<const Token> TokenCursor::take_line()
 {
-    expect_next(error_msg);
-    return m_tokens[m_state.toki].type == tok_type;
+    const std::size_t begin = m_pos;
+    while (!at_end() && !check(TokenType::NEWLINE)) next();
+    const std::span<const Token> line = m_tokens.subspan(begin, m_pos - begin);
+    accept(TokenType::NEWLINE);
+    return line;
 }
 
-bool Tokenizer::has_next()
-{
-    move_past_skipped_tokens();
-    return m_state.toki < m_tokens.size();
-}
-
-Tokenizer::Token &Tokenizer::consume(const std::string &error_msg)
-{
-    expect_next(error_msg);
-    Tokenizer::Token &token = m_tokens[m_state.toki];
-    skip_next();
-    return token;
-}
-
-Tokenizer::Token &Tokenizer::consume(const std::set<Tokenizer::Type> &expected_types,
-                                     const std::string &error_msg)
-{
-    expect_next(error_msg);
-    AEMU_CHECK(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(),
-               "{} - Got {}", error_msg, m_tokens[m_state.toki].to_string());
-    Tokenizer::Token &token = m_tokens[m_state.toki];
-    skip_next();
-    return token;
-}
-
-Tokenizer::Token &Tokenizer::consume(Tokenizer::Type expected_type, const std::string &error_msg)
-{
-    expect_next(error_msg);
-    AEMU_CHECK(m_tokens[m_state.toki].type == expected_type, "{} - Got {}", error_msg,
-               m_tokens[m_state.toki].to_string());
-    const size_t toki = m_state.toki;
-    skip_next();
-    return m_tokens[toki];
-}
-
-/**
- * Converts the source file contents into a list of tokens
- *
- * @param src_file The source file to tokenize
- * @return A list of tokens
- */
-std::vector<Tokenizer::Token> Tokenizer::tokenize(File src_file, Options option)
-{
-    AEMU_DEBUG("Tokenizer::tokenize() - Tokenizing file: {}", src_file.get_name());
-    FileReader reader(src_file);
-
-    // append a new line to the end to allow regex matching to match an ending whitespace
-    std::string source_code = reader.read_all() + "\n";
-    reader.close();
-
-    std::vector<Token> tokens = tokenize(source_code, option);
-    AEMU_DEBUG("Tokenizer::tokenize() - Tokenized file: {}", src_file.get_name());
-    return tokens;
-}
-
-/**
- * Converts the source code into a list of tokens
- *
- * @param source_code The source code to tokenize
- * @return A list of tokens
- */
-std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, Options option)
-{
-    static int TOKENIZE_IDS = 0;
-    int tokenize_id = TOKENIZE_IDS++;
-    int cur_line = 0;
-
-    std::vector<Token> tokens;
-    auto is_alphanumeric = [](char c, int index)
-    {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-               || (c == '.' && index == 0) || (c == '_') || (c == '#' && index == 0);
-    };
-
-    std::unordered_map<std::string, Type> simple_map = {
-        {"x0", REGISTER_X0},
-        {"x1", REGISTER_X1},
-        {"x2", REGISTER_X2},
-        {"x3", REGISTER_X3},
-        {"x4", REGISTER_X4},
-        {"x5", REGISTER_X5},
-        {"x6", REGISTER_X6},
-        {"x7", REGISTER_X7},
-        {"x8", REGISTER_X8},
-        {"x9", REGISTER_X9},
-        {"x10", REGISTER_X10},
-        {"x11", REGISTER_X11},
-        {"x12", REGISTER_X12},
-        {"x13", REGISTER_X13},
-        {"x14", REGISTER_X14},
-        {"x15", REGISTER_X15},
-        {"x16", REGISTER_X16},
-        {"x17", REGISTER_X17},
-        {"x18", REGISTER_X18},
-        {"x19", REGISTER_X19},
-        {"x20", REGISTER_X20},
-        {"x21", REGISTER_X21},
-        {"x22", REGISTER_X22},
-        {"x23", REGISTER_X23},
-        {"x24", REGISTER_X24},
-        {"x25", REGISTER_X25},
-        {"x26", REGISTER_X26},
-        {"x27", REGISTER_X27},
-        {"x28", REGISTER_X28},
-        {"x29", REGISTER_X29},
-        {"xzr", REGISTER_XZR},
-        {"sp", REGISTER_SP},
-
-        {"#include", PREPROCESSOR_INCLUDE},
-        {"#macro", PREPROCESSOR_MACRO},
-        {"#macret", PREPROCESSOR_MACRET},
-        {"#macend", PREPROCESSOR_MACEND},
-        {"#invoke", PREPROCESSOR_INVOKE},
-        {"#define", PREPROCESSOR_DEFINE},
-        {"#undef", PREPROCESSOR_UNDEF},
-        {"#ifdef", PREPROCESSOR_IFDEF},
-        {"#ifndef", PREPROCESSOR_IFNDEF},
-        {"#ifequ", PREPROCESSOR_IFEQU},
-        {"#ifnequ", PREPROCESSOR_IFNEQU},
-        {"#ifless", PREPROCESSOR_IFLESS},
-        {"#ifmore", PREPROCESSOR_IFMORE},
-        {"#else", PREPROCESSOR_ELSE},
-        {"#elsedef", PREPROCESSOR_ELSEDEF},
-        {"#elsendef", PREPROCESSOR_ELSENDEF},
-        {"#elseequ", PREPROCESSOR_ELSEEQU},
-        {"#elsenequ", PREPROCESSOR_ELSENEQU},
-        {"#elseless", PREPROCESSOR_ELSELESS},
-        {"#elsemore", PREPROCESSOR_ELSEMORE},
-        {"#endif", PREPROCESSOR_ENDIF},
-
-        {".global", ASSEMBLER_GLOBAL},
-        {".extern", ASSEMBLER_EXTERN},
-        {".org", ASSEMBLER_ORG},
-        {".scope", ASSEMBLER_SCOPE},
-        {".scend", ASSEMBLER_SCEND},
-        {".advance", ASSEMBLER_ADVANCE},
-        {".fill", ASSEMBLER_FILL},
-        {".align", ASSEMBLER_ALIGN},
-        {".section", ASSEMBLER_SECTION},
-        {".bss", ASSEMBLER_BSS},
-        {".data", ASSEMBLER_DATA},
-        {".text", ASSEMBLER_TEXT},
-        {".stop", ASSEMBLER_STOP},
-        {".byte", ASSEMBLER_BYTE},
-        {".dbyte", ASSEMBLER_DBYTE},
-        {".word", ASSEMBLER_WORD},
-        {".dword", ASSEMBLER_DWORD},
-        {".sbyte", ASSEMBLER_SBYTE},
-        {".sdbyte", ASSEMBLER_SDBYTE},
-        {".sword", ASSEMBLER_SWORD},
-        {".sdword", ASSEMBLER_SDWORD},
-        {".char", ASSEMBLER_CHAR},
-        {".ascii", ASSEMBLER_ASCII},
-        {".asciz", ASSEMBLER_ASCIZ},
-
-        {"hlt", INSTRUCTION_HLT},
-        {"nop", INSTRUCTION_NOP},
-        {"add", INSTRUCTION_ADD},
-        {"adds", INSTRUCTION_ADD},
-        {"sub", INSTRUCTION_SUB},
-        {"subs", INSTRUCTION_SUB},
-        {"rsb", INSTRUCTION_RSB},
-        {"rsbs", INSTRUCTION_RSB},
-        {"adc", INSTRUCTION_ADC},
-        {"adcs", INSTRUCTION_ADC},
-        {"sbc", INSTRUCTION_SBC},
-        {"sbcs", INSTRUCTION_SBC},
-        {"rsc", INSTRUCTION_RSC},
-        {"rscs", INSTRUCTION_RSC},
-        {"mul", INSTRUCTION_MUL},
-        {"muls", INSTRUCTION_MUL},
-        {"umull", INSTRUCTION_UMULL},
-        {"umulls", INSTRUCTION_UMULL},
-        {"smull", INSTRUCTION_SMULL},
-        {"smulls", INSTRUCTION_SMULL},
-        {"vabs.f32", INSTRUCTION_VABS},
-        {"vneg.f32", INSTRUCTION_VNEG},
-        {"vsqrt.f32", INSTRUCTION_VSQRT},
-        {"vadd.f32", INSTRUCTION_VADD},
-        {"vsub.f32", INSTRUCTION_VSUB},
-        {"vdiv.f32", INSTRUCTION_VDIV},
-        {"vmul.f32", INSTRUCTION_VMUL},
-        {"vcmp.f32", INSTRUCTION_VCMP},
-        {"vsel.f32", INSTRUCTION_VSEL},
-        {"vcint.u32.f32", INSTRUCTION_VCINT},
-        {"vcint.s32.f32", INSTRUCTION_VCINT},
-        {"vcflo.u32.f32", INSTRUCTION_VCFLO},
-        {"vcflo.s32.f32", INSTRUCTION_VCFLO},
-        {"vmov.f32", INSTRUCTION_VMOV},
-        {"and", INSTRUCTION_AND},
-        {"ands", INSTRUCTION_AND},
-        {"orr", INSTRUCTION_ORR},
-        {"orrs", INSTRUCTION_ORR},
-        {"eor", INSTRUCTION_EOR},
-        {"eors", INSTRUCTION_EOR},
-        {"bic", INSTRUCTION_BIC},
-        {"bics", INSTRUCTION_BIC},
-        {"lsl", INSTRUCTION_LSL},
-        {"lsls", INSTRUCTION_LSL},
-        {"lsr", INSTRUCTION_LSR},
-        {"lsrs", INSTRUCTION_LSR},
-        {"asr", INSTRUCTION_ASR},
-        {"asrs", INSTRUCTION_ASR},
-        {"ror", INSTRUCTION_ROR},
-        {"rors", INSTRUCTION_ROR},
-        {"cmp", INSTRUCTION_CMP},
-        {"cmn", INSTRUCTION_CMN},
-        {"tst", INSTRUCTION_TST},
-        {"teq", INSTRUCTION_TEQ},
-        {"mov", INSTRUCTION_MOV},
-        {"movs", INSTRUCTION_MOV},
-        {"mvn", INSTRUCTION_MVN},
-        {"mvns", INSTRUCTION_MVN},
-        {"ldr", INSTRUCTION_LDR},
-        {"ldrs", INSTRUCTION_LDR},
-        {"str", INSTRUCTION_STR},
-        {"strs", INSTRUCTION_STR},
-        {"swp", INSTRUCTION_SWP},
-        {"ldrb", INSTRUCTION_LDRB},
-        {"ldrsb", INSTRUCTION_LDRB},
-        {"strb", INSTRUCTION_STRB},
-        {"strsb", INSTRUCTION_STRB},
-        {"swpb", INSTRUCTION_SWPB},
-        {"ldrh", INSTRUCTION_LDRH},
-        {"ldrsh", INSTRUCTION_LDRH},
-        {"strh", INSTRUCTION_STRH},
-        {"strsh", INSTRUCTION_STRH},
-        {"swph", INSTRUCTION_SWPH},
-        {"msr", INSTRUCTION_MSR},
-        {"mrs", INSTRUCTION_MRS},
-        {"tlbi", INSTRUCTION_TLBI},
-        {"ldadd", INSTRUCTION_LDADD},
-        {"ldaddb", INSTRUCTION_LDADDB},
-        {"ldaddh", INSTRUCTION_LDADDH},
-        {"ldclr", INSTRUCTION_LDCLR},
-        {"ldclrb", INSTRUCTION_LDCLRB},
-        {"ldclrh", INSTRUCTION_LDCLRH},
-        {"ldset", INSTRUCTION_LDSET},
-        {"ldsetb", INSTRUCTION_LDSETB},
-        {"ldseth", INSTRUCTION_LDSETH},
-
-        {"b", INSTRUCTION_B},
-        {"bl", INSTRUCTION_BL},
-        {"bx", INSTRUCTION_BX},
-        {"blx", INSTRUCTION_BLX},
-        {"swi", INSTRUCTION_SWI},
-        {"adrp", INSTRUCTION_ADRP},
-
-        {"ret", INSTRUCTION_RET},
-
-        {"eq", CONDITION_EQ},
-        {"ne", CONDITION_NE},
-        {"cs", CONDITION_CS},
-        {"hs", CONDITION_HS},
-        {"cc", CONDITION_CC},
-        {"lo", CONDITION_LO},
-        {"mi", CONDITION_MI},
-        {"pl", CONDITION_PL},
-        {"vs", CONDITION_VS},
-        {"vc", CONDITION_VC},
-        {"hi", CONDITION_HI},
-        {"ls", CONDITION_LS},
-        {"ge", CONDITION_GE},
-        {"lt", CONDITION_LT},
-        {"gt", CONDITION_GT},
-        {"le", CONDITION_LE},
-        {"al", CONDITION_AL},
-        {"nv", CONDITION_NV},
-    };
-
-    while (source_code.size() > 0)
-    {
-        // hopefully boost performance
-        size_t substring_length = 0;
-        while (substring_length < source_code.size()
-               && is_alphanumeric(source_code[substring_length], substring_length))
-        {
-            substring_length++;
-        }
-
-        std::string sub = source_code.substr(0, substring_length);
-        if (simple_map.find(sub) != simple_map.end())
-        {
-            tokens.emplace_back(simple_map.at(sub), sub, cur_line, tokenize_id);
-            source_code = source_code.substr(substring_length);
-            continue;
-        }
-
-        // try to match regex
-        bool matched = false;
-        for (std::pair<std::string, Type> regexPair : TOKEN_SPEC)
-        {
-            std::string regex = regexPair.first;
-            Type type = regexPair.second;
-            std::regex token_regex(regex);
-            std::smatch match;
-            if (std::regex_search(source_code, match, token_regex))
-            {
-                // matched regex
-                std::string token_value = match.str();
-
-                if ((option.keep_comments || COMMENTS.find(type) == COMMENTS.end())
-                    && (option.keep_whitespace || WHITESPACES.find(type) == WHITESPACES.end()))
-                {
-                    tokens.emplace_back(type, token_value, cur_line, tokenize_id);
-                }
-                source_code = match.suffix();
-                matched = true;
-
-                for (char c : token_value)
-                {
-                    if (c == '\n')
-                    {
-                        cur_line++;
-                    }
-                }
-
-                break;
-            }
-        }
-
-        // check if regex matched
-        AEMU_CHECK(matched, "Tokenizer::tokenize() - Could not match regex to source code: {}",
-                   source_code);
-    }
-
-    for (size_t i = 0; i < tokens.size(); i++)
-    {
-        UNUSED(i);
-        // TODO: TEMP
-        AEMU_WARN("Token {}: {}", i, tokens[i].to_string());
-    }
-
-    return tokens;
-}
-
-Tokenizer::Token::Token(Tokenizer::Type type, std::string value, int line, int tokenize_id) noexcept
-    :
-    type(type),
-    value(value),
-    line(line),
-    tokenize_id(tokenize_id)
-{
-}
-
-Tokenizer::Token::Token(const Token &tok) noexcept :
-    type(tok.type),
-    value(tok.value),
-    line(-1),
-    tokenize_id(-1),
-    skip(tok.skip)
-{
-}
-
-Tokenizer::Token::Token(Token &&tok) noexcept :
-    type(std::move(tok.type)),
-    value(std::move(tok.value)),
-    line(std::exchange(tok.line, -1)),
-    tokenize_id(std::exchange(tok.tokenize_id, -1)),
-    skip(std::exchange(tok.skip, false))
-{
-}
-
-Tokenizer::Token &Tokenizer::Token::operator=(const Token &tok) noexcept
-{
-    type = tok.type;
-    value = tok.value;
-    line = -1;
-    tokenize_id = -1;
-    skip = tok.skip;
-    return *this;
-}
-
-Tokenizer::Token &Tokenizer::Token::operator=(Token &&tok) noexcept
-{
-    type = std::move(tok.type);
-    value = std::move(tok.value);
-    line = std::exchange(tok.line, -1);
-    tokenize_id = std::exchange(tok.tokenize_id, -1);
-    skip = std::exchange(tok.skip, false);
-    return *this;
-}
-
-std::string Tokenizer::Token::to_string() const
-{
-    if (type == WHITESPACE_SPACE || type == WHITESPACE_TAB || type == WHITESPACE_NEWLINE)
-    {
-        std::string toString = TYPE_TO_NAME_MAP.at(type) + ":";
-        for (size_t i = 0; i < value.length(); i++)
-        {
-            toString += " " + std::to_string(value[i]);
-        }
-        return toString + " (" + std::to_string(tokenize_id) + ")";
-    }
-    else if (type == COMMENT_SINGLE_LINE || type == COMMENT_MULTI_LINE)
-    {
-        return TYPE_TO_NAME_MAP.at(type) + " (" + std::to_string(tokenize_id) + ")";
-    }
-
-    return TYPE_TO_NAME_MAP.at(type) + ": " + value + +" (" + std::to_string(tokenize_id) + ")";
-}
-
-bool Tokenizer::Token::is(const std::set<Tokenizer::Type> &types) const
-{
-    return types.find(type) != types.end();
-}
-
-int Tokenizer::Token::nlines() const
-{
-    int nlines = 1;
-    for (char c : value)
-    {
-        if (c == '\n')
-        {
-            nlines++;
-        }
-    }
-    return nlines;
-}
-
-const std::unordered_map<Tokenizer::Type, std::string> Tokenizer::TYPE_TO_NAME_MAP = {
-    {UNKNOWN, "UNKNOWN"},
-
-    {LABEL, "LABEL"},
-    {TEXT, "TEXT"},
-    {WHITESPACE_SPACE, "WHITESPACE_SPACE"},
-    {WHITESPACE_TAB, "WHITE_SPACE_TAB"},
-    {WHITESPACE_NEWLINE, "WHITESPACE_NEWLINE"},
-    {COMMENT_SINGLE_LINE, "COMMENT_SINGLE_LINE"},
-    {COMMENT_MULTI_LINE, "COMMENT_MULTI_LINE"},
-    {BACK_SLASH, "BACK_SLASH"},
-    {FORWARD_SLASH, "FORWARD_SLASH"},
-
-    {PREPROCESSOR_INCLUDE, "PREPROCESSOR_INCLUDE"},
-    {PREPROCESSOR_MACRO, "PREPROCESSOR_MACRO"},
-    {PREPROCESSOR_MACRET, "PREPROCESSOR_MACRET"},
-    {PREPROCESSOR_MACEND, "PREPROCESSOR_MACEND"},
-    {PREPROCESSOR_INVOKE, "PREPROCESSOR_INVOKE"},
-    {PREPROCESSOR_DEFINE, "PREPROCESSOR_DEFINE"},
-    {PREPROCESSOR_UNDEF, "PREPROCESSOR_UNDEF"},
-    {PREPROCESSOR_IFDEF, "PREPROCESSOR_IFDEF"},
-    {PREPROCESSOR_IFNDEF, "PREPROCESSOR_IFNDEF"},
-    {PREPROCESSOR_IFEQU, "PREPROCESSOR_IFEQU"},
-    {PREPROCESSOR_IFNEQU, "PREPROCESSOR_IFNEQU"},
-    {PREPROCESSOR_IFLESS, "PREPROCESSOR_IFLESS"},
-    {PREPROCESSOR_IFMORE, "PREPROCESSOR_IFMORE"},
-    {PREPROCESSOR_ELSE, "PREPROCESSOR_ELSE"},
-    {PREPROCESSOR_ELSEDEF, "PREPROCESSOR_ELSEDEF"},
-    {PREPROCESSOR_ELSEEQU, "PREPROCESSOR_ELSEEQU"},
-    {PREPROCESSOR_ELSENEQU, "PREPROCESSOR_ELSENEQU"},
-    {PREPROCESSOR_ELSELESS, "PREPROCESSOR_ELSELESS"},
-    {PREPROCESSOR_ELSEMORE, "PREPROCESSOR_ELSEMORE"},
-    {PREPROCESSOR_ELSENDEF, "PREPROCESSOR_ELSENDEF"},
-    {PREPROCESSOR_ENDIF, "PREPROCESSOR_ENDIF"},
-
-    {ASSEMBLER_GLOBAL, "ASSEMBLER_GLOBAL"},
-    {ASSEMBLER_EXTERN, "ASSEMBLER_EXTERN"},
-    {ASSEMBLER_ORG, "ASSEMBLER_ORG"},
-    {ASSEMBLER_SCOPE, "ASSEMBLER_SCOPE"},
-    {ASSEMBLER_SCEND, "ASSEMBLER_SCEND"},
-    {ASSEMBLER_ADVANCE, "ASSEMBLER_ADVANCE"},
-    {ASSEMBLER_FILL, "ASSEMBLER_FILL"},
-    {ASSEMBLER_ALIGN, "ASSEMBLER_ALIGN"},
-    {ASSEMBLER_SECTION, "ASSEMBLER_SECTION"},
-    {ASSEMBLER_BSS, "ASSEMBLER_BSS"},
-    {ASSEMBLER_DATA, "ASSEMBLER_DATA"},
-    {ASSEMBLER_TEXT, "ASSEMBLER_TEXT"},
-    {ASSEMBLER_STOP, "ASSEMBLER_STOP"},
-    {ASSEMBLER_BYTE, "ASSEMBLER_BYTE"},
-    {ASSEMBLER_DBYTE, "ASSEMBLER_DBYTE"},
-    {ASSEMBLER_WORD, "ASSEMBLER_WORD"},
-    {ASSEMBLER_DWORD, "ASSEMBLER_DWORD"},
-    {ASSEMBLER_SBYTE, "ASSEMBLER_SBYTE"},
-    {ASSEMBLER_SDBYTE, "ASSEMBLER_SDBYTE"},
-    {ASSEMBLER_SWORD, "ASSEMBLER_SWORD"},
-    {ASSEMBLER_SDWORD, "ASSEMBLER_SDWORD"},
-    {ASSEMBLER_CHAR, "ASSEMBLER_CHAR"},
-    {ASSEMBLER_ASCII, "ASSEMBLER_ASCII"},
-    {ASSEMBLER_ASCIZ, "ASSEMBLER_ASCIZ"},
-
-    {RELOCATION_EMU32_O_LO12, "RELOCATION_EMU32_O_LO12"},
-    {RELOCATION_EMU32_ADRP_HI20, "RELOCATION_EMU32_ADRP_HI20"},
-    {RELOCATION_EMU32_MOV_LO19, "RELOCATION_EMU32_MOV_LO19"},
-    {RELOCATION_EMU32_MOV_HI13, "RELOCATION_EMU32_MOV_HI13"},
-
-    {REGISTER_X0, "REGISTER_X0"},
-    {REGISTER_X1, "REGISTER_X1"},
-    {REGISTER_X2, "REGISTER_X2"},
-    {REGISTER_X3, "REGISTER_X3"},
-    {REGISTER_X4, "REGISTER_X4"},
-    {REGISTER_X5, "REGISTER_X5"},
-    {REGISTER_X6, "REGISTER_X6"},
-    {REGISTER_X7, "REGISTER_X7"},
-    {REGISTER_X8, "REGISTER_X8"},
-    {REGISTER_X9, "REGISTER_X9"},
-    {REGISTER_X10, "REGISTER_X10"},
-    {REGISTER_X11, "REGISTER_X11"},
-    {REGISTER_X12, "REGISTER_X12"},
-    {REGISTER_X13, "REGISTER_X13"},
-    {REGISTER_X14, "REGISTER_X14"},
-    {REGISTER_X15, "REGISTER_X15"},
-    {REGISTER_X16, "REGISTER_X16"},
-    {REGISTER_X17, "REGISTER_X17"},
-    {REGISTER_X18, "REGISTER_X18"},
-    {REGISTER_X19, "REGISTER_X19"},
-    {REGISTER_X20, "REGISTER_X20"},
-    {REGISTER_X21, "REGISTER_X21"},
-    {REGISTER_X22, "REGISTER_X22"},
-    {REGISTER_X23, "REGISTER_X23"},
-    {REGISTER_X24, "REGISTER_X24"},
-    {REGISTER_X25, "REGISTER_X25"},
-    {REGISTER_X26, "REGISTER_X26"},
-    {REGISTER_X27, "REGISTER_X27"},
-    {REGISTER_X28, "REGISTER_X28"},
-    {REGISTER_X29, "REGISTER_X29"},
-    {REGISTER_XZR, "REGISTER_XZR"},
-    {REGISTER_SP, "REGISTER_SP"},
-
-    {INSTRUCTION_HLT, "INSTRUCTION_HLT"},
-    {INSTRUCTION_NOP, "INSTRUCTION_NOP"},
-    {INSTRUCTION_ADD, "INSTRUCTION_ADD"},
-    {INSTRUCTION_SUB, "INSTRUCTION_SUB"},
-    {INSTRUCTION_RSB, "INSTRUCTION_RSB"},
-    {INSTRUCTION_ADC, "INSTRUCTION_ADC"},
-    {INSTRUCTION_SBC, "INSTRUCTION_SBC"},
-    {INSTRUCTION_RSC, "INSTRUCTION_RSC"},
-    {INSTRUCTION_MUL, "INSTRUCTION_MUL"},
-    {INSTRUCTION_UMULL, "INSTRUCTION_UMULL"},
-    {INSTRUCTION_SMULL, "INSTRUCTION_SMULL"},
-    {INSTRUCTION_VABS, "INSTRUCTION_VABS"},
-    {INSTRUCTION_VNEG, "INSTRUCTION_VNEG"},
-    {INSTRUCTION_VSQRT, "INSTRUCTION_VSQRT"},
-    {INSTRUCTION_VADD, "INSTRUCTION_VADD"},
-    {INSTRUCTION_VSUB, "INSTRUCTION_VSUB"},
-    {INSTRUCTION_VDIV, "INSTRUCTION_VDIV"},
-    {INSTRUCTION_VMUL, "INSTRUCTION_VMUL"},
-    {INSTRUCTION_VCMP, "INSTRUCTION_VCMP"},
-    {INSTRUCTION_VSEL, "INSTRUCTION_VSEL"},
-    {INSTRUCTION_VCINT, "INSTRUCTION_VCINT"},
-    {INSTRUCTION_VCFLO, "INSTRUCTION_VCFLO"},
-    {INSTRUCTION_VMOV, "INSTRUCTION_VMOV"},
-    {INSTRUCTION_AND, "INSTRUCTION_AND"},
-    {INSTRUCTION_ORR, "INSTRUCTION_ORR"},
-    {INSTRUCTION_EOR, "INSTRUCTION_EOR"},
-    {INSTRUCTION_BIC, "INSTRUCTION_BIC"},
-    {INSTRUCTION_LSL, "INSTRUCTION_LSL"},
-    {INSTRUCTION_LSR, "INSTRUCTION_LSR"},
-    {INSTRUCTION_ASR, "INSTRUCTION_ASR"},
-    {INSTRUCTION_ROR, "INSTRUCTION_ROR"},
-    {INSTRUCTION_CMP, "INSTRUCTION_CMP"},
-    {INSTRUCTION_CMN, "INSTRUCTION_CMN"},
-    {INSTRUCTION_TST, "INSTRUCTION_TST"},
-    {INSTRUCTION_TEQ, "INSTRUCTION_TEQ"},
-    {INSTRUCTION_MOV, "INSTRUCTION_MOV"},
-    {INSTRUCTION_MVN, "INSTRUCTION_MVN"},
-    {INSTRUCTION_LDR, "INSTRUCTION_LDR"},
-    {INSTRUCTION_STR, "INSTRUCTION_STR"},
-    {INSTRUCTION_SWP, "INSTRUCTION_SWP"},
-    {INSTRUCTION_LDRB, "INSTRUCTION_LDRB"},
-    {INSTRUCTION_STRB, "INSTRUCTION_STRB"},
-    {INSTRUCTION_SWPB, "INSTRUCTION_SWPB"},
-    {INSTRUCTION_LDRH, "INSTRUCTION_LDRH"},
-    {INSTRUCTION_STRH, "INSTRUCTION_STRH"},
-    {INSTRUCTION_SWPH, "INSTRUCTION_SWPH"},
-    {INSTRUCTION_MSR, "INSTRUCTION_MSR"},
-    {INSTRUCTION_MRS, "INSTRUCTION_MRS"},
-    {INSTRUCTION_TLBI, "INSTRUCTION_TLBI"},
-    {INSTRUCTION_LDADD, "INSTRUCTION_LDADD"},
-    {INSTRUCTION_LDADDB, "INSTRUCTION_LDADDB"},
-    {INSTRUCTION_LDADDH, "INSTRUCTION_LDADDH"},
-    {INSTRUCTION_LDCLR, "INSTRUCTION_LDCLR"},
-    {INSTRUCTION_LDCLRB, "INSTRUCTION_LDCLRB"},
-    {INSTRUCTION_LDCLRH, "INSTRUCTION_LDCLRH"},
-    {INSTRUCTION_LDSET, "INSTRUCTION_LDSET"},
-    {INSTRUCTION_LDSETB, "INSTRUCTION_LDSETB"},
-    {INSTRUCTION_LDSETH, "INSTRUCTION_LDSETH"},
-    {INSTRUCTION_B, "INSTRUCTION_B"},
-    {INSTRUCTION_BL, "INSTRUCTION_B"},
-    {INSTRUCTION_BX, "INSTRUCTION_BX"},
-    {INSTRUCTION_BLX, "INSTRUCTION_BLX"},
-    {INSTRUCTION_SWI, "INSTRUCTION_SWI"},
-    {INSTRUCTION_ADRP, "INSTRUCTION_ADRP"},
-
-    {INSTRUCTION_RET, "INSTRUCTION_RET"},
-
-    {CONDITION_EQ, "CONDITION_EQ"},
-    {CONDITION_NE, "CONDITION_NE"},
-    {CONDITION_CS, "CONDITION_CS"},
-    {CONDITION_HS, "CONDITION_HS"},
-    {CONDITION_CC, "CONDITION_CC"},
-    {CONDITION_LO, "CONDITION_LO"},
-    {CONDITION_MI, "CONDITION_MI"},
-    {CONDITION_PL, "CONDITION_PL"},
-    {CONDITION_VS, "CONDITION_VS"},
-    {CONDITION_VC, "CONDITION_VC"},
-    {CONDITION_HI, "CONDITION_HI"},
-    {CONDITION_LS, "CONDITION_LS"},
-    {CONDITION_GE, "CONDITION_GE"},
-    {CONDITION_LT, "CONDITION_LT"},
-    {CONDITION_GT, "CONDITION_GT"},
-    {CONDITION_LE, "CONDITION_LE"},
-    {CONDITION_AL, "CONDITION_AL"},
-    {CONDITION_NV, "CONDITION_NV"},
-
-    {LITERAL_FLOAT_32, "LITERAL_FLOAT_32"},
-    {LITERAL_NUMBER_BINARY, "LITERAL_NUMBER_BINARY"},
-    {LITERAL_NUMBER_OCTAL, "LITERAL_NUMBER_OCTAL"},
-    {LITERAL_NUMBER_DECIMAL, "LITERAL_NUMBER_DECIMAL"},
-    {LITERAL_NUMBER_HEXADECIMAL, "LITERAL_NUMBER_HEXADECIMAL"},
-    {LITERAL_CHAR, "LITERAL_CHAR"},
-    {LITERAL_STRING, "LITERAL_STRING"},
-    {SYMBOL, "SYMBOL"},
-    {COLON, "COLON"},
-    {COMMA, "COMMA"},
-    {PERIOD, "PERIOD"},
-    {SEMICOLON, "SEMICOLON"},
-    {OPEN_PARANTHESIS, "OPEN_PARANTHESIS"},
-    {CLOSE_PARANTHESIS, "CLOSE_PARANTHESIS"},
-    {OPEN_BRACKET, "OPEN_BRACKET"},
-    {CLOSE_BRACKET, "CLOSE_BRACKET"},
-    {OPEN_BRACE, "OPEN_BRACE"},
-    {CLOSE_BRACE, "CLOSE_BRACE"},
-
-    {OPERATOR_ADDITION, "OPERATOR_ADDITION"},
-    {OPERATOR_SUBTRACTION, "OPERATOR_SUBTRACTION"},
-    {OPERATOR_MULTIPLICATION, "OPERATOR_MULTIPLICATION"},
-    {OPERATOR_DIVISION, "OPERATOR_DIVISION"},
-    {OPERATOR_MODULUS, "OPERATOR_MODULUS"},
-    {OPERATOR_BITWISE_LEFT_SHIFT, "OPERATOR_BITWISE_LEFT_SHIFT"},
-    {OPERATOR_BITWISE_RIGHT_SHIFT, "OPERATOR_BITWISE_RIGHT_SHIFT"},
-    {OPERATOR_BITWISE_XOR, "OPERATOR_BITWISE_XOR"},
-    {OPERATOR_BITWISE_AND, "OPERATOR_BITWISE_AND"},
-    {OPERATOR_BITWISE_OR, "OPERATOR_BITWISE_OR"},
-    {OPERATOR_BITWISE_COMPLEMENT, "OPERATOR_BITWISE_COMPLEMENT"},
-    {OPERATOR_LOGICAL_NOT, "OPERATOR_LOGICAL_NOT"},
-    {OPERATOR_LOGICAL_EQUAL, "OPERATOR_LOGICAL_EQUAL"},
-    {OPERATOR_LOGICAL_NOT_EQUAL, "OPERATOR_LOGICAL_NOT_EQUAL"},
-    {OPERATOR_LOGICAL_LESS_THAN, "OPERATOR_LOGICAL_LESS_THAN"},
-    {OPERATOR_LOGICAL_GREATER_THAN, "OPERATOR_LOGICAL_GREATER_THAN"},
-    {OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, "OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL"},
-    {OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL, "OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL"},
-    {OPERATOR_LOGICAL_OR, "OPERATOR_LOGICAL_OR"},
-    {OPERATOR_LOGICAL_AND, "OPERATOR_LOGICAL_AND"},
-};
-
-const std::set<Tokenizer::Type> Tokenizer::WHITESPACES = {WHITESPACE_SPACE, WHITESPACE_TAB,
-                                                          WHITESPACE_NEWLINE};
-
-const std::set<Tokenizer::Type> Tokenizer::COMMENTS = {COMMENT_SINGLE_LINE, COMMENT_MULTI_LINE};
-
-const std::set<Tokenizer::Type> Tokenizer::PREPROCESSOR_DIRECTIVES = {
-    PREPROCESSOR_INCLUDE, PREPROCESSOR_MACRO,    PREPROCESSOR_MACRET,   PREPROCESSOR_MACEND,
-    PREPROCESSOR_INVOKE,  PREPROCESSOR_DEFINE,   PREPROCESSOR_UNDEF,    PREPROCESSOR_IFDEF,
-    PREPROCESSOR_IFNDEF,  PREPROCESSOR_IFEQU,    PREPROCESSOR_IFNEQU,   PREPROCESSOR_IFLESS,
-    PREPROCESSOR_IFMORE,  PREPROCESSOR_ELSE,     PREPROCESSOR_ELSEDEF,  PREPROCESSOR_ELSENDEF,
-    PREPROCESSOR_ELSEEQU, PREPROCESSOR_ELSENEQU, PREPROCESSOR_ELSELESS, PREPROCESSOR_ELSEMORE,
-    PREPROCESSOR_ENDIF};
-
-const std::set<Tokenizer::Type> Tokenizer::ASSEMBLER_DIRECTIVES = {
-    ASSEMBLER_GLOBAL,  ASSEMBLER_EXTERN, ASSEMBLER_ORG,   ASSEMBLER_SCOPE,   ASSEMBLER_SCEND,
-    ASSEMBLER_ADVANCE, ASSEMBLER_FILL,   ASSEMBLER_ALIGN, ASSEMBLER_SECTION, ASSEMBLER_BSS,
-    ASSEMBLER_DATA,    ASSEMBLER_TEXT,   ASSEMBLER_STOP,  ASSEMBLER_BYTE,    ASSEMBLER_DBYTE,
-    ASSEMBLER_WORD,    ASSEMBLER_DWORD,  ASSEMBLER_SBYTE, ASSEMBLER_SDBYTE,  ASSEMBLER_SWORD,
-    ASSEMBLER_SDWORD,  ASSEMBLER_CHAR,   ASSEMBLER_ASCII, ASSEMBLER_ASCIZ,
-};
-
-const std::set<Tokenizer::Type> Tokenizer::RELOCATIONS = {
-    RELOCATION_EMU32_O_LO12,
-    RELOCATION_EMU32_ADRP_HI20,
-    RELOCATION_EMU32_MOV_LO19,
-    RELOCATION_EMU32_MOV_HI13,
-};
-
-const std::set<Tokenizer::Type> Tokenizer::REGISTERS = {
-    REGISTER_X0,  REGISTER_X1,  REGISTER_X2,  REGISTER_X3,  REGISTER_X4,  REGISTER_X5,
-    REGISTER_X6,  REGISTER_X7,  REGISTER_X8,  REGISTER_X9,  REGISTER_X10, REGISTER_X11,
-    REGISTER_X12, REGISTER_X13, REGISTER_X14, REGISTER_X15, REGISTER_X16, REGISTER_X17,
-    REGISTER_X18, REGISTER_X19, REGISTER_X20, REGISTER_X21, REGISTER_X22, REGISTER_X23,
-    REGISTER_X24, REGISTER_X25, REGISTER_X26, REGISTER_X27, REGISTER_X28, REGISTER_X29,
-    REGISTER_XZR, REGISTER_SP,
-};
-
-const std::set<Tokenizer::Type> Tokenizer::INSTRUCTIONS = {
-    INSTRUCTION_HLT,    INSTRUCTION_NOP,    INSTRUCTION_ADD,    INSTRUCTION_SUB,
-    INSTRUCTION_RSB,    INSTRUCTION_ADC,    INSTRUCTION_SBC,    INSTRUCTION_RSC,
-    INSTRUCTION_MUL,    INSTRUCTION_UMULL,  INSTRUCTION_SMULL,  INSTRUCTION_VABS,
-    INSTRUCTION_VNEG,   INSTRUCTION_VSQRT,  INSTRUCTION_VADD,   INSTRUCTION_VSUB,
-    INSTRUCTION_VDIV,   INSTRUCTION_VMUL,   INSTRUCTION_VCMP,   INSTRUCTION_VSEL,
-    INSTRUCTION_VCINT,  INSTRUCTION_VCFLO,  INSTRUCTION_VMOV,   INSTRUCTION_AND,
-    INSTRUCTION_ORR,    INSTRUCTION_EOR,    INSTRUCTION_BIC,    INSTRUCTION_LSL,
-    INSTRUCTION_LSR,    INSTRUCTION_ASR,    INSTRUCTION_ROR,    INSTRUCTION_CMP,
-    INSTRUCTION_CMN,    INSTRUCTION_TST,    INSTRUCTION_TEQ,    INSTRUCTION_MOV,
-    INSTRUCTION_MVN,    INSTRUCTION_LDR,    INSTRUCTION_STR,    INSTRUCTION_SWP,
-    INSTRUCTION_LDRB,   INSTRUCTION_STRB,   INSTRUCTION_SWPB,   INSTRUCTION_LDRH,
-    INSTRUCTION_STRH,   INSTRUCTION_SWPH,   INSTRUCTION_MSR,    INSTRUCTION_MRS,
-    INSTRUCTION_TLBI,   INSTRUCTION_LDADD,  INSTRUCTION_LDADDB, INSTRUCTION_LDADDH,
-    INSTRUCTION_LDCLR,  INSTRUCTION_LDCLRB, INSTRUCTION_LDCLRH, INSTRUCTION_LDSET,
-    INSTRUCTION_LDSETB, INSTRUCTION_LDSETH, INSTRUCTION_B,      INSTRUCTION_BL,
-    INSTRUCTION_BX,     INSTRUCTION_BLX,    INSTRUCTION_SWI,    INSTRUCTION_ADRP,
-
-    INSTRUCTION_RET,
-};
-
-const std::set<Tokenizer::Type> Tokenizer::CONDITIONS = {
-    CONDITION_EQ, CONDITION_NE, CONDITION_CS, CONDITION_HS, CONDITION_CC, CONDITION_LO,
-    CONDITION_MI, CONDITION_PL, CONDITION_VS, CONDITION_VC, CONDITION_HI, CONDITION_LS,
-    CONDITION_GE, CONDITION_LT, CONDITION_GT, CONDITION_LE, CONDITION_AL, CONDITION_NV,
-};
-
-const std::set<Tokenizer::Type> Tokenizer::LITERAL_NUMBERS = {
-    LITERAL_FLOAT_32, LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL,
-    LITERAL_NUMBER_HEXADECIMAL};
-
-const std::set<Tokenizer::Type> Tokenizer::LITERAL_VALUES = {
-    LITERAL_FLOAT_32,           LITERAL_NUMBER_BINARY, LITERAL_NUMBER_OCTAL, LITERAL_NUMBER_DECIMAL,
-    LITERAL_NUMBER_HEXADECIMAL, LITERAL_CHAR,          LITERAL_STRING};
-
-const std::set<Tokenizer::Type> Tokenizer::OPERATORS = {OPERATOR_ADDITION,
-                                                        OPERATOR_SUBTRACTION,
-                                                        OPERATOR_MULTIPLICATION,
-                                                        OPERATOR_DIVISION,
-                                                        OPERATOR_MODULUS,
-                                                        OPERATOR_BITWISE_LEFT_SHIFT,
-                                                        OPERATOR_BITWISE_RIGHT_SHIFT,
-                                                        OPERATOR_BITWISE_XOR,
-                                                        OPERATOR_BITWISE_AND,
-                                                        OPERATOR_BITWISE_OR,
-                                                        OPERATOR_BITWISE_COMPLEMENT,
-                                                        OPERATOR_LOGICAL_NOT,
-                                                        OPERATOR_LOGICAL_EQUAL,
-                                                        OPERATOR_LOGICAL_NOT_EQUAL,
-                                                        OPERATOR_LOGICAL_LESS_THAN,
-                                                        OPERATOR_LOGICAL_GREATER_THAN,
-                                                        OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL,
-                                                        OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL,
-                                                        OPERATOR_LOGICAL_OR,
-                                                        OPERATOR_LOGICAL_AND};
-
-const std::vector<std::pair<std::string, Tokenizer::Type>> Tokenizer::TOKEN_SPEC = {
-    {"^ ", WHITESPACE_SPACE},
-    {"^\\t", WHITESPACE_TAB},
-    {"^\\n", WHITESPACE_NEWLINE},
-    {"^[^\\S\\n\\t]+", WHITESPACE},
-    {"^;\\*[\\s\\S]*?\\*;", COMMENT_MULTI_LINE},
-    {"^;.*", COMMENT_SINGLE_LINE},
-    {"^:lo12:\\b", RELOCATION_EMU32_O_LO12},
-    {"^:hi20:\\b", RELOCATION_EMU32_ADRP_HI20},
-    {"^:lo19:\\b", RELOCATION_EMU32_MOV_LO19},
-    {"^:hi13:\\b", RELOCATION_EMU32_MOV_HI13},
-
-    {"^[a-zA-Z_][a-zA-Z0-9_]*:", LABEL},
-    {"^\\\\", BACK_SLASH},
-    {"^/", FORWARD_SLASH},
-    {"^\\{", OPEN_BRACE},
-    {"^\\}", CLOSE_BRACE},
-    {"^\\[", OPEN_BRACKET},
-    {"^\\]", CLOSE_BRACKET},
-    {"^\\(", OPEN_PARANTHESIS},
-    {"^\\)", CLOSE_PARANTHESIS},
-
-    {"^[0-9]*\\.[0-9]+", LITERAL_FLOAT_32},
-    {"^%[0-1]+", LITERAL_NUMBER_BINARY},
-    {"^@[0-7]+", LITERAL_NUMBER_OCTAL},
-    {"^[0-9]+", LITERAL_NUMBER_DECIMAL},
-    {"^\\$[0-9a-fA-F]+", LITERAL_NUMBER_HEXADECIMAL},
-
-    {"^\'.\'", LITERAL_CHAR},
-    {"^\"([^\"\\\\]|\\\\.)*\"", LITERAL_STRING},
-    {"^[a-zA-Z_][a-zA-Z0-9_]*", SYMBOL},
-
-    {"^,", COMMA},
-    {"^:", COLON},
-    {"^\\.", PERIOD},
-    {"^;", SEMICOLON},
-
-    {"^\\+", OPERATOR_ADDITION},
-    {"^\\-", OPERATOR_SUBTRACTION},
-    {"^\\*", OPERATOR_MULTIPLICATION},
-    {"^\\/", OPERATOR_DIVISION},
-    {"^\\%", OPERATOR_MODULUS},
-    {"^\\|\\|", OPERATOR_LOGICAL_OR},
-    {"^\\&\\&", OPERATOR_LOGICAL_AND},
-    {"^\\<\\<", OPERATOR_BITWISE_LEFT_SHIFT},
-    {"^\\>\\>", OPERATOR_BITWISE_RIGHT_SHIFT},
-    {"^\\^", OPERATOR_BITWISE_XOR},
-    {"^\\&", OPERATOR_BITWISE_AND},
-    {"^\\|", OPERATOR_BITWISE_OR},
-    {"^~", OPERATOR_BITWISE_COMPLEMENT},
-    {"^==", OPERATOR_LOGICAL_EQUAL},
-    {"^!=", OPERATOR_LOGICAL_NOT_EQUAL},
-    {"^!", OPERATOR_LOGICAL_NOT},
-    {"^\\<=", OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL},
-    {"^\\>=", OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL},
-    {"^\\<", OPERATOR_LOGICAL_LESS_THAN},
-    {"^\\>", OPERATOR_LOGICAL_GREATER_THAN},
-};
+} // namespace basm

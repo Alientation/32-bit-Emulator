@@ -2,7 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Always use the native Read, Edit, and Write tools for file operations. You MUST NOT use bash commands like sed, awk, or cat to read or modify code files.
+# Agent Guidelines
+- DO NOT use Bash commands (`cat`, `grep`, `sed`, `awk`, `heredocs`) to read or write files.
+- ALWAYS use your native tools (`Read()`, `Write()`, `Edit()`, `Grep()`) for file operations.
 
 ## Overview
 An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assembler, and linker for **basm** assembly, plus an executable loader. All code lives under `core/`. A C compiler (`core/ccompiler`, written in C11) is in progress but is currently **commented out** of `core/CMakeLists.txt`.
@@ -61,9 +63,12 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
   - Execution handlers live in `src/instructions.cpp`. Each instruction also has a static `asm_<name>()` encoder, which the assembler calls, and a matching disassembler entry in `src/disassembler.cpp`.
   - Memory: `SystemBus` routes accesses to `RAM`/`ROM` (`memory.h`) and to `Disk` (a page cache over a file, `disk.h`). All of them share the `BaseMemory` page-addressed interface, so the disk is memory-mapped too.
   - `VirtualMemory`/MMU, `Timer`, and software interrupts (`software_interrupt.cpp`) are separate files. `src/kernel/` holds the C++-simulated kernel pieces: process, malloc, free block list.
-- **assembler**: the pipeline is `Preprocessor` (`#include`, `#define`, macros, conditionals) → `Tokenizer` → `Assembler` (directives in `directives.cpp`, instructions in `instructions.cpp`) → `ObjectFile` (.bo) → `Linker` (symbol resolution and relocation, with `default_linker.ld` as the default script) → `.bexe`, which `load_executable` loads into emulator memory. `StaticLibrary` handles `.ba` archives. `build.cpp` orchestrates all of it.
+- **assembler**: the pipeline is `Preprocessor` (`#include`, `#define`, macros, conditionals; writes the `.bi`) → `Assembler` (directives in `directives.cpp`, instructions in `instructions.cpp`) → `ObjectFile` (.bo) → `Linker` (symbol resolution and relocation, with `default_linker.ld` as the default script) → `.bexe`, which `load_executable` loads into emulator memory. `StaticLibrary` handles `.ba` archives. `build.cpp` orchestrates all of it.
+  - All three of the preprocessor, the assembler and the linker (for `.ld` scripts) read tokens from the shared lexer in `tokenizer.h` (namespace `basm`: `SourceManager`, `lex`, `Token`, `TokenCursor`). The token list is immutable and tokens point into text owned by the `SourceManager`, so keep it alive as long as the tokens. Lexical and syntax errors are reported as `file:line:col: error: ...` with the source line and a caret, and end through `AEMU_FATAL`.
+  - The preprocessor keeps a stack of input frames (the file, `#include`s, macro and symbol expansions) instead of editing a token list. A macro `#invoke` substitutes the arguments into the body textually and wraps it in `.scope`/`.scend`.
+  - The preprocessor writes the `.bi` text, but `Process` hands the assembler the preprocessor's tokens directly (`Preprocessor::take_result()` → `basm::PreprocessedSource`, the `Assembler` constructor that takes one) instead of lexing the `.bi` again. Tokens keep their original file/line/column, and tokens from a macro or `#define` expansion carry `SourceLocation::expansion`, so errors show the original source line plus `note: in expansion of macro 'x'` lines. The `Assembler(process, file)` constructor still lexes a `.bi` (its errors point into the `.bi`).
 
-**Adding or changing an instruction touches several places:** the `_INSTR` opcode list and the `asm_*` encoder (emulator32bit.h/instructions.cpp), the disassembler, the assembler tokenizer keyword map (`assembler/src/tokenizer.cpp`), the assembler handler (`assembler/src/instructions.cpp`), and a gtest in `emulator32bit/tests/instruction_tests/` that is registered in its CMakeLists.
+**Adding or changing an instruction touches several places:** the `_INSTR` opcode list and the `asm_*` encoder (emulator32bit.h/instructions.cpp), the disassembler, the lexer's keyword table and token list (`assembler/src/tokenizer_v2.cpp`, `BASM_TOKEN_TYPES` in `tokenizer.h`), the assembler handler (`assembler/src/instructions.cpp`), and a gtest in `emulator32bit/tests/instruction_tests/` that is registered in its CMakeLists.
 
 ## basm language quick reference
 - Every program needs `.global _start` and a `_start:` label (the loader's entry point). Sections are `.text`, `.data` and `.bss`. Data directives (`.word`, `.byte`, `.ascii`, `.asciz`, ...) are only legal in `.data`. Reserve `.bss` space with `.advance N`. Cross-file symbols are exported with `.global`. A symbol that is referenced but not defined becomes a WEAK, section `-1` entry in the `.bo`, and the linker resolves it.
@@ -84,6 +89,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
 - `run` returns a `RunResult` (`HALTED`/`LIMIT_REACHED`/`FAULT`, the instruction count, the message). It catches emulator, system bus and virtual memory exceptions and prints e.g. "Caught Emulator Exception: HLT Exception" on a normal halt.
 - **Carry flag:** subtraction/`cmp`/`sbc`/`rsc` use the ARM convention (C = *no borrow*), consistent with `HI`/`LS`/`HS`/`LO`. `adc`/`add` carry is the usual carry-out.
 - The in-process preprocessor tests in `assembler/tests` share a static `Disk` and fail when run together in one gtest process. ctest runs each test in its own process, so they pass under ctest.
+- The `PreprocessorUnit`, `AssemblerUnit` and `LinkerScript` suites (`assembler/tests`) use `ToolchainFixture` (`assembler/tests/include/assembler_test/toolchain_fixture.h`). It needs no emulator and sets `FatalAction::Throw`, so an assembler error is an `aemu::log::FatalError` that the test can catch and check, instead of an `exit`. Use it for new toolchain unit tests.
 - Logging is extremely verbose (DBG level) in every build. Pipe through `grep -v DBG`.
 
 ## Style

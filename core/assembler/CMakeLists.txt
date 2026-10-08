@@ -24,7 +24,7 @@ aemu_target_defaults(assembler)
 
 set_target_properties(assembler PROPERTIES DEBUG_POSTFIX "d")
 
-add_executable(basm src/main.cpp)
+add_executable(basm src/cli.cpp)
 target_link_libraries(basm PRIVATE aemu::assembler)
 aemu_target_defaults(basm)
 

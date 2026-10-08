@@ -239,6 +239,7 @@ void Process::build()
 void Process::preprocess()
 {
     m_processed_files.clear();
+    m_preprocessed.clear();
     for (File file : m_src_files)
     {
         if (!file.exists())
@@ -248,10 +249,7 @@ void Process::preprocess()
             if (dir.exists())
             {
                 AEMU_DEBUG("But it's parent directory exists at {} with files", dir.get_abs_path());
-                for (File f : dir.get_subfiles())
-                {
-                    AEMU_DEBUG("{}", f.get_name());
-                }
+                for (File f : dir.get_subfiles()) AEMU_DEBUG("{}", f.get_name());
             }
         }
 
@@ -261,11 +259,13 @@ void Process::preprocess()
                                       m_output_dir + File::SEPARATOR + file.get_name() + "."
                                           + PROCESSED_EXTENSION);
             m_processed_files.push_back(preprocessor.preprocess());
+            m_preprocessed.push_back(preprocessor.take_result());
         }
         else
         {
             Preprocessor preprocessor(this, file);
             m_processed_files.push_back(preprocessor.preprocess());
+            m_preprocessed.push_back(preprocessor.take_result());
         }
     }
 }
@@ -277,22 +277,18 @@ void Process::preprocess()
 void Process::assemble()
 {
     m_obj_files.clear();
-    for (File file : m_processed_files)
+    for (std::size_t i = 0; i < m_processed_files.size(); i++)
     {
-        if (m_has_output_dir)
-        {
-            Assembler assembler(this, file,
-                                m_output_dir + File::SEPARATOR + file.get_name() + "."
-                                    + OBJECT_EXTENSION);
-            assembler.assemble();
-            m_obj_files.push_back(assembler.get_output_file());
-        }
-        else
-        {
-            Assembler assembler(this, file);
-            assembler.assemble();
-            m_obj_files.push_back(assembler.get_output_file());
-        }
+        const File file = m_processed_files[i];
+        const std::string output_path =
+            m_has_output_dir
+                ? m_output_dir + File::SEPARATOR + file.get_name() + "." + OBJECT_EXTENSION
+                : "";
+
+        // The tokens come straight from the preprocessor, so errors point at the original source.
+        Assembler assembler(this, file, std::move(m_preprocessed[i]), output_path);
+        assembler.assemble();
+        m_obj_files.push_back(assembler.get_output_file());
 
         if (!keep_proccessed_files)
         {

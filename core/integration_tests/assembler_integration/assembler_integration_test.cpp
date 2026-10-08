@@ -1124,6 +1124,79 @@ _start:
     EXPECT_EQ(reg(2), 7u);
 }
 
+TEST_F(AssemblerIntegration, preprocessor_macro_labels_are_scoped_per_invocation)
+{
+    // The macro has a loop with a label. Invoked twice, each expansion branches to its own label.
+    write_file("macro_loop.basm", R"(#macro add_n_times(dst, amount, count)
+                add     x9, xzr, count
+loop:
+                add     dst, dst, amount
+                subs    x9, x9, 1
+                b.ne    loop
+#macend
+
+.global _start
+
+.text
+_start:
+                add     x0, xzr, 0
+                add     x1, xzr, 0
+                #invoke add_n_times(x0, 3, 4)
+                #invoke add_n_times(x1, 5, 2)
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o macro_loop macro_loop.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("macro_loop.bexe"));
+    EXPECT_EQ(reg(0), 12u);
+    EXPECT_EQ(reg(1), 10u);
+}
+
+TEST_F(AssemblerIntegration, preprocessor_error_reports_the_source_location)
+{
+    write_file("bad.basm", ".global _start\n.text\n_start:\n                #invoke missing()\n");
+    EXPECT_NE(basm("-o bad bad.basm -outdir ."), 0);
+    EXPECT_FALSE(exists("bad.bexe"));
+
+    // file:line:column of the offending name, the message, the source line and a caret.
+    const std::string log = log_tail("basm.log");
+    EXPECT_NE(log.find("bad.basm:4:25: error: no macro 'missing' is defined with 0 argument(s)"),
+              std::string::npos)
+        << log;
+}
+
+TEST_F(AssemblerIntegration, assembler_error_reports_the_source_location)
+{
+    write_file("bad.basm", ".global _start\n.text\n_start:\n                add     x0, xzr\n");
+    EXPECT_NE(basm("-o bad bad.basm -outdir ."), 0);
+    EXPECT_FALSE(exists("bad.bexe"));
+
+    // The assembler gets the tokens from the preprocessor, so the location is in the original
+    // source, with its indentation.
+    const std::string log = log_tail("basm.log");
+    EXPECT_NE(log.find("bad.basm:4:32: error: expected ',', got end of line"), std::string::npos)
+        << log;
+    EXPECT_NE(log.find("                add     x0, xzr"), std::string::npos) << log;
+    EXPECT_EQ(log.find("bad.bi:"), std::string::npos) << log;
+}
+
+TEST_F(AssemblerIntegration, assembler_error_in_a_macro_names_the_expansion)
+{
+    write_file("bad.basm", ".global _start\n"
+                           "#macro twice(r)\n"
+                           "    add r, r\n"
+                           "#macend\n"
+                           ".text\n"
+                           "_start:\n"
+                           "    #invoke twice(x1)\n");
+    EXPECT_NE(basm("-o bad bad.basm -outdir ."), 0);
+
+    // The error is in the macro body, and the note says where the macro was used.
+    const std::string log = log_tail("basm.log");
+    EXPECT_NE(log.find("bad.basm:3:"), std::string::npos) << log;
+    EXPECT_NE(log.find("bad.basm:7:5: note: in expansion of macro 'twice'"), std::string::npos)
+        << log;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Shipped sample programs (core/app/programs)
 // ---------------------------------------------------------------------------------------------

@@ -1,686 +1,524 @@
 #pragma once
 
-#include "util/file.h"
+/// @file tokenizer.h
+/// @brief Shared lexer for basm sources (preprocessor + assembler) and linker scripts.
+///
+/// Design:
+///  - Hand written single pass scanner, O(n) in the size of the source.
+///  - The result is a plain, immutable std::vector<Token>. Reading is done through a separate
+///    TokenCursor. Nothing is mutated after lexing (no skip flags, no insertion).
+///  - Tokens keep their exact source location (file, line, column, byte offset) and point into
+///    text owned by a SourceManager, so there are no per token string copies.
+///  - NEWLINE tokens are kept, so a line oriented grammar ("statement, then end of line") is
+///    possible. The token list always ends with NEWLINE (unless disabled) then END_OF_FILE.
+///  - Errors never terminate the process. They are collected as Diagnostics and the lexer
+///    resynchronizes, so many errors can be reported in one run.
+///  - Whitespace is not a token. Whether a token was preceded by whitespace is recorded in
+///    TokenFlag::SPACE_BEFORE, which is what e.g. `#define F(x)` vs `#define F (x)` needs.
 
-#include <set>
+#include "util/types.h"
+
+#include <cstddef>
+#include <deque>
+#include <initializer_list>
+#include <memory>
+#include <span>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <vector>
 
-/// @brief              Tokenizer.
-///
-/// @todo               TODO: create a macro that will generate the token spec
-class Tokenizer
+namespace basm
+{
+
+// ---------------------------------------------------------------------------------------------
+// Sources and locations
+// ---------------------------------------------------------------------------------------------
+
+using SourceId = U32;
+inline constexpr SourceId kInvalidSource = ~SourceId(0);
+
+struct SourceLocation
+{
+    SourceId source = kInvalidSource;
+
+    /// Byte offset from the start of the source.
+    U32 offset = 0;
+
+    /// 1 based line. 0 means unknown (synthetic token).
+    U32 line = 0;
+
+    /// 1 based byte column.
+    U32 column = 0;
+
+    /// 0 for text written in the source itself. Otherwise the id (SourceManager::add_expansion)
+    /// of the macro or symbol expansion this token was produced by.
+    U32 expansion = 0;
+};
+
+/// Owns the text of every source (files, strings, macro expansions). Tokens hold string_views
+/// into this text, so the SourceManager must outlive all tokens produced from it. Storage is
+/// stable: adding sources never invalidates existing views.
+class SourceManager
 {
   public:
-    /// @brief          State of tokenizer.
-    struct State
+    SourceManager() = default;
+    SourceManager(const SourceManager &) = delete;
+    SourceManager &operator=(const SourceManager &) = delete;
+    SourceManager(SourceManager &&) = default;
+    SourceManager &operator=(SourceManager &&) = default;
+
+    /// Registers in memory text (also used for text synthesized by the preprocessor).
+    SourceId add(std::string name, std::string text);
+
+    /// Reads a file. Returns nullopt if it cannot be read.
+    SourceId add_file(const std::string &path);
+
+    std::string_view name(SourceId id) const;
+    std::string_view text(SourceId id) const;
+
+    /// Text of a 1 based line without its line terminator. Empty if out of range.
+    std::string_view line_text(SourceId id, U32 line) const;
+
+    /// Records that tokens were produced by expanding `name` (a macro or a #define) used at
+    /// `site`. Returns the id to store in SourceLocation::expansion. `site` has its own
+    /// expansion id if the use was itself inside an expansion, which links the chain.
+    U32 add_expansion(std::string name, bool is_macro, const SourceLocation &site);
+
+    struct Expansion
     {
-        /// @brief      Token pointer. Index of the next token to be consumed.
-        ///             If all tokens have been consumed, points one past the last token.
-        size_t toki = 0;
-
-        /// @brief      Indent information for auto indentation.
-        int prev_indent = 0;
-
-        /// @brief      Indent information for auto indentation.
-        int cur_indent = 0;
-
-        /// @brief      Indent information for auto indentation.
-        int target_indent = 0;
+        std::string name;
+        bool is_macro;
+        SourceLocation site;
     };
 
-    /// @brief          Type of token.
-    enum Type
-    {
-        UNKNOWN,
-
-        LABEL,
-        TEXT,
-        WHITESPACE_SPACE,
-        WHITESPACE_TAB,
-        WHITESPACE_NEWLINE,
-        WHITESPACE,
-        COMMENT_SINGLE_LINE,
-        COMMENT_MULTI_LINE,
-        BACK_SLASH,
-        FORWARD_SLASH,
-
-        // Preprocessor directives.
-        PREPROCESSOR_INCLUDE,
-        PREPROCESSOR_MACRO,
-        PREPROCESSOR_MACRET,
-        PREPROCESSOR_MACEND,
-        PREPROCESSOR_INVOKE,
-        PREPROCESSOR_DEFINE,
-        PREPROCESSOR_UNDEF,
-        PREPROCESSOR_IFDEF,
-        PREPROCESSOR_IFNDEF,
-        PREPROCESSOR_IFEQU,
-        PREPROCESSOR_IFNEQU,
-        PREPROCESSOR_IFLESS,
-        PREPROCESSOR_IFMORE,
-        PREPROCESSOR_ELSE,
-        PREPROCESSOR_ELSEDEF,
-        PREPROCESSOR_ELSENDEF,
-        PREPROCESSOR_ELSEEQU,
-        PREPROCESSOR_ELSENEQU,
-        PREPROCESSOR_ELSELESS,
-        PREPROCESSOR_ELSEMORE,
-        PREPROCESSOR_ENDIF,
-
-        // Assembler directives.
-        ASSEMBLER_GLOBAL,
-        ASSEMBLER_EXTERN,
-        ASSEMBLER_ORG,
-        ASSEMBLER_SCOPE,
-        ASSEMBLER_SCEND,
-        ASSEMBLER_ADVANCE,
-        ASSEMBLER_FILL,
-        ASSEMBLER_ALIGN,
-        ASSEMBLER_SECTION,
-        ASSEMBLER_BSS,
-        ASSEMBLER_DATA,
-        ASSEMBLER_TEXT,
-        ASSEMBLER_STOP,
-        ASSEMBLER_BYTE,
-        ASSEMBLER_DBYTE,
-        ASSEMBLER_WORD,
-        ASSEMBLER_DWORD,
-        ASSEMBLER_SBYTE,
-        ASSEMBLER_SDBYTE,
-        ASSEMBLER_SWORD,
-        ASSEMBLER_SDWORD,
-        ASSEMBLER_CHAR,
-        ASSEMBLER_ASCII,
-        ASSEMBLER_ASCIZ,
-
-        // Relocation specifiers.
-        RELOCATION_EMU32_O_LO12,
-        RELOCATION_EMU32_ADRP_HI20,
-        RELOCATION_EMU32_MOV_LO19,
-        RELOCATION_EMU32_MOV_HI13,
-
-        // Registers.
-        REGISTER_X0,
-        REGISTER_X1,
-        REGISTER_X2,
-        REGISTER_X3,
-        REGISTER_X4,
-        REGISTER_X5,
-        REGISTER_X6,
-        REGISTER_X7,
-        REGISTER_X8,
-        REGISTER_X9,
-        REGISTER_X10,
-        REGISTER_X11,
-        REGISTER_X12,
-        REGISTER_X13,
-        REGISTER_X14,
-        REGISTER_X15,
-        REGISTER_X16,
-        REGISTER_X17,
-        REGISTER_X18,
-        REGISTER_X19,
-        REGISTER_X20,
-        REGISTER_X21,
-        REGISTER_X22,
-        REGISTER_X23,
-        REGISTER_X24,
-        REGISTER_X25,
-        REGISTER_X26,
-        REGISTER_X27,
-        REGISTER_X28,
-        REGISTER_X29,
-        REGISTER_SP,
-        REGISTER_XZR,
-
-        // Instructions.
-        INSTRUCTION_HLT,
-        INSTRUCTION_NOP,
-        INSTRUCTION_ADD,
-        INSTRUCTION_SUB,
-        INSTRUCTION_RSB,
-        INSTRUCTION_ADC,
-        INSTRUCTION_SBC,
-        INSTRUCTION_RSC,
-        INSTRUCTION_MUL,
-        INSTRUCTION_UMULL,
-        INSTRUCTION_SMULL,
-        INSTRUCTION_VABS,
-        INSTRUCTION_VNEG,
-        INSTRUCTION_VSQRT,
-        INSTRUCTION_VADD,
-        INSTRUCTION_VSUB,
-        INSTRUCTION_VDIV,
-        INSTRUCTION_VMUL,
-        INSTRUCTION_VCMP,
-        INSTRUCTION_VSEL,
-        INSTRUCTION_VCINT,
-        INSTRUCTION_VCFLO,
-        INSTRUCTION_VMOV,
-        INSTRUCTION_AND,
-        INSTRUCTION_ORR,
-        INSTRUCTION_EOR,
-        INSTRUCTION_BIC,
-        INSTRUCTION_LSL,
-        INSTRUCTION_LSR,
-        INSTRUCTION_ASR,
-        INSTRUCTION_ROR,
-        INSTRUCTION_CMP,
-        INSTRUCTION_CMN,
-        INSTRUCTION_TST,
-        INSTRUCTION_TEQ,
-        INSTRUCTION_MOV,
-        INSTRUCTION_MVN,
-        INSTRUCTION_LDR,
-        INSTRUCTION_STR,
-        INSTRUCTION_SWP,
-        INSTRUCTION_LDRB,
-        INSTRUCTION_STRB,
-        INSTRUCTION_SWPB,
-        INSTRUCTION_LDRH,
-        INSTRUCTION_STRH,
-        INSTRUCTION_SWPH,
-        INSTRUCTION_MSR,
-        INSTRUCTION_MRS,
-        INSTRUCTION_TLBI,
-        INSTRUCTION_LDADD,
-        INSTRUCTION_LDADDB,
-        INSTRUCTION_LDADDH,
-        INSTRUCTION_LDCLR,
-        INSTRUCTION_LDCLRB,
-        INSTRUCTION_LDCLRH,
-        INSTRUCTION_LDSET,
-        INSTRUCTION_LDSETB,
-        INSTRUCTION_LDSETH,
-
-        INSTRUCTION_B,
-        INSTRUCTION_BL,
-        INSTRUCTION_BX,
-        INSTRUCTION_BLX,
-        INSTRUCTION_SWI,
-        INSTRUCTION_ADRP,
-
-        // Pseduo instruction. Replaced with a BX instruction.
-        INSTRUCTION_RET,
-
-        // Conditions for branch instructions.
-        CONDITION_EQ,
-        CONDITION_NE,
-        CONDITION_CS,
-        CONDITION_HS,
-        CONDITION_CC,
-        CONDITION_LO,
-        CONDITION_MI,
-        CONDITION_PL,
-        CONDITION_VS,
-        CONDITION_VC,
-        CONDITION_HI,
-        CONDITION_LS,
-        CONDITION_GE,
-        CONDITION_LT,
-        CONDITION_GT,
-        CONDITION_LE,
-        CONDITION_AL,
-        CONDITION_NV,
-
-        // Expressions.
-        LITERAL_FLOAT_32,
-        LITERAL_NUMBER_BINARY,
-        LITERAL_NUMBER_OCTAL,
-        LITERAL_NUMBER_DECIMAL,
-        LITERAL_NUMBER_HEXADECIMAL,
-        LITERAL_CHAR,
-        LITERAL_STRING,
-
-        SYMBOL,
-        COLON,
-        COMMA,
-        PERIOD,
-        SEMICOLON,
-        OPEN_PARANTHESIS,
-        CLOSE_PARANTHESIS,
-        OPEN_BRACKET,
-        CLOSE_BRACKET,
-        OPEN_BRACE,
-        CLOSE_BRACE,
-
-        OPERATOR_ADDITION,
-        OPERATOR_SUBTRACTION,
-        OPERATOR_MULTIPLICATION,
-        OPERATOR_DIVISION,
-        OPERATOR_MODULUS,
-        OPERATOR_BITWISE_LEFT_SHIFT,
-        OPERATOR_BITWISE_RIGHT_SHIFT,
-        OPERATOR_BITWISE_XOR,
-        OPERATOR_BITWISE_AND,
-        OPERATOR_BITWISE_OR,
-        OPERATOR_BITWISE_COMPLEMENT,
-        OPERATOR_LOGICAL_NOT,
-        OPERATOR_LOGICAL_EQUAL,
-        OPERATOR_LOGICAL_NOT_EQUAL,
-        OPERATOR_LOGICAL_LESS_THAN,
-        OPERATOR_LOGICAL_GREATER_THAN,
-        OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL,
-        OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL,
-        OPERATOR_LOGICAL_OR,
-        OPERATOR_LOGICAL_AND,
-    };
-
-    /// @brief              Maps a token type to stringified name.
-    static const std::unordered_map<Type, std::string> TYPE_TO_NAME_MAP;
-
-    /// @brief              Set of whitespace token types.
-    static const std::set<Type> WHITESPACES;
-
-    /// @brief              Set of comment token types.
-    static const std::set<Type> COMMENTS;
-
-    /// @brief              Set of preprocessor directive token types.
-    static const std::set<Type> PREPROCESSOR_DIRECTIVES;
-
-    /// @brief              Set of variable token types.
-    static const std::set<Type> VARIABLE_TYPES;
-
-    /// @brief              Set of assembler directive token types.
-    static const std::set<Type> ASSEMBLER_DIRECTIVES;
-
-    /// @brief              Set of relocation specifier token types.
-    static const std::set<Type> RELOCATIONS;
-
-    /// @brief              Set of register token types.
-    static const std::set<Type> REGISTERS;
-
-    /// @brief              Set of instruction token types.
-    static const std::set<Type> INSTRUCTIONS;
-
-    /// @brief              Set of branch conditions token types.
-    static const std::set<Type> CONDITIONS;
-
-    /// @brief              Set of literal number token types.
-    static const std::set<Type> LITERAL_NUMBERS;
-
-    /// @brief              Set of literal value token types.
-    static const std::set<Type> LITERAL_VALUES;
-
-    /// @brief              Set of operator token types.
-    static const std::set<Type> OPERATORS;
-
-    /// @brief              Specification of regex matching rules for token types.
-    static const std::vector<std::pair<std::string, Type>> TOKEN_SPEC;
-
-    ///
-    /// @brief              Token representation.
-    ///
-    /// Base source code character set
-    ///
-    /// a-z A-Z 0-9 _ { } [ ] ( ) < > % : ; . , ? * + - / ^ & | ~ ! = " ' \ # @ $
-    ///
-    struct Token
-    {
-        /// @brief          Type of token.
-        Type type;
-
-        /// @brief          String value of token. Exactly as it was in the source code.
-        std::string value;
-
-        /// @brief          Line number of token. Zero indexed.
-        int line;
-
-        /// @brief          Tokenized id. For tracking original tokens compared to new inserted ones.
-        int tokenize_id;
-
-        /// @brief          TODO:
-        bool skip = false;
-
-        ///
-        /// @brief              TODO:
-        ///
-        /// @param type
-        /// @param value
-        /// @param line
-        /// @param tokenize_id
-        ///
-        Token(Type type, std::string value, int line = -1, int tokenize_id = -1) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param tok
-        ///
-        Token(const Token &tok) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param tok
-        ///
-        Token(Token &&tok) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param tok
-        ///
-        /// @return
-        Token &operator=(const Token &tok) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param tok
-        ///
-        /// @return
-        Token &operator=(Token &&tok) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @return
-        ///
-        std::string to_string() const;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param types
-        ///
-        /// @return
-        ///
-        bool is(const std::set<Type> &types) const;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @return
-        ///
-        int nlines() const;
-    };
-
-    /// @brief              Options controlling how to tokenize.
-    struct Options
-    {
-        /// @brief          Whether to keep comments in the tokens list.
-        bool keep_comments = false;
-
-        /// @brief          Whether to keep whitespaces in the tokens list.
-        bool keep_whitespace = true;
-    };
-
-    ///
-    /// @brief              TODO:
-    ///
-    Tokenizer();
-
-    ///
-    /// @brief              TODO:
-    ///
-    /// @param src
-    /// @param option
-    ///
-    Tokenizer(File src, Options option = {.keep_comments = true, .keep_whitespace = true});
-
-    ///
-    /// @brief              TODO:
-    ///
-    /// @param src
-    /// @param option
-    ///
-    Tokenizer(std::string src, Options option = {.keep_comments = true, .keep_whitespace = true});
-
-    ///
-    /// @brief              Get token pointer.
-    ///
-    /// @return             Token pointer.
-    ///
-    size_t get_toki() const;
-
-    ///
-    /// @brief              Update token pointer.
-    ///
-    /// @param toki         New token pointer.
-    ///
-    void set_toki(size_t toki);
-
-    ///
-    /// @brief              Get state of tokenizer.
-    ///
-    struct State get_state() const;
-
-    ///
-    /// @brief              Set state of tokenizer.
-    ///
-    /// @param state        New state.
-    ///
-    void set_state(struct State state);
-
-    ///
-    /// @brief              TODO:
-    ///
-    /// @return
-    ///
-    bool fix_indent();
-
-    ///
-    /// @brief              Get line number of current token.
-    ///
-    /// @return             Line number.
-    ///
-    int get_linei() const;
-
-    ///
-    /// @brief              Get line number of token.
-    ///
-    /// @param toki         Token index.
-    ///
-    /// @return             Line number.
-    ///
-    int get_linei(size_t toki) const;
-
-    ///
-    /// @brief              Get stringified line containing all original tokens at the line.
-    ///
-    /// @param linei        Line number, zero indexed.
-    ///
-    /// @return             String representation of the line.
-    ///
-    std::string get_line(int linei) const;
-
-    ///
-    /// @brief              Get next token.
-    ///
-    /// @return             Next token.
-    ///
-    Tokenizer::Token &get_token();
-
-    ///
-    /// @brief              Get tokens.
-    ///
-    /// @return             Tokens list.
-    ///
-    const std::vector<Token> &get_tokens();
-
-    ///
-    /// @brief              Insert tokens into the token list.
-    ///
-    /// @param tokens       Tokens to insert.
-    /// @param loc          Position to insert at. Token at the location will be moved.
-    ///
-    void insert_tokens(const std::vector<Token> &tokens, size_t loc);
-
-    ///
-    /// @brief              Remove tokens from specified range.
-    ///
-    /// @param start        Inclusive start position.
-    /// @param end          Exclusive end position.
-    ///
-    void remove_tokens(size_t start, size_t end);
-
-    ///
-    /// @brief              Remove all tokens that match the token types.
-    ///
-    /// @param tok_types    Token types to remove.
-    ///
-    void filter_all(const std::set<Tokenizer::Type> &tok_types);
-
-    ///
-    /// @brief              Advances past the next token.
-    ///
-    void skip_next();
-
-    ///
-    /// @brief              Advances past tokens that matches the given regex.
-    ///
-    /// @param regex        matches tokens to skip.
-    ///
-    void skip_next_regex(const std::string &regex);
-
-    ///
-    /// @brief              Advances past tokens that match the given types.
-    ///
-    /// @param tok_types    the types to match.
-    ///
-    void skip_next(const std::set<Tokenizer::Type> &tok_types);
-
-    ///
-    /// @brief              Advances past tokens that match the given type.
-    ///
-    /// @param tok_type     the type to match.
-    ///
-    void skip_next(Tokenizer::Type tok_type);
-
-    ///
-    /// @brief              Expects the current token to exist.
-    ///
-    /// @param error_msg    Message to throw if the token does not exist.
-    ///
-    void expect_next(const std::string &error_msg);
-
-    ///
-    /// @brief              Expects current token to exist and be of a specific type.
-    ///
-    /// @param tok_types    Expected token types.
-    /// @param error_msg    Message to throw if the token does not exist or is not the correct type.
-    ///
-    void expect_next(const std::set<Tokenizer::Type> &tok_types, const std::string &error_msg);
-
-    ///
-    /// @brief              Expects current token to exist and be of a specific type.
-    ///
-    /// @param tok_type     Expected token type.
-    /// @param error_msg    Message to throw if the token does not exist or is not the correct type.
-    ///
-    void expect_next(Tokenizer::Type tok_type, const std::string &error_msg);
-
-    ///
-    /// @brief              Returns whether the current token matches the given types.
-    ///
-    /// @param tok_types    The types to match.
-    /// @param error_msg    Message to throw if the token does not exist.
-    ///
-    /// @return             If the next token matches the given types.
-    ///
-    bool is_next(const std::set<Tokenizer::Type> &tok_types,
-                 const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
-
-    ///
-    /// @brief              Returns whether the current token matches the given type.
-    ///
-    /// @param tok_type     The type to match.
-    /// @param error_msg    Message to throw if the token does not exist.
-    ///
-    /// @return             If the next token matches the given type.
-    ///
-    bool is_next(Tokenizer::Type tok_type,
-                 const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
-
-    ///
-    ///                     Returns whether there is another token.
-    ///
-    /// @return             If there is a next token.
-    ///
-    bool has_next();
-
-    ///
-    /// @brief              Consumes the current token and advances to the next token.
-    ///
-    /// @param error_msg    Message to throw if the token does not exist.
-    ///
-    /// @return             The consumed token.
-    ///
-    Tokenizer::Token &
-    consume(const std::string &error_msg = "Tokenizer::consume() - Unexpected end of file.");
-
-    ///
-    /// @brief                  Consumes the current token and checks it matches the given types.
-    ///
-    /// @param expected_types   Expected types of the token.
-    /// @param error_msg        Message to throw if the token does not have the expected type.
-    ///
-    /// @return                 Consumed token.
-    ///
-    Tokenizer::Token &
-    consume(const std::set<Tokenizer::Type> &expected_types,
-            const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
-
-    ///
-    /// @brief                  Consumes the current token and checks it matches the given type.
-    ///
-    /// @param expected_type    Expected type of the token.
-    /// @param error_msg        Message to throw if the token does not have the expected type.
-    ///
-    /// @return                 Consumed token.
-    ///
-    Tokenizer::Token &
-    consume(Tokenizer::Type expected_type,
-            const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
-
-    ///
-    /// @brief              Tokenizes a file.
-    ///
-    /// @param src_file     File to tokenize.
-    /// @param option       Options for the tokenizer.
-    ///
-    /// @return             Vector of the tokens.
-    static std::vector<Token> tokenize(File src_file, Options option = {.keep_comments = true,
-                                                                        .keep_whitespace = true});
-
-    ///
-    /// @brief              Tokenizes a string representing the source code.
-    /// @param source_code  Source code as a string.
-    /// @param option       Options for the tokenizer.
-    /// @return             Vector of the tokens.
-    static std::vector<Token>
-    tokenize(std::string source_code,
-             Options option = (Options{.keep_comments = true, .keep_whitespace = true}));
+    /// Expansion with the given id (never 0). nullptr if unknown.
+    const Expansion *expansion(U32 id) const;
 
   private:
-    /// @brief              Tokens list.
-    std::vector<Tokenizer::Token> m_tokens;
+    struct Source
+    {
+        std::string name;
+        std::string text;
+        std::vector<U32> line_starts;
+    };
 
-    /// @brief              Unique tokenizer identification.
-    ///                     Used for line number information given new inserted tokens.
-    /// @todo               TODO: There should be a better way to handle this. Instead
-    ///                     have each token contain a boolean representing whether it is
-    ///                     an original or inserted token.
-    int m_tokenize_id = -1;
+    const Source *get(SourceId id) const;
 
-    /// @brief              State of the tokenizer.
-    struct State m_state;
-
-    ///
-    /// @brief              TODO:
-    ///
-    void verify();
-
-    ///
-    /// @brief              TODO:
-    ///
-    void move_past_skipped_tokens();
-
-    ///
-    /// @brief              TODO:
-    ///
-    void handle_token();
+    std::deque<Source> m_sources;
+    std::deque<Expansion> m_expansions;
 };
+
+// ---------------------------------------------------------------------------------------------
+// Token types
+// ---------------------------------------------------------------------------------------------
+
+// Groups are contiguous so that classification is a range check. Do not reorder inside a group.
+// clang-format off
+#define BASM_TOKEN_TYPES(X)                                                                        \
+    X(END_OF_FILE) X(NEWLINE) X(INVALID)                                                           \
+    X(COMMENT_SINGLE_LINE) X(COMMENT_MULTI_LINE)                                                   \
+    X(LABEL) X(SYMBOL) X(BACK_SLASH)                                                               \
+                                                                                                   \
+    X(PREPROCESSOR_INCLUDE) X(PREPROCESSOR_MACRO) X(PREPROCESSOR_MACRET)                           \
+    X(PREPROCESSOR_MACEND) X(PREPROCESSOR_INVOKE) X(PREPROCESSOR_DEFINE)                           \
+    X(PREPROCESSOR_UNDEF) X(PREPROCESSOR_IFDEF) X(PREPROCESSOR_IFNDEF)                             \
+    X(PREPROCESSOR_IFEQU) X(PREPROCESSOR_IFNEQU) X(PREPROCESSOR_IFLESS)                            \
+    X(PREPROCESSOR_IFMORE) X(PREPROCESSOR_ELSE) X(PREPROCESSOR_ELSEDEF)                            \
+    X(PREPROCESSOR_ELSENDEF) X(PREPROCESSOR_ELSEEQU) X(PREPROCESSOR_ELSENEQU)                      \
+    X(PREPROCESSOR_ELSELESS) X(PREPROCESSOR_ELSEMORE) X(PREPROCESSOR_ENDIF)                        \
+                                                                                                   \
+    X(ASSEMBLER_GLOBAL) X(ASSEMBLER_EXTERN) X(ASSEMBLER_ORG) X(ASSEMBLER_SCOPE)                    \
+    X(ASSEMBLER_SCEND) X(ASSEMBLER_ADVANCE) X(ASSEMBLER_FILL) X(ASSEMBLER_ALIGN)                   \
+    X(ASSEMBLER_SECTION) X(ASSEMBLER_BSS) X(ASSEMBLER_DATA) X(ASSEMBLER_TEXT)                      \
+    X(ASSEMBLER_STOP) X(ASSEMBLER_BYTE) X(ASSEMBLER_DBYTE) X(ASSEMBLER_WORD)                       \
+    X(ASSEMBLER_DWORD) X(ASSEMBLER_SBYTE) X(ASSEMBLER_SDBYTE) X(ASSEMBLER_SWORD)                   \
+    X(ASSEMBLER_SDWORD) X(ASSEMBLER_CHAR) X(ASSEMBLER_ASCII) X(ASSEMBLER_ASCIZ)                    \
+                                                                                                   \
+    X(RELOCATION_EMU32_O_LO12) X(RELOCATION_EMU32_ADRP_HI20) X(RELOCATION_EMU32_MOV_LO19)          \
+    X(RELOCATION_EMU32_MOV_HI13)                                                                   \
+                                                                                                   \
+    X(REGISTER_X0) X(REGISTER_X1) X(REGISTER_X2) X(REGISTER_X3) X(REGISTER_X4) X(REGISTER_X5)      \
+    X(REGISTER_X6) X(REGISTER_X7) X(REGISTER_X8) X(REGISTER_X9) X(REGISTER_X10) X(REGISTER_X11)    \
+    X(REGISTER_X12) X(REGISTER_X13) X(REGISTER_X14) X(REGISTER_X15) X(REGISTER_X16)                \
+    X(REGISTER_X17) X(REGISTER_X18) X(REGISTER_X19) X(REGISTER_X20) X(REGISTER_X21)                \
+    X(REGISTER_X22) X(REGISTER_X23) X(REGISTER_X24) X(REGISTER_X25) X(REGISTER_X26)                \
+    X(REGISTER_X27) X(REGISTER_X28) X(REGISTER_X29) X(REGISTER_SP) X(REGISTER_XZR)                 \
+                                                                                                   \
+    X(INSTRUCTION_HLT) X(INSTRUCTION_NOP) X(INSTRUCTION_ADD) X(INSTRUCTION_SUB)                    \
+    X(INSTRUCTION_RSB) X(INSTRUCTION_ADC) X(INSTRUCTION_SBC) X(INSTRUCTION_RSC)                    \
+    X(INSTRUCTION_MUL) X(INSTRUCTION_UMULL) X(INSTRUCTION_SMULL) X(INSTRUCTION_VABS)               \
+    X(INSTRUCTION_VNEG) X(INSTRUCTION_VSQRT) X(INSTRUCTION_VADD) X(INSTRUCTION_VSUB)               \
+    X(INSTRUCTION_VDIV) X(INSTRUCTION_VMUL) X(INSTRUCTION_VCMP) X(INSTRUCTION_VSEL)                \
+    X(INSTRUCTION_VCINT) X(INSTRUCTION_VCFLO) X(INSTRUCTION_VMOV) X(INSTRUCTION_AND)               \
+    X(INSTRUCTION_ORR) X(INSTRUCTION_EOR) X(INSTRUCTION_BIC) X(INSTRUCTION_LSL)                    \
+    X(INSTRUCTION_LSR) X(INSTRUCTION_ASR) X(INSTRUCTION_ROR) X(INSTRUCTION_CMP)                    \
+    X(INSTRUCTION_CMN) X(INSTRUCTION_TST) X(INSTRUCTION_TEQ) X(INSTRUCTION_MOV)                    \
+    X(INSTRUCTION_MVN) X(INSTRUCTION_LDR) X(INSTRUCTION_STR) X(INSTRUCTION_SWP)                    \
+    X(INSTRUCTION_LDRB) X(INSTRUCTION_STRB) X(INSTRUCTION_SWPB) X(INSTRUCTION_LDRH)                \
+    X(INSTRUCTION_STRH) X(INSTRUCTION_SWPH) X(INSTRUCTION_MSR) X(INSTRUCTION_MRS)                  \
+    X(INSTRUCTION_TLBI) X(INSTRUCTION_LDADD) X(INSTRUCTION_LDADDB) X(INSTRUCTION_LDADDH)           \
+    X(INSTRUCTION_LDCLR) X(INSTRUCTION_LDCLRB) X(INSTRUCTION_LDCLRH) X(INSTRUCTION_LDSET)          \
+    X(INSTRUCTION_LDSETB) X(INSTRUCTION_LDSETH) X(INSTRUCTION_B) X(INSTRUCTION_BL)                 \
+    X(INSTRUCTION_BX) X(INSTRUCTION_BLX) X(INSTRUCTION_SWI) X(INSTRUCTION_ADRP)                    \
+    X(INSTRUCTION_RET)                                                                             \
+                                                                                                   \
+    X(CONDITION_EQ) X(CONDITION_NE) X(CONDITION_CS) X(CONDITION_HS) X(CONDITION_CC)                \
+    X(CONDITION_LO) X(CONDITION_MI) X(CONDITION_PL) X(CONDITION_VS) X(CONDITION_VC)                \
+    X(CONDITION_HI) X(CONDITION_LS) X(CONDITION_GE) X(CONDITION_LT) X(CONDITION_GT)                \
+    X(CONDITION_LE) X(CONDITION_AL) X(CONDITION_NV)                                                \
+                                                                                                   \
+    X(LITERAL_FLOAT_32) X(LITERAL_NUMBER_BINARY) X(LITERAL_NUMBER_OCTAL)                           \
+    X(LITERAL_NUMBER_DECIMAL) X(LITERAL_NUMBER_HEXADECIMAL) X(LITERAL_CHAR) X(LITERAL_STRING)      \
+                                                                                                   \
+    X(COLON) X(COMMA) X(PERIOD) X(SEMICOLON) X(OPEN_PARENTHESIS) X(CLOSE_PARENTHESIS)              \
+    X(OPEN_BRACKET) X(CLOSE_BRACKET) X(OPEN_BRACE) X(CLOSE_BRACE) X(EQUAL) X(AT)                   \
+                                                                                                   \
+    X(OPERATOR_ADDITION) X(OPERATOR_SUBTRACTION) X(OPERATOR_MULTIPLICATION)                        \
+    X(OPERATOR_DIVISION) X(OPERATOR_MODULUS) X(OPERATOR_BITWISE_LEFT_SHIFT)                        \
+    X(OPERATOR_BITWISE_RIGHT_SHIFT) X(OPERATOR_BITWISE_XOR) X(OPERATOR_BITWISE_AND)                \
+    X(OPERATOR_BITWISE_OR) X(OPERATOR_BITWISE_COMPLEMENT) X(OPERATOR_LOGICAL_NOT)                  \
+    X(OPERATOR_LOGICAL_EQUAL) X(OPERATOR_LOGICAL_NOT_EQUAL) X(OPERATOR_LOGICAL_LESS_THAN)          \
+    X(OPERATOR_LOGICAL_GREATER_THAN) X(OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL)                        \
+    X(OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL) X(OPERATOR_LOGICAL_OR) X(OPERATOR_LOGICAL_AND)       \
+                                                                                                   \
+    X(KEYWORD_ENTRY) X(KEYWORD_SECTIONS)
+// clang-format on
+
+enum class TokenType : U16
+{
+#define BASM_X(name) name,
+    BASM_TOKEN_TYPES(BASM_X)
+#undef BASM_X
+        COUNT
+};
+
+/// Name of the enumerator, e.g. "INSTRUCTION_ADD".
+std::string_view to_string(TokenType type);
+
+namespace detail
+{
+constexpr bool in_range(TokenType t, TokenType lo, TokenType hi)
+{
+    return t >= lo && t <= hi;
+}
+} // namespace detail
+
+constexpr bool is_comment(TokenType t)
+{
+    return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
+}
+
+constexpr bool is_preprocessor_directive(TokenType t)
+{
+    return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
+}
+
+constexpr bool is_assembler_directive(TokenType t)
+{
+    return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
+}
+
+constexpr bool is_relocation(TokenType t)
+{
+    return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
+                            TokenType::RELOCATION_EMU32_MOV_HI13);
+}
+
+constexpr bool is_register(TokenType t)
+{
+    return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
+}
+
+constexpr bool is_instruction(TokenType t)
+{
+    return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
+}
+
+constexpr bool is_condition(TokenType t)
+{
+    return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
+}
+
+constexpr bool is_integer_literal(TokenType t)
+{
+    return detail::in_range(t, TokenType::LITERAL_NUMBER_BINARY,
+                            TokenType::LITERAL_NUMBER_HEXADECIMAL);
+}
+
+constexpr bool is_number_literal(TokenType t)
+{
+    return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
+}
+
+constexpr bool is_operator(TokenType t)
+{
+    return detail::in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
+}
+
+/// Register number of a register token: x0-x29 are 0-29, sp is 30, xzr is 31.
+constexpr byte register_index(TokenType t)
+{
+    return byte(U16(t) - U16(TokenType::REGISTER_X0));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tokens
+// ---------------------------------------------------------------------------------------------
+
+enum TokenFlag : U8
+{
+    /// Whitespace, a comment or a line continuation immediately precedes this token.
+    SPACE_BEFORE = 1 << 0,
+
+    /// First token on its line (ignoring comments).
+    FIRST_ON_LINE = 1 << 1,
+
+    /// Instruction mnemonic carried the `s` suffix (adds, movs, lsls, ...).
+    SETS_FLAGS = 1 << 2,
+
+    /// ldrsb / ldrsh / strsb / strsh.
+    SIGN_EXTEND = 1 << 3,
+
+    /// Not produced by the lexer (see Token::synthetic).
+    SYNTHETIC = 1 << 4,
+};
+
+struct Token
+{
+    TokenType type = TokenType::END_OF_FILE;
+    U8 flags = 0;
+
+    /// Exact source text. Exceptions:
+    ///  - LABEL: the name only, without the trailing ':'.
+    ///  - Synthetic NEWLINE / END_OF_FILE: empty.
+    std::string_view text;
+
+    SourceLocation loc;
+
+    /// Value of integer and character literals (LITERAL_NUMBER_* except float, LITERAL_CHAR).
+    U64 int_value = 0;
+
+    bool is(TokenType t) const
+    {
+        return type == t;
+    }
+
+    bool is_one_of(std::initializer_list<TokenType> types) const
+    {
+        for (TokenType t : types)
+        {
+            if (t == type)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool has(TokenFlag flag) const
+    {
+        return (flags & flag) != 0;
+    }
+
+    std::string str() const
+    {
+        return std::string(text);
+    }
+
+    /// Creates a token that is not backed by lexed source, e.g. the `xzr` the assembler injects
+    /// for `cmp`. `static_text` must outlive the token (use a string literal). Pass `origin` to
+    /// inherit its location for diagnostics.
+    static Token synthetic(TokenType type, std::string_view static_text,
+                           const Token *origin = nullptr)
+    {
+        Token tok;
+        tok.type = type;
+        tok.flags = SYNTHETIC;
+        tok.text = static_text;
+        if (origin != nullptr)
+        {
+            tok.loc = origin->loc;
+        }
+        return tok;
+    }
+};
+
+/// Human readable token for error messages: `'add'`, `end of line`, `end of file`.
+std::string describe(const Token &token);
+
+/// Contents of a LITERAL_STRING token without the quotes and with escape sequences resolved.
+std::string unescape_string_literal(const Token &token);
+
+// ---------------------------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------------------------
+
+enum class Severity : U8
+{
+    WARNING,
+    ERROR,
+};
+
+struct Diagnostic
+{
+    Severity severity = Severity::ERROR;
+    SourceLocation loc;
+    std::string message;
+};
+
+/// `file:line:col: error: message`, followed by the source line and a caret.
+std::string format_diagnostic(const SourceManager &sources, const Diagnostic &diagnostic);
+
+// ---------------------------------------------------------------------------------------------
+// Lexing
+// ---------------------------------------------------------------------------------------------
+
+enum class LexMode : U8
+{
+    /// .basm / .binc / .bi sources. `;` comments, `$hex %bin @oct` literals, `#` directives,
+    /// instructions, registers.
+    ASSEMBLY,
+
+    /// .ld linker scripts. `//` and `/* */` comments, `0x` / `0b` literals, `;` `=` `@`,
+    /// ENTRY / SECTIONS keywords and the `.text` `.data` `.bss` section names.
+    LINKER_SCRIPT,
+};
+
+struct LexOptions
+{
+    LexMode mode = LexMode::ASSEMBLY;
+
+    /// Emit COMMENT_* tokens (e.g. for `-C`). Otherwise comments are dropped.
+    bool keep_comments = false;
+
+    /// Emit NEWLINE tokens. Disable only for parsers that ignore line structure.
+    bool keep_newlines = true;
+
+    /// Emit a single NEWLINE for a run of blank lines. Locations still have exact lines.
+    bool collapse_newlines = false;
+};
+
+struct LexResult
+{
+    /// Always ends with END_OF_FILE. Without `keep_newlines=false` the token before that is
+    /// always a NEWLINE (synthesized at the end of the file if the last line has none).
+    std::vector<Token> tokens;
+
+    std::vector<Diagnostic> diagnostics;
+
+    /// True if any diagnostic has Severity::ERROR. INVALID tokens appear in the token list
+    /// where the lexer could not produce a valid token.
+    bool has_errors = false;
+};
+
+/// The tokens of a preprocessed program and the sources they point into. The tokens keep the
+/// file, line and column they were lexed at, so errors found after preprocessing point at the
+/// original source. Tokens that came out of a macro or symbol expansion record it too
+/// (SourceLocation::expansion).
+struct PreprocessedSource
+{
+    std::shared_ptr<SourceManager> sources;
+
+    /// Ends with a NEWLINE and END_OF_FILE.
+    std::vector<Token> tokens;
+};
+
+/// Lexes the already registered source `id`.
+LexResult lex(const SourceManager &sources, SourceId id, const LexOptions &options = {});
+
+/// Convenience: registers `text` and lexes it.
+LexResult lex_text(SourceManager &sources, std::string name, std::string text,
+                   const LexOptions &options = {});
+
+/// Logs every diagnostic of `result` (with its source line and caret). If any of them is an
+/// error, terminates through AEMU_FATAL (which throws under FatalAction::Throw).
+void fatal_if_errors(const SourceManager &sources, const LexResult &result);
+
+/// Logs `message` at `loc` (file:line:col, source line, caret) and terminates through AEMU_FATAL.
+[[noreturn]] void fatal_at(const SourceManager &sources, const SourceLocation &loc,
+                           const std::string &message);
+
+// ---------------------------------------------------------------------------------------------
+// Reading tokens
+// ---------------------------------------------------------------------------------------------
+
+/// Read only cursor over a token list. Does not own the tokens. Cheap to copy, so a stack of
+/// cursors is the natural way to implement #include and macro expansion in the preprocessor
+/// (push a cursor over the included/expanded tokens, pop it when it is exhausted).
+///
+/// Reading past the end is safe: peek() returns the END_OF_FILE token and next() stops there.
+class TokenCursor
+{
+  public:
+    TokenCursor() = default;
+
+    explicit TokenCursor(std::span<const Token> tokens) :
+        m_tokens(tokens)
+    {
+    }
+
+    /// Token `ahead` positions from the current one without consuming.
+    const Token &peek(std::size_t ahead = 0) const;
+
+    /// Consumes and returns the current token. Never moves past END_OF_FILE.
+    const Token &next();
+
+    bool at_end() const
+    {
+        return peek().type == TokenType::END_OF_FILE;
+    }
+
+    bool check(TokenType type) const
+    {
+        return peek().type == type;
+    }
+
+    bool check_any(std::initializer_list<TokenType> types) const
+    {
+        return peek().is_one_of(types);
+    }
+
+    /// Consumes the current token if it has this type.
+    bool accept(TokenType type);
+
+    /// Like accept but returns the consumed token, nullptr if the type did not match.
+    const Token *try_next(TokenType type);
+
+    /// Skips consecutive NEWLINE tokens.
+    void skip_newlines();
+
+    /// Consumes tokens up to and including the next NEWLINE (or up to END_OF_FILE). Use it to
+    /// resynchronize after a statement level error.
+    void skip_line();
+
+    /// Consumes the rest of the current line including its NEWLINE and returns the tokens before
+    /// the NEWLINE. The span stays valid as long as the underlying token list does.
+    std::span<const Token> take_line();
+
+    std::size_t position() const
+    {
+        return m_pos;
+    }
+
+    /// Save/restore for backtracking.
+    std::size_t mark() const
+    {
+        return m_pos;
+    }
+
+    void rewind(std::size_t mark)
+    {
+        m_pos = mark;
+    }
+
+    std::span<const Token> tokens() const
+    {
+        return m_tokens;
+    }
+
+  private:
+    std::span<const Token> m_tokens;
+    std::size_t m_pos = 0;
+};
+
+} // namespace basm

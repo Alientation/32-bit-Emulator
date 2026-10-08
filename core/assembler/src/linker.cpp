@@ -2,7 +2,8 @@
 #include "emulator32bit/fbl.h"
 #include "util/logger.h"
 
-#include <regex>
+#include <optional>
+#include <span>
 
 Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
     m_obj_files(obj_files),
@@ -20,110 +21,100 @@ Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file) :
     link();
 }
 
-void Linker::_entry(size_t &tok_i)
+void Linker::fail(const basm::Token &at, const std::string &message)
 {
-    consume(tok_i);
-    skip_tokens(tok_i, {Token::Type::WHITESPACE});
-    consume(tok_i, {Token::Type::OPEN_PARENTHESIS},
-            "Expected open parenthesis after ENTRY command. Got " + m_tokens[tok_i].val);
-    skip_tokens(tok_i, {Token::Type::WHITESPACE});
-    m_entry_symbol = consume(tok_i, {Token::Type::SYMBOL},
-                             "Expected symbol to follow ENTRY command. Got " + m_tokens[tok_i].val)
-                         .val;
-
-    skip_tokens(tok_i, {Token::Type::WHITESPACE});
-    consume(tok_i, {Token::Type::CLOSE_PARENTHESIS},
-            "Expected close parenthesis after ENTRY command. Got " + m_tokens[tok_i].val);
+    basm::fatal_at(m_sources, at.loc, message);
 }
 
-void Linker::_sections(size_t &tok_i)
+const basm::Token &Linker::expect(basm::TokenType type, const std::string &expected)
 {
-    consume(tok_i);
-    skip_tokens(tok_i, {Token::Type::WHITESPACE});
-    consume(tok_i, {Token::Type::OPEN_PARENTHESIS},
-            "Expected open parenthesis after SECTIONS command. Got " + m_tokens[tok_i].val);
-    skip_tokens(tok_i, {Token::Type::WHITESPACE});
-
-    while (!is_token(tok_i, {Token::Type::CLOSE_PARENTHESIS}))
+    if (!m_cursor.check(type))
     {
-        if (m_tokens[tok_i].type == Token::Type::AT)
+        fail(m_cursor.peek(), "expected " + expected + ", got " + basm::describe(m_cursor.peek()));
+    }
+    return m_cursor.next();
+}
+
+void Linker::_entry()
+{
+    m_cursor.next(); // ENTRY
+    expect(basm::TokenType::OPEN_PARENTHESIS, "'(' after ENTRY");
+    m_entry_symbol = expect(basm::TokenType::SYMBOL, "a symbol to follow ENTRY(").str();
+    expect(basm::TokenType::CLOSE_PARENTHESIS, "')' after the ENTRY symbol");
+}
+
+void Linker::_sections()
+{
+    m_cursor.next(); // SECTIONS
+    expect(basm::TokenType::OPEN_PARENTHESIS, "'(' after SECTIONS");
+
+    while (!m_cursor.check(basm::TokenType::CLOSE_PARENTHESIS))
+    {
+        // `@P;` and `@V;` set whether the sections that follow are placed at physical or at
+        // virtual addresses.
+        if (m_cursor.accept(basm::TokenType::AT))
         {
-            consume(tok_i);
-            skip_tokens(tok_i, {Token::Type::WHITESPACE});
-            std::string tag = consume(tok_i, {Token::Token::Type::SYMBOL},
-                                      "Expected symbol tag to follow @. Got " + m_tokens[tok_i].val)
-                                  .val;
-            if (tag == "P")
+            const basm::Token &tag = expect(basm::TokenType::SYMBOL, "a tag (P or V) after '@'");
+            if (tag.text == "P")
             {
                 m_physical = true;
             }
-            else if (tag == "V")
+            else if (tag.text == "V")
             {
                 m_physical = false;
             }
+            else
+            {
+                fail(tag, "unknown tag '" + tag.str() + "', expected P or V");
+            }
 
-            skip_tokens(tok_i, {Token::Type::WHITESPACE});
-            consume(tok_i, {Token::Token::Type::SEMI_COLON},
-                    "Expected semicolon to end statement. Got " + m_tokens[tok_i].val);
-            skip_tokens(tok_i, {Token::Type::WHITESPACE});
-
+            expect(basm::TokenType::SEMICOLON, "';' to end the statement");
             continue;
         }
 
-        switch (m_tokens[tok_i].type)
+        const basm::Token &section = m_cursor.peek();
+        switch (section.type)
         {
-        case Token::Type::TEXT:
-            consume(tok_i);
+        case basm::TokenType::ASSEMBLER_TEXT:
             m_sections.push_back({.type = SectionAddress::Type::TEXT, .physical = m_physical});
             break;
-        case Token::Type::DATA:
-            consume(tok_i);
+        case basm::TokenType::ASSEMBLER_DATA:
             m_sections.push_back({.type = SectionAddress::Type::DATA, .physical = m_physical});
             break;
-        case Token::Type::BSS:
-            consume(tok_i);
+        case basm::TokenType::ASSEMBLER_BSS:
             m_sections.push_back({.type = SectionAddress::Type::BSS, .physical = m_physical});
             break;
         default:
-            AEMU_FATAL("Invalid token {} in SECTIONS command.", m_tokens[tok_i].val);
+            fail(section, "unexpected " + basm::describe(section) + " in SECTIONS");
         }
+        m_cursor.next();
 
-        skip_tokens(tok_i, {Token::Type::WHITESPACE});
-        if (is_token(tok_i, {Token::Type::EQUAL}))
+        if (m_cursor.accept(basm::TokenType::EQUAL))
         {
-            consume(tok_i, {Token::Type::EQUAL},
-                    "Expected equal symbol to follow section. Got " + m_tokens[tok_i].val);
-            skip_tokens(tok_i, {Token::Type::WHITESPACE});
-
             m_sections.back().set_address = true;
-            m_sections.back().address = parse_value(tok_i);
-            skip_tokens(tok_i, {Token::Type::WHITESPACE});
+            m_sections.back().address = parse_value();
         }
 
-        consume(tok_i, {Token::Type::SEMI_COLON},
-                "Expected semi colon to follow section definition. Got " + m_tokens[tok_i].val);
-        skip_tokens(tok_i, {Token::Type::WHITESPACE});
+        expect(basm::TokenType::SEMICOLON, "';' to end the section definition");
     }
-    consume(tok_i);
+    m_cursor.next(); // ')'
 }
 
 void Linker::parse_ld()
 {
-    for (size_t i = 0; i < m_tokens.size();)
+    while (!m_cursor.at_end())
     {
-        switch (m_tokens[i].type)
+        const basm::Token &command = m_cursor.peek();
+        switch (command.type)
         {
-        case Token::Type::WHITESPACE:
-            consume(i);
-            continue;
-        case Token::Type::ENTRY:
-            _entry(i);
+        case basm::TokenType::KEYWORD_ENTRY:
+            _entry();
             break;
-        case Token::Type::SECTIONS:
-            _sections(i);
+        case basm::TokenType::KEYWORD_SECTIONS:
+            _sections();
             break;
         default:
-            AEMU_FATAL("Invalid token {}", m_tokens[i].val);
+            fail(command, "unexpected " + basm::describe(command) + ", expected ENTRY or SECTIONS");
         }
     }
 }
@@ -323,226 +314,31 @@ void Linker::link()
 
 void Linker::tokenize_ld()
 {
-    FileReader reader(m_ld_file);
+    basm::LexOptions options;
+    options.mode = basm::LexMode::LINKER_SCRIPT;
+    options.keep_newlines = false;
 
-    // append a new line to the end to allow regex matching to match an ending whitespace
-    std::string source_code = reader.read_all() + "\n";
-    reader.close();
+    const basm::SourceId source = m_sources.add_file(m_ld_file.get_path());
+    AEMU_CHECK(source != basm::kInvalidSource,
+               "Linker::tokenize_ld() - Cannot read the linker script '{}'.", m_ld_file.get_path());
 
-    while (source_code.size() > 0)
+    m_lexed = basm::lex(m_sources, source, options);
+    basm::fatal_if_errors(m_sources, m_lexed);
+    m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_lexed.tokens));
+}
+
+word Linker::parse_value()
+{
+    const basm::Token &token = m_cursor.peek();
+    if (!basm::is_integer_literal(token.type))
     {
-        // try to match regex
-        bool matched = false;
-        for (std::pair<std::string, Linker::Token::Type> regexPair : kTokenSpec)
-        {
-            std::string regex = regexPair.first;
-            Linker::Token::Type type = regexPair.second;
-            std::regex token_regex(regex);
-            std::smatch match;
-            if (std::regex_search(source_code, match, token_regex))
-            {
-                // matched regex
-                std::string token_value = match.str();
-                m_tokens.push_back(Linker::Token(type, token_value));
-                source_code = match.suffix();
-                matched = true;
-
-                break;
-            }
-        }
-
-        // check if regex matched
-        AEMU_CHECK(matched, "Linker::tokenize() - Could not match regex to source code: {}",
-                   source_code);
+        fail(token, "expected a number, got " + basm::describe(token));
     }
-}
+    m_cursor.next();
 
-Linker::Token::Token(Type type, std::string val) :
-    type(type),
-    val(val)
-{
-}
-
-const std::vector<std::pair<std::string, Linker::Token::Type>> Linker::kTokenSpec = {
-    {"^[^\\S]+", Linker::Token::Type::WHITESPACE},
-    {"^/\\*[\\s\\S]*?\\*/", Linker::Token::Type::WHITESPACE},
-    {"^//.*", Linker::Token::Type::WHITESPACE},
-    {"^ENTRY\\b", Linker::Token::Type::ENTRY},
-    {"^SECTIONS\\b", Linker::Token::Type::SECTIONS},
-    {"^\\.text\\b", Linker::Token::Type::TEXT},
-    {"^\\.data\\b", Linker::Token::Type::DATA},
-    {"^\\.bss\\b", Linker::Token::Type::BSS},
-
-    {"^0b[0-1]+", Linker::Token::Type::LITERAL_NUMBER_BINARY},
-    {"^0x[0-9a-fA-F]+", Linker::Token::Type::LITERAL_NUMBER_HEXADECIMAL},
-    {"^[0-9]+", Linker::Token::Type::LITERAL_NUMBER_DECIMAL},
-
-    {"^\\.", Linker::Token::Type::SECTION_COUNTER},
-    {"^\\(", Linker::Token::Type::OPEN_PARENTHESIS},
-    {"^\\)", Linker::Token::Type::CLOSE_PARENTHESIS},
-    {"^;", Linker::Token::Type::SEMI_COLON},
-    {"^,", Linker::Token::Type::COMMA},
-    {"^=", Linker::Token::Type::EQUAL},
-    {"^@", Linker::Token::Type::AT},
-    {"^[a-zA-Z_][a-zA-Z0-9_]*", Linker::Token::Type::SYMBOL},
-};
-
-word Linker::parse_value(size_t &tok_i)
-{
-    Token tok = consume(tok_i);
-    std::string val_part = tok.val.size() >= 2 ? tok.val.substr(2) : "";
-    word val = 0;
-    switch (tok.type)
+    if (token.int_value > UINT32_MAX)
     {
-    case Token::Type::LITERAL_NUMBER_BINARY:
-        for (char c : val_part)
-        {
-            val = (val * 2) + (c - '0');
-        }
-        break;
-    case Token::Type::LITERAL_NUMBER_DECIMAL:
-        for (char c : val_part)
-        {
-            val = (val * 10) + (c - '0');
-        }
-        break;
-    case Token::Type::LITERAL_NUMBER_HEXADECIMAL:
-    {
-        auto hex_to_decimal = [](char c)
-        {
-            if (c >= '0' && c <= '9')
-            {
-                return c - '0';
-            }
-            else if (c >= 'a' && c <= 'f')
-            {
-                return c - 'a';
-            }
-            else if (c >= 'A' && c <= 'F')
-            {
-                return c - 'A';
-            }
-            else
-            {
-                AEMU_FATAL("Invalid hexadecimal digit {}", c);
-                return 0;
-            }
-        };
-        for (char c : val_part)
-        {
-            val = (val * 16) + hex_to_decimal(c);
-        }
-        break;
+        fail(token, "address " + token.str() + " does not fit in 32 bits");
     }
-    default:
-        AEMU_FATAL("Expected numeric token but got {}", tok.val);
-    }
-    return val;
-}
-
-/**
- * Skips tokens that match the given regex.
- *
- * @param regex matches tokens to skip.
- * @param tok_i the index of the current token.
- */
-void Linker::skip_tokens(size_t &tok_i, const std::string &regex)
-{
-    while (in_bounds(tok_i) && std::regex_match(m_tokens[tok_i].val, std::regex(regex)))
-    {
-        tok_i++;
-    }
-}
-
-/**
- * Skips tokens that match the given types.
- *
- * @param tok_i the index of the current token.
- * @param tokenTypes the types to match.
- */
-void Linker::skip_tokens(size_t &tok_i, const std::set<Token::Type> &tokenTypes)
-{
-    while (in_bounds(tok_i) && tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end())
-    {
-        tok_i++;
-    }
-}
-
-/**
- * Expects the current token to exist.
- *
- * @param tok_i the index of the expected token.
- * @param errorMsg the error message to throw if the token does not exist.
- */
-bool Linker::expect_token(size_t tok_i, const std::string &errorMsg)
-{
-    AEMU_CHECK(in_bounds(tok_i), "{}", errorMsg);
-    return true;
-}
-
-bool Linker::expect_token(size_t tok_i, const std::set<Token::Type> &expectedTypes,
-                          const std::string &errorMsg)
-{
-    AEMU_CHECK(in_bounds(tok_i), "{}", errorMsg);
-    AEMU_CHECK(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), "{}", errorMsg);
-    return true;
-}
-
-/**
- * Returns whether the current token matches the given types.
- *
- * @param tok_i the index of the current token.
- * @param tokenTypes the types to match.
- *
- * @return true if the current token matches the given types.
- */
-bool Linker::is_token(size_t tok_i, const std::set<Token::Type> &tokenTypes,
-                      const std::string &errorMsg)
-{
-    expect_token(tok_i, errorMsg);
-    return tokenTypes.find(m_tokens[tok_i].type) != tokenTypes.end();
-}
-
-/**
- * Returns whether the current token index is within the bounds of the tokens list.
- *
- * @param tok_i the index of the current token
- *
- * @return true if the token index is within the bounds of the tokens list.
- */
-bool Linker::in_bounds(size_t tok_i)
-{
-    return tok_i < m_tokens.size();
-}
-
-/**
- * Consumes the current token.
- *
- * @param tok_i the index of the current token.
- * @param errorMsg the error message to throw if the token does not exist.
- *
- * @returns the value of the consumed token.
- */
-Linker::Token &Linker::consume(size_t &tok_i, const std::string &errorMsg)
-{
-    expect_token(tok_i, errorMsg);
-    return m_tokens[tok_i++];
-}
-
-/**
- * Consumes the current token and checks it matches the given types.
- *
- * @param tok_i the index of the current token.
- * @param expectedTypes the expected types of the token.
- * @param errorMsg the error message to throw if the token does not have the expected type.
- *
- * @returns the value of the consumed token.
- */
-Linker::Token &Linker::consume(size_t &tok_i, const std::set<Linker::Token::Type> &expectedTypes,
-                               const std::string &errorMsg)
-{
-    expect_token(tok_i, errorMsg);
-    AEMU_CHECK(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(),
-               "{} - Unexpected end of file.", errorMsg);
-    return m_tokens.at(tok_i++);
+    return static_cast<word>(token.int_value);
 }

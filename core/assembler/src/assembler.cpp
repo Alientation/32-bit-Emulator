@@ -6,12 +6,40 @@
 #include "util/types.h"
 
 #include <fstream>
-#include <regex>
+#include <optional>
+#include <span>
 
 Assembler::Assembler(const Process *process, const File processed_file,
                      const std::string &output_path) :
     m_process(process),
-    m_in_file(processed_file)
+    m_in_file(processed_file),
+    m_sources(std::make_shared<basm::SourceManager>())
+{
+    init(processed_file, output_path);
+
+    // Convert the input file into tokens.
+    const basm::SourceId source = m_sources->add_file(processed_file.get_path());
+    AEMU_CHECK(source != basm::kInvalidSource, "Assembler::Assembler() - Cannot read '{}'.",
+               processed_file.get_path());
+    basm::LexResult lexed = basm::lex(*m_sources, source);
+    basm::fatal_if_errors(*m_sources, lexed);
+    m_tokens = std::move(lexed.tokens);
+    m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_tokens));
+}
+
+Assembler::Assembler(const Process *process, const File processed_file,
+                     basm::PreprocessedSource source, const std::string &output_path) :
+    m_process(process),
+    m_in_file(processed_file),
+    m_sources(std::move(source.sources)),
+    m_tokens(std::move(source.tokens))
+{
+    init(processed_file, output_path);
+    AEMU_CHECK(m_sources != nullptr, "Assembler::Assembler() - The preprocessed source is empty.");
+    m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_tokens));
+}
+
+void Assembler::init(const File &processed_file, const std::string &output_path)
 {
     // Create the output object file.
     if (output_path.empty())
@@ -29,10 +57,6 @@ Assembler::Assembler(const Process *process, const File processed_file,
                processed_file.get_extension());
 
     m_state = State::NOT_ASSEMBLED;
-
-    // Convert the input file into tokens.
-    m_tokenizer = Tokenizer(processed_file,
-                            Tokenizer::Options{.keep_comments = false, .keep_whitespace = false});
 }
 
 void Assembler::assemble()
@@ -66,20 +90,25 @@ void Assembler::assemble()
 
     // Parse tokens.
     AEMU_DEBUG("Assembler::assemble() - Parsing tokens.");
-    while (m_tokenizer.has_next())
+    while (!m_cursor.at_end())
     {
-        const Tokenizer::Token &token = m_tokenizer.get_token();
-        AEMU_DEBUG("Assembler::assemble() - Assembling token {}: {}", m_tokenizer.get_toki(),
-                   token.to_string());
+        const basm::Token &token = m_cursor.peek();
+        AEMU_DEBUG("Assembler::assemble() - Assembling token {}: {}", m_cursor.position(),
+                   basm::describe(token));
 
-        if (token.type == Tokenizer::LABEL)
+        if (token.is(basm::TokenType::NEWLINE))
+        {
+            m_cursor.next();
+            continue;
+        }
+
+        m_statement = &token;
+        if (token.type == basm::TokenType::LABEL)
         {
             // Handle label.
             if (m_cur_section == Section::NONE)
             {
-                AEMU_FATAL("Assembler::assemble() - Label must be located in a section.");
-                m_state = State::ASSEMBLER_ERROR;
-                break;
+                fail(token, "label must be located in a section");
             }
 
             // The symbol name depends on its scope level. This allows for nested scopes to have
@@ -89,7 +118,7 @@ void Assembler::assemble()
             // TODO: Warn the user if this is the case. Keep track at each scope level what are
             // the registered labels thus far.
             const std::string symbol =
-                token.value.substr(0, token.value.size() - 1)
+                token.str()
                 + (m_scopes.empty() ? "" : "::SCOPE:" + std::to_string(m_scopes.back()));
 
             // Track the offset in the section that this label is in.
@@ -110,37 +139,34 @@ void Assembler::assemble()
             }
             else
             {
-                AEMU_FATAL("Assembler::assemble() - Label {} is not located in a valid "
-                           "section. Valid sections are TEXT, DATA, and BSS",
-                           token.value);
-                m_state = State::ASSEMBLER_ERROR;
-                break;
+                fail(token, "label '" + token.str()
+                                + "' is not located in a valid section, valid sections are .text, "
+                                  ".data, and .bss");
             }
-            m_tokenizer.consume();
+
+            // A label is not a statement of its own, an instruction can follow on the same line.
+            m_cursor.next();
         }
         else if (m_instruction_handlers.find(token.type) != m_instruction_handlers.end())
         {
             // Handle instruction.
             if (m_cur_section != Section::TEXT)
             {
-                AEMU_FATAL("Assembler::assemble() - Code must be located in .text section.");
-                m_state = State::ASSEMBLER_ERROR;
-                break;
+                fail(token, "code must be located in the .text section");
             }
             (this->*m_instruction_handlers[token.type])();
+            expect_end_of_statement();
         }
         else if (m_directive_handlers.find(token.type) != m_directive_handlers.end())
         {
             // Handle assembler directive.
             (this->*m_directive_handlers[token.type])();
+            expect_end_of_statement();
         }
         else
         {
             // Unknown token.
-            AEMU_FATAL("Assembler::assemble() - Cannot parse token {} {}", m_tokenizer.get_toki(),
-                       token.to_string());
-            m_state = State::ASSEMBLER_ERROR;
-            break;
+            fail(token, "cannot parse " + basm::describe(token));
         }
     }
     AEMU_DEBUG("Assembler::assemble() - Finished parsing tokens.");
@@ -173,7 +199,7 @@ Assembler::State Assembler::get_state() const
 
 void Assembler::fill_local()
 {
-    const std::vector<Tokenizer::Token> &tokens = m_tokenizer.get_tokens();
+    const std::vector<basm::Token> &tokens = m_tokens;
     size_t tok_i = 0;
 
     AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
@@ -187,11 +213,11 @@ void Assembler::fill_local()
 
         while (tok_i < rel.token && tok_i < tokens.size())
         {
-            if (tokens[tok_i].type == Tokenizer::ASSEMBLER_SCOPE)
+            if (tokens[tok_i].type == basm::TokenType::ASSEMBLER_SCOPE)
             {
                 local_scope.push_back(local_count_scope++);
             }
-            else if (tokens[tok_i].type == Tokenizer::ASSEMBLER_SCEND)
+            else if (tokens[tok_i].type == basm::TokenType::ASSEMBLER_SCEND)
             {
                 local_scope.pop_back();
             }
