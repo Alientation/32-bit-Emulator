@@ -154,20 +154,11 @@ class SystemBus : private VirtualMemory::PhysicalPages
      *
      * @param address The virtual address of the instruction.
      * @throws VirtualMemory::PageFaultException if the address is unmapped or not executable.
-     * @throws SystemBus::Exception if the instruction is not in RAM.
+     * @throws SystemBus::Exception if the instruction is not in RAM or ROM.
      */
     inline word fetch_instruction(const word address)
     {
-        // The page tables say whether a page can be executed; the swapping memory has its own list.
-        const bool walk = mmu->walk_enabled();
-        const word real_addr = translate_address(address, walk ? VirtualMemory::AccessType::EXECUTE
-                                                               : VirtualMemory::AccessType::READ);
-        if (UNLIKELY(!walk && !mmu->can_execute_address(address)))
-        {
-            VirtualMemory::throw_fault(VirtualMemory::PageFaultException::Reason::EXECUTE_DENIED,
-                                       address >> kNumPageOffsetBits,
-                                       VirtualMemory::AccessType::EXECUTE);
-        }
+        const word real_addr = mmu->translate_fetch(address);
         if (LIKELY(ram->in_bounds(real_addr))) return ram->read_word_aligned(real_addr);
         return fetch_outside_ram(real_addr, address);
     }

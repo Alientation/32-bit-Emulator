@@ -47,7 +47,18 @@ class VirtualMemory
     VirtualMemory &operator=(const VirtualMemory &) = delete;
 
     Disk *m_disk;
-    bool enabled = true; /* Whether addresses should be mapped. */
+
+    /// Whether addresses are mapped by the page tables of the processes. Off, they are physical.
+    bool enabled() const
+    {
+        return m_enabled;
+    }
+
+    void set_enabled(bool enabled)
+    {
+        m_enabled = enabled;
+        drop_fetch_cache();
+    }
 
     /// What a memory access does, which decides the permission it needs.
     enum class AccessType : U8
@@ -191,7 +202,11 @@ class VirtualMemory
     /// Whether accesses are made in user mode, which may only use pages marked user.
     void set_user_mode(bool user)
     {
-        m_user = user;
+        if (user != m_user)
+        {
+            m_user = user;
+            drop_fetch_cache();
+        }
     }
 
     /// `TLBI`: forget the cached translation of the page that holds `address`, or all of them.
@@ -325,22 +340,39 @@ class VirtualMemory
      */
     inline bool can_execute_address(word address)
     {
-        if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
+        if (UNLIKELY(m_cur_ptable == nullptr || !m_enabled))
         {
             return true;
         }
 
-        const word vpage = address >> kNumPageOffsetBits;
-        if (LIKELY(m_exec_cache_valid && m_exec_cache_vpage == vpage))
-        {
-            return m_exec_cache_result;
-        }
+        const auto it = m_cur_ptable->entries.find(address >> kNumPageOffsetBits);
+        return it != m_cur_ptable->entries.end() && it->second->execute;
+    }
 
-        const auto it = m_cur_ptable->entries.find(vpage);
-        m_exec_cache_valid = true;
-        m_exec_cache_vpage = vpage;
-        m_exec_cache_result = it != m_cur_ptable->entries.end() && it->second->execute;
-        return m_exec_cache_result;
+    /**
+     * @brief             Converts the virtual address of an instruction into a physical address,
+     *                     and checks that the page may be executed (the permission that
+     *                     `translate_address` does not look at in the swapping memory).
+     *
+     * @details           The page of the last instruction fetched is remembered, and fetching from
+     *                     it again is the translation of a few bits. The page is forgotten
+     *                     whenever something that could change the answer happens: the mappings,
+     *                     the permissions, the process, the mode or the page tables change, the TLB
+     *                     entry of the page is dropped or replaced, or (in the swapping memory) the
+     *                     hand of the clock clears the mark of the page, which is how a page that
+     *                     is used by the fetch alone stays in memory.
+     *
+     * @throws            PageFaultException if the page may not be executed.
+     * @param             address: Virtual address of the instruction.
+     * @return            Physical address of the instruction.
+     */
+    inline word translate_fetch(word address)
+    {
+        if (LIKELY((address >> kNumPageOffsetBits) == m_fetch_vpage))
+        {
+            return (m_fetch_ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
+        }
+        return translate_fetch_slow(address);
     }
 
     /**
@@ -363,7 +395,7 @@ class VirtualMemory
      */
     inline word translate_address(long long pid, word address, AccessType access = AccessType::READ)
     {
-        if (UNLIKELY(!enabled))
+        if (UNLIKELY(!m_enabled))
         {
             return address;
         }
@@ -400,7 +432,7 @@ class VirtualMemory
         }
 
         // The devices are always where they are, so a program without page tables can use them.
-        if (UNLIKELY(m_cur_ptable == nullptr || !enabled || address >= kDeviceBase))
+        if (UNLIKELY(m_cur_ptable == nullptr || !m_enabled || address >= kDeviceBase))
         {
             return address;
         }
@@ -582,14 +614,26 @@ class VirtualMemory
      */
     PageTable *m_cur_ptable = nullptr;
 
+    bool m_enabled = true;
+
     /**
-     * @brief             Result of the last execute permission check of the current process. Reset
-     *                     whenever the current process, or the mappings or permissions of a
-     *                     process, change.
+     * @brief             The page that the last instruction was fetched from, with the physical page
+     *                     it is in, once the fetch was allowed. See translate_fetch. The virtual
+     *                     page is kNoPage (which no address has) when there is none.
      */
-    bool m_exec_cache_valid = false;
-    word m_exec_cache_vpage = 0;
-    bool m_exec_cache_result = false;
+    static constexpr word kNoPage = ~word(0);
+    word m_fetch_vpage = kNoPage;
+    word m_fetch_ppage = 0;
+
+    /// Forgets the page that instructions are fetched from. Everything that changes whether a
+    /// fetch is allowed, or where the page is, calls this.
+    inline void drop_fetch_cache()
+    {
+        m_fetch_vpage = kNoPage;
+    }
+
+    /// translate_fetch for a page that is not remembered: translates, checks and remembers it.
+    word translate_fetch_slow(word address);
 
     /**
      * @brief            Beginning and end of the list that makes up the clock, the pages that can be

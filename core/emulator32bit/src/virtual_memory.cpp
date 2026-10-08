@@ -66,6 +66,13 @@ void VirtualMemory::invalidate_tlb(long long pid, word vpage)
     {
         tlb_entry.valid = false;
     }
+
+    // The page of the current process that is fetched from. A page of another process with the
+    // same number does not matter, but it is not worth looking at the process.
+    if (vpage == m_fetch_vpage)
+    {
+        drop_fetch_cache();
+    }
 }
 
 void VirtualMemory::flush_tlb()
@@ -74,6 +81,7 @@ void VirtualMemory::flush_tlb()
     {
         tlb_entry.valid = false;
     }
+    drop_fetch_cache();
 }
 
 void VirtualMemory::clock_remove(PhysicalPage &page)
@@ -165,6 +173,14 @@ word VirtualMemory::clock_victim()
                         return page->ppage;
                     }
                     page->referenced = false;
+
+                    // Fetching from the page does not mark it while it is remembered (that is
+                    // the point of remembering it), so the next fetch has to go the long way
+                    // and mark it, or the page would look unused and be evicted while it runs.
+                    if (page->ppage == m_fetch_ppage)
+                    {
+                        drop_fetch_cache();
+                    }
                 }
                 page = next;
             } while (page != start);
@@ -325,7 +341,7 @@ void VirtualMemory::set_process(long long pid)
     }
 
     m_cur_ptable = m_process_ptable_map.at(pid);
-    m_exec_cache_valid = false;
+    drop_fetch_cache();
     AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
 
@@ -346,7 +362,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
 
     m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
     m_cur_ptable = new_pagetable;
-    m_exec_cache_valid = false;
+    drop_fetch_cache();
 
     AEMU_DEBUG("Beginning process {}.", pid);
     return pid;
@@ -381,7 +397,7 @@ void VirtualMemory::end_process(long long pid)
     {
         m_cur_ptable = nullptr;
     }
-    m_exec_cache_valid = false;
+    drop_fetch_cache();
 
     delete m_process_ptable_map.at(pid);
     m_process_ptable_map.erase(pid);
@@ -446,7 +462,7 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
         return;
     }
 
-    m_exec_cache_valid = false;
+    drop_fetch_cache();
     PageTable *ptable = m_process_ptable_map.at(pid);
     for (word vpage = vpage_begin;; vpage++)
     {
@@ -625,7 +641,6 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
     ptable->entries.erase(vpage);
 
     invalidate_tlb(pid, vpage);
-    m_exec_cache_valid = false;
 
     if (entry->disk)
     {
@@ -756,7 +771,7 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
 
 void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage)
 {
-    if (UNLIKELY(!enabled))
+    if (UNLIKELY(!m_enabled))
     {
         return;
     }
@@ -920,6 +935,7 @@ void VirtualMemory::invalidate_translations()
     {
         entry.valid = false;
     }
+    drop_fetch_cache();
 }
 
 void VirtualMemory::invalidate_translation(const word address)
@@ -930,6 +946,32 @@ void VirtualMemory::invalidate_translation(const word address)
     {
         entry.valid = false;
     }
+    // The page that is fetched from stands for the entry of the TLB that has it, so it goes with
+    // it, and only with it (the entry of another page in the same slot stays, and so does it).
+    if (vpage == m_fetch_vpage)
+    {
+        drop_fetch_cache();
+    }
+}
+
+word VirtualMemory::translate_fetch_slow(const word address)
+{
+    const word vpage = address >> kNumPageOffsetBits;
+
+    // The page tables say whether a page can be executed; the swapping memory has its own list,
+    // which is looked at after the translation, since that is where the page is brought in.
+    const word physical =
+        translate_address(address, m_walk ? AccessType::EXECUTE : AccessType::READ);
+    if (UNLIKELY(!m_walk && !can_execute_address(address)))
+    {
+        throw_fault(PageFaultException::Reason::EXECUTE_DENIED, vpage, AccessType::EXECUTE);
+    }
+
+    // Only now: the translation can have dropped it (the walk fills the TLB, a page that is
+    // brought in evicts another).
+    m_fetch_vpage = vpage;
+    m_fetch_ppage = physical >> kNumPageOffsetBits;
+    return physical;
 }
 
 // The walk: first level entry (10 bits of the address), second level entry (10 bits), page.
@@ -976,6 +1018,9 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
         fault(PageFaultException::Reason::UNMAPPED);
     }
 
+    // The slot may have held the entry of the page that is fetched from. The visible TLB keeps a
+    // stale entry only as long as it is there, so what stands for it goes as well.
+    drop_fetch_cache();
     WalkEntry &cached = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
     cached = {.valid = true,
               .vpage = vpage,

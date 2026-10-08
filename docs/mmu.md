@@ -83,6 +83,8 @@ Translations are cached in a TLB of 4096 entries, indexed by the page number. Th
 
 after it changes or removes an entry that may be cached (revoking permissions, unmapping, remapping). Not needed after making a page *more* permissive or after adding a new mapping: an access that the cached entry does not allow always walks the table again. Writing `PTBR` or `SCTLR` forgets everything. There are no address space identifiers, so a context switch (a new `PTBR`) costs a flush. `TLBI` is privileged. Its encoding is the old reserved one (`imm16` is reserved, write 0).
 
+Instruction fetch keeps the page of the last instruction (`VirtualMemory::translate_fetch`) so that the next one in the page does not look at the TLB. That is not a second cache that software could see: the page is forgotten exactly when its TLB entry is, whether by `tlbi`, by `PTBR`/`SCTLR`, or because a translation of another page took the slot of the entry, and also when the mode (`PSTATE.U`) changes. So a stale entry stays in effect for fetches only as long as it does for loads and stores.
+
 ## Turning it on
 
 The tables must already map the code that is running, since the next fetch uses them. The usual order:
@@ -113,4 +115,4 @@ A bare metal program that knows where its tables are puts them at physical addre
 
 ## Where it is in the code
 
-`VirtualMemory::walk_translate` (the walk), `translate_address` (the TLB hit check, inline), `SystemBus::fetch_instruction` (fetches with `EXECUTE`), `Emulator32bit::write_sysreg` (`PTBR`, `SCTLR`), `Emulator32bit::_tlbi`. Tests: `mmu_test.cpp`.
+`VirtualMemory::walk_translate` (the walk), `translate_address` (the TLB hit check, inline), `translate_fetch` (the same for an instruction fetch, with the page that it keeps and `EXECUTE`, called by `SystemBus::fetch_instruction`), `Emulator32bit::write_sysreg` (`PTBR`, `SCTLR`), `Emulator32bit::_tlbi`. Tests: `mmu_test.cpp`.

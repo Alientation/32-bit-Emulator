@@ -102,10 +102,55 @@ std::optional<Fault::Reason> fault_of(VirtualMemory &vm, word vpage, Access acce
     return std::nullopt;
 }
 
+/// What the fault of fetching an instruction from the page is, or nothing if there is none.
+std::optional<Fault::Reason> fetch_fault_of(VirtualMemory &vm, word vpage)
+{
+    try
+    {
+        vm.translate_fetch(vaddr(vpage));
+    }
+    catch (const Fault &fault)
+    {
+        return fault.get_reason();
+    }
+    return std::nullopt;
+}
+
+/// The physical page that an instruction at the start of the virtual page is fetched from.
+word fetch_ppage_of(VirtualMemory &vm, word vpage)
+{
+    return vm.translate_fetch(vaddr(vpage)) >> kNumPageOffsetBits;
+}
+
 std::vector<byte> filled(byte value)
 {
     return std::vector<byte>(kPageSize, value);
 }
+
+/// Page tables in the fake physical memory: the first level table is in physical page 1.
+constexpr word kTableBase = word(1) << kNumPageOffsetBits;
+
+/// Maps the virtual page to the physical page with the bits (VirtualMemory::kPte...). The second
+/// level table that holds the entry is in physical page `table`.
+void set_pte(Machine &m, word vpage, word ppage, word bits, word table)
+{
+    constexpr word first_level_bits = 10;
+    m.physical.write_physical_word(kTableBase + ((vpage >> first_level_bits) << 2),
+                                   (table << kNumPageOffsetBits) | VirtualMemory::kPteValid);
+    m.physical.write_physical_word((table << kNumPageOffsetBits)
+                                       + ((vpage & ((1u << first_level_bits) - 1)) << 2),
+                                   (ppage << kNumPageOffsetBits) | VirtualMemory::kPteValid | bits);
+}
+
+/// A machine whose virtual memory translates with the page tables.
+struct WalkMachine : Machine
+{
+    WalkMachine()
+    {
+        vm.set_page_table_base(kTableBase);
+        vm.set_walk_enabled(true);
+    }
+};
 
 } // namespace
 
@@ -429,4 +474,222 @@ TEST(virtual_memory, a_virtual_memory_is_cheap_to_create)
     {
         VirtualMemory vm(&disk);
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The page that instructions are fetched from is remembered (translate_fetch), and has to be
+// forgotten whenever the answer could change.
+// ---------------------------------------------------------------------------------------------
+
+TEST(virtual_memory_fetch, a_page_is_fetched_from_where_it_is_and_the_address_is_kept)
+{
+    Machine m(4, 2);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 2, true, true);
+
+    const word ppage = fetch_ppage_of(m.vm, 10);
+    EXPECT_EQ(ppage, ppage_of(m.vm, 10));
+    EXPECT_EQ(m.vm.translate_fetch(vaddr(10, 0x24)), vaddr(ppage, 0x24))
+        << "from the page it keeps";
+    EXPECT_EQ(m.vm.translate_fetch(vaddr(10, 0xFFC)), vaddr(ppage, 0xFFC));
+    EXPECT_NE(fetch_ppage_of(m.vm, 11), ppage) << "another page is another page";
+    EXPECT_EQ(fetch_ppage_of(m.vm, 10), ppage);
+}
+
+TEST(virtual_memory_fetch, a_page_that_is_not_executable_cannot_be_fetched_from)
+{
+    Machine m;
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, false);
+
+    // Not remembered either, so it is not allowed the second time.
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::EXECUTE_DENIED);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::EXECUTE_DENIED);
+    EXPECT_EQ(fetch_fault_of(m.vm, 11), Fault::Reason::UNMAPPED);
+}
+
+TEST(virtual_memory_fetch, a_page_that_stops_being_executable_cannot_be_fetched_from_anymore)
+{
+    Machine m;
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, true);
+
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), std::nullopt);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), std::nullopt) << "from the page it keeps";
+    m.vm.set_vpage_permissions(pid, 10, 10, true, false);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::EXECUTE_DENIED);
+}
+
+TEST(virtual_memory_fetch, the_fetch_follows_the_process)
+{
+    Machine m;
+    const long long first = m.vm.begin_process();
+    m.vm.add_vpage(first, 10, 1, true, true);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), std::nullopt);
+
+    const long long second = m.vm.begin_process();
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::UNMAPPED)
+        << "10 is not a page of the second";
+
+    m.vm.set_process(first);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), std::nullopt);
+    m.vm.end_process(first);
+    m.vm.set_process(second);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::UNMAPPED);
+}
+
+TEST(virtual_memory_fetch, a_page_that_a_data_access_swapped_out_is_brought_back_in)
+{
+    Machine m(4, 1); // one frame, so the pages take turns
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 2, true, true);
+
+    const word frame = fetch_ppage_of(m.vm, 10);
+
+    // The only frame is page 11's now. If the fetch still used what it kept, it would run the
+    // code of page 11.
+    ppage_of(m.vm, 11);
+    m.physical.read.clear();
+    EXPECT_EQ(fetch_ppage_of(m.vm, 10), frame);
+    EXPECT_EQ(m.physical.read, std::vector<word>{frame}) << "11 was saved to make room for 10";
+}
+
+// The page can also be evicted without the hand: an explicit mapping takes its physical page.
+TEST(virtual_memory_fetch, a_page_that_a_mapping_took_the_physical_page_of_is_brought_back_in)
+{
+    Machine m(4, 3);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, true);
+
+    const word frame = fetch_ppage_of(m.vm, 10);
+    m.vm.ensure_physical_page_mapping(pid, 20, frame);
+
+    // 10 was saved to the disk, and the frame is 20's. If the fetch still used what it kept, it
+    // would run what is in the frame.
+    EXPECT_NE(fetch_ppage_of(m.vm, 10), frame);
+    EXPECT_EQ(m.vm.translate_address(vaddr(20)), vaddr(frame));
+}
+
+TEST(virtual_memory_fetch, addresses_are_physical_when_the_virtual_memory_is_off)
+{
+    Machine m(4, 2);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 1, true, true);
+
+    const word mapped = fetch_ppage_of(m.vm, 10);
+    ASSERT_NE(mapped, 10u);
+    m.vm.set_enabled(false);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 10), 10u);
+    m.vm.set_enabled(true);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 10), mapped);
+}
+
+// A page that only instructions are fetched from has nothing that marks it as used while it is
+// remembered, so the hand of the clock that clears its mark has to make it forget it.
+TEST(virtual_memory_fetch,
+     a_page_that_is_only_fetched_from_is_marked_again_after_the_hand_cleared_it)
+{
+    Machine m(4, 3);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 6, true, true);
+
+    const word data1 = ppage_of(m.vm, 11);
+    const word data2 = ppage_of(m.vm, 12);
+    const word code = fetch_ppage_of(m.vm, 10);
+
+    // All three are marked. The first turn of the hand clears them (the code page too, and the
+    // fetch forgets it) and 11, which was first, goes.
+    EXPECT_EQ(ppage_of(m.vm, 13), data1);
+
+    // Instructions are fetched again and 12 is used again: both are marked.
+    EXPECT_EQ(m.vm.translate_fetch(vaddr(10, 4)), vaddr(code, 4));
+    ppage_of(m.vm, 12);
+
+    // The hand passes both, and then every page is cleared and 12, where it started, goes. If
+    // the fetch had not marked the code page it would be this one.
+    EXPECT_EQ(ppage_of(m.vm, 14), data2);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 10), code);
+}
+
+// With the page tables the TLB can be seen by the program: an entry stays as it was until
+// tlbi, or until another page replaces it.
+TEST(virtual_memory_fetch, the_page_tables_are_read_again_after_tlbi_and_not_before)
+{
+    WalkMachine m;
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute, 2);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u);
+    EXPECT_EQ(m.vm.translate_fetch(vaddr(5, 0x24)), vaddr(8, 0x24));
+
+    set_pte(m, 5, 9, VirtualMemory::kPteExecute, 2);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u) << "the entry of the TLB is as it was";
+
+    m.vm.invalidate_translation(vaddr(6)); // another page does not matter
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u);
+    m.vm.invalidate_translation(vaddr(5));
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 9u);
+}
+
+TEST(virtual_memory_fetch, a_page_that_the_tables_do_not_allow_to_execute_anymore_faults_after_tlbi)
+{
+    WalkMachine m;
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute, 2);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), std::nullopt);
+
+    set_pte(m, 5, 8, 0, 2);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), std::nullopt) << "the entry of the TLB is as it was";
+    m.vm.invalidate_translations();
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), Fault::Reason::EXECUTE_DENIED);
+}
+
+TEST(virtual_memory_fetch, a_page_replaced_in_the_tlb_is_read_from_the_tables_again)
+{
+    WalkMachine m;
+    // 5 and 4101 are the same slot of the TLB.
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute, 2);
+    set_pte(m, 4101, 9, 0, 3);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u);
+
+    m.vm.translate_address(vaddr(4101), Access::READ);
+
+    // The entry of 5 is not in the TLB anymore, so the change is seen without tlbi.
+    set_pte(m, 5, 10, VirtualMemory::kPteExecute, 2);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 10u);
+}
+
+TEST(virtual_memory_fetch, the_mode_decides_whether_a_user_page_can_be_fetched_from)
+{
+    WalkMachine m;
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute | VirtualMemory::kPteUser, 2);
+
+    m.vm.set_user_mode(true);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), std::nullopt);
+    m.vm.set_user_mode(false);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), Fault::Reason::EXECUTE_DENIED)
+        << "the kernel does not run code of a user process";
+    m.vm.set_user_mode(true);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), std::nullopt);
+
+    // And a kernel page cannot be run in user mode.
+    set_pte(m, 6, 9, VirtualMemory::kPteExecute, 2);
+    m.vm.set_user_mode(false);
+    EXPECT_EQ(fetch_fault_of(m.vm, 6), std::nullopt);
+    m.vm.set_user_mode(true);
+    EXPECT_EQ(fetch_fault_of(m.vm, 6), Fault::Reason::KERNEL_ONLY);
+}
+
+TEST(virtual_memory_fetch, a_new_table_or_switching_back_to_swapping_forgets_the_page)
+{
+    WalkMachine m;
+    set_pte(m, 5, 8, VirtualMemory::kPteExecute, 2);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u);
+
+    // Another first level table: page 1's content is moved to page 12.
+    m.vm.set_page_table_base(word(12) << kNumPageOffsetBits);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), Fault::Reason::UNMAPPED);
+
+    m.vm.set_page_table_base(kTableBase);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 8u);
+    m.vm.set_walk_enabled(false);
+    EXPECT_EQ(fetch_fault_of(m.vm, 5), std::nullopt) << "without a process everything can run";
+    EXPECT_EQ(fetch_ppage_of(m.vm, 5), 5u) << "and addresses are physical";
 }

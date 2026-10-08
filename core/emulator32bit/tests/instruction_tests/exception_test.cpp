@@ -364,7 +364,7 @@ TEST_F(Exceptions, an_access_that_crosses_into_a_page_that_faults_reports_the_pa
 TEST_F(Exceptions, an_access_to_a_physical_address_with_no_memory_is_a_bus_error)
 {
     install_vectors();
-    cpu.system_bus->mmu->enabled = false; // addresses are physical
+    cpu.system_bus->mmu->set_enabled(false); // addresses are physical
     cpu.write_reg(U8(0), 0x7FFF0000);
 
     expect_in_handler(run({load(1, 0)}), Class::DATA_ABORT);
