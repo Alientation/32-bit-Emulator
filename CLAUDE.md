@@ -22,7 +22,10 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compile
 ./build.sh coverage   # lcov/genhtml report from build/debug gcov data -> core/coverage/
 ./build.sh asan       # separate build in build/asan (Debug) with AddressSanitizer + LeakSanitizer + UBSan, then ctest on it
 ./build.sh ubsan      # the same with UBSan alone in build/ubsan (much faster)
+tools/bench.sh        # times the emulator on tools/bench/*.basm and long_loop (best of 5 runs, MIPS); --perf shows where the time goes
 ```
+
+Benchmark before and after a change to the hot path (`run()`, `SystemBus`, `VirtualMemory`). `tools/bench.sh --perf` finds perf itself: `/usr/bin/perf` is a wrapper that does not work on the WSL2 kernel, so it uses the binary in `/usr/lib/linux-tools/*/perf` with the software `cpu-clock` event (WSL2 has no hardware counters), and the release build has debug info so the samples can be attributed to source lines.
 
 CI runs `./build.sh` and, as a second job, `./build.sh asan`.
 

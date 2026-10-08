@@ -1,0 +1,29 @@
+; Benchmark of the data side of the memory system (tools/bench.sh).
+;
+; Loops 4 million times over a word, a byte and a half word load and store to the same few
+; bytes of .data: 9 instructions per iteration, 36 million in all, six of them accesses of
+; memory. The code stays in one page and so does the data, so this measures the cost of a
+; translation and a bus access and not of the swapping.
+
+.global _start
+
+.data
+buf:    .advance 64
+
+.text
+_start:
+                adrp    x1, buf
+                add     x1, x1, :lo12:buf
+                ldr     x0, =4000000           ; number of iterations
+
+_loop:
+                ldr     x2, [x1]
+                add     x2, x2, 1
+                str     x2, [x1]
+                ldrb    x3, [x1, 4]
+                strb    x3, [x1, 5]
+                ldrh    x4, [x1, 8]
+                strh    x4, [x1, 10]
+                subs    x0, x0, 1
+                b.ne    _loop
+                hlt
