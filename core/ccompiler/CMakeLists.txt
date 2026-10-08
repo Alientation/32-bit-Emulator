@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.15)
-project(ccompiler LANGUAGES C)
-
 add_library(ccompiler STATIC
     src/ccompiler.c
     src/lexer.c
@@ -11,33 +8,24 @@ add_library(ccompiler STATIC
     src/util.c
 )
 
-add_executable(ccompiler_exec src/main.c)
-
 target_include_directories(ccompiler
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(ccompiler_exec PRIVATE ccompiler)
+target_compile_features(ccompiler PUBLIC c_std_11)
 
 if(WIN32)
     target_link_libraries(ccompiler PRIVATE regex)
 endif()
 
-foreach(tgt ccompiler ccompiler_exec)
-    target_compile_options(${tgt} PRIVATE
-        -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-g --coverage>
-        $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
-        $<$<CONFIG:Release>:-O3 -flto=auto>
-    )
+aemu_target_defaults(ccompiler)
 
-    target_link_options(${tgt} PRIVATE
-        $<$<CONFIG:Debug>:--coverage>
-        $<$<CONFIG:RelWithDebInfo>:-flto=auto>
-        $<$<CONFIG:Release>:-flto=auto>
-    )
-endforeach()
+add_executable(ccompiler_exec src/main.c)
+target_link_libraries(ccompiler_exec PRIVATE ccompiler)
+aemu_target_defaults(ccompiler_exec)
 
-add_subdirectory(tests)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

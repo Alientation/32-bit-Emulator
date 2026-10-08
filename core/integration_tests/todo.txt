@@ -1,0 +1,4 @@
+Plans
+- Move over assembler tests covering that require running the emulator
+- Create emulator32bit executable that will take in command line arguments to configure and run
+- Add tests for the entire pipeline

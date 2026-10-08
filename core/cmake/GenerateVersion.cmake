@@ -1,20 +1,27 @@
-find_package(Git)
+# Script mode (cmake -P). Expects:
+#   SRC:          version.h.in template
+#   DST:          generated header path
+#   GIT_WORK_DIR: directory inside the git repository
+find_package(Git QUIET)
 
+set(AEMU_VERSION "")
 if(GIT_EXECUTABLE)
-    get_filename_component(CMAKE_SOURCE_DIR ${SRC} DIRECTORY)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${GIT_WORK_DIR}
         OUTPUT_VARIABLE AEMU_VERSION
         RESULT_VARIABLE ERROR_CODE
         OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
     )
-    message(STATUS "AEMU version: ${AEMU_VERSION}")
+    if(NOT ERROR_CODE EQUAL 0)
+        set(AEMU_VERSION "")
+    endif()
 endif()
 
-if(AEMU_VERSION STREQUAL "")
+if(NOT AEMU_VERSION)
     set(AEMU_VERSION "0.0.0-unknown")
-    message(WARNING WARNING "Failed to determine version from Git tags. Using default version \"${AEMU_VERSION}\".")
+    message(WARNING "Failed to determine version from Git tags. Using default version \"${AEMU_VERSION}\".")
 endif()
 
 configure_file(${SRC} ${DST} @ONLY)

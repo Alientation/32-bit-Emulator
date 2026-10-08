@@ -1,8 +1,7 @@
-cmake_minimum_required(VERSION 3.15)
-project(emulator32bit_tests LANGUAGES CXX)
-
-if(BUILD_TESTS)
-    add_executable(emulator32bit_tests
+aemu_add_gtest(emulator32bit_tests
+    LABEL emulator32bit
+    LIBS aemu::emulator32bit
+    SOURCES
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
         ./instruction_tests/hlt_test.cpp
@@ -36,33 +35,4 @@ if(BUILD_TESTS)
         ./instruction_tests/strb_test.cpp
         ./instruction_tests/strh_test.cpp
         ./instruction_tests/swp_test.cpp
-    )
-
-    target_include_directories(emulator32bit_tests
-        PRIVATE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    )
-
-    target_link_libraries(emulator32bit_tests
-        PRIVATE
-            emulator32bit
-            util
-            GTest::gtest_main
-    )
-
-    target_compile_options(emulator32bit_tests PRIVATE
-        -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-g --coverage>
-        $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
-        $<$<CONFIG:Release>:-O3 -flto=auto>
-    )
-
-    target_link_options(emulator32bit_tests PRIVATE
-        $<$<CONFIG:Debug>:--coverage>
-        $<$<CONFIG:RelWithDebInfo>:-flto=auto>
-        $<$<CONFIG:Release>:-flto=auto>
-    )
-
-    include(GoogleTest)
-    gtest_discover_tests(emulator32bit_tests PROPERTIES LABELS emulator32bit)
-endif()
+)

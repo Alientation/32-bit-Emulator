@@ -1,4 +1,5 @@
 /.vscode
+/.claude
 build/
 install/
 /.VSCodeCounter
@@ -11,3 +12,5 @@ coverage/
 !core/assembler/tests/disk.bin
 !core/assembler/tests/disk.bin.info
 !core/assembler/tests/rom.bin
+# Generated at build time into the build directory
+core/src/version.h

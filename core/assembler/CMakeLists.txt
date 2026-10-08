@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.15)
-project(assembler VERSION 0.0.1 LANGUAGES CXX)
-
 add_library(assembler STATIC
     src/assembler.cpp
     src/build.cpp
@@ -13,6 +10,7 @@ add_library(assembler STATIC
     src/preprocessor.cpp
     src/tokenizer.cpp
 )
+add_library(aemu::assembler ALIAS assembler)
 
 target_include_directories(assembler
     PUBLIC
@@ -21,27 +19,14 @@ target_include_directories(assembler
 )
 
 target_compile_features(assembler PUBLIC cxx_std_20)
-target_link_libraries(assembler PUBLIC util emulator32bit)
+target_link_libraries(assembler PUBLIC aemu::util aemu::emulator32bit)
+aemu_target_defaults(assembler)
 
 set_target_properties(assembler PROPERTIES DEBUG_POSTFIX "d")
 
 add_executable(basm src/main.cpp)
-target_link_libraries(basm PRIVATE assembler)
-
-foreach(tgt assembler basm)
-    target_compile_options(${tgt} PRIVATE
-        -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-g --coverage>
-        $<$<CONFIG:RelWithDebInfo>:-O3 -flto=auto>
-        $<$<CONFIG:Release>:-O3 -flto=auto>
-    )
-
-    target_link_options(${tgt} PRIVATE
-        $<$<CONFIG:Debug>:--coverage>
-        $<$<CONFIG:RelWithDebInfo>:-flto=auto>
-        $<$<CONFIG:Release>:-flto=auto>
-    )
-endforeach()
+target_link_libraries(basm PRIVATE aemu::assembler)
+aemu_target_defaults(basm)
 
 include(GNUInstallDirs)
 
@@ -63,4 +48,6 @@ install(EXPORT assembler-targets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/assembler
 )
 
-add_subdirectory(tests)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
