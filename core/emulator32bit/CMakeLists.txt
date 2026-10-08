@@ -8,6 +8,8 @@ add_library(emulator32bit STATIC
     src/system_bus.cpp
     src/disk.cpp
     src/fbl.cpp
+    src/symbols.cpp
+    src/debugger.cpp
 )
 add_library(aemu::emulator32bit ALIAS emulator32bit)
 

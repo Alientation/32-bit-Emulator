@@ -1,6 +1,8 @@
+#include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
 
 #include "assembler/load_executable.h"
+#include "assembler/object_file.h"
 #include "util/file.h"
 #include "util/logger.h"
 
@@ -19,61 +21,6 @@
 namespace
 {
 
-/// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers.
-std::optional<U64> parse_number(const std::string &str)
-{
-    try
-    {
-        size_t consumed = 0;
-        U64 value;
-        if (str.rfind("0b", 0) == 0 || str.rfind("0B", 0) == 0)
-        {
-            value = std::stoull(str.substr(2), &consumed, 2);
-            consumed += 2;
-        }
-        else
-        {
-            value = std::stoull(str, &consumed, 0);
-        }
-
-        if (consumed != str.size())
-        {
-            return std::nullopt;
-        }
-        return value;
-    }
-    catch (const std::exception &)
-    {
-        return std::nullopt;
-    }
-}
-
-/// Parses a register name: x0-x29, sp, xzr, or a bare register number.
-std::optional<U8> parse_register(const std::string &str)
-{
-    if (str == "sp")
-    {
-        return static_cast<U8>(Register::SP);
-    }
-    if (str == "xzr")
-    {
-        return static_cast<U8>(Register::XZR);
-    }
-
-    const std::string digits = (!str.empty() && str[0] == 'x') ? str.substr(1) : str;
-    if (digits.empty() || digits.find_first_not_of("0123456789") != std::string::npos)
-    {
-        return std::nullopt;
-    }
-
-    const std::optional<U64> reg = parse_number(digits);
-    if (!reg || *reg >= kNumReg)
-    {
-        return std::nullopt;
-    }
-    return static_cast<U8>(*reg);
-}
-
 const char *status_name(Emulator32bit::RunResult::Status status)
 {
     switch (status)
@@ -82,6 +29,8 @@ const char *status_name(Emulator32bit::RunResult::Status status)
         return "halted";
     case Emulator32bit::RunResult::Status::LIMIT_REACHED:
         return "limit";
+    case Emulator32bit::RunResult::Status::BREAKPOINT:
+        return "breakpoint";
     case Emulator32bit::RunResult::Status::FAULT:
     default:
         return "fault";
@@ -139,6 +88,37 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
     }
 }
 
+/// The last executed instructions, oldest first: `history[0]=<pc> <instruction word> <assembly>`.
+/// The newest one is the instruction that faulted, if the run ended in a fault.
+void print_history(std::ostream &out, const Emulator32bit &emu, const SymbolMap &symbols)
+{
+    const std::vector<Emulator32bit::ExecutedInstruction> history = emu.history();
+    for (size_t i = 0; i < history.size(); i++)
+    {
+        const std::string name = symbols.describe(history[i].pc);
+        out << "history[" << i << "]=" << hex(history[i].pc) << " " << hex(history[i].instruction)
+            << " " << Emulator32bit::disassemble_instr(history[i].instruction)
+            << (name.empty() ? "" : " <" + name + ">") << "\n";
+    }
+}
+
+/// The names of the symbols that the linker put in an executable, for the trace and the debugger.
+SymbolMap read_symbols(const std::string &exe_path)
+{
+    SymbolMap symbols;
+    ObjectFile obj{File(exe_path)};
+    for (const auto &[name_index, symbol] : obj.symbol_table)
+    {
+        if (symbol.section != U32(-1))
+        {
+            // The assembler names a local symbol `name:LOCAL:<scope>`, only the name is of use here.
+            const std::string name = obj.get_symbol_name(name_index);
+            symbols.add(name.substr(0, name.find(":LOCAL:")), symbol.symbol_value);
+        }
+    }
+    return symbols;
+}
+
 } // namespace
 
 static int run_cli(int argc, char *argv[])
@@ -176,6 +156,15 @@ static int run_cli(int argc, char *argv[])
         ("m,mem", "Memory ranges to include in a plain dump (e.g. 0x1000:16,0x2000:4)",
             cxxopts::value<std::vector<std::string>> ())
         ("h,help", "Show help");
+
+    options.add_options ("Debugging")
+        ("debug", "Start an interactive debugger on stdin/stdout (type 'help'). Ignores --limit")
+        ("t,trace", "Write every executed instruction and what it changed to this file (- for stdout)",
+            cxxopts::value<std::string> ())
+        ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
+            cxxopts::value<std::vector<std::string>> ())
+        ("history", "Keep the last N executed instructions and print them after the run",
+            cxxopts::value<std::string> ()->default_value ("0"));
     // clang-format on
 
     cxxopts::ParseResult result;
@@ -197,7 +186,8 @@ static int run_cli(int argc, char *argv[])
                   << S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED) << " halted, "
                   << S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR) << " usage error, "
                   << S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED) << " instruction limit reached, "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT) << " emulator fault\n";
+                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT) << " emulator fault, "
+                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT) << " breakpoint\n";
         // clang-format on
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
     }
@@ -229,6 +219,7 @@ static int run_cli(int argc, char *argv[])
     const word pc = number_option("pc");
     const word limit = number_option("limit");
     const word flags = number_option("flags");
+    const word history_size = number_option("history");
 
     const std::string format = result["format"].as<std::string>();
     if (format != "pretty" && format != "plain")
@@ -265,7 +256,7 @@ static int run_cli(int argc, char *argv[])
         {
             const size_t eq = entry.find('=');
             const std::optional<U8> reg =
-                eq == std::string::npos ? std::nullopt : parse_register(entry.substr(0, eq));
+                eq == std::string::npos ? std::nullopt : parse_register_name(entry.substr(0, eq));
             const std::optional<U64> val =
                 eq == std::string::npos ? std::nullopt : parse_number(entry.substr(eq + 1));
             if (!reg || !val)
@@ -299,6 +290,51 @@ static int run_cli(int argc, char *argv[])
         {
             disk_npages = number_option("disk-pages");
             disk_start_page = number_option("disk-start");
+        }
+    }
+
+    // Breakpoints can be symbols, which are known once the executable is read.
+    SymbolMap symbols;
+    if (result.count("exe") && std::filesystem::is_regular_file(result["exe"].as<std::string>()))
+    {
+        symbols = read_symbols(result["exe"].as<std::string>());
+    }
+
+    std::vector<word> breakpoints;
+    if (result.count("break"))
+    {
+        for (const std::string &text : result["break"].as<std::vector<std::string>>())
+        {
+            const std::optional<word> address = resolve_address(symbols, text);
+            if (!address)
+            {
+                std::cerr << "ERROR: --break '" << text
+                          << "' is not an address or a symbol of the executable\n";
+                parse_error = true;
+                continue;
+            }
+            breakpoints.push_back(*address);
+        }
+    }
+
+    std::ofstream trace_file;
+    std::ostream *trace = nullptr;
+    if (result.count("trace"))
+    {
+        const std::string path = result["trace"].as<std::string>();
+        if (path == "-")
+        {
+            trace = &std::cout;
+        }
+        else
+        {
+            trace_file.open(path);
+            if (!trace_file)
+            {
+                std::cerr << "ERROR: Cannot open trace file: " << path << "\n";
+                parse_error = true;
+            }
+            trace = &trace_file;
         }
     }
 
@@ -348,6 +384,27 @@ static int run_cli(int argc, char *argv[])
         emu->write_reg(reg, val);
     }
 
+    emu->set_symbols(&symbols);
+    emu->set_trace(trace);
+    emu->set_history_size(history_size);
+    for (const word breakpoint : breakpoints)
+    {
+        emu->add_breakpoint(breakpoint);
+    }
+
+    if (result.count("debug"))
+    {
+        Debugger debugger(*emu, symbols, std::cin, std::cout);
+        debugger.run();
+
+        const auto &finished = debugger.finished();
+        if (finished && finished->status == Emulator32bit::RunResult::Status::FAULT)
+        {
+            return S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT);
+        }
+        return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
+    }
+
     const Emulator32bit::RunResult run_result = emu->run(limit);
 
     std::ofstream out_file;
@@ -372,6 +429,10 @@ static int run_cli(int argc, char *argv[])
         emu->print();
         std::printf("\n");
     }
+    if (history_size != 0)
+    {
+        print_history(out, *emu, symbols);
+    }
 
     switch (run_result.status)
     {
@@ -379,6 +440,8 @@ static int run_cli(int argc, char *argv[])
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
     case Emulator32bit::RunResult::Status::LIMIT_REACHED:
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED);
+    case Emulator32bit::RunResult::Status::BREAKPOINT:
+        return S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT);
     case Emulator32bit::RunResult::Status::FAULT:
     default:
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT);

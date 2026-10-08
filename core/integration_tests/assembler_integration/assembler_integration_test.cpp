@@ -1783,3 +1783,78 @@ TEST_F(AssemblerIntegration, dump_with_compile_only_lists_just_the_object_file)
     ASSERT_NO_FATAL_FAILURE(build("-c -dump -o loop loop.basm -outdir ."));
     EXPECT_EQ(count_of(log_tail("basm.log", 1 << 20), "SYMBOL TABLE"), 1u);
 }
+
+constexpr const char *kDoubleProgram = R"(.global _start
+.global double
+
+.text
+_start:
+                add     x0, xzr, 5
+                bl      double
+                bl      double
+                hlt
+
+double:
+                add     x0, x0, x0
+                ret
+)";
+
+// --break takes a symbol of the executable, stops before the instruction and exits with 4.
+TEST_F(AssemblerIntegration, emu32_breakpoint_on_a_symbol)
+{
+    write_file("call.basm", kDoubleProgram);
+    ASSERT_NO_FATAL_FAILURE(build("-o call call.basm -outdir ."));
+    ObjectFile exe(File(path("call.bexe")));
+    const ObjectFile::SymbolTableEntry *double_fn = symbol(exe, "double");
+    ASSERT_NE(double_fn, nullptr);
+
+    EXPECT_EQ(emu32("-e call.bexe -l 100 --break double"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "breakpoint");
+    EXPECT_EQ(state_number("pc"), double_fn->symbol_value);
+    EXPECT_EQ(reg(0), 5u); // the first call to double did not run yet
+    EXPECT_EQ(state_number("instructions"), 2u);
+
+    EXPECT_EQ(emu32("-e call.bexe -l 100 --break nowhere"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+}
+
+TEST_F(AssemblerIntegration, emu32_trace_shows_symbols_and_changes)
+{
+    write_file("call.basm", kDoubleProgram);
+    ASSERT_NO_FATAL_FAILURE(build("-o call call.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("call.bexe", "--trace trace.txt"));
+
+    std::ifstream in(m_dir / "trace.txt");
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string trace = ss.str();
+    EXPECT_NE(trace.find("<_start>"), std::string::npos) << trace;
+    EXPECT_NE(trace.find("<double>"), std::string::npos) << trace;
+    EXPECT_NE(trace.find("x0=0x5->0xa"), std::string::npos) << trace;
+    EXPECT_NE(trace.find("x0=0xa->0x14"), std::string::npos) << trace;
+    EXPECT_NE(trace.find("; halt"), std::string::npos) << trace;
+}
+
+// --history keeps the instructions that led to a fault, the faulting one last.
+TEST_F(AssemblerIntegration, emu32_history_ends_with_the_faulting_instruction)
+{
+    write_file("fault.basm", R"(.global _start
+
+.text
+_start:
+                add     x0, xzr, 1
+                add     x1, xzr, 0
+                str     x0, [x1]            ; the code is not writable
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o fault fault.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e fault.bexe -l 100 --history 4"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+    EXPECT_NE(state("history[2]").find("str"), std::string::npos) << state("history[2]");
+    EXPECT_TRUE(m_state.find("history[3]") == m_state.end());
+}

@@ -5,11 +5,15 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/opcodes.h"
+#include "emulator32bit/symbols.h"
 #include "emulator32bit/system_bus.h"
 
+#include <deque>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 ///
 /// @brief              32 bit Emulator
@@ -85,6 +89,7 @@ class Emulator32bit
             HALTED,        ///< Executed a HLT instruction.
             LIMIT_REACHED, ///< Executed the requested number of instructions.
             FAULT,         ///< Any other emulator or system bus exception.
+            BREAKPOINT,    ///< The PC is at a breakpoint, the instruction there did not run.
         };
 
         Status status;
@@ -99,7 +104,39 @@ class Emulator32bit
         EXIT_USAGE_ERROR = 1,
         EXIT_LIMIT_REACHED = 2,
         EXIT_FAULT = 3,
+        EXIT_BREAKPOINT = 4,
     };
+
+    /// An instruction that was executed (or tried to), for the history.
+    struct ExecutedInstruction
+    {
+        word pc;
+        word instruction;
+    };
+
+    // Debugging. Single stepping is run (1). None of this costs anything while it is not used.
+
+    /// Makes run () stop, with Status::BREAKPOINT, before the instruction at the address (a
+    /// virtual address, like the PC) executes. The first instruction of a run () is never stopped
+    /// at, so a run () that starts at a breakpoint goes on.
+    void add_breakpoint(word pc);
+    bool remove_breakpoint(word pc);
+    void clear_breakpoints();
+    const std::set<word> &breakpoints() const;
+
+    /// Writes a line per instruction to the stream before the next run (), or nothing for nullptr:
+    /// `pc <symbol>: instruction | what changed`, or the reason when the instruction faulted. The
+    /// stream must outlive its use.
+    void set_trace(std::ostream *out);
+
+    /// Keeps the last `count` instructions that were executed (0 turns it off and clears it).
+    /// Includes the instruction that faulted, which is the newest one.
+    void set_history_size(size_t count);
+    size_t history_size() const;
+    std::vector<ExecutedInstruction> history() const;
+
+    /// Names for the trace, the symbols must outlive their use. nullptr for none.
+    void set_symbols(const SymbolMap *symbols);
 
     ///
     /// @brief                  Run the emulator for a given number of instructions.
@@ -251,6 +288,15 @@ class Emulator32bit
     {
         (this->*m_instruction_handler[bitfield_unsigned(instr, 26, 6)])(instr);
     }
+
+    /// execute () that writes the trace line of the instruction.
+    void execute_traced(word instr);
+
+    std::set<word> m_breakpoints;
+    std::ostream *m_trace = nullptr;
+    const SymbolMap *m_symbols = nullptr;
+    size_t m_history_size = 0;
+    std::deque<ExecutedInstruction> m_history;
 
     // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
     // the opcode constant _op_<name>.

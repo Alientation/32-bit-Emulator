@@ -132,11 +132,37 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 
     try
     {
-        // 0 instructions means to run until something stops the program.
+        // 0 instructions means to run until something stops the program. The first instruction
+        // never stops at a breakpoint, that is how a run goes on from one.
+        bool first = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
+            if (UNLIKELY(!m_breakpoints.empty()) && !first && m_breakpoints.contains(m_pc))
+            {
+                result.status = RunResult::Status::BREAKPOINT;
+                result.message = std::format("Breakpoint at {:#010x}", m_pc);
+                break;
+            }
+            first = false;
+
             const word instr = fetch_instruction();
-            execute(instr);
+            if (UNLIKELY(m_history_size != 0))
+            {
+                if (m_history.size() == m_history_size)
+                {
+                    m_history.pop_front();
+                }
+                m_history.push_back({.pc = m_pc, .instruction = instr});
+            }
+
+            if (UNLIKELY(m_trace != nullptr))
+            {
+                execute_traced(instr);
+            }
+            else
+            {
+                execute(instr);
+            }
             m_pc += 4;
             result.instructions_ran++;
         }
@@ -185,6 +211,133 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     }
 
     return result;
+}
+
+void Emulator32bit::add_breakpoint(const word pc)
+{
+    m_breakpoints.insert(pc);
+}
+
+bool Emulator32bit::remove_breakpoint(const word pc)
+{
+    return m_breakpoints.erase(pc) != 0;
+}
+
+void Emulator32bit::clear_breakpoints()
+{
+    m_breakpoints.clear();
+}
+
+const std::set<word> &Emulator32bit::breakpoints() const
+{
+    return m_breakpoints;
+}
+
+void Emulator32bit::set_trace(std::ostream *out)
+{
+    m_trace = out;
+}
+
+void Emulator32bit::set_history_size(const size_t count)
+{
+    m_history_size = count;
+    while (m_history.size() > count)
+    {
+        m_history.pop_front();
+    }
+}
+
+size_t Emulator32bit::history_size() const
+{
+    return m_history_size;
+}
+
+std::vector<Emulator32bit::ExecutedInstruction> Emulator32bit::history() const
+{
+    return {m_history.begin(), m_history.end()};
+}
+
+void Emulator32bit::set_symbols(const SymbolMap *symbols)
+{
+    m_symbols = symbols;
+}
+
+namespace
+{
+
+/// "NzCv": an upper case letter is a flag that is set.
+std::string flag_letters(const word pstate)
+{
+    std::string letters;
+    letters += test_bit(pstate, kNFlagBit) ? 'N' : 'n';
+    letters += test_bit(pstate, kZFlagBit) ? 'Z' : 'z';
+    letters += test_bit(pstate, kCFlagBit) ? 'C' : 'c';
+    letters += test_bit(pstate, kVFlagBit) ? 'V' : 'v';
+    return letters;
+}
+
+} // namespace
+
+// `0x00000010 <main+0x4>: add x0, x1, 4 ; x0=0x1->0x5 NZCV=nzcv->nzCv`, with the reason in place of
+// the changes when the instruction does not complete. A taken branch shows `pc=target`.
+void Emulator32bit::execute_traced(const word instr)
+{
+    const word pc = m_pc;
+    word regs_before[kNumReg];
+    for (U8 r = 0; r < kNumReg; r++)
+    {
+        regs_before[r] = m_x[r];
+    }
+    const word pstate_before = m_pstate;
+
+    std::string line = std::format("{:#010x}", pc);
+    if (m_symbols != nullptr)
+    {
+        const std::string name = m_symbols->describe(pc);
+        if (!name.empty())
+        {
+            line += " <" + name + ">";
+        }
+    }
+    line += ": " + disassemble_instr(instr);
+
+    try
+    {
+        execute(instr);
+    }
+    catch (const Exception &e)
+    {
+        *m_trace << line << " ; " << (e.get_type() == InterruptType::HALT_INSTR ? "halt" : e.what())
+                 << "\n";
+        throw;
+    }
+    catch (const std::exception &e)
+    {
+        *m_trace << line << " ; " << e.what() << "\n";
+        throw;
+    }
+
+    std::string changes;
+    for (U8 r = 0; r < kNumReg; r++)
+    {
+        if (m_x[r] != regs_before[r])
+        {
+            changes += std::format(" {}={:#x}->{:#x}",
+                                   r == register_to_U8(Register::SP) ? std::string("sp")
+                                                                     : "x" + std::to_string(r),
+                                   regs_before[r], m_x[r]);
+        }
+    }
+    if (m_pstate != pstate_before)
+    {
+        changes += " NZCV=" + flag_letters(pstate_before) + "->" + flag_letters(m_pstate);
+    }
+    if (m_pc != pc)
+    {
+        changes += std::format(" pc={:#x}", m_pc + 4);
+    }
+
+    *m_trace << line << (changes.empty() ? "" : " ;" + changes) << "\n";
 }
 
 void Emulator32bit::reset()
