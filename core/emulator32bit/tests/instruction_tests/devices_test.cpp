@@ -676,6 +676,162 @@ TEST_F(Devices, wfi_waits_for_the_block_device)
     EXPECT_LT(result.instructions_ran, 60u) << "it did not execute 5000 instructions";
 }
 
+// --- block device DMA ----------------------------------------------------------------------
+
+namespace
+{
+
+/// A disk512 plus 2 pages of RAM at page 1 (0x1000-0x2FFF) that DMA reaches.
+struct DmaDisk : Disk512
+{
+    RAM ram{2, 1};
+
+    explicit DmaDisk(const word sectors) :
+        Disk512(sectors)
+    {
+        block.set_dma_memory(&ram);
+    }
+
+    /// Runs a DMA command to completion and returns the status (acknowledged).
+    word dma(const word command, const word sector, const word address, const word count)
+    {
+        set(0x08, sector);
+        set(0x20, address);
+        set(0x24, count);
+        set(0x00, command);
+        wait();
+        const word status = reg(0x04);
+        set(0x04, 0);
+        return status;
+    }
+};
+
+} // namespace
+
+TEST(BlockDeviceDma, many_sectors_move_to_ram_and_back)
+{
+    DmaDisk disk(8);
+    for (word i = 0; i < 3; i++)
+    {
+        disk.write_sector(2 + i, 1000 * (i + 1));
+    }
+
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 2, 0x1000, 3), BlockDevice::kDone);
+    EXPECT_EQ(disk.ram.read_word(0x1000), 1000u);
+    EXPECT_EQ(disk.ram.read_word(0x1000 + 512 + 4), 2001u);
+    EXPECT_EQ(disk.ram.read_word(0x1000 + 1024 + 508), 3127u);
+
+    // Write them to other sectors from RAM.
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaWrite, 5, 0x1000, 3), BlockDevice::kDone);
+    EXPECT_EQ(disk.block.sector(5), disk.block.sector(2));
+    EXPECT_EQ(disk.block.sector(7), disk.block.sector(4));
+    EXPECT_EQ(disk.reg(0x20), 0x1000u);
+    EXPECT_EQ(disk.reg(0x24), 3u);
+}
+
+TEST(BlockDeviceDma, it_takes_latency_per_sector_and_leaves_the_data_buffer_alone)
+{
+    DmaDisk disk(4);
+    disk.write_sector(0, 7); // leaves the buffer at 7...
+    disk.set(0x1C, 3);
+    disk.set(0x08, 0);
+    disk.set(0x20, 0x1000);
+    disk.set(0x24, 2);
+    disk.set(0x00, BlockDevice::kCmdDmaRead);
+    for (int i = 0; i < 5; i++)
+    {
+        disk.block.tick();
+    }
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kBusy) << "5 of 6";
+    EXPECT_EQ(disk.ram.read_word(0x1000), 0u) << "nothing moved yet";
+    disk.block.tick();
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kDone);
+    EXPECT_EQ(disk.ram.read_word(0x1000), 7u);
+    disk.set(0x10, 0);
+    EXPECT_EQ(disk.reg(0x0C), 7u) << "the buffer is as it was";
+}
+
+TEST(BlockDeviceDma, a_bad_transfer_is_an_error_and_moves_nothing)
+{
+    DmaDisk disk(4);
+    disk.write_sector(1, 5);
+    const word failed = BlockDevice::kDone | BlockDevice::kError;
+
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 1, 0x1000, 0), failed) << "no sectors";
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 1, 0x1002, 1), failed) << "not word aligned";
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 1, 0x0000, 1), failed) << "not RAM";
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 1, 0x2E00 + 4, 1), failed) << "runs off the RAM";
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 1, 0xFFFFFE00, 2), failed) << "wraps around";
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaRead, 3, 0x1000, 2), failed) << "runs off the disk";
+    disk.set(0x08, 0); // a huge count takes long (capped), so skip the wait
+    disk.set(0x20, 0x1000);
+    disk.set(0x24, 0xFFFFFFFF);
+    disk.set(0x00, BlockDevice::kCmdDmaRead);
+    disk.block.advance(0xFFFFFFFF);
+    EXPECT_EQ(disk.reg(0x04), failed) << "huge";
+    disk.set(0x04, 0);
+    EXPECT_EQ(disk.dma(BlockDevice::kCmdDmaWrite, 4, 0x1000, 1), failed) << "past the disk";
+    EXPECT_EQ(disk.ram.read_word(0x1000), 0u);
+    EXPECT_EQ(disk.ram.read_word(0x2E04), 0u);
+    EXPECT_EQ(disk.block.sector(1)[0], 5) << "the disk is untouched";
+
+    BlockDevice lone{disk.intc}; // no DMA memory
+    lone.set_capacity(1);
+    lone.write_word(kBlockBase + 0x24, 1);
+    lone.write_word(kBlockBase + 0x00, BlockDevice::kCmdDmaRead);
+    lone.advance(1000);
+    EXPECT_EQ(lone.read_word(kBlockBase + 0x04), failed);
+}
+
+TEST(BlockDeviceDma, a_reset_clears_the_dma_registers_and_an_interrupt_is_raised)
+{
+    DmaDisk disk(2);
+    disk.intc.write_word(kIntcBase + 8, 1u << kIrqLineBlock);
+    disk.set(0x18, 1);
+    disk.dma(BlockDevice::kCmdDmaRead, 0, 0x1000, 1);
+    EXPECT_EQ(disk.intc.claim(), kIrqLineBlock);
+
+    disk.block.reset();
+    EXPECT_EQ(disk.reg(0x20), 0u);
+    EXPECT_EQ(disk.reg(0x24), 0u);
+}
+
+// The machine wires the block device to its RAM: a program moves two sectors in one command.
+TEST_F(Devices, a_program_reads_sectors_by_dma)
+{
+    BlockDevice &block = cpu.system_bus->block;
+    block.set_capacity(4);
+    for (word s = 0; s < 2; s++)
+    {
+        block.write_word(kBlockBase + 0x10, 0);
+        for (word i = 0; i < 128; i++)
+        {
+            block.write_word(kBlockBase + 0x0C, (s + 1) * 0x100 + i);
+        }
+        block.write_word(kBlockBase + 0x08, s + 1);
+        block.write_word(kBlockBase + 0x00, BlockDevice::kCmdWrite);
+        block.advance(1000);
+        block.write_word(kBlockBase + 0x04, 0);
+    }
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kBlockBase));
+    append(program, constant(12, 0x8000));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineBlock), store_at(1, 10, 0x08), // enable line 2
+                    mov(1, 1), store_at(1, 11, 0x18),                   // interrupt on completion
+                    mov(1, 1), store_at(1, 11, 0x08),                   // sector 1
+                    mov(1, 2), store_at(1, 11, 0x24),                   // two sectors
+                    store_at(12, 11, 0x20),                             // to 0x8000
+                    mov(1, BlockDevice::kCmdDmaRead), store_at(1, 11, 0x00), E::asm_wfi(),
+                    load_at(3, 12, 0), load_at(4, 12, 512), E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(3), 0x100u);
+    EXPECT_EQ(cpu.read_reg(4), 0x200u);
+}
+
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
 {
     EXPECT_THROW(cpu.system_bus->read_word(kDeviceBase + 0x5000), SystemBus::Exception);

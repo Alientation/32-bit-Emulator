@@ -339,7 +339,7 @@ void BlockDevice::start(const word command)
         m_status |= kError; // not accepted
         return;
     }
-    if (command != kCmdRead && command != kCmdWrite && command != kCmdFlush)
+    if (command < kCmdRead || command > kCmdDmaWrite)
     {
         m_status |= kError;
         return;
@@ -349,11 +349,43 @@ void BlockDevice::start(const word command)
     m_busy = true;
     m_command = command;
     m_command_sector = m_sector;
+    m_command_addr = m_dma_addr;
+    m_command_count = m_dma_count;
     m_remaining = std::max<word>(1, m_latency);
+    if (command == kCmdDmaRead || command == kCmdDmaWrite)
+    {
+        // Per sector. The count is capped here so the time cannot overflow; a count that big fails.
+        m_remaining *= std::clamp<word>(m_dma_count, 1, 1 << 16);
+    }
     if (command == kCmdWrite)
     {
         std::copy(std::begin(m_buffer), std::end(m_buffer), std::begin(m_write_data));
     }
+}
+
+// A DMA transfer of the command's sectors. Nothing is moved unless all of it fits on both sides.
+bool BlockDevice::transfer(const bool to_disk)
+{
+    const U64 bytes = U64(m_command_count) * kSectorSize;
+    const U64 disk_start = U64(m_command_sector) * kSectorSize;
+    if (m_dma_memory == nullptr || m_command_count == 0 || m_command_addr % 4 != 0
+        || disk_start + bytes > m_storage.size() || U64(m_command_addr) + bytes > (U64(1) << 32)
+        || !m_dma_memory->in_bounds(m_command_addr)
+        || !m_dma_memory->in_bounds(word(m_command_addr + bytes - 1)))
+    {
+        return false;
+    }
+
+    byte *disk = m_storage.data() + disk_start;
+    if (to_disk)
+    {
+        m_dma_memory->read_block(m_command_addr, disk, word(bytes));
+    }
+    else
+    {
+        m_dma_memory->write_block(m_command_addr, disk, word(bytes));
+    }
+    return true;
 }
 
 void BlockDevice::complete()
@@ -379,6 +411,10 @@ void BlockDevice::complete()
         }
         std::copy(std::begin(m_write_data), std::end(m_write_data),
                   m_storage.begin() + std::ptrdiff_t(start));
+        break;
+    case kCmdDmaRead:
+    case kCmdDmaWrite:
+        error = !transfer(m_command == kCmdDmaWrite);
         break;
     default:
         error = !save();
@@ -425,6 +461,8 @@ void BlockDevice::reset()
     m_sector = 0;
     m_ctrl = 0;
     m_latency = 100;
+    m_dma_addr = 0;
+    m_dma_count = 0;
     std::fill(std::begin(m_buffer), std::end(m_buffer), byte(0));
 }
 
@@ -454,6 +492,10 @@ word BlockDevice::read_register(const word offset)
         return m_ctrl;
     case 0x1C:
         return m_latency;
+    case 0x20:
+        return m_dma_addr;
+    case 0x24:
+        return m_dma_count;
     default:
         return 0;
     }
@@ -491,6 +533,12 @@ void BlockDevice::write_register(const word offset, const word value)
         break;
     case 0x1C:
         m_latency = value;
+        break;
+    case 0x20:
+        m_dma_addr = value;
+        break;
+    case 0x24:
+        m_dma_count = value;
         break;
     default:
         break;

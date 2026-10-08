@@ -180,12 +180,15 @@ class Console : public Device
 };
 
 /// A block device for the operating system: a disk of 512 byte sectors that is read and written one
-/// sector at a time through a buffer in the device, with a data register (no DMA yet). A command
-/// takes `LATENCY` retired instructions to complete, then the status says so and line 2 is raised if
-/// that is enabled, so the kernel can wait with `WFI`.
+/// sector at a time through a buffer in the device and a data register, or many sectors at once by
+/// DMA straight to and from physical RAM. A command takes `LATENCY` retired instructions (per
+/// sector for DMA) to complete, then the status says so and line 2 is raised if that is enabled, so
+/// the kernel can wait with `WFI`.
 ///
 /// | Offset | Name     | Access | |
-/// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file |
+/// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file, 4 DMA read, 5 DMA write |
+/// | 0x20   | DMA_ADDR | r/w    | physical RAM address of a DMA transfer, a multiple of 4 |
+/// | 0x24   | DMA_COUNT| r/w    | the number of sectors of a DMA transfer, from SECTOR on (at least 1) |
 /// | 0x04   | STATUS   | r/w    | bit 0: busy, bit 1: done, bit 2: error. A write clears done and error |
 /// | 0x08   | SECTOR   | r/w    | the sector number of the next command |
 /// | 0x0C   | DATA     | r/w    | the word of the buffer at CURSOR, and CURSOR moves on by 4 (use word accesses) |
@@ -195,7 +198,9 @@ class Console : public Device
 /// | 0x1C   | LATENCY  | r/w    | instructions a command takes (at least 1). Reset: 100 |
 ///
 /// A command given while busy is ignored and sets error. A sector outside of the disk completes with
-/// error and changes nothing. The contents of the disk survive a reset; they are in memory, or in a
+/// error and changes nothing. So does a DMA transfer with a count of 0, an address that is not word
+/// aligned, or a range that is not all in RAM. The data is moved when the command completes, so the
+/// RAM buffer must stay in place and unchanged until then (DMA write reads it at that moment). The contents of the disk survive a reset; they are in memory, or in a
 /// file the host gave (`open_file`) that FLUSH, `save` and destroying the machine write.
 class BlockDevice : public Device
 {
@@ -209,8 +214,17 @@ class BlockDevice : public Device
     static constexpr word kCmdRead = 1;
     static constexpr word kCmdWrite = 2;
     static constexpr word kCmdFlush = 3;
+    static constexpr word kCmdDmaRead = 4;
+    static constexpr word kCmdDmaWrite = 5;
 
     explicit BlockDevice(InterruptController &intc);
+
+    /// The memory that DMA reads and writes (the RAM, by physical address). Not owned. Without it,
+    /// every DMA command fails.
+    void set_dma_memory(BaseMemory *memory)
+    {
+        m_dma_memory = memory;
+    }
 
     /// A disk in memory of this many sectors, all zeros.
     void set_capacity(word sectors);
@@ -252,6 +266,7 @@ class BlockDevice : public Device
 
   private:
     void start(word command);
+    bool transfer(bool to_disk);
     void complete();
 
     InterruptController &m_intc;
@@ -269,5 +284,10 @@ class BlockDevice : public Device
     word m_command = 0;
     word m_command_sector = 0;
     word m_remaining = 0;
+    BaseMemory *m_dma_memory = nullptr;
+    word m_dma_addr = 0;
+    word m_dma_count = 0;
+    word m_command_addr = 0;             ///< DMA_ADDR and DMA_COUNT when the command was given
+    word m_command_count = 0;
     byte m_write_data[kSectorSize] = {}; ///< the buffer when a write command was given
 };

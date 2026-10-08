@@ -65,11 +65,13 @@ Output goes to the console stream (standard output for `emu32`; `Console::set_ou
 
 ### Block device (`0xF0003000`)
 
-A disk of **512 byte sectors** for the operating system, one sector at a time through a buffer inside the device and a data register (programmed I/O, no DMA yet). A command takes `LATENCY` retired instructions, like the timer counts, and then the status says so and line 2 is raised if enabled.
+A disk of **512 byte sectors** for the operating system. It is used either one sector at a time through a buffer inside the device and a data register (programmed I/O), or by **DMA**, many sectors straight to and from physical RAM. A command takes `LATENCY` retired instructions (per sector for DMA), like the timer counts, and then the status says so and line 2 is raised if enabled.
 
 | Offset | Name | Access | |
 |--------|------|--------|---|
-| `0x00` | COMMAND | write | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the disk to its file |
+| `0x00` | COMMAND | write | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the disk to its file, 4 DMA read, 5 DMA write |
+| `0x20` | DMA_ADDR | r/w | physical RAM address of a DMA transfer, a multiple of 4 |
+| `0x24` | DMA_COUNT | r/w | the number of sectors of a DMA transfer, at least 1 |
 | `0x04` | STATUS | r/w | bit 0 busy, bit 1 done, bit 2 error. A write clears done and error |
 | `0x08` | SECTOR | r/w | the sector number of the next command |
 | `0x0C` | DATA | r/w | the word of the buffer at CURSOR, and CURSOR moves on by 4. **Use word accesses** |
@@ -80,8 +82,13 @@ A disk of **512 byte sectors** for the operating system, one sector at a time th
 
 A driver reads a sector like this: write SECTOR, write COMMAND = 1, wait (poll STATUS bit 0, or enable the interrupt and `wfi`), write STATUS to acknowledge, then read DATA 128 times. To write: write CURSOR = 0, write DATA 128 times, SECTOR, COMMAND = 2, wait. The buffer is copied when the command is given, so it can be reused at once.
 
-- A command given while busy, or one that is not 1-3, is ignored and sets error. A sector past CAPACITY completes with error and changes nothing.
-- A reset keeps the contents of the disk (it resets the controller: cursor, sector, control, latency, buffer).
+**DMA:** write SECTOR (the first), DMA_ADDR and DMA_COUNT, then COMMAND = 4 (disk to RAM) or 5 (RAM to disk), and wait as above. The sectors `SECTOR .. SECTOR + COUNT - 1` go to or from the `COUNT * 512` bytes at DMA_ADDR, and the buffer and cursor of the data register are not touched. The three registers are copied when the command is given.
+
+- The data moves **when the command completes** (after `COUNT * LATENCY` instructions), not at the start. So a DMA write reads RAM at that moment, and a DMA read changes RAM then: the kernel has to keep the buffer where it is, and not use it, until done. Since DMA uses physical addresses, a kernel with page tables passes the frame's physical address and must not have the page swapped or moved meanwhile.
+- DMA reaches **RAM only** (not ROM, the memory mapped disk or devices). It does not trigger memory watchpoints, a debugger's `mem` sees the result.
+- It completes with error, and moves nothing, if COUNT is 0, DMA_ADDR is not word aligned, any byte of the range is outside the RAM, or a sector is past CAPACITY.
+- A command given while busy, or one that is not 1-5, is ignored and sets error. A sector past CAPACITY completes with error and changes nothing.
+- A reset keeps the contents of the disk (it resets the controller: cursor, sector, control, latency, buffer, DMA registers).
 - Without `--block-file` or `--block-sectors` the disk has 0 sectors. `emu32 --block-sectors N` is a disk of N sectors in memory, `--block-file FILE` keeps it in a file (made, with `--block-sectors`, if it does not exist; its size in sectors otherwise, or more if `--block-sectors` says so). The file is written on FLUSH and when the machine ends.
 - This is separate from `--disk-file`, the memory mapped disk that the swapping memory (`SCTLR.M` = 0) uses.
 
@@ -114,7 +121,7 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Not done
 
-- **DMA for the block device**: the device copies sectors straight to and from physical RAM (registers for the address and the sector count, so one command moves many sectors). The data register mode stays for simple drivers. The kernel would have to give a physical buffer that stays in place during the transfer.
+- DMA is one contiguous buffer per command (no scatter/gather), and it moves the data at completion rather than during the wait.
 - Input that arrives while the machine runs (host time); the console input is queued before the run.
 
 ## Where it is in the code

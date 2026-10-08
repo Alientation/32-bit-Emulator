@@ -10,6 +10,7 @@ SystemBus::SystemBus(RAM *ram, ROM *rom) :
 {
     validate_memory();
     mmu->set_physical_pages(this);
+    block.set_dma_memory(this->ram.get());
 }
 
 SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu) :
@@ -20,6 +21,7 @@ SystemBus::SystemBus(RAM *ram, ROM *rom, Disk *disk, VirtualMemory *mmu) :
 {
     validate_memory();
     this->mmu->set_physical_pages(this);
+    block.set_dma_memory(this->ram.get());
 }
 
 SystemBus::~SystemBus()
