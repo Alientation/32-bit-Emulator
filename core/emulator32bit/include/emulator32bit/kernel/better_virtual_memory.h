@@ -6,8 +6,8 @@
 
 #include "util/logger.h"
 
-#include <string>
 #include <cstring>
+#include <string>
 
 #define N_VPAGES (1 << 20)
 
@@ -17,8 +17,8 @@
 class MMU
 {
   public:
-    MMU (Emulator32bit *processor, word user_low_page, word user_high_page, word kernel_low_page,
-         word kernel_high_page);
+    MMU(Emulator32bit *processor, word user_low_page, word user_high_page, word kernel_low_page,
+        word kernel_high_page);
 
     enum AccessMode
     {
@@ -27,32 +27,32 @@ class MMU
         EXECUTE_ACCESSMODE,
     };
 
-    void create_pagedir ();
-    void add_vpage (word vpage, bool kernel, bool write, bool execute, bool copy_on_write);
+    void create_pagedir();
+    void add_vpage(word vpage, bool kernel, bool write, bool execute, bool copy_on_write);
 
-    void remove_vpage (word vpage);
-    void remove_pagedir ();
+    void remove_vpage(word vpage);
+    void remove_pagedir();
 
-    inline word map_address (word address, AccessMode mode)
+    inline word map_address(word address, AccessMode mode)
     {
         /*
                 Null page directory or processor in real more implies no virtual
                 memory.
             */
-        if (UNLIKELY (!m_processor->pagedir
-                      || m_processor->get_flag (Emulator32bit::kRealModeFlagBit)))
+        if (UNLIKELY(!m_processor->pagedir
+                     || m_processor->get_flag(Emulator32bit::kRealModeFlagBit)))
         {
             return address;
         }
 
         /* Check for valid page directory. */
         RAM *ram = m_processor->system_bus->ram;
-        if (UNLIKELY (!ram->in_bounds (m_processor->pagedir))
-            || !ram->in_bounds (m_processor->pagedir + (kPageSize * sizeof (struct PageTableEntry))
-                                - 1))
+        if (UNLIKELY(!ram->in_bounds(m_processor->pagedir))
+            || !ram->in_bounds(m_processor->pagedir + (kPageSize * sizeof(struct PageTableEntry))
+                               - 1))
         {
-            throw Emulator32bit::Exception (Emulator32bit::InterruptType::BAD_PAGEDIR,
-                                            "Page directory is not in RAM.");
+            throw Emulator32bit::Exception(Emulator32bit::InterruptType::BAD_PAGEDIR,
+                                           "Page directory is not in RAM.");
         }
 
         word vpage = address >> kNumPageOffsetBits;
@@ -61,12 +61,12 @@ class MMU
                 Kernel memory is directly mapped, not rerouting. Just check
                 for permissions of process accessing.
             */
-        if (UNLIKELY (vpage >= m_kernel_low_page && vpage <= m_kernel_high_page))
+        if (UNLIKELY(vpage >= m_kernel_low_page && vpage <= m_kernel_high_page))
         {
-            if (UNLIKELY (m_processor->get_flag (Emulator32bit::kUserModeFlagBit)))
+            if (UNLIKELY(m_processor->get_flag(Emulator32bit::kUserModeFlagBit)))
             {
-                throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
-                                                "User tried accessing kernel page.");
+                throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
+                                               "User tried accessing kernel page.");
             }
             return address;
         }
@@ -76,46 +76,45 @@ class MMU
         struct PageTableEntry *entry = &pagetable[vpage];
 
         /* Check for access permissions. */
-        if (UNLIKELY (!entry->valid))
+        if (UNLIKELY(!entry->valid))
         {
-            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
-                                            "Unmapped memory accessed.");
+            throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
+                                           "Unmapped memory accessed.");
         }
-        else if (UNLIKELY (entry->kernel
-                           && m_processor->get_flag (Emulator32bit::kUserModeFlagBit)))
+        else if (UNLIKELY(entry->kernel && m_processor->get_flag(Emulator32bit::kUserModeFlagBit)))
         {
-            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
-                                            "User tried accessing kernel page.");
+            throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
+                                           "User tried accessing kernel page.");
         }
-        else if (UNLIKELY (mode == WRITE_ACCESSMODE && !entry->write))
+        else if (UNLIKELY(mode == WRITE_ACCESSMODE && !entry->write))
         {
-            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
-                                            "Page has no write permissions.");
+            throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
+                                           "Page has no write permissions.");
         }
-        else if (UNLIKELY (mode == EXECUTE_ACCESSMODE && !entry->execute))
+        else if (UNLIKELY(mode == EXECUTE_ACCESSMODE && !entry->execute))
         {
-            throw Emulator32bit::Exception (Emulator32bit::InterruptType::PAGEFAULT,
-                                            "Page has no execute permissions.");
+            throw Emulator32bit::Exception(Emulator32bit::InterruptType::PAGEFAULT,
+                                           "Page has no execute permissions.");
         }
 
         entry->clock = 1;
 
         /* Read from disk and write to memory. */
-        if (UNLIKELY (entry->disk))
+        if (UNLIKELY(entry->disk))
         {
             Disk *disk = m_processor->system_bus->disk;
-            std::vector<byte> disk_page = disk->read_page (entry->disk);
-            disk->return_page (entry->disk);
+            std::vector<byte> disk_page = disk->read_page(entry->disk);
+            disk->return_page(entry->disk);
 
-            EXPECT_TRUE (disk_page.size () == kPageSize, "Page size does not match.");
+            EXPECT_TRUE(disk_page.size() == kPageSize, "Page size does not match.");
 
-            word free_ppage = get_free_ppage ();
+            word free_ppage = get_free_ppage();
 
             entry->disk = false;
             entry->ppage = free_ppage;
 
             word mapped_address = (free_ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
-            std::memcpy (&ram->m_data[mapped_address], disk_page.data (), kPageSize);
+            std::memcpy(&ram->m_data[mapped_address], disk_page.data(), kPageSize);
             return mapped_address;
         }
 
@@ -149,17 +148,17 @@ class MMU
     FBL_InMemory m_free_kernel_ppages;
     word m_clock_hand = 0;
 
-    inline word get_free_ppage ()
+    inline word get_free_ppage()
     {
-        if (UNLIKELY (m_free_user_ppages.empty ()))
+        if (UNLIKELY(m_free_user_ppages.empty()))
         {
-            return evict_ppage ();
+            return evict_ppage();
         }
 
-        return m_free_user_ppages.get_free_block () >> kNumPageOffsetBits;
+        return m_free_user_ppages.get_free_block() >> kNumPageOffsetBits;
     }
 
-    inline word evict_ppage ()
+    inline word evict_ppage()
     {
         return 0;
     }

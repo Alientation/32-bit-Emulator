@@ -18,8 +18,8 @@
 class Linker
 {
   public:
-    Linker (std::vector<ObjectFile> obj_files, File exe_file);
-    Linker (std::vector<ObjectFile> obj_files, File exe_file, File ld_file);
+    Linker(std::vector<ObjectFile> obj_files, File exe_file);
+    Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file);
 
   private:
     std::vector<ObjectFile> m_obj_files;
@@ -53,7 +53,7 @@ class Linker
         Type type;
         std::string val;
 
-        Token (Type type, std::string val);
+        Token(Type type, std::string val);
     };
 
     static const std::vector<std::pair<std::string, Token::Type>> kTokenSpec;
@@ -80,23 +80,23 @@ class Linker
     bool m_physical = false;
     std::vector<SectionAddress> m_sections;
 
-    void link ();
-    void tokenize_ld ();
-    void parse_ld ();
-    void _entry (size_t &tok_i);
-    void _sections (size_t &tok_i);
+    void link();
+    void tokenize_ld();
+    void parse_ld();
+    void _entry(size_t &tok_i);
+    void _sections(size_t &tok_i);
 
-    word parse_value (size_t &tok_i);
-    void skip_tokens (size_t &tok_i, const std::string &regex);
-    void skip_tokens (size_t &tok_i, const std::set<Token::Type> &tokenTypes);
-    bool expect_token (size_t tok_i, const std::string &errorMsg);
-    bool expect_token (size_t tok_i, const std::set<Token::Type> &tokenTypes,
-                       const std::string &errorMsg);
-    bool is_token (size_t tok_i, const std::set<Token::Type> &tokenTypes,
-                   const std::string &errorMsg = "Linker::is_token() - Unexpected end of file");
-    bool in_bounds (size_t tok_i);
-    Token &consume (size_t &tok_i,
-                    const std::string &errorMsg = "Linker::consume() - Unexpected end of file");
-    Token &consume (size_t &tok_i, const std::set<Token::Type> &expectedTypes,
-                    const std::string &errorMsg = "Linker::consume() - Unexpected token");
+    word parse_value(size_t &tok_i);
+    void skip_tokens(size_t &tok_i, const std::string &regex);
+    void skip_tokens(size_t &tok_i, const std::set<Token::Type> &tokenTypes);
+    bool expect_token(size_t tok_i, const std::string &errorMsg);
+    bool expect_token(size_t tok_i, const std::set<Token::Type> &tokenTypes,
+                      const std::string &errorMsg);
+    bool is_token(size_t tok_i, const std::set<Token::Type> &tokenTypes,
+                  const std::string &errorMsg = "Linker::is_token() - Unexpected end of file");
+    bool in_bounds(size_t tok_i);
+    Token &consume(size_t &tok_i,
+                   const std::string &errorMsg = "Linker::consume() - Unexpected end of file");
+    Token &consume(size_t &tok_i, const std::set<Token::Type> &expectedTypes,
+                   const std::string &errorMsg = "Linker::consume() - Unexpected token");
 };

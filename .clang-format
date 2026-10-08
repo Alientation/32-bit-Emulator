@@ -10,15 +10,23 @@ PointerAlignment: Right
 
 # Space settings
 SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: Always
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+    AfterControlStatements: true
+    AfterFunctionDeclarationName: false
+    AfterFunctionDefinitionName: false
+    AfterIfMacros: true
+    AfterForeachMacros: true
+    AfterOverloadedOperator: false
+    AfterRequiresInClause: false
 SpaceAfterCStyleCast: true
 SpaceAfterTemplateKeyword: false
 SeparateDefinitionBlocks: Always
 SpacesInContainerLiterals: true
 
 # Line breaking
-AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: false
 BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeBraces: Allman
@@ -31,8 +39,8 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 
 # Inline Comments
 AlignTrailingComments:
-  Kind: Always
-  OverEmptyLines: 2
+    Kind: Always
+    OverEmptyLines: 2
 ReflowComments: false
 CommentPragmas: "^ IWYU pragma:"
 

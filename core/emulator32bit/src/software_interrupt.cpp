@@ -7,17 +7,17 @@
 
 #include <iostream>
 
-void Emulator32bit::_emu_print ()
+void Emulator32bit::_emu_print()
 {
-    print ();
+    print();
 }
 
-void Emulator32bit::_emu_printr (byte reg_id)
+void Emulator32bit::_emu_printr(byte reg_id)
 {
-    printf ("REG: %d = %x\n", reg_id, read_reg (reg_id));
+    printf("REG: %d = %x\n", reg_id, read_reg(reg_id));
 }
 
-void Emulator32bit::_emu_printm (word mem_addr, byte size, bool little_endian)
+void Emulator32bit::_emu_printm(word mem_addr, byte size, bool little_endian)
 {
     word val = 0;
     if (little_endian)
@@ -25,7 +25,7 @@ void Emulator32bit::_emu_printm (word mem_addr, byte size, bool little_endian)
         for (byte i = 0; i < size; i++)
         {
             val <<= 8;
-            val += system_bus->read_byte (mem_addr + i);
+            val += system_bus->read_byte(mem_addr + i);
         }
     }
     else
@@ -33,39 +33,39 @@ void Emulator32bit::_emu_printm (word mem_addr, byte size, bool little_endian)
         for (int i = size - 1; i >= 0; i--)
         {
             val <<= 8;
-            val += system_bus->read_byte (mem_addr + i);
+            val += system_bus->read_byte(mem_addr + i);
         }
     }
 
-    printf ("MEM: %x = %.2x", mem_addr, val);
+    printf("MEM: %x = %.2x", mem_addr, val);
 }
 
-void Emulator32bit::_emu_printp ()
+void Emulator32bit::_emu_printp()
 {
-    printf ("PSTATE: N=%u,Z=%u,C=%u,V=%u", test_bit (m_pstate, kNFlagBit),
-            test_bit (m_pstate, kZFlagBit), test_bit (m_pstate, kCFlagBit),
-            test_bit (m_pstate, kVFlagBit));
+    printf("PSTATE: N=%u,Z=%u,C=%u,V=%u", test_bit(m_pstate, kNFlagBit),
+           test_bit(m_pstate, kZFlagBit), test_bit(m_pstate, kCFlagBit),
+           test_bit(m_pstate, kVFlagBit));
 }
 
-void Emulator32bit::_emu_assertr (byte reg_id, word min_value, word max_value)
+void Emulator32bit::_emu_assertr(byte reg_id, word min_value, word max_value)
 {
-    word val = read_reg (reg_id);
+    word val = read_reg(reg_id);
 
     if (val >= min_value && val <= max_value)
     {
     }
     else
     {
-        throw Exception (InterruptType::FAILED_ASSERT,
-                         "Failed system call assertion. Expected register "
-                             + std::to_string (reg_id) + " to contain a value between "
-                             + std::to_string (min_value) + " and " + std::to_string (max_value)
-                             + " but it contains " + std::to_string (val) + ".");
+        throw Exception(InterruptType::FAILED_ASSERT,
+                        "Failed system call assertion. Expected register " + std::to_string(reg_id)
+                            + " to contain a value between " + std::to_string(min_value) + " and "
+                            + std::to_string(max_value) + " but it contains " + std::to_string(val)
+                            + ".");
     }
 }
 
-void Emulator32bit::_emu_assertm (word mem_addr, byte size, bool little_endian, word min_value,
-                                  word max_value)
+void Emulator32bit::_emu_assertm(word mem_addr, byte size, bool little_endian, word min_value,
+                                 word max_value)
 {
     word val = 0;
     if (little_endian)
@@ -73,7 +73,7 @@ void Emulator32bit::_emu_assertm (word mem_addr, byte size, bool little_endian, 
         for (byte i = 0; i < size; i++)
         {
             val <<= 8;
-            val += system_bus->read_byte (mem_addr + i);
+            val += system_bus->read_byte(mem_addr + i);
         }
     }
     else
@@ -81,39 +81,39 @@ void Emulator32bit::_emu_assertm (word mem_addr, byte size, bool little_endian, 
         for (int i = size - 1; i >= 0; i--)
         {
             val <<= 8;
-            val += system_bus->read_byte (mem_addr + i);
+            val += system_bus->read_byte(mem_addr + i);
         }
     }
 
     if (val < min_value || val > max_value)
     {
-        throw Exception (InterruptType::FAILED_ASSERT,
-                         "Expected value at memory address " + std::to_string (mem_addr)
-                             + " to be between " + std::to_string (min_value) + " and "
-                             + std::to_string (max_value) + ". Got " + std::to_string (val) + ".");
+        throw Exception(InterruptType::FAILED_ASSERT,
+                        "Expected value at memory address " + std::to_string(mem_addr)
+                            + " to be between " + std::to_string(min_value) + " and "
+                            + std::to_string(max_value) + ". Got " + std::to_string(val) + ".");
     }
 }
 
-void Emulator32bit::_emu_assertp (byte p_state_id, bool expected_value)
+void Emulator32bit::_emu_assertp(byte p_state_id, bool expected_value)
 {
-    bool val = test_bit (m_pstate, p_state_id);
+    bool val = test_bit(m_pstate, p_state_id);
 
     if (val != expected_value)
     {
-        throw Exception (InterruptType::FAILED_ASSERT,
-                         "Failed system call assertion. Expected PSTATE "
-                             + std::to_string (p_state_id) + " to be "
-                             + std::to_string (expected_value) + ". Got " + std::to_string (val)
-                             + ".");
+        throw Exception(InterruptType::FAILED_ASSERT,
+                        "Failed system call assertion. Expected PSTATE "
+                            + std::to_string(p_state_id) + " to be "
+                            + std::to_string(expected_value) + ". Got " + std::to_string(val)
+                            + ".");
     }
 }
 
-void Emulator32bit::_emu_log (word str)
+void Emulator32bit::_emu_log(word str)
 {
     std::string msg;
-    while (system_bus->read_byte (str) != '\0')
+    while (system_bus->read_byte(str) != '\0')
     {
-        msg += (char) system_bus->read_byte (str);
+        msg += (char) system_bus->read_byte(str);
         str++;
     }
 
@@ -121,12 +121,12 @@ void Emulator32bit::_emu_log (word str)
 }
 
 // TODO: raise interrupt so kernel can handle
-void Emulator32bit::_emu_err (word err)
+void Emulator32bit::_emu_err(word err)
 {
     std::string msg;
-    while (system_bus->read_byte (err) != '\0')
+    while (system_bus->read_byte(err) != '\0')
     {
-        msg += (char) system_bus->read_byte (err);
+        msg += (char) system_bus->read_byte(err);
         err++;
     }
 
@@ -265,51 +265,51 @@ void Emulator32bit::_emu_err (word err)
  * @param instr
  * @param exception
  */
-void Emulator32bit::_swi (word instr)
+void Emulator32bit::_swi(word instr)
 {
-    byte cond = bitfield_unsigned (instr, 22, 4);
-    DEBUG ("swi {}", cond);
+    byte cond = bitfield_unsigned(instr, 22, 4);
+    DEBUG("swi {}", cond);
 
-    if (!check_cond (m_pstate, cond))
+    if (!check_cond(m_pstate, cond))
     {
         return;
     }
 
     // software interrupts.. perfect to add functionality to this like console print,
     // file operations, ports, etc
-    word id = read_reg (Register::SYSCALL);
-    word arg0 = read_reg (Register::X0);
-    word arg1 = read_reg (Register::X1);
-    word arg2 = read_reg (Register::X2);
-    word arg3 = read_reg (Register::X3);
-    word arg4 = read_reg (Register::X4);
-    word arg5 = read_reg (Register::X5);
-    UNUSED (arg5); // temporary
+    word id = read_reg(Register::SYSCALL);
+    word arg0 = read_reg(Register::X0);
+    word arg1 = read_reg(Register::X1);
+    word arg2 = read_reg(Register::X2);
+    word arg3 = read_reg(Register::X3);
+    word arg4 = read_reg(Register::X4);
+    word arg5 = read_reg(Register::X5);
+    UNUSED(arg5); // temporary
     switch (id)
     {
     case 1000:
-        _emu_print ();
+        _emu_print();
         break;
     case 1001:
-        _emu_printr (arg0);
+        _emu_printr(arg0);
         break;
     case 1002:
-        _emu_printm (arg0, arg1, arg2);
+        _emu_printm(arg0, arg1, arg2);
         break;
     case 1003:
-        _emu_printp ();
+        _emu_printp();
         break;
 
     case 1010:
-        _emu_assertr (arg0, arg1, arg2);
+        _emu_assertr(arg0, arg1, arg2);
         break;
     case 1011:
-        _emu_assertm (arg0, arg1, arg2, arg3, arg4);
+        _emu_assertm(arg0, arg1, arg2, arg3, arg4);
         break;
     case 1012:
-        _emu_assertp (arg0, arg1);
+        _emu_assertp(arg0, arg1);
         break;
     default:
-        throw Exception (InterruptType::BAD_INSTR, "Invalid syscall number " + std::to_string (id));
+        throw Exception(InterruptType::BAD_INSTR, "Invalid syscall number " + std::to_string(id));
     }
 }

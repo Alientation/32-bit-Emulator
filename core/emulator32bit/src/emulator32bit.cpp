@@ -7,44 +7,44 @@
 
 #include <cstdio>
 
-Emulator32bit::Emulator32bit (word ram_npages, word ram_start_page, const byte rom_data[],
-                              word rom_npages, word rom_start_page) :
-    system_bus (new SystemBus (new RAM (ram_npages, ram_start_page),
-                               new ROM (rom_data, rom_npages, rom_start_page)))
+Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[],
+                             word rom_npages, word rom_start_page) :
+    system_bus(new SystemBus(new RAM(ram_npages, ram_start_page),
+                             new ROM(rom_data, rom_npages, rom_start_page)))
 {
-    fill_out_instructions ();
-    reset ();
+    fill_out_instructions();
+    reset();
 }
 
-Emulator32bit::Emulator32bit () :
-    Emulator32bit (RAM_NPAGES, RAM_START_PAGE, ROM_DATA, ROM_NPAGES, ROM_START_PAGE)
+Emulator32bit::Emulator32bit() :
+    Emulator32bit(RAM_NPAGES, RAM_START_PAGE, ROM_DATA, ROM_NPAGES, ROM_START_PAGE)
 {
 }
 
-Emulator32bit::Emulator32bit (RAM *ram, ROM *rom, Disk *disk) :
-    system_bus (new SystemBus (ram, rom, disk, new VirtualMemory (disk)))
+Emulator32bit::Emulator32bit(RAM *ram, ROM *rom, Disk *disk) :
+    system_bus(new SystemBus(ram, rom, disk, new VirtualMemory(disk)))
 {
-    fill_out_instructions ();
-    reset ();
+    fill_out_instructions();
+    reset();
 }
 
-Emulator32bit::~Emulator32bit ()
+Emulator32bit::~Emulator32bit()
 {
     delete system_bus;
 }
 
-Emulator32bit::Exception::Exception (Emulator32bit::InterruptType type, const std::string &msg) :
-    type (type),
-    message (msg)
+Emulator32bit::Exception::Exception(Emulator32bit::InterruptType type, const std::string &msg) :
+    type(type),
+    message(msg)
 {
 }
 
-const char *Emulator32bit::Exception::what () const noexcept
+const char *Emulator32bit::Exception::what() const noexcept
 {
-    return message.c_str ();
+    return message.c_str();
 }
 
-void Emulator32bit::fill_out_instructions ()
+void Emulator32bit::fill_out_instructions()
 {
     for (int i = 0; i < kMaxInstructions; i++)
     {
@@ -54,80 +54,80 @@ void Emulator32bit::fill_out_instructions ()
 /* fill out instruction functions and construct disassembler instruction mapping */
 #define _INSTR(op) m_instruction_handler[_op_##op] = &Emulator32bit::_##op;
 
-    _INSTR (special_instructions)
+    _INSTR(special_instructions)
 
-    _INSTR (add)
-    _INSTR (sub)
-    _INSTR (rsb)
-    _INSTR (adc)
-    _INSTR (sbc)
-    _INSTR (rsc)
-    _INSTR (mul)
-    _INSTR (umull)
-    _INSTR (smull)
+    _INSTR(add)
+    _INSTR(sub)
+    _INSTR(rsb)
+    _INSTR(adc)
+    _INSTR(sbc)
+    _INSTR(rsc)
+    _INSTR(mul)
+    _INSTR(umull)
+    _INSTR(smull)
 
-    _INSTR (vabs)
-    _INSTR (vneg)
-    _INSTR (vsqrt)
-    _INSTR (vadd)
-    _INSTR (vsub)
-    _INSTR (vdiv)
-    _INSTR (vmul)
-    _INSTR (vcmp)
-    _INSTR (vsel)
-    _INSTR (vcint)
-    _INSTR (vcflo)
-    _INSTR (vmov)
+    _INSTR(vabs)
+    _INSTR(vneg)
+    _INSTR(vsqrt)
+    _INSTR(vadd)
+    _INSTR(vsub)
+    _INSTR(vdiv)
+    _INSTR(vmul)
+    _INSTR(vcmp)
+    _INSTR(vsel)
+    _INSTR(vcint)
+    _INSTR(vcflo)
+    _INSTR(vmov)
 
-    _INSTR (and)
-    _INSTR (orr)
-    _INSTR (eor)
-    _INSTR (bic)
-    _INSTR (lsl)
-    _INSTR (lsr)
-    _INSTR (asr)
-    _INSTR (ror)
+    _INSTR(and)
+    _INSTR(orr)
+    _INSTR(eor)
+    _INSTR(bic)
+    _INSTR(lsl)
+    _INSTR(lsr)
+    _INSTR(asr)
+    _INSTR(ror)
 
-    _INSTR (cmp)
-    _INSTR (cmn)
-    _INSTR (tst)
-    _INSTR (teq)
+    _INSTR(cmp)
+    _INSTR(cmn)
+    _INSTR(tst)
+    _INSTR(teq)
 
-    _INSTR (mov)
-    _INSTR (mvn)
+    _INSTR(mov)
+    _INSTR(mvn)
 
-    _INSTR (ldr)
-    _INSTR (ldrb)
-    _INSTR (ldrh)
-    _INSTR (str)
-    _INSTR (strb)
-    _INSTR (strh)
+    _INSTR(ldr)
+    _INSTR(ldrb)
+    _INSTR(ldrh)
+    _INSTR(str)
+    _INSTR(strb)
+    _INSTR(strh)
 
-    _INSTR (b)
-    _INSTR (bl)
-    _INSTR (bx)
-    _INSTR (blx)
-    _INSTR (swi)
+    _INSTR(b)
+    _INSTR(bl)
+    _INSTR(bx)
+    _INSTR(blx)
+    _INSTR(swi)
 
-    _INSTR (adrp)
+    _INSTR(adrp)
 #undef _INSTR
 }
 
-void Emulator32bit::print ()
+void Emulator32bit::print()
 {
-    std::printf ("32 bit emulator\nRegisters:\n");
-    std::printf (" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str (m_pc).c_str (),
-            to_color_hex_str (read_reg (Register::SP)).c_str (),
-            to_color_hex_str (word (0)).c_str ());
-    for (U8 i = 0; i < register_to_U8 (Register::X29); i++)
+    std::printf("32 bit emulator\nRegisters:\n");
+    std::printf(" pc: %s\n sp: %s\nxzr: %s\n", to_color_hex_str(m_pc).c_str(),
+                to_color_hex_str(read_reg(Register::SP)).c_str(),
+                to_color_hex_str(word(0)).c_str());
+    for (U8 i = 0; i < register_to_U8(Register::X29); i++)
     {
-        std::printf ("x%.2d: %s\n", i, to_color_hex_str (read_reg (i)).c_str ());
+        std::printf("x%.2d: %s\n", i, to_color_hex_str(read_reg(i)).c_str());
     }
 
-    std::printf ("\nMemory Dump: TODO");
+    std::printf("\nMemory Dump: TODO");
 }
 
-void Emulator32bit::run (U64 instructions)
+void Emulator32bit::run(U64 instructions)
 {
     U64 num_instructions_ran = 0;
     try
@@ -136,8 +136,8 @@ void Emulator32bit::run (U64 instructions)
         {
             while (true)
             {
-                const word instr = system_bus->read_word_aligned_ram (m_pc);
-                execute (instr);
+                const word instr = system_bus->read_word_aligned_ram(m_pc);
+                execute(instr);
                 m_pc += 4;
                 num_instructions_ran++;
             }
@@ -147,8 +147,8 @@ void Emulator32bit::run (U64 instructions)
             const U64 start_instructions = instructions;
             while (instructions > 0)
             {
-                const word instr = system_bus->read_word_aligned_ram (m_pc);
-                execute (instr);
+                const word instr = system_bus->read_word_aligned_ram(m_pc);
+                execute(instr);
                 m_pc += 4;
                 instructions--;
             }
@@ -157,26 +157,26 @@ void Emulator32bit::run (U64 instructions)
     }
     catch (const Exception &e)
     {
-        std::cerr << "Caught Emulator Exception: " << e.what () << std::endl;
+        std::cerr << "Caught Emulator Exception: " << e.what() << std::endl;
     }
     catch (const SystemBus::Exception &e)
     {
-        std::cerr << "Caught System Bus Exception: " << e.what () << std::endl;
+        std::cerr << "Caught System Bus Exception: " << e.what() << std::endl;
     }
 
-    std::printf ("Ran %lu instructions\n", num_instructions_ran);
+    std::printf("Ran %lu instructions\n", num_instructions_ran);
 }
 
-void Emulator32bit::reset ()
+void Emulator32bit::reset()
 {
-    system_bus->reset ();
-    static_assert (sizeof (m_x) / sizeof (m_x[0]) == kNumReg);
+    system_bus->reset();
+    static_assert(sizeof(m_x) / sizeof(m_x[0]) == kNumReg);
     // Set up the masks for registers.
     for (U8 i = 0; i < kNumReg; i++)
     {
-        m_x[i] = (1ULL << (8 * sizeof (word))) - 1;
+        m_x[i] = (1ULL << (8 * sizeof(word))) - 1;
     }
-    m_x[register_to_U8 (Register::XZR)] = 0;
+    m_x[register_to_U8(Register::XZR)] = 0;
     m_pstate = 0;
     m_pc = 0;
 }

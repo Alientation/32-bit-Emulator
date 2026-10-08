@@ -16,24 +16,24 @@
 #include <sstream>
 #include <vector>
 
-bool Process::valid_src_file (const File &file)
+bool Process::valid_src_file(const File &file)
 {
-    return file.get_extension () == SOURCE_EXTENSION || file.get_extension () == INCLUDE_EXTENSION;
+    return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
 }
 
-bool Process::valid_processed_file (const File &file)
+bool Process::valid_processed_file(const File &file)
 {
-    return file.get_extension () == PROCESSED_EXTENSION;
+    return file.get_extension() == PROCESSED_EXTENSION;
 }
 
-bool Process::valid_obj_file (const File &file)
+bool Process::valid_obj_file(const File &file)
 {
-    return file.get_extension () == OBJECT_EXTENSION;
+    return file.get_extension() == OBJECT_EXTENSION;
 }
 
-bool Process::valid_exe_file (const File &file)
+bool Process::valid_exe_file(const File &file)
 {
-    return file.get_extension () == EXECUTABLE_EXTENSION;
+    return file.get_extension() == EXECUTABLE_EXTENSION;
 }
 
 /**
@@ -41,10 +41,10 @@ bool Process::valid_exe_file (const File &file)
  *
  * @param compilerArgs the arguments to construct the build process from
  */
-Process::Process (const std::string &assembler_args)
+Process::Process(const std::string &assembler_args)
 {
-    INFO ("Building Process: args({}).", assembler_args.c_str ());
-    INFO ("Current Working Directory: {}", std::filesystem::current_path ().string ().c_str ());
+    INFO("Building Process: args({}).", assembler_args.c_str());
+    INFO("Current Working Directory: {}", std::filesystem::current_path().string().c_str());
 
     flags = {
         {"--", &Process::_ignore},  /* Treats everything after as a regular argument */
@@ -100,16 +100,16 @@ Process::Process (const std::string &assembler_args)
 
     // split command args by whitespace unless surrounded by quotes
     std::vector<std::string> args_list;
-    parse_args (assembler_args, args_list);
+    parse_args(assembler_args, args_list);
 
-    DEBUG ("Process::Process() - args_list.size(): {}.", args_list.size ());
-    for (size_t i = 0; i < args_list.size (); i++)
+    DEBUG("Process::Process() - args_list.size(): {}.", args_list.size());
+    for (size_t i = 0; i < args_list.size(); i++)
     {
-        DEBUG ("Process::Process() - args_list[{}]: {}", i, args_list[i].c_str ());
+        DEBUG("Process::Process() - args_list[{}]: {}", i, args_list[i].c_str());
     }
 
-    evaluate_args (args_list);
-    build ();
+    evaluate_args(args_list);
+    build();
 }
 
 /**
@@ -118,12 +118,12 @@ Process::Process (const std::string &assembler_args)
  * @param compilerArgs the arguments to parse
  * @param args_list the list of arguments to add to
  */
-void Process::parse_args (std::string assembler_args, std::vector<std::string> &args_list)
+void Process::parse_args(std::string assembler_args, std::vector<std::string> &args_list)
 {
     bool is_escaped = false;
     bool is_quoted = false;
     std::string cur_arg = "";
-    for (size_t i = 0; i < assembler_args.length (); i++)
+    for (size_t i = 0; i < assembler_args.length(); i++)
     {
         char c = assembler_args[i];
         if (c == '\"' && !is_escaped)
@@ -131,12 +131,12 @@ void Process::parse_args (std::string assembler_args, std::vector<std::string> &
             // this is a quote that is not escaped
             is_quoted = !is_quoted;
         }
-        else if (std::isspace (c) && !is_quoted)
+        else if (std::isspace(c) && !is_quoted)
         {
             // only add argument if it's not empty
-            if (cur_arg.length () > 0)
+            if (cur_arg.length() > 0)
             {
-                args_list.push_back (cur_arg);
+                args_list.push_back(cur_arg);
                 cur_arg = "";
             }
         }
@@ -156,16 +156,16 @@ void Process::parse_args (std::string assembler_args, std::vector<std::string> &
     }
 
     // check if there are any dangling quotes or escape characters
-    EXPECT_FALSE_SS (is_quoted, std::stringstream () << "Process::Process() - Missing end quotes: "
-                                                     << assembler_args);
-    EXPECT_FALSE_SS (is_escaped, std::stringstream ()
-                                     << "Process::Process() - Dangling escape character: "
-                                     << assembler_args);
+    EXPECT_FALSE_SS(is_quoted, std::stringstream() << "Process::Process() - Missing end quotes: "
+                                                   << assembler_args);
+    EXPECT_FALSE_SS(is_escaped, std::stringstream()
+                                    << "Process::Process() - Dangling escape character: "
+                                    << assembler_args);
 
     // add the last argument if it's not empty
-    if (cur_arg.length () > 0)
+    if (cur_arg.length() > 0)
     {
-        args_list.push_back (cur_arg);
+        args_list.push_back(cur_arg);
     }
 }
 
@@ -174,37 +174,37 @@ void Process::parse_args (std::string assembler_args, std::vector<std::string> &
  *
  * @param args_list the list of arguments to process
  */
-void Process::evaluate_args (std::vector<std::string> &args_list)
+void Process::evaluate_args(std::vector<std::string> &args_list)
 {
     // evaluate arguments
-    for (size_t i = 0; i < args_list.size (); i++)
+    for (size_t i = 0; i < args_list.size(); i++)
     {
-        DEBUG ("arg {}: {}", i, args_list[i].c_str ());
+        DEBUG("arg {}: {}", i, args_list[i].c_str());
 
         std::string &arg = args_list[i];
         if (m_parse_options && arg[0] == '-')
         {
             // this is a flag
-            EXPECT_TRUE_SS (flags.find (arg) != flags.end (),
-                            std::stringstream ()
-                                << "Process::evaluate_args() - Invalid flag: " << arg);
+            EXPECT_TRUE_SS(flags.find(arg) != flags.end(),
+                           std::stringstream()
+                               << "Process::evaluate_args() - Invalid flag: " << arg);
 
-            (this->*flags[arg]) (args_list, i);
+            (this->*flags[arg])(args_list, i);
         }
         else
         {
             // this should be a file
-            File file (arg);
+            File file(arg);
 
-            DEBUG ("Process::evaluate_args() - Adding file {}", file.get_path ().c_str ());
+            DEBUG("Process::evaluate_args() - Adding file {}", file.get_path().c_str());
 
             // check the extension
-            EXPECT_TRUE_SS (file.get_extension () == SOURCE_EXTENSION,
-                            std::stringstream ()
-                                << "Process::evaluate_args() - Invalid file extension: "
-                                << file.get_extension ());
+            EXPECT_TRUE_SS(file.get_extension() == SOURCE_EXTENSION,
+                           std::stringstream()
+                               << "Process::evaluate_args() - Invalid file extension: "
+                               << file.get_extension());
 
-            m_src_files.push_back (file);
+            m_src_files.push_back(file);
         }
     }
 }
@@ -213,21 +213,20 @@ void Process::evaluate_args (std::vector<std::string> &args_list)
  * @brief
  *
  */
-void Process::build ()
+void Process::build()
 {
-    if (m_src_files.size () == 0)
+    if (m_src_files.size() == 0)
     {
         std::cout << "ERROR: missing source files to assemble\n";
-        exit (EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
-    preprocess ();
-    assemble ();
+    preprocess();
+    assemble();
 
     if (m_make_lib)
     {
-        WriteStaticLibrary (m_obj_files,
-                            File (m_output_file + "." + STATIC_LIBRARY_EXTENSION, true));
+        WriteStaticLibrary(m_obj_files, File(m_output_file + "." + STATIC_LIBRARY_EXTENSION, true));
         return;
     }
 
@@ -236,44 +235,44 @@ void Process::build ()
     {
         return;
     }
-    link ();
+    link();
 }
 
 /**
  * @brief
  *
  */
-void Process::preprocess ()
+void Process::preprocess()
 {
-    m_processed_files.clear ();
+    m_processed_files.clear();
     for (File file : m_src_files)
     {
-        if (!file.exists ())
+        if (!file.exists())
         {
-            WARN ("File {} does not exist.", file.get_path ().c_str ());
-            Directory dir (file.get_dir_str ());
-            if (dir.exists ())
+            WARN("File {} does not exist.", file.get_path().c_str());
+            Directory dir(file.get_dir_str());
+            if (dir.exists())
             {
-                DEBUG ("But it's parent directory exists at {} with files",
-                       dir.get_abs_path ().c_str ());
-                for (File f : dir.get_subfiles ())
+                DEBUG("But it's parent directory exists at {} with files",
+                      dir.get_abs_path().c_str());
+                for (File f : dir.get_subfiles())
                 {
-                    DEBUG ("{}", f.get_name ().c_str ());
+                    DEBUG("{}", f.get_name().c_str());
                 }
             }
         }
 
         if (m_has_output_dir)
         {
-            Preprocessor preprocessor (this, file,
-                                       m_output_dir + File::SEPARATOR + file.get_name () + "."
-                                           + PROCESSED_EXTENSION);
-            m_processed_files.push_back (preprocessor.preprocess ());
+            Preprocessor preprocessor(this, file,
+                                      m_output_dir + File::SEPARATOR + file.get_name() + "."
+                                          + PROCESSED_EXTENSION);
+            m_processed_files.push_back(preprocessor.preprocess());
         }
         else
         {
-            Preprocessor preprocessor (this, file);
-            m_processed_files.push_back (preprocessor.preprocess ());
+            Preprocessor preprocessor(this, file);
+            m_processed_files.push_back(preprocessor.preprocess());
         }
     }
 }
@@ -282,38 +281,38 @@ void Process::preprocess ()
  * @brief
  *
  */
-void Process::assemble ()
+void Process::assemble()
 {
-    m_obj_files.clear ();
+    m_obj_files.clear();
     for (File file : m_processed_files)
     {
         if (m_has_output_dir)
         {
-            Assembler assembler (this, file,
-                                 m_output_dir + File::SEPARATOR + file.get_name () + "."
-                                     + OBJECT_EXTENSION);
-            assembler.assemble ();
-            m_obj_files.push_back (assembler.get_output_file ());
+            Assembler assembler(this, file,
+                                m_output_dir + File::SEPARATOR + file.get_name() + "."
+                                    + OBJECT_EXTENSION);
+            assembler.assemble();
+            m_obj_files.push_back(assembler.get_output_file());
         }
         else
         {
-            Assembler assembler (this, file);
-            assembler.assemble ();
-            m_obj_files.push_back (assembler.get_output_file ());
+            Assembler assembler(this, file);
+            assembler.assemble();
+            m_obj_files.push_back(assembler.get_output_file());
         }
 
         if (!keep_proccessed_files)
         {
             try
             {
-                if (!std::filesystem::remove (file.get_path ()))
+                if (!std::filesystem::remove(file.get_path()))
                 {
-                    std::cout << "file " << file.get_path () << " not found.\n";
+                    std::cout << "file " << file.get_path() << " not found.\n";
                 }
             }
             catch (const std::filesystem::filesystem_error &err)
             {
-                std::cout << "filesystem error: " << err.what () << "\n";
+                std::cout << "filesystem error: " << err.what() << "\n";
             }
         }
     }
@@ -323,42 +322,42 @@ void Process::assemble ()
  * @brief
  *
  */
-void Process::link ()
+void Process::link()
 {
     std::vector<ObjectFile> objects;
     for (File file : m_obj_files)
     {
-        objects.push_back (ObjectFile (file));
+        objects.push_back(ObjectFile(file));
     }
 
     /* Link all included libraries */
     for (File lib : m_linked_lib)
     {
-        ReadStaticLibrary (objects, lib);
+        ReadStaticLibrary(objects, lib);
     }
 
     /* Link all libraries found in the provided directories */
     for (Directory lib_dir : m_library_dirs)
     {
-        for (File lib : lib_dir.get_all_subfiles ())
+        for (File lib : lib_dir.get_all_subfiles())
         {
-            if (lib.get_extension () == STATIC_LIBRARY_EXTENSION)
+            if (lib.get_extension() == STATIC_LIBRARY_EXTENSION)
             {
-                ReadStaticLibrary (objects, lib);
+                ReadStaticLibrary(objects, lib);
             }
         }
     }
 
-    m_exe_file = File (m_output_file + "." + EXECUTABLE_EXTENSION);
-    DEBUG ("Process::link() - output file name: {}", m_exe_file.get_path ().c_str ());
+    m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
+    DEBUG("Process::link() - output file name: {}", m_exe_file.get_path().c_str());
 
     if (m_has_ld_file)
     {
-        Linker linker (objects, m_exe_file, m_ld_file);
+        Linker linker(objects, m_exe_file, m_ld_file);
     }
     else
     {
-        Linker linker (objects, m_exe_file);
+        Linker linker(objects, m_exe_file);
     }
 }
 
@@ -368,10 +367,10 @@ void Process::link ()
  * @param args
  * @param index
  */
-void Process::_ignore (std::vector<std::string> &args, size_t &index)
+void Process::_ignore(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
     m_parse_options = false;
 }
 
@@ -383,13 +382,13 @@ void Process::_ignore (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_version (std::vector<std::string> &args, size_t &index)
+void Process::_version(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     std::cout << "Assembler Version: " << ASSEMBLER_VERSION << "." << std::endl;
-    exit (EXIT_SUCCESS);
+    exit(EXIT_SUCCESS);
 }
 
 /**
@@ -398,10 +397,10 @@ void Process::_version (std::vector<std::string> &args, size_t &index)
  * @param args
  * @param index
  */
-void Process::_ar (std::vector<std::string> &args, size_t &index)
+void Process::_ar(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     m_make_lib = true;
 }
@@ -414,10 +413,10 @@ void Process::_ar (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_compile (std::vector<std::string> &args, size_t &index)
+void Process::_compile(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     m_only_compile = true;
 }
@@ -430,16 +429,16 @@ void Process::_compile (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_output (std::vector<std::string> &args, size_t &index)
+void Process::_output(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream () << "Process::_output() - Missing output file path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_output() - Missing output file path.");
     m_output_file = args[++index];
 
     // check if the output file is valid
-    EXPECT_TRUE_SS (File::valid_path (m_output_file),
-                    std::stringstream () << "Process::_output() - Invalid output file path: "
-                                         << m_output_file << ".");
+    EXPECT_TRUE_SS(File::valid_path(m_output_file),
+                   std::stringstream() << "Process::_output() - Invalid output file path: "
+                                       << m_output_file << ".");
 }
 
 /**
@@ -450,16 +449,16 @@ void Process::_output (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_outdir (std::vector<std::string> &args, size_t &index)
+void Process::_outdir(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream () << "Process::_outdir() - Missing output directory path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_outdir() - Missing output directory path.");
     m_output_dir = args[++index];
     m_has_output_dir = true;
     // check if the output file is valid
-    EXPECT_TRUE_SS (Directory::valid_path (m_output_dir),
-                    std::stringstream () << "Process::_outdir() - Invalid output directory path: "
-                                         << m_output_file << ".");
+    EXPECT_TRUE_SS(Directory::valid_path(m_output_dir),
+                   std::stringstream() << "Process::_outdir() - Invalid output directory path: "
+                                       << m_output_file << ".");
 }
 
 /**
@@ -476,16 +475,16 @@ void Process::_outdir (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_optimize (std::vector<std::string> &args, size_t &index)
+void Process::_optimize(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream () << "Process::_optimize() - Missing optimization level.");
-    m_optimization_level = std::stoi (args[++index]);
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_optimize() - Missing optimization level.");
+    m_optimization_level = std::stoi(args[++index]);
 
     // check if the optimization level is valid
-    EXPECT_TRUE_SS (0 <= m_optimization_level && m_optimization_level <= 3,
-                    std::stringstream () << "Process::_optimize() - Invalid optimization level: "
-                                         << m_optimization_level << ".");
+    EXPECT_TRUE_SS(0 <= m_optimization_level && m_optimization_level <= 3,
+                   std::stringstream() << "Process::_optimize() - Invalid optimization level: "
+                                       << m_optimization_level << ".");
 }
 
 /**
@@ -496,10 +495,10 @@ void Process::_optimize (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_optimize_all (std::vector<std::string> &args, size_t &index)
+void Process::_optimize_all(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     m_optimization_level = MAX_OPTIMIZATION_LEVEL;
 }
@@ -515,17 +514,17 @@ void Process::_optimize_all (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_warn (std::vector<std::string> &args, size_t &index)
+void Process::_warn(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (), std::stringstream ()
-                                                  << "Process::_warn() - Missing warning type.");
+    EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
+                                                << "Process::_warn() - Missing warning type.");
     std::string warning_type = args[++index];
 
     // check if the warning type is valid
-    EXPECT_TRUE_SS (WARNINGS.find (warning_type) != WARNINGS.end (),
-                    std::stringstream ()
-                        << "Process::_warn() - Invalid warning type: " << warning_type << ".");
-    m_enabled_warnings.insert (warning_type);
+    EXPECT_TRUE_SS(WARNINGS.find(warning_type) != WARNINGS.end(),
+                   std::stringstream()
+                       << "Process::_warn() - Invalid warning type: " << warning_type << ".");
+    m_enabled_warnings.insert(warning_type);
 }
 
 /**
@@ -536,14 +535,14 @@ void Process::_warn (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_warn_all (std::vector<std::string> &args, size_t &index)
+void Process::_warn_all(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     for (std::string warning_type : WARNINGS)
     {
-        m_enabled_warnings.insert (warning_type);
+        m_enabled_warnings.insert(warning_type);
     }
 }
 
@@ -555,18 +554,17 @@ void Process::_warn_all (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_include (std::vector<std::string> &args, size_t &index)
+void Process::_include(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream ()
-                        << "Process::_include() - Missing include directory path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_include() - Missing include directory path.");
     std::string dpath = args[++index];
 
     // check if the include directory is valid
-    EXPECT_TRUE_SS (Directory::valid_path (dpath),
-                    std::stringstream () << "Process::_include() - Invalid include directory path: "
-                                         << dpath << ".");
-    m_system_dirs.push_back (Directory (dpath));
+    EXPECT_TRUE_SS(Directory::valid_path(dpath),
+                   std::stringstream()
+                       << "Process::_include() - Invalid include directory path: " << dpath << ".");
+    m_system_dirs.push_back(Directory(dpath));
 }
 
 /**
@@ -579,17 +577,17 @@ void Process::_include (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_library (std::vector<std::string> &args, size_t &index)
+void Process::_library(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream () << "Process::_library() - Missing library file path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_library() - Missing library file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    EXPECT_TRUE_SS (File::valid_path (fpath),
-                    std::stringstream ()
-                        << "Process::_library() - Invalid library file path: " << fpath << ".");
-    m_linked_lib.push_back (File (fpath));
+    EXPECT_TRUE_SS(File::valid_path(fpath),
+                   std::stringstream()
+                       << "Process::_library() - Invalid library file path: " << fpath << ".");
+    m_linked_lib.push_back(File(fpath));
 }
 
 /**
@@ -600,19 +598,19 @@ void Process::_library (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_library_directory (std::vector<std::string> &args, size_t &index)
+void Process::_library_directory(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream ()
-                        << "Process::_libraryDirectory() - Missing library directory path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream()
+                       << "Process::_libraryDirectory() - Missing library directory path.");
     std::string dpath = args[++index];
 
     // check if the library directory is valid
-    EXPECT_TRUE_SS (Directory::valid_path (dpath),
-                    std::stringstream ()
-                        << "Process::_libraryDirectory() - Invalid library directory path: "
-                        << dpath << ".");
-    m_library_dirs.push_back (Directory (dpath));
+    EXPECT_TRUE_SS(Directory::valid_path(dpath),
+                   std::stringstream()
+                       << "Process::_libraryDirectory() - Invalid library directory path: " << dpath
+                       << ".");
+    m_library_dirs.push_back(Directory(dpath));
 }
 
 /**
@@ -623,20 +621,20 @@ void Process::_library_directory (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_preprocessor_flag (std::vector<std::string> &args, size_t &index)
+void Process::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream ()
-                        << "Process::_preprocessorFlag() - Missing preprocessor flag.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream()
+                       << "Process::_preprocessorFlag() - Missing preprocessor flag.");
     std::string flag = args[++index];
 
     // check if there is a value
     std::string value = "";
-    if (flag.find ('=') != std::string::npos)
+    if (flag.find('=') != std::string::npos)
     {
         // there is a value
-        value = flag.substr (flag.find ('=') + 1);
-        flag = flag.substr (0, flag.find ('='));
+        value = flag.substr(flag.find('=') + 1);
+        flag = flag.substr(0, flag.find('='));
     }
 
     m_preprocessor_flags[flag] = value;
@@ -650,31 +648,31 @@ void Process::_preprocessor_flag (std::vector<std::string> &args, size_t &index)
  * @param args the arguments passed to the build process
  * @param index the index of the flag in the arguments list
  */
-void Process::_keep_preprocessor_output (std::vector<std::string> &args, size_t &index)
+void Process::_keep_preprocessor_output(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     keep_proccessed_files = true;
 }
 
-void Process::_ld (std::vector<std::string> &args, size_t &index)
+void Process::_ld(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS (index + 1 < args.size (),
-                    std::stringstream () << "Process::_ld() - Missing linker script file path.");
+    EXPECT_TRUE_SS(index + 1 < args.size(),
+                   std::stringstream() << "Process::_ld() - Missing linker script file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    EXPECT_TRUE_SS (File::valid_path (fpath),
-                    std::stringstream ()
-                        << "Process::_ld() - Invalid linker script file path: " << fpath << ".");
-    m_ld_file = File (fpath);
+    EXPECT_TRUE_SS(File::valid_path(fpath),
+                   std::stringstream()
+                       << "Process::_ld() - Invalid linker script file path: " << fpath << ".");
+    m_ld_file = File(fpath);
 }
 
-void Process::_help (std::vector<std::string> &args, size_t &index)
+void Process::_help(std::vector<std::string> &args, size_t &index)
 {
-    UNUSED (args);
-    UNUSED (index);
+    UNUSED(args);
+    UNUSED(index);
 
     std::cout << "This is the BASM assembler. Usage:\n\n";
 
@@ -682,77 +680,77 @@ void Process::_help (std::vector<std::string> &args, size_t &index)
     std::cout << "Options:\n";
 
     auto print_option =
-        [] (const std::string &option, const std::string &description, int width = 26)
-    { std::cout << std::left << std::setw (width) << option << " " << description << '\n'; };
+        [](const std::string &option, const std::string &description, int width = 26)
+    { std::cout << std::left << std::setw(width) << option << " " << description << '\n'; };
 
-    print_option ("--", "End of options.");
-    print_option ("-v, --version", "Display assembler version information.");
-    print_option ("-ar", "Build a library file (.ba).");
-    print_option ("-c, --compile", "Only compiles the source files into object files.");
-    print_option ("-o, --output <file>", "Path to output file.");
-    print_option ("-outdir <dir>", "Path to directory where object files will be stored.");
-    print_option ("-O, --optimize=<level>", "Turns on optimization level. *UNIMPLEMENTED*");
-    print_option ("-oall", "Turns on highest optimization level. *UNIMPLEMENTED*");
-    print_option ("-W, --warning=<level>", "Turns on warning level. *UNIMPLEMENTED*");
-    print_option ("-wall", "Turns on highest warning level. *UNIMPLEMENTED*");
-    print_option ("-I, --include <dir>",
-                  "Add directory to search for system files from include macros.");
-    print_option ("-l, --library <file>", "Links given library file to program.");
-    print_option ("-L, --librarydir <dir>",
-                  "Links all library files in the given directory recursively to program.");
-    print_option ("-D <flag>", "Pass preprocessor flag to program.");
-    print_option ("-kp", "Keep intermediate files (.bi).");
-    print_option ("-h, --help", "Display options help.");
-    exit (EXIT_SUCCESS);
+    print_option("--", "End of options.");
+    print_option("-v, --version", "Display assembler version information.");
+    print_option("-ar", "Build a library file (.ba).");
+    print_option("-c, --compile", "Only compiles the source files into object files.");
+    print_option("-o, --output <file>", "Path to output file.");
+    print_option("-outdir <dir>", "Path to directory where object files will be stored.");
+    print_option("-O, --optimize=<level>", "Turns on optimization level. *UNIMPLEMENTED*");
+    print_option("-oall", "Turns on highest optimization level. *UNIMPLEMENTED*");
+    print_option("-W, --warning=<level>", "Turns on warning level. *UNIMPLEMENTED*");
+    print_option("-wall", "Turns on highest warning level. *UNIMPLEMENTED*");
+    print_option("-I, --include <dir>",
+                 "Add directory to search for system files from include macros.");
+    print_option("-l, --library <file>", "Links given library file to program.");
+    print_option("-L, --librarydir <dir>",
+                 "Links all library files in the given directory recursively to program.");
+    print_option("-D <flag>", "Pass preprocessor flag to program.");
+    print_option("-kp", "Keep intermediate files (.bi).");
+    print_option("-h, --help", "Display options help.");
+    exit(EXIT_SUCCESS);
 }
 
 // FOR NOW getters
-bool Process::does_create_exe () const
+bool Process::does_create_exe() const
 {
     return !m_make_lib && !m_only_compile;
 }
 
-int Process::get_optimization_level () const
+int Process::get_optimization_level() const
 {
     return m_optimization_level;
 }
 
-std::set<std::string> Process::get_enabled_warnings () const
+std::set<std::string> Process::get_enabled_warnings() const
 {
     return m_enabled_warnings;
 }
 
-std::map<std::string, std::string> Process::get_preprocessor_flags () const
+std::map<std::string, std::string> Process::get_preprocessor_flags() const
 {
     return m_preprocessor_flags;
 }
 
-std::vector<Directory> Process::get_system_dirs () const
+std::vector<Directory> Process::get_system_dirs() const
 {
     return m_system_dirs;
 }
 
-std::vector<File> Process::get_processed_files () const
+std::vector<File> Process::get_processed_files() const
 {
     return m_processed_files;
 }
 
-std::vector<File> Process::get_obj_files () const
+std::vector<File> Process::get_obj_files() const
 {
     return m_obj_files;
 }
 
-File Process::get_exe_file () const
+File Process::get_exe_file() const
 {
     return m_exe_file;
 }
 
-File Process::get_ld_file () const
+File Process::get_ld_file() const
 {
     return m_ld_file;
 }
 
-bool Process::has_ld_file () const
+bool Process::has_ld_file() const
 {
     return m_has_ld_file;
 }

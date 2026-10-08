@@ -107,19 +107,19 @@ const static std::string build_long_loop =
 
 constexpr U64 kMaxCycles = 0x0;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     PROFILE_START
 
-    CLOCK_START ("Parsing command arguments")
+    CLOCK_START("Parsing command arguments")
     std::string build_command = build_palindrome;
     if (argc > 1)
     {
-        INFO ("Parsing command arguments");
+        INFO("Parsing command arguments");
         build_command = "";
         for (int i = 1; i < argc; i++)
         {
-            build_command += std::string (argv[i]);
+            build_command += std::string(argv[i]);
             if (i + 1 < argc)
             {
                 build_command += " ";
@@ -127,29 +127,29 @@ int main (int argc, char *argv[])
         }
     }
     CLOCK_END
-    CLOCK_START ("Building program")
+    CLOCK_START("Building program")
 
-    Process process (build_command);
+    Process process(build_command);
     CLOCK_END
 
-    if (process.does_create_exe ())
+    if (process.does_create_exe())
     {
-        CLOCK_START ("Loading program into emulator")
-        RAM *ram = new RAM (16, 0);
-        ROM *rom = new ROM (File ("../tests/rom.bin", true), 16, 16);
-        Disk *disk = new Disk (File ("../tests/disk.bin", true), 32, 32);
+        CLOCK_START("Loading program into emulator")
+        RAM *ram = new RAM(16, 0);
+        ROM *rom = new ROM(File("../tests/rom.bin", true), 16, 16);
+        Disk *disk = new Disk(File("../tests/disk.bin", true), 32, 32);
 
-        Emulator32bit emulator (ram, rom, disk);
-        long long pid = emulator.system_bus->mmu->begin_process ();
-        LoadExecutable loader (emulator, process.get_exe_file ());
+        Emulator32bit emulator(ram, rom, disk);
+        long long pid = emulator.system_bus->mmu->begin_process();
+        LoadExecutable loader(emulator, process.get_exe_file());
         CLOCK_END
 
-        DEBUG ("Running emulator");
-        CLOCK_START ("Running emulator")
-        emulator.run (kMaxCycles);
+        DEBUG("Running emulator");
+        CLOCK_START("Running emulator")
+        emulator.run(kMaxCycles);
         CLOCK_END
-        emulator.print ();
-        emulator.system_bus->mmu->end_process (pid);
+        emulator.print();
+        emulator.system_bus->mmu->end_process(pid);
     }
 
     PROFILE_STOP

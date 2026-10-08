@@ -8,50 +8,50 @@
 class Directory
 {
   public:
-    static bool valid_path (const std::string &path)
+    static bool valid_path(const std::string &path)
     {
-        return path.find_first_of ("*?\"<>|") == std::string::npos;
+        return path.find_first_of("*?\"<>|") == std::string::npos;
     }
 
     /**
          * Constructs a directory with the given path
          */
-    Directory (const std::string &path, bool create_if_not_present = false);
+    Directory(const std::string &path, bool create_if_not_present = false);
 
     /**
          * @return the name of the directory
          */
-    std::string get_name () const;
+    std::string get_name() const;
 
     /**
          * @return size of the directory, including all subdirectories and their contents
          */
-    int get_size () const;
+    int get_size() const;
 
     /**
          * @return relative path to the directory
          */
-    std::string get_path () const;
+    std::string get_path() const;
 
     /**
          * @return absolute path to the directory
          */
-    std::string get_abs_path () const;
+    std::string get_abs_path() const;
 
     /**
          * @return subfiles of the directory, not including any subdirectories or its contents
          */
-    std::vector<File> get_subfiles ();
+    std::vector<File> get_subfiles();
 
     /**
          * @return all files located underneath this directory
          */
-    std::vector<File> get_all_subfiles ();
+    std::vector<File> get_all_subfiles();
 
     /**
          * @return subdirectories of the directory, not including any subfiles
          */
-    std::vector<Directory> get_subdirs ();
+    std::vector<Directory> get_subdirs();
 
     /**
          * Returns the subdirectory of a path relative to the current directory
@@ -60,7 +60,7 @@ class Directory
          *
          * @return the subdirectory of a path relative path
          */
-    Directory get_subdir (const std::string &subdir_path);
+    Directory get_subdir(const std::string &subdir_path);
 
     /**
          * Returns the subfile of a path relative to the current directory
@@ -69,7 +69,7 @@ class Directory
          *
          * @return the subfile of a path relative path
          */
-    File get_subfile (const std::string &subfile_path);
+    File get_subfile(const std::string &subfile_path);
 
     /**
          * Returns whether or not the subdirectory exists
@@ -78,7 +78,7 @@ class Directory
          *
          * @return whether or not the subdirectory exists
          */
-    bool subdir_exists (const std::string &subdir_path);
+    bool subdir_exists(const std::string &subdir_path);
 
     /**
          * Returns whether or not the subfile exists
@@ -87,17 +87,17 @@ class Directory
          *
          * @return whether or not the subfile exists
          */
-    bool subfile_exists (const std::string &subfile_path);
+    bool subfile_exists(const std::string &subfile_path);
 
     /**
          * @return whether or not the directory exists
          */
-    bool exists () const;
+    bool exists() const;
 
     /**
          * Creates the directory
          */
-    void create ();
+    void create();
 
   private:
     std::string m_dir_path;

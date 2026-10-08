@@ -12,14 +12,14 @@
 class Timer
 {
   public:
-    Timer (Emulator32bit *processor);
+    Timer(Emulator32bit *processor);
 
-    inline void tick ()
+    inline void tick()
     {
         m_clock++;
     }
 
-    inline unsigned long long time ()
+    inline unsigned long long time()
     {
         return m_clock;
     }

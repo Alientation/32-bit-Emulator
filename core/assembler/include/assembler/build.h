@@ -26,25 +26,25 @@ static const std::string DEFAULT_OUTPUT_FILE = "a";
 class Process
 {
   public:
-    static bool valid_src_file (const File &file);
-    static bool valid_processed_file (const File &file);
-    static bool valid_obj_file (const File &file);
-    static bool valid_exe_file (const File &file);
+    static bool valid_src_file(const File &file);
+    static bool valid_processed_file(const File &file);
+    static bool valid_obj_file(const File &file);
+    static bool valid_exe_file(const File &file);
 
-    Process (const std::string &assembler_args = "");
+    Process(const std::string &assembler_args = "");
 
-    bool does_create_exe () const;
-    int get_optimization_level () const;
-    std::set<std::string> get_enabled_warnings () const;
-    std::map<std::string, std::string> get_preprocessor_flags () const;
+    bool does_create_exe() const;
+    int get_optimization_level() const;
+    std::set<std::string> get_enabled_warnings() const;
+    std::map<std::string, std::string> get_preprocessor_flags() const;
 
-    std::vector<Directory> get_system_dirs () const;
+    std::vector<Directory> get_system_dirs() const;
 
-    std::vector<File> get_processed_files () const;
-    std::vector<File> get_obj_files () const;
-    File get_exe_file () const;
-    File get_ld_file () const;
-    bool has_ld_file () const;
+    std::vector<File> get_processed_files() const;
+    std::vector<File> get_obj_files() const;
+    File get_exe_file() const;
+    File get_ld_file() const;
+    bool has_ld_file() const;
 
   private:
     /* process flags */
@@ -72,32 +72,32 @@ class Process
     std::vector<File> m_obj_files;
     File m_exe_file;
 
-    void parse_args (std::string assembler_args, std::vector<std::string> &args_list);
-    void evaluate_args (std::vector<std::string> &args_list);
-    void build ();
+    void parse_args(std::string assembler_args, std::vector<std::string> &args_list);
+    void evaluate_args(std::vector<std::string> &args_list);
+    void build();
 
-    void preprocess ();
-    void assemble ();
-    void link ();
+    void preprocess();
+    void assemble();
+    void link();
 
-    void _ignore (std::vector<std::string> &args, size_t &index);
-    void _version (std::vector<std::string> &args, size_t &index);
-    void _compile (std::vector<std::string> &args, size_t &index);
-    void _ar (std::vector<std::string> &args, size_t &index);
-    void _output (std::vector<std::string> &args, size_t &index);
-    void _outdir (std::vector<std::string> &args, size_t &index);
-    void _optimize (std::vector<std::string> &args, size_t &index);
-    void _optimize_all (std::vector<std::string> &args, size_t &index);
-    void _warn (std::vector<std::string> &args, size_t &index);
-    void _warn_all (std::vector<std::string> &args, size_t &index);
-    void _include (std::vector<std::string> &args, size_t &index);
-    void _library (std::vector<std::string> &args, size_t &index);
-    void _library_directory (std::vector<std::string> &args, size_t &index);
-    void _preprocessor_flag (std::vector<std::string> &args, size_t &index);
-    void _keep_preprocessor_output (std::vector<std::string> &args, size_t &index);
-    void _ld (std::vector<std::string> &args, size_t &index);
-    void _help (std::vector<std::string> &args, size_t &index);
+    void _ignore(std::vector<std::string> &args, size_t &index);
+    void _version(std::vector<std::string> &args, size_t &index);
+    void _compile(std::vector<std::string> &args, size_t &index);
+    void _ar(std::vector<std::string> &args, size_t &index);
+    void _output(std::vector<std::string> &args, size_t &index);
+    void _outdir(std::vector<std::string> &args, size_t &index);
+    void _optimize(std::vector<std::string> &args, size_t &index);
+    void _optimize_all(std::vector<std::string> &args, size_t &index);
+    void _warn(std::vector<std::string> &args, size_t &index);
+    void _warn_all(std::vector<std::string> &args, size_t &index);
+    void _include(std::vector<std::string> &args, size_t &index);
+    void _library(std::vector<std::string> &args, size_t &index);
+    void _library_directory(std::vector<std::string> &args, size_t &index);
+    void _preprocessor_flag(std::vector<std::string> &args, size_t &index);
+    void _keep_preprocessor_output(std::vector<std::string> &args, size_t &index);
+    void _ld(std::vector<std::string> &args, size_t &index);
+    void _help(std::vector<std::string> &args, size_t &index);
 
-    typedef void (Process::*FlagFunction) (std::vector<std::string> &args, size_t &index);
+    typedef void (Process::*FlagFunction)(std::vector<std::string> &args, size_t &index);
     std::map<std::string, FlagFunction> flags;
 };

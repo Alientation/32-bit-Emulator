@@ -342,29 +342,21 @@ class Tokenizer
         /// @param line
         /// @param tokenize_id
         ///
-        Token (Type type, std::string value, int line = -1, int tokenize_id = -1) noexcept;
+        Token(Type type, std::string value, int line = -1, int tokenize_id = -1) noexcept;
 
         ///
         /// @brief          TODO:
         ///
         /// @param tok
         ///
-        Token (const Token &tok) noexcept;
+        Token(const Token &tok) noexcept;
 
         ///
         /// @brief          TODO:
         ///
         /// @param tok
         ///
-        Token (Token &&tok) noexcept;
-
-        ///
-        /// @brief          TODO:
-        ///
-        /// @param tok
-        ///
-        /// @return
-        Token &operator= (const Token &tok) noexcept;
+        Token(Token &&tok) noexcept;
 
         ///
         /// @brief          TODO:
@@ -372,14 +364,22 @@ class Tokenizer
         /// @param tok
         ///
         /// @return
-        Token &operator= (Token &&tok) noexcept;
+        Token &operator=(const Token &tok) noexcept;
+
+        ///
+        /// @brief          TODO:
+        ///
+        /// @param tok
+        ///
+        /// @return
+        Token &operator=(Token &&tok) noexcept;
 
         ///
         /// @brief          TODO:
         ///
         /// @return
         ///
-        std::string to_string () const;
+        std::string to_string() const;
 
         ///
         /// @brief          TODO:
@@ -388,14 +388,14 @@ class Tokenizer
         ///
         /// @return
         ///
-        bool is (const std::set<Type> &types) const;
+        bool is(const std::set<Type> &types) const;
 
         ///
         /// @brief          TODO:
         ///
         /// @return
         ///
-        int nlines () const;
+        int nlines() const;
     };
 
     /// @brief              Options controlling how to tokenize.
@@ -411,7 +411,7 @@ class Tokenizer
     ///
     /// @brief              TODO:
     ///
-    Tokenizer ();
+    Tokenizer();
 
     ///
     /// @brief              TODO:
@@ -419,8 +419,7 @@ class Tokenizer
     /// @param src
     /// @param option
     ///
-    Tokenizer (File src,
-               Options option = {.keep_comments = true, .keep_whitespace = true});
+    Tokenizer(File src, Options option = {.keep_comments = true, .keep_whitespace = true});
 
     ///
     /// @brief              TODO:
@@ -428,48 +427,47 @@ class Tokenizer
     /// @param src
     /// @param option
     ///
-    Tokenizer (std::string src,
-               Options option = {.keep_comments = true, .keep_whitespace = true});
+    Tokenizer(std::string src, Options option = {.keep_comments = true, .keep_whitespace = true});
 
     ///
     /// @brief              Get token pointer.
     ///
     /// @return             Token pointer.
     ///
-    size_t get_toki () const;
+    size_t get_toki() const;
 
     ///
     /// @brief              Update token pointer.
     ///
     /// @param toki         New token pointer.
     ///
-    void set_toki (size_t toki);
+    void set_toki(size_t toki);
 
     ///
     /// @brief              Get state of tokenizer.
     ///
-    struct State get_state () const;
+    struct State get_state() const;
 
     ///
     /// @brief              Set state of tokenizer.
     ///
     /// @param state        New state.
     ///
-    void set_state (struct State state);
+    void set_state(struct State state);
 
     ///
     /// @brief              TODO:
     ///
     /// @return
     ///
-    bool fix_indent ();
+    bool fix_indent();
 
     ///
     /// @brief              Get line number of current token.
     ///
     /// @return             Line number.
     ///
-    int get_linei () const;
+    int get_linei() const;
 
     ///
     /// @brief              Get line number of token.
@@ -478,7 +476,7 @@ class Tokenizer
     ///
     /// @return             Line number.
     ///
-    int get_linei (size_t toki) const;
+    int get_linei(size_t toki) const;
 
     ///
     /// @brief              Get stringified line containing all original tokens at the line.
@@ -487,21 +485,21 @@ class Tokenizer
     ///
     /// @return             String representation of the line.
     ///
-    std::string get_line (int linei) const;
+    std::string get_line(int linei) const;
 
     ///
     /// @brief              Get next token.
     ///
     /// @return             Next token.
     ///
-    Tokenizer::Token &get_token ();
+    Tokenizer::Token &get_token();
 
     ///
     /// @brief              Get tokens.
     ///
     /// @return             Tokens list.
     ///
-    const std::vector<Token> &get_tokens ();
+    const std::vector<Token> &get_tokens();
 
     ///
     /// @brief              Insert tokens into the token list.
@@ -509,7 +507,7 @@ class Tokenizer
     /// @param tokens       Tokens to insert.
     /// @param loc          Position to insert at. Token at the location will be moved.
     ///
-    void insert_tokens (const std::vector<Token> &tokens, size_t loc);
+    void insert_tokens(const std::vector<Token> &tokens, size_t loc);
 
     ///
     /// @brief              Remove tokens from specified range.
@@ -517,47 +515,47 @@ class Tokenizer
     /// @param start        Inclusive start position.
     /// @param end          Exclusive end position.
     ///
-    void remove_tokens (size_t start, size_t end);
+    void remove_tokens(size_t start, size_t end);
 
     ///
     /// @brief              Remove all tokens that match the token types.
     ///
     /// @param tok_types    Token types to remove.
     ///
-    void filter_all (const std::set<Tokenizer::Type> &tok_types);
+    void filter_all(const std::set<Tokenizer::Type> &tok_types);
 
     ///
     /// @brief              Advances past the next token.
     ///
-    void skip_next ();
+    void skip_next();
 
     ///
     /// @brief              Advances past tokens that matches the given regex.
     ///
     /// @param regex        matches tokens to skip.
     ///
-    void skip_next_regex (const std::string &regex);
+    void skip_next_regex(const std::string &regex);
 
     ///
     /// @brief              Advances past tokens that match the given types.
     ///
     /// @param tok_types    the types to match.
     ///
-    void skip_next (const std::set<Tokenizer::Type> &tok_types);
+    void skip_next(const std::set<Tokenizer::Type> &tok_types);
 
     ///
     /// @brief              Advances past tokens that match the given type.
     ///
     /// @param tok_type     the type to match.
     ///
-    void skip_next (Tokenizer::Type tok_type);
+    void skip_next(Tokenizer::Type tok_type);
 
     ///
     /// @brief              Expects the current token to exist.
     ///
     /// @param error_msg    Message to throw if the token does not exist.
     ///
-    void expect_next (const std::string &error_msg);
+    void expect_next(const std::string &error_msg);
 
     ///
     /// @brief              Expects current token to exist and be of a specific type.
@@ -565,7 +563,7 @@ class Tokenizer
     /// @param tok_types    Expected token types.
     /// @param error_msg    Message to throw if the token does not exist or is not the correct type.
     ///
-    void expect_next (const std::set<Tokenizer::Type> &tok_types, const std::string &error_msg);
+    void expect_next(const std::set<Tokenizer::Type> &tok_types, const std::string &error_msg);
 
     ///
     /// @brief              Expects current token to exist and be of a specific type.
@@ -573,7 +571,7 @@ class Tokenizer
     /// @param tok_type     Expected token type.
     /// @param error_msg    Message to throw if the token does not exist or is not the correct type.
     ///
-    void expect_next (Tokenizer::Type tok_type, const std::string &error_msg);
+    void expect_next(Tokenizer::Type tok_type, const std::string &error_msg);
 
     ///
     /// @brief              Returns whether the current token matches the given types.
@@ -583,8 +581,8 @@ class Tokenizer
     ///
     /// @return             If the next token matches the given types.
     ///
-    bool is_next (const std::set<Tokenizer::Type> &tok_types,
-                  const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
+    bool is_next(const std::set<Tokenizer::Type> &tok_types,
+                 const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
 
     ///
     /// @brief              Returns whether the current token matches the given type.
@@ -594,15 +592,15 @@ class Tokenizer
     ///
     /// @return             If the next token matches the given type.
     ///
-    bool is_next (Tokenizer::Type tok_type,
-                  const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
+    bool is_next(Tokenizer::Type tok_type,
+                 const std::string &error_msg = "Tokenizer::is_token() - Unexpected end of file.");
 
     ///
     ///                     Returns whether there is another token.
     ///
     /// @return             If there is a next token.
     ///
-    bool has_next ();
+    bool has_next();
 
     ///
     /// @brief              Consumes the current token and advances to the next token.
@@ -612,7 +610,7 @@ class Tokenizer
     /// @return             The consumed token.
     ///
     Tokenizer::Token &
-    consume (const std::string &error_msg = "Tokenizer::consume() - Unexpected end of file.");
+    consume(const std::string &error_msg = "Tokenizer::consume() - Unexpected end of file.");
 
     ///
     /// @brief                  Consumes the current token and checks it matches the given types.
@@ -623,8 +621,8 @@ class Tokenizer
     /// @return                 Consumed token.
     ///
     Tokenizer::Token &
-    consume (const std::set<Tokenizer::Type> &expected_types,
-             const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
+    consume(const std::set<Tokenizer::Type> &expected_types,
+            const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
 
     ///
     /// @brief                  Consumes the current token and checks it matches the given type.
@@ -635,8 +633,8 @@ class Tokenizer
     /// @return                 Consumed token.
     ///
     Tokenizer::Token &
-    consume (Tokenizer::Type expected_type,
-             const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
+    consume(Tokenizer::Type expected_type,
+            const std::string &error_msg = "Tokenizer::consume() - Unexpected token.");
 
     ///
     /// @brief              Tokenizes a file.
@@ -645,9 +643,8 @@ class Tokenizer
     /// @param option       Options for the tokenizer.
     ///
     /// @return             Vector of the tokens.
-    static std::vector<Token> tokenize (File src_file,
-                                        Options option = {.keep_comments = true,
-                                                          .keep_whitespace = true});
+    static std::vector<Token> tokenize(File src_file, Options option = {.keep_comments = true,
+                                                                        .keep_whitespace = true});
 
     ///
     /// @brief              Tokenizes a string representing the source code.
@@ -655,8 +652,8 @@ class Tokenizer
     /// @param option       Options for the tokenizer.
     /// @return             Vector of the tokens.
     static std::vector<Token>
-    tokenize (std::string source_code,
-              Options option = (Options{.keep_comments = true, .keep_whitespace = true}));
+    tokenize(std::string source_code,
+             Options option = (Options{.keep_comments = true, .keep_whitespace = true}));
 
   private:
     /// @brief              Tokens list.
@@ -675,15 +672,15 @@ class Tokenizer
     ///
     /// @brief              TODO:
     ///
-    void verify ();
+    void verify();
 
     ///
     /// @brief              TODO:
     ///
-    void move_past_skipped_tokens ();
+    void move_past_skipped_tokens();
 
     ///
     /// @brief              TODO:
     ///
-    void handle_token ();
+    void handle_token();
 };

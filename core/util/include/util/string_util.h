@@ -6,7 +6,7 @@
 
 namespace string_util
 {
-inline static std::string repeat (std::string str, int times)
+inline static std::string repeat(std::string str, int times)
 {
     std::string res;
     for (int i = 0; i < times; i++)
@@ -16,27 +16,27 @@ inline static std::string repeat (std::string str, int times)
     return res;
 }
 
-inline static std::string replace_all (std::string str, const std::string &pattern,
-                                       const std::string &replacement)
+inline static std::string replace_all(std::string str, const std::string &pattern,
+                                      const std::string &replacement)
 {
     size_t pos;
-    while ((pos = str.find (pattern)) != std::string::npos)
+    while ((pos = str.find(pattern)) != std::string::npos)
     {
-        str.replace (pos, pattern.size (), replacement);
+        str.replace(pos, pattern.size(), replacement);
     }
     return str;
 }
 
-inline static std::string replaceFirst (std::string str, const std::string &match,
-                                        const std::string &replacement)
+inline static std::string replaceFirst(std::string str, const std::string &match,
+                                       const std::string &replacement)
 {
-    size_t index = str.find_first_of (match);
+    size_t index = str.find_first_of(match);
     if (index == std::string::npos)
     {
         return str;
     }
 
-    return str.replace (index, match.length (), replacement);
+    return str.replace(index, match.length(), replacement);
 }
 
 /**
@@ -46,10 +46,10 @@ inline static std::string replaceFirst (std::string str, const std::string &matc
      *
      * @return the trimmed string
      */
-inline static std::string leftTrim (std::string str)
+inline static std::string leftTrim(std::string str)
 {
-    str.erase (str.begin (), std::find_if (str.begin (), str.end (),
-                                           [] (unsigned char c) { return !std::isspace (c); }));
+    str.erase(str.begin(), std::find_if(str.begin(), str.end(),
+                                        [](unsigned char c) { return !std::isspace(c); }));
     return str;
 }
 
@@ -60,12 +60,12 @@ inline static std::string leftTrim (std::string str)
      *
      * @return the trimmed string
      */
-inline static std::string rightTrim (std::string str)
+inline static std::string rightTrim(std::string str)
 {
-    str.erase (std::find_if (str.rbegin (), str.rend (),
-                             [] (unsigned char c) { return !std::isspace (c); })
-                   .base (),
-               str.end ());
+    str.erase(
+        std::find_if(str.rbegin(), str.rend(), [](unsigned char c) { return !std::isspace(c); })
+            .base(),
+        str.end());
     return str;
 }
 
@@ -76,9 +76,9 @@ inline static std::string rightTrim (std::string str)
      *
      * @return the trimmed string
      */
-inline static std::string trimString (std::string str)
+inline static std::string trimString(std::string str)
 {
-    return leftTrim (rightTrim (str));
+    return leftTrim(rightTrim(str));
 }
 
 /**
@@ -90,9 +90,9 @@ inline static std::string trimString (std::string str)
      *
      * @return the trimmed string
      */
-inline static std::string trimString (std::string str, int leftTrim, int rightTrim)
+inline static std::string trimString(std::string str, int leftTrim, int rightTrim)
 {
-    return str.substr (leftTrim, str.length () - rightTrim);
+    return str.substr(leftTrim, str.length() - rightTrim);
 }
 
 /**
@@ -104,18 +104,18 @@ inline static std::string trimString (std::string str, int leftTrim, int rightTr
      *
      * @return a vector of strings separated by the given regex delimiter
      */
-inline static std::vector<std::string> split (std::string str, std::string delimRegex,
-                                              bool trim = false)
+inline static std::vector<std::string> split(std::string str, std::string delimRegex,
+                                             bool trim = false)
 {
     std::vector<std::string> result;
 
-    if (str.empty ())
+    if (str.empty())
     {
         return result;
     }
 
-    std::regex rgx (delimRegex);
-    std::sregex_token_iterator iter (str.begin (), str.end (), rgx, -1);
+    std::regex rgx(delimRegex);
+    std::sregex_token_iterator iter(str.begin(), str.end(), rgx, -1);
     std::sregex_token_iterator end;
 
     while (iter != end)
@@ -123,10 +123,10 @@ inline static std::vector<std::string> split (std::string str, std::string delim
         std::string token = *iter;
         if (trim)
         {
-            token = trimString (token);
+            token = trimString(token);
         }
 
-        result.push_back (token);
+        result.push_back(token);
         ++iter;
     }
 
@@ -134,28 +134,28 @@ inline static std::vector<std::string> split (std::string str, std::string delim
 }
 
 template<typename T>
-inline static void format_helper (std::ostringstream &oss, std::string &str, const T &value)
+inline static void format_helper(std::ostringstream &oss, std::string &str, const T &value)
 {
-    std::size_t openBracket = str.find ('{');
+    std::size_t openBracket = str.find('{');
     if (openBracket == std::string::npos)
     {
         return;
     }
-    std::size_t closeBracket = str.find ('}', openBracket + 1);
+    std::size_t closeBracket = str.find('}', openBracket + 1);
     if (closeBracket == std::string::npos)
     {
         return;
     }
-    oss << str.substr (0, openBracket) << value;
-    str = str.substr (closeBracket + 1);
+    oss << str.substr(0, openBracket) << value;
+    str = str.substr(closeBracket + 1);
 }
 
 template<class... Targ>
-inline static std::string format (std::string str, Targ &&...args)
+inline static std::string format(std::string str, Targ &&...args)
 {
     std::ostringstream oss;
-    (format_helper (oss, str, args), ...);
+    (format_helper(oss, str, args), ...);
     oss << str;
-    return oss.str ();
+    return oss.str();
 }
 } // namespace string_util

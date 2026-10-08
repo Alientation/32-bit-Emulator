@@ -11,12 +11,12 @@ class ObjectFile
     friend class Linker;
 
   public:
-    ObjectFile ();
-    ObjectFile (File obj_file);
+    ObjectFile();
+    ObjectFile(File obj_file);
 
-    void read_object_file (File object_file);
-    void read_object_file (std::vector<byte> &bytes);
-    void write_object_file (File object_file);
+    void read_object_file(File object_file);
+    void read_object_file(std::vector<byte> &bytes);
+    void write_object_file(File object_file);
 
     /// @brief              Symbols defined in this unit.
     struct SymbolTableEntry
@@ -207,38 +207,38 @@ class ObjectFile
     /// @brief              TODO:
     /// @param string
     /// @return
-    U32 add_string (const std::string &string);
+    U32 add_string(const std::string &string);
 
     /// @brief              TODO:
     /// @param symbol
     /// @param value
     /// @param binding_info
     /// @param section
-    void add_symbol (const std::string &symbol, word value,
-                     SymbolTableEntry::BindingInfo binding_info, U32 section = U32 (-1));
+    void add_symbol(const std::string &symbol, word value,
+                    SymbolTableEntry::BindingInfo binding_info, U32 section = U32(-1));
 
     /// @brief              TODO:
     /// @param section_name
     /// @param type
     /// @return
-    U32 add_section (const std::string &section_name, SectionHeader::Type type);
+    U32 add_section(const std::string &section_name, SectionHeader::Type type);
 
     /// @brief              TODO:
     /// @param symbol
     /// @return
-    std::string get_symbol_name (U32 symbol);
+    std::string get_symbol_name(U32 symbol);
 
     /// @brief              Get the size of the .text section.
     /// @return             Size of .text section in bytes.
-    word get_text_section_size ();
+    word get_text_section_size();
 
     /// @brief              Get size of .data section.
     /// @return             Size of .data section in bytes.
-    word get_data_section_size ();
+    word get_data_section_size();
 
     /// @brief              Get size of .bss section.
     /// @return             Size of .bss section in bytes.
-    word get_bss_section_size ();
+    word get_bss_section_size();
 
   private:
     /// @brief              State of the disassembly.
@@ -271,8 +271,8 @@ class ObjectFile
 
     /// @brief              TODO:
     /// @param bytes
-    void disassemble (std::vector<byte> &bytes);
+    void disassemble(std::vector<byte> &bytes);
 
     /// @brief              TODO:
-    void print ();
+    void print();
 };

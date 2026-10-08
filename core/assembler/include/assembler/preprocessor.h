@@ -35,8 +35,8 @@ class Preprocessor
         const Tokenizer::Token &tok;
 
       public:
-        BadTokenException (const std::string &msg, const Tokenizer::Token &tok);
-        const char *what () const noexcept override;
+        BadTokenException(const std::string &msg, const Tokenizer::Token &tok);
+        const char *what() const noexcept override;
     };
 
     /**
@@ -46,12 +46,12 @@ class Preprocessor
          * @param file the file to preprocess.
          * @param outputFilePath the path to the output file, default is the inputfile path with .bi extension.
          */
-    Preprocessor (Process *process, const File &input_file,
-                  const std::string &output_file_path = "");
-    ~Preprocessor ();
+    Preprocessor(Process *process, const File &input_file,
+                 const std::string &output_file_path = "");
+    ~Preprocessor();
 
-    File preprocess ();
-    State get_state ();
+    File preprocess();
+    State get_state();
 
   private:
     struct Argument
@@ -59,8 +59,8 @@ class Preprocessor
         std::string name;
         Tokenizer::Type type;
 
-        Argument (std::string name, Tokenizer::Type type);
-        Argument (std::string name);
+        Argument(std::string name, Tokenizer::Type type);
+        Argument(std::string name);
     };
 
     struct Macro
@@ -71,10 +71,10 @@ class Preprocessor
 
         std::vector<Tokenizer::Token> definition;
 
-        Macro (std::string name);
+        Macro(std::string name);
 
-        std::string to_string ();
-        std::string header ();
+        std::string to_string();
+        std::string header();
     };
 
     struct Symbol
@@ -83,8 +83,8 @@ class Preprocessor
         std::vector<std::string> parameters;
         std::vector<Tokenizer::Token> value;
 
-        Symbol (std::string name, std::vector<std::string> parameters,
-                std::vector<Tokenizer::Token> value);
+        Symbol(std::string name, std::vector<std::string> parameters,
+               std::vector<Tokenizer::Token> value);
     };
 
     Process *m_process;
@@ -94,7 +94,7 @@ class Preprocessor
 
     Tokenizer m_tokenizer;
     static constexpr Tokenizer::Options kTokenizerOptions = {.keep_comments = false,
-                                                      .keep_whitespace = true};
+                                                             .keep_whitespace = true};
 
     // the output file of the processed file, usually a .bi file
     File m_output_file;
@@ -119,8 +119,8 @@ class Preprocessor
          *
          * @return the macros with the given name and number of arguments.
          */
-    std::vector<Macro> macros_with_header (const std::string &macro_name,
-                                           const std::vector<std::vector<Tokenizer::Token>> &args);
+    std::vector<Macro> macros_with_header(const std::string &macro_name,
+                                          const std::vector<std::vector<Tokenizer::Token>> &args);
 
     /**
          * Inserts the file contents into the current file.
@@ -135,7 +135,7 @@ class Preprocessor
          * <filepath>: prioritizes files located in the include directory, if not found, looks in the
          * current directory.
          */
-    void _include ();
+    void _include();
 
     /**
          * Defines a macro symbol with n arguments and optionally a return type.
@@ -146,7 +146,7 @@ class Preprocessor
          * There cannot be a macro definition within this macro definition.
          * Note that the macro symbol is separate from label symbols and will not be present after preprocessing.
          */
-    void _macro ();
+    void _macro();
 
     /**
          * Stops processing the macro and returns the value of the expression.
@@ -156,7 +156,7 @@ class Preprocessor
          * If the macro does not have a return type the macret must return nothing.
          * If the macro has a return type the macret must return a value of that type
          */
-    void _macret ();
+    void _macret();
 
     /**
          * Closes a macro definition.
@@ -165,7 +165,7 @@ class Preprocessor
          *
          * If a macro is not closed an error is thrown.
          */
-    void _macend ();
+    void _macend();
 
     /**
          * Invokes the macro with the given arguments.
@@ -175,7 +175,7 @@ class Preprocessor
          * If provided an output symbol, the symbol will be associated with the return value of the macro.
          * If the macro does not return a value but an output symbol is provided, an error is thrown.
          */
-    void _invoke ();
+    void _invoke();
 
     /**
          * Associates the symbol with a value
@@ -185,7 +185,7 @@ class Preprocessor
          * Replaces all instances of symbol with the value.
          * If value is not specified, the default is empty.
          */
-    void _define ();
+    void _define();
 
     /**
          * Handles a condition block
@@ -193,7 +193,7 @@ class Preprocessor
          *
          * @param cond_met
          */
-    void cond_block (bool cond_met);
+    void cond_block(bool cond_met);
 
     /**
          * Returns whether the symbol is a defined symbol with the same number of parameters
@@ -201,7 +201,7 @@ class Preprocessor
          * @param symbol_name
          * @param num_params
          */
-    bool is_symbol_def (const std::string &symbol_name, int num_params);
+    bool is_symbol_def(const std::string &symbol_name, int num_params);
 
     /**
          * Begins a conditional block.
@@ -213,7 +213,7 @@ class Preprocessor
          * The top conditional block must be closed by a lower conditional block or an #endif.
          * The lower conditional block must be closed by an #endif.
          */
-    void _cond_on_def ();
+    void _cond_on_def();
 
     /**
          * Begins a conditional block.
@@ -226,7 +226,7 @@ class Preprocessor
          * The top conditional block must be closed by a lower conditional block or an #endif.
          * The lower conditional block must be closed by an #endif.
          */
-    void _cond_on_value ();
+    void _cond_on_value();
 
     /**
          * Closure of a top or lower conditional block, only includes the following text if all previous
@@ -237,7 +237,7 @@ class Preprocessor
          * Must be preceded by a top or inner conditional block.
          * Must not be proceeded by an inner conditional block or closure.
          */
-    void _else ();
+    void _else();
 
     /**
          * Closes a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
@@ -246,7 +246,7 @@ class Preprocessor
          *
          * Must be preceded by a #ifdef, #ifndef, #else, #elsedef, or #elsendef.
          */
-    void _endif ();
+    void _endif();
 
     /**
          * Undefines a symbol defined by #define.
@@ -255,9 +255,9 @@ class Preprocessor
          *
          * This will still work if the symbol was never defined previously.
          */
-    void _undefine ();
+    void _undefine();
 
-    typedef void (Preprocessor::*PreprocessorFunction) ();
+    typedef void (Preprocessor::*PreprocessorFunction)();
     std::map<Tokenizer::Type, PreprocessorFunction> m_preprocessor_handlers = {
         {Tokenizer::PREPROCESSOR_INCLUDE, &Preprocessor::_include},
         {Tokenizer::PREPROCESSOR_MACRO, &Preprocessor::_macro},

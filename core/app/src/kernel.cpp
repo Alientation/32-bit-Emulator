@@ -6,6 +6,6 @@
     to provide a virtual memory address space to map to the physical address segment asked.
 */
 
-int main ()
+int main()
 {
 }

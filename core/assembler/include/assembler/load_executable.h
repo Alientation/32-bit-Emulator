@@ -6,11 +6,11 @@
 class LoadExecutable
 {
   public:
-    LoadExecutable (Emulator32bit &emu, File exe_file);
+    LoadExecutable(Emulator32bit &emu, File exe_file);
 
   private:
     Emulator32bit &m_emu;
     File m_exe_file;
 
-    void load ();
+    void load();
 };

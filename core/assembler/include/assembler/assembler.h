@@ -42,19 +42,19 @@ class Assembler
     /// @param output_path      Output file path to write the object file to. If left empty, creates
     ///                         the object file as the same path as the input file with the .bo
     ///                         extension.
-    Assembler (const Process *process, const File processed_file,
-               const std::string &output_path = "");
+    Assembler(const Process *process, const File processed_file,
+              const std::string &output_path = "");
 
     /// @brief          Assembles the input assembly into an object file.
-    void assemble ();
+    void assemble();
 
     /// @brief          Get the output object file.
     /// @return         The file.
-    File get_output_file () const;
+    File get_output_file() const;
 
     /// @brief          Get assembler state.
     /// @return         Assembler state.
-    State get_state () const;
+    State get_state() const;
 
   private:
     /// @brief Build process container.
@@ -92,7 +92,7 @@ class Assembler
     } m_cur_section = Section::NONE;
 
     /// @brief Index into the section table of the current section.
-    U32 m_cur_section_index = U32 (-1);
+    U32 m_cur_section_index = U32(-1);
 
     /// @brief Total number of declared scopes. Monotically increasing.
     U32 m_total_scopes = 0;
@@ -105,86 +105,86 @@ class Assembler
     /// @param min
     /// @param max
     /// @return
-    dword parse_expression (dword min = 0, dword max = -1);
+    dword parse_expression(dword min = 0, dword max = -1);
 
     /// @brief TODO:
     /// @param tok_i
     /// @return
-    std::vector<dword> parse_arguments ();
+    std::vector<dword> parse_arguments();
 
     /// @brief TODO:
     /// @param tok_i
     /// @return
-    byte parse_sysreg ();
+    byte parse_sysreg();
 
     /// @brief TODO:
     /// @param tok_i
     /// @return
-    byte parse_register ();
+    byte parse_register();
 
     /// @brief TODO:
     /// @param tok_i
     /// @param shift
     /// @param shift_amt
-    void parse_shift (Emulator32bit::ShiftType &shift, int &shift_amt);
+    void parse_shift(Emulator32bit::ShiftType &shift, int &shift_amt);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_o (byte opcode);
+    word parse_format_o(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_o1 (byte opcode);
+    word parse_format_o1(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_o2 (byte opcode);
+    word parse_format_o2(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_o3 (byte opcode);
+    word parse_format_o3(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_m (byte opcode);
+    word parse_format_m(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_m1 (byte opcode);
+    word parse_format_m1(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_b1 (byte opcode);
+    word parse_format_b1(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param opcode
     /// @return
-    word parse_format_b2 (byte opcode);
+    word parse_format_b2(byte opcode);
 
     /// @brief TODO:
     /// @param tok_i
     /// @param width
     /// @param atopcode
     /// @return
-    word parse_format_atomic (byte width, byte atopcode);
+    word parse_format_atomic(byte width, byte atopcode);
 
     /// @brief TODO:
-    void fill_local ();
+    void fill_local();
 
     ///
     /// Assembler directives.
@@ -192,95 +192,95 @@ class Assembler
 
     /// @brief TODO:
     /// @param tok_i
-    void _global ();
+    void _global();
 
     /// @brief TODO:
     /// @param tok_i
-    void _extern ();
+    void _extern();
 
     /// @brief TODO:
     /// @param tok_i
-    void _org ();
+    void _org();
 
     /// @brief TODO:
     /// @param tok_i
-    void _scope ();
+    void _scope();
 
     /// @brief TODO:
     /// @param tok_i
-    void _scend ();
+    void _scend();
 
     /// @brief TODO:
     /// @param tok_i
-    void _advance ();
+    void _advance();
 
     /// @brief TODO:
     /// @param tok_i
-    void _align ();
+    void _align();
 
     /// @brief TODO:
     /// @param tok_i
-    void _section ();
+    void _section();
 
     /// @brief TODO:
     /// @param tok_i
-    void _text ();
+    void _text();
 
     /// @brief TODO:
     /// @param tok_i
-    void _data ();
+    void _data();
 
     /// @brief TODO:
     /// @param tok_i
-    void _bss ();
+    void _bss();
 
     /// @brief TODO:
     /// @param tok_i
-    void _stop ();
+    void _stop();
 
     /// @brief TODO:
     /// @param tok_i
-    void _byte ();
+    void _byte();
 
     /// @brief TODO:
     /// @param tok_i
-    void _dbyte ();
+    void _dbyte();
 
     /// @brief TODO:
     /// @param tok_i
-    void _word ();
+    void _word();
 
     /// @brief TODO:
     /// @param tok_i
-    void _dword ();
+    void _dword();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sbyte ();
+    void _sbyte();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sdbyte ();
+    void _sdbyte();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sword ();
+    void _sword();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sdword ();
+    void _sdword();
 
     /// @brief TODO:
     /// @param tok_i
-    void _char ();
+    void _char();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ascii ();
+    void _ascii();
 
     /// @brief TODO:
     /// @param tok_i
-    void _asciz ();
+    void _asciz();
 
     ///
     /// Instructions.
@@ -288,265 +288,265 @@ class Assembler
 
     /// @brief TODO:
     /// @param tok_i
-    void _hlt ();
+    void _hlt();
 
     /// @brief TODO:
     /// @param tok_i
-    void _nop ();
+    void _nop();
 
     /// @brief TODO:
     /// @param tok_i
-    void _add ();
+    void _add();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sub ();
+    void _sub();
 
     /// @brief TODO:
     /// @param tok_i
-    void _rsb ();
+    void _rsb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _adc ();
+    void _adc();
 
     /// @brief TODO:
     /// @param tok_i
-    void _sbc ();
+    void _sbc();
 
     /// @brief TODO:
     /// @param tok_i
-    void _rsc ();
+    void _rsc();
 
     /// @brief TODO:
     /// @param tok_i
-    void _mul ();
+    void _mul();
 
     /// @brief TODO:
     /// @param tok_i
-    void _umull ();
+    void _umull();
 
     /// @brief TODO:
     /// @param tok_i
-    void _smull ();
+    void _smull();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vabs ();
+    void _vabs();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vneg ();
+    void _vneg();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vsqrt ();
+    void _vsqrt();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vadd ();
+    void _vadd();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vsub ();
+    void _vsub();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vdiv ();
+    void _vdiv();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vmul ();
+    void _vmul();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vcmp ();
+    void _vcmp();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vsel ();
+    void _vsel();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vcint ();
+    void _vcint();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vcflo ();
+    void _vcflo();
 
     /// @brief TODO:
     /// @param tok_i
-    void _vmov ();
+    void _vmov();
 
     /// @brief TODO:
     /// @param tok_i
-    void _and ();
+    void _and();
 
     /// @brief TODO:
     /// @param tok_i
-    void _orr ();
+    void _orr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _eor ();
+    void _eor();
 
     /// @brief TODO:
     /// @param tok_i
-    void _bic ();
+    void _bic();
 
     /// @brief TODO:
     /// @param tok_i
-    void _lsl ();
+    void _lsl();
 
     /// @brief TODO:
     /// @param tok_i
-    void _lsr ();
+    void _lsr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _asr ();
+    void _asr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ror ();
+    void _ror();
 
     /// @brief TODO:
     /// @param tok_i
-    void _cmp ();
+    void _cmp();
 
     /// @brief TODO:
     /// @param tok_i
-    void _cmn ();
+    void _cmn();
 
     /// @brief TODO:
     /// @param tok_i
-    void _tst ();
+    void _tst();
 
     /// @brief TODO:
     /// @param tok_i
-    void _teq ();
+    void _teq();
 
     /// @brief TODO:
     /// @param tok_i
-    void _mov ();
+    void _mov();
 
     /// @brief TODO:
     /// @param tok_i
-    void _mvn ();
+    void _mvn();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldr ();
+    void _ldr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _str ();
+    void _str();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldrb ();
+    void _ldrb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _strb ();
+    void _strb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldrh ();
+    void _ldrh();
 
     /// @brief TODO:
     /// @param tok_i
-    void _strh ();
+    void _strh();
 
     /// @brief TODO:
     /// @param tok_i
-    void _msr ();
+    void _msr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _mrs ();
+    void _mrs();
 
     /// @brief TODO:
     /// @param tok_i
-    void _tlbi ();
+    void _tlbi();
 
     /// @brief TODO:
     /// @param tok_i
-    void _swp ();
+    void _swp();
 
     /// @brief TODO:
     /// @param tok_i
-    void _swpb ();
+    void _swpb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _swph ();
+    void _swph();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldadd ();
+    void _ldadd();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldaddb ();
+    void _ldaddb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldaddh ();
+    void _ldaddh();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldclr ();
+    void _ldclr();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldclrb ();
+    void _ldclrb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldclrh ();
+    void _ldclrh();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldset ();
+    void _ldset();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldsetb ();
+    void _ldsetb();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ldseth ();
+    void _ldseth();
 
     /// @brief TODO:
     /// @param tok_i
-    void _b ();
+    void _b();
 
     /// @brief TODO:
     /// @param tok_i
-    void _bl ();
+    void _bl();
 
     /// @brief TODO:
     /// @param tok_i
-    void _bx ();
+    void _bx();
 
     /// @brief TODO:
     /// @param tok_i
-    void _blx ();
+    void _blx();
 
     /// @brief TODO:
     /// @param tok_i
-    void _swi ();
+    void _swi();
 
     /// @brief TODO:
     /// @param tok_i
-    void _adrp ();
+    void _adrp();
 
     /// @brief TODO:
     /// @param tok_i
-    void _ret ();
+    void _ret();
 
-    using DirectiveFunction = void (Assembler::*) ();
+    using DirectiveFunction = void (Assembler::*)();
     /// @brief Function pointers to process an assembler directive.
     std::unordered_map<Tokenizer::Type, DirectiveFunction> m_directive_handlers = {
         {Tokenizer::ASSEMBLER_GLOBAL, &Assembler::_global},
@@ -574,7 +574,7 @@ class Assembler
         {Tokenizer::ASSEMBLER_ASCIZ, &Assembler::_asciz},
     };
 
-    using InstructionFunction = void (Assembler::*) ();
+    using InstructionFunction = void (Assembler::*)();
     /// @brief Function pointers assemble an instruction.
     std::unordered_map<Tokenizer::Type, InstructionFunction> m_instruction_handlers = {
         {Tokenizer::INSTRUCTION_HLT, &Assembler::_hlt},
