@@ -222,7 +222,7 @@ TEST_F(EmulatorFixture, branch_b_condition_codes_match_flags)
             const bool c = flags & 2;
             const bool v = flags & 1;
 
-            cpu.system_bus->write_word(
+            cpu.memory.write_word(
                 0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode(cond), 3));
             cpu.set_pc(0);
             cpu.set_NZCV(n, z, c, v);

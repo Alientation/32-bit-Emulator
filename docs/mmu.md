@@ -115,4 +115,4 @@ A bare metal program that knows where its tables are puts them at physical addre
 
 ## Where it is in the code
 
-`VirtualMemory::walk_translate` (the walk), `translate_address` (the TLB hit check, inline), `translate_fetch` (the same for an instruction fetch, with the page that it keeps and `EXECUTE`, called by `SystemBus::fetch_instruction`), `Emulator32bit::write_sysreg` (`PTBR`, `SCTLR`), `Emulator32bit::_tlbi`. Tests: `mmu_test.cpp`.
+`VirtualMemory::walk_translate` (the walk), `translate_address` (the TLB hit check, inline), `translate_fetch` (the same for an instruction fetch, with the page that it keeps and `EXECUTE`, called by `MemoryPort::fetch_instruction`), `Emulator32bit::write_sysreg` (`PTBR`, `SCTLR`), `Emulator32bit::_tlbi`. Tests: `mmu_test.cpp`.

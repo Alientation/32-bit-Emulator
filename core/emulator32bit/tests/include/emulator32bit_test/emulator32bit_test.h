@@ -125,7 +125,7 @@ class EmulatorFixture : public ::testing::Test
     /// Writes `instr` at `addr`, points the PC at it and executes exactly one instruction.
     Emulator32bit::RunResult step(word addr, word instr)
     {
-        cpu.system_bus->write_word(addr, instr);
+        cpu.memory.write_word(addr, instr);
         cpu.set_pc(addr);
         return cpu.run(1);
     }

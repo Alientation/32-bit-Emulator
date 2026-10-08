@@ -68,7 +68,7 @@ class Devices : public ::testing::Test
     {
         for (size_t i = 0; i < code.size(); i++)
         {
-            cpu.system_bus->write_word(address + word(i) * 4, code[i]);
+            cpu.memory.write_word(address + word(i) * 4, code[i]);
         }
     }
 
@@ -92,7 +92,7 @@ class Devices : public ::testing::Test
 
     word intc_read(const word offset)
     {
-        return cpu.system_bus->read_word(kIntcBase + offset);
+        return cpu.memory.read_word(kIntcBase + offset);
     }
 };
 
@@ -220,30 +220,30 @@ TEST(TimerUnit, the_count_can_be_written_and_runs_with_the_timer_off)
 
 TEST_F(Devices, a_byte_written_to_the_console_is_sent)
 {
-    cpu.system_bus->write_byte(kConsoleBase, 'h');
-    cpu.system_bus->write_word(kConsoleBase, 'i');
-    cpu.system_bus->write_hword(kConsoleBase, '!');
+    cpu.memory.write_byte(kConsoleBase, 'h');
+    cpu.memory.write_word(kConsoleBase, 'i');
+    cpu.memory.write_hword(kConsoleBase, '!');
     EXPECT_EQ(m_console.str(), "hi!");
 }
 
 TEST_F(Devices, received_bytes_are_read_one_by_one_and_the_status_says_when_there_are_some)
 {
-    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 2u) << "ready to send, nothing received";
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 2u) << "ready to send, nothing received";
     cpu.system_bus->console.push_input("ab");
-    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 3u);
-    EXPECT_EQ(cpu.system_bus->read_byte(kConsoleBase), 'a');
-    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase), word('b'));
-    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase + 4), 2u);
-    EXPECT_EQ(cpu.system_bus->read_word(kConsoleBase), 0u) << "nothing left";
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 3u);
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'a');
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase), word('b'));
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 2u);
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase), 0u) << "nothing left";
 }
 
 TEST_F(Devices, input_raises_line_1_when_the_receive_interrupt_is_enabled)
 {
-    cpu.system_bus->write_word(kIntcBase + 8, 1u << kIrqLineConsole);
+    cpu.memory.write_word(kIntcBase + 8, 1u << kIrqLineConsole);
     cpu.system_bus->console.push_input("x");
     EXPECT_FALSE(cpu.system_bus->intc.has_pending()) << "not enabled yet";
 
-    cpu.system_bus->write_word(kConsoleBase + 8, 1); // enabling it with a byte waiting
+    cpu.memory.write_word(kConsoleBase + 8, 1); // enabling it with a byte waiting
     EXPECT_EQ(intc_read(0x10), 1u << kIrqLineConsole);
     EXPECT_EQ(intc_read(0x00), kIrqLineConsole);
 
@@ -253,7 +253,7 @@ TEST_F(Devices, input_raises_line_1_when_the_receive_interrupt_is_enabled)
 
 TEST_F(Devices, a_reset_clears_the_devices)
 {
-    cpu.system_bus->write_word(kIntcBase + 8, 0xFF);
+    cpu.memory.write_word(kIntcBase + 8, 0xFF);
     cpu.system_bus->console.push_input("x");
     cpu.reset();
     EXPECT_EQ(intc_read(0x08), 0u);
@@ -835,5 +835,5 @@ TEST_F(Devices, a_program_reads_sectors_by_dma)
 
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
 {
-    EXPECT_THROW(cpu.system_bus->read_word(kDeviceBase + 0x5000), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.read_word(kDeviceBase + 0x5000), SystemBus::Exception);
 }

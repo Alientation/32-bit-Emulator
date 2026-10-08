@@ -85,7 +85,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
             char buf[4];
             try
             {
-                std::snprintf(buf, sizeof(buf), "%02x", emu.system_bus->read_byte(addr + i));
+                std::snprintf(buf, sizeof(buf), "%02x", emu.memory.read_byte(addr + i));
             }
             catch (const std::exception &)
             {
@@ -426,7 +426,7 @@ static int run_cli(int argc, char *argv[])
             return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
         }
 
-        emu->system_bus->mmu->begin_process();
+        emu->mmu->begin_process();
         LoadExecutable(*emu, File(exe_path)).load();
     }
     else

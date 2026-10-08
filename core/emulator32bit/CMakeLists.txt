@@ -6,6 +6,7 @@ add_library(emulator32bit STATIC
     src/memory.cpp
     src/virtual_memory.cpp
     src/system_bus.cpp
+    src/memory_port.cpp
     src/disk.cpp
     src/fbl.cpp
     src/symbols.cpp

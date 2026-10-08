@@ -521,7 +521,7 @@ void Debugger::command_mem(const std::vector<std::string> &args)
         {
             try
             {
-                const byte value = m_emu.system_bus->read_byte(*address + i);
+                const byte value = m_emu.memory.read_byte(*address + i);
                 m_out << std::format(" {:02x}", value);
                 text += (value >= 0x20 && value < 0x7F) ? char(value) : '.';
             }
@@ -607,8 +607,8 @@ void Debugger::command_backtrace()
         word return_address;
         try
         {
-            caller_fp = m_emu.system_bus->read_word(fp);
-            return_address = m_emu.system_bus->read_word(fp + 4);
+            caller_fp = m_emu.memory.read_word(fp);
+            return_address = m_emu.memory.read_word(fp + 4);
         }
         catch (const std::exception &)
         {
@@ -820,7 +820,7 @@ std::string Debugger::disassemble_at(const word address) const
 {
     try
     {
-        return Emulator32bit::disassemble_instr(m_emu.system_bus->read_word(address));
+        return Emulator32bit::disassemble_instr(m_emu.memory.read_word(address));
     }
     catch (const std::exception &)
     {

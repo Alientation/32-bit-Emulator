@@ -2,6 +2,7 @@
 
 #include "util/logger.h"
 
+#include <algorithm>
 #include <iterator>
 
 namespace
@@ -20,34 +21,14 @@ SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom) :
 {
 }
 
-// The virtual memory is made after the members before it own the memories (the parameters are
-// moved from by then, hence this->), so that it is freed with them if making it throws.
 SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
                      std::unique_ptr<Disk> disk) :
     ram(std::move(ram)),
     rom(std::move(rom)),
-    disk(std::move(disk)),
-    mmu(std::make_unique<VirtualMemory>(this->disk.get(), this->ram->get_lo_page(),
-                                        this->ram->get_mem_pages()))
-{
-    attach();
-}
-
-SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
-                     std::unique_ptr<Disk> disk, std::unique_ptr<VirtualMemory> mmu) :
-    ram(std::move(ram)),
-    rom(std::move(rom)),
-    disk(std::move(disk)),
-    mmu(std::move(mmu))
-{
-    attach();
-}
-
-void SystemBus::attach()
+    disk(std::move(disk))
 {
     validate_memory();
-    mmu->set_physical_pages(this);
-    block.set_dma_memory(ram.get());
+    block.set_dma_memory(this->ram.get());
 }
 
 SystemBus::~SystemBus()
@@ -110,42 +91,6 @@ void SystemBus::validate_memory()
     }
 }
 
-dword SystemBus::read_val(const word address, const U8 n_bytes)
-{
-    dword val = 0;
-    for (U8 i = 0; i < n_bytes; i++)
-    {
-        const word real_addr = translate_address(address + n_bytes - i - 1);
-        val = (val << 8) + route_memory(real_addr).read_byte(real_addr);
-    }
-    return val;
-}
-
-void SystemBus::write_val(const word address, dword val, const U8 n_bytes)
-{
-    // Everything is translated before anything is written, so that a store that crosses into
-    // a page that cannot be written leaves memory as it was.
-    word real_addr[sizeof(dword)];
-    for (U8 i = 0; i < n_bytes; i++)
-    {
-        real_addr[i] = translate_address(address + i, VirtualMemory::AccessType::WRITE);
-    }
-    for (U8 i = 0; i < n_bytes; i++)
-    {
-        route_memory(real_addr[i]).write_byte(real_addr[i], val & 0xFF);
-        val >>= 8;
-    }
-}
-
-word SystemBus::fetch_outside_ram(const word real_addr, const word address)
-{
-    // Code can also run from the ROM, which is where a machine boots from.
-    if (rom->in_bounds(real_addr)) return rom->read_word_aligned(real_addr);
-
-    throw Exception("Instruction fetch outside of RAM and ROM at address "
-                    + std::to_string(address));
-}
-
 BaseMemory *SystemBus::find_storage(const word address)
 {
     if (ram->in_bounds(address)) return ram.get();
@@ -175,6 +120,19 @@ BaseMemory &SystemBus::route_memory(const word address)
     return *memory;
 }
 
+void SystemBus::write_block(word address, const byte *data, word size)
+{
+    // Page by page, the pages of a block do not have to be in the same memory.
+    while (size != 0)
+    {
+        const word in_page = std::min<word>(size, kPageSize - (address & (kPageSize - 1)));
+        route_memory(address).write_block(address, data, in_page);
+        address += in_page;
+        data += in_page;
+        size -= in_page;
+    }
+}
+
 void SystemBus::reset()
 {
     ram->reset();
@@ -182,4 +140,31 @@ void SystemBus::reset()
     timer.reset();
     console.reset();
     block.reset();
+}
+
+void SystemBus::read_page(const word ppage, byte *out)
+{
+    const word address = ppage << kNumPageOffsetBits;
+    route_memory(address).read_block(address, out, kPageSize);
+}
+
+void SystemBus::write_page(const word ppage, const byte *data)
+{
+    const word address = ppage << kNumPageOffsetBits;
+    route_memory(address).write_block(address, data, kPageSize);
+}
+
+bool SystemBus::read_physical_word(const word address, word &out)
+{
+    BaseMemory *memory = address % sizeof(word) == 0 ? find_storage(address) : nullptr;
+    if (UNLIKELY(memory == nullptr)) return false;
+    out = memory->read_word(address);
+    return true;
+}
+
+bool SystemBus::write_physical_word(const word address, const word value)
+{
+    if (UNLIKELY(address % sizeof(word) != 0 || !ram->in_bounds(address))) return false;
+    ram->write_word(address, value);
+    return true;
 }

@@ -28,7 +28,7 @@ TEST_F(EmulatorFixture, hlt_still_halts_cleanly)
 
 TEST_F(EmulatorFixture, misaligned_pc_faults)
 {
-    cpu.system_bus->write_word(0, Emulator32bit::asm_nop());
+    cpu.memory.write_word(0, Emulator32bit::asm_nop());
     cpu.set_pc(2);
 
     const auto result = cpu.run(1);

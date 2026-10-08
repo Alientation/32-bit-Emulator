@@ -4,9 +4,11 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
+#include "emulator32bit/memory_port.h"
 #include "emulator32bit/opcodes.h"
 #include "emulator32bit/symbols.h"
 #include "emulator32bit/system_bus.h"
+#include "emulator32bit/virtual_memory.h"
 
 #include <deque>
 #include <iostream>
@@ -116,7 +118,12 @@ class Emulator32bit
         ADDR_POST_INC
     };
 
+    /// The machine: the physical memory and the devices, the MMU that translates the addresses of
+    /// a program onto them, and the port that the CPU reaches memory through. In this order, each
+    /// one is made from the ones before it.
     const std::unique_ptr<SystemBus> system_bus;
+    const std::unique_ptr<VirtualMemory> mmu;
+    MemoryPort memory;
 
     /// @brief              Why a call to run () stopped.
     struct RunResult

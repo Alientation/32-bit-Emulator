@@ -40,7 +40,7 @@ word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
     for (U8 i = 0; i < size; i++)
     {
         const U8 index = little_endian ? size - 1 - i : i;
-        val = (val << 8) + system_bus->read_byte(mem_addr + index);
+        val = (val << 8) + memory.read_byte(mem_addr + index);
     }
     return val;
 }
@@ -59,7 +59,7 @@ std::string Emulator32bit::_emu_read_string(word address)
     std::string text;
     for (word length = 0; length < kMaxStringLength; length++)
     {
-        const byte c = system_bus->read_byte(address + length);
+        const byte c = memory.read_byte(address + length);
         if (c == '\0')
         {
             return text;

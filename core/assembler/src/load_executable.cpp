@@ -60,23 +60,30 @@ void copy_section(Emulator32bit &emu, Placement where, std::span<const byte> byt
         return;
     }
 
-    SystemBus &bus = *emu.system_bus;
-    if (!where.physical)
+    const word size = bytes.size();
+    if (where.physical)
     {
-        map_pages(*bus.mmu, where.address, bytes.size(), write, execute, permissions);
+        // The pages are mapped to themselves, so that the program can reach them, and the bytes
+        // are written to them directly.
+        VirtualMemory &mmu = *emu.mmu;
+        const long long pid = mmu.current_process();
+        const word last_page = (where.address + size - 1) >> kNumPageOffsetBits;
+        for (word page = where.address >> kNumPageOffsetBits;; page++)
+        {
+            mmu.ensure_physical_page_mapping(pid, page, page);
+
+            // Not `page <= last_page` in the loop condition, the last page can be the last one.
+            if (page == last_page)
+            {
+                break;
+            }
+        }
+        emu.system_bus->write_block(where.address, bytes.data(), size);
+        return;
     }
 
-    for (size_t i = 0; i < bytes.size(); i++)
-    {
-        if (where.physical)
-        {
-            bus.write_unmapped_byte(where.address + i, bytes[i]);
-        }
-        else
-        {
-            bus.write_byte(where.address + i, bytes[i]);
-        }
-    }
+    map_pages(*emu.mmu, where.address, size, write, execute, permissions);
+    emu.memory.write_block(where.address, bytes.data(), size);
 }
 
 } // namespace
@@ -123,7 +130,7 @@ void LoadExecutable::load()
                  false, permissions);
 
     // The program runs with the permissions of its sections, code cannot be written.
-    VirtualMemory &mmu = *m_emu.system_bus->mmu;
+    VirtualMemory &mmu = *m_emu.mmu;
     for (const auto &[vpage, access] : permissions)
     {
         mmu.set_vpage_permissions(mmu.current_process(), vpage, vpage, access.first, access.second);

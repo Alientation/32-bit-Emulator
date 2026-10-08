@@ -136,8 +136,7 @@ class MemoryTest : public EmulatorFixture
     void SetUp() override
     {
         reset(2, 0, nullptr, 0, 2);
-        for (word a = kPatternBegin; a < kPatternEnd; ++a)
-            cpu.system_bus->write_byte(a, pattern(a));
+        for (word a = kPatternBegin; a < kPatternEnd; ++a) cpu.memory.write_byte(a, pattern(a));
     }
 
     word encode(const MemOp &op, const bool sign, const U8 xt, const U8 xn, const Access &a)
@@ -190,8 +189,8 @@ class MemoryTest : public EmulatorFixture
             byte expected = pattern(i);
             if (!op.is_load && i >= addr && i < addr + op.width)
                 expected = byte(kStoreValue >> (8 * (i - addr)));
-            EXPECT_EQ(cpu.system_bus->read_byte(i), expected) << ctx << ": memory at " << hex32(i);
-            cpu.system_bus->write_byte(i, pattern(i));
+            EXPECT_EQ(cpu.memory.read_byte(i), expected) << ctx << ": memory at " << hex32(i);
+            cpu.memory.write_byte(i, pattern(i));
         }
     }
 };
@@ -213,7 +212,7 @@ TEST_F(MemoryTest, loads_are_little_endian_and_zero_extended)
 {
     const word addr = 0x800;
     const byte bytes[] = {0x78, 0x56, 0x34, 0x12, 0xF0, 0xDE, 0xBC, 0x9A};
-    for (unsigned i = 0; i < sizeof(bytes); ++i) cpu.system_bus->write_byte(addr + i, bytes[i]);
+    for (unsigned i = 0; i < sizeof(bytes); ++i) cpu.memory.write_byte(addr + i, bytes[i]);
 
     struct Case
     {
@@ -247,7 +246,7 @@ TEST_F(MemoryTest, signed_loads_sign_extend)
 {
     const word addr = 0x800;
     const byte bytes[] = {0x7F, 0x80, 0xFF, 0x00, 0x00, 0x80, 0xFF, 0x7F};
-    for (unsigned i = 0; i < sizeof(bytes); ++i) cpu.system_bus->write_byte(addr + i, bytes[i]);
+    for (unsigned i = 0; i < sizeof(bytes); ++i) cpu.memory.write_byte(addr + i, bytes[i]);
 
     struct Case
     {
@@ -282,13 +281,13 @@ TEST_F(MemoryTest, narrow_stores_write_only_the_low_bytes)
         // Pre-fill with a sentinel so that extra bytes written would be seen.
         const auto fill = [&]
         {
-            for (word i = 0; i < 8; ++i) cpu.system_bus->write_byte(addr + i, 0xEE);
+            for (word i = 0; i < 8; ++i) cpu.memory.write_byte(addr + i, 0xEE);
         };
         const auto bytes_at = [&](word offset, unsigned n)
         {
             word v = 0;
             for (unsigned i = 0; i < n; ++i)
-                v |= word(cpu.system_bus->read_byte(addr + offset + i)) << (8 * i);
+                v |= word(cpu.memory.read_byte(addr + offset + i)) << (8 * i);
             return v;
         };
 
@@ -320,8 +319,8 @@ TEST_F(MemoryTest, narrow_stores_write_only_the_low_bytes)
 TEST_F(MemoryTest, pre_index_writes_back_before_the_access_and_post_index_after)
 {
     const word addr = kBase;
-    cpu.system_bus->write_word(addr, 0x11111111);
-    cpu.system_bus->write_word(addr + 8, 0x22222222);
+    cpu.memory.write_word(addr, 0x11111111);
+    cpu.memory.write_word(addr + 8, 0x22222222);
 
     fill_registers();
     cpu.write_reg(kXn, addr);
@@ -358,7 +357,7 @@ TEST_F(MemoryTest, transfer_register_may_be_the_base_register)
 
             fill_registers();
             cpu.write_reg(kXn, kBase);
-            cpu.system_bus->write_word(target, 0xCAFEBABE);
+            cpu.memory.write_word(target, 0xCAFEBABE);
             execute(Emulator32bit::asm_format_m(op.opcode, false, kXn, kXn, 8, mode));
 
             if (op.is_load)
@@ -370,7 +369,7 @@ TEST_F(MemoryTest, transfer_register_may_be_the_base_register)
             {
                 const word mask = op.width == 4 ? 0xFFFFFFFFu : (1u << (8 * op.width)) - 1;
                 EXPECT_EQ(cpu.read_reg(kXn), kBase + 8) << ctx << ": base still written back";
-                EXPECT_EQ(cpu.system_bus->read_word(target) & mask, kBase & mask)
+                EXPECT_EQ(cpu.memory.read_word(target) & mask, kBase & mask)
                     << ctx << ": stores the original base";
             }
         }
@@ -389,7 +388,7 @@ TEST_F(MemoryTest, zero_register)
     cpu.write_reg(kXn, kBase);
     execute(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, kXzr, kXn, 0,
                                         AddrType::ADDR_OFFSET));
-    EXPECT_EQ(cpu.system_bus->read_word(kBase), 0u);
+    EXPECT_EQ(cpu.memory.read_word(kBase), 0u);
 
     // Loading into xzr discards the value.
     fill_registers();

@@ -21,7 +21,7 @@ class AccessFault : public ::testing::Test
 
     void SetUp() override
     {
-        VirtualMemory &mmu = *cpu.system_bus->mmu;
+        VirtualMemory &mmu = *cpu.mmu;
         const long long pid = mmu.begin_process();
         mmu.add_vpage(pid, kCode >> kNumPageOffsetBits, 1, true, true);
         mmu.add_vpage(pid, kWritable >> kNumPageOffsetBits, 1, true, false);
@@ -31,8 +31,8 @@ class AccessFault : public ::testing::Test
     /// Runs the instruction, followed by a halt.
     Emulator32bit::RunResult run(const word instruction)
     {
-        cpu.system_bus->write_word(kCode, instruction);
-        cpu.system_bus->write_word(kCode + 4, Emulator32bit::asm_hlt());
+        cpu.memory.write_word(kCode, instruction);
+        cpu.memory.write_word(kCode + 4, Emulator32bit::asm_hlt());
         cpu.set_pc(kCode);
         return cpu.run(0);
     }
@@ -65,7 +65,7 @@ TEST_F(AccessFault, a_store_to_a_page_that_is_writable_works)
                                                         Emulator32bit::AddrType::ADDR_OFFSET));
 
     EXPECT_EQ(result.status, Status::HALTED);
-    EXPECT_EQ(cpu.system_bus->read_word(kWritable), 0x1234u);
+    EXPECT_EQ(cpu.memory.read_word(kWritable), 0x1234u);
 }
 
 TEST_F(AccessFault, a_store_that_faults_does_not_change_the_base_register)
@@ -104,7 +104,7 @@ TEST_F(AccessFault, a_load_that_faults_does_not_change_any_register)
 
 TEST_F(AccessFault, a_load_into_the_base_register_still_wins_over_the_write_back)
 {
-    cpu.system_bus->write_word(kWritable, 0xCAFE);
+    cpu.memory.write_word(kWritable, 0xCAFE);
     cpu.write_reg(U8(1), kWritable);
 
     const auto result = run(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 1, 1, 4,
@@ -129,13 +129,12 @@ TEST_F(AccessFault, a_store_across_a_page_boundary_that_faults_stores_nothing)
 {
     // The first two bytes are in the page that can be written, the last two are not.
     const word address = kReadOnly - 2;
-    cpu.system_bus->write_byte(address, 0x11);
-    cpu.system_bus->write_byte(address + 1, 0x22);
+    cpu.memory.write_byte(address, 0x11);
+    cpu.memory.write_byte(address + 1, 0x22);
 
-    EXPECT_THROW(cpu.system_bus->write_word(address, 0xAABBCCDD),
-                 VirtualMemory::PageFaultException);
-    EXPECT_EQ(cpu.system_bus->read_byte(address), 0x11);
-    EXPECT_EQ(cpu.system_bus->read_byte(address + 1), 0x22);
+    EXPECT_THROW(cpu.memory.write_word(address, 0xAABBCCDD), VirtualMemory::PageFaultException);
+    EXPECT_EQ(cpu.memory.read_byte(address), 0x11);
+    EXPECT_EQ(cpu.memory.read_byte(address + 1), 0x22);
 }
 
 TEST_F(AccessFault, the_code_cannot_be_executed_from_a_page_that_is_not_executable)

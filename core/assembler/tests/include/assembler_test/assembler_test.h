@@ -39,7 +39,7 @@ class EmulatorFixture : public ::testing::Test
         // back to it, and in the source tree, by every test, all at once when they run in parallel.
         machine = new Emulator32bit(std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
                                     std::make_unique<MockDisk>());
-        machine->system_bus->mmu->begin_process();
+        machine->mmu->begin_process();
     }
 
     void TearDown() override

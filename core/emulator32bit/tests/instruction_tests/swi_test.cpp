@@ -23,10 +23,10 @@ class SoftwareInterrupt : public EmulatorFixture
         cpu.set_error_output(err);
 
         const byte value[] = {0x78, 0x56, 0x34, 0x12};
-        for (word i = 0; i < sizeof(value); i++) cpu.system_bus->write_byte(kValue + i, value[i]);
-        cpu.system_bus->write_byte(kString, 'h');
-        cpu.system_bus->write_byte(kString + 1, 'i');
-        cpu.system_bus->write_byte(kString + 2, 0);
+        for (word i = 0; i < sizeof(value); i++) cpu.memory.write_byte(kValue + i, value[i]);
+        cpu.memory.write_byte(kString, 'h');
+        cpu.memory.write_byte(kString + 1, 'i');
+        cpu.memory.write_byte(kString + 2, 0);
     }
 
     Emulator32bit::RunResult swi(const word id, const word a0 = 0, const word a1 = 0,

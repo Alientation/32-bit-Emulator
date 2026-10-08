@@ -378,10 +378,10 @@ TEST_F(Mmu, sctlr_and_ptbr_keep_the_bits_that_exist)
     EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_ptbr), 0x12345000u);
     cpu.write_sysreg(Emulator32bit::kSysregId_sctlr, 0xFFFFFFFE);
     EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 0u);
-    EXPECT_FALSE(cpu.system_bus->mmu->walk_enabled());
+    EXPECT_FALSE(cpu.mmu->walk_enabled());
     cpu.write_sysreg(Emulator32bit::kSysregId_sctlr, 0xFFFFFFFF);
     EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 1u);
-    EXPECT_TRUE(cpu.system_bus->mmu->walk_enabled());
+    EXPECT_TRUE(cpu.mmu->walk_enabled());
 }
 
 TEST_F(Mmu, tlbi_is_privileged)
@@ -398,7 +398,7 @@ TEST_F(Mmu, a_reset_turns_translation_off)
 {
     turn_on();
     cpu.reset();
-    EXPECT_FALSE(cpu.system_bus->mmu->walk_enabled());
+    EXPECT_FALSE(cpu.mmu->walk_enabled());
     EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 0u);
 }
 

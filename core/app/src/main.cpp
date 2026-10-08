@@ -130,7 +130,7 @@ static int run_app(int argc, char *argv[])
             emulator = std::make_unique<Emulator32bit>(std::make_unique<RAM>(16, 0),
                                                        std::make_unique<ROM>(16, 16),
                                                        std::make_unique<MockDisk>());
-            pid = emulator->system_bus->mmu->begin_process();
+            pid = emulator->mmu->begin_process();
             LoadExecutable loader(*emulator, build->get_exe_file());
             loader.load();
         }
@@ -140,7 +140,7 @@ static int run_app(int argc, char *argv[])
             AEMU_SCOPED_TIMER("Running emulator");
             emulator->run(kMaxCycles);
             emulator->print();
-            emulator->system_bus->mmu->end_process(pid);
+            emulator->mmu->end_process(pid);
         }
     }
     return EXIT_SUCCESS;

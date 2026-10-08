@@ -43,12 +43,10 @@ static_assert(opcodes_are_valid(), "AEMU_OPCODES has an opcode that is used twic
 
 Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[],
                              word rom_npages, word rom_start_page) :
-    system_bus(std::make_unique<SystemBus>(
-        std::make_unique<RAM>(ram_npages, ram_start_page),
-        std::make_unique<ROM>(rom_data, rom_npages, rom_start_page)))
+    Emulator32bit(std::make_unique<RAM>(ram_npages, ram_start_page),
+                  std::make_unique<ROM>(rom_data, rom_npages, rom_start_page),
+                  std::make_unique<MockDisk>())
 {
-    fill_out_instructions();
-    reset();
 }
 
 Emulator32bit::Emulator32bit() :
@@ -58,7 +56,12 @@ Emulator32bit::Emulator32bit() :
 
 Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
                              std::unique_ptr<Disk> disk) :
-    system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk)))
+    system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk))),
+    // The pages that are paged in are the pages of the RAM, and are swapped out to the disk. Made
+    // after the bus owns them, so that they are freed with it if making the MMU throws.
+    mmu(std::make_unique<VirtualMemory>(system_bus->disk.get(), system_bus->ram->get_lo_page(),
+                                        system_bus->ram->get_mem_pages(), system_bus.get())),
+    memory(*system_bus, *mmu)
 {
     fill_out_instructions();
     reset();
@@ -123,7 +126,7 @@ word Emulator32bit::fetch_instruction()
         throw Exception(InterruptType::BAD_INSTR,
                         "Misaligned program counter " + std::to_string(m_pc));
     }
-    return system_bus->fetch_instruction(m_pc);
+    return memory.fetch_instruction(m_pc);
 }
 
 Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
@@ -640,11 +643,11 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         break;
     case kSysregId_ptbr:
         m_ptbr = value & ~word(kPageSize - 1); // the first level table is a page
-        system_bus->mmu->set_page_table_base(m_ptbr);
+        mmu->set_page_table_base(m_ptbr);
         break;
     case kSysregId_sctlr:
         m_sctlr = value & kSctlrMmuEnable; // the only bit there is
-        system_bus->mmu->set_walk_enabled(test_bit(m_sctlr, 0));
+        mmu->set_walk_enabled(test_bit(m_sctlr, 0));
         break;
     default:
         throw Exception(InterruptType::BAD_REG,
@@ -670,7 +673,7 @@ void Emulator32bit::set_user_mode(const bool user)
         std::swap(m_x[register_to_U8(Register::SP)], m_sp_other);
     }
     m_pstate = set_bit(m_pstate, kUserModeBit, user);
-    system_bus->mmu->set_user_mode(user);
+    mmu->set_user_mode(user);
 }
 
 void Emulator32bit::require_kernel()
@@ -788,9 +791,9 @@ void Emulator32bit::reset()
 
     m_sp_other = 0;
     m_elr = m_spsr = m_esr = m_far = m_vbar = m_ptbr = m_sctlr = 0;
-    system_bus->mmu->set_user_mode(false);
-    system_bus->mmu->set_page_table_base(0);
-    system_bus->mmu->set_walk_enabled(false);
+    mmu->set_user_mode(false);
+    mmu->set_page_table_base(0);
+    mmu->set_walk_enabled(false);
     m_data_address = 0;
     m_pc_written = false;
     m_retired_since_entry = true;

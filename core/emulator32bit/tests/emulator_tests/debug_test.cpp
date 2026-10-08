@@ -35,7 +35,7 @@ class DebugFixture : public EmulatorFixture
     {
         for (size_t i = 0; i < program.size(); i++)
         {
-            cpu.system_bus->write_word(word(i * 4), program[i]);
+            cpu.memory.write_word(word(i * 4), program[i]);
         }
         cpu.set_pc(0);
     }
@@ -340,8 +340,8 @@ TEST_F(DebuggerTest, shows_registers_memory_and_code)
     EXPECT_NE(command("regs").find("x0 0x00000002"), std::string::npos);
     EXPECT_NE(command("regs").find("NZCV"), std::string::npos);
 
-    cpu.system_bus->write_byte(0x100, 0xDE);
-    cpu.system_bus->write_byte(0x101, 0xAD);
+    cpu.memory.write_byte(0x100, 0xDE);
+    cpu.memory.write_byte(0x101, 0xAD);
     const std::string mem = command("mem 0x100 2");
     EXPECT_NE(mem.find("0x00000100: de ad"), std::string::npos) << mem;
 
@@ -355,10 +355,10 @@ TEST_F(DebuggerTest, backtrace_follows_the_frame_records)
     symbols.add("inner", 0x10);
     symbols.add("outer", 0x40);
     // inner was called from outer+4, outer from start+8.
-    cpu.system_bus->write_word(0x200, 0x300);
-    cpu.system_bus->write_word(0x204, 0x44);
-    cpu.system_bus->write_word(0x300, 0);
-    cpu.system_bus->write_word(0x304, 0x08);
+    cpu.memory.write_word(0x200, 0x300);
+    cpu.memory.write_word(0x204, 0x44);
+    cpu.memory.write_word(0x300, 0);
+    cpu.memory.write_word(0x304, 0x08);
     cpu.set_pc(0x14);
     cpu.write_reg(Register::FP, 0x200);
 
@@ -374,8 +374,8 @@ TEST_F(DebuggerTest, backtrace_at_a_function_entry_uses_the_link_register)
     symbols.add("inner", 0x10);
     symbols.add("outer", 0x40);
     // The record at x28 is outer's: it returns to start+8. inner was called from outer+8.
-    cpu.system_bus->write_word(0x200, 0);
-    cpu.system_bus->write_word(0x204, 0x08);
+    cpu.memory.write_word(0x200, 0);
+    cpu.memory.write_word(0x204, 0x08);
     cpu.set_pc(0x10);
     cpu.write_reg(Register::LR, 0x48);
     cpu.write_reg(Register::FP, 0x200);
@@ -397,8 +397,8 @@ TEST_F(DebuggerTest, backtrace_stops_at_a_broken_chain)
     cpu.write_reg(Register::FP, 0x10000000);  // not mapped
     EXPECT_NE(command("bt").find("cannot read"), std::string::npos);
 
-    cpu.system_bus->write_word(0x200, 0x100); // below its own record
-    cpu.system_bus->write_word(0x204, 0x44);
+    cpu.memory.write_word(0x200, 0x100);      // below its own record
+    cpu.memory.write_word(0x204, 0x44);
     cpu.write_reg(Register::FP, 0x200);
     const std::string text = command("bt");
     EXPECT_NE(text.find("#1  0x00000044"), std::string::npos) << text;
@@ -460,7 +460,7 @@ TEST_F(WatchpointTest, a_write_watchpoint_stops_after_the_store)
     EXPECT_EQ(result.status, Status::BREAKPOINT);
     EXPECT_EQ(result.instructions_ran, 1u);
     EXPECT_EQ(cpu.get_pc(), 4u);
-    EXPECT_EQ(cpu.system_bus->read_word(kWatched), 0xCAFEu);
+    EXPECT_EQ(cpu.memory.read_word(kWatched), 0xCAFEu);
     EXPECT_NE(result.message.find("write of 0xcafe"), std::string::npos) << result.message;
     EXPECT_NE(result.message.find("0x00000100"), std::string::npos) << result.message;
     EXPECT_NE(result.message.find("instruction at 0x00000000"), std::string::npos)
@@ -517,7 +517,7 @@ TEST_F(WatchpointTest, an_atomic_is_a_write)
     const auto result = cpu.run(0);
 
     EXPECT_EQ(result.status, Status::BREAKPOINT);
-    EXPECT_EQ(cpu.system_bus->read_word(kWatched), 0xCAFEu);
+    EXPECT_EQ(cpu.memory.read_word(kWatched), 0xCAFEu);
     EXPECT_NE(result.message.find("write"), std::string::npos) << result.message;
 }
 

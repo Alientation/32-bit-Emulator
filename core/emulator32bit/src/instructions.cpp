@@ -361,11 +361,11 @@ void Emulator32bit::_tlbi(const word instr)
     // imm16 is reserved (0).
     if (test_bit(instr, 16))
     {
-        system_bus->mmu->invalidate_translation(read_reg(_SX1(instr)));
+        mmu->invalidate_translation(read_reg(_SX1(instr)));
     }
     else
     {
-        system_bus->mmu->invalidate_translations();
+        mmu->invalidate_translations();
     }
 }
 
@@ -555,15 +555,15 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     switch (width)
     {
     case kAtomicWidth_word:
-        val_mem = system_bus->read_word(mem_adr);
+        val_mem = memory.read_word(mem_adr);
         break;
 
     case kAtomicWidth_byte:
-        val_mem = system_bus->read_byte(mem_adr);
+        val_mem = memory.read_byte(mem_adr);
         break;
 
     case kAtomicWidth_hword:
-        val_mem = system_bus->read_hword(mem_adr);
+        val_mem = memory.read_hword(mem_adr);
         break;
 
     default:
@@ -604,15 +604,15 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     switch (width)
     {
     case kAtomicWidth_word:
-        system_bus->write_word(mem_adr, new_val);
+        memory.write_word(mem_adr, new_val);
         break;
 
     case kAtomicWidth_byte:
-        system_bus->write_byte(mem_adr, new_val);
+        memory.write_byte(mem_adr, new_val);
         break;
 
     case kAtomicWidth_hword:
-        system_bus->write_hword(mem_adr, new_val);
+        memory.write_hword(mem_adr, new_val);
         break;
 
     default:
@@ -827,7 +827,7 @@ void Emulator32bit::write_back_base(const MemOperand &operand)
 void Emulator32bit::_ldr(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
-    const word read_val = system_bus->read_word(mem.address);
+    const word read_val = memory.read_word(mem.address);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 4, false, read_val);
@@ -840,7 +840,7 @@ void Emulator32bit::_ldrb(const word instr)
 {
     const bool sign = test_bit(instr, 25);
     const MemOperand mem = decode_mem_operand(instr);
-    word read_val = system_bus->read_byte(mem.address);
+    word read_val = memory.read_byte(mem.address);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 1, false, read_val);
@@ -857,7 +857,7 @@ void Emulator32bit::_ldrh(const word instr)
 {
     const bool sign = test_bit(instr, 25);
     const MemOperand mem = decode_mem_operand(instr);
-    word read_val = system_bus->read_hword(mem.address);
+    word read_val = memory.read_hword(mem.address);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 2, false, read_val);
@@ -875,7 +875,7 @@ void Emulator32bit::_str(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
     const word value = read_reg(_X1(instr));
-    system_bus->write_word(mem.address, value);
+    memory.write_word(mem.address, value);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 4, true, value);
@@ -887,7 +887,7 @@ void Emulator32bit::_strb(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
     const word value = read_reg(_X1(instr));
-    system_bus->write_byte(mem.address, value);
+    memory.write_byte(mem.address, value);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 1, true, value & 0xFF);
@@ -899,7 +899,7 @@ void Emulator32bit::_strh(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
     const word value = read_reg(_X1(instr));
-    system_bus->write_hword(mem.address, value);
+    memory.write_hword(mem.address, value);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 2, true, value & 0xFFFF);

@@ -76,7 +76,7 @@ class Exceptions : public ::testing::Test
 
     void SetUp() override
     {
-        VirtualMemory &mmu = *cpu.system_bus->mmu;
+        VirtualMemory &mmu = *cpu.mmu;
         const long long pid = mmu.begin_process();
         mmu.add_vpage(pid, kCode >> kNumPageOffsetBits, 1, true, true);
         mmu.add_vpage(pid, kWritable >> kNumPageOffsetBits, 1, true, false);
@@ -87,7 +87,7 @@ class Exceptions : public ::testing::Test
     {
         for (size_t i = 0; i < instructions.size(); i++)
         {
-            cpu.system_bus->write_word(address + word(i) * 4, instructions[i]);
+            cpu.memory.write_word(address + word(i) * 4, instructions[i]);
         }
     }
 
@@ -364,7 +364,7 @@ TEST_F(Exceptions, an_access_that_crosses_into_a_page_that_faults_reports_the_pa
 TEST_F(Exceptions, an_access_to_a_physical_address_with_no_memory_is_a_bus_error)
 {
     install_vectors();
-    cpu.system_bus->mmu->set_enabled(false); // addresses are physical
+    cpu.mmu->set_enabled(false); // addresses are physical
     cpu.write_reg(U8(0), 0x7FFF0000);
 
     expect_in_handler(run({load(1, 0)}), Class::DATA_ABORT);
@@ -384,7 +384,7 @@ TEST_F(Exceptions, a_handler_can_fix_the_cause_and_retry_the_instruction)
     const auto result = run({store(1, 0), Emulator32bit::asm_hlt()});
     EXPECT_EQ(result.status, Status::HALTED) << result.message;
     EXPECT_EQ(cpu.get_pc(), kProgram + 4);
-    EXPECT_EQ(cpu.system_bus->read_word(kWritable), 0xABCD1234u);
+    EXPECT_EQ(cpu.memory.read_word(kWritable), 0xABCD1234u);
 }
 
 TEST_F(Exceptions, brk_raises_the_breakpoint_exception)
