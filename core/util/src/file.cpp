@@ -316,10 +316,6 @@ void FileWriter::write(const std::string text)
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << text;
-    for (size_t i = 0; i < text.size(); i++)
-    {
-        m_bytes_written.push_back(text[i]);
-    }
 }
 
 ByteWriter::Data::Data(unsigned long long value, int num_bytes) :
@@ -377,8 +373,6 @@ void FileWriter::write(const char byte)
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << byte;
-
-    m_bytes_written.push_back(byte);
 }
 
 /**
@@ -391,35 +385,6 @@ void FileWriter::write(const char *bytes)
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
 
     (*m_file_stream) << bytes;
-
-    int size = sizeof(bytes);
-    for (int i = 0; i < size; i++)
-    {
-        m_bytes_written.push_back(bytes[i]);
-    }
-}
-
-char FileWriter::last_byte_written()
-{
-    if (m_bytes_written.size() > 0)
-    {
-        return m_bytes_written.back();
-    }
-    return '\0';
-}
-
-// TODO: this should take in size_t
-char *FileWriter::last_bytes_written(unsigned int num_bytes)
-{
-    char *bytes = new char[num_bytes];
-
-    for (size_t i = std::max(static_cast<size_t>(0), num_bytes - m_bytes_written.size());
-         i < num_bytes; i++)
-    {
-        bytes[i] = m_bytes_written[m_bytes_written.size() - num_bytes + i];
-    }
-
-    return bytes;
 }
 
 void FileWriter::flush()

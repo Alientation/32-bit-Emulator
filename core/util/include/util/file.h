@@ -70,14 +70,11 @@ class FileWriter
     void write(std::string text);
     void write(char byte);
     void write(const char *bytes);
-    char last_byte_written();
-    char *last_bytes_written(unsigned int numBytes);
     void flush();
     void close();
 
   private:
     File m_file;
-    std::vector<char> m_bytes_written;
     std::ofstream *m_file_stream;
     bool m_closed;
 };
