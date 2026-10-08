@@ -1,0 +1,52 @@
+; Benchmark of the data side with page tables (tools/bench.sh, linked with walkbench.ld).
+;
+; The same loop as membench, but after the program has built its own page tables and turned the
+; MMU on (SCTLR.M, docs/mmu.md), so every access goes through the TLB of the table walker and not
+; through the swapping memory of a process.
+
+.global _start
+
+.text
+_start:
+                adrp    x0, l1
+                add     x0, x0, :lo12:l1        ; the first level table
+                adrp    x1, l2
+                add     x1, x1, :lo12:l2        ; its only second level table
+                orr     x2, x1, 1               ; l1[0] = l2, valid
+                str     x2, [x0]
+
+                mov     x3, 0                   ; identity map the first 16 pages: V | W | X
+                mov     x4, 16
+fill:           lsl     x5, x3, 12
+                orr     x5, x5, 7
+                lsl     x6, x3, 2
+                str     x5, [x1, x6]
+                add     x3, x3, 1
+                cmp     x3, x4
+                b.ne    fill
+
+                msr     ptbr, x0
+                mov     x7, 1
+                msr     sctlr, x7               ; translation is on, the next fetch is mapped
+
+                adrp    x1, buf
+                add     x1, x1, :lo12:buf
+                ldr     x0, =4000000            ; number of iterations
+
+_loop:
+                ldr     x2, [x1]
+                add     x2, x2, 1
+                str     x2, [x1]
+                ldrb    x3, [x1, 4]
+                strb    x3, [x1, 5]
+                ldrh    x4, [x1, 8]
+                strh    x4, [x1, 10]
+                subs    x0, x0, 1
+                b.ne    _loop
+                hlt
+
+.bss
+.align 4096
+l1:             .advance 4096
+l2:             .advance 4096
+buf:            .advance 64

@@ -22,10 +22,10 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compile
 ./build.sh coverage   # lcov/genhtml report from build/debug gcov data -> core/coverage/
 ./build.sh asan       # separate build in build/asan (Debug) with AddressSanitizer + LeakSanitizer + UBSan, then ctest on it
 ./build.sh ubsan      # the same with UBSan alone in build/ubsan (much faster)
-tools/bench.sh        # times the emulator on tools/bench/*.basm and long_loop (best of 5 runs, MIPS); --perf shows where the time goes
+tools/bench.sh        # times the emulator on tools/bench/*.basm and long_loop (best of 5 runs, MIPS); --perf shows where the time goes; --baseline <emu32 of another commit> runs the two alternately and prints the change
 ```
 
-Benchmark before and after a change to the hot path (`run()`, `MemoryPort`, `SystemBus`, `VirtualMemory`). `tools/bench.sh --perf` finds perf itself: `/usr/bin/perf` is a wrapper that does not work on the WSL2 kernel, so it uses the binary in `/usr/lib/linux-tools/*/perf` with the software `cpu-clock` event (WSL2 has no hardware counters), and the release build has debug info so the samples can be attributed to source lines.
+Benchmark before and after a change to the hot path (`run()`, `MemoryPort`, `SystemBus`, `VirtualMemory`). Two separate runs of the same binary differ by 5% or more on this machine, so compare with `--baseline` (build the other commit in a `git worktree`) and `-n 15` or more, and decide on the best and the median together; a profile where the share of a function dropped is not a speedup until the time is (the time just moves to the next thing that waits). `tools/bench.sh --perf` finds perf itself: `/usr/bin/perf` is a wrapper that does not work on the WSL2 kernel, so it uses the binary in `/usr/lib/linux-tools/*/perf` with the software `cpu-clock` event (WSL2 has no hardware counters), and the release build has debug info so the samples can be attributed to source lines.
 
 CI runs `./build.sh` and, as a second job, `./build.sh asan`.
 
