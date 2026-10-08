@@ -565,7 +565,8 @@ class Emulator32bit
 
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int imm14);
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
-    static word asm_format_o1(U8 opcode, int xd, int xn, bool imm, int xm, int imm5);
+    static word asm_format_o1(U8 opcode, int xd, int xn, bool imm, int xm, int imm5,
+                              bool s = false);
     static word asm_format_o2(U8 opcode, bool s, int xlo, int xhi, int xn, int xm);
     static word asm_format_o3(U8 opcode, bool s, int xd, int imm19);
     static word asm_format_o3(U8 opcode, bool s, int xd, int xn, int imm14);

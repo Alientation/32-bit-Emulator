@@ -258,7 +258,12 @@ static std::string disassemble_format_o2(word instruction, std::string op)
 
 static std::string disassemble_format_o1(word instruction, std::string op)
 {
-    std::string disassemble = op + " ";
+    std::string disassemble = op;
+    if (test_bit(instruction, 25))
+    {
+        disassemble += "s";
+    }
+    disassemble += " ";
 
     disassemble += disassemble_gpr(instruction, 20);
     disassemble += ", ";
@@ -268,7 +273,7 @@ static std::string disassemble_format_o1(word instruction, std::string op)
 
     if (test_bit(instruction, 14))
     {
-        disassemble += std::to_string(bitfield_unsigned(instruction, 0, 14));
+        disassemble += std::to_string(bitfield_unsigned(instruction, 2, 5));
     }
     else
     {

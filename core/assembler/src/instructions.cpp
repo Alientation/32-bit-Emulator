@@ -281,9 +281,18 @@ word Assembler::parse_format_m(byte opcode)
         // Offset begins with the '#' symbol. Checked by parse expression. TODO: IS THIS TRUE??
         if (!m_tokenizer.is_next(Tokenizer::REGISTERS))
         {
-            const word offset = parse_expression();
-            EXPECT_TRUE(offset < (1ULL << 12),
-                        "Assembler::parse_format_m() - Offset must be 12 bit value.");
+            // The offset is a signed 12 bit value (sign extended by the emulator). A leading '-'
+            // negates the whole expression.
+            const bool negative = m_tokenizer.is_next(Tokenizer::OPERATOR_SUBTRACTION);
+            if (negative)
+            {
+                m_tokenizer.consume();
+            }
+            const dword magnitude = parse_expression();
+            EXPECT_TRUE(negative ? magnitude <= (1ULL << 11) : magnitude < (1ULL << 11),
+                        "Assembler::parse_format_m() - Offset must be a signed 12 bit value "
+                        "(-2048 to 2047).");
+            const int offset = negative ? -int(magnitude) : int(magnitude);
 
             // Post indexed (`[xn], offset`) already consumed the close bracket.
             if (!parsed_addressing_mode)
@@ -446,7 +455,7 @@ word Assembler::parse_format_o2(byte opcode)
 
 word Assembler::parse_format_o1(byte opcode)
 {
-    m_tokenizer.consume();
+    const bool s = m_tokenizer.consume().value.back() == 's';
 
     const byte reg1 = parse_register();
     m_tokenizer.consume(Tokenizer::COMMA, "Assembler::parse_format_o1() - Expected comma.");
@@ -457,7 +466,7 @@ word Assembler::parse_format_o1(byte opcode)
     if (m_tokenizer.is_next(Tokenizer::REGISTERS))
     {
         const byte operand_reg = parse_register();
-        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, false, operand_reg, 0);
+        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, false, operand_reg, 0, s);
     }
     else
     {
@@ -468,7 +477,7 @@ word Assembler::parse_format_o1(byte opcode)
                     "Error at {} in line {}.",
                     shift_amt, Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
                     m_tokenizer.get_linei());
-        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt);
+        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt, s);
     }
 }
 

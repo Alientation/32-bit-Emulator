@@ -22,6 +22,8 @@ aemu_add_gtest(emulator32bit_tests
         ./instruction_tests/lsr_test.cpp
         ./instruction_tests/asr_test.cpp
         ./instruction_tests/ror_test.cpp
+        ./instruction_tests/shift_flags_test.cpp
+        ./instruction_tests/tlbi_test.cpp
         ./instruction_tests/cmp_test.cpp
         ./instruction_tests/cmn_test.cpp
         ./instruction_tests/tst_test.cpp

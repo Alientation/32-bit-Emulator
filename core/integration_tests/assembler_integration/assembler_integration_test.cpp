@@ -11,9 +11,9 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <sys/wait.h>
@@ -38,7 +38,7 @@ class AssemblerIntegration : public ::testing::Test
 
     /// Exit code of the last emu32 run and the key=value state it dumped.
     int m_emu_exit = -1;
-    std::map<std::string, std::string> m_state;
+    std::unordered_map<std::string, std::string> m_state;
 
     void SetUp() override
     {
@@ -800,6 +800,73 @@ buf:            .advance 20
     EXPECT_EQ(reg(8), 0xffff8000u);
     EXPECT_EQ(mem(kDataStart), (std::vector<byte>{0x11, 0, 0,    0, 0x44, 0, 0,    0,    0x22, 0,
                                                   0,    0, 0x33, 0, 0,    0, 0x34, 0x12, 0xab, 0}));
+}
+
+// Memory offsets are signed 12 bit values, so a negative offset (and `[sp, -4]!` push) works.
+TEST_F(AssemblerIntegration, memory_negative_offsets)
+{
+    write_file("neg.basm", R"(.global _start
+
+.text
+_start:
+                adrp    x0, buf
+                add     x0, x0, :lo12:buf
+                add     x9, x0, 16              ; points at the end of buf
+                add     x1, xzr, $11
+                str     x1, [x9, -4]            ; buf[3]
+                add     x1, xzr, $22
+                str     x1, [x9, -8]!           ; x9 -= 8, then buf[2]
+                add     x1, xzr, $33
+                str     x1, [x9], -4            ; buf[2] = $33, then x9 -= 4
+                sub     x3, x9, x0              ; 4
+                ldr     x4, [x0, 8]
+                ldr     x5, [x0, 12]
+                hlt
+.bss
+buf:            .advance 16
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o neg neg.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("neg.bexe"));
+
+    EXPECT_EQ(reg(3), 4u);
+    EXPECT_EQ(reg(4), 0x33u);
+    EXPECT_EQ(reg(5), 0x11u);
+}
+
+// Offsets outside of the signed 12 bit range are rejected.
+TEST_F(AssemblerIntegration, memory_offset_out_of_range_fails)
+{
+    write_file("big.basm", R"(.global _start
+
+.text
+_start:
+                ldr     x1, [x0, 2048]
+                hlt
+)");
+    EXPECT_NE(basm("-o big big.basm -outdir ."), 0) << log_tail("basm.log");
+    EXPECT_FALSE(exists("big.bexe"));
+}
+
+// Shifts with the S suffix update NZC like ARM, shifts without it leave the flags alone.
+TEST_F(AssemblerIntegration, shift_flag_setting)
+{
+    write_file("shifts.basm", R"(.global _start
+
+.text
+_start:
+                mov     x1, 1
+                lsl     x1, x1, 31              ; 0x80000000, no flags
+                lsls    x2, x1, 1               ; 0, C=1, Z=1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o shifts shifts.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("shifts.bexe"));
+
+    EXPECT_EQ(reg(1), 0x80000000u);
+    EXPECT_EQ(reg(2), 0u);
+    EXPECT_TRUE(flag("Z"));
+    EXPECT_TRUE(flag("C"));
+    EXPECT_FALSE(flag("N"));
 }
 
 // Recursion: factorial saves x29 and its argument on a stack carved out of .bss.

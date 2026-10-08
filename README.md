@@ -9,20 +9,21 @@
 5. [Running Tests](#running-tests)
 6. [Usage](#usage)
 7. [Documentation](#documentation)
-8. [Future Goals](#future-goals)
-9. [History](#history)
-10. [License](#license)
+8. [Current Work](#current-work)
+9. [Future Goals](#future-goals)
+10. [History](#history)
+11. [License](#license)
 
 ## **Project Overview**
-This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator-app` executable. Currently working on expanding the instruction set, improving test coverage, and writing a c compiler to generate basm assembly.
+This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator_app` executable, or run an already built `.bexe` directly with the `emu32` command line emulator. Currently working on expanding the instruction set, improving test coverage, and writing a c compiler to generate basm assembly.
 
-* supports up to 64 instructions, currently **~50** are in use
-* high **test coverage** to ensure correctness of emulator and assembler
+* supports up to 64 instructions (6 bit opcode), currently **48** opcodes are in use (the floating point ones are reserved but not implemented yet)
+* high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
 
 <p align="center">
-  <img src="./img/objdump.PNG" alt="Objdump of assembled code" width = "45% style="display: inline-block; margin: 0 10px;">
-  <img src="./img/fibonacci_example.PNG" alt="Fibonacci example basm code" width = "45% style="display: inline-block; margin: 0 10px;">
+  <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">
+  <img src="./img/fibonacci_example.PNG" alt="Fibonacci example basm code" width="45%" style="display: inline-block; margin: 0 10px;">
 </p>
 <div align="center">
   <strong>Objdump example</strong> (<i>left</i>) and <strong>fibonacci program</strong> (<i>right</i>)
@@ -43,24 +44,29 @@ This project simulates a computer processor by simulating the execution of machi
 &mdash; links all object files, resolving symbols, and creates an **executable file** (`.bexe`)\
 &mdash; relocates symbols as needed
 4. **Executable loader**\
-&mdash; loads a `.bexe` file into the emulator memory *for now, stores programs at the beginning of memory*
+&mdash; loads a `.bexe` file into the emulator's virtual memory following the section layout from the linker script (by default `.text` at `0x0`, `.data` at `0x1000`, and `.bss` right after `.data`)
 
 
 ## **Installation**
 ```
-# Clone the repo
-git clone https://github.com/Alientation/32-bit-Emulator.git
+# Clone the repo (with the cxxopts submodule)
+git clone --recurse-submodules https://github.com/Alientation/32-bit-Emulator.git
 
 # Navigate to the core directory
 cd 32-bit-Emulator/core
 
-# Ensure CMake (and Ninja if using supplied build scripts) are installed
+# If the repo was cloned without submodules
+git submodule update --init --recursive
+
+# Ensure CMake (>= 3.15) and Ninja are installed
 cmake --version
-Ninja --version
+ninja --version
 
 # Run the build script or CMake to configure and build directly
-# Requires C++17 and Ninja to build (and gcc/gcov, lcov for code coverage)
-./build.sh [clean]
+# Requires a C++20 compiler and Ninja to build (and gcc/gcov, lcov for code coverage)
+# GoogleTest is downloaded automatically by CMake
+# Builds both build/debug and build/release (and runs the tests)
+./build.sh [clean | compile | test | coverage]
 ```
 
 
@@ -70,49 +76,77 @@ Ninja --version
 
 # Executables should be located under the corresponding subdirectory in build/debug or build/release
 # Examples
-build/release/app/emulator-app ...
-build/release/assembler/basm ...
-build/release/ccompiler/ccompiler ...
-build/release/assembler/basm ...
+build/release/app/emulator_app ...          # build a basm program and run it on the emulator
+build/release/assembler/basm ...            # preprocessor + assembler + linker driver
+build/release/emulator32bit/emu32 ...       # run a .bexe (or raw ROM) on the emulator
 ```
+
+The C compiler (`core/ccompiler`) is still in development and is currently disabled in `core/CMakeLists.txt`, so there is no `ccompiler` executable yet.
 
 
 ## **Running Tests**
 ```
-# For now, tests are automatically ran whenever the build scripts are executed.
+# Tests are automatically ran whenever the build script is executed without arguments.
 ./build.sh
+
+# Run only the tests (after building)
+./build.sh test
+
+# Run a subset of tests with ctest (by name regex or by label: emulator32bit | assembler | assembler_integration)
+ctest --test-dir build/debug -R 'EmulatorFixture.add_'
+ctest --test-dir build/debug -L assembler_integration
 
 # Code Coverage is generated automatically for the debug build. To generate lcov coverage info to display, use the coverage argument.
 ./build.sh coverage
 
 # Then use the Coverage Gutters and Live Preview extension to view the coverage page.
 ```
+New test files must be added by hand to the `aemu_add_gtest(...)` call in the `tests/CMakeLists.txt` of their module.
 
 
 ## **Usage**
-To build a specific basm program and run it on the emulator, pass a build argument to the app/emulator-app executable\
+#### Build and run a basm program
+To build a specific basm program and run it on the emulator, pass a build argument to the app/emulator_app executable (or to `basm` to only build)\
 Note, currently the build process argument parser is extremely rudimentary so options that take an argument must have a space in between\
 \
 *Example:* `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`
-#### Some useful options
-* -o <path>: output file path relative to the current directory (output file is an executable `.bexe` unless otherwise specified)
+##### Some useful options
+* -o <path>: output file path relative to the current directory, without an extension (output file is an executable `.bexe` unless otherwise specified)
+* -outdir <path>: directory where the object files (`.bo`) are stored
 * -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
 * -l <path>: links given library file `.ba` to the rest of the code in the linker phase
-* -makedir: instead of an executable file output, create a `.ba` library file to link with in the future
-#### More options can be found in the source code
+* -ar: instead of an executable file output, create a `.ba` library file to link with in the future
+* -c: only compile the source files into object files
+* -D <flag>: pass a preprocessor flag to the program
+* -kp: keep the intermediate preprocessed `.bi` files
+##### More options can be found with `-h` or in the source code (`core/assembler/src/build.cpp`)
+
+#### Run an executable with `emu32`
+```
+# Load a .bexe, start at _start, run at most 1000 instructions and dump the final state
+build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.txt -m 0x1000:16
+```
+* `-e <file>`: executable to load, `-l <n>`: instruction limit (0 for none)
+* `--reg x0=5,sp=0x2000`, `--flags 0b0100`: initial register and NZCV flag state
+* `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
+* Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault
+* Run with `--help` for all options. Logging is verbose, so pipe through `grep -v DBG` if needed
 
 
 ## **Documentation**
-*todo*
+* Instruction encodings and the instruction set are described in [`core/emulator32bit/notes.txt`](./core/emulator32bit/notes.txt)
+* Sample programs are in `core/app/programs/`
+* Full documentation is still a *todo*
 
 ## **Current Work**
-* C Compiler (written in C)
-* - Working on Lexer
+* C Compiler (written in C, currently disabled in the build)
+* - Lexer, parser, and codegen for simple programs exist, functions are next
 * Improving/modernizing build and test system
 * - Added code coverage tools to assist in unit test development
+* - Added integration tests that drive `basm` and `emu32` end to end
 
 ## **Future Goals**
-* Add floating point instructions, relocation entry types, and section directives to help partition code
+* Implement the floating point instructions (opcodes are reserved, handlers are stubs), relocation entry types, and section directives to help partition code
 * Create simple OS with a CLI
 * Support dynamically linked libraries
 * Simple compiled language (like C, might instead write a LLVM backend)

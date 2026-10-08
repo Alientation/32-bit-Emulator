@@ -266,10 +266,10 @@ word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, co
 }
 
 word Emulator32bit::asm_format_o1(const U8 opcode, const int xd, const int xn, const bool imm,
-                                  const int xm, const int imm5)
+                                  const int xm, const int imm5, const bool s)
 {
-    return Joiner() << JPart(6, opcode) << 1 << JPart(5, xd) << JPart(5, xn) << JPart(1, imm)
-                    << JPart(5, xm) << 2 << JPart(5, imm5) << 2;
+    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
+                    << JPart(1, imm) << JPart(5, xm) << 2 << JPart(5, imm5) << 2;
 }
 
 word Emulator32bit::asm_format_o2(const U8 opcode, const bool s, const int xlo, const int xhi,
@@ -441,7 +441,7 @@ void Emulator32bit::_tlbi(const word instr)
 
 word Emulator32bit::asm_tlbi(U8 xt, bool isxt, word imm16)
 {
-    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_mrs)
+    return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_tlbi)
                     << JPart(5, xt) << JPart(1, isxt) << JPart(16, imm16);
 }
 
@@ -1017,57 +1017,77 @@ void Emulator32bit::_bic(const word instr)
     write_reg(xd, dst_val);
 }
 
-void Emulator32bit::_lsl(const word instr)
+/**
+ * @internal
+ * @brief                   Shared implementation of LSL, LSR, ASR and ROR (format O1)
+ * @details                 The shift amount is either imm5 or the low 8 bits of xm. Amounts of 32 or
+ *                          more are handled like ARM. If the S bit is set, N and Z are set from the
+ *                          result and C from the last bit shifted out (unchanged for a shift of 0).
+ *                          V is never changed.
+ */
+static void do_shift(Emulator32bit &cpu, const word instr, const Emulator32bit::ShiftType type)
 {
     const U8 xd = _X1(instr);
-    const word xn_val = read_reg(_X2(instr));
-    const word lsl_val =
-        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val = xn_val << lsl_val;
+    const word val = cpu.read_reg(_X2(instr));
+    const word amt =
+        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & cpu.read_reg(_X3(instr));
 
-    DEBUG_SS(std::stringstream() << "lsl " << std::to_string(lsl_val) << " "
-                                 << std::to_string(xn_val) << " = " << std::to_string(dst_val));
-    write_reg(xd, dst_val);
+    word res = val;
+    bool carry = cpu.get_flag(Emulator32bit::kCFlagBit);
+    if (amt != 0)
+    {
+        switch (type)
+        {
+        case Emulator32bit::ShiftType::SHIFT_LSL:
+            res = amt < 32 ? val << amt : 0;
+            carry = amt <= 32 ? (val >> (32 - amt)) & 1 : 0;
+            break;
+        case Emulator32bit::ShiftType::SHIFT_LSR:
+            res = amt < 32 ? val >> amt : 0;
+            carry = amt <= 32 ? (val >> (amt - 1)) & 1 : 0;
+            break;
+        case Emulator32bit::ShiftType::SHIFT_ASR:
+            res = sword(val) >> (amt < 32 ? amt : 31);
+            carry = (val >> (amt < 32 ? amt - 1 : 31)) & 1;
+            break;
+        case Emulator32bit::ShiftType::SHIFT_ROR:
+        {
+            const word rot = amt & 31;
+            res = rot == 0 ? val : (val >> rot) | (val << (32 - rot));
+            carry = res >> 31;
+            break;
+        }
+        }
+    }
+
+    if (test_bit(instr, Emulator32bit::kInstructionUpdateFlagBit))
+    {
+        cpu.set_NZCV(test_bit(res, 31), res == 0, carry, cpu.get_flag(Emulator32bit::kVFlagBit));
+    }
+
+    DEBUG_SS(std::stringstream() << "shift " << std::to_string(amt) << " " << std::to_string(val)
+                                 << " = " << std::to_string(res));
+    cpu.write_reg(xd, res);
+}
+
+void Emulator32bit::_lsl(const word instr)
+{
+    do_shift(*this, instr, ShiftType::SHIFT_LSL);
 }
 
 void Emulator32bit::_lsr(const word instr)
 {
-    const U8 xd = _X1(instr);
-    const word xn_val = read_reg(_X2(instr));
-    const word lsl_val =
-        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val = xn_val >> lsl_val;
-
-    DEBUG_SS(std::stringstream() << "lsr " << std::to_string(lsl_val) << " "
-                                 << std::to_string(xn_val) << " = " << std::to_string(dst_val));
-    write_reg(xd, dst_val);
+    do_shift(*this, instr, ShiftType::SHIFT_LSR);
 }
 
 void Emulator32bit::_asr(const word instr)
 {
-    const U8 xd = _X1(instr);
-    const word xn_val = read_reg(_X2(instr));
-    const word lsl_val =
-        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val = sword(xn_val) >> lsl_val;
-
-    DEBUG_SS(std::stringstream() << "asr " << std::to_string(lsl_val) << " "
-                                 << std::to_string(xn_val) << " = " << std::to_string(dst_val));
-    write_reg(xd, dst_val);
+    do_shift(*this, instr, ShiftType::SHIFT_ASR);
 }
 
 void Emulator32bit::_ror(const word instr)
 {
-    const U8 xd = _X1(instr);
-    const word xn_val = read_reg(_X2(instr));
-    const word lsl_val =
-        test_bit(instr, 14) ? bitfield_unsigned(instr, 2, 5) : 0xFF & read_reg(_X3(instr));
-    const word dst_val =
-        (xn_val >> lsl_val) | (bitfield_unsigned(xn_val, 0, lsl_val) << (32 - lsl_val));
-
-    DEBUG_SS(std::stringstream() << "ror " << std::to_string(lsl_val) << " "
-                                 << std::to_string(xn_val) << " = " << std::to_string(dst_val));
-    write_reg(xd, dst_val);
+    do_shift(*this, instr, ShiftType::SHIFT_ROR);
 }
 
 // alias to subs
@@ -1473,7 +1493,7 @@ void Emulator32bit::_blx(const word instr)
 void Emulator32bit::_adrp(const word instr)
 {
     const U8 xd = _X1(instr);
-    const word imm20 = bitfield_unsigned(instr, 0, 20) << 12;
+    const word imm20 = bitfield_unsigned(instr, 0, 20);
 
     signed int simm21 = imm20;
     if (test_bit(instr, kInstructionUpdateFlagBit))
@@ -1481,7 +1501,7 @@ void Emulator32bit::_adrp(const word instr)
         simm21 -= (1 << 20);
     }
 
-    word val = mask_0(m_pc, 0, 12) + simm21;
+    word val = mask_0(m_pc, 0, 12) + (simm21 << 12);
     write_reg(xd, val);
     DEBUG_SS(std::stringstream() << "adrp " << std::to_string(xd) << " " << std::to_string(simm21));
 }

@@ -149,3 +149,93 @@ TEST(emulator_test, emulator32bit_util_test)
         EXPECT_EQ(mask_0(dword(0xF123456789ABCDEFULL), 0, 64), 0);
     }
 }
+
+/// Independent model of the 16 ARM condition codes (see notes.txt, "Condition Codes").
+static bool cond_holds(int cond, bool n, bool z, bool c, bool v)
+{
+    switch (cond)
+    {
+    case 0:
+        return z;            // EQ
+    case 1:
+        return !z;           // NE
+    case 2:
+        return c;            // CS/HS
+    case 3:
+        return !c;           // CC/LO
+    case 4:
+        return n;            // MI
+    case 5:
+        return !n;           // PL
+    case 6:
+        return v;            // VS
+    case 7:
+        return !v;           // VC
+    case 8:
+        return c && !z;      // HI
+    case 9:
+        return !c || z;      // LS
+    case 10:
+        return n == v;       // GE
+    case 11:
+        return n != v;       // LT
+    case 12:
+        return !z && n == v; // GT
+    case 13:
+        return z || n != v;  // LE
+    case 14:
+        return true;         // AL
+    default:
+        return false;        // NV
+    }
+}
+
+TEST_F(EmulatorFixture, branch_b_forward)
+{
+    // b +3 instructions: target is the branch address + 12
+    step(0,
+         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, 3));
+    EXPECT_EQ(cpu.get_pc(), 12u);
+}
+
+TEST_F(EmulatorFixture, branch_b_backward)
+{
+    // b -2 instructions from address 16 lands on address 8
+    step(16,
+         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, -2));
+    EXPECT_EQ(cpu.get_pc(), 8u);
+}
+
+TEST_F(EmulatorFixture, branch_b_does_not_touch_link_register)
+{
+    cpu.write_reg(29, 0x1234);
+    step(0,
+         Emulator32bit::asm_format_b1(Emulator32bit::_op_b, Emulator32bit::ConditionCode::AL, 3));
+    EXPECT_EQ(cpu.read_reg(29), 0x1234u);
+}
+
+TEST_F(EmulatorFixture, branch_b_condition_codes_match_flags)
+{
+    for (int cond = 0; cond < 16; cond++)
+    {
+        for (int flags = 0; flags < 16; flags++)
+        {
+            const bool n = flags & 8;
+            const bool z = flags & 4;
+            const bool c = flags & 2;
+            const bool v = flags & 1;
+
+            cpu.system_bus->write_word(
+                0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b,
+                                                Emulator32bit::ConditionCode(cond), 3));
+            cpu.set_pc(0);
+            cpu.set_NZCV(n, z, c, v);
+            cpu.run(1);
+
+            // taken: 0 + 12, not taken: falls through to the next instruction
+            const word expected = cond_holds(cond, n, z, c, v) ? 12u : 4u;
+            EXPECT_EQ(cpu.get_pc(), expected)
+                << "cond=" << cond << " N=" << n << " Z=" << z << " C=" << c << " V=" << v;
+        }
+    }
+}
