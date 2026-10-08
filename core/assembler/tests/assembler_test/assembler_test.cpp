@@ -45,6 +45,22 @@ class AssemblerUnit : public ToolchainFixture
         return assemble(".text\n" + source).text_section;
     }
 
+    /// The warnings the assembler logs for `source` in `.text`.
+    std::vector<std::string> warnings_of(const std::string &source)
+    {
+        std::vector<std::string> messages;
+        aemu::log::set_sink(
+            [&messages](const aemu::log::Record &r)
+            {
+                if (r.level == aemu::log::Level::Warn) messages.emplace_back(r.message);
+            });
+        aemu::log::ScopedLevel level(aemu::log::Level::Warn);
+        const Words words = text(source);
+        aemu::log::reset_sink();
+        EXPECT_FALSE(words.empty());
+        return messages;
+    }
+
     /// The bytes of the `.data` section of `source`.
     Bytes data(const std::string &source)
     {
@@ -190,6 +206,74 @@ TEST_F(AssemblerUnit, sign_extending_loads_and_stores)
             Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, true, 2, 3, 0, Addr::ADDR_OFFSET),
             Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 2, 3, 0,
                                         Addr::ADDR_OFFSET)}));
+}
+
+TEST_F(AssemblerUnit, load_into_its_own_base_register_warns_about_the_lost_writeback)
+{
+    for (const char *load : {"ldr", "ldrb", "ldrh", "ldrsb", "ldrsh"})
+    {
+        for (const char *form : {"[x1, 4]!", "[x1, x2]!", "[x1], 4", "[x1], x2"})
+        {
+            const auto warnings = warnings_of(std::string(load) + " x1, " + form + "\n");
+            ASSERT_EQ(warnings.size(), 1u) << load << " " << form;
+            EXPECT_TRUE(contains(warnings[0], "writeback is lost")) << load << " " << form;
+            EXPECT_TRUE(contains(warnings[0], "x1")) << load << " " << form;
+        }
+    }
+
+    // The access still assembles to the same instruction.
+    EXPECT_EQ(warnings_of("ldr x1, [x1, 4]!\n").size(), 1u);
+    EXPECT_EQ(text("ldr x1, [x1, 4]!\n"),
+              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 1, 1, 4,
+                                                 Emulator32bit::AddrType::ADDR_PRE_INC)}));
+}
+
+TEST_F(AssemblerUnit, store_of_its_own_base_register_warns_about_the_stored_value)
+{
+    for (const char *store : {"str", "strb", "strh"})
+    {
+        for (const char *form : {"[x1, 4]!", "[x1, x2]!", "[x1], 4", "[x1], x2"})
+        {
+            const auto warnings = warnings_of(std::string(store) + " x1, " + form + "\n");
+            ASSERT_EQ(warnings.size(), 1u) << store << " " << form;
+            EXPECT_TRUE(contains(warnings[0], "before the")) << store << " " << form;
+            EXPECT_TRUE(contains(warnings[0], "x1")) << store << " " << form;
+        }
+    }
+}
+
+TEST_F(AssemblerUnit, writeback_that_is_discarded_or_has_no_effect_warns)
+{
+    // Writes to xzr are discarded, so there is nothing to write back to.
+    for (const char *source : {"ldr x1, [xzr, 4]!\n", "str x1, [xzr], 4\n", "ldr xzr, [xzr, 4]!\n"})
+    {
+        const auto warnings = warnings_of(source);
+        ASSERT_EQ(warnings.size(), 1u) << source;
+        EXPECT_TRUE(contains(warnings[0], "to xzr is discarded")) << source;
+    }
+
+    // A zero offset leaves the base register unchanged.
+    for (const char *source : {"ldr x1, [x2, 0]!\n", "str x1, [x2], 0\n", "ldr x1, [x2, xzr]!\n"})
+    {
+        const auto warnings = warnings_of(source);
+        ASSERT_EQ(warnings.size(), 1u) << source;
+        EXPECT_TRUE(contains(warnings[0], "has no effect")) << source;
+    }
+}
+
+TEST_F(AssemblerUnit, ordinary_memory_accesses_do_not_warn)
+{
+    const auto warnings = warnings_of("ldr x1, [x1]\n"     // no writeback
+                                      "ldr x1, [x1, 4]\n"  // no writeback
+                                      "str x1, [x1, 4]\n"
+                                      "ldr x1, [x2, 0]\n"  // zero offset, but no writeback
+                                      "ldr x1, [x2, 4]!\n" // different registers
+                                      "ldr x1, [x2], 4\n"
+                                      "str x1, [x2, x3]!\n"
+                                      "ldr xzr, [x2, 4]!\n"
+                                      "ldr x1, [sp, -4]!\n");
+    EXPECT_TRUE(warnings.empty()) << warnings.size()
+                                  << " unexpected warning(s), first: " << warnings[0];
 }
 
 TEST_F(AssemblerUnit, atomics)

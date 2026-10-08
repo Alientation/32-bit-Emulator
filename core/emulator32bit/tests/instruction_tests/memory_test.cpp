@@ -346,6 +346,36 @@ TEST_F(MemoryTest, pre_index_writes_back_before_the_access_and_post_index_after)
     EXPECT_EQ(cpu.read_reg(kXn), addr);
 }
 
+TEST_F(MemoryTest, transfer_register_may_be_the_base_register)
+{
+    // Stores read xt before the writeback, so they store the original base. Loads write xt last,
+    // so the loaded value replaces the writeback.
+    for (const MemOp &op : kMemOps)
+        for (const AddrType mode : {AddrType::ADDR_PRE_INC, AddrType::ADDR_POST_INC})
+        {
+            const std::string ctx = std::string(op.name) + " " + mode_name(mode);
+            const word target = mode == AddrType::ADDR_PRE_INC ? kBase + 8 : kBase;
+
+            fill_registers();
+            cpu.write_reg(kXn, kBase);
+            cpu.system_bus->write_word(target, 0xCAFEBABE);
+            execute(Emulator32bit::asm_format_m(op.opcode, false, kXn, kXn, 8, mode));
+
+            if (op.is_load)
+            {
+                const word mask = op.width == 4 ? 0xFFFFFFFFu : (1u << (8 * op.width)) - 1;
+                EXPECT_EQ(cpu.read_reg(kXn), 0xCAFEBABEu & mask) << ctx;
+            }
+            else
+            {
+                const word mask = op.width == 4 ? 0xFFFFFFFFu : (1u << (8 * op.width)) - 1;
+                EXPECT_EQ(cpu.read_reg(kXn), kBase + 8) << ctx << ": base still written back";
+                EXPECT_EQ(cpu.system_bus->read_word(target) & mask, kBase & mask)
+                    << ctx << ": stores the original base";
+            }
+        }
+}
+
 TEST_F(MemoryTest, zero_register)
 {
     // Base register xzr addresses absolute memory: `ldr x3, [xzr, #0x400]`.

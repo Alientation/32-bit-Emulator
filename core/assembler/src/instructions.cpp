@@ -208,6 +208,42 @@ word Assembler::parse_format_m(byte opcode)
     // Register that contains memory address.
     byte reg_a = parse_register();
 
+    // Pre/post-indexing writes the base register back, which is pointless or surprising in a few
+    // cases. `zero_offset` is true when the offset is known to be 0.
+    const bool is_load = opcode == Emulator32bit::_op_ldr || opcode == Emulator32bit::_op_ldrb
+                         || opcode == Emulator32bit::_op_ldrh;
+    auto warn_writeback = [&](const Emulator32bit::AddrType mode, const bool zero_offset)
+    {
+        if (mode == Emulator32bit::AddrType::ADDR_OFFSET) return;
+
+        const std::string kind =
+            mode == Emulator32bit::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
+        const std::string base = "x" + std::to_string(reg_a);
+        if (reg_a == U8(Register::XZR))
+        {
+            warn(*m_statement, "the " + kind + " writeback to xzr is discarded");
+        }
+        else if (reg_t == reg_a && is_load)
+        {
+            // Two results for one register: the loaded value wins.
+            warn(*m_statement, "the loaded value overwrites the base register '" + base
+                                   + "', so the " + kind + " writeback is lost");
+        }
+        else if (reg_t == reg_a)
+        {
+            // Defined, but easy to misread: the value stored is the one from before the writeback.
+            warn(*m_statement, "'" + base
+                                   + "' is both the stored value and the base register; the "
+                                     "value from before the "
+                                   + kind + " writeback is stored");
+        }
+        else if (zero_offset)
+        {
+            warn(*m_statement, "the " + kind + " offset is zero, so the writeback to '" + base
+                                   + "' has no effect");
+        }
+    };
+
     // Parse the address mode.
     Emulator32bit::AddrType addressing_mode;
     bool parsed_addressing_mode = false;
@@ -251,6 +287,7 @@ word Assembler::parse_format_m(byte opcode)
                                       : Emulator32bit::AddrType::ADDR_OFFSET;
             }
 
+            warn_writeback(addressing_mode, offset == 0);
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, addressing_mode);
         }
         else
@@ -275,6 +312,7 @@ word Assembler::parse_format_m(byte opcode)
                                       : Emulator32bit::AddrType::ADDR_OFFSET;
             }
 
+            warn_writeback(addressing_mode, reg_b == U8(Register::XZR));
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift,
                                                shift_amount, addressing_mode);
         }
@@ -282,6 +320,7 @@ word Assembler::parse_format_m(byte opcode)
 
     // Check for invalid addressing mode.
     check(parsed_addressing_mode, "invalid addressing mode");
+    warn_writeback(addressing_mode, true);
     return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, addressing_mode);
 }
 

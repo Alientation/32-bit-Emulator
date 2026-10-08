@@ -12,6 +12,15 @@ void Assembler::fail(const Token &at, const std::string &message)
     basm::fatal_at(*m_sources, at.loc, message);
 }
 
+void Assembler::warn(const Token &at, const std::string &message)
+{
+    if (m_state != State::ASSEMBLER_ERROR) m_state = State::ASSEMBLER_WARNING;
+    std::string text =
+        basm::format_diagnostic(*m_sources, {basm::Severity::WARNING, at.loc, message});
+    while (!text.empty() && text.back() == '\n') text.pop_back();
+    AEMU_WARN("{}", text);
+}
+
 const Token &Assembler::expect(TokenType type, const std::string &message)
 {
     if (!m_cursor.check(type))

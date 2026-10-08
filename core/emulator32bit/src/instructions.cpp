@@ -681,8 +681,9 @@ void Emulator32bit::_str(const word instr)
     sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
+    // Read xt before calc_mem_addr writes the base back, so `str x1, [x1, 8]!` stores the old x1.
     const word write_val = read_reg(xt);
+    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     system_bus->write_word(mem_addr, write_val);
 }
 
@@ -695,8 +696,9 @@ void Emulator32bit::_strb(const word instr)
     sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
+    // Read xt before calc_mem_addr writes the base back (see _str).
     word write_val = read_reg(xt);
+    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     if (sign)
     {
         write_val = sword(S8(write_val));
@@ -713,8 +715,9 @@ void Emulator32bit::_strh(const word instr)
     sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
-    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
+    // Read xt before calc_mem_addr writes the base back (see _str).
     word write_val = read_reg(xt);
+    const word mem_addr = calc_mem_addr(xn, offset, address_mode);
     if (sign)
     {
         write_val = sword(S16(write_val));

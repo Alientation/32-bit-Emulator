@@ -125,6 +125,9 @@ class Assembler
     /// @brief Logs the error at the token (file, line, column, source line) and terminates.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 
+    /// @brief Logs a warning at the token (file, line, column, source line) and keeps assembling.
+    void warn(const basm::Token &at, const std::string &message);
+
     /// @brief Consumes the next token if it has the type, otherwise fails with `message`.
     const basm::Token &expect(basm::TokenType type, const std::string &message);
 
