@@ -414,6 +414,15 @@ They always update NZCV and have no destination register (the assembler encodes 
 
 All are format M. See [mem](#operands) for the addressing modes.
 
+### Division (2)
+
+| Opcode | Instruction | Format | Operation |
+|--------|-------------|--------|-----------|
+| `101010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
+| `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
+
+`S` updates N and Z from the result, C and V are unchanged. **Dividing by zero gives 0** and raises nothing, and `INT_MIN / -1` is `INT_MIN`. There is no remainder instruction: `r = n - (n / d) * d` (`sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`), which is `n` for a `d` of 0. See [abi.md](abi.md#division).
+
 ### Branching (5)
 
 | Opcode | Instruction | Format | Operation |
@@ -517,4 +526,4 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The free opcodes are:
 
-`101010`, `101011`, `101100`, `110011`, `110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`
+`101100`, `110011`, `110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`

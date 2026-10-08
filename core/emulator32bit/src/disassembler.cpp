@@ -702,6 +702,16 @@ static std::string disassemble_swi(word instruction)
     return disassemble + " " + std::to_string(bitfield_unsigned(instruction, 0, 22));
 }
 
+static std::string disassemble_udiv(word instruction)
+{
+    return disassemble_format_o(instruction, "udiv");
+}
+
+static std::string disassemble_sdiv(word instruction)
+{
+    return disassemble_format_o(instruction, "sdiv");
+}
+
 static std::string disassemble_adrp(word instruction)
 {
     return disassemble_format_m1(instruction, "adrp");

@@ -1,6 +1,6 @@
-# ABI and integer division (design draft)
+# ABI and integer division
 
-**Status: proposal.** The register roles are the ones in [isa.md](isa.md#register-conventions), the rest is new. It is what a C compiler, the runtime library and the operating system agree on. Everything is little endian.
+**Status:** the calling convention, the data layout and the frame record are **agreed but are a convention only**: nothing enforces them yet, the C compiler and the runtime library do not exist (the debugger's `bt` follows the frame record). `UDIV` and `SDIV` are **implemented** (see [Division](#division)). The register roles are the ones in [isa.md](isa.md#register-conventions), the rest is new. It is what a C compiler, the runtime library and the operating system agree on. Everything is little endian.
 
 ## Data types
 
@@ -105,13 +105,13 @@ The ISA has `MUL`, `UMULL` and `SMULL` but no divide. Compilers emit division co
 | `101010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
 | `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
-They sit directly after `STRH` in the opcode list, take the same `arg` as the other O instructions (a register with a shift, or an unsigned `imm14`), and `S` updates N and Z from the result with C and V unchanged, like `MUL`.
+They sit directly after `STRH` in the opcode list (`opcodes.h`), take the same `arg` as the other O instructions (a register with a shift, or an unsigned `imm14`), and `S` updates N and Z from the result with C and V unchanged, like `MUL`. They are in [isa.md](isa.md#division-2).
 
 - **Division by zero** gives **0** and raises nothing (the ARM A64 behavior). C says it is undefined, and there is no trap for it (decided), so a compiler that wants a check emits it.
 - **`INT_MIN / -1`** gives `INT_MIN` (the result wraps, no exception).
 - **Remainder** has no instruction: `r = n - (n / d) * d`, i.e. `sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`. With `d = 0` that gives `n`, which is consistent with the quotient being 0.
 
-Costs: two of the 16 free primary opcodes, leaving 14. The change touches `opcodes.h` (two rows), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, the encoders (`asm_format_o`), one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`), the tables in `dataproc_test.cpp` and the two table checks (`opcode_table_test.cpp`, `instruction_table_test`).
+Costs: two of the 16 free primary opcodes, leaving 14. Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp` (operand forms, the S bit, aliasing), the two table checks, and `division_and_remainder` in the integration tests.
 
 ## Lowering of C operations
 

@@ -663,6 +663,77 @@ TEST(AluShift, matches_reference_for_all_amounts)
         }
 }
 
+TEST(AluUdiv, divides_and_rounds_down)
+{
+    EXPECT_EQ(alu_udiv(100, 7, kNoFlags).result, 14u);
+    EXPECT_EQ(alu_udiv(6, 7, kNoFlags).result, 0u);
+    EXPECT_EQ(alu_udiv(7, 7, kNoFlags).result, 1u);
+    EXPECT_EQ(alu_udiv(0xFFFFFFFF, 2, kNoFlags).result, 0x7FFFFFFFu) << "the operands are unsigned";
+    EXPECT_EQ(alu_udiv(0x80000000, 1, kNoFlags).result, 0x80000000u);
+    EXPECT_EQ(alu_udiv(0xFFFFFFFF, 0xFFFFFFFF, kNoFlags).result, 1u);
+}
+
+TEST(AluUdiv, division_by_zero_is_zero)
+{
+    EXPECT_EQ(alu_udiv(1234, 0, kNoFlags).result, 0u);
+    EXPECT_EQ(alu_udiv(0, 0, kNoFlags).result, 0u);
+    EXPECT_EQ(alu_udiv(0xFFFFFFFF, 0, kNoFlags).result, 0u);
+}
+
+TEST(AluSdiv, rounds_toward_zero)
+{
+    const auto sdiv = [](const S32 a, const S32 b)
+    { return S32(word(alu_sdiv(word(a), word(b), kNoFlags).result)); };
+
+    EXPECT_EQ(sdiv(7, 2), 3);
+    EXPECT_EQ(sdiv(-7, 2), -3);
+    EXPECT_EQ(sdiv(7, -2), -3);
+    EXPECT_EQ(sdiv(-7, -2), 3);
+    EXPECT_EQ(sdiv(-1, 2), 0);
+    EXPECT_EQ(sdiv(INT32_MIN, 2), INT32_MIN / 2);
+    EXPECT_EQ(sdiv(INT32_MAX, -1), -INT32_MAX);
+}
+
+TEST(AluSdiv, division_by_zero_is_zero_and_int_min_by_minus_one_wraps)
+{
+    EXPECT_EQ(alu_sdiv(0xFFFFFFF9, 0, kNoFlags).result, 0u);
+    EXPECT_EQ(alu_sdiv(0x80000000, 0xFFFFFFFF, kNoFlags).result, 0x80000000u);
+}
+
+TEST(AluDiv, flags_are_n_and_z_of_the_result_and_c_and_v_are_kept)
+{
+    expect_flags(alu_sdiv(0xFFFFFFF9, 2, {false, false, true, true}).flags,
+                 {true, false, true, true}); // -3
+    expect_flags(alu_udiv(1, 2, {true, false, true, false}).flags, {false, true, true, false}); // 0
+    expect_flags(alu_udiv(8, 2, {true, true, false, true}).flags, {false, false, false, true});
+}
+
+// There is no remainder instruction, a compiler computes n - (n / d) * d.
+TEST(AluDiv, the_remainder_is_n_minus_the_quotient_times_d)
+{
+    const auto srem = [](const S32 n, const S32 d)
+    {
+        const word quotient = word(alu_sdiv(word(n), word(d), kNoFlags).result);
+        const word product = word(alu_mul(quotient, word(d), kNoFlags).result);
+        return S32(word(n) - product);
+    };
+    const auto urem = [](const word n, const word d)
+    {
+        const word quotient = word(alu_udiv(n, d, kNoFlags).result);
+        return word(n - word(alu_mul(quotient, d, kNoFlags).result));
+    };
+
+    for (const S32 n : {0, 1, 7, -7, 100, -100, INT32_MAX, INT32_MIN + 1})
+        for (const S32 d : {1, 2, 3, -3, 7, -7, 1000})
+            EXPECT_EQ(srem(n, d), n % d) << n << " % " << d;
+    for (const word n : {0u, 1u, 7u, 100u, 0xFFFFFFFFu, 0x80000000u})
+        for (const word d : {1u, 2u, 3u, 7u, 1000u, 0xFFFFFFFFu})
+            EXPECT_EQ(urem(n, d), n % d) << n << " % " << d;
+
+    EXPECT_EQ(srem(42, 0), 42) << "n % 0 is n";
+    EXPECT_EQ(urem(42, 0), 42u);
+}
+
 TEST(AluFlags, struct_is_value_initialisable)
 {
     const NZCVFlags f = flags_from_bits(0b1010);

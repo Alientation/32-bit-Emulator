@@ -332,6 +332,30 @@ static inline AluResult alu_smull(const word a, const word b, const NZCVFlags fl
     };
 }
 
+/// Unsigned division. Dividing by zero gives 0 and raises nothing (the ARM A64 behavior). N and Z
+/// are those of the result, C and V are kept.
+static inline AluResult alu_udiv(const word a, const word b, const NZCVFlags flags)
+{
+    return alu_logic_result(b == 0 ? 0 : a / b, flags);
+}
+
+/// Signed division, rounded toward zero. Dividing by zero gives 0 and raises nothing, and
+/// INT_MIN / -1 wraps to INT_MIN. N and Z are those of the result, C and V are kept.
+static inline AluResult alu_sdiv(const word a, const word b, const NZCVFlags flags)
+{
+    const S32 numerator = S32(a);
+    const S32 denominator = S32(b);
+    if (denominator == 0)
+    {
+        return alu_logic_result(0, flags);
+    }
+    if (numerator == INT32_MIN && denominator == -1)
+    {
+        return alu_logic_result(a, flags);
+    }
+    return alu_logic_result(word(numerator / denominator), flags);
+}
+
 /**
  * Perform a shift operation.
  * @param value Value to shift.

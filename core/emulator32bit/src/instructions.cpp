@@ -600,6 +600,8 @@ ALU_OP(_adc, alu_add(rn, op2, get_flag(kCFlagBit)))
 ALU_OP(_sbc, alu_sub(rn, op2, get_flag(kCFlagBit)))
 ALU_OP(_rsc, alu_sub(op2, rn, get_flag(kCFlagBit)))
 ALU_OP(_mul, alu_mul(rn, op2, get_NZCV()))
+ALU_OP(_udiv, alu_udiv(rn, op2, get_NZCV()))
+ALU_OP(_sdiv, alu_sdiv(rn, op2, get_NZCV()))
 
 // N and Z are set from the result. C and V are left unchanged (the shifter carry-out of the second
 // operand is ignored).

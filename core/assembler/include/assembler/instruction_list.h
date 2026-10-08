@@ -76,6 +76,8 @@
     F(X, STRH, "strh", false, M, Emulator32bit::_op_strh, 0)                                       \
     F(X, SWPH, "swph", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                           \
       Emulator32bit::kAtomicId_swp)                                                                \
+    F(X, UDIV, "udiv", true, O, Emulator32bit::_op_udiv, 0)                                        \
+    F(X, SDIV, "sdiv", true, O, Emulator32bit::_op_sdiv, 0)                                        \
     F(X, MSR, "msr", false, MSR, 0, 0)                                                             \
     F(X, MRS, "mrs", false, MRS, 0, 0)                                                             \
     F(X, TLBI, "tlbi", false, UNIMPLEMENTED, 0, 0)                                                 \

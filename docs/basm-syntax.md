@@ -147,7 +147,7 @@ add     x0, x0, :lo12:sym       ; x0 = the address of sym
 
 | Form | Instructions |
 |------|--------------|
-| `op xd, xn, xm[, shift]` or `op xd, xn, imm14` or `op xd, xn, :lo12:sym` | `add{s}` `sub{s}` `rsb{s}` `adc{s}` `sbc{s}` `rsc{s}` `mul{s}` `and{s}` `orr{s}` `eor{s}` `bic{s}` |
+| `op xd, xn, xm[, shift]` or `op xd, xn, imm14` or `op xd, xn, :lo12:sym` | `add{s}` `sub{s}` `rsb{s}` `adc{s}` `sbc{s}` `rsc{s}` `mul{s}` `udiv{s}` `sdiv{s}` `and{s}` `orr{s}` `eor{s}` `bic{s}` (a division by zero is 0, there is no remainder instruction, see [abi.md](abi.md#division)) |
 | `op xd, xn, xm` or `op xd, xn, imm5` | `lsl{s}` `lsr{s}` `asr{s}` `ror{s}` (with `s`: N, Z and C from the last bit shifted out, V unchanged) |
 | `op xn, xm[, shift]` or `op xn, imm14` | `cmp` `cmn` `tst` `teq` (flags only; assembled with `xzr` as the destination) |
 | `mov{s} xd, xm` / `mov{s} xd, imm14` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` |

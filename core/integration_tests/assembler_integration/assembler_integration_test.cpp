@@ -1971,6 +1971,40 @@ undefined_handler:
     EXPECT_EQ(state("mode"), "kernel");
 }
 
+// udiv and sdiv, and the remainder a compiler builds from them (docs/abi.md#division).
+TEST_F(AssemblerIntegration, division_and_remainder)
+{
+    write_file("div.basm", R"(.global _start
+.text
+_start:
+                mov     x0, 100
+                mov     x1, 7
+                udiv    x2, x0, x1              ; 14
+                udiv    x3, x0, 9               ; 11, an immediate divisor
+                udiv    x4, x0, xzr             ; a division by zero is 0
+
+                mvn     x5, 6                   ; -7
+                mov     x6, 2
+                sdiv    x7, x5, x6              ; -3, rounded toward zero
+                mul     x8, x7, x6              ; -6
+                sub     x9, x5, x8              ; -7 % 2 = -1
+
+                sdivs   x10, x5, x6             ; the same, setting the flags
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o div div.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("div.bexe"));
+
+    EXPECT_EQ(reg(2), 14u);
+    EXPECT_EQ(reg(3), 11u);
+    EXPECT_EQ(reg(4), 0u);
+    EXPECT_EQ(reg(7), 0xFFFFFFFDu);
+    EXPECT_EQ(reg(9), 0xFFFFFFFFu);
+    EXPECT_EQ(reg(10), 0xFFFFFFFDu);
+    EXPECT_TRUE(flag("N"));
+    EXPECT_FALSE(flag("Z"));
+}
+
 TEST_F(AssemblerIntegration, emulator_calls_can_be_turned_off)
 {
     write_file("call.basm", R"(.global _start
