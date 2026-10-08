@@ -8,8 +8,8 @@ FBL_InMemory::FBL_InMemory(byte *mem, word mem_start, word mem_size, word block_
     m_mem_size(mem_size),
     m_block_size(block_size)
 {
-    EXPECT_TRUE((mem_size - mem_start) % block_size == 0, "Block size must divide memory space.");
-    EXPECT_TRUE(block_size >= sizeof(struct FreeBlock), "Block size is too small");
+    AEMU_CHECK((mem_size - mem_start) % block_size == 0, "Block size must divide memory space.");
+    AEMU_CHECK(block_size >= sizeof(struct FreeBlock), "Block size is too small");
 
     m_head = (struct FreeBlock *) (mem + mem_start);
     m_head->len = (mem_size - mem_start) / block_size;
@@ -56,7 +56,7 @@ word FBL_InMemory::get_free_block()
 
 void FBL_InMemory::return_block(word block)
 {
-    EXPECT_TRUE((block - m_mem_start) % m_block_size == 0, "Block size must divide memory space.");
+    AEMU_CHECK((block - m_mem_start) % m_block_size == 0, "Block size must divide memory space.");
 
     struct FreeBlock *ret_block = insert(block);
     coalesce(ret_block);

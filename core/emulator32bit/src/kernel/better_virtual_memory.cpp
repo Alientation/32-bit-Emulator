@@ -13,10 +13,10 @@ MMU::MMU(Emulator32bit *processor, word user_low_page, word user_high_page, word
                          kernel_high_page - kernel_low_page + 1, kPageSize)
 {
     RAM *ram = processor->system_bus->ram;
-    EXPECT_TRUE(ram->in_bounds(user_low_page), "User page not in ram.");
-    EXPECT_TRUE(ram->in_bounds(user_high_page), "User page not in ram.");
-    EXPECT_TRUE(ram->in_bounds(kernel_low_page), "Kernel page not in ram.");
-    EXPECT_TRUE(ram->in_bounds(kernel_high_page), "Kernel page not in ram.");
+    AEMU_CHECK(ram->in_bounds(user_low_page), "User page not in ram.");
+    AEMU_CHECK(ram->in_bounds(user_high_page), "User page not in ram.");
+    AEMU_CHECK(ram->in_bounds(kernel_low_page), "Kernel page not in ram.");
+    AEMU_CHECK(ram->in_bounds(kernel_high_page), "Kernel page not in ram.");
 }
 
 void MMU::create_pagedir()

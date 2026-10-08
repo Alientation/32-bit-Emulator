@@ -2,7 +2,6 @@
 #include "emulator32bit/emulator32bit.h"
 
 #include "util/common.h"
-#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <iostream>
@@ -268,7 +267,7 @@ void Emulator32bit::_emu_err(word err)
 void Emulator32bit::_swi(word instr)
 {
     byte cond = bitfield_unsigned(instr, 22, 4);
-    DEBUG("swi {}", cond);
+    AEMU_DEBUG("swi {}", cond);
 
     if (!check_cond(m_pstate, cond))
     {

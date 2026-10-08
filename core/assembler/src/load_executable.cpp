@@ -21,8 +21,8 @@ void LoadExecutable::load()
         /* all symbols should have a corresponding definition */
         if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)
         {
-            ERROR("Linker::link() - Undefined symbol {}",
-                  obj.strings.at(symbol_entry.symbol_name).c_str());
+            AEMU_FATAL("Linker::link() - Undefined symbol {}",
+                       obj.strings.at(symbol_entry.symbol_name));
             continue;
         }
 
@@ -58,7 +58,8 @@ void LoadExecutable::load()
             break;
         case ObjectFile::RelocationEntry::Type::UNDEFINED:
         default:
-            ERROR("Assembler::fill_local() - Unknown relocation entry type ({})", int(rel.type));
+            AEMU_FATAL("Assembler::fill_local() - Unknown relocation entry type ({})",
+                       int(rel.type));
         }
     }
 
@@ -145,14 +146,14 @@ void LoadExecutable::load()
     /* start program at _start label */
     if (obj.string_table.find("_start") == obj.string_table.end())
     {
-        ERROR("LoadExecutable::load() - Missing required _start entry point of program.");
+        AEMU_FATAL("LoadExecutable::load() - Missing required _start entry point of program.");
     }
 
     VirtualMemory::Exception vm_exception;
     word entry_point = obj.symbol_table.at(obj.string_table.at("_start")).symbol_value;
     m_emu.set_pc(m_emu.system_bus->mmu->translate_address(entry_point, vm_exception));
 
-    INFO("Starting emulator at entry point _start at virtual address {:x} mapped to physical "
-         "address {:x}",
-         entry_point, m_emu.get_pc());
+    AEMU_INFO("Starting emulator at entry point _start at virtual address {:x} mapped to physical "
+              "address {:x}",
+              entry_point, m_emu.get_pc());
 };

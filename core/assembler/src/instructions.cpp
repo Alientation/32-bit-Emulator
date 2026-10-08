@@ -1,7 +1,7 @@
 #include <assembler/assembler.h>
 
+#include "util/logger.h"
 #include <util/common.h>
-#include <util/logger.h>
 
 #include <string>
 
@@ -13,7 +13,7 @@ byte Assembler::parse_sysreg()
         return Emulator32bit::kSysregId_pstate;
     }
 
-    ERROR("Assembler::parse_sysreg() - Invalid System Register {}.", sysreg.c_str());
+    AEMU_FATAL("Assembler::parse_sysreg() - Invalid System Register {}.", sysreg);
     return 0;
 }
 
@@ -80,13 +80,13 @@ void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
         shift = ShiftType::SHIFT_ROR;
         break;
     default:
-        ERROR("Assembler::parse_shift() - Unreachable.");
+        AEMU_FATAL("Assembler::parse_shift() - Unreachable.");
     }
 
     // Note, in future, we could change this to create relocation record instead.
     shift_amt = parse_expression();
 
-    EXPECT_TRUE(
+    AEMU_CHECK(
         word(shift_amt) < (1ULL << 5),
         "Assembler::parse_shift() - Shift amount must fit in 5 bits. Expected < 32, Got: {}. "
         "Error in line {}.",
@@ -134,7 +134,7 @@ ConditionCode get_cond_code(Tokenizer::Type type)
     case Tokenizer::Type::CONDITION_NV:
         return ConditionCode::NV;
     default:
-        ERROR("Assembler::get_cond_code() - Unreachable.");
+        AEMU_FATAL("Assembler::get_cond_code() - Unreachable.");
         return ConditionCode::NV;
     }
 }
@@ -170,16 +170,15 @@ word Assembler::parse_format_b1(byte opcode)
     else
     {
         const word imm = parse_expression();
-        EXPECT_TRUE(imm < (1ULL << 24),
-                    "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
-                    "Error at {} in line {}.",
-                    Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
-                    m_tokenizer.get_linei());
-        EXPECT_TRUE((imm & 0b11) == 0,
-                    "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
-                    "Error at {} in line {}.",
-                    Emulator32bit::Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
-                    m_tokenizer.get_linei());
+        AEMU_CHECK(imm < (1ULL << 24),
+                   "Assembler::parse_format_b1() - Expected immediate to be 24 bits. "
+                   "Error at {} in line {}.",
+                   Emulator32bit::disassemble_instr(word(opcode) << 26), m_tokenizer.get_linei());
+        AEMU_CHECK((imm & 0b11) == 0,
+                   "Assembler::parse_format_b1() - Expected immediate to be 4 byte aligned. "
+                   "Error at {} in line {}.",
+                   Emulator32bit::Emulator32bit::disassemble_instr(word(opcode) << 26),
+                   m_tokenizer.get_linei());
         value = bitfield_signed(imm, 0, 24) >> 2;
     }
 
@@ -289,9 +288,9 @@ word Assembler::parse_format_m(byte opcode)
                 m_tokenizer.consume();
             }
             const dword magnitude = parse_expression();
-            EXPECT_TRUE(negative ? magnitude <= (1ULL << 11) : magnitude < (1ULL << 11),
-                        "Assembler::parse_format_m() - Offset must be a signed 12 bit value "
-                        "(-2048 to 2047).");
+            AEMU_CHECK(negative ? magnitude <= (1ULL << 11) : magnitude < (1ULL << 11),
+                       "Assembler::parse_format_m() - Offset must be a signed 12 bit value "
+                       "(-2048 to 2047).");
             const int offset = negative ? -int(magnitude) : int(magnitude);
 
             // Post indexed (`[xn], offset`) already consumed the close bracket.
@@ -367,7 +366,7 @@ word Assembler::parse_format_m(byte opcode)
     }
 
     // Check for invalid addressing mode.
-    EXPECT_FALSE(parsed_addressing_mode, "Assembler::parse_format_m() - Invalid addressing mode.");
+    AEMU_CHECK(parsed_addressing_mode, "Assembler::parse_format_m() - Invalid addressing mode.");
     return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, addressing_mode);
 }
 
@@ -388,8 +387,8 @@ word Assembler::parse_format_o3(byte opcode)
         {
             m_tokenizer.consume();
             value = parse_expression();
-            EXPECT_TRUE(value < (1ULL << 14),
-                        "Assembler::parse_format_o3() - Immediate must be a 14 bit value.");
+            AEMU_CHECK(value < (1ULL << 14),
+                       "Assembler::parse_format_o3() - Immediate must be a 14 bit value.");
         }
 
         return Emulator32bit::asm_format_o3(opcode, s, reg1, operand_reg, value);
@@ -424,11 +423,11 @@ word Assembler::parse_format_o3(byte opcode)
         {
             const word imm = parse_expression();
 
-            EXPECT_TRUE(imm < (1ULL << 14),
-                        "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
-                        "Error at {} in line {}.",
-                        Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
-                        m_tokenizer.get_linei());
+            AEMU_CHECK(imm < (1ULL << 14),
+                       "Assembler::parse_format_o3() - Immediate value must be a 14 bit number. "
+                       "Error at {} in line {}.",
+                       Emulator32bit::disassemble_instr(word(opcode) << 26),
+                       m_tokenizer.get_linei());
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }
     }
@@ -471,12 +470,12 @@ word Assembler::parse_format_o1(byte opcode)
     else
     {
         const int shift_amt = parse_expression();
-        EXPECT_TRUE(word(shift_amt) < (1ULL << 5),
-                    "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < "
-                    "32, Got: {}. "
-                    "Error at {} in line {}.",
-                    shift_amt, Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
-                    m_tokenizer.get_linei());
+        AEMU_CHECK(word(shift_amt) < (1ULL << 5),
+                   "Assembler::parse_format_o1() - Shift amount must fit in 5 bits. Expected < "
+                   "32, Got: {}. "
+                   "Error at {} in line {}.",
+                   shift_amt, Emulator32bit::disassemble_instr(word(opcode) << 26),
+                   m_tokenizer.get_linei());
         return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt, s);
     }
 }
@@ -532,21 +531,21 @@ word Assembler::parse_format_o(byte opcode)
         else if (m_tokenizer.is_next(Tokenizer::LITERAL_NUMBERS))
         {
             operand = parse_expression();
-            EXPECT_TRUE(operand < (1ULL << 14),
-                        "Assembler::parse_format_o() - Immediate must be a 14 bit value.");
+            AEMU_CHECK(operand < (1ULL << 14),
+                       "Assembler::parse_format_o() - Immediate must be a 14 bit value.");
         }
         else
         {
             m_state = Assembler::State::ASSEMBLER_ERROR;
-            ERROR("Assembler::parse_format_o() - Could not parse token. Error at {} in line {}.",
-                  m_tokenizer.get_token().to_string().c_str(), m_tokenizer.get_linei());
+            AEMU_FATAL(
+                "Assembler::parse_format_o() - Could not parse token. Error at {} in line {}.",
+                m_tokenizer.get_token().to_string(), m_tokenizer.get_linei());
         }
 
-        EXPECT_TRUE(operand < (1ULL << 14),
-                    "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
-                    "Error at {} in line {}.",
-                    Emulator32bit::disassemble_instr(word(opcode) << 26).c_str(),
-                    m_tokenizer.get_linei());
+        AEMU_CHECK(operand < (1ULL << 14),
+                   "Assembler::parse_format_o() - Expected numeric argument to be a 14 bit value. "
+                   "Error at {} in line {}.",
+                   Emulator32bit::disassemble_instr(word(opcode) << 26), m_tokenizer.get_linei());
 
         return Emulator32bit::asm_format_o(opcode, s, reg1, reg2, operand);
     }
@@ -639,62 +638,62 @@ void Assembler::_smull()
 
 void Assembler::_vabs()
 {
-    ERROR("Assembler::_vabs() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vabs() - Instruction not implemented yet.");
 }
 
 void Assembler::_vneg()
 {
-    ERROR("Assembler::_vneg() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vneg() - Instruction not implemented yet.");
 }
 
 void Assembler::_vsqrt()
 {
-    ERROR("Assembler::_vsqrt() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vsqrt() - Instruction not implemented yet.");
 }
 
 void Assembler::_vadd()
 {
-    ERROR("Assembler::_vadd() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vadd() - Instruction not implemented yet.");
 }
 
 void Assembler::_vsub()
 {
-    ERROR("Assembler::_vsub() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vsub() - Instruction not implemented yet.");
 }
 
 void Assembler::_vdiv()
 {
-    ERROR("Assembler::_vdiv() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vdiv() - Instruction not implemented yet.");
 }
 
 void Assembler::_vmul()
 {
-    ERROR("Assembler::_vmul() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vmul() - Instruction not implemented yet.");
 }
 
 void Assembler::_vcmp()
 {
-    ERROR("Assembler::_vcmp() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vcmp() - Instruction not implemented yet.");
 }
 
 void Assembler::_vsel()
 {
-    ERROR("Assembler::_vsel() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vsel() - Instruction not implemented yet.");
 }
 
 void Assembler::_vcint()
 {
-    ERROR("Assembler::_vcint() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vcint() - Instruction not implemented yet.");
 }
 
 void Assembler::_vcflo()
 {
-    ERROR("Assembler::_vcflo() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vcflo() - Instruction not implemented yet.");
 }
 
 void Assembler::_vmov()
 {
-    ERROR("Assembler::_vmov() - Instruction not implemented yet.");
+    AEMU_FATAL("Assembler::_vmov() - Instruction not implemented yet.");
 }
 
 void Assembler::_and()
@@ -868,7 +867,7 @@ void Assembler::_msr()
     else
     {
         const word imm16 = parse_expression();
-        EXPECT_TRUE(imm16 < (1ULL << 16), "Assembler::_msr() - Immediate must be a 16 bit value.");
+        AEMU_CHECK(imm16 < (1ULL << 16), "Assembler::_msr() - Immediate must be a 16 bit value.");
 
         instruction = Emulator32bit::asm_msr(sysreg, true, imm16);
     }
@@ -892,7 +891,7 @@ void Assembler::_tlbi()
 {
     m_tokenizer.consume();
 
-    ERROR("Assembler::_tlbi() - Unimplemented instruction.");
+    AEMU_FATAL("Assembler::_tlbi() - Unimplemented instruction.");
 }
 
 void Assembler::_swp()

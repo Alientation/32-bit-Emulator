@@ -24,9 +24,9 @@ Assembler::Assembler(const Process *process, const File processed_file,
         m_out_obj_file = File(output_path, true);
     }
 
-    EXPECT_TRUE_SS(m_process->valid_processed_file(processed_file),
-                   std::stringstream() << "Assembler::Assembler() - Invalid processed file: "
-                                       << processed_file.get_extension());
+    AEMU_CHECK(m_process->valid_processed_file(processed_file),
+               "Assembler::Assembler() - Invalid processed file: {}",
+               processed_file.get_extension());
 
     m_state = State::NOT_ASSEMBLED;
 
@@ -39,11 +39,11 @@ void Assembler::assemble()
 {
     if (m_state != State::NOT_ASSEMBLED)
     {
-        DEBUG("Assembler::assemble() - Already assembled file: {}", m_in_file.get_name().c_str());
+        AEMU_DEBUG("Assembler::assemble() - Already assembled file: {}", m_in_file.get_name());
         return;
     }
 
-    DEBUG("Assembler::assemble() - Assembling file: {}", m_in_file.get_name().c_str());
+    AEMU_DEBUG("Assembler::assemble() - Assembling file: {}", m_in_file.get_name());
 
     m_state = State::ASSEMBLING;
 
@@ -65,18 +65,19 @@ void Assembler::assemble()
     m_obj.add_section(".strtab", ObjectFile::SectionHeader::Type::STRTAB);
 
     // Parse tokens.
-    DEBUG("Assembler::assemble() - Parsing tokens.");
+    AEMU_DEBUG("Assembler::assemble() - Parsing tokens.");
     while (m_tokenizer.has_next())
     {
         const Tokenizer::Token &token = m_tokenizer.get_token();
-        DEBUG("Assembler::assemble() - Assembling token {}: {}", i, token.to_string().c_str());
+        AEMU_DEBUG("Assembler::assemble() - Assembling token {}: {}", m_tokenizer.get_toki(),
+                   token.to_string());
 
         if (token.type == Tokenizer::LABEL)
         {
             // Handle label.
             if (m_cur_section == Section::NONE)
             {
-                ERROR("Assembler::assemble() - Label must be located in a section.");
+                AEMU_FATAL("Assembler::assemble() - Label must be located in a section.");
                 m_state = State::ASSEMBLER_ERROR;
                 break;
             }
@@ -109,9 +110,9 @@ void Assembler::assemble()
             }
             else
             {
-                ERROR("Assembler::assemble() - Label {} is not located in a valid "
-                      "section. Valid sections are TEXT, DATA, and BSS",
-                      token.value.c_str());
+                AEMU_FATAL("Assembler::assemble() - Label {} is not located in a valid "
+                           "section. Valid sections are TEXT, DATA, and BSS",
+                           token.value);
                 m_state = State::ASSEMBLER_ERROR;
                 break;
             }
@@ -122,7 +123,7 @@ void Assembler::assemble()
             // Handle instruction.
             if (m_cur_section != Section::TEXT)
             {
-                ERROR("Assembler::assemble() - Code must be located in .text section.");
+                AEMU_FATAL("Assembler::assemble() - Code must be located in .text section.");
                 m_state = State::ASSEMBLER_ERROR;
                 break;
             }
@@ -136,13 +137,13 @@ void Assembler::assemble()
         else
         {
             // Unknown token.
-            ERROR("Assembler::assemble() - Cannot parse token {} {}", m_tokenizer.get_toki(),
-                  token.to_string().c_str());
+            AEMU_FATAL("Assembler::assemble() - Cannot parse token {} {}", m_tokenizer.get_toki(),
+                       token.to_string());
             m_state = State::ASSEMBLER_ERROR;
             break;
         }
     }
-    DEBUG("Assembler::assemble() - Finished parsing tokens.");
+    AEMU_DEBUG("Assembler::assemble() - Finished parsing tokens.");
 
     // If there was a warning, the object file is still valid.
     if (m_state == State::ASSEMBLING || m_state == State::ASSEMBLER_WARNING)
@@ -151,7 +152,7 @@ void Assembler::assemble()
         fill_local();
 
         m_obj.write_object_file(m_out_obj_file);
-        DEBUG("Assembler::assemble() - Assembled file: {}", m_in_file.get_name().c_str());
+        AEMU_DEBUG("Assembler::assemble() - Assembled file: {}", m_in_file.get_name());
     }
 
     if (m_state == State::ASSEMBLING)
@@ -175,14 +176,14 @@ void Assembler::fill_local()
     const std::vector<Tokenizer::Token> &tokens = m_tokenizer.get_tokens();
     size_t tok_i = 0;
 
-    DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
+    AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
     std::vector<int> local_scope;
     int local_count_scope = 0;
     for (size_t i = 0; i < m_obj.rel_text.size(); i++)
     {
         ObjectFile::RelocationEntry &rel = m_obj.rel_text.at(i);
-        DEBUG("Assembler::fill_local() - Evaluating relocation entry {}",
-              m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name].c_str());
+        AEMU_DEBUG("Assembler::fill_local() - Evaluating relocation entry {}",
+                   m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
         while (tok_i < rel.token && tok_i < tokens.size())
         {
@@ -240,11 +241,10 @@ void Assembler::fill_local()
         switch (rel.type)
         {
         case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
-            EXPECT_TRUE_SS((symbol_entry.symbol_value & 0b11) == 0,
-                           std::stringstream()
-                               << "Assembler::fill_local() - Expected relocation value for "
-                                  "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
-                               << symbol_entry.symbol_value);
+            AEMU_CHECK((symbol_entry.symbol_value & 0b11) == 0,
+                       "Assembler::fill_local() - Expected relocation value for "
+                       "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got {}",
+                       symbol_entry.symbol_value);
             m_obj.text_section[rel.offset / 4] =
                 mask_0(m_obj.text_section[rel.offset / 4], 0, 22)
                 + bitfield_unsigned(
@@ -259,7 +259,7 @@ void Assembler::fill_local()
             continue;
         case ObjectFile::RelocationEntry::Type::UNDEFINED:
         default:
-            ERROR("Assembler::fill_local() - Unknown relocation entry type.");
+            AEMU_FATAL("Assembler::fill_local() - Unknown relocation entry type.");
         }
 
         // For now, simply delete from vector.
@@ -270,5 +270,5 @@ void Assembler::fill_local()
         i--;
     }
 
-    DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
+    AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }

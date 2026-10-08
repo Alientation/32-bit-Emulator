@@ -1,447 +1,593 @@
 #pragma once
 
+/**
+ * @file logger_v2.h
+ * @brief Header-only logger. Replaces util/logger.h + util/logger.cpp.
+ *
+ * Design goals
+ *  - Configured at RUNTIME (API calls or the AEMU_LOG_LEVEL environment variable), never through
+ *    per-file #defines. Including this header from another header cannot change the behavior of
+ *    anything downstream, and every translation unit sees identical inline function bodies
+ *    (no ODR violations).
+ *  - Log lines go to stderr, so stdout stays clean for program output (e.g. `emu32` state dumps).
+ *  - Format strings are checked at compile time (std::format_string). A bad format string or a
+ *    printf style "%u" with arguments is a compile error or is printed literally, not a
+ *    runtime std::format_error.
+ *  - Macro names are prefixed with AEMU_ so they cannot collide with gtest (EXPECT_TRUE), syslog
+ *    (LOG_DEBUG), Windows (ERROR) or other libraries (DEBUG).
+ *  - Arguments are only evaluated and formatted when the message will actually be emitted.
+ *  - Thread safe. Each message is formatted first and then written under a lock.
+ *
+ * Quick reference
+ *
+ *   AEMU_DEBUG("loaded {} pages", n);       // level Debug
+ *   AEMU_INFO(...);                         // level Info
+ *   AEMU_WARN(...);                         // level Warn
+ *   AEMU_ERROR(...);                        // level Error, NOT fatal, execution continues
+ *   AEMU_FATAL(...);                        // logs, then terminates (see FatalAction)
+ *   AEMU_CHECK(cond, "msg {}", x);          // always on. Fatal if cond is false
+ *   AEMU_DCHECK(cond, "msg {}", x);         // like AEMU_CHECK but compiled out when NDEBUG is set
+ *   AEMU_SCOPED_TIMER("assemble");          // logs the scope's duration at Debug level
+ *
+ * Runtime configuration (all in namespace aemu::log)
+ *
+ *   set_level(Level::Debug);                // or env AEMU_LOG_LEVEL=debug|info|warn|error|fatal|off
+ *   set_fatal_action(FatalAction::Throw);   // Exit (default), Abort or Throw (FatalError)
+ *   set_color(false); set_timestamps(true);
+ *   set_sink([](const Record &r) { ... });  // redirect output, e.g. to a file (see below)
+ *   ScopedLevel / ScopedFatalAction         // RAII helpers, handy in unit tests
+ *
+ * Writing logs to a file does not need dedicated machinery. A sink is enough:
+ *
+ *   static std::ofstream file("aemu.log");
+ *   aemu::log::set_sink([](const aemu::log::Record &r)
+ *                       { file << aemu::log::to_string(r.level) << ' ' << r.message << '\n'; });
+ *
+ * The one compile time knob, AEMU_LOG_COMPILE_LEVEL, removes call sites below a level from the
+ * binary entirely. It is intended to be set once for the whole build (target_compile_definitions
+ * on every target), NEVER in a source or header file. Leave it at 0 unless profiling says the
+ * runtime level check matters. It is a single relaxed atomic load and a branch.
+ *
+ * Requires C++20 (<format>, <source_location>).
+ */
+
 #include "util/console_color.h"
-#include "util/string_util.h"
 
+#include <algorithm>
+#include <atomic>
+#include <cctype>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <format>
-#include <iostream>
+#include <functional>
+#include <mutex>
+#include <optional>
+#include <source_location>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
 
-/*
-    what i want for a logger
-
-    // -     toggleable logs (levels + each unit that uses a log has the ability to easily disable logs in that file)
-    // -     print + noprint
-    -    dump to file with filters, query logs
-    // -    timer/profiler
-        // - tag a profile log
-        - dump to file and query profiler
-        - have separate log type for profiler so it can be also queried from the log file
-    // -     color print
-    // -     automatically detect the line and file a log occurs in, this means a macro. problem with macros is
-        // they do not show types well
-    // -    ability to use printf to log (so pass variadic args to printf), also can use std::stringstream, though
-        // problem with this is how do we capture the result of printf to save to file when needed??
-    // -    fast, but not a high concern as for performance we can disable all low level logs
-*/
-
-/**
- * @defgroup             AEMU_LOG_LEVELS
- * @brief                 Log levels for AEMU. Set @ref AEMU_LOG_LEVEL to one of these levels to
- *                         control logging.
- *
- *                         This group includes the different logging levels available to configure the
- *                         logger.
- *                         - `AEMU_LOG_DEBUG` (4) : Debug level, all logs will be displayed and
- *                             tracked.
- *                         - `AEMU_LOG_INFO` (3)  : Information level, informational logs will be
- *                             displayed.
- *                         - `AEMU_LOG_WARN` (2)  : Warning level, only warnings and higher severity
- *                             logs will be displayed.
- *                         - `AEMU_LOG_ERROR` (1) : Error level, only errors will be displayed.
- *                         - `AEMU_LOG_NONE` (0)  : No logging.
- * @todo                TODO: rethink this, a file that includes this won't have access to
- *                         these constants before the header is included.
- * @{
- */
-constexpr int AEMU_LOG_DEBUG = 4;
-constexpr int AEMU_LOG_INFO = 3;
-constexpr int AEMU_LOG_WARN = 2;
-constexpr int AEMU_LOG_ERROR = 1;
-constexpr int AEMU_LOG_NONE = 0;
-/**@} */ // end of AEMU_LOG_LEVELS
-
-/**
- * @defgroup            AEMU_LOG_CONTROL
- * @brief                 Controls functionality of the logger. Set these control boolean flags to
- *                         control print and tracking.
- *
- *                         The available control flags are.
- *                         - `AEMU_ONLY_CRITICAL_LOG` : Only logs WARN and ERROR messages.
- *                         - `AEMU_LOG_LEVEL` : Set the level of logs to be displayed, corresponding to
- *                             @ref AEMU_LOG_LEVELS
- *                         - `AEMU_LOG_ENABLED` : Toggle whether logs will happen. Turn off to
- *                             minimize/nullify the performance impact of logs.
- *                         - `AEMU_PRINT_ENABLED` : Toggle whether logs will be printed to standard
- *                             out. If @ref AEMU_LOG_ENABLED is disabled, no print will occur.
- *                         - `AEMU_EXCEPT_ON_ERROR` : Toggle whether error logs will exit with failure
- *                             code.
- *                         - `AEMU_PROJECT_ROOT_DIR` : Set to a c++ string of the full path to project
- *                             root directory. The default implementation is dependent on the root
- *                             folder `core`.
- * @{
- */
-#ifdef AEMU_ONLY_CRITICAL_LOG
-#define AEMU_LOG_LEVEL AEMU_LOG_WARN
-#endif /* AEMU_ONLY_CRITICAL_LOG */
-
-#ifndef AEMU_LOG_LEVEL
-#define AEMU_LOG_LEVEL AEMU_LOG_DEBUG
-#endif /* AEMU_LOG_LEVEL */
-
-#ifndef AEMU_LOG_ENABLED
-#define AEMU_LOG_ENABLED true
-#endif /* AEMU_LOG_DISABLED */
-
-#ifndef AEMU_PRINT_ENABLED
-#define AEMU_PRINT_ENABLED true
-#endif /* AEMU_PRINT_DISABLED */
-
-#ifndef AEMU_EXCEPT_ON_ERROR
-#define AEMU_EXCEPT_ON_ERROR true
-#endif /* AEMU_EXCEPT_ON_ERROR */
-
-#ifndef AEMU_PROJECT_ROOT_DIR
-#define AEMU_PROJECT_ROOT_DIR std::string(__FILE__).substr(0, std::string(__FILE__).rfind("core"))
-#endif   /* AEMU_PROJECT_ROOT_DIR */
-/**@} */ // end of AEMU_LOG_CONTROL
-
-#ifndef AEMU_PROFILER_ENABLED
-#define AEMU_PROFILER_ENABLED true
-#endif /* AEMU_PROFILER_ENABLED */
-
-#ifndef AEMU_PROFILER_LOG_ENABLED
-#define AEMU_PROFILER_LOG_ENABLED true
-#endif /* AEMU_PROFILER_LOG_ENABLED */
-
-namespace logger
-{
-/**
-     * @brief            Tracks a log into memory.
-     *
-     * @param type         The type of log stringified.
-     * @param format     Format of the string. (passed into printf)
-     * @param file        The file the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     * @param ...        Any extra arguments used with the supplied format to construct the log.
-     */
-void track(const std::string &type, const char *format, const char *file, int line,
-           const char *func, ...);
-
-/**
-     * @brief            Tracks the start of running time that the profiler is observing.
-     *
-     * @param file
-     * @param line
-     * @param func
-     */
-void clock_start_master(const char *file, int line, const char *func);
-
-/**
-     * @brief            Tracks the end of running time that the profiler is observing. The master
-     *                     clock can be restarted.
-     */
-void clock_stop_master();
-
-/**
-     * @brief             Tracks the start of a specific clock
-     *
-     * @param tag
-     * @param file
-     * @param line
-     * @param func
-     */
-void clock_start(const std::string &tag, const char *file, int line, const char *func);
-
-/**
-     * @brief             Stops the most recently started clock, but can be restarted with start call.
-     *                     Clocks are organized in a hierarchy,
-     *                     so starting sequential clocks will mean the top most clock will have a
-     *                     longer lifespan than the clock at the root.
-     */
-void clock_stop();
-
-/**
-     * @brief            Ends the most recently started clock, moving the current clock down the
-     *                     hierarchy.
-     *
-     */
-void clock_end();
-
-/* TODO: query profile logs, dump to file, etc */
-
-/* TODO: query logs, dump to file, etc */
-
-/**
-     * @brief             Prints the formated header.
-     *
-     * @param type        Type of log.
-     * @param file        File the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     */
-inline void print_header(const std::string &type, const char *file, int line, const char *func)
-{
-    std::cout << "[" << ccolor::BOLD << type << ccolor::RESET << "] [" << ccolor::BLUE
-              << string_util::replaceFirst(file, AEMU_PROJECT_ROOT_DIR, "") << ccolor::RESET << ":"
-              << ccolor::MAGENTA << line << ccolor::RESET << "] [" << ccolor::YELLOW << func
-              << ccolor::RESET << "]: ";
-}
-
-/**
-     * @brief             Debug log.
-     *
-     * @tparam Args        Variadic arguments to be passed into printf.
-     * @param format    Format of the printf.
-     * @param file        File the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     * @param args        Arguments passed into printf.
-     */
-template<typename... Args>
-inline void log_debug(const char *format, const char *file, int line, const char *func,
-                      Args &&...args)
-{
-    if (AEMU_LOG_ENABLED)
-    {
-        if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_DEBUG)
-        {
-            print_header(ccolor::MAGENTA + "DBG", file, line, func);
-            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
-        }
-
-        track("DBG", format, file, line, func, args...);
-    }
-}
-
-/**
-     * @brief             Info log.
-     *
-     * @tparam Args        Variadic arguments to be passed into printf.
-     * @param format    Format of the printf.
-     * @param file        File the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     * @param args        Arguments passed into printf.
-     *
-     * @todo            TODO: Cannot disable log_info when setting AEMU_LOG_INFO definition to
-     *                     LOG_WARN
-     */
-template<typename... Args>
-inline void log_info(const char *format, const char *file, int line, const char *func,
-                     Args &&...args)
-{
-    if (AEMU_LOG_ENABLED)
-    {
-        if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_INFO)
-        {
-            print_header(ccolor::BLUE + "INF", file, line, func);
-            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
-        }
-
-        track("INF", format, file, line, func, args...);
-    }
-}
-
-/**
-     * @brief             Warn log.
-     *
-     * @tparam Args        Variadic arguments to be passed into printf.
-     * @param format    Format of the printf.
-     * @param file        File the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     * @param args        Arguments passed into printf.
-     */
-template<typename... Args>
-inline void log_warn(const char *format, const char *file, int line, const char *func,
-                     Args &&...args)
-{
-    if (AEMU_LOG_ENABLED)
-    {
-        if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_WARN)
-        {
-            print_header(ccolor::YELLOW + "WRN", file, line, func);
-            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
-        }
-
-        track("WRN", format, file, line, func, args...);
-    }
-}
-
-/**
-     * @brief             Error log.
-     * @note            This will not terminate the program.
-     *
-     * @tparam Args        Variadic arguments to be passed into printf.
-     * @param format    Format of the printf.
-     * @param file        File the log occured in.
-     * @param line        Line of code the log occured in.
-     * @param func        Function name the log occured in.
-     * @param args        Arguments passed into printf.
-     */
-template<typename... Args>
-inline void log_error(const char *format, const char *file, int line, const char *func,
-                      Args &&...args)
-{
-    if (AEMU_LOG_ENABLED)
-    {
-        if (AEMU_PRINT_ENABLED && AEMU_LOG_LEVEL >= AEMU_LOG_ERROR)
-        {
-            print_header(ccolor::RED + "ERR", file, line, func);
-            std::cout << std::vformat(format, std::make_format_args(args...)) << "\n";
-        }
-
-        track("ERR", format, file, line, func, args...);
-    }
-
-    if (AEMU_EXCEPT_ON_ERROR)
-    {
-        exit(EXIT_FAILURE);
-    }
-}
-
-template<typename... Args>
-inline void expect_true(bool condition, const char *format, const char *file, int line,
-                        const char *func, Args &&...args)
-{
-    if (!condition)
-    {
-        log_error(format, file, line, func, args...);
-    }
-}
-
-template<typename... Args>
-inline void expect_false(bool condition, const char *format, const char *file, int line,
-                         const char *func, Args &&...args)
-{
-    if (condition)
-    {
-        log_error(format, file, line, func, args...);
-    }
-}
-
-template<typename T1, typename T2, typename... Args>
-inline void expect_equal(T1 t1, T2 t2, const char *format, const char *file, int line,
-                         const char *func, Args &&...args)
-{
-    if (t1 != t2)
-    {
-        log_error(format, file, line, func, args...);
-    }
-}
-
-template<typename T1, typename T2, typename... Args>
-inline void expect_not_equal(T1 t1, T2 t2, const char *format, const char *file, int line,
-                             const char *func, Args &&...args)
-{
-    if (t1 == t2)
-    {
-        log_error(format, file, line, func, args...);
-    }
-}
-
-/**
-     * @def                DEBUG(format, ...)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param format    The format string.
-     * @param ...        Additional arguments for the format string.
-     */
-
-#ifndef AEMU_ONLY_CRITICAL_LOG
-#define DEBUG(format, ...) logger::log_debug(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#ifdef _WIN32
+#include <io.h>
 #else
-#define DEBUG(format, ...) ;
+#include <unistd.h>
 #endif
 
-/**
-     * @def                DEBUG_SS(msg)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param msg        stringstream log.
-     */
-#ifndef AEMU_ONLY_CRITICAL_LOG
-#define DEBUG_SS(msg) logger::log_debug((msg).str().c_str(), __FILE__, __LINE__, __func__)
-#else
-#define DEBUG_SS(msg) ;
+/// Calls to AEMU_<LEVEL> below this level (0=Debug, 1=Info, 2=Warn, 3=Error) are compiled out.
+/// Build-wide setting only. See the file comment.
+#ifndef AEMU_LOG_COMPILE_LEVEL
+#define AEMU_LOG_COMPILE_LEVEL 0
 #endif
 
-/**
-     * @def                INFO(format, ...)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param format    The format string.
-     * @param ...        Additional arguments for the format string.
-     */
-#ifndef AEMU_ONLY_CRITICAL_LOG
-#define INFO(format, ...) logger::log_info(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+namespace aemu::log
+{
+
+/// Severity of a message, in increasing order. `Off` is only meaningful as a threshold.
+enum class Level : std::uint8_t
+{
+    Debug = 0,
+    Info,
+    Warn,
+    Error,
+    Fatal,
+    Off,
+};
+
+/// What AEMU_FATAL / a failed AEMU_CHECK does after logging the message.
+enum class FatalAction : std::uint8_t
+{
+    /// std::exit(EXIT_FAILURE). Default, matches the old behavior of ERROR().
+    Exit,
+
+    /// std::abort(). Produces a core dump / debugger break.
+    Abort,
+
+    /// Throws FatalError. Lets unit tests assert on failures instead of killing the test binary.
+    Throw,
+};
+
+/// Thrown by fatal errors when the FatalAction is Throw.
+class FatalError : public std::runtime_error
+{
+  public:
+    using std::runtime_error::runtime_error;
+};
+
+/// A single log message as handed to a sink.
+struct Record
+{
+    Level level;
+    std::source_location location;
+
+    /// Fully formatted message, without a trailing newline. Only valid during the sink call.
+    std::string_view message;
+
+    /// Time since the logger was first used.
+    std::chrono::steady_clock::duration since_start;
+};
+
+/// Receives every message that passes the level filter. Called with the logger lock held, so a
+/// sink does not need its own synchronization, but it must not log (that would deadlock).
+using Sink = std::function<void(const Record &)>;
+
+constexpr std::string_view to_string(Level level)
+{
+    switch (level)
+    {
+    case Level::Debug:
+        return "DBG";
+    case Level::Info:
+        return "INF";
+    case Level::Warn:
+        return "WRN";
+    case Level::Error:
+        return "ERR";
+    case Level::Fatal:
+        return "FTL";
+    case Level::Off:
+        return "OFF";
+    }
+    return "???";
+}
+
+/// Parses "debug", "info", "warn"/"warning", "error", "fatal", "off"/"none". Case insensitive.
+inline std::optional<Level> parse_level(std::string_view name)
+{
+    std::string lower(name);
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (lower == "debug")
+    {
+        return Level::Debug;
+    }
+    if (lower == "info")
+    {
+        return Level::Info;
+    }
+    if (lower == "warn" || lower == "warning")
+    {
+        return Level::Warn;
+    }
+    if (lower == "error")
+    {
+        return Level::Error;
+    }
+    if (lower == "fatal")
+    {
+        return Level::Fatal;
+    }
+    if (lower == "off" || lower == "none")
+    {
+        return Level::Off;
+    }
+    return std::nullopt;
+}
+
+namespace detail
+{
+
+inline bool stream_is_tty(std::FILE *stream)
+{
+#ifdef _WIN32
+    return _isatty(_fileno(stream)) != 0;
 #else
-#define INFO(format, ...) ;
+    return isatty(fileno(stream)) != 0;
+#endif
+}
+
+/// Global logger state. One instance for the whole program, since this is a function local
+/// static in an inline function. Intentionally leaked so logging from other static destructors
+/// is always safe.
+struct State
+{
+    std::atomic<Level> level{Level::Info};
+    std::atomic<FatalAction> fatal_action{FatalAction::Exit};
+    std::atomic<bool> color{false};
+    std::atomic<bool> timestamps{false};
+
+    std::mutex mutex; ///< Guards `sink` and serializes output.
+    Sink sink;        ///< Empty means the default stderr sink.
+
+    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+    State()
+    {
+        if (const char *env = std::getenv("AEMU_LOG_LEVEL"))
+        {
+            if (const std::optional<Level> parsed = parse_level(env))
+            {
+                level.store(*parsed);
+            }
+        }
+
+        // Only color when writing to a terminal. https://no-color.org
+        color.store(std::getenv("NO_COLOR") == nullptr && stream_is_tty(stderr));
+    }
+};
+
+inline State &state()
+{
+    static State *instance = new State();
+    return *instance;
+}
+
+/// Whether call sites of this level survive AEMU_LOG_COMPILE_LEVEL.
+constexpr bool compiled_in(Level level)
+{
+    constexpr int kCompileLevel = AEMU_LOG_COMPILE_LEVEL;
+    return static_cast<int>(level) >= kCompileLevel;
+}
+
+constexpr std::string_view level_color(Level level)
+{
+    switch (level)
+    {
+    case Level::Debug:
+        return ccolor::MAGENTA;
+    case Level::Info:
+        return ccolor::BLUE;
+    case Level::Warn:
+        return ccolor::YELLOW;
+    case Level::Error:
+        return ccolor::RED;
+    case Level::Fatal:
+        return ccolor::BOLD_RED;
+    default:
+        return "";
+    }
+}
+
+/// "/a/b/c.cpp" -> "c.cpp". Source paths are printed without their directory.
+inline std::string_view basename(std::string_view path)
+{
+    const size_t slash = path.find_last_of("/\\");
+    return slash == std::string_view::npos ? path : path.substr(slash + 1);
+}
+
+/// Default sink: `[ERR] [file.cpp:123]: message` on stderr, with an optional time prefix.
+inline void write_default(const Record &record, bool color, bool timestamps)
+{
+    std::string line;
+
+    if (timestamps)
+    {
+        line +=
+            std::format("[{:9.3f}s] ", std::chrono::duration<double>(record.since_start).count());
+    }
+
+    if (color)
+    {
+        line += std::format("[{}{}\033[0m]", level_color(record.level), to_string(record.level));
+    }
+    else
+    {
+        line += std::format("[{}]", to_string(record.level));
+    }
+
+    line += std::format(" [{}:{}]: {}\n", basename(record.location.file_name()),
+                        record.location.line(), record.message);
+
+    // A single write keeps lines from different threads/processes from interleaving.
+    std::fwrite(line.data(), 1, line.size(), stderr);
+    if (record.level >= Level::Error)
+    {
+        std::fflush(stderr);
+    }
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------------------------
+
+/// Current minimum level that is emitted.
+inline Level get_level()
+{
+    return detail::state().level.load(std::memory_order_relaxed);
+}
+
+inline void set_level(Level level)
+{
+    detail::state().level.store(level);
+}
+
+/// Whether a message of this level would currently be emitted.
+inline bool enabled(Level level)
+{
+    return level >= get_level();
+}
+
+inline FatalAction get_fatal_action()
+{
+    return detail::state().fatal_action.load();
+}
+
+inline void set_fatal_action(FatalAction action)
+{
+    detail::state().fatal_action.store(action);
+}
+
+/// Enable or disable ANSI colors in the default sink. Auto detected by default (tty, NO_COLOR).
+inline void set_color(bool enable)
+{
+    detail::state().color.store(enable);
+}
+
+/// Prefix each line of the default sink with the seconds since the logger started.
+inline void set_timestamps(bool enable)
+{
+    detail::state().timestamps.store(enable);
+}
+
+/// Replaces the default stderr output. Pass an empty function (or call reset_sink) to restore it.
+inline void set_sink(Sink sink)
+{
+    detail::State &s = detail::state();
+    std::lock_guard lock(s.mutex);
+    s.sink = std::move(sink);
+}
+
+inline void reset_sink()
+{
+    set_sink(nullptr);
+}
+
+/// Sets the level for the lifetime of the object, then restores the previous one.
+class ScopedLevel
+{
+  public:
+    explicit ScopedLevel(Level level) :
+        m_previous(get_level())
+    {
+        set_level(level);
+    }
+
+    ~ScopedLevel()
+    {
+        set_level(m_previous);
+    }
+
+    ScopedLevel(const ScopedLevel &) = delete;
+    ScopedLevel &operator=(const ScopedLevel &) = delete;
+
+  private:
+    Level m_previous;
+};
+
+/// Sets the fatal action for the lifetime of the object, then restores the previous one.
+/// e.g. `ScopedFatalAction guard(FatalAction::Throw); EXPECT_THROW(f(), FatalError);`
+class ScopedFatalAction
+{
+  public:
+    explicit ScopedFatalAction(FatalAction action) :
+        m_previous(get_fatal_action())
+    {
+        set_fatal_action(action);
+    }
+
+    ~ScopedFatalAction()
+    {
+        set_fatal_action(m_previous);
+    }
+
+    ScopedFatalAction(const ScopedFatalAction &) = delete;
+    ScopedFatalAction &operator=(const ScopedFatalAction &) = delete;
+
+  private:
+    FatalAction m_previous;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Emitting messages
+// ---------------------------------------------------------------------------------------------
+
+/// Emits an already formatted message if `level` passes the filter. Use this when the message is
+/// not a format string, otherwise prefer the AEMU_* macros.
+inline void write(Level level, const std::source_location &location, std::string_view message)
+{
+    detail::State &s = detail::state();
+    if (level < s.level.load(std::memory_order_relaxed))
+    {
+        return;
+    }
+
+    const Record record{level, location, message, std::chrono::steady_clock::now() - s.start};
+
+    std::lock_guard lock(s.mutex);
+    if (s.sink)
+    {
+        s.sink(record);
+    }
+    else
+    {
+        detail::write_default(record, s.color.load(), s.timestamps.load());
+    }
+}
+
+/// Logs at Fatal level, then terminates according to the FatalAction. Never returns.
+[[noreturn]] inline void fatal(const std::source_location &location, std::string_view message)
+{
+    write(Level::Fatal, location, message);
+
+    const FatalAction action = get_fatal_action();
+    if (action == FatalAction::Throw)
+    {
+        throw FatalError(std::string(message));
+    }
+    if (action == FatalAction::Abort)
+    {
+        std::abort();
+    }
+    std::exit(EXIT_FAILURE);
+}
+
+namespace detail
+{
+
+template<typename... Args>
+void log(Level level, const std::source_location &location, std::format_string<Args...> fmt,
+         Args &&...args)
+{
+    write(level, location, std::format(fmt, std::forward<Args>(args)...));
+}
+
+template<typename... Args>
+[[noreturn]] void fatal(const std::source_location &location, std::format_string<Args...> fmt,
+                        Args &&...args)
+{
+    ::aemu::log::fatal(location, std::string_view(std::format(fmt, std::forward<Args>(args)...)));
+}
+
+template<typename... Args>
+[[noreturn]] void check_failed(const std::source_location &location, std::string_view expression,
+                               std::format_string<Args...> fmt, Args &&...args)
+{
+    ::aemu::log::fatal(
+        location, std::string_view(std::format("Check failed: ({}): {}", expression,
+                                               std::format(fmt, std::forward<Args>(args)...))));
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------------------------
+// Scoped timer (replaces CLOCK_START / CLOCK_END)
+// ---------------------------------------------------------------------------------------------
+
+/// Logs how long its scope took at Debug level when destroyed. Unlike the old start/end clocks
+/// it cannot be left unbalanced, and it keeps no global state.
+class ScopedTimer
+{
+  public:
+    explicit ScopedTimer(std::string tag,
+                         std::source_location location = std::source_location::current()) :
+        m_tag(std::move(tag)),
+        m_location(location),
+        m_start(std::chrono::steady_clock::now())
+    {
+    }
+
+    ~ScopedTimer()
+    {
+        if (!enabled(Level::Debug))
+        {
+            return;
+        }
+
+        const long long ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                 std::chrono::steady_clock::now() - m_start)
+                                 .count();
+        write(Level::Debug, m_location, std::format("{} took {}", m_tag, format_duration(ns)));
+    }
+
+    ScopedTimer(const ScopedTimer &) = delete;
+    ScopedTimer &operator=(const ScopedTimer &) = delete;
+
+  private:
+    static std::string format_duration(long long ns)
+    {
+        if (ns <= 10'000)
+        {
+            return std::format("{}ns", ns);
+        }
+        if (ns <= 10'000'000)
+        {
+            return std::format("{:.2f}us", static_cast<double>(ns) / 1e3);
+        }
+        if (ns <= 10'000'000'000)
+        {
+            return std::format("{:.2f}ms", static_cast<double>(ns) / 1e6);
+        }
+        return std::format("{:.2f}s", static_cast<double>(ns) / 1e9);
+    }
+
+    std::string m_tag;
+    std::source_location m_location;
+    std::chrono::steady_clock::time_point m_start;
+};
+
+} // namespace aemu::log
+
+// ---------------------------------------------------------------------------------------------
+// Macros
+//
+// Macros are only used so that (1) the source location is the caller's, and (2) arguments are not
+// evaluated when the message is filtered out. The condition below is still type checked when a
+// level is compiled out, so there are no unused variable warnings.
+// ---------------------------------------------------------------------------------------------
+
+#define AEMU_LOG_AT_(level, ...)                                                                   \
+    do                                                                                             \
+    {                                                                                              \
+        if constexpr (::aemu::log::detail::compiled_in(level))                                     \
+        {                                                                                          \
+            if (::aemu::log::enabled(level))                                                       \
+            {                                                                                      \
+                ::aemu::log::detail::log(level, std::source_location::current(), __VA_ARGS__);     \
+            }                                                                                      \
+        }                                                                                          \
+    } while (0)
+
+#define AEMU_DEBUG(...) AEMU_LOG_AT_(::aemu::log::Level::Debug, __VA_ARGS__)
+#define AEMU_INFO(...) AEMU_LOG_AT_(::aemu::log::Level::Info, __VA_ARGS__)
+#define AEMU_WARN(...) AEMU_LOG_AT_(::aemu::log::Level::Warn, __VA_ARGS__)
+#define AEMU_ERROR(...) AEMU_LOG_AT_(::aemu::log::Level::Error, __VA_ARGS__)
+
+/// Logs and terminates. Never returns, so no `return;` is needed afterwards.
+#define AEMU_FATAL(...) ::aemu::log::detail::fatal(std::source_location::current(), __VA_ARGS__)
+
+/// Always evaluated. Fatal when `cond` is false. The message is mandatory (use "" if none).
+#define AEMU_CHECK(cond, ...)                                                                      \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(cond)) [[unlikely]]                                                                  \
+        {                                                                                          \
+            ::aemu::log::detail::check_failed(std::source_location::current(), #cond,              \
+                                              __VA_ARGS__);                                        \
+        }                                                                                          \
+    } while (0)
+
+/// Like AEMU_CHECK but removed (still type checked) when NDEBUG is defined. For hot paths.
+#ifdef NDEBUG
+#define AEMU_DCHECK(cond, ...)                                                                     \
+    do                                                                                             \
+    {                                                                                              \
+        if constexpr (false)                                                                       \
+        {                                                                                          \
+            AEMU_CHECK(cond, __VA_ARGS__);                                                         \
+        }                                                                                          \
+    } while (0)
+#else
+#define AEMU_DCHECK(cond, ...) AEMU_CHECK(cond, __VA_ARGS__)
 #endif
 
-/**
-     * @def                INFO_SS(msg)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param msg        stringstream log.
-     */
-#ifndef AEMU_ONLY_CRITICAL_LOG
-#define INFO_SS(msg) logger::log_info((msg).str().c_str(), __FILE__, __LINE__, __func__)
-#else
-#define INFO_SS(msg) ;
-#endif
+#define AEMU_LOG_CONCAT_INNER_(a, b) a##b
+#define AEMU_LOG_CONCAT_(a, b) AEMU_LOG_CONCAT_INNER_(a, b)
 
-/**
-     * @def                WARN(format, ...)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param format    The format string.
-     * @param ...        Additional arguments for the format string.
-     */
-#define WARN(format, ...) logger::log_warn(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-
-/**
-     * @def                WARN_SS(msg)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param msg        stringstream log.
-     */
-#define WARN_SS(msg) logger::log_warn((msg).str().c_str(), __FILE__, __LINE__, __func__)
-
-/**
-     * @def                ERROR(format, ...)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param format    The format string.
-     * @param ...        Additional arguments for the format string.
-     */
-#define ERROR(format, ...) logger::log_error(format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-
-/**
-     * @def                ERROR_SS(msg)
-     * @brief             Wrap log to gather information like file, LOC, and function name.
-     * @param msg        stringstream log.
-     */
-#define ERROR_SS(msg) logger::log_error((msg).str().c_str(), __FILE__, __LINE__, __func__)
-
-#undef EXPECT_TRUE
-#define EXPECT_TRUE(condition, format, ...)                                                        \
-    logger::expect_true(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#undef EXPECT_TRUE_SS
-#define EXPECT_TRUE_SS(condition, msg)                                                             \
-    logger::expect_true(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
-#undef EXPECT_FALSE
-#define EXPECT_FALSE(condition, format, ...)                                                       \
-    logger::expect_false(condition, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#undef EXPECT_FALSE_SS
-#define EXPECT_FALSE_SS(condition, msg)                                                            \
-    logger::expect_false(condition, (msg).str().c_str(), __FILE__, __LINE__, __func__)
-#undef EXPECT_EQUAL
-#define EXPECT_EQUAL(t1, t2, format, ...)                                                          \
-    logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#undef EXPECT_EQUAL_SS
-#define EXPECT_EQUAL_SS(t1, t2, msg)                                                               \
-    logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
-#undef EXPECT_NOT_EQUAL
-#define EXPECT_NOT_EQUAL(t1, t2, format, ...)                                                      \
-    logger::expect_equal(t1, t2, format, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#undef EXPECT_NOT_EQUAL_SS
-#define EXPECT_NOT_EQUAL_SS(t1, t2, msg)                                                           \
-    logger::expect_equal(t1, t2, (msg).str().c_str(), __FILE__, __LINE__, __func__)
-
-#undef PROFILE_START
-#define PROFILE_START logger::clock_start_master(__FILE__, __LINE__, __func__);
-#undef PROFILE_STOP
-#define PROFILE_STOP logger::clock_stop_master();
-#undef CLOCK_START
-#define CLOCK_START(tag) logger::clock_start(tag, __FILE__, __LINE__, __func__);
-#undef CLOCK_STOP
-#define CLOCK_STOP logger::clock_stop();
-#undef CLOCK_END
-#define CLOCK_END logger::clock_end();
-
-}; // namespace logger
+/// `AEMU_SCOPED_TIMER("name");` logs "name took 1.23ms" at Debug level when the scope ends.
+#define AEMU_SCOPED_TIMER(tag)                                                                     \
+    ::aemu::log::ScopedTimer AEMU_LOG_CONCAT_(aemu_scoped_timer_, __LINE__)(tag)

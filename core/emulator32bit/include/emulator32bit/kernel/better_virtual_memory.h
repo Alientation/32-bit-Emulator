@@ -105,7 +105,7 @@ class MMU
             std::vector<byte> disk_page = disk->read_page(entry->disk);
             disk->return_page(entry->disk);
 
-            EXPECT_TRUE(disk_page.size() == kPageSize, "Page size does not match.");
+            AEMU_CHECK(disk_page.size() == kPageSize, "Page size does not match.");
 
             word free_ppage = get_free_ppage();
 

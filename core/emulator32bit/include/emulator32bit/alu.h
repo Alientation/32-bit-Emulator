@@ -1,9 +1,8 @@
 #pragma once
 
 #include "emulator32bit/emulator32bit_util.h"
+#include "util/logger.h"
 #include <util/common.h>
-#define AEMU_ONLY_CRITICAL_LOG
-#include <util/logger.h>
 
 enum class Register : U8
 {
@@ -177,7 +176,7 @@ static inline bool check_cond(word pstate, U8 cond)
         return false;
     }
 
-    EXPECT_FALSE(true, "Unknown condition code: {}", U32(cond));
+    AEMU_FATAL("Unknown condition code: {}", U32(cond));
     return false;
 }
 
@@ -257,7 +256,7 @@ struct ShiftResult
 static inline ShiftResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
                                     const bool carry_in)
 {
-    EXPECT_TRUE(shift_amt < 32, "Expected shift amount to be [0,31], got {}.", shift_amt);
+    AEMU_DCHECK(shift_amt < 32, "Expected shift amount to be [0,31], got {}.", shift_amt);
     if (shift_amt == 0)
     {
         return {value, carry_in};
@@ -279,6 +278,6 @@ static inline ShiftResult alu_shift(const word value, const ShiftType type, cons
                 bool((value >> (shift_amt - 1)) & 1)};
     }
 
-    ERROR("Invalid shift type: {}", U32(type));
+    AEMU_FATAL("Invalid shift type: {}", U32(type));
     return {};
 }

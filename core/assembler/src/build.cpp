@@ -43,8 +43,8 @@ bool Process::valid_exe_file(const File &file)
  */
 Process::Process(const std::string &assembler_args)
 {
-    INFO("Building Process: args({}).", assembler_args.c_str());
-    INFO("Current Working Directory: {}", std::filesystem::current_path().string().c_str());
+    AEMU_INFO("Building Process: args({}).", assembler_args);
+    AEMU_INFO("Current Working Directory: {}", std::filesystem::current_path().string());
 
     flags = {
         {"--", &Process::_ignore},  /* Treats everything after as a regular argument */
@@ -102,10 +102,10 @@ Process::Process(const std::string &assembler_args)
     std::vector<std::string> args_list;
     parse_args(assembler_args, args_list);
 
-    DEBUG("Process::Process() - args_list.size(): {}.", args_list.size());
+    AEMU_DEBUG("Process::Process() - args_list.size(): {}.", args_list.size());
     for (size_t i = 0; i < args_list.size(); i++)
     {
-        DEBUG("Process::Process() - args_list[{}]: {}", i, args_list[i].c_str());
+        AEMU_DEBUG("Process::Process() - args_list[{}]: {}", i, args_list[i]);
     }
 
     evaluate_args(args_list);
@@ -156,11 +156,8 @@ void Process::parse_args(std::string assembler_args, std::vector<std::string> &a
     }
 
     // check if there are any dangling quotes or escape characters
-    EXPECT_FALSE_SS(is_quoted, std::stringstream() << "Process::Process() - Missing end quotes: "
-                                                   << assembler_args);
-    EXPECT_FALSE_SS(is_escaped, std::stringstream()
-                                    << "Process::Process() - Dangling escape character: "
-                                    << assembler_args);
+    AEMU_CHECK(!is_quoted, "Process::Process() - Missing end quotes: {}", assembler_args);
+    AEMU_CHECK(!is_escaped, "Process::Process() - Dangling escape character: {}", assembler_args);
 
     // add the last argument if it's not empty
     if (cur_arg.length() > 0)
@@ -179,15 +176,14 @@ void Process::evaluate_args(std::vector<std::string> &args_list)
     // evaluate arguments
     for (size_t i = 0; i < args_list.size(); i++)
     {
-        DEBUG("arg {}: {}", i, args_list[i].c_str());
+        AEMU_DEBUG("arg {}: {}", i, args_list[i]);
 
         std::string &arg = args_list[i];
         if (m_parse_options && arg[0] == '-')
         {
             // this is a flag
-            EXPECT_TRUE_SS(flags.find(arg) != flags.end(),
-                           std::stringstream()
-                               << "Process::evaluate_args() - Invalid flag: " << arg);
+            AEMU_CHECK(flags.find(arg) != flags.end(),
+                       "Process::evaluate_args() - Invalid flag: {}", arg);
 
             (this->*flags[arg])(args_list, i);
         }
@@ -196,13 +192,12 @@ void Process::evaluate_args(std::vector<std::string> &args_list)
             // this should be a file
             File file(arg);
 
-            DEBUG("Process::evaluate_args() - Adding file {}", file.get_path().c_str());
+            AEMU_DEBUG("Process::evaluate_args() - Adding file {}", file.get_path());
 
             // check the extension
-            EXPECT_TRUE_SS(file.get_extension() == SOURCE_EXTENSION,
-                           std::stringstream()
-                               << "Process::evaluate_args() - Invalid file extension: "
-                               << file.get_extension());
+            AEMU_CHECK(file.get_extension() == SOURCE_EXTENSION,
+                       "Process::evaluate_args() - Invalid file extension: {}",
+                       file.get_extension());
 
             m_src_files.push_back(file);
         }
@@ -217,8 +212,7 @@ void Process::build()
 {
     if (m_src_files.size() == 0)
     {
-        std::cout << "ERROR: missing source files to assemble\n";
-        exit(EXIT_FAILURE);
+        AEMU_FATAL("ERROR: missing source files to assemble");
     }
 
     preprocess();
@@ -249,15 +243,14 @@ void Process::preprocess()
     {
         if (!file.exists())
         {
-            WARN("File {} does not exist.", file.get_path().c_str());
+            AEMU_WARN("File {} does not exist.", file.get_path());
             Directory dir(file.get_dir_str());
             if (dir.exists())
             {
-                DEBUG("But it's parent directory exists at {} with files",
-                      dir.get_abs_path().c_str());
+                AEMU_DEBUG("But it's parent directory exists at {} with files", dir.get_abs_path());
                 for (File f : dir.get_subfiles())
                 {
-                    DEBUG("{}", f.get_name().c_str());
+                    AEMU_DEBUG("{}", f.get_name());
                 }
             }
         }
@@ -349,7 +342,7 @@ void Process::link()
     }
 
     m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-    DEBUG("Process::link() - output file name: {}", m_exe_file.get_path().c_str());
+    AEMU_DEBUG("Process::link() - output file name: {}", m_exe_file.get_path());
 
     if (m_has_ld_file)
     {
@@ -431,14 +424,12 @@ void Process::_compile(std::vector<std::string> &args, size_t &index)
  */
 void Process::_output(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_output() - Missing output file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_output() - Missing output file path.");
     m_output_file = args[++index];
 
     // check if the output file is valid
-    EXPECT_TRUE_SS(File::valid_path(m_output_file),
-                   std::stringstream() << "Process::_output() - Invalid output file path: "
-                                       << m_output_file << ".");
+    AEMU_CHECK(File::valid_path(m_output_file),
+               "Process::_output() - Invalid output file path: '{}'.", m_output_file);
 }
 
 /**
@@ -451,14 +442,12 @@ void Process::_output(std::vector<std::string> &args, size_t &index)
  */
 void Process::_outdir(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_outdir() - Missing output directory path.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_outdir() - Missing output directory path.");
     m_output_dir = args[++index];
     m_has_output_dir = true;
     // check if the output file is valid
-    EXPECT_TRUE_SS(Directory::valid_path(m_output_dir),
-                   std::stringstream() << "Process::_outdir() - Invalid output directory path: "
-                                       << m_output_file << ".");
+    AEMU_CHECK(Directory::valid_path(m_output_dir),
+               "Process::_outdir() - Invalid output directory path: '{}'.", m_output_file);
 }
 
 /**
@@ -477,14 +466,12 @@ void Process::_outdir(std::vector<std::string> &args, size_t &index)
  */
 void Process::_optimize(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_optimize() - Missing optimization level.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_optimize() - Missing optimization level.");
     m_optimization_level = std::stoi(args[++index]);
 
     // check if the optimization level is valid
-    EXPECT_TRUE_SS(0 <= m_optimization_level && m_optimization_level <= 3,
-                   std::stringstream() << "Process::_optimize() - Invalid optimization level: "
-                                       << m_optimization_level << ".");
+    AEMU_CHECK(0 <= m_optimization_level && m_optimization_level <= 3,
+               "Process::_optimize() - Invalid optimization level: {}.", m_optimization_level);
 }
 
 /**
@@ -516,14 +503,12 @@ void Process::_optimize_all(std::vector<std::string> &args, size_t &index)
  */
 void Process::_warn(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(), std::stringstream()
-                                                << "Process::_warn() - Missing warning type.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_warn() - Missing warning type.");
     std::string warning_type = args[++index];
 
     // check if the warning type is valid
-    EXPECT_TRUE_SS(WARNINGS.find(warning_type) != WARNINGS.end(),
-                   std::stringstream()
-                       << "Process::_warn() - Invalid warning type: " << warning_type << ".");
+    AEMU_CHECK(WARNINGS.find(warning_type) != WARNINGS.end(),
+               "Process::_warn() - Invalid warning type: '{}'.", warning_type);
     m_enabled_warnings.insert(warning_type);
 }
 
@@ -556,14 +541,12 @@ void Process::_warn_all(std::vector<std::string> &args, size_t &index)
  */
 void Process::_include(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_include() - Missing include directory path.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_include() - Missing include directory path.");
     std::string dpath = args[++index];
 
     // check if the include directory is valid
-    EXPECT_TRUE_SS(Directory::valid_path(dpath),
-                   std::stringstream()
-                       << "Process::_include() - Invalid include directory path: " << dpath << ".");
+    AEMU_CHECK(Directory::valid_path(dpath),
+               "Process::_include() - Invalid include directory path: '{}'.", dpath);
     m_system_dirs.push_back(Directory(dpath));
 }
 
@@ -579,14 +562,12 @@ void Process::_include(std::vector<std::string> &args, size_t &index)
  */
 void Process::_library(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_library() - Missing library file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_library() - Missing library file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    EXPECT_TRUE_SS(File::valid_path(fpath),
-                   std::stringstream()
-                       << "Process::_library() - Invalid library file path: " << fpath << ".");
+    AEMU_CHECK(File::valid_path(fpath), "Process::_library() - Invalid library file path: '{}'.",
+               fpath);
     m_linked_lib.push_back(File(fpath));
 }
 
@@ -600,16 +581,13 @@ void Process::_library(std::vector<std::string> &args, size_t &index)
  */
 void Process::_library_directory(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream()
-                       << "Process::_libraryDirectory() - Missing library directory path.");
+    AEMU_CHECK(index + 1 < args.size(),
+               "Process::_libraryDirectory() - Missing library directory path.");
     std::string dpath = args[++index];
 
     // check if the library directory is valid
-    EXPECT_TRUE_SS(Directory::valid_path(dpath),
-                   std::stringstream()
-                       << "Process::_libraryDirectory() - Invalid library directory path: " << dpath
-                       << ".");
+    AEMU_CHECK(Directory::valid_path(dpath),
+               "Process::_libraryDirectory() - Invalid library directory path: '{}'.", dpath);
     m_library_dirs.push_back(Directory(dpath));
 }
 
@@ -623,9 +601,8 @@ void Process::_library_directory(std::vector<std::string> &args, size_t &index)
  */
 void Process::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream()
-                       << "Process::_preprocessorFlag() - Missing preprocessor flag.");
+    AEMU_CHECK(index + 1 < args.size(),
+               "Process::_preprocessorFlag() - Missing preprocessor flag.");
     std::string flag = args[++index];
 
     // check if there is a value
@@ -658,14 +635,12 @@ void Process::_keep_preprocessor_output(std::vector<std::string> &args, size_t &
 
 void Process::_ld(std::vector<std::string> &args, size_t &index)
 {
-    EXPECT_TRUE_SS(index + 1 < args.size(),
-                   std::stringstream() << "Process::_ld() - Missing linker script file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Process::_ld() - Missing linker script file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    EXPECT_TRUE_SS(File::valid_path(fpath),
-                   std::stringstream()
-                       << "Process::_ld() - Invalid linker script file path: " << fpath << ".");
+    AEMU_CHECK(File::valid_path(fpath), "Process::_ld() - Invalid linker script file path: '{}'.",
+               fpath);
     m_ld_file = File(fpath);
 }
 

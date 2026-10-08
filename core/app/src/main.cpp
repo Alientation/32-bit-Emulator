@@ -109,48 +109,54 @@ constexpr U64 kMaxCycles = 0x0;
 
 int main(int argc, char *argv[])
 {
-    PROFILE_START
-
-    CLOCK_START("Parsing command arguments")
     std::string build_command = build_palindrome;
-    if (argc > 1)
     {
-        INFO("Parsing command arguments");
-        build_command = "";
-        for (int i = 1; i < argc; i++)
+        AEMU_SCOPED_TIMER("Parsing command arguments");
+        if (argc > 1)
         {
-            build_command += std::string(argv[i]);
-            if (i + 1 < argc)
+            AEMU_INFO("Parsing command arguments");
+            build_command = "";
+            for (int i = 1; i < argc; i++)
             {
-                build_command += " ";
+                build_command += std::string(argv[i]);
+                if (i + 1 < argc)
+                {
+                    build_command += " ";
+                }
             }
         }
     }
-    CLOCK_END
-    CLOCK_START("Building program")
 
-    Process process(build_command);
-    CLOCK_END
+    Process *process = nullptr;
+    ON_SCOPE_EXIT(delete process);
 
-    if (process.does_create_exe())
     {
-        CLOCK_START("Loading program into emulator")
-        RAM *ram = new RAM(16, 0);
-        ROM *rom = new ROM(File("../tests/rom.bin", true), 16, 16);
-        Disk *disk = new Disk(File("../tests/disk.bin", true), 32, 32);
-
-        Emulator32bit emulator(ram, rom, disk);
-        long long pid = emulator.system_bus->mmu->begin_process();
-        LoadExecutable loader(emulator, process.get_exe_file());
-        CLOCK_END
-
-        DEBUG("Running emulator");
-        CLOCK_START("Running emulator")
-        emulator.run(kMaxCycles);
-        CLOCK_END
-        emulator.print();
-        emulator.system_bus->mmu->end_process(pid);
+        AEMU_SCOPED_TIMER("Building program");
+        process = new Process(build_command);
     }
 
-    PROFILE_STOP
+    if (process->does_create_exe())
+    {
+        long long pid;
+        Emulator32bit *emulator = nullptr;
+        ON_SCOPE_EXIT(delete emulator);
+        {
+            AEMU_SCOPED_TIMER("Loading program into emulator");
+            RAM *ram = new RAM(16, 0);
+            ROM *rom = new ROM(File("../tests/rom.bin", true), 16, 16);
+            Disk *disk = new Disk(File("../tests/disk.bin", true), 32, 32);
+
+            emulator = new Emulator32bit(ram, rom, disk);
+            pid = emulator->system_bus->mmu->begin_process();
+            LoadExecutable loader(*emulator, process->get_exe_file());
+        }
+
+        {
+            AEMU_INFO("Running emulator");
+            AEMU_SCOPED_TIMER("Running emulator");
+            emulator->run(kMaxCycles);
+            emulator->print();
+            emulator->system_bus->mmu->end_process(pid);
+        }
+    }
 }

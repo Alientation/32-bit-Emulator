@@ -7,7 +7,7 @@
 Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
     m_obj_files(obj_files),
     m_exe_file(exe_file),
-    m_ld_file(File("default_linker", "ld", AEMU_PROJECT_ROOT_DIR + "core/assembler/src"))
+    m_ld_file(File("default_linker", "ld", std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/src"))
 {
     link();
 }
@@ -85,7 +85,7 @@ void Linker::_sections(size_t &tok_i)
             m_sections.push_back({.type = SectionAddress::Type::BSS, .physical = m_physical});
             break;
         default:
-            ERROR("Invalid token {} in SECTIONS command.", m_tokens[tok_i].val.c_str());
+            AEMU_FATAL("Invalid token {} in SECTIONS command.", m_tokens[tok_i].val);
         }
 
         skip_tokens(tok_i, {Token::Type::WHITESPACE});
@@ -123,7 +123,7 @@ void Linker::parse_ld()
             _sections(i);
             break;
         default:
-            ERROR("Invalid token {}", m_tokens[i].val.c_str());
+            AEMU_FATAL("Invalid token {}", m_tokens[i].val);
         }
     }
 }
@@ -264,7 +264,7 @@ void Linker::link()
             /* all symbols should have a corresponding definition */
             if (symbol_entry.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK)
             {
-                ERROR("Linker::link() - Error, symbol definition is not found.");
+                AEMU_FATAL("Linker::link() - Error, symbol definition is not found.");
                 continue;
             }
 
@@ -283,11 +283,10 @@ void Linker::link()
                 // exe_obj_file.text_section[instr_i] = mask_0(obj_file.text_section[rel.offset/4], 0, 19) + bitfield_unsigned(symbol_entry.symbol_value, 19, 13);
                 break;
             case ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22:
-                EXPECT_TRUE_SS((symbol_entry.symbol_value & 0b11) == 0,
-                               std::stringstream()
-                                   << "Linker::fill_local() - Expected relocation value for "
-                                      "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got "
-                                   << symbol_entry.symbol_value);
+                AEMU_CHECK((symbol_entry.symbol_value & 0b11) == 0,
+                           "Linker::fill_local() - Expected relocation value for "
+                           "R_EMU32_B_OFFSET22 to be 4 byte aligned. Got {}",
+                           symbol_entry.symbol_value);
                 exe_obj_file.text_section[instr_i] =
                     mask_0(obj_file.text_section[rel.offset / 4], 0, 22)
                     + bitfield_unsigned(bitfield_signed(symbol_entry.symbol_value, 2, 22) - instr_i,
@@ -295,7 +294,7 @@ void Linker::link()
                 continue;
             case ObjectFile::RelocationEntry::Type::UNDEFINED:
             default:
-                ERROR("Linker::fill_local() - Unknown relocation entry type.");
+                AEMU_FATAL("Linker::fill_local() - Unknown relocation entry type.");
             }
 
             /* relocation is not a relative offset, add to exe file relocation to be resolved when the exe file is loaded into memory */
@@ -353,9 +352,8 @@ void Linker::tokenize_ld()
         }
 
         // check if regex matched
-        EXPECT_TRUE_SS(matched, std::stringstream()
-                                    << "Linker::tokenize() - Could not match regex to source code: "
-                                    << source_code);
+        AEMU_CHECK(matched, "Linker::tokenize() - Could not match regex to source code: {}",
+                   source_code);
     }
 }
 
@@ -426,7 +424,7 @@ word Linker::parse_value(size_t &tok_i)
             }
             else
             {
-                ERROR("Invalid hexadecimal digit {}", c);
+                AEMU_FATAL("Invalid hexadecimal digit {}", c);
                 return 0;
             }
         };
@@ -437,7 +435,7 @@ word Linker::parse_value(size_t &tok_i)
         break;
     }
     default:
-        ERROR("Expected numeric token but got {}", tok.val.c_str());
+        AEMU_FATAL("Expected numeric token but got {}", tok.val);
     }
     return val;
 }
@@ -478,16 +476,15 @@ void Linker::skip_tokens(size_t &tok_i, const std::set<Token::Type> &tokenTypes)
  */
 bool Linker::expect_token(size_t tok_i, const std::string &errorMsg)
 {
-    EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(errorMsg));
+    AEMU_CHECK(in_bounds(tok_i), "{}", errorMsg);
     return true;
 }
 
 bool Linker::expect_token(size_t tok_i, const std::set<Token::Type> &expectedTypes,
                           const std::string &errorMsg)
 {
-    EXPECT_TRUE_SS(in_bounds(tok_i), std::stringstream(errorMsg));
-    EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(),
-                   std::stringstream(errorMsg));
+    AEMU_CHECK(in_bounds(tok_i), "{}", errorMsg);
+    AEMU_CHECK(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(), "{}", errorMsg);
     return true;
 }
 
@@ -545,7 +542,7 @@ Linker::Token &Linker::consume(size_t &tok_i, const std::set<Linker::Token::Type
                                const std::string &errorMsg)
 {
     expect_token(tok_i, errorMsg);
-    EXPECT_TRUE_SS(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(),
-                   std::stringstream() << errorMsg << " - Unexpected end of file.");
+    AEMU_CHECK(expectedTypes.find(m_tokens[tok_i].type) != expectedTypes.end(),
+               "{} - Unexpected end of file.", errorMsg);
     return m_tokens.at(tok_i++);
 }

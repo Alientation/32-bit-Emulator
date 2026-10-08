@@ -2,10 +2,10 @@
 
 TEST_F(EmulatorFixture, conditional_ifdef)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_ifdef.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_ifdef.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());
@@ -16,10 +16,10 @@ TEST_F(EmulatorFixture, conditional_ifdef)
 
 TEST_F(EmulatorFixture, conditional_ifndef)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_ifndef.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_ifndef.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());
@@ -30,10 +30,10 @@ TEST_F(EmulatorFixture, conditional_ifndef)
 
 TEST_F(EmulatorFixture, conditional_ifequ)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_ifequ.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_ifequ.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());
@@ -44,10 +44,10 @@ TEST_F(EmulatorFixture, conditional_ifequ)
 
 TEST_F(EmulatorFixture, conditional_ifnequ)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_ifnequ.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_ifnequ.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());
@@ -58,10 +58,10 @@ TEST_F(EmulatorFixture, conditional_ifnequ)
 
 TEST_F(EmulatorFixture, conditional_ifless_or_more)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_ifless_or_more.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_ifless_or_more.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());
@@ -72,10 +72,10 @@ TEST_F(EmulatorFixture, conditional_ifless_or_more)
 
 TEST_F(EmulatorFixture, conditional_chain)
 {
-    Process p("-kp " + AEMU_PROJECT_ROOT_DIR
-              + "core/assembler/tests/preprocessor_test/src/conditional_chain.basm "
+    Process p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
+              + "assembler/tests/preprocessor_test/src/conditional_chain.basm "
                 "-outdir "
-              + AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/preprocessor_test/build");
+              + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/preprocessor_test/build");
     ASSERT_TRUE(p.does_create_exe());
 
     LoadExecutable loader(*machine, p.get_exe_file());

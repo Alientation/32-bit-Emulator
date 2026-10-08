@@ -1,6 +1,7 @@
 #include "util/directory.h"
 #include "util/file.h"
 #include "util/logger.h"
+#include "util/string_util.h"
 
 #include <filesystem>
 
@@ -10,7 +11,7 @@ Directory::Directory(const std::string &path, bool create_if_not_present)
 
     if (!valid_path(path))
     {
-        ERROR("Directory::Directory() - Invalid directory path: {}", path.c_str());
+        AEMU_FATAL("Directory::Directory() - Invalid directory path: {}", path);
     }
 
     if (create_if_not_present && !exists())

@@ -1,6 +1,5 @@
 #include "emulator32bit/virtual_memory.h"
 
-#define AEMU_ONLY_CRITICAL_LOG
 #include "util/logger.h"
 
 #include <unordered_set>
@@ -119,7 +118,7 @@ void VirtualMemory::set_process(long long pid)
     }
 
     m_cur_ptable = m_process_ptable_map.at(pid);
-    DEBUG("Setting memory map to process {}.", pid);
+    AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
 
 long long VirtualMemory::begin_process(bool kernel_privilege)
@@ -141,7 +140,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
     m_process_ptable_map.insert(std::make_pair(pid, new_pagetable));
     m_cur_ptable = new_pagetable;
 
-    DEBUG("Beginning process {}.", pid);
+    AEMU_DEBUG("Beginning process {}.", pid);
     return pid;
 }
 
@@ -179,7 +178,7 @@ void VirtualMemory::end_process(long long pid)
     delete m_process_ptable_map.at(pid);
     m_process_ptable_map.erase(pid);
     m_freepids.return_block(pid, 1);
-    DEBUG("Ending process {}.", pid);
+    AEMU_DEBUG("Ending process {}.", pid);
 }
 
 long long VirtualMemory::current_process()
@@ -288,7 +287,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
         throw InvalidPIDException("Cannot add virtual pages because pid is invalid.", pid);
     }
 
-    DEBUG("Adding vpages from {} to {}.", vpage, vpage + length - 1);
+    AEMU_DEBUG("Adding vpages from {} to {}.", vpage, vpage + length - 1);
 
     PageTable *ptable = m_process_ptable_map.at(pid);
     word last_vpage = vpage + length - 1;
@@ -306,7 +305,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
         ptable->entries.insert(std::make_pair(
             vpage, new PageTableEntry(pid, vpage, m_disk->get_free_page(), write, execute)));
 
-        DEBUG("Adding virtual page {} to process {}.", vpage, pid);
+        AEMU_DEBUG("Adding virtual page {} to process {}.", vpage, pid);
     }
 }
 
@@ -364,7 +363,8 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
     {
         m_disk->return_page(entry->diskpage);
 
-        DEBUG("Returning disk page {} coressponding to virtual page {}.", entry->diskpage, vpage);
+        AEMU_DEBUG("Returning disk page {} coressponding to virtual page {}.", entry->diskpage,
+                   vpage);
     }
     else
     {
@@ -373,7 +373,8 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
         /* add back to free list */
         m_freelist.return_block(entry->ppage, 1);
 
-        DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage, vpage);
+        AEMU_DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage,
+                   vpage);
     }
 
     delete entry;
@@ -385,36 +386,36 @@ void VirtualMemory::check_vm()
     {
         PhysicalPage &ppage = m_physical_memory_map[i];
 
-        EXPECT_TRUE(word(i) == ppage.ppage, "Expected physical memory to match");
+        AEMU_CHECK(word(i) == ppage.ppage, "Expected physical memory to match");
 
         if (ppage.mapped_vpages.size() > 0)
         {
             word diskpage = ppage.mapped_vpages.at(0)->diskpage;
             for (PageTableEntry *entry : ppage.mapped_vpages)
             {
-                EXPECT_TRUE(entry->diskpage == diskpage,
-                            "Expected all virtual pages mapped to the "
-                            "physical page to have same diskpage location.");
+                AEMU_CHECK(entry->diskpage == diskpage,
+                           "Expected all virtual pages mapped to the "
+                           "physical page to have same diskpage location.");
             }
         }
     }
 
     for (std::pair<long long, PageTable *> pair : m_process_ptable_map)
     {
-        DEBUG("Checking process {}.", pair.first);
-        EXPECT_TRUE(pair.second->pid == pair.first, "Expected Process ID to match");
+        AEMU_DEBUG("Checking process {}.", pair.first);
+        AEMU_CHECK(pair.second->pid == pair.first, "Expected Process ID to match");
         for (std::pair<word, PageTableEntry *> entry : pair.second->entries)
         {
-            DEBUG("Checking page entry at vpage {}.", entry.first);
+            AEMU_DEBUG("Checking page entry at vpage {}.", entry.first);
 
-            EXPECT_TRUE(entry.second->vpage == entry.first, "Expected virtual memory to match");
+            AEMU_CHECK(entry.second->vpage == entry.first, "Expected virtual memory to match");
         }
     }
 }
 
 void VirtualMemory::evict_ppage(word ppage, Exception &exception)
 {
-    DEBUG("Evicting physical page {} to disk.", ppage);
+    AEMU_DEBUG("Evicting physical page {} to disk.", ppage);
 
     /*
      * NOTE: this location will be overwritten below since we return the
@@ -460,7 +461,7 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage, Ex
     PageTableEntry *entry = ptable->entries.at(vpage);
     exception.disk_fetch = m_disk->read_page(entry->diskpage);
 
-    DEBUG("Disk Fetch from page {} to physical page {}.", entry->diskpage, ppage);
+    AEMU_DEBUG("Disk Fetch from page {} to physical page {}.", entry->diskpage, ppage);
 
     m_disk->return_page(entry->diskpage);
 
@@ -516,19 +517,19 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
                                   vpage, ptable->entries.at(vpage)->ppage, ppage);
     }
 
-    DEBUG("Mapping physical page {} to virtual page {}.", ppage, vpage);
+    AEMU_DEBUG("Mapping physical page {} to virtual page {}.", ppage, vpage);
 
     map_ppage(pid, vpage, ppage, exception);
 }
 
 void VirtualMemory::check_lru()
 {
-    DEBUG("Checking LRU");
+    AEMU_DEBUG("Checking LRU");
 
     if (m_lru_head == nullptr || m_lru_tail == nullptr)
     {
-        EXPECT_TRUE(m_lru_head == m_lru_tail, "Expected list to be empty");
-        EXPECT_TRUE(m_lru_map.size() == 0, "Expected lru map to be empty since list is empty");
+        AEMU_CHECK(m_lru_head == m_lru_tail, "Expected list to be empty");
+        AEMU_CHECK(m_lru_map.size() == 0, "Expected lru map to be empty since list is empty");
         return;
     }
 
@@ -536,21 +537,20 @@ void VirtualMemory::check_lru()
     std::unordered_set<word> mapped_ppages;
     while (cur->next != nullptr)
     {
-        EXPECT_TRUE(cur == cur->next->prev, "Expected the next node's previous to point back");
-        EXPECT_TRUE(m_lru_map.at(cur->ppage) == cur, "Expected lru map to match list");
+        AEMU_CHECK(cur == cur->next->prev, "Expected the next node's previous to point back");
+        AEMU_CHECK(m_lru_map.at(cur->ppage) == cur, "Expected lru map to match list");
         mapped_ppages.insert(cur->ppage);
         cur = cur->next;
     }
     mapped_ppages.insert(cur->ppage);
 
-    EXPECT_TRUE(cur == m_lru_tail, "Expected list to end at tail");
+    AEMU_CHECK(cur == m_lru_tail, "Expected list to end at tail");
 
     for (std::pair<word, LRU_Node *> pair : m_lru_map)
     {
-        EXPECT_TRUE_SS(mapped_ppages.find(pair.first) != mapped_ppages.end(),
-                       std::stringstream()
-                           << "Expected LRU map to correspond to the LRU list. "
-                           << std::to_string(pair.first) << " is not in the lru list");
+        AEMU_CHECK(mapped_ppages.find(pair.first) != mapped_ppages.end(),
+                   "Expected LRU map to correspond to the LRU list. {} is not in the lru list",
+                   U32(pair.first));
     }
 }
 

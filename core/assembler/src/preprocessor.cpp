@@ -86,9 +86,9 @@ Preprocessor::Preprocessor(Process *process, const File &input_file,
         m_output_file = File(output_file_path, true);
     }
 
-    EXPECT_TRUE_SS(m_process->valid_src_file(input_file),
-                   std::stringstream() << "Preprocessor::Preprocessor() - Invalid source file: "
-                                       << input_file.get_extension());
+    AEMU_CHECK(m_process->valid_src_file(input_file),
+               "Preprocessor::Preprocessor() - Invalid source file: '{}'.",
+               input_file.get_extension());
 
     m_state = State::UNPROCESSED;
 }
@@ -111,12 +111,10 @@ const char *Preprocessor::BadTokenException::what() const noexcept
 
 File Preprocessor::preprocess()
 {
-    DEBUG("Preprocessor::preprocess() - Preprocessing file: {}", m_input_file.get_name().c_str());
+    AEMU_DEBUG("Preprocessor::preprocess() - Preprocessing file: {}", m_input_file.get_name());
 
-    EXPECT_TRUE_SS(
-        m_state == State::UNPROCESSED,
-        std::stringstream()
-            << "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
+    AEMU_CHECK(m_state == State::UNPROCESSED,
+               "Preprocessor::preprocess() - Preprocessor is not in the UNPROCESSED state");
     m_state = State::PROCESSING;
 
     // clearing intermediate output file
@@ -194,7 +192,7 @@ File Preprocessor::preprocess()
         // check if the symbol has a definition with the same number of parameters
         if (m_def_symbols.at(symbol).find(parameters.size()) == m_def_symbols.at(symbol).end())
         {
-            ERROR("Preprocessor::preprocess() - Undefined symbol: {}", symbol.c_str());
+            AEMU_FATAL("Preprocessor::preprocess() - Undefined symbol: {}", symbol);
         }
 
         // replace all occurances of a parameter with the value passed in as the parameter
@@ -229,12 +227,12 @@ File Preprocessor::preprocess()
     m_state = State::PROCESSED_SUCCESS;
     writer.close();
 
-    DEBUG("Preprocessor::preprocess() - Preprocessed file: {}", m_input_file.get_name().c_str());
+    AEMU_DEBUG("Preprocessor::preprocess() - Preprocessed file: {}", m_input_file.get_name());
 
     // log macros
     for (std::pair<std::string, Macro> macro_pair : m_macros)
     {
-        DEBUG("Preprocessor::preprocess() - Macro: {}", macro_pair.second.to_string().c_str());
+        AEMU_DEBUG("Preprocessor::preprocess() - Macro: {}", macro_pair.second.to_string());
     }
 
     return m_output_file;
@@ -295,9 +293,9 @@ void Preprocessor::_include()
                 if (found_sys_file)
                 {
                     // already found file
-                    ERROR("Preprocessor::_include() - Multiple matching files found in system "
-                          "include directories: {}",
-                          sys_file_path.c_str());
+                    AEMU_FATAL("Preprocessor::_include() - Multiple matching files found in system "
+                               "include directories: {}",
+                               sys_file_path);
                 }
 
                 full_path_from_working_dir = dir.get_path() + File::SEPARATOR + sys_file_path;
@@ -307,8 +305,9 @@ void Preprocessor::_include()
 
         if (!found_sys_file)
         {
-            ERROR("Preprocessor::_include() - File not found in system include directories: {}",
-                  sys_file_path.c_str());
+            AEMU_FATAL(
+                "Preprocessor::_include() - File not found in system include directories: {}",
+                sys_file_path);
         }
     }
 
@@ -317,11 +316,11 @@ void Preprocessor::_include()
                         "Preprocessor::_include() - #include should be on it's own line");
 
     // process included file
-    DEBUG("Preprocessor::_include() - include path: {}", full_path_from_working_dir.c_str());
+    AEMU_DEBUG("Preprocessor::_include() - include path: {}", full_path_from_working_dir);
     File include_file = File(full_path_from_working_dir);
-    EXPECT_TRUE_SS(include_file.exists(),
-                   std::stringstream() << "Preprocessor::_include() - Include file does not exist: "
-                                       << full_path_from_working_dir);
+    AEMU_CHECK(include_file.exists(),
+               "Preprocessor::_include() - Include file does not exist: '{}'.",
+               full_path_from_working_dir);
 
     // instead of writing all the contents to the output file, simply
     // tokenize the file and insert into the current token list
@@ -385,8 +384,8 @@ void Preprocessor::_macro()
                         "Preprocessor::_macro() - #macend should be on it's own line.");
 
     // check if macro declaration is unique
-    EXPECT_TRUE(m_macros.find(macro.header()) == m_macros.end(),
-                "Preprocessor::_macro() - Macro already defined: {}", macro.header().c_str());
+    AEMU_CHECK(m_macros.find(macro.header()) == m_macros.end(),
+               "Preprocessor::_macro() - Macro already defined: {}", macro.header());
 
     // add macro to list of macros
     m_macros.insert(std::pair<std::string, Macro>(macro.header(), macro));
@@ -400,7 +399,7 @@ void Preprocessor::_macret()
     std::vector<Tokenizer::Token> return_value;
     if (m_macro_stack.empty())
     {
-        ERROR("Preprocessor::_macret() - Unexpected macret token.");
+        AEMU_FATAL("Preprocessor::_macret() - Unexpected macret token.");
     }
 
     // macro contains a return value
@@ -434,7 +433,7 @@ void Preprocessor::_macret()
 
     if (cur_rel_scope_level != 0)
     {
-        ERROR("Preprocessor::_macret() - Unclosed scope.");
+        AEMU_FATAL("Preprocessor::_macret() - Unclosed scope.");
     }
 
     // add '#define current_macro_output_symbol expression' to tokens
@@ -453,7 +452,7 @@ void Preprocessor::_macret()
 void Preprocessor::_macend()
 {
     // should never reach this. This should be consumed by the _macro function.
-    ERROR("Preprocessor::_macend() - Unexpected macro end token.");
+    AEMU_FATAL("Preprocessor::_macend() - Unexpected macro end token.");
 }
 
 void Preprocessor::_invoke()
@@ -511,13 +510,13 @@ void Preprocessor::_invoke()
     std::vector<Macro> possibleMacros = macros_with_header(macro_name, arguments);
     if (possibleMacros.size() == 0)
     {
-        ERROR("Preprocessor::_invoke() - Macro does not exist: {}", macro_name.c_str());
+        AEMU_FATAL("Preprocessor::_invoke() - Macro does not exist: {}", macro_name);
     }
     else if (possibleMacros.size() > 1)
     {
-        ERROR("Preprocessor::_invoke() - Multiple macros with the same name and number of "
-              "arguments: {}",
-              macro_name.c_str());
+        AEMU_FATAL("Preprocessor::_invoke() - Multiple macros with the same name and number of "
+                   "arguments: {}",
+                   macro_name);
     }
     Macro &macro = possibleMacros[0];
 
@@ -587,7 +586,7 @@ void Preprocessor::_invoke()
     {
         ss << token.value;
     }
-    DEBUG("Preprocessor::_invoke() - Expanded macro: {}", ss.str().c_str());
+    AEMU_DEBUG("Preprocessor::_invoke() - Expanded macro: {}", ss.str());
 
     // insert into the tokens list
     m_tokenizer.insert_tokens(expanded_macro_invoke, m_tokenizer.get_toki());
@@ -621,9 +620,8 @@ void Preprocessor::_define()
                     .value;
 
             // ensure the parameter symbol has not been used before in this definition parameters
-            EXPECT_TRUE_SS(ensure_unique_params.find(parameter) == ensure_unique_params.end(),
-                           std::stringstream()
-                               << "Preprocessor::_define() - Duplicate parameter: " << parameter);
+            AEMU_CHECK(ensure_unique_params.find(parameter) == ensure_unique_params.end(),
+                       "Preprocessor::_define() - Duplicate parameter: {}", parameter);
             parameters.push_back(parameter);
             ensure_unique_params.insert(parameter);
 
@@ -743,14 +741,15 @@ void Preprocessor::cond_block(bool cond_met)
 
     if ((cond_met && !found_end_block) || (!cond_met && !found_next_block))
     {
-        DEBUG("condition={} | endIf={} | next_block_tok_i={}", word(cond_met),
-              word(found_end_block), word(found_next_block));
-        ERROR("Preprocessor::cond_block() - Unclosed conditional block.");
+        AEMU_DEBUG("condition={} | endIf={} | next_block_tok_i={}", word(cond_met),
+                   word(found_end_block), word(found_next_block));
+        AEMU_FATAL("Preprocessor::cond_block() - Unclosed conditional block.");
     }
 
     if (cond_met)
     {
-        DEBUG(" | endIf={} | next_block_tok_i={}", word(found_end_block), word(found_next_block));
+        AEMU_DEBUG(" | endIf={} | next_block_tok_i={}", word(found_end_block),
+                   word(found_next_block));
         if (found_next_block)
         {
             // remove all tokens from the next block to the endif
@@ -799,8 +798,8 @@ void Preprocessor::_cond_on_def()
     }
     else
     {
-        ERROR("Preprocessor::_cond_on_def() - Unexpected conditional token: {}",
-              cond_tok.value.c_str());
+        AEMU_FATAL("Preprocessor::_cond_on_def() - Unexpected conditional token: {}",
+                   cond_tok.value);
     }
 }
 
@@ -869,8 +868,8 @@ void Preprocessor::_cond_on_value()
         cond_block(symbol_val > value);
         break;
     default:
-        ERROR("Preprocessor::_cond_on_value() - Unexpected conditional token: {}",
-              cond_tok.value.c_str());
+        AEMU_FATAL("Preprocessor::_cond_on_value() - Unexpected conditional token: {}",
+                   cond_tok.value);
     }
 }
 

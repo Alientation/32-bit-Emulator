@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.15)
 project(EmulatorProject LANGUAGES C CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Define the project root path globally for all targets
+add_compile_definitions(AEMU_PROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
+
 option(BUILD_TESTS "Build tests" ON)
 option(AEMU_ENABLE_COVERAGE "Instrument Debug builds with --coverage" ON)
 option(AEMU_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)

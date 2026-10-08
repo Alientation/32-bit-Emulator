@@ -1,5 +1,5 @@
+#include "util/logger.h"
 #include <util/file.h>
-#include <util/logger.h>
 #include <util/types.h>
 
 #include <fstream>
@@ -73,15 +73,15 @@ File::File(const std::string &name, const std::string &extension, const std::str
 
     if (!valid_name(name))
     {
-        ERROR("File::File() - Invalid file name: {}", name.c_str());
+        AEMU_FATAL("File::File() - Invalid file name: '{}'", name);
     }
     else if (!valid_extension(extension))
     {
-        ERROR("File::File() - Invalid file extension: {}", extension.c_str());
+        AEMU_FATAL("File::File() - Invalid file extension: '{}'", extension);
     }
     else if (!valid_dir(dir))
     {
-        ERROR("File::File() - Invalid file directory: {}", dir.c_str());
+        AEMU_FATAL("File::File() - Invalid file directory: '{}'", dir);
     }
 
     if (create_if_not_present && !exists())
@@ -100,7 +100,7 @@ File::File(const std::string &path, bool create_if_not_present)
     std::size_t extension_separator_index = path.find_last_of(".");
     if (extension_separator_index == std::string::npos)
     {
-        ERROR("File::File() - File path does not contain an extension: {}", path.c_str());
+        AEMU_FATAL("File::File() - File path does not contain an extension: {}", path);
     }
 
     bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
@@ -111,15 +111,15 @@ File::File(const std::string &path, bool create_if_not_present)
 
     if (!valid_name(m_name))
     {
-        ERROR("File::File() - Invalid file name: {}", m_name.c_str());
+        AEMU_FATAL("File::File() - Invalid file name: '{}'", m_name);
     }
     else if (!valid_extension(m_extension))
     {
-        ERROR("File::File() - Invalid file extension: {}", m_extension.c_str());
+        AEMU_FATAL("File::File() - Invalid file extension: '{}'", m_extension);
     }
     else if (!valid_dir(m_dir))
     {
-        ERROR("File::File() - Invalid file directory: {}", m_dir.c_str());
+        AEMU_FATAL("File::File() - Invalid file directory: '{}'", m_dir);
     }
 
     if (create_if_not_present && !exists())
@@ -264,7 +264,7 @@ FileWriter::FileWriter(const File &file) :
 
     if (!m_file_stream->good())
     {
-        ERROR("FileWriter::FileWriter() - Failed to open file: {}", file.get_path().c_str());
+        AEMU_FATAL("FileWriter::FileWriter() - Failed to open file: '{}'", file.get_path());
     }
 }
 
@@ -276,7 +276,7 @@ FileWriter::FileWriter(const File &file, std::_Ios_Openmode flags) :
 
     if (!m_file_stream->good())
     {
-        ERROR("FileWriter::FileWriter() - Failed to open file: {}", file.get_path().c_str());
+        AEMU_FATAL("FileWriter::FileWriter() - Failed to open file: '{}'", file.get_path());
     }
 }
 
@@ -534,7 +534,7 @@ FileReader::FileReader(const File &file) :
 
     if (!m_file_stream->good())
     {
-        ERROR("FileReader::FileReader() - Failed to open file: {}", m_file.get_path().c_str());
+        AEMU_FATAL("FileReader::FileReader() - Failed to open file: '{}'.", m_file.get_path());
     }
 }
 
@@ -546,7 +546,7 @@ FileReader::FileReader(const File &file, std::_Ios_Openmode flags) :
 
     if (!m_file_stream->good())
     {
-        ERROR("FileReader::FileReader() - Failed to open file: {}", m_file.get_path().c_str());
+        AEMU_FATAL("FileReader::FileReader() - Failed to open file: '{}'.", m_file.get_path());
     }
 }
 
@@ -608,8 +608,8 @@ char *FileReader::read_bytes(const unsigned int num_bytes)
 
     if (m_file_stream->fail())
     {
-        ERROR("FileReader::readBytes() - Failed to read {} bytes from file: {}", num_bytes,
-              m_file.get_path().c_str());
+        AEMU_FATAL("FileReader::readBytes() - Failed to read {} bytes from file: '{}'.", num_bytes,
+                   m_file.get_path());
     }
 
     return bytes;

@@ -9,7 +9,6 @@
 #include <assembler/static_library.h>
 #include <assembler/tokenizer.h>
 #include <gtest/gtest.h>
-#include <util/logger.h>
 
 static constexpr U64 MAX_INSTRUCTIONS = 10000;
 
@@ -20,10 +19,10 @@ class EmulatorFixture : public ::testing::Test
 
     void SetUp() override
     {
-        static ROM *rom =
-            new ROM(File(AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/rom.bin", true), 16, 16);
-        static Disk *disk =
-            new Disk(File(AEMU_PROJECT_ROOT_DIR + "core/assembler/tests/disk.bin"), 32, 32);
+        static ROM *rom = new ROM(
+            File(std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/tests/rom.bin", true), 16, 16);
+        static Disk *disk = new Disk(
+            File(std::string(AEMU_PROJECT_ROOT_DIR) + "/assembler/tests/disk.bin"), 32, 32);
 
         machine = new Emulator32bit(new RAM(16, 0), new ROM(*rom), new Disk(*disk));
         machine->system_bus->mmu->begin_process();

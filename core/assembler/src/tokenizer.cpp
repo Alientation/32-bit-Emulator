@@ -20,7 +20,7 @@ Tokenizer::Tokenizer(File src, Options option) :
     }
     else
     {
-        WARN("Tokenizing an empty file \'{}\'", src.get_abs_path().c_str());
+        AEMU_WARN("Tokenizing an empty file \'{}\'", src.get_abs_path());
     }
     verify();
 }
@@ -34,7 +34,7 @@ Tokenizer::Tokenizer(std::string src, Options option) :
     }
     else
     {
-        WARN("Tokenizing an empty string.");
+        AEMU_WARN("Tokenizing an empty string.");
     }
     verify();
 }
@@ -43,9 +43,9 @@ void Tokenizer::verify()
 {
     for (Token &tok : m_tokens)
     {
-        EXPECT_TRUE(tok.tokenize_id == m_tokenize_id,
-                    "Tokenizer::verify() - Something went wrong. Expected tokenize id to match at "
-                    "initialization.");
+        AEMU_CHECK(tok.tokenize_id == m_tokenize_id,
+                   "Tokenizer::verify() - Something went wrong. Expected tokenize id to match at "
+                   "initialization.");
     }
 }
 
@@ -93,12 +93,12 @@ void Tokenizer::insert_tokens(const std::vector<Token> &tokens, size_t loc)
 
 void Tokenizer::remove_tokens(size_t start, size_t end)
 {
-    EXPECT_TRUE(start <= end,
-                "Tokenizer::remove_tokens() - Invalid range of tokens to remove. (start > end)");
-    EXPECT_TRUE(start < m_tokens.size(),
-                "Tokenizer::remove_tokens() - Start of range is out of bounds.");
-    EXPECT_TRUE(end <= m_tokens.size(),
-                "Tokenizer::remove_tokens() - End of range is out of bounds.");
+    AEMU_CHECK(start <= end,
+               "Tokenizer::remove_tokens() - Invalid range of tokens to remove. (start > end)");
+    AEMU_CHECK(start < m_tokens.size(),
+               "Tokenizer::remove_tokens() - Start of range is out of bounds.");
+    AEMU_CHECK(end <= m_tokens.size(),
+               "Tokenizer::remove_tokens() - End of range is out of bounds.");
 
     while (start < end)
     {
@@ -114,14 +114,14 @@ const std::vector<Tokenizer::Token> &Tokenizer::get_tokens()
 
 int Tokenizer::get_linei() const
 {
-    EXPECT_TRUE(m_state.toki < m_tokens.size(),
-                "Tokenizer::get_linei() - Token index out of bounds.");
+    AEMU_CHECK(m_state.toki < m_tokens.size(),
+               "Tokenizer::get_linei() - Token index out of bounds.");
     return m_tokens[m_state.toki].line;
 }
 
 int Tokenizer::get_linei(size_t toki) const
 {
-    EXPECT_TRUE(toki < m_tokens.size(), "Tokenizer::get_linei() - Token index out of bounds.");
+    AEMU_CHECK(toki < m_tokens.size(), "Tokenizer::get_linei() - Token index out of bounds.");
 
     for (size_t i = toki; i <= toki; i--)
     {
@@ -225,14 +225,14 @@ void Tokenizer::handle_token()
 Tokenizer::Token &Tokenizer::get_token()
 {
     move_past_skipped_tokens();
-    EXPECT_TRUE(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
+    AEMU_CHECK(has_next(), "Tokenizer::get_token(): Unexpected end of file.");
     return m_tokens[m_state.toki];
 }
 
 void Tokenizer::skip_next()
 {
     move_past_skipped_tokens();
-    EXPECT_TRUE(has_next(), "Tokenizer::skip_next(): Unexpected end of file.");
+    AEMU_CHECK(has_next(), "Tokenizer::skip_next(): Unexpected end of file.");
     handle_token();
 
     m_state.toki++;
@@ -276,23 +276,23 @@ void Tokenizer::skip_next(Tokenizer::Type tok_type)
 void Tokenizer::expect_next(const std::string &error_msg)
 {
     // TODO: This should not use these asserts. Instead return an error.
-    EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
+    AEMU_CHECK(has_next(), "{}", error_msg);
 }
 
 void Tokenizer::expect_next(const std::set<Tokenizer::Type> &expected_types,
                             const std::string &error_msg)
 {
     // TODO: This should not use these asserts. Instead return an error.
-    EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
-    EXPECT_TRUE_SS(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(),
-                   std::stringstream(error_msg));
+    AEMU_CHECK(has_next(), "{}", error_msg);
+    AEMU_CHECK(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(), "{}",
+               error_msg);
 }
 
 void Tokenizer::expect_next(Tokenizer::Type expected_type, const std::string &error_msg)
 {
     // TODO: This should not use these asserts. Instead return an error.
-    EXPECT_TRUE_SS(has_next(), std::stringstream(error_msg));
-    EXPECT_TRUE_SS(m_tokens[m_state.toki].type == expected_type, std::stringstream(error_msg));
+    AEMU_CHECK(has_next(), "{}", error_msg);
+    AEMU_CHECK(m_tokens[m_state.toki].type == expected_type, "{}", error_msg);
 }
 
 bool Tokenizer::is_next(const std::set<Tokenizer::Type> &tok_types, const std::string &error_msg)
@@ -325,9 +325,8 @@ Tokenizer::Token &Tokenizer::consume(const std::set<Tokenizer::Type> &expected_t
                                      const std::string &error_msg)
 {
     expect_next(error_msg);
-    EXPECT_TRUE_SS(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(),
-                   std::stringstream()
-                       << error_msg << " - Got " << m_tokens[m_state.toki].to_string());
+    AEMU_CHECK(expected_types.find(m_tokens[m_state.toki].type) != expected_types.end(),
+               "{} - Got {}", error_msg, m_tokens[m_state.toki].to_string());
     Tokenizer::Token &token = m_tokens[m_state.toki];
     skip_next();
     return token;
@@ -336,9 +335,8 @@ Tokenizer::Token &Tokenizer::consume(const std::set<Tokenizer::Type> &expected_t
 Tokenizer::Token &Tokenizer::consume(Tokenizer::Type expected_type, const std::string &error_msg)
 {
     expect_next(error_msg);
-    EXPECT_TRUE_SS(m_tokens[m_state.toki].type == expected_type,
-                   std::stringstream()
-                       << error_msg << " - Got " << m_tokens[m_state.toki].to_string());
+    AEMU_CHECK(m_tokens[m_state.toki].type == expected_type, "{} - Got {}", error_msg,
+               m_tokens[m_state.toki].to_string());
     const size_t toki = m_state.toki;
     skip_next();
     return m_tokens[toki];
@@ -352,7 +350,7 @@ Tokenizer::Token &Tokenizer::consume(Tokenizer::Type expected_type, const std::s
  */
 std::vector<Tokenizer::Token> Tokenizer::tokenize(File src_file, Options option)
 {
-    DEBUG("Tokenizer::tokenize() - Tokenizing file: {}", src_file.get_name().c_str());
+    AEMU_DEBUG("Tokenizer::tokenize() - Tokenizing file: {}", src_file.get_name());
     FileReader reader(src_file);
 
     // append a new line to the end to allow regex matching to match an ending whitespace
@@ -360,7 +358,7 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(File src_file, Options option)
     reader.close();
 
     std::vector<Token> tokens = tokenize(source_code, option);
-    DEBUG("Tokenizer::tokenize() - Tokenized file: {}", src_file.get_name().c_str());
+    AEMU_DEBUG("Tokenizer::tokenize() - Tokenized file: {}", src_file.get_name());
     return tokens;
 }
 
@@ -631,15 +629,15 @@ std::vector<Tokenizer::Token> Tokenizer::tokenize(std::string source_code, Optio
         }
 
         // check if regex matched
-        EXPECT_TRUE(matched, "Tokenizer::tokenize() - Could not match regex to source code: {}",
-                    source_code.c_str());
+        AEMU_CHECK(matched, "Tokenizer::tokenize() - Could not match regex to source code: {}",
+                   source_code);
     }
 
     for (size_t i = 0; i < tokens.size(); i++)
     {
         UNUSED(i);
         // TODO: TEMP
-        WARN("Token {}: {}", i, tokens[i].to_string().c_str());
+        AEMU_WARN("Token {}: {}", i, tokens[i].to_string());
     }
 
     return tokens;

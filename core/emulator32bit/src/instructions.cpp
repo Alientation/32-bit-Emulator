@@ -1,8 +1,7 @@
 #include <emulator32bit/emulator32bit.h>
 
+#include "util/logger.h"
 #include <util/common.h>
-#define AEMU_ONLY_CRITICAL_LOG
-#include <util/logger.h>
 
 #include <string>
 
@@ -26,15 +25,22 @@
  * @brief                   Parse the value of the argument for instruction format O
  * @details                 Also used to parse value of argument for some other instruction format
  *                          like format M which conveniently has a similar structure
- * @hideinitializer
- *
+ * @param cpu Emulator context.
+ * @param instr 32 bit instruction to extract the value of the argument.
  */
-#define FORMAT_O__get_arg(instr)                                                                   \
-    (test_bit(instr, 14)                                                                           \
-         ? bitfield_unsigned(instr, 0, 14)                                                         \
-         : alu_shift(read_reg(_X3(instr)), ShiftType(bitfield_unsigned(instr, 7, 2)),              \
-                     bitfield_unsigned(instr, 2, 5), false)                                        \
-               .result)
+static word get_format_o_arg(Emulator32bit &cpu, const word instr)
+{
+    if (test_bit(instr, 14))
+    {
+        return bitfield_unsigned(instr, 0, 14);
+    }
+
+    const word value = cpu.read_reg(_X3(instr));
+    const auto type = ShiftType(bitfield_unsigned(instr, 7, 2));
+    const U8 amount = bitfield_unsigned(instr, 2, 5);
+
+    return alu_shift(value, type, amount, false).result;
+}
 
 /**
  * @internal
@@ -348,7 +354,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        ERROR("Invalid ATOMIC_WIDTH: {}", width);
+        AEMU_FATAL("Invalid ATOMIC_WIDTH: {}", width);
         return;
     }
 
@@ -377,7 +383,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        ERROR("Invalid atomic operation: {}", static_cast<int>(operation));
+        AEMU_FATAL("Invalid atomic operation: {}", static_cast<int>(operation));
         return;
     }
 
@@ -437,7 +443,7 @@ word Emulator32bit::asm_atomic(word xt, word xn, word xm, U8 width, U8 atop)
 
 void Emulator32bit::_add(const word instr)
 {
-    const AluResult result = alu_add(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), false);
+    const AluResult result = alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), false);
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -449,7 +455,7 @@ void Emulator32bit::_add(const word instr)
 
 void Emulator32bit::_sub(const word instr)
 {
-    const AluResult result = alu_sub(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), true);
+    const AluResult result = alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), true);
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -461,7 +467,7 @@ void Emulator32bit::_sub(const word instr)
 
 void Emulator32bit::_rsb(const word instr)
 {
-    const AluResult result = alu_sub(FORMAT_O__get_arg(instr), read_reg(_X2(instr)), true);
+    const AluResult result = alu_sub(get_format_o_arg(*this, instr), read_reg(_X2(instr)), true);
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -474,7 +480,7 @@ void Emulator32bit::_rsb(const word instr)
 void Emulator32bit::_adc(const word instr)
 {
     const AluResult result =
-        alu_add(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), get_flag(kCFlagBit));
+        alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), get_flag(kCFlagBit));
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -487,7 +493,7 @@ void Emulator32bit::_adc(const word instr)
 void Emulator32bit::_sbc(const word instr)
 {
     const AluResult result =
-        alu_sub(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), get_flag(kCFlagBit));
+        alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), get_flag(kCFlagBit));
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -500,7 +506,7 @@ void Emulator32bit::_sbc(const word instr)
 void Emulator32bit::_rsc(const word instr)
 {
     const AluResult result =
-        alu_sub(FORMAT_O__get_arg(instr), read_reg(_X2(instr)), get_flag(kCFlagBit));
+        alu_sub(get_format_o_arg(*this, instr), read_reg(_X2(instr)), get_flag(kCFlagBit));
 
     if (test_bit(instr, kInstructionUpdateFlagBit))
     {
@@ -514,7 +520,7 @@ void Emulator32bit::_mul(const word instr)
 {
     const U8 xd = _X1(instr);
     dword xn_val = read_reg(_X2(instr));
-    dword xm_val = FORMAT_O__get_arg(instr);
+    dword xm_val = get_format_o_arg(*this, instr);
     dword dst_val = xn_val * xm_val;
 
     // check to update NZCV
@@ -636,7 +642,7 @@ void Emulator32bit::_and(const word instr)
 {
     const U8 xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word and_val = FORMAT_O__get_arg(instr);
+    const word and_val = get_format_o_arg(*this, instr);
     const word dst_val = and_val & xn_val;
 
     // check to update NZCV
@@ -655,7 +661,7 @@ void Emulator32bit::_orr(const word instr)
 {
     const U8 xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word or_val = FORMAT_O__get_arg(instr);
+    const word or_val = get_format_o_arg(*this, instr);
     const word dst_val = or_val | xn_val;
 
     // check to update NZCV
@@ -674,7 +680,7 @@ void Emulator32bit::_eor(const word instr)
 {
     const U8 xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word eor_val = FORMAT_O__get_arg(instr);
+    const word eor_val = get_format_o_arg(*this, instr);
     const word dst_val = eor_val ^ xn_val;
 
     // check to update NZCV
@@ -693,7 +699,7 @@ void Emulator32bit::_bic(const word instr)
 {
     const U8 xd = _X1(instr);
     const word xn_val = read_reg(_X2(instr));
-    const word bic_val = FORMAT_O__get_arg(instr);
+    const word bic_val = get_format_o_arg(*this, instr);
     const word dst_val = (~bic_val) & xn_val;
 
     // check to update NZCV
@@ -755,14 +761,14 @@ void Emulator32bit::_ror(const word instr)
 // alias to subs
 void Emulator32bit::_cmp(const word instr)
 {
-    const AluResult result = alu_sub(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), true);
+    const AluResult result = alu_sub(read_reg(_X2(instr)), get_format_o_arg(*this, instr), true);
     set_NZCV(result.n, result.z, result.c, result.v);
 }
 
 // alias to adds
 void Emulator32bit::_cmn(const word instr)
 {
-    const AluResult result = alu_add(read_reg(_X2(instr)), FORMAT_O__get_arg(instr), false);
+    const AluResult result = alu_add(read_reg(_X2(instr)), get_format_o_arg(*this, instr), false);
     set_NZCV(result.n, result.z, result.c, result.v);
 }
 
@@ -770,7 +776,7 @@ void Emulator32bit::_cmn(const word instr)
 void Emulator32bit::_tst(const word instr)
 {
     const word xn_val = read_reg(_X2(instr));
-    const word tst_val = FORMAT_O__get_arg(instr);
+    const word tst_val = get_format_o_arg(*this, instr);
     const word dst_val = tst_val & xn_val;
 
     set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(m_pstate, kCFlagBit),
@@ -781,7 +787,7 @@ void Emulator32bit::_tst(const word instr)
 void Emulator32bit::_teq(const word instr)
 {
     const word xn_val = read_reg(_X2(instr));
-    const word teq_val = FORMAT_O__get_arg(instr);
+    const word teq_val = get_format_o_arg(*this, instr);
     const word dst_val = teq_val ^ xn_val;
 
     set_NZCV(test_bit(dst_val, 31), dst_val == 0, test_bit(m_pstate, kCFlagBit),
@@ -865,7 +871,7 @@ void Emulator32bit::_ldr(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
@@ -879,7 +885,7 @@ void Emulator32bit::_ldrb(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
@@ -897,7 +903,7 @@ void Emulator32bit::_ldrh(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
@@ -914,7 +920,7 @@ void Emulator32bit::_str(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
@@ -928,7 +934,7 @@ void Emulator32bit::_strb(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);
@@ -946,7 +952,7 @@ void Emulator32bit::_strh(const word instr)
     const U8 xt = _X1(instr);
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);
-    sword offset = simm ? bitfield_signed(instr, 2, 12) : FORMAT_O__get_arg(instr);
+    sword offset = simm ? bitfield_signed(instr, 2, 12) : get_format_o_arg(*this, instr);
 
     const U8 address_mode = bitfield_unsigned(instr, 0, 2);
     const word mem_addr = calc_mem_addr(xn, offset, address_mode);

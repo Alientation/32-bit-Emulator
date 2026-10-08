@@ -11,7 +11,7 @@
 ///
 dword Assembler::parse_expression(dword min, dword max)
 {
-    DEBUG("Assembler::parse_expression() - Parsing expression.");
+    AEMU_DEBUG("Assembler::parse_expression() - Parsing expression.");
 
     // For now, only parse expressions sequentially, without care of precedence.
     dword exp_value = 0;
@@ -39,7 +39,7 @@ dword Assembler::parse_expression(dword min, dword max)
         }
         else if (operator_token != nullptr)
         {
-            ERROR("Assembler::parse_expression() - Expected operand to follow operator.");
+            AEMU_FATAL("Assembler::parse_expression() - Expected operand to follow operator.");
         }
 
         if (operator_token != nullptr)
@@ -59,8 +59,8 @@ dword Assembler::parse_expression(dword min, dword max)
                 exp_value *= value;
                 break;
             default:
-                ERROR("Assembler::parse_expression() - Expected operator token but got {}",
-                      operator_token->value.c_str());
+                AEMU_FATAL("Assembler::parse_expression() - Expected operator token but got {}",
+                           operator_token->value);
             }
             operator_token = nullptr;
         }
@@ -87,13 +87,13 @@ dword Assembler::parse_expression(dword min, dword max)
     if (exp_value < min || exp_value > max)
     {
         m_state = Assembler::State::ASSEMBLER_WARNING;
-        WARN("Assembler::parse_expression() - Parsed value {} is outside of the target range "
-             "{} - {}.",
-             exp_value, min, max);
+        AEMU_WARN("Assembler::parse_expression() - Parsed value {} is outside of the target range "
+                  "{} - {}.",
+                  exp_value, min, max);
     }
     else
     {
-        DEBUG("Assembler::parse_expression() - Parsed value {}.", exp_value);
+        AEMU_DEBUG("Assembler::parse_expression() - Parsed value {}.", exp_value);
     }
 
     return exp_value;
@@ -108,8 +108,8 @@ void Assembler::_global()
 {
     if (m_cur_section != Section::NONE)
     {
-        ERROR("Assembler::_global() - Cannot declare symbol as global "
-              "inside a section. Must be declared outside of .text, .bss, and .data.");
+        AEMU_FATAL("Assembler::_global() - Cannot declare symbol as global "
+                   "inside a section. Must be declared outside of .text, .bss, and .data.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -130,9 +130,9 @@ void Assembler::_extern()
 {
     if (m_cur_section != Section::NONE)
     {
-        ERROR("Assembler::_extern() - Cannot "
-              "declare symbol as extern inside a section. Must be declared outside of "
-              ".text, .bss, and .data.");
+        AEMU_FATAL("Assembler::_extern() - Cannot "
+                   "declare symbol as extern inside a section. Must be declared outside of "
+                   ".text, .bss, and .data.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -156,7 +156,7 @@ void Assembler::_org()
     if (val >= 0xffffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN("Assembler::_org() - new value is large and likely unintentional. ({}).", val);
+        AEMU_FATAL("Assembler::_org() - new value is large and likely unintentional. ({}).", val);
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
@@ -166,9 +166,9 @@ void Assembler::_org()
     case Section::BSS:
         if (val < m_obj.bss_section)
         {
-            ERROR("Assembler::_org() - .org directive cannot move "
-                  "assembler pc backwards. Expected >= {}. Got {}.",
-                  m_obj.bss_section, val);
+            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
+                       "assembler pc backwards. Expected >= {}. Got {}.",
+                       m_obj.bss_section, val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
@@ -177,9 +177,9 @@ void Assembler::_org()
     case Section::DATA:
         if (val < m_obj.data_section.size())
         {
-            ERROR("Assembler::_org() - .org directive cannot move "
-                  "assembler pc backwards. Expected >= {}. Got {}.",
-                  m_obj.data_section.size(), val);
+            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
+                       "assembler pc backwards. Expected >= {}. Got {}.",
+                       m_obj.data_section.size(), val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
@@ -193,19 +193,19 @@ void Assembler::_org()
         // comparatively to .data and .bss.
         if (val < m_obj.text_section.size() * 4)
         {
-            ERROR("Assembler::_org() - .org directive cannot move "
-                  "assembler pc backwards. Expected >= {}. Got {}.",
-                  m_obj.text_section.size() * 4, val);
+            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
+                       "assembler pc backwards. Expected >= {}. Got {}.",
+                       m_obj.text_section.size() * 4, val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
 
         if (val % 4 != 0)
         {
-            ERROR("Assembler::_org() - .org directive cannot move "
-                  "assembler pc to a non-word aligned byte in .text section. Expected aligned "
-                  "4 byte. Got {}.",
-                  val);
+            AEMU_FATAL("Assembler::_org() - .org directive cannot move "
+                       "assembler pc to a non-word aligned byte in .text section. Expected aligned "
+                       "4 byte. Got {}.",
+                       val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
@@ -216,7 +216,7 @@ void Assembler::_org()
         }
         break;
     case Section::NONE:
-        ERROR("Assembler::_org() - Not defined inside section. Cannot move section pointer.");
+        AEMU_FATAL("Assembler::_org() - Not defined inside section. Cannot move section pointer.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -244,7 +244,7 @@ void Assembler::_scend()
 {
     if (m_scopes.empty())
     {
-        ERROR("Assembler::_scend() - .scend directive must have a matching .scope directive.");
+        AEMU_FATAL("Assembler::_scend() - .scend directive must have a matching .scope directive.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -265,7 +265,8 @@ void Assembler::_advance()
     if (val >= 0xffffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN("Assembler::_advance() - offset value is large and likely unintentional. ({}).", val);
+        AEMU_WARN("Assembler::_advance() - offset value is large and likely unintentional. ({}).",
+                  val);
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
@@ -286,11 +287,11 @@ void Assembler::_advance()
         // comparatively to .data and .bss.
         if (val % 4 != 0)
         {
-            ERROR("Assembler::_advance() - .advance directive cannot"
-                  " move assembler pc to a non-word aligned byte in .text section. Expected "
-                  "aligned 4 byte."
-                  " Got {}.",
-                  val);
+            AEMU_FATAL("Assembler::_advance() - .advance directive cannot"
+                       " move assembler pc to a non-word aligned byte in .text section. Expected "
+                       "aligned 4 byte."
+                       " Got {}.",
+                       val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
@@ -301,7 +302,8 @@ void Assembler::_advance()
         }
         break;
     case Section::NONE:
-        ERROR("Assembler::_advance() - Not defined inside section. Cannot move section pointer.");
+        AEMU_FATAL(
+            "Assembler::_advance() - Not defined inside section. Cannot move section pointer.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -321,7 +323,8 @@ void Assembler::_align()
     if (val >= 0xffff)
     {
         // Safety exit. Likely unintentional behavior.
-        WARN("Assembler::_align() - Alignment value is large and likely unintentional. ({}).", val);
+        AEMU_WARN("Assembler::_align() - Alignment value is large and likely unintentional. ({}).",
+                  val);
         m_state = State::ASSEMBLER_WARNING;
         return;
     }
@@ -342,11 +345,11 @@ void Assembler::_align()
         // comparatively to .data and .bss.
         if (val % 4 != 0)
         {
-            ERROR("Assembler::_advance() - .advance directive cannot "
-                  "move assembler pc to a non-word aligned byte in .text section. Expected "
-                  "aligned 4 byte."
-                  " Got {}.",
-                  val);
+            AEMU_FATAL("Assembler::_advance() - .advance directive cannot "
+                       "move assembler pc to a non-word aligned byte in .text section. Expected "
+                       "aligned 4 byte."
+                       " Got {}.",
+                       val);
             m_state = State::ASSEMBLER_ERROR;
             return;
         }
@@ -357,7 +360,8 @@ void Assembler::_align()
         }
         break;
     case Section::NONE:
-        ERROR("Assembler::_align() - Not defined inside a section. Cannot align section pointer.");
+        AEMU_FATAL(
+            "Assembler::_align() - Not defined inside a section. Cannot align section pointer.");
         m_state = State::ASSEMBLER_ERROR;
         return;
     }
@@ -375,7 +379,7 @@ void Assembler::_section()
     m_tokenizer.expect_next(Tokenizer::LITERAL_STRING, "Assembler::_section() - .section expects a "
                                                        "string argument to follow.");
 
-    ERROR("Assembler::_section() - .section directive is not implemented yet.");
+    AEMU_FATAL("Assembler::_section() - .section directive is not implemented yet.");
     m_state = State::ASSEMBLER_ERROR;
     return;
 }
@@ -464,9 +468,8 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, U8 n_bytes)
 
 void Assembler::_byte()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_byte() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_byte() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -479,9 +482,8 @@ void Assembler::_byte()
 
 void Assembler::_dbyte()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_dbyte() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_dbyte() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -494,9 +496,8 @@ void Assembler::_dbyte()
 
 void Assembler::_word()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_word() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_word() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -509,9 +510,8 @@ void Assembler::_word()
 
 void Assembler::_dword()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_dword() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_dword() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -525,9 +525,8 @@ void Assembler::_dword()
 // TODO: This is pointless, same as .byte.
 void Assembler::_sbyte()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_sbyte() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_sbyte() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -541,9 +540,8 @@ void Assembler::_sbyte()
 // TODO: Figure out why signed versions of these data defining directives are needed.
 void Assembler::_sdbyte()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_sdbyte() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_sdbyte() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -556,9 +554,8 @@ void Assembler::_sdbyte()
 
 void Assembler::_sword()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_sword() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_sword() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -571,9 +568,8 @@ void Assembler::_sword()
 
 void Assembler::_sdword()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_sdword() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_sdword() - Can only define data in .data section.");
 
     m_tokenizer.consume();
 
@@ -586,9 +582,8 @@ void Assembler::_sdword()
 
 void Assembler::_char()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_char() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_char() - Can only define data in .data section.");
     m_tokenizer.consume();
 
     while (true)
@@ -613,9 +608,8 @@ void Assembler::_char()
 
 void Assembler::_ascii()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_ascii() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_ascii() - Can only define data in .data section.");
     m_tokenizer.consume();
 
     while (true)
@@ -648,9 +642,8 @@ void Assembler::_ascii()
 
 void Assembler::_asciz()
 {
-    EXPECT_TRUE_SS(m_cur_section == Section::DATA,
-                   std::stringstream()
-                       << "Assembler::_asciz() - Can only define data in .data section.");
+    AEMU_CHECK(m_cur_section == Section::DATA,
+               "Assembler::_asciz() - Can only define data in .data section.");
     m_tokenizer.consume();
 
     while (true)
