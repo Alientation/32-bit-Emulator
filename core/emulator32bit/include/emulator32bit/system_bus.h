@@ -172,8 +172,11 @@ class SystemBus : private VirtualMemory::PhysicalPages
      */
     inline word fetch_instruction(const word address)
     {
-        const word real_addr = translate_address(address);
-        if (UNLIKELY(!mmu->can_execute_address(address)))
+        // The page tables say whether a page can be executed; the swapping memory has its own list.
+        const bool walk = mmu->walk_enabled();
+        const word real_addr = translate_address(address, walk ? VirtualMemory::AccessType::EXECUTE
+                                                               : VirtualMemory::AccessType::READ);
+        if (UNLIKELY(!walk && !mmu->can_execute_address(address)))
         {
             VirtualMemory::throw_fault(VirtualMemory::PageFaultException::Reason::EXECUTE_DENIED,
                                        address >> kNumPageOffsetBits,
@@ -265,6 +268,29 @@ class SystemBus : private VirtualMemory::PhysicalPages
     {
         const word address = ppage << kNumPageOffsetBits;
         route_memory(address)->write_block(address, data, kPageSize);
+    }
+
+    // For the page table walker: a missing address is reported to it, not thrown.
+    bool read_physical_word(word address, word &out) override
+    {
+        if (UNLIKELY(address % sizeof(word) != 0
+                     || !(ram->in_bounds(address) || rom->in_bounds(address)
+                          || disk->in_bounds(address))))
+        {
+            return false;
+        }
+        out = route_memory(address)->read_word(address);
+        return true;
+    }
+
+    bool write_physical_word(word address, word value) override
+    {
+        if (UNLIKELY(address % sizeof(word) != 0 || !ram->in_bounds(address)))
+        {
+            return false;
+        }
+        ram->write_word(address, value);
+        return true;
     }
 
     inline word

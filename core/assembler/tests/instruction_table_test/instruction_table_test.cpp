@@ -106,9 +106,10 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         const InstructionFormat format = spec->format;
         if (format == InstructionFormat::HLT || format == InstructionFormat::NOP
             || format == InstructionFormat::ERET || format == InstructionFormat::WFI
-            || format == InstructionFormat::BRK || format == InstructionFormat::MSR
-            || format == InstructionFormat::MRS || format == InstructionFormat::RET
-            || format == InstructionFormat::UNIMPLEMENTED || format == InstructionFormat::ATOMIC)
+            || format == InstructionFormat::TLBI || format == InstructionFormat::BRK
+            || format == InstructionFormat::MSR || format == InstructionFormat::MRS
+            || format == InstructionFormat::RET || format == InstructionFormat::UNIMPLEMENTED
+            || format == InstructionFormat::ATOMIC)
         {
             continue;
         }
@@ -217,6 +218,14 @@ TEST_F(InstructionTable, msr_and_mrs_name_the_system_registers_in_any_case)
               std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, false, 0)});
     EXPECT_TRUE(
         contains(error_of([&] { assemble("msr nothing, x1"); }), "invalid system register"));
+}
+
+TEST_F(InstructionTable, tlbi_with_and_without_a_register)
+{
+    EXPECT_EQ(assemble("tlbi"), std::vector<word>{Emulator32bit::asm_tlbi(0, false, 0)});
+    EXPECT_EQ(assemble("tlbi x5"), std::vector<word>{Emulator32bit::asm_tlbi(5, true, 0)});
+    EXPECT_EQ(Emulator32bit::disassemble_instr(assemble("tlbi x5")[0]), "tlbi x5");
+    EXPECT_EQ(Emulator32bit::disassemble_instr(assemble("tlbi")[0]), "tlbi");
 }
 
 TEST_F(InstructionTable, conditional_selects)

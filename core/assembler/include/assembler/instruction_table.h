@@ -28,9 +28,10 @@ enum class InstructionFormat
     UNARY,     ///< sxtb, sxth, uxtb, uxth, clz, rev, rev16: op xd, xn
     HLT,
     NOP,
+    TLBI,      ///< tlbi [xn]: forget the translation of the page of xn, or all of them
     ERET,
     WFI,
-    BRK, ///< brk [number], a number of 22 bits (0 if left out)
+    BRK,       ///< brk [number], a number of 22 bits (0 if left out)
     MSR,
     MRS,
     RET,

@@ -370,10 +370,7 @@ static std::string disassemble_brk(word instruction)
 
 static std::string disassemble_tlbi(word instruction)
 {
-    const bool isxt = test_bit(instruction, 16);
-    const word imm16 = bitfield_unsigned(instruction, 0, 16);
-
-    return "tlbi " + std::to_string(imm16) + (isxt ? +" " + disassemble_gpr(instruction, 17) : "");
+    return test_bit(instruction, 16) ? "tlbi " + disassemble_gpr(instruction, 17) : "tlbi";
 }
 
 static std::string disassemble_atomic(word instruction)

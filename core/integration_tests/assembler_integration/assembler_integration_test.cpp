@@ -2325,3 +2325,58 @@ table:          .word 11, 22, 33
     EXPECT_EQ(reg(19), 0x78563412u);
     EXPECT_EQ(reg(20), 0x34127856u);
 }
+
+// A bare metal program that builds its own page tables and turns the MMU on (docs/mmu.md). It is
+// placed at physical addresses (@P), so it knows where the tables are.
+TEST_F(AssemblerIntegration, a_program_builds_page_tables_and_turns_the_mmu_on)
+{
+    write_file("mmu.basm", R"(.global _start
+.text
+_start:
+                adrp    x0, l1
+                add     x0, x0, :lo12:l1        ; the first level table
+                adrp    x1, l2
+                add     x1, x1, :lo12:l2        ; its only second level table
+                orr     x2, x1, 1               ; l1[0] = l2, valid
+                str     x2, [x0]
+
+                mov     x3, 0                   ; identity map the first 16 pages: V | W | X
+                mov     x4, 16
+fill:           lsl     x5, x3, 12
+                orr     x5, x5, 7
+                lsl     x6, x3, 2
+                str     x5, [x1, x6]
+                add     x3, x3, 1
+                cmp     x3, x4
+                b.ne    fill
+
+                mov     x5, $C003               ; virtual page $40 -> physical page 12, V | W
+                mov     x6, $100
+                str     x5, [x1, x6]
+
+                msr     ptbr, x0
+                mov     x7, 1
+                msr     sctlr, x7               ; translation is on, the next fetch is mapped
+
+                ldr     x8, =$40000
+                mov     x9, 123
+                str     x9, [x8]                ; through the new mapping
+                mov     x11, $C000
+                ldr     x12, [x11]              ; the same word, through the identity mapping
+                ldr     x13, [x1, x6]           ; the entry, with accessed and dirty set
+                tlbi
+                tlbi    x8
+                hlt
+
+.bss
+.align 4096
+l1:             .advance 4096
+l2:             .advance 4096
+)");
+    write_file("mmu.ld", "ENTRY(_start)\nSECTIONS (\n @P;\n .text = 0x0;\n .bss = 0x8000;\n)\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o mmu mmu.basm -ld mmu.ld -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("mmu.bexe"));
+
+    EXPECT_EQ(reg(12), 123u);
+    EXPECT_EQ(reg(13), 0xC003u | 0x10 | 0x20);
+}

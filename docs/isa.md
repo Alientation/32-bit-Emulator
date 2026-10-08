@@ -243,7 +243,7 @@ The extended op is bits 22–25. An unknown extended op is an [undefined instruc
 | `0000` | `HLT` | stops the program. Privileged |
 | `0001` | `MSR sysreg, xn \| imm16` | implemented. Privileged, except for the flags of PSTATE |
 | `0010` | `MRS xn, sysreg` | implemented. Privileged, except for the flags of PSTATE |
-| `0011` | `TLBI flags{, xt}` | privileged, not implemented (undefined instruction) |
+| `0011` | `TLBI{ xt}` | implemented. Privileged. Forgets cached page table translations |
 | `0100` | atomic operations | implemented |
 | `0101` | `ERET` | implemented. Privileged |
 | `0110` | `WFI` | privileged. Halts for now: there are no interrupts |
@@ -296,7 +296,7 @@ Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a 
 
 Moves from a system register. In user mode only the flags of PSTATE can be read.
 
-### TLBI (not implemented)
+### TLBI
 
 ```
  31   26 25  22 21  17 16 15           0
@@ -305,7 +305,7 @@ Moves from a system register. In user mode only the flags of PSTATE can be read.
 +-------+------+------+--+--------------+
 ```
 
-Flushes the TLB, `imm16` says how. Privileged. Always an undefined instruction (ISS 3, "TLBI unimplemented.").
+`tlbi` forgets every cached page table translation, `tlbi xt` (`?xt` set) only the one of the page that holds the address in `xt`. `imm16` is reserved, 0. Privileged. See [mmu.md](mmu.md#the-tlb-and-tlbi).
 
 ### Atomic operations
 

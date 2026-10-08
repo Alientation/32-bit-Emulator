@@ -44,6 +44,26 @@ class FakePhysicalPages : public VirtualMemory::PhysicalPages
         written.push_back(ppage);
         page(ppage).assign(data, data + kPageSize);
     }
+
+    bool read_physical_word(word address, word &out) override
+    {
+        const auto &contents = page(address >> kNumPageOffsetBits);
+        const word offset = address & (kPageSize - 1);
+        out = contents[offset] | (contents[offset + 1] << 8) | (contents[offset + 2] << 16)
+              | (word(contents[offset + 3]) << 24);
+        return true;
+    }
+
+    bool write_physical_word(word address, word value) override
+    {
+        auto &contents = page(address >> kNumPageOffsetBits);
+        const word offset = address & (kPageSize - 1);
+        for (word i = 0; i < 4; i++)
+        {
+            contents[offset + i] = byte(value >> (8 * i));
+        }
+        return true;
+    }
 };
 
 /// A virtual memory over a fake physical memory and a disk in memory.

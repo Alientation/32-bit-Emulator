@@ -147,7 +147,57 @@ class VirtualMemory
 
         /// Copies kPageSize bytes to the physical page.
         virtual void write_page(word ppage, const byte *data) = 0;
+
+        /// Reads the word at a physical address (the page table walker uses this). Returns
+        /// false if no memory is there.
+        virtual bool read_physical_word(word address, word &out) = 0;
+
+        /// Writes a word to a physical address. Returns false if no memory is there.
+        virtual bool write_physical_word(word address, word value) = 0;
     };
+
+    /// @name Page tables in memory
+    /// When the walk is enabled (`SCTLR.M`), virtual addresses are translated by walking a two
+    /// level table in physical memory that the operating system owns, `process`es, the swapping
+    /// and `begin_process` are not used. See docs/mmu.md.
+    ///@{
+
+    /// Bits of a page table entry (the last level, and the first level only needs
+    /// valid and the frame).
+    static constexpr word kPteValid = 1u << 0;
+    static constexpr word kPteWrite = 1u << 1;
+    static constexpr word kPteExecute = 1u << 2;
+    static constexpr word kPteUser = 1u << 3;
+    static constexpr word kPteAccessed = 1u << 4; ///< set by the hardware on any access
+    static constexpr word kPteDirty = 1u << 5;    ///< set by the hardware on a write
+    static constexpr word kPteFrameMask = ~word(kPageSize - 1);
+
+    /// Whether addresses are translated by the page tables. Drops all cached translations.
+    void set_walk_enabled(bool enabled);
+
+    bool walk_enabled() const
+    {
+        return m_walk;
+    }
+
+    /// The physical address of the first level table (page aligned). Drops cached translations.
+    void set_page_table_base(word base);
+
+    word page_table_base() const
+    {
+        return m_ptbr;
+    }
+
+    /// Whether accesses are made in user mode, which may only use pages marked user.
+    void set_user_mode(bool user)
+    {
+        m_user = user;
+    }
+
+    /// `TLBI`: forget the cached translation of the page that holds `address`, or all of them.
+    void invalidate_translation(word address);
+    void invalidate_translations();
+    ///@}
 
     /**
      * @brief             Sets where the pages that are paged in are. Without it the pages have no
@@ -338,6 +388,17 @@ class VirtualMemory
      */
     inline word translate_address(word address, AccessType access = AccessType::READ)
     {
+        if (UNLIKELY(m_walk))
+        {
+            const word vpage = address >> kNumPageOffsetBits;
+            const WalkEntry &entry = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
+            if (LIKELY(entry.valid && entry.vpage == vpage && walk_allows(entry, access)))
+            {
+                return (entry.ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
+            }
+            return walk_translate(address, access);
+        }
+
         if (UNLIKELY(m_cur_ptable == nullptr || !enabled))
         {
             return address;
@@ -439,6 +500,46 @@ class VirtualMemory
      *                     page had then.
      */
     TLB_Entry m_tlb[kMaxTLBSize];
+
+    /// A cached translation of the page table walk. Keeps the bits of the entry, so a later access
+    /// of another kind (a write to a page that is not dirty yet) takes the slow path.
+    struct WalkEntry
+    {
+        bool valid = false;
+        word vpage = 0;
+        word ppage = 0;
+        bool write = false;
+        bool execute = false;
+        bool user = false;
+        bool dirty = false;
+    };
+
+    WalkEntry m_walk_tlb[kMaxTLBSize];
+    bool m_walk = false;
+    bool m_user = false;
+    word m_ptbr = 0;
+
+    /// Whether the cached translation allows the access in the current mode.
+    inline bool walk_allows(const WalkEntry &entry, AccessType access) const
+    {
+        if (m_user ? !entry.user : (access == AccessType::EXECUTE && entry.user))
+        {
+            return false;
+        }
+        switch (access)
+        {
+        case AccessType::WRITE:
+            return entry.write && entry.dirty;
+        case AccessType::EXECUTE:
+            return entry.execute;
+        default:
+            return true;
+        }
+    }
+
+    /// Walks the tables: checks the entry, sets accessed and dirty, fills the cache. Throws
+    /// PageFaultException.
+    word walk_translate(word address, AccessType access);
 
     /**
      * @brief            Free PIDs not in use by any process.

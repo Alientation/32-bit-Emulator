@@ -342,8 +342,8 @@ class Emulator32bit
     word m_esr = 0;   ///< Class (bits 26-31) and syndrome of the last exception.
     word m_far = 0;   ///< Address of the last abort.
     word m_vbar = 0;  ///< Vector table. 0: there is none and nothing is raised, see below.
-    word m_ptbr = 0;  ///< Reserved for the page tables, has no effect.
-    word m_sctlr = 0; ///< Reserved for system control, has no effect.
+    word m_ptbr = 0;  ///< Physical address of the first level page table (a page).
+    word m_sctlr = 0; ///< System control: bit 0 turns on translation by the page tables.
 
     /// The address of the last load, store or atomic, for FAR when it faults.
     word m_data_address = 0;
@@ -531,6 +531,7 @@ class Emulator32bit
     static constexpr word kAtomicWidth_hword = 0b10;
 
     // The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
+    static constexpr word kSctlrMmuEnable = 1; ///< Bit 0 of SCTLR.
     static constexpr word kSysregId_pstate = 1;
     static constexpr word kSysregId_elr = 2;
     static constexpr word kSysregId_spsr = 3;

@@ -357,17 +357,16 @@ void Emulator32bit::_tlbi(const word instr)
 {
     require_kernel();
 
-    word xt = _SX1(instr);
-    bool isxt = test_bit(instr, 16);
-    word imm16 = bitfield_unsigned(instr, 0, 16);
-
-    // todo
-    (void) (xt);
-    (void) (isxt);
-    (void) (imm16);
-
-    throw Exception(Emulator32bit::InterruptType::BAD_INSTR, "TLBI unimplemented.",
-                    kUndefinedIss_unimplemented);
+    // With `?xt` the translation of the page that holds the address in xt, otherwise all of them.
+    // imm16 is reserved (0).
+    if (test_bit(instr, 16))
+    {
+        system_bus->mmu->invalidate_translation(read_reg(_SX1(instr)));
+    }
+    else
+    {
+        system_bus->mmu->invalidate_translations();
+    }
 }
 
 word Emulator32bit::asm_tlbi(U8 xt, bool isxt, word imm16)

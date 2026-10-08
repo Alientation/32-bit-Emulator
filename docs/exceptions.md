@@ -1,6 +1,6 @@
 # Exceptions, system registers and privilege
 
-**Status: implemented**, except what is listed under [Not done yet](#not-done-yet): interrupts (IRQs), `TLBI`, and enforcing kernel-only pages by privilege level. It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The instruction encodings are in [isa.md](isa.md#special-instructions-opcode-000000). In assembly a number is written without `#`: `swi 3`, `brk 3`.
+**Status: implemented**, except what is listed under [Not done yet](#not-done-yet): interrupts (IRQs). The page tables are in [mmu.md](mmu.md). It replaces the C++ exception path (`Emulator32bit::Exception`, `VirtualMemory::PageFaultException`) and the `swi` emulator-call hack with what an operating system needs: traps the kernel can handle, a way to return from them, system registers, and two privilege levels. The instruction encodings are in [isa.md](isa.md#special-instructions-opcode-000000). In assembly a number is written without `#`: `swi 3`, `brk 3`.
 
 Goals:
 
@@ -23,7 +23,7 @@ In **user mode**:
 
 - `MSR`, `MRS` (except the NZCV bits of PSTATE), `TLBI`, `ERET`, `WFI` and `HLT` raise [undefined instruction](#exception-classes) (ISS = privileged).
 - `sp` is the user stack pointer (see [banked sp](#banked-stack-pointer)).
-- Pages the MMU marks kernel only are meant to fault. They do not yet: the MMU still has its own, per process, notion of privilege (`begin_process (kernel_privilege)`), which does not follow `PSTATE.U`. Tying the two together is part of the MMU redesign.
+- With the page tables on (`SCTLR.M`), a page without the `U` bit faults (permission) in user mode, and the kernel never executes a `U` page, see [mmu.md](mmu.md#permissions). (The older per process MMU, used while `SCTLR.M` is 0, has its own notion of privilege (`begin_process (kernel_privilege)`) that does not follow `PSTATE.U`.)
 
 The emulator **always starts in kernel (privileged) mode**, with IRQs masked. The only way into user mode is `ERET` with a `SPSR` whose `U` bit is set, so the kernel does it. Programs loaded by `emu32 -e` therefore run privileged, as they do now, and nothing changes for them.
 
@@ -82,8 +82,8 @@ Conditions that are not a CPU exception stay what they are today: `FatalError` a
 | 5 | `FAR` | kernel | faulting address of the last abort |
 | 6 | `VBAR` | kernel | vector table base. 0 = no table installed (see [Migration](#migration)) |
 | 7 | `USP` | kernel | the user mode stack pointer (see below) |
-| 8 | `PTBR` | kernel | page table base, reserved for the MMU design: it can be written and read and has no effect yet |
-| 9 | `SCTLR` | kernel | system control, reserved (bit 0: MMU enable), no effect yet |
+| 8 | `PTBR` | kernel | physical address of the first level page table (low 12 bits read 0), see [mmu.md](mmu.md) |
+| 9 | `SCTLR` | kernel | system control. Bit 0 (`M`) turns on translation by the page tables; the other bits read 0 |
 | 10–31 | | | reserved. Devices (timer, interrupt controller) are memory mapped, not system registers |
 
 Reading or writing a number that is not listed is an undefined instruction with ISS = 4. `SPSR` keeps the bits of PSTATE that exist, and `VBAR` is rounded down to a multiple of 16. In assembly the registers are written by name in any case: `msr vbar, x0`, `mrs x1, ESR`, `msr spsr, 16`.
@@ -134,7 +134,7 @@ All of them live in the special group (opcode `000000`), whose extended ops `010
 
 `swi` keeps its opcode (`110001`) and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3` (`swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`). The number is unsigned and is not an offset.
 
-`MSR`/`MRS` keep their encodings and work now. `TLBI` still faults as not implemented (after its privilege check), it needs the MMU redesign.
+`MSR`/`MRS` keep their encodings and work now. `TLBI` works now, see [mmu.md](mmu.md#the-tlb-and-tlbi).
 
 ## `swi` and the emulator calls
 
@@ -157,6 +157,5 @@ An OS-less program keeps working: while `VBAR` is 0 no table is installed, and t
 ## Not done yet
 
 - **Interrupts.** Class 6 (IRQ) is reserved. There is no interrupt controller, and `WFI` halts. The first come, first served queue above is the design for it.
-- **`TLBI`**, **`PTBR`** and **`SCTLR`**: part of the MMU design. The two registers store a value and do nothing.
-- **Kernel-only pages by privilege level**, see [Privilege](#privilege).
+- (`TLBI`, `PTBR`, `SCTLR` and kernel-only pages by privilege level are done: see [mmu.md](mmu.md). The old per-process MMU used while `SCTLR.M` is 0 still has its own kernel-only notion.)
 - **Alignment faults for data accesses** (only the pc is checked).

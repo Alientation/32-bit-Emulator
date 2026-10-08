@@ -146,9 +146,9 @@ TEST_F(Exceptions, the_cpu_starts_in_kernel_mode_with_irqs_masked_and_no_vector_
 
 TEST_F(Exceptions, msr_and_mrs_move_values_to_and_from_the_system_registers)
 {
-    const word registers[] = {Emulator32bit::kSysregId_elr,   Emulator32bit::kSysregId_esr,
-                              Emulator32bit::kSysregId_far,   Emulator32bit::kSysregId_ptbr,
-                              Emulator32bit::kSysregId_sctlr, Emulator32bit::kSysregId_usp};
+    const word registers[] = {Emulator32bit::kSysregId_elr, Emulator32bit::kSysregId_esr,
+                              Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_usp};
+    // (PTBR and SCTLR keep fewer bits and have an effect, mmu_test.cpp covers them.)
     for (const word id : registers)
     {
         cpu.write_reg(U8(1), 0xCAFE0000 + id);
@@ -214,9 +214,6 @@ TEST_F(Exceptions, the_syndrome_tells_why_an_instruction_is_undefined)
 
     expect_in_handler(run({mrs(1, 20)}), Class::UNDEFINED_INSTRUCTION);
     EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_sysreg);
-
-    expect_in_handler(run({Emulator32bit::asm_tlbi(0, false, 0)}), Class::UNDEFINED_INSTRUCTION);
-    EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_unimplemented);
 }
 
 TEST_F(Exceptions, a_handler_that_faults_again_after_running_is_not_a_double_fault)

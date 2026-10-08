@@ -527,10 +527,12 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         m_sp_other = value;
         break;
     case kSysregId_ptbr:
-        m_ptbr = value;
+        m_ptbr = value & ~word(kPageSize - 1); // the first level table is a page
+        system_bus->mmu->set_page_table_base(m_ptbr);
         break;
     case kSysregId_sctlr:
-        m_sctlr = value;
+        m_sctlr = value & kSctlrMmuEnable; // the only bit there is
+        system_bus->mmu->set_walk_enabled(test_bit(m_sctlr, 0));
         break;
     default:
         throw Exception(InterruptType::BAD_REG,
@@ -556,6 +558,7 @@ void Emulator32bit::set_user_mode(const bool user)
         std::swap(m_x[register_to_U8(Register::SP)], m_sp_other);
     }
     m_pstate = set_bit(m_pstate, kUserModeBit, user);
+    system_bus->mmu->set_user_mode(user);
 }
 
 void Emulator32bit::require_kernel()
@@ -673,6 +676,9 @@ void Emulator32bit::reset()
 
     m_sp_other = 0;
     m_elr = m_spsr = m_esr = m_far = m_vbar = m_ptbr = m_sctlr = 0;
+    system_bus->mmu->set_user_mode(false);
+    system_bus->mmu->set_page_table_base(0);
+    system_bus->mmu->set_walk_enabled(false);
     m_data_address = 0;
     m_pc_written = false;
     m_retired_since_entry = true;

@@ -763,6 +763,9 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::NOP:
         _nop();
         return;
+    case Format::TLBI:
+        _tlbi();
+        return;
     case Format::ERET:
         _eret();
         return;
@@ -797,6 +800,20 @@ void Assembler::_nop()
 {
     m_cursor.next();
     m_obj.text_section.push_back(Emulator32bit::asm_nop());
+}
+
+void Assembler::_tlbi()
+{
+    m_cursor.next();
+
+    if (basm::is_register(m_cursor.peek().type))
+    {
+        m_obj.text_section.push_back(Emulator32bit::asm_tlbi(parse_register(), true, 0));
+    }
+    else
+    {
+        m_obj.text_section.push_back(Emulator32bit::asm_tlbi(0, false, 0));
+    }
 }
 
 void Assembler::_eret()

@@ -89,7 +89,7 @@
     F(X, CNEG, "cneg", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csneg)         \
     F(X, MSR, "msr", false, MSR, 0, 0)                                                             \
     F(X, MRS, "mrs", false, MRS, 0, 0)                                                             \
-    F(X, TLBI, "tlbi", false, UNIMPLEMENTED, 0, 0)                                                 \
+    F(X, TLBI, "tlbi", false, TLBI, 0, 0)                                                          \
     F(X, ERET, "eret", false, ERET, 0, 0)                                                          \
     F(X, WFI, "wfi", false, WFI, 0, 0)                                                             \
     F(X, BRK, "brk", false, BRK, 0, 0)                                                             \

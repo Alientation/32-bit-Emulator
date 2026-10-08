@@ -860,3 +860,88 @@ void VirtualMemory::check_lru()
                    "Expected the marked pages to be the ones on the list, page {}", ppage);
     }
 }
+
+void VirtualMemory::set_walk_enabled(const bool enabled)
+{
+    m_walk = enabled;
+    invalidate_translations();
+}
+
+void VirtualMemory::set_page_table_base(const word base)
+{
+    m_ptbr = base & kPteFrameMask;
+    invalidate_translations();
+}
+
+void VirtualMemory::invalidate_translations()
+{
+    for (WalkEntry &entry : m_walk_tlb)
+    {
+        entry.valid = false;
+    }
+}
+
+void VirtualMemory::invalidate_translation(const word address)
+{
+    const word vpage = address >> kNumPageOffsetBits;
+    WalkEntry &entry = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
+    if (entry.valid && entry.vpage == vpage)
+    {
+        entry.valid = false;
+    }
+}
+
+// The walk: first level entry (10 bits of the address), second level entry (10 bits), page.
+// Nothing is cached unless the access is allowed.
+word VirtualMemory::walk_translate(const word address, const AccessType access)
+{
+    const word vpage = address >> kNumPageOffsetBits;
+    const auto fault = [&](const PageFaultException::Reason reason)
+    { throw_fault(reason, vpage, access); };
+
+    word first = 0;
+    if (!m_physical->read_physical_word(m_ptbr + ((address >> 22) << 2), first)
+        || !(first & kPteValid))
+    {
+        fault(PageFaultException::Reason::UNMAPPED);
+    }
+
+    const word entry_address =
+        (first & kPteFrameMask) + (((address >> kNumPageOffsetBits) & 0x3FF) << 2);
+    word entry = 0;
+    if (!m_physical->read_physical_word(entry_address, entry) || !(entry & kPteValid))
+    {
+        fault(PageFaultException::Reason::UNMAPPED);
+    }
+
+    if (m_user && !(entry & kPteUser))
+    {
+        fault(PageFaultException::Reason::KERNEL_ONLY);
+    }
+    if (access == AccessType::WRITE && !(entry & kPteWrite))
+    {
+        fault(PageFaultException::Reason::WRITE_DENIED);
+    }
+    // The kernel does not run code that a user process can write.
+    if (access == AccessType::EXECUTE
+        && (!(entry & kPteExecute) || (!m_user && (entry & kPteUser))))
+    {
+        fault(PageFaultException::Reason::EXECUTE_DENIED);
+    }
+
+    const word marked = entry | kPteAccessed | (access == AccessType::WRITE ? kPteDirty : 0);
+    if (marked != entry && !m_physical->write_physical_word(entry_address, marked))
+    {
+        fault(PageFaultException::Reason::UNMAPPED);
+    }
+
+    WalkEntry &cached = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
+    cached = {.valid = true,
+              .vpage = vpage,
+              .ppage = marked >> kNumPageOffsetBits,
+              .write = bool(marked & kPteWrite),
+              .execute = bool(marked & kPteExecute),
+              .user = bool(marked & kPteUser),
+              .dirty = bool(marked & kPteDirty)};
+    return (cached.ppage << kNumPageOffsetBits) | (address & (kPageSize - 1));
+}

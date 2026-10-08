@@ -301,6 +301,7 @@ class Assembler
     // The instructions that have an operand syntax of their own.
     void _hlt();
     void _nop();
+    void _tlbi();
     void _eret();
     void _wfi();
     void _brk();
