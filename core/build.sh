@@ -31,24 +31,26 @@ if [ $# -gt 0 ]; then
     elif [[ "$ARG1" == "coverage" ]]; then
         rm -rf "$COVERAGE_DIR"
 
-        lcov --capture \
-            --directory build/debug \
-            --output-file coverage.info \
-            --rc branch_coverage=1 \
-            --ignore-errors mismatch \
-            --ignore-errors gcov
+        # Capture and exclude tests/external code simultaneously
+        # (This completely eliminates the tst_test.cpp / smull_test.cpp warnings)
+        lcov --capture                  \
+            --directory build/debug     \
+            --base-directory .          \
+            --output-file lcov.info     \
+            --rc branch_coverage=1      \
+            --ignore-errors mismatch    \
+            --ignore-errors gcov        \
+            --no-external               \
+            --exclude '*/tests/*'       \
+            --exclude '*/cxxopts/*'     \
+            --exclude '*/googletest/*'  \
+            --exclude '*/integration_tests/*'
 
-        lcov --remove coverage.info \
-            '*/googletest/*' \
-            '*/tests/*' \
-            '/usr/include/*' \
-            --output-file lcov.info \
-            --rc branch_coverage=1 \
-            --ignore-errors unused
-
-        genhtml lcov.info \
-                --output-directory $COVERAGE_DIR \
-                --branch-coverage
+        # Generate the HTML report directly from lcov.info
+        genhtml lcov.info                       \
+            --output-directory "$COVERAGE_DIR"  \
+            --branch-coverage                   \
+            --function-coverage
         exit
     elif [[ "$ARG1" == "compile" ]]; then
         echo "Only compiling..."
