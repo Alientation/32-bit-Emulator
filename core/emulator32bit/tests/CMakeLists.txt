@@ -2,39 +2,15 @@ aemu_add_gtest(emulator32bit_tests
     LABEL emulator32bit
     LIBS aemu::emulator32bit
     SOURCES
+        ./alu_tests/alu_test.cpp
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
         ./instruction_tests/hlt_test.cpp
-        ./instruction_tests/add_test.cpp
-        ./instruction_tests/sub_test.cpp
-        ./instruction_tests/rsb_test.cpp
-        ./instruction_tests/adc_test.cpp
-        ./instruction_tests/sbc_test.cpp
-        ./instruction_tests/rsc_test.cpp
-        ./instruction_tests/mul_test.cpp
-        ./instruction_tests/umull_test.cpp
-        ./instruction_tests/smull_test.cpp
-        ./instruction_tests/and_test.cpp
-        ./instruction_tests/orr_test.cpp
-        ./instruction_tests/eor_test.cpp
-        ./instruction_tests/bic_test.cpp
-        ./instruction_tests/lsl_test.cpp
-        ./instruction_tests/lsr_test.cpp
-        ./instruction_tests/asr_test.cpp
-        ./instruction_tests/ror_test.cpp
-        ./instruction_tests/shift_flags_test.cpp
+        ./instruction_tests/dataproc_test.cpp
+        ./instruction_tests/shift_test.cpp
+        ./instruction_tests/long_multiply_test.cpp
+        ./instruction_tests/move_test.cpp
+        ./instruction_tests/memory_test.cpp
         ./instruction_tests/tlbi_test.cpp
-        ./instruction_tests/cmp_test.cpp
-        ./instruction_tests/cmn_test.cpp
-        ./instruction_tests/tst_test.cpp
-        ./instruction_tests/teq_test.cpp
-        ./instruction_tests/mov_test.cpp
-        ./instruction_tests/mvn_test.cpp
-        ./instruction_tests/ldr_test.cpp
-        ./instruction_tests/ldrb_test.cpp
-        ./instruction_tests/ldrh_test.cpp
-        ./instruction_tests/str_test.cpp
-        ./instruction_tests/strb_test.cpp
-        ./instruction_tests/strh_test.cpp
         ./instruction_tests/swp_test.cpp
 )

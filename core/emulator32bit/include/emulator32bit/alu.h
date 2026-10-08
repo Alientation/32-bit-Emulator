@@ -226,23 +226,59 @@ static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
     // ARM convention:
     //   SUB: carry_in = true
     //   SBC: carry_in = previous C flag
-    const U64 borrow = carry_in ? 0 : 1;
-    const U64 rhs = U64(b) + borrow;
-    const word result = word(U64(a) - rhs);
+    //
+    // a - b - !carry_in == a + ~b + carry_in, so C is "no borrow" and V is the signed overflow of
+    // that sum. Computing the flags on the raw ~b avoids wrapping b + 1 into the sign bit.
+    return alu_add(a, ~b, carry_in);
+}
 
-    constexpr word kSignBit = 0x80000000U;
-
-    const bool c = U64(a) >= rhs;
-    const word effective_b = word(rhs);
-    const bool v = ((a ^ effective_b) & (a ^ result) & kSignBit) != 0;
-
-    return {.result = result,
-            .flags = {
-                .n = (result & kSignBit) != 0,
+/**
+ * Result of a logical operation or move. N and Z are derived from the result, C and V are kept
+ * from the initial flags.
+ */
+static inline AluResult alu_logic_result(const word result, const NZCVFlags initial_flags)
+{
+    return {
+        .result = result,
+        .flags =
+            {
+                .n = test_bit(result, 31),
                 .z = result == 0,
-                .c = c,
-                .v = v,
-            }};
+                .c = initial_flags.c,
+                .v = initial_flags.v,
+            },
+    };
+}
+
+static inline AluResult alu_and(const word a, const word b, const NZCVFlags flags)
+{
+    return alu_logic_result(a & b, flags);
+}
+
+static inline AluResult alu_orr(const word a, const word b, const NZCVFlags flags)
+{
+    return alu_logic_result(a | b, flags);
+}
+
+static inline AluResult alu_eor(const word a, const word b, const NZCVFlags flags)
+{
+    return alu_logic_result(a ^ b, flags);
+}
+
+/// Bit clear: a & ~b.
+static inline AluResult alu_bic(const word a, const word b, const NZCVFlags flags)
+{
+    return alu_logic_result(a & ~b, flags);
+}
+
+static inline AluResult alu_mov(const word value, const NZCVFlags flags)
+{
+    return alu_logic_result(value, flags);
+}
+
+static inline AluResult alu_mvn(const word value, const NZCVFlags flags)
+{
+    return alu_logic_result(~value, flags);
 }
 
 static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flags)

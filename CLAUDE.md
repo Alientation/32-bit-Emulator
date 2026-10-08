@@ -24,9 +24,9 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compile
 
 Run a single test or suite:
 ```bash
-ctest --test-dir build/debug -R 'EmulatorFixture.add_'   # regex on discovered test name (Suite.Test)
+ctest --test-dir build/debug -R 'ShiftTest.'         # regex on discovered test name (Suite.Test)
 ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit | assembler | assembler_integration
-build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='EmulatorFixture.add_*'
+build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='DataProcessingTest.golden_*'
 ```
 
 Compile flags are not set per target. Every target calls `aemu_target_defaults(<tgt>)` from `core/cmake/AemuHelpers.cmake`, which adds the warnings, `-O3` for Release/RelWithDebInfo (compile and link), and `--coverage` for Debug. LTO comes from CMake's IPO support. CMake options: `AEMU_ENABLE_COVERAGE` (ON), `AEMU_WARNINGS_AS_ERRORS` (OFF), `AEMU_ENABLE_LTO` (ON), `BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched). In-tree code links the libraries through the `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
@@ -68,7 +68,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
   - The preprocessor keeps a stack of input frames (the file, `#include`s, macro and symbol expansions) instead of editing a token list. A macro `#invoke` substitutes the arguments into the body textually and wraps it in `.scope`/`.scend`.
   - The preprocessor writes the `.bi` text, but `Process` hands the assembler the preprocessor's tokens directly (`Preprocessor::take_result()` → `basm::PreprocessedSource`, the `Assembler` constructor that takes one) instead of lexing the `.bi` again. Tokens keep their original file/line/column, and tokens from a macro or `#define` expansion carry `SourceLocation::expansion`, so errors show the original source line plus `note: in expansion of macro 'x'` lines. The `Assembler(process, file)` constructor still lexes a `.bi` (its errors point into the `.bi`).
 
-**Adding or changing an instruction touches several places:** the `_INSTR` opcode list and the `asm_*` encoder (emulator32bit.h/instructions.cpp), the disassembler, the lexer's keyword table and token list (`assembler/src/tokenizer_v2.cpp`, `BASM_TOKEN_TYPES` in `tokenizer.h`), the assembler handler (`assembler/src/instructions.cpp`), and a gtest in `emulator32bit/tests/instruction_tests/` that is registered in its CMakeLists.
+**Adding or changing an instruction touches several places:** the `_INSTR` opcode list and the `asm_*` encoder (emulator32bit.h/instructions.cpp), the disassembler, the lexer's keyword table and token list (`assembler/src/tokenizer_v2.cpp`, `BASM_TOKEN_TYPES` in `tokenizer.h`), the assembler handler (`assembler/src/instructions.cpp`), and a gtest in `emulator32bit/tests/instruction_tests/` that is registered in its CMakeLists. The tests there are table-driven per instruction family (`dataproc_test.cpp`, `shift_test.cpp`, `long_multiply_test.cpp`, `move_test.cpp`, `memory_test.cpp`), so a new ALU op usually means one more row in that file's op table rather than a new file. Shared helpers (`step`, `execute`, flag and register-snapshot checks, `ref_shift`) are in `tests/include/emulator32bit_test/emulator32bit_test.h`.
 
 ## basm language quick reference
 - Every program needs `.global _start` and a `_start:` label (the loader's entry point). Sections are `.text`, `.data` and `.bss`. Data directives (`.word`, `.byte`, `.ascii`, `.asciz`, ...) are only legal in `.data`. Reserve `.bss` space with `.advance N`. Cross-file symbols are exported with `.global`. A symbol that is referenced but not defined becomes a WEAK, section `-1` entry in the `.bo`, and the linker resolves it.

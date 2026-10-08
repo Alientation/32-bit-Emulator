@@ -93,7 +93,7 @@ The C compiler (`core/ccompiler`) is still in development and is currently disab
 ./build.sh test
 
 # Run a subset of tests with ctest (by name regex or by label: emulator32bit | assembler | assembler_integration)
-ctest --test-dir build/debug -R 'EmulatorFixture.add_'
+ctest --test-dir build/debug -R 'ShiftTest.'
 ctest --test-dir build/debug -L assembler_integration
 
 # Code Coverage is generated automatically for the debug build. To generate lcov coverage info to display, use the coverage argument.
