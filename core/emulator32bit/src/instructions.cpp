@@ -620,6 +620,14 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
     }
 
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        const word length = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
+        // The write is reported first: it is the more interesting half of a read-modify-write.
+        watch_access(mem_adr, length, true, new_val);
+        watch_access(mem_adr, length, false, val_mem);
+    }
+
     // Return the original memory value in Xt. Only once the memory is written, a write that
     // faults leaves the registers as they were.
     write_reg(xt, val_mem);
@@ -820,6 +828,10 @@ void Emulator32bit::_ldr(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
     const word read_val = system_bus->read_word(mem.address);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 4, false, read_val);
+    }
     write_back_base(mem);
     write_reg(_X1(instr), read_val);
 }
@@ -829,6 +841,10 @@ void Emulator32bit::_ldrb(const word instr)
     const bool sign = test_bit(instr, 25);
     const MemOperand mem = decode_mem_operand(instr);
     word read_val = system_bus->read_byte(mem.address);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 1, false, read_val);
+    }
     if (sign)
     {
         read_val = sword(S8(read_val));
@@ -842,6 +858,10 @@ void Emulator32bit::_ldrh(const word instr)
     const bool sign = test_bit(instr, 25);
     const MemOperand mem = decode_mem_operand(instr);
     word read_val = system_bus->read_hword(mem.address);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 2, false, read_val);
+    }
     if (sign)
     {
         read_val = sword(S16(read_val));
@@ -854,21 +874,36 @@ void Emulator32bit::_ldrh(const word instr)
 void Emulator32bit::_str(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
-    system_bus->write_word(mem.address, read_reg(_X1(instr)));
+    const word value = read_reg(_X1(instr));
+    system_bus->write_word(mem.address, value);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 4, true, value);
+    }
     write_back_base(mem);
 }
 
 void Emulator32bit::_strb(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
-    system_bus->write_byte(mem.address, read_reg(_X1(instr)));
+    const word value = read_reg(_X1(instr));
+    system_bus->write_byte(mem.address, value);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 1, true, value & 0xFF);
+    }
     write_back_base(mem);
 }
 
 void Emulator32bit::_strh(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
-    system_bus->write_hword(mem.address, read_reg(_X1(instr)));
+    const word value = read_reg(_X1(instr));
+    system_bus->write_hword(mem.address, value);
+    if (UNLIKELY(!m_watchpoints.empty()))
+    {
+        watch_access(mem.address, 2, true, value & 0xFFFF);
+    }
     write_back_base(mem);
 }
 

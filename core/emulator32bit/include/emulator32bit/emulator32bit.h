@@ -161,6 +161,50 @@ class Emulator32bit
     void clear_breakpoints();
     const std::set<word> &breakpoints() const;
 
+    /// What a watchpoint reacts to.
+    enum class WatchKind : U8
+    {
+        READ = 1,
+        WRITE = 2,
+        ACCESS = 3, ///< either
+    };
+
+    /// A range of virtual addresses (the address the instruction computed, before translation).
+    struct Watchpoint
+    {
+        word address;
+        word length; ///< at least 1
+        WatchKind kind;
+    };
+
+    /// Makes run () stop, with Status::BREAKPOINT, right after an instruction that read or wrote
+    /// (per `kind`) any byte of [address, address + length). The pc is then the next instruction.
+    /// Only loads, stores and atomics count (not instruction fetches, the page table walker, or
+    /// the debugger's own reads); an atomic is a read and a write. An access that faults does not
+    /// count. A watchpoint on an address that is already watched replaces it.
+    void add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE);
+    /// Removes the watchpoint that starts at the address.
+    bool remove_watchpoint(word address);
+    void clear_watchpoints();
+    const std::vector<Watchpoint> &watchpoints() const;
+
+    /// Makes run () stop, with Status::BREAKPOINT, once an instruction (or exception entry) has
+    /// changed the register (0-29 or sp, the one of the current mode). With `value`, only a change
+    /// to that value stops. A write of the value it already has is not a change. The pc is then at
+    /// the next instruction. Costs nothing while no register is watched. One watch per register.
+    void add_register_watch(U8 reg, std::optional<word> value = std::nullopt);
+    bool remove_register_watch(U8 reg);
+    void clear_register_watches();
+
+    struct RegisterWatch
+    {
+        U8 reg;
+        std::optional<word> value;
+        word last; ///< the value when the watch was last checked
+    };
+
+    const std::vector<RegisterWatch> &register_watches() const;
+
     /// Writes a line per instruction to the stream before the next run (), or nothing for nullptr:
     /// `pc <symbol>: instruction | what changed`, or the reason when the instruction faulted. The
     /// stream must outlive its use.
@@ -405,6 +449,14 @@ class Emulator32bit
     void require_kernel();
 
     std::set<word> m_breakpoints;
+    std::vector<Watchpoint> m_watchpoints;
+    std::vector<RegisterWatch> m_register_watches;
+    /// The first watchpoint the running instruction hit, as the message run () reports.
+    std::string m_watch_hit;
+
+    /// Called by the memory instructions after a successful access of `length` bytes. `value` is
+    /// what was loaded or stored.
+    void watch_access(word address, word length, bool write, word value);
     std::ostream *m_trace = nullptr;
     const SymbolMap *m_symbols = nullptr;
     size_t m_history_size = 0;

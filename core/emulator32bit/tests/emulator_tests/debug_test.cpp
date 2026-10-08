@@ -430,4 +430,327 @@ TEST_F(DebuggerTest, run_reads_commands_until_quit_or_the_end_of_the_input)
     EXPECT_EQ(cpu.read_reg(0), 2u);
 }
 
+// Watchpoints. x1 = 0x100 is the address, x2 the value.
+
+constexpr word kWatched = 0x100;
+
+word mem_op(const U8 opcode, const int xt, const int xn, const int offset,
+            const Emulator32bit::AddrType mode = Emulator32bit::AddrType::ADDR_OFFSET)
+{
+    return Emulator32bit::asm_format_m(opcode, false, xt, xn, offset, mode);
+}
+
+class WatchpointTest : public DebugFixture
+{
+  protected:
+    void SetUp() override
+    {
+        write_program({mem_op(Emulator32bit::_op_str, 2, 1, 0), add_imm(0, 0, 1),
+                       mem_op(Emulator32bit::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
+        cpu.write_reg(1, kWatched);
+        cpu.write_reg(2, 0xCAFE);
+    }
+};
+
+TEST_F(WatchpointTest, a_write_watchpoint_stops_after_the_store)
+{
+    cpu.add_watchpoint(kWatched);
+    const auto result = cpu.run(0);
+
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 1u);
+    EXPECT_EQ(cpu.get_pc(), 4u);
+    EXPECT_EQ(cpu.system_bus->read_word(kWatched), 0xCAFEu);
+    EXPECT_NE(result.message.find("write of 0xcafe"), std::string::npos) << result.message;
+    EXPECT_NE(result.message.find("0x00000100"), std::string::npos) << result.message;
+    EXPECT_NE(result.message.find("instruction at 0x00000000"), std::string::npos)
+        << result.message;
+}
+
+TEST_F(WatchpointTest, the_next_run_goes_on_and_a_read_does_not_trip_a_write_watch)
+{
+    cpu.add_watchpoint(kWatched);
+    ASSERT_EQ(cpu.run(0).status, Status::BREAKPOINT);
+
+    const auto result = cpu.run(0);
+    EXPECT_EQ(result.status, Status::HALTED); // the ldr at 8 is a read
+    EXPECT_EQ(cpu.read_reg(3), 0xCAFEu);
+}
+
+TEST_F(WatchpointTest, a_read_watchpoint_ignores_the_store_and_stops_after_the_load)
+{
+    cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::READ);
+    const auto result = cpu.run(0);
+
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 3u);
+    EXPECT_EQ(cpu.get_pc(), 12u);
+    EXPECT_EQ(cpu.read_reg(3), 0xCAFEu);
+    EXPECT_NE(result.message.find("read of 0xcafe"), std::string::npos) << result.message;
+}
+
+TEST_F(WatchpointTest, an_access_watchpoint_reacts_to_both)
+{
+    cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::ACCESS);
+    EXPECT_EQ(cpu.run(0).instructions_ran, 1u);
+    EXPECT_EQ(cpu.run(0).instructions_ran, 2u); // add, then the ldr
+}
+
+TEST_F(WatchpointTest, any_overlapping_byte_counts)
+{
+    write_program({mem_op(Emulator32bit::_op_strb, 2, 1, 3),
+                   mem_op(Emulator32bit::_op_strb, 2, 1, 4), Emulator32bit::asm_hlt()});
+
+    cpu.add_watchpoint(kWatched, 4); // bytes 0x100..0x103
+    const auto first = cpu.run(0);
+    EXPECT_EQ(first.status, Status::BREAKPOINT);
+    EXPECT_NE(first.message.find("write of 0xfe (1 byte)"), std::string::npos) << first.message;
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED); // 0x104 is outside
+}
+
+TEST_F(WatchpointTest, an_atomic_is_a_write)
+{
+    write_program({Emulator32bit::asm_atomic(3, 2, 1, Emulator32bit::kAtomicWidth_word,
+                                             Emulator32bit::kAtomicId_swp),
+                   Emulator32bit::asm_hlt()});
+    cpu.add_watchpoint(kWatched);
+    const auto result = cpu.run(0);
+
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(cpu.system_bus->read_word(kWatched), 0xCAFEu);
+    EXPECT_NE(result.message.find("write"), std::string::npos) << result.message;
+}
+
+TEST_F(WatchpointTest, the_writeback_of_the_stopping_instruction_has_happened)
+{
+    write_program({mem_op(Emulator32bit::_op_str, 2, 1, 4, Emulator32bit::AddrType::ADDR_PRE_INC),
+                   Emulator32bit::asm_hlt()});
+    cpu.add_watchpoint(kWatched + 4);
+    EXPECT_EQ(cpu.run(0).status, Status::BREAKPOINT);
+    EXPECT_EQ(cpu.read_reg(1), kWatched + 4);
+}
+
+TEST_F(WatchpointTest, removing_and_clearing)
+{
+    cpu.add_watchpoint(kWatched);
+    cpu.add_watchpoint(kWatched, 8); // replaces the first one
+    EXPECT_EQ(cpu.watchpoints().size(), 1u);
+    EXPECT_EQ(cpu.watchpoints()[0].length, 8u);
+
+    EXPECT_FALSE(cpu.remove_watchpoint(0x200));
+    EXPECT_TRUE(cpu.remove_watchpoint(kWatched));
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+
+    cpu.add_watchpoint(kWatched);
+    cpu.clear_watchpoints();
+    cpu.set_pc(0);
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+}
+
+TEST_F(WatchpointTest, a_single_step_that_hits_reports_it)
+{
+    cpu.add_watchpoint(kWatched);
+    const auto result = cpu.run(1);
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 1u);
+}
+
+TEST_F(WatchpointTest, specs_are_parsed)
+{
+    SymbolMap names;
+    names.add("var", 0x40);
+
+    const auto plain = parse_watch_spec(names, "var");
+    ASSERT_TRUE(plain);
+    EXPECT_EQ(plain->address, 0x40u);
+    EXPECT_EQ(plain->length, 1u);
+    EXPECT_EQ(plain->kind, Emulator32bit::WatchKind::WRITE);
+
+    const auto full = parse_watch_spec(names, "var+4:8:rw");
+    ASSERT_TRUE(full);
+    EXPECT_EQ(full->address, 0x44u);
+    EXPECT_EQ(full->length, 8u);
+    EXPECT_EQ(full->kind, Emulator32bit::WatchKind::ACCESS);
+
+    EXPECT_EQ(parse_watch_spec(names, "0x10:r")->kind, Emulator32bit::WatchKind::READ);
+    EXPECT_FALSE(parse_watch_spec(names, "nothing"));
+    EXPECT_FALSE(parse_watch_spec(names, "var:0"));
+    EXPECT_FALSE(parse_watch_spec(names, "var:x"));
+    EXPECT_FALSE(parse_watch_spec(names, "var:1:r:w"));
+}
+
+// Register watches. The fixture program adds 1 to x0 three times and halts.
+
+using RegisterWatchTest = DebugFixture;
+
+TEST_F(RegisterWatchTest, stops_after_the_instruction_that_changed_the_register)
+{
+    cpu.add_register_watch(0);
+    const auto result = cpu.run(0);
+
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 1u);
+    EXPECT_EQ(cpu.get_pc(), 4u);
+    EXPECT_NE(result.message.find("Register watch x0: 0x0 -> 0x1"), std::string::npos)
+        << result.message;
+    EXPECT_NE(result.message.find("0x00000004"), std::string::npos) << result.message;
+
+    EXPECT_EQ(cpu.run(0).instructions_ran, 1u); // and again for the next change
+}
+
+TEST_F(RegisterWatchTest, a_value_only_stops_on_a_change_to_that_value)
+{
+    cpu.add_register_watch(0, 3);
+    const auto result = cpu.run(0);
+
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 3u);
+    EXPECT_EQ(cpu.read_reg(0), 3u);
+}
+
+TEST_F(RegisterWatchTest, a_register_that_does_not_change_never_stops)
+{
+    cpu.add_register_watch(1);
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+}
+
+TEST_F(RegisterWatchTest, writing_the_value_it_already_has_is_not_a_change)
+{
+    write_program({add_imm(0, 0, 0), add_imm(0, 0, 0), Emulator32bit::asm_hlt()});
+    cpu.add_register_watch(0);
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+}
+
+TEST_F(RegisterWatchTest, a_single_step_that_changes_it_reports_it)
+{
+    cpu.add_register_watch(0);
+    const auto result = cpu.run(1);
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_EQ(result.instructions_ran, 1u);
+}
+
+TEST_F(RegisterWatchTest, a_change_made_by_the_debugger_between_runs_is_not_reported)
+{
+    cpu.add_register_watch(0);
+    ASSERT_EQ(cpu.run(0).status, Status::BREAKPOINT);
+
+    cpu.write_reg(0, 100);
+    const auto result = cpu.run(0);
+    EXPECT_EQ(result.status, Status::BREAKPOINT);
+    EXPECT_NE(result.message.find("0x64 -> 0x65"), std::string::npos) << result.message;
+}
+
+TEST_F(RegisterWatchTest, the_stack_pointer_is_named_sp)
+{
+    write_program({add_imm(30, 30, 8), Emulator32bit::asm_hlt()});
+    cpu.add_register_watch(static_cast<U8>(Register::SP));
+    const auto result = cpu.run(0);
+    EXPECT_NE(result.message.find("Register watch sp: 0x0 -> 0x8"), std::string::npos)
+        << result.message;
+}
+
+TEST_F(RegisterWatchTest, removing_and_replacing)
+{
+    cpu.add_register_watch(0);
+    cpu.add_register_watch(0, 3); // replaces
+    EXPECT_EQ(cpu.register_watches().size(), 1u);
+    EXPECT_FALSE(cpu.remove_register_watch(5));
+    EXPECT_TRUE(cpu.remove_register_watch(0));
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+
+    cpu.add_register_watch(0);
+    cpu.clear_register_watches();
+    EXPECT_TRUE(cpu.register_watches().empty());
+}
+
+TEST_F(RegisterWatchTest, specs_are_parsed)
+{
+    const auto plain = parse_register_watch_spec("x5");
+    ASSERT_TRUE(plain);
+    EXPECT_EQ(plain->reg, 5);
+    EXPECT_FALSE(plain->value);
+
+    const auto with_value = parse_register_watch_spec("sp=0x100");
+    ASSERT_TRUE(with_value);
+    EXPECT_EQ(with_value->reg, static_cast<U8>(Register::SP));
+    EXPECT_EQ(with_value->value, 0x100u);
+
+    EXPECT_FALSE(parse_register_watch_spec("xzr"));
+    EXPECT_FALSE(parse_register_watch_spec("5"));
+    EXPECT_FALSE(parse_register_watch_spec("x99"));
+    EXPECT_FALSE(parse_register_watch_spec("x1="));
+    EXPECT_FALSE(parse_register_watch_spec("x1=zz"));
+    EXPECT_FALSE(parse_register_watch_spec(""));
+}
+
+TEST_F(DebuggerTest, watchreg_commands)
+{
+    EXPECT_NE(command("watchreg x0 2").find("Watching x0 for a change to 0x2"), std::string::npos);
+    EXPECT_NE(command("watches").find("x0, changes to 0x2"), std::string::npos);
+
+    const std::string text = command("continue");
+    EXPECT_NE(text.find("Register watch x0: 0x1 -> 0x2"), std::string::npos) << text;
+
+    EXPECT_NE(command("unwatchreg x0").find("removed"), std::string::npos);
+    EXPECT_NE(command("unwatchreg x0").find("There is no watch"), std::string::npos);
+    EXPECT_NE(command("watchreg").find("Usage"), std::string::npos);
+    EXPECT_NE(command("watchreg xzr").find("Expected"), std::string::npos);
+
+    command("watchreg sp");
+    EXPECT_NE(command("unwatchreg all").find("All register watches removed"), std::string::npos);
+    EXPECT_TRUE(cpu.register_watches().empty());
+}
+
+class WatchpointDebuggerTest : public WatchpointTest
+{
+  protected:
+    SymbolMap symbols;
+    std::istringstream in;
+    std::ostringstream out;
+    std::unique_ptr<Debugger> debugger;
+
+    void SetUp() override
+    {
+        WatchpointTest::SetUp();
+        symbols.add("start", 0);
+        symbols.add("var", kWatched);
+        debugger = std::make_unique<Debugger>(cpu, symbols, in, out);
+    }
+
+    std::string command(const std::string &line)
+    {
+        out.str("");
+        debugger->execute(line);
+        return out.str();
+    }
+};
+
+TEST_F(WatchpointDebuggerTest, watch_continue_unwatch)
+{
+    EXPECT_NE(command("watches").find("No watchpoints"), std::string::npos);
+    EXPECT_NE(command("watch var 4 rw").find("Watching 4 bytes at 0x00000100 <var> for read/write"),
+              std::string::npos);
+    EXPECT_NE(command("watches").find("<var>, 4 bytes, read/write"), std::string::npos);
+
+    const std::string text = command("continue");
+    EXPECT_NE(text.find("Watchpoint 0x00000100: write of 0xcafe"), std::string::npos) << text;
+    EXPECT_NE(text.find("=> 0x00000004"), std::string::npos) << text;
+
+    EXPECT_NE(command("unwatch var").find("removed"), std::string::npos);
+    EXPECT_NE(command("unwatch var").find("There is no watchpoint"), std::string::npos);
+    EXPECT_NE(command("continue").find("halted"), std::string::npos);
+}
+
+TEST_F(WatchpointDebuggerTest, bad_input_and_unwatch_all)
+{
+    EXPECT_NE(command("watch").find("Usage"), std::string::npos);
+    EXPECT_NE(command("watch nowhere").find("Expected"), std::string::npos);
+    EXPECT_NE(command("watch var 0").find("Expected"), std::string::npos);
+    EXPECT_NE(command("unwatch").find("Expected"), std::string::npos);
+
+    command("w var");
+    EXPECT_NE(command("unwatch all").find("All watchpoints removed"), std::string::npos);
+    EXPECT_TRUE(cpu.watchpoints().empty());
+}
+
 } // namespace

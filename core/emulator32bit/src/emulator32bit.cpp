@@ -128,6 +128,38 @@ word Emulator32bit::fetch_instruction()
 Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 {
     RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
+    m_watch_hit.clear();
+    for (RegisterWatch &watch : m_register_watches)
+    {
+        watch.last = read_reg(watch.reg); // the debugger may have changed it between runs
+    }
+
+    // True (and the result is set) when a watched register changed since it was last looked at.
+    // Checked between instructions, which covers a retired instruction and an exception entry.
+    const auto register_watch_hit = [&]()
+    {
+        for (RegisterWatch &watch : m_register_watches)
+        {
+            const word now = read_reg(watch.reg);
+            if (now == watch.last)
+            {
+                continue;
+            }
+            const word before = std::exchange(watch.last, now);
+            if (watch.value && now != *watch.value)
+            {
+                continue;
+            }
+            result.status = RunResult::Status::BREAKPOINT;
+            result.message = std::format(
+                "Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
+                watch.reg == static_cast<U8>(Register::SP) ? std::string("sp")
+                                                           : "x" + std::to_string(watch.reg),
+                before, now, m_pc);
+            return true;
+        }
+        return false;
+    };
 
     // What stops the program is reported through the result, and logged at the level of how
     // unusual it is. Anything that goes wrong in the machine is a fault of the program, whatever
@@ -146,6 +178,11 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         bool first = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
+            if (UNLIKELY(!m_register_watches.empty()) && register_watch_hit())
+            {
+                break;
+            }
+
             if (UNLIKELY(!m_breakpoints.empty()) && !first && m_breakpoints.contains(m_pc))
             {
                 result.status = RunResult::Status::BREAKPOINT;
@@ -223,6 +260,21 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             result.instructions_ran++;
             system_bus->timer.tick();
             system_bus->block.tick();
+
+            if (UNLIKELY(!m_watch_hit.empty()))
+            {
+                result.status = RunResult::Status::BREAKPOINT;
+                result.message = std::move(m_watch_hit);
+                m_watch_hit.clear();
+                break;
+            }
+        }
+
+        // The loop looks at the registers before each instruction, so the last one is left.
+        if (result.status == RunResult::Status::LIMIT_REACHED
+            && UNLIKELY(!m_register_watches.empty()))
+        {
+            register_watch_hit();
         }
     }
     catch (const Exception &e)
@@ -300,6 +352,81 @@ void Emulator32bit::clear_breakpoints()
 const std::set<word> &Emulator32bit::breakpoints() const
 {
     return m_breakpoints;
+}
+
+void Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind)
+{
+    AEMU_CHECK(length != 0, "A watchpoint needs a length of at least 1");
+    remove_watchpoint(address);
+    m_watchpoints.push_back({.address = address, .length = length, .kind = kind});
+}
+
+bool Emulator32bit::remove_watchpoint(const word address)
+{
+    return std::erase_if(m_watchpoints,
+                         [&](const Watchpoint &watch) { return watch.address == address; })
+           != 0;
+}
+
+void Emulator32bit::clear_watchpoints()
+{
+    m_watchpoints.clear();
+}
+
+const std::vector<Emulator32bit::Watchpoint> &Emulator32bit::watchpoints() const
+{
+    return m_watchpoints;
+}
+
+void Emulator32bit::add_register_watch(const U8 reg, const std::optional<word> value)
+{
+    AEMU_CHECK(reg <= static_cast<U8>(Register::SP), "Cannot watch register {}", reg);
+    remove_register_watch(reg);
+    m_register_watches.push_back({.reg = reg, .value = value, .last = read_reg(reg)});
+}
+
+bool Emulator32bit::remove_register_watch(const U8 reg)
+{
+    return std::erase_if(m_register_watches,
+                         [&](const RegisterWatch &watch) { return watch.reg == reg; })
+           != 0;
+}
+
+void Emulator32bit::clear_register_watches()
+{
+    m_register_watches.clear();
+}
+
+const std::vector<Emulator32bit::RegisterWatch> &Emulator32bit::register_watches() const
+{
+    return m_register_watches;
+}
+
+void Emulator32bit::watch_access(const word address, const word length, const bool write,
+                                 const word value)
+{
+    if (!m_watch_hit.empty())
+    {
+        return; // the first hit of the instruction is the one that is reported
+    }
+
+    const U64 first = address;
+    const U64 last = first + length; // one past, 64 bit so it cannot wrap
+    for (const Watchpoint &watch : m_watchpoints)
+    {
+        const bool kind_matches =
+            (static_cast<U8>(watch.kind)
+             & (write ? static_cast<U8>(WatchKind::WRITE) : static_cast<U8>(WatchKind::READ)))
+            != 0;
+        if (kind_matches && first < U64(watch.address) + watch.length && U64(watch.address) < last)
+        {
+            m_watch_hit = std::format("Watchpoint {:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
+                                      "the instruction at {:#010x}",
+                                      watch.address, write ? "write" : "read", value, length,
+                                      length == 1 ? "" : "s", address, m_pc);
+            return;
+        }
+    }
 }
 
 void Emulator32bit::set_trace(std::ostream *out)

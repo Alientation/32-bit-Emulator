@@ -11,6 +11,26 @@
 /// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers.
 std::optional<U64> parse_number(const std::string &str);
 
+/// A watchpoint as `<address|symbol>[:length][:r|w|rw]` (length default 1, kind default w), the
+/// syntax of `--watch`. Nothing if any part is malformed.
+struct WatchSpec
+{
+    word address;
+    word length;
+    Emulator32bit::WatchKind kind;
+};
+
+std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text);
+
+/// A register watch as `<reg>[=<value>]` (x0-x29 or sp), the syntax of `--watch-reg`.
+struct RegisterWatchSpec
+{
+    U8 reg;
+    std::optional<word> value;
+};
+
+std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &text);
+
 /// Parses a register name: x0-x29, sp, xzr, or a bare register number.
 std::optional<U8> parse_register_name(const std::string &str);
 
@@ -58,6 +78,11 @@ class Debugger
     void command_continue(const std::vector<std::string> &args);
     void command_break(const std::vector<std::string> &args);
     void command_delete(const std::vector<std::string> &args);
+    void command_watch(const std::vector<std::string> &args);
+    void command_unwatch(const std::vector<std::string> &args);
+    void command_watches();
+    void command_watchreg(const std::vector<std::string> &args);
+    void command_unwatchreg(const std::vector<std::string> &args);
     void command_regs();
     void command_mem(const std::vector<std::string> &args);
     void command_disasm(const std::vector<std::string> &args);

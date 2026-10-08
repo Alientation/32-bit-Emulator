@@ -15,6 +15,11 @@ constexpr size_t kFaultHistory = 8;
 /// How many instructions the history keeps when the debugger turns it on.
 constexpr size_t kDebuggerHistory = 32;
 
+std::string register_name(const U8 reg)
+{
+    return reg == static_cast<U8>(Register::SP) ? "sp" : "x" + std::to_string(reg);
+}
+
 constexpr word kDefaultDumpBytes = 16;
 constexpr word kDefaultDisassembledInstructions = 8;
 
@@ -25,6 +30,12 @@ const char *kHelp =
     "  break [address]     (b)    stop before the instruction at the address (default: the pc)\n"
     "  delete <address|all> (d)   remove a breakpoint\n"
     "  breaks                     list the breakpoints\n"
+    "  watch <address> [len] [r|w|rw] (w)  stop after a read and/or write (default w) of the "
+    "bytes\n"
+    "  unwatch <address|all>      remove a watchpoint\n"
+    "  watches                    list the watchpoints and register watches\n"
+    "  watchreg <reg> [value]     stop after the register changes (to the value, if given)\n"
+    "  unwatchreg <reg|all>       remove a register watch\n"
     "  regs                (r)    show the registers and the flags\n"
     "  mem <address> [len] (x)    show len bytes (default 16)\n"
     "  disasm [address] [n] (dis) show n instructions (default 8) from the address (default: the "
@@ -174,6 +185,26 @@ bool Debugger::execute(const std::string &line)
             m_out << "  " << describe(pc) << "\n";
         }
     }
+    else if (command == "watch" || command == "w")
+    {
+        command_watch(args);
+    }
+    else if (command == "unwatch")
+    {
+        command_unwatch(args);
+    }
+    else if (command == "watches")
+    {
+        command_watches();
+    }
+    else if (command == "watchreg")
+    {
+        command_watchreg(args);
+    }
+    else if (command == "unwatchreg")
+    {
+        command_unwatchreg(args);
+    }
     else if (command == "regs" || command == "r")
     {
         command_regs();
@@ -300,6 +331,129 @@ void Debugger::command_delete(const std::vector<std::string> &args)
         return;
     }
     m_out << "Breakpoint at " << describe(*address) << " removed.\n";
+}
+
+static const char *watch_kind_name(const Emulator32bit::WatchKind kind)
+{
+    switch (kind)
+    {
+    case Emulator32bit::WatchKind::READ:
+        return "read";
+    case Emulator32bit::WatchKind::WRITE:
+        return "write";
+    case Emulator32bit::WatchKind::ACCESS:
+        return "read/write";
+    }
+    return "?";
+}
+
+void Debugger::command_watch(const std::vector<std::string> &args)
+{
+    if (args.empty() || args.size() > 3)
+    {
+        m_out << "Usage: watch <address> [length] [r|w|rw]\n";
+        return;
+    }
+
+    std::string spec;
+    for (const std::string &arg : args)
+    {
+        spec += (spec.empty() ? "" : ":") + arg;
+    }
+    const std::optional<WatchSpec> watch = parse_watch_spec(m_symbols, spec);
+    if (!watch)
+    {
+        m_out << "Expected <address> [length greater than 0] [r|w|rw], got '" << spec << "'.\n";
+        return;
+    }
+
+    m_emu.add_watchpoint(watch->address, watch->length, watch->kind);
+    m_out << "Watching " << watch->length << " byte" << (watch->length == 1 ? "" : "s") << " at "
+          << describe(watch->address) << " for " << watch_kind_name(watch->kind) << ".\n";
+}
+
+void Debugger::command_unwatch(const std::vector<std::string> &args)
+{
+    if (args.empty())
+    {
+        m_out << "Expected an address or 'all'.\n";
+        return;
+    }
+    if (args[0] == "all")
+    {
+        m_emu.clear_watchpoints();
+        m_out << "All watchpoints removed.\n";
+        return;
+    }
+
+    const std::optional<word> address = resolve_address(args[0]);
+    if (!address || !m_emu.remove_watchpoint(*address))
+    {
+        m_out << "There is no watchpoint at '" << args[0] << "'.\n";
+        return;
+    }
+    m_out << "Watchpoint at " << describe(*address) << " removed.\n";
+}
+
+void Debugger::command_watches()
+{
+    if (m_emu.watchpoints().empty() && m_emu.register_watches().empty())
+    {
+        m_out << "No watchpoints.\n";
+    }
+    for (const Emulator32bit::RegisterWatch &watch : m_emu.register_watches())
+    {
+        m_out << "  " << register_name(watch.reg) << ", changes"
+              << (watch.value ? std::format(" to {:#x}", *watch.value) : "") << "\n";
+    }
+    for (const Emulator32bit::Watchpoint &watch : m_emu.watchpoints())
+    {
+        m_out << "  " << describe(watch.address) << ", " << watch.length << " byte"
+              << (watch.length == 1 ? "" : "s") << ", " << watch_kind_name(watch.kind) << "\n";
+    }
+}
+
+void Debugger::command_watchreg(const std::vector<std::string> &args)
+{
+    if (args.empty() || args.size() > 2)
+    {
+        m_out << "Usage: watchreg <x0..x29|sp> [value]\n";
+        return;
+    }
+    const std::optional<RegisterWatchSpec> watch =
+        parse_register_watch_spec(args.size() == 2 ? args[0] + "=" + args[1] : args[0]);
+    if (!watch)
+    {
+        m_out << "Expected <x0..x29|sp> [value], got '" << args[0] << "'.\n";
+        return;
+    }
+
+    m_emu.add_register_watch(watch->reg, watch->value);
+    m_out << "Watching " << register_name(watch->reg) << " for a change"
+          << (watch->value ? std::format(" to {:#x}", *watch->value) : "") << ".\n";
+}
+
+void Debugger::command_unwatchreg(const std::vector<std::string> &args)
+{
+    if (args.empty())
+    {
+        m_out << "Expected a register or 'all'.\n";
+        return;
+    }
+    if (args[0] == "all")
+    {
+        m_emu.clear_register_watches();
+        m_out << "All register watches removed.\n";
+        return;
+    }
+
+    const std::optional<U8> reg = parse_register_name(args[0]);
+    if (!reg || !m_emu.remove_register_watch(*reg))
+    {
+        m_out << "There is no watch on '" << args[0] << "'.\n";
+        return;
+    }
+    m_out << "Watch on " << register_name(*reg) << " removed.\n";
 }
 
 void Debugger::command_regs()
@@ -517,6 +671,77 @@ void Debugger::command_set(const std::vector<std::string> &args)
 std::optional<word> Debugger::resolve_address(const std::string &text) const
 {
     return ::resolve_address(m_symbols, text);
+}
+
+std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &text)
+{
+    const size_t equals = text.find('=');
+    const std::optional<U8> reg = parse_register_name(text.substr(0, equals));
+    // xzr never changes, and a bare number would be a register number in parse_register_name.
+    if (!reg || *reg > static_cast<U8>(Register::SP)
+        || (text[0] != 'x' && text.substr(0, equals) != "sp"))
+    {
+        return std::nullopt;
+    }
+
+    RegisterWatchSpec spec{.reg = *reg, .value = std::nullopt};
+    if (equals != std::string::npos)
+    {
+        const std::optional<U64> value = parse_number(text.substr(equals + 1));
+        if (!value || *value > 0xFFFFFFFFu)
+        {
+            return std::nullopt;
+        }
+        spec.value = static_cast<word>(*value);
+    }
+    return spec;
+}
+
+std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text)
+{
+    std::vector<std::string> parts;
+    std::istringstream stream(text);
+    for (std::string part; std::getline(stream, part, ':');)
+    {
+        parts.push_back(part);
+    }
+    if (parts.empty() || parts.size() > 3)
+    {
+        return std::nullopt;
+    }
+
+    const std::optional<word> address = resolve_address(symbols, parts[0]);
+    if (!address)
+    {
+        return std::nullopt;
+    }
+
+    WatchSpec spec{.address = *address, .length = 1, .kind = Emulator32bit::WatchKind::WRITE};
+    for (size_t i = 1; i < parts.size(); i++)
+    {
+        if (parts[i] == "r")
+        {
+            spec.kind = Emulator32bit::WatchKind::READ;
+        }
+        else if (parts[i] == "w")
+        {
+            spec.kind = Emulator32bit::WatchKind::WRITE;
+        }
+        else if (parts[i] == "rw")
+        {
+            spec.kind = Emulator32bit::WatchKind::ACCESS;
+        }
+        else
+        {
+            const std::optional<U64> length = parse_number(parts[i]);
+            if (!length || *length == 0 || *length > 0xFFFFFFFFu)
+            {
+                return std::nullopt;
+            }
+            spec.length = static_cast<word>(*length);
+        }
+    }
+    return spec;
 }
 
 std::optional<word> resolve_address(const SymbolMap &symbols, const std::string &text)

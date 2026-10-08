@@ -180,6 +180,10 @@ static int run_cli(int argc, char *argv[])
         ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
+        ("watch", "Stop after an access: ADDR|SYMBOL[:LENGTH][:r|w|rw], default 1 byte, write (exit code 4)",
+            cxxopts::value<std::vector<std::string>> ())
+        ("watch-reg", "Stop after a register changes: REG[=VALUE] (x0-x29, sp), only to VALUE if given (exit code 4)",
+            cxxopts::value<std::vector<std::string>> ())
         ("history", "Keep the last N executed instructions and print them after the run",
             cxxopts::value<std::string> ()->default_value ("0"));
     // clang-format on
@@ -334,6 +338,39 @@ static int run_cli(int argc, char *argv[])
         }
     }
 
+    std::vector<WatchSpec> watchpoints;
+    if (result.count("watch"))
+    {
+        for (const std::string &text : result["watch"].as<std::vector<std::string>>())
+        {
+            const std::optional<WatchSpec> watch = parse_watch_spec(symbols, text);
+            if (!watch)
+            {
+                std::cerr << "ERROR: --watch '" << text
+                          << "' is not ADDR|SYMBOL[:LENGTH][:r|w|rw]\n";
+                parse_error = true;
+                continue;
+            }
+            watchpoints.push_back(*watch);
+        }
+    }
+
+    std::vector<RegisterWatchSpec> register_watches;
+    if (result.count("watch-reg"))
+    {
+        for (const std::string &text : result["watch-reg"].as<std::vector<std::string>>())
+        {
+            const std::optional<RegisterWatchSpec> watch = parse_register_watch_spec(text);
+            if (!watch)
+            {
+                std::cerr << "ERROR: --watch-reg '" << text << "' is not REG[=VALUE]\n";
+                parse_error = true;
+                continue;
+            }
+            register_watches.push_back(*watch);
+        }
+    }
+
     std::ofstream trace_file;
     std::ostream *trace = nullptr;
     if (result.count("trace"))
@@ -450,6 +487,14 @@ static int run_cli(int argc, char *argv[])
     for (const word breakpoint : breakpoints)
     {
         emu->add_breakpoint(breakpoint);
+    }
+    for (const WatchSpec &watch : watchpoints)
+    {
+        emu->add_watchpoint(watch.address, watch.length, watch.kind);
+    }
+    for (const RegisterWatchSpec &watch : register_watches)
+    {
+        emu->add_register_watch(watch.reg, watch.value);
     }
 
     if (result.count("debug"))
