@@ -1,0 +1,38 @@
+; Benchmark of calls and the stack (tools/bench.sh).
+;
+; fib(30) by the recursion, about 2.7 million calls: bl and ret, a frame of two words that is
+; pushed and popped with pre and post index accesses, and a branch on every call. The stack is a
+; page of .bss.
+
+.global _start
+
+.bss
+stack:      .advance 4096
+stack_top:
+
+.text
+_start:
+                adrp    x1, stack_top
+                add     x1, x1, :lo12:stack_top
+                add     sp, x1, 0
+                mov     x0, 30
+                bl      fib
+                hlt
+
+; x0 = fib(x0). The frame holds the link register and then n, or fib(n - 1) once that is known.
+fib:
+                cmp     x0, 2
+                b.lo    fib_done                ; fib(0) = 0, fib(1) = 1
+                str     x29, [sp, -4]!
+                str     x0, [sp, -4]!
+                sub     x0, x0, 1
+                bl      fib
+                ldr     x1, [sp]                ; n
+                str     x0, [sp]                ; fib(n - 1)
+                sub     x0, x1, 2
+                bl      fib
+                ldr     x1, [sp], 4             ; fib(n - 1)
+                add     x0, x0, x1
+                ldr     x29, [sp], 4
+fib_done:
+                ret

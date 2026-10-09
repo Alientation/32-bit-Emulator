@@ -1,0 +1,44 @@
+; Benchmark of the dispatch with a mix of instructions (tools/bench.sh).
+;
+; A xorshift generator picks one of four paths at random in each iteration, and the paths use
+; different instructions (add, eor, mul, a shift, csel, udiv), about 15 instructions per
+; iteration. The other programs run a handful of instructions in a fixed order, which the host
+; predicts perfectly; this one makes the jump of the dispatch and the branches go different ways.
+
+.global _start
+
+.text
+_start:
+                ldr     x2, =2463534242         ; the generator state
+                mov     x3, 1                   ; the accumulator
+                ldr     x0, =3000000            ; number of iterations
+
+_loop:
+                eor     x2, x2, x2, lsl 13
+                eor     x2, x2, x2, lsr 17
+                eor     x2, x2, x2, lsl 5
+                and     x4, x2, 3
+                cmp     x4, 0
+                b.eq    path0
+                cmp     x4, 1
+                b.eq    path1
+                cmp     x4, 2
+                b.eq    path2
+
+path3:          orr     x5, x2, 1
+                udiv    x6, x3, x5
+                cmp     x6, 0
+                csel    x3, x6, x3, ne          ; x3 = x3 / (x2 | 1), unless that is 0
+                b       next
+path0:          add     x3, x3, x2
+                lsr     x3, x3, 1
+                b       next
+path1:          eor     x3, x3, x2
+                ror     x3, x3, 7
+                b       next
+path2:          orr     x5, x2, 1
+                mul     x3, x3, x5
+
+next:           subs    x0, x0, 1
+                b.ne    _loop
+                hlt

@@ -1,0 +1,28 @@
+; Benchmark of the swapping memory (tools/bench.sh).
+;
+; Writes one word to each of 96 pages of .bss, 8000 times over. The RAM has 32 pages by default
+; (emu32 --ram-pages), so most accesses find their page on the disk: the page is read in, and
+; the page that the clock picks is written out. This measures a page fault, and the instruction
+; count is small: the time, not the MIPS, is what to compare.
+
+.global _start
+
+.bss
+pages:      .advance 393216                     ; 96 pages
+
+.text
+_start:
+                adrp    x1, pages
+                add     x1, x1, :lo12:pages
+                ldr     x0, =8000               ; number of rounds
+
+_round:         mov     x2, 0                   ; the page
+                add     x3, x1, 0               ; its address
+_touch:         str     x0, [x3]
+                add     x3, x3, 4096
+                add     x2, x2, 1
+                cmp     x2, 96
+                b.ne    _touch
+                subs    x0, x0, 1
+                b.ne    _round
+                hlt

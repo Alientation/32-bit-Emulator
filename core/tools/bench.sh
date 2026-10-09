@@ -27,8 +27,13 @@ BUILD_DIR="build/release"
 BASELINE=""
 
 # The programs: data accesses (membench), data accesses with page tables (walkbench, which has a
-# linker script next to it) and instruction fetch and branches (long_loop).
-PROGRAMS=(tools/bench/membench.basm tools/bench/walkbench.basm app/programs/src/long_loop.basm)
+# linker script next to it), instruction fetch and branches (long_loop), calls and the stack
+# (callbench), indexed accesses and branches that depend on the data (sortbench), a mix of
+# instructions in a random order (mixbench) and the swapping memory (swapbench, whose MIPS mean
+# little: it runs few instructions and many page faults, compare its time).
+PROGRAMS=(tools/bench/membench.basm tools/bench/walkbench.basm app/programs/src/long_loop.basm
+    tools/bench/callbench.basm tools/bench/sortbench.basm tools/bench/mixbench.basm
+    tools/bench/swapbench.basm)
 
 usage()
 {
