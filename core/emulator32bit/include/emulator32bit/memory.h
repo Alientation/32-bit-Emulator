@@ -131,6 +131,12 @@ class Memory : public BaseMemory
         return read_word(address);
     }
 
+    /// The bytes from `address` on, which has to be in this memory.
+    byte *bytes_at(word address)
+    {
+        return m_data + (address - m_start_addr);
+    }
+
     void read_block(word address, byte *out, word size) override
     {
         std::copy_n(m_data + (address - m_start_addr), size, out);

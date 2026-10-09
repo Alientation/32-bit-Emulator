@@ -158,20 +158,12 @@ word VirtualMemory::clock_victim()
     // page outside of them was mapped explicitly and stays. The first turn clears the pages that
     // were used, so the second one finds a page if the first did not, unless there is none.
     //
-    // A hit on the TLB does not mark a page (that would be work in every translation), so when
-    // marks are cleared the TLB is dropped, and the next access to each page that is still in use
-    // fills its entry again and marks it. The page that instructions are fetched from is
-    // remembered in the same way, and goes with it. This is the clock without a cost for the
-    // accesses, the way the accessed bit of a real MMU works.
-    bool cleared = false;
-    const auto done = [&]
-    {
-        if (cleared)
-        {
-            flush_tlb();
-        }
-    };
-
+    // A hit on the TLB does not mark a page (that would be work in every translation), so when a
+    // mark is cleared the TLB entries of the page go with it, and the next access to it, if it is
+    // still in use, fills its entry again and marks it. The page that instructions are fetched
+    // from is remembered in the same way, and goes with its entry (invalidate_tlb). This is the
+    // clock without a cost for the accesses, the way the accessed bit of a real MMU works. Only
+    // the entries of the pages that were cleared are dropped, the TLB is not wiped.
     PhysicalPage *const start = m_clock_hand != nullptr ? m_clock_hand : m_clock_head;
     if (start != nullptr)
     {
@@ -187,18 +179,19 @@ word VirtualMemory::clock_victim()
                     if (!page->referenced)
                     {
                         m_clock_hand = next;
-                        done();
                         return page->ppage;
                     }
                     page->referenced = false;
-                    cleared = true;
+                    for (const PageTableEntry *entry : page->mapped_vpages)
+                    {
+                        invalidate_tlb(entry->pid, entry->vpage);
+                    }
                 }
                 page = next;
             } while (page != start);
         }
     }
 
-    done();
     throw VirtualMemoryException("Out of physical memory, there is no page that can be swapped.");
 }
 
@@ -733,9 +726,15 @@ void VirtualMemory::evict_ppage(word ppage)
     const word diskpage = m_disk->get_free_page();
     if (m_physical != nullptr)
     {
-        std::vector<byte> contents(kPageSize);
-        m_physical->read_page(ppage, contents.data());
-        m_disk->write_page(diskpage, contents);
+        if (const byte *const direct = m_physical->direct_page(ppage))
+        {
+            m_disk->write_page(diskpage, direct);
+        }
+        else
+        {
+            m_physical->read_page(ppage, m_page_buffer.data());
+            m_disk->write_page(diskpage, m_page_buffer.data());
+        }
     }
     for (PageTableEntry *removed_entry : evicted_ppage.mapped_vpages)
     {
@@ -766,7 +765,15 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
     // The contents are in place before the page is, a page that could not be read is still on disk.
     if (m_physical != nullptr)
     {
-        m_physical->write_page(ppage, m_disk->read_page(entry->diskpage).data());
+        if (byte *const direct = m_physical->direct_page(ppage))
+        {
+            m_disk->read_page(entry->diskpage, direct);
+        }
+        else
+        {
+            m_disk->read_page(entry->diskpage, m_page_buffer.data());
+            m_physical->write_page(ppage, m_page_buffer.data());
+        }
     }
     m_disk->return_page(entry->diskpage);
 

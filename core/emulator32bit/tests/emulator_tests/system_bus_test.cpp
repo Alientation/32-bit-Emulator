@@ -148,9 +148,54 @@ TEST(system_bus, pages_are_copied_to_and_from_the_memory_that_has_them)
     EXPECT_THROW(bus->read_page(5, back.data()), SystemBus::Exception) << "no memory there";
 }
 
+TEST(system_bus, only_the_ram_has_pages_that_can_be_copied_directly)
+{
+    auto bus = make_bus();
+    byte *page = bus->direct_page(2);
+    ASSERT_NE(page, nullptr);
+    EXPECT_EQ(page, bus->ram->bytes_at(vaddr(2)));
+
+    page[5] = 0x5A;
+    EXPECT_EQ(bus->ram->read_byte(vaddr(2, 5)), 0x5A) << "it is the memory itself";
+    bus->ram->write_byte(vaddr(2, 6), 0x6B);
+    EXPECT_EQ(page[6], 0x6B);
+
+    EXPECT_EQ(bus->direct_page(4), nullptr) << "past the RAM";
+    EXPECT_EQ(bus->direct_page(8), nullptr) << "the ROM";
+    EXPECT_EQ(bus->direct_page(kConsoleBase >> kNumPageOffsetBits), nullptr) << "a device";
+}
+
 // ---------------------------------------------------------------------------------------------
 // The memory port: virtual addresses, translated by the MMU, on the bus
 // ---------------------------------------------------------------------------------------------
+
+// The pages go to the disk and come back through the memory itself (direct_page), several times
+// over, and nothing gets lost or mixed up.
+TEST(memory_port, pages_that_are_swapped_out_and_back_in_keep_their_contents)
+{
+    Emulator32bit cpu(std::make_unique<RAM>(4, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>());
+    const long long pid = cpu.mmu->begin_process();
+    cpu.mmu->add_vpage(pid, 100, 12, true, false);
+
+    for (int round = 0; round < 3; round++)
+    {
+        for (word page = 0; page < 12; page++)
+        {
+            cpu.memory.write_word(vaddr(100 + page, 8 * page), 0xA000 + 100 * round + page);
+            cpu.memory.write_byte(vaddr(100 + page, kPageSize - 1), byte(page + round));
+        }
+        for (word page = 0; page < 12; page++)
+        {
+            EXPECT_EQ(cpu.memory.read_word(vaddr(100 + page, 8 * page)),
+                      0xA000u + 100 * round + page)
+                << "round " << round << " page " << page;
+            EXPECT_EQ(cpu.memory.read_byte(vaddr(100 + page, kPageSize - 1)), byte(page + round));
+            EXPECT_EQ(cpu.memory.read_word(vaddr(100 + page, 4096 - 16)), 0u)
+                << "the rest of a page stays as it was";
+        }
+    }
+}
 
 TEST_F(MemoryPortTest, an_access_goes_to_the_physical_page_of_the_virtual_page)
 {

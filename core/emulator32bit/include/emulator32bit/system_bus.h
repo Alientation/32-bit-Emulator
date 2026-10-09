@@ -71,6 +71,7 @@ class SystemBus : public PhysicalPages
     // The pages that the virtual memory pages in and out. A page is in one of the memories.
     void read_page(word ppage, byte *out) override;
     void write_page(word ppage, const byte *data) override;
+    byte *direct_page(word ppage) override;
 
     // For the page table walker: a missing address is reported to it, not thrown. A device is
     // not read, that could have an effect.

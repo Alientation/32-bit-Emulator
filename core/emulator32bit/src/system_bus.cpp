@@ -154,6 +154,13 @@ void SystemBus::write_page(const word ppage, const byte *data)
     route_memory(address).write_block(address, data, kPageSize);
 }
 
+byte *SystemBus::direct_page(const word ppage)
+{
+    // Only the RAM: the ROM, the disk and the devices are not memory to copy into and out of.
+    const word address = ppage << kNumPageOffsetBits;
+    return ram->in_bounds(address) ? ram->bytes_at(address) : nullptr;
+}
+
 bool SystemBus::read_physical_word(const word address, word &out)
 {
     BaseMemory *memory = address % sizeof(word) == 0 ? find_storage(address) : nullptr;

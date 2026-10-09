@@ -130,7 +130,16 @@ class Disk : public BaseMemory
          *                     occur.
          * @return             Page data corresponding to the page address.
          */
-    virtual std::vector<byte> read_page(word page);
+    std::vector<byte> read_page(word page);
+
+    /**
+         * @brief             Reads a disk page into a buffer, which the swapping uses so that it
+         *                     does not allocate a vector for every page.
+         *
+         * @param page         Disk page address to read.
+         * @param out          Room for kPageSize bytes.
+         */
+    virtual void read_page(word page, byte *out);
 
     /**
          * @brief             Reads a byte from disk.
@@ -172,7 +181,16 @@ class Disk : public BaseMemory
          * @param exception WriteException if the write fails. TODO: specify what exceptions can
          *                     occur.
          */
-    virtual void write_page(word page, const std::vector<byte> &data);
+    void write_page(word page, const std::vector<byte> &data);
+
+    /**
+         * @brief             Writes kPageSize bytes to a disk page (the vector version checks the
+         *                     size and calls this).
+         *
+         * @param page         Page address to write to.
+         * @param data         kPageSize bytes.
+         */
+    virtual void write_page(word page, const byte *data);
 
     /**
          * @brief             Writes a byte to disk.
@@ -334,12 +352,14 @@ class MockDisk : public Disk
     void return_all_pages() override;
     void return_pages(word p_addr_lo, word p_addr_hi) override;
 
-    std::vector<byte> read_page(word page) override;
+    using Disk::read_page;
+    using Disk::write_page;
+    void read_page(word page, byte *out) override;
     byte read_byte(word address) override;
     hword read_hword(word addressn) override;
     word read_word(word address) override;
 
-    void write_page(word page, const std::vector<byte> &data) override;
+    void write_page(word page, const byte *data) override;
     void write_byte(word address, byte data) override;
     void write_hword(word address, hword data) override;
     void write_word(word address, word data) override;
@@ -347,11 +367,18 @@ class MockDisk : public Disk
     void save() override;
 
   private:
-    /// The pages that have contents. A page that is not here is zeros.
-    std::unordered_map<word, std::vector<byte>> m_pages;
+    /// The contents of the pages, by page number. A page that has none (an empty vector, or a
+    /// number past the end) is zeros.
+    std::vector<std::vector<byte>> m_pages;
+
+    /// Contents that were returned, so that writing a page does not allocate one.
+    std::vector<std::vector<byte>> m_spare;
 
     /// Pages that were returned, and are handed out again before new ones.
     std::vector<word> m_returned;
+
+    /// Whether a page that was handed out is in m_returned (by page number).
+    std::vector<bool> m_is_returned;
 
     /// The next page that was never handed out.
     word m_next_page = 0;

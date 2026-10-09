@@ -5,6 +5,7 @@
 #include "util/logger.h"
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iterator>
 
@@ -188,12 +189,17 @@ void Disk::return_pages(word page_lo, word page_hi)
 
 std::vector<byte> Disk::read_page(word page)
 {
-    CachePage &cpage = get_cpage(page);
+    std::vector<byte> data(kPageSize);
+    read_page(page, data.data());
+    return data;
+}
 
-    std::vector<byte> data(cpage.data, cpage.data + kPageSize);
+void Disk::read_page(word page, byte *out)
+{
+    const CachePage &cpage = get_cpage(page);
+    std::memcpy(out, cpage.data, kPageSize);
 
     AEMU_DEBUG("Reading disk page {}.", page);
-    return data;
 }
 
 byte Disk::read_byte(word address)
@@ -257,12 +263,15 @@ void Disk::write_page(word page, const std::vector<byte> &data)
         return;
     }
 
-    CachePage &cpage = get_cpage(page);
+    write_page(page, data.data());
+}
+
+void Disk::write_page(word page, const byte *data)
+{
+    // The whole page is replaced, so what the file has of it is not needed.
+    CachePage &cpage = get_cpage(page, false);
     cpage.dirty = true; /* Mark as dirty since it is written to. */
-    for (word i = 0; i < kPageSize; i++)
-    {
-        cpage.data[i] = data.at(i);
-    }
+    std::memcpy(cpage.data, data, kPageSize);
 
     AEMU_DEBUG("Wrote to disk page {}.", cpage.page);
 }
@@ -424,17 +433,23 @@ word MockDisk::get_free_page()
     {
         const word page = m_returned.back();
         m_returned.pop_back();
+        m_is_returned[page] = false;
         return page;
     }
+    m_is_returned.push_back(false);
     return m_next_page++;
 }
 
 void MockDisk::return_page(word page)
 {
-    if (page < m_next_page
-        && std::find(m_returned.begin(), m_returned.end(), page) == m_returned.end())
+    if (page < m_next_page && !m_is_returned[page])
     {
-        m_pages.erase(page);
+        if (page < m_pages.size() && !m_pages[page].empty())
+        {
+            m_spare.push_back(std::move(m_pages[page]));
+            m_pages[page].clear();
+        }
+        m_is_returned[page] = true;
         m_returned.push_back(page);
     }
 }
@@ -442,7 +457,9 @@ void MockDisk::return_page(word page)
 void MockDisk::return_all_pages()
 {
     m_pages.clear();
+    m_spare.clear();
     m_returned.clear();
+    m_is_returned.clear();
     m_next_page = 0;
 }
 
@@ -454,12 +471,18 @@ void MockDisk::return_pages(word page_lo, word page_hi)
     }
 }
 
-std::vector<byte> MockDisk::read_page(word page)
+void MockDisk::read_page(word page, byte *out)
 {
     // Virtual memory fetches a full page from disk the first time a page is touched, so hand back
     // a zeroed page rather than an empty one.
-    const auto contents = m_pages.find(page);
-    return contents != m_pages.end() ? contents->second : std::vector<byte>(kPageSize, 0);
+    if (page < m_pages.size() && !m_pages[page].empty())
+    {
+        std::memcpy(out, m_pages[page].data(), kPageSize);
+    }
+    else
+    {
+        std::memset(out, 0, kPageSize);
+    }
 }
 
 byte MockDisk::read_byte(word address)
@@ -480,15 +503,26 @@ word MockDisk::read_word(word address)
     return 0;
 }
 
-void MockDisk::write_page(word page, const std::vector<byte> &data)
+void MockDisk::write_page(word page, const byte *data)
 {
-    if (data.size() != kPageSize)
+    if (page >= m_pages.size())
     {
-        throw DiskWriteException("Tried to write to disk an invalid number of bytes. Expected "
-                                 + std::to_string(kPageSize) + " bytes. Got "
-                                 + std::to_string(data.size()));
+        m_pages.resize(std::size_t(page) + 1);
     }
-    m_pages[page] = data;
+    std::vector<byte> &contents = m_pages[page];
+    if (contents.empty())
+    {
+        if (!m_spare.empty())
+        {
+            contents = std::move(m_spare.back());
+            m_spare.pop_back();
+        }
+        else
+        {
+            contents.resize(kPageSize);
+        }
+    }
+    std::memcpy(contents.data(), data, kPageSize);
 }
 
 void MockDisk::write_byte(word address, byte data)

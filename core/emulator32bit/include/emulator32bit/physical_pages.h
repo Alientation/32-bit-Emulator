@@ -18,6 +18,16 @@ class PhysicalPages
     /// Copies kPageSize bytes to the physical page.
     virtual void write_page(word ppage, const byte *data) = 0;
 
+    /// The kPageSize bytes of the physical page themselves, if they are plain memory that can be
+    /// copied to and from directly (the RAM), else null. Swapping uses it to copy between the page
+    /// and the disk without a buffer in between; when it is null it goes through read_page and
+    /// write_page.
+    virtual byte *direct_page(word ppage)
+    {
+        (void)ppage;
+        return nullptr;
+    }
+
     /// Reads the word at a physical address (the page table walker uses this). Returns
     /// false if no memory is there.
     virtual bool read_physical_word(word address, word &out) = 0;

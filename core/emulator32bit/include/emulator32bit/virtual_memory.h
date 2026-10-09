@@ -628,6 +628,10 @@ class VirtualMemory
     /// Where the contents of the pages that are paged in are.
     PhysicalPages *m_physical = nullptr;
 
+    /// A page on its way between the physical memory and the disk, so that swapping does not
+    /// allocate one for every page.
+    std::vector<byte> m_page_buffer = std::vector<byte>(kPageSize);
+
     /**
      * @brief             Current active process in which all calls to the virtual memory to
      *                     manipulate/use mappings without a supplied PID refers to.

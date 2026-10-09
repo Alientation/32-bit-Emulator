@@ -612,6 +612,28 @@ TEST(virtual_memory_fetch, a_page_is_fetched_from_where_it_is_and_the_address_is
     EXPECT_EQ(fetch_ppage_of(m.vm, 10), ppage);
 }
 
+// The page that is fetched from is remembered, which skips the translation that marks a page as
+// used. When the clock clears the mark the remembered page goes with it, or code that runs would
+// look unused and be evicted.
+TEST(virtual_memory_fetch, the_page_that_is_fetched_from_counts_as_used_for_the_clock)
+{
+    Machine m(4, 3);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, 5, true, true);
+
+    const word first = ppage_of(m.vm, 10);
+    const word second = fetch_ppage_of(m.vm, 11); // the page that is remembered
+    const word third = ppage_of(m.vm, 12);
+
+    // All three are marked, the hand clears them and 10 goes.
+    EXPECT_EQ(ppage_of(m.vm, 13), first);
+
+    // The code goes on in 11. That has to mark it again, 12 is the one that is not used.
+    EXPECT_EQ(fetch_ppage_of(m.vm, 11), second);
+    EXPECT_EQ(ppage_of(m.vm, 14), third);
+    EXPECT_EQ(fetch_ppage_of(m.vm, 11), second) << "11 kept its page";
+}
+
 TEST(virtual_memory_fetch, a_page_that_is_not_executable_cannot_be_fetched_from)
 {
     Machine m;
