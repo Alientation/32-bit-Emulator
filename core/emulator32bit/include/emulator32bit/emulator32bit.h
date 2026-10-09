@@ -406,11 +406,6 @@ class Emulator32bit
     bool m_semihosting = true;
     bool m_brk_stops = false;
 
-    using InstructionFunction = void (Emulator32bit::*)(word);
-    InstructionFunction m_instruction_handler[kMaxInstructions];
-
-    void fill_out_instructions();
-
     /// Fetches the instruction at the PC (a virtual address). Faults when the PC is not word
     /// aligned, not mapped, not executable or not in RAM.
     word fetch_instruction();
@@ -428,10 +423,8 @@ class Emulator32bit
     MemOperand decode_mem_operand(word instr);
     void write_back_base(const MemOperand &operand);
 
-    inline void execute(word instr)
-    {
-        (this->*m_instruction_handler[bitfield_unsigned(instr, 26, 6)])(instr);
-    }
+    /// Runs the handler of the opcode of `instr` (a switch generated from AEMU_OPCODES).
+    void execute(word instr);
 
     /// execute () that writes the trace line of the instruction.
     void execute_traced(word instr);

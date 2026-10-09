@@ -6,7 +6,7 @@
 /// one new row here (plus its behavior):
 ///   - the handler declaration `_<name>(word)` and the constant `Emulator32bit::_op_<name>`
 ///     (emulator32bit.h),
-///   - the dispatch table (Emulator32bit::fill_out_instructions),
+///   - the dispatch switch (Emulator32bit::execute),
 ///   - the disassembler table (disassembler.cpp, which needs a `disassemble_<name>`).
 ///
 /// Opcodes that are not listed fault with BAD_INSTR. A compile time check in emulator32bit.cpp

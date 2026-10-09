@@ -63,7 +63,6 @@ Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
                                         system_bus->ram->get_mem_pages(), system_bus.get())),
     memory(*system_bus, *mmu)
 {
-    fill_out_instructions();
     reset();
 }
 
@@ -92,16 +91,23 @@ Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
     return type;
 }
 
-void Emulator32bit::fill_out_instructions()
+// A switch over the opcodes, generated from the list, instead of a table of function pointers: the
+// calls are direct, so the compiler can inline the handlers and jumps through one table. An opcode
+// that is not listed is a bad opcode.
+void Emulator32bit::execute(const word instr)
 {
-    for (int i = 0; i < kMaxInstructions; i++)
+    switch (bitfield_unsigned(instr, 26, 6))
     {
-        m_instruction_handler[i] = &Emulator32bit::_bad_opcode;
+#define AEMU_EXECUTE_CASE(name, opcode)                                                            \
+    case _op_##name:                                                                               \
+        _##name(instr);                                                                            \
+        break;
+        AEMU_OPCODES(AEMU_EXECUTE_CASE)
+#undef AEMU_EXECUTE_CASE
+    default:
+        _bad_opcode(instr);
+        break;
     }
-
-#define AEMU_SET_HANDLER(name, opcode) m_instruction_handler[_op_##name] = &Emulator32bit::_##name;
-    AEMU_OPCODES(AEMU_SET_HANDLER)
-#undef AEMU_SET_HANDLER
 }
 
 void Emulator32bit::print()
