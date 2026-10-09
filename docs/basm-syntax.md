@@ -234,9 +234,8 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | `.equ name, expr` | constant, see above |
 | `.scope` / `.scend` | local scope |
 | `.byte` `.dbyte` `.word` `.dword` | 1, 2, 4 and 8 byte values, little endian, comma separated: `.word 1, 2, table + 4`. A value has to fit. `.word` also takes an address (`symbol`, `symbol + 4`); the others cannot |
-| `.sbyte` `.sdbyte` `.sword` `.sdword` | the same as above |
-| `.char 'a', 'b'` | one byte for each character |
-| `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end |
+| `.fill count{, size{, value}}` | `count` copies of a `size` byte value (1, 2, 4 or 8; default 1), little endian. The value defaults to 0, has to fit, and with size 4 can be an address like `.word`'s: `.fill 16, 4, $DEADBEEF`. For zeros `.advance` is shorter |
+| `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end. A character is a number, so `.byte 'a', 'b'` is one byte for each character |
 | `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` or in a `nobits` section |
 | `.org n` | move forward to the offset `n` of the section (never backward) |
 | `.align n` | pad to a multiple of `n`; the largest alignment of the section is kept in the object file and respected when files are linked |
@@ -275,7 +274,15 @@ stack_bottom:   .advance 4096
 stack_top:                      ; the address after the last byte
 ```
 
-`.fill` is reserved but not implemented.
+**Visiting another section.** `.pushsection "name"[, "flags"[, "nobits"]]` remembers the section you are in and switches to another one (the operands of `.section`, which it makes if it is new); `.popsection` goes back to where you were. They nest, and every `.pushsection` needs its `.popsection`. This is for a macro or a statement that puts something (a string, a table entry) in `.rodata` or a section of its own and then carries on in the code:
+
+```
+        adr     x0, message
+.pushsection ".rodata", "r"
+message:        .asciz "hello"
+.popsection
+        bl      print                   ; still in .text
+```
 
 ## Preprocessor
 

@@ -136,10 +136,9 @@ class SourceManager
     X(ASSEMBLER_SCEND) X(ASSEMBLER_ADVANCE) X(ASSEMBLER_FILL) X(ASSEMBLER_ALIGN)                   \
     X(ASSEMBLER_SECTION) X(ASSEMBLER_BSS) X(ASSEMBLER_DATA) X(ASSEMBLER_TEXT)                      \
     X(ASSEMBLER_WEAK) X(ASSEMBLER_COMM) X(ASSEMBLER_RODATA) X(ASSEMBLER_INIT_ARRAY)               \
-    X(ASSEMBLER_FINI_ARRAY)                                                                        \
+    X(ASSEMBLER_FINI_ARRAY) X(ASSEMBLER_PUSHSECTION) X(ASSEMBLER_POPSECTION)                       \
     X(ASSEMBLER_STOP) X(ASSEMBLER_BYTE) X(ASSEMBLER_DBYTE) X(ASSEMBLER_WORD)                       \
-    X(ASSEMBLER_DWORD) X(ASSEMBLER_SBYTE) X(ASSEMBLER_SDBYTE) X(ASSEMBLER_SWORD)                   \
-    X(ASSEMBLER_SDWORD) X(ASSEMBLER_CHAR) X(ASSEMBLER_ASCII) X(ASSEMBLER_ASCIZ)                    \
+    X(ASSEMBLER_DWORD) X(ASSEMBLER_ASCII) X(ASSEMBLER_ASCIZ)                                       \
                                                                                                    \
     X(RELOCATION_EMU32_O_LO12) X(RELOCATION_EMU32_ADRP_HI20) X(RELOCATION_EMU32_MOV_LO19)          \
     X(RELOCATION_EMU32_MOV_HI13)                                                                   \

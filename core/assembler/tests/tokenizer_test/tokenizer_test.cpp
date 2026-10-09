@@ -285,7 +285,7 @@ TEST(tokenizer_v2, line_continuation)
 TEST(tokenizer_v2, strings_and_chars)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, ".asciz \"hi\\n\\\"x\"\n.char 'a', '\\n'\n");
+    const LexResult r = lex_asm(sm, ".asciz \"hi\\n\\\"x\"\n.byte 'a', '\\n'\n");
     ASSERT_FALSE(r.has_errors);
     EXPECT_EQ(r.tokens[1].type, T::LITERAL_STRING);
     EXPECT_EQ(unescape_string_literal(r.tokens[1]), "hi\n\"x");

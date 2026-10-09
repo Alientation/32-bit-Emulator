@@ -162,6 +162,16 @@ class Assembler
     /// @brief The .scope of each of the scopes that are open, to say which one is not closed.
     std::vector<const basm::Token *> m_scope_sites;
 
+    /// @brief The sections that .pushsection left, to go back to with .popsection, and the
+    ///        .pushsection of each to say which one is not closed.
+    struct SavedSection
+    {
+        Section section;
+        U32 index;
+        const basm::Token *site;
+    };
+    std::vector<SavedSection> m_saved_sections;
+
     /// @brief How deep the expression being parsed is nested (parentheses, unary operators).
     int m_expression_depth = 0;
 
@@ -259,6 +269,12 @@ class Assembler
     /// @brief Shared by .byte, .dbyte, .word, ... Appends the arguments to .data, `n_bytes` each.
     void define_data(const char *directive, U8 n_bytes);
 
+    /// @brief Appends one value of `n_bytes` to the current section, little endian: a number that
+    ///        fits, or (for 4 bytes) the address of a symbol, which becomes a relocation.
+    ///        `first` is the token the value starts at, for errors.
+    void append_value(const char *directive, U8 n_bytes, const ExprValue &value,
+                      const basm::Token &first);
+
     byte parse_sysreg();
 
     byte parse_register();
@@ -307,6 +323,8 @@ class Assembler
     void _advance();
     void _align();
     void _section();
+    void _pushsection();
+    void _popsection();
     void _text();
     void _data();
     void _bss();
@@ -315,11 +333,7 @@ class Assembler
     void _dbyte();
     void _word();
     void _dword();
-    void _sbyte();
-    void _sdbyte();
-    void _sword();
-    void _sdword();
-    void _char();
+    void _fill();
     void _ascii();
     void _asciz();
 
@@ -359,6 +373,9 @@ class Assembler
         {basm::TokenType::ASSEMBLER_ADVANCE, &Assembler::_advance},
         {basm::TokenType::ASSEMBLER_ALIGN, &Assembler::_align},
         {basm::TokenType::ASSEMBLER_SECTION, &Assembler::_section},
+        {basm::TokenType::ASSEMBLER_PUSHSECTION, &Assembler::_pushsection},
+        {basm::TokenType::ASSEMBLER_POPSECTION, &Assembler::_popsection},
+        {basm::TokenType::ASSEMBLER_FILL, &Assembler::_fill},
         {basm::TokenType::ASSEMBLER_TEXT, &Assembler::_text},
         {basm::TokenType::ASSEMBLER_DATA, &Assembler::_data},
         {basm::TokenType::ASSEMBLER_BSS, &Assembler::_bss},
@@ -367,11 +384,6 @@ class Assembler
         {basm::TokenType::ASSEMBLER_DBYTE, &Assembler::_dbyte},
         {basm::TokenType::ASSEMBLER_WORD, &Assembler::_word},
         {basm::TokenType::ASSEMBLER_DWORD, &Assembler::_dword},
-        {basm::TokenType::ASSEMBLER_SBYTE, &Assembler::_sbyte},
-        {basm::TokenType::ASSEMBLER_SDBYTE, &Assembler::_sdbyte},
-        {basm::TokenType::ASSEMBLER_SWORD, &Assembler::_sword},
-        {basm::TokenType::ASSEMBLER_SDWORD, &Assembler::_sdword},
-        {basm::TokenType::ASSEMBLER_CHAR, &Assembler::_char},
         {basm::TokenType::ASSEMBLER_ASCII, &Assembler::_ascii},
         {basm::TokenType::ASSEMBLER_ASCIZ, &Assembler::_asciz},
     };

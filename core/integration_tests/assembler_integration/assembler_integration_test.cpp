@@ -1006,7 +1006,7 @@ bytes:          .byte 1, 2, 3
 hwords:         .dbyte $1234
 words:          .word $deadbeef
 dwords:         .dword $0102030405060708
-chars:          .char 'h', 'i'
+chars:          .byte 'h', 'i'
 text:           .ascii "ab"
 ztext:          .asciz "cd"
                 .advance 2
@@ -2831,6 +2831,42 @@ _start:
     EXPECT_EQ(emu32("-e nobitsx.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
         << log_tail("emu32.log");
     EXPECT_EQ(state("status"), "fault");
+}
+
+// .fill repeats a value (here a pattern for memory that is checked later), and .pushsection puts
+// a string in .rodata from the middle of the code and .popsection goes on in .text.
+TEST_F(AssemblerIntegration, fill_and_pushsection_in_a_program)
+{
+    write_file("fill.basm", R"(.global _start
+
+.data
+pattern:        .fill 4, 4, $DEADBEEF
+bytes:          .fill 3, 1, 7
+
+.text
+_start:
+                adr     x1, greeting
+                ldrb    x2, [x1]                ; 'h'
+.pushsection ".rodata", "r"
+greeting:       .asciz "hi"
+.popsection
+                adr     x5, pattern
+                ldr     x6, [x5, 12]            ; the last of the four words
+                ldrb    x7, [x5, 18]            ; the last of the three bytes
+                mov     x3, 5                   ; still in .text
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o fill fill.basm -outdir ."));
+
+    ObjectFile obj(File(path("fill.bo")));
+    EXPECT_EQ(obj.text_section.size(), 7u) << "everything after .popsection is code";
+    EXPECT_EQ(obj.rodata_section.size(), 3u);
+
+    ASSERT_NO_FATAL_FAILURE(run("fill.bexe"));
+    EXPECT_EQ(reg(2), U32('h'));
+    EXPECT_EQ(reg(6), 0xDEADBEEFu);
+    EXPECT_EQ(reg(7), 7u);
+    EXPECT_EQ(reg(3), 5u);
 }
 
 // The listing of -dump shows them.

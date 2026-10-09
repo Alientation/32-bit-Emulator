@@ -76,8 +76,8 @@ TEST_F(PreprocessorUnit, labels_keep_their_colon_and_branch_conditions_stay_atta
 
 TEST_F(PreprocessorUnit, strings_and_characters_are_not_touched)
 {
-    EXPECT_EQ(preprocess("#define N 4\n.asciz \"N ; not a comment\"\n.char ';', 'N'\n"),
-              ".asciz \"N ; not a comment\"\n.char ';', 'N'\n");
+    EXPECT_EQ(preprocess("#define N 4\n.asciz \"N ; not a comment\"\n.byte ';', 'N'\n"),
+              ".asciz \"N ; not a comment\"\n.byte ';', 'N'\n");
 }
 
 TEST_F(PreprocessorUnit, output_lexes_like_the_input)

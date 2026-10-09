@@ -376,6 +376,8 @@ const KeywordMap &assembler_directives()
         D(".fill", FILL);
         D(".align", ALIGN);
         D(".section", SECTION);
+        D(".pushsection", PUSHSECTION);
+        D(".popsection", POPSECTION);
         D(".bss", BSS);
         D(".data", DATA);
         D(".text", TEXT);
@@ -384,11 +386,6 @@ const KeywordMap &assembler_directives()
         D(".dbyte", DBYTE);
         D(".word", WORD);
         D(".dword", DWORD);
-        D(".sbyte", SBYTE);
-        D(".sdbyte", SDBYTE);
-        D(".sword", SWORD);
-        D(".sdword", SDWORD);
-        D(".char", CHAR);
         D(".ascii", ASCII);
         D(".asciz", ASCIZ);
 #undef D

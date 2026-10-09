@@ -489,17 +489,21 @@ TEST_F(AssemblerUnit, data_directives_are_little_endian)
               (Bytes{1, 0xFF, 5, 15, 0x34, 0x12, 0x44, 0x33, 0x22, 0x11, 1, 0, 0, 0, 0, 0, 0, 0}));
 }
 
-TEST_F(AssemblerUnit, signed_data_directives_have_the_same_widths)
+TEST_F(AssemblerUnit, the_signed_and_character_data_directives_are_gone)
 {
-    EXPECT_EQ(data(".sbyte 1\n.sdbyte 2\n.sword 3\n.sdword 4\n"),
-              (Bytes{1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0}));
+    for (const char *directive : {".sbyte", ".sdbyte", ".sword", ".sdword", ".char"})
+    {
+        // An unknown directive is a lexical error (the lexer logs "unknown directive").
+        EXPECT_TRUE(contains(error(std::string(".data\n") + directive + " 1\n"), "lexical error"))
+            << directive;
+    }
 }
 
-// The value of `expression` as a `.sdword`.
+// The value of `expression` as a `.dword`.
 #define EXPECT_VALUE(expression, expected)                                                         \
     do                                                                                             \
     {                                                                                              \
-        const Bytes bytes = data(std::string(".sdword ") + expression + "\n");                     \
+        const Bytes bytes = data(std::string(".dword ") + expression + "\n");                      \
         sdword value = 0;                                                                          \
         std::memcpy(&value, bytes.data(), sizeof(value));                                          \
         EXPECT_EQ(value, sdword(expected)) << expression;                                          \
@@ -692,7 +696,7 @@ TEST_F(AssemblerUnit, errors_of_constants_and_labels_in_expressions)
 
 TEST_F(AssemblerUnit, characters_and_strings)
 {
-    EXPECT_EQ(data(R"(.char 'a', '\n'
+    EXPECT_EQ(data(R"(.byte 'a', '\n'
 .ascii "hi\t"
 .asciz "x"
 )"),
@@ -790,7 +794,6 @@ TEST_F(AssemblerUnit, statement_errors)
     EXPECT_TRUE(
         contains(error(".data\n.byte 1 2\n"), "unexpected '2' at the end of the statement"));
     EXPECT_TRUE(contains(error(".text\nfoo x0\n"), "cannot parse 'foo'"));
-    EXPECT_TRUE(contains(error(".text\n.fill 3\n"), "cannot parse '.fill'"));
     EXPECT_TRUE(contains(error(".text\nvadd.f32 x0, x1\n"), "vadd.f32 is not implemented yet"));
 }
 
@@ -820,7 +823,6 @@ TEST_F(AssemblerUnit, expression_errors)
     EXPECT_TRUE(contains(error(".data\n.byte foo\n"),
                          ".byte cannot hold the address of a symbol, only .word can"));
     EXPECT_TRUE(contains(error(".data\n.word 1,\n"), "expected a number, got end of line"));
-    EXPECT_TRUE(contains(error(".data\n.char 'a', 5\n"), "expected a character literal, got '5'"));
     EXPECT_TRUE(contains(error(".data\n.ascii 5\n"), "expected a string literal, got '5'"));
 }
 
@@ -1239,6 +1241,120 @@ TEST_F(AssemblerUnit, org_advance_and_align_work_in_a_user_section)
     EXPECT_EQ(object.find_user_section("s")->bytes,
               (Bytes{1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3}));
     EXPECT_EQ(object.sections[object.find_user_section("s")->header_index].alignment, 4u);
+}
+
+TEST_F(AssemblerUnit, fill_repeats_a_value)
+{
+    EXPECT_EQ(data(".fill 3\n"), (Bytes{0, 0, 0})) << "size 1 and value 0 by default";
+    EXPECT_EQ(data(".fill 3, 1, $AB\n"), (Bytes{0xAB, 0xAB, 0xAB}));
+    EXPECT_EQ(data(".fill 2, 2, $1234\n"), (Bytes{0x34, 0x12, 0x34, 0x12}));
+    EXPECT_EQ(data(".fill 2, 4, $DEADBEEF\n"),
+              (Bytes{0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE}));
+    EXPECT_EQ(data(".fill 1, 8, 1\n"), (Bytes{1, 0, 0, 0, 0, 0, 0, 0}));
+    EXPECT_EQ(data(".fill 2, 2, 0 - 1\n"), (Bytes{0xFF, 0xFF, 0xFF, 0xFF})) << "a negative value";
+    EXPECT_EQ(data(".fill 2, 1, 'x'\n"), (Bytes{'x', 'x'}));
+    EXPECT_EQ(data(".equ N, 2\n.fill N * 2, N, N + 1\n"), (Bytes{3, 0, 3, 0, 3, 0, 3, 0}));
+    EXPECT_TRUE(data(".fill 0, 4, 7\n").empty());
+    EXPECT_EQ(data(".byte 1\n.fill 2\n.byte 2\n"), (Bytes{1, 0, 0, 2})) << "in the middle";
+}
+
+TEST_F(AssemblerUnit, fill_with_the_address_of_a_symbol_makes_a_relocation_for_each)
+{
+    const ObjectFile object = assemble(".data\ntarget: .fill 3, 4, target + 8\n");
+    ASSERT_EQ(object.rel_data.size(), 3u);
+    for (size_t i = 0; i < 3; i++)
+    {
+        EXPECT_EQ(object.rel_data[i].offset, i * 4);
+        EXPECT_EQ(object.rel_data[i].addend, 8);
+        EXPECT_EQ(object.rel_data[i].type, ObjectFile::RelocationEntry::Type::R_EMU32_ABS32);
+    }
+    EXPECT_EQ(object.data_section.size(), 12u);
+}
+
+TEST_F(AssemblerUnit, fill_works_in_the_sections_that_hold_bytes)
+{
+    const ObjectFile object = assemble(".section \"ro\", \"r\"\n.fill 2, 2, 7\n"
+                                       ".rodata\n.fill 1, 1, 9\n");
+    EXPECT_EQ(object.find_user_section("ro")->bytes, (Bytes{7, 0, 7, 0}));
+    EXPECT_EQ(object.rodata_section, (Bytes{9}));
+}
+
+TEST_F(AssemblerUnit, fill_errors)
+{
+    EXPECT_TRUE(contains(error(".data\n.fill 2, 3, 0\n"),
+                         ".fill expects a size of 1, 2, 4 or 8 bytes, got 3"));
+    EXPECT_TRUE(contains(error(".data\n.fill 1, 0\n"), ".fill expects a size of 1, 2, 4 or 8"));
+    EXPECT_TRUE(contains(error(".data\n.fill 1, 1, 256\n"),
+                         ".fill value 256 does not fit in 1 byte(s)"));
+    EXPECT_TRUE(contains(error(".data\nl: .fill 1, 2, l\n"),
+                         ".fill cannot hold the address of a symbol, only .word can"));
+    EXPECT_TRUE(contains(error(".data\n.fill 100000000\n"), ".fill is large and likely unintentional"));
+    EXPECT_TRUE(contains(error(".data\n.fill 5000000, 4\n"), ".fill is large and likely unintentional"));
+    EXPECT_TRUE(contains(error(".text\n.fill 4, 4, 0\n"), ".fill can only define data"));
+    EXPECT_TRUE(contains(error(".bss\n.fill 4\n"), ".fill can only define data"));
+    EXPECT_TRUE(contains(error(".data\n.fill\n"), "expected a number"));
+}
+
+TEST_F(AssemblerUnit, pushsection_and_popsection_go_back_to_the_section)
+{
+    const ObjectFile object = assemble(".text\n"
+                                       "first: nop\n"
+                                       ".pushsection \".rodata\", \"r\"\n"
+                                       "msg: .asciz \"hi\"\n"
+                                       ".popsection\n"
+                                       "second: nop\n");
+    EXPECT_EQ(object.text_section.size(), 2u) << "both nops are in .text";
+    EXPECT_EQ(object.rodata_section, (Bytes{'h', 'i', 0}));
+    EXPECT_EQ(symbol(object, "second").symbol_value, 4u);
+    EXPECT_EQ(symbol(object, "second").section, object.section_table.at(".text"));
+    EXPECT_EQ(symbol(object, "msg").section, object.section_table.at(".rodata"));
+}
+
+TEST_F(AssemblerUnit, pushsection_nests_and_makes_the_section_when_it_is_new)
+{
+    const ObjectFile object = assemble(".data\n.byte 1\n"
+                                       ".pushsection \"mine\"\n"
+                                       ".byte 2\n"
+                                       ".pushsection \"nb\", \"rw\", \"nobits\"\n"
+                                       ".advance 6\n"
+                                       ".popsection\n"
+                                       ".byte 3\n" // back in "mine"
+                                       ".popsection\n"
+                                       ".byte 4\n"); // back in .data
+    EXPECT_EQ(object.data_section, (Bytes{1, 4}));
+    EXPECT_EQ(object.find_user_section("mine")->bytes, (Bytes{2, 3}));
+    EXPECT_EQ(object.find_user_section("nb")->zero_size, 6u);
+}
+
+TEST_F(AssemblerUnit, popsection_can_go_back_to_no_section)
+{
+    EXPECT_TRUE(contains(error(".pushsection \".data\"\n.byte 1\n.popsection\n.byte 2\n"),
+                         ".byte can only define data"));
+}
+
+TEST_F(AssemblerUnit, pushsection_and_popsection_errors)
+{
+    EXPECT_TRUE(contains(error(".popsection\n"), ".popsection must have a matching .pushsection"));
+    EXPECT_TRUE(contains(error(".data\n.pushsection \".rodata\"\n.popsection\n.popsection\n"),
+                         ".popsection must have a matching .pushsection"));
+    EXPECT_TRUE(contains(error(".data\n.pushsection \".rodata\"\n.byte 1\n"),
+                         ".pushsection is never closed with .popsection"));
+    EXPECT_TRUE(contains(error(".pushsection\n"), "name of the section as a string"));
+    EXPECT_TRUE(contains(error(".pushsection \".data\", \"rx\"\n"), "they cannot be changed"));
+}
+
+TEST_F(AssemblerUnit, a_macro_can_put_data_in_another_section)
+{
+    // The use case: a statement that puts a string in .rodata and goes on where it was.
+    const ObjectFile object = assemble(".text\n"
+                                       ".scope\n"
+                                       ".pushsection \".rodata\", \"r\"\n"
+                                       "text: .asciz \"x\"\n"
+                                       ".popsection\n"
+                                       ".scend\n"
+                                       "nop\n");
+    EXPECT_EQ(object.text_section.size(), 1u);
+    EXPECT_EQ(object.rodata_section, (Bytes{'x', 0}));
 }
 
 TEST_F(AssemblerUnit, a_nobits_section_is_a_size_and_keeps_its_labels)

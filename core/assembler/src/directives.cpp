@@ -993,6 +993,33 @@ void Assembler::_section()
     m_cur_section = user->nobits ? Section::USER_BSS : Section::USER;
 }
 
+///
+/// @brief                  Remembers the current section and switches to another one like
+///                         .section does (the same operands), so that .popsection can go back.
+///                         Meant for macros, which put something in .rodata or a section of their
+///                         own and carry on in the section they were used in. They nest.
+/// USAGE:                  .pushsection <string>[, <flags>[, "nobits"]]
+///
+void Assembler::_pushsection()
+{
+    m_saved_sections.push_back({m_cur_section, m_cur_section_index, m_statement});
+    _section(); // starts by skipping the directive, which is this one
+}
+
+///
+/// @brief                  Goes back to the section that the last .pushsection left.
+/// USAGE:                  .popsection
+///
+void Assembler::_popsection()
+{
+    check(!m_saved_sections.empty(), ".popsection must have a matching .pushsection");
+
+    m_cursor.next();
+    m_cur_section = m_saved_sections.back().section;
+    m_cur_section_index = m_saved_sections.back().index;
+    m_saved_sections.pop_back();
+}
+
 void Assembler::check_section_name(const Token &at, const std::string &name)
 {
     if (name.empty())
@@ -1103,40 +1130,6 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
 
     m_cursor.next();
 
-    const auto define_value = [&]
-    {
-        const Token &first = m_cursor.peek();
-        const ExprValue result = parse_binary_expression(1);
-        if (result.label != nullptr)
-        {
-            // `.word symbol + 4` is the address of the symbol plus a number, which is only known
-            // when the program is linked. Zeros are there until then, and a relocation says where
-            // the address goes.
-            if (n_bytes != sizeof(word))
-            {
-                fail(first, std::string(directive)
-                                + " cannot hold the address of a symbol, only .word can");
-            }
-            add_relocation(section_relocations(), word(section_bytes().size()),
-                           ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, result);
-            section_bytes().insert(section_bytes().end(), sizeof(word), 0);
-            return;
-        }
-
-        const dword value = dword(result.value);
-
-        // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
-        const S64 signed_value = S64(value);
-        const dword limit = n_bytes < sizeof(dword) ? dword(1) << (8 * n_bytes) : 0;
-        check(limit == 0 || value < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
-              std::string(directive) + " value "
-                  + std::to_string(signed_value < 0 ? signed_value : S64(value))
-                  + " does not fit in " + std::to_string(n_bytes) + " byte(s)");
-
-        const std::vector<byte> data = convert_little_endian({value}, n_bytes);
-        section_bytes().insert(section_bytes().end(), data.begin(), data.end());
-    };
-
     // The directive may have no arguments at all.
     if (m_cursor.at_end() || m_cursor.check(TokenType::NEWLINE))
     {
@@ -1144,8 +1137,42 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
     }
     do
     {
-        define_value();
+        const Token &first = m_cursor.peek();
+        append_value(directive, n_bytes, parse_binary_expression(1), first);
     } while (m_cursor.accept(TokenType::COMMA));
+}
+
+void Assembler::append_value(const char *directive, U8 n_bytes, const ExprValue &result,
+                             const Token &first)
+{
+    if (result.label != nullptr)
+    {
+        // `.word symbol + 4` is the address of the symbol plus a number, which is only known
+        // when the program is linked. Zeros are there until then, and a relocation says where
+        // the address goes.
+        if (n_bytes != sizeof(word))
+        {
+            fail(first, std::string(directive)
+                            + " cannot hold the address of a symbol, only .word can");
+        }
+        add_relocation(section_relocations(), word(section_bytes().size()),
+                       ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, result);
+        section_bytes().insert(section_bytes().end(), sizeof(word), 0);
+        return;
+    }
+
+    const dword value = dword(result.value);
+
+    // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
+    const S64 signed_value = S64(value);
+    const dword limit = n_bytes < sizeof(dword) ? dword(1) << (8 * n_bytes) : 0;
+    check(limit == 0 || value < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
+          std::string(directive) + " value "
+              + std::to_string(signed_value < 0 ? signed_value : S64(value)) + " does not fit in "
+              + std::to_string(n_bytes) + " byte(s)");
+
+    const std::vector<byte> data = convert_little_endian({value}, n_bytes);
+    section_bytes().insert(section_bytes().end(), data.begin(), data.end());
 }
 
 void Assembler::_byte()
@@ -1168,39 +1195,51 @@ void Assembler::_dword()
     define_data(".dword", 8);
 }
 
-// TODO: This is pointless, same as .byte.
-void Assembler::_sbyte()
+///
+/// @brief                  Repeats a value: `count` copies of a `size` byte value (little endian).
+///                         The size is 1, 2, 4 or 8 and defaults to 1, the value defaults to 0 and
+///                         is a number that fits (for a size of 4 it can also be the address of a
+///                         symbol, like .word). For zeros, .advance does the same.
+/// USAGE:                  .fill <count>{, <size>{, <value>}}
+///
+void Assembler::_fill()
 {
-    define_data(".sbyte", 1);
-}
-
-// TODO: Figure out why signed versions of these data defining directives are needed.
-void Assembler::_sdbyte()
-{
-    define_data(".sdbyte", 2);
-}
-
-void Assembler::_sword()
-{
-    define_data(".sword", 4);
-}
-
-void Assembler::_sdword()
-{
-    define_data(".sdword", 8);
-}
-
-void Assembler::_char()
-{
-    check(in_byte_section(), ".char can only define data in the .data section or "
-                                             "another data section (.rodata, ...)");
+    check(in_byte_section(),
+          ".fill can only define data in the .data section or another data section (.rodata, "
+          ".init_array, .fini_array)");
     m_cursor.next();
 
-    do
+    const Token &count_token = m_cursor.peek();
+    const word count = parse_expression();
+    word size = 1;
+    if (m_cursor.accept(TokenType::COMMA))
     {
-        const Token &literal = expect(TokenType::LITERAL_CHAR, "expected a character literal");
-        section_bytes().push_back(static_cast<byte>(literal.int_value));
-    } while (m_cursor.accept(TokenType::COMMA));
+        const Token &size_token = m_cursor.peek();
+        size = parse_expression();
+        if (size != 1 && size != 2 && size != 4 && size != 8)
+        {
+            fail(size_token, ".fill expects a size of 1, 2, 4 or 8 bytes, got "
+                                 + std::to_string(size));
+        }
+    }
+    if (static_cast<dword>(count) * size >= 0xffffff)
+    {
+        fail(count_token,
+             ".fill is large and likely unintentional (" + std::to_string(count) + " of "
+                 + std::to_string(size) + " bytes)");
+    }
+
+    ExprValue value;
+    const Token *value_token = &count_token;
+    if (m_cursor.accept(TokenType::COMMA))
+    {
+        value_token = &m_cursor.peek();
+        value = parse_binary_expression(1);
+    }
+    for (word i = 0; i < count; i++)
+    {
+        append_value(".fill", U8(size), value, *value_token);
+    }
 }
 
 void Assembler::_ascii()

@@ -162,6 +162,10 @@ void Assembler::assemble()
     {
         fail(*m_scope_sites.back(), ".scope is never closed with .scend");
     }
+    if (!m_saved_sections.empty() && !m_stopped)
+    {
+        fail(*m_saved_sections.back().site, ".pushsection is never closed with .popsection");
+    }
 
     for (const ObjectFile::UserSection &user : m_obj.user_sections)
     {
