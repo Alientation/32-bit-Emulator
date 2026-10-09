@@ -62,6 +62,9 @@ class Emulator32bit
         BREAK_INSTR,
         /// An exception was raised again before any instruction ran.
         DOUBLE_FAULT,
+        /// A word or half-word load or store (not ldur, stur) at an address that is not a multiple
+        /// of its size. Becomes a data abort with the alignment syndrome.
+        MISALIGNED,
     };
 
     /// The exceptions the CPU raises, see docs/exceptions.md. The value is the number of the vector
@@ -95,7 +98,8 @@ class Emulator32bit
     static constexpr word kAbortIss_translation = 1;
     /// Write to read-only, execute of data, kernel only.
     static constexpr word kAbortIss_permission = 2;
-    /// A pc that is not a multiple of 4.
+    /// A pc that is not a multiple of 4, or a data access (ldr, str, ldrh, strh) that is not
+    /// aligned to its size.
     static constexpr word kAbortIss_alignment = 3;
     /// No memory at the physical address.
     static constexpr word kAbortIss_bus = 4;
@@ -130,11 +134,17 @@ class Emulator32bit
 
     /// How a load or a store uses its offset: added to the base, added before the base is updated
     /// (pre-index) or after the access (post-index).
+    ///
+    /// ADDR_UNALIGNED is the offset form of `ldur`, `ldurh`, `stur` and `sturh`: the same as
+    /// ADDR_OFFSET, but the address does not have to be aligned to the size of the access. It
+    /// exists for the word and half-word accesses only (a byte is always aligned), and has no
+    /// pre or post indexed form.
     enum class AddrType : U8
     {
         ADDR_OFFSET,
         ADDR_PRE_INC,
-        ADDR_POST_INC
+        ADDR_POST_INC,
+        ADDR_UNALIGNED,
     };
 
     /// The machine: the physical memory and the devices, the MMU that translates the addresses of
@@ -492,13 +502,17 @@ class Emulator32bit
         U8 base;          ///< Register that the address is relative to.
         word base_after;
         bool writes_back; ///< Pre and post indexed accesses.
+        bool unaligned;   ///< ADDR_UNALIGNED: the address need not be aligned to the access size.
     };
 
     /// Works out the address of a load or store and what the base register becomes, without
     /// changing any register.
     ///
+    /// @tparam kHasUnalignedForm whether the instruction has the ADDR_UNALIGNED form (word and
+    ///         half-word accesses). For a byte access that mode is an undefined instruction.
     /// @param instr the instruction, of format M
     /// @return the address and the new base
+    template<bool kHasUnalignedForm>
     MemOperand decode_mem_operand(word instr);
 
     /// Writes the new base register of a pre or post indexed access, after the access succeeded.
@@ -730,25 +744,25 @@ class Emulator32bit
 
     /// Constructs instructions of format O1 (the shifts): the amount is a register or an imm5
     ///
-    /// @param opcode 6 bit identifier of the instruction
+    /// @param type which shift it is (lsl, lsr, asr or ror); they are one opcode, `_op_shift`
     /// @param xd 5 bit destination register identifier
     /// @param xn 5 bit register identifier of the value to shift
     /// @param imm whether the amount is `imm5`, otherwise it is the register `xm`
     /// @param xm 5 bit register identifier of the amount
     /// @param imm5 the amount
     /// @param s whether condition flags are set
-    static word asm_format_o1(U8 opcode, int xd, int xn, bool imm, int xm, int imm5,
+    static word asm_format_o1(ShiftType type, int xd, int xn, bool imm, int xm, int imm5,
                               bool s = false);
 
     /// Constructs instructions of format O2 (the long multiplies), with two destination registers
     ///
-    /// @param opcode 6 bit identifier of the instruction
+    /// @param is_signed smull, otherwise umull; they are one opcode, `_op_mull`
     /// @param s whether condition flags are set
     /// @param xlo 5 bit register identifier that receives the low word
     /// @param xhi 5 bit register identifier that receives the high word
     /// @param xn 5 bit identifier of the first operand register
     /// @param xm 5 bit identifier of the second operand register
-    static word asm_format_o2(U8 opcode, bool s, int xlo, int xhi, int xn, int xm);
+    static word asm_format_o2(bool is_signed, bool s, int xlo, int xhi, int xn, int xm);
 
     /// Constructs instructions of format O3 with an imm19 operand (`mov`, `mvn`)
     ///
@@ -804,12 +818,12 @@ class Emulator32bit
     /// @param simm22 22 bit signed offset, in instructions
     static word asm_format_b1(U8 opcode, ConditionCode cond, sword simm22);
 
-    /// Constructs a branch (format B2) to the address in a register
+    /// Constructs a branch (format B2) to the address in a register (`bx`, or `blx` with `link`)
     ///
-    /// @param opcode 6 bit identifier of the instruction
     /// @param cond the condition under which the branch is taken
     /// @param xd 5 bit register identifier that holds the target
-    static word asm_format_b2(U8 opcode, ConditionCode cond, int xd);
+    /// @param link whether x29 gets the address of the next instruction (`blx`)
+    static word asm_format_b2(ConditionCode cond, int xd, bool link = false);
 
     /// @param instr an instruction word
     /// @return the instruction as assembly text

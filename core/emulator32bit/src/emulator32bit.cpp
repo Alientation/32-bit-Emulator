@@ -737,6 +737,14 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
 
     if (const auto *emu = dynamic_cast<const Exception *>(&error))
     {
+        if (emu->get_type() == InterruptType::MISALIGNED)
+        {
+            // Only a load or a store raises this, so it is not the fetch.
+            enter_exception(ExceptionClass::DATA_ABORT, emu->get_iss(), data_address_of(instr),
+                            m_pc);
+            return true;
+        }
+
         if (emu->get_type() != InterruptType::BAD_INSTR
             && emu->get_type() != InterruptType::BAD_REG)
         {

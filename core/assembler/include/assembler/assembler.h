@@ -309,16 +309,20 @@ class Assembler
     /// @param implicit_dest The destination is not written, it is xzr (cmp, cmn, tst, teq).
     word parse_format_o(byte opcode, bool implicit_dest = false);
     /// The shifts: `op xd, xn, <xm | imm5>`.
-    word parse_format_o1(byte opcode);
+    word parse_format_o1(ShiftType type);
 
     /// The long multiplies: `op xlo, xhi, xn, xm`.
-    word parse_format_o2(byte opcode);
+    word parse_format_o2(bool is_signed);
 
     /// The moves: `op xd, <xm | imm19>`.
     word parse_format_o3(byte opcode);
 
     /// The loads and stores: `op xt, [xn{, offset}]`, with the addressing modes of docs/isa.md.
-    word parse_format_m(byte opcode);
+    ///
+    /// @param opcode the opcode of the access
+    /// @param unaligned whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
+    ///        which has a plain offset only
+    word parse_format_m(byte opcode, bool unaligned = false);
 
     /// `op xd, symbol`: the page address instructions (`adrp`, `adr`).
     word parse_format_m1(byte opcode);
@@ -327,7 +331,7 @@ class Assembler
     word parse_format_b1(byte opcode);
 
     /// A branch to a register: `op[.cond] xd`.
-    word parse_format_b2(byte opcode);
+    word parse_format_b2(bool link);
 
     /// swi[.cond] [number]: the number is not an offset, a branch is not involved.
     word parse_format_swi(byte opcode);

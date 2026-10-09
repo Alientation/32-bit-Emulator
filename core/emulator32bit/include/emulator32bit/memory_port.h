@@ -44,6 +44,17 @@ class MemoryPort
                 return T(read_val(address, sizeof(T)));
         }
 
+        return read_aligned<T>(address);
+    }
+
+    /// read<T> for an address that lies within one page, which an address that is a multiple of
+    /// sizeof(T) always does: one translation and no check for a page boundary.
+    ///
+    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
+    /// @throws SystemBus::Exception if no memory is at the physical address.
+    template<class T>
+    inline T read_aligned(const word address)
+    {
         const word real_addr = m_mmu.translate_address(address);
         if (LIKELY(m_ram->in_bounds(real_addr))) return mem_read<T>(*m_ram, real_addr);
         return mem_read<T>(m_bus.route_memory(real_addr), real_addr);
@@ -67,6 +78,16 @@ class MemoryPort
             }
         }
 
+        write_aligned<T>(address, data);
+    }
+
+    /// write<T> for an address that lies within one page, see read_aligned<T>.
+    ///
+    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
+    /// @throws SystemBus::Exception if no memory is at the physical address.
+    template<class T>
+    inline void write_aligned(const word address, const T data)
+    {
         const word real_addr = m_mmu.translate_address(address, VirtualMemory::AccessType::WRITE);
         if (LIKELY(m_ram->in_bounds(real_addr)))
         {

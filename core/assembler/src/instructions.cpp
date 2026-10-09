@@ -1,6 +1,6 @@
 #include "assembler/assembler.h"
-#include "util/logger.h"
 #include "util/common.h"
+#include "util/logger.h"
 
 #include <iterator>
 #include <string>
@@ -150,7 +150,7 @@ word Assembler::parse_format_b1(byte opcode)
     return Emulator32bit::asm_format_b1(opcode, condition, value);
 }
 
-word Assembler::parse_format_b2(byte opcode)
+word Assembler::parse_format_b2(bool link)
 {
     m_cursor.next();
 
@@ -167,7 +167,7 @@ word Assembler::parse_format_b2(byte opcode)
     }
 
     const byte reg = parse_register();
-    return Emulator32bit::asm_format_b2(opcode, condition, reg);
+    return Emulator32bit::asm_format_b2(condition, reg, link);
 }
 
 word Assembler::parse_format_swi(byte opcode)
@@ -214,7 +214,7 @@ word Assembler::parse_format_m1(byte opcode)
     return Emulator32bit::asm_format_m1(opcode, reg, 0);
 }
 
-word Assembler::parse_format_m(byte opcode)
+word Assembler::parse_format_m(byte opcode, bool unaligned)
 {
     // Whether the value to be loaded/stored should be interpreted as signed.
     const bool sign = m_cursor.next().has(basm::SIGN_EXTEND);
@@ -264,6 +264,16 @@ word Assembler::parse_format_m(byte opcode)
         }
     };
 
+    // The mode that is encoded. ldur and stur take a plain offset, which they encode as the
+    // unaligned mode.
+    const auto encoded_mode = [&](const Emulator32bit::AddrType mode)
+    {
+        if (!unaligned) return mode;
+        check(mode == Emulator32bit::AddrType::ADDR_OFFSET,
+              "an unaligned access (ldur, ldurh, stur, sturh) has no pre-index or post-index form");
+        return Emulator32bit::AddrType::ADDR_UNALIGNED;
+    };
+
     // Parse the address mode.
     Emulator32bit::AddrType addressing_mode;
     bool parsed_addressing_mode = false;
@@ -275,7 +285,7 @@ word Assembler::parse_format_m(byte opcode)
         if (!m_cursor.check(TokenType::COMMA))
         {
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0,
-                                               Emulator32bit::AddrType::ADDR_OFFSET);
+                                               encoded_mode(Emulator32bit::AddrType::ADDR_OFFSET));
         }
 
         addressing_mode = Emulator32bit::AddrType::ADDR_POST_INC;
@@ -305,8 +315,9 @@ word Assembler::parse_format_m(byte opcode)
                                       : Emulator32bit::AddrType::ADDR_OFFSET;
             }
 
+            const auto mode = encoded_mode(addressing_mode);
             warn_writeback(addressing_mode, offset == 0);
-            return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, addressing_mode);
+            return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, mode);
         }
         else
         {
@@ -331,16 +342,18 @@ word Assembler::parse_format_m(byte opcode)
                                       : Emulator32bit::AddrType::ADDR_OFFSET;
             }
 
+            const auto mode = encoded_mode(addressing_mode);
             warn_writeback(addressing_mode, reg_b == U8(Register::XZR));
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift,
-                                               shift_amount, addressing_mode);
+                                               shift_amount, mode);
         }
     }
 
     // Check for invalid addressing mode.
     check(parsed_addressing_mode, "invalid addressing mode");
+    const auto mode = encoded_mode(addressing_mode);
     warn_writeback(addressing_mode, true);
-    return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, addressing_mode);
+    return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, mode);
 }
 
 word Assembler::parse_format_o3(byte opcode)
@@ -392,7 +405,7 @@ word Assembler::parse_format_o3(byte opcode)
     return 0;
 }
 
-word Assembler::parse_format_o2(byte opcode)
+word Assembler::parse_format_o2(bool is_signed)
 {
     bool s = m_cursor.next().has(basm::SETS_FLAGS);
 
@@ -406,10 +419,10 @@ word Assembler::parse_format_o2(byte opcode)
     expect(TokenType::COMMA, "expected ','");
 
     const byte operand_reg2 = parse_register();
-    return Emulator32bit::asm_format_o2(opcode, s, reg1, reg2, operand_reg1, operand_reg2);
+    return Emulator32bit::asm_format_o2(is_signed, s, reg1, reg2, operand_reg1, operand_reg2);
 }
 
-word Assembler::parse_format_o1(byte opcode)
+word Assembler::parse_format_o1(ShiftType type)
 {
     const bool s = m_cursor.next().has(basm::SETS_FLAGS);
 
@@ -422,20 +435,22 @@ word Assembler::parse_format_o1(byte opcode)
     if (basm::is_register(m_cursor.peek().type))
     {
         const byte operand_reg = parse_register();
-        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, false, operand_reg, 0, s);
+        return Emulator32bit::asm_format_o1(type, reg1, reg2, false, operand_reg, 0, s);
     }
     else
     {
         const int shift_amt = parse_expression();
         check(word(shift_amt) < (1ULL << 5),
               "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
-        return Emulator32bit::asm_format_o1(opcode, reg1, reg2, true, 0, shift_amt, s);
+        return Emulator32bit::asm_format_o1(type, reg1, reg2, true, 0, shift_amt, s);
     }
 }
 
 word Assembler::parse_format_o(byte opcode, bool implicit_dest)
 {
-    const bool s = m_cursor.next().has(basm::SETS_FLAGS);
+    // cmp, cmn, tst and teq are the flag setting form of their operation, with xzr as the
+    // destination.
+    const bool s = m_cursor.next().has(basm::SETS_FLAGS) || implicit_dest;
 
     byte reg1 = 31; // xzr
     if (!implicit_dest)
@@ -580,8 +595,7 @@ bool Assembler::assemble_load_constant()
 
         add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
-        emit_instruction(
-            Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xd, 0));
+        emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xd, 0));
         return true;
     }
 
@@ -606,12 +620,11 @@ bool Assembler::assemble_load_constant()
     {
         emit_instruction(
             Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value >> 14)));
-        emit_instruction(
-            Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, xd, xd, true, 0, 14));
+        emit_instruction(Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0, 14));
         if ((value & 0x3FFF) != 0)
         {
-            emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false,
-                                                                     xd, xd, int(value & 0x3FFF)));
+            emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false, xd, xd,
+                                                         int(value & 0x3FFF)));
         }
     }
     return true;
@@ -691,20 +704,20 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         instruction = parse_format_o(spec.a, true);
         break;
     case Format::O1:
-        instruction = parse_format_o1(spec.a);
+        instruction = parse_format_o1(ShiftType(spec.b));
         break;
     case Format::O2:
-        instruction = parse_format_o2(spec.a);
+        instruction = parse_format_o2(spec.b != 0);
         break;
     case Format::O3:
         instruction = parse_format_o3(spec.a);
         break;
     case Format::M:
-        if (spec.a == Emulator32bit::_op_ldr && assemble_load_constant())
+        if (spec.a == Emulator32bit::_op_ldr && spec.b == 0 && assemble_load_constant())
         {
             return;
         }
-        instruction = parse_format_m(spec.a);
+        instruction = parse_format_m(spec.a, spec.b != 0);
         break;
     case Format::CSEL:
         instruction = parse_format_csel(spec.a, spec.b);
@@ -725,7 +738,7 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         instruction = parse_format_b1(spec.a);
         break;
     case Format::B2:
-        instruction = parse_format_b2(spec.a);
+        instruction = parse_format_b2(spec.b != 0);
         break;
     case Format::SWI:
         instruction = parse_format_swi(spec.a);
@@ -858,6 +871,5 @@ void Assembler::_ret()
     m_cursor.next();
 
     constexpr byte kLinkRegister = 29;
-    emit_instruction(
-        Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, kLinkRegister));
+    emit_instruction(Emulator32bit::asm_format_b2(ConditionCode::AL, kLinkRegister));
 }

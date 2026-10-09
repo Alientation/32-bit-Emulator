@@ -1,20 +1,20 @@
 #include "emulator32bit/emulator32bit.h"
-#include "util/logger.h"
 #include "util/common.h"
+#include "util/logger.h"
 
 #include <bit>
 #include <format>
 #include <string>
 
 /// Useful macros to extract information from instruction bits
-#define _X1(instr) (bitfield_unsigned<20, 5>(instr)) // bits 20 to 24
-#define _X2(instr) (bitfield_unsigned<15, 5>(instr)) // bits 15 to 19
-#define _X3(instr) (bitfield_unsigned<9, 5>(instr)) // bits 9 to 13
-#define _X4(instr) (bitfield_unsigned<4, 5>(instr)) // bits 4 to 8
+#define _X1(instr) (bitfield_unsigned<20, 5>(instr))  // bits 20 to 24
+#define _X2(instr) (bitfield_unsigned<15, 5>(instr))  // bits 15 to 19
+#define _X3(instr) (bitfield_unsigned<9, 5>(instr))   // bits 9 to 13
+#define _X4(instr) (bitfield_unsigned<4, 5>(instr))   // bits 4 to 8
 
 #define _SX1(instr) (bitfield_unsigned<17, 5>(instr)) // bits 17 to 21
 #define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) // bits 11 to 15
-#define _SX3(instr) (bitfield_unsigned<6, 5>(instr)) // bits 6 to 10
+#define _SX3(instr) (bitfield_unsigned<6, 5>(instr))  // bits 6 to 10
 
 /// Parse the value of the argument for instruction format O
 ///
@@ -119,18 +119,19 @@ word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, co
                     << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5) << Zeros(2);
 }
 
-word Emulator32bit::asm_format_o1(const U8 opcode, const int xd, const int xn, const bool imm,
+word Emulator32bit::asm_format_o1(const ShiftType type, const int xd, const int xn, const bool imm,
                                   const int xm, const int imm5, const bool s)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
-                    << JPart(1, imm) << JPart(5, xm) << Zeros(2) << JPart(5, imm5) << Zeros(2);
+    return Joiner() << JPart(6, _op_shift) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
+                    << JPart(1, imm) << JPart(5, xm) << JPart(2, U8(type)) << JPart(5, imm5)
+                    << Zeros(2);
 }
 
-word Emulator32bit::asm_format_o2(const U8 opcode, const bool s, const int xlo, const int xhi,
+word Emulator32bit::asm_format_o2(const bool is_signed, const bool s, const int xlo, const int xhi,
                                   const int xn, const int xm)
 {
-    return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi) << Zeros(1)
-                    << JPart(5, xn) << JPart(5, xm) << Zeros(4);
+    return Joiner() << JPart(6, _op_mull) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi)
+                    << Zeros(1) << JPart(5, xn) << JPart(5, xm) << Zeros(3) << JPart(1, is_signed);
 }
 
 word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, const int imm19)
@@ -174,9 +175,10 @@ word Emulator32bit::asm_format_b1(const U8 opcode, const ConditionCode cond, con
                     << JPart(22, bitfield_unsigned<0, 22>(simm22));
 }
 
-word Emulator32bit::asm_format_b2(const U8 opcode, const ConditionCode cond, const int xd)
+word Emulator32bit::asm_format_b2(const ConditionCode cond, const int xd, const bool link)
 {
-    return Joiner() << JPart(6, opcode) << JPart(4, word(cond)) << JPart(5, xd) << Zeros(17);
+    return Joiner() << JPart(6, _op_bx) << JPart(4, word(cond)) << JPart(5, xd) << Zeros(16)
+                    << JPart(1, link);
 }
 
 void Emulator32bit::_special_instructions(const word instr)
@@ -482,6 +484,25 @@ word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const
                     << JPart(5, xn) << JPart(5, xm) << JPart(2, variant) << Zeros(4);
 }
 
+/// The data abort of a word or half-word access at an address that is not a multiple of its size.
+/// The instruction has changed nothing yet.
+///
+/// @param atomic an atomic (a read and a write, which has no unaligned form), otherwise a load or
+///        store whose message names the unaligned form to use
+[[noreturn]] static void throw_misaligned(const word address, const unsigned size, const bool write,
+                                          const bool atomic = false)
+{
+    const char *const kind = atomic ? "atomic access" : write ? "store" : "load";
+    const std::string hint =
+        atomic ? ""
+               : std::format(" (use {} for an unaligned access)",
+                             size == 4 ? (write ? "stur" : "ldur") : (write ? "sturh" : "ldurh"));
+    throw Emulator32bit::Exception(
+        Emulator32bit::InterruptType::MISALIGNED,
+        std::format("Misaligned {} of {} bytes at address {:#010x}{}", kind, size, address, hint),
+        Emulator32bit::kAbortIss_alignment | (write ? Emulator32bit::kAbortIss_write : 0));
+}
+
 void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operation)
 {
     const U8 xt = _SX1(instr);
@@ -492,6 +513,13 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     const U8 width = bitfield_unsigned<4, 2>(instr);
 
     const word val_reg = read_reg(xn);
+
+    // An atomic access is naturally aligned, there is no unaligned form (a byte always is).
+    const unsigned size = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
+    if (UNLIKELY((mem_adr & (size - 1)) != 0))
+    {
+        throw_misaligned(mem_adr, size, true, true);
+    }
 
     word val_mem;
     word new_val;
@@ -566,10 +594,9 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
 
     if (UNLIKELY(!m_watchpoints.empty()))
     {
-        const word length = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
         // The write is reported first: it is the more interesting half of a read-modify-write.
-        watch_access(mem_adr, length, true, new_val);
-        watch_access(mem_adr, length, false, val_mem);
+        watch_access(mem_adr, size, true, new_val);
+        watch_access(mem_adr, size, false, val_mem);
     }
 
     // Return the original memory value in Xt. Only once the memory is written, a write that
@@ -622,36 +649,6 @@ word Emulator32bit::asm_atomic(word xt, word xn, word xm, U8 width, U8 atop)
         write_reg(_X1(instr), word(result.result));                                                \
     }
 
-// Compare/test instructions: same operands as ALU_OP, but only the flags are written, always.
-#define FLAGS_ONLY_OP(name, expr)                                                                  \
-    void Emulator32bit::name(const word instr)                                                     \
-    {                                                                                              \
-        const word rn = read_reg(_X2(instr));                                                      \
-        const word op2 = get_format_o_arg(*this, instr);                                           \
-        set_NZCV((expr).flags);                                                                    \
-    }
-
-// Shift instructions: the amount is an imm5 or the low 5 bits of xm.
-#define SHIFT_OP(name, shift_type)                                                                 \
-    void Emulator32bit::name(const word instr)                                                     \
-    {                                                                                              \
-        const unsigned amount =                                                                    \
-            test_bit<14>(instr) ? bitfield_unsigned<2, 5>(instr) : (read_reg(_X3(instr)) & 0x1F);  \
-        const AluResult result = alu_shift(read_reg(_X2(instr)), shift_type, amount, get_NZCV());  \
-        if (test_bit<kInstructionUpdateFlagBit>(instr)) set_NZCV(result.flags);                    \
-        write_reg(_X1(instr), result.result);                                                      \
-    }
-
-// Long multiplies: {xhi:xlo} = xn * xm, where xlo is _X1 and xhi is _X2.
-#define LONG_MUL_OP(name, alu_fn)                                                                  \
-    void Emulator32bit::name(const word instr)                                                     \
-    {                                                                                              \
-        const AluResult result = alu_fn(read_reg(_X3(instr)), read_reg(_X4(instr)), get_NZCV());   \
-        if (test_bit<kInstructionUpdateFlagBit>(instr)) set_NZCV(result.flags);                    \
-        write_reg(_X1(instr), word(result.result));                                                \
-        write_reg(_X2(instr), word(result.result >> 32));                                          \
-    }
-
 ALU_OP(_add, alu_add(rn, op2, false))
 ALU_OP(_sub, alu_sub(rn, op2, true))
 ALU_OP(_rsb, alu_sub(op2, rn, true))
@@ -670,23 +667,30 @@ ALU_OP(_orr, alu_orr(rn, op2, get_NZCV()))
 ALU_OP(_eor, alu_eor(rn, op2, get_NZCV()))
 ALU_OP(_bic, alu_bic(rn, op2, get_NZCV()))
 
-LONG_MUL_OP(_umull, alu_umull)
-LONG_MUL_OP(_smull, alu_smull)
-
-SHIFT_OP(_lsl, ShiftType::SHIFT_LSL)
-SHIFT_OP(_lsr, ShiftType::SHIFT_LSR)
-SHIFT_OP(_asr, ShiftType::SHIFT_ASR)
-SHIFT_OP(_ror, ShiftType::SHIFT_ROR)
-
-FLAGS_ONLY_OP(_cmp, alu_sub(rn, op2, true))       // alias to subs
-FLAGS_ONLY_OP(_cmn, alu_add(rn, op2, false))      // alias to adds
-FLAGS_ONLY_OP(_tst, alu_and(rn, op2, get_NZCV())) // alias to ands
-FLAGS_ONLY_OP(_teq, alu_eor(rn, op2, get_NZCV())) // alias to eors
-
 #undef ALU_OP
-#undef FLAGS_ONLY_OP
-#undef SHIFT_OP
-#undef LONG_MUL_OP
+
+// lsl, lsr, asr, ror: the type is in bits 7-8, the amount is an imm5 or the low 5 bits of xm.
+void Emulator32bit::_shift(const word instr)
+{
+    const unsigned amount =
+        test_bit<14>(instr) ? bitfield_unsigned<2, 5>(instr) : (read_reg(_X3(instr)) & 0x1F);
+    const ShiftType type = ShiftType(bitfield_unsigned<7, 2>(instr));
+    const AluResult result = alu_shift(read_reg(_X2(instr)), type, amount, get_NZCV());
+    if (test_bit<kInstructionUpdateFlagBit>(instr)) set_NZCV(result.flags);
+    write_reg(_X1(instr), result.result);
+}
+
+// umull, smull (bit 0 is the signed bit): {xhi:xlo} = xn * xm, where xlo is _X1 and xhi is _X2.
+void Emulator32bit::_mull(const word instr)
+{
+    const word a = read_reg(_X3(instr));
+    const word b = read_reg(_X4(instr));
+    const AluResult result = test_bit<kLongMulSignedBit>(instr) ? alu_smull(a, b, get_NZCV())
+                                                                : alu_umull(a, b, get_NZCV());
+    if (test_bit<kInstructionUpdateFlagBit>(instr)) set_NZCV(result.flags);
+    write_reg(_X1(instr), word(result.result));
+    write_reg(_X2(instr), word(result.result >> 32));
+}
 
 // Vector/floating point instructions are not implemented. Executing one is a fault instead of a
 // silent no-op.
@@ -731,6 +735,7 @@ MOVE_OP(_mov, alu_mov)
 MOVE_OP(_mvn, alu_mvn)
 #undef MOVE_OP
 
+template<bool kHasUnalignedForm>
 [[gnu::always_inline]] inline Emulator32bit::MemOperand
 Emulator32bit::decode_mem_operand(const word instr)
 {
@@ -743,12 +748,33 @@ Emulator32bit::decode_mem_operand(const word instr)
     switch (AddrType(addr_mode))
     {
     case AddrType::ADDR_OFFSET:
-        return {.address = base + offset, .base = xn, .base_after = base, .writes_back = false};
+        return {.address = base + offset,
+                .base = xn,
+                .base_after = base,
+                .writes_back = false,
+                .unaligned = false};
     case AddrType::ADDR_PRE_INC:
-        return {
-            .address = base + offset, .base = xn, .base_after = base + offset, .writes_back = true};
+        return {.address = base + offset,
+                .base = xn,
+                .base_after = base + offset,
+                .writes_back = true,
+                .unaligned = false};
     case AddrType::ADDR_POST_INC:
-        return {.address = base, .base = xn, .base_after = base + offset, .writes_back = true};
+        return {.address = base,
+                .base = xn,
+                .base_after = base + offset,
+                .writes_back = true,
+                .unaligned = false};
+    case AddrType::ADDR_UNALIGNED:
+        if constexpr (kHasUnalignedForm)
+        {
+            return {.address = base + offset,
+                    .base = xn,
+                    .base_after = base,
+                    .writes_back = false,
+                    .unaligned = true};
+        }
+        break;
     }
 
     throw Exception(InterruptType::BAD_INSTR,
@@ -756,7 +782,7 @@ Emulator32bit::decode_mem_operand(const word instr)
 }
 
 static_assert(Emulator32bit::_op_ldr < Emulator32bit::_op_strh
-              && Emulator32bit::_op_strh - Emulator32bit::_op_ldr == 5,
+                  && Emulator32bit::_op_strh - Emulator32bit::_op_ldr == 5,
               "data_address_of treats ldr..strh as the range of the format M accesses");
 
 word Emulator32bit::data_address_of(const word instr)
@@ -764,9 +790,10 @@ word Emulator32bit::data_address_of(const word instr)
     const word opcode = bitfield_unsigned<26, 6>(instr);
     if (opcode >= _op_ldr && opcode <= _op_strh)
     {
-        return decode_mem_operand(instr).address;
+        return decode_mem_operand<true>(instr).address;
     }
-    if (opcode == _op_special_instructions && bitfield_unsigned<22, 4>(instr) == kSpecialOpId_atomic)
+    if (opcode == _op_special_instructions
+        && bitfield_unsigned<22, 4>(instr) == kSpecialOpId_atomic)
     {
         return read_reg(_SX3(instr));
     }
@@ -781,13 +808,41 @@ void Emulator32bit::write_back_base(const MemOperand &operand)
     }
 }
 
+/// A load of a byte, half-word or word. The common case is an aligned address, which cannot cross
+/// a page and so skips that check; an unaligned one is only allowed by the unaligned form.
+template<class T>
+[[gnu::always_inline]] static inline T load(MemoryPort &memory, const word address,
+                                            const bool unaligned)
+{
+    if (LIKELY((address & (sizeof(T) - 1)) == 0)) return memory.read_aligned<T>(address);
+    if (UNLIKELY(!unaligned)) throw_misaligned(address, sizeof(T), false);
+    return memory.read<T>(address);
+}
+
+/// A store of a byte, half-word or word, see load<T>.
+template<class T>
+[[gnu::always_inline]] static inline void store(MemoryPort &memory, const word address,
+                                                const T value, const bool unaligned)
+{
+    if (LIKELY((address & (sizeof(T) - 1)) == 0))
+    {
+        memory.write_aligned<T>(address, value);
+        return;
+    }
+    if (UNLIKELY(!unaligned)) throw_misaligned(address, sizeof(T), true);
+    memory.write<T>(address, value);
+}
+
 /// The base register is written back after the access, so an access that faults changes nothing.
 /// A load writes the loaded value after that, which is why it wins when xt is the base register.
 /// A store has read xt before the write back, so `str x1, [x1, 8]!` stores the old x1.
+///
+/// `ldr`, `ldrh`, `str` and `strh` fault when the address is not a multiple of the size of the
+/// access, `ldur`, `ldurh`, `stur` and `sturh` (ADDR_UNALIGNED) do not.
 void Emulator32bit::_ldr(const word instr)
 {
-    const MemOperand mem = decode_mem_operand(instr);
-    const word read_val = memory.read_word(mem.address);
+    const MemOperand mem = decode_mem_operand<true>(instr);
+    const word read_val = load<word>(memory, mem.address, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 4, false, read_val);
@@ -799,8 +854,8 @@ void Emulator32bit::_ldr(const word instr)
 void Emulator32bit::_ldrb(const word instr)
 {
     const bool sign = test_bit<25>(instr);
-    const MemOperand mem = decode_mem_operand(instr);
-    word read_val = memory.read_byte(mem.address);
+    const MemOperand mem = decode_mem_operand<false>(instr);
+    word read_val = load<byte>(memory, mem.address, false);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 1, false, read_val);
@@ -816,8 +871,8 @@ void Emulator32bit::_ldrb(const word instr)
 void Emulator32bit::_ldrh(const word instr)
 {
     const bool sign = test_bit<25>(instr);
-    const MemOperand mem = decode_mem_operand(instr);
-    word read_val = memory.read_hword(mem.address);
+    const MemOperand mem = decode_mem_operand<true>(instr);
+    word read_val = load<hword>(memory, mem.address, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 2, false, read_val);
@@ -833,9 +888,9 @@ void Emulator32bit::_ldrh(const word instr)
 /// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
 void Emulator32bit::_str(const word instr)
 {
-    const MemOperand mem = decode_mem_operand(instr);
+    const MemOperand mem = decode_mem_operand<true>(instr);
     const word value = read_reg(_X1(instr));
-    memory.write_word(mem.address, value);
+    store<word>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 4, true, value);
@@ -845,9 +900,9 @@ void Emulator32bit::_str(const word instr)
 
 void Emulator32bit::_strb(const word instr)
 {
-    const MemOperand mem = decode_mem_operand(instr);
+    const MemOperand mem = decode_mem_operand<false>(instr);
     const word value = read_reg(_X1(instr));
-    memory.write_byte(mem.address, value);
+    store<byte>(memory, mem.address, value, false);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 1, true, value & 0xFF);
@@ -857,9 +912,9 @@ void Emulator32bit::_strb(const word instr)
 
 void Emulator32bit::_strh(const word instr)
 {
-    const MemOperand mem = decode_mem_operand(instr);
+    const MemOperand mem = decode_mem_operand<true>(instr);
     const word value = read_reg(_X1(instr));
-    memory.write_hword(mem.address, value);
+    store<hword>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         watch_access(mem.address, 2, true, value & 0xFFFF);
@@ -887,24 +942,20 @@ void Emulator32bit::_bl(const word instr)
     }
 }
 
+// bx and blx: the link bit makes it a call. The target is read before x29 is written, so
+// `blx x29` jumps to the old x29.
 void Emulator32bit::_bx(const word instr)
 {
     const U8 cond = bitfield_unsigned<22, 4>(instr);
     const U8 reg = bitfield_unsigned<17, 5>(instr);
     if (check_cond(m_pstate, cond))
     {
-        m_pc = sword(read_reg(reg)) - 4;
-    }
-}
-
-void Emulator32bit::_blx(const word instr)
-{
-    const U8 cond = bitfield_unsigned<22, 4>(instr);
-    const U8 reg = bitfield_unsigned<17, 5>(instr);
-    if (check_cond(m_pstate, cond))
-    {
-        write_reg(Register::LR, m_pc + 4);
-        m_pc = sword(read_reg(reg)) - 4;
+        const word target = read_reg(reg);
+        if (test_bit<kBranchLinkBit>(instr))
+        {
+            write_reg(Register::LR, m_pc + 4);
+        }
+        m_pc = sword(target) - 4;
     }
 }
 

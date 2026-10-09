@@ -1,8 +1,8 @@
 // What a program that accesses memory it may not access sees: it stops with a fault, and the
 // instruction that faulted did nothing (no register changed, nothing was stored).
 
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/virtual_memory.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {
@@ -140,8 +140,7 @@ TEST_F(AccessFault, the_code_cannot_be_executed_from_a_page_that_is_not_executab
 {
     // A jump to the data.
     cpu.write_reg(U8(1), kWritable);
-    const auto result =
-        run(Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, 1));
+    const auto result = run(Emulator32bit::asm_format_b2(ConditionCode::AL, 1));
     EXPECT_EQ(result.status, Status::FAULT);
     EXPECT_NE(result.message.find("Execute permission denied"), std::string::npos)
         << result.message;

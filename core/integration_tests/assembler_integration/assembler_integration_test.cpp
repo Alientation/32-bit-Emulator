@@ -357,6 +357,7 @@ values:         .word 1000, 234
 message:        .asciz "hello"
 
 .bss
+                .align 4                        ; .data is 14 bytes, str needs a multiple of 4
 result:         .advance 4
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o data data.basm -outdir ."));
@@ -368,11 +369,11 @@ result:         .advance 4
     EXPECT_EQ(obj.data_section.size(), 8u + 6u);
     EXPECT_EQ(obj.bss_section, 4u);
 
-    // .data is 14 bytes at 0x1000 and .bss follows directly, so result is at 0x100e.
-    ASSERT_NO_FATAL_FAILURE(run("data.bexe", "-m 0x1000:14,0x100e:4"));
+    // .data is 14 bytes at 0x1000 and .bss follows directly, aligned to 4: result is at 0x1010.
+    ASSERT_NO_FATAL_FAILURE(run("data.bexe", "-m 0x1000:14,0x1010:4"));
     EXPECT_EQ(mem(kDataStart),
               (std::vector<byte>{0xe8, 0x03, 0, 0, 0xea, 0, 0, 0, 'h', 'e', 'l', 'l', 'o', 0}));
-    EXPECT_EQ(mem(0x100e), (std::vector<byte>{0xd2, 0x04, 0, 0})); // 1234
+    EXPECT_EQ(mem(0x1010), (std::vector<byte>{0xd2, 0x04, 0, 0})); // 1234
     EXPECT_EQ(reg(1), 1000u);
     EXPECT_EQ(reg(2), 234u);
     EXPECT_EQ(reg(3), 1234u);
@@ -559,6 +560,46 @@ _start:
     EXPECT_EQ(state("status"), "fault");
     EXPECT_EQ(state_number("instructions"), 2u);
     EXPECT_EQ(state_number("pc"), 8u); // the faulting ldr
+}
+
+// ldr and str need an address that is a multiple of the size of the access, ldur and stur do not.
+TEST_F(AssemblerIntegration, ldr_faults_on_a_misaligned_address_and_ldur_does_not)
+{
+    write_file("unaligned.basm", R"(.global _start
+
+.text
+_start:
+                adrp    x0, bytes
+                add     x0, x0, :lo12:bytes
+                ldur    x1, [x0, 1]             ; 0x05040302
+                ldurh   x2, [x0, 3]             ; 0x0504
+                ldursh  x3, [x0, 5]             ; 0x80ff
+                mov     x4, 0x1234
+                sturh   x4, [x0, 7]
+                stur    x1, [x0, 9]
+                ldr     x5, [x0, 1]             ; faults: bytes + 1 is not a multiple of 4
+                hlt
+
+.data
+bytes:          .byte 1, 2, 3, 4, 5, 0xff, 0x80, 0, 0, 0, 0, 0, 0, 0
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o unaligned unaligned.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e unaligned.bexe -l 100 -m 0x1000:14"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+    EXPECT_NE(state("message").find("Misaligned load of 4 bytes at address 0x00001001"),
+              std::string::npos)
+        << state("message");
+    EXPECT_EQ(state_number("instructions"), 8u);
+    EXPECT_EQ(state_number("pc"), 32u); // the faulting ldr
+    EXPECT_EQ(reg(1), 0x05040302u);
+    EXPECT_EQ(reg(2), 0x0504u);
+    EXPECT_EQ(reg(3), 0xFFFF80FFu);
+    EXPECT_EQ(reg(5), 0u) << "the load that faulted wrote nothing";
+    EXPECT_EQ(mem(kDataStart),
+              (std::vector<byte>{1, 2, 3, 4, 5, 0xff, 0x80, 0x34, 0x12, 2, 3, 4, 5, 0}));
 }
 
 // The code of a program cannot be written by the program.
@@ -992,7 +1033,7 @@ TEST_F(AssemblerIntegration, data_directive_layout)
 _start:
                 adrp    x0, words
                 add     x0, x0, :lo12:words
-                ldr     x1, [x0]
+                ldur    x1, [x0]                ; words is at offset 6, not a multiple of 4
                 adrp    x2, tail
                 add     x2, x2, :lo12:tail
                 ldrb    x3, [x2]

@@ -11,15 +11,14 @@ namespace
 struct ShiftOp
 {
     const char *name;
-    U8 opcode;
     ShiftType type;
 };
 
 constexpr ShiftOp kShiftOps[] = {
-    {"lsl", Emulator32bit::_op_lsl, ShiftType::SHIFT_LSL},
-    {"lsr", Emulator32bit::_op_lsr, ShiftType::SHIFT_LSR},
-    {"asr", Emulator32bit::_op_asr, ShiftType::SHIFT_ASR},
-    {"ror", Emulator32bit::_op_ror, ShiftType::SHIFT_ROR},
+    {"lsl", ShiftType::SHIFT_LSL},
+    {"lsr", ShiftType::SHIFT_LSR},
+    {"asr", ShiftType::SHIFT_ASR},
+    {"ror", ShiftType::SHIFT_ROR},
 };
 
 constexpr word kShiftedValues[] = {0x00000000, 0x00000001, 0x00000003, 0x7FFFFFFF, 0x80000000,
@@ -59,8 +58,8 @@ class ShiftTest : public EmulatorFixture
             + (use_imm ? " #" + std::to_string(amount) : " xm=" + hex32(amount_reg))
             + " flags_in=" + flags_to_string(in);
 
-        execute(Emulator32bit::asm_format_o1(op.opcode, kXd, kXn, use_imm, kXm,
-                                             use_imm ? amount : 0, s));
+        execute(
+            Emulator32bit::asm_format_o1(op.type, kXd, kXn, use_imm, kXm, use_imm ? amount : 0, s));
 
         EXPECT_EQ(cpu.read_reg(kXd), ref_shift(value, op.type, amount)) << ctx;
         expect_registers_unchanged_except(before, {kXd}, ctx);
@@ -146,7 +145,7 @@ TEST_F(ShiftTest, register_aliasing)
                     const std::string ctx = std::string(op.name) + " " + alias.desc
                                             + " a=" + hex32(a) + " b=" + hex32(b);
 
-                    execute(Emulator32bit::asm_format_o1(op.opcode, alias.xd, alias.xn, false,
+                    execute(Emulator32bit::asm_format_o1(op.type, alias.xd, alias.xn, false,
                                                          alias.xm, 0, true));
 
                     EXPECT_EQ(cpu.read_reg(alias.xd), ref_shift(value, op.type, amount)) << ctx;
@@ -169,7 +168,7 @@ TEST_F(ShiftTest, every_register_index_is_decoded)
             const std::string ctx = std::string(op.name) + " x" + std::to_string(xd) + ", x"
                                     + std::to_string(xn) + ", x" + std::to_string(xm);
 
-            execute(Emulator32bit::asm_format_o1(op.opcode, xd, xn, false, xm, 0, true));
+            execute(Emulator32bit::asm_format_o1(op.type, xd, xn, false, xm, 0, true));
 
             if (xd != kXzr)
             {
@@ -192,7 +191,7 @@ TEST_F(ShiftTest, zero_register_operands)
         fill_registers();
         cpu.write_reg(kXm, 3);
         set_flags(flags_from_bits(0b0011));
-        execute(Emulator32bit::asm_format_o1(op.opcode, kXd, kXzr, false, kXm, 0, true));
+        execute(Emulator32bit::asm_format_o1(op.type, kXd, kXzr, false, kXm, 0, true));
         EXPECT_EQ(cpu.read_reg(kXd), 0u) << op.name;
         EXPECT_EQ(flags(), flags_from_bits(0b0101)) << op.name << ": Z set, C cleared, V kept";
 
@@ -200,7 +199,7 @@ TEST_F(ShiftTest, zero_register_operands)
         fill_registers();
         cpu.write_reg(kXn, 0x80000001);
         set_flags(flags_from_bits(0b0010));
-        execute(Emulator32bit::asm_format_o1(op.opcode, kXd, kXn, false, kXzr, 0, true));
+        execute(Emulator32bit::asm_format_o1(op.type, kXd, kXn, false, kXzr, 0, true));
         EXPECT_EQ(cpu.read_reg(kXd), 0x80000001u) << op.name;
         EXPECT_EQ(flags(), flags_from_bits(0b1010)) << op.name;
 
@@ -209,7 +208,7 @@ TEST_F(ShiftTest, zero_register_operands)
         cpu.write_reg(kXn, 0x80000000);
         set_flags(flags_from_bits(0));
         const auto before = snapshot_registers();
-        execute(Emulator32bit::asm_format_o1(op.opcode, kXzr, kXn, true, 0, 1, true));
+        execute(Emulator32bit::asm_format_o1(op.type, kXzr, kXn, true, 0, 1, true));
         EXPECT_EQ(cpu.read_reg(kXzr), 0u) << op.name;
         expect_registers_unchanged_except(before, {}, op.name);
         EXPECT_EQ(flags(), expected_flags(op, 0x80000000, 1, {})) << op.name;
@@ -267,7 +266,7 @@ TEST_F(ShiftTest, golden_values)
         fill_registers();
         cpu.write_reg(kXn, g.value);
         set_flags(flags_from_bits(g.flags_in));
-        execute(Emulator32bit::asm_format_o1(op->opcode, kXd, kXn, true, 0, g.amount, true));
+        execute(Emulator32bit::asm_format_o1(op->type, kXd, kXn, true, 0, g.amount, true));
 
         EXPECT_EQ(cpu.read_reg(kXd), g.result) << ctx;
         EXPECT_EQ(flags(), flags_from_bits(g.flags_out)) << ctx;
@@ -277,6 +276,6 @@ TEST_F(ShiftTest, golden_values)
 TEST_F(ShiftTest, disassembles_s_suffix)
 {
     EXPECT_EQ(Emulator32bit::disassemble_instr(
-                  Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, 0, 1, true, 0, 5, true)),
+                  Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 0, 1, true, 0, 5, true)),
               "lsls x0, x1, 5");
 }

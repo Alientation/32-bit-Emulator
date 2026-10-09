@@ -1,4 +1,5 @@
-// Tests for the load/store instructions: ldr ldrh ldrb str strh strb.
+// Tests for the load/store instructions: ldr ldrh ldrb str strh strb, and the unaligned forms ldur
+// ldurh stur sturh.
 //
 // RAM covers addresses [0, 0x2000). The instruction under test lives at address 0, and
 // [kPatternBegin, kPatternEnd) is filled with a position-dependent byte pattern. Loads are checked
@@ -44,6 +45,8 @@ const char *mode_name(const AddrType m)
         return "pre-index";
     case AddrType::ADDR_POST_INC:
         return "post-index";
+    case AddrType::ADDR_UNALIGNED:
+        return "unaligned";
     }
     return "?";
 }
@@ -454,4 +457,151 @@ TEST_F(MemoryTest, access_outside_memory_faults)
     result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, kXt, kXn, 0,
                                                  AddrType::ADDR_OFFSET));
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
+}
+
+// ldr, ldrh, str and strh need an address that is a multiple of the size of the access. The
+// instruction that faults does nothing: not a register (the base is not written back), not a
+// byte of memory.
+TEST_F(MemoryTest, an_access_that_is_not_aligned_to_its_size_faults_and_does_nothing)
+{
+    for (const MemOp &op : kMemOps)
+    {
+        if (op.width == 1) continue;
+
+        for (const AddrType mode : kModes)
+            for (unsigned skew = 1; skew < op.width; ++skew)
+            {
+                const std::string ctx =
+                    std::string(op.name) + " " + mode_name(mode) + " skew=" + std::to_string(skew);
+
+                // The address is the base for a post-index access, else the base plus the offset.
+                fill_registers();
+                cpu.write_reg(kXn, mode == AddrType::ADDR_POST_INC ? kBase + skew : kBase);
+                cpu.write_reg(kXt, kStoreValue);
+                const int offset = mode == AddrType::ADDR_POST_INC ? 8 : int(8 + skew);
+                const auto before = snapshot_registers();
+
+                const auto result = step(
+                    0, Emulator32bit::asm_format_m(op.opcode, false, kXt, kXn, offset, mode));
+
+                EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT) << ctx;
+                EXPECT_NE(result.message.find("Misaligned"), std::string::npos)
+                    << ctx << ": " << result.message;
+                expect_registers_unchanged_except(before, {}, ctx);
+                for (word a = kBase; a < kBase + 32; ++a)
+                {
+                    ASSERT_EQ(cpu.memory.read_byte(a), pattern(a)) << ctx << " at " << hex32(a);
+                }
+            }
+    }
+}
+
+// A byte is always aligned, and so is an access at a multiple of its size, which the sweep of the
+// addressing modes covers for every op.
+TEST_F(MemoryTest, the_message_of_a_misaligned_access_names_the_instruction_to_use)
+{
+    fill_registers();
+    cpu.write_reg(kXn, kBase + 2);
+    auto result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 0,
+                                                      AddrType::ADDR_OFFSET));
+    EXPECT_NE(result.message.find("ldur"), std::string::npos) << result.message;
+    EXPECT_NE(result.message.find("0x00001002"), std::string::npos) << result.message;
+
+    result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, kXt, kXn, 1,
+                                                 AddrType::ADDR_OFFSET));
+    EXPECT_NE(result.message.find("sturh"), std::string::npos) << result.message;
+}
+
+// ldur, ldurh, stur and sturh are ldr, ldrh, str and strh with the address mode ADDR_UNALIGNED:
+// the same access, at any address, with a plain offset (immediate or register).
+TEST_F(MemoryTest, the_unaligned_forms_access_any_address)
+{
+    for (const MemOp &op : kMemOps)
+    {
+        if (op.width == 1) continue;
+
+        // Around a page boundary (0x1000) too: the pattern covers it.
+        for (const word addr : {kBase + 1, kBase + 2, kBase + 3, kBase - 1, kBase - 2, kBase - 3,
+                                kBase + 0x101})
+            for (const bool reg_offset : {false, true})
+                for (const bool sign : {false, true})
+                {
+                    if (sign && !op.has_sign_bit) continue;
+
+                    const std::string ctx = std::string(op.name) + (sign ? " (sign)" : "")
+                                            + (reg_offset ? " [xn, xm]" : " [xn, imm]")
+                                            + " unaligned, addr=" + hex32(addr);
+                    fill_registers();
+                    cpu.write_reg(kXn, kBase);
+                    cpu.write_reg(kXm, addr - kBase);
+                    cpu.write_reg(kXt, kStoreValue);
+                    const auto before = snapshot_registers();
+
+                    const word instr =
+                        reg_offset ? Emulator32bit::asm_format_m(op.opcode, sign, kXt, kXn, kXm,
+                                                                 ShiftType::SHIFT_LSL, 0,
+                                                                 AddrType::ADDR_UNALIGNED)
+                                   : Emulator32bit::asm_format_m(op.opcode, sign, kXt, kXn,
+                                                                 int(addr - kBase),
+                                                                 AddrType::ADDR_UNALIGNED);
+                    execute(instr);
+
+                    if (op.is_load)
+                    {
+                        word expected = pattern_word(addr, op.width);
+                        if (sign && op.width == 2) expected = word(sword(S16(expected)));
+                        EXPECT_EQ(cpu.read_reg(kXt), expected) << ctx;
+                        expect_registers_unchanged_except(before, {kXt}, ctx);
+                    }
+                    else
+                    {
+                        expect_registers_unchanged_except(before, {}, ctx);
+                    }
+                    EXPECT_EQ(cpu.read_reg(kXn), kBase) << ctx << ": no write back";
+
+                    for (word a = addr - 8; a < addr + 16; ++a)
+                    {
+                        byte expected = pattern(a);
+                        if (!op.is_load && a >= addr && a < addr + op.width)
+                            expected = byte(kStoreValue >> (8 * (a - addr)));
+                        EXPECT_EQ(cpu.memory.read_byte(a), expected) << ctx << " at " << hex32(a);
+                        cpu.memory.write_byte(a, pattern(a));
+                    }
+                }
+    }
+}
+
+// The unaligned form is a word or half-word access: a byte is never unaligned, and the mode is
+// not assigned for ldrb and strb.
+TEST_F(MemoryTest, the_unaligned_mode_of_a_byte_access_is_an_undefined_instruction)
+{
+    for (const U8 opcode : {Emulator32bit::_op_ldrb, Emulator32bit::_op_strb})
+    {
+        fill_registers();
+        cpu.write_reg(kXn, kBase);
+        const auto result = step(0, Emulator32bit::asm_format_m(opcode, false, kXt, kXn, 0,
+                                                                AddrType::ADDR_UNALIGNED));
+        EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
+        EXPECT_NE(result.message.find("Bad memory address mode"), std::string::npos)
+            << result.message;
+    }
+}
+
+// The disassembler names the unaligned forms the way the assembler writes them.
+TEST_F(MemoryTest, the_unaligned_forms_disassemble_as_ldur_stur)
+{
+    const auto name = [](const U8 opcode, const bool sign)
+    {
+        return Emulator32bit::disassemble_instr(
+            Emulator32bit::asm_format_m(opcode, sign, 1, 2, 4, AddrType::ADDR_UNALIGNED));
+    };
+    EXPECT_EQ(name(Emulator32bit::_op_ldr, false), "ldur x1, [x2, 4]");
+    EXPECT_EQ(name(Emulator32bit::_op_str, false), "stur x1, [x2, 4]");
+    EXPECT_EQ(name(Emulator32bit::_op_ldrh, false), "ldurh x1, [x2, 4]");
+    EXPECT_EQ(name(Emulator32bit::_op_ldrh, true), "ldursh x1, [x2, 4]");
+    EXPECT_EQ(name(Emulator32bit::_op_strh, false), "sturh x1, [x2, 4]");
+
+    EXPECT_EQ(Emulator32bit::disassemble_instr(Emulator32bit::asm_format_m(
+                  Emulator32bit::_op_ldr, false, 1, 2, 4, AddrType::ADDR_OFFSET)),
+              "ldr x1, [x2, 4]");
 }

@@ -318,6 +318,7 @@ const KeywordMap &assembly_keywords()
         add("vcflo.s32.f32", TokenType::INSTRUCTION_VCFLO);
         add("ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
         add("ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
+        add("ldursh", TokenType::INSTRUCTION_LDURH, false, SIGN_EXTEND);
         return m;
     }();
     return map;

@@ -13,6 +13,23 @@ option(AEMU_ENABLE_LTO "Enable link-time optimization for Release/RelWithDebInfo
 # Use a build directory of its own, since the whole tree has to be built with the same flags.
 set(AEMU_SANITIZE "" CACHE STRING "Sanitizers to build the project with")
 
+# Log calls below this level are removed from the binary: 0 debug, 1 info, 2 warn, 3 error (see
+# util/logger.h). Empty picks it from the configuration: everything in Debug, and in the optimized
+# configurations (Release, RelWithDebInfo) everything but the debug and info messages. The warnings
+# stay, since the assembler's diagnostics and the report of a faulting program are warnings. The
+# level is passed to every target, so that all of them agree on what the logger header does.
+set(AEMU_LOG_COMPILE_LEVEL "" CACHE STRING
+    "Log calls below this level are compiled out (0-3). Empty: 0 for Debug, 2 for Release")
+if(NOT AEMU_LOG_COMPILE_LEVEL STREQUAL "" AND NOT AEMU_LOG_COMPILE_LEVEL MATCHES "^[0-3]$")
+    message(FATAL_ERROR "AEMU_LOG_COMPILE_LEVEL must be empty or 0-3, got '${AEMU_LOG_COMPILE_LEVEL}'")
+endif()
+if(AEMU_LOG_COMPILE_LEVEL STREQUAL "")
+    add_compile_definitions(
+        "AEMU_LOG_COMPILE_LEVEL=$<IF:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>,2,0>")
+else()
+    add_compile_definitions("AEMU_LOG_COMPILE_LEVEL=${AEMU_LOG_COMPILE_LEVEL}")
+endif()
+
 # Project-wide defaults (also applied to third-party targets). Our own libraries additionally
 # declare cxx_std_20 as a usage requirement for installed consumers.
 set(CMAKE_CXX_STANDARD 20)

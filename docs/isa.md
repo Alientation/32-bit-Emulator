@@ -107,10 +107,11 @@ Register form (bit 14 clear):
 ```
  31   26 25 24  20 19  15 14 13  9 8 7 6    2 1 0
 +-------+--+------+------+--+-----+---+------+---+
-|opcode | S|  xd  |  xn  |?imm| xm | - | imm5 | - |
+|opcode | S|  xd  |  xn  |?imm| xm |type| imm5 | - |
 +-------+--+------+------+--+-----+---+------+---+
 ```
 
+- `type` (bits 7–8) is the shift: `00` `LSL`, `01` `LSR`, `10` `ASR`, `11` `ROR`. The four are one opcode (`011001`).
 - `?imm` (bit 14) set: the shift amount is `imm5` (bits 2–6).
 - `?imm` clear: the shift amount is the **low 5 bits** of `xm`, so 0–31.
 - With `S`: N and Z come from the result, C from the last bit shifted out, V is unchanged. A shift amount of 0 leaves C unchanged.
@@ -120,13 +121,13 @@ Register form (bit 14 clear):
 `OP{S} xlo, xhi, xn, xm`
 
 ```
- 31   26 25 24  20 19  15 14 13  9 8   4 3  0
-+-------+--+------+------+--+-----+-----+----+
-|opcode | S| xlo  | xhi  | -|  xn |  xm | -  |
-+-------+--+------+------+--+-----+-----+----+
+ 31   26 25 24  20 19  15 14 13  9 8   4 3 1 0
++-------+--+------+------+--+-----+-----+---+-+
+|opcode | S| xlo  | xhi  | -|  xn |  xm | - |g|
++-------+--+------+------+--+-----+-----+---+-+
 ```
 
-`xlo` is bits 20–24, `xhi` 15–19, `xn` 9–13 and `xm` 4–8. Bit 14 and bits 0–3 are unused.
+`xlo` is bits 20–24, `xhi` 15–19, `xn` 9–13 and `xm` 4–8. Bit 0 (`g`) is the signed bit: clear is `UMULL`, set is `SMULL`, one opcode (`001000`). Bit 14 and bits 1–3 are unused.
 
 ### O3: moves
 
@@ -152,7 +153,7 @@ Register form (bit 19 clear), `xd = xn + imm14` (the immediate is added to the r
 
 ### M: load and store
 
-`LDR{B|H} xt, mem` / `STR{B|H} xt, mem`
+`LDR{B|H} xt, mem` / `STR{B|H} xt, mem` / `LDUR{H} xt, mem` / `STUR{H} xt, mem`
 
 Immediate offset (bit 14 set):
 
@@ -172,7 +173,7 @@ Register offset (bit 14 clear):
 +-------+--+------+------+--+-----+-----+------+----+
 ```
 
-- `adr` (bits 0–1): `00` simple offset, `01` pre-indexed, `10` post-indexed. `11` faults with `BAD_INSTR`.
+- `adr` (bits 0–1): `00` simple offset, `01` pre-indexed, `10` post-indexed, `11` simple offset that may be unaligned (`LDUR`, `LDURH`, `STUR`, `STURH`, see [Memory access](#memory-access-6)). `11` on a byte access faults with `BAD_INSTR`.
 - `simm12` is sign extended. Range −2048 to 2047.
 - `?sign` (bit 25) makes `LDRB`/`LDRH` sign extend the loaded value (`LDRSB`/`LDRSH`). It has no effect on `LDR`, and none on a store (the stored bytes are the low bytes of `xt`).
 - A load, store or atomic changes no register until its memory access has succeeded, so an instruction that faults did nothing.
@@ -212,11 +213,13 @@ The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` 
 `BX{cd} xd`, `BLX{cd} xd`
 
 ```
- 31   26 25  22 21  17 16               0
-+-------+------+------+------------------+
-|opcode | cond |  xd  |        -         |
-+-------+------+------+------------------+
+ 31   26 25  22 21  17 16             1 0
++-------+------+------+----------------+-+
+|opcode | cond |  xd  |       -        |l|
++-------+------+------+----------------+-+
 ```
+
+Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`100111`). Bits 1–16 are unused.
 
 ### F: floating point (not implemented)
 
@@ -330,6 +333,7 @@ Moves from a system register. In user mode only the flags of PSTATE can be read.
 
 - `xn` is truncated to the width of the access. A byte or half-word read is zero extended into `xt`.
 - `xt` is written only after the memory write succeeded.
+- A word or half-word access needs an address that is a multiple of its size, like `LDR` and `STR`, and there is no unaligned form. Otherwise it is a [data abort](exceptions.md#exception-classes) of the alignment type (with the write bit, FAR is the address), and nothing is read or written. A byte is always aligned.
 - Other `atop` values fault with `BAD_INSTR`.
 
 ### Unary operations
@@ -359,7 +363,7 @@ Other values of `op` are an undefined instruction (ISS 1). `xd` and `xn` may be 
 
 `{S}` updates the flags. `{CD}` is a [condition code](#condition-codes) (default `AL`).
 
-### Arithmetic (9)
+### Arithmetic (8)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
@@ -370,8 +374,7 @@ Other values of `op` are an undefined instruction (ISS 1). `xd` and `xn` may be 
 | `000101` | `SBC{S} xd, xn, arg` | O | `xd = xn - arg - !C` |
 | `000110` | `RSC{S} xd, xn, arg` | O | `xd = arg - xn - !C` |
 | `000111` | `MUL{S} xd, xn, arg` | O | `xd = low 32 bits of xn * arg`. `S` updates N and Z, C and V are unchanged |
-| `001000` | `UMULL{S} xlo, xhi, xn, xm` | O2 | `{xhi, xlo} = xn * xm` unsigned. `S`: N is bit 63, Z is "64 bit result is 0", C and V are unchanged |
-| `001001` | `SMULL{S} xlo, xhi, xn, xm` | O2 | the same, signed |
+| `001000` | `UMULL{S} xlo, xhi, xn, xm`<br>`SMULL{S} xlo, xhi, xn, xm` | O2 | `{xhi, xlo} = xn * xm`, unsigned or signed (the signed bit). `S`: N is bit 63, Z is "64 bit result is 0", C and V are unchanged |
 
 ### Floating point (12), not implemented
 
@@ -379,52 +382,49 @@ Reserved opcodes. The handlers fault with `BAD_INSTR`. See [ARM floating point i
 
 | Opcode | Instruction | Format |
 |--------|-------------|--------|
-| `001010` | `VABS.F32 xd, xn` | F |
-| `001011` | `VNEG.F32 xd, xn` | F |
-| `001100` | `VSQRT.F32 xd, xn` | F |
-| `001101` | `VADD.F32 xd, xn, xm` | F1 |
-| `001110` | `VSUB.F32 xd, xn, xm` | F1 |
-| `001111` | `VDIV.F32 xd, xn, xm` | F1 |
-| `010000` | `VMUL.F32 xd, xn, xm` | F1 |
-| `010001` | `VCMP.F32 xn, {xm \| 0}` | F2 |
-| `010010` | `VSEL.cond.F32 xd, xn, xm` | F1 |
-| `010011` | `VCINT.{u32\|s32}.F32 xd, xn` | F |
-| `010100` | `VCFLO.{u32\|s32}.F32 xd, xn` | F |
-| `010101` | `VMOV.F32 xd, {xn \| #fimm}` | F2 |
+| `001001` | `VABS.F32 xd, xn` | F |
+| `001010` | `VNEG.F32 xd, xn` | F |
+| `001011` | `VSQRT.F32 xd, xn` | F |
+| `001100` | `VADD.F32 xd, xn, xm` | F1 |
+| `001101` | `VSUB.F32 xd, xn, xm` | F1 |
+| `001110` | `VDIV.F32 xd, xn, xm` | F1 |
+| `001111` | `VMUL.F32 xd, xn, xm` | F1 |
+| `010000` | `VCMP.F32 xn, {xm \| 0}` | F2 |
+| `010001` | `VSEL.cond.F32 xd, xn, xm` | F1 |
+| `010010` | `VCINT.{u32\|s32}.F32 xd, xn` | F |
+| `010011` | `VCFLO.{u32\|s32}.F32 xd, xn` | F |
+| `010100` | `VMOV.F32 xd, {xn \| #fimm}` | F2 |
 
-### Bitwise (8)
+### Bitwise (5)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `010110` | `AND{S} xd, xn, arg` | O | `xn & arg` |
-| `010111` | `ORR{S} xd, xn, arg` | O | `xn \| arg` |
-| `011000` | `EOR{S} xd, xn, arg` | O | `xn ^ arg` |
-| `011001` | `BIC{S} xd, xn, arg` | O | `xn & ~arg` |
-| `011010` | `LSL{S} xd, xn, {xm \| #imm5}` | O1 | logical shift left |
-| `011011` | `LSR{S} xd, xn, {xm \| #imm5}` | O1 | logical shift right |
-| `011100` | `ASR{S} xd, xn, {xm \| #imm5}` | O1 | arithmetic shift right |
-| `011101` | `ROR{S} xd, xn, {xm \| #imm5}` | O1 | rotate right |
+| `010101` | `AND{S} xd, xn, arg` | O | `xn & arg` |
+| `010110` | `ORR{S} xd, xn, arg` | O | `xn \| arg` |
+| `010111` | `EOR{S} xd, xn, arg` | O | `xn ^ arg` |
+| `011000` | `BIC{S} xd, xn, arg` | O | `xn & ~arg` |
+| `011001` | `LSL{S}`, `LSR{S}`, `ASR{S}`, `ROR{S} xd, xn, {xm \| #imm5}` | O1 | logical shift left, logical shift right, arithmetic shift right, rotate right (the type) |
 
 - `AND`/`ORR`/`EOR`/`BIC` with `S` update N and Z. C and V are unchanged (the carry out of the shifted `arg` is ignored).
 - The shifts take the amount from `imm5` or the low 5 bits of `xm` (0–31). With `S`, N and Z come from the result, C is the last bit shifted out and V is unchanged. A shift of 0 leaves C unchanged.
 
-### Comparison (4)
+### Comparison (aliases)
 
-They always update NZCV and have no destination register (the assembler encodes `xzr` as `xd`).
+`CMP`, `CMN`, `TST` and `TEQ` have no opcode of their own. They are the flag setting form of `SUB`, `ADD`, `AND` and `EOR` with `xzr` as the destination, which discards the result and keeps the flags. The assembler writes them that way and the disassembler shows such an instruction (`S` set, `xd` = `xzr`) under the short name.
 
-| Opcode | Instruction | Format | Like |
-|--------|-------------|--------|------|
-| `011110` | `CMP xn, arg` | O | `SUBS` |
-| `011111` | `CMN xn, arg` | O | `ADDS` |
-| `100000` | `TST xn, arg` | O | `ANDS` |
-| `100001` | `TEQ xn, arg` | O | `EORS` |
+| Instruction | Is | Format |
+|-------------|----|--------|
+| `CMP xn, arg` | `SUBS xzr, xn, arg` | O |
+| `CMN xn, arg` | `ADDS xzr, xn, arg` | O |
+| `TST xn, arg` | `ANDS xzr, xn, arg` | O |
+| `TEQ xn, arg` | `EORS xzr, xn, arg` | O |
 
 ### Data movement (2)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `100010` | `MOV{S} xd, arg` | O3 | `xd = arg` |
-| `100011` | `MVN{S} xd, arg` | O3 | `xd = ~arg` |
+| `011010` | `MOV{S} xd, arg` | O3 | `xd = arg` |
+| `011011` | `MVN{S} xd, arg` | O3 | `xd = ~arg` |
 
 `S` updates N and Z, C and V are unchanged. `arg` is an `imm19`, or `xn + imm14`.
 
@@ -432,21 +432,30 @@ They always update NZCV and have no destination register (the assembler encodes 
 
 | Opcode | Instruction | Access |
 |--------|-------------|--------|
-| `100100` | `LDR xt, mem` | word |
-| `100101` | `LDRB xt, mem` | byte (`LDRSB` with `?sign`) |
-| `100110` | `LDRH xt, mem` | half-word (`LDRSH` with `?sign`) |
-| `100111` | `STR xt, mem` | word |
-| `101000` | `STRB xt, mem` | byte |
-| `101001` | `STRH xt, mem` | half-word |
+| `011100` | `LDR xt, mem` | word |
+| `011101` | `LDRB xt, mem` | byte (`LDRSB` with `?sign`) |
+| `011110` | `LDRH xt, mem` | half-word (`LDRSH` with `?sign`) |
+| `011111` | `STR xt, mem` | word |
+| `100000` | `STRB xt, mem` | byte |
+| `100001` | `STRH xt, mem` | half-word |
 
 All are format M. See [mem](#operands) for the addressing modes.
+
+**Alignment.** `LDR`, `STR`, `LDRH` and `STRH` need an address that is a multiple of the size of the access (4 and 2). An address that is not is a [data abort](exceptions.md#exception-classes) of the alignment type (without a vector table, a fault: "Misaligned load of 4 bytes at address ..."), and the instruction does nothing. `LDUR`, `LDURH`, `STUR` and `STURH` are the same accesses without that requirement; they are the same opcodes with `adr` = `11` (below), so they take a simple offset, an immediate or a register, and have no pre- or post-indexed form. A byte is always aligned, so there is no unaligned form of `LDRB` and `STRB` and `adr` = `11` on them is an undefined instruction. An unaligned access that crosses a page is translated page by page like any other (and faults as a whole if the second page does).
+
+| `adr` | Mode | Instructions |
+|-------|------|--------------|
+| `00` | offset | `LDR` `LDRB` `LDRH` `STR` `STRB` `STRH` |
+| `01` | pre-indexed | the same |
+| `10` | post-indexed | the same |
+| `11` | offset, any alignment | `LDUR` `LDURH` `LDURSH` `STUR` `STURH` (the opcodes of `LDR`, `LDRH`, `STR` and `STRH`) |
 
 ### Division (2)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `101010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
-| `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
+| `100010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
+| `100011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
 `S` updates N and Z from the result, C and V are unchanged. **Dividing by zero gives 0** and raises nothing, and `INT_MIN / -1` is `INT_MIN`. There is no remainder instruction: `r = n - (n / d) * d` (`sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`), which is `n` for a `d` of 0. See [abi.md](abi.md#division).
 
@@ -454,7 +463,7 @@ All are format M. See [mem](#operands) for the addressing modes.
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `101100` | `CSEL`, `CSINC`, `CSINV`, `CSNEG xd, xn, xm, cond` | C | `xd = cond ? xn : f(xm)` |
+| `100100` | `CSEL`, `CSINC`, `CSINV`, `CSNEG xd, xn, xm, cond` | C | `xd = cond ? xn : f(xm)` |
 
 ```
  31   26 25  22 21  17 16 15  11 10   6 5  4 3    0
@@ -477,22 +486,21 @@ The assembler writes the common cases as aliases, which store the **opposite** c
 
 `!cond` flips the lowest bit of the code (`EQ`↔`NE`, `LT`↔`GE`, ...). `AL` and `NV` have no opposite, so the aliases do not accept them. The disassembler shows these forms as the aliases. This is what `a < b` as a value, `abs` and the conditional negation of a compiler turn into, without a branch.
 
-### Branching (5)
+### Branching (4)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `101101` | `B{CD} simm22` | B1 | `pc += simm22 * 4` |
-| `101110` | `BL{CD} simm22` | B1 | `x29 = address of the next instruction`, then branch |
-| `101111` | `BX{CD} xd` | B2 | `pc = xd`. `BX x29` is `ret` |
-| `110000` | `BLX{CD} xd` | B2 | `x29 = address of the next instruction`, then `pc = xd` |
-| `110001` | `SWI{CD}` | B1 | [software interrupt](#software-interrupts-swi) |
+| `100101` | `B{CD} simm22` | B1 | `pc += simm22 * 4` |
+| `100110` | `BL{CD} simm22` | B1 | `x29 = address of the next instruction`, then branch |
+| `100111` | `BX{CD} xd`<br>`BLX{CD} xd` | B2 | `BX`: `pc = xd`, and `BX x29` is `ret`. `BLX` (the link bit): `x29 = address of the next instruction`, and `pc = xd`; `xd` is read before `x29` is written, so `BLX x29` jumps to the old `x29` |
+| `101000` | `SWI{CD}` | B1 | [software interrupt](#software-interrupts-swi) |
 
 ### Addressing (1)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `110010` | `ADRP xd, symbol` | M1 | `xd = (pc & ~0xFFF) + page offset`. The linker computes the page offset from the relocation (`:hi20:`, which the assembler applies implicitly, so `adrp xd, sym` is enough). Add `:lo12:sym` with `add xd, xd, :lo12:sym` for the full address |
-| `110011` | `ADR xd, symbol` | M1 | `xd = pc + byte offset` (±1 MiB), the full address in one instruction. The linker computes the offset from the relocation (`R_EMU32_ADR_PCREL21`) |
+| `101001` | `ADRP xd, symbol` | M1 | `xd = (pc & ~0xFFF) + page offset`. The linker computes the page offset from the relocation (`:hi20:`, which the assembler applies implicitly, so `adrp xd, sym` is enough). Add `:lo12:sym` with `add xd, xd, :lo12:sym` for the full address |
+| `101010` | `ADR xd, symbol` | M1 | `xd = pc + byte offset` (±1 MiB), the full address in one instruction. The linker computes the offset from the relocation (`R_EMU32_ADR_PCREL21`) |
 
 ## Operands
 
@@ -529,7 +537,7 @@ The memory address of the M format:
 | pre-indexed | `[reg, #simm12]!`, `[rega, regb]!`, `[rega, regb, shift]!` |
 | post-indexed | `[reg], #simm12`, `[rega], regb`, `[rega], regb, shift` |
 
-`simm12` is signed (−2048 to 2047). The assembler accepts a leading `-`, e.g. `[sp, -8]!`. Pre-indexed uses the new address for the access, post-indexed uses the old one, and both write the new address back to the base register.
+`simm12` is signed (−2048 to 2047). The assembler accepts a leading `-`, e.g. `[sp, -8]!`. Pre-indexed uses the new address for the access, post-indexed uses the old one, and both write the new address back to the base register. The unaligned forms (`LDUR`, `STUR`, ...) take only the `offset` row.
 
 ## Condition codes
 
@@ -579,6 +587,6 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 ## Unused opcodes
 
-Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The free opcodes are:
+Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `101010`, so the free ones are one range:
 
-`110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`
+`101011` to `111111` (21 opcodes)

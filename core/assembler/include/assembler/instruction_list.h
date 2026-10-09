@@ -12,6 +12,12 @@
 /// the emulator (emulator32bit/opcodes.h), and the opcode, disassembler and executor on that side.
 /// Everything the assembler needs follows from the row.
 ///
+/// Several rows can share an opcode. `cmp`, `cmn`, `tst` and `teq` (format O_NO_DEST) carry the
+/// opcode of `sub`, `add`, `and` and `eor` and are encoded with S set and `xzr` as the
+/// destination. `lsl`, `lsr`, `asr` and `ror` share `shift` (`b` is the ShiftType: 0 to 3), `umull` and
+/// `smull` share `mull` (`b` is 1 for the signed one), `bx` and `blx` share `bx` (`b` is 1 for the
+/// call).
+///
 ///   F(X, NAME, text, allows_s, format, a, b)
 ///
 ///   NAME      suffix of the token type.
@@ -19,7 +25,9 @@
 ///   allows_s  `<text>s` is the flag setting variant (`adds`).
 ///   format    InstructionFormat, how the operands are parsed and encoded.
 ///   a, b      what the format needs: the opcode for most of them, the width and the operation for
-///             the atomics, unused (0) otherwise. These are expressions of the emulator library and
+///             the atomics, for the loads and stores 1 in `b` if the address need not be aligned
+///             (ldur...), for O1, O2 and B2 the variant of the opcode (see above), unused (0)
+///             otherwise. These are expressions of the emulator library and
 ///             only evaluated where the table is built.
 ///
 /// F is the macro that is applied to each row, X is passed through to it. This is how a list that
@@ -36,8 +44,8 @@
     F(X, SBC, "sbc", true, O, Emulator32bit::_op_sbc, 0)                                           \
     F(X, RSC, "rsc", true, O, Emulator32bit::_op_rsc, 0)                                           \
     F(X, MUL, "mul", true, O, Emulator32bit::_op_mul, 0)                                           \
-    F(X, UMULL, "umull", true, O2, Emulator32bit::_op_umull, 0)                                    \
-    F(X, SMULL, "smull", true, O2, Emulator32bit::_op_smull, 0)                                    \
+    F(X, UMULL, "umull", true, O2, Emulator32bit::_op_mull, 0)                                    \
+    F(X, SMULL, "smull", true, O2, Emulator32bit::_op_mull, 1)                                    \
     F(X, VABS, "vabs.f32", false, UNIMPLEMENTED, 0, 0)                                             \
     F(X, VNEG, "vneg.f32", false, UNIMPLEMENTED, 0, 0)                                             \
     F(X, VSQRT, "vsqrt.f32", false, UNIMPLEMENTED, 0, 0)                                           \
@@ -54,14 +62,14 @@
     F(X, ORR, "orr", true, O, Emulator32bit::_op_orr, 0)                                           \
     F(X, EOR, "eor", true, O, Emulator32bit::_op_eor, 0)                                           \
     F(X, BIC, "bic", true, O, Emulator32bit::_op_bic, 0)                                           \
-    F(X, LSL, "lsl", true, O1, Emulator32bit::_op_lsl, 0)                                          \
-    F(X, LSR, "lsr", true, O1, Emulator32bit::_op_lsr, 0)                                          \
-    F(X, ASR, "asr", true, O1, Emulator32bit::_op_asr, 0)                                          \
-    F(X, ROR, "ror", true, O1, Emulator32bit::_op_ror, 0)                                          \
-    F(X, CMP, "cmp", false, O_NO_DEST, Emulator32bit::_op_cmp, 0)                                  \
-    F(X, CMN, "cmn", false, O_NO_DEST, Emulator32bit::_op_cmn, 0)                                  \
-    F(X, TST, "tst", false, O_NO_DEST, Emulator32bit::_op_tst, 0)                                  \
-    F(X, TEQ, "teq", false, O_NO_DEST, Emulator32bit::_op_teq, 0)                                  \
+    F(X, LSL, "lsl", true, O1, Emulator32bit::_op_shift, 0)                                            \
+    F(X, LSR, "lsr", true, O1, Emulator32bit::_op_shift, 1)                                            \
+    F(X, ASR, "asr", true, O1, Emulator32bit::_op_shift, 2)                                            \
+    F(X, ROR, "ror", true, O1, Emulator32bit::_op_shift, 3)                                            \
+    F(X, CMP, "cmp", false, O_NO_DEST, Emulator32bit::_op_sub, 0)                                  \
+    F(X, CMN, "cmn", false, O_NO_DEST, Emulator32bit::_op_add, 0)                                  \
+    F(X, TST, "tst", false, O_NO_DEST, Emulator32bit::_op_and, 0)                                  \
+    F(X, TEQ, "teq", false, O_NO_DEST, Emulator32bit::_op_eor, 0)                                  \
     F(X, MOV, "mov", true, O3, Emulator32bit::_op_mov, 0)                                          \
     F(X, MVN, "mvn", true, O3, Emulator32bit::_op_mvn, 0)                                          \
     F(X, LDR, "ldr", false, M, Emulator32bit::_op_ldr, 0)                                          \
@@ -76,6 +84,10 @@
     F(X, STRH, "strh", false, M, Emulator32bit::_op_strh, 0)                                       \
     F(X, SWPH, "swph", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                           \
       Emulator32bit::kAtomicId_swp)                                                                \
+    F(X, LDUR, "ldur", false, M, Emulator32bit::_op_ldr, 1)                                        \
+    F(X, STUR, "stur", false, M, Emulator32bit::_op_str, 1)                                        \
+    F(X, LDURH, "ldurh", false, M, Emulator32bit::_op_ldrh, 1)                                     \
+    F(X, STURH, "sturh", false, M, Emulator32bit::_op_strh, 1)                                     \
     F(X, UDIV, "udiv", true, O, Emulator32bit::_op_udiv, 0)                                        \
     F(X, SDIV, "sdiv", true, O, Emulator32bit::_op_sdiv, 0)                                        \
     F(X, CSEL, "csel", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csel)          \
@@ -121,7 +133,7 @@
     F(X, B, "b", false, B1, Emulator32bit::_op_b, 0)                                               \
     F(X, BL, "bl", false, B1, Emulator32bit::_op_bl, 0)                                            \
     F(X, BX, "bx", false, B2, Emulator32bit::_op_bx, 0)                                            \
-    F(X, BLX, "blx", false, B2, Emulator32bit::_op_blx, 0)                                         \
+    F(X, BLX, "blx", false, B2, Emulator32bit::_op_bx, 1)                                         \
     F(X, SWI, "swi", false, SWI, Emulator32bit::_op_swi, 0)                                        \
     F(X, ADRP, "adrp", false, M1, Emulator32bit::_op_adrp, 0)                                      \
     F(X, ADR, "adr", false, M1, Emulator32bit::_op_adr, 0)                                         \

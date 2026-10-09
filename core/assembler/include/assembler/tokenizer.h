@@ -278,7 +278,8 @@ enum TokenFlag : U8
     /// Instruction mnemonic carried the `s` suffix (adds, movs, lsls, ...).
     SETS_FLAGS = 1 << 2,
 
-    /// ldrsb / ldrsh. A store has no sign, the bytes stored are the low ones of the register.
+    /// ldrsb / ldrsh / ldursh. A store has no sign, the bytes stored are the low ones of the
+    /// register.
     SIGN_EXTEND = 1 << 3,
 
     /// Not produced by the lexer (see Token::synthetic).

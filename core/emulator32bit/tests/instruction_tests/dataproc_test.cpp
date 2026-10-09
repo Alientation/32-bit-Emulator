@@ -2,6 +2,9 @@
 //   add sub rsb adc sbc rsc mul and orr eor bic   (xd = f(xn, op2), flags only if S is set)
 //   cmp cmn tst teq                               (flags only, always)
 //
+// cmp, cmn, tst and teq have no opcode: they are sub, add, and and eor with S set and xzr as the
+// destination, which is how `encode` writes the rows of `kOps` that do not write a destination.
+//
 // The arithmetic itself is covered in alu_tests. These tests check the wiring: operand decoding
 // (imm14 / shifted register), the S bit, register aliasing, xzr, and that nothing else is written.
 // Each op is described once in `kOps`, and the tests loop over that table.
@@ -18,6 +21,7 @@ struct DpOp
 {
     const char *name;
     U8 opcode;
+    /// False for the comparisons, which are `opcode` with S and xzr as the destination.
     bool writes_dest;
     /// Expected result for the given operands and starting flags.
     AluResult (*model)(word rn, word op2, NZCVFlags in);
@@ -50,13 +54,13 @@ const DpOp kOps[] = {
      [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
     {"bic", Emulator32bit::_op_bic, true,
      [](word a, word b, NZCVFlags f) { return alu_bic(a, b, f); }},
-    {"cmp", Emulator32bit::_op_cmp, false,
+    {"cmp", Emulator32bit::_op_sub, false,
      [](word a, word b, NZCVFlags) { return alu_sub(a, b, true); }},
-    {"cmn", Emulator32bit::_op_cmn, false,
+    {"cmn", Emulator32bit::_op_add, false,
      [](word a, word b, NZCVFlags) { return alu_add(a, b, false); }},
-    {"tst", Emulator32bit::_op_tst, false,
+    {"tst", Emulator32bit::_op_and, false,
      [](word a, word b, NZCVFlags f) { return alu_and(a, b, f); }},
-    {"teq", Emulator32bit::_op_teq, false,
+    {"teq", Emulator32bit::_op_eor, false,
      [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
 };
 
@@ -105,12 +109,24 @@ class DataProcessingTest : public EmulatorFixture
     static constexpr U8 kXm = 2;
     static constexpr U8 kXzr = U8(Register::XZR);
 
+    /// The instruction word of `op xd, xn, xm, shift #amount`. A comparison is always flag setting
+    /// with xzr as the destination, whatever `s` and `xd` say.
+    static word encode_reg(const DpOp &op, const bool s, const U8 xd, const U8 xn, const U8 xm,
+                           const ShiftType shift = ShiftType::SHIFT_LSL, const unsigned amount = 0)
+    {
+        const bool compare = !op.writes_dest;
+        return Emulator32bit::asm_format_o(op.opcode, s || compare, compare ? kXzr : xd, xn, xm,
+                                           shift, amount);
+    }
+
     static word encode(const DpOp &op, const bool s, const U8 xd, const U8 xn, const U8 xm,
                        const Op2 &op2)
     {
-        return op2.is_imm
-                   ? Emulator32bit::asm_format_o(op.opcode, s, xd, xn, op2.value)
-                   : Emulator32bit::asm_format_o(op.opcode, s, xd, xn, xm, op2.shift, op2.amount);
+        if (!op2.is_imm) return encode_reg(op, s, xd, xn, xm, op2.shift, op2.amount);
+
+        const bool compare = !op.writes_dest;
+        return Emulator32bit::asm_format_o(op.opcode, s || compare, compare ? kXzr : xd, xn,
+                                           op2.value);
     }
 
     /// Runs `op x0, x1, op2` and checks the result, the flags and that no other register changed.
@@ -228,8 +244,7 @@ TEST_F(DataProcessingTest, every_register_index_is_decoded)
             const std::string ctx = std::string(op.name) + " x" + std::to_string(xd) + ", x"
                                     + std::to_string(xn) + ", x" + std::to_string(xm);
 
-            execute(
-                Emulator32bit::asm_format_o(op.opcode, true, xd, xn, xm, ShiftType::SHIFT_LSL, 0));
+            execute(encode_reg(op, true, xd, xn, xm));
 
             if (op.writes_dest && xd != kXzr)
             {
@@ -276,8 +291,7 @@ TEST_F(DataProcessingTest, register_aliasing)
                     const std::string ctx = std::string(op.name) + " " + alias.desc
                                             + " a=" + hex32(a) + " b=" + hex32(b);
 
-                    execute(Emulator32bit::asm_format_o(op.opcode, true, alias.xd, alias.xn,
-                                                        alias.xm, ShiftType::SHIFT_LSL, 0));
+                    execute(encode_reg(op, true, alias.xd, alias.xn, alias.xm));
 
                     if (op.writes_dest)
                     {
@@ -299,8 +313,7 @@ TEST_F(DataProcessingTest, zero_register_reads_as_zero)
             cpu.write_reg(kXm, value);
             set_flags(flags_from_bits(0));
             AluResult expected = op.model(0, value, flags());
-            execute(Emulator32bit::asm_format_o(op.opcode, true, kXd, kXzr, kXm,
-                                                ShiftType::SHIFT_LSL, 0));
+            execute(encode_reg(op, true, kXd, kXzr, kXm));
             if (op.writes_dest)
             {
                 EXPECT_EQ(cpu.read_reg(kXd), word(expected.result)) << ctx;
@@ -312,8 +325,7 @@ TEST_F(DataProcessingTest, zero_register_reads_as_zero)
             cpu.write_reg(kXn, value);
             set_flags(flags_from_bits(0));
             expected = op.model(value, 0, flags());
-            execute(Emulator32bit::asm_format_o(op.opcode, true, kXd, kXn, kXzr,
-                                                ShiftType::SHIFT_LSL, 0));
+            execute(encode_reg(op, true, kXd, kXn, kXzr));
             if (op.writes_dest)
             {
                 EXPECT_EQ(cpu.read_reg(kXd), word(expected.result)) << ctx;
@@ -324,8 +336,8 @@ TEST_F(DataProcessingTest, zero_register_reads_as_zero)
 
 TEST_F(DataProcessingTest, zero_register_destination_discards_the_result_but_sets_flags)
 {
-    // The assembler encodes cmp/cmn/tst/teq by injecting xzr as the destination, so this is the
-    // same path for the ops that normally write a register.
+    // cmp/cmn/tst/teq are encoded with xzr as the destination, so this is the same path for the
+    // ops that normally write a register.
     for (const DpOp &op : kOps)
     {
         fill_registers();
@@ -335,8 +347,7 @@ TEST_F(DataProcessingTest, zero_register_destination_discards_the_result_but_set
         const auto before = snapshot_registers();
         const AluResult expected = op.model(0xFFFFFFFF, 1, flags());
 
-        execute(
-            Emulator32bit::asm_format_o(op.opcode, true, kXzr, kXn, kXm, ShiftType::SHIFT_LSL, 0));
+        execute(encode_reg(op, true, kXzr, kXn, kXm));
 
         EXPECT_EQ(cpu.read_reg(kXzr), 0u) << op.name;
         expect_registers_unchanged_except(before, {}, op.name);

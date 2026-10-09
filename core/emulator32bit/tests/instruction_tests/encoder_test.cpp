@@ -51,8 +51,7 @@ TEST_F(Encoder, a_register_that_does_not_exist_is_an_error)
                  aemu::log::FatalError);
     EXPECT_THROW(Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, -1, 1),
                  aemu::log::FatalError);
-    EXPECT_THROW(Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, 32),
-                 aemu::log::FatalError);
+    EXPECT_THROW(Emulator32bit::asm_format_b2(ConditionCode::AL, 32), aemu::log::FatalError);
 }
 
 TEST_F(Encoder, a_shift_amount_of_32_or_more_is_an_error)

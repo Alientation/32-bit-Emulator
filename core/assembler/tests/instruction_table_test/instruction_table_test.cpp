@@ -1,8 +1,8 @@
 // The assembler's instruction list (instruction_list.h) has to agree with the emulator's opcode
 // list and its disassembler. These tests go through every row.
 
-#include "assembler_test/toolchain_fixture.h"
 #include "assembler/instruction_table.h"
+#include "assembler_test/toolchain_fixture.h"
 
 namespace
 {
@@ -283,7 +283,7 @@ TEST_F(InstructionTable, load_constant_pseudo_instruction)
     using E = Emulator32bit;
     const auto mov = [](word v) { return E::asm_format_o3(E::_op_mov, false, 1, int(v)); };
     const auto mvn = [](word v) { return E::asm_format_o3(E::_op_mvn, false, 1, int(v)); };
-    const auto lsl14 = E::asm_format_o1(E::_op_lsl, 1, 1, true, 0, 14);
+    const auto lsl14 = E::asm_format_o1(ShiftType::SHIFT_LSL, 1, 1, true, 0, 14);
     const auto orr = [](word v) { return E::asm_format_o(E::_op_orr, false, 1, 1, int(v)); };
 
     EXPECT_EQ(assemble("ldr x1, =0"), std::vector<word>{mov(0)});

@@ -43,9 +43,10 @@
 /// { file << aemu::log::to_string(r.level) << ' ' << r.message << '\n'; });
 ///
 /// The one compile time knob, AEMU_LOG_COMPILE_LEVEL, removes call sites below a level from the
-/// binary entirely. It is intended to be set once for the whole build (target_compile_definitions
-/// on every target), NEVER in a source or header file. Leave it at 0 unless profiling says the
-/// runtime level check matters. It is a single relaxed atomic load and a branch.
+/// binary entirely (and the AEMU_SCOPED_TIMER, which is a debug message, when debug is removed).
+/// It is set once for the whole build (core/CMakeLists.txt gives it to every target: 0 in Debug, 2
+/// in the optimized configurations, or the cache variable of the same name), NEVER in a source or
+/// header file. A level that is not removed still costs a relaxed atomic load and a branch.
 ///
 /// Requires C++20 (<format>, <source_location>).
 
@@ -591,5 +592,10 @@ class ScopedTimer
 #define AEMU_LOG_CONCAT_(a, b) AEMU_LOG_CONCAT_INNER_(a, b)
 
 /// `AEMU_SCOPED_TIMER("name");` logs "name took 1.23ms" at Debug level when the scope ends.
+#if AEMU_LOG_COMPILE_LEVEL > 0
+// The timer is a debug message: nothing is measured, and `tag` is only type checked.
+#define AEMU_SCOPED_TIMER(tag) static_assert(sizeof(tag) > 0, "")
+#else
 #define AEMU_SCOPED_TIMER(tag)                                                                     \
     ::aemu::log::ScopedTimer AEMU_LOG_CONCAT_(aemu_scoped_timer_, __LINE__)(tag)
+#endif

@@ -1,8 +1,8 @@
 // The interrupt controller, timer and console (docs/devices.md), and what the CPU does with them:
 // taking an interrupt between instructions, WFI, and running code from the ROM.
 
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/devices.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <filesystem>
 #include <sstream>
@@ -42,7 +42,7 @@ word nop()
 /// The instructions that put a 32 bit value in a register: mov, lsl, orr.
 std::vector<word> constant(const U8 xd, const word value)
 {
-    return {mov(xd, value >> 14), E::asm_format_o1(E::_op_lsl, xd, xd, true, 0, 14),
+    return {mov(xd, value >> 14), E::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0, 14),
             E::asm_format_o(E::_op_orr, false, xd, xd, int(value & 0x3FFF))};
 }
 

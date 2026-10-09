@@ -119,18 +119,16 @@ TEST_F(AssemblerUnit, flag_setting_suffix)
     EXPECT_EQ(words[0], Emulator32bit::asm_format_o(Emulator32bit::_op_add, true, 1, 2, 3));
     EXPECT_NE(words[0], words[1]);
     EXPECT_EQ(words[2], Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, true, 0, 5));
-    EXPECT_EQ(words[3],
-              Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, 1, 2, true, 0, 3, true));
+    EXPECT_EQ(words[3], Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 1, 2, true, 0, 3, true));
 }
 
 TEST_F(AssemblerUnit, shifts)
 {
-    EXPECT_EQ(
-        text("lsl x1, x2, 3\nlsr x1, x2, x3\nasr x1, x2, 31\nror x1, x2, 1\n"),
-        (Words{Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, 1, 2, true, 0, 3, false),
-               Emulator32bit::asm_format_o1(Emulator32bit::_op_lsr, 1, 2, false, 3, 0, false),
-               Emulator32bit::asm_format_o1(Emulator32bit::_op_asr, 1, 2, true, 0, 31, false),
-               Emulator32bit::asm_format_o1(Emulator32bit::_op_ror, 1, 2, true, 0, 1, false)}));
+    EXPECT_EQ(text("lsl x1, x2, 3\nlsr x1, x2, x3\nasr x1, x2, 31\nror x1, x2, 1\n"),
+              (Words{Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 1, 2, true, 0, 3, false),
+                     Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSR, 1, 2, false, 3, 0, false),
+                     Emulator32bit::asm_format_o1(ShiftType::SHIFT_ASR, 1, 2, true, 0, 31, false),
+                     Emulator32bit::asm_format_o1(ShiftType::SHIFT_ROR, 1, 2, true, 0, 1, false)}));
 }
 
 TEST_F(AssemblerUnit, multiply)
@@ -138,18 +136,32 @@ TEST_F(AssemblerUnit, multiply)
     EXPECT_EQ(text("mul x1, x2, x3\numull x1, x2, x3, x4\n"),
               (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 1, 2, 3,
                                                  ShiftType::SHIFT_LSL, 0),
-                     Emulator32bit::asm_format_o2(Emulator32bit::_op_umull, false, 1, 2, 3, 4)}));
+                     Emulator32bit::asm_format_o2(false, false, 1, 2, 3, 4)}));
 }
 
-TEST_F(AssemblerUnit, compare_instructions_have_xzr_as_destination)
+TEST_F(AssemblerUnit, compare_instructions_are_flag_setting_operations_with_xzr_as_destination)
 {
-    EXPECT_EQ(text("cmp x1, 5\ncmn x1, x2\ntst x3, 7\nteq x3, x4\n"),
-              (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_cmp, false, kXzr, 1, 5),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_cmn, false, kXzr, 1, 2,
+    const Words compares = text("cmp x1, 5\ncmn x1, x2\ntst x3, 7\nteq x3, x4\n");
+    EXPECT_EQ(compares,
+              (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_sub, true, kXzr, 1, 5),
+                     Emulator32bit::asm_format_o(Emulator32bit::_op_add, true, kXzr, 1, 2,
                                                  ShiftType::SHIFT_LSL, 0),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_tst, false, kXzr, 3, 7),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_teq, false, kXzr, 3, 4,
+                     Emulator32bit::asm_format_o(Emulator32bit::_op_and, true, kXzr, 3, 7),
+                     Emulator32bit::asm_format_o(Emulator32bit::_op_eor, true, kXzr, 3, 4,
                                                  ShiftType::SHIFT_LSL, 0)}));
+
+    // Writing the operation out gives the same words, and the disassembler names them cmp, ...
+    EXPECT_EQ(text("subs xzr, x1, 5\nadds xzr, x1, x2\nands xzr, x3, 7\neors xzr, x3, x4\n"),
+              compares);
+    const char *expected[] = {"cmp x1, 5", "cmn x1, x2", "tst x3, 7", "teq x3, x4"};
+    for (size_t i = 0; i < compares.size(); i++)
+    {
+        EXPECT_EQ(Emulator32bit::disassemble_instr(compares[i]), expected[i]);
+    }
+
+    // Only the flag setting form with xzr as the destination is a comparison.
+    EXPECT_EQ(Emulator32bit::disassemble_instr(text("sub xzr, x1, 5\n")[0]), "sub xzr, x1, 5");
+    EXPECT_EQ(Emulator32bit::disassemble_instr(text("subs x2, x1, 5\n")[0]), "subs x2, x1, 5");
 }
 
 TEST_F(AssemblerUnit, mov_and_mvn)
@@ -163,8 +175,7 @@ TEST_F(AssemblerUnit, mov_and_mvn)
 TEST_F(AssemblerUnit, ret_is_bx_with_the_link_register)
 {
     const Words words = text("ret\nbx x29\n");
-    EXPECT_EQ(words[0], Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL,
-                                                     kLinkRegister));
+    EXPECT_EQ(words[0], Emulator32bit::asm_format_b2(ConditionCode::AL, kLinkRegister));
     EXPECT_EQ(words[0], words[1]);
 }
 
@@ -214,6 +225,59 @@ TEST_F(AssemblerUnit, sign_extending_loads_and_stores)
             Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, true, 2, 3, 0, Addr::ADDR_OFFSET),
             Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 2, 3, 0,
                                         Addr::ADDR_OFFSET)}));
+}
+
+// ldur, ldurh, stur and sturh are the loads and stores that do not need an aligned address. They
+// are the same opcodes as ldr, ldrh, str and strh with the unaligned address mode.
+TEST_F(AssemblerUnit, unaligned_loads_and_stores)
+{
+    using Addr = Emulator32bit::AddrType;
+    EXPECT_EQ(text("ldur x0, [x1]\n"
+                   "ldur x0, [x1, -3]\n"
+                   "stur x0, [x1, 5]\n"
+                   "ldurh x0, [x1, 1]\n"
+                   "ldursh x0, [x1, 1]\n"
+                   "sturh x0, [x1, x2]\n"
+                   "ldur x0, [x1, x2, lsl 2]\n"),
+              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 0,
+                                                 Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -3,
+                                                 Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 5,
+                                                 Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, false, 0, 1, 1,
+                                                 Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, true, 0, 1, 1,
+                                                 Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 0, 1, 2,
+                                                 ShiftType::SHIFT_LSL, 0, Addr::ADDR_UNALIGNED),
+                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
+                                                 ShiftType::SHIFT_LSL, 2, Addr::ADDR_UNALIGNED)}));
+
+    // The disassembler writes them back the same way.
+    for (const char *line : {"ldur x0, [x1]", "stur x0, [x1, 5]", "ldurh x0, [x1, 1]",
+                             "ldursh x0, [x1, 1]", "sturh x0, [x1, 1]"})
+    {
+        EXPECT_EQ(Emulator32bit::disassemble_instr(text(std::string(line) + "\n")[0]), line);
+    }
+}
+
+TEST_F(AssemblerUnit, unaligned_loads_and_stores_have_no_pre_or_post_indexed_form)
+{
+    for (const char *line :
+         {"ldur x0, [x1, 4]!", "stur x0, [x1], 4", "ldurh x0, [x1, x2]!", "sturh x0, [x1], x2"})
+    {
+        EXPECT_TRUE(contains(error(std::string(".text\n") + line + "\n"),
+                             "has no pre-index or post-index form"))
+            << line;
+    }
+}
+
+TEST_F(AssemblerUnit, ldur_is_not_the_load_of_a_constant)
+{
+    EXPECT_TRUE(
+        contains(error(".text\nldur x0, =5\n"), "expected '[' to start the memory address"));
+    EXPECT_EQ(text("ldr x0, =5\n").size(), 1u);
 }
 
 TEST_F(AssemblerUnit, load_into_its_own_base_register_warns_about_the_lost_writeback)
@@ -304,9 +368,9 @@ TEST_F(AssemblerUnit, system_registers)
 TEST_F(AssemblerUnit, branches_by_register_and_with_conditions)
 {
     EXPECT_EQ(text("bx x1\nbx.eq x2\nblx.ne x3\n"),
-              (Words{Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, 1),
-                     Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::EQ, 2),
-                     Emulator32bit::asm_format_b2(Emulator32bit::_op_blx, ConditionCode::NE, 3)}));
+              (Words{Emulator32bit::asm_format_b2(ConditionCode::AL, 1),
+                     Emulator32bit::asm_format_b2(ConditionCode::EQ, 2),
+                     Emulator32bit::asm_format_b2(ConditionCode::NE, 3, true)}));
 }
 
 TEST_F(AssemblerUnit, branch_with_an_immediate_offset)
@@ -1196,12 +1260,13 @@ TEST_F(AssemblerUnit, instructions_in_an_executable_section_are_bytes_with_reloc
                                        "target: hlt\n"
                                        ".text\n");
     const ObjectFile::UserSection &code = *object.find_user_section("code");
-    const Words expected = {Emulator32bit::asm_nop(),
-                            Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 0),
-                            Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 1, 0),
-                            Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 2, 0),
-                            Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 2, 2, 0),
-                            Emulator32bit::asm_hlt()};
+    const Words expected = {
+        Emulator32bit::asm_nop(),
+        Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 0),
+        Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 1, 0),
+        Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 2, 0),
+        Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 2, 2, 0),
+        Emulator32bit::asm_hlt()};
     ASSERT_EQ(code.bytes.size(), expected.size() * 4);
     for (size_t i = 0; i < expected.size(); i++)
     {
@@ -1214,9 +1279,9 @@ TEST_F(AssemblerUnit, instructions_in_an_executable_section_are_bytes_with_reloc
     using Type = ObjectFile::RelocationEntry::Type;
     ASSERT_EQ(code.relocations.size(), 4u);
     const std::vector<std::pair<Type, word>> at = {{Type::R_EMU32_B_OFFSET22, 4},
-                                                  {Type::R_EMU32_ADR_PCREL21, 8},
-                                                  {Type::R_EMU32_ADRP_HI20, 12},
-                                                  {Type::R_EMU32_O_LO12, 16}};
+                                                   {Type::R_EMU32_ADR_PCREL21, 8},
+                                                   {Type::R_EMU32_ADRP_HI20, 12},
+                                                   {Type::R_EMU32_O_LO12, 16}};
     for (size_t i = 0; i < at.size(); i++)
     {
         EXPECT_EQ(code.relocations[i].type, at[i].first) << i;
@@ -1245,8 +1310,7 @@ TEST_F(AssemblerUnit, org_advance_and_align_work_in_a_user_section)
 {
     const ObjectFile object = assemble(".section \"s\"\n.byte 1\n.align 4\n.byte 2\n.advance 3\n"
                                        ".org 12\n.byte 3\n");
-    EXPECT_EQ(object.find_user_section("s")->bytes,
-              (Bytes{1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3}));
+    EXPECT_EQ(object.find_user_section("s")->bytes, (Bytes{1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3}));
     EXPECT_EQ(object.sections[object.find_user_section("s")->header_index].alignment, 4u);
 }
 
@@ -1291,12 +1355,14 @@ TEST_F(AssemblerUnit, fill_errors)
     EXPECT_TRUE(contains(error(".data\n.fill 2, 3, 0\n"),
                          ".fill expects a size of 1, 2, 4 or 8 bytes, got 3"));
     EXPECT_TRUE(contains(error(".data\n.fill 1, 0\n"), ".fill expects a size of 1, 2, 4 or 8"));
-    EXPECT_TRUE(contains(error(".data\n.fill 1, 1, 256\n"),
-                         ".fill value 256 does not fit in 1 byte(s)"));
+    EXPECT_TRUE(
+        contains(error(".data\n.fill 1, 1, 256\n"), ".fill value 256 does not fit in 1 byte(s)"));
     EXPECT_TRUE(contains(error(".data\nl: .fill 1, 2, l\n"),
                          ".fill cannot hold the address of a symbol, only .word can"));
-    EXPECT_TRUE(contains(error(".data\n.fill 100000000\n"), ".fill is large and likely unintentional"));
-    EXPECT_TRUE(contains(error(".data\n.fill 5000000, 4\n"), ".fill is large and likely unintentional"));
+    EXPECT_TRUE(
+        contains(error(".data\n.fill 100000000\n"), ".fill is large and likely unintentional"));
+    EXPECT_TRUE(
+        contains(error(".data\n.fill 5000000, 4\n"), ".fill is large and likely unintentional"));
     EXPECT_TRUE(contains(error(".text\n.fill 4, 4, 0\n"), ".fill can only define data"));
     EXPECT_TRUE(contains(error(".bss\n.fill 4\n"), ".fill can only define data"));
     EXPECT_TRUE(contains(error(".data\n.fill\n"), "expected a number"));
@@ -1325,7 +1391,7 @@ TEST_F(AssemblerUnit, pushsection_nests_and_makes_the_section_when_it_is_new)
                                        ".pushsection \"nb\", \"rw\", \"nobits\"\n"
                                        ".advance 6\n"
                                        ".popsection\n"
-                                       ".byte 3\n" // back in "mine"
+                                       ".byte 3\n"   // back in "mine"
                                        ".popsection\n"
                                        ".byte 4\n"); // back in .data
     EXPECT_EQ(object.data_section, (Bytes{1, 4}));
@@ -1408,8 +1474,8 @@ TEST_F(AssemblerUnit, nobits_section_errors)
                          "a nobits section is zero filled and writable"));
     EXPECT_TRUE(contains(error(".section \".data\", \"rw\", \"nobits\"\n"),
                          ".data cannot be nobits, only .bss is zero filled"));
-    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.byte 1\n"),
-                         "can only define data"));
+    EXPECT_TRUE(
+        contains(error(".section \"x\", \"rw\", \"nobits\"\n.byte 1\n"), "can only define data"));
     EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.asciz \"a\"\n"),
                          "can only define data"));
     EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\nnop\n"),
@@ -1446,8 +1512,8 @@ TEST_F(AssemblerUnit, section_directive_errors)
     EXPECT_TRUE(contains(error(".section \"x\",\n"), "flags of the section as a string"));
     EXPECT_TRUE(contains(error(".section \"x\", \"rq\"\n"), "unknown flag 'q'"));
     EXPECT_TRUE(contains(error(".section \"x\", \"\"\n"), "the flags of a section are"));
-    EXPECT_TRUE(contains(error(".section \"x\", \"rwx\"\n"),
-                         "cannot be both writable and executable"));
+    EXPECT_TRUE(
+        contains(error(".section \"x\", \"rwx\"\n"), "cannot be both writable and executable"));
     EXPECT_TRUE(contains(error(".section \"\"\n"), "name of a section cannot be empty"));
     EXPECT_TRUE(contains(error(".section \"a b\"\n"), "cannot have spaces"));
     EXPECT_TRUE(contains(error(".section \".symtab\"\n"), "name that the object file uses"));
@@ -1460,7 +1526,8 @@ TEST_F(AssemblerUnit, section_directive_errors)
     EXPECT_TRUE(contains(error(".section \"x\", \"r\"\n.section \"x\", \"rw\"\n"),
                          "the section x was made \"r\", the flags cannot be changed"));
     EXPECT_TRUE(contains(error(".section \"x\"\nnop\n"), "code must be located in the .text"));
-    EXPECT_TRUE(contains(error(".section \"x\", \"r\"\nnop\n"), "code must be located in the .text"));
+    EXPECT_TRUE(
+        contains(error(".section \"x\", \"r\"\nnop\n"), "code must be located in the .text"));
     EXPECT_TRUE(contains(error(".section \"x\", \"rx\"\n.byte 1\nnop\n"),
                          "start at a multiple of 4 bytes"));
     EXPECT_TRUE(contains(error(".section \"x\", \"rx\"\nnop\n.byte 1\n"),

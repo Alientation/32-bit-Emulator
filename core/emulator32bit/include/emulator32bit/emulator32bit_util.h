@@ -199,6 +199,12 @@ static constexpr word kPstateMask = 0b111111;
 /// Which bit of the instruction determines whether flags will be updated.
 static constexpr U8 kInstructionUpdateFlagBit = 25;
 
+/// The bit of `mull` (format O2) that makes it the signed multiply (`smull`).
+static constexpr U8 kLongMulSignedBit = 0;
+
+/// The bit of `bx` (format B2) that makes it a call (`blx`): x29 gets the return address.
+static constexpr U8 kBranchLinkBit = 0;
+
 /// Max supported instructions. 6 bits are used to represent the opcode for easy
 /// look-up table translations.
 static constexpr U8 kMaxInstructions = 64;

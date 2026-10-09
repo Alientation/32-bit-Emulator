@@ -56,5 +56,6 @@ loop_end:
                 hlt
 .data
 string: .asciz "aacbcaa", "abda"
+.align 4                      ; ldr needs an address that is a multiple of 4
 n_strings: .word 2
 result: .advance 2

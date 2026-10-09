@@ -15,7 +15,7 @@ The convention is not enforced by the toolchain. The instruction set support it 
 | `float` | 4 | 4 |
 | `double` | 8 | 4 |
 
-`char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment.
+`char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment. `ldr`, `str`, `ldrh` and `strh` fault on an address that is not aligned to the access, so a member of a `packed` struct, or a pointer that was cast to a type of a larger alignment, is accessed with `ldur`, `stur`, `ldurh`, `sturh` (see [isa.md](isa.md#memory-access-6)).
 
 There is no hardware floating point ([isa.md](isa.md#floating-point-12-not-implemented)). `float` and `double` use the software routines of the [runtime library](#runtime-library), with the IEEE 754 binary32/binary64 formats, so the compiler's choice does not change if hardware is added.
 
@@ -61,7 +61,7 @@ A `void` function may leave any value in `x0`.
 
 ### Stack
 
-- The stack grows downward and `sp` is a multiple of **4** at all times, not only at calls (every load and store is word aligned at most, so nothing needs more). Interrupt entry can rely on that too.
+- The stack grows downward and `sp` is a multiple of **4** at all times, not only at calls (`ldr` and `str` need a multiple of 4 and nothing needs more). Interrupt entry can rely on that too.
 - Nothing below `sp` is live. Interrupts and signals may overwrite it, with no red zone.
 - A push is `str xt, [sp, -4]!` and a pop is `ldr xt, [sp], 4`.
 
@@ -131,6 +131,7 @@ How a compiler uses the instruction set:
 | constants up to `0x7FFFF` | `mov xd, imm` (`mvn` for the complement, so −1 to −524288 are one instruction) |
 | any other 32 bit constant | `ldr xd, =value`, which the assembler expands to `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (two instructions when the low 14 bits are 0). No literal pool, no scratch register |
 | address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym`; `adr xd, sym` when it is within 1 MiB of the instruction (a static, a string, a function of the same file) |
+| a member that may be unaligned (`packed`, a cast pointer) | `ldur`/`stur`, `ldurh`/`sturh` (`ldursh` to sign extend); `ldrb`/`strb` need nothing |
 | sign extension of 8/16 bits in a register | `sxtb xd, xn` / `sxth xd, xn`. Loads use `ldrsb`/`ldrsh` |
 | zero extension | `uxtb` / `uxth` (or `and xd, xn, 255` for a byte) |
 | comparison for a branch | `cmp` + `b.lt`/`b.lo`/... (signed: `lt le gt ge`, unsigned: `lo ls hi hs`) |

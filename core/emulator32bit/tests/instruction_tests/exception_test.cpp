@@ -61,6 +61,13 @@ word store(const U8 xt, const U8 xn)
                                        Emulator32bit::AddrType::ADDR_OFFSET);
 }
 
+/// `stur xt, [xn]`: a word store that may be at any address.
+word store_unaligned(const U8 xt, const U8 xn)
+{
+    return Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, xt, xn, 0,
+                                       Emulator32bit::AddrType::ADDR_UNALIGNED);
+}
+
 /// An opcode that is not assigned, an extended op of the special group that is not assigned, and a
 /// floating point instruction (reserved, not implemented).
 constexpr word kBadOpcode = 0xFC000000;
@@ -355,9 +362,91 @@ TEST_F(Exceptions, an_access_that_crosses_into_a_page_that_faults_reports_the_pa
     install_vectors();
     cpu.write_reg(U8(0), kReadOnly - 2); // the last two bytes of the writable page and two more
 
-    expect_in_handler(run({store(1, 0)}), Class::DATA_ABORT);
+    expect_in_handler(run({store_unaligned(1, 0)}), Class::DATA_ABORT);
     EXPECT_EQ(esr_iss(), Emulator32bit::kAbortIss_permission | Emulator32bit::kAbortIss_write);
     EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kReadOnly);
+}
+
+// ldr, ldrh, str and strh at an address that is not aligned to their size are a data abort of the
+// alignment type, with the address in FAR. ldur... do not mind (the page crossing test above).
+TEST_F(Exceptions, a_misaligned_load_or_store_is_a_data_abort_with_the_alignment_syndrome)
+{
+    install_vectors();
+    cpu.write_reg(U8(0), kWritable + 2);
+    cpu.write_reg(U8(1), 0x1111);
+
+    expect_in_handler(run({load(1, 0)}), Class::DATA_ABORT);
+    EXPECT_EQ(esr_iss(), Emulator32bit::kAbortIss_alignment) << "a read";
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kWritable + 2);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_elr), kProgram);
+    EXPECT_EQ(cpu.read_reg(U8(1)), 0x1111u) << "the instruction that faulted did nothing";
+
+    cpu.write_reg(U8(0), kWritable + 6);
+    expect_in_handler(run({store(1, 0)}), Class::DATA_ABORT);
+    EXPECT_EQ(esr_iss(), Emulator32bit::kAbortIss_alignment | Emulator32bit::kAbortIss_write);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kWritable + 6);
+
+    // A half-word, with a pre-indexed address: FAR is the base plus the offset.
+    cpu.write_reg(U8(0), kWritable);
+    expect_in_handler(run({Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, false, 1, 0, 3,
+                                                       Emulator32bit::AddrType::ADDR_PRE_INC)}),
+                      Class::DATA_ABORT);
+    EXPECT_EQ(esr_iss(), Emulator32bit::kAbortIss_alignment);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kWritable + 3);
+    EXPECT_EQ(cpu.read_reg(U8(0)), kWritable) << "the write back did not happen";
+}
+
+// The atomics have no unaligned form: a word or half-word one at an address that is not a multiple
+// of its size is the same data abort as ldr, and it changes neither the memory nor xt.
+TEST_F(Exceptions, a_misaligned_atomic_is_a_data_abort_with_the_alignment_syndrome)
+{
+    install_vectors();
+    struct Case
+    {
+        word width;
+        word offset;
+    };
+    for (const Case c : {Case{Emulator32bit::kAtomicWidth_word, 2},
+                         Case{Emulator32bit::kAtomicWidth_word, 1},
+                         Case{Emulator32bit::kAtomicWidth_hword, 1}})
+    {
+        for (const word atop : {Emulator32bit::kAtomicId_swp, Emulator32bit::kAtomicId_ldadd,
+                                Emulator32bit::kAtomicId_ldclr, Emulator32bit::kAtomicId_ldset})
+        {
+            const std::string ctx = "width " + std::to_string(c.width) + ", atop "
+                                    + std::to_string(atop) + ", offset " + std::to_string(c.offset);
+            cpu.memory.write_word(kWritable, 0x11223344);
+            cpu.write_reg(U8(0), 0x5555);
+            cpu.write_reg(U8(1), 0x77);
+            cpu.write_reg(U8(2), kWritable + c.offset);
+
+            expect_in_handler(run({Emulator32bit::asm_atomic(0, 1, 2, U8(c.width), U8(atop))}),
+                              Class::DATA_ABORT);
+            EXPECT_EQ(esr_iss(),
+                      Emulator32bit::kAbortIss_alignment | Emulator32bit::kAbortIss_write)
+                << ctx;
+            EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kWritable + c.offset) << ctx;
+            EXPECT_EQ(sysreg(Emulator32bit::kSysregId_elr), kProgram) << ctx;
+            EXPECT_EQ(cpu.read_reg(U8(0)), 0x5555u) << ctx << ": xt is untouched";
+            EXPECT_EQ(cpu.memory.read_word(kWritable), 0x11223344u) << ctx;
+        }
+    }
+}
+
+TEST_F(Exceptions, a_byte_atomic_has_no_alignment)
+{
+    install_vectors();
+    cpu.memory.write_word(kWritable, 0x11223344);
+    cpu.write_reg(U8(1), 0x55);
+    cpu.write_reg(U8(2), kWritable + 1);
+
+    const auto result = run({Emulator32bit::asm_atomic(0, 1, 2, Emulator32bit::kAtomicWidth_byte,
+                                                       Emulator32bit::kAtomicId_swp),
+                             Emulator32bit::asm_hlt()});
+    EXPECT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.get_pc(), kProgram + 4) << "no exception was taken";
+    EXPECT_EQ(cpu.read_reg(U8(0)), 0x33u);
+    EXPECT_EQ(cpu.memory.read_word(kWritable), 0x11225544u);
 }
 
 // The address for FAR is worked out again from the registers when the access faults.

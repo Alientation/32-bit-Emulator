@@ -8,6 +8,7 @@ aemu_add_gtest(emulator32bit_tests
         ./emulator_tests/fbl_test.cpp
         ./emulator_tests/frame_allocator_test.cpp
         ./emulator_tests/disk_test.cpp
+        ./emulator_tests/logger_test.cpp
         ./emulator_tests/ram_test.cpp
         ./emulator_tests/system_bus_test.cpp
         ./emulator_tests/virtual_memory_test.cpp

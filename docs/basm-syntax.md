@@ -151,7 +151,7 @@ add     x0, x0, :lo12:sym       ; x0 = the address of sym
 |------|--------------|
 | `op xd, xn, xm[, shift]` or `op xd, xn, imm14` or `op xd, xn, :lo12:sym` | `add{s}` `sub{s}` `rsb{s}` `adc{s}` `sbc{s}` `rsc{s}` `mul{s}` `udiv{s}` `sdiv{s}` `and{s}` `orr{s}` `eor{s}` `bic{s}` (a division by zero is 0, there is no remainder instruction, see [abi.md](abi.md#division)) |
 | `op xd, xn, xm` or `op xd, xn, imm5` | `lsl{s}` `lsr{s}` `asr{s}` `ror{s}` (with `s`: N, Z and C from the last bit shifted out, V unchanged) |
-| `op xn, xm[, shift]` or `op xn, imm14` | `cmp` `cmn` `tst` `teq` (flags only; assembled with `xzr` as the destination) |
+| `op xn, xm[, shift]` or `op xn, imm14` | `cmp` `cmn` `tst` `teq` (flags only; they are `subs`, `adds`, `ands` and `eors` with `xzr` as the destination, so `cmp x1, 5` and `subs xzr, x1, 5` are the same instruction) |
 | `mov{s} xd, xm` / `mov{s} xd, imm19` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` (`imm19` is an unsigned 19 bit number, 0 to 524287) |
 | `ldr xd, =constant` / `ldr xd, =symbol` | a **pseudo instruction** that loads any 32 bit constant or an address, see below |
 | `op xlo, xhi, xn, xm` | `umull{s}` `smull{s}` (the 64 bit product: low word in `xlo`, high word in `xhi`) |
@@ -194,9 +194,11 @@ The value is an expression that is a number, -2147483648 to 4294967295, or a sym
 
 The same forms work for `str`, and for the byte (`ldrb`, `strb`) and halfword (`ldrh`, `strh`) versions. `ldrsb` and `ldrsh` sign-extend. The offset can be an expression (`[sp, -WORD_SIZE]!`).
 
+**Alignment.** `ldr`, `str`, `ldrh` and `strh` fault when the address is not a multiple of 4 (word) or 2 (halfword): "Misaligned load of 4 bytes at address ..." and, with a vector table, a data abort. `ldur`, `stur`, `ldurh`, `sturh` (and `ldursh`, which sign-extends) are the same accesses at any address, for packed data and unaligned buffers. They take `[xn]`, `[xn, imm12]` and `[xn, xm{, lsl n}]` only: there is no pre- or post-indexed form (an error). A byte is always aligned, so `ldrb` and `strb` have no unaligned form. Use `.align` to put data where `ldr` can read it (`.align 4` before a `.word`).
+
 An access changes no register unless it succeeded. For pre- and post-index accesses a store reads the register before the write-back, a load writes its result last, and the assembler warns when that makes the write-back pointless (a load into its own base, a store of the base, `xzr` as the base, or an offset of 0).
 
-Atomics: `swp`, `ldadd`, `ldclr`, `ldset` with `b` (byte) and `h` (halfword) variants: `swp xt, xn, [xm]`.
+Atomics: `swp`, `ldadd`, `ldclr`, `ldset` with `b` (byte) and `h` (halfword) variants: `swp xt, xn, [xm]`. The word and halfword ones need an address that is a multiple of 4 or 2, like `ldr` (a data abort otherwise: "Misaligned atomic access of 4 bytes at address ..."), and have no unaligned form.
 
 ### Branches, calls and system
 

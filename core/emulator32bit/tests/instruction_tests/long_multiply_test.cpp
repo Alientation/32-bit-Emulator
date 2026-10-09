@@ -10,14 +10,13 @@ namespace
 struct LongMulOp
 {
     const char *name;
-    U8 opcode;
+    bool is_signed;
     dword (*product)(word a, word b);
 };
 
 constexpr LongMulOp kLongMulOps[] = {
-    {"umull", Emulator32bit::_op_umull, [](word a, word b) { return dword(a) * dword(b); }},
-    {"smull", Emulator32bit::_op_smull,
-     [](word a, word b) { return dword(S64(S32(a)) * S64(S32(b))); }},
+    {"umull", false, [](word a, word b) { return dword(a) * dword(b); }},
+    {"smull", true, [](word a, word b) { return dword(S64(S32(a)) * S64(S32(b))); }},
 };
 
 class LongMultiplyTest : public EmulatorFixture
@@ -45,7 +44,7 @@ class LongMultiplyTest : public EmulatorFixture
         const std::string ctx = std::string(op.name) + (s ? "s" : "") + " a=" + hex32(a)
                                 + " b=" + hex32(b) + " flags_in=" + flags_to_string(in);
 
-        execute(Emulator32bit::asm_format_o2(op.opcode, s, kXlo, kXhi, kXn, kXm));
+        execute(Emulator32bit::asm_format_o2(op.is_signed, s, kXlo, kXhi, kXn, kXm));
 
         EXPECT_EQ(cpu.read_reg(kXlo), word(product)) << ctx << ": low word";
         EXPECT_EQ(cpu.read_reg(kXhi), word(product >> 32)) << ctx << ": high word";
@@ -98,7 +97,7 @@ TEST_F(LongMultiplyTest, register_aliasing)
                 const std::string ctx =
                     std::string(op.name) + " " + alias.desc + " a=" + hex32(a) + " b=" + hex32(b);
 
-                execute(Emulator32bit::asm_format_o2(op.opcode, true, alias.xlo, alias.xhi,
+                execute(Emulator32bit::asm_format_o2(op.is_signed, true, alias.xlo, alias.xhi,
                                                      alias.xn, alias.xm));
 
                 EXPECT_EQ(cpu.read_reg(alias.xlo), word(product)) << ctx << ": low word";
@@ -123,7 +122,7 @@ TEST_F(LongMultiplyTest, every_register_index_is_decoded)
                                     + std::to_string(xhi) + " xn=x" + std::to_string(xn) + " xm=x"
                                     + std::to_string(xm);
 
-            execute(Emulator32bit::asm_format_o2(op.opcode, true, xlo, xhi, xn, xm));
+            execute(Emulator32bit::asm_format_o2(op.is_signed, true, xlo, xhi, xn, xm));
 
             if (xlo != kXzr)
             {
@@ -146,7 +145,7 @@ TEST_F(LongMultiplyTest, zero_register)
         fill_registers();
         cpu.write_reg(kXn, 0x12345678);
         set_flags(flags_from_bits(0b0011));
-        execute(Emulator32bit::asm_format_o2(op.opcode, true, kXlo, kXhi, kXn, kXzr));
+        execute(Emulator32bit::asm_format_o2(op.is_signed, true, kXlo, kXhi, kXn, kXzr));
         EXPECT_EQ(cpu.read_reg(kXlo), 0u) << op.name;
         EXPECT_EQ(cpu.read_reg(kXhi), 0u) << op.name;
         EXPECT_EQ(flags(), flags_from_bits(0b0111)) << op.name;
@@ -158,7 +157,7 @@ TEST_F(LongMultiplyTest, zero_register)
         set_flags(flags_from_bits(0));
         auto before = snapshot_registers();
         const dword product = op.product(0xFFFFFFFF, 0xFFFFFFFF);
-        execute(Emulator32bit::asm_format_o2(op.opcode, true, kXlo, kXzr, kXn, kXm));
+        execute(Emulator32bit::asm_format_o2(op.is_signed, true, kXlo, kXzr, kXn, kXm));
         EXPECT_EQ(cpu.read_reg(kXlo), word(product)) << op.name;
         EXPECT_EQ(cpu.read_reg(kXzr), 0u) << op.name;
         expect_registers_unchanged_except(before, {kXlo}, op.name);
@@ -169,7 +168,7 @@ TEST_F(LongMultiplyTest, zero_register)
         cpu.write_reg(kXn, 0x10000);
         cpu.write_reg(kXm, 0x10000);
         before = snapshot_registers();
-        execute(Emulator32bit::asm_format_o2(op.opcode, true, kXzr, kXhi, kXn, kXm));
+        execute(Emulator32bit::asm_format_o2(op.is_signed, true, kXzr, kXhi, kXn, kXm));
         EXPECT_EQ(cpu.read_reg(kXhi), 1u) << op.name;
         expect_registers_unchanged_except(before, {kXhi}, op.name);
     }
@@ -221,7 +220,7 @@ TEST_F(LongMultiplyTest, golden_values)
         cpu.write_reg(kXn, g.a);
         cpu.write_reg(kXm, g.b);
         set_flags(flags_from_bits(g.flags_in));
-        execute(Emulator32bit::asm_format_o2(op->opcode, true, kXlo, kXhi, kXn, kXm));
+        execute(Emulator32bit::asm_format_o2(op->is_signed, true, kXlo, kXhi, kXn, kXm));
 
         EXPECT_EQ(cpu.read_reg(kXlo), g.lo) << ctx;
         EXPECT_EQ(cpu.read_reg(kXhi), g.hi) << ctx;

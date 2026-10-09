@@ -9,7 +9,6 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 ## Instruction set
 
 - Hardware floating point. The `V*` opcodes are reserved and the `fimm` immediate of the F2 format has no layout, see [isa.md](isa.md#f-floating-point-not-implemented). `FPCR`/`FPSR` do not exist.
-- Fewer opcodes by aliasing: `cmp` could be `sub` with `xzr` as the destination, and instructions like `hlt` and `nop` could share an encoding. The assembler already injects `xzr` for the comparisons.
 
 ## Devices
 
@@ -25,6 +24,5 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 ## Code and build
 
 - Move the disassembler into a component of its own.
-- Turn the debug log calls off outside debug builds. `AEMU_LOG_COMPILE_LEVEL` is 0 in every build today ([logger.h](../core/util/include/util/logger.h)).
 - Reduce the compilation time. Start by looking at the preprocessed output ([`-save-temps`](https://gcc.gnu.org/onlinedocs/gcc/Developer-Options.html#index-save-temps)).
 - `core/app/src/main.cpp` has a long list of older ideas (multi-core, shared objects, a visualizer, a bootloader) at its top that has not been sorted.

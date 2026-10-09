@@ -47,6 +47,19 @@ word store(const U8 xt, const U8 xn)
                                        Emulator32bit::AddrType::ADDR_OFFSET);
 }
 
+/// `ldur` and `stur`: a word access that may be at any address.
+word load_unaligned(const U8 xt, const U8 xn)
+{
+    return Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, xt, xn, 0,
+                                       Emulator32bit::AddrType::ADDR_UNALIGNED);
+}
+
+word store_unaligned(const U8 xt, const U8 xn)
+{
+    return Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, xt, xn, 0,
+                                       Emulator32bit::AddrType::ADDR_UNALIGNED);
+}
+
 word swi()
 {
     return Emulator32bit::asm_format_b1(Emulator32bit::_op_swi, ConditionCode::AL, 0);
@@ -170,7 +183,7 @@ TEST_F(Mmu, the_pages_can_be_anywhere_and_a_second_table_serves_other_regions)
     // 0x00800000 does not fit mov's 19 bits: build it.
     write_code(kCodeP, 0x100,
                {mov(1, kFarV >> 14),
-                Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, 1, 1, true, 0, 14), mov(2, 5),
+                Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 1, 1, true, 0, 14), mov(2, 5),
                 store(2, 1), Emulator32bit::asm_hlt()});
     turn_on();
 
@@ -216,7 +229,7 @@ TEST_F(Mmu, a_missing_second_level_table_is_a_translation_fault)
 {
     write_code(kCodeP, 0x100,
                {mov(1, 0x7FFFF),
-                Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, 1, 1, true, 0, 12), load(2, 1),
+                Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 1, 1, true, 0, 12), load(2, 1),
                 Emulator32bit::asm_hlt()});
     turn_on();
     ASSERT_EQ(run_at(0x100).status, Status::HALTED);
@@ -360,8 +373,8 @@ TEST_F(Mmu, an_access_across_a_page_boundary_translates_both_pages)
 {
     map(kDataV + 0x1000, 31, kW); // the page after kDataV, in another frame
     write_code(kCodeP, 0x100,
-               {mov(1, kDataV + 0xFFE), mov(2, 0x7FFFF), store(2, 1), load(3, 1),
-                Emulator32bit::asm_hlt()});
+               {mov(1, kDataV + 0xFFE), mov(2, 0x7FFFF), store_unaligned(2, 1),
+                load_unaligned(3, 1), Emulator32bit::asm_hlt()});
     // kReadOnlyV is where kDataV + 0x1000 would be: map the pages next to each other.
     map(kReadOnlyV, 31, kW);
     turn_on();

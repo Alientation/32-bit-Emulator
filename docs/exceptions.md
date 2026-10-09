@@ -36,7 +36,7 @@ An exception is **synchronous** (caused by the instruction that is executing) or
 | 1 | undefined instruction | unassigned opcode or extended op, an instruction that is not implemented (`v*`), a privileged instruction in user mode, a system register that does not exist | the instruction itself |
 | 2 | supervisor call | `swi` | the next instruction |
 | 3 | instruction abort | fetch from an unmapped, non-executable, kernel-only or misaligned address, or from a physical address with no memory | the instruction itself |
-| 4 | data abort | load, store or atomic that is unmapped, not permitted or hits a physical address with no memory. Data accesses may be unaligned, only the pc has to be aligned | the instruction itself |
+| 4 | data abort | load, store or atomic that is unmapped, not permitted or hits a physical address with no memory, or an `ldr`, `ldrh`, `str`, `strh` or a word or half-word atomic at an address that is not a multiple of the size of the access (`ldur`, `ldurh`, `stur`, `sturh` may be unaligned) | the instruction itself |
 | 5 | breakpoint | `BRK imm22` | the `BRK` itself |
 | 6 | IRQ | the interrupt controller has a pending line, `PSTATE.I` is 0 and `VBAR` is set (ISS 0, FAR 0) | the next instruction to execute |
 | 7 | reserved | | |
@@ -60,11 +60,11 @@ Some conditions are never an exception: a failing semihosting assertion, a `Fata
 |----|-----|
 | undefined instruction | 0 unassigned opcode, 1 unassigned extended op or encoding, 2 privileged in user mode, 3 not implemented (the `v*` instructions, or a `swi` that is not available), 4 bad system register |
 | supervisor call | the 22 bit immediate of `swi` |
-| instruction abort / data abort | bits 0–2 fault type: 1 translation (unmapped), 2 permission (write to read-only, execute of non-executable, kernel only), 3 alignment (a pc that is not a multiple of 4), 4 bus error (no such physical address). Data abort: bit 3 is set for a write |
+| instruction abort / data abort | bits 0–2 fault type: 1 translation (unmapped), 2 permission (write to read-only, execute of non-executable, kernel only), 3 alignment (a pc that is not a multiple of 4, or a data access that is not aligned to its size), 4 bus error (no such physical address). Data abort: bit 3 is set for a write |
 | breakpoint | the 22 bit immediate of `BRK` |
 | IRQ | 0 |
 
-`FAR` holds the faulting virtual address for the two aborts (for an instruction abort, the pc). An access that crosses into a page that faults reports the first address of that page. A bus error on a data access reports the address of the access.
+`FAR` holds the faulting virtual address for the two aborts (for an instruction abort, the pc; for an alignment fault, the address of the access). An access that crosses into a page that faults reports the first address of that page. A bus error on a data access reports the address of the access.
 
 ## System registers
 

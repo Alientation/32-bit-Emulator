@@ -17,7 +17,7 @@
 ## **Project Overview**
 This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator_app` executable, or run an already built `.bexe` directly with the `emu32` command line emulator. Currently working on expanding the instruction set, improving test coverage, and writing a c compiler to generate basm assembly.
 
-* supports up to 64 instructions (6 bit opcode), currently **48** opcodes are in use (the floating point ones are reserved but not implemented yet)
+* supports up to 64 instructions (6 bit opcode), currently **43** opcodes are in use (the floating point ones are reserved but not implemented yet)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
 
@@ -130,7 +130,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * `--reg x0=5,sp=0x2000`, `--flags 0b0100`: initial register and NZCV flag state
 * `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
 * Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault
-* Run with `--help` for all options. Logging is verbose, so pipe through `grep -v DBG` if needed
+* Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out
 
 
 ## **Documentation**
