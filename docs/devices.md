@@ -16,6 +16,8 @@ Physical addresses:
 | `0xF0002000` | **console**, one page |
 | `0xF0003000` | **block device**, one page |
 
+A store by a program to the ROM is a bus error as well (nothing is written; a store that crosses into the ROM from the page before writes nothing either). The host can still write the image (the loader's physical sections, `ROM::write_*` in a test).
+
 Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0004000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA) does it once per access.
 
 Programs without page tables (`SCTLR.M` = 0, what `emu32 -e` runs) reach the devices at these addresses directly, the swapping memory leaves addresses from `0xF0000000` alone.

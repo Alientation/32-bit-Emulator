@@ -79,7 +79,7 @@ class MemoryPort
             mem_write<T>(*m_ram, real_addr, data);
             return;
         }
-        mem_write<T>(m_bus.route_memory(real_addr), real_addr, data);
+        mem_write<T>(m_bus.route_store(real_addr), real_addr, data);
     }
 
     inline byte read_byte(const word address)

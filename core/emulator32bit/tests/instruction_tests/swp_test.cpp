@@ -2,11 +2,11 @@
 
 #include <iostream>
 
-static const byte data[kPageSize] = {0x07, 0x16, 0x25, 0x34};
-
 TEST_F(EmulatorFixture, swp_basic)
 {
-    reset(1, 0, data, 1, 1);
+    // The word to swap is in the second page of the RAM: a program cannot write to a ROM.
+    reset(2, 0, nullptr, 0, 2);
+    cpu.memory.write_word(kPageSize, 0x34251607);
     // swp x0, x1, [x2]
     cpu.memory.write_word(0, Emulator32bit::asm_atomic(0, 1, 2, Emulator32bit::kAtomicWidth_word,
                                                        Emulator32bit::kAtomicId_swp));

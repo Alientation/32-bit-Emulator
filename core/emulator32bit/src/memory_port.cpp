@@ -31,9 +31,12 @@ void MemoryPort::write_val(const word address, dword val, const U8 n_bytes)
     {
         real_addr[i] = m_mmu.translate_address(address + i, VirtualMemory::AccessType::WRITE);
     }
+    // The same goes for the ROM, which is not known to be one until it is routed.
+    BaseMemory *target[sizeof(dword)];
+    for (U8 i = 0; i < n_bytes; i++) target[i] = &m_bus.route_store(real_addr[i]);
     for (U8 i = 0; i < n_bytes; i++)
     {
-        m_bus.route_memory(real_addr[i]).write_byte(real_addr[i], val & 0xFF);
+        target[i]->write_byte(real_addr[i], val & 0xFF);
         val >>= 8;
     }
 }
@@ -44,7 +47,7 @@ void MemoryPort::write_block(word address, const byte *data, word size)
     {
         const word in_page = std::min<word>(size, kPageSize - (address & (kPageSize - 1)));
         const word real_addr = m_mmu.translate_address(address, VirtualMemory::AccessType::WRITE);
-        m_bus.route_memory(real_addr).write_block(real_addr, data, in_page);
+        m_bus.route_store(real_addr).write_block(real_addr, data, in_page);
         address += in_page;
         data += in_page;
         size -= in_page;

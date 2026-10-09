@@ -29,7 +29,9 @@ class PhysicalPages
     }
 
     /// Reads the word at a physical address (the page table walker uses this). Returns
-    /// false if no memory is there.
+    /// false if no memory is there. Memory that is there but cannot be read (the file of the
+    /// disk fails) is not "no memory": that is a fatal error, which `run` reports as a fault
+    /// (not an exception the program can handle).
     virtual bool read_physical_word(word address, word &out) = 0;
 
     /// Writes a word to a physical address. Returns false if no memory is there.

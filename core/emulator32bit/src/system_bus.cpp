@@ -14,6 +14,12 @@ namespace
                                + " to memory.");
 }
 
+[[noreturn, gnu::cold]] void throw_read_only(const word address)
+{
+    throw SystemBus::Exception("Could not write to address " + std::to_string(address)
+                               + ", it is in the ROM.");
+}
+
 } // namespace
 
 SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom) :
@@ -118,6 +124,13 @@ BaseMemory &SystemBus::route_memory(const word address)
     BaseMemory *memory = find_memory(address);
     if (UNLIKELY(memory == nullptr)) throw_unroutable(address);
     return *memory;
+}
+
+BaseMemory &SystemBus::route_store(const word address)
+{
+    BaseMemory &memory = route_memory(address);
+    if (UNLIKELY(&memory == rom.get())) throw_read_only(address);
+    return memory;
 }
 
 void SystemBus::write_block(word address, const byte *data, word size)

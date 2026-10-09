@@ -266,6 +266,37 @@ TEST_F(MemoryPortTest, an_instruction_is_fetched_through_the_mmu)
     EXPECT_EQ(cpu.memory.fetch_instruction(vaddr(10, 8)), 0xCAFEF00Du);
 }
 
+TEST(system_bus, a_store_by_a_program_cannot_reach_the_rom_but_the_host_can_write_it)
+{
+    auto bus = make_bus();
+    EXPECT_EQ(&bus->route_store(vaddr(1)), bus->ram.get());
+    EXPECT_THROW(bus->route_store(vaddr(8)), SystemBus::Exception);
+    EXPECT_THROW(bus->route_store(vaddr(9, 0xFFF)), SystemBus::Exception);
+    EXPECT_THROW(bus->route_store(vaddr(4)), SystemBus::Exception) << "no memory there either";
+
+    const std::vector<byte> data = pattern(16);
+    bus->write_block(vaddr(8, 4), data.data(), data.size());
+    EXPECT_EQ(bus->rom->read_byte(vaddr(8, 5)), data[1]) << "an image gets there like this";
+}
+
+TEST_F(MemoryPortTest, a_store_into_the_rom_changes_nothing)
+{
+    cpu.mmu->set_enabled(false); // addresses are physical, the RAM ends where the ROM starts
+    constexpr word kRom = 16 * kPageSize;
+    cpu.system_bus->rom->write_word(kRom, 0x600DF00D);
+
+    EXPECT_THROW(cpu.memory.write_word(kRom, 1), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.write_byte(kRom + 1, 1), SystemBus::Exception);
+    EXPECT_EQ(cpu.system_bus->rom->read_word(kRom), 0x600DF00Du);
+
+    EXPECT_THROW(cpu.memory.write_word(kRom - 2, 0x11223344), SystemBus::Exception);
+    EXPECT_EQ(cpu.system_bus->ram->read_hword(kRom - 2), 0u) << "the part in the RAM either";
+
+    const std::vector<byte> data = pattern(8);
+    EXPECT_THROW(cpu.memory.write_block(kRom, data.data(), data.size()), SystemBus::Exception);
+    EXPECT_EQ(cpu.memory.read_word(kRom), 0x600DF00Du) << "and it can be read";
+}
+
 TEST_F(MemoryPortTest, instructions_can_be_fetched_from_the_rom_and_not_from_where_there_is_nothing)
 {
     cpu.mmu->set_enabled(false); // addresses are physical

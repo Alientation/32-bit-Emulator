@@ -405,6 +405,21 @@ TEST_F(Exceptions, an_access_to_a_physical_address_with_no_memory_is_a_bus_error
     EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), 0x7FFF0000u);
 }
 
+TEST_F(Exceptions, a_store_to_the_rom_is_a_bus_error_and_the_rom_keeps_its_image)
+{
+    constexpr word kRom = 16 * kPageSize;
+    install_vectors();
+    cpu.mmu->set_enabled(false); // addresses are physical
+    cpu.system_bus->rom->write_word(kRom, 0x600DF00D);
+    cpu.write_reg(U8(0), kRom);
+    cpu.write_reg(U8(1), 0xABCD1234);
+
+    expect_in_handler(run({store(1, 0)}), Class::DATA_ABORT);
+    EXPECT_EQ(esr_iss(), Emulator32bit::kAbortIss_bus);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kRom);
+    EXPECT_EQ(cpu.system_bus->rom->read_word(kRom), 0x600DF00Du);
+}
+
 TEST_F(Exceptions, a_handler_can_fix_the_cause_and_retry_the_instruction)
 {
     install_vectors();

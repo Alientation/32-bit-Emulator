@@ -200,5 +200,6 @@ class ROM final : public Memory
         const char *what() const noexcept override;
     };
 
-    // TODO: prevent writes, have special way to flash memory
+    // A program cannot write it: the stores of the CPU go through SystemBus::route_store, which
+    // refuses the ROM. The ROM object itself is writable, that is how an image gets there.
 };

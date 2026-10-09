@@ -61,6 +61,12 @@ class SystemBus : public PhysicalPages
     /// @throws SystemBus::Exception if there is none.
     BaseMemory &route_memory(word address);
 
+    /// The memory or device that a store by a program goes to: route_memory, but the ROM is read
+    /// only. (The loader and the host write the ROM through write_block or the ROM itself, that
+    /// is how an image gets there.)
+    /// @throws SystemBus::Exception if there is none, or the address is in the ROM.
+    BaseMemory &route_store(word address);
+
     /// Writes bytes to a physical address. A block can cross from one page to another.
     /// @throws SystemBus::Exception if there is no memory somewhere in it.
     void write_block(word address, const byte *data, word size);

@@ -26,7 +26,6 @@
     *        - Disk.h + Disk.cpp
     *        - FreeBlockList.h + FreeBlockList.cpp
     *        - VirtualMemory.h + VirtualMemory.cpp
-    *        - SystemBus.h + SystemBus.cpp
             - Memory.h + Memory.cpp
             - Emulator32bit.h + Emulator32bit.cpp + Emulator32bitUtil.h
             - Instructions.cpp + SoftwareInterrupt.cpp
