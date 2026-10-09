@@ -207,11 +207,11 @@ void ObjectFile::print(std::ostream &out)
             const std::string operands = disassembly.substr(space + 1);
             out << std::format(":\t{:08x}\t{}\t\t{}", text_section[i], op, operands);
 
-            const U8 opcode = bitfield_unsigned(text_section[i], 26, 6);
+            const U8 opcode = bitfield_unsigned<26, 6>(text_section[i]);
             if (opcode == Emulator32bit::_op_b || opcode == Emulator32bit::_op_bl)
             {
                 /* branch offsets are in words, relative to the branch instruction itself */
-                const sword offset_words = bitfield_signed(text_section[i], 0, 22);
+                const sword offset_words = bitfield_signed<0, 22>(text_section[i]);
                 const sword target = sword(address) + offset_words * 4;
                 auto label = labels.upper_bound(target);
                 if (target >= 0 && label != labels.begin())

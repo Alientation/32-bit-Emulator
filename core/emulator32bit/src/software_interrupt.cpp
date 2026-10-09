@@ -88,9 +88,9 @@ void Emulator32bit::_emu_printm(word mem_addr, U8 size, bool little_endian)
 
 void Emulator32bit::_emu_printp()
 {
-    *m_out << std::format("PSTATE: N={:d},Z={:d},C={:d},V={:d}\n", test_bit(m_pstate, kNFlagBit),
-                          test_bit(m_pstate, kZFlagBit), test_bit(m_pstate, kCFlagBit),
-                          test_bit(m_pstate, kVFlagBit));
+    *m_out << std::format("PSTATE: N={:d},Z={:d},C={:d},V={:d}\n", test_bit<kNFlagBit>(m_pstate),
+                          test_bit<kZFlagBit>(m_pstate), test_bit<kCFlagBit>(m_pstate),
+                          test_bit<kVFlagBit>(m_pstate));
 }
 
 void Emulator32bit::_emu_assertr(U8 reg_id, word min_value, word max_value)
@@ -185,7 +185,7 @@ void Emulator32bit::_emu_err(word err)
  */
 void Emulator32bit::_swi(word instr)
 {
-    byte cond = bitfield_unsigned(instr, 22, 4);
+    byte cond = bitfield_unsigned<22, 4>(instr);
     AEMU_DEBUG("swi {}", cond);
 
     if (!check_cond(m_pstate, cond))
@@ -196,7 +196,7 @@ void Emulator32bit::_swi(word instr)
     // With a vector table installed every swi is a system call of the operating system (a
     // supervisor call exception) except `swi 1`. Without one, `swi` and `swi 1` are both the
     // emulator calls below, which is what programs without an operating system use.
-    const word imm = bitfield_unsigned(instr, 0, 22);
+    const word imm = bitfield_unsigned<0, 22>(instr);
     if (m_vbar != 0 && imm != kSwiSemihosting)
     {
         enter_exception(ExceptionClass::SUPERVISOR_CALL, imm, 0, m_pc + 4);

@@ -17,7 +17,7 @@ word adrp_result(word instr, word pc)
     {
         simm21 -= (1 << 20);
     }
-    return mask_0(pc, 0, 12) + (simm21 << 12);
+    return zero_bits(pc, 0, 12) + (simm21 << 12);
 }
 
 /// Errors are thrown instead of ending the test binary, and are not logged.

@@ -189,8 +189,8 @@ constexpr std::array<U16, 16> make_condition_table()
     {
         for (unsigned cond = 0; cond < 16; cond++)
         {
-            if (condition_holds(test_bit(flags, kNFlagBit), test_bit(flags, kZFlagBit),
-                                test_bit(flags, kCFlagBit), test_bit(flags, kVFlagBit),
+            if (condition_holds(test_bit<kNFlagBit>(flags), test_bit<kZFlagBit>(flags),
+                                test_bit<kCFlagBit>(flags), test_bit<kVFlagBit>(flags),
                                 static_cast<ConditionCode>(cond)))
             {
                 table[flags] |= U16(1) << cond;
@@ -269,7 +269,7 @@ static inline AluResult alu_logic_result(const word result, const NZCVFlags init
         .result = result,
         .flags =
             {
-                .n = test_bit(result, 31),
+                .n = test_bit<31>(result),
                 .z = result == 0,
                 .c = initial_flags.c,
                 .v = initial_flags.v,
@@ -317,7 +317,7 @@ static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flag
         .result = result,
         .flags =
             {
-                .n = test_bit(result32, 31),
+                .n = test_bit<31>(result32),
                 .z = result32 == 0,
                 .c = flags.c,
                 .v = flags.v,
@@ -333,7 +333,7 @@ static inline AluResult alu_umull(const word a, const word b, const NZCVFlags fl
         .result = result,
         .flags =
             {
-                .n = test_bit(result, 63),
+                .n = test_bit<63>(result),
                 .z = result == 0,
                 .c = flags.c,
                 .v = flags.v,
@@ -351,7 +351,7 @@ static inline AluResult alu_smull(const word a, const word b, const NZCVFlags fl
         .result = result,
         .flags =
             {
-                .n = test_bit(result, 63),
+                .n = test_bit<63>(result),
                 .z = result == 0,
                 .c = flags.c,
                 .v = flags.v,
@@ -422,7 +422,7 @@ static inline AluResult alu_shift(const word value, const ShiftType type, const 
         }
     }
 
-    flags.n = test_bit(result, 31);
+    flags.n = test_bit<31>(result);
     flags.z = result == 0;
     return {.result = result, .flags = flags};
 }

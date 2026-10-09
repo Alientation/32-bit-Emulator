@@ -123,29 +123,29 @@ TEST(emulator_test, emulator32bit_util_test)
         EXPECT_EQ(bitfield_signed(value, 0, 7), dword(~0b0111100));
     }
 
-    /* Test mask_0. */
+    /* Test zero_bits. */
     {
-        EXPECT_EQ(mask_0(byte(0x12), 0, 4), 0x10);
-        EXPECT_EQ(mask_0(byte(0x12), 4, 4), 0x02);
-        EXPECT_EQ(mask_0(byte(0x12), 0, 8), 0);
+        EXPECT_EQ(zero_bits(byte(0x12), 0, 4), 0x10);
+        EXPECT_EQ(zero_bits(byte(0x12), 4, 4), 0x02);
+        EXPECT_EQ(zero_bits(byte(0x12), 0, 8), 0);
 
-        EXPECT_EQ(mask_0(hword(0x1234), 0, 4), 0x1230);
-        EXPECT_EQ(mask_0(hword(0x1234), 12, 4), 0x0234);
-        EXPECT_EQ(mask_0(hword(0x1234), 8, 8), 0x0034);
-        EXPECT_EQ(mask_0(hword(0x1234), 0, 8), 0x1200);
-        EXPECT_EQ(mask_0(hword(0x1234), 0, 16), 0);
+        EXPECT_EQ(zero_bits(hword(0x1234), 0, 4), 0x1230);
+        EXPECT_EQ(zero_bits(hword(0x1234), 12, 4), 0x0234);
+        EXPECT_EQ(zero_bits(hword(0x1234), 8, 8), 0x0034);
+        EXPECT_EQ(zero_bits(hword(0x1234), 0, 8), 0x1200);
+        EXPECT_EQ(zero_bits(hword(0x1234), 0, 16), 0);
 
-        EXPECT_EQ(mask_0(0x12345678, 0, 4), 0x12345670);
-        EXPECT_EQ(mask_0(0x12345678, 4, 4), 0x12345608);
-        EXPECT_EQ(mask_0(0x12345678, 28, 4), 0x02345678);
-        EXPECT_EQ(mask_0(0x12345678, 24, 8), 0x00345678);
-        EXPECT_EQ(mask_0(0x12345678, 16, 16), 0x00005678);
-        EXPECT_EQ(mask_0(0x12345678, 0, 16), 0x12340000);
-        EXPECT_EQ(mask_0(0x12345678, 0, 32), 0);
+        EXPECT_EQ(zero_bits(0x12345678, 0, 4), 0x12345670);
+        EXPECT_EQ(zero_bits(0x12345678, 4, 4), 0x12345608);
+        EXPECT_EQ(zero_bits(0x12345678, 28, 4), 0x02345678);
+        EXPECT_EQ(zero_bits(0x12345678, 24, 8), 0x00345678);
+        EXPECT_EQ(zero_bits(0x12345678, 16, 16), 0x00005678);
+        EXPECT_EQ(zero_bits(0x12345678, 0, 16), 0x12340000);
+        EXPECT_EQ(zero_bits(0x12345678, 0, 32), 0);
 
-        EXPECT_EQ(mask_0(dword(0xF123456789ABCDEFULL), 0, 4), dword(0xF123456789ABCDE0ULL));
-        EXPECT_EQ(mask_0(dword(0xF123456789ABCDEFULL), 60, 4), dword(0x0123456789ABCDEFULL));
-        EXPECT_EQ(mask_0(dword(0xF123456789ABCDEFULL), 0, 64), 0);
+        EXPECT_EQ(zero_bits(dword(0xF123456789ABCDEFULL), 0, 4), dword(0xF123456789ABCDE0ULL));
+        EXPECT_EQ(zero_bits(dword(0xF123456789ABCDEFULL), 60, 4), dword(0x0123456789ABCDEFULL));
+        EXPECT_EQ(zero_bits(dword(0xF123456789ABCDEFULL), 0, 64), 0);
     }
 }
 

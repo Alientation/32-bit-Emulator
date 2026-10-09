@@ -97,7 +97,7 @@ Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
 // that is not listed is a bad opcode.
 [[gnu::always_inline]] inline void Emulator32bit::execute(const word instr)
 {
-    switch (bitfield_unsigned(instr, 26, 6))
+    switch (bitfield_unsigned<26, 6>(instr))
     {
 #define AEMU_EXECUTE_CASE(name, opcode)                                                            \
     case _op_##name:                                                                               \
@@ -121,9 +121,9 @@ void Emulator32bit::print()
         *m_out << std::format("x{:02}: {}\n", i, to_color_hex_str(read_reg(i)));
     }
 
-    *m_out << std::format("\nN={:d} Z={:d} C={:d} V={:d}\n", test_bit(m_pstate, kNFlagBit),
-                          test_bit(m_pstate, kZFlagBit), test_bit(m_pstate, kCFlagBit),
-                          test_bit(m_pstate, kVFlagBit));
+    *m_out << std::format("\nN={:d} Z={:d} C={:d} V={:d}\n", test_bit<kNFlagBit>(m_pstate),
+                          test_bit<kZFlagBit>(m_pstate), test_bit<kCFlagBit>(m_pstate),
+                          test_bit<kVFlagBit>(m_pstate));
 }
 
 word Emulator32bit::fetch_instruction()
@@ -205,7 +205,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             // vector table and unmasked IRQs. The resume address is the instruction that would
             // have executed.
             if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0
-                && !test_bit(m_pstate, kIrqMaskBit))
+                && !test_bit<kIrqMaskBit>(m_pstate))
             {
                 enter_exception(ExceptionClass::IRQ, 0, 0, m_pc);
                 m_pc_written = false;
@@ -457,10 +457,10 @@ namespace
 std::string flag_letters(const word pstate)
 {
     std::string letters;
-    letters += test_bit(pstate, kNFlagBit) ? 'N' : 'n';
-    letters += test_bit(pstate, kZFlagBit) ? 'Z' : 'z';
-    letters += test_bit(pstate, kCFlagBit) ? 'C' : 'c';
-    letters += test_bit(pstate, kVFlagBit) ? 'V' : 'v';
+    letters += test_bit<kNFlagBit>(pstate) ? 'N' : 'n';
+    letters += test_bit<kZFlagBit>(pstate) ? 'Z' : 'z';
+    letters += test_bit<kCFlagBit>(pstate) ? 'C' : 'c';
+    letters += test_bit<kVFlagBit>(pstate) ? 'V' : 'v';
     return letters;
 }
 
@@ -637,7 +637,7 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
     case 0:
         break;
     case kSysregId_pstate:
-        set_user_mode(test_bit(value, kUserModeBit));
+        set_user_mode(test_bit<kUserModeBit>(value));
         m_pstate = value & kPstateMask;
         break;
     case kSysregId_elr:
@@ -664,7 +664,7 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         break;
     case kSysregId_sctlr:
         m_sctlr = value & kSctlrMmuEnable; // the only bit there is
-        mmu->set_walk_enabled(test_bit(m_sctlr, 0));
+        mmu->set_walk_enabled(test_bit<0>(m_sctlr));
         break;
     default:
         throw Exception(InterruptType::BAD_REG,
@@ -689,7 +689,7 @@ void Emulator32bit::set_user_mode(const bool user)
     {
         std::swap(m_x[register_to_U8(Register::SP)], m_sp_other);
     }
-    m_pstate = set_bit(m_pstate, kUserModeBit, user);
+    m_pstate = set_bit<kUserModeBit>(m_pstate, user);
     mmu->set_user_mode(user);
 }
 
@@ -723,7 +723,7 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     }
 
     set_user_mode(false);
-    m_pstate = set_bit(m_pstate, kIrqMaskBit, 1);
+    m_pstate = set_bit<kIrqMaskBit>(m_pstate, 1);
     m_pc = m_vbar + 16 * word(cls);
     m_pc_written = true;
 

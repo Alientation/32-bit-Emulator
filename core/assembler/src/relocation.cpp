@@ -11,15 +11,15 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
     switch (type)
     {
     case Type::R_EMU32_O_LO12:
-        return mask_0(instr, 0, 14) + bitfield_unsigned(target, 0, 12);
+        return zero_bits<0, 14>(instr) + bitfield_unsigned<0, 12>(target);
     case Type::R_EMU32_ADRP_HI20:
     {
         /* adrp is relative to the page of the instruction itself */
         const int pages = int(target >> 12) - int(instr_address >> 12);
-        word patched = mask_0(instr, 0, 20) + bitfield_unsigned(pages, 0, 20);
+        word patched = zero_bits<0, 20>(instr) + bitfield_unsigned<0, 20>(pages);
         if ((pages >> 20) & 1)
         {
-            patched = set_bit(patched, kInstructionUpdateFlagBit, 1);
+            patched = set_bit<kInstructionUpdateFlagBit>(patched, 1);
         }
         return patched;
     }
@@ -31,17 +31,17 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
                    "apply_relocation() - adr at {:#x} cannot reach {:#x}, the distance does not "
                    "fit in 21 bits.",
                    instr_address, target);
-        word patched = mask_0(instr, 0, 20) + bitfield_unsigned(sword(distance), 0, 20);
+        word patched = zero_bits<0, 20>(instr) + bitfield_unsigned<0, 20>(sword(distance));
         if (distance < 0)
         {
-            patched = set_bit(patched, kInstructionUpdateFlagBit, 1);
+            patched = set_bit<kInstructionUpdateFlagBit>(patched, 1);
         }
         return patched;
     }
     case Type::R_EMU32_MOV_LO19:
-        return mask_0(instr, 0, 19) + bitfield_unsigned(target, 0, 19);
+        return zero_bits<0, 19>(instr) + bitfield_unsigned<0, 19>(target);
     case Type::R_EMU32_MOV_HI13:
-        return mask_0(instr, 0, 19) + bitfield_unsigned(target, 19, 13);
+        return zero_bits<0, 19>(instr) + bitfield_unsigned<19, 13>(target);
     case Type::R_EMU32_B_OFFSET22:
     {
         AEMU_CHECK((target & 0b11) == 0,
@@ -54,7 +54,7 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
                    "apply_relocation() - Branch at {:#x} cannot reach {:#x}, the offset does not "
                    "fit in 22 bits.",
                    instr_address, target);
-        return mask_0(instr, 0, 22) + bitfield_unsigned(delta_words, 0, 22);
+        return zero_bits<0, 22>(instr) + bitfield_unsigned<0, 22>(delta_words);
     }
     case Type::R_EMU32_ABS32:
         /* The word is the address, plus what was in the word. */

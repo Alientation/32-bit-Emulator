@@ -324,10 +324,10 @@ class Emulator32bit
     inline NZCVFlags get_NZCV()
     {
         return {
-            .n = test_bit(m_pstate, kNFlagBit),
-            .z = test_bit(m_pstate, kZFlagBit),
-            .c = test_bit(m_pstate, kCFlagBit),
-            .v = test_bit(m_pstate, kVFlagBit),
+            .n = test_bit<kNFlagBit>(m_pstate),
+            .z = test_bit<kZFlagBit>(m_pstate),
+            .c = test_bit<kCFlagBit>(m_pstate),
+            .v = test_bit<kVFlagBit>(m_pstate),
         };
     }
 
@@ -339,7 +339,7 @@ class Emulator32bit
 
     inline bool user_mode() const
     {
-        return test_bit(m_pstate, kUserModeBit);
+        return test_bit<kUserModeBit>(m_pstate);
     }
 
     /// The system registers the way the kernel sees them (kSysregId_*), without the checks that
