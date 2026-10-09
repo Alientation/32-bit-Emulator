@@ -11,7 +11,6 @@
 #include <vector>
 
 inline const std::string ASSEMBLER_VERSION = "0.0.1";
-inline constexpr int MAX_OPTIMIZATION_LEVEL = 3;
 
 inline const std::set<std::string> WARNINGS = {
     "error",
@@ -48,7 +47,6 @@ class Build
     bool has_work() const;
 
     bool does_create_exe() const;
-    int get_optimization_level() const;
     std::set<std::string> get_enabled_warnings() const;
     std::map<std::string, std::string> get_preprocessor_flags() const;
 
@@ -66,7 +64,6 @@ class Build
     bool m_make_lib = false;
     bool m_only_compile = false;
     std::string m_output_file = DEFAULT_OUTPUT_FILE;
-    int m_optimization_level = 0;
     std::set<std::string> m_enabled_warnings;
     std::map<std::string, std::string> m_preprocessor_flags;
 
@@ -113,8 +110,6 @@ class Build
     void _ar(std::vector<std::string> &args, size_t &index);
     void _output(std::vector<std::string> &args, size_t &index);
     void _outdir(std::vector<std::string> &args, size_t &index);
-    void _optimize(std::vector<std::string> &args, size_t &index);
-    void _optimize_all(std::vector<std::string> &args, size_t &index);
     void _warn(std::vector<std::string> &args, size_t &index);
     void _warn_all(std::vector<std::string> &args, size_t &index);
     void _include(std::vector<std::string> &args, size_t &index);

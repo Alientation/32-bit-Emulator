@@ -72,11 +72,6 @@ Build::Build(const std::vector<std::string> &args)
 
         {"-outdir", &Build::_outdir},     /* Directory where all object files will be stored */
 
-        {"-O", &Build::_optimize},        /* Turns on optimization level *unimplemented* */
-        {"--optimize", &Build::_optimize},
-
-        {"-oall", &Build::_optimize_all}, /* Highest optimization level *unimplemented* */
-
         {"-W", &Build::_warn},            /* Turns on warning level *unimplemented* */
         {"--warning", &Build::_warn},
 
@@ -448,51 +443,6 @@ void Build::_outdir(std::vector<std::string> &args, size_t &index)
 }
 
 /**
- * @brief Sets the optimization level
- *
- * USAGE: -o, -optimize [level]
- *
- * Optimization Levels
- * 0 - no optimization (DEFAULT)
- * 1 - basic optimization
- * 2 - advanced optimization
- * 3 - full optimization
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
-void Build::_optimize(std::vector<std::string> &args, size_t &index)
-{
-    AEMU_CHECK(index + 1 < args.size(), "Build::_optimize() - Missing optimization level.");
-    const std::string &level = args[++index];
-
-    // check if the optimization level is valid
-    int parsed = -1;
-    const auto [end, error] = std::from_chars(level.data(), level.data() + level.size(), parsed);
-    AEMU_CHECK(error == std::errc() && end == level.data() + level.size() && parsed >= 0
-                   && parsed <= MAX_OPTIMIZATION_LEVEL,
-               "Build::_optimize() - Invalid optimization level: '{}', expected 0 to {}.", level,
-               MAX_OPTIMIZATION_LEVEL);
-    m_optimization_level = parsed;
-}
-
-/**
- * @brief Sets the highest optimization level
- *
- * USAGE: -O, -oall
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
-void Build::_optimize_all(std::vector<std::string> &args, size_t &index)
-{
-    UNUSED(args);
-    UNUSED(index);
-
-    m_optimization_level = MAX_OPTIMIZATION_LEVEL;
-}
-
-/**
  * @brief Turns on warning messages
  *
  * USAGE: -w, -warning [type]
@@ -676,8 +626,6 @@ void Build::_help(std::vector<std::string> &args, size_t &index)
     print_option("-c, --compile", "Only compiles the source files into object files.");
     print_option("-o, --output <file>", "Path to output file.");
     print_option("-outdir <dir>", "Path to directory where object files will be stored.");
-    print_option("-O, --optimize <level>", "Optimization level, 0 to 3. *UNIMPLEMENTED*, ignored.");
-    print_option("-oall", "Highest optimization level. *UNIMPLEMENTED*, ignored.");
     print_option("-W, --warning <type>", "Turns on a kind of warning. The only one is 'error':");
     print_option("", "a warning ends the build like an error.");
     print_option("-wall", "Turns on every kind of warning.");
@@ -701,11 +649,6 @@ void Build::_help(std::vector<std::string> &args, size_t &index)
 bool Build::does_create_exe() const
 {
     return !m_make_lib && !m_only_compile;
-}
-
-int Build::get_optimization_level() const
-{
-    return m_optimization_level;
 }
 
 std::set<std::string> Build::get_enabled_warnings() const

@@ -136,19 +136,6 @@ TEST_F(BuildProcess, an_empty_argument_is_not_a_flag_nor_a_source_file)
                          "File path does not contain an extension"));
 }
 
-TEST_F(BuildProcess, the_optimization_level_is_checked)
-{
-    EXPECT_NO_THROW(Build("-O 0 " + build_args()));
-    EXPECT_NO_THROW(Build("-O 3 " + build_args()));
-    EXPECT_EQ(Build("-O 2 " + build_args()).get_optimization_level(), 2);
-    EXPECT_TRUE(contains(error_of([&] { Build("-O 4 " + build_args()); }),
-                         "Invalid optimization level: '4'"));
-    EXPECT_TRUE(contains(error_of([&] { Build("-O fast " + build_args()); }),
-                         "Invalid optimization level: 'fast'"));
-    EXPECT_TRUE(contains(error_of([&] { Build("-O 2x " + build_args()); }), "'2x'"));
-    EXPECT_TRUE(contains(error_of([] { Build("-O"); }), "Missing optimization level"));
-}
-
 // ---------------------------------------------------------------------------------------------
 // Warnings
 // ---------------------------------------------------------------------------------------------
