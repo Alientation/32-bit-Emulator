@@ -1,0 +1,34 @@
+; Benchmark of a TLB miss that is not a page fault (tools/bench.sh, linked with tlbbench.ld).
+;
+; The two words are 4096 pages apart (0x1000 and 0x1001000), which is the size of the TLB, so
+; their entries are in the same slot and every access replaces the entry of the one before. All
+; the memory that is used stays in RAM, so no access faults: each one is a miss that finds its
+; page in the page table of the process (access_vpage_slow) and fills the TLB again. 8
+; instructions per iteration, four of them accesses that miss.
+
+.global _start
+
+.data
+first:  .word 0
+
+.bss
+second: .advance 4
+
+.text
+_start:
+                adrp    x1, first
+                add     x1, x1, :lo12:first
+                adrp    x4, second
+                add     x4, x4, :lo12:second
+                ldr     x0, =3000000            ; number of iterations
+
+_loop:
+                ldr     x2, [x1]
+                ldr     x3, [x4]
+                add     x2, x2, x3
+                str     x2, [x1]
+                add     x3, x3, 1
+                str     x3, [x4]
+                subs    x0, x0, 1
+                b.ne    _loop
+                hlt
