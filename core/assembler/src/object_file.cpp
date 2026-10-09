@@ -36,6 +36,69 @@ const ObjectFile::ByteSection *ObjectFile::byte_section_of(SectionHeader::Type t
     return nullptr;
 }
 
+ObjectFile::SectionHeader::Type ObjectFile::user_section_type(const bool writable,
+                                                              const bool executable)
+{
+    using Type = SectionHeader::Type;
+    return executable ? Type::USER_RX : writable ? Type::USER_RW : Type::USER_R;
+}
+
+bool ObjectFile::is_user_section_type(const SectionHeader::Type type)
+{
+    using Type = SectionHeader::Type;
+    return type == Type::USER_R || type == Type::USER_RW || type == Type::USER_RX;
+}
+
+ObjectFile::UserSection *ObjectFile::find_user_section(const std::string &name)
+{
+    for (UserSection &section : user_sections)
+    {
+        if (section.name == name) return &section;
+    }
+    return nullptr;
+}
+
+const ObjectFile::UserSection *ObjectFile::find_user_section(const std::string &name) const
+{
+    for (const UserSection &section : user_sections)
+    {
+        if (section.name == name) return &section;
+    }
+    return nullptr;
+}
+
+ObjectFile::UserSection *ObjectFile::user_section_at(const U32 header_index)
+{
+    for (UserSection &section : user_sections)
+    {
+        if (section.header_index == header_index) return &section;
+    }
+    return nullptr;
+}
+
+U32 ObjectFile::add_user_section(const std::string &name, const bool writable,
+                                 const bool executable)
+{
+    AEMU_CHECK(!(writable && executable),
+               "ObjectFile::add_user_section() - The section {} would be both writable and "
+               "executable.",
+               name);
+
+    const U32 header = add_section(name, user_section_type(writable, executable));
+    add_section(".rel" + name, SectionHeader::Type::REL_USER);
+
+    UserSection section;
+    section.name = name;
+    section.writable = writable;
+    section.executable = executable;
+    section.header_index = header;
+    user_sections.push_back(std::move(section));
+
+    // Code is made of words.
+    if (executable) sections[header].alignment = kTextEntrySize;
+    return header;
+}
+
 ObjectFile::ObjectFile(File obj_file) :
     ObjectFile()
 {
@@ -195,6 +258,44 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             }
             break;
         }
+        case SectionHeader::Type::USER_R:
+        case SectionHeader::Type::USER_RW:
+        case SectionHeader::Type::USER_RX:
+        {
+            AEMU_DEBUG("Reading a user section");
+            UserSection user;
+            user.writable = section_header.type == SectionHeader::Type::USER_RW;
+            user.executable = section_header.type == SectionHeader::Type::USER_RX;
+            user.header_index = section_i;
+            for (word i = 0; i < section_header.section_size; i++)
+            {
+                user.bytes.push_back(reader.read_byte());
+            }
+            user_sections.push_back(std::move(user));
+            break;
+        }
+        case SectionHeader::Type::REL_USER:
+        {
+            UserSection *user = section_i == 0 ? nullptr : user_section_at(section_i - 1);
+            if (user == nullptr)
+            {
+                AEMU_FATAL("ObjectFile::disassemble() - '{}' is corrupt, the relocation section {} "
+                           "does not follow the section it is for.",
+                           m_obj_file.get_path(), section_i);
+                return;
+            }
+            for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
+            {
+                user->relocations.push_back({
+                    .offset = word(reader.read_dword()),
+                    .symbol = U32(reader.read_dword()),
+                    .type = (RelocationEntry::Type) reader.read_word(),
+                    .addend = sword(word(reader.read_dword())),
+                    .token = 0,
+                });
+            }
+            break;
+        }
         case SectionHeader::Type::BSS:
             AEMU_DEBUG("ObjectFile::disassemble() - Disassembling BSS Section");
             bss_section = reader.read_dword();
@@ -282,6 +383,10 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
         }
         section_table[strings[sections[i].section_name]] = i;
     }
+    for (UserSection &user : user_sections)
+    {
+        user.name = strings[sections[user.header_index].section_name];
+    }
 
     validate();
 
@@ -358,6 +463,10 @@ void ObjectFile::validate() const
                           4);
     }
     check_relocations(rel_bss, ".bss", 0, 0);
+    for (const UserSection &user : user_sections)
+    {
+        check_relocations(user.relocations, user.name.c_str(), user.bytes.size(), 4);
+    }
 
     for (const RelocationEntry &rel : rel_text)
     {
@@ -365,6 +474,25 @@ void ObjectFile::validate() const
                    "ObjectFile::disassemble() - '{}' is corrupt, a relocation of .text is at {}, "
                    "which is not the start of an instruction.",
                    path, rel.offset);
+    }
+
+    for (const UserSection &user : user_sections)
+    {
+        AEMU_CHECK(!(user.writable && user.executable),
+                   "ObjectFile::disassemble() - '{}' is corrupt, the section {} is both writable "
+                   "and executable.",
+                   path, user.name);
+        AEMU_CHECK(!user.executable || user.bytes.size() % 4 == 0,
+                   "ObjectFile::disassemble() - '{}' is corrupt, the code of {} is not made of "
+                   "whole instructions.",
+                   path, user.name);
+        for (const RelocationEntry &rel : user.relocations)
+        {
+            AEMU_CHECK(!user.executable || rel.offset % 4 == 0,
+                       "ObjectFile::disassemble() - '{}' is corrupt, a relocation of {} is at {}, "
+                       "which is not the start of an instruction.",
+                       path, user.name, rel.offset);
+        }
     }
 }
 
@@ -396,7 +524,13 @@ U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type
     case SectionHeader::Type::REL_RODATA:
     case SectionHeader::Type::REL_INIT_ARRAY:
     case SectionHeader::Type::REL_FINI_ARRAY:
+    case SectionHeader::Type::REL_USER:
         header.entry_size = kRelocationEntrySize;
+        break;
+    case SectionHeader::Type::USER_R:
+    case SectionHeader::Type::USER_RW:
+    case SectionHeader::Type::USER_RX:
+        header.entry_size = 0;
         break;
     case SectionHeader::Type::INIT_ARRAY:
     case SectionHeader::Type::FINI_ARRAY:
@@ -588,6 +722,23 @@ void ObjectFile::write_object_file(File obj_file)
     }
     write_relocations(".rel.bss", rel_bss);
 
+    /* User sections: the bytes and the relocations of each, in the order of their headers. */
+    for (const UserSection &user : user_sections)
+    {
+        AEMU_DEBUG("ObjectFile::write_object_file() - Writing the section {}.", user.name);
+        for (const byte b : user.bytes)
+        {
+            byte_writer << ByteWriter::Data(b, 1);
+        }
+        SectionHeader &header = sections[user.header_index];
+        header.section_size = user.bytes.size();
+        header.section_start = current_byte;
+        current_byte += user.bytes.size();
+
+        write_relocations(strings[sections[user.header_index + 1].section_name].c_str(),
+                          user.relocations);
+    }
+
     /* String Table */
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .strtab section.");
     int size = 0;
@@ -653,6 +804,10 @@ word ObjectFile::get_section_size(U32 section)
         return word((this->*byte_section_of(sections[section].type)->bytes).size());
     case SectionHeader::Type::BSS:
         return get_bss_section_size();
+    case SectionHeader::Type::USER_R:
+    case SectionHeader::Type::USER_RW:
+    case SectionHeader::Type::USER_RX:
+        return word(user_section_at(section)->bytes.size());
     default:
         AEMU_FATAL("ObjectFile::get_section_size() - Section {} holds no code or data.", section);
     }

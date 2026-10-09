@@ -225,6 +225,106 @@ TEST_F(ObjectFileUnit, a_symbol_with_an_unknown_binding_is_refused)
                          "the symbol 'loop' has the invalid binding 9"));
 }
 
+namespace
+{
+
+constexpr const char *kUserSections = ".global _start\n"
+                                      ".text\n"
+                                      "_start: nop\n"
+                                      ".section \"table\", \"r\"\n"
+                                      "entries: .word _start, 5\n"
+                                      ".section \"code\", \"rx\"\n"
+                                      "entry: b _start\n"
+                                      "adr x1, entries\n"
+                                      ".section \"state\"\n"
+                                      ".byte 1, 2, 3\n";
+
+} // namespace
+
+TEST_F(ObjectFileUnit, user_sections_are_written_and_read_back)
+{
+    const ObjectFile written = assemble(kUserSections);
+    const ObjectFile read{File(path("main.bo"))};
+
+    ASSERT_EQ(read.user_sections.size(), 3u);
+    for (size_t i = 0; i < written.user_sections.size(); i++)
+    {
+        const auto &a = written.user_sections[i];
+        const auto &b = read.user_sections[i];
+        EXPECT_EQ(b.name, a.name);
+        EXPECT_EQ(b.writable, a.writable) << a.name;
+        EXPECT_EQ(b.executable, a.executable) << a.name;
+        EXPECT_EQ(b.bytes, a.bytes) << a.name;
+        EXPECT_EQ(b.header_index, a.header_index) << a.name;
+        ASSERT_EQ(b.relocations.size(), a.relocations.size()) << a.name;
+        for (size_t r = 0; r < a.relocations.size(); r++)
+        {
+            EXPECT_EQ(b.relocations[r].offset, a.relocations[r].offset);
+            EXPECT_EQ(b.relocations[r].type, a.relocations[r].type);
+            EXPECT_EQ(b.relocations[r].symbol, a.relocations[r].symbol);
+        }
+    }
+    EXPECT_EQ(read.find_user_section("code")->relocations.size(), 2u);
+    EXPECT_EQ(read.sections[read.find_user_section("table")->header_index].type,
+              ObjectFile::SectionHeader::Type::USER_R);
+    EXPECT_EQ(read.sections[read.find_user_section("code")->header_index].type,
+              ObjectFile::SectionHeader::Type::USER_RX);
+    EXPECT_EQ(read.sections[read.find_user_section("state")->header_index].type,
+              ObjectFile::SectionHeader::Type::USER_RW);
+}
+
+TEST_F(ObjectFileUnit, a_file_with_user_sections_is_the_same_bytes_every_time)
+{
+    assemble(kUserSections);
+    const std::vector<byte> first = bytes_of("out/main.bo");
+    assemble(kUserSections);
+    EXPECT_EQ(bytes_of("out/main.bo"), first);
+}
+
+TEST_F(ObjectFileUnit, a_user_section_that_is_corrupt_is_refused)
+{
+    const auto damaged = [&](const std::function<void(ObjectFile &)> &damage)
+    {
+        ObjectFile object = assemble(kUserSections);
+        damage(object);
+        object.write_object_file(File(path("damaged.bo"), true));
+        return error_of([&] { ObjectFile read{File(path("damaged.bo"))}; });
+    };
+
+    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].symbol = 999; }),
+                         "a relocation of table is for the symbol 999"));
+    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].offset = 6; }),
+                         "a relocation of table is at 6, outside of the section"));
+    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("code")->relocations[0].offset = 2; }),
+                         "a relocation of code is at 2, which is not the start of an instruction"));
+    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("code")->bytes.push_back(1); }),
+                         "the code of code is not made of whole instructions"));
+    EXPECT_TRUE(contains(damaged(
+                             [](ObjectFile &o)
+                             {
+                                 // The relocations belong to the section before them, and
+                                 // this one follows a section that is not of the program's.
+                                 o.sections[o.find_user_section("table")->header_index].type =
+                                     ObjectFile::SectionHeader::Type::REL_USER;
+                             }),
+                         "does not follow the section it is for"));
+}
+
+TEST_F(ObjectFileUnit, the_listing_has_the_user_sections)
+{
+    assemble(kUserSections);
+    std::ostringstream listing;
+    ObjectFile(File(path("main.bo"))).print(listing);
+    const std::string text = listing.str();
+
+    EXPECT_TRUE(contains(text, "Contents of section table:"));
+    EXPECT_TRUE(contains(text, "Relocations of section table:"));
+    EXPECT_TRUE(contains(text, "Contents of section code:"));
+    EXPECT_TRUE(contains(text, "R_EMU32_ADR_PCREL21"));
+    EXPECT_TRUE(contains(text, "Contents of section state:"));
+    EXPECT_TRUE(contains(text, "010203"));
+}
+
 TEST_F(ObjectFileUnit, the_listing_has_the_symbols_the_data_and_the_code)
 {
     const ObjectFile object = assemble(kProgram);

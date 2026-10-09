@@ -24,7 +24,7 @@ loop:       subs    x0, x0, 1
 ```
 
 * A program needs `.global _start` and a `_start:` label, which is where the loader starts it (`ENTRY(symbol)` in a linker script can pick another one).
-* Code is only legal in `.text`, data directives (`.word`, `.ascii`, ...) only in the sections that hold data (`.data`, `.rodata`, `.init_array`, `.fini_array`), and `.bss` only reserves space (`.advance`). A label must be inside a section.
+* Code is only legal in `.text` and in a section made executable with `.section "name", "rx"`, data directives (`.word`, `.ascii`, ...) only in the sections that hold data (`.data`, `.rodata`, `.init_array`, `.fini_array` and the sections of your own), and `.bss` only reserves space (`.advance`). A label must be inside a section.
 * A line holds at most one statement, optionally after a label: `loop: subs x0, x0, 1`.
 * `hlt` encodes as `0x00000000`, so running into zeroed memory halts the program. An opcode that is not used faults instead.
 
@@ -242,7 +242,31 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | `.align n` | pad to a multiple of `n`; the largest alignment of the section is kept in the object file and respected when files are linked |
 | `.stop` | stop assembling here and ignore the rest of the file |
 
-`.section` and `.fill` are reserved but not implemented.
+### Sections of your own
+
+`.section "name"` or `.section "name", "flags"` makes a section with a name you choose the current one, and creates it the first time. The flags are a string of the letters `r` (read), `w` (write) and `x` (execute):
+
+| Flags | The program can | Like |
+|-------|-----------------|------|
+| `"r"` | read it | `.rodata` |
+| `"rw"` (the default, without flags) | read and write it | `.data` |
+| `"rx"` | read it and run code from it | `.text` |
+
+A section is never writable and executable at once (`"rwx"` is an error), and the flags of a section cannot change once it is made. The directives that work in `.data` work in all of them (`.word`, `.ascii`, `.align`, `.advance`, `.org`, ...; the data is in the file, there is no zeroed kind), and **instructions** are legal in an executable one, starting at a multiple of 4 bytes (a `.byte` before an instruction needs `.align 4`; the size has to end up a whole number of instructions). A name can be any text without spaces, `".rel..."`, `".symtab"` and `".strtab"` are taken. The names of the sections of the assembler are those sections: `.section ".data"` is `.data`, and the flags (if given) have to be the ones it has.
+
+```
+.section "vectors", "rx"        ; code that a linker script puts at VBAR
+vectors:    b       reset
+            b       trap
+.section "tables", "r"
+squares:    .word 0, 1, 4, 9, 16
+.section "counters"             ; "rw"
+hits:       .word 0
+```
+
+The linker joins the sections of the same name of all files (they have to have the same flags), in the order of the files, each at a multiple of its alignment. A branch from or to a section of your own is resolved by the linker, which sees the final addresses. Without a linker script (the default layout) the executable sections come right after `.text`, the read only ones after `.rodata` and the arrays, on the pages after the code, and the writable ones after `.data`. A linker script places them by name, as a string: `".vectors" = 0x800;`, see [belf-format.md](belf-format.md#linker-scripts-ld); a section with contents that the script does not list is an error.
+
+`.fill` is reserved but not implemented.
 
 ## Preprocessor
 

@@ -473,3 +473,211 @@ TEST_F(LinkerScript, missing_script_is_an_error)
                              }),
                          "Cannot read the linker script"));
 }
+
+// ---------------------------------------------------------------------------------------------
+// Sections of the program's own (.section "name")
+// ---------------------------------------------------------------------------------------------
+
+namespace
+{
+
+word address_of(const ObjectFile &exe, const std::string &user_section)
+{
+    return exe.sections.at(exe.find_user_section(user_section)->header_index).address;
+}
+
+word symbol_value(const ObjectFile &exe, const std::string &name)
+{
+    return exe.symbol_table.at(exe.string_table.at(name)).symbol_value;
+}
+
+/// The word at `offset` of the bytes of a section.
+word word_at(const std::vector<byte> &bytes, size_t offset)
+{
+    return word(bytes[offset]) | (word(bytes[offset + 1]) << 8) | (word(bytes[offset + 2]) << 16)
+           | (word(bytes[offset + 3]) << 24);
+}
+
+constexpr const char *kUserProgram = ".global _start\n.global vec\n.global tbl\n.global st\n"
+                                     ".text\n"
+                                     "_start: nop\n" // 0
+                                     ".section \"vectors\", \"rx\"\n"
+                                     "vec: nop\nb _start\n" // 8 bytes
+                                     ".section \"table\", \"r\"\n"
+                                     "tbl: .word _start, vec\n" // 8 bytes
+                                     ".section \"state\"\n"
+                                     "st: .word 7\n" // 4 bytes
+                                     ".data\n"
+                                     "values: .word 1, 2, 3\n"
+                                     ".rodata\n"
+                                     "text: .asciz \"hi\"\n";
+
+} // namespace
+
+TEST_F(LinkerScript, the_default_layout_puts_code_read_only_data_and_data_in_their_own_pages)
+{
+    const ObjectFile exe = link_default({assemble("user", kUserProgram)}, "user");
+
+    EXPECT_EQ(section(exe, ".text").address, 0u);
+    EXPECT_EQ(address_of(exe, "vectors"), 4u) << "after .text, still code";
+    EXPECT_EQ(section(exe, ".rodata").address, 0x1000u) << "the next page";
+    EXPECT_EQ(address_of(exe, "table"), 0x1004u) << "after .rodata (3 bytes) and the arrays (words)";
+    EXPECT_EQ(section(exe, ".data").address, 0x2000u) << "the next page";
+    EXPECT_EQ(address_of(exe, "state"), 0x2000u + 12) << "after .data";
+    EXPECT_EQ(section(exe, ".bss").address, 0x2000u + 12 + 4);
+}
+
+TEST_F(LinkerScript, symbols_of_a_user_section_have_its_address_and_section)
+{
+    const ObjectFile exe = link_default({assemble("user", kUserProgram)}, "user");
+
+    EXPECT_EQ(symbol_value(exe, "vec"), 4u);
+    EXPECT_EQ(symbol_value(exe, "tbl"), 0x1004u);
+    EXPECT_EQ(symbol_value(exe, "st"), 0x200Cu);
+    EXPECT_EQ(exe.symbol_table.at(exe.string_table.at("vec")).section,
+              exe.find_user_section("vectors")->header_index);
+    EXPECT_EQ(exe.symbol_table.at(exe.string_table.at("st")).section,
+              exe.find_user_section("state")->header_index);
+}
+
+TEST_F(LinkerScript, the_words_and_instructions_of_a_user_section_are_relocated)
+{
+    const ObjectFile exe = link_default({assemble("user", kUserProgram)}, "user");
+
+    const ObjectFile::UserSection &table = *exe.find_user_section("table");
+    EXPECT_EQ(word_at(table.bytes, 0), 0u) << "_start";
+    EXPECT_EQ(word_at(table.bytes, 4), 4u) << "vec";
+
+    // The branch is at 8 and goes to 0.
+    const ObjectFile::UserSection &vectors = *exe.find_user_section("vectors");
+    EXPECT_EQ(word_at(vectors.bytes, 4),
+              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -2));
+    EXPECT_TRUE(exe.find_user_section("vectors")->relocations.empty());
+    EXPECT_TRUE(table.relocations.empty());
+}
+
+TEST_F(LinkerScript, a_user_section_of_several_files_is_joined_and_keeps_its_alignment)
+{
+    const ObjectFile first = assemble("first", ".global _start\n.global one\n.text\n_start: nop\n"
+                                               ".section \"extra\"\n.byte 1, 2, 3\n"
+                                               "one: .byte 4\n");
+    const ObjectFile second = assemble("second", ".global two\n"
+                                                 ".section \"extra\"\n.align 8\n.byte 5\n"
+                                                 "two: .word one\n");
+    const ObjectFile exe = link_default({first, second}, "joined");
+
+    const ObjectFile::UserSection &extra = *exe.find_user_section("extra");
+    // The first file's 4 bytes, then the second's, which is aligned to 8.
+    ASSERT_EQ(extra.bytes.size(), 8u + 1 + 4);
+    EXPECT_EQ(extra.bytes[0], 1);
+    EXPECT_EQ(extra.bytes[3], 4);
+    EXPECT_EQ(extra.bytes[8], 5);
+    EXPECT_EQ(exe.sections[extra.header_index].alignment, 8u);
+    EXPECT_EQ(address_of(exe, "extra") % 8, 0u);
+    EXPECT_EQ(symbol_value(exe, "two"), address_of(exe, "extra") + 9);
+    EXPECT_EQ(word_at(extra.bytes, 9), address_of(exe, "extra") + 3)
+        << "the address of a label of the first file";
+}
+
+TEST_F(LinkerScript, a_symbol_keeps_its_section_when_the_files_have_different_sections)
+{
+    // The headers of "b" are at other places in each file.
+    const ObjectFile first = assemble("first", ".global _start\n.global in_first\n.text\n_start: nop\n"
+                                               ".section \"a\"\n.byte 1\n"
+                                               ".section \"b\"\nin_first: .byte 2\n");
+    const ObjectFile second = assemble("second", ".global in_second\n.section \"b\"\nin_second: .byte 3\n");
+    ASSERT_NE(first.find_user_section("b")->header_index, second.find_user_section("b")->header_index);
+
+    const ObjectFile exe = link_default({first, second}, "differ");
+    const U32 b = exe.find_user_section("b")->header_index;
+    EXPECT_EQ(exe.symbol_table.at(exe.string_table.at("in_first")).section, b);
+    EXPECT_EQ(exe.symbol_table.at(exe.string_table.at("in_second")).section, b);
+    EXPECT_EQ(symbol_value(exe, "in_second"), symbol_value(exe, "in_first") + 1);
+}
+
+TEST_F(LinkerScript, the_script_places_a_user_section_by_name)
+{
+    const std::vector<ObjectFile> objects = {assemble("user", kUserProgram)};
+    const std::string ld = write("user.ld", "SECTIONS (\n"
+                                            "    .text = 0x100;\n"
+                                            "    \"vectors\" = 0x800;\n"
+                                            "    \"table\";\n"
+                                            "    \"state\" = 0x3000;\n"
+                                            "    \"never_defined\" = 0x9000;\n"
+                                            "    .data = 0x2000;\n"
+                                            "    .rodata = 0x4000;\n"
+                                            "    .bss;\n"
+                                            ")\n");
+    const std::string path = (m_dir / "out" / "placed.bexe").string();
+    Linker linker(objects, File(path, true), File(ld));
+    linker.link();
+    const ObjectFile exe{File(path)};
+
+    EXPECT_EQ(address_of(exe, "vectors"), 0x800u);
+    EXPECT_EQ(address_of(exe, "table"), 0x808u) << "follows the previous section";
+    EXPECT_EQ(address_of(exe, "state"), 0x3000u);
+    EXPECT_EQ(symbol_value(exe, "vec"), 0x800u);
+}
+
+TEST_F(LinkerScript, a_user_section_with_contents_has_to_be_placed_by_the_script)
+{
+    const std::vector<ObjectFile> objects = {assemble("user", kUserProgram)};
+    const std::string ld = write("partial.ld", "SECTIONS (\n.text = 0;\n\"vectors\";\n"
+                                               "\"table\";\n.data = 0x2000;\n.rodata = 0x1000;\n"
+                                               ".bss;\n)\n");
+    const std::string path = (m_dir / "out" / "partial.bexe").string();
+    EXPECT_TRUE(contains(error_of(
+                             [&]
+                             {
+                                 Linker linker(objects, File(path, true), File(ld));
+                                 linker.link();
+                             }),
+                         "The section state has contents but the linker script does not place it"));
+}
+
+TEST_F(LinkerScript, user_sections_that_overlap_are_an_error)
+{
+    const std::vector<ObjectFile> objects = {assemble("user", kUserProgram)};
+    const std::string ld = write("overlap.ld", "SECTIONS (\n.text = 0;\n\"vectors\" = 0;\n"
+                                               "\"table\" = 0x1000;\n\"state\" = 0x2000;\n"
+                                               ".data = 0x2000;\n.rodata = 0x3000;\n.bss;\n)\n");
+    const std::string path = (m_dir / "out" / "overlap.bexe").string();
+    EXPECT_TRUE(contains(error_of(
+                             [&]
+                             {
+                                 Linker linker(objects, File(path, true), File(ld));
+                                 linker.link();
+                             }),
+                         "overlap"));
+}
+
+TEST_F(LinkerScript, the_same_section_with_other_flags_in_another_file_is_an_error)
+{
+    const ObjectFile first = assemble("first", ".global _start\n.text\n_start: nop\n"
+                                               ".section \"x\", \"r\"\n.byte 1\n");
+    const ObjectFile second = assemble("second", ".section \"x\", \"rw\"\n.byte 2\n");
+    EXPECT_TRUE(contains(error_of([&] { link_default({first, second}, "flags"); }),
+                         "The section x does not have the same flags in all the files"));
+}
+
+TEST_F(LinkerScript, an_undefined_symbol_in_a_user_section_is_an_error)
+{
+    const ObjectFile object = assemble("undef", ".global _start\n.text\n_start: nop\n"
+                                                ".section \"t\"\n.word missing\n");
+    EXPECT_TRUE(contains(error_of([&] { link_default({object}, "undef"); }),
+                         "undefined reference to 'missing'"));
+}
+
+TEST_F(LinkerScript, a_data_section_cannot_hold_a_relocation_that_patches_an_instruction)
+{
+    // The linker only patches words with an address in a section that is not executable. A
+    // branch cannot get there from the assembler (it needs an instruction), so make one.
+    ObjectFile object = assemble("branch", ".global _start\n.text\n_start: nop\n"
+                                           ".section \"d\", \"rx\"\nb _start\n");
+    ObjectFile::UserSection &d = *object.find_user_section("d");
+    d.executable = false;
+    d.writable = true;
+    object.sections[d.header_index].type = ObjectFile::SectionHeader::Type::USER_RW;
+    EXPECT_TRUE(contains(error_of([&] { link_default({object}, "bad"); }),
+                         "A relocation in d of type"));
+}

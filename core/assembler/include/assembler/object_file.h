@@ -80,6 +80,15 @@ class ObjectFile
             REL_RODATA,
             REL_INIT_ARRAY,
             REL_FINI_ARRAY,
+
+            /// A section the program named itself (`.section "name"`), read only, writable or
+            /// executable. See @ref UserSection.
+            USER_R,
+            USER_RW,
+            USER_RX,
+
+            /// The relocations of the user section whose header is just before this one.
+            REL_USER,
         } type;
 
         /// @brief          Offset this section starts at in bytes.
@@ -253,6 +262,51 @@ class ObjectFile
         /// @brief          What the section is aligned to by default (the entries are words).
         word alignment;
     };
+
+    /// @brief              A section with a name of the program's choosing (`.section "name"`),
+    ///                     holding bytes. Unlike the sections above there can be any number of
+    ///                     them. Its header is followed by the header of its relocations
+    ///                     (@ref SectionHeader::Type::REL_USER). An executable one holds
+    ///                     instructions (words, little endian) as well as data.
+    struct UserSection
+    {
+        std::string name;
+
+        /// @brief          Whether the loaded section may be written by the program.
+        bool writable = false;
+
+        /// @brief          Whether the program runs code from it. Never together with writable.
+        bool executable = false;
+
+        std::vector<byte> bytes;
+        std::vector<RelocationEntry> relocations;
+
+        /// @brief          Index into `sections` of its header. The header of its relocations is
+        ///                 the next one.
+        U32 header_index = U32(-1);
+    };
+
+    /// @brief              The user sections, in the order they were added.
+    std::vector<UserSection> user_sections;
+
+    /// @brief              The type of the header of a user section with the permissions.
+    static SectionHeader::Type user_section_type(bool writable, bool executable);
+
+    /// @brief              Whether the type is the type of a header of a user section.
+    static bool is_user_section_type(SectionHeader::Type type);
+
+    /// @brief              The user section with the name, or null.
+    UserSection *find_user_section(const std::string &name);
+    const UserSection *find_user_section(const std::string &name) const;
+
+    /// @brief              The user section whose header is the one at the index, or null if that
+    ///                     is not the header of one.
+    UserSection *user_section_at(U32 header_index);
+
+    /// @brief              Adds a user section and its two headers. The name is not one that is
+    ///                     taken (a section of the file already, or one of the reserved names).
+    /// @return             Index into `sections` of its header.
+    U32 add_user_section(const std::string &name, bool writable, bool executable);
 
     /// @brief              The four byte sections, in the order .data, .rodata, .init_array,
     ///                     .fini_array.

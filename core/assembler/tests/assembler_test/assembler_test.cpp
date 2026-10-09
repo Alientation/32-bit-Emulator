@@ -805,7 +805,6 @@ TEST_F(AssemblerUnit, section_errors)
                          ".asciz can only define data in the .data section"));
     EXPECT_TRUE(contains(error("foo:\n"), "label must be located in a section"));
     EXPECT_TRUE(contains(error(".global\n"), "expected a symbol after .global"));
-    EXPECT_TRUE(contains(error(".text\n.section \"x\"\n"), ".section is not implemented yet"));
     EXPECT_TRUE(contains(error(".text\nx: nop\nx: nop\n"), "Multiple definition of symbol x"));
     EXPECT_TRUE(contains(error(".advance 4\n"), ".advance is not inside a section"));
     EXPECT_TRUE(contains(error(".org 4\n"), ".org is not inside a section"));
@@ -1127,4 +1126,164 @@ TEST_F(AssemblerUnit, errors_from_preprocessed_tokens_point_at_the_original_sour
     EXPECT_TRUE(contains(message, "    add r, r"));
     EXPECT_TRUE(contains(message, "main.basm:6:3: note: in expansion of macro 'twice'"));
     EXPECT_FALSE(contains(message, "main.bi"));
+}
+
+// ---------------------------------------------------------------------------------------------
+// .section "name", "flags": sections of the program's own
+// ---------------------------------------------------------------------------------------------
+
+TEST_F(AssemblerUnit, a_section_of_the_programs_own_holds_the_bytes_and_labels_of_its_directives)
+{
+    const ObjectFile object = assemble(".section \"mine\"\n"
+                                       "first: .word 1, 2\n"
+                                       "second: .byte 3\n"
+                                       ".text\nnop\n"
+                                       ".section \"mine\"\n" // back to it
+                                       ".byte 4\n"
+                                       ".asciz \"hi\"\n");
+
+    ASSERT_EQ(object.user_sections.size(), 1u);
+    const ObjectFile::UserSection &mine = object.user_sections[0];
+    EXPECT_EQ(mine.name, "mine");
+    EXPECT_TRUE(mine.writable) << "no flags are \"rw\"";
+    EXPECT_FALSE(mine.executable);
+    EXPECT_EQ(mine.bytes, (Bytes{1, 0, 0, 0, 2, 0, 0, 0, 3, 4, 'h', 'i', 0}));
+    EXPECT_EQ(object.sections[mine.header_index].type, ObjectFile::SectionHeader::Type::USER_RW);
+    EXPECT_EQ(object.sections[mine.header_index + 1].type,
+              ObjectFile::SectionHeader::Type::REL_USER);
+
+    EXPECT_EQ(symbol(object, "first").section, mine.header_index);
+    EXPECT_EQ(symbol(object, "first").symbol_value, 0u);
+    EXPECT_EQ(symbol(object, "second").symbol_value, 8u);
+    EXPECT_TRUE(object.data_section.empty()) << ".data is another section";
+}
+
+TEST_F(AssemblerUnit, the_flags_say_whether_the_section_is_written_or_run)
+{
+    const ObjectFile object = assemble(".section \"a\", \"r\"\n.byte 1\n"
+                                       ".section \"b\", \"rw\"\n.byte 1\n"
+                                       ".section \"c\", \"rx\"\nnop\n"
+                                       ".section \"d\", \"xr\"\nnop\n"
+                                       ".section \"e\", \"w\"\n.byte 1\n");
+    using Type = ObjectFile::SectionHeader::Type;
+    const auto type = [&](const char *name)
+    { return object.sections[object.find_user_section(name)->header_index].type; };
+    EXPECT_EQ(type("a"), Type::USER_R);
+    EXPECT_EQ(type("b"), Type::USER_RW);
+    EXPECT_EQ(type("c"), Type::USER_RX);
+    EXPECT_EQ(type("d"), Type::USER_RX);
+    EXPECT_EQ(type("e"), Type::USER_RW);
+    EXPECT_EQ(object.sections[object.find_user_section("c")->header_index].alignment, 4u)
+        << "code is made of words";
+}
+
+TEST_F(AssemblerUnit, instructions_in_an_executable_section_are_bytes_with_relocations)
+{
+    const ObjectFile object = assemble(".section \"code\", \"rx\"\n"
+                                       "entry: nop\n"
+                                       "b target\n"
+                                       "adr x1, target\n"
+                                       "ldr x2, =target\n"
+                                       "target: hlt\n"
+                                       ".text\n");
+    const ObjectFile::UserSection &code = *object.find_user_section("code");
+    const Words expected = {Emulator32bit::asm_nop(),
+                            Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 0),
+                            Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 1, 0),
+                            Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 2, 0),
+                            Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 2, 2, 0),
+                            Emulator32bit::asm_hlt()};
+    ASSERT_EQ(code.bytes.size(), expected.size() * 4);
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        word instruction = 0;
+        std::memcpy(&instruction, &code.bytes[i * 4], 4);
+        EXPECT_EQ(instruction, expected[i]) << "instruction " << i;
+    }
+    EXPECT_EQ(symbol(object, "target").symbol_value, 5 * 4u);
+
+    using Type = ObjectFile::RelocationEntry::Type;
+    ASSERT_EQ(code.relocations.size(), 4u);
+    const std::vector<std::pair<Type, word>> at = {{Type::R_EMU32_B_OFFSET22, 4},
+                                                  {Type::R_EMU32_ADR_PCREL21, 8},
+                                                  {Type::R_EMU32_ADRP_HI20, 12},
+                                                  {Type::R_EMU32_O_LO12, 16}};
+    for (size_t i = 0; i < at.size(); i++)
+    {
+        EXPECT_EQ(code.relocations[i].type, at[i].first) << i;
+        EXPECT_EQ(code.relocations[i].offset, at[i].second) << i;
+        EXPECT_EQ(name_of(object, code.relocations[i]), "target") << i;
+    }
+    EXPECT_TRUE(object.rel_text.empty());
+    EXPECT_TRUE(object.text_section.empty());
+}
+
+TEST_F(AssemblerUnit, a_word_in_a_user_section_can_be_the_address_of_a_symbol)
+{
+    const ObjectFile object = assemble(".section \"table\", \"r\"\n"
+                                       "entries: .word handler, handler + 4\n"
+                                       ".text\nhandler: nop\n");
+    const ObjectFile::UserSection &table = *object.find_user_section("table");
+    ASSERT_EQ(table.relocations.size(), 2u);
+    EXPECT_EQ(table.relocations[0].type, ObjectFile::RelocationEntry::Type::R_EMU32_ABS32);
+    EXPECT_EQ(table.relocations[0].offset, 0u);
+    EXPECT_EQ(table.relocations[1].offset, 4u);
+    EXPECT_EQ(table.relocations[1].addend, 4);
+    EXPECT_EQ(name_of(object, table.relocations[1]), "handler");
+}
+
+TEST_F(AssemblerUnit, org_advance_and_align_work_in_a_user_section)
+{
+    const ObjectFile object = assemble(".section \"s\"\n.byte 1\n.align 4\n.byte 2\n.advance 3\n"
+                                       ".org 12\n.byte 3\n");
+    EXPECT_EQ(object.find_user_section("s")->bytes,
+              (Bytes{1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3}));
+    EXPECT_EQ(object.sections[object.find_user_section("s")->header_index].alignment, 4u);
+}
+
+TEST_F(AssemblerUnit, the_names_of_the_sections_of_the_assembler_are_those_sections)
+{
+    const ObjectFile object = assemble(".section \".data\"\n.byte 1\n"
+                                       ".section \".rodata\", \"r\"\n.byte 2\n"
+                                       ".section \".text\", \"rx\"\nnop\n"
+                                       ".section \".bss\"\n.advance 8\n"
+                                       ".section \".init_array\"\n.word 0\n"
+                                       ".section \".fini_array\"\n.word 0\n");
+    EXPECT_EQ(object.data_section, (Bytes{1}));
+    EXPECT_EQ(object.rodata_section, (Bytes{2}));
+    EXPECT_EQ(object.text_section.size(), 1u);
+    EXPECT_EQ(object.bss_section, 8u);
+    EXPECT_EQ(object.init_array_section.size(), 4u);
+    EXPECT_EQ(object.fini_array_section.size(), 4u);
+    EXPECT_TRUE(object.user_sections.empty());
+}
+
+TEST_F(AssemblerUnit, section_directive_errors)
+{
+    EXPECT_TRUE(contains(error(".section\n"), "name of the section as a string"));
+    EXPECT_TRUE(contains(error(".section x\n"), "name of the section as a string"));
+    EXPECT_TRUE(contains(error(".section \"x\",\n"), "flags of the section as a string"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rq\"\n"), "unknown flag 'q'"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"\"\n"), "the flags of a section are"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rwx\"\n"),
+                         "cannot be both writable and executable"));
+    EXPECT_TRUE(contains(error(".section \"\"\n"), "name of a section cannot be empty"));
+    EXPECT_TRUE(contains(error(".section \"a b\"\n"), "cannot have spaces"));
+    EXPECT_TRUE(contains(error(".section \".symtab\"\n"), "name that the object file uses"));
+    EXPECT_TRUE(contains(error(".section \".rel.text\"\n"), "name that the object file uses"));
+    EXPECT_TRUE(contains(error(".section \".relfoo\"\n"), "name that the object file uses"));
+    EXPECT_TRUE(contains(error(".section \".data\", \"rx\"\n"),
+                         "the flags of .data are \"rw\", they cannot be changed"));
+    EXPECT_TRUE(contains(error(".section \".text\", \"rw\"\n"),
+                         "the flags of .text are \"rx\", they cannot be changed"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"r\"\n.section \"x\", \"rw\"\n"),
+                         "the section x was made \"r\", the flags cannot be changed"));
+    EXPECT_TRUE(contains(error(".section \"x\"\nnop\n"), "code must be located in the .text"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"r\"\nnop\n"), "code must be located in the .text"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rx\"\n.byte 1\nnop\n"),
+                         "start at a multiple of 4 bytes"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rx\"\nnop\n.byte 1\n"),
+                         "not a whole number of instructions"));
+    EXPECT_TRUE(contains(error(".section \"x\"\n.word 1\n.section \"x\"\nx: .word 2\nx: .word 3\n"),
+                         "Multiple definition of symbol x"));
 }

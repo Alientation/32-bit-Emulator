@@ -136,9 +136,10 @@ void Assembler::assemble()
         else if (basm::is_instruction(token.type))
         {
             // Handle instruction.
-            if (m_cur_section != Section::TEXT)
+            if (!in_code_section())
             {
-                fail(token, "code must be located in the .text section");
+                fail(token, "code must be located in the .text section or in a section that is "
+                            "executable (.section \"name\", \"rx\")");
             }
             assemble_instruction(basm::instruction_spec(token.type));
             expect_end_of_statement();
@@ -160,6 +161,16 @@ void Assembler::assemble()
     if (!m_scope_sites.empty() && !m_stopped)
     {
         fail(*m_scope_sites.back(), ".scope is never closed with .scend");
+    }
+
+    for (const ObjectFile::UserSection &user : m_obj.user_sections)
+    {
+        if (user.executable && user.bytes.size() % sizeof(word) != 0)
+        {
+            fail(*m_statement, "the executable section " + user.name + " is "
+                                   + std::to_string(user.bytes.size())
+                                   + " bytes, which is not a whole number of instructions");
+        }
     }
 
     // Fill in the branches to labels of this file. An error above never gets here.
@@ -191,6 +202,12 @@ void Assembler::fill_local()
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
     {
         fill_local(m_obj.*section.relocations, false);
+    }
+    // The branches in a section of the program's own are left to the linker, as the ones that
+    // are not to a label of the same section.
+    for (ObjectFile::UserSection &user : m_obj.user_sections)
+    {
+        fill_local(user.relocations, false);
     }
     AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }

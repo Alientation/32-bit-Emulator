@@ -9,33 +9,150 @@
 namespace
 {
 
-/// The layout used when no linker script is given. It is part of the program, so linking does not
-/// depend on where the source tree is. .rodata starts on the first page after .text, with
-/// .init_array and .fini_array following it, and .data on the first page after those, so that
-/// code, read only data and data never share a page however big they are. .bss follows .data.
-std::string default_linker_script(word text_size, word readonly_size)
-{
-    const auto next_page = [](word size) { return (size + kPageSize - 1) & ~(kPageSize - 1); };
-    const word rodata_address = next_page(text_size);
-    const word data_address = next_page(rodata_address + readonly_size);
-    return "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n    .rodata = "
-           + std::to_string(rodata_address) + ";\n    .init_array;\n    .fini_array;\n    .data = "
-           + std::to_string(data_address) + ";\n    .bss;\n)\n";
-}
-
-/// Size of a section of the executable made of the same section of each object file, each put at
-/// a multiple of its alignment (what merge_sections does).
-word merged_size(const std::vector<ObjectFile> &objects, const ObjectFile::ByteSection &section)
+/// How much a section takes in the executable, and what it is aligned to.
+struct Extent
 {
     word size = 0;
+    word alignment = 1;
+};
+
+/// Extent of a section of the executable made of the same section of each object file, each put at
+/// a multiple of its alignment (what merge_sections does). `size_of` is the size of the section in
+/// bytes in an object file that has it.
+template <class SizeOf>
+Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &name,
+                     const SizeOf &size_of)
+{
+    Extent extent;
     for (const ObjectFile &obj : objects)
     {
-        const word alignment =
-            std::max<word>(1, obj.sections[obj.section_table.at(section.name)].alignment);
-        size += (alignment - size % alignment) % alignment;
-        size += word((obj.*section.bytes).size());
+        const auto header = obj.section_table.find(name);
+        if (header == obj.section_table.end()) continue;
+
+        const word alignment = std::max<word>(1, obj.sections[header->second].alignment);
+        extent.alignment = std::max(extent.alignment, alignment);
+        extent.size += (alignment - extent.size % alignment) % alignment;
+        extent.size += size_of(obj);
     }
-    return size;
+    return extent;
+}
+
+/// The user sections of the object files: the name, whether the program may write it and whether
+/// it runs code from it. In the order they are first seen, and the same section in two files has to
+/// have the same permissions.
+std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFile> &objects)
+{
+    std::vector<ObjectFile::UserSection> found;
+    for (const ObjectFile &obj : objects)
+    {
+        for (const ObjectFile::UserSection &section : obj.user_sections)
+        {
+            const auto same = std::find_if(found.begin(), found.end(),
+                                           [&](const auto &s) { return s.name == section.name; });
+            if (same == found.end())
+            {
+                ObjectFile::UserSection permissions;
+                permissions.name = section.name;
+                permissions.writable = section.writable;
+                permissions.executable = section.executable;
+                found.push_back(std::move(permissions));
+            }
+            else
+            {
+                AEMU_CHECK(same->writable == section.writable
+                               && same->executable == section.executable,
+                           "Linker::link() - The section {} does not have the same flags in all "
+                           "the files.",
+                           section.name);
+            }
+        }
+    }
+    return found;
+}
+
+/// Where the user section is in the executable's list, which is the order of `found` above.
+size_t user_index(const ObjectFile &exe, const std::string &name)
+{
+    for (size_t i = 0; i < exe.user_sections.size(); i++)
+    {
+        if (exe.user_sections[i].name == name) return i;
+    }
+    return size_t(-1);
+}
+
+std::string quoted(const std::string &name)
+{
+    std::string text = "\"";
+    for (const char c : name)
+    {
+        if (c == '"' || c == '\\') text += '\\';
+        text += c;
+    }
+    return text + "\"";
+}
+
+/// The layout used when no linker script is given. It is part of the program, so linking does not
+/// depend on where the source tree is. The code is first (.text, then the executable sections of
+/// the program). .rodata starts on the first page after it, with .init_array and .fini_array
+/// following it, then the read only sections of the program. .data starts on the first page after
+/// those, followed by the writable sections of the program, so that code, read only data and data
+/// never share a page however big they are. .bss follows.
+std::string default_linker_script(const std::vector<ObjectFile> &objects)
+{
+    const auto next_page = [](word size) { return (size + kPageSize - 1) & ~(kPageSize - 1); };
+    const std::vector<ObjectFile::UserSection> user = user_sections_of(objects);
+
+    word address = 0;
+    const auto add = [&](const Extent &extent)
+    {
+        address += (extent.alignment - address % extent.alignment) % extent.alignment;
+        address += extent.size;
+    };
+    const auto bytes_extent = [&](const ObjectFile::ByteSection &section)
+    {
+        return merged_extent(objects, section.name,
+                             [&](const ObjectFile &obj) { return word((obj.*section.bytes).size()); });
+    };
+    const auto user_extent = [&](const std::string &name)
+    {
+        return merged_extent(objects, name,
+                             [&](const ObjectFile &obj)
+                             { return word(obj.find_user_section(name)->bytes.size()); });
+    };
+
+    std::string script = "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n";
+    add(merged_extent(objects, ".text",
+                               [](const ObjectFile &obj) { return word(obj.text_section.size() * 4); }));
+    for (const auto &section : user)
+    {
+        if (!section.executable) continue;
+        add(user_extent(section.name));
+        script += "    " + quoted(section.name) + ";\n";
+    }
+
+    address = next_page(address);
+    script += "    .rodata = " + std::to_string(address) + ";\n";
+    for (const size_t k : {1, 2, 3})
+    {
+        add(bytes_extent(ObjectFile::byte_sections()[k]));
+        if (k != 1) script += std::string("    ") + ObjectFile::byte_sections()[k].name + ";\n";
+    }
+    for (const auto &section : user)
+    {
+        if (section.executable || section.writable) continue;
+        add(user_extent(section.name));
+        script += "    " + quoted(section.name) + ";\n";
+    }
+
+    address = next_page(address);
+    script += "    .data = " + std::to_string(address) + ";\n";
+    for (const auto &section : user)
+    {
+        if (!section.writable) continue;
+        script += "    " + quoted(section.name) + ";\n";
+    }
+    script += "    .bss;\n)\n";
+    return script;
 }
 
 bool is_undefined(const ObjectFile::SymbolTableEntry &symbol)
@@ -139,6 +256,12 @@ void Linker::_sections()
         case basm::TokenType::ASSEMBLER_BSS:
             m_sections.push_back({.type = SectionAddress::Type::BSS, .physical = m_physical});
             break;
+        case basm::TokenType::LITERAL_STRING:
+            // A section of the program's own, by its name.
+            m_sections.push_back({.type = SectionAddress::Type::USER,
+                                  .name = basm::unescape_string_literal(section),
+                                  .physical = m_physical});
+            break;
         default:
             fail(section, "unexpected " + basm::describe(section) + " in SECTIONS");
         }
@@ -191,7 +314,7 @@ void Linker::link()
     exe.write_object_file(m_exe_file);
 }
 
-ObjectFile Linker::new_executable()
+ObjectFile Linker::new_executable() const
 {
     ObjectFile exe;
 
@@ -218,6 +341,12 @@ ObjectFile Linker::new_executable()
             exe.add_section(section.rel_name, section.rel_type);
         }
     }
+
+    // And the sections of the program's own, which can be anywhere in the object files.
+    for (const ObjectFile::UserSection &section : user_sections_of(m_obj_files))
+    {
+        exe.add_user_section(section.name, section.writable, section.executable);
+    }
     return exe;
 }
 
@@ -239,11 +368,13 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
     {
         alignment.bytes[k] = 1;
     }
+    alignment.users.assign(exe.user_sections.size(), 1);
 
     std::vector<SectionBase> bases;
     for (const ObjectFile &obj : m_obj_files)
     {
         SectionBase base;
+        base.users.assign(exe.user_sections.size(), 0);
 
         const word wanted_text = alignment_of(obj, ".text");
         exe.text_section.insert(exe.text_section.end(),
@@ -264,6 +395,17 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
             merged.insert(merged.end(), (obj.*section.bytes).begin(), (obj.*section.bytes).end());
         }
 
+        for (const ObjectFile::UserSection &section : obj.user_sections)
+        {
+            const size_t e = user_index(exe, section.name);
+            std::vector<byte> &merged = exe.user_sections[e].bytes;
+            const word wanted = alignment_of(obj, section.name.c_str());
+            merged.insert(merged.end(), pad_to(word(merged.size()), wanted), 0);
+            alignment.users[e] = std::max(alignment.users[e], wanted);
+            base.users[e] = word(merged.size());
+            merged.insert(merged.end(), section.bytes.begin(), section.bytes.end());
+        }
+
         const word wanted_bss = alignment_of(obj, ".bss");
         exe.bss_section += pad_to(exe.bss_section, wanted_bss);
         alignment.bss = std::max(alignment.bss, wanted_bss);
@@ -279,6 +421,10 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         exe.sections[exe.section_table.at(byte_sections[k].name)].alignment = alignment.bytes[k];
     }
     exe.sections[exe.section_table.at(".bss")].alignment = alignment.bss;
+    for (size_t e = 0; e < exe.user_sections.size(); e++)
+    {
+        exe.sections[exe.user_sections[e].header_index].alignment = alignment.users[e];
+    }
     return bases;
 }
 
@@ -299,14 +445,34 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
     std::vector<Placed> placed;
 
     SectionBase addresses;
+    addresses.users.assign(exe.user_sections.size(), 0);
     word address = 0;
     for (const SectionAddress &section : m_sections)
     {
         const char *name;
         word size;
         word *section_address;
+        bool executable = section.type == SectionAddress::Type::TEXT;
+        bool writable = section.type == SectionAddress::Type::BSS
+                        || (section.type == SectionAddress::Type::BYTES
+                            && ObjectFile::byte_sections()[section.byte_index].writable);
         switch (section.type)
         {
+        case SectionAddress::Type::USER:
+        {
+            // A script can list a section that none of the files has (it may be shared between
+            // programs), which is empty.
+            const size_t e = user_index(exe, section.name);
+            if (e == size_t(-1)) continue;
+
+            const ObjectFile::UserSection &user = exe.user_sections[e];
+            name = user.name.c_str();
+            size = word(user.bytes.size());
+            section_address = &addresses.users[e];
+            executable = user.executable;
+            writable = user.writable;
+            break;
+        }
         case SectionAddress::Type::TEXT:
             name = ".text";
             size = word(exe.text_section.size() * 4);
@@ -348,11 +514,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         header.address = *section_address;
         address = header.address + size;
 
-        placed.push_back({name, header.address, size, section.physical,
-                          section.type == SectionAddress::Type::TEXT,
-                          section.type == SectionAddress::Type::BSS
-                              || (section.type == SectionAddress::Type::BYTES
-                                  && ObjectFile::byte_sections()[section.byte_index].writable)});
+        placed.push_back({name, header.address, size, section.physical, executable, writable});
     }
 
     for (size_t i = 0; i < placed.size(); i++)
@@ -412,6 +574,10 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         check_placed(section.name, word((exe.*section.bytes).size()));
     }
     check_placed(".bss", exe.bss_section);
+    for (const ObjectFile::UserSection &user : exe.user_sections)
+    {
+        check_placed(user.name.c_str(), word(user.bytes.size()));
+    }
 
     return addresses;
 }
@@ -468,10 +634,18 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 name += ":LOCAL:" + std::to_string(i);
             }
 
+            // The symbol is in the section of the same name of the executable. The index of its
+            // header is the same for the sections that every file has, but a section of the
+            // program's own can be anywhere in a file.
             word value = symbol.symbol_value;
+            U32 section = U32(-1);
             if (symbol.section != U32(-1))
             {
                 const ObjectFile::SectionHeader::Type type = obj.sections[symbol.section].type;
+                const std::string &section_name =
+                    obj.strings[obj.sections[symbol.section].section_name];
+                section = exe.section_table.at(section_name);
+
                 if (type == ObjectFile::SectionHeader::Type::TEXT)
                 {
                     value += addresses.text + bases[i].text;
@@ -479,6 +653,11 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 else if (type == ObjectFile::SectionHeader::Type::BSS)
                 {
                     value += addresses.bss + bases[i].bss;
+                }
+                else if (ObjectFile::is_user_section_type(type))
+                {
+                    const size_t e = user_index(exe, section_name);
+                    value += addresses.users[e] + bases[i].users[e];
                 }
                 else if (const ObjectFile::ByteSection *bytes = ObjectFile::byte_section_of(type))
                 {
@@ -490,7 +669,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
             const auto found = exe.string_table.find(name);
             if (found == exe.string_table.end())
             {
-                exe.add_symbol(name, value, symbol.binding_info, symbol.section);
+                exe.add_symbol(name, value, symbol.binding_info, section);
             }
             else
             {
@@ -513,7 +692,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 else if (!entry_defined || (entry_weak && !weak))
                 {
                     entry.symbol_value = value;
-                    entry.section = symbol.section;
+                    entry.section = section;
                     entry.binding_info = symbol.binding_info;
                 }
                 else if (!weak && !entry_weak)
@@ -613,33 +792,53 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                 }
             }
         }
+
+        // The sections of the program's own: a word of data like those above, or an instruction
+        // in an executable one, which is patched like one of .text.
+        for (const ObjectFile::UserSection &user : obj.user_sections)
+        {
+            const size_t e = user_index(exe, user.name);
+            for (const ObjectFile::RelocationEntry &rel : user.relocations)
+            {
+                const ObjectFile::SymbolTableEntry &symbol =
+                    exe.symbol_table.at(symbols[i].at(rel.symbol));
+
+                AEMU_CHECK(is_resolvable(symbol),
+                           "Linker::link() - Error, undefined reference to '{}'.",
+                           exe.strings.at(symbol.symbol_name));
+                AEMU_CHECK(user.executable
+                               || rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
+                           "Linker::link() - A relocation in {} of type {} is not supported.",
+                           user.name, U32(rel.type));
+
+                word current = 0;
+                for (size_t b = 0; b < sizeof(word); b++)
+                {
+                    current |= word(user.bytes[rel.offset + b]) << (8 * b);
+                }
+
+                const word index = bases[i].users[e] + rel.offset;
+                const word patched =
+                    apply_relocation(rel.type, current, addresses.users[e] + index,
+                                     symbol.symbol_value + word(rel.addend));
+                for (size_t b = 0; b < sizeof(word); b++)
+                {
+                    exe.user_sections[e].bytes[index + b] = byte(patched >> (8 * b));
+                }
+            }
+        }
     }
 }
 
 void Linker::tokenize_ld()
 {
-    word text_size = 0;
-    for (const ObjectFile &obj_file : m_obj_files)
-    {
-        text_size += obj_file.text_section.size() * 4;
-    }
-
-    // The sections that follow .text on the pages of their own: rodata and the two arrays.
-    word readonly_size = merged_size(m_obj_files, ObjectFile::byte_sections()[1]);
-    for (const size_t k : {2, 3})
-    {
-        const word alignment = ObjectFile::byte_sections()[k].alignment;
-        readonly_size += (alignment - readonly_size % alignment) % alignment;
-        readonly_size += merged_size(m_obj_files, ObjectFile::byte_sections()[k]);
-    }
-
     basm::LexOptions options;
     options.mode = basm::LexMode::LINKER_SCRIPT;
     options.keep_newlines = false;
 
     const basm::SourceId source =
         m_use_default_script ? m_sources.add("<default linker script>",
-                                             default_linker_script(text_size, readonly_size))
+                                             default_linker_script(m_obj_files))
                              : m_sources.add_file(m_ld_file.get_path());
     AEMU_CHECK(source != basm::kInvalidSource,
                "Linker::tokenize_ld() - Cannot read the linker script '{}'.", m_ld_file.get_path());

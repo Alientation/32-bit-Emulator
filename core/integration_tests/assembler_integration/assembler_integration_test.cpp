@@ -2578,3 +2578,211 @@ _start:
     EXPECT_NE(log_tail("basm.log").find("cannot reach"), std::string::npos)
         << log_tail("basm.log");
 }
+
+// .section "name", "flags": a section of the program's own is linked, loaded and used like the
+// sections of the assembler. A table that is read only, state that is written, and a function in a
+// section of code of its own that the program calls.
+TEST_F(AssemblerIntegration, sections_of_the_programs_own)
+{
+    write_file("own.basm", R"(.global _start
+.global double_it
+
+.section "table", "r"
+values:         .word 11, 22, 33
+
+.section "counter"                              ; "rw"
+count:          .word 5
+
+.section "helpers", "rx"
+double_it:
+                add     x0, x0, x0
+                ret
+
+.text
+_start:
+                adr     x1, values
+                ldr     x2, [x1, 4]             ; 22
+                adr     x3, count
+                ldr     x4, [x3]
+                add     x4, x4, 1
+                str     x4, [x3]
+                ldr     x5, [x3]                ; 6
+                mov     x0, 21
+                bl      double_it               ; 42
+                adr     x6, double_it
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o own own.basm -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("own.bexe"));
+    EXPECT_EQ(reg(2), 22u);
+    EXPECT_EQ(reg(5), 6u);
+    EXPECT_EQ(reg(0), 42u);
+    EXPECT_NE(reg(1), 0u);
+    EXPECT_NE(reg(6), 0u);
+    EXPECT_NE(reg(6) >> 12, reg(1) >> 12) << "the code and the read only data are on other pages";
+    EXPECT_NE(reg(1) >> 12, reg(3) >> 12) << "and so is the data";
+}
+
+TEST_F(AssemblerIntegration, a_read_only_section_of_the_programs_own_cannot_be_written)
+{
+    write_file("ro.basm", R"(.global _start
+
+.section "table", "r"
+values:         .word 1
+
+.text
+_start:
+                adr     x1, values
+                mov     x2, 7
+                str     x2, [x1]
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o ro ro.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e ro.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+    EXPECT_NE(state("message").find("read-only"), std::string::npos) << state("message");
+}
+
+TEST_F(AssemblerIntegration, data_of_the_programs_own_cannot_be_run_and_code_cannot_be_written)
+{
+    write_file("nx.basm", R"(.global _start
+
+.section "blob"
+here:           .word 0
+
+.text
+_start:
+                adr     x1, here
+                blx     x1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o nx nx.basm -outdir ."));
+    EXPECT_EQ(emu32("-e nx.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+
+    write_file("wx.basm", R"(.global _start
+
+.section "code", "rx"
+body:           nop
+                hlt
+
+.text
+_start:
+                adr     x1, body
+                str     x1, [x1]
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o wx wx.basm -outdir ."));
+    EXPECT_EQ(emu32("-e wx.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+}
+
+// A linker script places the sections by name. A table of vectors where the exception machinery
+// expects them (VBAR), written as a section of its own.
+TEST_F(AssemblerIntegration, a_linker_script_places_a_section_of_the_programs_own)
+{
+    write_file("place.basm", R"(.global _start
+.global handler
+
+.section ".vectors", "rx"
+vectors:
+                hlt
+                hlt
+                hlt
+                hlt
+handler:
+                mov     x9, 77
+                hlt
+
+.text
+_start:
+                b       handler
+)");
+    write_file("place.ld", R"(ENTRY(_start)
+SECTIONS (
+    .text = 0x0;
+    ".vectors" = 0x2000;
+    .data;
+    .bss;
+)
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o place place.basm -ld place.ld -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("place.bexe"));
+    EXPECT_EQ(reg(9), 77u);
+
+    ObjectFile exe{File((m_dir / "place.bexe").string())};
+    const ObjectFile::SymbolTableEntry *handler_symbol = symbol(exe, "handler");
+    ASSERT_NE(handler_symbol, nullptr);
+    EXPECT_EQ(handler_symbol->symbol_value, 0x2000u + 16);
+}
+
+TEST_F(AssemblerIntegration, a_section_of_the_programs_own_that_the_script_does_not_place_is_an_error)
+{
+    write_file("unplaced.basm", R"(.global _start
+
+.section "extra"
+.word 1
+
+.text
+_start:
+                hlt
+)");
+    write_file("unplaced.ld", "SECTIONS (\n.text = 0;\n.data;\n.bss;\n)\n");
+    EXPECT_NE(basm("-o unplaced unplaced.basm -ld unplaced.ld -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("The section extra has contents"), std::string::npos)
+        << log_tail("basm.log");
+}
+
+// The sections of a static library are linked with the program like those of any object file.
+TEST_F(AssemblerIntegration, a_section_of_the_programs_own_in_a_library)
+{
+    write_file("lib.basm", R"(.global lookup
+
+.section "tables", "r"
+squares:        .word 0, 1, 4, 9, 16
+
+.text
+lookup:                                         ; x0 = squares[x0]
+                adr     x1, squares
+                lsl     x0, x0, 2
+                ldr     x0, [x1, x0]
+                ret
+)");
+    write_file("main.basm", R"(.global _start
+.extern lookup
+
+.text
+_start:
+                mov     x0, 3
+                bl      lookup
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-ar -o libsquares lib.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(build("-o usesquares main.basm -l libsquares.ba -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("usesquares.bexe"));
+    EXPECT_EQ(reg(0), 9u);
+}
+
+// The listing of -dump shows them.
+TEST_F(AssemblerIntegration, the_dump_lists_sections_of_the_programs_own)
+{
+    write_file("dump.basm", R"(.global _start
+
+.section "table", "r"
+.word 1, 2
+
+.text
+_start:
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o dump dump.basm -outdir . -dump"));
+    const std::string log = log_tail("basm.log", 100000);
+    EXPECT_NE(log.find("Contents of section table:"), std::string::npos) << log;
+}

@@ -52,12 +52,16 @@ class Linker
         {
             TEXT,
             BYTES, ///< one of ObjectFile::byte_sections(), `byte_index` says which
-            BSS
+            BSS,
+            USER ///< a section of the program's own, `name` says which
         };
         Type type;
 
         /// Index into ObjectFile::byte_sections() (.data, .rodata, .init_array, .fini_array).
         size_t byte_index = 0;
+
+        /// The name of a USER section, as written in the script (a string).
+        std::string name = {};
 
         bool set_address = false;
         word address = 0;
@@ -68,12 +72,14 @@ class Linker
     std::vector<SectionAddress> m_sections;
 
     /// One value for each of .text, .bss and the byte sections (.data, .rodata, .init_array,
-    /// .fini_array, in the order of ObjectFile::byte_sections()).
+    /// .fini_array, in the order of ObjectFile::byte_sections()), and for each of the user sections
+    /// of the executable (in the order of `ObjectFile::user_sections` of the executable).
     struct SectionBase
     {
         word text = 0;
         std::array<word, 4> bytes = {};
         word bss = 0;
+        std::vector<word> users = {};
     };
 
     /// For one object file, maps each of its symbols (by index into its symbol table) to the
@@ -81,7 +87,7 @@ class Linker
     using SymbolMap = std::unordered_map<U32, U32>;
 
     // The stages of link().
-    static ObjectFile new_executable();
+    ObjectFile new_executable() const;
     /// Returns the offset of the sections of each object file within the merged sections.
     std::vector<SectionBase> merge_sections(ObjectFile &exe) const;
     /// Returns the final address of each section.

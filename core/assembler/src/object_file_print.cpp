@@ -104,18 +104,11 @@ void ObjectFile::print(std::ostream &out)
                            section_name, address_text(0), strings[symbol.symbol_name]);
     }
 
-    // .data is always listed, the other byte sections only when they have contents.
-    for (const ByteSection &section : byte_sections())
+    const auto print_bytes = [&](const char *separator, const std::string &name,
+                                 const std::vector<byte> &bytes_of_section,
+                                 const std::vector<RelocationEntry> &relocations)
     {
-        const std::vector<byte> &bytes_of_section = this->*section.bytes;
-        const std::vector<RelocationEntry> &relocations = this->*section.relocations;
-        if (section.type != SectionHeader::Type::DATA && bytes_of_section.empty())
-        {
-            continue;
-        }
-
-        out << std::format("{}Contents of section {}:",
-                           &section == &byte_sections()[0] ? "\n" : "\n\n", section.name);
+        out << std::format("{}Contents of section {}:", separator, name);
         const int width = digits_for(bytes_of_section.size() / 16);
         for (size_t i = 0; i < bytes_of_section.size(); i++)
         {
@@ -132,13 +125,30 @@ void ObjectFile::print(std::ostream &out)
 
         if (!relocations.empty())
         {
-            out << std::format("\n\nRelocations of section {}:", section.name);
+            out << std::format("\n\nRelocations of section {}:", name);
             for (const RelocationEntry &rel : relocations)
             {
                 out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, width,
                                    relocation_name(rel.type), target_text(*this, rel));
             }
         }
+    };
+
+    // .data is always listed, the other byte sections only when they have contents.
+    for (const ByteSection &section : byte_sections())
+    {
+        if (section.type != SectionHeader::Type::DATA && (this->*section.bytes).empty())
+        {
+            continue;
+        }
+        print_bytes(&section == &byte_sections()[0] ? "\n" : "\n\n", section.name,
+                    this->*section.bytes, this->*section.relocations);
+    }
+
+    // The sections of the program's own, as bytes whatever they hold (code too).
+    for (const UserSection &section : user_sections)
+    {
+        print_bytes("\n\n", section.name, section.bytes, section.relocations);
     }
 
     out << "\n\nDisassembly of section .text:\n";

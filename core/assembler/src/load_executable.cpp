@@ -103,6 +103,10 @@ void LoadExecutable::load()
     {
         has_relocations |= !(obj.*section.relocations).empty();
     }
+    for (const ObjectFile::UserSection &section : obj.user_sections)
+    {
+        has_relocations |= !section.relocations.empty();
+    }
     AEMU_CHECK(!has_relocations,
                "LoadExecutable::load() - '{}' still has relocations. It was not produced by the "
                "linker.",
@@ -125,6 +129,11 @@ void LoadExecutable::load()
     {
         copy_section(m_emu, placement_of(obj, section.name), obj.*section.bytes, section.writable,
                      false, permissions);
+    }
+    for (const ObjectFile::UserSection &section : obj.user_sections)
+    {
+        copy_section(m_emu, placement_of(obj, section.name), section.bytes, section.writable,
+                     section.executable, permissions);
     }
     copy_section(m_emu, placement_of(obj, ".bss"), std::vector<byte>(obj.bss_section, 0), true,
                  false, permissions);

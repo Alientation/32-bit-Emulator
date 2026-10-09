@@ -566,14 +566,64 @@ const ObjectFile::ByteSection *Assembler::current_byte_section() const
     return nullptr;
 }
 
+ObjectFile::UserSection *Assembler::current_user_section()
+{
+    return m_cur_section == Section::USER ? m_obj.user_section_at(m_cur_section_index) : nullptr;
+}
+
+bool Assembler::in_byte_section() const
+{
+    return current_byte_section() != nullptr || m_cur_section == Section::USER;
+}
+
+bool Assembler::in_code_section() const
+{
+    return m_cur_section == Section::TEXT
+           || (m_cur_section == Section::USER
+               && m_obj.sections[m_cur_section_index].type
+                      == ObjectFile::SectionHeader::Type::USER_RX);
+}
+
 std::vector<byte> &Assembler::section_bytes()
 {
+    if (ObjectFile::UserSection *user = current_user_section()) return user->bytes;
     return m_obj.*current_byte_section()->bytes;
 }
 
 std::vector<ObjectFile::RelocationEntry> &Assembler::section_relocations()
 {
+    if (ObjectFile::UserSection *user = current_user_section()) return user->relocations;
     return m_obj.*current_byte_section()->relocations;
+}
+
+void Assembler::emit_instruction(const word instruction)
+{
+    if (m_cur_section == Section::TEXT)
+    {
+        m_obj.text_section.push_back(instruction);
+        return;
+    }
+
+    // Code in a user section is bytes there, like all of its contents.
+    std::vector<byte> &bytes = section_bytes();
+    check(bytes.size() % sizeof(word) == 0,
+          "an instruction has to start at a multiple of 4 bytes in the section, it would be at "
+              + std::to_string(bytes.size()) + " (.align 4 first)");
+    for (size_t shift = 0; shift < 32; shift += 8)
+    {
+        bytes.push_back(byte(instruction >> shift));
+    }
+}
+
+word Assembler::code_offset()
+{
+    return m_cur_section == Section::TEXT ? word(m_obj.text_section.size() * 4)
+                                          : word(section_bytes().size());
+}
+
+std::vector<ObjectFile::RelocationEntry> &Assembler::code_relocations()
+{
+    return m_cur_section == Section::TEXT ? m_obj.rel_text : section_relocations();
 }
 
 void Assembler::enter_byte_section(Section section, const char *name)
@@ -644,6 +694,7 @@ void Assembler::_org()
     case Section::RODATA:
     case Section::INIT_ARRAY:
     case Section::FINI_ARRAY:
+    case Section::USER:
         check(val >= section_bytes().size(),
               ".org cannot move the assembler backwards, expected >= "
                   + std::to_string(section_bytes().size()) + ", got " + std::to_string(val));
@@ -720,6 +771,7 @@ void Assembler::_advance()
     case Section::RODATA:
     case Section::INIT_ARRAY:
     case Section::FINI_ARRAY:
+    case Section::USER:
         section_bytes().insert(section_bytes().end(), val, 0);
         break;
     case Section::TEXT:
@@ -761,6 +813,7 @@ void Assembler::_align()
     case Section::RODATA:
     case Section::INIT_ARRAY:
     case Section::FINI_ARRAY:
+    case Section::USER:
         while (section_bytes().size() % val != 0)
         {
             section_bytes().push_back(0);
@@ -787,17 +840,136 @@ void Assembler::_align()
 }
 
 ///
-/// @brief                  Creates a new section.
-/// @warning                Not implemented yet.
-/// USAGE:                  .section <string>, <flags>
+/// @brief                  Makes a section with a name of the program's choosing the current one,
+///                         and creates it the first time. The flags are a string of the letters
+///                         r (read), w (write) and x (execute): "r" (read only), "rw" or "rx". A
+///                         section is not writable and executable at once. A section made without
+///                         flags is "rw". The linker joins the sections of the same name of all
+///                         the files, and the linker script places them by name.
+///                         Instructions can be assembled in an executable section, data
+///                         directives in any of them (a user section holds bytes).
+///                         The names of the sections the assembler has (".text", ".data", ".bss",
+///                         ".rodata", ".init_array", ".fini_array") are those sections, so
+///                         `.section ".data"` is `.data`.
+/// USAGE:                  .section <string>[, <flags>]
 ///
 void Assembler::_section()
 {
     m_cursor.next();
 
-    expect(TokenType::LITERAL_STRING, ".section expects a string argument");
+    const Token &name_token =
+        expect(TokenType::LITERAL_STRING, ".section expects the name of the section as a string");
+    const std::string name = basm::unescape_string_literal(name_token);
 
-    fail(*m_statement, ".section is not implemented yet");
+    const Token *flags_token = nullptr;
+    bool writable = false;
+    bool executable = false;
+    if (m_cursor.accept(TokenType::COMMA))
+    {
+        flags_token = &expect(TokenType::LITERAL_STRING,
+                              "expected the flags of the section as a string (\"r\", \"rw\" or "
+                              "\"rx\")");
+        const std::string flags = basm::unescape_string_literal(*flags_token);
+        bool readable = false;
+        for (const char flag : flags)
+        {
+            if (flag == 'r') readable = true;
+            else if (flag == 'w') writable = true;
+            else if (flag == 'x') executable = true;
+            else
+            {
+                fail(*flags_token, std::string("unknown flag '") + flag
+                                       + "', the flags are r (read), w (write) and x (execute)");
+            }
+        }
+        if (!readable && !writable && !executable)
+        {
+            fail(*flags_token, "the flags of a section are \"r\", \"rw\" or \"rx\", got none");
+        }
+        if (writable && executable)
+        {
+            fail(*flags_token, "a section cannot be both writable and executable");
+        }
+    }
+
+    // The sections that the assembler has: the name is that section, and the flags can only say
+    // what it is.
+    struct Builtin
+    {
+        const char *name;
+        Section section;
+        bool writable;
+        bool executable;
+    };
+    static constexpr Builtin kBuiltin[] = {
+        {".text", Section::TEXT, false, true},
+        {".data", Section::DATA, true, false},
+        {".bss", Section::BSS, true, false},
+        {".rodata", Section::RODATA, false, false},
+        {".init_array", Section::INIT_ARRAY, false, false},
+        {".fini_array", Section::FINI_ARRAY, false, false},
+    };
+    for (const Builtin &builtin : kBuiltin)
+    {
+        if (name != builtin.name) continue;
+
+        if (flags_token != nullptr
+            && (writable != builtin.writable || executable != builtin.executable))
+        {
+            fail(*flags_token, "the flags of " + name + " are "
+                                   + (builtin.executable ? "\"rx\""
+                                      : builtin.writable ? "\"rw\""
+                                                         : "\"r\"")
+                                   + ", they cannot be changed");
+        }
+        m_cur_section = builtin.section;
+        m_cur_section_index = m_obj.section_table[name];
+        return;
+    }
+
+    // The names of the other sections of the file are not the program's to use: .symtab,
+    // .strtab, .rel.* and what the relocations of a section of the program are called.
+    check_section_name(name_token, name);
+
+    ObjectFile::UserSection *user = m_obj.find_user_section(name);
+    if (user == nullptr)
+    {
+        if (flags_token == nullptr) writable = true; // "rw"
+        m_cur_section_index = m_obj.add_user_section(name, writable, executable);
+    }
+    else
+    {
+        if (flags_token != nullptr && (user->writable != writable || user->executable != executable))
+        {
+            fail(*flags_token, "the section " + name + " was made "
+                                   + (user->executable ? "\"rx\""
+                                      : user->writable ? "\"rw\""
+                                                       : "\"r\"")
+                                   + ", the flags cannot be changed");
+        }
+        m_cur_section_index = user->header_index;
+    }
+    m_cur_section = Section::USER;
+}
+
+void Assembler::check_section_name(const Token &at, const std::string &name)
+{
+    if (name.empty())
+    {
+        fail(at, "the name of a section cannot be empty");
+    }
+    for (const char c : name)
+    {
+        if (c <= ' ' || c == 0x7F)
+        {
+            fail(at, "the name of a section cannot have spaces or control characters");
+        }
+    }
+    if (name.starts_with(".rel") || name == ".symtab" || name == ".strtab"
+        || (m_obj.section_table.count(name) != 0 && m_obj.find_user_section(name) == nullptr))
+    {
+        fail(at, "'" + name + "' is a name that the object file uses for itself, use another");
+    }
 }
 
 ///
@@ -883,7 +1055,7 @@ std::vector<byte> convert_little_endian(std::vector<dword> data, U8 n_bytes)
 
 void Assembler::define_data(const char *directive, U8 n_bytes)
 {
-    check(current_byte_section() != nullptr,
+    check(in_byte_section(),
           std::string(directive)
               + " can only define data in the .data section or another "
                 "data section (.rodata, .init_array, .fini_array)");
@@ -979,7 +1151,7 @@ void Assembler::_sdword()
 
 void Assembler::_char()
 {
-    check(current_byte_section() != nullptr, ".char can only define data in the .data section or "
+    check(in_byte_section(), ".char can only define data in the .data section or "
                                              "another data section (.rodata, ...)");
     m_cursor.next();
 
@@ -992,7 +1164,7 @@ void Assembler::_char()
 
 void Assembler::_ascii()
 {
-    check(current_byte_section() != nullptr, ".ascii can only define data in the .data section or "
+    check(in_byte_section(), ".ascii can only define data in the .data section or "
                                              "another data section (.rodata, ...)");
     m_cursor.next();
 
@@ -1010,7 +1182,7 @@ void Assembler::_ascii()
 
 void Assembler::_asciz()
 {
-    check(current_byte_section() != nullptr, ".asciz can only define data in the .data section or "
+    check(in_byte_section(), ".asciz can only define data in the .data section or "
                                              "another data section (.rodata, ...)");
     m_cursor.next();
 

@@ -96,13 +96,23 @@ class Assembler
         /// @brief      In the INIT_ARRAY section.
         INIT_ARRAY,
 
-        /// @brief      In the FINI_ARRAY section.
-        FINI_ARRAY
+        /// @brief      In FINI_ARRAY section.
+        FINI_ARRAY,
+
+        /// @brief      In a section of the program's own (`.section "name"`).
+        USER
     } m_cur_section = Section::NONE;
 
-    /// @brief The section being assembled if it holds bytes (.data, .rodata, .init_array,
-    ///        .fini_array), null for .text, .bss and outside of a section.
+    /// @brief The section being assembled if it is one of .data, .rodata, .init_array,
+    ///        .fini_array, null for .text, .bss, a user section and outside of a section.
     const ObjectFile::ByteSection *current_byte_section() const;
+
+    /// @brief The user section being assembled, null if it is another one.
+    ObjectFile::UserSection *current_user_section();
+
+    /// @brief Whether the current section holds bytes, as opposed to code or a size: .data,
+    ///        .rodata, .init_array, .fini_array and any user section.
+    bool in_byte_section() const;
 
     /// @brief The bytes of that section.
     std::vector<byte> &section_bytes();
@@ -112,6 +122,22 @@ class Assembler
 
     /// @brief Switches the directive to a byte section and makes it the current one.
     void enter_byte_section(Section section, const char *name);
+
+    /// @brief Fails unless `name`, the name of a section in `.section`, is one the program can
+    ///        give to a section of its own.
+    void check_section_name(const basm::Token &at, const std::string &name);
+
+    /// @brief Whether instructions can be assembled in the current section: .text, or a user
+    ///        section that is executable.
+    bool in_code_section() const;
+
+    /// @brief Appends an instruction to the current code section.
+    void emit_instruction(word instruction);
+
+    /// @brief Where the next instruction goes, as an offset in the current code section, and the
+    ///        relocations of that section.
+    word code_offset();
+    std::vector<ObjectFile::RelocationEntry> &code_relocations();
 
     /// @brief Index into the section table of the current section.
     U32 m_cur_section_index = U32(-1);

@@ -157,10 +157,8 @@ Not part of the ABI itself, but needed to follow it. All **implemented** (see [b
 - `.init_array` / `.fini_array` with the `__init_array_start`/`_end` and `__fini_array_start`/`_end` symbols: for `__attribute__((constructor))`. `crt0` calls what is between the bounds before `main` and after it.
 - `ldr xd, =value` (no literal pool, see the lowering table), `cset`/`csel` and their family, and `sxtb`/`sxth`/`uxtb`/`uxth`/`clz`/`rev`/`rev16`.
 - `mov xd, imm` takes the whole `imm19` (it was limited to 14 bits by the assembler although the encoding has 19).
-
 - `adr xd, sym` (opcode `110011`): a pc relative address within 1 MiB in one instruction instead of the `adrp` pair.
-
-Not done: a `.section` directive for names other than the six sections.
+- `.section "name", "flags"`: sections of the program's own (`"r"`, `"rw"`, `"rx"`), so `__attribute__((section("x")))`, a section for each function or object (`-ffunction-sections`, `-fdata-sections`) and the pieces of the kernel (a vector table, a boot stub) that a linker script places by name.
 
 ## Open questions
 

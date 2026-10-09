@@ -133,7 +133,7 @@ word Assembler::parse_format_b1(byte opcode)
     const ExprValue target = parse_binary_expression(1);
     if (target.label != nullptr)
     {
-        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+        add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_B_OFFSET22, target);
     }
     else
@@ -208,7 +208,7 @@ word Assembler::parse_format_m1(byte opcode)
     if (!is_adr) m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
 
     const ExprValue target = parse_symbol_operand("expected a symbol");
-    add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+    add_relocation(code_relocations(), code_offset(),
                    is_adr ? ObjectFile::RelocationEntry::Type::R_EMU32_ADR_PCREL21
                           : ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
                    target);
@@ -373,7 +373,7 @@ word Assembler::parse_format_o3(byte opcode)
             const TokenType relocation = m_cursor.next().type;
             const ExprValue target =
                 parse_symbol_operand("expected a symbol to follow the relocation");
-            add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+            add_relocation(code_relocations(), code_offset(),
                            relocation == TokenType::RELOCATION_EMU32_MOV_HI13
                                ? ObjectFile::RelocationEntry::Type::R_EMU32_MOV_HI13
                                : ObjectFile::RelocationEntry::Type::R_EMU32_MOV_LO19,
@@ -469,7 +469,7 @@ word Assembler::parse_format_o(byte opcode, bool implicit_dest)
         {
             const ExprValue target =
                 parse_symbol_operand("expected a symbol to follow the relocation");
-            add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+            add_relocation(code_relocations(), code_offset(),
                            ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
         }
         else if (at_expression())
@@ -589,13 +589,13 @@ bool Assembler::assemble_load_constant()
     const ExprValue target = parse_binary_expression(1);
     if (target.label != nullptr)
     {
-        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+        add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20, target);
-        m_obj.text_section.push_back(Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, xd, 0));
+        emit_instruction(Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, xd, 0));
 
-        add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
+        add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
-        m_obj.text_section.push_back(
+        emit_instruction(
             Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xd, 0));
         return true;
     }
@@ -609,23 +609,23 @@ bool Assembler::assemble_load_constant()
 
     if (value < (1u << 19))
     {
-        m_obj.text_section.push_back(
+        emit_instruction(
             Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value)));
     }
     else if (~value < (1u << 19))
     {
-        m_obj.text_section.push_back(
+        emit_instruction(
             Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, xd, int(~value)));
     }
     else
     {
-        m_obj.text_section.push_back(
+        emit_instruction(
             Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value >> 14)));
-        m_obj.text_section.push_back(
+        emit_instruction(
             Emulator32bit::asm_format_o1(Emulator32bit::_op_lsl, xd, xd, true, 0, 14));
         if ((value & 0x3FFF) != 0)
         {
-            m_obj.text_section.push_back(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false,
+            emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false,
                                                                      xd, xd, int(value & 0x3FFF)));
         }
     }
@@ -790,19 +790,19 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::UNIMPLEMENTED:
         fail(*m_statement, std::string(spec.text) + " is not implemented yet");
     }
-    m_obj.text_section.push_back(instruction);
+    emit_instruction(instruction);
 }
 
 void Assembler::_hlt()
 {
     m_cursor.next();
-    m_obj.text_section.push_back(Emulator32bit::asm_hlt());
+    emit_instruction(Emulator32bit::asm_hlt());
 }
 
 void Assembler::_nop()
 {
     m_cursor.next();
-    m_obj.text_section.push_back(Emulator32bit::asm_nop());
+    emit_instruction(Emulator32bit::asm_nop());
 }
 
 void Assembler::_tlbi()
@@ -811,24 +811,24 @@ void Assembler::_tlbi()
 
     if (basm::is_register(m_cursor.peek().type))
     {
-        m_obj.text_section.push_back(Emulator32bit::asm_tlbi(parse_register(), true, 0));
+        emit_instruction(Emulator32bit::asm_tlbi(parse_register(), true, 0));
     }
     else
     {
-        m_obj.text_section.push_back(Emulator32bit::asm_tlbi(0, false, 0));
+        emit_instruction(Emulator32bit::asm_tlbi(0, false, 0));
     }
 }
 
 void Assembler::_eret()
 {
     m_cursor.next();
-    m_obj.text_section.push_back(Emulator32bit::asm_eret());
+    emit_instruction(Emulator32bit::asm_eret());
 }
 
 void Assembler::_wfi()
 {
     m_cursor.next();
-    m_obj.text_section.push_back(Emulator32bit::asm_wfi());
+    emit_instruction(Emulator32bit::asm_wfi());
 }
 
 void Assembler::_brk()
@@ -841,7 +841,7 @@ void Assembler::_brk()
         number = parse_expression();
         check(number < (1ULL << 22), "the number must fit in 22 bits");
     }
-    m_obj.text_section.push_back(Emulator32bit::asm_brk(number));
+    emit_instruction(Emulator32bit::asm_brk(number));
 }
 
 void Assembler::_msr()
@@ -864,7 +864,7 @@ void Assembler::_msr()
 
         instruction = Emulator32bit::asm_msr(sysreg, true, imm16);
     }
-    m_obj.text_section.push_back(instruction);
+    emit_instruction(instruction);
 }
 
 void Assembler::_mrs()
@@ -877,7 +877,7 @@ void Assembler::_mrs()
     const byte sysreg = parse_sysreg();
 
     const word instruction = Emulator32bit::asm_mrs(xn, sysreg);
-    m_obj.text_section.push_back(instruction);
+    emit_instruction(instruction);
 }
 
 /// `ret` is `bx x29`, x29 being the link register.
@@ -886,6 +886,6 @@ void Assembler::_ret()
     m_cursor.next();
 
     constexpr byte kLinkRegister = 29;
-    m_obj.text_section.push_back(
+    emit_instruction(
         Emulator32bit::asm_format_b2(Emulator32bit::_op_bx, ConditionCode::AL, kLinkRegister));
 }

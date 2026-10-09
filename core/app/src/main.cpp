@@ -63,7 +63,7 @@
     Add flag to set source dirs for build
     Add more relocation types, directives, preprocessors and build flags as needed
     Rework the build process to be more like the tokenizer
-    Implement .section directive and fix much of the hardcodedness of the assembler/object file/linker
+    Fix much of the hardcodedness of the assembler/object file/linker (the sections that are fixed fields of ObjectFile)
     Implement linker scripts that the linker will process to create the final BELF file
         - https://users.informatik.haw-hamburg.de/~krabat/FH-Labor/gnupro/5_GNUPro_Utilities/c_Using_LD/ldLinker_scripts.html
     Figure out executable linking/loading
