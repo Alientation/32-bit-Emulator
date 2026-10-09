@@ -173,6 +173,13 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         result.message = message;
     };
 
+    // Whether anything looks at each instruction (the debugger's breakpoints and watches, the trace,
+    // the history). They are set between runs, so the loop tests this one local instead of each of
+    // them, which are loads from memory.
+    const bool hooked = !m_register_watches.empty() || !m_breakpoints.empty()
+                        || m_history_size != 0 || m_trace != nullptr || !m_watchpoints.empty();
+    SystemBus &bus = *system_bus;
+
     try
     {
         // 0 instructions means to run until something stops the program. The first instruction
@@ -180,20 +187,23 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         bool first = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
-            if (UNLIKELY(!m_register_watches.empty()) && register_watch_hit()) break;
-
-            if (UNLIKELY(!m_breakpoints.empty()) && !first && m_breakpoints.contains(m_pc))
+            if (UNLIKELY(hooked))
             {
-                result.status = RunResult::Status::BREAKPOINT;
-                result.message = std::format("Breakpoint at {:#010x}", m_pc);
-                break;
+                if (!m_register_watches.empty() && register_watch_hit()) break;
+
+                if (!first && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
+                {
+                    result.status = RunResult::Status::BREAKPOINT;
+                    result.message = std::format("Breakpoint at {:#010x}", m_pc);
+                    break;
+                }
+                first = false;
             }
-            first = false;
 
             // An interrupt is taken between two instructions, if the program has installed a
             // vector table and unmasked IRQs. The resume address is the instruction that would
             // have executed.
-            if (UNLIKELY(system_bus->intc.has_pending()) && m_vbar != 0
+            if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0
                 && !test_bit(m_pstate, kIrqMaskBit))
             {
                 enter_exception(ExceptionClass::IRQ, 0, 0, m_pc);
@@ -215,7 +225,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 continue;
             }
 
-            if (UNLIKELY(m_history_size != 0))
+            if (UNLIKELY(hooked) && m_history_size != 0)
             {
                 if (m_history.size() == m_history_size) m_history.pop_front();
                 m_history.push_back({.pc = m_pc, .instruction = instr});
@@ -223,7 +233,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 
             try
             {
-                if (UNLIKELY(m_trace != nullptr)) execute_traced(instr);
+                if (UNLIKELY(hooked) && m_trace != nullptr) execute_traced(instr);
                 else execute(instr);
             }
             catch (const std::exception &error)
@@ -239,10 +249,10 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             m_pc_written = false;
             m_retired_since_entry = true;
             result.instructions_ran++;
-            system_bus->timer.tick();
-            system_bus->block.tick();
+            bus.timer.tick();
+            bus.block.tick();
 
-            if (UNLIKELY(!m_watch_hit.empty()))
+            if (UNLIKELY(hooked) && !m_watch_hit.empty())
             {
                 result.status = RunResult::Status::BREAKPOINT;
                 result.message = std::move(m_watch_hit);
