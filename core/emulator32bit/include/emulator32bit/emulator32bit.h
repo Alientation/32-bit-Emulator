@@ -312,10 +312,8 @@ class Emulator32bit
     ///
     inline void set_NZCV(bool N, bool Z, bool C, bool V)
     {
-        m_pstate = set_bit(m_pstate, kNFlagBit, N);
-        m_pstate = set_bit(m_pstate, kZFlagBit, Z);
-        m_pstate = set_bit(m_pstate, kCFlagBit, C);
-        m_pstate = set_bit(m_pstate, kVFlagBit, V);
+        m_pstate = (m_pstate & ~word(0xF)) | (word(N) << kNFlagBit) | (word(Z) << kZFlagBit)
+                   | (word(C) << kCFlagBit) | (word(V) << kVFlagBit);
     }
 
     inline void set_NZCV(NZCVFlags flags)

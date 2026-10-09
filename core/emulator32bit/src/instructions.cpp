@@ -786,7 +786,8 @@ MOVE_OP(_mov, alu_mov)
 MOVE_OP(_mvn, alu_mvn)
 #undef MOVE_OP
 
-Emulator32bit::MemOperand Emulator32bit::decode_mem_operand(const word instr)
+[[gnu::always_inline]] inline Emulator32bit::MemOperand
+Emulator32bit::decode_mem_operand(const word instr)
 {
     const U8 xn = _X2(instr);
     const bool simm = test_bit(instr, 14);

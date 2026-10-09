@@ -2,6 +2,7 @@
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/logger.h"
+#include <array>
 #include <util/common.h>
 
 enum class Register : U8
@@ -133,14 +134,11 @@ enum class ConditionCode : U8
     NV = 15,
 };
 
-static inline bool check_cond(word pstate, U8 cond)
+/// Whether the condition `cond` (4 bits, so every value is a condition) holds for the flags.
+constexpr bool condition_holds(const bool N, const bool Z, const bool C, const bool V,
+                               const ConditionCode cond)
 {
-    const bool N = test_bit(pstate, kNFlagBit);
-    const bool Z = test_bit(pstate, kZFlagBit);
-    const bool C = test_bit(pstate, kCFlagBit);
-    const bool V = test_bit(pstate, kVFlagBit);
-
-    switch (static_cast<ConditionCode>(cond))
+    switch (cond)
     {
     case ConditionCode::EQ:
         return Z == 1;
@@ -175,9 +173,37 @@ static inline bool check_cond(word pstate, U8 cond)
     case ConditionCode::NV:
         return false;
     }
-
-    AEMU_FATAL("Unknown condition code: {}", U32(cond));
     return false;
+}
+
+// The flags are the low four bits of PSTATE, so they index a table with the conditions that hold
+// for them as a bit mask (bit `cond`). That is the whole of check_cond: no switch, no call.
+static_assert(kNFlagBit == 0 && kZFlagBit == 1 && kCFlagBit == 2 && kVFlagBit == 3,
+              "check_cond indexes its table with the low four bits of PSTATE");
+
+constexpr std::array<U16, 16> make_condition_table()
+{
+    std::array<U16, 16> table{};
+    for (unsigned flags = 0; flags < 16; flags++)
+    {
+        for (unsigned cond = 0; cond < 16; cond++)
+        {
+            if (condition_holds(test_bit(flags, kNFlagBit), test_bit(flags, kZFlagBit),
+                                test_bit(flags, kCFlagBit), test_bit(flags, kVFlagBit),
+                                static_cast<ConditionCode>(cond)))
+            {
+                table[flags] |= U16(1) << cond;
+            }
+        }
+    }
+    return table;
+}
+
+inline constexpr std::array<U16, 16> kConditionTable = make_condition_table();
+
+static inline bool check_cond(const word pstate, const U8 cond)
+{
+    return (kConditionTable[pstate & 0xF] >> (cond & 0xF)) & 1;
 }
 
 enum class ShiftType : U8

@@ -94,7 +94,7 @@ Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
 // A switch over the opcodes, generated from the list, instead of a table of function pointers: the
 // calls are direct, so the compiler can inline the handlers and jumps through one table. An opcode
 // that is not listed is a bad opcode.
-void Emulator32bit::execute(const word instr)
+[[gnu::always_inline]] inline void Emulator32bit::execute(const word instr)
 {
     switch (bitfield_unsigned(instr, 26, 6))
     {
