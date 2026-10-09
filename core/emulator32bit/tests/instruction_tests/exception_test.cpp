@@ -361,6 +361,39 @@ TEST_F(Exceptions, an_access_that_crosses_into_a_page_that_faults_reports_the_pa
     EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kReadOnly);
 }
 
+// The address for FAR is worked out again from the registers when the access faults.
+TEST_F(Exceptions, far_is_the_address_of_a_pre_indexed_or_post_indexed_access)
+{
+    install_vectors();
+
+    // Pre-index: the base plus the offset, and the base register is left as it was.
+    cpu.write_reg(U8(0), kUnmapped);
+    expect_in_handler(run({Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, true, 1, 0, 12,
+                                                       Emulator32bit::AddrType::ADDR_PRE_INC)}),
+                      Class::DATA_ABORT);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kUnmapped + 12);
+    EXPECT_EQ(cpu.read_reg(U8(0)), kUnmapped) << "the write back did not happen";
+
+    // Post-index: the base alone.
+    cpu.write_reg(U8(0), kUnmapped + 4);
+    expect_in_handler(run({Emulator32bit::asm_format_m(Emulator32bit::_op_str, true, 1, 0, 12,
+                                                       Emulator32bit::AddrType::ADDR_POST_INC)}),
+                      Class::DATA_ABORT);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kUnmapped + 4);
+    EXPECT_EQ(cpu.read_reg(U8(0)), kUnmapped + 4);
+}
+
+TEST_F(Exceptions, far_is_the_address_of_an_atomic)
+{
+    install_vectors();
+    cpu.write_reg(U8(2), kUnmapped + 8);
+
+    expect_in_handler(run({Emulator32bit::asm_atomic(1, 0, 2, Emulator32bit::kAtomicWidth_word,
+                                                     Emulator32bit::kAtomicId_ldadd)}),
+                      Class::DATA_ABORT);
+    EXPECT_EQ(sysreg(Emulator32bit::kSysregId_far), kUnmapped + 8);
+}
+
 TEST_F(Exceptions, an_access_to_a_physical_address_with_no_memory_is_a_bus_error)
 {
     install_vectors();

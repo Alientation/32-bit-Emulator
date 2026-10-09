@@ -396,9 +396,6 @@ class Emulator32bit
     word m_ptbr = 0;  ///< Physical address of the first level page table (a page).
     word m_sctlr = 0; ///< System control: bit 0 turns on translation by the page tables.
 
-    /// The address of the last load, store or atomic, for FAR when it faults.
-    word m_data_address = 0;
-
     /// Set by what writes the pc itself (ERET, taking an exception), run () then does not add 4.
     bool m_pc_written = false;
 
@@ -444,10 +441,16 @@ class Emulator32bit
     /// `elr` is where ERET returns to, `far` the address of an abort.
     void enter_exception(ExceptionClass cls, word iss, word far, word elr);
 
-    /// If the exception that stopped an instruction (`fetching`: while fetching it) is one the CPU
-    /// raises, and a vector table is installed, raises it and returns true. Otherwise false and
-    /// the caller reports the fault.
-    bool deliver_exception(const std::exception &error, bool fetching);
+    /// If the exception that stopped an instruction (`fetching`: while fetching it, else `instr`
+    /// is the instruction that was executing) is one the CPU raises, and a vector table is
+    /// installed, raises it and returns true. Otherwise false and the caller reports the fault.
+    bool deliver_exception(const std::exception &error, bool fetching, word instr = 0);
+
+    /// The address that the load, store or atomic `instr` accesses, for FAR when it faults; 0 for
+    /// any other instruction. It is worked out from the registers, which is right because such an
+    /// instruction changes none until its access succeeded, and it costs nothing in the
+    /// instructions that do not fault.
+    word data_address_of(word instr);
 
     /// Switches to user or kernel mode, and to the stack pointer of that mode.
     void set_user_mode(bool user);

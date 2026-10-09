@@ -544,7 +544,6 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     const U8 xm = _SX3(instr);
 
     const word mem_adr = read_reg(xm);
-    m_data_address = mem_adr;
     const U8 width = bitfield_unsigned(instr, 4, 2);
 
     const word val_reg = read_reg(xn);
@@ -798,19 +797,34 @@ Emulator32bit::MemOperand Emulator32bit::decode_mem_operand(const word instr)
     switch (AddrType(addr_mode))
     {
     case AddrType::ADDR_OFFSET:
-        m_data_address = base + offset;
         return {.address = base + offset, .base = xn, .base_after = base, .writes_back = false};
     case AddrType::ADDR_PRE_INC:
-        m_data_address = base + offset;
         return {
             .address = base + offset, .base = xn, .base_after = base + offset, .writes_back = true};
     case AddrType::ADDR_POST_INC:
-        m_data_address = base;
         return {.address = base, .base = xn, .base_after = base + offset, .writes_back = true};
     }
 
     throw Exception(InterruptType::BAD_INSTR,
                     "Bad memory address mode " + std::to_string(addr_mode), kUndefinedIss_ext_op);
+}
+
+static_assert(Emulator32bit::_op_ldr < Emulator32bit::_op_strh
+              && Emulator32bit::_op_strh - Emulator32bit::_op_ldr == 5,
+              "data_address_of treats ldr..strh as the range of the format M accesses");
+
+word Emulator32bit::data_address_of(const word instr)
+{
+    const word opcode = bitfield_unsigned(instr, 26, 6);
+    if (opcode >= _op_ldr && opcode <= _op_strh)
+    {
+        return decode_mem_operand(instr).address;
+    }
+    if (opcode == _op_special_instructions && bitfield_unsigned(instr, 22, 4) == kSpecialOpId_atomic)
+    {
+        return read_reg(_SX3(instr));
+    }
+    return 0;
 }
 
 void Emulator32bit::write_back_base(const MemOperand &operand)

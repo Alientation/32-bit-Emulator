@@ -222,7 +222,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
             catch (const std::exception &error)
             {
-                if (!deliver_exception(error, false)) throw;
+                if (!deliver_exception(error, false, instr)) throw;
                 m_pc_written = false;
                 continue;
             }
@@ -717,7 +717,8 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     }
 }
 
-bool Emulator32bit::deliver_exception(const std::exception &error, const bool fetching)
+bool Emulator32bit::deliver_exception(const std::exception &error, const bool fetching,
+                                      const word instr)
 {
     if (m_vbar == 0)
     {
@@ -760,17 +761,19 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
         // The page that faulted is the one of the access, or the next one if the access crosses
         // into it, which starts at the page boundary.
         const word page_start = fault->get_vpage() << kNumPageOffsetBits;
-        const word far = fetching ? m_pc
-                                  : ((m_data_address >> kNumPageOffsetBits) == fault->get_vpage()
-                                         ? m_data_address
-                                         : page_start);
+        word far = m_pc;
+        if (!fetching)
+        {
+            const word address = data_address_of(instr);
+            far = (address >> kNumPageOffsetBits) == fault->get_vpage() ? address : page_start;
+        }
         enter_exception(abort_class, iss, far, m_pc);
         return true;
     }
 
     if (dynamic_cast<const SystemBus::Exception *>(&error) != nullptr)
     {
-        enter_exception(abort_class, kAbortIss_bus, fetching ? m_pc : m_data_address, m_pc);
+        enter_exception(abort_class, kAbortIss_bus, fetching ? m_pc : data_address_of(instr), m_pc);
         return true;
     }
 
@@ -794,7 +797,6 @@ void Emulator32bit::reset()
     mmu->set_user_mode(false);
     mmu->set_page_table_base(0);
     mmu->set_walk_enabled(false);
-    m_data_address = 0;
     m_pc_written = false;
     m_retired_since_entry = true;
 }
