@@ -10,6 +10,7 @@ VirtualMemory::VirtualMemory(Disk *disk, word frame_lo_page, word frame_pages,
     m_freepids(0, kMaxProcesses),
     m_frame_lo(frame_lo_page),
     m_frame_pages(frame_pages),
+    m_frame_chunks((std::size_t(frame_pages) + kFrameChunkPages - 1) >> kFrameChunkBits),
     m_frames(frame_lo_page, frame_pages, true),
     m_physical(physical)
 {
@@ -32,8 +33,24 @@ void VirtualMemory::set_physical_pages(PhysicalPages *physical)
     m_physical = physical;
 }
 
-VirtualMemory::PhysicalPage &VirtualMemory::physical_page(word ppage)
+VirtualMemory::PhysicalPage &VirtualMemory::physical_page_slow(word ppage)
 {
+    if (is_frame(ppage))
+    {
+        const word index = ppage - m_frame_lo;
+        const word chunk_number = index >> kFrameChunkBits;
+        std::unique_ptr<PhysicalPage[]> &chunk = m_frame_chunks[chunk_number];
+        if (chunk == nullptr)
+        {
+            chunk = std::make_unique<PhysicalPage[]>(kFrameChunkPages);
+            for (word i = 0; i < kFrameChunkPages; i++)
+            {
+                chunk[i].ppage = m_frame_lo + (chunk_number << kFrameChunkBits) + i;
+            }
+        }
+        return chunk[index & (kFrameChunkPages - 1)];
+    }
+
     const auto [it, inserted] = m_physical_memory_map.try_emplace(ppage);
     if (inserted)
     {
@@ -44,8 +61,38 @@ VirtualMemory::PhysicalPage &VirtualMemory::physical_page(word ppage)
 
 VirtualMemory::PhysicalPage *VirtualMemory::find_physical_page(word ppage)
 {
+    if (is_frame(ppage))
+    {
+        const word index = ppage - m_frame_lo;
+        const std::unique_ptr<PhysicalPage[]> &chunk = m_frame_chunks[index >> kFrameChunkBits];
+        return chunk != nullptr ? &chunk[index & (kFrameChunkPages - 1)] : nullptr;
+    }
+
     const auto it = m_physical_memory_map.find(ppage);
     return it == m_physical_memory_map.end() ? nullptr : &it->second;
+}
+
+std::vector<std::pair<word, const VirtualMemory::PhysicalPage *>>
+VirtualMemory::all_physical_pages() const
+{
+    std::vector<std::pair<word, const PhysicalPage *>> pages;
+    for (std::size_t c = 0; c < m_frame_chunks.size(); c++)
+    {
+        if (m_frame_chunks[c] == nullptr)
+        {
+            continue;
+        }
+        for (word i = 0; i < kFrameChunkPages; i++)
+        {
+            const word ppage = m_frame_lo + word(c << kFrameChunkBits) + i;
+            pages.emplace_back(ppage, &m_frame_chunks[c][i]);
+        }
+    }
+    for (const auto &[ppage, page] : m_physical_memory_map)
+    {
+        pages.emplace_back(ppage, &page);
+    }
+    return pages;
 }
 
 bool VirtualMemory::is_frame(word ppage) const
@@ -682,8 +729,9 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 
 void VirtualMemory::check_vm()
 {
-    for (const auto &[ppage, page] : m_physical_memory_map)
+    for (const auto &[ppage, page_ptr] : all_physical_pages())
     {
+        const PhysicalPage &page = *page_ptr;
         AEMU_CHECK(ppage == page.ppage, "Expected physical memory to match");
 
         if (page.mapped_vpages.size() > 0)
@@ -928,9 +976,9 @@ void VirtualMemory::check_clock()
     AEMU_CHECK(m_clock_hand == nullptr || listed.find(m_clock_hand) != listed.end(),
                "Expected the hand to point to a page on the list");
 
-    for (const auto &[ppage, page] : m_physical_memory_map)
+    for (const auto &[ppage, page] : all_physical_pages())
     {
-        AEMU_CHECK(page.in_clock == (listed.find(&page) != listed.end()),
+        AEMU_CHECK(page->in_clock == (listed.find(page) != listed.end()),
                    "Expected the marked pages to be the ones on the list, page {}", ppage);
     }
 }

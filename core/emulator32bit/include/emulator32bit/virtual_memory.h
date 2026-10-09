@@ -6,6 +6,7 @@
 #include "emulator32bit/frame_allocator.h"
 #include "emulator32bit/physical_pages.h"
 
+#include <memory>
 #include <unordered_map>
 
 constexpr U8 kNumTLBBits = 12;
@@ -610,16 +611,26 @@ class VirtualMemory
     std::unordered_map<long long, PageTable *> m_process_ptable_map;
 
     /**
-     * @brief              Map of physical pages to the information about them. A page has an entry
-     *                     once something is known about it (it is used, or its permissions are
-     *                     set), so the map is as big as the memory in use and not as the address
-     *                     space. The values do not move, the lists link them by pointer.
+     * @brief              Map of the physical pages that are not frames to the information about
+     *                     them (an explicit mapping can be to any page). A page has an entry once
+     *                     something is known about it (it is used, or its permissions are set), so
+     *                     the map is as big as the memory in use and not as the address space. The
+     *                     values do not move, the lists link them by pointer. The frames are in
+     *                     m_frame_chunks, a lookup in the map is a hash and a division.
      */
     std::unordered_map<word, PhysicalPage> m_physical_memory_map;
 
     /// The physical pages that hold virtual pages that are paged in.
     word m_frame_lo;
     word m_frame_pages;
+
+    /// The information about the frames, in chunks of kFrameChunkPages that are made when one of
+    /// their pages is first looked at (a machine with 4 GB of RAM has a million frames, and most
+    /// of a program's memory is never touched). The pages do not move, the lists link them by
+    /// pointer.
+    static constexpr word kFrameChunkBits = 9;
+    static constexpr word kFrameChunkPages = word(1) << kFrameChunkBits;
+    std::vector<std::unique_ptr<PhysicalPage[]>> m_frame_chunks;
 
     /**
      * @brief            Free physical pages (within the frames) that new virtual pages can map to.
@@ -676,12 +687,32 @@ class VirtualMemory
     /**
      * @brief             The information about a physical page, which is added if there is none.
      */
-    PhysicalPage &physical_page(word ppage);
+    PhysicalPage &physical_page(word ppage)
+    {
+        // A frame whose chunk is made: two loads. The index wraps for a page below the frames.
+        const U64 index = U64(ppage) - m_frame_lo;
+        if (LIKELY(index < m_frame_pages))
+        {
+            const std::unique_ptr<PhysicalPage[]> &chunk = m_frame_chunks[index >> kFrameChunkBits];
+            if (LIKELY(chunk != nullptr))
+            {
+                return chunk[index & (kFrameChunkPages - 1)];
+            }
+        }
+        return physical_page_slow(ppage);
+    }
+
+    /// physical_page () for a frame whose chunk is not made yet, and for a page that is not a frame.
+    PhysicalPage &physical_page_slow(word ppage);
 
     /**
      * @brief             The information about a physical page, or null if there is none.
      */
     PhysicalPage *find_physical_page(word ppage);
+
+    /// Every physical page that there is information about, with its number (the consistency
+    /// checks use it).
+    std::vector<std::pair<word, const PhysicalPage *>> all_physical_pages() const;
 
     /**
      * @brief             Whether a virtual page that is paged in can be put in the physical page.

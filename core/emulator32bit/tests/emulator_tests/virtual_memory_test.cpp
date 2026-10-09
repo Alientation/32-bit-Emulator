@@ -5,6 +5,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 
 namespace
 {
@@ -333,6 +334,51 @@ TEST(virtual_memory, a_page_used_since_the_hand_passed_it_is_not_evicted)
 
     // 11 is still in memory, it keeps its page.
     EXPECT_EQ(ppage_of(m.vm, 11), second);
+}
+
+// The information about the frames is kept in chunks of 512 pages that are made when they are first
+// needed, and the pages outside of the frames are kept apart: none of that should show.
+TEST(virtual_memory, frames_in_several_chunks_of_page_information_and_pages_outside_work_alike)
+{
+    constexpr word kLo = 1000;
+    constexpr word kFrames = 1100; // 1000..2099: three chunks, the borders are at 1512 and 2024
+    Machine m(kLo, kFrames);
+    const long long pid = m.vm.begin_process();
+    m.vm.add_vpage(pid, 10, kFrames + 200, true, false);
+
+    std::set<word> seen;
+    for (word i = 0; i < kFrames; i++)
+    {
+        const word ppage = ppage_of(m.vm, 10 + i);
+        ASSERT_EQ(ppage, kLo + i) << "the lowest free frame comes first";
+        seen.insert(ppage);
+    }
+    EXPECT_EQ(seen.size(), size_t(kFrames));
+
+    // A frame in the second chunk and one in the third cannot be swapped out.
+    const word pinned_a = 1600;
+    const word pinned_b = 2050;
+    m.vm.set_ppage_permissions(pinned_a, pinned_a, false, false);
+    m.vm.set_ppage_permissions(pinned_b, pinned_b, false, false);
+
+    // 200 more pages than there are frames: every one evicts a page, never a pinned one.
+    for (word i = 0; i < 200; i++)
+    {
+        const word ppage = ppage_of(m.vm, 10 + kFrames + i);
+        ASSERT_GE(ppage, kLo);
+        ASSERT_LT(ppage, kLo + kFrames);
+        ASSERT_NE(ppage, pinned_a);
+        ASSERT_NE(ppage, pinned_b);
+    }
+    EXPECT_EQ(ppage_of(m.vm, 10 + (pinned_a - kLo)), pinned_a);
+    EXPECT_EQ(ppage_of(m.vm, 10 + (pinned_b - kLo)), pinned_b);
+
+    // Physical pages below and above the frames (a device, the ROM) are mapped where they are.
+    m.vm.ensure_physical_page_mapping(pid, 5000, 100);
+    m.vm.ensure_physical_page_mapping(pid, 5001, kLo + kFrames + 7);
+    EXPECT_EQ(ppage_of(m.vm, 5000), 100u);
+    EXPECT_EQ(ppage_of(m.vm, 5001), kLo + kFrames + 7);
+    EXPECT_EQ(ppage_of(m.vm, 5000), 100u) << "and again, from the page that was made";
 }
 
 TEST(virtual_memory, the_clock_keeps_working_when_pages_are_released)
