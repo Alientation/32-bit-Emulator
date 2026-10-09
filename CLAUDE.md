@@ -27,7 +27,16 @@ tools/bench.sh        # times the emulator on tools/bench/*.basm and long_loop (
 
 Benchmark before and after a change to the hot path (`run()`, `MemoryPort`, `SystemBus`, `VirtualMemory`). Two separate runs of the same binary differ by 5% or more on this machine, so compare with `--baseline` (build the other commit in a `git worktree`) and `-n 15` or more, and decide on the best and the median together; a profile where the share of a function dropped is not a speedup until the time is (the time just moves to the next thing that waits). `tools/bench.sh --perf` finds perf itself: `/usr/bin/perf` is a wrapper that does not work on the WSL2 kernel, so it uses the binary in `/usr/lib/linux-tools/*/perf` with the software `cpu-clock` event (WSL2 has no hardware counters), and the release build has debug info so the samples can be attributed to source lines.
 
-CI runs `./build.sh` and, as a second job, `./build.sh asan`.
+CI (`.github/workflows/ci.yml`, Ubuntu 24.04, GCC 13) runs `./build.sh` and, as a second job, `./build.sh asan`.
+
+## Working rules
+- Done means the full `./build.sh` (debug and release) passes. Report the final pass/fail line, don't filter it away.
+- Before writing a test, read a neighbouring test file and use only its fixture helpers and patterns; never invent helper names.
+- Test labels must not be mnemonics or keywords (`b`, `bl`, `cmp`): use `L_loop`. Count instructions from assembler output, not by estimate.
+- For a convention-wide change (e.g. the carry flag), list the affected cases first and touch only those.
+- Quote globs in shell commands (zsh).
+- Docs: a change to the ISA, a directive, the `.bo` format or the emulator registers updates the docs in the same change; check each claim against the code.
+- Commits carry no `Co-Authored-By` trailer.
 
 Run a single test or suite:
 ```bash
@@ -39,8 +48,6 @@ build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='DataProcessi
 Compile flags are not set per target. Every target calls `aemu_target_defaults(<tgt>)` from `core/cmake/AemuHelpers.cmake`, which adds the warnings, `-O3` for Release/RelWithDebInfo (compile and link), and `--coverage` for Debug. LTO comes from CMake's IPO support. CMake options: `AEMU_ENABLE_COVERAGE` (ON), `AEMU_WARNINGS_AS_ERRORS` (OFF), `AEMU_ENABLE_LTO` (ON), `AEMU_SANITIZE` (empty; a `;` list of `address`, `undefined`, `leak`, `thread`, which `aemu_target_defaults` turns into `-fsanitize=...` with `-fno-sanitize-recover=all` so a report fails the test, plus `_GLIBCXX_ASSERTIONS`; `thread` cannot be combined with `address`/`leak`; use a build directory of its own, `build.sh asan` does), `BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched). In-tree code links the libraries through the `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
 
 **New test files must be added by hand** to the `SOURCES` list of the `aemu_add_gtest(...)` call in that module's `tests/CMakeLists.txt`. Nothing globs them. Integration tests use the same helper in `core/integration_tests/CMakeLists.txt`.
-
-CI (`.github/workflows/ci.yml`) runs `./build.sh` on Ubuntu 24.04 (GCC 13), the same debug and release build and tests.
 
 `version.h` (`AEMU_VERSION`, from `git describe`) is generated on every build into `build/<config>/app/generated/` and is visible only to `emulator_app`.
 
