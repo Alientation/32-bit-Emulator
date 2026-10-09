@@ -89,6 +89,10 @@ class ObjectFile
 
             /// The relocations of the user section whose header is just before this one.
             REL_USER,
+
+            /// A user section that is zero filled and writable (`.section "name", "rw",
+            /// "nobits"`). Like .bss, the file has its size and no bytes.
+            USER_BSS,
         } type;
 
         /// @brief          Offset this section starts at in bytes.
@@ -267,7 +271,9 @@ class ObjectFile
     ///                     holding bytes. Unlike the sections above there can be any number of
     ///                     them. Its header is followed by the header of its relocations
     ///                     (@ref SectionHeader::Type::REL_USER). An executable one holds
-    ///                     instructions (words, little endian) as well as data.
+    ///                     instructions (words, little endian) as well as data. A `nobits` one is
+    ///                     like .bss: writable, zeroed when the program is loaded, and the file has
+    ///                     its size and no bytes.
     struct UserSection
     {
         std::string name;
@@ -278,8 +284,21 @@ class ObjectFile
         /// @brief          Whether the program runs code from it. Never together with writable.
         bool executable = false;
 
+        /// @brief          Whether it is zero filled instead of holding `bytes`. Then it is
+        ///                 writable, not executable, and has no relocations.
+        bool nobits = false;
+
         std::vector<byte> bytes;
         std::vector<RelocationEntry> relocations;
+
+        /// @brief          The size of a nobits section.
+        word zero_size = 0;
+
+        /// @brief          Size in bytes, `zero_size` for a nobits section.
+        word size() const
+        {
+            return nobits ? zero_size : word(bytes.size());
+        }
 
         /// @brief          Index into `sections` of its header. The header of its relocations is
         ///                 the next one.
@@ -290,7 +309,8 @@ class ObjectFile
     std::vector<UserSection> user_sections;
 
     /// @brief              The type of the header of a user section with the permissions.
-    static SectionHeader::Type user_section_type(bool writable, bool executable);
+    static SectionHeader::Type user_section_type(bool writable, bool executable,
+                                                 bool nobits = false);
 
     /// @brief              Whether the type is the type of a header of a user section.
     static bool is_user_section_type(SectionHeader::Type type);
@@ -306,7 +326,8 @@ class ObjectFile
     /// @brief              Adds a user section and its two headers. The name is not one that is
     ///                     taken (a section of the file already, or one of the reserved names).
     /// @return             Index into `sections` of its header.
-    U32 add_user_section(const std::string &name, bool writable, bool executable);
+    U32 add_user_section(const std::string &name, bool writable, bool executable,
+                         bool nobits = false);
 
     /// @brief              The four byte sections, in the order .data, .rodata, .init_array,
     ///                     .fini_array.

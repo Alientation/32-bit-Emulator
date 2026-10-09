@@ -30,7 +30,8 @@ All numbers are **little endian**, the instruction words of `.text` too (the sam
           .rel.fini_array                28 bytes per relocation
           .rel.bss                       28 bytes per relocation (never used)
           user sections                  for each section made with `.section "name"`: its
-                                         raw bytes, then its relocations (28 bytes each)
+                                         raw bytes (8 bytes, the size, for a `nobits` one),
+                                         then its relocations (28 bytes each)
           .strtab                        the names, each ended by a 0 byte
  H        section headers                53 bytes per section
  end - 8  H, the offset of the section headers   8 bytes
@@ -54,7 +55,7 @@ The *contents* are written in this order and always all of them are there (an em
 | Size | Field | Meaning |
 |------|-------|---------|
 | 8 | name | index into the string table (the position in the list of names, not a byte offset) |
-| 4 | type | 1 `.text`, 2 `.data`, 3 `.bss`, 4 symbol table, 5 `.rel.text`, 6 `.rel.data`, 7 `.rel.bss`, 8 debug (unused), 9 string table, 10 `.rodata`, 11 `.init_array`, 12 `.fini_array`, 13 `.rel.rodata`, 14 `.rel.init_array`, 15 `.rel.fini_array`, 16 a user section that is read only, 17 one that is writable, 18 one that is executable (`.section "name", "r"`, `"rw"`, `"rx"`: bytes, code is words in them), 19 the relocations of the user section before it |
+| 4 | type | 1 `.text`, 2 `.data`, 3 `.bss`, 4 symbol table, 5 `.rel.text`, 6 `.rel.data`, 7 `.rel.bss`, 8 debug (unused), 9 string table, 10 `.rodata`, 11 `.init_array`, 12 `.fini_array`, 13 `.rel.rodata`, 14 `.rel.init_array`, 15 `.rel.fini_array`, 16 a user section that is read only, 17 one that is writable, 18 one that is executable (`.section "name", "r"`, `"rw"`, `"rx"`: bytes, code is words in them), 19 the relocations of the user section before it, 20 a user section that is zero filled (`.section "name", "rw", "nobits"`: like `.bss`, the file has 8 bytes with its size and the header has the size, no relocations) |
 | 8 | start | offset of the section in the file |
 | 8 | size | size in bytes (for `.bss`, the size it has in memory) |
 | 8 | entry size | size of one entry of the table sections |
@@ -120,7 +121,7 @@ The result is written as an executable: the same layout, `file_type` 2, merged s
 
 ### Default layout
 
-Without `-ld`, the built-in script is used: `.text` at `0x0` with the executable user sections directly after it, `.rodata` at the first page (4 KiB) after the code with `.init_array`, `.fini_array` and the read only user sections directly after it, `.data` at the first page after those with the writable user sections directly after it, `.bss` after them, and `ENTRY(_start)`. So code, read only data and writable data are never on the same page, and the loader gives each page the permissions of its section: `.text` is executable, `.rodata` and the arrays are read only, `.data` and `.bss` are writable. (The page is writable if a custom script lets `.rodata` share a page with `.data`; the linker warns when code and writable data share one.)
+Without `-ld`, the built-in script is used: `.text` at `0x0` with the executable user sections directly after it, `.rodata` at the first page (4 KiB) after the code with `.init_array`, `.fini_array` and the read only user sections directly after it, `.data` at the first page after those with the writable user sections (also the `nobits` ones) directly after it, `.bss` after them, and `ENTRY(_start)`. So code, read only data and writable data are never on the same page, and the loader gives each page the permissions of its section: `.text` is executable, `.rodata` and the arrays are read only, `.data` and `.bss` are writable. (The page is writable if a custom script lets `.rodata` share a page with `.data`; the linker warns when code and writable data share one.)
 
 ## Static libraries (`.ba`)
 

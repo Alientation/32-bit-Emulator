@@ -132,8 +132,12 @@ void LoadExecutable::load()
     }
     for (const ObjectFile::UserSection &section : obj.user_sections)
     {
-        copy_section(m_emu, placement_of(obj, section.name), section.bytes, section.writable,
-                     section.executable, permissions);
+        // A nobits section has no bytes in the file, only a size (zeros, like .bss).
+        const std::vector<byte> zeros(section.zero_size, 0);
+        copy_section(m_emu, placement_of(obj, section.name),
+                     section.nobits ? std::span<const byte>(zeros)
+                                    : std::span<const byte>(section.bytes),
+                     section.writable, section.executable, permissions);
     }
     copy_section(m_emu, placement_of(obj, ".bss"), std::vector<byte>(obj.bss_section, 0), true,
                  false, permissions);

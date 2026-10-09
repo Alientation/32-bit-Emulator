@@ -2770,6 +2770,69 @@ _start:
     EXPECT_EQ(reg(0), 9u);
 }
 
+// A zero filled section of its own ("nobits") is only a size in the files, and a block of memory
+// when the program runs: here the stack of a program, at an address the linker script chooses.
+TEST_F(AssemblerIntegration, a_nobits_section_is_memory_the_program_can_use_and_not_bytes_in_the_file)
+{
+    write_file("stack.basm", R"(.global _start
+
+.section "stack", "rw", "nobits"
+.align 16
+stack_bottom:   .advance $8000                  ; 32 KiB
+stack_top:
+
+.text
+_start:
+                adr     x1, stack_bottom
+                adr     x2, stack_top
+                sub     x3, x2, x1              ; $8000
+                and     x4, x1, 15              ; 0, it is aligned
+                ldr     x5, [x1]                ; 0
+                mov     x6, 99
+                str     x6, [x2, -4]            ; the last word
+                ldr     x7, [x2, -4]
+                hlt
+)");
+    write_file("stack.ld", R"(ENTRY(_start)
+SECTIONS (
+    .text = 0x0;
+    "stack" = 0x10000;
+    .data;
+    .bss;
+)
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o stack stack.basm -ld stack.ld -outdir ."));
+    EXPECT_LT(std::filesystem::file_size(m_dir / "stack.bexe"), 4096u)
+        << "32 KiB of zeros are not in the file";
+
+    ASSERT_NO_FATAL_FAILURE(run("stack.bexe"));
+    EXPECT_EQ(reg(1), 0x10000u);
+    EXPECT_EQ(reg(2), 0x10000u + 0x8000);
+    EXPECT_EQ(reg(3), 0x8000u);
+    EXPECT_EQ(reg(4), 0u);
+    EXPECT_EQ(reg(5), 0u);
+    EXPECT_EQ(reg(7), 99u);
+}
+
+TEST_F(AssemblerIntegration, a_nobits_section_cannot_be_run)
+{
+    write_file("nobitsx.basm", R"(.global _start
+
+.section "zeros", "rw", "nobits"
+here:           .advance 16
+
+.text
+_start:
+                adr     x1, here
+                blx     x1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o nobitsx nobitsx.basm -outdir ."));
+    EXPECT_EQ(emu32("-e nobitsx.bexe -l 100"), S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "fault");
+}
+
 // The listing of -dump shows them.
 TEST_F(AssemblerIntegration, the_dump_lists_sections_of_the_programs_own)
 {

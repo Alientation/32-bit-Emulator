@@ -37,9 +37,9 @@ Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &
     return extent;
 }
 
-/// The user sections of the object files: the name, whether the program may write it and whether
-/// it runs code from it. In the order they are first seen, and the same section in two files has to
-/// have the same permissions.
+/// The user sections of the object files: the name, whether the program may write it, whether
+/// it runs code from it and whether it is zero filled. In the order they are first seen, and the
+/// same section in two files has to have the same permissions and kind.
 std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFile> &objects)
 {
     std::vector<ObjectFile::UserSection> found;
@@ -55,12 +55,14 @@ std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFi
                 permissions.name = section.name;
                 permissions.writable = section.writable;
                 permissions.executable = section.executable;
+                permissions.nobits = section.nobits;
                 found.push_back(std::move(permissions));
             }
             else
             {
                 AEMU_CHECK(same->writable == section.writable
-                               && same->executable == section.executable,
+                               && same->executable == section.executable
+                               && same->nobits == section.nobits,
                            "Linker::link() - The section {} does not have the same flags in all "
                            "the files.",
                            section.name);
@@ -117,7 +119,7 @@ std::string default_linker_script(const std::vector<ObjectFile> &objects)
     {
         return merged_extent(objects, name,
                              [&](const ObjectFile &obj)
-                             { return word(obj.find_user_section(name)->bytes.size()); });
+                             { return obj.find_user_section(name)->size(); });
     };
 
     std::string script = "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n";
@@ -345,7 +347,7 @@ ObjectFile Linker::new_executable() const
     // And the sections of the program's own, which can be anywhere in the object files.
     for (const ObjectFile::UserSection &section : user_sections_of(m_obj_files))
     {
-        exe.add_user_section(section.name, section.writable, section.executable);
+        exe.add_user_section(section.name, section.writable, section.executable, section.nobits);
     }
     return exe;
 }
@@ -398,12 +400,19 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         for (const ObjectFile::UserSection &section : obj.user_sections)
         {
             const size_t e = user_index(exe, section.name);
-            std::vector<byte> &merged = exe.user_sections[e].bytes;
+            ObjectFile::UserSection &merged = exe.user_sections[e];
             const word wanted = alignment_of(obj, section.name.c_str());
-            merged.insert(merged.end(), pad_to(word(merged.size()), wanted), 0);
             alignment.users[e] = std::max(alignment.users[e], wanted);
-            base.users[e] = word(merged.size());
-            merged.insert(merged.end(), section.bytes.begin(), section.bytes.end());
+            if (merged.nobits)
+            {
+                merged.zero_size += pad_to(merged.zero_size, wanted);
+                base.users[e] = merged.zero_size;
+                merged.zero_size += section.zero_size;
+                continue;
+            }
+            merged.bytes.insert(merged.bytes.end(), pad_to(word(merged.bytes.size()), wanted), 0);
+            base.users[e] = word(merged.bytes.size());
+            merged.bytes.insert(merged.bytes.end(), section.bytes.begin(), section.bytes.end());
         }
 
         const word wanted_bss = alignment_of(obj, ".bss");
@@ -467,7 +476,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
 
             const ObjectFile::UserSection &user = exe.user_sections[e];
             name = user.name.c_str();
-            size = word(user.bytes.size());
+            size = user.size();
             section_address = &addresses.users[e];
             executable = user.executable;
             writable = user.writable;
@@ -576,7 +585,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
     check_placed(".bss", exe.bss_section);
     for (const ObjectFile::UserSection &user : exe.user_sections)
     {
-        check_placed(user.name.c_str(), word(user.bytes.size()));
+        check_placed(user.name.c_str(), user.size());
     }
 
     return addresses;

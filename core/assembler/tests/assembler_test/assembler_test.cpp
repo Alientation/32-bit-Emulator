@@ -1241,6 +1241,64 @@ TEST_F(AssemblerUnit, org_advance_and_align_work_in_a_user_section)
     EXPECT_EQ(object.sections[object.find_user_section("s")->header_index].alignment, 4u);
 }
 
+TEST_F(AssemblerUnit, a_nobits_section_is_a_size_and_keeps_its_labels)
+{
+    const ObjectFile object = assemble(".section \"stack\", \"rw\", \"nobits\"\n"
+                                       ".align 16\n"
+                                       "bottom: .advance 100\n"
+                                       "top:\n"
+                                       ".section \".data\"\n.byte 1\n"
+                                       ".section \"stack\"\n" // back to it, no flags
+                                       ".advance 4\n"
+                                       ".section \"stack\", \"rw\", \"nobits\"\n" // and with them
+                                       ".org 200\n");
+    ASSERT_EQ(object.user_sections.size(), 1u);
+    const ObjectFile::UserSection &stack = object.user_sections[0];
+    EXPECT_TRUE(stack.nobits);
+    EXPECT_TRUE(stack.writable);
+    EXPECT_FALSE(stack.executable);
+    EXPECT_TRUE(stack.bytes.empty());
+    EXPECT_EQ(stack.zero_size, 200u);
+    EXPECT_EQ(stack.size(), 200u);
+    EXPECT_EQ(object.sections[stack.header_index].type, ObjectFile::SectionHeader::Type::USER_BSS);
+    EXPECT_EQ(object.sections[stack.header_index].alignment, 16u);
+    EXPECT_EQ(symbol(object, "bottom").symbol_value, 0u);
+    EXPECT_EQ(symbol(object, "top").symbol_value, 100u);
+    EXPECT_EQ(symbol(object, "top").section, stack.header_index);
+}
+
+TEST_F(AssemblerUnit, the_bss_can_be_named_as_a_nobits_section)
+{
+    const ObjectFile object = assemble(".section \".bss\", \"rw\", \"nobits\"\n.advance 8\n");
+    EXPECT_EQ(object.bss_section, 8u);
+    EXPECT_TRUE(object.user_sections.empty());
+}
+
+TEST_F(AssemblerUnit, nobits_section_errors)
+{
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\",\n"), "type of the section as a string"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"zeroes\"\n"),
+                         "unknown section type \"zeroes\", the only one is \"nobits\""));
+    EXPECT_TRUE(contains(error(".section \"x\", \"r\", \"nobits\"\n"),
+                         "a nobits section is zero filled and writable"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rx\", \"nobits\"\n"),
+                         "a nobits section is zero filled and writable"));
+    EXPECT_TRUE(contains(error(".section \".data\", \"rw\", \"nobits\"\n"),
+                         ".data cannot be nobits, only .bss is zero filled"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.byte 1\n"),
+                         "can only define data"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.asciz \"a\"\n"),
+                         "can only define data"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\nnop\n"),
+                         "code must be located in the .text"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.advance 8\n.org 4\n"),
+                         ".org cannot move the assembler backwards, expected >= 8, got 4"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\", \"nobits\"\n.section \"x\", \"rw\"\n"),
+                         "the section x was made \"rw\", \"nobits\", the flags cannot be changed"));
+    EXPECT_TRUE(contains(error(".section \"x\", \"rw\"\n.section \"x\", \"rw\", \"nobits\"\n"),
+                         "the section x was made \"rw\", the flags cannot be changed"));
+}
+
 TEST_F(AssemblerUnit, the_names_of_the_sections_of_the_assembler_are_those_sections)
 {
     const ObjectFile object = assemble(".section \".data\"\n.byte 1\n"

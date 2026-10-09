@@ -660,6 +660,76 @@ TEST_F(LinkerScript, the_same_section_with_other_flags_in_another_file_is_an_err
                          "The section x does not have the same flags in all the files"));
 }
 
+// A nobits section is joined by size, keeps its alignment, and has an address like the others.
+TEST_F(LinkerScript, nobits_sections_of_several_files_are_added_up_and_aligned)
+{
+    const ObjectFile first = assemble("first", ".global _start\n.global one\n.text\n_start: nop\n"
+                                               ".section \"heap\", \"rw\", \"nobits\"\n"
+                                               ".advance 5\none: .advance 3\n");
+    const ObjectFile second = assemble("second", ".global two\n"
+                                                 ".section \"heap\", \"rw\", \"nobits\"\n"
+                                                 ".align 16\ntwo: .advance 4\n");
+    const ObjectFile exe = link_default({first, second}, "nobits");
+
+    const ObjectFile::UserSection &heap = *exe.find_user_section("heap");
+    EXPECT_TRUE(heap.nobits);
+    EXPECT_TRUE(heap.bytes.empty());
+    EXPECT_EQ(heap.zero_size, 16u + 4) << "8 bytes of the first, padded to 16, then 4";
+    EXPECT_EQ(exe.sections[heap.header_index].alignment, 16u);
+    EXPECT_EQ(address_of(exe, "heap") % 16, 0u);
+    EXPECT_EQ(symbol_value(exe, "one"), address_of(exe, "heap") + 5);
+    EXPECT_EQ(symbol_value(exe, "two"), address_of(exe, "heap") + 16);
+    EXPECT_EQ(exe.symbol_table.at(exe.string_table.at("two")).section, heap.header_index);
+}
+
+TEST_F(LinkerScript, the_default_layout_puts_a_nobits_section_with_the_data_before_bss)
+{
+    const ObjectFile exe = link_default(
+        {assemble("n", ".global _start\n.text\n_start: nop\n"
+                       ".data\n.word 1\n"
+                       ".section \"zeros\", \"rw\", \"nobits\"\n.advance 100\n"
+                       ".bss\n.advance 4\n")},
+        "nobitslayout");
+    EXPECT_EQ(section(exe, ".data").address, 0x1000u);
+    EXPECT_EQ(address_of(exe, "zeros"), 0x1004u) << "after .data";
+    EXPECT_EQ(section(exe, ".bss").address, 0x1004u + 100u) << "and before .bss";
+}
+
+TEST_F(LinkerScript, the_script_places_a_nobits_section_by_name)
+{
+    const std::vector<ObjectFile> objects = {
+        assemble("p", ".global _start\n.global top\n.text\n_start: nop\n"
+                      ".section \"stack\", \"rw\", \"nobits\"\n.align 8\ntop: .advance $1000\n")};
+    const std::string ld = write("stack.ld", "SECTIONS (\n.text = 0;\n\"stack\" = 0x8000;\n.data;\n.bss;\n)\n");
+    const std::string path = (m_dir / "out" / "stack.bexe").string();
+    Linker linker(objects, File(path, true), File(ld));
+    linker.link();
+    const ObjectFile exe{File(path)};
+
+    EXPECT_EQ(address_of(exe, "stack"), 0x8000u);
+    EXPECT_EQ(exe.find_user_section("stack")->zero_size, 0x1000u);
+    EXPECT_EQ(symbol_value(exe, "top"), 0x8000u);
+
+    // And one that is not in the script is the same error as for a section with bytes.
+    const std::string partial = write("partial_stack.ld", "SECTIONS (\n.text = 0;\n.data;\n.bss;\n)\n");
+    EXPECT_TRUE(contains(error_of(
+                             [&]
+                             {
+                                 Linker again(objects, File(path, true), File(partial));
+                                 again.link();
+                             }),
+                         "The section stack has contents but the linker script does not place it"));
+}
+
+TEST_F(LinkerScript, a_section_that_is_nobits_in_one_file_and_not_in_another_is_an_error)
+{
+    const ObjectFile first = assemble("first", ".global _start\n.text\n_start: nop\n"
+                                               ".section \"x\", \"rw\", \"nobits\"\n.advance 4\n");
+    const ObjectFile second = assemble("second", ".section \"x\", \"rw\"\n.byte 2\n");
+    EXPECT_TRUE(contains(error_of([&] { link_default({first, second}, "kinds"); }),
+                         "The section x does not have the same flags in all the files"));
+}
+
 TEST_F(LinkerScript, an_undefined_symbol_in_a_user_section_is_an_error)
 {
     const ObjectFile object = assemble("undef", ".global _start\n.text\n_start: nop\n"

@@ -37,16 +37,19 @@ const ObjectFile::ByteSection *ObjectFile::byte_section_of(SectionHeader::Type t
 }
 
 ObjectFile::SectionHeader::Type ObjectFile::user_section_type(const bool writable,
-                                                              const bool executable)
+                                                              const bool executable,
+                                                              const bool nobits)
 {
     using Type = SectionHeader::Type;
+    if (nobits) return Type::USER_BSS;
     return executable ? Type::USER_RX : writable ? Type::USER_RW : Type::USER_R;
 }
 
 bool ObjectFile::is_user_section_type(const SectionHeader::Type type)
 {
     using Type = SectionHeader::Type;
-    return type == Type::USER_R || type == Type::USER_RW || type == Type::USER_RX;
+    return type == Type::USER_R || type == Type::USER_RW || type == Type::USER_RX
+           || type == Type::USER_BSS;
 }
 
 ObjectFile::UserSection *ObjectFile::find_user_section(const std::string &name)
@@ -77,20 +80,25 @@ ObjectFile::UserSection *ObjectFile::user_section_at(const U32 header_index)
 }
 
 U32 ObjectFile::add_user_section(const std::string &name, const bool writable,
-                                 const bool executable)
+                                 const bool executable, const bool nobits)
 {
     AEMU_CHECK(!(writable && executable),
                "ObjectFile::add_user_section() - The section {} would be both writable and "
                "executable.",
                name);
+    AEMU_CHECK(!nobits || (writable && !executable),
+               "ObjectFile::add_user_section() - The section {} is nobits, which is writable and "
+               "not executable.",
+               name);
 
-    const U32 header = add_section(name, user_section_type(writable, executable));
+    const U32 header = add_section(name, user_section_type(writable, executable, nobits));
     add_section(".rel" + name, SectionHeader::Type::REL_USER);
 
     UserSection section;
     section.name = name;
     section.writable = writable;
     section.executable = executable;
+    section.nobits = nobits;
     section.header_index = header;
     user_sections.push_back(std::move(section));
 
@@ -222,7 +230,9 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
     for (hword section_i = 0; section_i < n_sections; section_i++)
     {
         SectionHeader &section_header = sections[section_i];
+        // .bss and the sections like it have their size in the header and 8 bytes in the file.
         if (section_header.type != SectionHeader::Type::BSS
+            && section_header.type != SectionHeader::Type::USER_BSS
             && U64(section_header.section_start) + section_header.section_size > bytes.size())
         {
             AEMU_FATAL("ObjectFile::disassemble() - '{}' is corrupt, section {} is at {} with "
@@ -271,6 +281,17 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             {
                 user.bytes.push_back(reader.read_byte());
             }
+            user_sections.push_back(std::move(user));
+            break;
+        }
+        case SectionHeader::Type::USER_BSS:
+        {
+            AEMU_DEBUG("Reading a nobits user section");
+            UserSection user;
+            user.writable = true;
+            user.nobits = true;
+            user.header_index = section_i;
+            user.zero_size = word(reader.read_dword());
             user_sections.push_back(std::move(user));
             break;
         }
@@ -530,6 +551,7 @@ U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type
     case SectionHeader::Type::USER_R:
     case SectionHeader::Type::USER_RW:
     case SectionHeader::Type::USER_RX:
+    case SectionHeader::Type::USER_BSS:
         header.entry_size = 0;
         break;
     case SectionHeader::Type::INIT_ARRAY:
@@ -726,14 +748,23 @@ void ObjectFile::write_object_file(File obj_file)
     for (const UserSection &user : user_sections)
     {
         AEMU_DEBUG("ObjectFile::write_object_file() - Writing the section {}.", user.name);
-        for (const byte b : user.bytes)
-        {
-            byte_writer << ByteWriter::Data(b, 1);
-        }
         SectionHeader &header = sections[user.header_index];
-        header.section_size = user.bytes.size();
+        header.section_size = user.size();
         header.section_start = current_byte;
-        current_byte += user.bytes.size();
+        if (user.nobits)
+        {
+            // Like .bss, the size is all there is.
+            byte_writer << ByteWriter::Data(user.zero_size, kBSSSectionSize);
+            current_byte += kBSSSectionSize;
+        }
+        else
+        {
+            for (const byte b : user.bytes)
+            {
+                byte_writer << ByteWriter::Data(b, 1);
+            }
+            current_byte += user.bytes.size();
+        }
 
         write_relocations(strings[sections[user.header_index + 1].section_name].c_str(),
                           user.relocations);
@@ -807,7 +838,8 @@ word ObjectFile::get_section_size(U32 section)
     case SectionHeader::Type::USER_R:
     case SectionHeader::Type::USER_RW:
     case SectionHeader::Type::USER_RX:
-        return word(user_section_at(section)->bytes.size());
+    case SectionHeader::Type::USER_BSS:
+        return user_section_at(section)->size();
     default:
         AEMU_FATAL("ObjectFile::get_section_size() - Section {} holds no code or data.", section);
     }

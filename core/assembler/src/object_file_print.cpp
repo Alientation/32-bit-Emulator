@@ -148,6 +148,12 @@ void ObjectFile::print(std::ostream &out)
     // The sections of the program's own, as bytes whatever they hold (code too).
     for (const UserSection &section : user_sections)
     {
+        if (section.nobits)
+        {
+            out << std::format("\n\nContents of section {}: {} bytes, zero filled when loaded",
+                               section.name, section.zero_size);
+            continue;
+        }
         print_bytes("\n\n", section.name, section.bytes, section.relocations);
     }
 

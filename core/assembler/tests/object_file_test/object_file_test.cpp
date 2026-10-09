@@ -273,6 +273,55 @@ TEST_F(ObjectFileUnit, user_sections_are_written_and_read_back)
               ObjectFile::SectionHeader::Type::USER_RW);
 }
 
+// A nobits section is a size in the file, as .bss is.
+TEST_F(ObjectFileUnit, a_nobits_section_is_written_as_its_size_and_read_back)
+{
+    const char *source = ".global _start\n.text\n_start: nop\n"
+                         ".section \"stack\", \"rw\", \"nobits\"\n"
+                         ".align 64\nbottom: .advance 1048576\n"
+                         ".section \"table\", \"r\"\n.word _start\n";
+    const ObjectFile written = assemble(source);
+    const ObjectFile read{File(path("main.bo"))};
+
+    ASSERT_EQ(read.user_sections.size(), 2u);
+    const ObjectFile::UserSection &stack = *read.find_user_section("stack");
+    EXPECT_TRUE(stack.nobits);
+    EXPECT_TRUE(stack.writable);
+    EXPECT_FALSE(stack.executable);
+    EXPECT_EQ(stack.zero_size, 1048576u);
+    EXPECT_TRUE(stack.bytes.empty());
+    EXPECT_EQ(stack.header_index, written.find_user_section("stack")->header_index);
+    EXPECT_EQ(read.sections[stack.header_index].type, ObjectFile::SectionHeader::Type::USER_BSS);
+    EXPECT_EQ(read.sections[stack.header_index].alignment, 64u);
+    EXPECT_EQ(read.sections[stack.header_index].section_size, 1048576u);
+
+    // The section after it is still its own (the sizes and the 8 bytes of the first line up).
+    EXPECT_EQ(read.find_user_section("table")->bytes, written.find_user_section("table")->bytes);
+    EXPECT_EQ(read.find_user_section("table")->relocations.size(), 1u);
+    EXPECT_LT(bytes_of("out/main.bo").size(), 4096u) << "the megabyte is not in the file";
+}
+
+TEST_F(ObjectFileUnit, a_nobits_section_with_a_relocation_is_refused)
+{
+    ObjectFile object = assemble(".global _start\n.text\n_start: nop\n"
+                                 ".section \"stack\", \"rw\", \"nobits\"\n.advance 16\n"
+                                 ".section \"table\", \"r\"\n.word _start\n");
+    object.find_user_section("stack")->relocations.push_back(
+        object.find_user_section("table")->relocations[0]);
+    object.write_object_file(File(path("damaged.bo"), true));
+    EXPECT_TRUE(contains(error_of([&] { ObjectFile read{File(path("damaged.bo"))}; }),
+                         "a relocation of stack is at 0, outside of the section"));
+}
+
+TEST_F(ObjectFileUnit, the_listing_has_the_size_of_a_nobits_section)
+{
+    assemble(".section \"stack\", \"rw\", \"nobits\"\n.advance 4096\n");
+    std::ostringstream listing;
+    ObjectFile(File(path("main.bo"))).print(listing);
+    EXPECT_TRUE(contains(listing.str(),
+                         "Contents of section stack: 4096 bytes, zero filled when loaded"));
+}
+
 TEST_F(ObjectFileUnit, a_file_with_user_sections_is_the_same_bytes_every_time)
 {
     assemble(kUserSections);

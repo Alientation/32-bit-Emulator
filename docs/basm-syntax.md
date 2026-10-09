@@ -237,7 +237,7 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | `.sbyte` `.sdbyte` `.sword` `.sdword` | the same as above |
 | `.char 'a', 'b'` | one byte for each character |
 | `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end |
-| `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` |
+| `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` or in a `nobits` section |
 | `.org n` | move forward to the offset `n` of the section (never backward) |
 | `.align n` | pad to a multiple of `n`; the largest alignment of the section is kept in the object file and respected when files are linked |
 | `.stop` | stop assembling here and ignore the rest of the file |
@@ -252,7 +252,7 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | `"rw"` (the default, without flags) | read and write it | `.data` |
 | `"rx"` | read it and run code from it | `.text` |
 
-A section is never writable and executable at once (`"rwx"` is an error), and the flags of a section cannot change once it is made. The directives that work in `.data` work in all of them (`.word`, `.ascii`, `.align`, `.advance`, `.org`, ...; the data is in the file, there is no zeroed kind), and **instructions** are legal in an executable one, starting at a multiple of 4 bytes (a `.byte` before an instruction needs `.align 4`; the size has to end up a whole number of instructions). A name can be any text without spaces, `".rel..."`, `".symtab"` and `".strtab"` are taken. The names of the sections of the assembler are those sections: `.section ".data"` is `.data`, and the flags (if given) have to be the ones it has.
+A section is never writable and executable at once (`"rwx"` is an error), and the flags of a section cannot change once it is made. The directives that work in `.data` work in all of them (`.word`, `.ascii`, `.align`, `.advance`, `.org`, ...; the data is in the file, unless the section is `nobits`, below), and **instructions** are legal in an executable one, starting at a multiple of 4 bytes (a `.byte` before an instruction needs `.align 4`; the size has to end up a whole number of instructions). A name can be any text without spaces, `".rel..."`, `".symtab"` and `".strtab"` are taken. The names of the sections of the assembler are those sections: `.section ".data"` is `.data`, and the flags (if given) have to be the ones it has.
 
 ```
 .section "vectors", "rx"        ; code that a linker script puts at VBAR
@@ -265,6 +265,15 @@ hits:       .word 0
 ```
 
 The linker joins the sections of the same name of all files (they have to have the same flags), in the order of the files, each at a multiple of its alignment. A branch from or to a section of your own is resolved by the linker, which sees the final addresses. Without a linker script (the default layout) the executable sections come right after `.text`, the read only ones after `.rodata` and the arrays, on the pages after the code, and the writable ones after `.data`. A linker script places them by name, as a string: `".vectors" = 0x800;`, see [belf-format.md](belf-format.md#linker-scripts-ld); a section with contents that the script does not list is an error.
+
+**Zero filled sections.** A third operand, `"nobits"`, makes the section zero filled like `.bss`: `.section "name", "rw", "nobits"` (the flags have to be `"rw"`). It has a size and no contents, so a large one costs nothing in the `.bo` and the `.bexe`; the loader gives the program the zeroed memory. Only labels, `.advance`, `.align` and `.org` are legal in it (no data, no code), and every file that has the section has to say `"nobits"`. Unlike `.bss` there can be any number of them and the linker script can place each one by name. The name `.bss` is the `.bss` (`.section ".bss", "rw", "nobits"`).
+
+```
+.section "stack", "rw", "nobits"
+.align 16
+stack_bottom:   .advance 4096
+stack_top:                      ; the address after the last byte
+```
 
 `.fill` is reserved but not implemented.
 

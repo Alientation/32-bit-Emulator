@@ -100,7 +100,10 @@ class Assembler
         FINI_ARRAY,
 
         /// @brief      In a section of the program's own (`.section "name"`).
-        USER
+        USER,
+
+        /// @brief      In a section of the program's own that is zero filled (`nobits`).
+        USER_BSS
     } m_cur_section = Section::NONE;
 
     /// @brief The section being assembled if it is one of .data, .rodata, .init_array,
@@ -109,6 +112,10 @@ class Assembler
 
     /// @brief The user section being assembled, null if it is another one.
     ObjectFile::UserSection *current_user_section();
+
+    /// @brief The size of the current section if it is .bss or a user section that is `nobits`,
+    ///        which is what .org, .advance and .align move. Only valid in those two.
+    word &zero_size();
 
     /// @brief Whether the current section holds bytes, as opposed to code or a size: .data,
     ///        .rodata, .init_array, .fini_array and any user section.

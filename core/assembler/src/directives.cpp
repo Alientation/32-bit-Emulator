@@ -568,7 +568,15 @@ const ObjectFile::ByteSection *Assembler::current_byte_section() const
 
 ObjectFile::UserSection *Assembler::current_user_section()
 {
-    return m_cur_section == Section::USER ? m_obj.user_section_at(m_cur_section_index) : nullptr;
+    return m_cur_section == Section::USER || m_cur_section == Section::USER_BSS
+               ? m_obj.user_section_at(m_cur_section_index)
+               : nullptr;
+}
+
+word &Assembler::zero_size()
+{
+    return m_cur_section == Section::BSS ? m_obj.bss_section
+                                         : current_user_section()->zero_size;
 }
 
 bool Assembler::in_byte_section() const
@@ -685,10 +693,11 @@ void Assembler::_org()
     switch (m_cur_section)
     {
     case Section::BSS:
-        check(val >= m_obj.bss_section, ".org cannot move the assembler backwards, expected >= "
-                                            + std::to_string(m_obj.bss_section) + ", got "
-                                            + std::to_string(val));
-        m_obj.bss_section = val;
+    case Section::USER_BSS:
+        check(val >= zero_size(), ".org cannot move the assembler backwards, expected >= "
+                                      + std::to_string(zero_size()) + ", got "
+                                      + std::to_string(val));
+        zero_size() = val;
         break;
     case Section::DATA:
     case Section::RODATA:
@@ -765,7 +774,8 @@ void Assembler::_advance()
     switch (m_cur_section)
     {
     case Section::BSS:
-        m_obj.bss_section += val;
+    case Section::USER_BSS:
+        zero_size() += val;
         break;
     case Section::DATA:
     case Section::RODATA:
@@ -807,7 +817,8 @@ void Assembler::_align()
     switch (m_cur_section)
     {
     case Section::BSS:
-        m_obj.bss_section += (val - (m_obj.bss_section % val)) % val;
+    case Section::USER_BSS:
+        zero_size() += (val - (zero_size() % val)) % val;
         break;
     case Section::DATA:
     case Section::RODATA:
@@ -848,10 +859,13 @@ void Assembler::_align()
 ///                         the files, and the linker script places them by name.
 ///                         Instructions can be assembled in an executable section, data
 ///                         directives in any of them (a user section holds bytes).
+///                         A third operand, "nobits", makes the section zero filled like .bss (flags
+///                         "rw"): the file has its size and no bytes, and only .advance, .align,
+///                         .org and labels are legal in it.
 ///                         The names of the sections the assembler has (".text", ".data", ".bss",
 ///                         ".rodata", ".init_array", ".fini_array") are those sections, so
 ///                         `.section ".data"` is `.data`.
-/// USAGE:                  .section <string>[, <flags>]
+/// USAGE:                  .section <string>[, <flags>[, "nobits"]]
 ///
 void Assembler::_section()
 {
@@ -862,8 +876,10 @@ void Assembler::_section()
     const std::string name = basm::unescape_string_literal(name_token);
 
     const Token *flags_token = nullptr;
+    const Token *type_token = nullptr;
     bool writable = false;
     bool executable = false;
+    bool nobits = false;
     if (m_cursor.accept(TokenType::COMMA))
     {
         flags_token = &expect(TokenType::LITERAL_STRING,
@@ -890,6 +906,23 @@ void Assembler::_section()
         {
             fail(*flags_token, "a section cannot be both writable and executable");
         }
+
+        if (m_cursor.accept(TokenType::COMMA))
+        {
+            type_token = &expect(TokenType::LITERAL_STRING,
+                                 "expected the type of the section as a string (\"nobits\")");
+            const std::string type = basm::unescape_string_literal(*type_token);
+            if (type != "nobits")
+            {
+                fail(*type_token, "unknown section type \"" + type + "\", the only one is \"nobits\"");
+            }
+            if (!writable || executable)
+            {
+                fail(*type_token, "a nobits section is zero filled and writable, its flags are "
+                                  "\"rw\"");
+            }
+            nobits = true;
+        }
     }
 
     // The sections that the assembler has: the name is that section, and the flags can only say
@@ -913,6 +946,10 @@ void Assembler::_section()
     {
         if (name != builtin.name) continue;
 
+        if (nobits && builtin.section != Section::BSS)
+        {
+            fail(*type_token, name + " cannot be nobits, only .bss is zero filled");
+        }
         if (flags_token != nullptr
             && (writable != builtin.writable || executable != builtin.executable))
         {
@@ -935,21 +972,25 @@ void Assembler::_section()
     if (user == nullptr)
     {
         if (flags_token == nullptr) writable = true; // "rw"
-        m_cur_section_index = m_obj.add_user_section(name, writable, executable);
+        m_cur_section_index = m_obj.add_user_section(name, writable, executable, nobits);
+        user = m_obj.find_user_section(name);
+    }
+    else if (flags_token != nullptr
+             && (user->writable != writable || user->executable != executable
+                 || user->nobits != nobits))
+    {
+        fail(*flags_token, "the section " + name + " was made "
+                               + (user->executable ? "\"rx\""
+                                  : user->nobits   ? "\"rw\", \"nobits\""
+                                  : user->writable ? "\"rw\""
+                                                   : "\"r\"")
+                               + ", the flags cannot be changed");
     }
     else
     {
-        if (flags_token != nullptr && (user->writable != writable || user->executable != executable))
-        {
-            fail(*flags_token, "the section " + name + " was made "
-                                   + (user->executable ? "\"rx\""
-                                      : user->writable ? "\"rw\""
-                                                       : "\"r\"")
-                                   + ", the flags cannot be changed");
-        }
         m_cur_section_index = user->header_index;
     }
-    m_cur_section = Section::USER;
+    m_cur_section = user->nobits ? Section::USER_BSS : Section::USER;
 }
 
 void Assembler::check_section_name(const Token &at, const std::string &name)
