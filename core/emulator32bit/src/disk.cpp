@@ -9,10 +9,8 @@
 #include <filesystem>
 #include <iterator>
 
-/*
- * Located at the beginning of disk and the disk page management files
- * to detect invlaid disk/disk management files.
-*/
+// Located at the beginning of disk and the disk page management files
+// to detect invlaid disk/disk management files.
 #define MAGIC_HEADER 0x4b534944
 
 Disk::Disk(File diskfile, word npages, word lo_page) :
@@ -35,21 +33,20 @@ Disk::Disk() :
 
 void Disk::read_disk_files()
 {
-    /*
-     * Read and set up the disk free page manager before reading from the disk memory
-     * in case we have to increase the size of disk memory. Expanding disk size
-     * would mean we would have to add free pages to the disk free page manager FBL,
-     * so it is better to create the disk free page manager before adding such free pages.
-     */
+    // Read and set up the disk free page manager before reading from the disk memory
+    // in case we have to increase the size of disk memory. Expanding disk size
+    // would mean we would have to add free pages to the disk free page manager FBL,
+    // so it is better to create the disk free page manager before adding such free pages.
     read_disk_manager_file();
 
-    /* TODO: Determine what it means if m_npages == 0: should we clear the disk files? */
+    // TODO: Determine what it means if m_npages == 0: should we clear the disk files?
     if (m_npages == 0)
     {
         return;
     }
 
-    /* The file of an existing disk has its contents, it must not be opened in a way that empties it. */
+    // The file of an existing disk has its contents, it must not be opened in a way that empties
+    // it.
     std::error_code error;
     const std::streamsize actual_size =
         std::filesystem::exists(m_diskfile.get_path())
@@ -63,10 +60,8 @@ void Disk::read_disk_files()
     }
     if (actual_size > target_size)
     {
-        /*
-         * We don't want to corrupt disk memory by reducing the size
-         * to match the request so stop here.
-         */
+        // We don't want to corrupt disk memory by reducing the size
+        // to match the request so stop here.
         AEMU_FATAL("Disk file is larger than what is requested. {} > {}.", actual_size,
                    target_size);
         return;
@@ -74,10 +69,8 @@ void Disk::read_disk_files()
 
     if (actual_size < target_size)
     {
-        /*
-         * Disk file size is smaller than what is needed,
-         * we can correct this by increasing the size to what we want.
-         */
+        // Disk file size is smaller than what is needed,
+        // we can correct this by increasing the size to what we want.
         std::streamsize padding_size = target_size - actual_size;
         AEMU_DEBUG("Padding disk file of size {} bytes with {} bytes.", actual_size, padding_size);
 
@@ -92,7 +85,7 @@ void Disk::read_disk_files()
         AEMU_DEBUG("Successfully created disk file of size {} pages.", m_npages);
     }
 
-    /* The pages are read and written through this stream, which stays open. */
+    // The pages are read and written through this stream, which stays open.
     m_stream.open(m_diskfile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
     if (!m_stream.is_open())
     {
@@ -113,14 +106,14 @@ void Disk::read_disk_manager_file()
 
     if (!reader.has_next() || reader.read_word() != MAGIC_HEADER)
     {
-        /* set up page managment from scratch since there was no valid header */
+        // set up page managment from scratch since there was no valid header
         m_free_list.return_block(0, m_npages);
 
         AEMU_DEBUG("Creating empty disk.");
         return;
     }
 
-    /* Read in free blocks from the saved file */
+    // Read in free blocks from the saved file
     while (reader.has_next())
     {
         word page = reader.read_word();
@@ -156,8 +149,8 @@ word Disk::get_free_page()
 {
     word addr = m_free_list.get_free_block(1);
 
-    /* A page that was used before still has its old contents. Whoever gets the page starts with
-       zeros, not with the data of a page that was freed. */
+    // A page that was used before still has its old contents. Whoever gets the page starts with
+    //       zeros, not with the data of a page that was freed.
     CachePage &cpage = get_cpage(addr, false);
     std::fill(std::begin(cpage.data), std::end(cpage.data), byte(0));
     cpage.dirty = true;
@@ -219,15 +212,15 @@ word Disk::read_word(word address)
 
 dword Disk::read_val(word address, int n_bytes)
 {
-    /* TODO: Add warning for when n_bytes is larger than 8. */
+    // TODO: Add warning for when n_bytes is larger than 8.
 
-    /* Addresses are absolute, disk pages are relative to the start of the disk. */
+    // Addresses are absolute, disk pages are relative to the start of the disk.
     address -= m_start_addr;
 
-    /* Read from the end since the most significant byte will be located there in little endian. */
+    // Read from the end since the most significant byte will be located there in little endian.
     address += n_bytes - 1;
-    word page = address >> kNumPageOffsetBits; /* Get the page address (upper bits). */
-    word offset = address & (kPageSize - 1);   /* Offset into the page (lower bits). */
+    word page = address >> kNumPageOffsetBits; // Get the page address (upper bits).
+    word offset = address & (kPageSize - 1); // Offset into the page (lower bits).
     CachePage *cpage = &get_cpage(page);
 
     dword val = 0;
@@ -235,10 +228,8 @@ dword Disk::read_val(word address, int n_bytes)
     {
         if (offset + 1 == 0)
         {
-            /*
-             * Since we are reading from the end, we might go beyond the beginning of the page.
-             * Correct the offset and page address appropriately when that happens.
-             */
+            // Since we are reading from the end, we might go beyond the beginning of the page.
+            // Correct the offset and page address appropriately when that happens.
             offset = kPageSize - 1;
             page--;
             cpage = &get_cpage(page);
@@ -255,7 +246,7 @@ void Disk::write_page(word page, const std::vector<byte> &data)
 {
     if (data.size() != kPageSize)
     {
-        /* We expect to write a full page to disk. */
+        // We expect to write a full page to disk.
         throw DiskWriteException("Tried to write to disk an invalid number of bytes. "
                                  "Expected "
                                  + std::to_string(kPageSize) + " bytes. Got "
@@ -270,7 +261,7 @@ void Disk::write_page(word page, const byte *data)
 {
     // The whole page is replaced, so what the file has of it is not needed.
     CachePage &cpage = get_cpage(page, false);
-    cpage.dirty = true; /* Mark as dirty since it is written to. */
+    cpage.dirty = true; // Mark as dirty since it is written to.
     std::memcpy(cpage.data, data, kPageSize);
 
     AEMU_DEBUG("Wrote to disk page {}.", cpage.page);
@@ -293,25 +284,23 @@ void Disk::write_word(word address, word data)
 
 void Disk::write_val(word address, dword val, int n_bytes)
 {
-    /* TODO: Warn when n_bytes is larger than 8. */
+    // TODO: Warn when n_bytes is larger than 8.
 
-    /* Addresses are absolute, disk pages are relative to the start of the disk. */
+    // Addresses are absolute, disk pages are relative to the start of the disk.
     address -= m_start_addr;
 
-    word page = address >> kNumPageOffsetBits; /* Get the page address (upper bits). */
-    word offset = address & (kPageSize - 1);   /* Offset into the page (lower bits). */
+    word page = address >> kNumPageOffsetBits; // Get the page address (upper bits).
+    word offset = address & (kPageSize - 1); // Offset into the page (lower bits).
     CachePage *cpage = &get_cpage(page);
     cpage->dirty = true;
 
-    /* Write the bytes in little endian. */
+    // Write the bytes in little endian.
     for (int i = 0; i < n_bytes; i++)
     {
         if (offset == kPageSize)
         {
-            /*
-             * We might go beyond the end of the page since we are incrementing the address.
-             * Correct the offset and page address appropriately when that happens.
-             */
+            // We might go beyond the end of the page since we are incrementing the address.
+            // Correct the offset and page address appropriately when that happens.
 
             offset = 0;
             page++;
@@ -319,13 +308,12 @@ void Disk::write_val(word address, dword val, int n_bytes)
             cpage->dirty = true;
         }
 
-        cpage->data[offset] = val & 0xFF; /* Get lower 8 bits. */
+        cpage->data[offset] = val & 0xFF; // Get lower 8 bits.
         val >>= 8;
         offset++;
     }
 }
 
-/* TODO: Perhaps the addr parameter should instead be the page address. It would make more sense. */
 Disk::CachePage &Disk::get_cpage(word addr, bool load)
 {
     if (addr >= m_npages)
@@ -335,7 +323,7 @@ Disk::CachePage &Disk::get_cpage(word addr, bool load)
                                 + " pages.");
     }
 
-    /* Bitwise AND does the same as modulus to index into table since cache size is a power of 2. */
+    // Bitwise AND does the same as modulus to index into table since cache size is a power of 2.
     CachePage &cpage = m_cache[addr & (kDiskCacheSize - 1)];
 
     if (cpage.valid && cpage.page == addr)
@@ -348,7 +336,7 @@ Disk::CachePage &Disk::get_cpage(word addr, bool load)
         write_cpage(cpage);
     }
 
-    /* The cache page holds the new page, which matches the file until it is written to. */
+    // The cache page holds the new page, which matches the file until it is written to.
     cpage.valid = true;
     cpage.page = addr;
     cpage.dirty = false;
@@ -363,7 +351,7 @@ Disk::CachePage &Disk::get_cpage(word addr, bool load)
 
 void Disk::write_cpage(CachePage &cpage)
 {
-    /* Go to location of the cached page in disk so we can write to file. */
+    // Go to location of the cached page in disk so we can write to file.
     m_stream.clear();
     m_stream.seekp(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.write(reinterpret_cast<const char *>(cpage.data), kPageSize);
@@ -377,7 +365,7 @@ void Disk::write_cpage(CachePage &cpage)
 
 void Disk::read_cpage(CachePage &cpage)
 {
-    /* Go to location of the page so we can read from file. */
+    // Go to location of the page so we can read from file.
     m_stream.clear();
     m_stream.seekg(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.read(reinterpret_cast<char *>(cpage.data), kPageSize);
@@ -387,7 +375,6 @@ void Disk::read_cpage(CachePage &cpage)
     AEMU_DEBUG("Successfully read page {} from disk.", cpage.page);
 }
 
-/*  When the program ends, we want to save all the pages in cache to disk. */
 void Disk::save()
 {
     if (m_npages == 0)
@@ -395,7 +382,7 @@ void Disk::save()
         return;
     }
 
-    /* Write cache pages to file. */
+    // Write cache pages to file.
     for (CachePage &cpage : m_cache)
     {
         if (cpage.dirty && cpage.valid)
@@ -407,7 +394,7 @@ void Disk::save()
     AEMU_CHECK(bool(m_stream), "Disk::save() - Error writing to the disk file.");
     AEMU_DEBUG("Successfully wrote dirty cache pages to disk");
 
-    /* store disk management info. */
+    // store disk management info.
     FileWriter fwriter(m_diskfile_manager, std::ios::binary | std::ios::out);
     ByteWriter writer(fwriter);
 

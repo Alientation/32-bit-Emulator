@@ -216,10 +216,6 @@ void Assembler::fill_local()
     AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
 }
 
-// A relocation names the label of the innermost scope that has it, if there is one, and a branch
-// to a label of this file does not depend on where the file ends up, so it is filled in now.
-// Absolute addresses (e.g. adrp to a .text label) are only known after linking, so those are left
-// for the linker.
 void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations,
                            bool fill_branches)
 {

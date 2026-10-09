@@ -4,17 +4,17 @@
 /// @brief Shared lexer for basm sources (preprocessor + assembler) and linker scripts.
 ///
 /// Design:
-///  - Hand written single pass scanner, O(n) in the size of the source.
-///  - The result is a plain, immutable std::vector<Token>. Reading is done through a separate
-///    TokenCursor. Nothing is mutated after lexing (no skip flags, no insertion).
-///  - Tokens keep their exact source location (file, line, column, byte offset) and point into
-///    text owned by a SourceManager, so there are no per token string copies.
-///  - NEWLINE tokens are kept, so a line oriented grammar ("statement, then end of line") is
-///    possible. The token list always ends with NEWLINE (unless disabled) then END_OF_FILE.
-///  - Errors never terminate the process. They are collected as Diagnostics and the lexer
-///    resynchronizes, so many errors can be reported in one run.
-///  - Whitespace is not a token. Whether a token was preceded by whitespace is recorded in
-///    TokenFlag::SPACE_BEFORE, which is what e.g. `#define F(x)` vs `#define F (x)` needs.
+/// - Hand written single pass scanner, O(n) in the size of the source.
+/// - The result is a plain, immutable std::vector<Token>. Reading is done through a separate
+/// TokenCursor. Nothing is mutated after lexing (no skip flags, no insertion).
+/// - Tokens keep their exact source location (file, line, column, byte offset) and point into
+/// text owned by a SourceManager, so there are no per token string copies.
+/// - NEWLINE tokens are kept, so a line oriented grammar ("statement, then end of line") is
+/// possible. The token list always ends with NEWLINE (unless disabled) then END_OF_FILE.
+/// - Errors never terminate the process. They are collected as Diagnostics and the lexer
+/// resynchronizes, so many errors can be reported in one run.
+/// - Whitespace is not a token. Whether a token was preceded by whitespace is recorded in
+/// TokenFlag::SPACE_BEFORE, which is what e.g. `#define F(x)` vs `#define F (x)` needs.
 
 #include "util/types.h"
 #include "assembler/instruction_list.h"
@@ -103,6 +103,8 @@ class SourceManager
         std::vector<U32> line_starts;
     };
 
+    /// @param id the id of a source
+    /// @return the source, or nullptr if the id is unknown
     const Source *get(SourceId id) const;
 
     std::deque<Source> m_sources;
@@ -186,59 +188,70 @@ std::string_view to_string(TokenType type);
 
 namespace detail
 {
+/// @return whether `t` is one of the types from `lo` to `hi`
 constexpr bool in_range(TokenType t, TokenType lo, TokenType hi)
 {
     return t >= lo && t <= hi;
 }
 } // namespace detail
 
+/// @return whether the type is a comment
 constexpr bool is_comment(TokenType t)
 {
     return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
 }
 
+/// @return whether the type is a preprocessor directive (`#define`, ...)
 constexpr bool is_preprocessor_directive(TokenType t)
 {
     return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
 }
 
+/// @return whether the type is an assembler directive (`.global`, ...)
 constexpr bool is_assembler_directive(TokenType t)
 {
     return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
 }
 
+/// @return whether the type is a relocation operator (`:lo12:`, ...)
 constexpr bool is_relocation(TokenType t)
 {
     return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
                             TokenType::RELOCATION_EMU32_MOV_HI13);
 }
 
+/// @return whether the type is a register (x0-x29, sp, xzr)
 constexpr bool is_register(TokenType t)
 {
     return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
 }
 
+/// @return whether the type is an instruction mnemonic
 constexpr bool is_instruction(TokenType t)
 {
     return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
 }
 
+/// @return whether the type is a condition code (eq, ne, ...)
 constexpr bool is_condition(TokenType t)
 {
     return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
 }
 
+/// @return whether the type is an integer literal
 constexpr bool is_integer_literal(TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_NUMBER_BINARY,
                             TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
+/// @return whether the type is an integer or floating point literal
 constexpr bool is_number_literal(TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
+/// @return whether the type is an operator of an expression
 constexpr bool is_operator(TokenType t)
 {
     return detail::in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
@@ -287,11 +300,13 @@ struct Token
     /// Value of integer and character literals (LITERAL_NUMBER_* except float, LITERAL_CHAR).
     U64 int_value = 0;
 
+    /// @return whether the token has this type
     bool is(TokenType t) const
     {
         return type == t;
     }
 
+    /// @return whether the token has one of these types
     bool is_one_of(std::initializer_list<TokenType> types) const
     {
         for (TokenType t : types)
@@ -304,11 +319,13 @@ struct Token
         return false;
     }
 
+    /// @return whether the token has this flag
     bool has(TokenFlag flag) const
     {
         return (flags & flag) != 0;
     }
 
+    /// @return a copy of the text of the token
     std::string str() const
     {
         return std::string(text);
@@ -441,6 +458,7 @@ class TokenCursor
   public:
     TokenCursor() = default;
 
+    /// @param tokens the tokens to read, which have to outlive the cursor
     explicit TokenCursor(std::span<const Token> tokens) :
         m_tokens(tokens)
     {
@@ -452,16 +470,19 @@ class TokenCursor
     /// Consumes and returns the current token. Never moves past END_OF_FILE.
     const Token &next();
 
+    /// @return whether the next token is END_OF_FILE
     bool at_end() const
     {
         return peek().type == TokenType::END_OF_FILE;
     }
 
+    /// @return whether the next token has this type, which is not consumed
     bool check(TokenType type) const
     {
         return peek().type == type;
     }
 
+    /// @return whether the next token has one of these types, which is not consumed
     bool check_any(std::initializer_list<TokenType> types) const
     {
         return peek().is_one_of(types);
@@ -484,6 +505,7 @@ class TokenCursor
     /// the NEWLINE. The span stays valid as long as the underlying token list does.
     std::span<const Token> take_line();
 
+    /// @return the index of the next token
     std::size_t position() const
     {
         return m_pos;
@@ -495,11 +517,15 @@ class TokenCursor
         return m_pos;
     }
 
+    /// Goes back to a position that mark() returned.
+    ///
+    /// @param mark the position to go back to
     void rewind(std::size_t mark)
     {
         m_pos = mark;
     }
 
+    /// @return all the tokens that the cursor reads
     std::span<const Token> tokens() const
     {
         return m_tokens;

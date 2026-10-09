@@ -313,7 +313,7 @@ void Linker::link()
     define_array_symbols(exe, addresses);
     relocate(exe, bases, addresses, symbols);
 
-    /* There are no relocations in .data and .bss, and none are left in the executable. */
+    // There are no relocations in .data and .bss, and none are left in the executable.
     exe.write_object_file(m_exe_file);
 }
 
@@ -353,11 +353,6 @@ ObjectFile Linker::new_executable() const
     return exe;
 }
 
-/// The sections of the object files are put one after another, in the order of the object files.
-/// A section of an object file starts at a multiple of its alignment (what `.align` asked for), so
-/// that the offsets that it was assembled with stay aligned. The merged section has the largest
-/// alignment.
-/// Returns where each object file's sections start within the merged ones.
 std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
 {
     const auto alignment_of = [](const ObjectFile &obj, const char *section)
@@ -438,8 +433,6 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
     return bases;
 }
 
-/// Gives the sections their addresses according to the linker script. A section that the script
-/// does not give an address follows the previous one. Returns the address of each section.
 Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
 {
     struct Placed
@@ -592,9 +585,6 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
     return addresses;
 }
 
-/// `__init_array_start`, `__init_array_end`, `__fini_array_start` and `__fini_array_end` are the
-/// bounds of the two arrays, for the startup code that calls what is in them. A symbol with that name
-/// that the program defines itself is left alone, one that it only refers to gets the value.
 void Linker::define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const
 {
     const auto define = [&](const char *name, size_t k, bool end)
@@ -623,9 +613,6 @@ void Linker::define_array_symbols(ObjectFile &exe, const SectionBase &addresses)
     define("__fini_array_end", 3, true);
 }
 
-/// Puts the symbols of all object files into the symbol table of the executable, with the final
-/// addresses. A symbol of one object file is the same symbol of another by name, unless it is local.
-/// Returns, for each object file, the executable's symbol for each of its symbols.
 std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                                                      const std::vector<SectionBase> &bases,
                                                      const SectionBase &addresses) const
@@ -716,8 +703,6 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
     return maps;
 }
 
-/// The loader starts the program at _start. ENTRY(symbol) makes `symbol` the entry point by
-/// aliasing _start to it.
 void Linker::define_entry(ObjectFile &exe) const
 {
     const auto defined = [&](const std::string &name)
@@ -747,8 +732,6 @@ void Linker::define_entry(ObjectFile &exe) const
                m_entry_symbol);
 }
 
-/// Every section has its final address by now, so each relocation is resolved here and the
-/// executable needs none at load time.
 void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                       const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const
 {

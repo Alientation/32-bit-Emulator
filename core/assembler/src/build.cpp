@@ -42,65 +42,72 @@ Build::Build(const std::string &assembler_args) :
 {
 }
 
-/**
- * @brief Constructs a build from the specified arguments.
- *
- * @param args the arguments, one for each element
- */
 Build::Build(const std::vector<std::string> &args)
 {
     AEMU_INFO("Build: {} argument(s).", args.size());
     AEMU_INFO("Current Working Directory: {}", std::filesystem::current_path().string());
 
     flags = {
-        {"--", &Build::_ignore},  /* Treats everything after as a regular argument */
+        // Treats everything after as a regular argument.
+        {"--", &Build::_ignore},
 
-        {"-v", &Build::_version}, /* Prints version of assembler */
+        // Prints the version of the assembler.
+        {"-v", &Build::_version},
         {"--version", &Build::_version},
 
-        {"-ar", &Build::_ar},     /* Instead of building an executable, create a collection of
-                                                                            object files and package into a single library file (.ba) */
+        // Instead of building an executable, packages the object files into a library (.ba).
+        {"-ar", &Build::_ar},
         {"--archive", &Build::_ar},
 
-        {"-c", &Build::_compile}, /* Only compiles the src code files into object files */
+        // Only compiles the source files into object files.
+        {"-c", &Build::_compile},
         {"--compile", &Build::_compile},
 
-        {"-o",
-         &Build::
-             _output}, /* Path to output file (executable for builds, library files for makelib) */
+        // Path to the output file (the executable, or the library with -ar).
+        {"-o", &Build::_output},
         {"--output", &Build::_output},
 
-        {"-outdir", &Build::_outdir},     /* Directory where all object files will be stored */
+        // Directory where all object files are stored.
+        {"-outdir", &Build::_outdir},
 
-        {"-W", &Build::_warn},            /* Turns on warning level *unimplemented* */
+        // Makes a warning type an error (-W error).
+        {"-W", &Build::_warn},
         {"--warning", &Build::_warn},
 
-        {"-wall", &Build::_warn_all},     /* Highest warning level *unimplemented* */
+        // Turns on every warning type.
+        {"-wall", &Build::_warn_all},
 
-        {"-I", &Build::_include},         /* Adds directory to search for system files */
+        // Adds a directory to search for included files.
+        {"-I", &Build::_include},
         {"--include", &Build::_include},
 
-        {"-l", &Build::_library},         /* Links given library file to program */
+        // Links the given library file into the program.
+        {"-l", &Build::_library},
         {"--library", &Build::_library},
 
-        {"-L",
-         &Build::_library_directory}, /* Searches for all libraries in given directory and links */
+        // Links every library in the given directory.
+        {"-L", &Build::_library_directory},
         {"--librarydir", &Build::_library_directory},
 
-        {"-D", &Build::_preprocessor_flag},         /* Passes preprocessor flags into the program */
+        // Defines a preprocessor symbol, as if the source began with `#define name value`.
+        {"-D", &Build::_preprocessor_flag},
 
-        {"-kp", &Build::_keep_preprocessor_output}, /* Don't delete intermediate files */
+        // Keeps the preprocessed text of each source in a .bi file.
+        {"-kp", &Build::_keep_preprocessor_output},
 
-        {"-ld", &Build::_ld},     /* Linker script to use instead of the default one */
+        // Linker script to use instead of the default layout.
+        {"-ld", &Build::_ld},
         {"--linker-script", &Build::_ld},
 
-        {"-dump", &Build::_dump}, /* Print a listing of every object file and the executable */
+        // Prints a listing of every object file and the executable.
+        {"-dump", &Build::_dump},
 
-        {"-h", &Build::_help},    /* Display options */
+        // Displays the options.
+        {"-h", &Build::_help},
         {"--help", &Build::_help},
 
-        // todo -E only run preprocessor
-        // todo -C keep comments in preprocessed output
+        // TODO: -E only runs the preprocessor.
+        // TODO: -C keeps comments in the preprocessed output.
     };
 
     std::vector<std::string> args_list = args;
@@ -181,11 +188,6 @@ std::vector<std::string> Build::split_args(const std::string &line)
     return args;
 }
 
-/**
- * @brief Processes the arguments. This is an internal function.
- *
- * @param args_list the list of arguments to process
- */
 void Build::evaluate_args(std::vector<std::string> &args_list)
 {
     // evaluate arguments
@@ -202,7 +204,7 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
 
             (this->*flags[arg])(args_list, i);
 
-            /* --help and --version print and stop, whatever follows is not looked at */
+            // --help and --version print and stop, whatever follows is not looked at
             if (!m_has_work) return;
         }
         else
@@ -221,10 +223,6 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
     }
 }
 
-/**
- * @brief
- *
- */
 void Build::build()
 {
     if (m_src_files.size() == 0) AEMU_FATAL("ERROR: missing source files to assemble");
@@ -241,7 +239,7 @@ void Build::build()
         return;
     }
 
-    /* Only compiles object files */
+    // Only compiles object files
     if (m_only_compile) return;
     link();
 
@@ -253,10 +251,6 @@ void Build::dump(const std::vector<File> &files)
     for (const File &file : files) ObjectFile(file).print();
 }
 
-/**
- * @brief
- *
- */
 void Build::preprocess()
 {
     m_processed_files.clear();
@@ -278,10 +272,6 @@ void Build::preprocess()
     }
 }
 
-/**
- * @brief
- *
- */
 void Build::assemble()
 {
     m_obj_files.clear();
@@ -303,14 +293,10 @@ void Build::assemble()
     }
 }
 
-/**
- * @brief
- *
- */
 void Build::link()
 {
-    /* The members of the libraries that are listed, and of the ones found in the directories. A
-       library is read once, however many times it is listed. */
+    // The members of the libraries that are listed, and of the ones found in the directories. A
+    //       library is read once, however many times it is listed.
     std::vector<LibraryMember> members;
     std::set<std::string> read;
     const auto add_library = [&](const File &lib)
@@ -335,7 +321,7 @@ void Build::link()
         }
     }
 
-    /* Of those, the ones that the program uses. */
+    // Of those, the ones that the program uses.
     std::vector<ObjectFile> objects = select_library_members(m_objects, members);
 
     m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
@@ -346,12 +332,6 @@ void Build::link()
     linker.link();
 }
 
-/**
- * @brief
- *
- * @param args
- * @param index
- */
 void Build::_ignore(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -359,14 +339,6 @@ void Build::_ignore(std::vector<std::string> &args, size_t &index)
     m_parse_options = false;
 }
 
-/**
- * @brief Prints out the version of the assembler
- *
- * USAGE: -v, -version
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_version(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -376,12 +348,6 @@ void Build::_version(std::vector<std::string> &args, size_t &index)
     m_has_work = false;
 }
 
-/**
- * @brief
- *
- * @param args
- * @param index
- */
 void Build::_ar(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -390,14 +356,6 @@ void Build::_ar(std::vector<std::string> &args, size_t &index)
     m_make_lib = true;
 }
 
-/**
- * @brief Compiles the source code files to object files and stops
- *
- * USAGE: -c, -compile
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_compile(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -406,14 +364,6 @@ void Build::_compile(std::vector<std::string> &args, size_t &index)
     m_only_compile = true;
 }
 
-/**
- * @brief Sets the output file
- *
- * USAGE: -o, -output [filename]
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_output(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_output() - Missing output file path.");
@@ -424,14 +374,6 @@ void Build::_output(std::vector<std::string> &args, size_t &index)
                "Build::_output() - Invalid output file path: '{}'.", m_output_file);
 }
 
-/**
- * @brief Sets the output directory for all object files generated
- *
- * USAGE: -outdir [filename]
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_outdir(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_outdir() - Missing output directory path.");
@@ -442,17 +384,6 @@ void Build::_outdir(std::vector<std::string> &args, size_t &index)
                "Build::_outdir() - Invalid output directory path: '{}'.", m_output_dir);
 }
 
-/**
- * @brief Turns on warning messages
- *
- * USAGE: -w, -warning [type]
- *
- * Warning Types
- * error - turns warnings into errors
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_warn(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_warn() - Missing warning type.");
@@ -464,14 +395,6 @@ void Build::_warn(std::vector<std::string> &args, size_t &index)
     m_enabled_warnings.insert(warning_type);
 }
 
-/**
- * @brief Turns on all warning messages
- *
- * USAGE: -W, -wall
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_warn_all(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -480,14 +403,6 @@ void Build::_warn_all(std::vector<std::string> &args, size_t &index)
     for (std::string warning_type : WARNINGS) m_enabled_warnings.insert(warning_type);
 }
 
-/**
- * @brief Adds directory to the list of system directories to search for included files
- *
- * USAGE: -I, -inc, -include [directory path]
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_include(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_include() - Missing include directory path.");
@@ -499,16 +414,6 @@ void Build::_include(std::vector<std::string> &args, size_t &index)
     m_system_dirs.push_back(Directory(dpath));
 }
 
-/**
- * @brief Adds library to be linked with the compiled object files
- *
- * USAGE: -l, -lib, -library [library name].ba
- *
- * Specifically, it links to the static library [library name].ba
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_library(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_library() - Missing library file path.");
@@ -520,14 +425,6 @@ void Build::_library(std::vector<std::string> &args, size_t &index)
     m_linked_lib.push_back(File(fpath));
 }
 
-/**
- * @brief Adds directory to the list of directories to search for static libraries
- *
- * USAGE: -L, -libdir, -librarydir [directory path]
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_library_directory(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(),
@@ -540,14 +437,6 @@ void Build::_library_directory(std::vector<std::string> &args, size_t &index)
     m_library_dirs.push_back(Directory(dpath));
 }
 
-/**
- * @brief Adds a preprocessor flag
- *
- * USAGE: -D [flag name?=value]
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(), "Build::_preprocessorFlag() - Missing preprocessor flag.");
@@ -565,14 +454,6 @@ void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
     m_preprocessor_flags[flag] = value;
 }
 
-/**
- * @brief Don't delete processed files after preprocessing
- *
- * USAGE: -kp
- *
- * @param args the arguments passed to the build process
- * @param index the index of the flag in the arguments list
- */
 void Build::_keep_preprocessor_output(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);
@@ -593,11 +474,6 @@ void Build::_ld(std::vector<std::string> &args, size_t &index)
     m_has_ld_file = true;
 }
 
-/**
- * @brief Prints an objdump-style listing of every object file and the linked executable
- *
- * USAGE: -dump
- */
 void Build::_dump(std::vector<std::string> &args, size_t &index)
 {
     UNUSED(args);

@@ -24,9 +24,12 @@ inline constexpr word kIrqLineTimer = 0;
 inline constexpr word kIrqLineConsole = 1;
 inline constexpr word kIrqLineBlock = 2;
 
+/// A device: one page of registers. The reads and writes of the sizes of BaseMemory are mapped
+/// onto the word registers of the subclass.
 class Device : public BaseMemory
 {
   public:
+    /// @param base_address the physical address of the page of registers
     explicit Device(word base_address);
 
     byte read_byte(word address) override;
@@ -40,7 +43,12 @@ class Device : public BaseMemory
     virtual void reset() = 0;
 
   protected:
+    /// @param offset the offset of the register in the page, a multiple of 4
+    /// @return the value of the register
     virtual word read_register(word offset) = 0;
+
+    /// @param offset the offset of the register in the page, a multiple of 4
+    /// @param value the value written to the register
     virtual void write_register(word offset, word value) = 0;
 };
 
@@ -61,18 +69,24 @@ class InterruptController : public Device
     InterruptController();
 
     /// A device raises a line. Lost if the line is not enabled or is in the queue already.
+    ///
+    /// @param line the number of the line, 0-31
     void raise(word line);
 
+    /// @return whether any line is in the queue
     bool has_pending() const
     {
         return !m_queue.empty();
     }
 
-    /// Removes and returns the line at the head, 0xFFFFFFFF if the queue is empty.
+    /// Removes the line at the head of the queue.
+    ///
+    /// @return the line, 0xFFFFFFFF if the queue is empty
     word claim();
 
     void reset() override;
 
+    /// @return the ENABLE register: bit n is set when line n can be raised
     word enable_mask() const
     {
         return m_enable;
@@ -100,6 +114,7 @@ class InterruptController : public Device
 class Timer : public Device
 {
   public:
+    /// @param intc the controller that gets the interrupt
     explicit Timer(InterruptController &intc);
 
     /// One instruction retired.
@@ -112,14 +127,19 @@ class Timer : public Device
         }
     }
 
-    /// For WFI: the number of instructions until the timer raises its interrupt, if it is going to.
+    /// For WFI: how long until the timer raises its interrupt.
+    ///
+    /// @return the number of instructions, or nothing if it is not going to
     std::optional<word> cycles_until_event() const;
 
-    /// For WFI: `count` instructions pass at once (no more than cycles_until_event()).
+    /// For WFI: `count` instructions pass at once.
+    ///
+    /// @param count the number of instructions, no more than cycles_until_event()
     void advance(word count);
 
     void reset() override;
 
+    /// @return the COUNT register: the instructions since reset
     word count() const
     {
         return m_count;
@@ -133,6 +153,8 @@ class Timer : public Device
     void write_register(word offset, word value) override;
 
   private:
+    /// The count reached COMPARE: raises the interrupt, then sets the next COMPARE if the timer is
+    /// periodic and disables it otherwise.
     void fire();
 
     InterruptController &m_intc;
@@ -152,15 +174,20 @@ class Timer : public Device
 class Console : public Device
 {
   public:
+    /// @param intc the controller that gets the interrupt
     explicit Console(InterruptController &intc);
 
-    /// Where the bytes written go. The stream must outlive the console. The default is std::cout,
-    /// null discards them.
+    /// Where the bytes written go. The default is std::cout.
+    ///
+    /// @param out the stream, which must outlive the console, or null to discard the bytes
     void set_output(std::ostream *out);
 
     /// Queues bytes as received input.
+    ///
+    /// @param bytes the bytes to receive
     void push_input(const std::string &bytes);
 
+    /// @return whether a received byte is waiting to be read
     bool input_waiting() const
     {
         return !m_input.empty();
@@ -200,41 +227,55 @@ class Console : public Device
 /// A command given while busy is ignored and sets error. A sector outside of the disk completes with
 /// error and changes nothing. So does a DMA transfer with a count of 0, an address that is not word
 /// aligned, or a range that is not all in RAM. The data is moved when the command completes, so the
-/// RAM buffer must stay in place and unchanged until then (DMA write reads it at that moment). The contents of the disk survive a reset; they are in memory, or in a
-/// file the host gave (`open_file`) that FLUSH, `save` and destroying the machine write.
+/// RAM buffer must stay in place and unchanged until then (DMA write reads it at that moment). The
+/// contents of the disk survive a reset; they are in memory, or in a file the host gave
+/// (`open_file`) that FLUSH, `save` and destroying the machine write.
 class BlockDevice : public Device
 {
   public:
+    /// The size of a sector in bytes.
     static constexpr word kSectorSize = 512;
 
+    /// The bits of STATUS.
     static constexpr word kBusy = 1;
     static constexpr word kDone = 2;
     static constexpr word kError = 4;
 
+    /// The commands.
     static constexpr word kCmdRead = 1;
     static constexpr word kCmdWrite = 2;
     static constexpr word kCmdFlush = 3;
     static constexpr word kCmdDmaRead = 4;
     static constexpr word kCmdDmaWrite = 5;
 
+    /// @param intc the controller that gets the interrupt
     explicit BlockDevice(InterruptController &intc);
 
-    /// The memory that DMA reads and writes (the RAM, by physical address). Not owned. Without it,
-    /// every DMA command fails.
+    /// The memory that DMA reads and writes (the RAM, by physical address). Without it, every DMA
+    /// command fails.
+    ///
+    /// @param memory the memory, which is not owned
     void set_dma_memory(BaseMemory *memory)
     {
         m_dma_memory = memory;
     }
 
-    /// A disk in memory of this many sectors, all zeros.
+    /// Makes a disk in memory of zeros.
+    ///
+    /// @param sectors the number of sectors
     void set_capacity(word sectors);
 
     /// A disk kept in the file. A file that exists is read (its size, rounded up to sectors, is the
     /// capacity unless `sectors` is more); one that does not is made with `sectors` sectors.
-    /// Returns false if the file cannot be read.
+    ///
+    /// @param path the file
+    /// @param sectors the minimum number of sectors
+    /// @return false if the file cannot be read
     bool open_file(const std::string &path, word sectors = 0);
 
-    /// Writes the disk to its file, if it has one. Returns false on an error.
+    /// Writes the disk to its file, if it has one.
+    ///
+    /// @return false on an error
     bool save();
 
     /// One instruction retired.
@@ -249,15 +290,23 @@ class BlockDevice : public Device
         }
     }
 
-    /// For WFI: the number of instructions until the command in progress completes.
+    /// For WFI: how long until the command in progress completes.
+    ///
+    /// @return the number of instructions, or nothing if no command is in progress
     std::optional<word> cycles_until_event() const;
 
-    /// For WFI: `count` instructions pass at once (no more than cycles_until_event()).
+    /// For WFI: `count` instructions pass at once.
+    ///
+    /// @param count the number of instructions, no more than cycles_until_event()
     void advance(word count);
 
+    /// A power cycle of the controller: the contents of the disk stay.
     void reset() override;
 
     /// For tests: the bytes of a sector.
+    ///
+    /// @param number the sector number
+    /// @return the 512 bytes of the sector
     std::vector<byte> sector(word number) const;
 
   protected:
@@ -265,8 +314,22 @@ class BlockDevice : public Device
     void write_register(word offset, word value) override;
 
   private:
+    /// Takes a command: it is rejected with the error bit when one is in progress or the number
+    /// is not a command, otherwise it becomes busy for LATENCY instructions (for each sector, for
+    /// DMA).
+    ///
+    /// @param command the number written to COMMAND
     void start(word command);
+
+    /// Moves the sectors of the DMA command between the disk and RAM. Nothing is moved unless all
+    /// of it fits on both sides.
+    ///
+    /// @param to_disk true to copy from RAM to the disk, false for the other way
+    /// @return false if the transfer is not valid
     bool transfer(bool to_disk);
+
+    /// Finishes the command: does its work, sets done (and error if it failed) and raises the
+    /// interrupt if that is enabled.
     void complete();
 
     InterruptController &m_intc;

@@ -25,8 +25,6 @@ void Emulator32bit::set_error_output(std::ostream &err)
     m_err = &err;
 }
 
-// The value of the size bytes at the address, the most significant byte being the last one in memory
-// for a little endian value and the first one for a big endian value.
 word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
 {
     if (size == 0 || size > sizeof(word))
@@ -140,7 +138,6 @@ void Emulator32bit::_emu_log(word str)
     *m_out << _emu_read_string(str) << "\n";
 }
 
-// TODO: raise interrupt so kernel can handle
 void Emulator32bit::_emu_err(word err)
 {
     const std::string message = _emu_read_string(err);
@@ -148,41 +145,39 @@ void Emulator32bit::_emu_err(word err)
     throw Exception(InterruptType::PROGRAM_ERROR, "The program reported an error: " + message);
 }
 
-/**
- * @brief                   `swi <imm22>`. With a vector table (VBAR != 0) it raises the supervisor
- *                          call exception, except `swi 1`, which is an emulator call. Without one,
- *                          `swi` and `swi 1` are emulator calls (see docs/exceptions.md).
- *
- *                          The emulator calls: the number of the call is in the register
- *                          SYSCALL (x8), the arguments in x0-x4.
- *
- *                          In future, we need a vector table that contains various jump instructions
- *                          to handle various exceptions, and the system calls of an operating
- *                          system (https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit)
- *                          would be implemented in the kernel, not here. That needs a linker script
- *                          that places the kernel at a fixed address, which exists now.
- *
- * | ID   | NAME         | x0               | x1            | x2              | x3        | x4        |
- * |------|--------------|------------------|---------------|-----------------|-----------|-----------|
- * | 1000 | emu_print    |                  |               |                 |           |           |
- * | 1001 | emu_printr   | byte reg_id      |               |                 |           |           |
- * | 1002 | emu_printm   | word mem_addr    | byte size     | bool little_end |           |           |
- * | 1003 | emu_printp   |                  |               |                 |           |           |
- * | 1010 | emu_assertr  | byte reg_id      | word min      | word max        |           |           |
- * | 1011 | emu_assertm  | word mem_addr    | byte size     | bool little_end | word min  | word max  |
- * | 1012 | emu_assertp  | byte p_state_id  | bool expected |                 |           |           |
- * | 1020 | emu_log      | char *str        |               |                 |           |           |
- * | 1021 | emu_error    | char *str        |               |                 |           |           |
- *
- *  - emu_print prints the registers, emu_printr one register, emu_printm a value of 1 to 4 bytes in
- *    memory and emu_printp the flags.
- *  - The assertions stop the program with a fault when the value is not within the bounds (or the
- *    flag is not the expected one).
- *  - emu_log prints a message, and emu_error prints it to the error output and stops the program
- *    with a fault.
- *  - Output goes to the streams set with set_output () and set_error_output (), by default
- *    std::cout and std::cerr.
- */
+/// `swi <imm22>`. With a vector table (VBAR != 0) it raises the supervisor
+/// call exception, except `swi 1`, which is an emulator call. Without one,
+/// `swi` and `swi 1` are emulator calls (see docs/exceptions.md).
+///
+/// The emulator calls: the number of the call is in the register
+/// SYSCALL (x8), the arguments in x0-x4.
+///
+/// In future, we need a vector table that contains various jump instructions
+/// to handle various exceptions, and the system calls of an operating
+/// system (https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit)
+/// would be implemented in the kernel, not here. That needs a linker script
+/// that places the kernel at a fixed address, which exists now.
+///
+/// | ID   | NAME         | x0               | x1            | x2              | x3        | x4        |
+/// |------|--------------|------------------|---------------|-----------------|-----------|-----------|
+/// | 1000 | emu_print    |                  |               |                 |           |           |
+/// | 1001 | emu_printr   | byte reg_id      |               |                 |           |           |
+/// | 1002 | emu_printm   | word mem_addr    | byte size     | bool little_end |           |           |
+/// | 1003 | emu_printp   |                  |               |                 |           |           |
+/// | 1010 | emu_assertr  | byte reg_id      | word min      | word max        |           |           |
+/// | 1011 | emu_assertm  | word mem_addr    | byte size     | bool little_end | word min  | word max  |
+/// | 1012 | emu_assertp  | byte p_state_id  | bool expected |                 |           |           |
+/// | 1020 | emu_log      | char *str        |               |                 |           |           |
+/// | 1021 | emu_error    | char *str        |               |                 |           |           |
+///
+/// - emu_print prints the registers, emu_printr one register, emu_printm a value of 1 to 4 bytes in
+/// memory and emu_printp the flags.
+/// - The assertions stop the program with a fault when the value is not within the bounds (or the
+/// flag is not the expected one).
+/// - emu_log prints a message, and emu_error prints it to the error output and stops the program
+/// with a fault.
+/// - Output goes to the streams set with set_output () and set_error_output (), by default
+/// std::cout and std::cerr.
 void Emulator32bit::_swi(word instr)
 {
     byte cond = bitfield_unsigned<22, 4>(instr);

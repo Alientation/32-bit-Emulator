@@ -3,7 +3,7 @@
 
 TEST(emulator_test, emulator32bit_util_test)
 {
-    /* Test test_bit and set_bit. */
+    // Test test_bit and set_bit.
     {
         constexpr dword kOnes = ~0;
         constexpr dword kZeros = 0;
@@ -63,7 +63,7 @@ TEST(emulator_test, emulator32bit_util_test)
         }
     }
 
-    /* Test bitfield_u32 and bitfield_s32. */
+    // Test bitfield_u32 and bitfield_s32.
     {
         constexpr dword value = 0b111100001010010111000011111100001010010111000011;
         for (U8 bit = 0; bit < kNumByteBits; bit++)
@@ -123,7 +123,7 @@ TEST(emulator_test, emulator32bit_util_test)
         EXPECT_EQ(bitfield_signed(value, 0, 7), dword(~0b0111100));
     }
 
-    /* Test zero_bits. */
+    // Test zero_bits.
     {
         EXPECT_EQ(zero_bits(byte(0x12), 0, 4), 0x10);
         EXPECT_EQ(zero_bits(byte(0x12), 4, 4), 0x02);

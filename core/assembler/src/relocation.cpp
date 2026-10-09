@@ -14,7 +14,7 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
         return zero_bits<0, 14>(instr) + bitfield_unsigned<0, 12>(target);
     case Type::R_EMU32_ADRP_HI20:
     {
-        /* adrp is relative to the page of the instruction itself */
+        // adrp is relative to the page of the instruction itself
         const int pages = int(target >> 12) - int(instr_address >> 12);
         word patched = zero_bits<0, 20>(instr) + bitfield_unsigned<0, 20>(pages);
         if ((pages >> 20) & 1)
@@ -25,7 +25,7 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
     }
     case Type::R_EMU32_ADR_PCREL21:
     {
-        /* the distance in bytes from the adr itself */
+        // the distance in bytes from the adr itself
         const int64_t distance = int64_t(sword(target)) - int64_t(sword(instr_address));
         AEMU_CHECK(distance >= -(1 << 20) && distance < (1 << 20),
                    "apply_relocation() - adr at {:#x} cannot reach {:#x}, the distance does not "
@@ -48,7 +48,7 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
                    "apply_relocation() - Expected the branch target to be 4 byte aligned. Got {}",
                    target);
 
-        /* offset in words, relative to the branch instruction itself */
+        // offset in words, relative to the branch instruction itself
         const sword delta_words = (sword(target) - sword(instr_address)) / 4;
         AEMU_CHECK(delta_words >= -(1 << 21) && delta_words < (1 << 21),
                    "apply_relocation() - Branch at {:#x} cannot reach {:#x}, the offset does not "
@@ -57,7 +57,7 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
         return zero_bits<0, 22>(instr) + bitfield_unsigned<0, 22>(delta_words);
     }
     case Type::R_EMU32_ABS32:
-        /* The word is the address, plus what was in the word. */
+        // The word is the address, plus what was in the word.
         return instr + target;
     case Type::UNDEFINED:
         break;

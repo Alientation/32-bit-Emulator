@@ -52,12 +52,6 @@ std::string trim_dir_path(const std::string &str)
     return res;
 }
 
-/**
- * Constructs a file object with the given file name and directory.
- *
- * @param name the name of the file
- * @param dir the directory of the file
- */
 File::File(const std::string &name, const std::string &extension, const std::string &dir,
            bool create_if_not_present) :
     m_name(name),
@@ -91,11 +85,6 @@ File::File(const std::string &name, const std::string &extension, const std::str
     }
 }
 
-/**
- * Constructs a file object with the given file path.
- *
- * @param path the path of the file
- */
 File::File(const std::string &path, bool create_if_not_present)
 {
     std::size_t extension_separator_index = path.find_last_of(".");
@@ -136,31 +125,16 @@ File::File() :
 {
 }
 
-/**
- * Returns the name of the file
- *
- * @return the name of the file
- */
 std::string File::get_name() const
 {
     return m_name;
 }
 
-/**
- * Returns the extension of the file
- *
- * @return the extension of the file
- */
 std::string File::get_extension() const
 {
     return m_extension;
 }
 
-/**
- * Returns the path of the file
- *
- * @return the path of the file
- */
 std::string File::get_path() const
 {
     if (m_dir.size() == 0)
@@ -175,42 +149,21 @@ std::string File::get_abs_path() const
     return std::filesystem::absolute(get_path()).string();
 }
 
-/**
- * Returns the directory of the file
- *
- * @return the directory of the file
- */
 std::string File::get_dir_str() const
 {
     return m_dir;
 }
 
-/**
- * Gets the size of the file in bytes
- *
- * @throw
- * @return the size of the file in bytes
- */
 int File::get_size() const
 {
     return std::filesystem::file_size(this->get_path());
 }
 
-/**
- * Returns true if the file exists
- *
- * @return true if the file exists
- */
 bool File::exists() const
 {
     return std::filesystem::exists(this->get_path());
 }
 
-/**
- * Creates the file
- *
- * @return true if successful.
- */
 bool File::create()
 {
     std::filesystem::path fs_path(get_path());
@@ -233,11 +186,6 @@ bool File::create()
     return true;
 }
 
-/**
- * Clear the file.
- *
- * @return true if successful.
- */
 bool File::clear()
 {
     std::ofstream ofs;
@@ -252,11 +200,6 @@ bool File::clear()
     return true;
 }
 
-/**
- * Constructs a file writer object with the given file
- *
- * @param file the file to write to
- */
 FileWriter::FileWriter(const File &file) :
     m_file(file)
 {
@@ -281,9 +224,6 @@ FileWriter::FileWriter(const File &file, std::_Ios_Openmode flags) :
     }
 }
 
-/**
- * Destructs a file writer object
- */
 FileWriter::~FileWriter()
 {
     this->close();
@@ -307,11 +247,6 @@ FileWriter &FileWriter::operator<<(const char *str)
     return *this;
 }
 
-/**
- * Writes a string to the file
- *
- * @param text the string to write
- */
 void FileWriter::write(const std::string text)
 {
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
@@ -348,12 +283,6 @@ ByteWriter::ByteWriter(FileWriter &filewriter) :
 {
 }
 
-/**
- * @brief                     Writes sequence of bytes in little endian order
- *
- * @param                     data: contains bytes to write and length
- * @return                     reference to byte writer
- */
 ByteWriter &ByteWriter::operator<<(Data data)
 {
     for (int i = 0; i < data.num_bytes; i++)
@@ -364,11 +293,6 @@ ByteWriter &ByteWriter::operator<<(Data data)
     return (*this);
 }
 
-/**
- * Writes a byte to the file
- *
- * @param byte the byte to write
- */
 void FileWriter::write(const char byte)
 {
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
@@ -376,11 +300,6 @@ void FileWriter::write(const char byte)
     (*m_file_stream) << byte;
 }
 
-/**
- * Writes a byte array to the file
- *
- * @param bytes the byte array to write
- */
 void FileWriter::write(const char *bytes)
 {
     AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
@@ -395,9 +314,6 @@ void FileWriter::flush()
     m_file_stream->flush();
 }
 
-/**
- * Closes the file writer
- */
 void FileWriter::close()
 {
     if (!m_closed)
@@ -474,11 +390,6 @@ void ByteReader::skip_bytes(int num_bytes)
     m_cur_byte += num_bytes;
 }
 
-/**
- * Constructs a file reader object with the given file
- *
- * @param file the file to read from
- */
 FileReader::FileReader(const File &file) :
     m_file(file)
 {
@@ -503,19 +414,11 @@ FileReader::FileReader(const File &file, std::_Ios_Openmode flags) :
     }
 }
 
-/**
- * Destructs a file reader object
- */
 FileReader::~FileReader()
 {
     this->close();
 }
 
-/**
- * Reads the entire file and returns it as a string
- *
- * @return the entire file as a string
- */
 std::string FileReader::read_all()
 {
     std::string fileContents;
@@ -527,33 +430,17 @@ std::string FileReader::read_all()
     return fileContents;
 }
 
-/**
- * Reads a byte from the file
- *
- * @return the byte read from the file
- */
 char FileReader::read_byte()
 {
     return m_file_stream->get();
     ;
 }
 
-/**
- * Returns the next byte to be read from the file without advancing the file pointer
- *
- * @return the next byte to be read from the file
- */
 char FileReader::peek_byte()
 {
     return m_file_stream->peek();
 }
 
-/**
- * Reads a number of bytes from the file
- *
- * @param num_bytes the number of bytes to read
- * @return the bytes read from the file
- */
 char *FileReader::read_bytes(const unsigned int num_bytes)
 {
     char *bytes = new char[num_bytes];
@@ -568,13 +455,6 @@ char *FileReader::read_bytes(const unsigned int num_bytes)
     return bytes;
 }
 
-/**
- * Reads all bytes from the file till the next token delimiter is encountered
- *
- * @param delimiter the delimiter to stop reading at
- *
- * @return the bytes read from the file
- */
 char *
 FileReader::read_token(const char token_delimiter) // TODO: make this take in a regex separator
 {
@@ -587,19 +467,11 @@ FileReader::read_token(const char token_delimiter) // TODO: make this take in a 
     return (char *) token.c_str();
 }
 
-/**
- * Returns true if there is another byte to read
- *
- * @return true if there is another byte to read
- */
 bool FileReader::has_next_byte()
 {
     return m_file_stream->peek() != EOF;
 }
 
-/**
- * Closes the file reader
- */
 void FileReader::close()
 {
     if (!m_closed)

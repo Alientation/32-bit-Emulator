@@ -323,7 +323,7 @@ static std::string disassemble_nop(word instruction)
     return "nop";
 }
 
-// The name of a system register as the assembler reads it.
+/// The name of a system register as the assembler reads it.
 static std::string disassemble_sysreg(const U8 sysreg)
 {
     const char *name = Emulator32bit::sysreg_name(sysreg);
@@ -722,7 +722,7 @@ static std::string disassemble_blx(word instruction)
     return disassemble_format_b2(instruction, "blx");
 }
 
-// The 22 bit field is a number, not an offset.
+/// The 22 bit field is a number, not an offset.
 static std::string disassemble_swi(word instruction)
 {
     std::string disassemble = "swi";
@@ -744,7 +744,7 @@ static std::string disassemble_sdiv(word instruction)
     return disassemble_format_o(instruction, "sdiv");
 }
 
-// The aliases are shown the way they are written: `cset x0, lt` is `csinc x0, xzr, xzr, ge`.
+/// The aliases are shown the way they are written: `cset x0, lt` is `csinc x0, xzr, xzr, ge`.
 static std::string disassemble_csel(word instruction)
 {
     const U8 cond_bits = bitfield_unsigned<22, 4>(instruction);

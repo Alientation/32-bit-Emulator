@@ -576,9 +576,6 @@ void Debugger::command_history()
     }
 }
 
-// Frame 0 is the pc. Every function keeps a frame record at x28 (docs/abi.md): the caller's x28 in
-// the lower word and the return address in the upper one. The record of a function does not exist
-// yet at its first instruction, where the return address is still in the link register.
 void Debugger::command_backtrace()
 {
     constexpr size_t kMaxFrames = 64;

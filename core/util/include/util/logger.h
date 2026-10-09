@@ -1,55 +1,53 @@
 #pragma once
 
-/**
- * @file logger_v2.h
- * @brief Header-only logger. Replaces util/logger.h + util/logger.cpp.
- *
- * Design goals
- *  - Configured at RUNTIME (API calls or the AEMU_LOG_LEVEL environment variable), never through
- *    per-file #defines. Including this header from another header cannot change the behavior of
- *    anything downstream, and every translation unit sees identical inline function bodies
- *    (no ODR violations).
- *  - Log lines go to stderr, so stdout stays clean for program output (e.g. `emu32` state dumps).
- *  - Format strings are checked at compile time (std::format_string). A bad format string or a
- *    printf style "%u" with arguments is a compile error or is printed literally, not a
- *    runtime std::format_error.
- *  - Macro names are prefixed with AEMU_ so they cannot collide with gtest (EXPECT_TRUE), syslog
- *    (LOG_DEBUG), Windows (ERROR) or other libraries (DEBUG).
- *  - Arguments are only evaluated and formatted when the message will actually be emitted.
- *  - Thread safe. Each message is formatted first and then written under a lock.
- *
- * Quick reference
- *
- *   AEMU_DEBUG("loaded {} pages", n);       // level Debug
- *   AEMU_INFO(...);                         // level Info
- *   AEMU_WARN(...);                         // level Warn
- *   AEMU_ERROR(...);                        // level Error, NOT fatal, execution continues
- *   AEMU_FATAL(...);                        // logs, then terminates (see FatalAction)
- *   AEMU_CHECK(cond, "msg {}", x);          // always on. Fatal if cond is false
- *   AEMU_DCHECK(cond, "msg {}", x);         // like AEMU_CHECK but compiled out when NDEBUG is set
- *   AEMU_SCOPED_TIMER("assemble");          // logs the scope's duration at Debug level
- *
- * Runtime configuration (all in namespace aemu::log)
- *
- *   set_level(Level::Debug);                // or env AEMU_LOG_LEVEL=debug|info|warn|error|fatal|off
- *   set_fatal_action(FatalAction::Throw);   // Exit (default), Abort or Throw (FatalError)
- *   set_color(false); set_timestamps(true);
- *   set_sink([](const Record &r) { ... });  // redirect output, e.g. to a file (see below)
- *   ScopedLevel / ScopedFatalAction         // RAII helpers, handy in unit tests
- *
- * Writing logs to a file does not need dedicated machinery. A sink is enough:
- *
- *   static std::ofstream file("aemu.log");
- *   aemu::log::set_sink([](const aemu::log::Record &r)
- *                       { file << aemu::log::to_string(r.level) << ' ' << r.message << '\n'; });
- *
- * The one compile time knob, AEMU_LOG_COMPILE_LEVEL, removes call sites below a level from the
- * binary entirely. It is intended to be set once for the whole build (target_compile_definitions
- * on every target), NEVER in a source or header file. Leave it at 0 unless profiling says the
- * runtime level check matters. It is a single relaxed atomic load and a branch.
- *
- * Requires C++20 (<format>, <source_location>).
- */
+/// @file logger.h
+/// @brief Header-only logger.
+///
+/// Design goals
+/// - Configured at RUNTIME (API calls or the AEMU_LOG_LEVEL environment variable), never through
+/// per-file #defines. Including this header from another header cannot change the behavior of
+/// anything downstream, and every translation unit sees identical inline function bodies
+/// (no ODR violations).
+/// - Log lines go to stderr, so stdout stays clean for program output (e.g. `emu32` state dumps).
+/// - Format strings are checked at compile time (std::format_string). A bad format string or a
+/// printf style "%u" with arguments is a compile error or is printed literally, not a
+/// runtime std::format_error.
+/// - Macro names are prefixed with AEMU_ so they cannot collide with gtest (EXPECT_TRUE), syslog
+/// (LOG_DEBUG), Windows (ERROR) or other libraries (DEBUG).
+/// - Arguments are only evaluated and formatted when the message will actually be emitted.
+/// - Thread safe. Each message is formatted first and then written under a lock.
+///
+/// Quick reference
+///
+/// AEMU_DEBUG("loaded {} pages", n);       // level Debug
+/// AEMU_INFO(...);                         // level Info
+/// AEMU_WARN(...);                         // level Warn
+/// AEMU_ERROR(...);                        // level Error, NOT fatal, execution continues
+/// AEMU_FATAL(...);                        // logs, then terminates (see FatalAction)
+/// AEMU_CHECK(cond, "msg {}", x);          // always on. Fatal if cond is false
+/// AEMU_DCHECK(cond, "msg {}", x);         // like AEMU_CHECK but compiled out when NDEBUG is set
+/// AEMU_SCOPED_TIMER("assemble");          // logs the scope's duration at Debug level
+///
+/// Runtime configuration (all in namespace aemu::log)
+///
+/// set_level(Level::Debug);                // or env AEMU_LOG_LEVEL=debug|info|warn|error|fatal|off
+/// set_fatal_action(FatalAction::Throw);   // Exit (default), Abort or Throw (FatalError)
+/// set_color(false); set_timestamps(true);
+/// set_sink([](const Record &r) { ... });  // redirect output, e.g. to a file (see below)
+/// ScopedLevel / ScopedFatalAction         // RAII helpers, handy in unit tests
+///
+/// Writing logs to a file does not need dedicated machinery. A sink is enough:
+///
+/// static std::ofstream file("aemu.log");
+/// aemu::log::set_sink([](const aemu::log::Record &r)
+/// { file << aemu::log::to_string(r.level) << ' ' << r.message << '\n'; });
+///
+/// The one compile time knob, AEMU_LOG_COMPILE_LEVEL, removes call sites below a level from the
+/// binary entirely. It is intended to be set once for the whole build (target_compile_definitions
+/// on every target), NEVER in a source or header file. Leave it at 0 unless profiling says the
+/// runtime level check matters. It is a single relaxed atomic load and a branch.
+///
+/// Requires C++20 (<format>, <source_location>).
 
 #include "util/console_color.h"
 
@@ -311,6 +309,7 @@ inline Level get_level()
     return detail::state().level.load(std::memory_order_relaxed);
 }
 
+/// Sets the minimum level that is emitted.
 inline void set_level(Level level)
 {
     detail::state().level.store(level);
@@ -322,11 +321,13 @@ inline bool enabled(Level level)
     return level >= get_level();
 }
 
+/// What AEMU_FATAL and AEMU_CHECK do after logging: end the process or throw FatalError.
 inline FatalAction get_fatal_action()
 {
     return detail::state().fatal_action.load();
 }
 
+/// Chooses what AEMU_FATAL and AEMU_CHECK do after logging.
 inline void set_fatal_action(FatalAction action)
 {
     detail::state().fatal_action.store(action);
@@ -352,6 +353,7 @@ inline void set_sink(Sink sink)
     s.sink = std::move(sink);
 }
 
+/// Restores the default stderr output.
 inline void reset_sink()
 {
     set_sink(nullptr);

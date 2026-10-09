@@ -156,7 +156,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
     AEMU_DEBUG("ObjectFile::disassemble() - Disassembling");
     ByteReader reader(bytes);
 
-    /* BELF Header */
+    // BELF Header
     AEMU_DEBUG("ObjectFile::disassemble() - Reading BELF Header");
     if (bytes.size() < kBELFHeaderSize + 8)
     {
@@ -165,7 +165,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
         return;
     }
 
-    byte expected[4] = {'B', 'E', 'L', 'F'}; /* 0-3 */
+    byte expected[4] = {'B', 'E', 'L', 'F'}; // 0-3
     for (unsigned long long i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
     {
         if (expected[i] != reader.read_byte())
@@ -175,17 +175,17 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             return;
         }
     }
-    reader.skip_bytes(12);                /* 4-15 */
-    file_type = reader.read_hword();      /* 16-17 */
-    target_machine = reader.read_hword(); /* 18-19 */
-    flags = reader.read_hword();          /* 20-21 */
-    n_sections = reader.read_hword();     /* 22-23 */
+    reader.skip_bytes(12); // 4-15
+    file_type = reader.read_hword(); // 16-17
+    target_machine = reader.read_hword(); // 18-19
+    flags = reader.read_hword(); // 20-21
+    n_sections = reader.read_hword(); // 22-23
 
     AEMU_DEBUG("ObjectFile::disassemble() - Belf Header = (filetype={}, target_machine={}, "
                "flags={}, n_sections={})",
                file_type, target_machine, flags, n_sections);
 
-    /* Section headers */
+    // Section headers
     AEMU_DEBUG("ObjectFile::disassemble() - Reading section headers");
     ByteReader section_headers_reader(bytes);
     ByteReader section_headers_start_reader(bytes);
@@ -206,12 +206,12 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
             .section_name = U32(section_headers_reader.read_dword()),
             .type = (SectionHeader::Type) section_headers_reader.read_word(),
 
-            /* TODO: Why are we reading in dwords and then immediatelly casting to words? */
+            // TODO: Why are we reading in dwords and then immediatelly casting to words?
             .section_start = word(section_headers_reader.read_dword()),
             .section_size = word(section_headers_reader.read_dword()),
             .entry_size = word(section_headers_reader.read_dword()),
 
-            /* TODO: Maybe should store a single bit? instead of wasting a whole byte for this. */
+            // TODO: Maybe should store a single bit? instead of wasting a whole byte for this.
             .load_at_physical_address = (bool) section_headers_reader.read_byte(),
             .address = word(section_headers_reader.read_dword()),
             .alignment = word(section_headers_reader.read_dword()),
@@ -226,7 +226,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
                    section_header.entry_size);
     }
 
-    /* Sections. Each is read from where its header says it is. */
+    // Sections. Each is read from where its header says it is.
     AEMU_DEBUG("ObjectFile::disassemble() - Reading {} sections.", n_sections);
     for (hword section_i = 0; section_i < n_sections; section_i++)
     {
@@ -392,7 +392,7 @@ void ObjectFile::disassemble(std::vector<byte> &bytes)
         }
     }
 
-    /* Fill in section table */
+    // Fill in section table
     AEMU_DEBUG("ObjectFile::disassemble() - Filling in Section table");
     for (size_t i = 0; i < sections.size(); i++)
     {
@@ -597,14 +597,6 @@ std::string ObjectFile::get_symbol_name(U32 symbol)
     return strings.at(symbol_table.at(symbol).symbol_name);
 }
 
-/**
- * @brief                     Adds a symbol to the symbol table
- *
- * @param symbol             symbol string
- * @param value             value of the symbol if it is defined
- * @param binding_info         visiblity of the symbol
- * @param section             section it is defined in. -1 if not defined in a section
- */
 void ObjectFile::add_symbol(const std::string &symbol, word value,
                             SymbolTableEntry::BindingInfo binding_info, U32 section)
 {
@@ -663,17 +655,17 @@ void ObjectFile::write_object_file(File obj_file)
     ByteWriter byte_writer(m_writer);
     int current_byte = 0;
 
-    /* BELF Header */
+    // BELF Header
     AEMU_DEBUG("ObjectFile::write_objectFile() - Writing BELF header.");
-    m_writer.write("BELF");                              /* BELF magic number header */
-    byte_writer << ByteWriter::Data(0, 12);              /* Unused padding */
-    byte_writer << ByteWriter::Data(file_type, 2);       /* Object file type */
-    byte_writer << ByteWriter::Data(target_machine, 2);  /* Target machine */
-    byte_writer << ByteWriter::Data(flags, 2);           /* Flags */
-    byte_writer << ByteWriter::Data(sections.size(), 2); /* Number of sections */
+    m_writer.write("BELF"); // BELF magic number header
+    byte_writer << ByteWriter::Data(0, 12); // Unused padding
+    byte_writer << ByteWriter::Data(file_type, 2); // Object file type
+    byte_writer << ByteWriter::Data(target_machine, 2); // Target machine
+    byte_writer << ByteWriter::Data(flags, 2); // Flags
+    byte_writer << ByteWriter::Data(sections.size(), 2); // Number of sections
     current_byte += kBELFHeaderSize;
 
-    /* Text Section */
+    // Text Section
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .text section.");
     for (size_t i = 0; i < text_section.size(); i++)
     {
@@ -683,7 +675,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".text"]].section_start = current_byte;
     current_byte += text_section.size() * 4;
 
-    /* Data, rodata and the arrays of functions */
+    // Data, rodata and the arrays of functions
     for (const ByteSection &section : byte_sections())
     {
         AEMU_DEBUG("ObjectFile::write_object_file() - Writing {} section.", section.name);
@@ -697,7 +689,7 @@ void ObjectFile::write_object_file(File obj_file)
         current_byte += bytes_of_section.size();
     }
 
-    /* BSS Section */
+    // BSS Section
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .bss section. Size {} bytes.",
                bss_section);
     byte_writer << ByteWriter::Data(bss_section, kBSSSectionSize);
@@ -705,7 +697,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".bss"]].section_start = current_byte;
     current_byte += kBSSSectionSize;
 
-    /* Symbol Table */
+    // Symbol Table
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .symtab section.");
     for (const auto &[key, symbol] : symbol_table)
     {
@@ -722,7 +714,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".symtab"]].section_start = current_byte;
     current_byte += symbol_table.size() * kSymbolTableEntrySize;
 
-    /* Relocation sections */
+    // Relocation sections
     const auto write_relocations =
         [&](const char *name, const std::vector<RelocationEntry> &relocations)
     {
@@ -745,7 +737,7 @@ void ObjectFile::write_object_file(File obj_file)
     }
     write_relocations(".rel.bss", rel_bss);
 
-    /* User sections: the bytes and the relocations of each, in the order of their headers. */
+    // User sections: the bytes and the relocations of each, in the order of their headers.
     for (const UserSection &user : user_sections)
     {
         AEMU_DEBUG("ObjectFile::write_object_file() - Writing the section {}.", user.name);
@@ -771,20 +763,20 @@ void ObjectFile::write_object_file(File obj_file)
                           user.relocations);
     }
 
-    /* String Table */
+    // String Table
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing .strtab section.");
     int size = 0;
     for (size_t i = 0; i < strings.size(); i++)
     {
         m_writer.write(strings[i]);
-        byte_writer << ByteWriter::Data(0, 1); /* Null terminated string */
+        byte_writer << ByteWriter::Data(0, 1); // Null terminated string
         size += strings[i].size() + 1;
     }
     sections[section_table[".strtab"]].section_size = size;
     sections[section_table[".strtab"]].section_start = current_byte;
     current_byte += size;
 
-    /* Section headers */
+    // Section headers
     AEMU_DEBUG("ObjectFile::write_object_file() - Writing Section headers.");
     for (size_t i = 0; i < sections.size(); i++)
     {
@@ -798,7 +790,7 @@ void ObjectFile::write_object_file(File obj_file)
         byte_writer << ByteWriter::Data(sections[i].address, 8);
         byte_writer << ByteWriter::Data(sections[i].alignment, 8);
     }
-    /* For easy access */
+    // For easy access
     byte_writer << ByteWriter::Data(current_byte, 8);
     current_byte += 8;
     current_byte += sections.size() * kSectionHeaderSize;

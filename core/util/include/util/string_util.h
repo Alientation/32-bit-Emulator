@@ -6,6 +6,11 @@
 
 namespace string_util
 {
+/// Repeats a string.
+///
+/// @param str the string to repeat
+/// @param times how many copies to concatenate
+/// @return `times` copies of the string
 inline static std::string repeat(std::string str, int times)
 {
     std::string res;
@@ -16,6 +21,12 @@ inline static std::string repeat(std::string str, int times)
     return res;
 }
 
+/// Replaces every occurrence of a pattern. The text that is put in is not searched again.
+///
+/// @param str the string to change
+/// @param pattern the text to replace
+/// @param replacement the text to put in its place
+/// @return the changed string
 inline static std::string replace_all(std::string str, const std::string &pattern,
                                       const std::string &replacement)
 {
@@ -27,6 +38,13 @@ inline static std::string replace_all(std::string str, const std::string &patter
     return str;
 }
 
+/// Replaces `match.length()` characters, from the first position where any character of `match`
+/// occurs, with `replacement`.
+///
+/// @param str the string to change
+/// @param match the characters to look for
+/// @param replacement the text to put in their place
+/// @return the changed string, or the string as it was if no character of `match` occurs
 inline static std::string replaceFirst(std::string str, const std::string &match,
                                        const std::string &replacement)
 {
@@ -39,13 +57,11 @@ inline static std::string replaceFirst(std::string str, const std::string &match
     return str.replace(index, match.length(), replacement);
 }
 
-/**
-     * Trims whitespace from the left side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+/// Trims whitespace from the left side of a string
+///
+/// @param str the string to trim
+///
+/// @return the trimmed string
 inline static std::string leftTrim(std::string str)
 {
     str.erase(str.begin(), std::find_if(str.begin(), str.end(),
@@ -53,13 +69,11 @@ inline static std::string leftTrim(std::string str)
     return str;
 }
 
-/**
-     * Trims whitespace from the right side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+/// Trims whitespace from the right side of a string
+///
+/// @param str the string to trim
+///
+/// @return the trimmed string
 inline static std::string rightTrim(std::string str)
 {
     str.erase(
@@ -69,41 +83,35 @@ inline static std::string rightTrim(std::string str)
     return str;
 }
 
-/**
-     * Trims whitespace from the left and right side of a string
-     *
-     * @param str the string to trim
-     *
-     * @return the trimmed string
-     */
+/// Trims whitespace from the left and right side of a string
+///
+/// @param str the string to trim
+///
+/// @return the trimmed string
 inline static std::string trimString(std::string str)
 {
     return leftTrim(rightTrim(str));
 }
 
-/**
-     * Trims whitespace from the left and right side of a string
-     *
-     * @param str the string to trim
-     * @param leftTrim the number of characters to trim from the left side of the string
-     * @param rightTrim the number of characters to trim from the right side of the string
-     *
-     * @return the trimmed string
-     */
+/// Trims whitespace from the left and right side of a string
+///
+/// @param str the string to trim
+/// @param leftTrim the number of characters to trim from the left side of the string
+/// @param rightTrim the number of characters to trim from the right side of the string
+///
+/// @return the trimmed string
 inline static std::string trimString(std::string str, int leftTrim, int rightTrim)
 {
     return str.substr(leftTrim, str.length() - rightTrim);
 }
 
-/**
-     * Splits a string into a vector of strings separated by the given regex delimiter.
-     *
-     * @param str the string to split
-     * @param delimiter the regex delimiter to split the string by
-     * @param trim whether or not to trim each split string
-     *
-     * @return a vector of strings separated by the given regex delimiter
-     */
+/// Splits a string into a vector of strings separated by the given regex delimiter.
+///
+/// @param str the string to split
+/// @param delimiter the regex delimiter to split the string by
+/// @param trim whether or not to trim each split string
+///
+/// @return a vector of strings separated by the given regex delimiter
 inline static std::vector<std::string> split(std::string str, std::string delimRegex,
                                              bool trim = false)
 {
@@ -133,6 +141,8 @@ inline static std::vector<std::string> split(std::string str, std::string delimR
     return result;
 }
 
+/// Puts `value` in the place of the first `{...}` that is left in `str`, writes what comes before
+/// it to `oss` and removes everything up to and including the `}` from `str`.
 template<typename T>
 inline static void format_helper(std::ostringstream &oss, std::string &str, const T &value)
 {
@@ -150,6 +160,12 @@ inline static void format_helper(std::ostringstream &oss, std::string &str, cons
     str = str.substr(closeBracket + 1);
 }
 
+/// Formats like `std::format`, except that whatever is between the braces is ignored: each `{...}`
+/// is replaced by the next argument, in order.
+///
+/// @param str the format string
+/// @param args the values to put in
+/// @return the formatted string
 template<class... Targ>
 inline static std::string format(std::string str, Targ &&...args)
 {

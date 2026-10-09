@@ -35,17 +35,13 @@ void Memory::reset()
     }
 }
 
-/*
-    RAM
-*/
+// RAM
 RAM::RAM(word npages, word start_page) :
     Memory(npages, start_page)
 {
 }
 
-/*
-    ROM
-*/
+// ROM
 
 ROM::ROM(const byte *rom_data, word npages, word start_page) :
     Memory(npages, start_page)

@@ -9,59 +9,77 @@
 #include <unordered_map>
 #include <vector>
 
+/// A relocatable object file (.bo) or an executable (.bexe), in memory: the sections, the symbols
+/// and the relocations, with the code to read and write the BELF format (docs/belf-format.md).
 class ObjectFile
 {
     friend class Linker;
 
   public:
+    /// Makes an empty object file, which the assembler fills.
     ObjectFile();
+
+    /// Reads an object file.
+    ///
+    /// @param obj_file the file to read
     ObjectFile(File obj_file);
 
+    /// Replaces the contents with those of a file. A file that is not valid is a fatal error.
+    ///
+    /// @param object_file the file to read
     void read_object_file(File object_file);
+
+    /// Replaces the contents with those of an object file that is in memory.
+    ///
+    /// @param bytes the bytes of the file
     void read_object_file(std::vector<byte> &bytes);
+
+    /// Writes the object file.
+    ///
+    /// @param object_file the file to write
     void write_object_file(File object_file);
 
-    /// @brief              Symbols defined in this unit.
+    /// Symbols defined in this unit.
     struct SymbolTableEntry
     {
-        /// @brief          Index into the string table.
+        /// Index into the string table.
         U32 symbol_name;
 
-        /// @brief          Value of the symbol.
+        /// Value of the symbol.
         word symbol_value;
 
-        /// @brief          Binding type of the symbol. Determines how to resolve symbol references
-        ///                 during the linking process.
+        /// Binding type of the symbol. Determines how to resolve symbol references
+        /// during the linking process.
         enum class BindingInfo
         {
-            /// @brief      TODO:
+            /// Defined in this file and not visible to the others.
             LOCAL = 0,
 
-            /// @brief      TODO:
+            /// Defined in this file and visible to the others (`.global`).
             GLOBAL = 1,
 
-            /// @brief      A reference that nothing defined in this file yet (what `.extern` and
-            ///             the use of a name give), which the linker resolves.
+            /// A reference that nothing defined in this file yet (what `.extern` and
+            /// the use of a name give), which the linker resolves.
             WEAK = 2,
 
-            /// @brief      Declared with `.weak`. A definition of it is used only if no other
-            ///             file has a (strong) definition, and if there is none at all the
-            ///             symbol is 0 instead of an undefined reference.
+            /// Declared with `.weak`. A definition of it is used only if no other
+            /// file has a (strong) definition, and if there is none at all the
+            /// symbol is 0 instead of an undefined reference.
             WEAK_DECLARED = 3
         } binding_info;
 
-        /// @brief          Index into the section table that this symbol is defined in. U32(-1)
-        ///                 indicates no section.
+        /// Index into the section table that this symbol is defined in. U32(-1)
+        /// indicates no section.
         U32 section;
     };
 
-    /// @brief              Description of a section stored in the object file binary.
+    /// Description of a section stored in the object file binary.
     struct SectionHeader
     {
-        /// @brief          Index into the string table of the section name.
+        /// Index into the string table of the section name.
         U32 section_name;
 
-        /// @brief          Type of section.
+        /// Type of section.
         enum class Type
         {
             UNDEFINED,
@@ -95,162 +113,166 @@ class ObjectFile
             USER_BSS,
         } type;
 
-        /// @brief          Offset this section starts at in bytes.
+        /// Offset this section starts at in bytes.
         word section_start;
 
-        /// @brief          Size of the section in bytes.
+        /// Size of the section in bytes.
         word section_size;
 
-        /// @brief          Size of an entry in the section.
-        /// @todo           TODO: Why is this necessary? ELF seems to have this but why.
+        /// Size of an entry in the section.
+        /// @todo Why is this necessary? ELF seems to have this but why.
         word entry_size;
 
-        /// @brief          Whether the section is loaded at a physical address, as opposed to a
-        ///                 virtual one. Set by the linker.
+        /// Whether the section is loaded at a physical address, as opposed to a
+        /// virtual one. Set by the linker.
         bool load_at_physical_address = false;
 
-        /// @brief          Address the section is loaded at. Set by the linker.
+        /// Address the section is loaded at. Set by the linker.
         word address = 0;
 
-        /// @brief          What the address of the section, and of what it holds from an object file,
-        ///                 is a multiple of in bytes. The largest .align of the section.
+        /// What the address of the section, and of what it holds from an object file,
+        /// is a multiple of in bytes. The largest .align of the section.
         word alignment = 1;
     };
 
-    /// @brief              A place in a section that holds an address, which is not known until the
-    ///                     file is linked.
+    /// A place in a section that holds an address, which is not known until the
+    /// file is linked.
     struct RelocationEntry
     {
-        /// @brief          Offset from the beginning of the section to symbol.
+        /// Offset from the beginning of the section to symbol.
         word offset;
 
-        /// @brief          Index into symbol table.
+        /// Index into symbol table.
         U32 symbol;
 
-        /// @brief          Type of relocation.
+        /// Type of relocation.
         enum class Type
         {
-            /// @brief      Undefined.
+            /// Undefined.
             UNDEFINED,
 
-            /// @brief      TODO:
+            /// The low 12 bits of the address, in the 14 bit immediate of an ALU instruction
+            /// (`:lo12:`).
             R_EMU32_O_LO12,
 
-            /// @brief      Format O instructions and ADRP.
+            /// The distance in 4 KiB pages from the instruction to the address, in `adrp`.
             R_EMU32_ADRP_HI20,
 
-            /// @brief      TODO:
+            /// Bits 0-18 of the address, in `mov` or `mvn` (`:lo19:`).
             R_EMU32_MOV_LO19,
 
-            /// @brief      MOV/MVN instructions.
+            /// Bits 19-31 of the address, in `mov` or `mvn` (`:hi13:`).
             R_EMU32_MOV_HI13,
 
-            /// @brief      Branch offset, +/- 24 bit value (last 2 bits are 0).
+            /// Branch offset, a signed 22 bit number of instructions (a +/- 24 bit byte distance,
+            /// the last 2 bits are 0).
             R_EMU32_B_OFFSET22,
 
-            /// @brief      The 32 bit address of the symbol, in .data (`.word symbol`).
+            /// The 32 bit address of the symbol, in .data (`.word symbol`).
             R_EMU32_ABS32,
 
-            /// @brief      `adr`: the distance in bytes from the instruction to the target, a
-            ///             signed 21 bit number (the 20 bits of the immediate and the sign bit).
+            /// `adr`: the distance in bytes from the instruction to the target, a
+            /// signed 21 bit number (the 20 bits of the immediate and the sign bit).
             R_EMU32_ADR_PCREL21,
         } type;
 
-        /// @brief          Signed constant added to the address of the symbol, so the relocation
-        ///                 refers to `symbol + addend` (`label + 4`). Stored in 8 bytes, the
-        ///                 reader keeps the low 32 bits. The 32 bit arithmetic wraps.
+        /// Signed constant added to the address of the symbol, so the relocation
+        /// refers to `symbol + addend` (`label + 4`). Stored in 8 bytes, the
+        /// reader keeps the low 32 bits. The 32 bit arithmetic wraps.
         sword addend;
 
-        /// @brief          Token index that the relocation entry is used on. Use to fill local symbols.
+        /// Token index that the relocation entry is used on. Use to fill local symbols.
         size_t token;
     };
 
-    // TODO: Figure out how these sizes are calculated again.
-    /// @brief              TODO:
+    // The sizes in bytes of what the file holds, as in docs/belf-format.md. Numbers are stored in
+    // more bytes than they need.
+
+    /// Magic 4, unused 12, file type 2, target machine 2, flags 2, number of sections 2.
     static constexpr U32 kBELFHeaderSize = 24;
 
-    /// @brief              Name 8, type 4, start 8, size 8, entry size 8, physical 1, address 8,
-    ///                     alignment 8.
+    /// Name 8, type 4, start 8, size 8, entry size 8, physical 1, address 8,
+    /// alignment 8.
     static constexpr U32 kSectionHeaderSize = 53;
 
-    /// @brief              TODO:
+    /// What .bss takes in the file: its size.
     static constexpr U32 kBSSSectionSize = 8;
 
-    /// @brief              TODO:
+    /// One instruction.
     static constexpr U32 kTextEntrySize = 4;
 
-    /// @brief              TODO:
+    /// Offset 8, symbol 8, type 4, addend 8.
     static constexpr U32 kRelocationEntrySize = 28;
 
-    /// @brief              TODO:
+    /// Name 8, value 8, binding 2, section 8.
     static constexpr U32 kSymbolTableEntrySize = 26;
 
-    /// @brief              TODO:
+    /// The file type of an object file (.bo).
     static constexpr hword kRelocatableFileType = 1;
 
-    /// @brief              TODO:
+    /// The file type of an executable (.bexe).
     static constexpr hword kExecutableFileType = 2;
 
-    /// @brief              TODO:
+    /// The file type of a shared object, which is not made yet.
     static constexpr hword kSharedObjectFileType = 3;
 
-    /// @brief              TODO:
+    /// The target machine of the emulator.
     static constexpr hword kEMU32MachineId = 1;
 
-    /// @brief              What binary file type this object file represents.
+    /// What binary file type this object file represents.
     hword file_type = 0;
 
-    /// @brief              Target machine that this object file is built for.
+    /// Target machine that this object file is built for.
     hword target_machine = 0;
 
-    /// @brief              TODO:
+    /// Flags of the file, none are defined.
     hword flags = 0;
 
-    /// @brief              Number of sections added so far.
+    /// Number of sections added so far.
     hword n_sections = 0;
 
-    /// @brief              Instructions stored in .text section.
+    /// Instructions stored in .text section.
     std::vector<word> text_section;
 
-    /// @brief              Data stored in .data section.
+    /// Data stored in .data section.
     std::vector<byte> data_section;
 
-    /// @brief              Read only data, `.rodata`.
+    /// Read only data, `.rodata`.
     std::vector<byte> rodata_section;
 
-    /// @brief              The addresses of functions to call before `main`, `.init_array`. Words.
+    /// The addresses of functions to call before `main`, `.init_array`. Words.
     std::vector<byte> init_array_section;
 
-    /// @brief              The addresses of functions to call after `main`, `.fini_array`. Words.
+    /// The addresses of functions to call after `main`, `.fini_array`. Words.
     std::vector<byte> fini_array_section;
 
-    /// @brief              Size of .bss section. Zero initialized on program load.
+    /// Size of .bss section. Zero initialized on program load.
     word bss_section = 0;
 
-    /// @brief              Maps string index to symbol.
-    ///                     In the order of the string table, which is the order the symbols were
-    ///                     added in, so a file is the same bytes whatever the standard library is.
+    /// Maps string index to symbol.
+    /// In the order of the string table, which is the order the symbols were
+    /// added in, so a file is the same bytes whatever the standard library is.
     std::map<U32, SymbolTableEntry> symbol_table;
 
-    /// @brief              References to symbols that need to be relocated.
+    /// References to symbols that need to be relocated.
     std::vector<RelocationEntry> rel_text;
 
-    /// @brief              For now, no purpose.
+    /// For now, no purpose.
     std::vector<RelocationEntry> rel_data;
 
-    /// @brief              For now, no purpose.
-    /// @todo               TODO: Will this ever be used?
+    /// For now, no purpose.
+    /// @todo Will this ever be used?
     std::vector<RelocationEntry> rel_bss;
 
-    /// @brief              `.word symbol` in .rodata, .init_array and .fini_array.
+    /// `.word symbol` in .rodata, .init_array and .fini_array.
     std::vector<RelocationEntry> rel_rodata;
     std::vector<RelocationEntry> rel_init_array;
     std::vector<RelocationEntry> rel_fini_array;
 
-    /// @brief              The sections that hold bytes (and the relocations for words in them)
-    ///                     as opposed to code or a size: .data, .rodata, .init_array and
-    ///                     .fini_array. They are handled the same everywhere; this lets the
-    ///                     assembler, linker, loader and file reader/writer loop over them.
+    /// The sections that hold bytes (and the relocations for words in them)
+    /// as opposed to code or a size: .data, .rodata, .init_array and
+    /// .fini_array. They are handled the same everywhere; this lets the
+    /// assembler, linker, loader and file reader/writer loop over them.
     struct ByteSection
     {
         const char *name;
@@ -260,161 +282,172 @@ class ObjectFile
         std::vector<byte> ObjectFile::*bytes;
         std::vector<RelocationEntry> ObjectFile::*relocations;
 
-        /// @brief          Whether the loaded section may be written by the program.
+        /// Whether the loaded section may be written by the program.
         bool writable;
 
-        /// @brief          What the section is aligned to by default (the entries are words).
+        /// What the section is aligned to by default (the entries are words).
         word alignment;
     };
 
-    /// @brief              A section with a name of the program's choosing (`.section "name"`),
-    ///                     holding bytes. Unlike the sections above there can be any number of
-    ///                     them. Its header is followed by the header of its relocations
-    ///                     (@ref SectionHeader::Type::REL_USER). An executable one holds
-    ///                     instructions (words, little endian) as well as data. A `nobits` one is
-    ///                     like .bss: writable, zeroed when the program is loaded, and the file has
-    ///                     its size and no bytes.
+    /// A section with a name of the program's choosing (`.section "name"`),
+    /// holding bytes. Unlike the sections above there can be any number of
+    /// them. Its header is followed by the header of its relocations
+    /// (@ref SectionHeader::Type::REL_USER). An executable one holds
+    /// instructions (words, little endian) as well as data. A `nobits` one is
+    /// like .bss: writable, zeroed when the program is loaded, and the file has
+    /// its size and no bytes.
     struct UserSection
     {
         std::string name;
 
-        /// @brief          Whether the loaded section may be written by the program.
+        /// Whether the loaded section may be written by the program.
         bool writable = false;
 
-        /// @brief          Whether the program runs code from it. Never together with writable.
+        /// Whether the program runs code from it. Never together with writable.
         bool executable = false;
 
-        /// @brief          Whether it is zero filled instead of holding `bytes`. Then it is
-        ///                 writable, not executable, and has no relocations.
+        /// Whether it is zero filled instead of holding `bytes`. Then it is
+        /// writable, not executable, and has no relocations.
         bool nobits = false;
 
         std::vector<byte> bytes;
         std::vector<RelocationEntry> relocations;
 
-        /// @brief          The size of a nobits section.
+        /// The size of a nobits section.
         word zero_size = 0;
 
-        /// @brief          Size in bytes, `zero_size` for a nobits section.
+        /// Size in bytes, `zero_size` for a nobits section.
         word size() const
         {
             return nobits ? zero_size : word(bytes.size());
         }
 
-        /// @brief          Index into `sections` of its header. The header of its relocations is
-        ///                 the next one.
+        /// Index into `sections` of its header. The header of its relocations is
+        /// the next one.
         U32 header_index = U32(-1);
     };
 
-    /// @brief              The user sections, in the order they were added.
+    /// The user sections, in the order they were added.
     std::vector<UserSection> user_sections;
 
-    /// @brief              The type of the header of a user section with the permissions.
+    /// The type of the header of a user section with the permissions.
     static SectionHeader::Type user_section_type(bool writable, bool executable,
                                                  bool nobits = false);
 
-    /// @brief              Whether the type is the type of a header of a user section.
+    /// Whether the type is the type of a header of a user section.
     static bool is_user_section_type(SectionHeader::Type type);
 
-    /// @brief              The user section with the name, or null.
+    /// The user section with the name, or null.
     UserSection *find_user_section(const std::string &name);
     const UserSection *find_user_section(const std::string &name) const;
 
-    /// @brief              The user section whose header is the one at the index, or null if that
-    ///                     is not the header of one.
+    /// The user section whose header is the one at the index, or null if that
+    /// is not the header of one.
     UserSection *user_section_at(U32 header_index);
 
-    /// @brief              Adds a user section and its two headers. The name is not one that is
-    ///                     taken (a section of the file already, or one of the reserved names).
-    /// @return             Index into `sections` of its header.
+    /// Adds a user section and its two headers. The name is not one that is
+    /// taken (a section of the file already, or one of the reserved names).
+    ///
+    /// @return Index into `sections` of its header.
     U32 add_user_section(const std::string &name, bool writable, bool executable,
                          bool nobits = false);
 
-    /// @brief              The four byte sections, in the order .data, .rodata, .init_array,
-    ///                     .fini_array.
+    /// The four byte sections, in the order .data, .rodata, .init_array,
+    /// .fini_array.
     static const std::array<ByteSection, 4> &byte_sections();
 
-    /// @brief              The byte section with the section type or relocation section type, or
-    ///                     null if the type is none of them.
+    /// The byte section with the section type or relocation section type, or
+    /// null if the type is none of them.
     static const ByteSection *byte_section_of(SectionHeader::Type type);
 
-    // TODO: Possbly in future add separate string table for section headers like ELF files.
-    // TODO: Refactor string table so that it stores the offset of the first character of a
-    // string in the string table, not the position of it in the array.
-    // TODO: what did i mean by the above?
+    // TODO: possibly add a separate string table for the section headers, like ELF files.
+    // TODO: make the string table store the offset of the first character of a string, not the
+    // position of the string in the array.
 
-    /// @brief              Stores all the strings in a compact table.
+    /// Stores all the strings in a compact table.
     std::vector<std::string> strings;
 
-    /// @brief              Maps strings to index in the table.
+    /// Maps strings to index in the table.
     std::unordered_map<std::string, U32> string_table;
 
-    /// @brief              Section headers.
+    /// Section headers.
     std::vector<SectionHeader> sections;
 
-    /// @brief              Map section name to index in sections.
+    /// Map section name to index in sections.
     std::unordered_map<std::string, U32> section_table;
 
-    /// @brief              TODO:
-    /// @param string
-    /// @return
+    /// Adds a string to the string table. The string is not in it yet.
+    ///
+    /// @param string the string to add
+    /// @return the index of the string
     U32 add_string(const std::string &string);
 
-    /// @brief              TODO:
-    /// @param symbol
-    /// @param value
-    /// @param binding_info
-    /// @param section
+    /// Adds a symbol to the symbol table.
+    ///
+    /// @param symbol the name of the symbol
+    /// @param value the value of the symbol if it is defined
+    /// @param binding_info the visibility of the symbol
+    /// @param section the section it is defined in, -1 if it is not defined in a section
     void add_symbol(const std::string &symbol, word value,
                     SymbolTableEntry::BindingInfo binding_info, U32 section = U32(-1));
 
-    /// @brief              TODO:
-    /// @param section_name
-    /// @param type
-    /// @return
+    /// Adds a section header. The name is not the name of a section yet.
+    ///
+    /// @param section_name the name of the section
+    /// @param type the type of the section
+    /// @return the index of the header in `sections`
     U32 add_section(const std::string &section_name, SectionHeader::Type type);
 
-    /// @brief              TODO:
-    /// @param symbol
-    /// @return
+    /// @param symbol the index of a symbol, the key of `symbol_table`
+    /// @return the name of the symbol
     std::string get_symbol_name(U32 symbol);
 
-    /// @brief              Get the size of the .text section.
-    /// @return             Size of .text section in bytes.
+    /// Get the size of the .text section.
+    ///
+    /// @return Size of .text section in bytes.
     word get_text_section_size();
 
-    /// @brief              Get size of .data section.
-    /// @return             Size of .data section in bytes.
+    /// Get size of .data section.
+    ///
+    /// @return Size of .data section in bytes.
     word get_data_section_size();
 
-    /// @brief              Get size of .bss section.
-    /// @return             Size of .bss section in bytes.
+    /// Get size of .bss section.
+    ///
+    /// @return Size of .bss section in bytes.
     word get_bss_section_size();
 
-    /// @brief              Get the current size of a .text, .data or .bss section, which is the
-    ///                     offset that the next item added to it will have.
-    /// @param section      Index into the section table.
-    /// @return             Size of the section in bytes.
+    /// Get the current size of a .text, .data or .bss section, which is the
+    /// offset that the next item added to it will have.
+    ///
+    /// @param section Index into the section table.
+    /// @return Size of the section in bytes.
     word get_section_size(U32 section);
 
-    /// @brief              Prints an objdump-style listing (symbols, .data, disassembled .text with
-    ///                     relocations) to the stream, stdout by default. Prints an error line
-    ///                     instead if the object has no sections (it was never read or assembled).
+    /// Prints an objdump-style listing (symbols, .data, disassembled .text with
+    /// relocations) to the stream, stdout by default. Prints an error line
+    /// instead if the object has no sections (it was never read or assembled).
     void print();
+
+    /// Same, to the stream.
+    ///
+    /// @param out where the listing goes
     void print(std::ostream &out);
 
   private:
-    /// @brief              TODO:
+    /// The file that was read, for the error messages.
     File m_obj_file;
 
-    /// @brief              TODO:
-    /// @param bytes
+    /// Reads the sections, symbols and relocations from the bytes of a file.
+    ///
+    /// @param bytes the bytes of the file
     void disassemble(std::vector<byte> &bytes);
 
-    /// @brief              disassemble() that reports a truncated or corrupt file as a fatal error.
+    /// disassemble() that reports a truncated or corrupt file as a fatal error.
     void disassemble_checked(std::vector<byte> &bytes);
 
-    /// @brief              Fatal if what was read is not a file that the linker and the loader can
-    ///                     use: sections that are missing, and symbols, sections and relocations
-    ///                     that refer to something that is not there.
+    /// Fatal if what was read is not a file that the linker and the loader can
+    /// use: sections that are missing, and symbols, sections and relocations
+    /// that refer to something that is not there.
     void validate() const;
 };

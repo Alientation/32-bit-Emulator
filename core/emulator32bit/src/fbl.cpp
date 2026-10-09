@@ -10,7 +10,7 @@ FreeBlockList::FreeBlockList(word begin, word len, bool init) :
 {
     if (init)
     {
-        /* Only initializes all blocks to be free if specified. */
+        // Only initializes all blocks to be free if specified.
         m_head = new FreeBlock{
             .addr = begin,
             .len = len,
@@ -52,14 +52,12 @@ word FreeBlockList::get_free_block(word length)
         return 0;
     }
 
-    /*
-     * Split the block, front part is the returned free block.
-     */
+    // * Split the block, front part is the returned free block.
     word addr = freeblock->addr;
     freeblock->len -= length;
     freeblock->addr += length;
 
-    /* Remove the block if empty. */
+    // Remove the block if empty.
     if (freeblock->len == 0)
     {
         remove(freeblock);
@@ -159,7 +157,7 @@ void FreeBlockList::return_block(word addr, word length)
     bool intersect_next = ret_block->next && ret_block->next->addr < addr + length;
     if (intersect_prev || intersect_next)
     {
-        /* Undo state change so that the caller can cleanly handle the exception. */
+        // Undo state change so that the caller can cleanly handle the exception.
         remove(ret_block);
         throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
                                      + std::to_string(length) + ".");
@@ -181,8 +179,8 @@ void FreeBlockList::force_return_block(word addr, word length)
         return;
     }
 
-    /* The free blocks that overlap or touch the returned block become part of it. Ends are
-       exclusive, and fit in 64 bits where a block ending at the top of the range does not. */
+    // The free blocks that overlap or touch the returned block become part of it. Ends are
+    //       exclusive, and fit in 64 bits where a block ending at the top of the range does not.
     U64 lo = addr;
     U64 hi = U64(addr) + length;
     for (FreeBlock *cur = m_head; cur != nullptr;)

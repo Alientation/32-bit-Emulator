@@ -170,7 +170,6 @@ word Assembler::parse_format_b2(byte opcode)
     return Emulator32bit::asm_format_b2(opcode, condition, reg);
 }
 
-// swi[.cond] [number]: the number is not an offset, a branch is not involved.
 word Assembler::parse_format_swi(byte opcode)
 {
     m_cursor.next();
@@ -311,7 +310,8 @@ word Assembler::parse_format_m(byte opcode)
         }
         else
         {
-            // Since there is a comma, there is another argument that is not the above checked offset.
+            // Since there is a comma, there is another argument that is not the above checked
+            // offset.
             const byte reg_b = parse_register();
 
             // Shift argument.
@@ -497,8 +497,6 @@ ConditionCode Assembler::parse_condition()
     return get_cond_code(cond.type);
 }
 
-// The condition of the aliases is the one under which the *first* register is chosen, the
-// instruction stores the opposite one. al and nv have no opposite.
 ConditionCode Assembler::parse_inverted_condition()
 {
     const Token &at = m_cursor.peek();
@@ -510,7 +508,6 @@ ConditionCode Assembler::parse_inverted_condition()
     return ConditionCode(U8(condition) ^ 1);
 }
 
-// csel xd, xn, xm, cond   (and csinc, csinv, csneg)
 word Assembler::parse_format_csel(byte opcode, byte variant)
 {
     UNUSED(opcode);
@@ -526,7 +523,6 @@ word Assembler::parse_format_csel(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, condition, xd, xn, xm);
 }
 
-// cset xd, cond   (and csetm): xd = cond ? 1 : 0, or all ones.
 word Assembler::parse_format_cset(byte opcode, byte variant)
 {
     UNUSED(opcode);
@@ -539,7 +535,6 @@ word Assembler::parse_format_cset(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, inverse, xd, kZero, kZero);
 }
 
-// cinc xd, xn, cond   (and cinv, cneg): xd = cond ? f(xn) : xn.
 word Assembler::parse_format_cinc(byte opcode, byte variant)
 {
     UNUSED(opcode);
@@ -553,7 +548,6 @@ word Assembler::parse_format_cinc(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, inverse, xd, xn, xn);
 }
 
-// sxtb xd, xn   (and the other unary operations)
 word Assembler::parse_format_unary(byte operation)
 {
     m_cursor.next();
@@ -564,14 +558,6 @@ word Assembler::parse_format_unary(byte operation)
     return Emulator32bit::asm_unary(operation, xd, xn);
 }
 
-// `ldr xd, =constant` or `ldr xd, =symbol`. A pseudo instruction, there is no literal pool: a
-// load cannot reach one (no pc relative addressing), and any constant is built in at most 3
-// instructions without touching memory. A constant is built with the shortest sequence:
-//   0 to 0x7FFFF:        mov  xd, value
-//   -0x80000 to -1:      mvn  xd, ~value
-//   anything else:       mov  xd, value >> 14 / lsl xd, xd, 14 / orr xd, xd, value & 0x3FFF
-// (the `orr` is left out when those bits are 0). A symbol is its address, adrp + add :lo12:.
-// Returns false if the statement is not this form.
 bool Assembler::assemble_load_constant()
 {
     if (m_cursor.peek(3).type != TokenType::EQUAL)
@@ -691,18 +677,6 @@ const InstructionSpec &instruction_spec(TokenType type)
 
 } // namespace basm
 
-///
-/// Assembles the instruction at the cursor and appends it to .text.
-///
-/// add x1, x2, x3
-/// add x1, x2, #40
-/// add x1, x2, x3, lsl 4
-/// add x1, x2, :lo12:symbol
-/// add x1, x2, :lo12:symbol + 4
-///
-/// cmp, cmn, tst and teq are the ALU operations without a destination, so they are written as
-/// `cmp xn, <operand>` and encoded with xzr as the destination.
-///
 void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
 {
     using Format = basm::InstructionFormat;
@@ -879,7 +853,6 @@ void Assembler::_mrs()
     emit_instruction(instruction);
 }
 
-/// `ret` is `bx x29`, x29 being the link register.
 void Assembler::_ret()
 {
     m_cursor.next();

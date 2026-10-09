@@ -5,40 +5,36 @@
 #include "emulator32bit/system_bus.h"
 #include "emulator32bit/virtual_memory.h"
 
-/**
- * How the CPU reaches memory: the load/store unit. The addresses of a program are virtual, so
- * every access is translated by the MMU and then made on the (physical) system bus.
- *
- * The port refers to the bus and to the MMU, the CPU owns all three.
- */
+/// How the CPU reaches memory: the load/store unit. The addresses of a program are virtual, so
+/// every access is translated by the MMU and then made on the (physical) system bus.
+///
+/// The port refers to the bus and to the MMU, the CPU owns all three.
 class MemoryPort
 {
   public:
+    /// @param bus the physical address space that the accesses end up on
+    /// @param mmu the MMU that translates the virtual addresses of a program
     MemoryPort(SystemBus &bus, VirtualMemory &mmu);
 
     MemoryPort(const MemoryPort &) = delete;
     MemoryPort &operator=(const MemoryPort &) = delete;
 
-    /**
-     * Check if data at an address is in one page. This allows using a single virtual address
-     * translation.
-     *
-     * @param address The start address (lowest address of the block of data).
-     * @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].
-     * @return True of the data lies within one page, False otherwise.
-     */
+    /// Check if data at an address is in one page. This allows using a single virtual address
+    /// translation.
+    ///
+    /// @param address The start address (lowest address of the block of data).
+    /// @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].
+    /// @return True of the data lies within one page, False otherwise.
     static constexpr bool is_within_page(const word address, const U8 n_bytes)
     {
         return (address >> kNumPageOffsetBits) == ((address + n_bytes - 1) >> kNumPageOffsetBits);
     }
 
-    /**
-     * Read a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
-     * value is little endian in memory, and may cross a page.
-     *
-     * @throws VirtualMemory::PageFaultException if the access is not allowed.
-     * @throws SystemBus::Exception if no memory is at the physical address.
-     */
+    /// Read a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
+    /// value is little endian in memory, and may cross a page.
+    ///
+    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
+    /// @throws SystemBus::Exception if no memory is at the physical address.
     template<class T>
     inline T read(const word address)
     {
@@ -53,14 +49,12 @@ class MemoryPort
         return mem_read<T>(m_bus.route_memory(real_addr), real_addr);
     }
 
-    /**
-     * Write a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
-     * value is little endian in memory, and may cross a page. A store that crosses into a page
-     * that cannot be written leaves memory as it was.
-     *
-     * @throws VirtualMemory::PageFaultException if the access is not allowed.
-     * @throws SystemBus::Exception if no memory is at the physical address.
-     */
+    /// Write a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
+    /// value is little endian in memory, and may cross a page. A store that crosses into a page
+    /// that cannot be written leaves memory as it was.
+    ///
+    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
+    /// @throws SystemBus::Exception if no memory is at the physical address.
     template<class T>
     inline void write(const word address, const T data)
     {
@@ -82,6 +76,11 @@ class MemoryPort
         mem_write<T>(m_bus.route_store(real_addr), real_addr, data);
     }
 
+    /// The sized forms of read<T> and write<T>, at a virtual address.
+    ///
+    /// @param address the virtual address
+    /// @param data the value to store
+    /// @return the value that was read
     inline byte read_byte(const word address)
     {
         return read<byte>(address);
@@ -112,22 +111,18 @@ class MemoryPort
         write<word>(address, data);
     }
 
-    /**
-     * Write bytes at a virtual address, a translation for each page and not for each byte.
-     * Meant for loading a program. The pages before one that cannot be written have been written.
-     *
-     * @throws VirtualMemory::PageFaultException if the access is not allowed.
-     * @throws SystemBus::Exception if no memory is at the physical address.
-     */
+    /// Write bytes at a virtual address, a translation for each page and not for each byte.
+    /// Meant for loading a program. The pages before one that cannot be written have been written.
+    ///
+    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
+    /// @throws SystemBus::Exception if no memory is at the physical address.
     void write_block(word address, const byte *data, word size);
 
-    /**
-     * Fetch an instruction. The address must be word aligned, which the caller checks.
-     *
-     * @param address The virtual address of the instruction.
-     * @throws VirtualMemory::PageFaultException if the address is unmapped or not executable.
-     * @throws SystemBus::Exception if the instruction is not in RAM or ROM.
-     */
+    /// Fetch an instruction. The address must be word aligned, which the caller checks.
+    ///
+    /// @param address The virtual address of the instruction.
+    /// @throws VirtualMemory::PageFaultException if the address is unmapped or not executable.
+    /// @throws SystemBus::Exception if the instruction is not in RAM or ROM.
     inline word fetch_instruction(const word address)
     {
         const word real_addr = m_mmu.translate_fetch(address);
@@ -136,12 +131,26 @@ class MemoryPort
     }
 
   private:
-    /// A value that crosses a page, put together byte by byte. The pages are translated one by
-    /// one, and the stores only after all of them were.
+    /// Reads a value that crosses a page, put together byte by byte.
+    ///
+    /// @param address the virtual address of the first byte
+    /// @param n_bytes the size of the value
+    /// @return the value
     dword read_val(word address, U8 n_bytes);
+
+    /// Writes a value that crosses a page. The pages are translated one by one, and the stores
+    /// are made only after all of them were.
+    ///
+    /// @param address the virtual address of the first byte
+    /// @param val the value to store
+    /// @param n_bytes the size of the value
     void write_val(word address, dword val, U8 n_bytes);
 
     /// What is left of a fetch that is not in RAM: the ROM, or an exception.
+    ///
+    /// @param real_addr the physical address of the instruction
+    /// @param address the virtual address of the instruction
+    /// @return the instruction
     word fetch_outside_ram(word real_addr, word address);
 
     SystemBus &m_bus;

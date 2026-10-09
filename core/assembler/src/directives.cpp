@@ -129,13 +129,6 @@ void Assembler::require_number(const ExprValue &value)
                "two labels of the same section is a number");
 }
 
-///
-/// @brief              Looks `symbol` up like a label is: the scopes that are open from the
-///                     innermost out, then the file. A constant is a number. A label that is
-///                     defined is its offset in its section. Anything else is a symbol that is
-///                     not defined yet (it can be later in the file, or in another file), which has
-///                     no value but can be the target of a relocation.
-///
 Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
 {
     const std::string name = symbol.str();
@@ -165,10 +158,6 @@ Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
     return {.label = &symbol};
 }
 
-///
-/// @brief              operand := number | char | constant | label
-///                             | '(' expression ')' | ('-' | '+' | '~' | '!') operand
-///
 Assembler::ExprValue Assembler::parse_unary_expression()
 {
     const Token &token = m_cursor.peek();
@@ -236,9 +225,6 @@ Assembler::ExprValue Assembler::parse_unary_expression()
     }
 }
 
-///
-/// @brief              Precedence climbing. All the binary operators associate to the left.
-///
 Assembler::ExprValue Assembler::parse_binary_expression(int min_precedence)
 {
     ExprValue left = parse_unary_expression();
@@ -426,12 +412,6 @@ void Assembler::add_relocation(std::vector<ObjectFile::RelocationEntry> &relocat
                            .token = m_cursor.position()});
 }
 
-///
-/// @brief               Gives a number a name, to be used in the expressions that follow. It is a
-///                      constant of the file (of the scope, if there is one), not a symbol of the
-///                      object file. Can be anywhere, also in a macro.
-/// USAGE:               .equ <name>, <expression>
-///
 void Assembler::_equ()
 {
     m_cursor.next();
@@ -449,10 +429,6 @@ void Assembler::_equ()
     m_constants[key] = value;
 }
 
-///
-/// @brief              Parses and evaluates an expression, see the declaration.
-/// @return             Value of expression.
-///
 dword Assembler::parse_expression(dword min, dword max)
 {
     AEMU_DEBUG("Assembler::parse_expression() - Parsing expression.");
@@ -473,11 +449,6 @@ dword Assembler::parse_expression(dword min, dword max)
     return exp_value;
 }
 
-///
-/// @brief               Declares a symbol to be global outside this compilation unit. It does not
-///                      depend on the section, so it can be anywhere (a macro can declare one).
-/// USAGE:               .global <symbol>
-///
 void Assembler::_global()
 {
     m_cursor.next();
@@ -486,12 +457,6 @@ void Assembler::_global()
     m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL);
 }
 
-///
-/// @brief                Declares a symbol to exist in another compilation unit but not defined here.
-///                         Symbol's binding info will be marked as weak. Can be anywhere, like
-///                         .global.
-/// USAGE:                .extern <symbol>
-///
 void Assembler::_extern()
 {
     m_cursor.next();
@@ -500,14 +465,6 @@ void Assembler::_extern()
     m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK);
 }
 
-///
-/// @brief                Declares a symbol weak. If this file defines it, another file may define it
-///                       too and that definition is used instead (a file that defines it without
-///                       `.weak` wins, and of several weak ones the first linked does). If nothing
-///                       defines it, its value is 0 and it is not an error. Can be anywhere, like
-///                       .global.
-/// USAGE:                .weak <symbol>
-///
 void Assembler::_weak()
 {
     m_cursor.next();
@@ -516,14 +473,6 @@ void Assembler::_weak()
     m_obj.add_symbol(symbol, 0, ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED);
 }
 
-///
-/// @brief                Reserves `size` zeroed bytes in .bss for a global symbol that other files
-///                       may reserve too. It is a weak definition in .bss, so a file that defines the
-///                       symbol for real wins, and when several files only reserve it they share the
-///                       space of the first one linked. Every file should give the same size, the
-///                       linker does not know it. Does not change the current section.
-/// USAGE:                .comm <symbol>, <size>{, <alignment>}
-///
 void Assembler::_comm()
 {
     m_cursor.next();
@@ -640,43 +589,24 @@ void Assembler::enter_byte_section(Section section, const char *name)
     m_cur_section_index = m_obj.section_table[name];
 }
 
-///
-/// @brief                  Read only data. The program cannot write it.
-/// USAGE:                  .rodata
-///
 void Assembler::_rodata()
 {
     m_cursor.next();
     enter_byte_section(Section::RODATA, ".rodata");
 }
 
-///
-/// @brief                  Words with the addresses of functions to call before `main` (`.word f`).
-///                         The linker joins them and defines `__init_array_start` and
-///                         `__init_array_end` around them. Read only.
-/// USAGE:                  .init_array
-///
 void Assembler::_init_array()
 {
     m_cursor.next();
     enter_byte_section(Section::INIT_ARRAY, ".init_array");
 }
 
-///
-/// @brief                  Same as .init_array, for the functions to call after `main`
-///                         (`__fini_array_start`, `__fini_array_end`).
-/// USAGE:                  .fini_array
-///
 void Assembler::_fini_array()
 {
     m_cursor.next();
     enter_byte_section(Section::FINI_ARRAY, ".fini_array");
 }
 
-///
-/// @brief                 Moves where the assembler is in a section. Can only move forward, not backward.
-/// USAGE:                .org <expression>
-///
 void Assembler::_org()
 {
     m_cursor.next();
@@ -728,14 +658,6 @@ void Assembler::_org()
     }
 }
 
-///
-/// @brief                  Defines a local scope. Any symbol defined inside will be marked as
-///                         local and will not be able to be marked as global. Symbols defined
-///                         here will be postfixed with a special identifier <symbol>:<scope_id>.
-///                         Local symbols defined at current scope level or above will have
-///                         higher precedence over globally defined symbols.
-/// USAGE:                  .scope
-///
 void Assembler::_scope()
 {
     m_cursor.next();
@@ -743,10 +665,6 @@ void Assembler::_scope()
     m_scope_sites.push_back(m_statement);
 }
 
-///
-/// @brief                  Ends a local scope.
-/// USAGE:                  .scend
-///
 void Assembler::_scend()
 {
     check(!m_scopes.empty(), ".scend must have a matching .scope");
@@ -756,10 +674,6 @@ void Assembler::_scend()
     m_scope_sites.pop_back();
 }
 
-///
-/// @brief                  Moves where the assembler is in a section forward by a certain amount of bytes.
-/// USAGE:                  .advance <expression>
-///
 void Assembler::_advance()
 {
     m_cursor.next();
@@ -800,12 +714,6 @@ void Assembler::_advance()
     }
 }
 
-///
-/// @brief                  Aligns where the assembler is in the current section.
-/// @note                   This is useless unless we can specify in the program header of the
-///                         object file the alignment of the whole program
-/// USAGE:                  .align <expression>
-///
 void Assembler::_align()
 {
     m_cursor.next();
@@ -850,23 +758,6 @@ void Assembler::_align()
     header.alignment = std::max(header.alignment, val);
 }
 
-///
-/// @brief                  Makes a section with a name of the program's choosing the current one,
-///                         and creates it the first time. The flags are a string of the letters
-///                         r (read), w (write) and x (execute): "r" (read only), "rw" or "rx". A
-///                         section is not writable and executable at once. A section made without
-///                         flags is "rw". The linker joins the sections of the same name of all
-///                         the files, and the linker script places them by name.
-///                         Instructions can be assembled in an executable section, data
-///                         directives in any of them (a user section holds bytes).
-///                         A third operand, "nobits", makes the section zero filled like .bss (flags
-///                         "rw"): the file has its size and no bytes, and only .advance, .align,
-///                         .org and labels are legal in it.
-///                         The names of the sections the assembler has (".text", ".data", ".bss",
-///                         ".rodata", ".init_array", ".fini_array") are those sections, so
-///                         `.section ".data"` is `.data`.
-/// USAGE:                  .section <string>[, <flags>[, "nobits"]]
-///
 void Assembler::_section()
 {
     m_cursor.next();
@@ -993,23 +884,12 @@ void Assembler::_section()
     m_cur_section = user->nobits ? Section::USER_BSS : Section::USER;
 }
 
-///
-/// @brief                  Remembers the current section and switches to another one like
-///                         .section does (the same operands), so that .popsection can go back.
-///                         Meant for macros, which put something in .rodata or a section of their
-///                         own and carry on in the section they were used in. They nest.
-/// USAGE:                  .pushsection <string>[, <flags>[, "nobits"]]
-///
 void Assembler::_pushsection()
 {
     m_saved_sections.push_back({m_cur_section, m_cur_section_index, m_statement});
     _section(); // starts by skipping the directive, which is this one
 }
 
-///
-/// @brief                  Goes back to the section that the last .pushsection left.
-/// USAGE:                  .popsection
-///
 void Assembler::_popsection()
 {
     check(!m_saved_sections.empty(), ".popsection must have a matching .pushsection");
@@ -1040,11 +920,6 @@ void Assembler::check_section_name(const Token &at, const std::string &name)
     }
 }
 
-///
-/// @brief                  Creates a new text section.
-/// @warning                Currently will simply add on to the previously defined text section if it exists.
-/// USAGE:                  .text
-///
 void Assembler::_text()
 {
     m_cursor.next();
@@ -1053,11 +928,6 @@ void Assembler::_text()
     m_cur_section_index = m_obj.section_table[".text"];
 }
 
-///
-/// @brief                  Creates a new data section.
-/// @warning                Currently will simply add on to the previously defined data section if it exists
-/// USAGE:                  .data
-///
 void Assembler::_data()
 {
     m_cursor.next();
@@ -1065,11 +935,6 @@ void Assembler::_data()
     enter_byte_section(Section::DATA, ".data");
 }
 
-///
-/// @brief                  Creates a new bss section.
-/// @warning                Currently will simply add on to the previously defined bss section if it exists
-/// USAGE:                  .bss
-///
 void Assembler::_bss()
 {
     m_cursor.next();
@@ -1078,10 +943,6 @@ void Assembler::_bss()
     m_cur_section_index = m_obj.section_table[".bss"];
 }
 
-///
-/// @brief                  Stops assembling
-/// USAGE:                  .stop
-///
 void Assembler::_stop()
 {
     m_stopped = true;
@@ -1195,13 +1056,6 @@ void Assembler::_dword()
     define_data(".dword", 8);
 }
 
-///
-/// @brief                  Repeats a value: `count` copies of a `size` byte value (little endian).
-///                         The size is 1, 2, 4 or 8 and defaults to 1, the value defaults to 0 and
-///                         is a number that fits (for a size of 4 it can also be the address of a
-///                         symbol, like .word). For zeros, .advance does the same.
-/// USAGE:                  .fill <count>{, <size>{, <value>}}
-///
 void Assembler::_fill()
 {
     check(in_byte_section(),

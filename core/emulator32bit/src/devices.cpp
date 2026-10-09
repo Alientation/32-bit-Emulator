@@ -363,7 +363,6 @@ void BlockDevice::start(const word command)
     }
 }
 
-// A DMA transfer of the command's sectors. Nothing is moved unless all of it fits on both sides.
 bool BlockDevice::transfer(const bool to_disk)
 {
     const U64 bytes = U64(m_command_count) * kSectorSize;
@@ -451,7 +450,6 @@ void BlockDevice::advance(const word count)
     }
 }
 
-// A power cycle of the controller: the contents of the disk stay.
 void BlockDevice::reset()
 {
     m_busy = false;

@@ -11,19 +11,21 @@
 #include <stdexcept>
 #include <string>
 
-/**
- * The physical address space of the machine: it decodes an address to the RAM, the ROM, the disk
- * or one of the devices, and owns all of them. Every address on the bus is physical. Translating
- * the addresses of a program is the job of the MMU (VirtualMemory) and of the MemoryPort that
- * connects the CPU to both.
- *
- * It is also the physical memory that the MMU swaps pages in and out of, and that its page table
- * walker reads, which is what PhysicalPages is.
- */
+/// The physical address space of the machine: it decodes an address to the RAM, the ROM, the disk
+/// or one of the devices, and owns all of them. Every address on the bus is physical. Translating
+/// the addresses of a program is the job of the MMU (VirtualMemory) and of the MemoryPort that
+/// connects the CPU to both.
+///
+/// It is also the physical memory that the MMU swaps pages in and out of, and that its page table
+/// walker reads, which is what PhysicalPages is.
 class SystemBus : public PhysicalPages
 {
   public:
     /// The bus owns what it is given. Without a disk it uses a MockDisk.
+    ///
+    /// @param ram the RAM
+    /// @param rom the ROM
+    /// @param disk the disk that backs the swapping
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom);
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
 
@@ -33,7 +35,7 @@ class SystemBus : public PhysicalPages
     SystemBus(const SystemBus &) = delete;
     SystemBus &operator=(const SystemBus &) = delete;
 
-    /* expose for now */
+    // expose for now
     std::unique_ptr<RAM> ram;
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
@@ -51,23 +53,33 @@ class SystemBus : public PhysicalPages
         using std::runtime_error::runtime_error;
     };
 
-    /// The RAM, ROM or disk that has the address, or null.
+    /// @param address a physical address
+    /// @return the RAM, ROM or disk that has the address, or null
     BaseMemory *find_storage(word address);
 
-    /// The memory or device that has the address, or null.
+    /// @param address a physical address
+    /// @return the memory or device that has the address, or null
     BaseMemory *find_memory(word address);
 
-    /// The memory or device that has the address.
+    /// @param address a physical address
+    /// @return the memory or device that has the address
     /// @throws SystemBus::Exception if there is none.
     BaseMemory &route_memory(word address);
 
     /// The memory or device that a store by a program goes to: route_memory, but the ROM is read
     /// only. (The loader and the host write the ROM through write_block or the ROM itself, that
     /// is how an image gets there.)
+    ///
+    /// @param address a physical address
+    /// @return the memory or device that the store goes to
     /// @throws SystemBus::Exception if there is none, or the address is in the ROM.
     BaseMemory &route_store(word address);
 
     /// Writes bytes to a physical address. A block can cross from one page to another.
+    ///
+    /// @param address the physical address of the first byte
+    /// @param data the bytes to write
+    /// @param size the number of bytes
     /// @throws SystemBus::Exception if there is no memory somewhere in it.
     void write_block(word address, const byte *data, word size);
 
@@ -85,6 +97,8 @@ class SystemBus : public PhysicalPages
     bool write_physical_word(word address, word value) override;
 
   private:
+    /// Checks that the RAM, the ROM and the disk do not overlap each other or the devices, which
+    /// is a fatal error.
     void validate_memory();
 
     const std::array<Device *, 4> m_devices{&intc, &timer, &console, &block};

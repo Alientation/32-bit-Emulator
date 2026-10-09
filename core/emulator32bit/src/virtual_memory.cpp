@@ -432,10 +432,8 @@ void VirtualMemory::end_process(long long pid)
                                   pid);
     }
 
-    /*
-     * Store into a temporary array because when vpage entry is removed, it will also be removed
-     * from the process PageTableEntry map. This would have caused a concurrent modification error.
-     */
+    // Store into a temporary array because when vpage entry is removed, it will also be removed
+    // from the process PageTableEntry map. This would have caused a concurrent modification error.
     std::vector<word> vpages;
     for (std::pair<const word, PageTableEntry *> &pair : m_process_ptable_map.at(pid)->entries)
     {
@@ -710,13 +708,13 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
         PhysicalPage &physical = physical_page(entry->ppage);
         std::erase(physical.mapped_vpages, entry);
 
-        /* The physical page is only free once no virtual page maps to it anymore. */
+        // The physical page is only free once no virtual page maps to it anymore.
         if (physical.mapped_vpages.empty())
         {
             physical.used = false;
             clock_remove(physical);
 
-            /* add back to free list */
+            // add back to free list
             release_frame(entry->ppage);
 
             AEMU_DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage,
@@ -770,8 +768,8 @@ void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
                                      + " because no virtual page is mapped to it.");
     }
 
-    /* Every virtual page that maps to the physical page shares one disk page. The page is saved
-       before the pages are changed, if that fails they are still in memory. */
+    // Every virtual page that maps to the physical page shares one disk page. The page is saved
+    //       before the pages are changed, if that fails they are still in memory.
     const word diskpage = m_disk->get_free_page();
     if (m_physical != nullptr)
     {
@@ -845,19 +843,15 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
 
     PageTable *ptable = m_process_ptable_map.at(pid);
 
-    /*
-     * It is likely that the virtual page has already been mapped since this is a temporary
-     * way to allow the emulator to load a program at a specific physical address.
-     */
+    // It is likely that the virtual page has already been mapped since this is a temporary
+    // way to allow the emulator to load a program at a specific physical address.
     if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
     {
         const PageTableEntry *entry = ptable->entries.at(vpage);
 
-        /*
-         * It is likely that the virtual page maps to the same physical page. A page that is on
-         * disk is still mapped to its physical page if it was mapped to it explicitly, otherwise it
-         * has none (its ppage is not valid).
-         */
+        // It is likely that the virtual page maps to the same physical page. A page that is on
+        // disk is still mapped to its physical page if it was mapped to it explicitly, otherwise it
+        // has none (its ppage is not valid).
         if (LIKELY(entry->disk ? (entry->mapped && entry->mapped_ppage == ppage)
                                : entry->ppage == ppage))
         {
@@ -892,26 +886,20 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
         throw_fault(PageFaultException::Reason::WRITE_DENIED, vpage, access);
     }
 
-    /*
-     * Likely that the virtual page being accessed has not been evicted to the disk.
-     */
+    // * Likely that the virtual page being accessed has not been evicted to the disk.
     // The physical page that the virtual page is in, which is looked up once: it is known when
     // the page is brought in here, and found by its number when it is in memory already.
     PhysicalPage *page_in = nullptr;
     if (UNLIKELY(entry->disk))
     {
-        /*
-         * Unlikely that the virtual page has been forcibly mapped to a physical page.
-         *
-         * Maintains any explicit mappings of virtual page to physical page, like
-         * writing/reading from memory mapped I/O or ports.
-         */
+        // * Unlikely that the virtual page has been forcibly mapped to a physical page.
+        // *
+        // * Maintains any explicit mappings of virtual page to physical page, like
+        // * writing/reading from memory mapped I/O or ports.
         if (UNLIKELY(entry->mapped))
         {
-            /*
-             * Since the virtual page is mapped to a physical page on disk, we can assume it was
-             * evicted and some other page may be in use at the spot.
-             */
+            // Since the virtual page is mapped to a physical page on disk, we can assume it was
+            // evicted and some other page may be in use at the spot.
             PhysicalPage &target = physical_page(entry->mapped_ppage);
             if (target.used)
             {
@@ -927,9 +915,7 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
         }
         else
         {
-            /*
-             * Unlikely that all physical pages are in use.
-             */
+            // * Unlikely that all physical pages are in use.
             if (UNLIKELY(!m_frames.any_free()))
             {
                 evict_ppage(clock_victim());
@@ -947,7 +933,7 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
         throw_fault(PageFaultException::Reason::KERNEL_ONLY, vpage, access);
     }
 
-    /* Update the TLB with the result of the translation of virtual page to physical page. */
+    // Update the TLB with the result of the translation of virtual page to physical page.
     TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
     tlb.key = tlb_key(ptable->pid, vpage);
     tlb.ppage = entry->ppage;
@@ -1066,8 +1052,6 @@ word VirtualMemory::translate_fetch_slow(const word address)
     return physical;
 }
 
-// The walk: first level entry (10 bits of the address), second level entry (10 bits), page.
-// Nothing is cached unless the access is allowed.
 word VirtualMemory::walk_translate(const word address, const AccessType access)
 {
     const word vpage = address >> kNumPageOffsetBits;

@@ -50,11 +50,6 @@ Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte ro
 {
 }
 
-Emulator32bit::Emulator32bit() :
-    Emulator32bit(RAM_NPAGES, RAM_START_PAGE, ROM_DATA, ROM_NPAGES, ROM_START_PAGE)
-{
-}
-
 Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
                              std::unique_ptr<Disk> disk) :
     system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk))),
@@ -174,9 +169,9 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         result.message = message;
     };
 
-    // Whether anything looks at each instruction (the debugger's breakpoints and watches, the trace,
-    // the history). They are set between runs, so the loop tests this one local instead of each of
-    // them, which are loads from memory.
+    // Whether anything looks at each instruction (the debugger's breakpoints and watches, the
+    // trace, the history). They are set between runs, so the loop tests this one local instead of
+    // each of them, which are loads from memory.
     const bool hooked = !m_register_watches.empty() || !m_breakpoints.empty()
                         || m_history_size != 0 || m_trace != nullptr || !m_watchpoints.empty();
     SystemBus &bus = *system_bus;
@@ -466,8 +461,6 @@ std::string flag_letters(const word pstate)
 
 } // namespace
 
-// `0x00000010 <main+0x4>: add x0, x1, 4 ; x0=0x1->0x5 NZCV=nzcv->nzCv`, with the reason in place of
-// the changes when the instruction does not complete. A taken branch shows `pc=target`.
 void Emulator32bit::execute_traced(const word instr)
 {
     const word pc = m_pc;

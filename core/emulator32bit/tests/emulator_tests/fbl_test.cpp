@@ -176,7 +176,7 @@ TEST(fbl, out_of_order)
     word b3 = fbl.get_free_block(1);
     word b4 = fbl.get_free_block(1);
 
-    /* Cannot assume order, that is implementation dependent */
+    // Cannot assume order, that is implementation dependent
     std::vector<word> sort;
     sort.push_back(b1);
     sort.push_back(b2);

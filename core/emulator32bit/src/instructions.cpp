@@ -6,29 +6,23 @@
 #include <format>
 #include <string>
 
-/**
- * @internal
- * @brief                     Useful macros to extract information from instruction bits
- * @hideinitializer
- *
- */
-#define _X1(instr) (bitfield_unsigned<20, 5>(instr))  /* bits 20 to 24 */
-#define _X2(instr) (bitfield_unsigned<15, 5>(instr))  /* bits 15 to 19 */
-#define _X3(instr) (bitfield_unsigned<9, 5>(instr))   /* bits 9 to 13 */
-#define _X4(instr) (bitfield_unsigned<4, 5>(instr))   /* bits 4 to 8 */
+/// Useful macros to extract information from instruction bits
+#define _X1(instr) (bitfield_unsigned<20, 5>(instr)) // bits 20 to 24
+#define _X2(instr) (bitfield_unsigned<15, 5>(instr)) // bits 15 to 19
+#define _X3(instr) (bitfield_unsigned<9, 5>(instr)) // bits 9 to 13
+#define _X4(instr) (bitfield_unsigned<4, 5>(instr)) // bits 4 to 8
 
-#define _SX1(instr) (bitfield_unsigned<17, 5>(instr)) /* bits 17 to 21 */
-#define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) /* bits 11 to 15 */
-#define _SX3(instr) (bitfield_unsigned<6, 5>(instr))  /* bits 6 to 10 */
+#define _SX1(instr) (bitfield_unsigned<17, 5>(instr)) // bits 17 to 21
+#define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) // bits 11 to 15
+#define _SX3(instr) (bitfield_unsigned<6, 5>(instr)) // bits 6 to 10
 
-/**
- * @internal
- * @brief                   Parse the value of the argument for instruction format O
- * @details                 Also used to parse value of argument for some other instruction format
- *                          like format M which conveniently has a similar structure
- * @param cpu Emulator context.
- * @param instr 32 bit instruction to extract the value of the argument.
- */
+/// Parse the value of the argument for instruction format O
+///
+/// Also used to parse value of argument for some other instruction format
+/// like format M which conveniently has a similar structure
+///
+/// @param cpu Emulator context.
+/// @param instr 32 bit instruction to extract the value of the argument.
 static word get_format_o_arg(Emulator32bit &cpu, const word instr)
 {
     if (test_bit<14>(instr))
@@ -43,11 +37,7 @@ static word get_format_o_arg(Emulator32bit &cpu, const word instr)
     return alu_shift(value, type, amount, {}).result;
 }
 
-/**
- * @internal
- * @brief                    A sequence of bits to add to a @ref Joiner
- *
- */
+/// A sequence of bits to add to a @ref Joiner
 struct JPart
 {
     // A value that does not fit in its bits would spill into the fields next to it, and the
@@ -61,15 +51,14 @@ struct JPart
                    bits);
     }
 
-    const int bits; /* Number of bits stored in this part */
-    const word
-        val; /* Contents of the bits stored in this part, stored with the first bit in the most significant bit */
+    /// Number of bits stored in this part.
+    const int bits;
+
+    /// Contents of the bits stored in this part, with the first bit in the most significant bit.
+    const word val;
 };
 
-/**
- * @internal
- * @brief                    Bits of an instruction that are 0 (unused, or a flag that is off)
- */
+/// Bits of an instruction that are 0 (unused, or a flag that is off)
 struct Zeros
 {
     explicit Zeros(const int bits) :
@@ -80,23 +69,16 @@ struct Zeros
     const int bits;
 };
 
-/**
- * @internal
- * @brief                    A value that is formed by joining @ref JPart
- *
- */
+/// A value that is formed by joining @ref JPart
 class Joiner
 {
   public:
-    word val = 0; /* Content stored so far */
+    word val = 0; // Content stored so far
 
-    /**
-         * @internal
-         * @brief            Add a new @ref JPart
-         *
-         * @param            p: @ref JPart to add
-         * @return             Reference to this object
-         */
+    /// Add a new @ref JPart
+    ///
+    /// @param p @ref JPart to add
+    /// @return Reference to this object
     Joiner &operator<<(const JPart &p)
     {
         val <<= p.bits;
@@ -104,41 +86,25 @@ class Joiner
         return *this;
     }
 
-    /**
-         * @internal
-         * @brief            Add filler bits all set to 0
-         *
-         * @param             zeros: The bits to add
-         * @return             Reference to this object
-         */
+    /// Add filler bits all set to 0
+    ///
+    /// @param zeros The bits to add
+    /// @return Reference to this object
     Joiner &operator<<(const Zeros &zeros)
     {
         val <<= zeros.bits;
         return *this;
     }
 
-    /**
-         * @internal
-         * @brief             Extract the value of this object
-         *
-         * @return             word
-         */
+    /// Extract the value of this object
+    ///
+    /// @return word
     operator word() const
     {
         return val;
     }
 };
 
-/**
- * @brief                    Constructs instructions of format O with an imm14 operand
- *
- * @param                     opcode: 6 bit identifier of a format O instruction
- * @param                     s: whether condition flags are set
- * @param                     xd: 5 bit destination register identifier
- * @param                     xn: 5 bit operand register identifier
- * @param                     imm14: 14 bit immediate value
- * @return                     instruction word
- */
 word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, const int xn,
                                  const int imm14)
 {
@@ -146,18 +112,6 @@ word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, co
                     << JPart(1, 1) << JPart(14, imm14);
 }
 
-/**
- * @brief                     Constructs instructions of format O with an arg operand
- *
- * @param                     opcode: 6 bit identifier of a format O instruction
- * @param                     s: whether condition flags are set
- * @param                     xd: 5 bit destination register identifier
- * @param                     xn: 5 bit operand register identifier
- * @param                     xm: 5 bit operand register identifier
- * @param                     shift: shift type to be applied on the value in the xm register
- * @param                     imm5: shift amount
- * @return                     instruction word
- */
 word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, const int xn,
                                  const int xm, const ShiftType shift, const int imm5)
 {
@@ -299,7 +253,6 @@ word Emulator32bit::asm_nop()
                     << Zeros(22);
 }
 
-// PSTATE is the one register user code may use, and only for the flags.
 void Emulator32bit::_msr(const word instr)
 {
     const U8 sysreg = _SX1(instr);
@@ -374,7 +327,6 @@ word Emulator32bit::asm_tlbi(U8 xt, bool isxt, word imm16)
                     << JPart(5, xt) << JPart(1, isxt) << JPart(16, imm16);
 }
 
-// PC = ELR and PSTATE = SPSR. The mode comes back with SPSR, and with it the stack pointer.
 void Emulator32bit::_eret(const word instr)
 {
     UNUSED(instr);
@@ -392,10 +344,6 @@ word Emulator32bit::asm_eret()
                     << Zeros(22);
 }
 
-// Waits until an interrupt is pending (masked or not, the next instruction then runs, and takes
-// the interrupt if it is not masked). Nothing else happens while waiting, so the only thing that
-// can raise one is the timer: time jumps to when it fires. With nothing to wait for the program
-// ends like it does with hlt, so that it does not hang.
 void Emulator32bit::_wfi(const word instr)
 {
     UNUSED(instr);
@@ -453,8 +401,6 @@ word Emulator32bit::asm_brk(const word imm22)
                     << JPart(22, imm22);
 }
 
-// `op xd, xn`: sign and zero extension of the low byte or half-word, count of leading zeros, and
-// the byte reversals. No flags.
 void Emulator32bit::_unary(const word instr)
 {
     const word op = bitfield_unsigned<0, 4>(instr);
@@ -497,9 +443,9 @@ word Emulator32bit::asm_unary(const word op, const word xd, const word xn)
                     << JPart(5, xd) << Zeros(1) << JPart(5, xn) << Zeros(7) << JPart(4, op);
 }
 
-// Conditional select: xd = cond ? xn : f(xm), where f depends on the variant. The flags are
-// not changed. `cset` and the other aliases are these with the zero register and the opposite
-// condition.
+/// Conditional select: xd = cond ? xn : f(xm), where f depends on the variant. The flags are
+/// not changed. `cset` and the other aliases are these with the zero register and the opposite
+/// condition.
 void Emulator32bit::_csel(const word instr)
 {
     const U8 cond = bitfield_unsigned<22, 4>(instr);
@@ -835,9 +781,9 @@ void Emulator32bit::write_back_base(const MemOperand &operand)
     }
 }
 
-// The base register is written back after the access, so an access that faults changes nothing.
-// A load writes the loaded value after that, which is why it wins when xt is the base register.
-// A store has read xt before the write back, so `str x1, [x1, 8]!` stores the old x1.
+/// The base register is written back after the access, so an access that faults changes nothing.
+/// A load writes the loaded value after that, which is why it wins when xt is the base register.
+/// A store has read xt before the write back, so `str x1, [x1, 8]!` stores the old x1.
 void Emulator32bit::_ldr(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
@@ -884,7 +830,7 @@ void Emulator32bit::_ldrh(const word instr)
     write_reg(_X1(instr), read_val);
 }
 
-// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
+/// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
 void Emulator32bit::_str(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr);
@@ -927,7 +873,7 @@ void Emulator32bit::_b(const word instr)
     if (check_cond(m_pstate, cond))
     {
         m_pc += (bitfield_signed<0, 22>(instr) << 2)
-                - 4; /* account for execution loop incrementing _pc by 4 */
+                - 4; // account for execution loop incrementing _pc by 4
     }
 }
 
@@ -977,7 +923,7 @@ void Emulator32bit::_adrp(const word instr)
     write_reg(xd, val);
 }
 
-// Same format as adrp, but the signed 21 bit number is a distance in bytes from this instruction.
+/// Same format as adrp, but the signed 21 bit number is a distance in bytes from this instruction.
 void Emulator32bit::_adr(const word instr)
 {
     const U8 xd = _X1(instr);

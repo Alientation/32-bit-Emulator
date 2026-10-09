@@ -43,7 +43,8 @@ void map_pages(VirtualMemory &mmu, word start_addr, word size, bool write, bool 
         permissions[vpage].first |= write;
         permissions[vpage].second |= execute;
 
-        // Not `vpage <= last_vpage` in the loop condition, the last page can be the last one there is.
+        // Not `vpage <= last_vpage` in the loop condition, the last page can be the last one there
+        // is.
         if (vpage == last_vpage)
         {
             break;
@@ -112,7 +113,7 @@ void LoadExecutable::load()
                "linker.",
                m_exe_file.get_path());
 
-    /* .text is stored as words, the others as bytes. Words are little endian in memory. */
+    // .text is stored as words, the others as bytes. Words are little endian in memory.
     std::vector<byte> text;
     text.reserve(obj.text_section.size() * 4);
     for (const word instr : obj.text_section)
@@ -149,7 +150,7 @@ void LoadExecutable::load()
         mmu.set_vpage_permissions(mmu.current_process(), vpage, vpage, access.first, access.second);
     }
 
-    /* start program at _start label */
+    // start program at _start label
     const auto start = obj.string_table.find("_start");
     AEMU_CHECK(start != obj.string_table.end()
                    && obj.symbol_table.at(start->second).section != U32(-1),
