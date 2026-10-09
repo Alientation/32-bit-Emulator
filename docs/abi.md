@@ -128,7 +128,7 @@ How the compiler should use the instruction set as it is:
 | `long long` shifts, compares | inline sequences, or the runtime library |
 | constants up to `0x7FFFF` | `mov xd, imm` (`mvn` for the complement, so −1 to −524288 are one instruction) |
 | any other 32 bit constant | `ldr xd, =value`, which the assembler expands to `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (two instructions when the low 14 bits are 0). No literal pool, no scratch register |
-| address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym` |
+| address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym`; `adr xd, sym` when it is within 1 MiB of the instruction (a static, a string, a function of the same file) |
 | sign extension of 8/16 bits in a register | `sxtb xd, xn` / `sxth xd, xn`. Loads use `ldrsb`/`ldrsh` |
 | zero extension | `uxtb` / `uxth` (or `and xd, xn, 255` for a byte) |
 | comparison for a branch | `cmp` + `b.lt`/`b.lo`/... (signed: `lt le gt ge`, unsigned: `lo ls hi hs`) |
@@ -158,7 +158,9 @@ Not part of the ABI itself, but needed to follow it. All **implemented** (see [b
 - `ldr xd, =value` (no literal pool, see the lowering table), `cset`/`csel` and their family, and `sxtb`/`sxth`/`uxtb`/`uxth`/`clz`/`rev`/`rev16`.
 - `mov xd, imm` takes the whole `imm19` (it was limited to 14 bits by the assembler although the encoding has 19).
 
-Not done: `adr` (a pc relative address within a few hundred KiB, in one instruction instead of the `adrp` pair, which would use a primary opcode); a `.section` directive for names other than the six sections.
+- `adr xd, sym` (opcode `110011`): a pc relative address within 1 MiB in one instruction instead of the `adrp` pair.
+
+Not done: a `.section` directive for names other than the six sections.
 
 ## Open questions
 

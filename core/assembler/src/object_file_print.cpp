@@ -31,6 +31,8 @@ const char *relocation_name(ObjectFile::RelocationEntry::Type type)
         return "R_EMU32_B_OFFSET22";
     case Type::R_EMU32_ABS32:
         return "R_EMU32_ABS32";
+    case Type::R_EMU32_ADR_PCREL21:
+        return "R_EMU32_ADR_PCREL21";
     case Type::UNDEFINED:
         break;
     }

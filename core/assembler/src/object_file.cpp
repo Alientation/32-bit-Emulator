@@ -341,7 +341,7 @@ void ObjectFile::validate() const
                        "symbol {}, which does not exist.",
                        path, section, rel.symbol);
             AEMU_CHECK(rel.type > RelocationEntry::Type::UNDEFINED
-                           && rel.type <= RelocationEntry::Type::R_EMU32_ABS32,
+                           && rel.type <= RelocationEntry::Type::R_EMU32_ADR_PCREL21,
                        "ObjectFile::disassemble() - '{}' is corrupt, a relocation of {} has the "
                        "invalid type {}.",
                        path, section, U32(rel.type));

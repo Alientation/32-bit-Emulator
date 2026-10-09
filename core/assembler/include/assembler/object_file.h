@@ -137,6 +137,10 @@ class ObjectFile
 
             /// @brief      The 32 bit address of the symbol, in .data (`.word symbol`).
             R_EMU32_ABS32,
+
+            /// @brief      `adr`: the distance in bytes from the instruction to the target, a
+            ///             signed 21 bit number (the 20 bits of the immediate and the sign bit).
+            R_EMU32_ADR_PCREL21,
         } type;
 
         /// @brief          Signed constant added to the address of the symbol, so the relocation

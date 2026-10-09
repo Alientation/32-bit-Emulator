@@ -99,6 +99,41 @@ TEST(Relocation, adrp_reaches_a_page_before_the_instruction)
     EXPECT_EQ(adrp_result(patched, 0x3004), 0x1000u);
 }
 
+TEST(Relocation, adr_is_the_distance_in_bytes_from_the_instruction)
+{
+    const word adr = Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0);
+
+    EXPECT_EQ(apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, 0x10, 0x25),
+              Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0x15));
+    EXPECT_EQ(apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, 0x10, 0x10),
+              Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0));
+
+    const word backwards = apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, 0x2000, 0x1FF0);
+    EXPECT_TRUE(test_bit(backwards, kInstructionUpdateFlagBit)) << "the sign bit";
+    EXPECT_EQ(bitfield_unsigned(backwards, 0, 20), word((1 << 20) - 0x10));
+    EXPECT_EQ(bitfield_unsigned(backwards, 20, 5), 3u) << "the destination register is kept";
+}
+
+TEST(Relocation, adr_reaches_the_ends_of_the_21_bit_range)
+{
+    ThrowOnFatal guard;
+    const word adr = Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0);
+    constexpr word kBase = 0x400000;
+
+    const word forward = apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase + (1 << 20) - 1);
+    EXPECT_EQ(bitfield_unsigned(forward, 0, 20), word((1 << 20) - 1));
+    EXPECT_FALSE(test_bit(forward, kInstructionUpdateFlagBit));
+
+    const word backward = apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase - (1 << 20));
+    EXPECT_EQ(bitfield_unsigned(backward, 0, 20), 0u);
+    EXPECT_TRUE(test_bit(backward, kInstructionUpdateFlagBit));
+
+    EXPECT_THROW(apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase + (1 << 20)),
+                 aemu::log::FatalError);
+    EXPECT_THROW(apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase - (1 << 20) - 1),
+                 aemu::log::FatalError);
+}
+
 TEST(Relocation, adrp_in_the_same_page)
 {
     const word adrp = Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 3, 0);

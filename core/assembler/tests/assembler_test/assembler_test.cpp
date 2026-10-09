@@ -399,6 +399,31 @@ TEST_F(AssemblerUnit, adrp_accepts_an_explicit_relocation)
     EXPECT_EQ(text("adrp x0, :hi20:buf\n"), text("adrp x0, buf\n"));
 }
 
+TEST_F(AssemblerUnit, adr_is_a_pc_relative_relocation_with_an_addend)
+{
+    const ObjectFile object = assemble(".text\n"
+                                       "adr x3, buf\n"
+                                       "adr x4, buf + 8\n"
+                                       "adr x5, here\n"
+                                       "here: nop\n"
+                                       ".data\n"
+                                       "buf: .word 1\n");
+    using Type = ObjectFile::RelocationEntry::Type;
+    ASSERT_EQ(object.rel_text.size(), 3u);
+    EXPECT_EQ(object.rel_text[0].type, Type::R_EMU32_ADR_PCREL21);
+    EXPECT_EQ(object.rel_text[1].type, Type::R_EMU32_ADR_PCREL21);
+    EXPECT_EQ(object.rel_text[1].addend, 8);
+    EXPECT_EQ(object.rel_text[2].type, Type::R_EMU32_ADR_PCREL21)
+        << "a label of the file as well, the linker places the sections";
+    EXPECT_EQ(object.text_section[0], Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0));
+}
+
+TEST_F(AssemblerUnit, adr_takes_a_symbol_and_not_a_part_of_an_address)
+{
+    EXPECT_TRUE(contains(error(".text\nadr x0, :hi20:buf\n.data\nbuf: .word 1\n"), "symbol"));
+    EXPECT_TRUE(contains(error(".text\nadr x0, 12\n"), "symbol"));
+}
+
 TEST_F(AssemblerUnit, labels_in_a_scope_are_renamed_per_scope)
 {
     const ObjectFile object = assemble(".text\n"

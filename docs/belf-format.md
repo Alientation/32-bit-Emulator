@@ -94,10 +94,11 @@ The patched value is `target = address(symbol) + addend`. In the table below `P`
 | 4 | `R_EMU32_MOV_HI13` | `mov xd, :hi13:sym` | bits 19-31 of `target` |
 | 5 | `R_EMU32_B_OFFSET22` | `b`, `bl` with a label | `(target - P) / 4` as a signed 22 bit number; `target` has to be 4 byte aligned and within reach |
 | 6 | `R_EMU32_ABS32` | `.word sym` in `.data`, `.rodata`, `.init_array`, `.fini_array` | `target` is added to the 32 bit word that is already there |
+| 7 | `R_EMU32_ADR_PCREL21` | `adr xd, sym` | `target - P` in bytes, as a signed 21 bit number (20 bits plus a sign bit); within 1 MiB either way |
 
 A relocation of one of the data sections has to be `R_EMU32_ABS32`; the others are for `.text`.
 
-The assembler itself resolves a branch to a label of the same file (a label outside of any `.scope`), because that distance does not depend on where the file ends up. It then writes no relocation. A branch to a label of a `.scope` keeps its relocation, pointed at the symbol of that scope. Everything else is left for the linker, so a `.bo` that came out of the assembler can have relocations of all six types.
+The assembler itself resolves a branch to a label of the same file (a label outside of any `.scope`), because that distance does not depend on where the file ends up. It then writes no relocation. A branch to a label of a `.scope` keeps its relocation, pointed at the symbol of that scope. Everything else is left for the linker, so a `.bo` that came out of the assembler can have relocations of all seven types.
 
 #### The addend
 

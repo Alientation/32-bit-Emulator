@@ -203,12 +203,15 @@ word Assembler::parse_format_m1(byte opcode)
     const byte reg = parse_register();
     expect(TokenType::COMMA, "expected ',' and a symbol");
 
-    // Implicitly assume :hi20:
-    m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
+    // adrp implicitly has :hi20:. adr is the distance in bytes, it has no part of an address.
+    const bool is_adr = opcode == Emulator32bit::_op_adr;
+    if (!is_adr) m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
 
     const ExprValue target = parse_symbol_operand("expected a symbol");
     add_relocation(m_obj.rel_text, word(m_obj.text_section.size() * 4),
-                   ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20, target);
+                   is_adr ? ObjectFile::RelocationEntry::Type::R_EMU32_ADR_PCREL21
+                          : ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
+                   target);
 
     return Emulator32bit::asm_format_m1(opcode, reg, 0);
 }

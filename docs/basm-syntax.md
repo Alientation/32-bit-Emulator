@@ -209,6 +209,7 @@ Atomics: `swp`, `ldadd`, `ldclr`, `ldset` with `b` (byte) and `h` (halfword) var
 | `ret` | `bx x29` |
 | `swi[.cond] [n]` | software interrupt, `n` is a number from 0 to 4194303 (0 if left out), not an offset. With a vector table installed it is a system call of an operating system; `swi 1` and (without a table) `swi` are the emulator calls, with the call number in `x8` and the arguments in `x0`–`x4`. See [exceptions.md](exceptions.md#swi-and-the-emulator-calls) |
 | `adrp xd, sym` | page of a symbol, see above |
+| `adr xd, sym` | the address of a symbol in one instruction, relative to the instruction: the symbol has to be within 1 MiB (`adr xd, table + 8` works, no `:lo12:` or `:hi20:`). Further away it is a link error, use `adrp` + `add` |
 | `mrs xd, sysreg` / `msr sysreg, xn\|imm16` | read/write a system register: `pstate` `elr` `spsr` `esr` `far` `vbar` `usp` `ptbr` `sctlr` (any case). Privileged, except the flags of `pstate`. See [exceptions.md](exceptions.md#system-registers) |
 | `tlbi [xn]` | forget the cached page table translation of the page of `xn`, or all of them (privileged), see [mmu.md](mmu.md) |
 | `eret` | return from an exception (privileged) |

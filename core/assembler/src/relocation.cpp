@@ -23,6 +23,21 @@ word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word i
         }
         return patched;
     }
+    case Type::R_EMU32_ADR_PCREL21:
+    {
+        /* the distance in bytes from the adr itself */
+        const int64_t distance = int64_t(sword(target)) - int64_t(sword(instr_address));
+        AEMU_CHECK(distance >= -(1 << 20) && distance < (1 << 20),
+                   "apply_relocation() - adr at {:#x} cannot reach {:#x}, the distance does not "
+                   "fit in 21 bits.",
+                   instr_address, target);
+        word patched = mask_0(instr, 0, 20) + bitfield_unsigned(sword(distance), 0, 20);
+        if (distance < 0)
+        {
+            patched = set_bit(patched, kInstructionUpdateFlagBit, 1);
+        }
+        return patched;
+    }
     case Type::R_EMU32_MOV_LO19:
         return mask_0(instr, 0, 19) + bitfield_unsigned(target, 0, 19);
     case Type::R_EMU32_MOV_HI13:

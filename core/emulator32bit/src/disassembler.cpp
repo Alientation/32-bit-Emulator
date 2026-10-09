@@ -786,6 +786,11 @@ static std::string disassemble_adrp(word instruction)
     return disassemble_format_m1(instruction, "adrp");
 }
 
+static std::string disassemble_adr(word instruction)
+{
+    return disassemble_format_m1(instruction, "adr");
+}
+
 // Construct disassembler instruction mapping.
 using DisassemblerFunction = std::string (*)(word);
 static DisassemblerFunction _disassembler_instructions[kMaxInstructions];

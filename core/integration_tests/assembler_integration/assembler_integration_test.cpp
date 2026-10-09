@@ -2520,3 +2520,61 @@ wait3:          ldr     x6, [x22, 4]
     EXPECT_EQ(bytes[513], 0x12);
     EXPECT_EQ(bytes[0], 0);
 }
+
+// adr is the address of a label in one instruction: a label of the code (the call through a
+// register, a jump table of the code itself), and data in another section, the linker works out
+// the distance. A number can be added to the symbol.
+TEST_F(AssemblerIntegration, adr_gives_the_address_of_a_label_in_one_instruction)
+{
+    write_file("adr.basm", R"(.global _start
+
+.data
+table:          .word 11, 22, 33
+
+.text
+_start:
+                adr     x1, callee
+                blx     x1                      ; x0 = 7
+                adr     x2, table
+                ldr     x3, [x2, 4]             ; 22
+                adr     x4, table + 8
+                ldr     x5, [x4]                ; 33
+                adr     x6, _start              ; backwards, to the first instruction
+                adr     x7, here
+here:           hlt
+
+callee:
+                mov     x0, 7
+                ret
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o adr adr.basm -outdir ."));
+
+    ASSERT_NO_FATAL_FAILURE(run("adr.bexe"));
+    EXPECT_EQ(reg(0), 7u);
+    EXPECT_EQ(reg(1), 9 * 4u) << "callee is after the 9 instructions before it";
+    EXPECT_EQ(reg(2), 0x1000u) << "the data starts on the first page after the code";
+    EXPECT_EQ(reg(3), 22u);
+    EXPECT_EQ(reg(4), 0x1008u);
+    EXPECT_EQ(reg(5), 33u);
+    EXPECT_EQ(reg(6), 0u);
+    EXPECT_EQ(reg(7), 8 * 4u) << "the address of the next instruction, which is the hlt";
+}
+
+// The distance is 21 bits of bytes: a megabyte either way.
+TEST_F(AssemblerIntegration, adr_to_a_symbol_more_than_a_megabyte_away_fails_to_link)
+{
+    write_file("far.basm", R"(.global _start
+
+.bss
+pad:            .advance 1100000
+far:            .advance 4
+
+.text
+_start:
+                adr     x0, far
+                hlt
+)");
+    EXPECT_NE(basm("-o far far.basm -outdir ."), 0);
+    EXPECT_NE(log_tail("basm.log").find("cannot reach"), std::string::npos)
+        << log_tail("basm.log");
+}

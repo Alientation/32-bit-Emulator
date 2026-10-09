@@ -977,3 +977,16 @@ void Emulator32bit::_adrp(const word instr)
     word val = mask_0(m_pc, 0, 12) + (simm21 << 12);
     write_reg(xd, val);
 }
+
+// Same format as adrp, but the signed 21 bit number is a distance in bytes from this instruction.
+void Emulator32bit::_adr(const word instr)
+{
+    const U8 xd = _X1(instr);
+    sword distance = sword(bitfield_unsigned(instr, 0, 20));
+    if (test_bit(instr, kInstructionUpdateFlagBit))
+    {
+        distance -= (1 << 20);
+    }
+
+    write_reg(xd, m_pc + word(distance));
+}

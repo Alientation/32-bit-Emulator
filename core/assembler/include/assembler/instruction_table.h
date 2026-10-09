@@ -17,7 +17,7 @@ enum class InstructionFormat
     O2,        ///< long multiply: op xlo, xhi, xn, xm
     O3,        ///< mov, mvn: op xd, <xm | imm | :hi13:symbol | :lo19:symbol>
     M,         ///< loads and stores
-    M1,        ///< adrp
+    M1,        ///< adrp, adr
     B1,        ///< b, bl: a label or an offset
     B2,        ///< bx, blx: a register
     SWI,       ///< swi[.cond] [number], a number of 22 bits (0 if left out)

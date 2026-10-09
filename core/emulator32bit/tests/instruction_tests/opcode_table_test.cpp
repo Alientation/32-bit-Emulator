@@ -21,6 +21,7 @@ TEST_F(EmulatorFixture, opcode_constants_come_from_the_list)
     EXPECT_EQ(Emulator32bit::_op_add, 0b000001u);
     EXPECT_EQ(Emulator32bit::_op_ldr, 0b100100u);
     EXPECT_EQ(Emulator32bit::_op_adrp, 0b110010u);
+    EXPECT_EQ(Emulator32bit::_op_adr, 0b110011u);
 }
 
 // Opcodes that are not in the list fault, whatever the rest of the instruction is.

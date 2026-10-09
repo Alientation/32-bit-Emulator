@@ -180,7 +180,7 @@ Register offset (bit 14 clear):
 
 ### M1: page address
 
-`ADRP xd, symbol`
+`ADRP xd, symbol`, `ADR xd, symbol`
 
 ```
  31   26 25 24  20 19                 0
@@ -189,7 +189,10 @@ Register offset (bit 14 clear):
 +-------+--+------+-------------------+
 ```
 
-The page offset is a signed 21 bit number of pages. `imm20` holds its low 20 bits and `?sign` (bit 25) is bit 20, set by the linker when the offset is negative. The result is `(address of the ADRP & ~0xFFF) + (offset << 12)`.
+The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` (bit 25) is bit 20, set by the linker when the offset is negative.
+
+- `ADRP`: the offset is in pages. The result is `(address of the ADRP & ~0xFFF) + (offset << 12)`.
+- `ADR`: the offset is in bytes. The result is `address of the ADR + offset`, so it reaches 1 MiB back or 1 MiB − 1 forward, and it is the exact address (a label of the code or of any section, the linker works the distance out). A symbol further away is a link error ("cannot reach"); use `adrp` + `add` for it.
 
 ### B1: branch with offset
 
@@ -489,6 +492,7 @@ The assembler writes the common cases as aliases, which store the **opposite** c
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
 | `110010` | `ADRP xd, symbol` | M1 | `xd = (pc & ~0xFFF) + page offset`. The linker computes the page offset from the relocation (`:hi20:`, which the assembler applies implicitly, so `adrp xd, sym` is enough). Add `:lo12:sym` with `add xd, xd, :lo12:sym` for the full address |
+| `110011` | `ADR xd, symbol` | M1 | `xd = pc + byte offset` (±1 MiB), the full address in one instruction. The linker computes the offset from the relocation (`R_EMU32_ADR_PCREL21`) |
 
 ## Operands
 
@@ -577,4 +581,4 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The free opcodes are:
 
-`110011`, `110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`
+`110100`, `110101`, `110110`, `110111`, `111000`, `111001`, `111010`, `111011`, `111100`, `111101`, `111110`, `111111`

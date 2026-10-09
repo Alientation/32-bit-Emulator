@@ -124,4 +124,5 @@
     F(X, BLX, "blx", false, B2, Emulator32bit::_op_blx, 0)                                         \
     F(X, SWI, "swi", false, SWI, Emulator32bit::_op_swi, 0)                                        \
     F(X, ADRP, "adrp", false, M1, Emulator32bit::_op_adrp, 0)                                      \
+    F(X, ADR, "adr", false, M1, Emulator32bit::_op_adr, 0)                                         \
     F(X, RET, "ret", false, RET, 0, 0)
