@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# Agent Guidelines
-- DO NOT use Bash commands (`cat`, `grep`, `sed`, `awk`, `heredocs`) to read or write files.
-- ALWAYS use your native tools (`Read()`, `Write()`, `Edit()`, `Grep()`) for file operations.
-
 ## Overview
 An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assembler, and linker for **basm** assembly, plus an executable loader. All code lives under `core/`. A C compiler (`core/ccompiler`, written in C11) is in progress but is currently **commented out** of `core/CMakeLists.txt`.
 
