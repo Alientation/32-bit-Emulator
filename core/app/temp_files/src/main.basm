@@ -40,10 +40,10 @@ func:
 
 .data
 datalabel:
-	.byte		$01, $02, $03, $04
-	.dbyte		$1234, $5678
-	.word		$12345678,
-	.dword		$0123456789abcdef,
+	.byte		0x01, 0x02, 0x03, 0x04
+	.dbyte		0x1234, 0x5678
+	.word		0x12345678,
+	.dword		0x0123456789abcdef,
 
 ;*
 	End of file

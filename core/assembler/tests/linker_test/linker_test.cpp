@@ -699,7 +699,7 @@ TEST_F(LinkerScript, the_script_places_a_nobits_section_by_name)
 {
     const std::vector<ObjectFile> objects = {
         assemble("p", ".global _start\n.global top\n.text\n_start: nop\n"
-                      ".section \"stack\", \"rw\", \"nobits\"\n.align 8\ntop: .advance $1000\n")};
+                      ".section \"stack\", \"rw\", \"nobits\"\n.align 8\ntop: .advance 0x1000\n")};
     const std::string ld = write("stack.ld", "SECTIONS (\n.text = 0;\n\"stack\" = 0x8000;\n.data;\n.bss;\n)\n");
     const std::string path = (m_dir / "out" / "stack.bexe").string();
     Linker linker(objects, File(path, true), File(ld));

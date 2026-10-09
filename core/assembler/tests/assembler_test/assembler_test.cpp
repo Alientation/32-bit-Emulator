@@ -102,8 +102,15 @@ TEST_F(AssemblerUnit, alu_with_registers_and_immediates)
 
 TEST_F(AssemblerUnit, number_literals_in_every_base)
 {
-    EXPECT_EQ(text("add x0, x0, 10\nadd x0, x0, $A\nadd x0, x0, %1010\nadd x0, x0, @12\n"),
+    EXPECT_EQ(text("add x0, x0, 10\nadd x0, x0, 0xA\nadd x0, x0, 0b1010\nadd x0, x0, 0o12\n"),
               Words(4, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 0, 10)));
+}
+
+TEST_F(AssemblerUnit, the_old_number_notations_are_errors_that_say_what_to_write)
+{
+    EXPECT_TRUE(contains(error(".data\n.byte $FF\n"), "lexical error"));
+    EXPECT_TRUE(contains(error(".data\n.byte %101\n"), "lexical error"));
+    EXPECT_TRUE(contains(error(".data\n.byte @17\n"), "lexical error"));
 }
 
 TEST_F(AssemblerUnit, flag_setting_suffix)
@@ -329,7 +336,7 @@ TEST_F(AssemblerUnit, a_branch_offset_out_of_range_is_an_error)
     // Used to wrap: 0x800000 was read as a jump backwards.
     EXPECT_TRUE(contains(error(".text\nb 8388608\n"), "branch offset must be between"));
     EXPECT_TRUE(contains(error(".text\nb -8388612\n"), "branch offset must be between"));
-    EXPECT_TRUE(contains(error(".text\nb $800000\n"), "branch offset must be between"));
+    EXPECT_TRUE(contains(error(".text\nb 0x800000\n"), "branch offset must be between"));
     EXPECT_TRUE(contains(error(".text\nb -6\n"), "branch offset must be 4 byte aligned"));
 }
 
@@ -485,7 +492,7 @@ TEST_F(AssemblerUnit, stop_ends_the_assembly)
 
 TEST_F(AssemblerUnit, data_directives_are_little_endian)
 {
-    EXPECT_EQ(data(".byte 1, $FF, %101, @17\n.dbyte $1234\n.word $11223344\n.dword 1\n"),
+    EXPECT_EQ(data(".byte 1, 0xFF, 0b101, 0o17\n.dbyte 0x1234\n.word 0x11223344\n.dword 1\n"),
               (Bytes{1, 0xFF, 5, 15, 0x34, 0x12, 0x44, 0x33, 0x22, 0x11, 1, 0, 0, 0, 0, 0, 0, 0}));
 }
 
@@ -552,7 +559,7 @@ TEST_F(AssemblerUnit, bitwise_and_shift_operators_follow_the_precedence_of_c)
     EXPECT_VALUE("6 ^ 3", 5);
     EXPECT_VALUE("1 | 2 & 0", 1); // & binds tighter than |
     EXPECT_VALUE("1 | 2 ^ 3 & 1", 3);
-    EXPECT_VALUE("$FF & ~$0F", 0xF0);
+    EXPECT_VALUE("0xFF & ~0x0F", 0xF0);
     EXPECT_VALUE("1 << 63", INT64_MIN);
 }
 
@@ -959,7 +966,7 @@ TEST_F(AssemblerUnit, instructions_can_add_a_number_to_a_symbol)
                                        "adrp x0, buf + 8\n"
                                        "add x0, x0, :lo12:buf + 8\n"
                                        "mov x1, :hi13:buf - 4\n"
-                                       "mov x1, :lo19:buf + $10\n"
+                                       "mov x1, :lo19:buf + 0x10\n"
                                        "bl printf + 8\n"
                                        ".data\nbuf: .word 1\n");
     using Type = ObjectFile::RelocationEntry::Type;
@@ -1246,9 +1253,9 @@ TEST_F(AssemblerUnit, org_advance_and_align_work_in_a_user_section)
 TEST_F(AssemblerUnit, fill_repeats_a_value)
 {
     EXPECT_EQ(data(".fill 3\n"), (Bytes{0, 0, 0})) << "size 1 and value 0 by default";
-    EXPECT_EQ(data(".fill 3, 1, $AB\n"), (Bytes{0xAB, 0xAB, 0xAB}));
-    EXPECT_EQ(data(".fill 2, 2, $1234\n"), (Bytes{0x34, 0x12, 0x34, 0x12}));
-    EXPECT_EQ(data(".fill 2, 4, $DEADBEEF\n"),
+    EXPECT_EQ(data(".fill 3, 1, 0xAB\n"), (Bytes{0xAB, 0xAB, 0xAB}));
+    EXPECT_EQ(data(".fill 2, 2, 0x1234\n"), (Bytes{0x34, 0x12, 0x34, 0x12}));
+    EXPECT_EQ(data(".fill 2, 4, 0xDEADBEEF\n"),
               (Bytes{0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE}));
     EXPECT_EQ(data(".fill 1, 8, 1\n"), (Bytes{1, 0, 0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(data(".fill 2, 2, 0 - 1\n"), (Bytes{0xFF, 0xFF, 0xFF, 0xFF})) << "a negative value";

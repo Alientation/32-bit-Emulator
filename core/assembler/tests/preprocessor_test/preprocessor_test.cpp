@@ -82,14 +82,14 @@ TEST_F(PreprocessorUnit, strings_and_characters_are_not_touched)
 
 TEST_F(PreprocessorUnit, output_lexes_like_the_input)
 {
-    // Spacing decides how these lex (`%101` is a number, `10 % 3` is not), so it has to survive.
-    const std::string source = "mov x0, %101\n"
-                               "add x1, x1, $FF\n"
+    // Spacing decides how some of these lex (`.5` is a float, `10 .5` is not), so it has to survive.
+    const std::string source = "mov x0, 0b101\n"
+                               "add x1, x1, 0xFF\n"
                                "ldr x0, [sp, -4]!\n"
                                "ldrsb x2, [x1], 1\n"
                                "adds x0, x0, :lo12:buf\n"
                                "b.ne loop\n"
-                               ".word 10 % 3, @17, 1<<2\n"
+                               ".word 10 % 3, 0o17, 1<<2\n"
                                "vadd.f32 x0, x1\n";
     EXPECT_EQ(lexed(preprocess(source)), lexed(source));
 }
@@ -280,7 +280,10 @@ TEST_F(PreprocessorUnit, numbers_are_compared_by_value)
     EXPECT_EQ(preprocess("#define V 9\n#ifless V 10\n.word 1\n#endif\n"), ".word 1\n");
     EXPECT_EQ(preprocess("#define V 9\n#ifmore V 10\n.word 1\n#endif\n"), "");
     EXPECT_EQ(preprocess("#define V 10\n#ifmore V 9\n.word 1\n#endif\n"), ".word 1\n");
-    EXPECT_EQ(preprocess("#define V $A\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V 0xA\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V 0b1010\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V 0o12\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
+    EXPECT_EQ(preprocess("#define V -0x10\n#ifless V 0\n.word 1\n#endif\n"), ".word 1\n");
     EXPECT_EQ(preprocess("#define V -2\n#ifless V 1\n.word 1\n#endif\n"), ".word 1\n");
     EXPECT_EQ(preprocess("#define V 010\n#ifequ V 10\n.word 1\n#endif\n"), ".word 1\n");
 }

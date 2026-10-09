@@ -733,11 +733,11 @@ TEST_F(AssemblerIntegration, logical_and_shift_operations)
 
 .text
 _start:
-                mov     x0, $ff0                ; 0x00000ff0
-                and     x1, x0, $0f0            ; 0x0f0
-                orr     x2, x0, $00f            ; 0xfff
-                eor     x3, x0, $0ff            ; 0xf0f
-                bic     x4, x0, $f00            ; 0x0f0
+                mov     x0, 0xff0                ; 0x00000ff0
+                and     x1, x0, 0x0f0            ; 0x0f0
+                orr     x2, x0, 0x00f            ; 0xfff
+                eor     x3, x0, 0x0ff            ; 0xf0f
+                bic     x4, x0, 0xf00            ; 0x0f0
                 lsl     x5, x0, 4               ; 0xff00
                 lsr     x6, x0, 4               ; 0xff
                 sub     x7, xzr, 16             ; 0xfffffff0
@@ -767,16 +767,16 @@ _start:
     EXPECT_EQ(reg(15), 0xff0u);
 }
 
-// $hex, %binary and @octal literals in instructions and data.
+// 0x hex, 0b binary and 0o octal literals in instructions and data.
 TEST_F(AssemblerIntegration, number_literals)
 {
     write_file("lit.basm", R"(.global _start
 
 .text
 _start:
-                add     x0, xzr, $2A
-                add     x1, xzr, %101010
-                add     x2, xzr, @52
+                add     x0, xzr, 0x2A
+                add     x1, xzr, 0b101010
+                add     x2, xzr, 0o52
                 add     x3, xzr, 42
                 adrp    x4, table
                 add     x4, x4, :lo12:table
@@ -785,7 +785,7 @@ _start:
                 ldrb    x7, [x4, 2]
                 hlt
 .data
-table:          .byte $2A, %101010, @52
+table:          .byte 0x2A, 0b101010, 0o52
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o lit lit.basm -outdir ."));
     ASSERT_NO_FATAL_FAILURE(run("lit.bexe"));
@@ -806,19 +806,19 @@ _start:
                 add     x0, x0, :lo12:buf
                 add     x9, x0, 0               ; keep the base address
 
-                add     x1, xzr, $11
+                add     x1, xzr, 0x11
                 str     x1, [x0], 4             ; buf[0], then x0 += 4
-                add     x1, xzr, $22
+                add     x1, xzr, 0x22
                 str     x1, [x0, 4]!            ; x0 += 4, then buf[2]
-                add     x1, xzr, $33
+                add     x1, xzr, 0x33
                 add     x2, xzr, 3
                 str     x1, [x9, x2, lsl 2]     ; buf[3]
-                add     x1, xzr, $44
+                add     x1, xzr, 0x44
                 str     x1, [x9, 4]             ; buf[1]
 
-                add     x1, xzr, $1234
+                add     x1, xzr, 0x1234
                 strh    x1, [x9, 16]
-                add     x1, xzr, $ab
+                add     x1, xzr, 0xab
                 strb    x1, [x9, 18]
 
                 sub     x3, x0, x9              ; 8: x0 was written back twice
@@ -830,7 +830,7 @@ _start:
                 lsl     x1, x1, 15
                 strh    x1, [x9, 16]            ; 0x8000
                 ldrsh   x8, [x9, 16]            ; sign extends 0x8000
-                add     x1, xzr, $1234
+                add     x1, xzr, 0x1234
                 strh    x1, [x9, 16]
                 hlt
 .bss
@@ -861,12 +861,12 @@ _start:
                 adrp    x0, buf
                 add     x0, x0, :lo12:buf
                 add     x9, x0, 16              ; points at the end of buf
-                add     x1, xzr, $11
+                add     x1, xzr, 0x11
                 str     x1, [x9, -4]            ; buf[3]
-                add     x1, xzr, $22
+                add     x1, xzr, 0x22
                 str     x1, [x9, -8]!           ; x9 -= 8, then buf[2]
-                add     x1, xzr, $33
-                str     x1, [x9], -4            ; buf[2] = $33, then x9 -= 4
+                add     x1, xzr, 0x33
+                str     x1, [x9], -4            ; buf[2] = 0x33, then x9 -= 4
                 sub     x3, x9, x0              ; 4
                 ldr     x4, [x0, 8]
                 ldr     x5, [x0, 12]
@@ -1003,15 +1003,15 @@ _start:
 .data
 bytes:          .byte 1, 2, 3
                 .align 4
-hwords:         .dbyte $1234
-words:          .word $deadbeef
-dwords:         .dword $0102030405060708
+hwords:         .dbyte 0x1234
+words:          .word 0xdeadbeef
+dwords:         .dword 0x0102030405060708
 chars:          .byte 'h', 'i'
 text:           .ascii "ab"
 ztext:          .asciz "cd"
                 .advance 2
                 .org 32
-tail:           .byte $7f
+tail:           .byte 0x7f
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o layout layout.basm -outdir ."));
 
@@ -1269,7 +1269,7 @@ TEST_F(AssemblerIntegration, sample_programs)
     ASSERT_NO_FATAL_FAILURE(build("-I programs/include -o out/showcase "
                                   "programs/src/showcase_preprocessor.basm -outdir out"));
     ASSERT_NO_FATAL_FAILURE(run("out/showcase.bexe"));
-    EXPECT_EQ(reg(0), 22u); // $12 + 4
+    EXPECT_EQ(reg(0), 22u); // 0x12 + 4
     EXPECT_EQ(reg(1), 5u);
 }
 
@@ -1543,7 +1543,7 @@ _start:
 // Code that is bigger than the 4 KiB before the data used to be written over by the data.
 TEST_F(AssemblerIntegration, big_programs_do_not_run_into_their_data)
 {
-    std::string source = ".global _start\n.data\nvalue: .word $12345678\n.text\n_start:\n";
+    std::string source = ".global _start\n.data\nvalue: .word 0x12345678\n.text\n_start:\n";
     for (int i = 0; i < 1100; i++) source += "                nop\n";
     source += "                adrp    x1, value\n"
               "                add     x1, x1, :lo12:value\n"
@@ -1612,7 +1612,7 @@ _start:
 
 .data
                 .align 8
-wide:           .word $01020304
+wide:           .word 0x01020304
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o aligned main.basm wide.basm -outdir ."));
 
@@ -2045,7 +2045,7 @@ func:
                 ret
 
 .rodata
-table:          .word func, $1234
+table:          .word func, 0x1234
                 .asciz "hi"
 .data
 counter:        .word 9
@@ -2275,9 +2275,9 @@ TEST_F(AssemblerIntegration, compiler_helper_instructions)
     write_file("helpers.basm", R"(.global _start
 .text
 _start:
-                ldr     x0, =$12345678          ; three instructions
+                ldr     x0, =0x12345678          ; three instructions
                 ldr     x1, =0 - 5              ; mvn
-                ldr     x2, =$80000000
+                ldr     x2, =0x80000000
                 ldr     x3, =table + 4          ; an address
                 ldr     x4, [x3]                ; table[1]
 
@@ -2291,7 +2291,7 @@ _start:
                 csel    x11, x5, x6, lt         ; the smaller
                 cneg    x12, x5, lt             ; -3
 
-                ldr     x13, =$FFFF8081
+                ldr     x13, =0xFFFF8081
                 sxtb    x14, x13                ; 0xFFFFFF81
                 uxtb    x15, x13                ; 0x81
                 sxth    x16, x13                ; 0xFFFF8081
@@ -2350,18 +2350,18 @@ fill:           lsl     x5, x3, 12
                 cmp     x3, x4
                 b.ne    fill
 
-                mov     x5, $C003               ; virtual page $40 -> physical page 12, V | W
-                mov     x6, $100
+                mov     x5, 0xC003               ; virtual page 0x40 -> physical page 12, V | W
+                mov     x6, 0x100
                 str     x5, [x1, x6]
 
                 msr     ptbr, x0
                 mov     x7, 1
                 msr     sctlr, x7               ; translation is on, the next fetch is mapped
 
-                ldr     x8, =$40000
+                ldr     x8, =0x40000
                 mov     x9, 123
                 str     x9, [x8]                ; through the new mapping
-                mov     x11, $C000
+                mov     x11, 0xC000
                 ldr     x12, [x11]              ; the same word, through the identity mapping
                 ldr     x13, [x1, x6]           ; the entry, with accessed and dirty set
                 tlbi
@@ -2388,9 +2388,9 @@ TEST_F(AssemblerIntegration, console_timer_and_interrupt_controller)
     write_file("devices.basm", R"(.global _start
 .text
 _start:
-                ldr     x20, =$F0002000         ; console
-                ldr     x21, =$F0000000         ; interrupt controller
-                ldr     x22, =$F0001000         ; timer
+                ldr     x20, =0xF0002000         ; console
+                ldr     x21, =0xF0000000         ; interrupt controller
+                ldr     x22, =0xF0001000         ; timer
 
                 adrp    x1, message
                 add     x1, x1, :lo12:message
@@ -2474,14 +2474,14 @@ TEST_F(AssemblerIntegration, block_device_with_a_disk_image)
     write_file("disk.basm", R"(.global _start
 .text
 _start:
-                ldr     x22, =$F0003000         ; block device
-                ldr     x3, [x22, $14]          ; capacity
+                ldr     x22, =0xF0003000         ; block device
+                ldr     x3, [x22, 0x14]          ; capacity
                 mov     x1, 1
                 str     x1, [x22, 8]            ; sector 1
                 mov     x4, 0
-                str     x4, [x22, $10]          ; cursor 0
-                ldr     x5, =$1234
-                str     x5, [x22, $C]           ; first word of the buffer
+                str     x4, [x22, 0x10]          ; cursor 0
+                ldr     x5, =0x1234
+                str     x5, [x22, 0xC]           ; first word of the buffer
                 mov     x1, 2
                 str     x1, [x22, 0]            ; write
 wait1:          ldr     x6, [x22, 4]
@@ -2496,14 +2496,14 @@ wait2:          ldr     x6, [x22, 4]
                 b.ne    wait2
                 str     xzr, [x22, 4]
 
-                str     x4, [x22, $10]
-                str     x4, [x22, $C]           ; scribble over the buffer
+                str     x4, [x22, 0x10]
+                str     x4, [x22, 0xC]           ; scribble over the buffer
                 mov     x1, 1
                 str     x1, [x22, 0]            ; read sector 1 back
 wait3:          ldr     x6, [x22, 4]
                 tst     x6, 1
                 b.ne    wait3
-                ldr     x7, [x22, $C]
+                ldr     x7, [x22, 0xC]
                 hlt
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o disk disk.basm -outdir ."));
@@ -2778,14 +2778,14 @@ TEST_F(AssemblerIntegration, a_nobits_section_is_memory_the_program_can_use_and_
 
 .section "stack", "rw", "nobits"
 .align 16
-stack_bottom:   .advance $8000                  ; 32 KiB
+stack_bottom:   .advance 0x8000                  ; 32 KiB
 stack_top:
 
 .text
 _start:
                 adr     x1, stack_bottom
                 adr     x2, stack_top
-                sub     x3, x2, x1              ; $8000
+                sub     x3, x2, x1              ; 0x8000
                 and     x4, x1, 15              ; 0, it is aligned
                 ldr     x5, [x1]                ; 0
                 mov     x6, 99
@@ -2840,7 +2840,7 @@ TEST_F(AssemblerIntegration, fill_and_pushsection_in_a_program)
     write_file("fill.basm", R"(.global _start
 
 .data
-pattern:        .fill 4, 4, $DEADBEEF
+pattern:        .fill 4, 4, 0xDEADBEEF
 bytes:          .fill 3, 1, 7
 
 .text

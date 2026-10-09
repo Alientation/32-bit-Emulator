@@ -173,7 +173,7 @@ TEST(tokenizer_v2, float_mnemonics)
 TEST(tokenizer_v2, number_literals)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, ".byte $2A, %101010, @52, 42, 1.5, .25\n");
+    const LexResult r = lex_asm(sm, ".byte 0x2A, 0b101010, 0o52, 42, 1.5, .25\n");
     ASSERT_FALSE(r.has_errors);
     EXPECT_EQ(r.tokens[0].type, T::ASSEMBLER_BYTE);
     EXPECT_EQ(r.tokens[1].type, T::LITERAL_NUMBER_HEXADECIMAL);
@@ -198,19 +198,57 @@ TEST(tokenizer_v2, percent_is_modulus_after_an_operand)
     EXPECT_EQ(r.tokens[2].type, T::LITERAL_NUMBER_DECIMAL);
 }
 
+TEST(tokenizer_v2, upper_case_prefixes_and_a_leading_zero)
+{
+    SourceManager sm;
+    const LexResult r = lex_asm(sm, ".byte 0XFF, 0B11, 0O17, 010, 0\n");
+    ASSERT_FALSE(r.has_errors);
+    EXPECT_EQ(r.tokens[1].int_value, 255u);
+    EXPECT_EQ(r.tokens[3].int_value, 3u);
+    EXPECT_EQ(r.tokens[5].int_value, 15u);
+    EXPECT_EQ(r.tokens[7].type, T::LITERAL_NUMBER_DECIMAL);
+    EXPECT_EQ(r.tokens[7].int_value, 10u) << "a leading zero is not octal";
+    EXPECT_EQ(r.tokens[9].int_value, 0u);
+}
+
 TEST(tokenizer_v2, bad_numbers_are_diagnosed)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, "mov x0, 0x1F\nmov x1, %12\nmov x2, 99999999999999999999\n");
+    const LexResult r = lex_asm(sm, "mov x0, 0xZ1\nmov x1, 0b12\nmov x2, 99999999999999999999\n"
+                                    "mov x3, 0o9\nmov x4, 0x\n");
     EXPECT_TRUE(r.has_errors);
-    EXPECT_EQ(r.diagnostics.size(), 3u);
-    EXPECT_NE(r.diagnostics[0].message.find("hexadecimal is written"), std::string::npos);
+    ASSERT_EQ(r.diagnostics.size(), 5u);
+    EXPECT_NE(r.diagnostics[0].message.find("invalid hexadecimal literal '0xZ1'"),
+              std::string::npos);
     EXPECT_EQ(r.diagnostics[0].loc.line, 1u);
     EXPECT_EQ(r.diagnostics[0].loc.column, 9u);
+    EXPECT_NE(r.diagnostics[1].message.find("invalid binary literal '0b12'"), std::string::npos);
     EXPECT_EQ(r.diagnostics[1].loc.line, 2u);
     EXPECT_NE(r.diagnostics[2].message.find("too large"), std::string::npos);
+    EXPECT_NE(r.diagnostics[3].message.find("invalid octal literal '0o9'"), std::string::npos);
+    EXPECT_NE(r.diagnostics[4].message.find("invalid hexadecimal literal '0x'"), std::string::npos);
     // lexing continued after the errors
     EXPECT_EQ(r.tokens.back().type, T::END_OF_FILE);
+}
+
+// $FF, %101 and @17 were the notations once. They say what to write instead.
+TEST(tokenizer_v2, the_old_notations_say_what_to_write)
+{
+    SourceManager sm;
+    const LexResult r = lex_asm(sm, "mov x0, $1F\nmov x1, %12\nmov x2, @17\n.word 5 %101, x %1\n");
+    EXPECT_TRUE(r.has_errors);
+    ASSERT_EQ(r.diagnostics.size(), 3u) << "after an operand % is the remainder";
+    EXPECT_NE(r.diagnostics[0].message.find(
+                  "'$1F' is not a number: hexadecimal numbers are written 0xFF, not $FF"),
+              std::string::npos);
+    EXPECT_EQ(r.diagnostics[0].loc.line, 1u);
+    EXPECT_EQ(r.diagnostics[0].loc.column, 9u);
+    EXPECT_NE(r.diagnostics[1].message.find("'%12' is not a number: binary numbers are written "
+                                            "0b101, not %101"),
+              std::string::npos);
+    EXPECT_NE(r.diagnostics[2].message.find("'@17' is not a number: octal numbers are written "
+                                            "0o17, not @17"),
+              std::string::npos);
 }
 
 TEST(tokenizer_v2, comments)

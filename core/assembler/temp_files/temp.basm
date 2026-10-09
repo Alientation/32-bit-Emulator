@@ -10,8 +10,8 @@
 .section .text
                 add     x1, x2, 123                     ; this code will never run
 _start:
-                add     x1, x2, $1234
-                sub     x1, x3, $1234
+                add     x1, x2, 0x1234
+                sub     x1, x3, 0x1234
 
                 adrp    x0, :hi20:datalabel            ; equivalent to adrp x1, datalabel
                 add     x0, :lo12:datalabel
@@ -33,10 +33,10 @@ func:
 
 .section .data
 datalabel:
-        .byte           $01, $02, $03, $04
-        .dbyte          $1234, $5678
-        .word           $12345678,
-        .dword          $0123456789abcdef,
+        .byte           0x01, 0x02, 0x03, 0x04
+        .dbyte          0x1234, 0x5678
+        .word           0x12345678,
+        .dword          0x0123456789abcdef,
 
 ; End
 
@@ -53,8 +53,8 @@ Contents of section .data:
 
 Disassembly of section .text:
 0000000000000000 <_start>:
-   0:           ########        add             x1, x2, $1234
-   4:           ########        sub             x1, x3, $1234
+   0:           ########        add             x1, x2, 0x1234
+   4:           ########        sub             x1, x3, 0x1234
 
 
 *;

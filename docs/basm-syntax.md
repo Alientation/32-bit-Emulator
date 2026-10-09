@@ -34,7 +34,7 @@ loop:       subs    x0, x0, 1
 |-|-|
 | Comments | `; to the end of the line` and `;* a block *;` |
 | Line join | a `\` at the end of a line continues it on the next |
-| Numbers | `42` decimal, `$2A` hex, `%101` binary, `@17` octal |
+| Numbers | `42` decimal, `0x2A` hex, `0b101` binary, `0o17` octal (the prefix can be upper case; a leading zero is not octal, `010` is 10). The old `$2A`, `%101` and `@17` are errors that say what to write instead |
 | Characters | `'a'`, with escapes such as `'\n'`; a character is a number |
 | Strings | `"text"` with escapes, in `.ascii`, `.asciz` and `#include` |
 | Names | letters, digits and `_`, not starting with a digit. A name cannot be a keyword (an instruction, a register, a condition code, `eret`, `wfi`, `brk`; the names of system registers are only special after `msr`/`mrs`): a label or macro parameter called `b` is the branch instruction |
@@ -165,8 +165,8 @@ Loads a value an instruction cannot hold. There is **no literal pool**: a load c
 | Value | Code |
 |-------|------|
 | 0 to 524287 | `mov xd, value` |
-| -524288 to -1 (also `$FFF80000` and up) | `mvn xd, ~value` |
-| any other | `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & $3FFF` (the `orr` is left out when those bits are 0) |
+| -524288 to -1 (also `0xFFF80000` and up) | `mvn xd, ~value` |
+| any other | `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (the `orr` is left out when those bits are 0) |
 | a symbol (`=table`, `=table + 8`) | `adrp xd, sym` / `add xd, xd, :lo12:sym`, with the relocations of those |
 
 The value is an expression that is a number, -2147483648 to 4294967295, or a symbol with an optional offset. Only `ldr` has this form (not `ldrb`, `ldrh`).
@@ -234,7 +234,7 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 | `.equ name, expr` | constant, see above |
 | `.scope` / `.scend` | local scope |
 | `.byte` `.dbyte` `.word` `.dword` | 1, 2, 4 and 8 byte values, little endian, comma separated: `.word 1, 2, table + 4`. A value has to fit. `.word` also takes an address (`symbol`, `symbol + 4`); the others cannot |
-| `.fill count{, size{, value}}` | `count` copies of a `size` byte value (1, 2, 4 or 8; default 1), little endian. The value defaults to 0, has to fit, and with size 4 can be an address like `.word`'s: `.fill 16, 4, $DEADBEEF`. For zeros `.advance` is shorter |
+| `.fill count{, size{, value}}` | `count` copies of a `size` byte value (1, 2, 4 or 8; default 1), little endian. The value defaults to 0, has to fit, and with size 4 can be an address like `.word`'s: `.fill 16, 4, 0xDEADBEEF`. For zeros `.advance` is shorter |
 | `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end. A character is a number, so `.byte 'a', 'b'` is one byte for each character |
 | `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` or in a `nobits` section |
 | `.org n` | move forward to the offset `n` of the section (never backward) |
@@ -305,7 +305,7 @@ Preprocessor lines start with `#` and are handled before assembling.
         add x0, x0, b
 #macend
 
-        #invoke add_to_x0($12, 4)   ; the body is pasted in a .scope
+        #invoke add_to_x0(0x12, 4)  ; the body is pasted in a .scope
         #invoke twice(x1) result    ; `result` receives the value of `#macret value`
 ```
 

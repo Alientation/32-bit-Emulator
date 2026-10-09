@@ -746,11 +746,11 @@ class Lexer
             case '\'':
                 lex_char(begin, loc);
                 break;
+            // $FF, %101 and @17 were how numbers were written once. The error says what to write.
             case '$':
-                if (assembly())
+                if (assembly() && is_ident_char(peek(1)))
                 {
-                    lex_prefixed(begin, loc, 1, 16, TokenType::LITERAL_NUMBER_HEXADECIMAL,
-                                 "hexadecimal", is_ident_char(peek(1)));
+                    lex_old_number(begin, loc, "hexadecimal", "0xFF", "$FF");
                 }
                 else
                 {
@@ -760,19 +760,17 @@ class Lexer
             case '%':
                 if (assembly() && (peek(1) == '0' || peek(1) == '1') && !prev_is_operand())
                 {
-                    lex_prefixed(begin, loc, 1, 2, TokenType::LITERAL_NUMBER_BINARY, "binary",
-                                 true);
+                    lex_old_number(begin, loc, "binary", "0b101", "%101");
                 }
                 else
                 {
-                    lex_punct(begin, loc);
+                    lex_punct(begin, loc); // the remainder operator
                 }
                 break;
             case '@':
-                if (assembly())
+                if (assembly() && is_digit(peek(1)))
                 {
-                    lex_prefixed(begin, loc, 1, 8, TokenType::LITERAL_NUMBER_OCTAL, "octal",
-                                 is_ident_char(peek(1)));
+                    lex_old_number(begin, loc, "octal", "0o17", "@17");
                 }
                 else
                 {
@@ -1022,9 +1020,23 @@ class Lexer
         emit(TokenType::LITERAL_FLOAT_32, begin, loc);
     }
 
+    /// A number in the notation that was dropped (`$FF`, `%101`, `@17`): consumes it and says how
+    /// the numbers of that base are written now.
+    void lex_old_number(std::size_t begin, const SourceLocation &loc, const char *base_name,
+                        const char *new_example, const char *old_example)
+    {
+        std::size_t end = begin + 1;
+        while (end < m_src.size() && is_ident_char(m_src[end])) end++;
+        m_pos = end;
+        error(loc, "'" + std::string(m_src.substr(begin, end - begin)) + "' is not a number: "
+                       + base_name + " numbers are written " + new_example + ", not "
+                       + old_example);
+        emit(TokenType::INVALID, begin, loc);
+    }
+
     /// Integer literal whose digits start after `prefix_len` characters. The whole identifier
-    /// run is consumed so that `$12G` is one bad token instead of a number and a symbol.
-    /// `consume` false means there is nothing valid after the prefix character (stray `$`).
+    /// run is consumed so that `0x12G` is one bad token instead of a number and a symbol.
+    /// `consume` false means there is nothing valid after the prefix.
     void lex_prefixed(std::size_t begin, const SourceLocation &loc, std::size_t prefix_len,
                       int base, TokenType type, const char *name, bool consume)
     {
@@ -1038,17 +1050,9 @@ class Lexer
         const std::string_view text = m_src.substr(begin, end - begin);
         const std::string_view digits = text.substr(prefix_len);
 
-        std::string hint;
-        if (base == 10 && text.size() > 1 && text[0] == '0'
-            && (text[1] == 'x' || text[1] == 'X' || text[1] == 'b' || text[1] == 'B'))
-        {
-            hint = " (hexadecimal is written $FF, binary %101, octal @17)";
-        }
-
         if (digits.empty() || !digits_valid(digits, base))
         {
-            error(loc,
-                  "invalid " + std::string(name) + " literal '" + std::string(text) + "'" + hint);
+            error(loc, "invalid " + std::string(name) + " literal '" + std::string(text) + "'");
             emit(TokenType::INVALID, begin, loc);
             return;
         }
@@ -1086,11 +1090,10 @@ class Lexer
                 finish_float(begin, loc);
                 return;
             }
-            lex_prefixed(begin, loc, 0, 10, TokenType::LITERAL_NUMBER_DECIMAL, "decimal", true);
-            return;
         }
 
-        // Linker script: 0x.., 0b.., decimal.
+        // 0x.., 0b.., 0o.. (assembly only: octal) or decimal. A leading zero does not make a
+        // number octal, `010` is 10.
         if (m_src[begin] == '0' && (peek(1) == 'x' || peek(1) == 'X'))
         {
             lex_prefixed(begin, loc, 2, 16, TokenType::LITERAL_NUMBER_HEXADECIMAL, "hexadecimal",
@@ -1099,6 +1102,10 @@ class Lexer
         else if (m_src[begin] == '0' && (peek(1) == 'b' || peek(1) == 'B'))
         {
             lex_prefixed(begin, loc, 2, 2, TokenType::LITERAL_NUMBER_BINARY, "binary", true);
+        }
+        else if (assembly() && m_src[begin] == '0' && (peek(1) == 'o' || peek(1) == 'O'))
+        {
+            lex_prefixed(begin, loc, 2, 8, TokenType::LITERAL_NUMBER_OCTAL, "octal", true);
         }
         else
         {

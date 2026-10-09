@@ -96,8 +96,8 @@ std::string join(const std::vector<Token> &tokens)
     return text;
 }
 
-/// The value of text that is a whole number written the way the assembler writes one: 42, $2A,
-/// %101 or @17, with an optional '-'.
+/// The value of text that is a whole number written the way the assembler writes one: 42, 0x2A,
+/// 0b101 or 0o17, with an optional '-'.
 std::optional<long long> as_number(const std::string &text)
 {
     std::size_t i = 0;
@@ -105,10 +105,14 @@ std::optional<long long> as_number(const std::string &text)
     if (negative) i++;
 
     int base = 10;
-    if (i < text.size() && text[i] == '$') base = 16;
-    else if (i < text.size() && text[i] == '%') base = 2;
-    else if (i < text.size() && text[i] == '@') base = 8;
-    if (base != 10) i++;
+    if (i + 1 < text.size() && text[i] == '0')
+    {
+        const char prefix = static_cast<char>(text[i + 1] | 0x20); // lower case
+        if (prefix == 'x') base = 16;
+        else if (prefix == 'b') base = 2;
+        else if (prefix == 'o') base = 8;
+    }
+    if (base != 10) i += 2;
     if (i >= text.size()) return std::nullopt;
 
     long long value = 0;

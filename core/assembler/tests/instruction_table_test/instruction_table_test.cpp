@@ -291,24 +291,24 @@ TEST_F(InstructionTable, load_constant_pseudo_instruction)
     EXPECT_EQ(assemble("ldr x1, =524287"), std::vector<word>{mov(0x7FFFF)});
     EXPECT_EQ(assemble("ldr x1, =0 - 1"), std::vector<word>{mvn(0)});
     EXPECT_EQ(assemble("ldr x1, =0 - 524288"), std::vector<word>{mvn(0x7FFFF)});
-    EXPECT_EQ(assemble("ldr x1, =$FFFFFFFF"), std::vector<word>{mvn(0)});
+    EXPECT_EQ(assemble("ldr x1, =0xFFFFFFFF"), std::vector<word>{mvn(0)});
 
     // 19 bits are not enough: shift in the high part, then the low 14 bits.
-    EXPECT_EQ(assemble("ldr x1, =$12345678"),
+    EXPECT_EQ(assemble("ldr x1, =0x12345678"),
               (std::vector<word>{mov(0x12345678u >> 14), lsl14, orr(0x12345678u & 0x3FFF)}));
     // Nothing to add when those bits are zero.
-    EXPECT_EQ(assemble("ldr x1, =$80000000"), (std::vector<word>{mov(0x80000000u >> 14), lsl14}));
+    EXPECT_EQ(assemble("ldr x1, =0x80000000"), (std::vector<word>{mov(0x80000000u >> 14), lsl14}));
     EXPECT_EQ(assemble("ldr x1, =524288"), (std::vector<word>{mov(524288u >> 14), lsl14}));
 
     // The register is the destination: the others are not touched (x16 is not used).
-    EXPECT_EQ(assemble("ldr sp, =$12345678").size(), 3u);
+    EXPECT_EQ(assemble("ldr sp, =0x12345678").size(), 3u);
 
     // An ordinary load is still an ordinary load.
     EXPECT_EQ(assemble("ldr x1, [x2]"), std::vector<word>{E::asm_format_m(
                                             E::_op_ldr, false, 1, 2, 0, E::AddrType::ADDR_OFFSET)});
 
     EXPECT_TRUE(
-        contains(error_of([&] { assemble("ldr x1, =$100000000"); }), "does not fit in 32 bits"));
+        contains(error_of([&] { assemble("ldr x1, =0x100000000"); }), "does not fit in 32 bits"));
     EXPECT_TRUE(contains(error_of([&] { assemble("ldrb x1, =5"); }), "expected '['"));
 }
 
