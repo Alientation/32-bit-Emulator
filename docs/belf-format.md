@@ -9,7 +9,7 @@ BELF is the ELF-like binary format of the basm toolchain. One layout is used for
 | `.ba`     | static library: a list of `.bo` files | `basm -ar` |
 | `.ld`     | linker script (text, see the end) | written by hand |
 
-All numbers are **little endian**, the instruction words of `.text` too (the same order as in the memory of the emulator). Sizes and offsets are stored in more bytes than they need (8), but the reader keeps 32 bits of most of them. Files written before this was changed (when `.text` was stored most significant byte first) are not detected: they would be read with scrambled instructions, so build them again.
+All numbers are **little endian**, the instruction words of `.text` too (the same order as in the memory of the emulator). Sizes and offsets are stored in more bytes than they need (8), but the reader keeps 32 bits of most of them. The format has no version field, so a file written by an older version of the toolchain is not recognised as such and would be read wrongly: build it again.
 
 ## File layout
 
@@ -37,7 +37,7 @@ All numbers are **little endian**, the instruction words of `.text` too (the sam
  end - 8  H, the offset of the section headers   8 bytes
 ```
 
-The *contents* are written in this order and always all of them are there (an empty one has size 0). The section *headers* are in the order the assembler added the sections: `.text`, `.data`, `.bss`, `.symtab`, `.rel.text`, `.rel.data`, `.rel.bss`, `.strtab`, then `.rodata`, `.rel.rodata`, `.init_array`, `.rel.init_array`, `.fini_array`, `.rel.fini_array` (these six came later, and were added at the end so the indexes of the older sections, which the symbols hold, did not change), then the sections of the program's own (`.section "name"`), each a header of its own followed by the header of its relocations (type 19, named `.rel` + the name) in the order of the first `.section` that made them. A symbol holds the index of the header of its section, so for a user section the index depends on the file, and the linker looks it up by name. Files from before these sections existed have no `.rodata` and are refused with "has no .rodata section": build them again. To read a file, take the last 8 bytes, go to the section headers, and read each section from the offset and size of its header. A reader fails with a message when the file is too small, the magic is wrong, a section lies outside of the file, or a symbol, name or relocation points to something that does not exist.
+The *contents* are written in this order and always all of them are there (an empty one has size 0). The section *headers* are in the order the assembler added the sections: `.text`, `.data`, `.bss`, `.symtab`, `.rel.text`, `.rel.data`, `.rel.bss`, `.strtab`, then `.rodata`, `.rel.rodata`, `.init_array`, `.rel.init_array`, `.fini_array`, `.rel.fini_array` (these six come after the first eight so that the indexes of those, which the symbols hold, are fixed), then the sections of the program's own (`.section "name"`), each a header of its own followed by the header of its relocations (type 19, named `.rel` + the name) in the order of the first `.section` that made them. A symbol holds the index of the header of its section, so for a user section the index depends on the file, and the linker looks it up by name. A file without a `.rodata` section is refused with "has no .rodata section". To read a file, take the last 8 bytes, go to the section headers, and read each section from the offset and size of its header. A reader fails with a message when the file is too small, the magic is wrong, a section lies outside of the file, or a symbol, name or relocation points to something that does not exist.
 
 ### Header (24 bytes)
 
@@ -105,7 +105,7 @@ The assembler itself resolves a branch to a label of the same file (a label outs
 
 #### The addend
 
-`label + 4`, `label - 4`, `4 + label` and `:lo12:label + 4` (anywhere an address of a symbol is taken) become a relocation of `label` with that addend; the number is not written into the instruction. The symbol can be defined in the file, later in the file, or in another file. Older object files stored 0 in this field and are still valid.
+`label + 4`, `label - 4`, `4 + label` and `:lo12:label + 4` (anywhere an address of a symbol is taken) become a relocation of `label` with that addend; the number is not written into the instruction. The symbol can be defined in the file, later in the file, or in another file. A relocation without an addend has 0 in this field.
 
 Not representable, so rejected by the assembler: `-label`, `2 * label`, `label + label`, `label >> 2`, and any other use of an address as a number. The difference of two labels of the same section is a plain number and has no relocation.
 

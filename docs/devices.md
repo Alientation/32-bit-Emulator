@@ -1,6 +1,6 @@
 # Devices, interrupts and the boot sequence
 
-**Status: implemented** (`devices.h`, `devices.cpp`). The machine has four memory mapped devices: an interrupt controller, a timer, a console and a block device. They are what an operating system needs to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console) and to keep data (block device). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
+The machine has four memory mapped devices: an interrupt controller, a timer, a console and a block device. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console) and to keep data (block device). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
 
 ## Memory map
 
@@ -121,11 +121,11 @@ Code runs from RAM **or ROM**: a machine boots from its ROM by starting there (`
 
 The linker script places the kernel at physical addresses with `@P;` ([belf-format.md](belf-format.md)). `emu32 -e` is the shortcut that skips steps 1-3: the loader puts the program in RAM and starts it at `_start`, in kernel mode.
 
-## Not done
+## Limits
 
-- DMA is one contiguous buffer per command (no scatter/gather), and it moves the data at completion rather than during the wait.
-- Input that arrives while the machine runs (host time); the console input is queued before the run.
+- A DMA command moves one contiguous buffer (no scatter/gather), and it moves the data when the command completes rather than during the wait.
+- Console input is queued by the host before the run. Nothing arrives while the machine runs.
 
 ## Where it is in the code
 
-`Device` (the register page, `read_register`/`write_register`) and its three subclasses; `SystemBus` owns `intc`, `timer`, `console` and routes `0xF0000000` and up to them; `Emulator32bit::run` takes the IRQ between instructions and ticks the timer after each retired one; `Emulator32bit::_wfi` (also asks `BlockDevice`). Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.
+`Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each retired instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.

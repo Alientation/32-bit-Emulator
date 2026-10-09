@@ -136,7 +136,13 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 ## **Documentation**
 * [`docs/basm-syntax.md`](./docs/basm-syntax.md): the basm assembly language: expressions, `.equ` constants, labels and symbols (`label + 4`), instructions, directives and the preprocessor
 * [`docs/belf-format.md`](./docs/belf-format.md): the BELF binary formats (`.bo`, `.bexe`, `.ba`), relocations and addends, what the linker does, and linker scripts
-* Instruction encodings and the instruction set are described in [`core/emulator32bit/notes.txt`](./core/emulator32bit/notes.txt)
+* [`docs/isa.md`](./docs/isa.md): the instruction set, its encodings, the condition codes and the emulator calls
+* [`docs/exceptions.md`](./docs/exceptions.md): privilege levels, system registers, exceptions and the vector table
+* [`docs/mmu.md`](./docs/mmu.md): the page tables and the TLB
+* [`docs/devices.md`](./docs/devices.md): the memory map, the devices, interrupts and the boot sequence
+* [`docs/abi.md`](./docs/abi.md): the calling convention, the data layout and the frame record
+* [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints and the interactive debugger
+* [`docs/todo.md`](./docs/todo.md): what is not done yet
 * Sample programs are in `core/app/programs/`
 * Documentation of the emulator and of the source code is still a *todo*
 

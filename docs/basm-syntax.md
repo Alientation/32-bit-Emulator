@@ -1,6 +1,6 @@
 # basm assembly language
 
-The syntax of the assembly language `basm` assembles (`.basm` sources, `.binc` headers), and of its preprocessor. The binary formats it produces are in [belf-format.md](belf-format.md). The instruction encodings are in [`core/emulator32bit/notes.txt`](../core/emulator32bit/notes.txt), and the samples in `core/app/programs/`.
+The syntax of the assembly language `basm` assembles (`.basm` sources, `.binc` headers), and of its preprocessor. The binary formats it produces are in [belf-format.md](belf-format.md). The instructions and their encodings are in [isa.md](isa.md), and sample programs are in `core/app/programs/`.
 
 Contents: [Program structure](#program-structure) · [Lexical rules](#lexical-rules) · [Registers](#registers) · [Expressions](#expressions) · [Constants (.equ)](#constants-equ) · [Labels and symbols](#labels-and-symbols) · [Instructions](#instructions) · [Directives](#directives) · [Preprocessor](#preprocessor) · [Errors](#errors-and-warnings)
 
@@ -229,7 +229,7 @@ The floating point instructions (`vadd.f32`, ...) are reserved and cannot be ass
 |-----------|---------|
 | `.text` `.data` `.bss` | switch to the section (code, initialised data, zeroed space). A section can be re-entered later and continues where it stopped |
 | `.rodata` | read only data: strings, tables, constants. Same directives as `.data`, but the program cannot write it and it is not executable. Starts on a page of its own |
-| `.init_array` / `.fini_array` | tables of function addresses (`.word start_up`) that the program's startup code calls before `main` and after it. The linker joins the arrays of all files and defines the symbols `__init_array_start`, `__init_array_end`, `__fini_array_start` and `__fini_array_end` around them (also when empty). Read only. Nothing calls the entries yet, that is for the C runtime (`crt0`) |
+| `.init_array` / `.fini_array` | tables of function addresses (`.word start_up`) that the program's startup code calls before `main` and after it. The linker joins the arrays of all files and defines the symbols `__init_array_start`, `__init_array_end`, `__fini_array_start` and `__fini_array_end` around them (also when empty). Read only. The emulator does not call the entries, the startup code of the program (`crt0`) does |
 | `.global sym` / `.extern sym` / `.weak sym` / `.comm sym, size` | see [Labels and symbols](#labels-and-symbols); allowed anywhere, also in a macro |
 | `.equ name, expr` | constant, see above |
 | `.scope` / `.scend` | local scope |

@@ -74,7 +74,7 @@ Breakpoints are virtual addresses, like the PC.
 | `history` (`hist`) | the last executed instructions |
 | `backtrace` (`bt`) | the call chain, see [below](#backtrace) |
 | `set <reg\|pc> <value>` | change a register or the pc (a finished program can run again after `set pc`) |
-| `help`, `quit` | |
+| `help` (`h`), `quit` (`q`) | |
 
 After a fault the debugger prints the message and the last 8 instructions. The registers and memory can still be inspected. The exit code is 3 if the program faulted and 0 otherwise.
 
@@ -96,11 +96,10 @@ Two limits, both from how the records are made:
 - A function has no record before its prologue has run. When the pc is exactly at a symbol the debugger assumes that is the first instruction of a function and takes frame 1 from the link register (`x29`). A breakpoint on a label inside a function therefore shows one extra, wrong, frame.
 - Hand written leaf functions that skip the record are not shown.
 
-## Not there yet
+## Limits
 
-- Physical address watchpoints, old values of a write, conditions (stop only if the value is...).
-- A gdb remote stub, for use from an IDE (on the long term list).
-- Showing the exception state in `bt` (a backtrace through a handler stops at the `ERET` frame).
+- Watchpoints are on virtual addresses. They do not report the old value of a write and have no conditions.
+- `bt` does not show the exception state: a backtrace through a handler stops at the `ERET` frame.
 
 ## `brk`
 

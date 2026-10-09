@@ -2,7 +2,7 @@
 
 A simplified ARM-like 32 bit ISA. Instructions are fixed width (4 bytes, little endian) with a 6 bit opcode. The encodings keep the register fields at the same bit positions across formats, as ARM does.
 
-Exceptions, system registers and the privilege levels are in [exceptions.md](exceptions.md). A calling convention and `UDIV`/`SDIV` are drafted in [abi.md](abi.md) (not implemented). Debugging the emulator: [debugging.md](debugging.md).
+Exceptions, system registers and the privilege levels are in [exceptions.md](exceptions.md). The calling convention, data layout and the use of `UDIV`/`SDIV` are in [abi.md](abi.md). The devices are in [devices.md](devices.md) and the MMU in [mmu.md](mmu.md). Debugging the emulator: [debugging.md](debugging.md).
 
 The source of truth for opcodes is `AEMU_OPCODES` in `core/emulator32bit/include/emulator32bit/opcodes.h`. The assembler syntax is in [basm-syntax.md](basm-syntax.md).
 
@@ -30,7 +30,7 @@ Not in the register file:
 
 - **PC**: not addressable. It is 0 after reset, and the emulator adds 4 after each instruction.
 - **PSTATE**: see below.
-- **FPCR / FPSR**: not implemented ([FPCR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpcr--floating-point-control-register), [FPSR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register)). They are only a TODO in the emulator.
+- **FPCR / FPSR**: not implemented ([FPCR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpcr--floating-point-control-register), [FPSR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register)). The floating point instructions are reserved, see [Floating point](#floating-point-12-not-implemented).
 
 A register number above 31 reads as 0 and ignores writes (not reachable from a 5 bit field).
 
@@ -61,7 +61,7 @@ Reset value is `0x20`: kernel mode, IRQs masked.
 | 4 | U | 1 = user mode, 0 = kernel (privileged) mode. The CPU starts in kernel mode |
 | 5 | I | 1 = IRQs masked, see [devices.md](devices.md) |
 
-`MSR`/`MRS` access it as system register 1, see [exceptions.md](exceptions.md#system-registers). The other bits are not assigned yet. There are two stack pointers behind `sp`, one for each mode.
+`MSR`/`MRS` access it as system register 1, see [exceptions.md](exceptions.md#system-registers). The other bits are reserved. There are two stack pointers behind `sp`, one for each mode.
 
 ### Carry flag convention
 
@@ -228,7 +228,7 @@ The opcodes are reserved and the assembler recognizes the mnemonics, but it repo
 | F1 | `OP.F32 xd, xn, xm` | `opcode(6) - (1) xd(5) xn(5) -(1) xm(5) ---(9)` |
 | F2 | `OP.F32 xn, {xm \| 0}` | `opcode(6) ?fimm(1) xn(5) fimm(20)`, or with `?fimm` clear: `xn(5) xm(5) ---(16)` |
 
-The original notes described `fimm` as a 14 bit significand plus a 7 bit exponent (21 bits), which does not fit in the 20 bits left in a 32 bit word. The immediate layout needs to be decided when floating point is implemented.
+`fimm` has 20 bits. How they encode a value is not defined, since floating point is not implemented.
 
 ## Special instructions (opcode `000000`)
 
@@ -241,17 +241,17 @@ The original notes described `fimm` as a 14 bit significand plus a 7 bit exponen
 
 The extended op is bits 22–25. An unknown extended op is an [undefined instruction](exceptions.md#exception-classes) (without a vector table: a fault with `BAD_INSTR`).
 
-| ext. op | Instruction | Status |
-|---------|-------------|--------|
+| ext. op | Instruction | Description |
+|---------|-------------|-------------|
 | `0000` | `HLT` | stops the program. Privileged |
-| `0001` | `MSR sysreg, xn \| imm16` | implemented. Privileged, except for the flags of PSTATE |
-| `0010` | `MRS xn, sysreg` | implemented. Privileged, except for the flags of PSTATE |
-| `0011` | `TLBI{ xt}` | implemented. Privileged. Forgets cached page table translations |
-| `0100` | atomic operations | implemented |
-| `0101` | `ERET` | implemented. Privileged |
-| `0110` | `WFI` | implemented. Privileged. Waits for an interrupt, see [devices.md](devices.md#wfi) |
-| `0111` | `BRK imm22` | implemented |
-| `1000` | `SXTB`, `SXTH`, `UXTB`, `UXTH`, `CLZ`, `REV`, `REV16` | implemented, see [Unary operations](#unary-operations) |
+| `0001` | `MSR sysreg, xn \| imm16` | Privileged, except for the flags of PSTATE |
+| `0010` | `MRS xn, sysreg` | Privileged, except for the flags of PSTATE |
+| `0011` | `TLBI{ xt}` | Privileged. Forgets cached page table translations |
+| `0100` | atomic operations | see [Atomic operations](#atomic-operations) |
+| `0101` | `ERET` | Privileged. Returns from an exception |
+| `0110` | `WFI` | Privileged. Waits for an interrupt, see [devices.md](devices.md#wfi) |
+| `0111` | `BRK imm22` | raises the breakpoint exception |
+| `1000` | `SXTB`, `SXTH`, `UXTB`, `UXTH`, `CLZ`, `REV`, `REV16` | see [Unary operations](#unary-operations) |
 | `1111` | `NOP` | does nothing |
 
 **Privileged** instructions are an undefined instruction (ISS 2) in user mode.
@@ -270,7 +270,7 @@ Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 
 ### WFI
 
-`000000 | 0110 | 0…0`. Waits for an interrupt: returns when one is pending (the timer's moment is jumped to). With nothing that could produce one it ends the run like `HLT`.
+`000000 | 0110 | 0…0`. Waits for an interrupt: returns when one is pending, jumping time forward to the next timer or block device event. With nothing that could produce one it ends the run like `HLT`. See [devices.md](devices.md#wfi).
 
 ### BRK
 

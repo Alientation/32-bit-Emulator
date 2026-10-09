@@ -149,7 +149,7 @@ TEST(emulator_test, emulator32bit_util_test)
     }
 }
 
-/// Independent model of the 16 ARM condition codes (see notes.txt, "Condition Codes").
+/// Independent model of the 16 ARM condition codes (see docs/isa.md, "Condition codes").
 static bool cond_holds(int cond, bool n, bool z, bool c, bool v)
 {
     switch (cond)

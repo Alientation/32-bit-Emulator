@@ -1,6 +1,8 @@
 # ABI and integer division
 
-**Status:** the calling convention, the data layout and the frame record are **agreed but are a convention only**: nothing enforces them yet, the C compiler and the runtime library do not exist (the debugger's `bt` follows the frame record). `UDIV` and `SDIV` are **implemented** (see [Division](#division)). The register roles are the ones in [isa.md](isa.md#register-conventions), the rest is new. It is what a C compiler, the runtime library and the operating system agree on. Everything is little endian.
+This is the convention that a C compiler, the runtime library, the operating system and hand written assembly follow: the data layout, the registers, how arguments and results are passed, the frame record and the system call interface. Everything is little endian.
+
+The convention is not enforced by the toolchain. The instruction set support it relies on is implemented (`UDIV`/`SDIV`, see [Division](#division), and the instructions listed under [Toolchain support](#toolchain-support)) and the debugger's `bt` follows the frame record. The C compiler, `crt0` and the runtime library are not written yet; their sections below say what they have to provide. The register roles are the ones in [isa.md](isa.md#register-conventions).
 
 ## Data types
 
@@ -15,7 +17,7 @@
 
 `char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment.
 
-Hardware floating point does not exist yet ([isa.md](isa.md#floating-point-12-not-implemented)). `float` and `double` use the software routines of the [runtime library](#runtime-library), with the IEEE 754 binary32/binary64 formats, so the compiler's choice does not change when hardware is added later.
+There is no hardware floating point ([isa.md](isa.md#floating-point-12-not-implemented)). `float` and `double` use the software routines of the [runtime library](#runtime-library), with the IEEE 754 binary32/binary64 formats, so the compiler's choice does not change if hardware is added.
 
 ## Registers
 
@@ -24,7 +26,7 @@ Hardware floating point does not exist yet ([isa.md](isa.md#floating-point-12-no
 | `x0`–`x7` | arguments. `x0`, `x1` return value | caller |
 | `x8` | system call number | caller |
 | `x9`–`x15` | temporaries | caller |
-| `x16`, `x17` | scratch for the compiler and the assembler's expansions (address and constant building) | caller |
+| `x16`, `x17` | scratch for the compiler's own sequences (address and constant building, a long branch) | caller |
 | `x18` | reserved for the platform (the OS may keep a pointer to per-CPU or per-thread data here). Compiled code does not touch it | |
 | `x19`–`x27` | callee saved | callee |
 | `x28` | frame pointer | callee |
@@ -45,7 +47,7 @@ Arguments are assigned left to right to **words**:
 - A struct or union (**any size**) is never split over registers: the caller copies it to a temporary and passes a **pointer to the copy**, which takes one register like any pointer. The callee may modify the copy.
 - Once the eight registers are used, the rest goes on the stack.
 
-Passing every aggregate by pointer keeps the compiler simple: an aggregate is one word, it never has to be cut into register-sized pieces, and it never straddles the register/stack boundary. (An 8 byte struct would fit in two registers, but the rule for which ones, how to split a struct with a `char` and a `short`, and what happens when only one register is left costs more than the copy.)
+Passing every aggregate by pointer keeps the rules simple: an aggregate is one word, it never has to be cut into register-sized pieces, and it never straddles the register/stack boundary.
 
 Stack arguments are at `[sp]` upward at the moment of the call, in the order of the argument list, each aligned to 4 bytes and occupying a multiple of 4 bytes. The caller removes them after the call returns.
 
@@ -90,7 +92,7 @@ The prologue of a variadic function stores the argument registers that were not 
 
 ### Startup
 
-`_start` (in the C runtime object `crt0`) sets `sp` (the loader or the kernel gives it the stack), clears `x28` and `x29`, calls `main(argc, argv)` and passes the result to the `exit` system call. The loader zeroes `.bss`.
+`_start` (in the C runtime object `crt0`) sets `sp` (the loader or the kernel gives it the stack), clears `x28` and `x29`, calls `main(argc, argv)` and passes the result to the `exit` system call. The loader zeroes `.bss`. Clearing `x28` is what ends the chain of frame records.
 
 ## System calls
 
@@ -98,24 +100,24 @@ The prologue of a variadic function stores the argument registers that were not 
 
 ## Division
 
-The ISA has `MUL`, `UMULL` and `SMULL` but no divide. Compilers emit division constantly, and a libcall costs an order of magnitude more than an instruction in this emulator, so two instructions use the free primary opcodes.
+Division is two instructions, `UDIV` and `SDIV`. (A remainder has no instruction, see below.)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
 | `101010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
 | `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
-They sit directly after `STRH` in the opcode list (`opcodes.h`), take the same `arg` as the other O instructions (a register with a shift, or an unsigned `imm14`), and `S` updates N and Z from the result with C and V unchanged, like `MUL`. They are in [isa.md](isa.md#division-2).
+They take the same `arg` as the other O instructions (a register with a shift, or an unsigned `imm14`), and `S` updates N and Z from the result with C and V unchanged, like `MUL`. They are in [isa.md](isa.md#division-2).
 
-- **Division by zero** gives **0** and raises nothing (the ARM A64 behavior). C says it is undefined, and there is no trap for it (decided), so a compiler that wants a check emits it.
+- **Division by zero** gives **0** and raises nothing (the ARM A64 behavior). C says it is undefined and there is no trap for it, so a compiler that wants a check emits one.
 - **`INT_MIN / -1`** gives `INT_MIN` (the result wraps, no exception).
 - **Remainder** has no instruction: `r = n - (n / d) * d`, i.e. `sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`. With `d = 0` that gives `n`, which is consistent with the quotient being 0.
 
-Costs: two of the 16 free primary opcodes, leaving 14 (13 after `csel`). Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp` (operand forms, the S bit, aliasing), the two table checks, and `division_and_remainder` in the integration tests.
+Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, and one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp`, the two table checks, and `division_and_remainder` in the integration tests.
 
 ## Lowering of C operations
 
-How the compiler should use the instruction set as it is:
+How a compiler uses the instruction set:
 
 | C | Code |
 |---|------|
@@ -140,7 +142,7 @@ How the compiler should use the instruction set as it is:
 
 ## Runtime library
 
-A static library (`libbasmrt.ba`, linked automatically with `-l`) provides what the instructions do not, with the usual names:
+A static library (`libbasmrt.ba`, linked with `-l`) provides what the instructions do not, with the usual names. It is not written yet; this is the interface the compiler expects:
 
 - 64 bit: `__muldi3` (if not inlined), `__divdi3`, `__udivdi3`, `__moddi3`, `__umoddi3`, `__ashldi3`, `__lshrdi3`, `__ashrdi3`, `__cmpdi2`, `__ucmpdi2`.
 - Software floating point: `__addsf3`, `__subsf3`, `__mulsf3`, `__divsf3`, `__adddf3`, ..., the conversions `__floatsisf`, `__fixsfsi`, `__extendsfdf2`, `__truncdfsf2`, and the comparisons `__ltsf2`, `__gtsf2`, `__eqsf2`, ...
@@ -148,18 +150,14 @@ A static library (`libbasmrt.ba`, linked automatically with `-l`) provides what 
 
 Members are only linked when used (`select_library_members`), so an unused part costs nothing.
 
-## Assembler and linker features the ABI needs
+## Toolchain support
 
-Not part of the ABI itself, but needed to follow it. All **implemented** (see [basm-syntax.md](basm-syntax.md)):
+These are needed to follow the convention, and all are implemented (see [basm-syntax.md](basm-syntax.md)):
 
 - `.rodata`: string literals, `const` data and jump tables. Read only and not executable, on a page of its own.
-- `.weak` and `.comm`: weak symbols (a library function that a program may replace, an optional hook) and common symbols. A C compiler should place a tentative definition (`int x;` at file scope) in `.bss` as an ordinary global (`-fno-common`, the default of modern compilers) so that nothing depends on `.comm`, which cannot compare sizes: `.comm` is there for hand written code.
-- `.init_array` / `.fini_array` with the `__init_array_start`/`_end` and `__fini_array_start`/`_end` symbols: for `__attribute__((constructor))`. `crt0` calls what is between the bounds before `main` and after it.
+- `.weak` and `.comm`: weak symbols (a library function that a program may replace, an optional hook) and common symbols. A C compiler should place a tentative definition (`int x;` at file scope) in `.bss` as an ordinary global (`-fno-common`, the default of modern compilers) so that nothing depends on `.comm`, which cannot compare sizes: `.comm` is for hand written code.
+- `.init_array` / `.fini_array` with the `__init_array_start`/`_end` and `__fini_array_start`/`_end` symbols, for `__attribute__((constructor))`. `crt0` calls what is between the bounds before `main` and after it.
 - `ldr xd, =value` (no literal pool, see the lowering table), `cset`/`csel` and their family, and `sxtb`/`sxth`/`uxtb`/`uxth`/`clz`/`rev`/`rev16`.
-- `mov xd, imm` takes the whole `imm19` (it was limited to 14 bits by the assembler although the encoding has 19).
+- `mov xd, imm` takes the whole `imm19`.
 - `adr xd, sym` (opcode `110011`): a pc relative address within 1 MiB in one instruction instead of the `adrp` pair.
-- `.section "name", "flags"`: sections of the program's own (`"r"`, `"rw"`, `"rx"`), so `__attribute__((section("x")))`, a section for each function or object (`-ffunction-sections`, `-fdata-sections`) and the pieces of the kernel (a vector table, a boot stub) that a linker script places by name.
-
-## Open questions
-
-- Hardware floating point: the `fimm` immediate in the notes does not fit in the word, so the F2 format has to be redone first.
+- `.section "name", "flags"`: sections of the program's own (`"r"`, `"rw"`, `"rx"`), for `__attribute__((section("x")))`, a section for each function or object (`-ffunction-sections`, `-fdata-sections`) and the pieces of a kernel (a vector table, a boot stub) that a linker script places by name.

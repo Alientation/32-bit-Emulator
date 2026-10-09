@@ -1,6 +1,6 @@
 # The MMU: page tables that the operating system owns
 
-**Status: implemented** (`VirtualMemory`, `virtual_memory.h`), as an opt-in mode next to the old one. Setting `SCTLR.M` makes the CPU translate every address by walking a two level table in physical memory that the program (the OS) builds and maintains. Page faults are the ordinary [data and instruction aborts](exceptions.md#exception-classes), so a kernel can allocate, swap and share pages itself, and the C++ swapping in `VirtualMemory` is not involved.
+Setting `SCTLR.M` makes the CPU translate every address by walking a two level table in physical memory that the program (the OS) builds and maintains. Page faults are the ordinary [data and instruction aborts](exceptions.md#exception-classes), so a kernel can allocate, swap and share pages itself, and the C++ swapping in `VirtualMemory` is not involved. The code is `VirtualMemory` (`virtual_memory.h`).
 
 ## Two modes
 
@@ -106,12 +106,12 @@ A bare metal program that knows where its tables are puts them at physical addre
         msr     sctlr, x7
 ```
 
-## What this does not have
+## Limits
 
-- Address space identifiers, large pages and read-only-but-not-readable pages.
-- Taking the kernel out of the translation: there is no separate kernel table, so a kernel's pages are in every address space (without `U`), as on most simple designs.
-- Anything for devices yet: memory mapped devices are the next roadmap item, and will be physical addresses a kernel maps with no `W`/`X` as it likes.
-- The old `begin_process`/`add_vpage` interface is still what `emu32 -e` uses with `SCTLR.M` clear. It has its own kernel-only notion (`set_ppage_permissions`) that does not follow `PSTATE.U`; mode 1 replaces it.
+- There are no address space identifiers, large pages or read-only-but-not-readable pages.
+- There is no separate kernel table: a kernel's pages are in every address space (without `U`).
+- The memory mapped devices ([devices.md](devices.md)) are physical addresses, so a kernel maps their pages like any other, usually without `X`.
+- The `begin_process`/`add_vpage` interface is what `emu32 -e` uses while `SCTLR.M` is clear. It has its own kernel-only notion (`set_ppage_permissions`) that does not follow `PSTATE.U`; mode 1 does not use it.
 
 ## Where it is in the code
 
