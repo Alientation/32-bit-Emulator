@@ -1,6 +1,5 @@
-#include <assembler_test/toolchain_fixture.h>
-
-#include <assembler/static_library.h>
+#include "assembler_test/toolchain_fixture.h"
+#include "assembler/static_library.h"
 
 // The command line driver. Build is in-process here, so these tests also show that it can be used
 // as a library: it reports errors by throwing and never ends the process.

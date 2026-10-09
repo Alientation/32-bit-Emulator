@@ -1,7 +1,6 @@
-#include <emulator32bit/emulator32bit.h>
-
+#include "emulator32bit/emulator32bit.h"
 #include "util/logger.h"
-#include <util/common.h>
+#include "util/common.h"
 
 #include <bit>
 #include <format>

@@ -6,7 +6,7 @@
 // (imm14 / shifted register), the S bit, register aliasing, xzr, and that nothing else is written.
 // Each op is described once in `kOps`, and the tests loop over that table.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <cstring>
 #include <stdexcept>

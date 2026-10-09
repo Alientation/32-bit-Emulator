@@ -3,8 +3,7 @@
 // gets back, and what user mode may not do.
 
 #include "emulator32bit_test/emulator32bit_test.h"
-
-#include <emulator32bit/virtual_memory.h>
+#include "emulator32bit/virtual_memory.h"
 
 #include <sstream>
 

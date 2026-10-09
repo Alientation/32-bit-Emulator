@@ -4,14 +4,14 @@
 // It does not need an emulator. Errors are checked with FatalAction::Throw, so a failing source
 // throws aemu::log::FatalError instead of ending the test binary.
 
-#include <assembler/assembler.h>
-#include <assembler/build.h>
-#include <assembler/linker.h>
-#include <assembler/object_file.h>
-#include <assembler/preprocessor.h>
-#include <gtest/gtest.h>
-#include <util/logger.h>
+#include "assembler/assembler.h"
+#include "assembler/build.h"
+#include "assembler/linker.h"
+#include "assembler/object_file.h"
+#include "assembler/preprocessor.h"
+#include "util/logger.h"
 
+#include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>

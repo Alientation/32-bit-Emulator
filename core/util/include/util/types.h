@@ -1,11 +1,12 @@
 #pragma once
 
+#include "util/console_color.h"
+
 #include <bitset>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdint.h>
-#include <util/console_color.h>
 
 // Machine integer types.
 using dword = uint64_t;

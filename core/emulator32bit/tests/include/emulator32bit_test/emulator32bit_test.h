@@ -1,10 +1,10 @@
 #pragma once
 
-#include <emulator32bit/alu.h>
-#include <emulator32bit/emulator32bit.h>
-#include <emulator32bit/emulator32bit_util.h>
-#include <gtest/gtest.h>
+#include "emulator32bit/alu.h"
+#include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/emulator32bit_util.h"
 
+#include <gtest/gtest.h>
 #include <array>
 #include <iomanip>
 #include <new>

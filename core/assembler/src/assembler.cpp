@@ -1,7 +1,7 @@
 #include "assembler/assembler.h"
+
 #include "assembler/relocation.h"
 #include "emulator32bit/emulator32bit.h"
-
 #include "util/logger.h"
 #include "util/types.h"
 

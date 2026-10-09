@@ -1,4 +1,4 @@
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 TEST_F(EmulatorFixture, hlt_test_execution_halting)
 {

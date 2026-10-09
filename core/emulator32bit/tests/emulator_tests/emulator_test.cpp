@@ -1,5 +1,4 @@
-#include <emulator32bit_test/emulator32bit_test.h>
-
+#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/emulator32bit_util.h"
 
 TEST(emulator_test, emulator32bit_util_test)

@@ -5,7 +5,7 @@
 // against that pattern, and stores are checked by comparing a window of bytes around the target
 // with the pattern plus the stored bytes. Every op goes through the same addressing-mode sweep.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <vector>
 

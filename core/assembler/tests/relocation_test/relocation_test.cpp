@@ -1,7 +1,8 @@
-#include <assembler/relocation.h>
-#include <emulator32bit/emulator32bit.h>
+#include "assembler/relocation.h"
+#include "emulator32bit/emulator32bit.h"
+#include "util/logger.h"
+
 #include <gtest/gtest.h>
-#include <util/logger.h>
 
 namespace
 {

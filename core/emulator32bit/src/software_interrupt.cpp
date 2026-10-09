@@ -1,6 +1,5 @@
 
 #include "emulator32bit/emulator32bit.h"
-
 #include "util/common.h"
 #include "util/logger.h"
 

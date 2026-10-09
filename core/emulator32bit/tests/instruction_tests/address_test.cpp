@@ -2,7 +2,7 @@
 // M1 (a register and a signed 21 bit number: the 20 bits of the immediate and the sign bit).
 // adrp counts 4 KiB pages from the page of the instruction, adr counts bytes from the instruction.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {

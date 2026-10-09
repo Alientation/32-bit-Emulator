@@ -4,7 +4,7 @@
 // zero amount) and V is never touched. Expectations come from `ref_shift`/`ref_shift_carry`
 // (see emulator32bit_test.h), which are independent of `alu_shift`.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {

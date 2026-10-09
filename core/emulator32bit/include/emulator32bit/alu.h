@@ -1,9 +1,10 @@
 #pragma once
 
 #include "emulator32bit/emulator32bit_util.h"
+#include "util/common.h"
 #include "util/logger.h"
+
 #include <array>
-#include <util/common.h>
 
 enum class Register : U8
 {

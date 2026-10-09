@@ -1,6 +1,6 @@
 // The emulator calls of `swi`: printing and asserting on registers, memory and flags.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <sstream>
 

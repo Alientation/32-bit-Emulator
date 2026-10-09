@@ -3,7 +3,7 @@
 // The operand is either an unsigned imm19, or `xn + imm14` (so `mov xd, xn` is the imm14 == 0 case).
 // With the S bit set N and Z come from the result and C and V are preserved.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {

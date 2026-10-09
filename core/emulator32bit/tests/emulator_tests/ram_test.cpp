@@ -1,6 +1,8 @@
 #include "emulator32bit_test/emulator32bit_test.h"
-
 #include "emulator32bit/memory.h"
+
+#include <filesystem>
+#include <fstream>
 
 TEST(ram, words_and_half_words_are_little_endian_at_any_address)
 {
@@ -77,9 +79,6 @@ TEST(ram, memories_overlap_when_they_share_a_page)
     EXPECT_FALSE(a.overlap(c));
     EXPECT_FALSE(a.overlap(empty));
 }
-
-#include <filesystem>
-#include <fstream>
 
 TEST(rom, an_image_file_is_loaded_and_never_written_back)
 {

@@ -1,7 +1,6 @@
-#include <emulator32bit_test/emulator32bit_test.h>
-
-#include <emulator32bit/debugger.h>
-#include <emulator32bit/symbols.h>
+#include "emulator32bit_test/emulator32bit_test.h"
+#include "emulator32bit/debugger.h"
+#include "emulator32bit/symbols.h"
 
 #include <memory>
 #include <optional>

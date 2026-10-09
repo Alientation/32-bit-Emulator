@@ -1,7 +1,7 @@
 // Tests for the conditional select family (csel, csinc, csinv, csneg and the aliases built from
 // them) and the unary instructions of the special group (sxtb, sxth, uxtb, uxth, clz, rev, rev16).
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {

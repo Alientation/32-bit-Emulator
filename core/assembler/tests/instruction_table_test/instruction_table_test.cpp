@@ -1,9 +1,8 @@
 // The assembler's instruction list (instruction_list.h) has to agree with the emulator's opcode
 // list and its disassembler. These tests go through every row.
 
-#include <assembler_test/toolchain_fixture.h>
-
-#include <assembler/instruction_table.h>
+#include "assembler_test/toolchain_fixture.h"
+#include "assembler/instruction_table.h"
 
 namespace
 {

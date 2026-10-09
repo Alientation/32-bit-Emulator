@@ -1,9 +1,8 @@
 // The functions that build instructions refuse a value that does not fit its bits, instead of
 // letting it spill into the fields next to it.
 
-#include <emulator32bit_test/emulator32bit_test.h>
-
-#include <util/logger.h>
+#include "emulator32bit_test/emulator32bit_test.h"
+#include "util/logger.h"
 
 namespace
 {

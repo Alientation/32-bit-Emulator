@@ -1,8 +1,7 @@
 #include "emulator32bit_test/emulator32bit_test.h"
-
 #include "emulator32bit/fbl.h"
 
-#include "algorithm"
+#include <algorithm>
 
 TEST(fbl, in_order)
 {

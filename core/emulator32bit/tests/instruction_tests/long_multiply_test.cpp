@@ -3,7 +3,7 @@
 // With the S bit set N is bit 63 of the product, Z means the whole 64-bit product is zero (not just
 // one half), and C and V are preserved.
 
-#include <emulator32bit_test/emulator32bit_test.h>
+#include "emulator32bit_test/emulator32bit_test.h"
 
 namespace
 {

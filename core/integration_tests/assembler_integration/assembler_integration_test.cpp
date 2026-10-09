@@ -7,7 +7,6 @@
 #include "emulator32bit/emulator32bit.h"
 
 #include <gtest/gtest.h>
-
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -15,7 +14,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
 #include <sys/wait.h>
 
 namespace fs = std::filesystem;

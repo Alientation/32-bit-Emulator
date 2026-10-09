@@ -1,10 +1,10 @@
+#include "assembler/build.h"
+#include "util/logger.h"
+
 #include <cstdlib>
 #include <exception>
 #include <string>
 #include <vector>
-
-#include "assembler/build.h"
-#include "util/logger.h"
 
 int main(int argc, char *argv[])
 {

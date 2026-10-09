@@ -1,6 +1,6 @@
 #include "assembler/load_executable.h"
-#include "assembler/object_file.h"
 
+#include "assembler/object_file.h"
 #include "util/logger.h"
 
 #include <map>

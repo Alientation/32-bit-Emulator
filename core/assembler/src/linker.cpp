@@ -1,4 +1,5 @@
 #include "assembler/linker.h"
+
 #include "assembler/relocation.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/logger.h"
