@@ -10,7 +10,7 @@ VirtualMemory::VirtualMemory(Disk *disk, word frame_lo_page, word frame_pages,
     m_freepids(0, kMaxProcesses),
     m_frame_lo(frame_lo_page),
     m_frame_pages(frame_pages),
-    m_freelist(frame_lo_page, frame_pages, frame_pages > 0),
+    m_frames(frame_lo_page, frame_pages, true),
     m_physical(physical)
 {
 }
@@ -57,7 +57,7 @@ void VirtualMemory::release_frame(word ppage)
 {
     if (is_frame(ppage))
     {
-        m_freelist.return_block(ppage, 1);
+        m_frames.release(ppage);
     }
 }
 
@@ -152,7 +152,7 @@ void VirtualMemory::clock_add(PhysicalPage &page)
     page.referenced = true;
 }
 
-word VirtualMemory::clock_victim()
+VirtualMemory::PhysicalPage &VirtualMemory::clock_victim()
 {
     // The pages on the clock can be swapped. Only the frames can hold a page that is paged in, a
     // page outside of them was mapped explicitly and stays. The first turn clears the pages that
@@ -179,7 +179,7 @@ word VirtualMemory::clock_victim()
                     if (!page->referenced)
                     {
                         m_clock_hand = next;
-                        return page->ppage;
+                        return *page;
                     }
                     page->referenced = false;
                     for (const PageTableEntry *entry : page->mapped_vpages)
@@ -613,19 +613,20 @@ void VirtualMemory::map_ppage(long long pid, word vpage, word ppage)
     }
 
     add_vpage(pid, vpage, 1, true, true);
+    PageTableEntry *entry = ptable->entries.at(vpage);
 
-    if (physical_page(ppage).used)
+    PhysicalPage &page = physical_page(ppage);
+    if (page.used)
     {
-        evict_ppage(ppage);
+        evict_ppage(page);
     }
 
     if (is_frame(ppage))
     {
-        m_freelist.remove_block(ppage, 1);
+        m_frames.take(ppage);
     }
-    map_vpage_to_ppage(pid, vpage, ppage);
+    map_vpage_to_ppage(entry, page);
 
-    PageTableEntry *entry = ptable->entries.at(vpage);
     entry->mapped = true;
     entry->mapped_ppage = ppage;
 }
@@ -710,11 +711,11 @@ void VirtualMemory::check_vm()
     }
 }
 
-void VirtualMemory::evict_ppage(word ppage)
+void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
 {
+    const word ppage = evicted_ppage.ppage;
     AEMU_DEBUG("Evicting physical page {} to disk.", ppage);
 
-    PhysicalPage &evicted_ppage = physical_page(ppage);
     if (evicted_ppage.mapped_vpages.empty())
     {
         throw VirtualMemoryException("Cannot evict physical page " + std::to_string(ppage)
@@ -749,17 +750,9 @@ void VirtualMemory::evict_ppage(word ppage)
     release_frame(ppage);
 }
 
-void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
+void VirtualMemory::map_vpage_to_ppage(PageTableEntry *entry, PhysicalPage &mapped_ppage)
 {
-    if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-    {
-        throw InvalidPIDException(
-            "Cannot map virtual page to physical page because pid is invalid.", pid);
-    }
-
-    PageTable *ptable = m_process_ptable_map.at(pid);
-
-    PageTableEntry *entry = ptable->entries.at(vpage);
+    const word ppage = mapped_ppage.ppage;
     AEMU_DEBUG("Disk Fetch from page {} to physical page {}.", entry->diskpage, ppage);
 
     // The contents are in place before the page is, a page that could not be read is still on disk.
@@ -780,7 +773,6 @@ void VirtualMemory::map_vpage_to_ppage(long long pid, word vpage, word ppage)
     entry->ppage = ppage;
     entry->disk = false;
 
-    PhysicalPage &mapped_ppage = physical_page(ppage);
     mapped_ppage.mapped_vpages.push_back(entry);
     mapped_ppage.used = true;
 
@@ -855,6 +847,9 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
     /*
      * Likely that the virtual page being accessed has not been evicted to the disk.
      */
+    // The physical page that the virtual page is in, which is looked up once: it is known when
+    // the page is brought in here, and found by its number when it is in memory already.
+    PhysicalPage *page_in = nullptr;
     if (UNLIKELY(entry->disk))
     {
         /*
@@ -869,33 +864,36 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
              * Since the virtual page is mapped to a physical page on disk, we can assume it was
              * evicted and some other page may be in use at the spot.
              */
-            if (physical_page(entry->mapped_ppage).used)
+            PhysicalPage &target = physical_page(entry->mapped_ppage);
+            if (target.used)
             {
-                evict_ppage(entry->mapped_ppage);
+                evict_ppage(target);
             }
 
             if (is_frame(entry->mapped_ppage))
             {
-                m_freelist.remove_block(entry->mapped_ppage, 1);
+                m_frames.take(entry->mapped_ppage);
             }
-            map_vpage_to_ppage(ptable->pid, vpage, entry->mapped_ppage);
+            map_vpage_to_ppage(entry, target);
+            page_in = &target;
         }
         else
         {
             /*
              * Unlikely that all physical pages are in use.
              */
-            if (UNLIKELY(!m_freelist.can_fit(1)))
+            if (UNLIKELY(!m_frames.any_free()))
             {
                 evict_ppage(clock_victim());
             }
 
-            word ppage = m_freelist.get_free_block(1);
-            map_vpage_to_ppage(ptable->pid, vpage, ppage);
+            PhysicalPage &target = physical_page(m_frames.allocate());
+            map_vpage_to_ppage(entry, target);
+            page_in = &target;
         }
     }
 
-    PhysicalPage &page = physical_page(entry->ppage);
+    PhysicalPage &page = page_in != nullptr ? *page_in : physical_page(entry->ppage);
     if (UNLIKELY(page.kernel_locked && !ptable->kernel_privilege))
     {
         throw_fault(PageFaultException::Reason::KERNEL_ONLY, vpage, access);

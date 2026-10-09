@@ -5,6 +5,7 @@ aemu_add_gtest(emulator32bit_tests
         ./alu_tests/alu_test.cpp
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
+        ./emulator_tests/frame_allocator_test.cpp
         ./emulator_tests/disk_test.cpp
         ./emulator_tests/ram_test.cpp
         ./emulator_tests/system_bus_test.cpp

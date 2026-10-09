@@ -3,6 +3,7 @@
 #include "emulator32bit/disk.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/fbl.h"
+#include "emulator32bit/frame_allocator.h"
 #include "emulator32bit/physical_pages.h"
 
 #include <unordered_map>
@@ -623,7 +624,7 @@ class VirtualMemory
     /**
      * @brief            Free physical pages (within the frames) that new virtual pages can map to.
      */
-    FreeBlockList m_freelist;
+    FrameAllocator m_frames;
 
     /// Where the contents of the pages that are paged in are.
     PhysicalPages *m_physical = nullptr;
@@ -737,7 +738,7 @@ class VirtualMemory
      *
      * @throws            VirtualMemoryException if there is none.
      */
-    word clock_victim();
+    PhysicalPage &clock_victim();
 
     /**
      * @brief            Ensures the clock of the in use physical pages is valid.
@@ -748,20 +749,18 @@ class VirtualMemory
      * @brief             Removes the physical page and writes it back to disk, freeing up a
      *                     location for another virtual page to map to.
      *
-     * @param             ppage: Physical page to evict.
+     * @param             page: Physical page to evict.
      */
-    void evict_ppage(word ppage);
+    void evict_ppage(PhysicalPage &page);
 
     /**
-     * @brief             Maps a virtual page to a specific physical page of the process
-     *                     corresponding to the given pid.
+     * @brief             Brings a virtual page that is on the disk into a physical page, which is
+     *                     free. The callers have both already (a lookup of either costs a hash).
      *
-     * @throw             InvalidPIDException is pid is invalid.
-     * @param             pid: ID of the process to map a virtual page.
-     * @param             vpage: Virtual page to map.
-     * @param             ppage: Physical page to map to.
+     * @param             entry: The virtual page, of a process that exists.
+     * @param             page: Physical page to map to.
      */
-    void map_vpage_to_ppage(long long pid, word vpage, word ppage);
+    void map_vpage_to_ppage(PageTableEntry *entry, PhysicalPage &page);
 
     /**
      * @brief             Maps a new virtual page to a physical page of the specified process.
