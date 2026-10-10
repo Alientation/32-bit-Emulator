@@ -57,4 +57,6 @@ Each of these has a test, but only for the way it has broken so far. Details: [i
 - **Compile time:** a header that many files include (`types.h`, `file.h`, `alu.h`, `emulator32bit.h`) does not include `<iostream>`, `<sstream>`, `<chrono>`, `<filesystem>` or `util/logger.h` (`<format>`): use `<iosfwd>`, `assert` instead of the `AEMU_` macros, and put the code in a `.cpp`.
 
 ## Style
+How the code is put together (the standard library and templates, tables, helpers, comments, tests) is in [docs/style.md](docs/style.md); it is extended with each review, and a change follows it.
+
 `.clang-format` (repo root) is LLVM-based: 4-space indent, `SpaceBeforeParens: Custom` (control statements get a space, `if (x)`; function names do not, `foo(x)`), right-aligned pointers (`int *p`). Filenames are all lowercase. Comments: `///` with `@param`/`@return` in headers, `///` for statics in `.cpp` files, `//` in code, no `/* */`; few comments in `.cpp` files. No function names in log messages (the logger prints the file and line). Few tests: enough for coverage, not one per spelling.
