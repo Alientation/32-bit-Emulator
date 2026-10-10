@@ -1,4 +1,4 @@
-// Tests for the floating point instructions (fop1, fop2, fcmp, docs/isa.md, "Floating point").
+// Tests for the floating point instructions (fop1, fop2, fop3, fcmp, docs/isa.md, "Floating point").
 //
 // The expected results are of two kinds: values worked out by hand (the IEEE 754 results that
 // anybody can check), and a differential check against a plain C++ computation on the host with
@@ -21,6 +21,7 @@ using namespace fpu;
 constexpr U8 kXa = 2; // the first operand: x2 (x2, x3 for a double)
 constexpr U8 kXb = 4; // the second one: x4 (x4, x5)
 constexpr U8 kXd = 6; // the destination: x6 (x6, x7)
+constexpr U8 kXc = 8; // the accumulator of fop3: x8 (x8, x9)
 
 constexpr word kModes[] = {kRoundNearest, kRoundUp, kRoundDown, kRoundZero};
 
@@ -97,6 +98,18 @@ class FpuTest : public EmulatorFixture
         set_value(kXa, dbl, a);
         set_value(kXb, dbl, b);
         execute(Emulator32bit::asm_fop2(fn, dbl, kXd, kXa, kXb));
+        return {get_value(kXd, dbl), fpsr()};
+    }
+
+    /// fop3: xd = fn(xa * xb, xc)
+    Out fused(const U8 fn, const bool dbl, const U64 a, const U64 b, const U64 c,
+              const word rounding = 0)
+    {
+        start(rounding);
+        set_value(kXa, dbl, a);
+        set_value(kXb, dbl, b);
+        set_value(kXc, dbl, c);
+        execute(Emulator32bit::asm_fop3(fn, dbl, kXd, kXa, kXb, kXc));
         return {get_value(kXd, dbl), fpsr()};
     }
 
@@ -192,6 +205,37 @@ template <class T>
     std::feclearexcept(FE_ALL_EXCEPT);
     volatile T va = a;
     volatile T result = std::sqrt(T(va));
+    const word raised = host_flags();
+    const T value = result;
+    std::fesetround(FE_TONEAREST);
+    return {canonical_bits(value), raised};
+}
+
+/// a * b + c and its three signed forms, with std::fma on the host.
+template <class T>
+[[gnu::noinline]] Out host_fused(const U8 fn, const T a, const T b, const T c, const word rounding)
+{
+    std::fesetround(host_mode(rounding));
+    std::feclearexcept(FE_ALL_EXCEPT);
+    volatile T va = a;
+    volatile T vb = b;
+    volatile T vc = c;
+    volatile T result = 0;
+    switch (fn)
+    {
+    case kFmaFn_madd:
+        result = std::fma(T(va), T(vb), T(vc));
+        break;
+    case kFmaFn_msub:
+        result = std::fma(-T(va), T(vb), T(vc));
+        break;
+    case kFmaFn_nmadd: // -(a * b + c), rounded as that, not negated after the rounding
+        result = std::fma(-T(va), T(vb), -T(vc));
+        break;
+    default: // kFmaFn_nmsub
+        result = std::fma(T(va), T(vb), -T(vc));
+        break;
+    }
     const word raised = host_flags();
     const T value = result;
     std::fesetround(FE_TONEAREST);
@@ -795,6 +839,158 @@ TEST_F(FpuTest, an_unassigned_function_faults)
 
     const auto result2 = step(0, Emulator32bit::asm_fop2(kBinaryFn_count, false, 6, 2, 4));
     EXPECT_EQ(result2.status, Emulator32bit::RunResult::Status::FAULT);
+}
+
+// ----- fop3 -----
+
+TEST_F(FpuTest, fused_results_worked_out_by_hand)
+{
+    // a = 2, b = 3, c = 4
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(2.0f), bits(3.0f), bits(4.0f)), (Out{bits(10.0f), 0}));
+    EXPECT_EQ(fused(kFmaFn_msub, false, bits(2.0f), bits(3.0f), bits(4.0f)), (Out{bits(-2.0f), 0}))
+        << "c - a * b";
+    EXPECT_EQ(fused(kFmaFn_nmadd, false, bits(2.0f), bits(3.0f), bits(4.0f)),
+              (Out{bits(-10.0f), 0}))
+        << "-c - a * b";
+    EXPECT_EQ(fused(kFmaFn_nmsub, false, bits(2.0f), bits(3.0f), bits(4.0f)), (Out{bits(2.0f), 0}))
+        << "a * b - c";
+    EXPECT_EQ(fused(kFmaFn_madd, true, bits(0.5), bits(-8.0), bits(1.5)), (Out{bits(-2.5), 0}));
+}
+
+// The product is not rounded before the addition: (1 + 2^-12)^2 is 1 + 2^-11 + 2^-24, which does
+// not fit in 24 bits, and adding -(1 + 2^-11) leaves exactly 2^-24 where a multiplication and an
+// addition leave 0.
+TEST_F(FpuTest, the_product_of_a_fused_operation_is_not_rounded)
+{
+    const float a = 1.0f + std::ldexp(1.0f, -12);
+    const float c = -(1.0f + std::ldexp(1.0f, -11));
+
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(a), bits(a), bits(c)),
+              (Out{bits(std::ldexp(1.0f, -24)), 0}));
+    EXPECT_EQ(binary(kBinaryFn_add, false, binary(kBinaryFn_mul, false, bits(a), bits(a)).value, bits(c)),
+              (Out{0, 0}))
+        << "a multiplication and an addition lose it";
+
+    const double d = 1.0 + std::ldexp(1.0, -27);
+    EXPECT_EQ(fused(kFmaFn_madd, true, bits(d), bits(d), bits(-(1.0 + std::ldexp(1.0, -26)))),
+              (Out{bits(std::ldexp(1.0, -54)), 0}));
+}
+
+TEST_F(FpuTest, fused_operations_raise_the_flags_of_the_result)
+{
+    const float inf = std::numeric_limits<float>::infinity();
+    const float max = std::numeric_limits<float>::max();
+
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(inf), bits(0.0f), bits(1.0f)),
+              (Out{kQuietNan32, kInvalid}))
+        << "infinity times zero";
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(inf), bits(2.0f), bits(-inf)),
+              (Out{kQuietNan32, kInvalid}))
+        << "infinity minus infinity";
+    EXPECT_EQ(fused(kFmaFn_madd, false, kSignalingNan32, bits(1.0f), bits(1.0f)),
+              (Out{kQuietNan32, kInvalid}));
+    EXPECT_EQ(fused(kFmaFn_madd, false, kQuietNan32, bits(1.0f), bits(1.0f)), (Out{kQuietNan32, 0}))
+        << "a quiet NaN gives the default NaN";
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(max), bits(2.0f), bits(0.0f)),
+              (Out{bits(inf), kOverflow | kInexact}));
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(1.0f), bits(1.0f), bits(std::ldexp(1.0f, -30))),
+              (Out{bits(1.0f), kInexact}));
+    EXPECT_EQ(fused(kFmaFn_madd, false, bits(1.0f), bits(1.0f), bits(std::ldexp(1.0f, -30)),
+                    kRoundUp),
+              (Out{bits(std::nextafter(1.0f, 2.0f)), kInexact}))
+        << "in the mode of the FPCR";
+}
+
+TEST_F(FpuTest, fused_operations_agree_with_the_host)
+{
+    std::mt19937_64 rng(0xFAA);
+    const auto random_f32 = [&](bool modest)
+    {
+        word value = word(rng());
+        return modest ? (value & 0x807FFFFF) | ((110 + rng() % 36) << 23) : value;
+    };
+    const auto random_f64 = [&](bool modest)
+    {
+        U64 value = rng();
+        return modest ? (value & 0x800FFFFFFFFFFFFFull) | ((U64(950) + rng() % 146) << 52) : value;
+    };
+
+    for (int i = 0; i < 4000; i++)
+    {
+        const bool modest = i % 4 != 0;
+        const word mode = kModes[i % 4];
+        const U8 fn = U8((i / 4) % kFmaFn_count);
+
+        const word a32 = random_f32(modest), b32 = random_f32(modest), c32 = random_f32(modest);
+        EXPECT_EQ(fused(fn, false, a32, b32, c32, mode),
+                  host_fused<float>(fn, value_of<float>(a32), value_of<float>(b32),
+                                    value_of<float>(c32), mode))
+            << "fn " << int(fn) << " a=0x" << std::hex << a32 << " b=0x" << b32 << " c=0x" << c32
+            << std::dec << " rounding=" << mode;
+
+        const U64 a64 = random_f64(modest), b64 = random_f64(modest), c64 = random_f64(modest);
+        EXPECT_EQ(fused(fn, true, a64, b64, c64, mode),
+                  host_fused<double>(fn, value_of<double>(a64), value_of<double>(b64),
+                                     value_of<double>(c64), mode))
+            << "fn " << int(fn) << " a=0x" << std::hex << a64 << " b=0x" << b64 << " c=0x" << c64
+            << std::dec << " rounding=" << mode;
+    }
+}
+
+TEST_F(FpuTest, a_fused_operation_reads_its_sources_before_it_writes_the_result)
+{
+    // The result may overwrite any of the operands, also the accumulator.
+    start(kRoundNearest);
+    set_value(2, false, bits(2.0f));
+    set_value(4, false, bits(3.0f));
+    set_value(6, false, bits(4.0f));
+    execute(Emulator32bit::asm_fop3(kFmaFn_madd, false, 6, 2, 4, 6));
+    EXPECT_EQ(get_value(6, false), U64(bits(10.0f)));
+
+    // A pair that overlaps another: (x2, x3) * (x3, x4) + (x4, x5) written to (x3, x4).
+    set_value(2, true, bits(2.0));
+    set_value(4, true, bits(5.0));
+    set_value(6, true, bits(1.0));
+    execute(Emulator32bit::asm_fop3(kFmaFn_madd, true, 4, 2, 6, 4));
+    EXPECT_EQ(get_value(4, true), bits(2.0 * 1.0 + 5.0));
+}
+
+TEST_F(FpuTest, a_fused_operation_with_a_double_cannot_start_in_x29_sp_or_xzr)
+{
+    for (const U8 reg : {U8(29), U8(30), U8(31)})
+    {
+        const std::vector<std::pair<const char *, word>> instructions = {
+            {"destination", Emulator32bit::asm_fop3(kFmaFn_madd, true, reg, 2, 4, 6)},
+            {"first source", Emulator32bit::asm_fop3(kFmaFn_madd, true, 6, reg, 4, 2)},
+            {"second source", Emulator32bit::asm_fop3(kFmaFn_madd, true, 6, 2, reg, 4)},
+            {"accumulator", Emulator32bit::asm_fop3(kFmaFn_madd, true, 6, 2, 4, reg)},
+        };
+        for (const auto &[what, instruction] : instructions)
+        {
+            start(kRoundNearest);
+            fill_registers();
+            const auto before = snapshot_registers();
+
+            const auto result = step(0, instruction);
+
+            EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT)
+                << what << " x" << int(reg);
+            expect_registers_unchanged_except(before, {}, what);
+            EXPECT_EQ(fpsr(), 0u) << what;
+        }
+    }
+    start(kRoundNearest);
+    execute(Emulator32bit::asm_fop3(kFmaFn_madd, false, 29, 30, 31, 0)); // a float does not care
+}
+
+TEST_F(FpuTest, a_fused_operation_with_a_reserved_bit_set_faults)
+{
+    fill_registers();
+    const auto before = snapshot_registers();
+    const auto result = step(0, Emulator32bit::asm_fop3(kFmaFn_madd, false, 6, 2, 4, 8) | 0b100);
+    EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
+    EXPECT_NE(result.message.find("Undefined fop3 function"), std::string::npos) << result.message;
+    expect_registers_unchanged_except(before, {});
 }
 
 // ----- FPCR and FPSR -----

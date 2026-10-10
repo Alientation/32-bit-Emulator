@@ -15,10 +15,11 @@
 ///   - `lsl`, `lsr`, `asr` and `ror` are `shift`, the type is in bits 7-8,
 ///   - `umull` and `smull` are `mull`, bit 0 says signed,
 ///   - `bx` and `blx` are `bx`, bit 0 says link,
-///   - the floating point instructions are `fop1` (unary and conversions), `fop2` (binary) and
-///     `fcmp`; the function is in bits 4-0 and the precision in bit 25 (docs/isa.md).
+///   - the floating point instructions are `fop1` (unary and conversions), `fop2` (binary),
+///     `fcmp` and `fop3` (fused multiply-add); the function is in bits 4-0 (bits 1-0 for `fop3`)
+///     and the precision in bit 25 (docs/isa.md).
 /// The rows are kept dense, so the unused opcodes are one range at the end:
-/// 0b100010..0b111111 (30 opcodes).
+/// 0b100011..0b111111 (29 opcodes).
 ///
 /// Opcodes that are not listed fault with BAD_INSTR. A compile time check in emulator32bit.cpp
 /// makes sure that no two rows share an opcode and that all of them fit in 6 bits.
@@ -66,4 +67,5 @@
     X(swi, 0b011111)                                                                               \
                                                                                                    \
     X(adrp, 0b100000)                                                                              \
-    X(adr, 0b100001)
+    X(adr, 0b100001)                                                                               \
+    X(fop3, 0b100010)

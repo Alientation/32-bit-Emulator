@@ -30,12 +30,16 @@ inline void host_barrier()
 
 #ifdef AEMU_FPU_MXCSR
 
+/// Always inlined (see the members): whether the compiler inlined it depended on how many
+/// operations use it, and `fop3` made the instructions that were there before slower by being one
+/// more.
+///
 /// While it lives the host rounds in the given mode and its exception flags start clear; the
 /// state the host had is put back afterwards.
 class HostFpu
 {
   public:
-    explicit HostFpu(word rounding) : m_saved(_mm_getcsr())
+    [[gnu::always_inline]] explicit HostFpu(word rounding) : m_saved(_mm_getcsr())
     {
         // All exceptions masked (0x1F80), the rounding control in bits 14-13: 00 nearest,
         // 01 down, 10 up, 11 zero.
@@ -44,7 +48,7 @@ class HostFpu
         host_barrier();
     }
 
-    ~HostFpu()
+    [[gnu::always_inline]] ~HostFpu()
     {
         host_barrier();
         _mm_setcsr(m_saved);
@@ -54,7 +58,7 @@ class HostFpu
     HostFpu &operator=(const HostFpu &) = delete;
 
     /// @return the flags the operations since the constructor raised, as an FPSR value
-    word flags() const
+    [[gnu::always_inline]] word flags() const
     {
         host_barrier();
         const unsigned csr = _mm_getcsr();
@@ -76,7 +80,7 @@ class HostFpu
 class HostFpu
 {
   public:
-    explicit HostFpu(word rounding) : m_saved(std::fegetround())
+    [[gnu::always_inline]] explicit HostFpu(word rounding) : m_saved(std::fegetround())
     {
         constexpr int kModes[4] = {FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO};
         std::feclearexcept(FE_ALL_EXCEPT);
@@ -87,7 +91,7 @@ class HostFpu
         host_barrier();
     }
 
-    ~HostFpu()
+    [[gnu::always_inline]] ~HostFpu()
     {
         host_barrier();
         std::fesetround(m_saved);
@@ -96,7 +100,7 @@ class HostFpu
     HostFpu(const HostFpu &) = delete;
     HostFpu &operator=(const HostFpu &) = delete;
 
-    word flags() const
+    [[gnu::always_inline]] word flags() const
     {
         host_barrier();
         const int raised = std::fetestexcept(FE_ALL_EXCEPT);
@@ -209,6 +213,32 @@ Result binary_op(U8 fn, U64 abits, U64 bbits, word rounding)
         result = va / vb;
         break;
     }
+    const T value = result;
+    return {canonical(value), host.flags()};
+}
+
+/// a * b + c with one rounding. The signs of the operands are changed first for the other three
+/// functions; a sign change is exact, and the result of a NaN is the default NaN anyway.
+template <class T>
+Result fused_op(U8 fn, U64 abits, U64 bbits, U64 cbits, word rounding)
+{
+    T a = from_bits<T>(abits);
+    const T b = from_bits<T>(bbits);
+    T c = from_bits<T>(cbits);
+    if (fn == kFmaFn_msub || fn == kFmaFn_nmadd)
+    {
+        a = -a;
+    }
+    if (fn == kFmaFn_nmadd || fn == kFmaFn_nmsub)
+    {
+        c = -c;
+    }
+
+    HostFpu host(rounding);
+    volatile T va = a;
+    volatile T vb = b;
+    volatile T vc = c;
+    volatile T result = std::fma(T(va), T(vb), T(vc));
     const T value = result;
     return {canonical(value), host.flags()};
 }
@@ -338,6 +368,12 @@ Result from_int_op(U8 fn, U64 abits, word rounding)
 Result binary(const U8 fn, const bool dbl, const U64 a, const U64 b, const word rounding)
 {
     return dbl ? binary_op<double>(fn, a, b, rounding) : binary_op<float>(fn, a, b, rounding);
+}
+
+Result fused(const U8 fn, const bool dbl, const U64 a, const U64 b, const U64 c,
+              const word rounding)
+{
+    return dbl ? fused_op<double>(fn, a, b, c, rounding) : fused_op<float>(fn, a, b, c, rounding);
 }
 
 Result unary(const U8 fn, const bool dbl, const U64 a, const word rounding)

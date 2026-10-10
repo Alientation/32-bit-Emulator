@@ -267,22 +267,23 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
   - **Floating point** (`docs/isa.md`, `fpu.h`/`fpu.cpp`): a `float` is a general register and a
     `double` a pair `(xN, xN+1)`, N at most 28 (a pair that starts elsewhere is an undefined
     instruction, ISS 5, `check_pair`), so there is no register file of its own and the ABI did not
-    change. Three opcodes, `fop1` (abs, neg, sqrt, the `frint*` family, conversions), `fop2` (add,
-    sub, mul, div, min, max) and `fcmp`, with the function in bits 4-0 and the precision in bit 25
-    (`asm_fop1/2`, `asm_fcmp`). The arithmetic is done by the **host FPU**: `HostFpu` (`fpu.cpp`)
+    change. Four opcodes, `fop1` (abs, neg, sqrt, the `frint*` family, conversions), `fop2` (add,
+    sub, mul, div, min, max), `fcmp` and `fop3` (fused multiply-add), with the function in bits 4-0
+    (1-0 for `fop3`) and the precision in bit 25 (`asm_fop1/2/3`, `asm_fcmp`). The arithmetic is done by the **host FPU**: `HostFpu` (`fpu.cpp`)
     sets the rounding mode of `FPCR` (system register 10, bits 1-0) and reads the host's exception
     flags into `FPSR` (11, cumulative, nothing traps); on x86-64 it writes MXCSR directly, elsewhere
     (or with `-DAEMU_FPU_FENV`) it uses `<cfenv>`. The operands and results of the operations are
     `volatile` and the guard has signal fences, so the compiler cannot move or fold the arithmetic
     across the change of mode: keep it so, and test the `<cfenv>` path with a scratch build that
-    defines `AEMU_FPU_FENV` after touching `fpu.cpp`. A NaN that an operation produces is always the
+    defines `AEMU_FPU_FENV` after touching `fpu.cpp`. `HostFpu` is `always_inline`: when it was left to the compiler, adding `fop3` (more callers) made LTO stop inlining it and `fpbench` 6% slower. A new FP handler needs `tools/bench.sh --baseline`. A NaN that an operation produces is always the
     default NaN (`0x7FC00000`) so that the bits do not depend on the host; float to integer
     saturates. `fpcr` and `fpsr` are the system registers that user mode may use. `fcmp` sets NZCV
     like AArch64's `fcmp` (unordered is C and V, so `mi`/`ls` are the conditions for `<`/`<=`). In
     the assembler each mnemonic is a row per precision (`BASM_FP_PAIR` in `instruction_list.h`; `a`
     is the function, `b` the precision), the lexer reads `fcvt.s32.f64` as one word (`lex_word`),
     `fmov.f32/.f64` is a pseudo instruction (`assemble_fmov`, no opcode) and `.float`/`.double`
-    define data. Fused multiply-add is on the todo list.
+    define data. `fop3` (`fmadd`...) has four registers, so its function is in bits 1-0 and the
+    accumulator in bits 8-4 (`asm_fop3`, format F4).
 - **assembler**: the pipeline is `Preprocessor` (`#include`, `#define`, macros, conditionals; writes
   the `.bi` only if asked to) → `Assembler` (directives in `directives.cpp`, instructions in
   `instructions.cpp`) → `ObjectFile` (.bo; the printer behind `-dump` is in `object_file_print.cpp`)
@@ -307,9 +308,10 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     convention, data layout and frame record for the planned C compiler and OS (a convention,
     nothing enforces it yet; `bt` follows its frame record), plus `udiv`/`sdiv` (implemented: a
     division by zero is 0, no remainder instruction). Check them before changing `swi`, the MMU, the
-    frame layout or the opcode list (30 primary opcodes are free, the range `100010`–`111111`: the
+    frame layout or the opcode list (29 primary opcodes are free, the range `100011`–`111111`: the
     rows of `AEMU_OPCODES` are kept dense from 0, so a new instruction takes the next one; `100001`
-    is `adr`, the pc relative address with the relocation `R_EMU32_ADR_PCREL21`; `011011` is `csel`,
+    is `adr`, the pc relative address with the relocation `R_EMU32_ADR_PCREL21`; `100010` is
+    `fop3`; `011011` is `csel`,
     and the special group has `sxtb`..`rev16` under extended op `1000`).
   - **Linking:** the sections of the object files are joined in order, each starting at a multiple
     of its alignment (the largest `.align` of the section, `SectionHeader::alignment`),

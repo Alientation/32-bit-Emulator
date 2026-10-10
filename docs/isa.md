@@ -244,9 +244,9 @@ The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` 
 
 Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`011110`). Bits 1–16 are unused.
 
-### F1, F2, F3: floating point
+### F1, F2, F3, F4: floating point
 
-`OP.F32 xd, xn` (F1), `OP.F32 xd, xn, xm` (F2), `OP.F32 xn, xm` (F3). `.F64` for a double.
+`OP.F32 xd, xn` (F1), `OP.F32 xd, xn, xm` (F2), `OP.F32 xn, xm` (F3), `OP.F32 xd, xn, xm, xa` (F4). `.F64` for a double.
 
 ```
  31   26 25 24  20 19  15 14       5 4    0
@@ -263,10 +263,15 @@ Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`011110`).
 +-------+--+--+------+------+--+-----+-------------+
 |opcode | p| e|  -   |  xn  | -|  xm |      -      |   F3
 +-------+--+--+------+------+--+-----+-------------+
+
+ 31   26 25 24  20 19  15 14 13  9 8   4 3  2 1  0
++-------+--+------+------+--+-----+------+----+----+
+|opcode | p|  xd  |  xn  | -|  xm |  xa  | -  | fn |   F4
++-------+--+------+------+--+-----+------+----+----+
 ```
 
 - `p` (bit 25) is the precision: clear is `.F32`, set is `.F64`. For the conversion between the two it is the precision of the source.
-- `fn` (bits 0–4) is the function of the opcode, see [Floating point](#floating-point-3). A function that is not assigned is an undefined instruction (ISS 1).
+- `fn` (bits 0–4) is the function of the opcode, see [Floating point](#floating-point-3). A function that is not assigned is an undefined instruction (ISS 1). In F4 it is bits 0–1 and bits 2–3 have to be 0, with `xa` (bits 4–8) the accumulator.
 - `e` (bit 24) of F3 is set for `FCMPE`.
 - A double names the first register of a pair, which has to be x0–x28 (ISS 5 otherwise).
 - The unused bits are 0 and are ignored.
@@ -416,17 +421,20 @@ Other values of `op` are an undefined instruction (ISS 1). `xd` and `xn` may be 
 
 ### Floating point (3)
 
-A `float` is the IEEE 754 binary32 value in a register, a `double` the binary64 value in a pair of registers (`xN` holds the low word, `xN+1` the high word). The registers are the integer ones, so `mov`, `ldr`, `str`, `csel` and the bit operations move and test floats, and `xzr` is +0.0. This is how [abi.md](abi.md) passes them. The three opcodes have a function field `fn` and the precision bit `p`.
+A `float` is the IEEE 754 binary32 value in a register, a `double` the binary64 value in a pair of registers (`xN` holds the low word, `xN+1` the high word). The registers are the integer ones, so `mov`, `ldr`, `str`, `csel` and the bit operations move and test floats, and `xzr` is +0.0. This is how [abi.md](abi.md) passes them. The four opcodes have a function field `fn` and the precision bit `p`.
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
 | `001001` | `FABS`, `FNEG`, `FSQRT`, `FRINT*`, `FCVT*`, `FCVTR*` | F1 | `xd = fn(xn)`, see below |
 | `001010` | `FADD`, `FSUB`, `FMUL`, `FDIV`, `FMIN`, `FMAX` | F2 | `xd = xn fn xm` |
 | `001011` | `FCMP`, `FCMPE xn, xm` | F3 | sets N, Z, C and V from the comparison |
+| `100010` | `FMADD`, `FMSUB`, `FNMADD`, `FNMSUB xd, xn, xm, xa` | F4 | `xd = fn(xn * xm, xa)`, fused, see below |
 
 Every mnemonic has the suffix `.f32` or `.f64` (`fadd.f32 x0, x1, x2`, `fadd.f64 x0, x2, x4`).
 
 `FOP2` (opcode `001010`), `fn`: `0` `FADD`, `1` `FSUB`, `2` `FMUL`, `3` `FDIV`, `4` `FMIN`, `5` `FMAX`. The operands and the result have the same precision. `FMIN` and `FMAX` are `fmin` and `fmax` of C: a quiet NaN operand is skipped (two of them give the default NaN), a signaling NaN is an invalid operation, and -0 is smaller than +0.
+
+`FOP3` (opcode `100010`), `fn` (the names and signs of AArch64): `0` `FMADD` `xn * xm + xa`, `1` `FMSUB` `xa - xn * xm`, `2` `FNMADD` `-xa - xn * xm`, `3` `FNMSUB` `xn * xm - xa`. The product is **not rounded** before the addition: the result is the exact value of the expression rounded once, in the mode of FPCR, which is `fmaf` and `fma` of C. The other three are the same with the sign of an operand changed first, so `FNMADD` is `-(xn * xm + xa)` rounded as that, which is not the negation of a rounded `FMADD` in the directed modes. Flags and NaNs are those of the other operations: infinity times zero and infinity minus infinity are `IOC` and the default NaN, a signaling NaN operand is `IOC`, a NaN is never passed on. The sources are read before the result is written, so the result may overwrite any of them. A double has to start in x0–x28 for each of its four registers (ISS 5), a `fop3` with bits 2–3 set is an undefined instruction (ISS 1).
 
 `FOP1` (opcode `001001`), `fn`. The precision of the instruction is that of the floating point operand:
 
@@ -477,7 +485,6 @@ So a compiler uses `MI` and `LS` for `<` and `<=`, as `LT` and `LE` are also tru
 - **Registers.** An operand read through `xzr` is 0, a result written to it is dropped (its flags are not). The sources are read before the result is written, so a result may overwrite an operand, also a half of an overlapping pair. A double in a register that cannot start a pair (x29, `sp`, `xzr`) is an undefined instruction (ISS 5), as is a `fn` that is not assigned (ISS 1). An instruction that faults changes no register, no flag and not FPSR.
 - The integer flags are changed by `FCMP` only.
 - The assembler has the pseudo instruction `fmov.f32 xd, xm | float`, `fmov.f64`, see [basm-syntax.md](basm-syntax.md#floating-point). There is no instruction for it, a move is `mov`.
-- A fused multiply-add is not there yet, see [todo.md](todo.md).
 
 ### Bitwise (5)
 
@@ -671,6 +678,6 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 ## Unused opcodes
 
-Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `100001`, so the free ones are one range:
+Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `100010`, so the free ones are one range:
 
-`100010` to `111111` (30 opcodes)
+`100011` to `111111` (29 opcodes)

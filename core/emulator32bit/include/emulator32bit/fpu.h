@@ -45,6 +45,14 @@ constexpr U8 kBinaryFn_min = 4;
 constexpr U8 kBinaryFn_max = 5;
 constexpr U8 kBinaryFn_count = 6;
 
+/// The function field (bits 1-0) of `fop3`, with the names and the signs of AArch64: `a`, `b` and
+/// `c` are the operands `xn`, `xm` and `xa`, and the product is not rounded before it is added.
+constexpr U8 kFmaFn_madd = 0;  ///< a * b + c
+constexpr U8 kFmaFn_msub = 1;  ///< c - a * b
+constexpr U8 kFmaFn_nmadd = 2; ///< -c - a * b
+constexpr U8 kFmaFn_nmsub = 3; ///< a * b - c
+constexpr U8 kFmaFn_count = 4;
+
 /// The function field (bits 4-0) of `fop1`.
 constexpr U8 kUnaryFn_abs = 0;
 constexpr U8 kUnaryFn_neg = 1;
@@ -100,6 +108,13 @@ struct Result
 /// @param dbl whether the operands and the result are doubles
 /// @param rounding the mode of the FPCR (kRound*)
 Result binary(U8 fn, bool dbl, U64 a, U64 b, word rounding);
+
+/// `fop3`: the product of @p a and @p b added to or subtracted from @p c with one rounding.
+///
+/// @param fn a kFmaFn_* below kFmaFn_count
+/// @param dbl whether the operands and the result are doubles
+/// @param rounding the mode of the FPCR (kRound*)
+Result fused(U8 fn, bool dbl, U64 a, U64 b, U64 c, word rounding);
 
 /// `fop1`: @p a is the source in the representation of its type, the result the destination in
 /// the representation of its type (a float, a double, or the 32 bits of an integer).

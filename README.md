@@ -17,7 +17,7 @@
 ## **Project Overview**
 This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator_app` executable, or run an already built `.bexe` directly with the `emu32` command line emulator. Currently working on a C compiler to generate basm assembly, and on the pieces an operating system needs (exceptions, page tables, devices).
 
-* supports up to 64 instructions (6 bit opcode), currently **34** opcodes are in use (30 are free), including hardware floating point (`float` and `double` in the integer registers)
+* supports up to 64 instructions (6 bit opcode), currently **35** opcodes are in use (29 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
 * privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA), and a debugger (trace, breakpoints, watchpoints, a REPL)

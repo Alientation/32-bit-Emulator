@@ -792,6 +792,30 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
     write_fp(*this, xd, dbl, result.value);
 }
 
+// xd = fn(xn * xm, xa): the fields are those of fop2 and the accumulator is in bits 8-4.
+[[gnu::noinline]] void Emulator32bit::_fop3(const word instr)
+{
+    const U8 fn = bitfield_unsigned<0, 2>(instr);
+    if (bitfield_unsigned<2, 2>(instr) != 0)
+    {
+        bad_fp_function("fop3", bitfield_unsigned<0, 4>(instr));
+    }
+    const bool dbl = test_bit<25>(instr);
+
+    const U8 xd = _X1(instr);
+    if (dbl)
+    {
+        check_pair(xd);
+    }
+    const U64 a = read_fp(*this, _X2(instr), dbl);
+    const U64 b = read_fp(*this, _X3(instr), dbl);
+    const U64 c = read_fp(*this, bitfield_unsigned<4, 5>(instr), dbl);
+
+    const fpu::Result result = fpu::fused(fn, dbl, a, b, c, m_fpcr);
+    m_fpsr |= result.flags;
+    write_fp(*this, xd, dbl, result.value);
+}
+
 [[gnu::noinline]] void Emulator32bit::_fcmp(const word instr)
 {
     const bool dbl = test_bit<25>(instr);
@@ -815,6 +839,13 @@ word Emulator32bit::asm_fop2(const U8 fn, const bool dbl, const int xd, const in
 {
     return Joiner() << JPart(6, _op_fop2) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(1) << JPart(5, xm) << Zeros(4) << JPart(5, fn);
+}
+
+word Emulator32bit::asm_fop3(const U8 fn, const bool dbl, const int xd, const int xn, const int xm,
+                             const int xa)
+{
+    return Joiner() << JPart(6, _op_fop3) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
+                    << Zeros(1) << JPart(5, xm) << JPart(5, xa) << Zeros(2) << JPart(2, fn);
 }
 
 word Emulator32bit::asm_fcmp(const bool dbl, const bool signaling, const int xn, const int xm)

@@ -660,6 +660,20 @@ word Assembler::parse_format_v2(const byte fn, const bool dbl)
     return Emulator32bit::asm_fop2(fn, dbl, xd, xn, xm);
 }
 
+word Assembler::parse_format_v4(const byte fn, const bool dbl)
+{
+    m_cursor.next();
+
+    const byte xd = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xn = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xm = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xa = parse_fp_register(dbl);
+    return Emulator32bit::asm_fop3(fn, dbl, xd, xn, xm, xa);
+}
+
 word Assembler::parse_format_v1(const byte fn, const bool dbl)
 {
     m_cursor.next();
@@ -876,6 +890,9 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         break;
     case Format::F2:
         instruction = parse_format_v2(spec.a, spec.b != 0);
+        break;
+    case Format::F4:
+        instruction = parse_format_v4(spec.a, spec.b != 0);
         break;
     case Format::F3:
         instruction = parse_format_v3(spec.a != 0, spec.b != 0);

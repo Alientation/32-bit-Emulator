@@ -41,7 +41,7 @@ TEST(OpcodeTable, the_unused_opcodes_are_one_range_at_the_end)
 
     word first_unused = 0;
     while (first_unused < kMaxInstructions && listed[first_unused]) first_unused++;
-    EXPECT_EQ(first_unused, 0b100010u);
+    EXPECT_EQ(first_unused, 0b100011u);
     for (word opcode = first_unused; opcode < kMaxInstructions; opcode++)
     {
         EXPECT_FALSE(listed[opcode]) << "opcode " << opcode;

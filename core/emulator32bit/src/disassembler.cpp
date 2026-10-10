@@ -625,6 +625,19 @@ static std::string disassemble_fop2(word instruction)
            + disassemble_gpr(instruction, 9);
 }
 
+static std::string disassemble_fop3(word instruction)
+{
+    static const char *const kNames[fpu::kFmaFn_count] = {"fmadd", "fmsub", "fnmadd", "fnmsub"};
+    const U8 fn = bitfield_unsigned<0, 4>(instruction);
+    if (fn >= fpu::kFmaFn_count)
+    {
+        return "ERROR: INVALID FLOATING POINT FUNCTION";
+    }
+    return std::string(kNames[fn]) + "." + disassemble_precision(instruction) + " "
+           + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15) + ", "
+           + disassemble_gpr(instruction, 9) + ", " + disassemble_gpr(instruction, 4);
+}
+
 static std::string disassemble_fcmp(word instruction)
 {
     return std::string(test_bit<24>(instruction) ? "fcmpe." : "fcmp.")

@@ -230,6 +230,7 @@ A `float` is a register and a `double` a pair of registers (`x2` and `x3` for `x
 | Form | Instructions |
 |------|--------------|
 | `op.f32 xd, xn, xm` | `fadd` `fsub` `fmul` `fdiv` `fmin` `fmax` |
+| `op.f32 xd, xn, xm, xa` | `fmadd` (`xn * xm + xa`) `fmsub` (`xa - xn * xm`) `fnmadd` `fnmsub`: fused, the product is not rounded |
 | `op.f32 xd, xn` | `fabs` `fneg` `fsqrt` `frint` `frintz` `frintm` `frintp` `frinta` |
 | `fcmp.f32 xn, xm` | `fcmp` `fcmpe`: set the flags, then `b.eq`, `b.mi` (less than), `b.ls` (less or equal), `b.gt`, `b.ge`, `b.vs` (unordered) |
 | `fcvt.s32.f32 xd, xn` | float to integer, toward zero: `fcvt.s32.f32` `fcvt.u32.f32` `fcvt.s32.f64` `fcvt.u32.f64`. `fcvtr` rounds in the mode of `fpcr` |

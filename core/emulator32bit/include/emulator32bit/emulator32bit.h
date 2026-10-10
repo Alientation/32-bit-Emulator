@@ -733,6 +733,12 @@ class Emulator32bit
     /// @param dbl whether the operands and the result are doubles
     static word asm_fop2(U8 fn, bool dbl, int xd, int xn, int xm);
 
+    /// Encodes a fused multiply-add `fmadd`, ... `xd, xn, xm, xa` (format F4).
+    ///
+    /// @param fn the function (fpu::kFmaFn_*)
+    /// @param dbl whether the operands and the result are doubles
+    static word asm_fop3(U8 fn, bool dbl, int xd, int xn, int xm, int xa);
+
     /// Encodes `fcmp` or `fcmpe xn, xm` (format F3).
     ///
     /// @param signaling `fcmpe`: a quiet NaN raises Invalid too

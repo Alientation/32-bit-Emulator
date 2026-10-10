@@ -129,6 +129,7 @@ How a compiler uses the instruction set:
 | `long long` multiply | `umull` for the low parts plus `mul` of the cross terms |
 | `long long` shifts, compares | inline sequences, or the runtime library |
 | `float`/`double` `+ - * /`, `sqrtf`, `fabs`, `-x` | `fadd`, `fsub`, `fmul`, `fdiv`, `fsqrt`, `fabs`, `fneg` with `.f32`/`.f64` (a double is a register pair) |
+| `fmaf`, `fma` (and `a * b + c` where the compiler may contract it) | `fmadd` with `.f32`/`.f64`; `fmsub`, `fnmadd` and `fnmsub` for the other signs |
 | `(int) f`, `(float) i`, `(double) f` | `fcvt.s32.f32`, `fcvt.f32.s32`, `fcvt.f64.f32`, ... (the cast rounds toward zero; `lrintf` is `fcvtr`) |
 | `f < g`, `f <= g`, `f == g` | `fcmp.f32` then `b.mi`/`b.ls`/`b.eq` (not `lt`/`le`: they are also true for a NaN); `floorf`, `ceilf`, `truncf`, `roundf` are `frintm`, `frintp`, `frintz`, `frinta` |
 | a float constant | `fmov.f32 xd, 1.5` (the same instructions as `ldr xd, =bits`) |

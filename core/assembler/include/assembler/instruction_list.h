@@ -168,4 +168,8 @@
     F(X, SWI, "swi", false, SWI, Emulator32bit::_op_swi, 0)                                        \
     F(X, ADRP, "adrp", false, M1, Emulator32bit::_op_adrp, 0)                                      \
     F(X, ADR, "adr", false, M1, Emulator32bit::_op_adr, 0)                                         \
+    BASM_FP_PAIR(F, X, FMADD, "fmadd", F4, fpu::kFmaFn_madd)                                       \
+    BASM_FP_PAIR(F, X, FMSUB, "fmsub", F4, fpu::kFmaFn_msub)                                       \
+    BASM_FP_PAIR(F, X, FNMADD, "fnmadd", F4, fpu::kFmaFn_nmadd)                                    \
+    BASM_FP_PAIR(F, X, FNMSUB, "fnmsub", F4, fpu::kFmaFn_nmsub)                                    \
     F(X, RET, "ret", false, RET, 0, 0)

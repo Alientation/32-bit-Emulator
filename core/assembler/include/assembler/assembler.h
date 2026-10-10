@@ -349,6 +349,8 @@ class Assembler
     word parse_format_unary(byte operation);
     /// fadd.f32 xd, xn, xm   (and the other binary floating point instructions)
     word parse_format_v2(byte fn, bool dbl);
+    /// fmadd.f32 xd, xn, xm, xa   (and fmsub, fnmadd, fnmsub)
+    word parse_format_v4(byte fn, bool dbl);
     /// fsqrt.f32 xd, xn   (and the other unary instructions and the conversions)
     word parse_format_v1(byte fn, bool dbl);
     /// fcmp.f32 xn, xm   (and fcmpe)

@@ -6,10 +6,6 @@ Work that is not done yet. The other documents describe what exists, so what is 
 
 The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeLists.txt`. It is awaiting a full rewrite.
 
-## Instruction set
-
-- `fmadd`, the fused multiply-add (and the negated forms `fmsub`, `fnmadd`, `fnmsub`) for `fmaf`/`fma`. It has four register operands, so it is an opcode of its own with a function field, and it needs a single rounding, which the host's `std::fma` gives. See [isa.md](isa.md#floating-point-3).
-
 ## Devices
 
 - DMA of the block device is one contiguous buffer per command, with no scatter/gather, and it moves the data when the command completes ([devices.md](devices.md#block-device-0xf0003000)).

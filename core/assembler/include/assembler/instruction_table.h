@@ -29,6 +29,7 @@ enum class InstructionFormat
     F1,        ///< unary floating point and conversions: op.f32 xd, xn
     F2,        ///< binary floating point: op.f32 xd, xn, xm
     F3,        ///< fcmp, fcmpe: op.f32 xn, xm
+    F4,        ///< fused multiply-add: op.f32 xd, xn, xm, xa
     FMOV,      ///< fmov.f32 xd, <xm | float literal>, a pseudo instruction
     HLT,
     NOP,

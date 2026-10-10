@@ -64,6 +64,8 @@ const char *operands_of(InstructionFormat format)
         return "x2, x4, x6";
     case InstructionFormat::F3:
         return "x2, x4";
+    case InstructionFormat::F4:
+        return "x2, x4, x6, x8";
     default:
         return "";
     }
@@ -143,12 +145,17 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         {
             opcode = Emulator32bit::_op_fcmp;
         }
+        else if (format == InstructionFormat::F4)
+        {
+            opcode = Emulator32bit::_op_fop3;
+        }
         EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), opcode) << line;
 
         // `fadd.f32` is one word of the disassembly, the dot is part of it.
         const std::string disassembly = Emulator32bit::disassemble_instr(words[0]);
         const bool is_float = format == InstructionFormat::F1 || format == InstructionFormat::F2
-                              || format == InstructionFormat::F3;
+                              || format == InstructionFormat::F3
+                              || format == InstructionFormat::F4;
         EXPECT_EQ(is_float ? disassembly.substr(0, disassembly.find(' ')) : mnemonic_of(disassembly),
                   spec->text)
             << line;
@@ -404,6 +411,27 @@ TEST_F(InstructionTable, the_conversions_are_named_by_their_types)
     {
         EXPECT_EQ(Emulator::disassemble_instr(assemble(text)[0]), text);
     }
+}
+
+TEST_F(InstructionTable, fused_multiply_add_takes_four_registers)
+{
+    EXPECT_EQ(assemble("fmadd.f32 x1, x2, x3, x4"),
+              std::vector<word>{Emulator::asm_fop3(fpu::kFmaFn_madd, false, 1, 2, 3, 4)});
+    EXPECT_EQ(assemble("fmsub.f32 x1, x2, x3, x4"),
+              std::vector<word>{Emulator::asm_fop3(fpu::kFmaFn_msub, false, 1, 2, 3, 4)});
+    EXPECT_EQ(assemble("fnmadd.f64 x2, x4, x6, x8"),
+              std::vector<word>{Emulator::asm_fop3(fpu::kFmaFn_nmadd, true, 2, 4, 6, 8)});
+    EXPECT_EQ(assemble("fnmsub.f64 x2, x4, x6, x28"),
+              std::vector<word>{Emulator::asm_fop3(fpu::kFmaFn_nmsub, true, 2, 4, 6, 28)});
+
+    for (const char *text : {"fmadd.f32 x1, x2, x3, x4", "fmsub.f64 x2, x4, x6, x8",
+                             "fnmadd.f32 x1, x2, x3, xzr", "fnmsub.f64 x28, x2, x4, x6"})
+    {
+        EXPECT_EQ(Emulator::disassemble_instr(assemble(text)[0]), text);
+    }
+
+    EXPECT_TRUE(contains(error_of([&] { assemble("fmadd.f32 x1, x2, x3"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fmadd.f64 x1, x2, x4, x29"); }), "pair"));
 }
 
 TEST_F(InstructionTable, a_double_must_start_in_a_register_that_can_hold_a_pair)
