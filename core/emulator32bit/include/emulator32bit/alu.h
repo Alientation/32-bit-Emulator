@@ -2,9 +2,9 @@
 
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/common.h"
-#include "util/logger.h"
 
 #include <array>
+#include <cassert>
 
 /// The registers by number. Some have a second name for what the calling convention uses them
 /// for: SYSCALL (x8), FP (x28) and LR (x29).
@@ -468,7 +468,7 @@ static inline AluResult alu_sdiv(const word a, const word b, const NZCVFlags fla
 static inline AluResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
                                   const NZCVFlags initial_flags)
 {
-    AEMU_DCHECK(shift_amt < 32, "Expected shift amount to be [0,31], got {}.", shift_amt);
+    assert(shift_amt < 32); // the range [0,31] is in the contract of the function
 
     word result = value;
     NZCVFlags flags = initial_flags;
@@ -492,8 +492,9 @@ static inline AluResult alu_shift(const word value, const ShiftType type, const 
             result = (value >> shift_amt) | (value << (32 - shift_amt));
             flags.c = bool((value >> (shift_amt - 1)) & 1);
             break;
-        default:
-            AEMU_FATAL("Invalid shift type: {}", U32(type));
+        default: // the four values of the two bit field are all handled
+            assert(false);
+            break;
         }
     }
 
