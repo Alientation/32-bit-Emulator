@@ -18,7 +18,7 @@ Symbols come from the `.bexe` loaded with `-e`. A local label shows up under its
 
 ```
 0x00000000 <_start>: add x0, xzr, 5 ; x0=0x0->0x5
-0x00000004 <_start+0x4>: bl 3 ; x29=0x0->0x8 pc=0x10
+0x00000004 <_start+0x4>: bl 3 ; lr=0x0->0x8 pc=0x10
 0x00000010 <double>: add x0, x0, x0 ; x0=0x5->0xa
 0x00000014 <double+0x4>: ret ; pc=0x8
 0x0000000c <_start+0xc>: hlt ; halt
@@ -53,7 +53,7 @@ Breakpoints are virtual addresses, like the PC.
 
 ### Register watches
 
-`--watch-reg x28` runs until `x28` has a different value, `--watch-reg sp=0x1000` until `sp` becomes 0x1000 (`x0`-`x29` and `sp`). The message is `Register watch x28: 0x2000 -> 0x1ff8, next instruction at 0x00000024`, with `status=breakpoint` and exit code 4. From the library: `add_register_watch (reg, optional value)`, `remove_register_watch`, `clear_register_watches`, `register_watches ()`.
+`--watch-reg fp` runs until `fp` (`x28`) has a different value, `--watch-reg sp=0x1000` until `sp` becomes 0x1000 (`x0`-`x29`, `fp`, `lr` and `sp`). The message is `Register watch fp: 0x2000 -> 0x1ff8, next instruction at 0x00000024`, with `status=breakpoint` and exit code 4. From the library: `add_register_watch (reg, optional value)`, `remove_register_watch`, `clear_register_watches`, `register_watches ()`.
 
 - It watches for a **change**: writing the value the register already has does nothing. There are no read watches for registers.
 - The registers are compared between instructions, so an exception entry (which switches the banked `sp`) or an `eret` is noticed too, and the check is free while no register is watched. A change that the debugger itself makes with `set` between runs is not reported.

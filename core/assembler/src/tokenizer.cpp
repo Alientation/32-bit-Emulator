@@ -306,6 +306,8 @@ const KeywordMap &assembly_keywords()
 
         add("sp", TokenType::REGISTER_SP);
         add("xzr", TokenType::REGISTER_XZR);
+        add("fp", TokenType::REGISTER_X28);
+        add("lr", TokenType::REGISTER_X29);
 
         // Every instruction of instruction_list.h under the text of its row.
 #define BASM_KEYWORD(X, NAME, text, allows_s, ...)                                                 \

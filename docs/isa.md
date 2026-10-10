@@ -22,7 +22,7 @@ The source of truth for opcodes is `AEMU_OPCODES` in `core/emulator32bit/include
 
 | Register | Number | Notes |
 |----------|--------|-------|
-| `x0`–`x29` | 0–29 | general purpose |
+| `x0`–`x29` | 0–29 | general purpose. The assembler and the debugger also take `fp` for `x28` and `lr` for `x29`, and the disassembler, the trace and the debugger print those names |
 | `sp` | 30 | stack pointer |
 | `xzr` | 31 | always reads 0, writes are discarded |
 
@@ -43,10 +43,10 @@ A register number above 31 reads as 0 and ignores writes (not reachable from a 5
 | `x0`–`x17` | caller saved |
 | `x18` | not assigned a role (reserved) |
 | `x19`–`x27` | callee saved |
-| `x28` | frame pointer (FP) |
-| `x29` | link register (LR), written by `BL`/`BLX` |
+| `x28` (`fp`) | frame pointer (FP) |
+| `x29` (`lr`) | link register (LR), written by `BL`/`BLX` |
 
-The stack grows downwards. `BX x29` is the same as `ret`.
+The stack grows downwards. `BX lr` is the same as `ret`.
 
 ### PSTATE
 

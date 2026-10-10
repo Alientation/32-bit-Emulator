@@ -126,7 +126,10 @@ void Emulator32bit::print()
                           to_color_hex_str(read_reg(Register::SP)), to_color_hex_str(word(0)));
     for (U8 i = 0; i <= register_to_U8(Register::X29); i++)
     {
-        *m_out << std::format("x{:02}: {}\n", i, to_color_hex_str(read_reg(i)));
+        // x00-x27 are numbered, fp and lr are named like pc and sp
+        *m_out << (i < register_to_U8(Register::FP) ? std::format("x{:02}", i)
+                                                    : std::format(" {}", register_name(i)))
+               << std::format(": {}\n", to_color_hex_str(read_reg(i)));
     }
 
     *m_out << std::format("\nN={:d} Z={:d} C={:d} V={:d}\n", test_bit<kNFlagBit>(m_pstate),
@@ -159,14 +162,13 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         {
             const word now = read_reg(watch.reg);
             if (now == watch.last) continue;
-            const word before = std::exchange(watch.last, now);
+            const word before = watch.last;
+            watch.last = now;
             if (watch.value && now != *watch.value) continue;
             result.status = RunResult::Status::BREAKPOINT;
             result.message = std::format(
                 "Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
-                watch.reg == static_cast<U8>(Register::SP) ? std::string("sp")
-                                                           : "x" + std::to_string(watch.reg),
-                before, now, m_pc);
+                register_name(watch.reg), before, now, m_pc);
             return true;
         }
         return false;
@@ -627,10 +629,7 @@ void Emulator32bit::execute_traced(const word instr)
     {
         if (m_x[r] != regs_before[r])
         {
-            changes += std::format(" {}={:#x}->{:#x}",
-                                   r == register_to_U8(Register::SP) ? std::string("sp")
-                                                                     : "x" + std::to_string(r),
-                                   regs_before[r], m_x[r]);
+            changes += std::format(" {}={:#x}->{:#x}", register_name(r), regs_before[r], m_x[r]);
         }
     }
     if (m_pstate != pstate_before)

@@ -218,9 +218,10 @@ TEST_F(AssemblerUnit, mov_and_mvn)
 
 TEST_F(AssemblerUnit, ret_is_bx_with_the_link_register)
 {
-    const Words words = text("ret\nbx x29\n");
+    const Words words = text("ret\nbx x29\nbx lr\n");
     EXPECT_EQ(words[0], Emulator32bit::asm_format_b2(ConditionCode::AL, kLinkRegister));
     EXPECT_EQ(words[0], words[1]);
+    EXPECT_EQ(words[0], words[2]);
 }
 
 TEST_F(AssemblerUnit, hlt_and_nop)

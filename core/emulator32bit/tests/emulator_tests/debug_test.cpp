@@ -779,6 +779,13 @@ TEST_F(RegisterWatchTest, a_change_made_by_the_debugger_between_runs_is_not_repo
     EXPECT_NE(result.message.find("0x64 -> 0x65"), std::string::npos) << result.message;
 }
 
+TEST_F(RegisterWatchTest, fp_and_lr_are_named_so)
+{
+    write_program({add_imm(29, 29, 7), Emulator32bit::asm_hlt()});
+    cpu.add_register_watch(static_cast<U8>(Register::LR));
+    EXPECT_NE(cpu.run(0).message.find("Register watch lr: 0x0 -> 0x7"), std::string::npos);
+}
+
 TEST_F(RegisterWatchTest, the_stack_pointer_is_named_sp)
 {
     write_program({add_imm(30, 30, 8), Emulator32bit::asm_hlt()});
@@ -813,6 +820,12 @@ TEST_F(RegisterWatchTest, specs_are_parsed)
     ASSERT_TRUE(with_value);
     EXPECT_EQ(with_value->reg, static_cast<U8>(Register::SP));
     EXPECT_EQ(with_value->value, 0x100u);
+
+    const auto named = parse_register_watch_spec("fp");
+    ASSERT_TRUE(named);
+    EXPECT_EQ(named->reg, 28);
+    EXPECT_EQ(parse_register_name("lr"), 29);
+    EXPECT_EQ(parse_register_name("x29"), 29);
 
     EXPECT_FALSE(parse_register_watch_spec("xzr"));
     EXPECT_FALSE(parse_register_watch_spec("5"));

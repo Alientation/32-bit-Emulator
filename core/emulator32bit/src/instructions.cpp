@@ -727,7 +727,7 @@ static void check_pair(const U8 reg)
         throw Emulator32bit::Exception(
             Emulator32bit::InterruptType::BAD_INSTR,
             "A double is a register pair and cannot start in "
-                + std::string(reg == 29 ? "x29" : reg == 30 ? "sp" : "xzr") + ".",
+                + std::string(register_name(reg)) + ".",
             Emulator32bit::kUndefinedIss_fp_operand);
     }
 }

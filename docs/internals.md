@@ -403,8 +403,10 @@ changing the assembler.
   (octal), as in the linker script and everywhere else in the toolchain (the old `$2A`, `%101`,
   `@17` are lexical errors that say what to write; `%` is only the remainder operator now; `010` is
   decimal 10).
-- Registers: `x0`–`x29`, `sp` (x30), `xzr` (x31). x29 is the link register, x28 the frame pointer,
+- Registers: `x0`–`x29`, `sp` (x30), `xzr` (x31). x29 (`lr`) is the link register, x28 (`fp`) the frame pointer,
   x8 the syscall number, x0–x7 the arguments, and x0 the return value (x0 and x1 for 64 bits).
+  `register_name (reg)` (`alu.h`) is the one table of names that is printed (disassembler, trace,
+  watch messages, debugger); the assembler and `parse_register_name` read `fp` and `lr` as well.
 - ALU ops are `op xd, xn, <xm[, shift] | imm14>`. The immediate is **unsigned 14-bit**. A trailing
   `s` sets flags (`adds`). `lsl/lsr/asr/ror` take `xm` or an imm5 and also accept `s` (N, Z and C
   from the last bit shifted out, V unchanged). Instructions that share an opcode: `lsl/lsr/asr/ror`

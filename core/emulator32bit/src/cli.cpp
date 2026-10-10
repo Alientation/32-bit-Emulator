@@ -188,7 +188,7 @@ static cxxopts::Options make_options()
             cxxopts::value<std::vector<std::string>> ())
         ("watch", "Stop after an access: ADDR|SYMBOL[:LENGTH][:r|w|rw][:p][:OP VALUE], default 1 byte, write; p: ADDR is physical; OP VALUE (==5, !=0, <=0x10...) only when the value matches (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
-        ("watch-reg", "Stop after a register changes: REG[=VALUE] (x0-x29, sp), only to VALUE if given (exit code 4)",
+        ("watch-reg", "Stop after a register changes: REG[=VALUE] (x0-x29, fp, lr, sp), only to VALUE if given (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
         ("history", "Keep the last N executed instructions and print them after the run",
             cxxopts::value<std::string> ()->default_value ("0"));

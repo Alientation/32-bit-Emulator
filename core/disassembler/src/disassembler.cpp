@@ -9,19 +9,7 @@
 
 static std::string disassemble_gpr(word instruction, U8 offset)
 {
-    const U8 gpr = bitfield_unsigned(instruction, offset, 5);
-    if (gpr == register_to_U8(Register::SP))
-    {
-        return "sp";
-    }
-    else if (gpr == register_to_U8(Register::XZR))
-    {
-        return "xzr";
-    }
-    else
-    {
-        return "x" + std::to_string(gpr);
-    }
+    return register_name(bitfield_unsigned(instruction, offset, 5));
 }
 
 /// The `lsl #n` operand of a format M or O instruction with a shifted register.

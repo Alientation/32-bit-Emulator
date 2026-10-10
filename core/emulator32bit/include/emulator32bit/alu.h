@@ -59,6 +59,21 @@ constexpr inline U8 register_to_U8(Register reg)
     return static_cast<U8>(reg);
 }
 
+/// The names that the toolchain prints, and the assembler and the debugger accept (as well as
+/// `x28` and `x29`): `fp` and `lr` for the registers of the calling convention.
+inline constexpr const char *kRegisterNames[kNumReg] = {
+    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",  "x10",
+    "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21",
+    "x22", "x23", "x24", "x25", "x26", "x27", "fp",  "lr",  "sp",  "xzr"};
+
+/// @param reg the number of a register, below kNumReg
+/// @return its name: x0-x27, fp, lr, sp or xzr
+inline const char *register_name(U8 reg)
+{
+    assert(reg < kNumReg);
+    return kRegisterNames[reg];
+}
+
 /// The condition of a conditional instruction, the 4 bits that are compared with the flags.
 enum class ConditionCode : U8
 {

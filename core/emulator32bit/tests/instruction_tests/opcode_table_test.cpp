@@ -118,7 +118,7 @@ TEST_F(EmulatorFixture, bx_and_blx_are_one_opcode_with_a_link_bit)
               "ret");
     EXPECT_EQ(Emulator32bit::disassemble_instr(
                   Emulator32bit::asm_format_b2(ConditionCode::AL, 29, true)),
-              "blx x29")
+              "blx lr")
         << "only bx x29 is a ret";
 }
 

@@ -41,9 +41,9 @@ loop:       subs    x0, x0, 1
 
 ## Registers
 
-`x0`–`x29`, `sp` (= x30) and `xzr` (= x31, reads as 0, writes are discarded).
+`x0`–`x29`, `sp` (= x30) and `xzr` (= x31, reads as 0, writes are discarded). `fp` is another name for `x28` and `lr` for `x29`; they are keywords like the others, so they cannot be labels. The disassembler prints those names.
 
-By convention: `x0`–`x7` are the arguments, `x0` also the return value (`x0` and `x1` for 64 bits, see [abi.md](abi.md#results)), `x8` the system call number, `x28` the frame pointer and `x29` the link register (`bl` stores the return address there).
+By convention: `x0`–`x7` are the arguments, `x0` also the return value (`x0` and `x1` for 64 bits, see [abi.md](abi.md#results)), `x8` the system call number, `x28` (`fp`) the frame pointer and `x29` (`lr`) the link register (`bl` stores the return address there).
 
 The flags are N, Z, C and V. Subtraction, `cmp` and `sbc` set C when there is **no borrow** (the ARM convention).
 

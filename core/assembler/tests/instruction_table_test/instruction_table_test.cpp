@@ -425,7 +425,7 @@ TEST_F(InstructionTable, fused_multiply_add_takes_four_registers)
               std::vector<word>{Emulator::asm_fop3(fpu::kFmaFn_nmsub, true, 2, 4, 6, 28)});
 
     for (const char *text : {"fmadd.f32 x1, x2, x3, x4", "fmsub.f64 x2, x4, x6, x8",
-                             "fnmadd.f32 x1, x2, x3, xzr", "fnmsub.f64 x28, x2, x4, x6"})
+                             "fnmadd.f32 x1, x2, x3, xzr", "fnmsub.f64 fp, x2, x4, x6"})
     {
         EXPECT_EQ(Emulator::disassemble_instr(assemble(text)[0]), text);
     }

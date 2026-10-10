@@ -241,7 +241,7 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
 
         const std::string kind =
             mode == Emulator32bit::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
-        const std::string base = "x" + std::to_string(reg_a);
+        const std::string base = register_name(reg_a);
         if (reg_a == U8(Register::XZR))
         {
             warn(*m_statement, "the " + kind + " writeback to xzr is discarded");

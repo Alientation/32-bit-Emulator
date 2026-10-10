@@ -39,7 +39,7 @@ std::string describe_watch_condition(Emulator32bit::WatchCompare compare, word v
 /// @return the watchpoint, or nothing if any part is malformed
 std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text);
 
-/// A register watch as written in `--watch-reg`: `<reg>[=<value>]` (x0-x29 or sp).
+/// A register watch as written in `--watch-reg`: `<reg>[=<value>]` (x0-x29, fp, lr or sp).
 struct RegisterWatchSpec
 {
     U8 reg;
@@ -52,7 +52,7 @@ struct RegisterWatchSpec
 /// @return the register watch, or nothing if the text is malformed
 std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &text);
 
-/// Parses a register name: x0-x29, sp, xzr, or a bare register number.
+/// Parses a register name: x0-x29, fp, lr, sp, xzr, or a bare register number.
 ///
 /// @param str the text of the register
 /// @return the number of the register, or nothing if the text is not one

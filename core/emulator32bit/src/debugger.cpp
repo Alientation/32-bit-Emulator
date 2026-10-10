@@ -1,6 +1,7 @@
 #include "emulator32bit/debugger.h"
 
 #include <algorithm>
+#include <cctype>
 #include <format>
 #include <istream>
 #include <ostream>
@@ -14,11 +15,6 @@ constexpr size_t kFaultHistory = 8;
 
 /// How many instructions the history keeps when the debugger turns it on.
 constexpr size_t kDebuggerHistory = 32;
-
-std::string register_name(const U8 reg)
-{
-    return reg == static_cast<U8>(Register::SP) ? "sp" : "x" + std::to_string(reg);
-}
 
 constexpr word kDefaultDumpBytes = 16;
 constexpr word kDefaultDisassembledInstructions = 8;
@@ -80,13 +76,13 @@ std::optional<U64> parse_number(const std::string &str)
 
 std::optional<U8> parse_register_name(const std::string &str)
 {
-    if (str == "sp")
+    // fp, lr, sp and xzr
+    for (U8 reg = static_cast<U8>(Register::FP); reg < kNumReg; reg++)
     {
-        return static_cast<U8>(Register::SP);
-    }
-    if (str == "xzr")
-    {
-        return static_cast<U8>(Register::XZR);
+        if (str == register_name(reg))
+        {
+            return reg;
+        }
     }
 
     const std::string digits = (!str.empty() && str[0] == 'x') ? str.substr(1) : str;
@@ -442,14 +438,14 @@ void Debugger::command_watchreg(const std::vector<std::string> &args)
 {
     if (args.empty() || args.size() > 2)
     {
-        m_out << "Usage: watchreg <x0..x29|sp> [value]\n";
+        m_out << "Usage: watchreg <x0..x29|fp|lr|sp> [value]\n";
         return;
     }
     const std::optional<RegisterWatchSpec> watch =
         parse_register_watch_spec(args.size() == 2 ? args[0] + "=" + args[1] : args[0]);
     if (!watch)
     {
-        m_out << "Expected <x0..x29|sp> [value], got '" << args[0] << "'.\n";
+        m_out << "Expected <x0..x29|fp|lr|sp> [value], got '" << args[0] << "'.\n";
         return;
     }
 
@@ -677,7 +673,7 @@ void Debugger::command_set(const std::vector<std::string> &args)
 {
     if (args.size() != 2)
     {
-        m_out << "Usage: set <x0..x29|sp|pc> <value>\n";
+        m_out << "Usage: set <x0..x29|fp|lr|sp|pc> <value>\n";
         return;
     }
     const std::optional<U64> value = parse_number(args[1]);
@@ -720,7 +716,7 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
     const std::optional<U8> reg = parse_register_name(text.substr(0, equals));
     // xzr never changes, and a bare number would be a register number in parse_register_name.
     if (!reg || *reg > static_cast<U8>(Register::SP)
-        || (text[0] != 'x' && text.substr(0, equals) != "sp"))
+        || std::isdigit(static_cast<unsigned char>(text[0])))
     {
         return std::nullopt;
     }

@@ -29,8 +29,8 @@ The convention is not enforced by the toolchain. The instruction set support it 
 | `x16`, `x17` | scratch for the compiler's own sequences (address and constant building, a long branch) | caller |
 | `x18` | reserved for the platform (the OS may keep a pointer to per-CPU or per-thread data here). Compiled code does not touch it | |
 | `x19`–`x27` | callee saved | callee |
-| `x28` | frame pointer | callee |
-| `x29` | link register | callee, if it makes calls |
+| `x28` (`fp`) | frame pointer | callee |
+| `x29` (`lr`) | link register | callee, if it makes calls |
 | `sp` | stack pointer | callee (restored on return) |
 | `xzr` | zero | |
 

@@ -102,7 +102,7 @@ TEST_F(SoftwareInterrupt, printp_prints_the_flags)
 TEST_F(SoftwareInterrupt, print_prints_all_registers)
 {
     EXPECT_EQ(swi(1000).status, Status::LIMIT_REACHED);
-    EXPECT_NE(out.str().find("x29:"), std::string::npos) << out.str();
+    EXPECT_NE(out.str().find("lr:"), std::string::npos) << out.str();
     EXPECT_NE(out.str().find("N="), std::string::npos) << out.str();
 }
 

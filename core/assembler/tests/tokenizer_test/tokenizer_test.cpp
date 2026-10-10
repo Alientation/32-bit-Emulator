@@ -150,7 +150,7 @@ TEST(tokenizer_v2, instruction_suffix_flags)
 TEST(tokenizer_v2, registers)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, "x0 x29 sp xzr x30 x01 x5a\n");
+    const LexResult r = lex_asm(sm, "x0 x29 sp xzr x30 x01 x5a fp lr\n");
     EXPECT_EQ(register_index(r.tokens[0].type), 0);
     EXPECT_EQ(register_index(r.tokens[1].type), 29);
     EXPECT_EQ(register_index(r.tokens[2].type), 30);
@@ -158,6 +158,8 @@ TEST(tokenizer_v2, registers)
     EXPECT_EQ(r.tokens[4].type, T::SYMBOL);
     EXPECT_EQ(r.tokens[5].type, T::SYMBOL);
     EXPECT_EQ(r.tokens[6].type, T::SYMBOL);
+    EXPECT_EQ(register_index(r.tokens[7].type), 28) << "fp is x28";
+    EXPECT_EQ(register_index(r.tokens[8].type), 29) << "lr is x29";
 }
 
 TEST(tokenizer_v2, float_mnemonics)
