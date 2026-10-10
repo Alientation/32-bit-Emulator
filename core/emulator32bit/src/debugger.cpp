@@ -30,9 +30,10 @@ const char *kHelp =
     "  break [address]     (b)    stop before the instruction at the address (default: the pc)\n"
     "  delete <address|all> (d)   remove a breakpoint\n"
     "  breaks                     list the breakpoints\n"
-    "  watch <address> [len] [r|w|rw] (w)  stop after a read and/or write (default w) of the "
-    "bytes\n"
-    "  unwatch <address|all>      remove a watchpoint\n"
+    "  watch <address> [len] [r|w|rw] [p] [<op> <value>] (w)  stop after a read and/or write "
+    "(default w) of the bytes; p: physical address; <op> is == != < <= > >= and the value is "
+    "that of the access\n"
+    "  unwatch <address|all> [p]  remove a watchpoint\n"
     "  watches                    list the watchpoints and register watches\n"
     "  watchreg <reg> [value]     stop after the register changes (to the value, if given)\n"
     "  unwatchreg <reg|all>       remove a register watch\n"
@@ -349,34 +350,48 @@ static const char *watch_kind_name(const Emulator32bit::WatchKind kind)
 
 void Debugger::command_watch(const std::vector<std::string> &args)
 {
-    if (args.empty() || args.size() > 3)
+    if (args.empty() || args.size() > 6)
     {
-        m_out << "Usage: watch <address> [length] [r|w|rw]\n";
+        m_out << "Usage: watch <address> [length] [r|w|rw] [p] [<op> <value>]\n";
         return;
     }
 
+    // "== 5" in two words is the same as "==5".
     std::string spec;
+    bool joined = false;
     for (const std::string &arg : args)
     {
-        spec += (spec.empty() ? "" : ":") + arg;
+        const bool is_operator = arg == "==" || arg == "!=" || arg == "<" || arg == "<="
+                                 || arg == ">" || arg == ">=";
+        spec += (spec.empty() || joined ? "" : ":") + arg;
+        joined = is_operator;
     }
     const std::optional<WatchSpec> watch = parse_watch_spec(m_symbols, spec);
     if (!watch)
     {
-        m_out << "Expected <address> [length greater than 0] [r|w|rw], got '" << spec << "'.\n";
+        m_out << "Expected <address> [length greater than 0] [r|w|rw] [p] [<op> <value>], got '"
+              << spec << "'.\n";
         return;
     }
 
-    m_emu.add_watchpoint(watch->address, watch->length, watch->kind);
+    m_emu.add_watchpoint(watch->address, watch->length, watch->kind, watch->physical,
+                         watch->compare, watch->compare_value);
     m_out << "Watching " << watch->length << " byte" << (watch->length == 1 ? "" : "s") << " at "
-          << describe(watch->address) << " for " << watch_kind_name(watch->kind) << ".\n";
+          << (watch->physical ? std::format("physical {:#010x}", watch->address)
+                              : describe(watch->address))
+          << " for " << watch_kind_name(watch->kind);
+    if (watch->compare != Emulator32bit::WatchCompare::NONE)
+    {
+        m_out << " when the value is " << describe_watch_condition(watch->compare, watch->compare_value);
+    }
+    m_out << ".\n";
 }
 
 void Debugger::command_unwatch(const std::vector<std::string> &args)
 {
-    if (args.empty())
+    if (args.empty() || args.size() > 2 || (args.size() == 2 && args[1] != "p"))
     {
-        m_out << "Expected an address or 'all'.\n";
+        m_out << "Expected an address or 'all', and p for a physical address.\n";
         return;
     }
     if (args[0] == "all")
@@ -386,10 +401,12 @@ void Debugger::command_unwatch(const std::vector<std::string> &args)
         return;
     }
 
+    const bool physical = args.size() == 2;
     const std::optional<word> address = resolve_address(args[0]);
-    if (!address || !m_emu.remove_watchpoint(*address))
+    if (!address || !m_emu.remove_watchpoint(*address, physical))
     {
-        m_out << "There is no watchpoint at '" << args[0] << "'.\n";
+        m_out << "There is no watchpoint at '" << args[0] << "'" << (physical ? " (physical)" : "")
+              << ".\n";
         return;
     }
     m_out << "Watchpoint at " << describe(*address) << " removed.\n";
@@ -408,8 +425,16 @@ void Debugger::command_watches()
     }
     for (const Emulator32bit::Watchpoint &watch : m_emu.watchpoints())
     {
-        m_out << "  " << describe(watch.address) << ", " << watch.length << " byte"
-              << (watch.length == 1 ? "" : "s") << ", " << watch_kind_name(watch.kind) << "\n";
+        m_out << "  "
+              << (watch.physical ? std::format("physical {:#010x}", watch.address)
+                                 : describe(watch.address))
+              << ", " << watch.length << " byte" << (watch.length == 1 ? "" : "s") << ", "
+              << watch_kind_name(watch.kind);
+        if (watch.compare != Emulator32bit::WatchCompare::NONE)
+        {
+            m_out << ", value " << describe_watch_condition(watch.compare, watch.compare_value);
+        }
+        m_out << "\n";
     }
 }
 
@@ -591,6 +616,25 @@ void Debugger::command_backtrace()
         print_frame(m_emu.read_reg(Register::LR));
     }
 
+    // In a handler the frame records go on with the code that was interrupted (a handler that
+    // does not make a record of its own leaves x28 as it was), but the interrupted function is not
+    // among them: its record gives its caller. ELR is where it was, so it is shown here.
+    if (m_emu.exception_depth() != 0)
+    {
+        const word esr = m_emu.read_sysreg(Emulator32bit::kSysregId_esr);
+        const auto cls = static_cast<Emulator32bit::ExceptionClass>(esr >> 26);
+        const bool is_abort = cls == Emulator32bit::ExceptionClass::INSTRUCTION_ABORT
+                              || cls == Emulator32bit::ExceptionClass::DATA_ABORT;
+        m_out << std::format("    in the handler of a {}: ESR={:#x}{}{}, the code that was "
+                             "interrupted:\n",
+                             Emulator32bit::exception_class_name(cls), esr,
+                             is_abort ? std::format(", FAR={:#010x}",
+                                                    m_emu.read_sysreg(Emulator32bit::kSysregId_far))
+                                      : "",
+                             m_emu.exception_depth() > 1 ? " (the last of several)" : "");
+        print_frame(m_emu.read_sysreg(Emulator32bit::kSysregId_elr));
+    }
+
     word fp = m_emu.read_reg(Register::FP);
     while (fp != 0 && index < kMaxFrames)
     {
@@ -694,6 +738,54 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
     return spec;
 }
 
+namespace
+{
+struct ConditionName
+{
+    const char *text;
+    Emulator32bit::WatchCompare compare;
+};
+
+// The longer operators first, so that "<=" is not read as "<" and "=5".
+constexpr ConditionName kConditionNames[] = {
+    {"==", Emulator32bit::WatchCompare::EQ}, {"!=", Emulator32bit::WatchCompare::NE},
+    {"<=", Emulator32bit::WatchCompare::LE}, {">=", Emulator32bit::WatchCompare::GE},
+    {"<", Emulator32bit::WatchCompare::LT},  {">", Emulator32bit::WatchCompare::GT},
+};
+
+/// "==5", ">=0x10": an operator and a number.
+std::optional<std::pair<Emulator32bit::WatchCompare, word>>
+parse_watch_condition(const std::string &text)
+{
+    for (const ConditionName &name : kConditionNames)
+    {
+        if (text.rfind(name.text, 0) != 0)
+        {
+            continue;
+        }
+        const std::optional<U64> value = parse_number(text.substr(std::string(name.text).size()));
+        if (!value || *value > 0xFFFFFFFFu)
+        {
+            return std::nullopt;
+        }
+        return std::pair{name.compare, static_cast<word>(*value)};
+    }
+    return std::nullopt;
+}
+} // namespace
+
+std::string describe_watch_condition(const Emulator32bit::WatchCompare compare, const word value)
+{
+    for (const ConditionName &name : kConditionNames)
+    {
+        if (name.compare == compare)
+        {
+            return std::format("{}{:#x}", name.text, value);
+        }
+    }
+    return "";
+}
+
 std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text)
 {
     std::vector<std::string> parts;
@@ -702,7 +794,7 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
     {
         parts.push_back(part);
     }
-    if (parts.empty() || parts.size() > 3)
+    if (parts.empty() || parts.size() > 5)
     {
         return std::nullopt;
     }
@@ -714,29 +806,55 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
     }
 
     WatchSpec spec{.address = *address, .length = 1, .kind = Emulator32bit::WatchKind::WRITE};
+    bool has_length = false;
+    bool has_kind = false;
     for (size_t i = 1; i < parts.size(); i++)
     {
-        if (parts[i] == "r")
+        const std::string &part = parts[i];
+        if (part == "p")
         {
-            spec.kind = Emulator32bit::WatchKind::READ;
-        }
-        else if (parts[i] == "w")
-        {
-            spec.kind = Emulator32bit::WatchKind::WRITE;
-        }
-        else if (parts[i] == "rw")
-        {
-            spec.kind = Emulator32bit::WatchKind::ACCESS;
-        }
-        else
-        {
-            const std::optional<U64> length = parse_number(parts[i]);
-            if (!length || *length == 0 || *length > 0xFFFFFFFFu)
+            if (spec.physical)
             {
                 return std::nullopt;
             }
+            spec.physical = true;
+        }
+        else if (part == "r" || part == "w" || part == "rw")
+        {
+            if (has_kind)
+            {
+                return std::nullopt;
+            }
+            has_kind = true;
+            spec.kind = part == "r"   ? Emulator32bit::WatchKind::READ
+                        : part == "w" ? Emulator32bit::WatchKind::WRITE
+                                      : Emulator32bit::WatchKind::ACCESS;
+        }
+        else if (const auto condition = parse_watch_condition(part))
+        {
+            if (spec.compare != Emulator32bit::WatchCompare::NONE)
+            {
+                return std::nullopt;
+            }
+            spec.compare = condition->first;
+            spec.compare_value = condition->second;
+        }
+        else
+        {
+            const std::optional<U64> length = parse_number(part);
+            if (has_length || !length || *length == 0 || *length > 0xFFFFFFFFu)
+            {
+                return std::nullopt;
+            }
+            has_length = true;
             spec.length = static_cast<word>(*length);
         }
+    }
+
+    // A symbol is a virtual address.
+    if (spec.physical && !parse_number(parts[0]))
+    {
+        return std::nullopt;
     }
     return spec;
 }

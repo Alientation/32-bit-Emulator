@@ -14,14 +14,23 @@
 /// @return the number, or nothing if the text is not one
 std::optional<U64> parse_number(const std::string &str);
 
-/// A watchpoint as written in `--watch`: `<address|symbol>[:length][:r|w|rw]` (length default 1,
-/// kind default w).
+/// A watchpoint as written in `--watch`: `<address|symbol>[:length][:r|w|rw][:p][:<op><number>]`.
+/// The length defaults to 1 and the kind to w. `p` makes the address physical (it has to be a
+/// number). `<op><number>` is a condition on the value of the access, with `<op>` one of `==`,
+/// `!=`, `<`, `<=`, `>`, `>=` (unsigned): `0x1000:4:w:==5`. The parts after the address can come in
+/// any order.
 struct WatchSpec
 {
     word address;
     word length;
     Emulator32bit::WatchKind kind;
+    bool physical = false;
+    Emulator32bit::WatchCompare compare = Emulator32bit::WatchCompare::NONE;
+    word compare_value = 0;
 };
+
+/// The condition of a watchpoint as text: "" without one, "==0x5" with one.
+std::string describe_watch_condition(Emulator32bit::WatchCompare compare, word value);
 
 /// Parses the argument of `--watch`.
 ///

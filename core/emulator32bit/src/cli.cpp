@@ -180,7 +180,7 @@ static cxxopts::Options make_options()
         ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
-        ("watch", "Stop after an access: ADDR|SYMBOL[:LENGTH][:r|w|rw], default 1 byte, write (exit code 4)",
+        ("watch", "Stop after an access: ADDR|SYMBOL[:LENGTH][:r|w|rw][:p][:OP VALUE], default 1 byte, write; p: ADDR is physical; OP VALUE (==5, !=0, <=0x10...) only when the value matches (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
         ("watch-reg", "Stop after a register changes: REG[=VALUE] (x0-x29, sp), only to VALUE if given (exit code 4)",
             cxxopts::value<std::vector<std::string>> ())
@@ -342,7 +342,7 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
             if (!watch)
             {
                 std::cerr << "ERROR: --watch '" << text
-                          << "' is not ADDR|SYMBOL[:LENGTH][:r|w|rw]\n";
+                          << "' is not ADDR|SYMBOL[:LENGTH][:r|w|rw][:p][:OPVALUE]\n";
                 parse_error = true;
                 continue;
             }
@@ -490,7 +490,8 @@ static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &r
     }
     for (const WatchSpec &watch : args.watchpoints)
     {
-        emu->add_watchpoint(watch.address, watch.length, watch.kind);
+        emu->add_watchpoint(watch.address, watch.length, watch.kind, watch.physical, watch.compare,
+                            watch.compare_value);
     }
     for (const RegisterWatchSpec &watch : args.register_watches)
     {

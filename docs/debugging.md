@@ -7,7 +7,7 @@ Six tools in `emu32`, all off by default and free when unused:
 | `--trace <file>` (`-t`) | writes a line per executed instruction (`-` for stdout) |
 | `--history N` | keeps the last N instructions and prints them after the run |
 | `--break <addr\|symbol>,...` | stops before the instruction at those addresses |
-| `--watch <addr\|symbol>[:len][:r\|w\|rw],...` | stops after an instruction that accesses those bytes |
+| `--watch <addr\|symbol>[:len][:r\|w\|rw][:p][:<op><value>],...` | stops after an instruction that accesses those bytes (`p`: physical addresses; `<op><value>`: only for that value) |
 | `--watch-reg <reg>[=value],...` | stops after an instruction changes a register (to that value) |
 | `--debug` | interactive debugger on stdin/stdout |
 
@@ -37,15 +37,18 @@ Breakpoints are virtual addresses, like the PC.
 
 ## Watchpoints
 
-`--watch counter` (or `--watch 0x1000:4:rw`) runs until an instruction writes the watched bytes, with `status=breakpoint` and exit code 4. After the address come an optional length in bytes (default 1) and an optional kind, `r` (reads), `w` (writes, the default) or `rw`. The message says what happened: `Watchpoint 0x00001000: write of 0x5 (4 bytes) at 0x00001000 by the instruction at 0x00000010`. From the library: `Emulator32bit::add_watchpoint (address, length, kind)`, `remove_watchpoint`, `clear_watchpoints`; the result is `Status::BREAKPOINT` as for a breakpoint.
+`--watch counter` (or `--watch 0x1000:4:rw`) runs until an instruction writes the watched bytes, with `status=breakpoint` and exit code 4. After the address come, in any order, an optional length in bytes (default 1), an optional kind, `r` (reads), `w` (writes, the default) or `rw`, `p` for a physical address and a condition on the value. The message says what happened: `Watchpoint 0x00001000: write of 0x5 (4 bytes) at 0x00001000 by the instruction at 0x00000010, the old value was 0x3`. From the library: `Emulator32bit::add_watchpoint (address, length, kind, physical, compare, compare_value)`, `remove_watchpoint`, `clear_watchpoints`; the result is `Status::BREAKPOINT` as for a breakpoint.
+
+- **Condition.** `--watch counter:==5` stops only when the value of the access is 5: the number that was stored, or that was loaded. The operators are `==`, `!=`, `<`, `<=`, `>`, `>=`, compared as unsigned numbers; the value of an access is its bytes, so a `strb` of 0x1FE is the value 0xFE. An access that does not match does nothing, and is written to the memory as usual. In the debugger: `watch counter 4 w == 5`.
+- **Physical addresses.** `--watch 0x14000:4:p` watches the memory at that physical address, whatever virtual address (or page table, or process) reaches it, and the address in the message is the virtual one of the access. A symbol is a virtual address, so a physical watch needs a number. In the debugger: `watch 0x14000 4 p` and `unwatch 0x14000 p`.
 
 - The instruction **has completed** (a store has written its memory, a pre/post-indexed base is updated) and the pc is at the next instruction, like a hardware watchpoint. So the first `run()` after a hit goes on without the watchpoint stopping it again.
-- Any overlap counts: a `strb` to byte 2 of a watched word is a hit. The watched range is virtual addresses, the address the instruction computed, so with the MMU on a physical alias of the page is not seen.
+- Any overlap counts: a `strb` to byte 2 of a watched word is a hit. A watch is on virtual addresses (the address the instruction computed) unless it has `p`; with the MMU on, another virtual address of the same page is not seen by a virtual watch.
 - Only loads, stores and atomics count. Instruction fetches, the page table walker, device activity, `swi` emulator calls (which write memory for the host) and the debugger's own `mem` do not. An atomic is a read and a write; when both match, the write is reported.
 - An access that faults does not count, since it did nothing.
-- A watchpoint at an address that is already watched replaces the old one (one per start address).
-- The value reported is the one loaded or stored (the low bytes for `strb`/`strh`), not the old value.
-- It costs one test per memory instruction while none is set, so it is free when unused.
+- A watchpoint at an address that is already watched replaces the old one (one per start address and kind of address, virtual or physical).
+- The value reported is the one loaded or stored (the low bytes for `strb`/`strh`). A write also says what the bytes held before, read just before the store (an atomic knows it already). A load has no old value.
+- It costs one test per memory instruction while none is set, so it is free when unused. With a watch set the stores take a path of their own (`store_watched`).
 
 ### Register watches
 
@@ -65,8 +68,8 @@ Breakpoints are virtual addresses, like the PC.
 | `continue [limit]` (`c`) | run until a breakpoint, the halt or a fault |
 | `break [addr]` (`b`) | breakpoint at the address (default: the current pc) |
 | `delete <addr\|all>` (`d`) / `breaks` | remove / list breakpoints |
-| `watch <addr> [len] [r\|w\|rw]` (`w`) | stop after a write (default), read or either of those bytes |
-| `unwatch <addr\|all>` / `watches` | remove / list watchpoints (and register watches) |
+| `watch <addr> [len] [r\|w\|rw] [p] [<op> <value>]` (`w`) | stop after a write (default), read or either of those bytes; `p`: physical address; `<op> <value>`: only for a value that compares so (`== 5`) |
+| `unwatch <addr\|all> [p]` / `watches` | remove / list watchpoints (and register watches) |
 | `watchreg <reg> [value]` / `unwatchreg <reg\|all>` | stop after a register changes (to the value) / remove |
 | `regs` (`r`) | registers and flags |
 | `mem <addr> [len]` (`x`) | hex dump, default 16 bytes. Unreadable bytes are `??` |
@@ -91,15 +94,28 @@ The code is in `emulator32bit/debugger.h`, which takes the input and output stre
 
 Frame 0 is the pc. The other frames come from the frame records of the [ABI](abi.md#frame): `x28` points at a record whose lower word is the caller's `x28` and whose upper word is the return address, and the chain ends at `x28 = 0`. It stops with a message, instead of guessing, when a frame pointer is not word aligned, cannot be read, or does not point higher in memory than the one before it (the stack grows down), and after 64 frames.
 
-Two limits, both from how the records are made:
+In an exception handler (between taking an exception and the `ERET`) `bt` says which one, with ESR and, for an abort, FAR, and shows the code that was interrupted as the next frame, from `ELR`. `Emulator32bit::exception_depth ()` counts the exceptions taken and not returned from; `ELR`, `ESR` and `FAR` are those of the last one, so with nested exceptions the outer ones are not shown:
+
+```
+(dbg) bt
+#0  0x00000824 <handler+0x4>
+    in the handler of a data abort: ESR=0x10000001, FAR=0x00002000, the code that was interrupted:
+#1  0x00000020 <func+0x8>
+#2  0x00000008 <_start+0x8>
+```
+
+The handler is assumed not to have a frame record of its own (an assembly stub that leaves `x28` alone), so that the records that follow are those of the interrupted code. A handler that makes its own record shows the interrupted frame before its own callers.
+
+Three limits, the first two from how the records are made:
 
 - A function has no record before its prologue has run. When the pc is exactly at a symbol the debugger assumes that is the first instruction of a function and takes frame 1 from the link register (`x29`). A breakpoint on a label inside a function therefore shows one extra, wrong, frame.
 - Hand written leaf functions that skip the record are not shown.
+- Exceptions inside exceptions: only the last one is described.
 
 ## Limits
 
-- Watchpoints are on virtual addresses. They do not report the old value of a write and have no conditions.
-- `bt` does not show the exception state: a backtrace through a handler stops at the `ERET` frame.
+- A watchpoint condition looks at the value of one access, not at the memory: a `strb` into a watched word compares the byte. There is no condition on a register, or on several conditions at once.
+- Watchpoints stop after the access; there is no stop before it.
 
 ## `brk`
 

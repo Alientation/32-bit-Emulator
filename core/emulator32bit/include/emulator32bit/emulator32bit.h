@@ -80,6 +80,16 @@ class Emulator32bit
         IRQ = 6,
     };
 
+    /// @return the name of the class ("data abort"), or "?" for a number that is not one
+    static const char *exception_class_name(ExceptionClass cls);
+
+    /// @return how many exceptions have been taken and not returned from (ERET), at most 255:
+    ///         non zero in a handler. ELR, ESR and FAR describe the last one.
+    U8 exception_depth() const
+    {
+        return m_exception_depth;
+    }
+
     /// ISS of an undefined instruction exception (and of the Exception that causes it).
     /// An opcode that is not assigned.
     static constexpr word kUndefinedIss_opcode = 0;
@@ -218,30 +228,64 @@ class Emulator32bit
         ACCESS = 3, ///< either
     };
 
-    /// A range of virtual addresses (the address the instruction computed, before translation).
+    /// How the value of an access is compared with the number of a watchpoint (unsigned).
+    enum class WatchCompare : U8
+    {
+        NONE, ///< every access counts
+        EQ,
+        NE,
+        LT,
+        LE,
+        GT,
+        GE,
+    };
+
+    /// A range of virtual addresses (the address the instruction computed, before translation), or
+    /// of physical ones.
     struct Watchpoint
     {
         word address;
         word length; ///< at least 1
         WatchKind kind;
+        bool physical = false; ///< `address` is where the access ends up after the translation
+        WatchCompare compare = WatchCompare::NONE; ///< only an access whose value ...
+        word compare_value = 0;                    ///< ... compares like this with this one counts
     };
+
+    /// @param compare how to compare
+    /// @param value what an access loaded or stored (the bytes of it, zero extended)
+    /// @param against the number to compare with
+    /// @return whether the comparison holds
+    static bool watch_compare_holds(WatchCompare compare, word value, word against);
 
     /// Makes run () stop, with Status::BREAKPOINT, right after an instruction that read or wrote
     /// (per `kind`) any byte of [address, address + length). The pc is then the next instruction.
     /// Only loads, stores and atomics count (not instruction fetches, the page table walker, or
     /// the debugger's own reads); an atomic is a read and a write. An access that faults does not
-    /// count. A watchpoint on an address that is already watched replaces it.
+    /// count. A watchpoint on an address that is already watched (the same kind of address)
+    /// replaces it.
     ///
-    /// @param address the virtual address of the first byte to watch
+    /// With a `compare`, only an access whose value (what it loaded or stored) compares like that
+    /// with `compare_value` counts: `==` 5 stops when a 5 is written. The message of a write says
+    /// what was in the memory before.
+    ///
+    /// @param address the address of the first byte to watch
     /// @param length the number of bytes, at least 1
     /// @param kind which accesses stop the run
-    void add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE);
+    /// @param physical whether the address is physical (a watch that follows the page tables, or
+    ///        the same memory under another virtual address)
+    /// @param compare the condition on the value of the access
+    /// @param compare_value the number the value is compared with
+    void add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE,
+                        bool physical = false, WatchCompare compare = WatchCompare::NONE,
+                        word compare_value = 0);
 
     /// Removes the watchpoint that starts at the address.
     ///
     /// @param address the address the watchpoint starts at
+    /// @param physical whether it is a watchpoint on physical addresses
     /// @return whether there was one
-    bool remove_watchpoint(word address);
+    bool remove_watchpoint(word address, bool physical = false);
 
     /// Removes every watchpoint.
     void clear_watchpoints();
@@ -491,6 +535,9 @@ class Emulator32bit
     /// when none has is a double fault.
     bool m_retired_since_entry = true;
 
+    /// Exceptions taken and not returned from, see exception_depth ().
+    U8 m_exception_depth = 0;
+
     bool m_semihosting = true;
     bool m_brk_stops = false;
 
@@ -584,7 +631,20 @@ class Emulator32bit
     /// @param length the number of bytes accessed
     /// @param write whether the access was a store
     /// @param value what was loaded or stored
-    void watch_access(word address, word length, bool write, word value);
+    /// @param old_value what a store replaced
+    void watch_access(word address, word length, bool write, word value, word old_value = 0);
+
+    /// @return the bytes at the virtual address as they are before a store (0 if they cannot be
+    ///         read), for watch_access
+    word watch_old_value(word address, word length);
+
+    /// What the store that is about to run replaces, read by execute_hooked () for the message of
+    /// a watchpoint (the store handlers themselves are as they were without watchpoints).
+    word m_watch_old = 0;
+
+    /// execute () for a run where something looks at each instruction: the old value of a store
+    /// for the watchpoints, and the trace.
+    void execute_hooked(word instr);
     std::ostream *m_trace = nullptr;
     const SymbolMap *m_symbols = nullptr;
     size_t m_history_size = 0;

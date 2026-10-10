@@ -1698,6 +1698,41 @@ TEST_F(AssemblerIntegration, emu32_breakpoint_on_a_symbol)
               S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
 }
 
+TEST_F(AssemblerIntegration, emu32_watch_stops_on_the_value_asked_for_and_says_what_it_replaced)
+{
+    write_file("counter.basm", R"(
+.global _start
+.data
+counter:    .word 0
+.text
+_start:
+        adrp    x1, counter
+        add     x1, x1, :lo12:counter
+        mov     x2, 1
+        str     x2, [x1]
+        mov     x2, 2
+        str     x2, [x1]
+        mov     x2, 3
+        str     x2, [x1]
+        hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o counter counter.basm -outdir ."));
+
+    EXPECT_EQ(emu32("-e counter.bexe --watch counter:==2"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "breakpoint");
+    EXPECT_NE(state("message").find("write of 0x2"), std::string::npos) << state("message");
+    EXPECT_NE(state("message").find("the old value was 0x1"), std::string::npos)
+        << state("message");
+
+    // A value that is never written does not stop the program.
+    EXPECT_EQ(emu32("-e counter.bexe --watch counter:==9"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED));
+    EXPECT_EQ(emu32("-e counter.bexe --watch counter:=9"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+}
+
 TEST_F(AssemblerIntegration, emu32_trace_shows_symbols_and_changes)
 {
     write_file("call.basm", kDoubleProgram);

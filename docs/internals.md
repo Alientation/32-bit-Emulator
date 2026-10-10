@@ -92,10 +92,12 @@ and the release build has debug info so the samples can be attributed to source 
     `RunResult::Status::BREAKPOINT` is a fourth status, so a `switch` over it needs the case. The
     first instruction of a `run()` never stops at a breakpoint. `Debugger` turns on `set_brk_stops`,
     so a `brk` instruction stops the run too (pc at the next instruction). `--watch
-    addr|symbol[:len][:r|w|rw]` / `add_watchpoint` stop after a load, store or atomic touches
-    virtual bytes (also `Status::BREAKPOINT`, with the instruction finished and the pc at the next
-    one); the hook is `watch_access ()`, called by the memory handlers in `instructions.cpp` only
-    when the list is not empty, and the REPL has `watch`/`unwatch`/`watches`. `--watch-reg
+    addr|symbol[:len][:r|w|rw][:p][:<op><value>]` / `add_watchpoint` stop after a load, store or
+    atomic touches virtual (or, with `p`, physical: the access is translated again by
+    `watch_access`) bytes whose value matches the condition (also `Status::BREAKPOINT`, with the
+    instruction finished and the pc at the next one); the hook is `watch_access ()`, called by the
+    memory handlers in `instructions.cpp` only when the list is not empty (the stores test it at
+    the top and go to `store_watched`, which reads the old value first), and the REPL has `watch`/`unwatch`/`watches`. `--watch-reg
     reg[=value]` / `add_register_watch` stop after a register changes: `run ()` compares the watched
     registers at the top of each iteration (and once after the loop), nothing is hooked into
     `write_reg`. `run ()` decides once, at its start, whether anything looks at each instruction

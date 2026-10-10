@@ -13,8 +13,6 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 
 ## Debugger
 
-- Watchpoints on physical addresses, the old value of a write, and conditions (stop only if the value is...).
-- Showing the exception state in `bt`. A backtrace through a handler stops at the `ERET` frame.
 - A gdb remote stub, for use from an IDE.
 
 ## Code and build

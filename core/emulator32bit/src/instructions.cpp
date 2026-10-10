@@ -343,6 +343,10 @@ void Emulator32bit::_eret(const word instr)
     require_kernel();
 
     set_user_mode(test_bit<kUserModeBit>(m_spsr));
+    if (m_exception_depth != 0)
+    {
+        m_exception_depth--;
+    }
     m_pstate = m_spsr & kPstateMask;
     m_pc = m_elr;
     m_pc_written = true;
@@ -603,7 +607,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     if (UNLIKELY(!m_watchpoints.empty()))
     {
         // The write is reported first: it is the more interesting half of a read-modify-write.
-        watch_access(mem_adr, size, true, new_val);
+        watch_access(mem_adr, size, true, new_val, val_mem);
         watch_access(mem_adr, size, false, val_mem);
     }
 
@@ -1031,7 +1035,7 @@ void Emulator32bit::_str(const word instr)
     store<word>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
-        watch_access(mem.address, 4, true, value);
+        watch_access(mem.address, 4, true, value, m_watch_old);
     }
     write_back_base(mem);
 }
@@ -1043,7 +1047,7 @@ void Emulator32bit::_strb(const word instr)
     store<byte>(memory, mem.address, value, false);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
-        watch_access(mem.address, 1, true, value & 0xFF);
+        watch_access(mem.address, 1, true, value & 0xFF, m_watch_old);
     }
     write_back_base(mem);
 }
@@ -1055,7 +1059,7 @@ void Emulator32bit::_strh(const word instr)
     store<hword>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(!m_watchpoints.empty()))
     {
-        watch_access(mem.address, 2, true, value & 0xFFFF);
+        watch_access(mem.address, 2, true, value & 0xFFFF, m_watch_old);
     }
     write_back_base(mem);
 }

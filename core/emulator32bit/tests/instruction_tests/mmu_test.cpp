@@ -420,3 +420,26 @@ TEST_F(Mmu, tlbi_disassembles_and_assembles_back)
     EXPECT_EQ(Emulator32bit::disassemble_instr(Emulator32bit::asm_tlbi(0, false, 0)), "tlbi");
     EXPECT_EQ(Emulator32bit::disassemble_instr(Emulator32bit::asm_tlbi(5, true, 0)), "tlbi x5");
 }
+
+// A watchpoint on physical addresses follows the page tables: it is the memory that is watched,
+// whatever address it is reached by.
+TEST_F(Mmu, a_physical_watchpoint_is_hit_through_the_virtual_address_that_maps_to_it)
+{
+    write_code(kCodeP, 0x100, {mov(1, kDataV), mov(2, 77), store(2, 1), Emulator32bit::asm_hlt()});
+    turn_on();
+    const word physical = kDataP << kNumPageOffsetBits;
+
+    // The virtual address of the page is not where the memory is, and neither the physical address
+    // as a virtual one.
+    cpu.add_watchpoint(physical, 4, Emulator32bit::WatchKind::WRITE, false);
+    cpu.add_watchpoint(kDataV, 4, Emulator32bit::WatchKind::WRITE, true);
+    EXPECT_EQ(run_at(0x100).status, Status::HALTED);
+
+    cpu.clear_watchpoints();
+    cpu.add_watchpoint(physical + 2, 4, Emulator32bit::WatchKind::WRITE, true);
+    const auto result = run_at(0x100);
+    EXPECT_EQ(result.status, Status::BREAKPOINT) << "the last two bytes of the word overlap";
+    EXPECT_NE(result.message.find("Watchpoint physical 0x00014002"), std::string::npos)
+        << result.message;
+    EXPECT_NE(result.message.find("at 0x00010000"), std::string::npos) << result.message;
+}

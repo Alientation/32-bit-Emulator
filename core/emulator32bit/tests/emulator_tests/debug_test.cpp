@@ -385,6 +385,32 @@ TEST_F(DebuggerTest, backtrace_at_a_function_entry_uses_the_link_register)
     EXPECT_NE(text.find("#2  0x00000008 <start+0x8>\n"), std::string::npos) << text;
 }
 
+TEST_F(DebuggerTest, backtrace_in_a_handler_shows_the_exception_and_the_interrupted_code)
+{
+    // swi 3 at 0 goes to the handler at VBAR + 32: a nop, then eret.
+    constexpr word kVbar = 0x800;
+    cpu.write_sysreg(Emulator32bit::kSysregId_vbar, kVbar);
+    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_swi,
+                                                           ConditionCode::AL, 3));
+    cpu.memory.write_word(kVbar + 32, Emulator32bit::asm_nop());
+    cpu.memory.write_word(kVbar + 36, Emulator32bit::asm_eret());
+
+    EXPECT_EQ(command("bt").find("handler"), std::string::npos) << "not in one yet";
+    ASSERT_EQ(cpu.run(2).status, Status::LIMIT_REACHED); // the swi and the nop
+    EXPECT_EQ(cpu.exception_depth(), 1);
+    EXPECT_EQ(cpu.get_pc(), kVbar + 36);
+
+    const std::string text = command("bt");
+    EXPECT_NE(text.find("#0  0x00000824 <start+0x824>\n"), std::string::npos) << text;
+    EXPECT_NE(text.find("in the handler of a supervisor call"), std::string::npos) << text;
+    EXPECT_NE(text.find("#1  0x00000004 <start+0x4>\n"), std::string::npos)
+        << "where it goes back to: " << text;
+
+    ASSERT_EQ(cpu.run(1).status, Status::LIMIT_REACHED); // the eret
+    EXPECT_EQ(cpu.exception_depth(), 0);
+    EXPECT_EQ(command("bt").find("handler"), std::string::npos);
+}
+
 TEST_F(DebuggerTest, backtrace_stops_at_a_broken_chain)
 {
     cpu.set_pc(4);
@@ -554,6 +580,92 @@ TEST_F(WatchpointTest, a_single_step_that_hits_reports_it)
     EXPECT_EQ(result.instructions_ran, 1u);
 }
 
+TEST_F(WatchpointTest, a_write_says_what_was_in_the_memory_before)
+{
+    cpu.memory.write_word(kWatched, 0x1234);
+    cpu.add_watchpoint(kWatched);
+    const auto result = cpu.run(0);
+
+    EXPECT_NE(result.message.find("write of 0xcafe"), std::string::npos) << result.message;
+    EXPECT_NE(result.message.find("the old value was 0x1234"), std::string::npos) << result.message;
+}
+
+TEST_F(WatchpointTest, the_old_value_of_a_byte_store_is_that_byte_and_a_read_has_none)
+{
+    write_program({mem_op(Emulator32bit::_op_strb, 2, 1, 1), Emulator32bit::asm_hlt()});
+    cpu.memory.write_word(kWatched, 0x11223344);
+    cpu.add_watchpoint(kWatched + 1);
+
+    const auto result = cpu.run(0);
+    EXPECT_NE(result.message.find("write of 0xfe (1 byte)"), std::string::npos) << result.message;
+    EXPECT_NE(result.message.find("the old value was 0x33"), std::string::npos) << result.message;
+
+    write_program({mem_op(Emulator32bit::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
+    cpu.clear_watchpoints();
+    cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::READ);
+    EXPECT_EQ(cpu.run(0).message.find("old value"), std::string::npos);
+}
+
+TEST(WatchCompare, compares_the_value_as_an_unsigned_number)
+{
+    using Compare = Emulator32bit::WatchCompare;
+    struct Case
+    {
+        Compare compare;
+        bool less, equal, greater; // for a value below, at and above the number
+    };
+    const Case cases[] = {{Compare::NONE, true, true, true},   {Compare::EQ, false, true, false},
+                          {Compare::NE, true, false, true},    {Compare::LT, true, false, false},
+                          {Compare::LE, true, true, false},    {Compare::GT, false, false, true},
+                          {Compare::GE, false, true, true}};
+    for (const Case &c : cases)
+    {
+        EXPECT_EQ(Emulator32bit::watch_compare_holds(c.compare, 4, 5), c.less);
+        EXPECT_EQ(Emulator32bit::watch_compare_holds(c.compare, 5, 5), c.equal);
+        EXPECT_EQ(Emulator32bit::watch_compare_holds(c.compare, 6, 5), c.greater);
+    }
+    EXPECT_TRUE(Emulator32bit::watch_compare_holds(Compare::GT, 0x80000000, 5)) << "unsigned";
+}
+
+TEST_F(WatchpointTest, a_condition_only_stops_for_the_values_that_match)
+{
+    using Compare = Emulator32bit::WatchCompare;
+    const auto kind = Emulator32bit::WatchKind::WRITE;
+
+    cpu.add_watchpoint(kWatched, 4, kind, false, Compare::EQ, 0xBEEF);
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED) << "0xcafe is not 0xbeef";
+    EXPECT_EQ(cpu.memory.read_word(kWatched), 0xCAFEu) << "and it was written";
+
+    cpu.set_pc(0);
+    cpu.add_watchpoint(kWatched, 4, kind, false, Compare::EQ, 0xCAFE);
+    EXPECT_EQ(cpu.run(0).status, Status::BREAKPOINT);
+
+    cpu.set_pc(0);
+    cpu.add_watchpoint(kWatched, 4, kind, false, Compare::GT, 0xCAFE);
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+
+    cpu.set_pc(0);
+    cpu.add_watchpoint(kWatched, 4, kind, false, Compare::GE, 0xCAFE);
+    EXPECT_EQ(cpu.run(0).status, Status::BREAKPOINT);
+}
+
+TEST_F(WatchpointTest, a_physical_watchpoint_is_another_one_than_a_virtual_one)
+{
+    cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::WRITE, true);
+    cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::READ, false);
+    EXPECT_EQ(cpu.watchpoints().size(), 2u);
+
+    const auto result = cpu.run(0);
+    EXPECT_EQ(result.status, Status::BREAKPOINT) << "no virtual memory: the same address";
+    EXPECT_NE(result.message.find("Watchpoint physical 0x00000100"), std::string::npos)
+        << result.message;
+
+    EXPECT_FALSE(cpu.remove_watchpoint(kWatched + 4, true));
+    EXPECT_TRUE(cpu.remove_watchpoint(kWatched, true));
+    EXPECT_EQ(cpu.watchpoints().size(), 1u);
+    EXPECT_FALSE(cpu.watchpoints()[0].physical);
+}
+
 TEST_F(WatchpointTest, specs_are_parsed)
 {
     SymbolMap names;
@@ -576,6 +688,34 @@ TEST_F(WatchpointTest, specs_are_parsed)
     EXPECT_FALSE(parse_watch_spec(names, "var:0"));
     EXPECT_FALSE(parse_watch_spec(names, "var:x"));
     EXPECT_FALSE(parse_watch_spec(names, "var:1:r:w"));
+    EXPECT_FALSE(parse_watch_spec(names, "var:1:2"));
+
+    // The parts after the address come in any order, and there is a physical address and a
+    // condition.
+    const auto conditional = parse_watch_spec(names, "var:==0x10:4:rw");
+    ASSERT_TRUE(conditional);
+    EXPECT_EQ(conditional->length, 4u);
+    EXPECT_EQ(conditional->kind, Emulator32bit::WatchKind::ACCESS);
+    EXPECT_EQ(conditional->compare, Emulator32bit::WatchCompare::EQ);
+    EXPECT_EQ(conditional->compare_value, 0x10u);
+    EXPECT_FALSE(conditional->physical);
+    EXPECT_EQ(parse_watch_spec(names, "0x10:>=3")->compare, Emulator32bit::WatchCompare::GE);
+    EXPECT_EQ(parse_watch_spec(names, "0x10:<=3")->compare, Emulator32bit::WatchCompare::LE);
+    EXPECT_EQ(parse_watch_spec(names, "0x10:!=3")->compare, Emulator32bit::WatchCompare::NE);
+    EXPECT_EQ(parse_watch_spec(names, "0x10:<3")->compare, Emulator32bit::WatchCompare::LT);
+    EXPECT_EQ(parse_watch_spec(names, "0x10:>3")->compare, Emulator32bit::WatchCompare::GT);
+    EXPECT_FALSE(parse_watch_spec(names, "var:==1:!=2")) << "one condition";
+    EXPECT_FALSE(parse_watch_spec(names, "var:==")) << "a condition needs a number";
+    EXPECT_FALSE(parse_watch_spec(names, "var:=3"));
+
+    const auto physical = parse_watch_spec(names, "0x1000:p:4");
+    ASSERT_TRUE(physical);
+    EXPECT_TRUE(physical->physical);
+    EXPECT_EQ(physical->length, 4u);
+    EXPECT_FALSE(parse_watch_spec(names, "var:p")) << "a symbol is a virtual address";
+    EXPECT_FALSE(parse_watch_spec(names, "0x10:p:p"));
+    EXPECT_EQ(describe_watch_condition(Emulator32bit::WatchCompare::LE, 0x20), "<=0x20");
+    EXPECT_EQ(describe_watch_condition(Emulator32bit::WatchCompare::NONE, 0x20), "");
 }
 
 // Register watches. The fixture program adds 1 to x0 three times and halts.
@@ -738,6 +878,23 @@ TEST_F(WatchpointDebuggerTest, watch_continue_unwatch)
     EXPECT_NE(command("unwatch var").find("removed"), std::string::npos);
     EXPECT_NE(command("unwatch var").find("There is no watchpoint"), std::string::npos);
     EXPECT_NE(command("continue").find("halted"), std::string::npos);
+}
+
+TEST_F(WatchpointDebuggerTest, a_condition_and_a_physical_address_in_the_commands)
+{
+    EXPECT_NE(command("watch var 4 w == 0xbeef").find("when the value is ==0xbeef"),
+              std::string::npos);
+    EXPECT_NE(command("watch 0x200 4 p >= 3").find("physical 0x00000200"), std::string::npos);
+    const std::string listing = command("watches");
+    EXPECT_NE(listing.find("<var>, 4 bytes, write, value ==0xbeef"), std::string::npos) << listing;
+    EXPECT_NE(listing.find("physical 0x00000200, 4 bytes, write, value >=0x3"), std::string::npos)
+        << listing;
+
+    EXPECT_NE(command("continue").find("halted"), std::string::npos) << "0xcafe is not 0xbeef";
+
+    EXPECT_NE(command("unwatch 0x200").find("There is no watchpoint"), std::string::npos);
+    EXPECT_NE(command("unwatch 0x200 p").find("removed"), std::string::npos);
+    EXPECT_NE(command("unwatch var q").find("Expected"), std::string::npos);
 }
 
 TEST_F(WatchpointDebuggerTest, bad_input_and_unwatch_all)

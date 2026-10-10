@@ -246,7 +246,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             m_instr_in_flight = instr;
             try
             {
-                if (UNLIKELY(hooked) && m_trace != nullptr) execute_traced(instr);
+                if (UNLIKELY(hooked)) execute_hooked(instr);
                 else execute(instr);
             }
             catch (const std::exception &error)
@@ -358,18 +358,49 @@ const std::set<word> &Emulator32bit::breakpoints() const
     return m_breakpoints;
 }
 
-void Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind)
+void Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind,
+                                   const bool physical, const WatchCompare compare,
+                                   const word compare_value)
 {
     AEMU_CHECK(length != 0, "A watchpoint needs a length of at least 1");
-    remove_watchpoint(address);
-    m_watchpoints.push_back({.address = address, .length = length, .kind = kind});
+    remove_watchpoint(address, physical);
+    m_watchpoints.push_back({.address = address,
+                             .length = length,
+                             .kind = kind,
+                             .physical = physical,
+                             .compare = compare,
+                             .compare_value = compare_value});
 }
 
-bool Emulator32bit::remove_watchpoint(const word address)
+bool Emulator32bit::remove_watchpoint(const word address, const bool physical)
 {
     return std::erase_if(m_watchpoints,
-                         [&](const Watchpoint &watch) { return watch.address == address; })
+                         [&](const Watchpoint &watch)
+                         { return watch.address == address && watch.physical == physical; })
            != 0;
+}
+
+bool Emulator32bit::watch_compare_holds(const WatchCompare compare, const word value,
+                                        const word against)
+{
+    switch (compare)
+    {
+    case WatchCompare::NONE:
+        return true;
+    case WatchCompare::EQ:
+        return value == against;
+    case WatchCompare::NE:
+        return value != against;
+    case WatchCompare::LT:
+        return value < against;
+    case WatchCompare::LE:
+        return value <= against;
+    case WatchCompare::GT:
+        return value > against;
+    case WatchCompare::GE:
+        return value >= against;
+    }
+    return false;
 }
 
 void Emulator32bit::clear_watchpoints()
@@ -406,13 +437,41 @@ const std::vector<Emulator32bit::RegisterWatch> &Emulator32bit::register_watches
     return m_register_watches;
 }
 
+word Emulator32bit::watch_old_value(const word address, const word length)
+{
+    try
+    {
+        return length == 1   ? word(memory.read<byte>(address))
+               : length == 2 ? word(memory.read<hword>(address))
+                             : memory.read<word>(address);
+    }
+    catch (const std::exception &)
+    {
+        return 0; // the store faults as well, and nothing is reported for it
+    }
+}
+
 void Emulator32bit::watch_access(const word address, const word length, const bool write,
-                                 const word value)
+                                 const word value, const word old_value)
 {
     if (!m_watch_hit.empty())
     {
         return; // the first hit of the instruction is the one that is reported
     }
+
+    // The bytes the access ends up at, for a watchpoint on physical addresses. It succeeded, so
+    // the translation is there. A byte that cannot be translated is one that nothing watches.
+    const auto physical_address = [&](const word virtual_address) -> std::optional<word>
+    {
+        try
+        {
+            return mmu->translate_address(virtual_address);
+        }
+        catch (const std::exception &)
+        {
+            return std::nullopt;
+        }
+    };
 
     const U64 first = address;
     const U64 last = first + length; // one past, 64 bit so it cannot wrap
@@ -422,12 +481,36 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
             (static_cast<U8>(watch.kind)
              & (write ? static_cast<U8>(WatchKind::WRITE) : static_cast<U8>(WatchKind::READ)))
             != 0;
-        if (kind_matches && first < U64(watch.address) + watch.length && U64(watch.address) < last)
+        if (!kind_matches || !watch_compare_holds(watch.compare, value, watch.compare_value))
         {
-            m_watch_hit = std::format("Watchpoint {:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
+            continue;
+        }
+
+        bool overlaps = false;
+        if (watch.physical)
+        {
+            for (word i = 0; i < length && !overlaps; i++)
+            {
+                const std::optional<word> byte = physical_address(address + i);
+                overlaps = byte && *byte >= watch.address
+                           && U64(*byte) < U64(watch.address) + watch.length;
+            }
+        }
+        else
+        {
+            overlaps = first < U64(watch.address) + watch.length && U64(watch.address) < last;
+        }
+        if (overlaps)
+        {
+            m_watch_hit = std::format("Watchpoint {}{:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
                                       "the instruction at {:#010x}",
-                                      watch.address, write ? "write" : "read", value, length,
+                                      watch.physical ? "physical " : "", watch.address,
+                                      write ? "write" : "read", value, length,
                                       length == 1 ? "" : "s", address, m_pc);
+            if (write)
+            {
+                m_watch_hit += std::format(", the old value was {:#x}", old_value);
+            }
             return;
         }
     }
@@ -477,6 +560,24 @@ std::string flag_letters(const word pstate)
 }
 
 } // namespace
+
+void Emulator32bit::execute_hooked(const word instr)
+{
+    // The old value of what a store replaces is read before the store, from the registers the
+    // instruction is going to use.
+    if (!m_watchpoints.empty())
+    {
+        const U8 opcode = bitfield_unsigned<26, 6>(instr);
+        if (opcode == _op_str || opcode == _op_strh || opcode == _op_strb)
+        {
+            m_watch_old = watch_old_value(data_address_of(instr),
+                                          opcode == _op_str ? 4 : opcode == _op_strh ? 2 : 1);
+        }
+    }
+
+    if (m_trace != nullptr) execute_traced(instr);
+    else execute(instr);
+}
 
 void Emulator32bit::execute_traced(const word instr)
 {
@@ -558,9 +659,11 @@ constexpr SysregName kSysregNames[] = {
     {Emulator32bit::kSysregId_fpsr, "fpsr"},
 };
 
-const char *exception_class_name(const Emulator32bit::ExceptionClass cls)
+} // namespace
+
+const char *Emulator32bit::exception_class_name(const ExceptionClass cls)
 {
-    using Class = Emulator32bit::ExceptionClass;
+    using Class = ExceptionClass;
     switch (cls)
     {
     case Class::UNDEFINED_INSTRUCTION:
@@ -578,8 +681,6 @@ const char *exception_class_name(const Emulator32bit::ExceptionClass cls)
     }
     return "?";
 }
-
-} // namespace
 
 const char *Emulator32bit::sysreg_name(const U8 id)
 {
@@ -735,6 +836,10 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     }
     m_retired_since_entry = false;
 
+    if (m_exception_depth != 255)
+    {
+        m_exception_depth++;
+    }
     m_elr = elr;
     m_spsr = m_pstate;
     m_esr = (word(cls) << 26) | (iss & 0x3FFFFFF);
@@ -845,4 +950,5 @@ void Emulator32bit::reset()
     mmu->set_walk_enabled(false);
     m_pc_written = false;
     m_retired_since_entry = true;
+    m_exception_depth = 0;
 }
