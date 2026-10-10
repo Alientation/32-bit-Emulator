@@ -176,7 +176,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     // part of the machine it is in.
     const auto fault = [&](const char *what, const std::string &message)
     {
-        AEMU_WARN("Emulator32bit::run() - {}: {}", what, message);
+        AEMU_WARN("{}: {}", what, message);
         result.status = RunResult::Status::FAULT;
         result.message = message;
     };
@@ -285,7 +285,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     {
         if (e.get_type() == InterruptType::HALT_INSTR)
         {
-            AEMU_DEBUG("Emulator32bit::run() - Halted after {} instructions.",
+            AEMU_DEBUG("Halted after {} instructions.",
                        result.instructions_ran);
             result.status = RunResult::Status::HALTED;
             result.message = e.what();

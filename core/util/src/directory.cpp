@@ -11,7 +11,7 @@ Directory::Directory(const std::string &path, bool create_if_not_present)
 
     if (!valid_path(path))
     {
-        AEMU_FATAL("Directory::Directory() - Invalid directory path: {}", path);
+        AEMU_FATAL("Invalid directory path: {}", path);
     }
 
     if (create_if_not_present && !exists())

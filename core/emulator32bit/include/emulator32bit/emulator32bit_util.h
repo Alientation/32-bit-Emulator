@@ -166,45 +166,45 @@ constexpr T zero_bits(T val)
 }
 
 /// The number of bits of an address that are the offset within a page.
-static constexpr U8 kNumPageOffsetBits = 12;
+inline constexpr U8 kNumPageOffsetBits = 12;
 /// The size of a page in bytes (4 KiB).
-static constexpr U32 kPageSize = 1 << kNumPageOffsetBits;
+inline constexpr U32 kPageSize = 1 << kNumPageOffsetBits;
 
 /// Physical addresses from here up belong to the memory mapped devices (devices.h).
-static constexpr word kDeviceBase = 0xF0000000;
+inline constexpr word kDeviceBase = 0xF0000000;
 
 // Bit locations in the PSTATE register.
 
 /// Negative Flag.
-static constexpr U8 kNFlagBit = 0;
+inline constexpr U8 kNFlagBit = 0;
 
 /// Zero Flag.
-static constexpr U8 kZFlagBit = 1;
+inline constexpr U8 kZFlagBit = 1;
 
 /// Carry Flag.
-static constexpr U8 kCFlagBit = 2;
+inline constexpr U8 kCFlagBit = 2;
 
 /// Overflow Flag.
-static constexpr U8 kVFlagBit = 3;
+inline constexpr U8 kVFlagBit = 3;
 
 /// 1 in user mode, 0 in kernel (privileged) mode.
-static constexpr U8 kUserModeBit = 4;
+inline constexpr U8 kUserModeBit = 4;
 
 /// 1 while IRQs are masked.
-static constexpr U8 kIrqMaskBit = 5;
+inline constexpr U8 kIrqMaskBit = 5;
 
 /// The bits of PSTATE that exist: NZCV, the mode and the IRQ mask.
-static constexpr word kPstateMask = 0b111111;
+inline constexpr word kPstateMask = 0b111111;
 
 /// Which bit of the instruction determines whether flags will be updated.
-static constexpr U8 kInstructionUpdateFlagBit = 25;
+inline constexpr U8 kInstructionUpdateFlagBit = 25;
 
 /// The bit of `mull` (format O2) that makes it the signed multiply (`smull`).
-static constexpr U8 kLongMulSignedBit = 0;
+inline constexpr U8 kLongMulSignedBit = 0;
 
 /// The bit of `bx` (format B2) that makes it a call (`blx`): x29 gets the return address.
-static constexpr U8 kBranchLinkBit = 0;
+inline constexpr U8 kBranchLinkBit = 0;
 
 /// Max supported instructions. 6 bits are used to represent the opcode for easy
 /// look-up table translations.
-static constexpr U8 kMaxInstructions = 64;
+inline constexpr U8 kMaxInstructions = 64;

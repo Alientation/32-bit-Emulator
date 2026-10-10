@@ -441,10 +441,10 @@ class ObjectFile
     /// Reads the sections, symbols and relocations from the bytes of a file.
     ///
     /// @param bytes the bytes of the file
-    void disassemble(std::vector<byte> &bytes);
+    void deserialize(std::vector<byte> &bytes);
 
-    /// disassemble() that reports a truncated or corrupt file as a fatal error.
-    void disassemble_checked(std::vector<byte> &bytes);
+    /// deserialize() that reports a truncated or corrupt file as a fatal error.
+    void deserialize_checked(std::vector<byte> &bytes);
 
     /// Fatal if what was read is not a file that the linker and the loader can
     /// use: sections that are missing, and symbols, sections and relocations

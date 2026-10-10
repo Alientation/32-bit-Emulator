@@ -431,7 +431,7 @@ void Assembler::_equ()
 
 dword Assembler::parse_expression(dword min, dword max)
 {
-    AEMU_DEBUG("Assembler::parse_expression() - Parsing expression.");
+    AEMU_DEBUG("Parsing expression.");
 
     const dword exp_value = dword(parse_signed_expression());
 
@@ -443,7 +443,7 @@ dword Assembler::parse_expression(dword min, dword max)
     }
     else
     {
-        AEMU_DEBUG("Assembler::parse_expression() - Parsed value {}.", exp_value);
+        AEMU_DEBUG("Parsed value {}.", exp_value);
     }
 
     return exp_value;

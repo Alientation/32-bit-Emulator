@@ -64,7 +64,7 @@ std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFi
                 AEMU_CHECK(same->writable == section.writable
                                && same->executable == section.executable
                                && same->nobits == section.nobits,
-                           "Linker::link() - The section {} does not have the same flags in all "
+                           "The section {} does not have the same flags in all "
                            "the files.",
                            section.name);
             }
@@ -504,7 +504,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         if (section.set_address)
         {
             AEMU_CHECK(size == 0 || section.address % alignment == 0,
-                       "Linker::link() - The section {} is at {:#x} but is aligned to {} bytes.",
+                       "The section {} is at {:#x} but is aligned to {} bytes.",
                        name, section.address, alignment);
             *section_address = section.address;
         }
@@ -539,7 +539,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
             const U64 a_end = U64(a.address) + a.size;
             const U64 b_end = U64(b.address) + b.size;
             AEMU_CHECK(a.address >= b_end || b.address >= a_end,
-                       "Linker::link() - The sections {} [{:#x}, {:#x}) and {} [{:#x}, {:#x}) "
+                       "The sections {} [{:#x}, {:#x}) and {} [{:#x}, {:#x}) "
                        "overlap.",
                        a.name, a.address, a_end, b.name, b.address, b_end);
 
@@ -549,7 +549,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
                 && (a.address >> kNumPageOffsetBits) <= ((b_end - 1) >> kNumPageOffsetBits)
                 && (b.address >> kNumPageOffsetBits) <= ((a_end - 1) >> kNumPageOffsetBits))
             {
-                AEMU_WARN("Linker::link() - {} and {} share a page, so it is both writable and "
+                AEMU_WARN("{} and {} share a page, so it is both writable and "
                           "executable. Start the section on a page boundary.",
                           a.name, b.name);
             }
@@ -567,7 +567,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         const auto listed = std::any_of(placed.begin(), placed.end(), [&](const Placed &p)
                                         { return std::string_view(p.name) == name; });
         AEMU_CHECK(size == 0 || listed,
-                   "Linker::link() - The section {} has contents but the linker script does not "
+                   "The section {} has contents but the linker script does not "
                    "place it.",
                    name);
     };
@@ -694,7 +694,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 }
                 else if (!weak && !entry_weak)
                 {
-                    AEMU_FATAL("Linker::link() - Multiple definition of symbol '{}'.", name);
+                    AEMU_FATAL("Multiple definition of symbol '{}'.", name);
                 }
             }
             maps[i][key] = exe.string_table.at(name);
@@ -715,10 +715,10 @@ void Linker::define_entry(ObjectFile &exe) const
     if (m_entry_symbol != "_start")
     {
         AEMU_CHECK(defined(m_entry_symbol),
-                   "Linker::link() - The entry point '{}' set by ENTRY is not defined.",
+                   "The entry point '{}' set by ENTRY is not defined.",
                    m_entry_symbol);
         AEMU_CHECK(!defined("_start"),
-                   "Linker::link() - ENTRY({}) conflicts with the symbol _start that is also "
+                   "ENTRY({}) conflicts with the symbol _start that is also "
                    "defined.",
                    m_entry_symbol);
 
@@ -728,7 +728,7 @@ void Linker::define_entry(ObjectFile &exe) const
                        ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
     }
 
-    AEMU_CHECK(defined("_start"), "Linker::link() - The entry point '{}' is not defined.",
+    AEMU_CHECK(defined("_start"), "The entry point '{}' is not defined.",
                m_entry_symbol);
 }
 
@@ -744,7 +744,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                 exe.symbol_table.at(symbols[i].at(rel.symbol));
 
             AEMU_CHECK(is_resolvable(symbol),
-                       "Linker::link() - Error, undefined reference to '{}'.",
+                       "Error, undefined reference to '{}'.",
                        exe.strings.at(symbol.symbol_name));
 
             const word instr_i = (bases[i].text + rel.offset) / 4;
@@ -764,10 +764,10 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                     exe.symbol_table.at(symbols[i].at(rel.symbol));
 
                 AEMU_CHECK(is_resolvable(symbol),
-                           "Linker::link() - Error, undefined reference to '{}'.",
+                           "Error, undefined reference to '{}'.",
                            exe.strings.at(symbol.symbol_name));
                 AEMU_CHECK(rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
-                           "Linker::link() - A relocation in {} of type {} is not supported.",
+                           "A relocation in {} of type {} is not supported.",
                            section.name, U32(rel.type));
 
                 word current = 0;
@@ -797,11 +797,11 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                     exe.symbol_table.at(symbols[i].at(rel.symbol));
 
                 AEMU_CHECK(is_resolvable(symbol),
-                           "Linker::link() - Error, undefined reference to '{}'.",
+                           "Error, undefined reference to '{}'.",
                            exe.strings.at(symbol.symbol_name));
                 AEMU_CHECK(user.executable
                                || rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
-                           "Linker::link() - A relocation in {} of type {} is not supported.",
+                           "A relocation in {} of type {} is not supported.",
                            user.name, U32(rel.type));
 
                 word current = 0;
@@ -834,7 +834,7 @@ void Linker::tokenize_ld()
                                              default_linker_script(m_obj_files))
                              : m_sources.add_file(m_ld_file.get_path());
     AEMU_CHECK(source != basm::kInvalidSource,
-               "Linker::tokenize_ld() - Cannot read the linker script '{}'.", m_ld_file.get_path());
+               "Cannot read the linker script '{}'.", m_ld_file.get_path());
 
     m_lexed = basm::lex(m_sources, source, options);
     basm::fatal_if_errors(m_sources, m_lexed);

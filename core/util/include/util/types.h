@@ -25,12 +25,12 @@ using S32 = int32_t;
 using S16 = int16_t;
 using S8 = int8_t;
 
-static constexpr U8 kNumDwordBits = sizeof(dword) << 3;
-static constexpr U8 kNumWordBits = sizeof(word) << 3;
-static constexpr U8 kNumHwordBits = sizeof(hword) << 3;
-static constexpr U8 kNumByteBits = sizeof(byte) << 3;
+inline constexpr U8 kNumDwordBits = sizeof(dword) << 3;
+inline constexpr U8 kNumWordBits = sizeof(word) << 3;
+inline constexpr U8 kNumHwordBits = sizeof(hword) << 3;
+inline constexpr U8 kNumByteBits = sizeof(byte) << 3;
 
-static constexpr const char *kHexPrefix = "0x";
+inline constexpr const char *kHexPrefix = "0x";
 
 /// Converts a value into hexadecimal string representation
 ///

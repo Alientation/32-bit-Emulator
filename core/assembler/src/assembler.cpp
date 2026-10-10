@@ -17,7 +17,7 @@ Assembler::Assembler(const File processed_file, const std::string &output_path) 
 
     // Convert the input file into tokens.
     const basm::SourceId source = m_sources->add_file(processed_file.get_path());
-    AEMU_CHECK(source != basm::kInvalidSource, "Assembler::Assembler() - Cannot read '{}'.",
+    AEMU_CHECK(source != basm::kInvalidSource, "Cannot read '{}'.",
                processed_file.get_path());
     basm::LexResult lexed = basm::lex(*m_sources, source);
     basm::fatal_if_errors(*m_sources, lexed);
@@ -32,7 +32,7 @@ Assembler::Assembler(const File processed_file, basm::PreprocessedSource source,
     m_tokens(std::move(source.tokens))
 {
     init(processed_file, output_path);
-    AEMU_CHECK(m_sources != nullptr, "Assembler::Assembler() - The preprocessed source is empty.");
+    AEMU_CHECK(m_sources != nullptr, "The preprocessed source is empty.");
     m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_tokens));
 }
 
@@ -50,7 +50,7 @@ void Assembler::init(const File &processed_file, const std::string &output_path)
     }
 
     AEMU_CHECK(processed_file.get_extension() == PROCESSED_EXTENSION,
-               "Assembler::Assembler() - Invalid processed file: {}",
+               "Invalid processed file: {}",
                processed_file.get_extension());
 }
 
@@ -58,11 +58,11 @@ void Assembler::assemble()
 {
     if (m_assembled)
     {
-        AEMU_DEBUG("Assembler::assemble() - Already assembled file: {}", m_in_file.get_name());
+        AEMU_DEBUG("Already assembled file: {}", m_in_file.get_name());
         return;
     }
 
-    AEMU_DEBUG("Assembler::assemble() - Assembling file: {}", m_in_file.get_name());
+    AEMU_DEBUG("Assembling file: {}", m_in_file.get_name());
 
     m_assembled = true;
 
@@ -92,11 +92,11 @@ void Assembler::assemble()
     }
 
     // Parse tokens.
-    AEMU_DEBUG("Assembler::assemble() - Parsing tokens.");
+    AEMU_DEBUG("Parsing tokens.");
     while (!m_cursor.at_end())
     {
         const basm::Token &token = m_cursor.peek();
-        AEMU_DEBUG("Assembler::assemble() - Assembling token {}: {}", m_cursor.position(),
+        AEMU_DEBUG("Assembling token {}: {}", m_cursor.position(),
                    basm::describe(token));
 
         if (token.is(basm::TokenType::NEWLINE))
@@ -156,7 +156,7 @@ void Assembler::assemble()
             fail(token, "cannot parse " + basm::describe(token));
         }
     }
-    AEMU_DEBUG("Assembler::assemble() - Finished parsing tokens.");
+    AEMU_DEBUG("Finished parsing tokens.");
 
     if (!m_scope_sites.empty() && !m_stopped)
     {
@@ -181,7 +181,7 @@ void Assembler::assemble()
     fill_local();
 
     m_obj.write_object_file(m_out_obj_file);
-    AEMU_DEBUG("Assembler::assemble() - Assembled file: {}", m_in_file.get_name());
+    AEMU_DEBUG("Assembled file: {}", m_in_file.get_name());
 }
 
 File Assembler::get_output_file() const
@@ -201,7 +201,7 @@ void Assembler::set_warnings_as_errors(bool enabled)
 
 void Assembler::fill_local()
 {
-    AEMU_DEBUG("Assembler::fill_local() - Parsing relocation entries to fill in known values.");
+    AEMU_DEBUG("Parsing relocation entries to fill in known values.");
     fill_local(m_obj.rel_text, true);
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
     {
@@ -213,7 +213,7 @@ void Assembler::fill_local()
     {
         fill_local(user.relocations, false);
     }
-    AEMU_DEBUG("Assembler::fill_local() - Finished parsing relocation entries.");
+    AEMU_DEBUG("Finished parsing relocation entries.");
 }
 
 void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations,
@@ -230,7 +230,7 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
         if (kept != i) relocations[kept] = relocations[i];
         ObjectFile::RelocationEntry &rel = relocations[kept];
         kept++;
-        AEMU_DEBUG("Assembler::fill_local() - Evaluating relocation entry {}",
+        AEMU_DEBUG("Evaluating relocation entry {}",
                    m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
         while (tok_i < rel.token && tok_i < tokens.size())

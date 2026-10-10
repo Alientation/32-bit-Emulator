@@ -47,19 +47,19 @@ SystemBus::~SystemBus()
     }
     catch (const std::exception &error)
     {
-        AEMU_ERROR("SystemBus::~SystemBus() - The disk could not be saved: {}", error.what());
+        AEMU_ERROR("The disk could not be saved: {}", error.what());
     }
 
     try
     {
         if (!block.save())
         {
-            AEMU_ERROR("SystemBus::~SystemBus() - The block device could not be saved.");
+            AEMU_ERROR("The block device could not be saved.");
         }
     }
     catch (const std::exception &error)
     {
-        AEMU_ERROR("SystemBus::~SystemBus() - The block device could not be saved: {}",
+        AEMU_ERROR("The block device could not be saved: {}",
                    error.what());
     }
 }

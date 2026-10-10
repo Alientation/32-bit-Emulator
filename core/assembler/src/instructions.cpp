@@ -109,7 +109,7 @@ ConditionCode get_cond_code(TokenType type)
     case TokenType::CONDITION_NV:
         return ConditionCode::NV;
     default:
-        AEMU_FATAL("Assembler::get_cond_code() - Unreachable.");
+        AEMU_FATAL("Unreachable.");
     }
 }
 

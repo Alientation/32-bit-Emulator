@@ -356,7 +356,7 @@ void Disk::write_cpage(CachePage &cpage)
     m_stream.seekp(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.write(reinterpret_cast<const char *>(cpage.data), kPageSize);
     m_stream.flush();
-    AEMU_CHECK(bool(m_stream), "Disk::write_cpage() - Error writing page {} to the disk file.",
+    AEMU_CHECK(bool(m_stream), "Error writing page {} to the disk file.",
                cpage.page);
 
     cpage.dirty = false;
@@ -369,7 +369,7 @@ void Disk::read_cpage(CachePage &cpage)
     m_stream.clear();
     m_stream.seekg(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.read(reinterpret_cast<char *>(cpage.data), kPageSize);
-    AEMU_CHECK(bool(m_stream), "Disk::read_cpage() - Error reading page {} from the disk file.",
+    AEMU_CHECK(bool(m_stream), "Error reading page {} from the disk file.",
                cpage.page);
 
     AEMU_DEBUG("Successfully read page {} from disk.", cpage.page);
@@ -391,7 +391,7 @@ void Disk::save()
         }
     }
     m_stream.flush();
-    AEMU_CHECK(bool(m_stream), "Disk::save() - Error writing to the disk file.");
+    AEMU_CHECK(bool(m_stream), "Error writing to the disk file.");
     AEMU_DEBUG("Successfully wrote dirty cache pages to disk");
 
     // store disk management info.

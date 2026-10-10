@@ -69,15 +69,15 @@ File::File(const std::string &name, const std::string &extension, const std::str
 
     if (!valid_name(name))
     {
-        AEMU_FATAL("File::File() - Invalid file name: '{}'", name);
+        AEMU_FATAL("Invalid file name: '{}'", name);
     }
     else if (!valid_extension(extension))
     {
-        AEMU_FATAL("File::File() - Invalid file extension: '{}'", extension);
+        AEMU_FATAL("Invalid file extension: '{}'", extension);
     }
     else if (!valid_dir(dir))
     {
-        AEMU_FATAL("File::File() - Invalid file directory: '{}'", dir);
+        AEMU_FATAL("Invalid file directory: '{}'", dir);
     }
 
     if (create_if_not_present && !exists())
@@ -91,7 +91,7 @@ File::File(const std::string &path, bool create_if_not_present)
     std::size_t extension_separator_index = path.find_last_of(".");
     if (extension_separator_index == std::string::npos)
     {
-        AEMU_FATAL("File::File() - File path does not contain an extension: {}", path);
+        AEMU_FATAL("File path does not contain an extension: {}", path);
     }
 
     bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
@@ -102,15 +102,15 @@ File::File(const std::string &path, bool create_if_not_present)
 
     if (!valid_name(m_name))
     {
-        AEMU_FATAL("File::File() - Invalid file name: '{}'", m_name);
+        AEMU_FATAL("Invalid file name: '{}'", m_name);
     }
     else if (!valid_extension(m_extension))
     {
-        AEMU_FATAL("File::File() - Invalid file extension: '{}'", m_extension);
+        AEMU_FATAL("Invalid file extension: '{}'", m_extension);
     }
     else if (!valid_dir(m_dir))
     {
-        AEMU_FATAL("File::File() - Invalid file directory: '{}'", m_dir);
+        AEMU_FATAL("Invalid file directory: '{}'", m_dir);
     }
 
     if (create_if_not_present && !exists())
@@ -199,7 +199,7 @@ FileWriter::FileWriter(const File &file, std::ios_base::openmode flags) :
 
     if (!m_file_stream->good())
     {
-        AEMU_FATAL("FileWriter::FileWriter() - Failed to open file: '{}'", file.get_path());
+        AEMU_FATAL("Failed to open file: '{}'", file.get_path());
     }
 }
 
@@ -228,7 +228,7 @@ FileWriter &FileWriter::operator<<(const char *str)
 
 void FileWriter::write(const std::string text)
 {
-    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
+    AEMU_CHECK(!m_closed, "The file is closed.");
 
     (*m_file_stream) << text;
 }
@@ -274,21 +274,21 @@ ByteWriter &ByteWriter::operator<<(Data data)
 
 void FileWriter::write(const char byte)
 {
-    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
+    AEMU_CHECK(!m_closed, "The file is closed.");
 
     (*m_file_stream) << byte;
 }
 
 void FileWriter::write(const char *bytes)
 {
-    AEMU_CHECK(!m_closed, "FileWriter::write() - The file is closed.");
+    AEMU_CHECK(!m_closed, "The file is closed.");
 
     (*m_file_stream) << bytes;
 }
 
 void FileWriter::flush()
 {
-    AEMU_CHECK(!m_closed, "FileWriter::flush() - The file is closed.");
+    AEMU_CHECK(!m_closed, "The file is closed.");
 
     m_file_stream->flush();
 }
@@ -377,7 +377,7 @@ FileReader::FileReader(const File &file, std::ios_base::openmode flags) :
 
     if (!m_file_stream->good())
     {
-        AEMU_FATAL("FileReader::FileReader() - Failed to open file: '{}'.", m_file.get_path());
+        AEMU_FATAL("Failed to open file: '{}'.", m_file.get_path());
     }
 }
 

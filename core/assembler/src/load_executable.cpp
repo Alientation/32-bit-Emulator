@@ -109,7 +109,7 @@ void LoadExecutable::load()
         has_relocations |= !section.relocations.empty();
     }
     AEMU_CHECK(!has_relocations,
-               "LoadExecutable::load() - '{}' still has relocations. It was not produced by the "
+               "'{}' still has relocations. It was not produced by the "
                "linker.",
                m_exe_file.get_path());
 
@@ -154,7 +154,7 @@ void LoadExecutable::load()
     const auto start = obj.string_table.find("_start");
     AEMU_CHECK(start != obj.string_table.end()
                    && obj.symbol_table.at(start->second).section != U32(-1),
-               "LoadExecutable::load() - Missing required _start entry point of program.");
+               "Missing required _start entry point of program.");
 
     // The PC is a virtual address, instruction fetch translates it.
     const word entry_point = obj.symbol_table.at(start->second).symbol_value;

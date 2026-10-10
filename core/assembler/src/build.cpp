@@ -92,7 +92,7 @@ Build::Build(const std::vector<std::string> &args)
     std::vector<std::string> args_list = args;
     for (size_t i = 0; i < args_list.size(); i++)
     {
-        AEMU_DEBUG("Build::Build() - args_list[{}]: {}", i, args_list[i]);
+        AEMU_DEBUG("args_list[{}]: {}", i, args_list[i]);
     }
 
     evaluate_args(args_list);
@@ -157,8 +157,8 @@ std::vector<std::string> Build::split_args(const std::string &line)
     }
 
     // check if there are any dangling quotes or escape characters
-    AEMU_CHECK(!is_quoted, "Build::split_args() - Missing end quotes: {}", line);
-    AEMU_CHECK(!is_escaped, "Build::split_args() - Dangling escape character: {}", line);
+    AEMU_CHECK(!is_quoted, "Missing end quotes: {}", line);
+    AEMU_CHECK(!is_escaped, "Dangling escape character: {}", line);
 
     if (in_arg)
     {
@@ -178,7 +178,7 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
         if (m_parse_options && !arg.empty() && arg[0] == '-')
         {
             // this is a flag
-            AEMU_CHECK(flags.find(arg) != flags.end(), "Build::evaluate_args() - Invalid flag: {}",
+            AEMU_CHECK(flags.find(arg) != flags.end(), "Invalid flag: {}",
                        arg);
 
             (this->*flags[arg])(args_list, i);
@@ -191,11 +191,11 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
             // this should be a file
             File file(arg);
 
-            AEMU_DEBUG("Build::evaluate_args() - Adding file {}", file.get_path());
+            AEMU_DEBUG("Adding file {}", file.get_path());
 
             // check the extension
             AEMU_CHECK(file.get_extension() == SOURCE_EXTENSION,
-                       "Build::evaluate_args() - Invalid file extension: {}", file.get_extension());
+                       "Invalid file extension: {}", file.get_extension());
 
             m_src_files.push_back(file);
         }
@@ -283,7 +283,7 @@ void Build::link()
         const std::string key = std::filesystem::weakly_canonical(lib.get_path()).string();
         if (!read.insert(key).second)
         {
-            AEMU_DEBUG("Build::link() - The library {} is already read.", lib.get_path());
+            AEMU_DEBUG("The library {} is already read.", lib.get_path());
             return;
         }
         for (LibraryMember &member : read_static_library(lib))
@@ -304,7 +304,7 @@ void Build::link()
     std::vector<ObjectFile> objects = select_library_members(m_objects, members);
 
     m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
-    AEMU_DEBUG("Build::link() - output file name: {}", m_exe_file.get_path());
+    AEMU_DEBUG("output file name: {}", m_exe_file.get_path());
 
     Linker linker = m_has_ld_file ? Linker(std::move(objects), m_exe_file, m_ld_file)
                                   : Linker(std::move(objects), m_exe_file);
@@ -345,32 +345,32 @@ void Build::_compile(std::vector<std::string> &args, size_t &index)
 
 void Build::_output(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_output() - Missing output file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing output file path.");
     m_output_file = args[++index];
 
     // check if the output file is valid
     AEMU_CHECK(File::valid_path(m_output_file),
-               "Build::_output() - Invalid output file path: '{}'.", m_output_file);
+               "Invalid output file path: '{}'.", m_output_file);
 }
 
 void Build::_outdir(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_outdir() - Missing output directory path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing output directory path.");
     m_output_dir = args[++index];
     m_has_output_dir = true;
     // check if the output file is valid
     AEMU_CHECK(Directory::valid_path(m_output_dir),
-               "Build::_outdir() - Invalid output directory path: '{}'.", m_output_dir);
+               "Invalid output directory path: '{}'.", m_output_dir);
 }
 
 void Build::_warn(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_warn() - Missing warning type.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing warning type.");
     std::string warning_type = args[++index];
 
     // check if the warning type is valid
     AEMU_CHECK(WARNINGS.find(warning_type) != WARNINGS.end(),
-               "Build::_warn() - Invalid warning type: '{}'.", warning_type);
+               "Invalid warning type: '{}'.", warning_type);
     m_enabled_warnings.insert(warning_type);
 }
 
@@ -384,22 +384,22 @@ void Build::_warn_all(std::vector<std::string> &args, size_t &index)
 
 void Build::_include(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_include() - Missing include directory path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing include directory path.");
     std::string dpath = args[++index];
 
     // check if the include directory is valid
     AEMU_CHECK(Directory::valid_path(dpath),
-               "Build::_include() - Invalid include directory path: '{}'.", dpath);
+               "Invalid include directory path: '{}'.", dpath);
     m_system_dirs.push_back(Directory(dpath));
 }
 
 void Build::_library(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_library() - Missing library file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing library file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    AEMU_CHECK(File::valid_path(fpath), "Build::_library() - Invalid library file path: '{}'.",
+    AEMU_CHECK(File::valid_path(fpath), "Invalid library file path: '{}'.",
                fpath);
     m_linked_lib.push_back(File(fpath));
 }
@@ -407,18 +407,18 @@ void Build::_library(std::vector<std::string> &args, size_t &index)
 void Build::_library_directory(std::vector<std::string> &args, size_t &index)
 {
     AEMU_CHECK(index + 1 < args.size(),
-               "Build::_libraryDirectory() - Missing library directory path.");
+               "Missing library directory path.");
     std::string dpath = args[++index];
 
     // check if the library directory is valid
     AEMU_CHECK(Directory::valid_path(dpath),
-               "Build::_libraryDirectory() - Invalid library directory path: '{}'.", dpath);
+               "Invalid library directory path: '{}'.", dpath);
     m_library_dirs.push_back(Directory(dpath));
 }
 
 void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_preprocessorFlag() - Missing preprocessor flag.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing preprocessor flag.");
     std::string flag = args[++index];
 
     // check if there is a value
@@ -443,11 +443,11 @@ void Build::_keep_preprocessor_output(std::vector<std::string> &args, size_t &in
 
 void Build::_ld(std::vector<std::string> &args, size_t &index)
 {
-    AEMU_CHECK(index + 1 < args.size(), "Build::_ld() - Missing linker script file path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing linker script file path.");
     std::string fpath = args[++index];
 
     // check if the library name is valid
-    AEMU_CHECK(File::valid_path(fpath), "Build::_ld() - Invalid linker script file path: '{}'.",
+    AEMU_CHECK(File::valid_path(fpath), "Invalid linker script file path: '{}'.",
                fpath);
     m_ld_file = File(fpath);
     m_has_ld_file = true;

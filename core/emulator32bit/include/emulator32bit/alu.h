@@ -49,12 +49,12 @@ enum class Register : U8
 };
 
 /// Number of registers: x0-x29, sp and xzr.
-static constexpr U8 kNumReg = static_cast<U8>(Register::NUM_REG);
+inline constexpr U8 kNumReg = static_cast<U8>(Register::NUM_REG);
 static_assert(kNumReg == 32);
 
 /// @param reg the register
 /// @return the number of the register
-static constexpr inline U8 register_to_U8(Register reg)
+constexpr inline U8 register_to_U8(Register reg)
 {
     return static_cast<U8>(reg);
 }

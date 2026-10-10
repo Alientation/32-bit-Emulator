@@ -1,37 +1,35 @@
 #pragma once
 
-#include <string>
-
 namespace ccolor
 {
-static const std::string RESET = "\033[0m";
-static const std::string BOLD = "\033[1m";
-static const std::string DARK = "\033[2m";
-static const std::string ITALICS = "\033[3m";
-static const std::string UNDERLINE = "\033[4m";
-static const std::string HIGHLIGHT = "\033[7m";
-static const std::string STRIKETHROUGH = "\033[9m";
-static const std::string GRAY = "\033[30m";
-static const std::string RED = "\033[31m";
-static const std::string GREEN = "\033[32m";
-static const std::string YELLOW = "\033[33m";
-static const std::string BLUE = "\033[34m";
-static const std::string MAGENTA = "\033[35m";
-static const std::string CYAN = "\033[36m";
-static const std::string WHITE = "\033[37m";
-static const std::string HIGHLIGHT_RED = "\033[41m";
-static const std::string HIGHLIGHT_GREEN = "\033[42m";
-static const std::string HIGHLIGHT_YELLOW = "\033[43m";
-static const std::string HIGHLIGHT_BLUE = "\033[44m";
-static const std::string HIGHLIGHT_MAGENTA = "\033[45m";
-static const std::string HIGHLIGHT_CYAN = "\033[46m";
-static const std::string HIGHLIGHT_WHITE = "\033[47m";
-static const std::string BOLD_GRAY = "\033[90m";
-static const std::string BOLD_RED = "\033[91m";
-static const std::string BOLD_GREEN = "\033[92m";
-static const std::string BOLD_YELLOW = "\033[93m";
-static const std::string BOLD_BLUE = "\033[94m";
-static const std::string BOLD_MAGENTA = "\033[95m";
-static const std::string BOLD_CYAN = "\033[96m";
-static const std::string BOLD_WHITE = "\033[97m";
+inline constexpr const char *RESET = "\033[0m";
+inline constexpr const char *BOLD = "\033[1m";
+inline constexpr const char *DARK = "\033[2m";
+inline constexpr const char *ITALICS = "\033[3m";
+inline constexpr const char *UNDERLINE = "\033[4m";
+inline constexpr const char *HIGHLIGHT = "\033[7m";
+inline constexpr const char *STRIKETHROUGH = "\033[9m";
+inline constexpr const char *GRAY = "\033[30m";
+inline constexpr const char *RED = "\033[31m";
+inline constexpr const char *GREEN = "\033[32m";
+inline constexpr const char *YELLOW = "\033[33m";
+inline constexpr const char *BLUE = "\033[34m";
+inline constexpr const char *MAGENTA = "\033[35m";
+inline constexpr const char *CYAN = "\033[36m";
+inline constexpr const char *WHITE = "\033[37m";
+inline constexpr const char *HIGHLIGHT_RED = "\033[41m";
+inline constexpr const char *HIGHLIGHT_GREEN = "\033[42m";
+inline constexpr const char *HIGHLIGHT_YELLOW = "\033[43m";
+inline constexpr const char *HIGHLIGHT_BLUE = "\033[44m";
+inline constexpr const char *HIGHLIGHT_MAGENTA = "\033[45m";
+inline constexpr const char *HIGHLIGHT_CYAN = "\033[46m";
+inline constexpr const char *HIGHLIGHT_WHITE = "\033[47m";
+inline constexpr const char *BOLD_GRAY = "\033[90m";
+inline constexpr const char *BOLD_RED = "\033[91m";
+inline constexpr const char *BOLD_GREEN = "\033[92m";
+inline constexpr const char *BOLD_YELLOW = "\033[93m";
+inline constexpr const char *BOLD_BLUE = "\033[94m";
+inline constexpr const char *BOLD_MAGENTA = "\033[95m";
+inline constexpr const char *BOLD_CYAN = "\033[96m";
+inline constexpr const char *BOLD_WHITE = "\033[97m";
 } // namespace ccolor
