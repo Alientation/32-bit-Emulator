@@ -28,7 +28,7 @@ After the `;`: every register whose value changed (`name=old->new`), the flags i
 
 ## History
 
-`--history 8` prints, after the run (in `--format plain` as `history[i]=<pc> <word> <assembly> <symbol>` lines, oldest first), the last 8 instructions. If the run ended in a fault, the last one is the instruction that faulted. The debugger turns it on (32 entries) when it is off. The most it keeps is 1048576 (`kMaxHistory`; `--history` above that is a usage error).
+`--history 8` prints, after the run (in `--format plain` as `history[i]=<pc> <word> <assembly> <symbol>` lines, oldest first), the last 8 instructions. If the run ended in a fault, the last one is the instruction that faulted. The debugger turns it on (32 entries) when it is off. The most it keeps is 256 (`kMaxHistory`; `--history` above that is a usage error).
 
 ## Breakpoints
 

@@ -109,11 +109,12 @@ and the release build has debug info so the samples can be attributed to source 
     fires; set the hooks between runs, not inside one. The conditions are one table lookup
     (`check_cond`, `kConditionTable` in `alu.h`: the four flags are the low bits of PSTATE and index
     a 16 bit mask per flag combination).
-    The watchpoints, the register watches and the history are structs of arrays (`m_watch_*`,
-    `m_regwatch_*`, `m_history_*`) at the end of `Emulator32bit`, after the members that every
-    instruction reads: the fixed tables hold `kMaxWatchpoints` and `kMaxRegisterWatches` entries,
-    their booleans are a `BitArray<N>` (`util/bitarray.h`), and a removed entry is replaced by the
-    last one. The history is a ring buffer of `m_history_size` entries.
+    The watchpoints, the register watches and the history are one struct each (`m_watchpoints`,
+    `m_regwatches`, `m_history`) at the end of `Emulator32bit`, after the members that every
+    instruction reads. The first two are structs of arrays with `kMaxWatchpoints` and
+    `kMaxRegisterWatches` entries, their booleans are a `BitArray<N>` (`util/bitarray.h`), and a
+    removed entry is replaced by the last one. The history is a ring buffer in arrays of
+    `kMaxHistory` entries, of which the first `m_history.size` are used.
   - `--no-semihosting` makes `swi 1`, the emulator calls, an undefined instruction. The plain dump
     also has `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`.
   - `pc` is the virtual address where execution stopped (the loader sets it to `_start`, and fetch

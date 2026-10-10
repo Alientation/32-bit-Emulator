@@ -123,10 +123,10 @@ Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
 
 inline void Emulator32bit::record_history(const word instr)
 {
-    m_history_pc[m_history_head] = m_pc;
-    m_history_instruction[m_history_head] = instr;
-    if (++m_history_head == m_history_size) m_history_head = 0;
-    if (m_history_count < m_history_size) m_history_count++;
+    m_history.pc[m_history.head] = m_pc;
+    m_history.instruction[m_history.head] = instr;
+    if (++m_history.head == m_history.size) m_history.head = 0;
+    if (m_history.count < m_history.size) m_history.count++;
 }
 
 void Emulator32bit::print()
@@ -162,23 +162,23 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
     // the debugger may have changed it between runs
     m_watch_hit.clear();
-    for (unsigned i = 0; i < m_regwatch_count; i++) m_regwatch_last[i] = read_reg(m_regwatch_reg[i]);
+    for (unsigned i = 0; i < m_regwatches.count; i++) m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
 
     // True (and the result is set) when a watched register changed since it was last looked at.
     // Checked between instructions, which covers a retired instruction and an exception entry.
     const auto register_watch_hit = [&]()
     {
-        for (unsigned i = 0; i < m_regwatch_count; i++)
+        for (unsigned i = 0; i < m_regwatches.count; i++)
         {
-            const word now = read_reg(m_regwatch_reg[i]);
-            const word before = m_regwatch_last[i];
+            const word now = read_reg(m_regwatches.reg[i]);
+            const word before = m_regwatches.last[i];
             if (now == before) continue;
-            m_regwatch_last[i] = now;
-            if (m_regwatch_has_value.test(i) && now != m_regwatch_value[i]) continue;
+            m_regwatches.last[i] = now;
+            if (m_regwatches.has_value.test(i) && now != m_regwatches.value[i]) continue;
             result.status = RunResult::Status::BREAKPOINT;
             result.message = std::format(
                 "Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
-                register_name(m_regwatch_reg[i]), before, now, m_pc);
+                register_name(m_regwatches.reg[i]), before, now, m_pc);
             return true;
         }
         return false;
@@ -197,8 +197,8 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     // Whether anything looks at each instruction (the debugger's breakpoints and watches, the
     // trace, the history). They are set between runs, so the loop tests this one local instead of
     // each of them, which are loads from memory.
-    const bool hooked = m_regwatch_count != 0 || !m_breakpoints.empty() || m_history_size != 0
-                        || m_trace != nullptr || m_watch_count != 0
+    const bool hooked = m_regwatches.count != 0 || !m_breakpoints.empty() || m_history.size != 0
+                        || m_trace != nullptr || m_watchpoints.count != 0
                         || system_bus->console.has_host_input();
     SystemBus &bus = *system_bus;
 
@@ -218,7 +218,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 // Input from the host raises its interrupt here, between instructions.
                 bus.console.poll_host_input();
 
-                if (m_regwatch_count != 0 && register_watch_hit()) break;
+                if (m_regwatches.count != 0 && register_watch_hit()) break;
 
                 if (!leaving_start && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
                 {
@@ -254,7 +254,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 continue;
             }
 
-            if (UNLIKELY(hooked) && m_history_size != 0) record_history(instr);
+            if (UNLIKELY(hooked) && m_history.size != 0) record_history(instr);
 
             // The handler of an exception needs the instruction, to work out the address of a data
             // abort. It is kept here and not in `instr`, which would then be live across every
@@ -293,7 +293,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 
         // The loop looks at the registers before each instruction, so the last one is left.
         if (result.status == RunResult::Status::LIMIT_REACHED
-            && UNLIKELY(m_regwatch_count != 0))
+            && UNLIKELY(m_regwatches.count != 0))
         {
             register_watch_hit();
         }
@@ -378,12 +378,12 @@ const std::set<word> &Emulator32bit::breakpoints() const
 unsigned Emulator32bit::find_watchpoint(const word address, const bool physical) const
 {
     unsigned i = 0;
-    while (i < m_watch_count
-           && !(m_watch_address[i] == address && m_watch_physical.test(i) == physical))
+    while (i < m_watchpoints.count
+           && !(m_watchpoints.address[i] == address && m_watchpoints.physical.test(i) == physical))
     {
         i++;
     }
-    return i; // m_watch_count if there is none
+    return i; // m_watchpoints.count if there is none
 }
 
 bool Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind,
@@ -392,37 +392,37 @@ bool Emulator32bit::add_watchpoint(const word address, const word length, const 
 {
     AEMU_CHECK(length != 0, "A watchpoint needs a length of at least 1");
     unsigned i = find_watchpoint(address, physical);
-    if (i == m_watch_count)
+    if (i == m_watchpoints.count)
     {
-        if (m_watch_count == kMaxWatchpoints)
+        if (m_watchpoints.count == kMaxWatchpoints)
         {
             return false;
         }
-        m_watch_count++;
+        m_watchpoints.count++;
     }
-    m_watch_address[i] = address;
-    m_watch_length[i] = length;
-    m_watch_kind[i] = kind;
-    m_watch_physical.assign(i, physical);
-    m_watch_compare[i] = compare;
-    m_watch_compare_value[i] = compare_value;
+    m_watchpoints.address[i] = address;
+    m_watchpoints.length[i] = length;
+    m_watchpoints.kind[i] = kind;
+    m_watchpoints.physical.assign(i, physical);
+    m_watchpoints.compare[i] = compare;
+    m_watchpoints.compare_value[i] = compare_value;
     return true;
 }
 
 bool Emulator32bit::remove_watchpoint(const word address, const bool physical)
 {
     const unsigned i = find_watchpoint(address, physical);
-    if (i == m_watch_count)
+    if (i == m_watchpoints.count)
     {
         return false;
     }
-    const unsigned last = --m_watch_count;
-    m_watch_address[i] = m_watch_address[last];
-    m_watch_length[i] = m_watch_length[last];
-    m_watch_kind[i] = m_watch_kind[last];
-    m_watch_physical.copy(last, i);
-    m_watch_compare[i] = m_watch_compare[last];
-    m_watch_compare_value[i] = m_watch_compare_value[last];
+    const unsigned last = --m_watchpoints.count;
+    m_watchpoints.address[i] = m_watchpoints.address[last];
+    m_watchpoints.length[i] = m_watchpoints.length[last];
+    m_watchpoints.kind[i] = m_watchpoints.kind[last];
+    m_watchpoints.physical.copy(last, i);
+    m_watchpoints.compare[i] = m_watchpoints.compare[last];
+    m_watchpoints.compare_value[i] = m_watchpoints.compare_value[last];
     return true;
 }
 
@@ -451,47 +451,47 @@ bool Emulator32bit::watch_compare_holds(const WatchCompare compare, const word v
 
 void Emulator32bit::clear_watchpoints()
 {
-    m_watch_count = 0;
-    m_watch_physical.clear();
+    m_watchpoints.count = 0;
+    m_watchpoints.physical.clear();
 }
 
 Emulator32bit::Watchpoint Emulator32bit::watchpoint(const unsigned i) const
 {
-    AEMU_CHECK(i < m_watch_count, "There is no watchpoint {}", i);
-    return {.address = m_watch_address[i],
-            .length = m_watch_length[i],
-            .kind = m_watch_kind[i],
-            .physical = m_watch_physical.test(i),
-            .compare = m_watch_compare[i],
-            .compare_value = m_watch_compare_value[i]};
+    AEMU_CHECK(i < m_watchpoints.count, "There is no watchpoint {}", i);
+    return {.address = m_watchpoints.address[i],
+            .length = m_watchpoints.length[i],
+            .kind = m_watchpoints.kind[i],
+            .physical = m_watchpoints.physical.test(i),
+            .compare = m_watchpoints.compare[i],
+            .compare_value = m_watchpoints.compare_value[i]};
 }
 
 unsigned Emulator32bit::find_register_watch(const U8 reg) const
 {
     unsigned i = 0;
-    while (i < m_regwatch_count && m_regwatch_reg[i] != reg)
+    while (i < m_regwatches.count && m_regwatches.reg[i] != reg)
     {
         i++;
     }
-    return i; // m_regwatch_count if there is none
+    return i; // m_regwatches.count if there is none
 }
 
 bool Emulator32bit::set_register_watch(const U8 reg, const bool has_value, const word value)
 {
     AEMU_CHECK(reg <= static_cast<U8>(Register::SP), "Cannot watch register {}", reg);
     const unsigned i = find_register_watch(reg);
-    if (i == m_regwatch_count)
+    if (i == m_regwatches.count)
     {
-        if (m_regwatch_count == kMaxRegisterWatches)
+        if (m_regwatches.count == kMaxRegisterWatches)
         {
             return false;
         }
-        m_regwatch_count++;
+        m_regwatches.count++;
     }
-    m_regwatch_reg[i] = reg;
-    m_regwatch_has_value.assign(i, has_value);
-    m_regwatch_value[i] = value;
-    m_regwatch_last[i] = read_reg(reg);
+    m_regwatches.reg[i] = reg;
+    m_regwatches.has_value.assign(i, has_value);
+    m_regwatches.value[i] = value;
+    m_regwatches.last[i] = read_reg(reg);
     return true;
 }
 
@@ -508,31 +508,31 @@ bool Emulator32bit::add_register_watch(const U8 reg, const word value)
 bool Emulator32bit::remove_register_watch(const U8 reg)
 {
     const unsigned i = find_register_watch(reg);
-    if (i == m_regwatch_count)
+    if (i == m_regwatches.count)
     {
         return false;
     }
-    const unsigned last = --m_regwatch_count;
-    m_regwatch_reg[i] = m_regwatch_reg[last];
-    m_regwatch_has_value.copy(last, i);
-    m_regwatch_value[i] = m_regwatch_value[last];
-    m_regwatch_last[i] = m_regwatch_last[last];
+    const unsigned last = --m_regwatches.count;
+    m_regwatches.reg[i] = m_regwatches.reg[last];
+    m_regwatches.has_value.copy(last, i);
+    m_regwatches.value[i] = m_regwatches.value[last];
+    m_regwatches.last[i] = m_regwatches.last[last];
     return true;
 }
 
 void Emulator32bit::clear_register_watches()
 {
-    m_regwatch_count = 0;
-    m_regwatch_has_value.clear();
+    m_regwatches.count = 0;
+    m_regwatches.has_value.clear();
 }
 
 Emulator32bit::RegisterWatch Emulator32bit::register_watch(const unsigned i) const
 {
-    AEMU_CHECK(i < m_regwatch_count, "There is no register watch {}", i);
-    return {.reg = m_regwatch_reg[i],
-            .has_value = m_regwatch_has_value.test(i),
-            .value = m_regwatch_value[i],
-            .last = m_regwatch_last[i]};
+    AEMU_CHECK(i < m_regwatches.count, "There is no register watch {}", i);
+    return {.reg = m_regwatches.reg[i],
+            .has_value = m_regwatches.has_value.test(i),
+            .value = m_regwatches.value[i],
+            .last = m_regwatches.last[i]};
 }
 
 word Emulator32bit::watch_old_value(const word address, const word length)
@@ -575,22 +575,22 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
 
     const U64 first = address;
     const U64 last = first + length; // one past, 64 bit so it cannot wrap
-    for (unsigned i = 0; i < m_watch_count; i++)
+    for (unsigned i = 0; i < m_watchpoints.count; i++)
     {
-        const WatchKind kind = m_watch_kind[i];
+        const WatchKind kind = m_watchpoints.kind[i];
         const bool kind_matches = (static_cast<U8>(kind)
                                    & (write ? static_cast<U8>(WatchKind::WRITE)
                                             : static_cast<U8>(WatchKind::READ)))
                                   != 0;
         if (!kind_matches
-            || !watch_compare_holds(m_watch_compare[i], value, m_watch_compare_value[i]))
+            || !watch_compare_holds(m_watchpoints.compare[i], value, m_watchpoints.compare_value[i]))
         {
             continue;
         }
 
-        const word watched = m_watch_address[i];
-        const U64 watched_end = U64(watched) + m_watch_length[i];
-        const bool physical = m_watch_physical.test(i);
+        const word watched = m_watchpoints.address[i];
+        const U64 watched_end = U64(watched) + m_watchpoints.length[i];
+        const bool physical = m_watchpoints.physical.test(i);
         bool overlaps = false;
         if (physical)
         {
@@ -633,35 +633,33 @@ void Emulator32bit::set_history_size(const size_t count)
     const std::vector<ExecutedInstruction> old = history();
     const size_t kept = old.size() < count ? old.size() : count;
 
-    m_history_pc.assign(count, 0);
-    m_history_instruction.assign(count, 0);
     for (size_t i = 0; i < kept; i++)
     {
         const ExecutedInstruction &entry = old[old.size() - kept + i];
-        m_history_pc[i] = entry.pc;
-        m_history_instruction[i] = entry.instruction;
+        m_history.pc[i] = entry.pc;
+        m_history.instruction[i] = entry.instruction;
     }
-    m_history_size = count;
-    m_history_count = kept;
-    m_history_head = kept == count ? 0 : kept;
+    m_history.size = count;
+    m_history.count = kept;
+    m_history.head = kept == count ? 0 : kept;
 }
 
 size_t Emulator32bit::history_size() const
 {
-    return m_history_size;
+    return m_history.size;
 }
 
 std::vector<Emulator32bit::ExecutedInstruction> Emulator32bit::history() const
 {
     std::vector<ExecutedInstruction> out;
-    out.reserve(m_history_count);
+    out.reserve(m_history.count);
     // the oldest entry is `count` before the head, going around
-    size_t i = m_history_head >= m_history_count ? m_history_head - m_history_count
-                                                 : m_history_head + m_history_size - m_history_count;
-    for (size_t n = 0; n < m_history_count; n++)
+    size_t i = m_history.head >= m_history.count ? m_history.head - m_history.count
+                                                 : m_history.head + m_history.size - m_history.count;
+    for (size_t n = 0; n < m_history.count; n++)
     {
-        out.push_back({.pc = m_history_pc[i], .instruction = m_history_instruction[i]});
-        if (++i == m_history_size) i = 0;
+        out.push_back({.pc = m_history.pc[i], .instruction = m_history.instruction[i]});
+        if (++i == m_history.size) i = 0;
     }
     return out;
 }
@@ -691,7 +689,7 @@ void Emulator32bit::execute_hooked(const word instr)
 {
     // The old value of what a store replaces is read before the store, from the registers the
     // instruction is going to use.
-    if (m_watch_count != 0)
+    if (m_watchpoints.count != 0)
     {
         const U8 opcode = bitfield_unsigned<26, 6>(instr);
         if (opcode == _op_str || opcode == _op_strh || opcode == _op_strb)

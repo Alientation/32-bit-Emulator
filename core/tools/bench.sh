@@ -76,7 +76,7 @@ BENCHES=(
     "excbench|tools/bench/excbench.basm||x7=0x000186a0,x10=0x00061a80,x13=0x000186a0"
     "atomicbench|tools/bench/atomicbench.basm||x20=0x00895440,x21=0x00000040,x22=0x0000ff0f,x23=0x00000000"
     "devbench|tools/bench/devbench.basm|--block-sectors 8|x24=0x00186a00,x25=0xe03dd3a0,x26=0x17b8da6c"
-    "callbench+history|tools/bench/callbench.basm|--history 1000|x0=0x000cb228"
+    "callbench+history|tools/bench/callbench.basm|--history 256|x0=0x000cb228"
     "callbench+break|tools/bench/callbench.basm|--break 0x7000|x0=0x000cb228"
     "mixbench+watchreg|tools/bench/mixbench.basm|--watch-reg x20|x2=0xf9849dac,x3=0x29e3eabb"
     "membench+watch|tools/bench/membench.basm|--watch 0x1020:4:rw|x2=0x003d0900"

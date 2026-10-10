@@ -20,10 +20,10 @@ The aim is to keep compile times down and the code readable without knowing the 
 For a collection of a few records that the program keeps for its whole run (watchpoints, register watches, and the like):
 
 - **Fixed capacity, named by a global `constexpr`** (`kMaxWatchpoints`). An add that does not fit returns `false`, and the caller reports it to the user; it is not a fatal error, because a full table is the user's doing. Replacing an entry that exists needs no room.
-- **Struct of arrays.** One array per field (`m_watch_address[i]`, `m_watch_length[i]`) and a count; the entries are `[0, count)`. A public accessor builds the record by value (`watchpoint (i)`), so the layout is not part of the API.
+- **Struct of arrays.** One array per field (`m_watchpoints.address[i]`, `m_watchpoints.length[i]`) and a count, together in one struct per table; the entries are `[0, count)`. A public accessor builds the record by value (`watchpoint (i)`), so the layout is not part of the API.
 - **Remove by moving the last entry into the gap** and decrementing the count. The order is not stable, and the documentation says so.
 - **Flags are a `BitArray<N>`**, not a `bool` array and not an optional per entry.
-- **Where the order matters, a ring buffer** (the instruction history): an array per field, a head and a count, and the oldest entry is `count` before the head. The size of a ring that the user chooses is allocated when it is set, and has a maximum (`kMaxHistory`) that the front ends validate.
+- **Where the order matters, a ring buffer** (the instruction history): an array per field, a head and a count, and the oldest entry is `count` before the head. The arrays have the maximum size (`kMaxHistory`), the size that the user chooses is stored and the front ends validate it against the maximum.
 - **Put the table at the end of a class that has hot members**, after what every instruction reads, so that it does not move them (see the benchmark notes in [internals.md](internals.md#measuring-a-change)).
 
 ## Names and helpers

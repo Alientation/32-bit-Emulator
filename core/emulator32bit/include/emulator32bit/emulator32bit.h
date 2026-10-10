@@ -26,7 +26,7 @@ inline constexpr unsigned kMaxWatchpoints = 16;
 inline constexpr unsigned kMaxRegisterWatches = 8;
 
 /// The most instructions that the history can keep (`set_history_size`).
-inline constexpr size_t kMaxHistory = size_t(1) << 20;
+inline constexpr size_t kMaxHistory = 256;
 
 /// A software simulated 32 bit processor, modeled off of the ARM architecture with many
 /// simplifications.
@@ -289,7 +289,7 @@ class Emulator32bit
     /// @return the number of watchpoints, at most kMaxWatchpoints
     unsigned watchpoint_count() const
     {
-        return m_watch_count;
+        return m_watchpoints.count;
     }
 
     /// @param i the index, below watchpoint_count (it changes when one is removed)
@@ -345,7 +345,7 @@ class Emulator32bit
     /// @return the number of register watches, at most kMaxRegisterWatches
     unsigned register_watch_count() const
     {
-        return m_regwatch_count;
+        return m_regwatches.count;
     }
 
     /// @param i the index, below register_watch_count (it changes when one is removed)
@@ -679,10 +679,10 @@ class Emulator32bit
     /// Puts the instruction that is about to execute in the history, over the oldest one if full.
     void record_history(word instr);
 
-    /// @return the index of the watchpoint at the address, or m_watch_count if there is none
+    /// @return the index of the watchpoint at the address, or m_watchpoints.count if there is none
     unsigned find_watchpoint(word address, bool physical) const;
 
-    /// @return the index of the watch on the register, or m_regwatch_count if there is none
+    /// @return the index of the watch on the register, or m_regwatches.count if there is none
     unsigned find_register_watch(U8 reg) const;
 
     /// Adds a register watch or replaces the one on `reg`; add_register_watch.
@@ -695,33 +695,45 @@ class Emulator32bit
     word m_fpcr = 0; ///< Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
     word m_fpsr = 0; ///< Floating point status: the cumulative exception flags, bits 4-0.
 
-    // The tables of the debugger are after the members that every instruction reads. Struct of
-    // arrays: the fields of entry i are at index i of each array, and [0, count) are the entries.
-    // A removed entry is replaced by the last one.
+    // The tables of the debugger are after the members that every instruction reads. Each is a
+    // struct of arrays: the fields of entry i are at index i of each array, and [0, count) are the
+    // entries. A removed entry is replaced by the last one.
 
     /// The watchpoints, see Watchpoint.
-    unsigned m_watch_count = 0;
-    word m_watch_address[kMaxWatchpoints];
-    word m_watch_length[kMaxWatchpoints];
-    WatchKind m_watch_kind[kMaxWatchpoints];
-    WatchCompare m_watch_compare[kMaxWatchpoints];
-    word m_watch_compare_value[kMaxWatchpoints];
-    BitArray<kMaxWatchpoints> m_watch_physical;
+    struct WatchpointTable
+    {
+        unsigned count = 0;
+        word address[kMaxWatchpoints];
+        word length[kMaxWatchpoints];
+        WatchKind kind[kMaxWatchpoints];
+        WatchCompare compare[kMaxWatchpoints];
+        word compare_value[kMaxWatchpoints];
+        BitArray<kMaxWatchpoints> physical;
+    };
+    WatchpointTable m_watchpoints;
 
     /// The register watches, see RegisterWatch.
-    unsigned m_regwatch_count = 0;
-    U8 m_regwatch_reg[kMaxRegisterWatches];
-    word m_regwatch_value[kMaxRegisterWatches];
-    word m_regwatch_last[kMaxRegisterWatches];
-    BitArray<kMaxRegisterWatches> m_regwatch_has_value;
+    struct RegisterWatchTable
+    {
+        unsigned count = 0;
+        U8 reg[kMaxRegisterWatches];
+        word value[kMaxRegisterWatches];
+        word last[kMaxRegisterWatches];
+        BitArray<kMaxRegisterWatches> has_value;
+    };
+    RegisterWatchTable m_regwatches;
 
-    /// The history is a ring buffer of `m_history_size` entries, of which the newest
-    /// `m_history_count` are valid, and the next one goes to `m_history_head`.
-    size_t m_history_size = 0;
-    size_t m_history_count = 0;
-    size_t m_history_head = 0;
-    std::vector<word> m_history_pc;
-    std::vector<word> m_history_instruction;
+    /// The history is a ring buffer of `size` entries (at most kMaxHistory), of which the newest
+    /// `count` are valid, and the next one goes to `head`.
+    struct HistoryRing
+    {
+        size_t size = 0;
+        size_t count = 0;
+        size_t head = 0;
+        word pc[kMaxHistory];
+        word instruction[kMaxHistory];
+    };
+    HistoryRing m_history;
 
     // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
     // the opcode constant _op_<name>.
