@@ -703,6 +703,18 @@ TEST(virtual_memory_fetch, a_page_that_stops_being_executable_cannot_be_fetched_
     EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::EXECUTE_DENIED);
 }
 
+TEST(virtual_memory_fetch, a_page_that_becomes_kernel_memory_cannot_be_fetched_from_by_a_user_process)
+{
+    Machine m;
+    const long long pid = m.vm.begin_process(false);
+    m.vm.add_vpage(pid, 10, 1, true, true);
+
+    const word ppage = fetch_ppage_of(m.vm, 10);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), std::nullopt) << "from the page it keeps";
+    m.vm.set_ppage_permissions(ppage, ppage, true, true);
+    EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::KERNEL_ONLY);
+}
+
 TEST(virtual_memory_fetch, the_fetch_follows_the_process)
 {
     Machine m;

@@ -515,7 +515,6 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
         return;
     }
 
-    drop_fetch_cache();
     PageTable *ptable = m_process_ptable_map.at(pid);
     for (word vpage = vpage_begin;; vpage++)
     {
@@ -536,7 +535,8 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
         }
     }
 
-    // The translations hold whether the page can be written to.
+    // The translations hold whether the page can be written to or run, and flush_tlb also drops
+    // the page that is fetched from.
     flush_tlb();
 }
 
