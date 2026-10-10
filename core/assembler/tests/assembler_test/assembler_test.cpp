@@ -131,6 +131,50 @@ TEST_F(AssemblerUnit, shifts)
                      Emulator32bit::asm_format_o1(ShiftType::SHIFT_ROR, 1, 2, true, 0, 1, false)}));
 }
 
+TEST_F(AssemblerUnit, the_second_operand_can_be_shifted_by_each_kind_of_shift)
+{
+    const struct
+    {
+        const char *name;
+        ShiftType type;
+    } kinds[] = {{"lsl", ShiftType::SHIFT_LSL},
+                 {"lsr", ShiftType::SHIFT_LSR},
+                 {"asr", ShiftType::SHIFT_ASR},
+                 {"ror", ShiftType::SHIFT_ROR}};
+    for (const auto &kind : kinds)
+    {
+        const std::string source = std::string("add x1, x2, x3, ") + kind.name + " 4";
+        const Words words = text(source + "\n");
+        EXPECT_EQ(words, (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 3,
+                                                            kind.type, 4)}))
+            << kind.name;
+        EXPECT_EQ(Emulator32bit::disassemble_instr(words[0]), source);
+    }
+}
+
+TEST_F(AssemblerUnit, every_condition_name_and_alias_is_a_condition_of_a_branch)
+{
+    const struct
+    {
+        const char *name;
+        ConditionCode code;
+    } conditions[] = {{"eq", ConditionCode::EQ}, {"ne", ConditionCode::NE},
+                      {"cs", ConditionCode::CS}, {"hs", ConditionCode::HS},
+                      {"cc", ConditionCode::CC}, {"lo", ConditionCode::LO},
+                      {"mi", ConditionCode::MI}, {"pl", ConditionCode::PL},
+                      {"vs", ConditionCode::VS}, {"vc", ConditionCode::VC},
+                      {"hi", ConditionCode::HI}, {"ls", ConditionCode::LS},
+                      {"ge", ConditionCode::GE}, {"lt", ConditionCode::LT},
+                      {"gt", ConditionCode::GT}, {"le", ConditionCode::LE},
+                      {"al", ConditionCode::AL}};
+    for (const auto &condition : conditions)
+    {
+        EXPECT_EQ(text(std::string("b.") + condition.name + " 8\n"),
+                  (Words{Emulator32bit::asm_format_b1(Emulator32bit::_op_b, condition.code, 2)}))
+            << condition.name;
+    }
+}
+
 TEST_F(AssemblerUnit, multiply)
 {
     EXPECT_EQ(text("mul x1, x2, x3\numull x1, x2, x3, x4\n"),

@@ -25,10 +25,3 @@ target_link_libraries(emulator_app PRIVATE
 
 add_dependencies(emulator_app generate_version_header)
 aemu_target_defaults(emulator_app)
-
-# Optional: additional executables (kernel)
-# add_executable(kernel src/kernel.cpp)
-# target_include_directories(kernel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${VERSION_HEADER_DIR})
-# target_link_libraries(kernel PRIVATE aemu::assembler)
-# add_dependencies(kernel generate_version_header)
-# aemu_target_defaults(kernel)
