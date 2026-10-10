@@ -129,7 +129,9 @@ SymbolMap read_symbols(const std::string &exe_path)
 
 } // namespace
 
-static int run_cli(int argc, char *argv[])
+/// The declaration of the options. Kept apart so that the rest of the file does not depend on
+/// how they are written.
+static cxxopts::Options make_options()
 {
     cxxopts::Options options("emu32", "32 bit cpu emulator");
 
@@ -185,38 +187,39 @@ static int run_cli(int argc, char *argv[])
         ("history", "Keep the last N executed instructions and print them after the run",
             cxxopts::value<std::string> ()->default_value ("0"));
     // clang-format on
+    return options;
+}
 
-    cxxopts::ParseResult result;
-    try
-    {
-        result = options.parse(argc, argv);
-    }
-    catch (const cxxopts::exceptions::exception &e)
-    {
-        std::cerr << "ERROR: " << e.what() << "\n";
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
-    }
+/// What the command line asked for, with the numbers and names resolved.
+struct CliArgs
+{
+    word ram_npages = 0;
+    word ram_start_page = 0;
+    word rom_npages = 0;
+    word rom_start_page = 0;
+    word pc = 0;
+    word limit = 0;
+    word flags = 0;
+    word history_size = 0;
+    word disk_npages = 0;
+    word disk_start_page = 0;
+    word block_sectors = 0;
+    bool plain = false;
+    std::vector<std::pair<word, word>> mem_ranges;
+    std::vector<std::pair<U8, word>> reg_values;
+    SymbolMap symbols; // of the executable, which the breakpoints and watchpoints can name
+    std::vector<word> breakpoints;
+    std::vector<WatchSpec> watchpoints;
+    std::vector<RegisterWatchSpec> register_watches;
+    std::ofstream trace_file;
+    std::ostream *trace = nullptr;
+};
 
-    if (result.count("help"))
-    {
-        // clang-format off
-        std::cout << options.help () << "\n";
-        std::cout << "Exit codes: "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED) << " halted, "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR) << " usage error, "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED) << " instruction limit reached, "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT) << " emulator fault, "
-                  << S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT) << " breakpoint\n";
-        // clang-format on
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
-    }
-
-    if (!result.unmatched().empty())
-    {
-        std::cerr << "ERROR: Unexpected argument: " << result.unmatched().front() << "\n";
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
-    }
-
+/// Reads the options into `args`. Every mistake is reported, not just the first.
+///
+/// @return false if there was one
+static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
+{
     bool parse_error = false;
     auto number_option = [&](const char *option) -> word
     {
@@ -231,14 +234,14 @@ static int run_cli(int argc, char *argv[])
         return static_cast<word>(*number);
     };
 
-    const word ram_npages = number_option("ram-pages");
-    const word ram_start_page = number_option("ram-start");
-    const word rom_npages = number_option("rom-pages");
-    const word rom_start_page = number_option("rom-start");
-    const word pc = number_option("pc");
-    const word limit = number_option("limit");
-    const word flags = number_option("flags");
-    const word history_size = number_option("history");
+    args.ram_npages = number_option("ram-pages");
+    args.ram_start_page = number_option("ram-start");
+    args.rom_npages = number_option("rom-pages");
+    args.rom_start_page = number_option("rom-start");
+    args.pc = number_option("pc");
+    args.limit = number_option("limit");
+    args.flags = number_option("flags");
+    args.history_size = number_option("history");
 
     const std::string format = result["format"].as<std::string>();
     if (format != "pretty" && format != "plain")
@@ -246,8 +249,8 @@ static int run_cli(int argc, char *argv[])
         std::cerr << "ERROR: --format must be 'pretty' or 'plain'\n";
         parse_error = true;
     }
+    args.plain = format == "plain";
 
-    std::vector<std::pair<word, word>> mem_ranges;
     if (result.count("mem"))
     {
         for (const std::string &range : result["mem"].as<std::vector<std::string>>())
@@ -263,11 +266,10 @@ static int run_cli(int argc, char *argv[])
                 parse_error = true;
                 continue;
             }
-            mem_ranges.emplace_back(static_cast<word>(*addr), static_cast<word>(*len));
+            args.mem_ranges.emplace_back(static_cast<word>(*addr), static_cast<word>(*len));
         }
     }
 
-    std::vector<std::pair<U8, word>> reg_values;
     if (result.count("reg"))
     {
         U64 written_registers = 0;
@@ -292,12 +294,10 @@ static int run_cli(int argc, char *argv[])
                 continue;
             }
             written_registers |= 1ULL << *reg;
-            reg_values.emplace_back(*reg, static_cast<word>(*val));
+            args.reg_values.emplace_back(*reg, static_cast<word>(*val));
         }
     }
 
-    word disk_npages = 0;
-    word disk_start_page = 0;
     if (result.count("disk-file"))
     {
         if (!result.count("disk-pages") || !result.count("disk-start"))
@@ -307,24 +307,22 @@ static int run_cli(int argc, char *argv[])
         }
         else
         {
-            disk_npages = number_option("disk-pages");
-            disk_start_page = number_option("disk-start");
+            args.disk_npages = number_option("disk-pages");
+            args.disk_start_page = number_option("disk-start");
         }
     }
 
     // Breakpoints can be symbols, which are known once the executable is read.
-    SymbolMap symbols;
     if (result.count("exe") && std::filesystem::is_regular_file(result["exe"].as<std::string>()))
     {
-        symbols = read_symbols(result["exe"].as<std::string>());
+        args.symbols = read_symbols(result["exe"].as<std::string>());
     }
 
-    std::vector<word> breakpoints;
     if (result.count("break"))
     {
         for (const std::string &text : result["break"].as<std::vector<std::string>>())
         {
-            const std::optional<word> address = resolve_address(symbols, text);
+            const std::optional<word> address = resolve_address(args.symbols, text);
             if (!address)
             {
                 std::cerr << "ERROR: --break '" << text
@@ -332,16 +330,15 @@ static int run_cli(int argc, char *argv[])
                 parse_error = true;
                 continue;
             }
-            breakpoints.push_back(*address);
+            args.breakpoints.push_back(*address);
         }
     }
 
-    std::vector<WatchSpec> watchpoints;
     if (result.count("watch"))
     {
         for (const std::string &text : result["watch"].as<std::vector<std::string>>())
         {
-            const std::optional<WatchSpec> watch = parse_watch_spec(symbols, text);
+            const std::optional<WatchSpec> watch = parse_watch_spec(args.symbols, text);
             if (!watch)
             {
                 std::cerr << "ERROR: --watch '" << text
@@ -349,11 +346,10 @@ static int run_cli(int argc, char *argv[])
                 parse_error = true;
                 continue;
             }
-            watchpoints.push_back(*watch);
+            args.watchpoints.push_back(*watch);
         }
     }
 
-    std::vector<RegisterWatchSpec> register_watches;
     if (result.count("watch-reg"))
     {
         for (const std::string &text : result["watch-reg"].as<std::vector<std::string>>())
@@ -365,47 +361,63 @@ static int run_cli(int argc, char *argv[])
                 parse_error = true;
                 continue;
             }
-            register_watches.push_back(*watch);
+            args.register_watches.push_back(*watch);
         }
     }
 
-    std::ofstream trace_file;
-    std::ostream *trace = nullptr;
     if (result.count("trace"))
     {
         const std::string path = result["trace"].as<std::string>();
         if (path == "-")
         {
-            trace = &std::cout;
+            args.trace = &std::cout;
         }
         else
         {
-            trace_file.open(path);
-            if (!trace_file)
+            args.trace_file.open(path);
+            if (!args.trace_file)
             {
                 std::cerr << "ERROR: Cannot open trace file: " << path << "\n";
                 parse_error = true;
             }
-            trace = &trace_file;
+            args.trace = &args.trace_file;
         }
     }
 
-    if (parse_error)
+    if (result.count("block-sectors"))
     {
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+        const std::optional<U64> number = parse_number(result["block-sectors"].as<std::string>());
+        if (!number)
+        {
+            std::cerr << "ERROR: Invalid number for --block-sectors\n";
+            parse_error = true;
+        }
+        else
+        {
+            args.block_sectors = static_cast<word>(*number);
+        }
     }
 
-    auto ram = std::make_unique<RAM>(ram_npages, ram_start_page);
+    return !parse_error;
+}
+
+/// Makes the machine, loads the program and sets the state and the devices up as asked.
+///
+/// @return the machine, or null (after saying why) if a file could not be read
+static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &result,
+                                                   CliArgs &args)
+{
+    auto ram = std::make_unique<RAM>(args.ram_npages, args.ram_start_page);
     auto rom = result.count("rom-file")
-                   ? std::make_unique<ROM>(File(result["rom-file"].as<std::string>()), rom_npages,
-                                           rom_start_page)
-                   : std::make_unique<ROM>(rom_npages, rom_start_page);
+                   ? std::make_unique<ROM>(File(result["rom-file"].as<std::string>()),
+                                           args.rom_npages, args.rom_start_page)
+                   : std::make_unique<ROM>(args.rom_npages, args.rom_start_page);
 
     std::unique_ptr<Disk> disk;
     if (result.count("disk-file"))
     {
-        disk = std::make_unique<Disk>(File(result["disk-file"].as<std::string>()), disk_npages,
-                                      disk_start_page);
+        disk = std::make_unique<Disk>(File(result["disk-file"].as<std::string>()),
+                                      args.disk_npages, args.disk_start_page);
     }
     else
     {
@@ -413,8 +425,7 @@ static int run_cli(int argc, char *argv[])
         disk = std::make_unique<MockDisk>();
     }
 
-    auto emu =
-        std::make_unique<Emulator32bit>(std::move(ram), std::move(rom), std::move(disk));
+    auto emu = std::make_unique<Emulator32bit>(std::move(ram), std::move(rom), std::move(disk));
 
     if (result.count("exe"))
     {
@@ -422,7 +433,7 @@ static int run_cli(int argc, char *argv[])
         if (!std::filesystem::is_regular_file(exe_path))
         {
             std::cerr << "ERROR: Executable does not exist: " << exe_path << "\n";
-            return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+            return nullptr;
         }
 
         emu->mmu->begin_process();
@@ -430,43 +441,30 @@ static int run_cli(int argc, char *argv[])
     }
     else
     {
-        emu->set_pc(pc);
+        emu->set_pc(args.pc);
     }
 
-    emu->set_NZCV(flags & 0b1000, flags & 0b0100, flags & 0b0010, flags & 0b0001);
-    for (const auto &[reg, val] : reg_values)
+    emu->set_NZCV(args.flags & 0b1000, args.flags & 0b0100, args.flags & 0b0010,
+                  args.flags & 0b0001);
+    for (const auto &[reg, val] : args.reg_values)
     {
         emu->write_reg(reg, val);
     }
 
     emu->set_semihosting(result.count("no-semihosting") == 0);
 
+    if (result.count("block-file"))
     {
-        word block_sectors = 0;
-        if (result.count("block-sectors"))
+        const std::string block_path = result["block-file"].as<std::string>();
+        if (!emu->system_bus->block.open_file(block_path, args.block_sectors))
         {
-            const std::optional<U64> number =
-                parse_number(result["block-sectors"].as<std::string>());
-            if (!number)
-            {
-                std::cerr << "ERROR: Invalid number for --block-sectors\n";
-                return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
-            }
-            block_sectors = static_cast<word>(*number);
+            std::cerr << "ERROR: Cannot read the block device file: " << block_path << "\n";
+            return nullptr;
         }
-        if (result.count("block-file"))
-        {
-            const std::string block_path = result["block-file"].as<std::string>();
-            if (!emu->system_bus->block.open_file(block_path, block_sectors))
-            {
-                std::cerr << "ERROR: Cannot read the block device file: " << block_path << "\n";
-                return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
-            }
-        }
-        else if (block_sectors != 0)
-        {
-            emu->system_bus->block.set_capacity(block_sectors);
-        }
+    }
+    else if (args.block_sectors != 0)
+    {
+        emu->system_bus->block.set_capacity(args.block_sectors);
     }
 
     if (result.count("console-input"))
@@ -476,42 +474,36 @@ static int run_cli(int argc, char *argv[])
         if (!input)
         {
             std::cerr << "ERROR: Cannot read the console input: " << input_path << "\n";
-            return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+            return nullptr;
         }
         std::stringstream bytes;
         bytes << input.rdbuf();
         emu->system_bus->console.push_input(bytes.str());
     }
-    emu->set_symbols(&symbols);
-    emu->set_trace(trace);
-    emu->set_history_size(history_size);
-    for (const word breakpoint : breakpoints)
+
+    emu->set_symbols(&args.symbols);
+    emu->set_trace(args.trace);
+    emu->set_history_size(args.history_size);
+    for (const word breakpoint : args.breakpoints)
     {
         emu->add_breakpoint(breakpoint);
     }
-    for (const WatchSpec &watch : watchpoints)
+    for (const WatchSpec &watch : args.watchpoints)
     {
         emu->add_watchpoint(watch.address, watch.length, watch.kind);
     }
-    for (const RegisterWatchSpec &watch : register_watches)
+    for (const RegisterWatchSpec &watch : args.register_watches)
     {
         emu->add_register_watch(watch.reg, watch.value);
     }
+    return emu;
+}
 
-    if (result.count("debug"))
-    {
-        Debugger debugger(*emu, symbols, std::cin, std::cout);
-        debugger.run();
-
-        const auto &finished = debugger.finished();
-        if (finished && finished->status == Emulator32bit::RunResult::Status::FAULT)
-        {
-            return S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT);
-        }
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
-    }
-
-    const Emulator32bit::RunResult run_result = emu->run(limit);
+/// Writes the state after a run where `--output` says, and returns the exit code of the run.
+static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emulator32bit &emu,
+                  const Emulator32bit::RunResult &run_result)
+{
+    using ExitCode = Emulator32bit::EmuCLIExitCode;
 
     std::ofstream out_file;
     if (result.count("output"))
@@ -521,37 +513,101 @@ static int run_cli(int argc, char *argv[])
         {
             std::cerr << "ERROR: Cannot open output file: " << result["output"].as<std::string>()
                       << "\n";
-            return S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR);
+            return S32(ExitCode::EXIT_USAGE_ERROR);
         }
     }
     std::ostream &out = out_file.is_open() ? out_file : std::cout;
 
-    if (format == "plain")
+    if (args.plain)
     {
-        print_plain(out, *emu, run_result, mem_ranges);
+        print_plain(out, emu, run_result, args.mem_ranges);
     }
     else
     {
-        emu->print();
+        emu.print();
         std::printf("\n");
     }
-    if (history_size != 0)
+    if (args.history_size != 0)
     {
-        print_history(out, *emu, symbols);
+        print_history(out, emu, args.symbols);
     }
 
     switch (run_result.status)
     {
     case Emulator32bit::RunResult::Status::HALTED:
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
+        return S32(ExitCode::EXIT_HALTED);
     case Emulator32bit::RunResult::Status::LIMIT_REACHED:
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED);
+        return S32(ExitCode::EXIT_LIMIT_REACHED);
     case Emulator32bit::RunResult::Status::BREAKPOINT:
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_BREAKPOINT);
+        return S32(ExitCode::EXIT_BREAKPOINT);
     case Emulator32bit::RunResult::Status::FAULT:
     default:
-        return S32(Emulator32bit::EmuCLIExitCode::EXIT_FAULT);
+        return S32(ExitCode::EXIT_FAULT);
     }
+}
+
+static int run_cli(int argc, char *argv[])
+{
+    using ExitCode = Emulator32bit::EmuCLIExitCode;
+
+    cxxopts::Options options = make_options();
+    cxxopts::ParseResult result;
+    try
+    {
+        result = options.parse(argc, argv);
+    }
+    catch (const cxxopts::exceptions::exception &e)
+    {
+        std::cerr << "ERROR: " << e.what() << "\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    if (result.count("help"))
+    {
+        // clang-format off
+        std::cout << options.help () << "\n";
+        std::cout << "Exit codes: "
+                  << S32(ExitCode::EXIT_HALTED) << " halted, "
+                  << S32(ExitCode::EXIT_USAGE_ERROR) << " usage error, "
+                  << S32(ExitCode::EXIT_LIMIT_REACHED) << " instruction limit reached, "
+                  << S32(ExitCode::EXIT_FAULT) << " emulator fault, "
+                  << S32(ExitCode::EXIT_BREAKPOINT) << " breakpoint\n";
+        // clang-format on
+        return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
+    }
+
+    if (!result.unmatched().empty())
+    {
+        std::cerr << "ERROR: Unexpected argument: " << result.unmatched().front() << "\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    CliArgs args;
+    if (!parse_args(result, args))
+    {
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    std::unique_ptr<Emulator32bit> emu = make_machine(result, args);
+    if (emu == nullptr)
+    {
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    if (result.count("debug"))
+    {
+        Debugger debugger(*emu, args.symbols, std::cin, std::cout);
+        debugger.run();
+
+        const auto &finished = debugger.finished();
+        if (finished && finished->status == Emulator32bit::RunResult::Status::FAULT)
+        {
+            return S32(ExitCode::EXIT_FAULT);
+        }
+        return S32(ExitCode::EXIT_HALTED);
+    }
+
+    return report(result, args, *emu, emu->run(args.limit));
 }
 
 int main(int argc, char *argv[])
