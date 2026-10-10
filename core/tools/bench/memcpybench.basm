@@ -1,0 +1,76 @@
+; Benchmark of sequential memory access over several pages (tools/bench.sh).
+;
+; Three buffers of 4 pages each, and 300 passes of what a C library does with them: fill the first
+; with a sequence of words, copy it to the second a word at a time, copy that to the third a byte
+; at a time, and add up the third as words read at an odd address (ldur, so every access is
+; unaligned and the one at the end of a page crosses into the next). membench stays on one
+; address; this walks 12 pages, so it measures the translation of every new page and the path of
+; an access that is not in the last page used. About 119000 instructions per pass.
+;
+; The result is a checksum in x20, which tools/bench.sh compares with the expected one.
+
+.global _start
+
+.bss
+.align 4096
+src:        .advance 16384
+mid:        .advance 16384
+dst:        .advance 16384
+
+.text
+_start:
+                adrp    x1, src
+                add     x1, x1, :lo12:src
+                adrp    x2, mid
+                add     x2, x2, :lo12:mid
+                adrp    x3, dst
+                add     x3, x3, :lo12:dst
+                ldr     x9, =0x9E3779B1         ; the step of the sequence
+                mov     x20, 0                  ; the checksum
+                mov     x21, 300                ; passes
+
+_pass:
+                ; fill: src[i] = pass * step + i * step
+                mul     x4, x21, x9
+                add     x5, x1, 0
+                ldr     x6, =4096
+_fill:
+                str     x4, [x5], 4
+                add     x4, x4, x9
+                subs    x6, x6, 1
+                b.ne    _fill
+
+                ; copy words: mid = src
+                add     x4, x1, 0
+                add     x5, x2, 0
+                ldr     x6, =4096
+_copy_words:
+                ldr     x7, [x4], 4
+                str     x7, [x5], 4
+                subs    x6, x6, 1
+                b.ne    _copy_words
+
+                ; copy bytes: dst = mid
+                add     x4, x2, 0
+                add     x5, x3, 0
+                ldr     x6, =16384
+_copy_bytes:
+                ldrb    x7, [x4], 1
+                strb    x7, [x5], 1
+                subs    x6, x6, 1
+                b.ne    _copy_bytes
+
+                ; add up the words of dst that start at the second byte
+                add     x4, x3, 1
+                mov     x5, 0                   ; the offset
+                ldr     x6, =16380              ; 4095 words fit in the buffer
+_sum_unaligned:
+                ldur    x7, [x4, x5]
+                add     x20, x20, x7
+                add     x5, x5, 4
+                cmp     x5, x6
+                b.ne    _sum_unaligned
+
+                subs    x21, x21, 1
+                b.ne    _pass
+                hlt

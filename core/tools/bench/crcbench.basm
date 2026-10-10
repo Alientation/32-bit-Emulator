@@ -1,0 +1,75 @@
+; Benchmark of a table driven CRC-32, the loop of a hash or a checksum (tools/bench.sh).
+;
+; Builds the table of 256 words (reflected polynomial 0xEDB88320) and a buffer of 16 KiB of
+; bytes from a linear congruential generator, then runs the CRC over the buffer 300 times, each
+; pass continuing from the CRC of the one before. Seven instructions per byte: a byte load with
+; post-index, a table lookup with a scaled index register, shifts and exclusive ors, and a
+; branch that is almost always taken. The loads of the table depend on the data, unlike the
+; sequential accesses of memcpybench.
+;
+; The result is the CRC in x0, the same as zlib's crc32 of the buffer repeated 300 times.
+
+.global _start
+
+.bss
+.align 4096
+table:      .advance 1024
+buffer:     .advance 16384
+
+.text
+_start:
+                adrp    x1, table
+                add     x1, x1, :lo12:table
+                adrp    x2, buffer
+                add     x2, x2, :lo12:buffer
+
+                ; the table
+                ldr     x9, =0xEDB88320
+                mov     x3, 0                   ; i
+_table_entry:
+                add     x4, x3, 0               ; c = i
+                mov     x5, 8
+_table_bit:
+                lsr     x6, x4, 1
+                eor     x7, x6, x9
+                tst     x4, 1
+                csel    x4, x7, x6, ne          ; c = (c & 1) ? (c >> 1) ^ poly : c >> 1
+                subs    x5, x5, 1
+                b.ne    _table_bit
+                str     x4, [x1, x3, lsl 2]
+                add     x3, x3, 1
+                cmp     x3, 256
+                b.ne    _table_entry
+
+                ; the buffer
+                ldr     x10, =1103515245
+                ldr     x11, =12345             ; the generator state, which is also the increment
+                ldr     x14, =16384
+                mov     x3, 0
+_fill:
+                mul     x11, x11, x10
+                add     x11, x11, 12345
+                lsr     x4, x11, 16
+                strb    x4, [x2, x3]
+                add     x3, x3, 1
+                cmp     x3, x14
+                b.ne    _fill
+
+                mvn     x4, xzr                 ; the CRC, 0xFFFFFFFF
+                mov     x12, 300                ; passes
+_pass:
+                add     x13, x2, 0
+                ldr     x3, =16384
+_byte:
+                ldrb    x5, [x13], 1
+                eor     x6, x4, x5
+                and     x6, x6, 0xFF
+                ldr     x7, [x1, x6, lsl 2]
+                eor     x4, x7, x4, lsr 8
+                subs    x3, x3, 1
+                b.ne    _byte
+                subs    x12, x12, 1
+                b.ne    _pass
+
+                mvn     x0, x4
+                hlt

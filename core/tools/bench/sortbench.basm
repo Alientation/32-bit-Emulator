@@ -3,7 +3,8 @@
 ;
 ; Fills 4096 words with a linear congruential generator and sorts them (unsigned) by insertion
 ; sort: about a million moves of an element, so the branch that ends the inner loop is taken
-; or not at random. The array is 4 pages of .bss.
+; or not at random. The array is 4 pages of .bss. A last loop checks the result: x0 is the number
+; of neighbours that are out of order (0) and x15 the sum of the elements.
 
 .global _start
 
@@ -41,4 +42,18 @@ place:          add     x12, x10, 1
                 add     x8, x8, 1
                 cmp     x8, x13
                 b.ne    outer
+
+                ; the check: x0 counts the neighbours that are out of order, x15 is the sum
+                mov     x0, 0
+                ldr     x15, [x1]
+                add     x14, x15, 0
+                mov     x8, 1
+check:          ldr     x9, [x1, x8, lsl 2]
+                add     x15, x15, x9
+                cmp     x14, x9
+                cinc    x0, x0, hi
+                add     x14, x9, 0
+                add     x8, x8, 1
+                cmp     x8, x13
+                b.ne    check
                 hlt

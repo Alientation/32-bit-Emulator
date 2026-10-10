@@ -1,0 +1,91 @@
+; Benchmark of an integer matrix multiply (tools/bench.sh).
+;
+; C = A * B for 32 by 32 matrices of words (one page each), 150 times. The inner loop is two
+; loads with post-index, one stepping by a word and the other by a row (128 bytes), a multiply, an
+; add and a loop branch: 6 instructions per product, 32768 products per multiply. After each
+; multiply the sum of C is added to x20 and put in A[0], so the passes depend on each other and
+; nothing can be skipped.
+;
+; The result is x20, which tools/bench.sh compares with the expected one.
+
+.global _start
+
+.bss
+.align 4096
+mat_a:      .advance 4096
+mat_b:      .advance 4096
+mat_c:      .advance 4096
+
+.text
+_start:
+                adrp    x1, mat_a
+                add     x1, x1, :lo12:mat_a
+                adrp    x2, mat_b
+                add     x2, x2, :lo12:mat_b
+                adrp    x3, mat_c
+                add     x3, x3, :lo12:mat_c
+
+                ; A and B: bytes from a linear congruential generator
+                ldr     x10, =1103515245
+                ldr     x11, =12345
+                mov     x4, 0
+_init:
+                mul     x11, x11, x10
+                add     x11, x11, 12345
+                lsr     x5, x11, 16
+                and     x5, x5, 0xFF
+                str     x5, [x1, x4, lsl 2]
+                mul     x11, x11, x10
+                add     x11, x11, 12345
+                lsr     x5, x11, 16
+                and     x5, x5, 0xFF
+                str     x5, [x2, x4, lsl 2]
+                add     x4, x4, 1
+                cmp     x4, 1024
+                b.ne    _init
+
+                mov     x20, 0
+                mov     x21, 150                ; passes
+
+_pass:
+                mov     x12, 0                  ; i
+                add     x14, x1, 0              ; the row i of A
+                add     x15, x3, 0              ; the element of C that comes next
+_row:
+                mov     x13, 0                  ; j
+_column:
+                add     x5, x14, 0              ; A[i][k]
+                lsl     x6, x13, 2
+                add     x6, x2, x6              ; B[k][j]
+                mov     x7, 0                   ; the sum
+                mov     x8, 32
+_dot:
+                ldr     x9, [x5], 4
+                ldr     x10, [x6], 128
+                mul     x9, x9, x10
+                add     x7, x7, x9
+                subs    x8, x8, 1
+                b.ne    _dot
+                str     x7, [x15], 4
+                add     x13, x13, 1
+                cmp     x13, 32
+                b.ne    _column
+                add     x14, x14, 128
+                add     x12, x12, 1
+                cmp     x12, 32
+                b.ne    _row
+
+                ; the sum of C, which is also the first element of A for the next pass
+                mov     x4, 0
+                mov     x5, 0
+_sum:
+                ldr     x6, [x3, x4, lsl 2]
+                add     x5, x5, x6
+                add     x4, x4, 1
+                cmp     x4, 1024
+                b.ne    _sum
+                add     x20, x20, x5
+                str     x5, [x1]
+                subs    x21, x21, 1
+                b.ne    _pass
+                hlt

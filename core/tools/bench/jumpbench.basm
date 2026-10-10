@@ -1,0 +1,93 @@
+; Benchmark of indirect jumps between code in many pages (tools/bench.sh).
+;
+; A threaded interpreter: 16 handlers, each in a page of its own, each doing three operations on
+; an accumulator and then reading the next opcode from a buffer of 1024 random bytes and jumping
+; to the handler in a table (`ldr` of the address, `bx`). The next handler is in another page 15
+; times in 16, so the fetch cannot stay in the page of the last instruction, and the target of
+; every jump depends on the data. The other programs run loops that fit in one page.
+; 3 million handlers of 10 instructions each.
+;
+; The result is the accumulator in x2, which tools/bench.sh compares with the expected one.
+
+.global _start
+
+.bss
+table:      .advance 64
+opcodes:    .advance 1024
+
+; A handler. Its page is the one after the page of the one before, so handler k is at
+; handlers + k * 4096 and the table is built from that.
+#macro handler(k)
+.align 4096
+                add     x2, x2, k
+                eor     x2, x2, x2, lsr 7
+                ror     x2, x2, 5
+                subs    x7, x7, 1
+                b.eq    finish
+                ldrb    x5, [x1, x4]            ; the next opcode
+                add     x4, x4, 1
+                and     x4, x4, 1023
+                ldr     x6, [x3, x5, lsl 2]
+                bx      x6
+#macend
+
+.text
+_start:
+                adrp    x1, opcodes
+                add     x1, x1, :lo12:opcodes
+                adrp    x3, table
+                add     x3, x3, :lo12:table
+                adrp    x8, handlers
+                add     x8, x8, :lo12:handlers
+
+                ; the table: handler k is at handlers + k * 4096
+                mov     x4, 0
+_table:
+                lsl     x5, x4, 12
+                add     x5, x5, x8
+                str     x5, [x3, x4, lsl 2]
+                add     x4, x4, 1
+                cmp     x4, 16
+                b.ne    _table
+
+                ; the opcodes: bits 16-19 of a linear congruential generator
+                ldr     x10, =1103515245
+                ldr     x11, =12345
+                mov     x4, 0
+                ldr     x12, =1024
+_opcodes:
+                mul     x11, x11, x10
+                add     x11, x11, 12345
+                lsr     x5, x11, 16
+                and     x5, x5, 15
+                strb    x5, [x1, x4]
+                add     x4, x4, 1
+                cmp     x4, x12
+                b.ne    _opcodes
+
+                mov     x2, 1                   ; the accumulator
+                mov     x4, 0                   ; the position in the opcodes
+                ldr     x7, =3000000            ; handlers to run
+                bx      x8                      ; start with handler 0
+
+finish:
+                hlt
+
+.align 4096
+handlers:
+#invoke handler(1)
+#invoke handler(2)
+#invoke handler(3)
+#invoke handler(4)
+#invoke handler(5)
+#invoke handler(6)
+#invoke handler(7)
+#invoke handler(8)
+#invoke handler(9)
+#invoke handler(10)
+#invoke handler(11)
+#invoke handler(12)
+#invoke handler(13)
+#invoke handler(14)
+#invoke handler(15)
+#invoke handler(16)

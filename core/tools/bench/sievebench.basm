@@ -1,0 +1,55 @@
+; Benchmark of a sieve of Eratosthenes (tools/bench.sh).
+;
+; One byte per number below 65536, 16 pages of .bss, cleared and sieved 30 times. The marking
+; loop stores a byte at a stride that grows with the prime, so consecutive stores land in different
+; pages for the larger primes, and the scan that looks for the next prime is a load and a branch
+; that depends on the data. About a million instructions per sieve.
+;
+; The result is the number of primes found, summed over the passes, in x20: 30 * 6542.
+
+.global _start
+
+.bss
+.align 4096
+flags:      .advance 65536
+
+.text
+_start:
+                adrp    x1, flags
+                add     x1, x1, :lo12:flags
+                ldr     x4, =65536              ; the limit
+                mov     x8, 1
+                mov     x20, 0                  ; the primes found
+                mov     x21, 30                 ; passes
+
+_pass:
+                ; clear the flags, a word at a time
+                add     x5, x1, 0
+                ldr     x6, =16384
+_clear:
+                str     xzr, [x5], 4
+                subs    x6, x6, 1
+                b.ne    _clear
+
+                mov     x5, 2                   ; the candidate
+_scan:
+                ldrb    x6, [x1, x5]
+                cmp     x6, 0
+                b.ne    _next                   ; composite
+                add     x20, x20, 1
+                mul     x7, x5, x5              ; the first multiple that is not marked yet
+                cmp     x7, x4
+                b.hs    _next
+_mark:
+                strb    x8, [x1, x7]
+                add     x7, x7, x5
+                cmp     x7, x4
+                b.lo    _mark
+_next:
+                add     x5, x5, 1
+                cmp     x5, x4
+                b.lo    _scan
+
+                subs    x21, x21, 1
+                b.ne    _pass
+                hlt

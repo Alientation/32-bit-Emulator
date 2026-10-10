@@ -1,0 +1,129 @@
+; Benchmark of exceptions and interrupts (tools/bench.sh).
+;
+; Installs a vector table and then takes the three kinds of exception that an operating system
+; lives on, one after the other:
+;
+;   1. 400000 system calls from user mode. The handler reads ESR, picks the call number out of it
+;      and returns with eret, so each is an entry into kernel mode (banked sp, SPSR, ELR), four
+;      instructions of dispatch and a return to user mode. `swi 4` ends the phase.
+;   2. 100000 data aborts, a load at an address that is not a multiple of 4. The C++ exception
+;      of the load is turned into the abort; the handler steps ELR over the instruction and returns.
+;   3. 100000 timer interrupts, one every 20 instructions, claimed from the interrupt controller
+;      while the program waits in a loop for the count to reach the total.
+;
+; The instruction count is small for the time it takes: compare the time, not the MIPS.
+;
+; The results are in x10 (calls), x13 (aborts) and x7 (interrupts).
+
+.global _start
+
+.bss
+scratch:    .advance 16
+
+.text
+_start:
+                adrp    x0, vectors
+                add     x0, x0, :lo12:vectors
+                msr     vbar, x0
+
+                ; phase 1: system calls from user mode
+                adrp    x1, user
+                add     x1, x1, :lo12:user
+                msr     elr, x1
+                msr     spsr, 0x10              ; user mode, IRQs not masked
+                eret
+user:
+                ldr     x2, =400000
+_call:
+                swi     3
+                subs    x2, x2, 1
+                b.ne    _call
+                swi     4                       ; the end of the phase
+
+kernel:                                         ; back in kernel mode
+                ; phase 2: data aborts
+                adrp    x1, scratch
+                add     x1, x1, :lo12:scratch
+                ldr     x2, =100000
+_abort:
+                ldr     x3, [x1, 1]             ; not aligned
+                subs    x2, x2, 1
+                b.ne    _abort
+
+                ; phase 3: timer interrupts
+                ldr     x20, =0xF0000000        ; interrupt controller
+                ldr     x22, =0xF0001000        ; timer
+                mov     x1, 1
+                str     x1, [x20, 8]            ; enable line 0
+                mov     x1, 20
+                str     x1, [x22, 12]           ; INTERVAL
+                ldr     x2, [x22]               ; COUNT: the match is for equality
+                add     x2, x2, x1
+                str     x2, [x22, 4]            ; COMPARE
+                mov     x1, 3
+                str     x1, [x22, 8]            ; enabled and periodic
+                ldr     x6, =100000
+                msr     pstate, 0               ; unmask IRQs
+_wait:
+                cmp     x7, x6
+                b.lo    _wait
+                msr     pstate, 0x20            ; mask again
+                str     xzr, [x22, 8]           ; stop the timer
+                hlt
+
+svc_handler:
+                mrs     x11, esr
+                and     x11, x11, 0xFF          ; the number of the call
+                cmp     x11, 4
+                b.eq    _exit_call
+                add     x10, x10, 1             ; a call: count it
+                eret
+_exit_call:
+                adrp    x11, kernel
+                add     x11, x11, :lo12:kernel
+                msr     elr, x11
+                msr     spsr, 0x20              ; kernel mode, IRQs masked
+                eret
+
+abort_handler:
+                mrs     x11, elr
+                add     x11, x11, 4             ; step over the load
+                msr     elr, x11
+                add     x13, x13, 1
+                eret
+
+irq_handler:
+                ldr     x8, [x20]               ; claim
+                add     x7, x7, 1
+                eret
+
+stop_handler:
+                hlt
+
+.align 16
+vectors:
+                hlt                             ; 0
+                nop
+                nop
+                nop
+                b       stop_handler            ; 1: undefined instruction
+                nop
+                nop
+                nop
+                b       svc_handler             ; 2: supervisor call
+                nop
+                nop
+                nop
+                b       stop_handler            ; 3: instruction abort
+                nop
+                nop
+                nop
+                b       abort_handler           ; 4: data abort
+                nop
+                nop
+                nop
+                b       stop_handler            ; 5: breakpoint
+                nop
+                nop
+                nop
+                b       irq_handler             ; 6: interrupt
