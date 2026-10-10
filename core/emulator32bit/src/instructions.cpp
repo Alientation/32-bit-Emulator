@@ -1077,8 +1077,8 @@ void Emulator32bit::_b(const word instr)
     const U8 cond = bitfield_unsigned<22, 4>(instr);
     if (check_cond(m_pstate, cond))
     {
-        m_pc += (bitfield_signed<0, 22>(instr) << 2)
-                - 4; // account for execution loop incrementing _pc by 4
+        m_pc += bitfield_signed<0, 22>(instr) << 2;
+        m_pc_written = true;
     }
 }
 
@@ -1088,7 +1088,8 @@ void Emulator32bit::_bl(const word instr)
     if (check_cond(m_pstate, cond))
     {
         write_reg(Register::LR, m_pc + 4);
-        m_pc += (bitfield_signed<0, 22>(instr) << 2) - 4;
+        m_pc += bitfield_signed<0, 22>(instr) << 2;
+        m_pc_written = true;
     }
 }
 
@@ -1105,7 +1106,8 @@ void Emulator32bit::_bx(const word instr)
         {
             write_reg(Register::LR, m_pc + 4);
         }
-        m_pc = sword(target) - 4;
+        m_pc = target;
+        m_pc_written = true;
     }
 }
 

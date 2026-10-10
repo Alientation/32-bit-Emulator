@@ -227,8 +227,8 @@ Static libraries with this dependency chain: `util` ← `disassembler` ← `emul
     (banked `sp`) and jumps to `VBAR + 16 * class`; `ERET` returns. `HALT_INSTR`, a failed assertion
     and a `FatalError` are never exceptions. With `VBAR == 0` nothing changes (the old fault path).
     An `Exception` carries an ISS (`kUndefinedIss_*`) for the syndrome, so a new `throw Exception
-    (BAD_INSTR, ...)` should pass the right one. A handler that sets `m_pc` itself (`ERET`,
-    `enter_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
+    (BAD_INSTR, ...)` should pass the right one. A handler that sets `m_pc` itself (a taken
+    branch, `ERET`, `enter_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
     call `require_kernel ()`.
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
     `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
