@@ -3,6 +3,7 @@
 #include "util/logger.h"
 #include "util/types.h"
 
+#include <filesystem>
 #include <fstream>
 
 std::string trim_dir_path(const std::string &str)
@@ -144,19 +145,9 @@ std::string File::get_path() const
     return m_dir + SEPARATOR + m_name + "." + m_extension;
 }
 
-std::string File::get_abs_path() const
-{
-    return std::filesystem::absolute(get_path()).string();
-}
-
 std::string File::get_dir_str() const
 {
     return m_dir;
-}
-
-int File::get_size() const
-{
-    return std::filesystem::file_size(this->get_path());
 }
 
 bool File::exists() const
@@ -200,19 +191,7 @@ bool File::clear()
     return true;
 }
 
-FileWriter::FileWriter(const File &file) :
-    m_file(file)
-{
-    m_file_stream = new std::ofstream(file.get_path(), std::ifstream::out);
-    m_closed = false;
-
-    if (!m_file_stream->good())
-    {
-        AEMU_FATAL("FileWriter::FileWriter() - Failed to open file: '{}'", file.get_path());
-    }
-}
-
-FileWriter::FileWriter(const File &file, std::_Ios_Openmode flags) :
+FileWriter::FileWriter(const File &file, std::ios_base::openmode flags) :
     m_file(file)
 {
     m_file_stream = new std::ofstream(file.get_path(), flags);
@@ -390,19 +369,7 @@ void ByteReader::skip_bytes(int num_bytes)
     m_cur_byte += num_bytes;
 }
 
-FileReader::FileReader(const File &file) :
-    m_file(file)
-{
-    m_file_stream = new std::ifstream(m_file.get_path(), std::ifstream::in);
-    m_closed = false;
-
-    if (!m_file_stream->good())
-    {
-        AEMU_FATAL("FileReader::FileReader() - Failed to open file: '{}'.", m_file.get_path());
-    }
-}
-
-FileReader::FileReader(const File &file, std::_Ios_Openmode flags) :
+FileReader::FileReader(const File &file, std::ios_base::openmode flags) :
     m_file(file)
 {
     m_file_stream = new std::ifstream(m_file.get_path(), flags);
@@ -419,52 +386,10 @@ FileReader::~FileReader()
     this->close();
 }
 
-std::string FileReader::read_all()
-{
-    std::string fileContents;
-    while (m_file_stream->peek() != EOF)
-    {
-        fileContents += m_file_stream->get();
-    }
-    close();
-    return fileContents;
-}
-
 char FileReader::read_byte()
 {
     return m_file_stream->get();
     ;
-}
-
-char FileReader::peek_byte()
-{
-    return m_file_stream->peek();
-}
-
-char *FileReader::read_bytes(const unsigned int num_bytes)
-{
-    char *bytes = new char[num_bytes];
-    m_file_stream->read(bytes, num_bytes);
-
-    if (m_file_stream->fail())
-    {
-        AEMU_FATAL("FileReader::readBytes() - Failed to read {} bytes from file: '{}'.", num_bytes,
-                   m_file.get_path());
-    }
-
-    return bytes;
-}
-
-char *
-FileReader::read_token(const char token_delimiter) // TODO: make this take in a regex separator
-{
-    std::string token = "";
-    while (m_file_stream->peek() != token_delimiter && m_file_stream->peek() != EOF)
-    {
-        token += m_file_stream->get();
-    }
-
-    return (char *) token.c_str();
 }
 
 bool FileReader::has_next_byte()

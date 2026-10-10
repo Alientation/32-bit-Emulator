@@ -8,6 +8,7 @@
 
 #include <cctype>
 #include <format>
+#include <iostream>
 #include <utility>
 
 namespace
@@ -42,6 +43,16 @@ constexpr bool opcodes_are_valid()
 static_assert(opcodes_are_valid(), "AEMU_OPCODES has an opcode that is used twice or is above 63");
 
 } // namespace
+
+std::ostream *Emulator32bit::default_out()
+{
+    return &std::cout;
+}
+
+std::ostream *Emulator32bit::default_err()
+{
+    return &std::cerr;
+}
 
 Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[],
                              word rom_npages, word rom_start_page) :

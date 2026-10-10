@@ -239,6 +239,14 @@ class VirtualMemory
     /// @return Current process ID, -1 if no current active process.
     long long current_process();
 
+    /// Checks that the page tables, the physical pages and the clock agree with each other. A
+    /// check that fails is an AEMU_CHECK, so it is meant for tests and debugging, not for a run.
+    void check_consistency()
+    {
+        check_vm();
+        check_clock();
+    }
+
     /// Set the the access permissions of physical memory. Used by the kernel
     /// to set up memory mapped regions for I/O.
     ///
@@ -269,30 +277,6 @@ class VirtualMemory
     /// @param vpage Virtual page to check.
     /// @return Whether the virtual page is mapped for the process.
     bool has_vpage(long long pid, word vpage);
-
-    /// Checks the write permissions of the virtual page by the process.
-    ///
-    /// @throws InvalidPIDException when pid is invalid.
-    /// @param pid Process identifier.
-    /// @param vpage Virtual page to check.
-    /// @return Whether the virtual page can be written to.
-    bool can_write_vpage(long long pid, word vpage);
-
-    /// Checks the execute permissions of the virtual page by the process.
-    ///
-    /// @throws InvalidPIDException when pid is invalid.
-    /// @param pid Process identifier.
-    /// @param vpage Virtual page to check.
-    /// @return Whether code in the virtual page can be executed.
-    bool can_execute_vpage(long long pid, word vpage);
-
-    /// Checks the access permissions of the physical page by the process.
-    ///
-    /// @throws InvalidPIDException when pid is invalid.
-    /// @param pid Process identifier.
-    /// @param ppage Physical page to check.
-    /// @return Whether the physical page can be accessed by a process.
-    bool can_access_ppage(long long pid, word ppage);
 
     /// Adds new virtual pages to the specified process.
     ///
@@ -663,9 +647,6 @@ class VirtualMemory
     /// physical_page () for a frame whose chunk is not made yet, and for a page that is not a
     /// frame.
     PhysicalPage &physical_page_slow(word ppage);
-
-    /// The information about a physical page, or null if there is none.
-    PhysicalPage *find_physical_page(word ppage);
 
     /// Every physical page that there is information about, with its number (the consistency
     /// checks use it).

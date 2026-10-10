@@ -11,7 +11,7 @@
 #include "emulator32bit/virtual_memory.h"
 
 #include <deque>
-#include <iostream>
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <set>
@@ -646,8 +646,12 @@ class Emulator32bit
     /// @param operation how the new value is made from the old one and xm
     void _atomic_rmw(const word instr, AtomicOperation operation);
 
-    std::ostream *m_out = &std::cout;
-    std::ostream *m_err = &std::cerr;
+    /// std::cout and std::cerr (emulator32bit.cpp), so that this header needs no <iostream>.
+    static std::ostream *default_out();
+    static std::ostream *default_err();
+
+    std::ostream *m_out = default_out();
+    std::ostream *m_err = default_err();
 
     // Software interrupt handling: the emulator calls of `swi 1` (software_interrupt.cpp).
     U8 _emu_register_arg(word reg_id);

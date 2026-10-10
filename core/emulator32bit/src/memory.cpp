@@ -1,6 +1,9 @@
 #include "emulator32bit/memory.h"
 
 #include "util/common.h"
+#include "util/file.h"
+
+#include <fstream>
 
 BaseMemory::BaseMemory(word npages, word start_page) :
     m_npages(npages),

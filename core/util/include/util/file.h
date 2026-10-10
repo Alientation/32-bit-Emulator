@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
+#include <ios>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -82,17 +83,8 @@ class File
     /// absolute
     std::string get_path() const;
 
-    /// @return the absolute path of the file
-    std::string get_abs_path() const;
-
     /// @return the directory of the file
     std::string get_dir_str() const;
-
-    /// Gets the size of the file in bytes.
-    ///
-    /// @return the size of the file in bytes
-    /// @throws std::filesystem::filesystem_error if the file does not exist
-    int get_size() const;
 
     /// @return whether the file exists
     bool exists() const;
@@ -118,16 +110,11 @@ class File
 class FileWriter
 {
   public:
-    /// Opens the file for writing.
-    ///
-    /// @param file the file to write to
-    FileWriter(const File &file);
-
     /// Opens the file for writing with the given stream modes.
     ///
     /// @param file the file to write to
     /// @param flags the open mode of the stream, e.g. `std::ios::binary | std::ios::app`
-    FileWriter(const File &file, std::_Ios_Openmode flags);
+    FileWriter(const File &file, std::ios_base::openmode flags);
 
     /// Closes the file.
     ~FileWriter();
@@ -202,42 +189,17 @@ class ByteWriter
 class FileReader
 {
   public:
-    /// Opens the file for reading.
-    ///
-    /// @param file the file to read
-    FileReader(const File &file);
-
     /// Opens the file for reading with the given stream modes.
     ///
     /// @param file the file to read
     /// @param flags the open mode of the stream, e.g. `std::ios::binary`
-    FileReader(const File &file, std::_Ios_Openmode flags);
+    FileReader(const File &file, std::ios_base::openmode flags);
 
     /// Closes the file.
     ~FileReader();
 
-    /// Reads the rest of the file and closes it.
-    ///
-    /// @return the contents of the file
-    std::string read_all();
-
     /// @return the next byte, which is consumed
     char read_byte();
-
-    /// @return the next byte, which stays to be read
-    char peek_byte();
-
-    /// Reads a number of bytes. Reading past the end of the file is a fatal error.
-    ///
-    /// @param num_bytes how many bytes to read
-    /// @return the bytes, in an array that the caller frees with `delete[]`
-    char *read_bytes(unsigned int num_bytes);
-
-    /// Reads bytes until the delimiter or the end of the file, without consuming the delimiter.
-    ///
-    /// @param token_delimiter the byte to stop at
-    /// @return the bytes that were read
-    char *read_token(char token_delimiter);
 
     /// @return whether there is a byte left to read
     bool has_next_byte();

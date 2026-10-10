@@ -1,6 +1,7 @@
 add_library(util STATIC
     src/directory.cpp
     src/file.cpp
+    src/logger.cpp
     src/types.cpp
 )
 add_library(aemu::util ALIAS util)

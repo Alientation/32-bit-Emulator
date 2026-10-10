@@ -8,7 +8,6 @@
 #include "util/common.h"
 #include "util/directory.h"
 #include "util/logger.h"
-#include "util/string_util.h"
 
 #include <charconv>
 #include <filesystem>
@@ -16,26 +15,6 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-
-bool Build::valid_src_file(const File &file)
-{
-    return file.get_extension() == SOURCE_EXTENSION || file.get_extension() == INCLUDE_EXTENSION;
-}
-
-bool Build::valid_processed_file(const File &file)
-{
-    return file.get_extension() == PROCESSED_EXTENSION;
-}
-
-bool Build::valid_obj_file(const File &file)
-{
-    return file.get_extension() == OBJECT_EXTENSION;
-}
-
-bool Build::valid_exe_file(const File &file)
-{
-    return file.get_extension() == EXECUTABLE_EXTENSION;
-}
 
 Build::Build(const std::string &assembler_args) :
     Build(split_args(assembler_args))
@@ -532,37 +511,8 @@ std::set<std::string> Build::get_enabled_warnings() const
     return m_enabled_warnings;
 }
 
-std::map<std::string, std::string> Build::get_preprocessor_flags() const
-{
-    return m_preprocessor_flags;
-}
-
-std::vector<Directory> Build::get_system_dirs() const
-{
-    return m_system_dirs;
-}
-
-std::vector<File> Build::get_processed_files() const
-{
-    return m_processed_files;
-}
-
-std::vector<File> Build::get_obj_files() const
-{
-    return m_obj_files;
-}
-
 File Build::get_exe_file() const
 {
     return m_exe_file;
 }
 
-File Build::get_ld_file() const
-{
-    return m_ld_file;
-}
-
-bool Build::has_ld_file() const
-{
-    return m_has_ld_file;
-}

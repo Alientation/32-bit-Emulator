@@ -55,7 +55,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -124,8 +123,8 @@ struct Record
     /// Fully formatted message, without a trailing newline. Only valid during the sink call.
     std::string_view message;
 
-    /// Time since the logger was first used.
-    std::chrono::steady_clock::duration since_start;
+    /// Nanoseconds since the logger was first used.
+    long long since_start_ns;
 };
 
 /// Receives every message that passes the level filter. Called with the logger lock held, so a
@@ -198,6 +197,10 @@ inline bool stream_is_tty(std::FILE *stream)
 #endif
 }
 
+/// Nanoseconds on a clock that only goes forward (util/src/logger.cpp, so that <chrono> is not
+/// included by every file that logs).
+long long monotonic_ns();
+
 /// Global logger state. One instance for the whole program, since this is a function local
 /// static in an inline function. Intentionally leaked so logging from other static destructors
 /// is always safe.
@@ -211,7 +214,7 @@ struct State
     std::mutex mutex; ///< Guards `sink` and serializes output.
     Sink sink;        ///< Empty means the default stderr sink.
 
-    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    const long long start_ns = monotonic_ns();
 
     State()
     {
@@ -275,7 +278,7 @@ inline void write_default(const Record &record, bool color, bool timestamps)
     if (timestamps)
     {
         line +=
-            std::format("[{:9.3f}s] ", std::chrono::duration<double>(record.since_start).count());
+            std::format("[{:9.3f}s] ", static_cast<double>(record.since_start_ns) / 1e9);
     }
 
     if (color)
@@ -419,7 +422,7 @@ inline void write(Level level, const std::source_location &location, std::string
         return;
     }
 
-    const Record record{level, location, message, std::chrono::steady_clock::now() - s.start};
+    const Record record{level, location, message, detail::monotonic_ns() - s.start_ns};
 
     std::lock_guard lock(s.mutex);
     if (s.sink)
@@ -490,7 +493,7 @@ class ScopedTimer
                          std::source_location location = std::source_location::current()) :
         m_tag(std::move(tag)),
         m_location(location),
-        m_start(std::chrono::steady_clock::now())
+        m_start(detail::monotonic_ns())
     {
     }
 
@@ -501,9 +504,7 @@ class ScopedTimer
             return;
         }
 
-        const long long ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                 std::chrono::steady_clock::now() - m_start)
-                                 .count();
+        const long long ns = detail::monotonic_ns() - m_start;
         write(Level::Debug, m_location, std::format("{} took {}", m_tag, format_duration(ns)));
     }
 
@@ -530,7 +531,7 @@ class ScopedTimer
 
     std::string m_tag;
     std::source_location m_location;
-    std::chrono::steady_clock::time_point m_start;
+    long long m_start;
 };
 
 } // namespace aemu::log

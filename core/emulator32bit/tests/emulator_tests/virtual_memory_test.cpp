@@ -256,6 +256,34 @@ TEST(virtual_memory, a_page_that_is_not_writable_cannot_be_written)
         << "taking the permission away has to reach the translation that is cached";
 }
 
+// Pages of two processes go in and out of three frames, and the tables, the physical pages and the
+// clock agree with each other after every step.
+TEST(virtual_memory, the_tables_and_the_clock_stay_consistent_while_pages_are_swapped)
+{
+    Machine m(4, 3);
+    const long long first = m.vm.begin_process();
+    m.vm.add_vpage(first, 10, 8, true, false);
+    const long long second = m.vm.begin_process();
+    m.vm.add_vpage(second, 10, 5, true, false);
+    m.vm.check_consistency();
+
+    for (word round = 0; round < 3; round++)
+    {
+        for (word vpage = 10; vpage < 15; vpage++)
+        {
+            m.vm.set_process(round % 2 == 0 ? first : second);
+            ppage_of(m.vm, vpage + (round % 2 == 0 ? round : 0));
+            m.vm.check_consistency();
+        }
+    }
+
+    m.vm.end_process(first);
+    m.vm.check_consistency();
+    m.vm.set_ppage_permissions(4, 4, false, false);
+    ppage_of(m.vm, 12);
+    m.vm.check_consistency();
+}
+
 TEST(virtual_memory, kernel_memory_needs_kernel_privilege)
 {
     Machine m(4, 2);

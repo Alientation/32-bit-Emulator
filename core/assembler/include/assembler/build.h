@@ -26,22 +26,6 @@ inline const std::string DEFAULT_OUTPUT_FILE = "a";
 class Build
 {
   public:
-    /// @param file a file
-    /// @return whether it is a source (.basm) or header (.binc) file
-    static bool valid_src_file(const File &file);
-
-    /// @param file a file
-    /// @return whether it is a preprocessed file (.bi)
-    static bool valid_processed_file(const File &file);
-
-    /// @param file a file
-    /// @return whether it is an object file (.bo)
-    static bool valid_obj_file(const File &file);
-
-    /// @param file a file
-    /// @return whether it is an executable (.bexe)
-    static bool valid_exe_file(const File &file);
-
     /// The arguments as they are in argv (without the program name). A path can have spaces.
     ///
     /// @param args the arguments, one for each element
@@ -72,26 +56,8 @@ class Build
     /// @return the kinds of warning that were turned on (-W, -wall)
     std::set<std::string> get_enabled_warnings() const;
 
-    /// @return the preprocessor symbols and their values (-D)
-    std::map<std::string, std::string> get_preprocessor_flags() const;
-
-    /// @return the directories that `#include <"file">` is searched in (-I)
-    std::vector<Directory> get_system_dirs() const;
-
-    /// @return the preprocessed files (.bi), which exist after run() only with -kp
-    std::vector<File> get_processed_files() const;
-
-    /// @return the object files (.bo) that run() wrote
-    std::vector<File> get_obj_files() const;
-
     /// @return the executable (.bexe) that run() linked
     File get_exe_file() const;
-
-    /// @return the linker script (-ld)
-    File get_ld_file() const;
-
-    /// @return whether a linker script was given
-    bool has_ld_file() const;
 
   private:
     // process flags

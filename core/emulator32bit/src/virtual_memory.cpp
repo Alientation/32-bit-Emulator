@@ -59,19 +59,6 @@ VirtualMemory::PhysicalPage &VirtualMemory::physical_page_slow(word ppage)
     return it->second;
 }
 
-VirtualMemory::PhysicalPage *VirtualMemory::find_physical_page(word ppage)
-{
-    if (is_frame(ppage))
-    {
-        const word index = ppage - m_frame_lo;
-        const std::unique_ptr<PhysicalPage[]> &chunk = m_frame_chunks[index >> kFrameChunkBits];
-        return chunk != nullptr ? &chunk[index & (kFrameChunkPages - 1)] : nullptr;
-    }
-
-    const auto it = m_physical_memory_map.find(ppage);
-    return it == m_physical_memory_map.end() ? nullptr : &it->second;
-}
-
 std::vector<std::pair<word, const VirtualMemory::PhysicalPage *>>
 VirtualMemory::all_physical_pages() const
 {
@@ -549,51 +536,6 @@ bool VirtualMemory::has_vpage(long long pid, word vpage)
 
     const PageTable *ptable = m_process_ptable_map.at(pid);
     return ptable->entries.find(vpage) != ptable->entries.end();
-}
-
-bool VirtualMemory::can_write_vpage(long long pid, word vpage)
-{
-    if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-    {
-        throw InvalidPIDException(
-            "Cannot check write permission of virtual page because pid is invalid.", pid);
-    }
-
-    PageTable *ptable = m_process_ptable_map.at(pid);
-    if (ptable->entries.find(vpage) == ptable->entries.end())
-    {
-        return false;
-    }
-    return ptable->entries.at(vpage)->write;
-}
-
-bool VirtualMemory::can_execute_vpage(long long pid, word vpage)
-{
-    if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-    {
-        throw InvalidPIDException(
-            "Cannot check execute permission of virtual page because pid is invalid.", pid);
-    }
-
-    PageTable *ptable = m_process_ptable_map.at(pid);
-    if (ptable->entries.find(vpage) == ptable->entries.end())
-    {
-        return false;
-    }
-    return ptable->entries.at(vpage)->execute;
-}
-
-bool VirtualMemory::can_access_ppage(long long pid, word ppage)
-{
-    if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
-    {
-        throw InvalidPIDException(
-            "Cannot check access permission of physical page because pid is invalid.", pid);
-    }
-
-    PageTable *ptable = m_process_ptable_map.at(pid);
-    const PhysicalPage *page = find_physical_page(ppage);
-    return page == nullptr || !page->kernel_locked || ptable->kernel_privilege;
 }
 
 void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write, bool execute)
