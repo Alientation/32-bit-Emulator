@@ -15,11 +15,12 @@
 11. [License](#license)
 
 ## **Project Overview**
-This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator_app` executable, or run an already built `.bexe` directly with the `emu32` command line emulator. Currently working on expanding the instruction set, improving test coverage, and writing a c compiler to generate basm assembly.
+This project simulates a computer processor by simulating the execution of machine-level **ARM-like** instructions. It comes packaged with a preprocessor, assembler, linker, and executable loader to run **basm** assembly code on the emulator. Easily run the build process for custom programs by passing arguments into the `emulator_app` executable, or run an already built `.bexe` directly with the `emu32` command line emulator. Currently working on a C compiler to generate basm assembly, and on the pieces an operating system needs (exceptions, page tables, devices).
 
 * supports up to 64 instructions (6 bit opcode), currently **34** opcodes are in use (30 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
+* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA), and a debugger (trace, breakpoints, watchpoints, a REPL)
 
 <p align="center">
   <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">
@@ -33,7 +34,8 @@ This project simulates a computer processor by simulating the execution of machi
 ## **Features**
 1. **32 bit emulator**\
 &mdash; mostly based off the ARM instruction set, with a few particular changes to simplify\
-&mdash; custom bit formats for instructions to achieve a fixed width instruction set (4 bytes)
+&mdash; custom bit formats for instructions to achieve a fixed width instruction set (4 bytes)\
+&mdash; hardware floating point in the integer registers, atomics, and the instructions a compiler needs (`csel`, `adr`, `clz`, ...)
 2. **Assembler**\
 &mdash; preprocesses the **source/header** files (`.basm`, `.binc`) into `.bi` files and then converts into **relocatable object** files (`.bo`)\
 &mdash; supports some C **preprocessors** like `#include`, `#define`, conditional blocks, and macros\
@@ -66,7 +68,7 @@ ninja --version
 # Requires a C++20 compiler and Ninja to build (and gcc/gcov, lcov for code coverage)
 # GoogleTest is downloaded automatically by CMake
 # Builds both build/debug and build/release (and runs the tests)
-./build.sh [clean | compile | test | coverage]
+./build.sh [clean | compile | test | coverage | asan | ubsan]
 ```
 
 
@@ -100,6 +102,12 @@ ctest --test-dir build/debug -L assembler_integration
 ./build.sh coverage
 
 # Then use the Coverage Gutters and Live Preview extension to view the coverage page.
+
+# Build and test with the address, leak and undefined behavior sanitizers (build/asan), or with the undefined behavior one alone (build/ubsan, faster)
+./build.sh asan
+
+# Time the emulator on the programs in tools/bench (see the top of the script)
+tools/bench.sh
 ```
 New test files must be added by hand to the `aemu_add_gtest(...)` call in the `tests/CMakeLists.txt` of their module.
 
@@ -119,6 +127,9 @@ Note, currently the build process argument parser is extremely rudimentary so op
 * -c: only compile the source files into object files
 * -D <flag>: pass a preprocessor flag to the program
 * -kp: keep the intermediate preprocessed `.bi` files
+* -ld <script.ld>: use a linker script instead of the default layout
+* -dump: print a listing of each object file and of the executable
+* -W error, -wall: make a warning end the build like an error
 ##### More options can be found with `-h` or in the source code (`core/assembler/src/build.cpp`)
 
 #### Run an executable with `emu32`
@@ -129,7 +140,8 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * `-e <file>`: executable to load, `-l <n>`: instruction limit (0 for none)
 * `--reg x0=5,sp=0x2000`, `--flags 0b0100`: initial register and NZCV flag state
 * `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
-* Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault
+* Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint
+* Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug` (see [`docs/debugging.md`](./docs/debugging.md))
 * Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out
 
 
@@ -144,27 +156,23 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints and the interactive debugger
 * [`docs/todo.md`](./docs/todo.md): what is not done yet
 * Sample programs are in `core/app/programs/`
-* Documentation of the emulator and of the source code is still a *todo*
+* The documentation of the source code is in the headers (`///` comments)
 
 ## **Current Work**
-* C Compiler (written in C, currently disabled in the build)
-* - Lexer, parser, and codegen for simple programs exist, functions are next
+* C Compiler (written in C, currently disabled in the build, awaiting a rewrite; see [`docs/todo.md`](./docs/todo.md))
 * Improving/modernizing build and test system
 * - Added code coverage tools to assist in unit test development
 * - Added integration tests that drive `basm` and `emu32` end to end
 
 ## **Future Goals**
-* Relocation entry types and section directives to help partition code
 * Create simple OS with a CLI
 * Support dynamically linked libraries
 * Simple compiled language (like C, might instead write a LLVM backend)
 * System libraries
 * File System
-* Benchmarking system.. (Current optimizations have led to 120-130 million instr/s)
-* - Slightly confused why the debug build performs slightly faster than the release build
+* Benchmark the assembler, linker and loader (`tools/bench.sh` only times the emulator)
 * Expand testing
 * Clean up and HEAVILY refactor code :~)
-* Documentation! (both the assembly language, emulator, and source code)
 
 
 ## **History**
