@@ -86,7 +86,10 @@ and the release build has debug info so the samples can be attributed to source 
     breakpoint (`status=breakpoint`).
   - Debugging (`docs/debugging.md`): `--trace <file|->` (a line per instruction with the registers
     it changed), `--history N` (last N instructions, printed as `history[i]=...` after the run),
-    `--break addr|symbol,...` and `--debug` (interactive REPL, `Debugger` in `debugger.h`). Symbols
+    `--break addr|symbol,...`, `--debug` (interactive REPL, `Debugger` in `debugger.h`) and `--gdb PORT`
+    (`GdbServer` in `gdb_server.h`: the packet handler `handle ()` is separate from the socket loop
+    `serve ()`; it describes the ARM core registers to gdb and absorbs the step that gdb makes
+    after a watchpoint hit). Symbols
     come from the `.bexe` (`SymbolMap`, a local label has its `:LOCAL:n` suffix stripped). The
     library side is `Emulator32bit::add_breakpoint`/`set_trace`/`set_history_size`/`set_symbols`;
     `RunResult::Status::BREAKPOINT` is a fourth status, so a `switch` over it needs the case. The

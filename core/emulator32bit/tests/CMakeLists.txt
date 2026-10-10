@@ -13,6 +13,7 @@ aemu_add_gtest(emulator32bit_tests
         ./emulator_tests/system_bus_test.cpp
         ./emulator_tests/virtual_memory_test.cpp
         ./emulator_tests/debug_test.cpp
+        ./emulator_tests/gdb_server_test.cpp
         ./instruction_tests/hlt_test.cpp
         ./instruction_tests/fetch_fault_test.cpp
         ./instruction_tests/access_fault_test.cpp

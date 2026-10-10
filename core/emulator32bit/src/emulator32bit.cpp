@@ -516,6 +516,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
             {
                 m_watch_hit += std::format(", the old value was {:#x}", old_value);
             }
+            m_last_watch_hit = {address, watch.kind};
             return;
         }
     }

@@ -20,7 +20,7 @@ This project simulates a computer processor by simulating the execution of machi
 * supports up to 64 instructions (6 bit opcode), currently **35** opcodes are in use (29 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
-* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA), and a debugger (trace, breakpoints, watchpoints, a REPL)
+* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
 
 <p align="center">
   <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">
@@ -141,7 +141,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * `--reg x0=5,sp=0x2000`, `--flags 0b0100`: initial register and NZCV flag state
 * `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
 * Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint
-* Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug` (see [`docs/debugging.md`](./docs/debugging.md))
+* Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug`, `--gdb` (see [`docs/debugging.md`](./docs/debugging.md))
 * Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out
 
 
@@ -153,7 +153,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * [`docs/mmu.md`](./docs/mmu.md): the page tables and the TLB
 * [`docs/devices.md`](./docs/devices.md): the memory map, the devices, interrupts and the boot sequence
 * [`docs/abi.md`](./docs/abi.md): the calling convention, the data layout and the frame record
-* [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints and the interactive debugger
+* [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints, the interactive debugger and the gdb server
 * [`docs/internals.md`](./docs/internals.md): how the code is put together, the invariants to keep when changing it, and how to measure a change
 * [`docs/todo.md`](./docs/todo.md): what is not done yet
 * Sample programs are in `core/app/programs/`

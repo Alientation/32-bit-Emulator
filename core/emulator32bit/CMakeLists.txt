@@ -13,6 +13,7 @@ add_library(emulator32bit STATIC
     src/debugger.cpp
     src/devices.cpp
     src/host_input.cpp
+    src/gdb_server.cpp
 )
 add_library(aemu::emulator32bit ALIAS emulator32bit)
 

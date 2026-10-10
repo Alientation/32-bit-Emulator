@@ -1,5 +1,6 @@
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/gdb_server.h"
 #include "emulator32bit/host_input.h"
 #include "assembler/load_executable.h"
 #include "assembler/object_file.h"
@@ -174,6 +175,8 @@ static cxxopts::Options make_options()
         ("t,trace", "Write every executed instruction and what it changed to this file (- for stdout)",
             cxxopts::value<std::string> ())
         ("console-input", "File whose bytes the console device receives (see docs/devices.md)",
+            cxxopts::value<std::string> ())
+        ("gdb", "Wait for gdb on this TCP port of 127.0.0.1 before the program starts (see docs/debugging.md)",
             cxxopts::value<std::string> ())
         ("console-stdin", "The console device receives what is typed (standard input) while the machine runs")
         ("block-file", "File that holds the block device's disk (512 byte sectors); made if it does not exist",
@@ -610,6 +613,11 @@ static int run_cli(int argc, char *argv[])
         std::cerr << "ERROR: --console-stdin and --debug both read the standard input\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
+    if (result.count("gdb") && (result.count("debug") || result.count("console-stdin")))
+    {
+        std::cerr << "ERROR: --gdb cannot be combined with --debug or --console-stdin\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
 
     CliArgs args;
     if (!parse_args(result, args))
@@ -621,6 +629,29 @@ static int run_cli(int argc, char *argv[])
     if (emu == nullptr)
     {
         return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    if (result.count("gdb"))
+    {
+        const std::optional<U64> port = parse_number(result["gdb"].as<std::string>());
+        if (!port || *port > 65535)
+        {
+            std::cerr << "ERROR: Invalid port for --gdb\n";
+            return S32(ExitCode::EXIT_USAGE_ERROR);
+        }
+        const bool served = GdbServer::serve(
+            *emu, static_cast<std::uint16_t>(*port),
+            [](const std::uint16_t listening)
+            {
+                std::cout << "gdb: listening on 127.0.0.1:" << listening << std::endl;
+            },
+            &std::cerr);
+        if (!served)
+        {
+            std::cerr << "ERROR: Cannot listen on port " << *port << "\n";
+            return S32(ExitCode::EXIT_USAGE_ERROR);
+        }
+        return S32(ExitCode::EXIT_HALTED);
     }
 
     if (result.count("debug"))

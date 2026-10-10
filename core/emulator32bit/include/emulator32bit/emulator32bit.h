@@ -279,6 +279,20 @@ class Emulator32bit : public Encoding
     /// @return the watchpoints
     const std::vector<Watchpoint> &watchpoints() const;
 
+    /// What the last watchpoint that stopped a run was hit by.
+    struct WatchHit
+    {
+        word address;   ///< the first byte of the access
+        WatchKind kind; ///< the kind of the watchpoint
+    };
+
+    /// @return the last hit, valid after a run that ended in Status::BREAKPOINT because of a
+    ///         watchpoint
+    const WatchHit &last_watch_hit() const
+    {
+        return m_last_watch_hit;
+    }
+
     /// Makes run () stop, with Status::BREAKPOINT, once an instruction (or exception entry) has
     /// changed the register (0-29 or sp, the one of the current mode). With `value`, only a change
     /// to that value stops. A write of the value it already has is not a change. The pc is then at
@@ -604,6 +618,7 @@ class Emulator32bit : public Encoding
     std::vector<RegisterWatch> m_register_watches;
     /// The first watchpoint the running instruction hit, as the message run () reports.
     std::string m_watch_hit;
+    WatchHit m_last_watch_hit{0, WatchKind::WRITE};
 
     /// Called by the memory instructions after a successful access of `length` bytes. `value` is
     /// what was loaded or stored.

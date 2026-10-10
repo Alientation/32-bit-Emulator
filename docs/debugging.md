@@ -1,6 +1,6 @@
 # Debugging programs
 
-Six tools in `emu32`, all off by default and free when unused:
+Seven tools in `emu32`, all off by default and free when unused:
 
 | Option | What it does |
 |--------|--------------|
@@ -10,6 +10,7 @@ Six tools in `emu32`, all off by default and free when unused:
 | `--watch <addr\|symbol>[:len][:r\|w\|rw][:p][:<op><value>],...` | stops after an instruction that accesses those bytes (`p`: physical addresses; `<op><value>`: only for that value) |
 | `--watch-reg <reg>[=value],...` | stops after an instruction changes a register (to that value) |
 | `--debug` | interactive debugger on stdin/stdout |
+| `--gdb <port>` | waits for gdb (or an IDE) on `127.0.0.1:<port>`, see [below](#gdb) |
 
 Symbols come from the `.bexe` loaded with `-e`. A local label shows up under its plain name, so a name that two files both use as a local label refers to the first one.
 
@@ -116,6 +117,28 @@ Three limits, the first two from how the records are made:
 
 - A watchpoint condition looks at the value of one access, not at the memory: a `strb` into a watched word compares the byte. There is no condition on a register, or on several conditions at once.
 - Watchpoints stop after the access; there is no stop before it.
+
+## gdb
+
+`emu32 -e prog.bexe --gdb 1234` loads the program, does **not** start it, and waits for a client of the GDB remote serial protocol on `127.0.0.1:1234` (the port can be 0 for any free one: the line `gdb: listening on 127.0.0.1:<port>` says which). It serves one client, and ends when the client detaches (`detach`), kills the program or hangs up. It cannot be combined with `--debug` or `--console-stdin`. The server is `GdbServer` (`gdb_server.h`), whose `handle ()` takes a packet and returns the reply, so it is tested without a socket; the TCP part is POSIX only.
+
+```
+$ gdb-multiarch -nx -ex 'target remote 127.0.0.1:1234'
+(gdb) break *0x10          # a breakpoint at an address: symbols of the .bexe are not known to gdb
+(gdb) continue
+(gdb) info registers r0 pc cpsr
+(gdb) stepi
+(gdb) watch *(int*)0x1000
+(gdb) x/4wx 0x1000
+(gdb) monitor disasm 0x0 4   # the instructions as the assembler writes them
+```
+
+- **Registers.** gdb has no architecture for this processor, so the server describes the ARM core registers, which gdb accepts with more registers added: `r0`-`r12` are `x0`-`x12`, `sp` is `sp`, `lr` is `x29`, `pc` is `pc`, `cpsr` is the flags in the bits of an ARM one (N, Z, C, V in bits 31-28, the mode in bits 4-0, the IRQ mask in bit 7; only the flags can be written), and `x13`-`x28` follow as registers of their own.
+- **Not ours: the disassembly and the symbols.** `x/i` and the frames of gdb decode the instructions as ARM and know no symbol of the `.bexe`, so use `monitor disasm [address [count]]` for the instructions and the addresses of `basm -dump`. `bt` of gdb does not follow the frame records either (the `--debug` debugger does).
+- **Breakpoints and watchpoints** (`Z0`-`Z4`) are those of `--break` and `--watch`: a breakpoint stops before the instruction, a watchpoint after the access, in virtual addresses, without a condition. gdb takes it that this kind of processor stops *before* the access and steps over it after the hit; the server reports the hit, and the step that follows it does not run anything, because the instruction has run already. `brk` in the program stops it like a breakpoint.
+- **Stops.** A breakpoint or a watchpoint or a step is `SIGTRAP`, a fault of the program `SIGSEGV` (the message is not sent), the halt (`hlt`) is the exit of the program (`W00`), Ctrl-C of gdb is `SIGINT`: the program runs in slices of 20000 instructions and looks at the client between them.
+- **Memory** is read and written with the permissions of the host: `x` works on any mapped address, and a write to the code of a loaded program (not writable by the program) is refused by the machine, so `set *(int*)0x0 = 1` fails with an error.
+- Not supported: threads (there is one), `X` (binary writes, gdb falls back to `M`), `qSymbol`, tracepoints, the registers of the floating point (they are the integer ones), `vRun` (the program is started by `emu32`).
 
 ## `brk`
 
