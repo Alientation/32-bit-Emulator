@@ -1020,7 +1020,7 @@ TEST(BlockDeviceScatterGather, the_list_has_to_be_there)
         << "too many";
     EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2002, {{0, 1, 0x1000}}, 1), failed)
         << "the list is not word aligned";
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2FF8, {{0, 1, 0x1000}}, 1), failed)
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2FF8, {}, 1), failed)
         << "the list runs off the RAM";
     EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x0000, {}, 1), failed)
         << "the list is not in RAM";
