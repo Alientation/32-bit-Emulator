@@ -224,9 +224,12 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
 
     std::vector<int> local_scope;
     int local_count_scope = 0;
+    size_t kept = 0;
     for (size_t i = 0; i < relocations.size(); i++)
     {
-        ObjectFile::RelocationEntry &rel = relocations.at(i);
+        if (kept != i) relocations[kept] = relocations[i];
+        ObjectFile::RelocationEntry &rel = relocations[kept];
+        kept++;
         AEMU_DEBUG("Assembler::fill_local() - Evaluating relocation entry {}",
                    m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name]);
 
@@ -292,11 +295,7 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
             apply_relocation(rel.type, m_obj.text_section[rel.offset / 4], rel.offset,
                              symbol_entry.symbol_value + word(rel.addend));
 
-        // For now, simply delete from vector.
-        // TODO: In future look to optimize.
-        relocations.erase(relocations.begin() + i);
-
-        // Offset the for loop increment.
-        i--;
+        kept--; // resolved here, so it is not kept
     }
+    relocations.resize(kept);
 }
