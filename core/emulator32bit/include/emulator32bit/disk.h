@@ -89,26 +89,6 @@ class Disk : public BaseMemory
     ///     occur.
     virtual void return_page(word page);
 
-    /// Returns all disk pages back to the free page list.
-    ///
-    /// This will essentially wipe the disk fully, though the contents of the
-    /// pages that were in disk will still remain in disk memory.
-    virtual void return_all_pages();
-
-    /// Return all pages in a specific range.
-    ///
-    /// Pages that are in the range page_lo..page_hi, inclusive, but are already
-    /// a free page will NOT throw an exception when attempting to return back
-    /// to free list.
-    ///
-    /// @todo The returned exception should be a disk exception to wrap the
-    ///     internal implementation (free block list) and to limit/make more
-    ///     specific what exceptions can actually occur as a result of this request.
-    ///
-    /// @param page_lo Lowest page address to return back to disk.
-    /// @param page_hi Highest page address to return back to disk.
-    virtual void return_pages(word page_lo, word page_hi);
-
     /// Reads a disk page.
     ///
     /// Page data is returned as a vector of @ref PAGE_SIZE bytes,
@@ -300,8 +280,6 @@ class MockDisk : public Disk
     // The same operations as Disk, on the pages in memory.
     word get_free_page() override;
     void return_page(word page) override;
-    void return_all_pages() override;
-    void return_pages(word p_addr_lo, word p_addr_hi) override;
 
     using Disk::read_page;
     using Disk::write_page;

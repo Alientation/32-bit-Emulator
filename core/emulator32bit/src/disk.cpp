@@ -166,20 +166,6 @@ void Disk::return_page(word page)
     AEMU_DEBUG("Returning disk page {} back to disk.", page);
 }
 
-void Disk::return_all_pages()
-{
-    m_free_list.return_all();
-
-    AEMU_DEBUG("Returning all disk pages back to disk");
-}
-
-void Disk::return_pages(word page_lo, word page_hi)
-{
-    m_free_list.force_return_block(page_lo, page_hi - page_lo + 1);
-
-    AEMU_DEBUG("Returned all disk pages from {} to {} back to disk.", page_lo, page_hi);
-}
-
 std::vector<byte> Disk::read_page(word page)
 {
     std::vector<byte> data(kPageSize);
@@ -438,23 +424,6 @@ void MockDisk::return_page(word page)
         }
         m_is_returned[page] = true;
         m_returned.push_back(page);
-    }
-}
-
-void MockDisk::return_all_pages()
-{
-    m_pages.clear();
-    m_spare.clear();
-    m_returned.clear();
-    m_is_returned.clear();
-    m_next_page = 0;
-}
-
-void MockDisk::return_pages(word page_lo, word page_hi)
-{
-    for (word page = page_lo; page <= page_hi && page < m_next_page; page++)
-    {
-        return_page(page);
     }
 }
 
