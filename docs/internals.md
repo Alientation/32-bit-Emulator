@@ -229,16 +229,19 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
     `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
     CLAIM register), `Timer` (counts retired instructions, `tick()` is called by `run()` after each
-    one), `Console` (stream out, queued bytes in) and `BlockDevice` (512 byte sectors, data
+    one), `Console` (stream out, queued bytes in, and the live input of a `HostInput` that another
+    thread fills: it is taken on the emulator thread, by `poll_host_input ()` from the register
+    reads and from the `hooked` part of `run ()`, which a live input turns on) and `BlockDevice` (512 byte sectors, data
     register, completes after LATENCY ticks, line 2, `--block-file`/`--block-sectors`; DMA commands
-    4/5 with DMA_ADDR/DMA_COUNT move whole sectors to and from RAM at completion (`set_dma_memory`,
-    wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU). `SystemBus`
+    4/5 with DMA_ADDR/DMA_COUNT, and 6/7 with a list of descriptors at DMA_LIST, move whole sectors
+    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU). `SystemBus`
     owns them (`intc`, `timer`, `console`, `block`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`
     and `route_memory` sends addresses from `kDeviceBase` to them; the swapping MMU leaves those
     addresses untranslated. `run()` takes the IRQ exception between instructions when the queue is
     not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps the
-    timer to its match, else halts. Instruction fetch also works from the ROM. `emu32
-    --console-input FILE` feeds the console. Memory may not reach `kDeviceBase`.
+    timer to its match, else waits for the host's input if the program asked to hear of a byte, else
+    halts. Instruction fetch also works from the ROM. `emu32
+    --console-input FILE` feeds the console, `--console-stdin` hands it what is typed. Memory may not reach `kDeviceBase`.
   - **Page tables** (`docs/mmu.md`): `SCTLR.M = 1` (`msr sctlr, 1`) switches
     `VirtualMemory::translate_address` from the swapping process MMU above to a hardware walk of a
     two level table at `PTBR` (physical): entries `V W X U A D` + frame, `A`/`D` set by the walker,

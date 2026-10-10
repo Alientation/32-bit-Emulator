@@ -1,5 +1,6 @@
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/host_input.h"
 #include "assembler/load_executable.h"
 #include "assembler/object_file.h"
 #include "util/file.h"
@@ -15,6 +16,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -173,6 +175,7 @@ static cxxopts::Options make_options()
             cxxopts::value<std::string> ())
         ("console-input", "File whose bytes the console device receives (see docs/devices.md)",
             cxxopts::value<std::string> ())
+        ("console-stdin", "The console device receives what is typed (standard input) while the machine runs")
         ("block-file", "File that holds the block device's disk (512 byte sectors); made if it does not exist",
             cxxopts::value<std::string> ())
         ("block-sectors", "Number of sectors of the block device (at least the size of --block-file)",
@@ -481,6 +484,25 @@ static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &r
         emu->system_bus->console.push_input(bytes.str());
     }
 
+    if (result.count("console-stdin"))
+    {
+        // What is typed goes to the console while the machine runs. The thread reads a character
+        // at a time and is left blocked on the terminal when the machine ends.
+        const auto input = std::make_shared<HostInput>();
+        emu->system_bus->console.attach_host_input(input);
+        std::thread(
+            [input]
+            {
+                char c;
+                while (std::cin.get(c))
+                {
+                    input->push(std::string(1, c));
+                }
+                input->close();
+            })
+            .detach();
+    }
+
     emu->set_symbols(&args.symbols);
     emu->set_trace(args.trace);
     emu->set_history_size(args.history_size);
@@ -580,6 +602,12 @@ static int run_cli(int argc, char *argv[])
     if (!result.unmatched().empty())
     {
         std::cerr << "ERROR: Unexpected argument: " << result.unmatched().front() << "\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+
+    if (result.count("console-stdin") && result.count("debug"))
+    {
+        std::cerr << "ERROR: --console-stdin and --debug both read the standard input\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 

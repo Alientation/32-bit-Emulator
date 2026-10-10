@@ -2,10 +2,12 @@
 // taking an interrupt between instructions, WFI, and running code from the ROM.
 
 #include "emulator32bit/devices.h"
+#include "emulator32bit/host_input.h"
 #include "emulator32bit_test/emulator32bit_test.h"
 
 #include <filesystem>
 #include <sstream>
+#include <thread>
 
 namespace
 {
@@ -248,6 +250,111 @@ TEST_F(Devices, input_raises_line_1_when_the_receive_interrupt_is_enabled)
 
     cpu.system_bus->console.push_input("y");
     EXPECT_TRUE(cpu.system_bus->intc.has_pending());
+}
+
+// --- input that arrives while the machine runs ---------------------------------------------
+
+TEST_F(Devices, bytes_from_the_host_are_read_through_the_registers)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 2u) << "nothing yet";
+
+    input->push("hi");
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 3u) << "the status looks at the host";
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'h');
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'i');
+    EXPECT_EQ(cpu.memory.read_word(kConsoleBase + 4), 2u);
+}
+
+TEST_F(Devices, input_from_the_host_interrupts_a_program_that_is_running)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    install_vectors({mov(7, 1), load_at(8, 10, 0), E::asm_eret()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kConsoleBase));
+    program.insert(program.end(), {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08),
+                                   mov(1, 1), store_at(1, 11, 0x08),
+                                   E::asm_msr(E::kSysregId_pstate, true, 0)});
+    program.insert(program.end(), 20, nop());
+    program.push_back(E::asm_hlt());
+
+    input->push("x");
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineConsole);
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'x');
+}
+
+// The machine has nothing to do, so wfi waits for what is typed (in the time of the host).
+TEST_F(Devices, wfi_waits_for_the_host_when_the_program_asked_to_hear_of_a_byte)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    std::thread typist(
+        [input]
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            input->push("k");
+        });
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kConsoleBase));
+    program.insert(program.end(), {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08),
+                                   mov(1, 1), store_at(1, 11, 0x08), E::asm_wfi(),
+                                   load_at(8, 10, 0), // claim
+                                   load_at(9, 11, 0), // the byte
+                                   E::asm_hlt()});
+    const auto result = run(program);
+    typist.join();
+
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(result.message.find("no interrupt source"), std::string::npos) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineConsole);
+    EXPECT_EQ(cpu.read_reg(9), word('k'));
+}
+
+TEST_F(Devices, wfi_ends_the_run_when_the_input_from_the_host_has_ended)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    input->close();
+
+    std::vector<word> program;
+    append(program, constant(11, kConsoleBase));
+    program.insert(program.end(), {mov(1, 1), store_at(1, 11, 0x08), E::asm_wfi(), mov(3, 7),
+                                   E::asm_hlt()});
+    const auto result = run(program);
+    EXPECT_EQ(result.status, Status::HALTED);
+    EXPECT_NE(result.message.find("no interrupt source"), std::string::npos) << result.message;
+    EXPECT_EQ(cpu.read_reg(3), 0u);
+    EXPECT_TRUE(input->finished());
+}
+
+TEST(HostInputUnit, bytes_are_taken_in_order_and_wait_ends_with_them_or_with_the_end)
+{
+    HostInput input;
+    EXPECT_FALSE(input.pending());
+    input.push("ab");
+    input.push("c");
+    EXPECT_TRUE(input.pending());
+    EXPECT_TRUE(input.wait());
+
+    std::deque<byte> taken;
+    input.take(taken);
+    EXPECT_EQ(std::string(taken.begin(), taken.end()), "abc");
+    EXPECT_FALSE(input.pending());
+    EXPECT_FALSE(input.finished());
+
+    input.close();
+    EXPECT_TRUE(input.pending()) << "so that the end is noticed";
+    EXPECT_FALSE(input.wait());
+    EXPECT_TRUE(input.finished());
 }
 
 TEST_F(Devices, a_reset_clears_the_devices)
@@ -794,6 +901,152 @@ TEST(BlockDeviceDma, a_reset_clears_the_dma_registers_and_an_interrupt_is_raised
     disk.block.reset();
     EXPECT_EQ(disk.reg(0x20), 0u);
     EXPECT_EQ(disk.reg(0x24), 0u);
+}
+
+// --- scatter/gather ----------------------------------------------------------------------
+
+namespace
+{
+
+struct Descriptor
+{
+    word sector, count, address;
+};
+
+/// Writes the descriptors at `list` (in the RAM of the fixture) and runs a command 6 or 7 on them.
+word scatter(DmaDisk &disk, const word command, const word list,
+             const std::vector<Descriptor> &descriptors, const word count_register)
+{
+    for (size_t i = 0; i < descriptors.size(); i++)
+    {
+        disk.ram.write_word(list + word(i) * 12, descriptors[i].sector);
+        disk.ram.write_word(list + word(i) * 12 + 4, descriptors[i].count);
+        disk.ram.write_word(list + word(i) * 12 + 8, descriptors[i].address);
+    }
+    disk.set(0x28, list);
+    disk.set(0x24, count_register);
+    disk.set(0x00, command);
+    disk.wait();
+    const word status = disk.reg(0x04);
+    disk.set(0x04, 0);
+    return status;
+}
+
+} // namespace
+
+TEST(BlockDeviceScatterGather, a_list_of_pieces_moves_between_the_disk_and_several_buffers)
+{
+    DmaDisk disk(8);
+    for (word i = 0; i < 6; i++)
+    {
+        disk.write_sector(i, 100 * (i + 1));
+    }
+
+    // Sector 4 to 0x1000, then sectors 0 and 1 to 0x1400, which is not where the first ends.
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
+                      {{4, 1, 0x1000}, {0, 2, 0x1400}}, 2),
+              BlockDevice::kDone);
+    EXPECT_EQ(disk.ram.read_word(0x1000), 500u);
+    EXPECT_EQ(disk.ram.read_word(0x1400), 100u);
+    EXPECT_EQ(disk.ram.read_word(0x1400 + 512), 200u);
+    EXPECT_EQ(disk.ram.read_word(0x1200), 0u) << "between the buffers nothing is written";
+
+    // And back to other sectors: RAM 0x1400 (two sectors) to sector 6, RAM 0x1000 to sector 3.
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterWrite, 0x2000,
+                      {{6, 2, 0x1400}, {3, 1, 0x1000}}, 2),
+              BlockDevice::kDone);
+    EXPECT_EQ(disk.block.sector(6), disk.block.sector(0));
+    EXPECT_EQ(disk.block.sector(7), disk.block.sector(1));
+    EXPECT_EQ(disk.block.sector(3), disk.block.sector(4));
+    EXPECT_EQ(disk.reg(0x28), 0x2000u);
+}
+
+TEST(BlockDeviceScatterGather, it_takes_latency_for_each_sector_of_all_the_pieces)
+{
+    DmaDisk disk(8);
+    disk.ram.write_word(0x2000 + 0, 0);
+    disk.ram.write_word(0x2000 + 4, 2);
+    disk.ram.write_word(0x2000 + 8, 0x1000);
+    disk.ram.write_word(0x2000 + 12, 5);
+    disk.ram.write_word(0x2000 + 16, 1);
+    disk.ram.write_word(0x2000 + 20, 0x1800);
+    disk.set(0x1C, 2);
+    disk.set(0x28, 0x2000);
+    disk.set(0x24, 2);
+    disk.set(0x00, BlockDevice::kCmdScatterRead);
+
+    for (int i = 0; i < 5; i++)
+    {
+        disk.block.tick();
+    }
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kBusy) << "5 of 6 (3 sectors, 2 instructions each)";
+    disk.block.tick();
+    EXPECT_EQ(disk.reg(0x04), BlockDevice::kDone);
+}
+
+TEST(BlockDeviceScatterGather, one_piece_that_is_not_valid_fails_all_of_them)
+{
+    DmaDisk disk(4);
+    disk.write_sector(1, 5);
+    const word failed = BlockDevice::kDone | BlockDevice::kError;
+
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
+                      {{1, 1, 0x1000}, {3, 2, 0x1400}}, 2),
+              failed)
+        << "the second runs off the disk";
+    EXPECT_EQ(disk.ram.read_word(0x1000), 0u) << "and the first was not done";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
+                      {{1, 1, 0x1000}, {0, 1, 0x1402}}, 2),
+              failed)
+        << "not word aligned";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{1, 0, 0x1000}}, 1), failed)
+        << "no sectors";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{1, 1, 0x0000}}, 1), failed)
+        << "not RAM";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterWrite, 0x2000, {{9, 1, 0x1000}}, 1), failed)
+        << "past the disk";
+    EXPECT_EQ(disk.block.sector(1)[0], 5) << "the disk is untouched";
+}
+
+TEST(BlockDeviceScatterGather, the_list_has_to_be_there)
+{
+    DmaDisk disk(4);
+    const word failed = BlockDevice::kDone | BlockDevice::kError;
+
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {}, 0), failed) << "no pieces";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {},
+                      BlockDevice::kMaxDescriptors + 1),
+              failed)
+        << "too many";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2002, {{0, 1, 0x1000}}, 1), failed)
+        << "the list is not word aligned";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2FF8, {{0, 1, 0x1000}}, 1), failed)
+        << "the list runs off the RAM";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x0000, {}, 1), failed)
+        << "the list is not in RAM";
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0xFFFFFFF8, {}, 2), failed) << "wraps";
+
+    BlockDevice lone{disk.intc}; // no DMA memory
+    lone.set_capacity(1);
+    lone.write_word(kBlockBase + 0x24, 1);
+    lone.write_word(kBlockBase + 0x00, BlockDevice::kCmdScatterRead);
+    lone.advance(1000);
+    EXPECT_EQ(lone.read_word(kBlockBase + 0x04), failed);
+}
+
+TEST(BlockDeviceScatterGather, where_the_pieces_overlap_the_later_one_wins_and_a_reset_clears_the_list)
+{
+    DmaDisk disk(4);
+    disk.write_sector(0, 11);
+    disk.write_sector(1, 22);
+
+    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
+                      {{0, 1, 0x1000}, {1, 1, 0x1000}}, 2),
+              BlockDevice::kDone);
+    EXPECT_EQ(disk.ram.read_word(0x1000), 22u);
+
+    disk.block.reset();
+    EXPECT_EQ(disk.reg(0x28), 0u);
 }
 
 // The machine wires the block device to its RAM: a program moves two sectors in one command.

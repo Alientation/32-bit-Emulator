@@ -6,9 +6,12 @@
 #include <cstdint>
 #include <deque>
 #include <iosfwd>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+class HostInput;
 
 /// The memory mapped devices (docs/devices.md). Each is one page of registers at a physical address
 /// in the device window, and is reached through the system bus like memory. A register is a word;
@@ -193,6 +196,33 @@ class Console : public Device
         return !m_input.empty();
     }
 
+    /// Takes input that another thread supplies while the machine runs (a terminal). The console
+    /// moves it into its queue on the thread of the emulator: when a register is read, when
+    /// `Emulator32bit::run` calls `poll_host_input` between instructions, and when `WFI` waits.
+    ///
+    /// @param input the input, which the console shares
+    void attach_host_input(std::shared_ptr<HostInput> input);
+
+    /// @return whether there is a live input
+    bool has_host_input() const
+    {
+        return m_host != nullptr;
+    }
+
+    /// Takes the bytes the host has supplied, and raises the interrupt if that is enabled.
+    void poll_host_input();
+
+    /// @return whether a received byte raises the interrupt (CTRL bit 0)
+    bool receive_interrupt_enabled() const
+    {
+        return (m_ctrl & 1) != 0;
+    }
+
+    /// For WFI with nothing else to wait for: blocks until the host supplies a byte.
+    ///
+    /// @return false if the input has ended and no byte will come (or there is no live input)
+    bool wait_host_input();
+
     void reset() override;
 
   protected:
@@ -203,6 +233,7 @@ class Console : public Device
     InterruptController &m_intc;
     std::ostream *m_out;
     std::deque<byte> m_input;
+    std::shared_ptr<HostInput> m_host;
     word m_ctrl = 0;
 };
 
@@ -213,9 +244,10 @@ class Console : public Device
 /// the kernel can wait with `WFI`.
 ///
 /// | Offset | Name     | Access | |
-/// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file, 4 DMA read, 5 DMA write |
+/// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file, 4 DMA read, 5 DMA write, 6 scatter/gather read, 7 scatter/gather write |
 /// | 0x20   | DMA_ADDR | r/w    | physical RAM address of a DMA transfer, a multiple of 4 |
-/// | 0x24   | DMA_COUNT| r/w    | the number of sectors of a DMA transfer, from SECTOR on (at least 1) |
+/// | 0x24   | DMA_COUNT| r/w    | the number of sectors of a DMA transfer, from SECTOR on (at least 1); for 6 and 7 the number of descriptors |
+/// | 0x28   | DMA_LIST | r/w    | physical RAM address of the descriptors of a command 6 or 7, a multiple of 4 |
 /// | 0x04   | STATUS   | r/w    | bit 0: busy, bit 1: done, bit 2: error. A write clears done and error |
 /// | 0x08   | SECTOR   | r/w    | the sector number of the next command |
 /// | 0x0C   | DATA     | r/w    | the word of the buffer at CURSOR, and CURSOR moves on by 4 (use word accesses) |
@@ -223,6 +255,12 @@ class Console : public Device
 /// | 0x14   | CAPACITY | read   | the number of sectors, 0 when there is no disk |
 /// | 0x18   | CTRL     | r/w    | bit 0: raise line 2 when a command completes |
 /// | 0x1C   | LATENCY  | r/w    | instructions a command takes (at least 1). Reset: 100 |
+///
+/// A scatter/gather command moves the disk to or from several buffers in one command: DMA_LIST
+/// points at DMA_COUNT descriptors of three words, `sector`, `count` (sectors) and `address` (RAM,
+/// a multiple of 4), each like a DMA command of its own. The list is read when the command is
+/// given, the data moves when it completes, and it fails as a whole, moving nothing, if any
+/// descriptor is not valid.
 ///
 /// A command given while busy is ignored and sets error. A sector outside of the disk completes with
 /// error and changes nothing. So does a DMA transfer with a count of 0, an address that is not word
@@ -247,6 +285,11 @@ class BlockDevice : public Device
     static constexpr word kCmdFlush = 3;
     static constexpr word kCmdDmaRead = 4;
     static constexpr word kCmdDmaWrite = 5;
+    static constexpr word kCmdScatterRead = 6;
+    static constexpr word kCmdScatterWrite = 7;
+
+    /// The most descriptors of a scatter/gather command.
+    static constexpr word kMaxDescriptors = 1024;
 
     /// @param intc the controller that gets the interrupt
     explicit BlockDevice(InterruptController &intc);
@@ -321,8 +364,27 @@ class BlockDevice : public Device
     /// @param command the number written to COMMAND
     void start(word command);
 
-    /// Moves the sectors of the DMA command between the disk and RAM. Nothing is moved unless all
-    /// of it fits on both sides.
+    /// A piece of a DMA or scatter/gather command: `count` sectors from `sector` on, and the RAM
+    /// at `address`.
+    struct Segment
+    {
+        word sector;
+        word count;
+        word address;
+    };
+
+    /// @return whether the segment is inside the disk and inside the RAM, and aligned
+    bool segment_is_valid(const Segment &segment) const;
+
+    /// Reads the descriptors of a scatter/gather command from RAM.
+    ///
+    /// @param list the address of the list
+    /// @param count the number of descriptors
+    /// @return false if there are none, too many, or the list is not all in RAM
+    bool read_descriptors(word list, word count);
+
+    /// Moves the segments of the command between the disk and RAM. Nothing is moved unless all of
+    /// them fit on both sides.
     ///
     /// @param to_disk true to copy from RAM to the disk, false for the other way
     /// @return false if the transfer is not valid
@@ -350,7 +412,10 @@ class BlockDevice : public Device
     BaseMemory *m_dma_memory = nullptr;
     word m_dma_addr = 0;
     word m_dma_count = 0;
+    word m_dma_list = 0;
     word m_command_addr = 0;             ///< DMA_ADDR and DMA_COUNT when the command was given
     word m_command_count = 0;
+    std::vector<Segment> m_segments;     ///< what the command moves, from the registers or the list
+    bool m_segments_valid = false;       ///< whether they could be read
     byte m_write_data[kSectorSize] = {}; ///< the buffer when a write command was given
 };

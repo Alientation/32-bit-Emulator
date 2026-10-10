@@ -65,15 +65,18 @@ A timer that is not periodic disables itself when it fires. The match is for equ
 
 Output goes to the console stream (standard output for `emu32`; `Console::set_output` in a test). Input is queued by the host: `emu32 --console-input FILE` queues the bytes of the file at start, `Console::push_input` does it from C++. With CTRL bit 0 set, each byte that arrives raises line 1 (and enabling it while bytes wait raises it).
 
+Input can also arrive **while the machine runs**: `emu32 --console-stdin` hands the console what is typed (a thread reads the standard input a character at a time; not with `--debug`, which reads it too), and `Console::attach_host_input` takes a `HostInput` (`host_input.h`) that any thread of the host pushes bytes to. The console takes them on the thread of the machine: when `STATUS` or `DATA` is read, between two instructions (a run with a live input checks before each instruction, and takes the slower path of `run ()` that the debugging features use), and when `WFI` waits. `WFI` with nothing else to wait for (no timer match, no command in progress) and the receive interrupt enabled **blocks until a byte is typed**, which is host time passing, not instructions; when the input has ended (the end of the file on the standard input) it ends the run like without a live input. A machine that never reads the console and does not enable the interrupt does not look at the input.
+
 ### Block device (`0xF0003000`)
 
 A disk of **512 byte sectors** for the operating system. It is used either one sector at a time through a buffer inside the device and a data register (programmed I/O), or by **DMA**, many sectors straight to and from physical RAM. A command takes `LATENCY` retired instructions (per sector for DMA), like the timer counts, and then the status says so and line 2 is raised if enabled.
 
 | Offset | Name | Access | |
 |--------|------|--------|---|
-| `0x00` | COMMAND | write | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the disk to its file, 4 DMA read, 5 DMA write |
+| `0x00` | COMMAND | write | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the disk to its file, 4 DMA read, 5 DMA write, 6 scatter/gather read, 7 scatter/gather write |
 | `0x20` | DMA_ADDR | r/w | physical RAM address of a DMA transfer, a multiple of 4 |
-| `0x24` | DMA_COUNT | r/w | the number of sectors of a DMA transfer, at least 1 |
+| `0x24` | DMA_COUNT | r/w | the number of sectors of a DMA transfer, at least 1; for commands 6 and 7 the number of descriptors |
+| `0x28` | DMA_LIST | r/w | physical RAM address of the descriptors of a scatter/gather command, a multiple of 4 |
 | `0x04` | STATUS | r/w | bit 0 busy, bit 1 done, bit 2 error. A write clears done and error |
 | `0x08` | SECTOR | r/w | the sector number of the next command |
 | `0x0C` | DATA | r/w | the word of the buffer at CURSOR, and CURSOR moves on by 4. **Use word accesses** |
@@ -85,6 +88,16 @@ A disk of **512 byte sectors** for the operating system. It is used either one s
 A driver reads a sector like this: write SECTOR, write COMMAND = 1, wait (poll STATUS bit 0, or enable the interrupt and `wfi`), write STATUS to acknowledge, then read DATA 128 times. To write: write CURSOR = 0, write DATA 128 times, SECTOR, COMMAND = 2, wait. The buffer is copied when the command is given, so it can be reused at once.
 
 **DMA:** write SECTOR (the first), DMA_ADDR and DMA_COUNT, then COMMAND = 4 (disk to RAM) or 5 (RAM to disk), and wait as above. The sectors `SECTOR .. SECTOR + COUNT - 1` go to or from the `COUNT * 512` bytes at DMA_ADDR, and the buffer and cursor of the data register are not touched. The three registers are copied when the command is given.
+
+**Scatter/gather:** write DMA_LIST (the physical address of the descriptors) and DMA_COUNT (how many, 1 to 1024), then COMMAND = 6 (disk to RAM) or 7 (RAM to disk). A descriptor is three words, `sector`, `count` (sectors) and `address` (RAM, a multiple of 4), and means what a DMA command with those SECTOR, DMA_COUNT and DMA_ADDR means:
+
+```
++0   sector
++4   count
++8   address
+```
+
+The list is read **when the command is given**, the data moves when it completes, after `LATENCY` for each sector of all the descriptors together. If any descriptor is not valid (the rules of a DMA transfer, for each), or the list is empty, longer than 1024, not word aligned or not all in RAM, the command completes with error and moves **nothing**. Pieces are done in order, so where two overlap in RAM (a read) or on the disk (a write) the later one wins.
 
 - The data moves **when the command completes** (after `COUNT * LATENCY` instructions), not at the start. So a DMA write reads RAM at that moment, and a DMA read changes RAM then: the kernel has to keep the buffer where it is, and not use it, until done. Since DMA uses physical addresses, a kernel with page tables passes the frame's physical address and must not have the page swapped or moved meanwhile.
 - DMA reaches **RAM only** (not ROM, the memory mapped disk or devices). It does not trigger memory watchpoints, a debugger's `mem` sees the result.
@@ -123,9 +136,9 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Limits
 
-- A DMA command moves one contiguous buffer (no scatter/gather), and it moves the data when the command completes rather than during the wait.
-- Console input is queued by the host before the run. Nothing arrives while the machine runs.
+- A DMA command moves the data when it completes rather than during the wait, and the descriptors of a scatter/gather command are read when it is given: a kernel cannot change them in between.
+- A scatter/gather list has no chaining (a descriptor that points to the next list): 1024 descriptors is the most.
 
 ## Where it is in the code
 
-`Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each retired instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.
+`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each retired instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.

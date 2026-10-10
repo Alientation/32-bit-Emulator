@@ -1,5 +1,7 @@
 #include "emulator32bit/devices.h"
 
+#include "emulator32bit/host_input.h"
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -220,6 +222,36 @@ void Console::push_input(const std::string &bytes)
     }
 }
 
+void Console::attach_host_input(std::shared_ptr<HostInput> input)
+{
+    m_host = std::move(input);
+}
+
+void Console::poll_host_input()
+{
+    if (m_host == nullptr || !m_host->pending())
+    {
+        return;
+    }
+    const size_t before = m_input.size();
+    m_host->take(m_input);
+    if (m_input.size() != before && (m_ctrl & 1))
+    {
+        m_intc.raise(kIrqLineConsole);
+    }
+}
+
+bool Console::wait_host_input()
+{
+    if (m_host == nullptr)
+    {
+        return false;
+    }
+    const bool arrived = m_host->wait();
+    poll_host_input();
+    return arrived;
+}
+
 void Console::reset()
 {
     m_input.clear();
@@ -228,6 +260,10 @@ void Console::reset()
 
 word Console::read_register(const word offset)
 {
+    if (offset == 0x00 || offset == 0x04)
+    {
+        poll_host_input();
+    }
     switch (offset)
     {
     case 0x00:
@@ -339,7 +375,7 @@ void BlockDevice::start(const word command)
         m_status |= kError; // not accepted
         return;
     }
-    if (command < kCmdRead || command > kCmdDmaWrite)
+    if (command < kCmdRead || command > kCmdScatterWrite)
     {
         m_status |= kError;
         return;
@@ -352,37 +388,89 @@ void BlockDevice::start(const word command)
     m_command_addr = m_dma_addr;
     m_command_count = m_dma_count;
     m_remaining = std::max<word>(1, m_latency);
+    m_segments.clear();
+    m_segments_valid = true;
+    word sectors = 1;
     if (command == kCmdDmaRead || command == kCmdDmaWrite)
     {
-        // Per sector. The count is capped here so the time cannot overflow; a count that big fails.
-        m_remaining *= std::clamp<word>(m_dma_count, 1, 1 << 16);
+        m_segments.push_back({m_command_sector, m_command_count, m_command_addr});
+        sectors = m_command_count;
     }
+    else if (command == kCmdScatterRead || command == kCmdScatterWrite)
+    {
+        m_segments_valid = read_descriptors(m_dma_list, m_command_count);
+        U64 total = 0;
+        for (const Segment &segment : m_segments)
+        {
+            total += segment.count;
+        }
+        sectors = word(std::min<U64>(total, 1 << 16));
+    }
+    // Per sector. The count is capped so the time cannot overflow; a count that big fails.
+    m_remaining *= std::clamp<word>(sectors, 1, 1 << 16);
     if (command == kCmdWrite)
     {
         std::copy(std::begin(m_buffer), std::end(m_buffer), std::begin(m_write_data));
     }
 }
 
-bool BlockDevice::transfer(const bool to_disk)
+bool BlockDevice::segment_is_valid(const Segment &segment) const
 {
-    const U64 bytes = U64(m_command_count) * kSectorSize;
-    const U64 disk_start = U64(m_command_sector) * kSectorSize;
-    if (m_dma_memory == nullptr || m_command_count == 0 || m_command_addr % 4 != 0
-        || disk_start + bytes > m_storage.size() || U64(m_command_addr) + bytes > (U64(1) << 32)
-        || !m_dma_memory->in_bounds(m_command_addr)
-        || !m_dma_memory->in_bounds(word(m_command_addr + bytes - 1)))
+    const U64 bytes = U64(segment.count) * kSectorSize;
+    const U64 disk_start = U64(segment.sector) * kSectorSize;
+    return m_dma_memory != nullptr && segment.count != 0 && segment.address % 4 == 0
+           && disk_start + bytes <= m_storage.size()
+           && U64(segment.address) + bytes <= (U64(1) << 32)
+           && m_dma_memory->in_bounds(segment.address)
+           && m_dma_memory->in_bounds(word(segment.address + bytes - 1));
+}
+
+bool BlockDevice::read_descriptors(const word list, const word count)
+{
+    constexpr word kDescriptorSize = 12;
+    const U64 bytes = U64(count) * kDescriptorSize;
+    if (m_dma_memory == nullptr || count == 0 || count > kMaxDescriptors || list % 4 != 0
+        || U64(list) + bytes > (U64(1) << 32) || !m_dma_memory->in_bounds(list)
+        || !m_dma_memory->in_bounds(word(list + bytes - 1)))
     {
         return false;
     }
-
-    byte *disk = m_storage.data() + disk_start;
-    if (to_disk)
+    for (word i = 0; i < count; i++)
     {
-        m_dma_memory->read_block(m_command_addr, disk, word(bytes));
+        const word at = list + i * kDescriptorSize;
+        m_segments.push_back({m_dma_memory->read_word(at), m_dma_memory->read_word(at + 4),
+                              m_dma_memory->read_word(at + 8)});
     }
-    else
+    return true;
+}
+
+bool BlockDevice::transfer(const bool to_disk)
+{
+    if (!m_segments_valid || m_segments.empty())
     {
-        m_dma_memory->write_block(m_command_addr, disk, word(bytes));
+        return false;
+    }
+    for (const Segment &segment : m_segments)
+    {
+        if (!segment_is_valid(segment))
+        {
+            return false;
+        }
+    }
+
+    // In order, so where two segments overlap the later one wins.
+    for (const Segment &segment : m_segments)
+    {
+        const word bytes = segment.count * kSectorSize;
+        byte *disk = m_storage.data() + size_t(segment.sector) * kSectorSize;
+        if (to_disk)
+        {
+            m_dma_memory->read_block(segment.address, disk, bytes);
+        }
+        else
+        {
+            m_dma_memory->write_block(segment.address, disk, bytes);
+        }
     }
     return true;
 }
@@ -413,7 +501,9 @@ void BlockDevice::complete()
         break;
     case kCmdDmaRead:
     case kCmdDmaWrite:
-        error = !transfer(m_command == kCmdDmaWrite);
+    case kCmdScatterRead:
+    case kCmdScatterWrite:
+        error = !transfer(m_command == kCmdDmaWrite || m_command == kCmdScatterWrite);
         break;
     default:
         error = !save();
@@ -461,6 +551,7 @@ void BlockDevice::reset()
     m_latency = 100;
     m_dma_addr = 0;
     m_dma_count = 0;
+    m_dma_list = 0;
     std::fill(std::begin(m_buffer), std::end(m_buffer), byte(0));
 }
 
@@ -494,6 +585,8 @@ word BlockDevice::read_register(const word offset)
         return m_dma_addr;
     case 0x24:
         return m_dma_count;
+    case 0x28:
+        return m_dma_list;
     default:
         return 0;
     }
@@ -537,6 +630,9 @@ void BlockDevice::write_register(const word offset, const word value)
         break;
     case 0x24:
         m_dma_count = value;
+        break;
+    case 0x28:
+        m_dma_list = value;
         break;
     default:
         break;

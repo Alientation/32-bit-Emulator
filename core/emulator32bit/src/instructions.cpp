@@ -381,6 +381,14 @@ void Emulator32bit::_wfi(const word instr)
             return;
         }
     }
+
+    // Nothing in the machine will wake it, but a terminal can, if the program asked to be told
+    // about a byte: wait for the host, in its time.
+    if (bus.console.has_host_input() && bus.console.receive_interrupt_enabled()
+        && bus.console.wait_host_input() && bus.intc.has_pending())
+    {
+        return;
+    }
     throw Exception(InterruptType::HALT_INSTR, "WFI with no interrupt source");
 }
 

@@ -185,7 +185,8 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     // trace, the history). They are set between runs, so the loop tests this one local instead of
     // each of them, which are loads from memory.
     const bool hooked = !m_register_watches.empty() || !m_breakpoints.empty()
-                        || m_history_size != 0 || m_trace != nullptr || !m_watchpoints.empty();
+                        || m_history_size != 0 || m_trace != nullptr || !m_watchpoints.empty()
+                        || system_bus->console.has_host_input();
     SystemBus &bus = *system_bus;
 
     try
@@ -197,6 +198,9 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         {
             if (UNLIKELY(hooked))
             {
+                // Input from the host raises its interrupt here, between instructions.
+                bus.console.poll_host_input();
+
                 if (!m_register_watches.empty() && register_watch_hit()) break;
 
                 if (!first && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
