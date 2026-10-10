@@ -15,8 +15,8 @@ struct MoveOp
 };
 
 constexpr MoveOp kMoveOps[] = {
-    {"mov", Emulator32bit::_op_mov, [](word v) { return v; }},
-    {"mvn", Emulator32bit::_op_mvn, [](word v) { return word(~v); }},
+    {"mov", encoding::_op_mov, [](word v) { return v; }},
+    {"mvn", encoding::_op_mvn, [](word v) { return word(~v); }},
 };
 
 constexpr word kImm19Values[] = {0, 1, 0x3FFF, 0x4000, 0x40000, 0x7FFFF};
@@ -105,11 +105,11 @@ TEST_F(MoveTest, register_copy_with_zero_offset)
     // `mov xd, xn` is encoded as xn + 0.
     fill_registers();
     cpu.write_reg(kXn, 0xDEADBEEF);
-    execute(Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, kXd, kXn, 0));
+    execute(Emulator32bit::asm_format_o3(encoding::_op_mov, false, kXd, kXn, 0));
     EXPECT_EQ(cpu.read_reg(kXd), 0xDEADBEEFu);
     EXPECT_EQ(cpu.read_reg(kXn), 0xDEADBEEFu);
 
-    execute(Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, kXd, kXn, 0));
+    execute(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, kXd, kXn, 0));
     EXPECT_EQ(cpu.read_reg(kXd), 0x21524110u);
     EXPECT_EQ(cpu.read_reg(kXn), 0xDEADBEEFu);
 }
@@ -119,12 +119,12 @@ TEST_F(MoveTest, destination_may_be_the_source)
     // mov x1, x1 + 5
     fill_registers();
     cpu.write_reg(kXn, 100);
-    execute(Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, kXn, kXn, 5));
+    execute(Emulator32bit::asm_format_o3(encoding::_op_mov, false, kXn, kXn, 5));
     EXPECT_EQ(cpu.read_reg(kXn), 105u);
 
     // mvn x1, x1
     cpu.write_reg(kXn, 0x0F0F0F0F);
-    execute(Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, kXn, kXn, 0));
+    execute(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, kXn, kXn, 0));
     EXPECT_EQ(cpu.read_reg(kXn), 0xF0F0F0F0u);
 }
 
@@ -198,8 +198,8 @@ TEST_F(MoveTest, golden_values)
         unsigned flags_out;
     };
 
-    constexpr U8 kMov = Emulator32bit::_op_mov;
-    constexpr U8 kMvn = Emulator32bit::_op_mvn;
+    constexpr U8 kMov = encoding::_op_mov;
+    constexpr U8 kMvn = encoding::_op_mvn;
     const Case kCases[] = {
         // clang-format off
         {Emulator32bit::asm_format_o3(kMov, false, kXd, 9),            0, 0b0010, 9,          0b0010},

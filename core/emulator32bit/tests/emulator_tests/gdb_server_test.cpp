@@ -23,7 +23,7 @@ using Status = Emulator32bit::RunResult::Status;
 
 word add_imm(const int xd, const int xn, const int imm)
 {
-    return Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xn, imm);
+    return Emulator32bit::asm_format_o(encoding::_op_add, false, xd, xn, imm);
 }
 
 /// x0 += 1 three times, a store of x2 to 0x100, then hlt: at 0, 4, 8, the store at 12, hlt at 16.
@@ -34,11 +34,10 @@ class GdbTest : public EmulatorFixture
 
     void SetUp() override
     {
-        const word program[] = {
-            add_imm(0, 0, 1), add_imm(0, 0, 1), add_imm(0, 0, 1),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 2, 1, 0,
-                                        Emulator32bit::AddrType::ADDR_OFFSET),
-            Emulator32bit::asm_hlt()};
+        const word program[] = {add_imm(0, 0, 1), add_imm(0, 0, 1), add_imm(0, 0, 1),
+                                Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 0,
+                                                            encoding::AddrType::ADDR_OFFSET),
+                                Emulator32bit::asm_hlt()};
         for (size_t i = 0; i < std::size(program); i++)
         {
             cpu.memory.write_word(word(i * 4), program[i]);
@@ -234,7 +233,7 @@ class Interrupts : public GdbServer::InterruptSource
 
 TEST_F(GdbTest, the_client_can_interrupt_a_program_that_does_not_stop)
 {
-    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 0));
+    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 0));
     cpu.set_pc(0);
     Interrupts interrupts;
     server.set_interrupt_source(&interrupts);
@@ -246,8 +245,8 @@ TEST_F(GdbTest, the_client_can_interrupt_a_program_that_does_not_stop)
 TEST_F(GdbTest, a_breakpoint_between_two_slices_of_a_run_is_not_missed)
 {
     // 30000 instructions of a loop, with the breakpoint on the one that a slice ends before.
-    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 1));
-    cpu.memory.write_word(4, Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -1));
+    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 1));
+    cpu.memory.write_word(4, Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, -1));
     cpu.set_pc(0);
     EXPECT_EQ(ask("Z0,4,4"), "OK");
     EXPECT_EQ(ask("c"), "T05thread:1;swbreak:;");

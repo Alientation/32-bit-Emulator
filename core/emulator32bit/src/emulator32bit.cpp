@@ -12,6 +12,8 @@
 #include <iostream>
 #include <utility>
 
+using namespace encoding;
+
 namespace
 {
 

@@ -131,23 +131,23 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         word opcode = spec->a;
         if (format == InstructionFormat::UNARY)
         {
-            opcode = Emulator32bit::_op_special_instructions;
+            opcode = encoding::_op_special_instructions;
         }
         else if (format == InstructionFormat::F1)
         {
-            opcode = Emulator32bit::_op_fop1;
+            opcode = encoding::_op_fop1;
         }
         else if (format == InstructionFormat::F2)
         {
-            opcode = Emulator32bit::_op_fop2;
+            opcode = encoding::_op_fop2;
         }
         else if (format == InstructionFormat::F3)
         {
-            opcode = Emulator32bit::_op_fcmp;
+            opcode = encoding::_op_fcmp;
         }
         else if (format == InstructionFormat::F4)
         {
-            opcode = Emulator32bit::_op_fop3;
+            opcode = encoding::_op_fop3;
         }
         EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), opcode) << line;
 
@@ -203,7 +203,7 @@ TEST_F(InstructionTable, swi_takes_a_number_and_a_condition)
 {
     using Emulator = Emulator32bit;
     const auto swi = [](const ConditionCode cond, const sword number)
-    { return Emulator::asm_format_b1(Emulator::_op_swi, cond, number); };
+    { return Emulator::asm_format_b1(encoding::_op_swi, cond, number); };
 
     EXPECT_EQ(assemble("swi"), std::vector<word>{swi(ConditionCode::AL, 0)});
     EXPECT_EQ(assemble("swi 5"), std::vector<word>{swi(ConditionCode::AL, 5)});
@@ -226,13 +226,13 @@ TEST_F(InstructionTable, eret_wfi_and_brk)
 TEST_F(InstructionTable, msr_and_mrs_name_the_system_registers_in_any_case)
 {
     EXPECT_EQ(assemble("msr vbar, x1"),
-              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_vbar, false, 1)});
+              std::vector<word>{Emulator32bit::asm_msr(encoding::kSysregId_vbar, false, 1)});
     EXPECT_EQ(assemble("mrs x2, ESR"),
-              std::vector<word>{Emulator32bit::asm_mrs(2, Emulator32bit::kSysregId_esr)});
+              std::vector<word>{Emulator32bit::asm_mrs(2, encoding::kSysregId_esr)});
     EXPECT_EQ(assemble("msr SPSR, 16"),
-              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_spsr, true, 16)});
+              std::vector<word>{Emulator32bit::asm_msr(encoding::kSysregId_spsr, true, 16)});
     EXPECT_EQ(assemble("msr pstate, x0"),
-              std::vector<word>{Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, false, 0)});
+              std::vector<word>{Emulator32bit::asm_msr(encoding::kSysregId_pstate, false, 0)});
     EXPECT_TRUE(
         contains(error_of([&] { assemble("msr nothing, x1"); }), "invalid system register"));
 }
@@ -250,25 +250,28 @@ TEST_F(InstructionTable, conditional_selects)
     using E = Emulator32bit;
     constexpr word xzr = 31;
     EXPECT_EQ(assemble("csel x1, x2, x3, lt"),
-              std::vector<word>{E::asm_csel(E::kCselId_csel, ConditionCode::LT, 1, 2, 3)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csel, ConditionCode::LT, 1, 2, 3)});
     EXPECT_EQ(assemble("csinc x1, x2, x3, hs"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::HS, 1, 2, 3)});
-    EXPECT_EQ(assemble("csinv x1, x2, xzr, ne"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::NE, 1, 2, xzr)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csinc, ConditionCode::HS, 1, 2, 3)});
+    EXPECT_EQ(
+        assemble("csinv x1, x2, xzr, ne"),
+        std::vector<word>{E::asm_csel(encoding::kCselId_csinv, ConditionCode::NE, 1, 2, xzr)});
     EXPECT_EQ(assemble("csneg x1, x2, x3, mi"),
-              std::vector<word>{E::asm_csel(E::kCselId_csneg, ConditionCode::MI, 1, 2, 3)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csneg, ConditionCode::MI, 1, 2, 3)});
 
     // The aliases store the opposite condition.
-    EXPECT_EQ(assemble("cset x1, lt"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::GE, 1, xzr, xzr)});
-    EXPECT_EQ(assemble("csetm x1, eq"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::NE, 1, xzr, xzr)});
+    EXPECT_EQ(
+        assemble("cset x1, lt"),
+        std::vector<word>{E::asm_csel(encoding::kCselId_csinc, ConditionCode::GE, 1, xzr, xzr)});
+    EXPECT_EQ(
+        assemble("csetm x1, eq"),
+        std::vector<word>{E::asm_csel(encoding::kCselId_csinv, ConditionCode::NE, 1, xzr, xzr)});
     EXPECT_EQ(assemble("cinc x1, x2, hi"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinc, ConditionCode::LS, 1, 2, 2)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csinc, ConditionCode::LS, 1, 2, 2)});
     EXPECT_EQ(assemble("cinv x1, x2, gt"),
-              std::vector<word>{E::asm_csel(E::kCselId_csinv, ConditionCode::LE, 1, 2, 2)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csinv, ConditionCode::LE, 1, 2, 2)});
     EXPECT_EQ(assemble("cneg x1, x2, vs"),
-              std::vector<word>{E::asm_csel(E::kCselId_csneg, ConditionCode::VC, 1, 2, 2)});
+              std::vector<word>{E::asm_csel(encoding::kCselId_csneg, ConditionCode::VC, 1, 2, 2)});
 
     // The alias disassembles back to what was written.
     EXPECT_EQ(E::disassemble_instr(assemble("cset x1, lt")[0]), "cset x1, lt");
@@ -285,13 +288,20 @@ TEST_F(InstructionTable, conditional_selects)
 TEST_F(InstructionTable, unary_instructions)
 {
     using E = Emulator32bit;
-    EXPECT_EQ(assemble("sxtb x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_sxtb, 1, 2)});
-    EXPECT_EQ(assemble("sxth x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_sxth, 1, 2)});
-    EXPECT_EQ(assemble("uxtb x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_uxtb, 1, 2)});
-    EXPECT_EQ(assemble("uxth x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_uxth, 1, 2)});
-    EXPECT_EQ(assemble("clz x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_clz, 1, 2)});
-    EXPECT_EQ(assemble("rev x1, x2"), std::vector<word>{E::asm_unary(E::kUnaryId_rev, 1, 2)});
-    EXPECT_EQ(assemble("rev16 x1, sp"), std::vector<word>{E::asm_unary(E::kUnaryId_rev16, 1, 30)});
+    EXPECT_EQ(assemble("sxtb x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_sxtb, 1, 2)});
+    EXPECT_EQ(assemble("sxth x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_sxth, 1, 2)});
+    EXPECT_EQ(assemble("uxtb x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_uxtb, 1, 2)});
+    EXPECT_EQ(assemble("uxth x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_uxth, 1, 2)});
+    EXPECT_EQ(assemble("clz x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_clz, 1, 2)});
+    EXPECT_EQ(assemble("rev x1, x2"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_rev, 1, 2)});
+    EXPECT_EQ(assemble("rev16 x1, sp"),
+              std::vector<word>{E::asm_unary(encoding::kUnaryId_rev16, 1, 30)});
     EXPECT_TRUE(contains(error_of([&] { assemble("clz x1"); }), "expected ','"));
 }
 
@@ -299,10 +309,10 @@ TEST_F(InstructionTable, unary_instructions)
 TEST_F(InstructionTable, load_constant_pseudo_instruction)
 {
     using E = Emulator32bit;
-    const auto mov = [](word v) { return E::asm_format_o3(E::_op_mov, false, 1, int(v)); };
-    const auto mvn = [](word v) { return E::asm_format_o3(E::_op_mvn, false, 1, int(v)); };
+    const auto mov = [](word v) { return E::asm_format_o3(encoding::_op_mov, false, 1, int(v)); };
+    const auto mvn = [](word v) { return E::asm_format_o3(encoding::_op_mvn, false, 1, int(v)); };
     const auto lsl14 = E::asm_format_o1(ShiftType::SHIFT_LSL, 1, 1, true, 0, 14);
-    const auto orr = [](word v) { return E::asm_format_o(E::_op_orr, false, 1, 1, int(v)); };
+    const auto orr = [](word v) { return E::asm_format_o(encoding::_op_orr, false, 1, 1, int(v)); };
 
     EXPECT_EQ(assemble("ldr x1, =0"), std::vector<word>{mov(0)});
     EXPECT_EQ(assemble("ldr x1, =524287"), std::vector<word>{mov(0x7FFFF)});
@@ -321,8 +331,9 @@ TEST_F(InstructionTable, load_constant_pseudo_instruction)
     EXPECT_EQ(assemble("ldr sp, =0x12345678").size(), 3u);
 
     // An ordinary load is still an ordinary load.
-    EXPECT_EQ(assemble("ldr x1, [x2]"), std::vector<word>{E::asm_format_m(
-                                            E::_op_ldr, false, 1, 2, 0, E::AddrType::ADDR_OFFSET)});
+    EXPECT_EQ(assemble("ldr x1, [x2]"),
+              std::vector<word>{E::asm_format_m(encoding::_op_ldr, false, 1, 2, 0,
+                                                encoding::AddrType::ADDR_OFFSET)});
 
     EXPECT_TRUE(
         contains(error_of([&] { assemble("ldr x1, =0x100000000"); }), "does not fit in 32 bits"));
@@ -339,8 +350,8 @@ TEST_F(InstructionTable, load_address_pseudo_instruction_is_adrp_and_add)
     const ObjectFile obj(assembler.get_output_file());
 
     ASSERT_EQ(obj.text_section.size(), 2u);
-    EXPECT_EQ(obj.text_section[0], E::asm_format_m1(E::_op_adrp, 3, 0));
-    EXPECT_EQ(obj.text_section[1], E::asm_format_o(E::_op_add, false, 3, 3, 0));
+    EXPECT_EQ(obj.text_section[0], E::asm_format_m1(encoding::_op_adrp, 3, 0));
+    EXPECT_EQ(obj.text_section[1], E::asm_format_o(encoding::_op_add, false, 3, 3, 0));
     ASSERT_EQ(obj.rel_text.size(), 2u);
     EXPECT_EQ(obj.rel_text[0].type, ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20);
     EXPECT_EQ(obj.rel_text[0].offset, 0u);
@@ -354,7 +365,7 @@ TEST_F(InstructionTable, mov_takes_a_19_bit_immediate)
 {
     using E = Emulator32bit;
     EXPECT_EQ(assemble("mov x1, 524287"),
-              std::vector<word>{E::asm_format_o3(E::_op_mov, false, 1, 0x7FFFF)});
+              std::vector<word>{E::asm_format_o3(encoding::_op_mov, false, 1, 0x7FFFF)});
     EXPECT_TRUE(contains(error_of([&] { assemble("mov x1, 524288"); }), "19 bit"));
 }
 
@@ -460,7 +471,7 @@ TEST_F(InstructionTable, floating_point_instructions_need_all_their_operands)
 TEST_F(InstructionTable, fmov_moves_a_register_or_loads_a_constant)
 {
     const auto move = [](const int to, const int from)
-    { return Emulator::asm_format_o3(Emulator::_op_mov, false, to, from, 0); };
+    { return Emulator::asm_format_o3(encoding::_op_mov, false, to, from, 0); };
 
     EXPECT_EQ(assemble("fmov.f32 x1, x2"), std::vector<word>{move(1, 2)});
     // a pair is two moves, in the order that does not overwrite what is still to be read

@@ -208,7 +208,7 @@ void ObjectFile::print(std::ostream &out)
             out << std::format(":\t{:08x}\t{}\t\t{}", text_section[i], op, operands);
 
             const U8 opcode = bitfield_unsigned<26, 6>(text_section[i]);
-            if (opcode == Emulator32bit::_op_b || opcode == Emulator32bit::_op_bl)
+            if (opcode == encoding::_op_b || opcode == encoding::_op_bl)
             {
                 // branch offsets are in words, relative to the branch instruction itself
                 const sword offset_words = bitfield_signed<0, 22>(text_section[i]);

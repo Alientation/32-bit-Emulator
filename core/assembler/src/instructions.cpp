@@ -205,7 +205,7 @@ word Assembler::parse_format_m1(byte opcode)
     expect(TokenType::COMMA, "expected ',' and a symbol");
 
     // adrp implicitly has :hi20:. adr is the distance in bytes, it has no part of an address.
-    const bool is_adr = opcode == Emulator32bit::_op_adr;
+    const bool is_adr = opcode == encoding::_op_adr;
     if (!is_adr) m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
 
     const ExprValue target = parse_symbol_operand("expected a symbol");
@@ -233,14 +233,14 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
 
     // Pre/post-indexing writes the base register back, which is pointless or surprising in a few
     // cases. `zero_offset` is true when the offset is known to be 0.
-    const bool is_load = opcode == Emulator32bit::_op_ldr || opcode == Emulator32bit::_op_ldrb
-                         || opcode == Emulator32bit::_op_ldrh;
-    auto warn_writeback = [&](const Emulator32bit::AddrType mode, const bool zero_offset)
+    const bool is_load =
+        opcode == encoding::_op_ldr || opcode == encoding::_op_ldrb || opcode == encoding::_op_ldrh;
+    auto warn_writeback = [&](const encoding::AddrType mode, const bool zero_offset)
     {
-        if (mode == Emulator32bit::AddrType::ADDR_OFFSET) return;
+        if (mode == encoding::AddrType::ADDR_OFFSET) return;
 
         const std::string kind =
-            mode == Emulator32bit::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
+            mode == encoding::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
         const std::string base = register_name(reg_a);
         if (reg_a == U8(Register::XZR))
         {
@@ -269,16 +269,16 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
 
     // The mode that is encoded. ldur and stur take a plain offset, which they encode as the
     // unaligned mode.
-    const auto encoded_mode = [&](const Emulator32bit::AddrType mode)
+    const auto encoded_mode = [&](const encoding::AddrType mode)
     {
         if (!unaligned) return mode;
-        check(mode == Emulator32bit::AddrType::ADDR_OFFSET,
+        check(mode == encoding::AddrType::ADDR_OFFSET,
               "an unaligned access (ldur, ldurh, stur, sturh) has no pre-index or post-index form");
-        return Emulator32bit::AddrType::ADDR_UNALIGNED;
+        return encoding::AddrType::ADDR_UNALIGNED;
     };
 
     // Parse the address mode.
-    Emulator32bit::AddrType addressing_mode;
+    encoding::AddrType addressing_mode;
     bool parsed_addressing_mode = false;
 
     // Post indexed, offset is applied to value at register after accessing.
@@ -288,10 +288,10 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
         if (!m_cursor.check(TokenType::COMMA))
         {
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0,
-                                               encoded_mode(Emulator32bit::AddrType::ADDR_OFFSET));
+                                               encoded_mode(encoding::AddrType::ADDR_OFFSET));
         }
 
-        addressing_mode = Emulator32bit::AddrType::ADDR_POST_INC;
+        addressing_mode = encoding::AddrType::ADDR_POST_INC;
         parsed_addressing_mode = true;
     }
 
@@ -314,8 +314,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
                 // Preindexed, offset is applied to value at register before accessing. Otherwise a
                 // simple offset.
                 addressing_mode = m_cursor.accept(TokenType::OPERATOR_LOGICAL_NOT)
-                                      ? Emulator32bit::AddrType::ADDR_PRE_INC
-                                      : Emulator32bit::AddrType::ADDR_OFFSET;
+                                      ? encoding::AddrType::ADDR_PRE_INC
+                                      : encoding::AddrType::ADDR_OFFSET;
             }
 
             const auto mode = encoded_mode(addressing_mode);
@@ -341,8 +341,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
                 expect(TokenType::CLOSE_BRACKET, "expected ']' after the offset register");
 
                 addressing_mode = m_cursor.accept(TokenType::OPERATOR_LOGICAL_NOT)
-                                      ? Emulator32bit::AddrType::ADDR_PRE_INC
-                                      : Emulator32bit::AddrType::ADDR_OFFSET;
+                                      ? encoding::AddrType::ADDR_PRE_INC
+                                      : encoding::AddrType::ADDR_OFFSET;
             }
 
             const auto mode = encoded_mode(addressing_mode);
@@ -594,11 +594,11 @@ bool Assembler::assemble_load_constant()
     {
         add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20, target);
-        emit_instruction(Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, xd, 0));
+        emit_instruction(Emulator32bit::asm_format_m1(encoding::_op_adrp, xd, 0));
 
         add_relocation(code_relocations(), code_offset(),
                        ObjectFile::RelocationEntry::Type::R_EMU32_O_LO12, target);
-        emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, xd, xd, 0));
+        emit_instruction(Emulator32bit::asm_format_o(encoding::_op_add, false, xd, xd, 0));
         return true;
     }
 
@@ -615,23 +615,21 @@ void Assembler::emit_load_constant(const byte xd, const word value)
 {
     if (value < (1u << 19))
     {
-        emit_instruction(
-            Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value)));
+        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, int(value)));
     }
     else if (~value < (1u << 19))
     {
-        emit_instruction(
-            Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, xd, int(~value)));
+        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, xd, int(~value)));
     }
     else
     {
         emit_instruction(
-            Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, int(value >> 14)));
+            Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, int(value >> 14)));
         emit_instruction(Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0, 14));
         if ((value & 0x3FFF) != 0)
         {
-            emit_instruction(Emulator32bit::asm_format_o(Emulator32bit::_op_orr, false, xd, xd,
-                                                         int(value & 0x3FFF)));
+            emit_instruction(
+                Emulator32bit::asm_format_o(encoding::_op_orr, false, xd, xd, int(value & 0x3FFF)));
         }
     }
 }
@@ -755,9 +753,7 @@ void Assembler::assemble_fmov(const bool dbl)
     {
         const byte xm = parse_fp_register(dbl);
         const auto move = [&](byte to, byte from)
-        {
-            emit_instruction(Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, to, from, 0));
-        };
+        { emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, to, from, 0)); };
         if (!dbl)
         {
             move(xd, xm);
@@ -867,7 +863,7 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
         instruction = parse_format_o3(spec.a);
         break;
     case Format::M:
-        if (spec.a == Emulator32bit::_op_ldr && spec.b == 0 && assemble_load_constant())
+        if (spec.a == encoding::_op_ldr && spec.b == 0 && assemble_load_constant())
         {
             return;
         }

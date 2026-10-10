@@ -12,7 +12,7 @@
 
 namespace
 {
-using AddrType = Emulator32bit::AddrType;
+using AddrType = encoding::AddrType;
 
 struct MemOp
 {
@@ -24,12 +24,9 @@ struct MemOp
 };
 
 constexpr MemOp kMemOps[] = {
-    {"ldr", Emulator32bit::_op_ldr, 4, true, false},
-    {"ldrh", Emulator32bit::_op_ldrh, 2, true, true},
-    {"ldrb", Emulator32bit::_op_ldrb, 1, true, true},
-    {"str", Emulator32bit::_op_str, 4, false, false},
-    {"strh", Emulator32bit::_op_strh, 2, false, true},
-    {"strb", Emulator32bit::_op_strb, 1, false, true},
+    {"ldr", encoding::_op_ldr, 4, true, false},   {"ldrh", encoding::_op_ldrh, 2, true, true},
+    {"ldrb", encoding::_op_ldrb, 1, true, true},  {"str", encoding::_op_str, 4, false, false},
+    {"strh", encoding::_op_strh, 2, false, true}, {"strb", encoding::_op_strb, 1, false, true},
 };
 
 constexpr AddrType kModes[] = {AddrType::ADDR_OFFSET, AddrType::ADDR_PRE_INC,
@@ -226,14 +223,11 @@ TEST_F(MemoryTest, loads_are_little_endian_and_zero_extended)
     };
 
     const Case kCases[] = {
-        {"ldr", Emulator32bit::_op_ldr, 0, 0x12345678},
-        {"ldr", Emulator32bit::_op_ldr, 4, 0x9ABCDEF0},
-        {"ldrh", Emulator32bit::_op_ldrh, 0, 0x5678},
-        {"ldrh", Emulator32bit::_op_ldrh, 2, 0x1234},
-        {"ldrh", Emulator32bit::_op_ldrh, 4, 0xDEF0}, // bit 15 set, not sign extended
-        {"ldrb", Emulator32bit::_op_ldrb, 0, 0x78},
-        {"ldrb", Emulator32bit::_op_ldrb, 3, 0x12},
-        {"ldrb", Emulator32bit::_op_ldrb, 4, 0xF0},   // bit 7 set, not sign extended
+        {"ldr", encoding::_op_ldr, 0, 0x12345678}, {"ldr", encoding::_op_ldr, 4, 0x9ABCDEF0},
+        {"ldrh", encoding::_op_ldrh, 0, 0x5678},   {"ldrh", encoding::_op_ldrh, 2, 0x1234},
+        {"ldrh", encoding::_op_ldrh, 4, 0xDEF0}, // bit 15 set, not sign extended
+        {"ldrb", encoding::_op_ldrb, 0, 0x78},     {"ldrb", encoding::_op_ldrb, 3, 0x12},
+        {"ldrb", encoding::_op_ldrb, 4, 0xF0},   // bit 7 set, not sign extended
     };
     for (const Case &c : kCases)
     {
@@ -259,12 +253,12 @@ TEST_F(MemoryTest, signed_loads_sign_extend)
     };
 
     const Case kCases[] = {
-        {Emulator32bit::_op_ldrb, 0, 0x0000007F}, // largest positive byte
-        {Emulator32bit::_op_ldrb, 1, 0xFFFFFF80}, // smallest negative byte
-        {Emulator32bit::_op_ldrb, 2, 0xFFFFFFFF}, {Emulator32bit::_op_ldrb, 3, 0x00000000},
-        {Emulator32bit::_op_ldrh, 4, 0xFFFF8000}, // smallest negative halfword
-        {Emulator32bit::_op_ldrh, 6, 0x00007FFF}, // largest positive halfword
-        {Emulator32bit::_op_ldrh, 2, 0x000000FF}, // 0x00FF: bit 15 clear
+        {encoding::_op_ldrb, 0, 0x0000007F}, // largest positive byte
+        {encoding::_op_ldrb, 1, 0xFFFFFF80}, // smallest negative byte
+        {encoding::_op_ldrb, 2, 0xFFFFFFFF}, {encoding::_op_ldrb, 3, 0x00000000},
+        {encoding::_op_ldrh, 4, 0xFFFF8000}, // smallest negative halfword
+        {encoding::_op_ldrh, 6, 0x00007FFF}, // largest positive halfword
+        {encoding::_op_ldrh, 2, 0x000000FF}, // 0x00FF: bit 15 clear
     };
     for (const Case &c : kCases)
     {
@@ -300,19 +294,19 @@ TEST_F(MemoryTest, narrow_stores_write_only_the_low_bytes)
         cpu.write_reg(kXt, 0x8899AABB);
 
         fill();
-        execute(Emulator32bit::asm_format_m(Emulator32bit::_op_strb, sign, kXt, kXn, 2,
+        execute(Emulator32bit::asm_format_m(encoding::_op_strb, sign, kXt, kXn, 2,
                                             AddrType::ADDR_OFFSET));
         EXPECT_EQ(bytes_at(0, 4), 0xEEBBEEEEu) << "strb, sign=" << sign;
         EXPECT_EQ(bytes_at(4, 4), 0xEEEEEEEEu) << "strb, sign=" << sign;
 
         fill();
-        execute(Emulator32bit::asm_format_m(Emulator32bit::_op_strh, sign, kXt, kXn, 2,
+        execute(Emulator32bit::asm_format_m(encoding::_op_strh, sign, kXt, kXn, 2,
                                             AddrType::ADDR_OFFSET));
         EXPECT_EQ(bytes_at(0, 4), 0xAABBEEEEu) << "strh, sign=" << sign;
         EXPECT_EQ(bytes_at(4, 4), 0xEEEEEEEEu) << "strh, sign=" << sign;
 
         fill();
-        execute(Emulator32bit::asm_format_m(Emulator32bit::_op_str, sign, kXt, kXn, 4,
+        execute(Emulator32bit::asm_format_m(encoding::_op_str, sign, kXt, kXn, 4,
                                             AddrType::ADDR_OFFSET));
         EXPECT_EQ(bytes_at(0, 4), 0xEEEEEEEEu) << "str, sign=" << sign;
         EXPECT_EQ(bytes_at(4, 4), 0x8899AABBu) << "str, sign=" << sign;
@@ -327,14 +321,14 @@ TEST_F(MemoryTest, pre_index_writes_back_before_the_access_and_post_index_after)
 
     fill_registers();
     cpu.write_reg(kXn, addr);
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 8,
-                                        AddrType::ADDR_PRE_INC));
+    execute(
+        Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, 8, AddrType::ADDR_PRE_INC));
     EXPECT_EQ(cpu.read_reg(kXt), 0x22222222u) << "pre-index reads from base + offset";
     EXPECT_EQ(cpu.read_reg(kXn), addr + 8);
 
     fill_registers();
     cpu.write_reg(kXn, addr);
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 8,
+    execute(Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, 8,
                                         AddrType::ADDR_POST_INC));
     EXPECT_EQ(cpu.read_reg(kXt), 0x11111111u) << "post-index reads from the original base";
     EXPECT_EQ(cpu.read_reg(kXn), addr + 8);
@@ -342,7 +336,7 @@ TEST_F(MemoryTest, pre_index_writes_back_before_the_access_and_post_index_after)
     // A negative post-index offset: `ldr x3, [x1], #-8`.
     fill_registers();
     cpu.write_reg(kXn, addr + 8);
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, -8,
+    execute(Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, -8,
                                         AddrType::ADDR_POST_INC));
     EXPECT_EQ(cpu.read_reg(kXt), 0x22222222u);
     EXPECT_EQ(cpu.read_reg(kXn), addr);
@@ -382,23 +376,23 @@ TEST_F(MemoryTest, zero_register)
 {
     // Base register xzr addresses absolute memory: `ldr x3, [xzr, #0x400]`.
     fill_registers();
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXzr, 0x400,
+    execute(Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXzr, 0x400,
                                         AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.read_reg(kXt), pattern_word(0x400, 4));
 
     // Storing xzr stores zeros.
     fill_registers();
     cpu.write_reg(kXn, kBase);
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, kXzr, kXn, 0,
-                                        AddrType::ADDR_OFFSET));
+    execute(
+        Emulator32bit::asm_format_m(encoding::_op_str, false, kXzr, kXn, 0, AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.memory.read_word(kBase), 0u);
 
     // Loading into xzr discards the value.
     fill_registers();
     cpu.write_reg(kXn, kBase + 0x100);
     const auto before = snapshot_registers();
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXzr, kXn, 0,
-                                        AddrType::ADDR_OFFSET));
+    execute(
+        Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXzr, kXn, 0, AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.read_reg(kXzr), 0u);
     expect_registers_unchanged_except(before, {}, "ldr xzr");
 }
@@ -414,9 +408,9 @@ TEST_F(MemoryTest, load_store_round_trip)
         execute(Emulator32bit::asm_format_m(op.opcode, false, kXt, kXn, 16, AddrType::ADDR_OFFSET));
 
         // The matching load, unsigned, returns exactly the stored low bytes.
-        const U8 load = op.width == 4   ? Emulator32bit::_op_ldr
-                        : op.width == 2 ? Emulator32bit::_op_ldrh
-                                        : Emulator32bit::_op_ldrb;
+        const U8 load = op.width == 4   ? encoding::_op_ldr
+                        : op.width == 2 ? encoding::_op_ldrh
+                                        : encoding::_op_ldrb;
         cpu.write_reg(kXt, 0);
         execute(Emulator32bit::asm_format_m(load, false, kXt, kXn, 16, AddrType::ADDR_OFFSET));
         const word mask = op.width == 4 ? 0xFFFFFFFFu : (1u << (8 * op.width)) - 1;
@@ -431,12 +425,12 @@ TEST_F(MemoryTest, loads_from_rom)
 
     fill_registers();
     cpu.write_reg(kXn, kPageSize - 4);
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 4,
-                                        AddrType::ADDR_OFFSET));
+    execute(
+        Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, 4, AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.read_reg(kXt), 0x03020109u);
 
-    execute(Emulator32bit::asm_format_m(Emulator32bit::_op_ldrb, false, kXt, kXn, 5,
-                                        AddrType::ADDR_OFFSET));
+    execute(
+        Emulator32bit::asm_format_m(encoding::_op_ldrb, false, kXt, kXn, 5, AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.read_reg(kXt), 1u);
 }
 
@@ -446,7 +440,7 @@ TEST_F(MemoryTest, access_outside_memory_faults)
 
     fill_registers();
     cpu.write_reg(kXn, kUnmapped);
-    auto result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 0,
+    auto result = step(0, Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, 0,
                                                       AddrType::ADDR_OFFSET));
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
     EXPECT_EQ(cpu.read_reg(kXt), 0xA5000000u | (kXt * 0x01010101u))
@@ -454,7 +448,7 @@ TEST_F(MemoryTest, access_outside_memory_faults)
 
     fill_registers();
     cpu.write_reg(kXn, kUnmapped);
-    result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, kXt, kXn, 0,
+    result = step(0, Emulator32bit::asm_format_m(encoding::_op_str, false, kXt, kXn, 0,
                                                  AddrType::ADDR_OFFSET));
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
 }
@@ -502,12 +496,12 @@ TEST_F(MemoryTest, the_message_of_a_misaligned_access_names_the_instruction_to_u
 {
     fill_registers();
     cpu.write_reg(kXn, kBase + 2);
-    auto result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, kXt, kXn, 0,
+    auto result = step(0, Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXt, kXn, 0,
                                                       AddrType::ADDR_OFFSET));
     EXPECT_NE(result.message.find("ldur"), std::string::npos) << result.message;
     EXPECT_NE(result.message.find("0x00001002"), std::string::npos) << result.message;
 
-    result = step(0, Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, kXt, kXn, 1,
+    result = step(0, Emulator32bit::asm_format_m(encoding::_op_strh, false, kXt, kXn, 1,
                                                  AddrType::ADDR_OFFSET));
     EXPECT_NE(result.message.find("sturh"), std::string::npos) << result.message;
 }
@@ -575,7 +569,7 @@ TEST_F(MemoryTest, the_unaligned_forms_access_any_address)
 // not assigned for ldrb and strb.
 TEST_F(MemoryTest, the_unaligned_mode_of_a_byte_access_is_an_undefined_instruction)
 {
-    for (const U8 opcode : {Emulator32bit::_op_ldrb, Emulator32bit::_op_strb})
+    for (const U8 opcode : {encoding::_op_ldrb, encoding::_op_strb})
     {
         fill_registers();
         cpu.write_reg(kXn, kBase);
@@ -595,13 +589,13 @@ TEST_F(MemoryTest, the_unaligned_forms_disassemble_as_ldur_stur)
         return Emulator32bit::disassemble_instr(
             Emulator32bit::asm_format_m(opcode, sign, 1, 2, 4, AddrType::ADDR_UNALIGNED));
     };
-    EXPECT_EQ(name(Emulator32bit::_op_ldr, false), "ldur x1, [x2, 4]");
-    EXPECT_EQ(name(Emulator32bit::_op_str, false), "stur x1, [x2, 4]");
-    EXPECT_EQ(name(Emulator32bit::_op_ldrh, false), "ldurh x1, [x2, 4]");
-    EXPECT_EQ(name(Emulator32bit::_op_ldrh, true), "ldursh x1, [x2, 4]");
-    EXPECT_EQ(name(Emulator32bit::_op_strh, false), "sturh x1, [x2, 4]");
+    EXPECT_EQ(name(encoding::_op_ldr, false), "ldur x1, [x2, 4]");
+    EXPECT_EQ(name(encoding::_op_str, false), "stur x1, [x2, 4]");
+    EXPECT_EQ(name(encoding::_op_ldrh, false), "ldurh x1, [x2, 4]");
+    EXPECT_EQ(name(encoding::_op_ldrh, true), "ldursh x1, [x2, 4]");
+    EXPECT_EQ(name(encoding::_op_strh, false), "sturh x1, [x2, 4]");
 
     EXPECT_EQ(Emulator32bit::disassemble_instr(Emulator32bit::asm_format_m(
-                  Emulator32bit::_op_ldr, false, 1, 2, 4, AddrType::ADDR_OFFSET)),
+                  encoding::_op_ldr, false, 1, 2, 4, AddrType::ADDR_OFFSET)),
               "ldr x1, [x2, 4]");
 }

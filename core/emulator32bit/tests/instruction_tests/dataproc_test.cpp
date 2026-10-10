@@ -28,40 +28,31 @@ struct DpOp
 };
 
 const DpOp kOps[] = {
-    {"add", Emulator32bit::_op_add, true,
+    {"add", encoding::_op_add, true,
      [](word a, word b, NZCVFlags) { return alu_add(a, b, false); }},
-    {"sub", Emulator32bit::_op_sub, true,
-     [](word a, word b, NZCVFlags) { return alu_sub(a, b, true); }},
-    {"rsb", Emulator32bit::_op_rsb, true,
-     [](word a, word b, NZCVFlags) { return alu_sub(b, a, true); }},
-    {"adc", Emulator32bit::_op_adc, true,
+    {"sub", encoding::_op_sub, true, [](word a, word b, NZCVFlags) { return alu_sub(a, b, true); }},
+    {"rsb", encoding::_op_rsb, true, [](word a, word b, NZCVFlags) { return alu_sub(b, a, true); }},
+    {"adc", encoding::_op_adc, true,
      [](word a, word b, NZCVFlags f) { return alu_add(a, b, f.c); }},
-    {"sbc", Emulator32bit::_op_sbc, true,
+    {"sbc", encoding::_op_sbc, true,
      [](word a, word b, NZCVFlags f) { return alu_sub(a, b, f.c); }},
-    {"rsc", Emulator32bit::_op_rsc, true,
+    {"rsc", encoding::_op_rsc, true,
      [](word a, word b, NZCVFlags f) { return alu_sub(b, a, f.c); }},
-    {"mul", Emulator32bit::_op_mul, true,
-     [](word a, word b, NZCVFlags f) { return alu_mul(a, b, f); }},
-    {"udiv", Emulator32bit::_op_udiv, true,
+    {"mul", encoding::_op_mul, true, [](word a, word b, NZCVFlags f) { return alu_mul(a, b, f); }},
+    {"udiv", encoding::_op_udiv, true,
      [](word a, word b, NZCVFlags f) { return alu_udiv(a, b, f); }},
-    {"sdiv", Emulator32bit::_op_sdiv, true,
+    {"sdiv", encoding::_op_sdiv, true,
      [](word a, word b, NZCVFlags f) { return alu_sdiv(a, b, f); }},
-    {"and", Emulator32bit::_op_and, true,
-     [](word a, word b, NZCVFlags f) { return alu_and(a, b, f); }},
-    {"orr", Emulator32bit::_op_orr, true,
-     [](word a, word b, NZCVFlags f) { return alu_orr(a, b, f); }},
-    {"eor", Emulator32bit::_op_eor, true,
-     [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
-    {"bic", Emulator32bit::_op_bic, true,
-     [](word a, word b, NZCVFlags f) { return alu_bic(a, b, f); }},
-    {"cmp", Emulator32bit::_op_sub, false,
+    {"and", encoding::_op_and, true, [](word a, word b, NZCVFlags f) { return alu_and(a, b, f); }},
+    {"orr", encoding::_op_orr, true, [](word a, word b, NZCVFlags f) { return alu_orr(a, b, f); }},
+    {"eor", encoding::_op_eor, true, [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
+    {"bic", encoding::_op_bic, true, [](word a, word b, NZCVFlags f) { return alu_bic(a, b, f); }},
+    {"cmp", encoding::_op_sub, false,
      [](word a, word b, NZCVFlags) { return alu_sub(a, b, true); }},
-    {"cmn", Emulator32bit::_op_add, false,
+    {"cmn", encoding::_op_add, false,
      [](word a, word b, NZCVFlags) { return alu_add(a, b, false); }},
-    {"tst", Emulator32bit::_op_and, false,
-     [](word a, word b, NZCVFlags f) { return alu_and(a, b, f); }},
-    {"teq", Emulator32bit::_op_eor, false,
-     [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
+    {"tst", encoding::_op_and, false, [](word a, word b, NZCVFlags f) { return alu_and(a, b, f); }},
+    {"teq", encoding::_op_eor, false, [](word a, word b, NZCVFlags f) { return alu_eor(a, b, f); }},
 };
 
 const DpOp &find_op(const char *name)
@@ -188,11 +179,11 @@ TEST_F(DataProcessingTest, immediate_is_unsigned_14_bit)
     // The top bit of the imm14 field must not be sign extended.
     fill_registers();
     cpu.write_reg(kXn, 0);
-    execute(Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, kXd, kXn, 0x3FFF));
+    execute(Emulator32bit::asm_format_o(encoding::_op_add, false, kXd, kXn, 0x3FFF));
     EXPECT_EQ(cpu.read_reg(kXd), 0x3FFFu);
 
     cpu.write_reg(kXn, 0);
-    execute(Emulator32bit::asm_format_o(Emulator32bit::_op_sub, false, kXd, kXn, 0x3FFF));
+    execute(Emulator32bit::asm_format_o(encoding::_op_sub, false, kXd, kXn, 0x3FFF));
     EXPECT_EQ(cpu.read_reg(kXd), 0xFFFFC001u);
 }
 
@@ -459,7 +450,7 @@ TEST_F(DataProcessingTest, flags_untouched_without_s_bit_golden)
     cpu.write_reg(kXn, 0x80000000);
     cpu.write_reg(kXm, 0x80000000);
     set_flags(flags_from_bits(0b1010));
-    execute(Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, kXd, kXn, kXm,
+    execute(Emulator32bit::asm_format_o(encoding::_op_add, false, kXd, kXn, kXm,
                                         ShiftType::SHIFT_LSL, 0));
     EXPECT_EQ(cpu.read_reg(kXd), 0u);
     EXPECT_EQ(flags(), flags_from_bits(0b1010));

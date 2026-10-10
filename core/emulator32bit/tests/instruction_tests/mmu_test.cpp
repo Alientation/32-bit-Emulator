@@ -32,37 +32,37 @@ constexpr word kCodeP = 8, kDataP = 20, kReadOnlyP = 21, kUserCodeP = 24, kUserD
 
 word mov(const U8 xd, const word value)
 {
-    return Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, xd, value);
+    return Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, value);
 }
 
 word load(const U8 xt, const U8 xn)
 {
-    return Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, xt, xn, 0,
-                                       Emulator32bit::AddrType::ADDR_OFFSET);
+    return Emulator32bit::asm_format_m(encoding::_op_ldr, false, xt, xn, 0,
+                                       encoding::AddrType::ADDR_OFFSET);
 }
 
 word store(const U8 xt, const U8 xn)
 {
-    return Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, xt, xn, 0,
-                                       Emulator32bit::AddrType::ADDR_OFFSET);
+    return Emulator32bit::asm_format_m(encoding::_op_str, false, xt, xn, 0,
+                                       encoding::AddrType::ADDR_OFFSET);
 }
 
 /// `ldur` and `stur`: a word access that may be at any address.
 word load_unaligned(const U8 xt, const U8 xn)
 {
-    return Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, xt, xn, 0,
-                                       Emulator32bit::AddrType::ADDR_UNALIGNED);
+    return Emulator32bit::asm_format_m(encoding::_op_ldr, false, xt, xn, 0,
+                                       encoding::AddrType::ADDR_UNALIGNED);
 }
 
 word store_unaligned(const U8 xt, const U8 xn)
 {
-    return Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, xt, xn, 0,
-                                       Emulator32bit::AddrType::ADDR_UNALIGNED);
+    return Emulator32bit::asm_format_m(encoding::_op_str, false, xt, xn, 0,
+                                       encoding::AddrType::ADDR_UNALIGNED);
 }
 
 word swi()
 {
-    return Emulator32bit::asm_format_b1(Emulator32bit::_op_swi, ConditionCode::AL, 0);
+    return Emulator32bit::asm_format_b1(encoding::_op_swi, ConditionCode::AL, 0);
 }
 
 class Mmu : public ::testing::Test
@@ -128,9 +128,9 @@ class Mmu : public ::testing::Test
 
     void turn_on()
     {
-        cpu.write_sysreg(Emulator32bit::kSysregId_ptbr, kL1);
-        cpu.write_sysreg(Emulator32bit::kSysregId_sctlr, 1);
-        cpu.write_sysreg(Emulator32bit::kSysregId_vbar, kVectors);
+        cpu.write_sysreg(encoding::kSysregId_ptbr, kL1);
+        cpu.write_sysreg(encoding::kSysregId_sctlr, 1);
+        cpu.write_sysreg(encoding::kSysregId_vbar, kVectors);
     }
 
     Emulator32bit::RunResult run_at(const word pc, const U64 limit = 100)
@@ -141,17 +141,17 @@ class Mmu : public ::testing::Test
 
     word esr_class() const
     {
-        return cpu.read_sysreg(Emulator32bit::kSysregId_esr) >> 26;
+        return cpu.read_sysreg(encoding::kSysregId_esr) >> 26;
     }
 
     word esr_iss() const
     {
-        return cpu.read_sysreg(Emulator32bit::kSysregId_esr) & 0x3FFFFFF;
+        return cpu.read_sysreg(encoding::kSysregId_esr) & 0x3FFFFFF;
     }
 
     word far() const
     {
-        return cpu.read_sysreg(Emulator32bit::kSysregId_far);
+        return cpu.read_sysreg(encoding::kSysregId_far);
     }
 
     void expect_abort(const Class cls, const word iss, const word address)
@@ -271,7 +271,7 @@ TEST_F(Mmu, a_faulting_instruction_can_be_retried_after_the_page_is_fixed)
 
     // What a kernel does: change the entry, forget the old translation, resume at ELR.
     write_physical(entry_address(kReadOnlyV), entry(kReadOnlyV) | kW);
-    cpu.set_pc(cpu.read_sysreg(Emulator32bit::kSysregId_elr));
+    cpu.set_pc(cpu.read_sysreg(encoding::kSysregId_elr));
     ASSERT_EQ(cpu.run(10).status, Status::HALTED);
     EXPECT_EQ(read_physical(kReadOnlyP << kNumPageOffsetBits), 9u);
 }
@@ -301,11 +301,11 @@ TEST_F(Mmu, tlbi_with_a_register_forgets_only_that_page)
 {
     map(kDataV + 0x2000, 30, kW);
     // Cache both, then revoke both, and forget one.
-    write_code(kCodeP, 0x100,
-               {mov(1, kDataV), mov(3, kDataV + 0x2000 - kDataV),
-                Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 3, 1, 3,
-                                            ShiftType::SHIFT_LSL, 0),
-                mov(2, 1), store(2, 1), store(2, 3), Emulator32bit::asm_hlt()});
+    write_code(
+        kCodeP, 0x100,
+        {mov(1, kDataV), mov(3, kDataV + 0x2000 - kDataV),
+         Emulator32bit::asm_format_o(encoding::_op_add, false, 3, 1, 3, ShiftType::SHIFT_LSL, 0),
+         mov(2, 1), store(2, 1), store(2, 3), Emulator32bit::asm_hlt()});
     write_code(
         kCodeP, 0x200,
         {Emulator32bit::asm_tlbi(1, true, 0), store(2, 3), store(2, 1), Emulator32bit::asm_hlt()});
@@ -325,13 +325,13 @@ TEST_F(Mmu, user_mode_may_only_use_user_pages)
     write_code(kUserCodeP, 0x100, {mov(1, kDataV), load(2, 1), swi()});
     turn_on();
 
-    cpu.write_sysreg(Emulator32bit::kSysregId_pstate, 1 << kUserModeBit);
+    cpu.write_sysreg(encoding::kSysregId_pstate, 1 << kUserModeBit);
     ASSERT_EQ(run_at(kUserCodeV).status, Status::HALTED);
     EXPECT_EQ(esr_class(), word(Class::SUPERVISOR_CALL)) << "ran to the system call";
     EXPECT_EQ(cpu.read_reg(3), 6u);
     EXPECT_FALSE(cpu.user_mode());
 
-    cpu.write_sysreg(Emulator32bit::kSysregId_pstate, 1 << kUserModeBit);
+    cpu.write_sysreg(encoding::kSysregId_pstate, 1 << kUserModeBit);
     ASSERT_EQ(run_at(kUserCodeV + 0x100).status, Status::HALTED);
     expect_abort(Class::DATA_ABORT, 2, kDataV); // a kernel page: a permission fault
 }
@@ -339,7 +339,7 @@ TEST_F(Mmu, user_mode_may_only_use_user_pages)
 TEST_F(Mmu, user_mode_cannot_fetch_from_a_kernel_page)
 {
     turn_on();
-    cpu.write_sysreg(Emulator32bit::kSysregId_pstate, 1 << kUserModeBit);
+    cpu.write_sysreg(encoding::kSysregId_pstate, 1 << kUserModeBit);
     ASSERT_EQ(run_at(kCodeV + 0x100).status, Status::HALTED);
     expect_abort(Class::INSTRUCTION_ABORT, 2, kCodeV + 0x100);
 }
@@ -363,7 +363,7 @@ TEST_F(Mmu, the_kernel_may_read_and_write_user_data)
 TEST_F(Mmu, a_page_table_outside_of_memory_is_a_translation_fault)
 {
     turn_on();
-    cpu.write_sysreg(Emulator32bit::kSysregId_ptbr, 0xF0000000);
+    cpu.write_sysreg(encoding::kSysregId_ptbr, 0xF0000000);
     // The vector page cannot be fetched either, so the fault is raised for the first fetch.
     const auto result = run_at(0x100);
     EXPECT_NE(result.status, Status::HALTED);
@@ -387,13 +387,13 @@ TEST_F(Mmu, an_access_across_a_page_boundary_translates_both_pages)
 
 TEST_F(Mmu, sctlr_and_ptbr_keep_the_bits_that_exist)
 {
-    cpu.write_sysreg(Emulator32bit::kSysregId_ptbr, 0x12345678);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_ptbr), 0x12345000u);
-    cpu.write_sysreg(Emulator32bit::kSysregId_sctlr, 0xFFFFFFFE);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 0u);
+    cpu.write_sysreg(encoding::kSysregId_ptbr, 0x12345678);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_ptbr), 0x12345000u);
+    cpu.write_sysreg(encoding::kSysregId_sctlr, 0xFFFFFFFE);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_sctlr), 0u);
     EXPECT_FALSE(cpu.mmu->walk_enabled());
-    cpu.write_sysreg(Emulator32bit::kSysregId_sctlr, 0xFFFFFFFF);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 1u);
+    cpu.write_sysreg(encoding::kSysregId_sctlr, 0xFFFFFFFF);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_sctlr), 1u);
     EXPECT_TRUE(cpu.mmu->walk_enabled());
 }
 
@@ -401,7 +401,7 @@ TEST_F(Mmu, tlbi_is_privileged)
 {
     write_code(kUserCodeP, 0, {Emulator32bit::asm_tlbi(0, false, 0)});
     turn_on();
-    cpu.write_sysreg(Emulator32bit::kSysregId_pstate, 1 << kUserModeBit);
+    cpu.write_sysreg(encoding::kSysregId_pstate, 1 << kUserModeBit);
     ASSERT_EQ(run_at(kUserCodeV).status, Status::HALTED);
     EXPECT_EQ(esr_class(), word(Class::UNDEFINED_INSTRUCTION));
     EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_privileged);
@@ -412,7 +412,7 @@ TEST_F(Mmu, a_reset_turns_translation_off)
     turn_on();
     cpu.reset();
     EXPECT_FALSE(cpu.mmu->walk_enabled());
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_sctlr), 0u);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_sctlr), 0u);
 }
 
 TEST_F(Mmu, tlbi_disassembles_and_assembles_back)

@@ -12,7 +12,7 @@ constexpr U8 kXd = 5;
 /// The 21 bit signed number as the instruction holds it.
 word adr(const U8 xd, const int distance)
 {
-    word instr = Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, xd,
+    word instr = Emulator32bit::asm_format_m1(encoding::_op_adr, xd,
                                               int(bitfield_unsigned(distance, 0, 20)));
     if (distance < 0) instr = set_bit(instr, kInstructionUpdateFlagBit, 1);
     return instr;
@@ -20,8 +20,8 @@ word adr(const U8 xd, const int distance)
 
 word adrp(const U8 xd, const int pages)
 {
-    word instr = Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, xd,
-                                              int(bitfield_unsigned(pages, 0, 20)));
+    word instr =
+        Emulator32bit::asm_format_m1(encoding::_op_adrp, xd, int(bitfield_unsigned(pages, 0, 20)));
     if (pages < 0) instr = set_bit(instr, kInstructionUpdateFlagBit, 1);
     return instr;
 }

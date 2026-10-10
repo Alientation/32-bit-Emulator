@@ -77,18 +77,18 @@ class FpuTest : public EmulatorFixture
 
     word fpsr()
     {
-        return cpu.read_sysreg(Emulator32bit::kSysregId_fpsr);
+        return cpu.read_sysreg(encoding::kSysregId_fpsr);
     }
 
     void set_rounding(const word mode)
     {
-        cpu.write_sysreg(Emulator32bit::kSysregId_fpcr, mode);
+        cpu.write_sysreg(encoding::kSysregId_fpcr, mode);
     }
 
     void start(const word rounding)
     {
         set_rounding(rounding);
-        cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
+        cpu.write_sysreg(encoding::kSysregId_fpsr, 0);
     }
 
     /// fop2: xd = xa fn xb
@@ -750,7 +750,7 @@ TEST_F(FpuTest, the_zero_register_is_zero_and_discards_a_result)
     EXPECT_EQ(cpu.read_reg(6), 0u);
 
     // A result written to xzr is dropped, the flags it raised are not.
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
+    cpu.write_sysreg(encoding::kSysregId_fpsr, 0);
     execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, U8(Register::XZR), 2, U8(Register::XZR)));
     EXPECT_EQ(cpu.read_reg(U8(Register::XZR)), 0u);
     EXPECT_EQ(fpsr(), kDivByZero);
@@ -1011,28 +1011,28 @@ TEST_F(FpuTest, fpsr_collects_the_flags_until_it_is_written)
     execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, kXd, kXa, kXb)); // exact
     EXPECT_EQ(fpsr(), kDivByZero | kInexact) << "an exact result clears nothing";
 
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
+    cpu.write_sysreg(encoding::kSysregId_fpsr, 0);
     EXPECT_EQ(fpsr(), 0u);
 }
 
 TEST_F(FpuTest, fpcr_and_fpsr_keep_the_bits_that_exist)
 {
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpcr, 0xFFFFFFFF);
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0xFFFFFFFF);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_fpcr), kFpcrMask);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_fpsr), kFpsrMask);
-    EXPECT_STREQ(Emulator32bit::sysreg_name(Emulator32bit::kSysregId_fpcr), "fpcr");
-    EXPECT_STREQ(Emulator32bit::sysreg_name(Emulator32bit::kSysregId_fpsr), "fpsr");
-    EXPECT_EQ(Emulator32bit::sysreg_id("FPSR"), Emulator32bit::kSysregId_fpsr);
+    cpu.write_sysreg(encoding::kSysregId_fpcr, 0xFFFFFFFF);
+    cpu.write_sysreg(encoding::kSysregId_fpsr, 0xFFFFFFFF);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_fpcr), kFpcrMask);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_fpsr), kFpsrMask);
+    EXPECT_STREQ(encoding::sysreg_name(encoding::kSysregId_fpcr), "fpcr");
+    EXPECT_STREQ(encoding::sysreg_name(encoding::kSysregId_fpsr), "fpsr");
+    EXPECT_EQ(Emulator32bit::sysreg_id("FPSR"), encoding::kSysregId_fpsr);
 }
 
 TEST_F(FpuTest, a_reset_clears_the_floating_point_registers)
 {
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpcr, kRoundZero);
-    cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, kInexact);
+    cpu.write_sysreg(encoding::kSysregId_fpcr, kRoundZero);
+    cpu.write_sysreg(encoding::kSysregId_fpsr, kInexact);
     cpu.reset();
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_fpcr), 0u);
-    EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_fpsr), 0u);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_fpcr), 0u);
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_fpsr), 0u);
 }
 
 TEST_F(FpuTest, only_fcmp_changes_the_integer_flags)

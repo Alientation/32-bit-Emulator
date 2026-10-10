@@ -30,7 +30,7 @@ inline constexpr size_t kMaxHistory = size_t(1) << 20;
 
 /// A software simulated 32 bit processor, modeled off of the ARM architecture with many
 /// simplifications.
-class Emulator32bit : public Encoding
+class Emulator32bit
 {
   public:
     /// Makes an emulator with a RAM, a ROM that holds the given image and a MockDisk.
@@ -956,7 +956,7 @@ class Emulator32bit : public Encoding
     /// @param imm5 shift amount
     /// @param adr how the offset is applied to the base
     static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
-                             int imm5, AddrType adr);
+                             int imm5, encoding::AddrType adr);
 
     /// Constructs a load or store (format M) with an immediate offset
     ///
@@ -966,7 +966,8 @@ class Emulator32bit : public Encoding
     /// @param xn 5 bit base register identifier
     /// @param simm12 12 bit signed offset
     /// @param adr how the offset is applied to the base
-    static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int simm12, AddrType adr);
+    static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int simm12,
+                             encoding::AddrType adr);
 
     /// Constructs instructions of format M1, a register and an imm20 operand (`adrp`, `adr`)
     ///

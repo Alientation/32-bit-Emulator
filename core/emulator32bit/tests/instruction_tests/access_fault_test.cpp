@@ -46,8 +46,8 @@ TEST_F(AccessFault, a_store_to_a_page_that_is_not_writable_is_a_fault)
     cpu.write_reg(U8(1), kReadOnly);
     cpu.write_reg(U8(2), 0x1234);
 
-    const auto result = run(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 2, 1, 0,
-                                                        Emulator32bit::AddrType::ADDR_OFFSET));
+    const auto result = run(Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 0,
+                                                        encoding::AddrType::ADDR_OFFSET));
 
     EXPECT_EQ(result.status, Status::FAULT);
     EXPECT_EQ(result.instructions_ran, 0u);
@@ -60,8 +60,8 @@ TEST_F(AccessFault, a_store_to_a_page_that_is_writable_works)
     cpu.write_reg(U8(1), kWritable);
     cpu.write_reg(U8(2), 0x1234);
 
-    const auto result = run(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 2, 1, 0,
-                                                        Emulator32bit::AddrType::ADDR_OFFSET));
+    const auto result = run(Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 0,
+                                                        encoding::AddrType::ADDR_OFFSET));
 
     EXPECT_EQ(result.status, Status::HALTED);
     EXPECT_EQ(cpu.memory.read_word(kWritable), 0x1234u);
@@ -72,13 +72,13 @@ TEST_F(AccessFault, a_store_that_faults_does_not_change_the_base_register)
     cpu.write_reg(U8(1), kReadOnly);
     cpu.write_reg(U8(2), 0x1234);
 
-    const auto pre = run(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 2, 1, 4,
-                                                     Emulator32bit::AddrType::ADDR_PRE_INC));
+    const auto pre = run(Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 4,
+                                                     encoding::AddrType::ADDR_PRE_INC));
     EXPECT_EQ(pre.status, Status::FAULT);
     EXPECT_EQ(cpu.read_reg(U8(1)), kReadOnly);
 
-    const auto post = run(Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 2, 1, 4,
-                                                      Emulator32bit::AddrType::ADDR_POST_INC));
+    const auto post = run(Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 4,
+                                                      encoding::AddrType::ADDR_POST_INC));
     EXPECT_EQ(post.status, Status::FAULT);
     EXPECT_EQ(cpu.read_reg(U8(1)), kReadOnly);
 }
@@ -88,12 +88,11 @@ TEST_F(AccessFault, a_load_that_faults_does_not_change_any_register)
     cpu.write_reg(U8(1), kUnmapped);
     cpu.write_reg(U8(3), 99);
 
-    for (const auto mode :
-         {Emulator32bit::AddrType::ADDR_OFFSET, Emulator32bit::AddrType::ADDR_PRE_INC,
-          Emulator32bit::AddrType::ADDR_POST_INC})
+    for (const auto mode : {encoding::AddrType::ADDR_OFFSET, encoding::AddrType::ADDR_PRE_INC,
+                            encoding::AddrType::ADDR_POST_INC})
     {
         const auto result =
-            run(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 3, 1, 4, mode));
+            run(Emulator32bit::asm_format_m(encoding::_op_ldr, false, 3, 1, 4, mode));
         EXPECT_EQ(result.status, Status::FAULT);
         EXPECT_NE(result.message.find("unmapped"), std::string::npos) << result.message;
         EXPECT_EQ(cpu.read_reg(U8(1)), kUnmapped);
@@ -106,8 +105,8 @@ TEST_F(AccessFault, a_load_into_the_base_register_still_wins_over_the_write_back
     cpu.memory.write_word(kWritable, 0xCAFE);
     cpu.write_reg(U8(1), kWritable);
 
-    const auto result = run(Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 1, 1, 4,
-                                                        Emulator32bit::AddrType::ADDR_POST_INC));
+    const auto result = run(Emulator32bit::asm_format_m(encoding::_op_ldr, false, 1, 1, 4,
+                                                        encoding::AddrType::ADDR_POST_INC));
     EXPECT_EQ(result.status, Status::HALTED);
     EXPECT_EQ(cpu.read_reg(U8(1)), 0xCAFEu);
 }
@@ -118,8 +117,8 @@ TEST_F(AccessFault, an_atomic_that_faults_does_not_change_the_result_register)
     cpu.write_reg(U8(2), 77);        // result
     cpu.write_reg(U8(3), 5);         // operand
 
-    const auto result = run(Emulator32bit::asm_atomic(2, 3, 1, Emulator32bit::kAtomicWidth_word,
-                                                      Emulator32bit::kAtomicId_swp));
+    const auto result = run(
+        Emulator32bit::asm_atomic(2, 3, 1, encoding::kAtomicWidth_word, encoding::kAtomicId_swp));
     EXPECT_EQ(result.status, Status::FAULT);
     EXPECT_EQ(cpu.read_reg(U8(2)), 77u);
 }

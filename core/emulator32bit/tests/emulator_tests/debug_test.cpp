@@ -19,7 +19,7 @@ constexpr word kBadInstruction = 0xFC000000;
 
 word add_imm(const int xd, const int xn, const int imm, const bool s = false)
 {
-    return Emulator32bit::asm_format_o(Emulator32bit::_op_add, s, xd, xn, imm);
+    return Emulator32bit::asm_format_o(encoding::_op_add, s, xd, xn, imm);
 }
 
 /// x0 += 1 three times, then hlt: the additions are at 0, 4 and 8, the hlt at 12.
@@ -127,7 +127,7 @@ TEST_F(TraceTest, off_by_default_and_after_nullptr)
 TEST_F(TraceTest, shows_flag_changes_and_taken_branches)
 {
     write_program({add_imm(0, 0, 0, true),
-                   Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 2),
+                   Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 2),
                    Emulator32bit::asm_hlt(), Emulator32bit::asm_hlt()});
     std::ostringstream trace;
     cpu.set_trace(&trace);
@@ -425,9 +425,8 @@ TEST_F(DebuggerTest, backtrace_in_a_handler_shows_the_exception_and_the_interrup
 {
     // swi 3 at 0 goes to the handler at VBAR + 32: a nop, then eret.
     constexpr word kVbar = 0x800;
-    cpu.write_sysreg(Emulator32bit::kSysregId_vbar, kVbar);
-    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_swi,
-                                                           ConditionCode::AL, 3));
+    cpu.write_sysreg(encoding::kSysregId_vbar, kVbar);
+    cpu.memory.write_word(0, Emulator32bit::asm_format_b1(encoding::_op_swi, ConditionCode::AL, 3));
     cpu.memory.write_word(kVbar + 32, Emulator32bit::asm_nop());
     cpu.memory.write_word(kVbar + 36, Emulator32bit::asm_eret());
 
@@ -496,7 +495,7 @@ TEST_F(DebuggerTest, run_reads_commands_until_quit_or_the_end_of_the_input)
 constexpr word kWatched = 0x100;
 
 word mem_op(const U8 opcode, const int xt, const int xn, const int offset,
-            const Emulator32bit::AddrType mode = Emulator32bit::AddrType::ADDR_OFFSET)
+            const encoding::AddrType mode = encoding::AddrType::ADDR_OFFSET)
 {
     return Emulator32bit::asm_format_m(opcode, false, xt, xn, offset, mode);
 }
@@ -506,8 +505,8 @@ class WatchpointTest : public DebugFixture
   protected:
     void SetUp() override
     {
-        write_program({mem_op(Emulator32bit::_op_str, 2, 1, 0), add_imm(0, 0, 1),
-                       mem_op(Emulator32bit::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
+        write_program({mem_op(encoding::_op_str, 2, 1, 0), add_imm(0, 0, 1),
+                       mem_op(encoding::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
         cpu.write_reg(1, kWatched);
         cpu.write_reg(2, 0xCAFE);
     }
@@ -559,8 +558,8 @@ TEST_F(WatchpointTest, an_access_watchpoint_reacts_to_both)
 
 TEST_F(WatchpointTest, any_overlapping_byte_counts)
 {
-    write_program({mem_op(Emulator32bit::_op_strb, 2, 1, 3),
-                   mem_op(Emulator32bit::_op_strb, 2, 1, 4), Emulator32bit::asm_hlt()});
+    write_program({mem_op(encoding::_op_strb, 2, 1, 3), mem_op(encoding::_op_strb, 2, 1, 4),
+                   Emulator32bit::asm_hlt()});
 
     cpu.add_watchpoint(kWatched, 4); // bytes 0x100..0x103
     const auto first = cpu.run(0);
@@ -571,9 +570,9 @@ TEST_F(WatchpointTest, any_overlapping_byte_counts)
 
 TEST_F(WatchpointTest, an_atomic_is_a_write)
 {
-    write_program({Emulator32bit::asm_atomic(3, 2, 1, Emulator32bit::kAtomicWidth_word,
-                                             Emulator32bit::kAtomicId_swp),
-                   Emulator32bit::asm_hlt()});
+    write_program(
+        {Emulator32bit::asm_atomic(3, 2, 1, encoding::kAtomicWidth_word, encoding::kAtomicId_swp),
+         Emulator32bit::asm_hlt()});
     cpu.add_watchpoint(kWatched);
     const auto result = cpu.run(0);
 
@@ -584,7 +583,7 @@ TEST_F(WatchpointTest, an_atomic_is_a_write)
 
 TEST_F(WatchpointTest, the_writeback_of_the_stopping_instruction_has_happened)
 {
-    write_program({mem_op(Emulator32bit::_op_str, 2, 1, 4, Emulator32bit::AddrType::ADDR_PRE_INC),
+    write_program({mem_op(encoding::_op_str, 2, 1, 4, encoding::AddrType::ADDR_PRE_INC),
                    Emulator32bit::asm_hlt()});
     cpu.add_watchpoint(kWatched + 4);
     EXPECT_EQ(cpu.run(0).status, Status::BREAKPOINT);
@@ -667,7 +666,7 @@ TEST_F(WatchpointTest, a_write_says_what_was_in_the_memory_before)
 
 TEST_F(WatchpointTest, the_old_value_of_a_byte_store_is_that_byte_and_a_read_has_none)
 {
-    write_program({mem_op(Emulator32bit::_op_strb, 2, 1, 1), Emulator32bit::asm_hlt()});
+    write_program({mem_op(encoding::_op_strb, 2, 1, 1), Emulator32bit::asm_hlt()});
     cpu.memory.write_word(kWatched, 0x11223344);
     cpu.add_watchpoint(kWatched + 1);
 
@@ -675,7 +674,7 @@ TEST_F(WatchpointTest, the_old_value_of_a_byte_store_is_that_byte_and_a_read_has
     EXPECT_NE(result.message.find("write of 0xfe (1 byte)"), std::string::npos) << result.message;
     EXPECT_NE(result.message.find("the old value was 0x33"), std::string::npos) << result.message;
 
-    write_program({mem_op(Emulator32bit::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
+    write_program({mem_op(encoding::_op_ldr, 3, 1, 0), Emulator32bit::asm_hlt()});
     cpu.clear_watchpoints();
     cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::READ);
     EXPECT_EQ(cpu.run(0).message.find("old value"), std::string::npos);

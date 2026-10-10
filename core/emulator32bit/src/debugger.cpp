@@ -508,13 +508,13 @@ void Debugger::command_regs()
           << (m_emu.get_flag(kIrqMaskBit) ? ", IRQs masked" : "") << "\n";
 
     // The exception state, once a vector table is installed.
-    if (m_emu.read_sysreg(Emulator32bit::kSysregId_vbar) != 0)
+    if (m_emu.read_sysreg(encoding::kSysregId_vbar) != 0)
     {
-        for (const U8 id : {Emulator32bit::kSysregId_vbar, Emulator32bit::kSysregId_elr,
-                            Emulator32bit::kSysregId_spsr, Emulator32bit::kSysregId_esr,
-                            Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_usp})
+        for (const U8 id :
+             {encoding::kSysregId_vbar, encoding::kSysregId_elr, encoding::kSysregId_spsr,
+              encoding::kSysregId_esr, encoding::kSysregId_far, encoding::kSysregId_usp})
         {
-            m_out << std::format("  {:<5}{:#010x}\n", Emulator32bit::sysreg_name(id),
+            m_out << std::format("  {:<5}{:#010x}\n", encoding::sysreg_name(id),
                                  m_emu.read_sysreg(id));
         }
     }
@@ -628,18 +628,18 @@ void Debugger::command_backtrace()
     // among them: its record gives its caller. ELR is where it was, so it is shown here.
     if (m_emu.exception_depth() != 0)
     {
-        const word esr = m_emu.read_sysreg(Emulator32bit::kSysregId_esr);
+        const word esr = m_emu.read_sysreg(encoding::kSysregId_esr);
         const auto cls = static_cast<Emulator32bit::ExceptionClass>(esr >> 26);
         const bool is_abort = cls == Emulator32bit::ExceptionClass::INSTRUCTION_ABORT
                               || cls == Emulator32bit::ExceptionClass::DATA_ABORT;
-        m_out << std::format("    in the handler of a {}: ESR={:#x}{}{}, the code that was "
-                             "interrupted:\n",
-                             Emulator32bit::exception_class_name(cls), esr,
-                             is_abort ? std::format(", FAR={:#010x}",
-                                                    m_emu.read_sysreg(Emulator32bit::kSysregId_far))
-                                      : "",
-                             m_emu.exception_depth() > 1 ? " (the last of several)" : "");
-        print_frame(m_emu.read_sysreg(Emulator32bit::kSysregId_elr));
+        m_out << std::format(
+            "    in the handler of a {}: ESR={:#x}{}{}, the code that was "
+            "interrupted:\n",
+            Emulator32bit::exception_class_name(cls), esr,
+            is_abort ? std::format(", FAR={:#010x}", m_emu.read_sysreg(encoding::kSysregId_far))
+                     : "",
+            m_emu.exception_depth() > 1 ? " (the last of several)" : "");
+        print_frame(m_emu.read_sysreg(encoding::kSysregId_elr));
     }
 
     word fp = m_emu.read_reg(Register::FP);

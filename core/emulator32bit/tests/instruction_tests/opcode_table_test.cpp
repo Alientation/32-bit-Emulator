@@ -17,16 +17,16 @@ TEST_F(EmulatorFixture, every_listed_opcode_has_a_handler){
 // The opcode constants come from the list, so they are what the rows say.
 TEST_F(EmulatorFixture, opcode_constants_come_from_the_list)
 {
-    EXPECT_EQ(Emulator32bit::_op_special_instructions, 0b000000u);
-    EXPECT_EQ(Emulator32bit::_op_add, 0b000001u);
-    EXPECT_EQ(Emulator32bit::_op_fop1, 0b001001u);
-    EXPECT_EQ(Emulator32bit::_op_fop2, 0b001010u);
-    EXPECT_EQ(Emulator32bit::_op_fcmp, 0b001011u);
-    EXPECT_EQ(Emulator32bit::_op_shift, 0b010000u);
-    EXPECT_EQ(Emulator32bit::_op_mov, 0b010001u);
-    EXPECT_EQ(Emulator32bit::_op_ldr, 0b010011u);
-    EXPECT_EQ(Emulator32bit::_op_adrp, 0b100000u);
-    EXPECT_EQ(Emulator32bit::_op_adr, 0b100001u);
+    EXPECT_EQ(encoding::_op_special_instructions, 0b000000u);
+    EXPECT_EQ(encoding::_op_add, 0b000001u);
+    EXPECT_EQ(encoding::_op_fop1, 0b001001u);
+    EXPECT_EQ(encoding::_op_fop2, 0b001010u);
+    EXPECT_EQ(encoding::_op_fcmp, 0b001011u);
+    EXPECT_EQ(encoding::_op_shift, 0b010000u);
+    EXPECT_EQ(encoding::_op_mov, 0b010001u);
+    EXPECT_EQ(encoding::_op_ldr, 0b010011u);
+    EXPECT_EQ(encoding::_op_adrp, 0b100000u);
+    EXPECT_EQ(encoding::_op_adr, 0b100001u);
 }
 
 // The listed opcodes are one range from 0, so that every unused opcode is in the range after it.
@@ -86,7 +86,7 @@ TEST_F(EmulatorFixture, the_four_shifts_are_one_opcode_with_the_type_in_the_inst
     for (const auto &kind : kinds)
     {
         const word instr = Emulator32bit::asm_format_o1(kind.type, 1, 2, true, 0, 3);
-        EXPECT_EQ(instr >> 26, Emulator32bit::_op_shift) << kind.text;
+        EXPECT_EQ(instr >> 26, encoding::_op_shift) << kind.text;
         EXPECT_EQ((instr >> 7) & 0b11, word(kind.type)) << kind.text;
         EXPECT_EQ(Emulator32bit::disassemble_instr(instr), kind.text);
     }
@@ -97,8 +97,8 @@ TEST_F(EmulatorFixture, the_long_multiplies_are_one_opcode_with_a_signed_bit)
 {
     const word u = Emulator32bit::asm_format_o2(false, true, 1, 2, 3, 4);
     const word s = Emulator32bit::asm_format_o2(true, true, 1, 2, 3, 4);
-    EXPECT_EQ(u >> 26, Emulator32bit::_op_mull);
-    EXPECT_EQ(s >> 26, Emulator32bit::_op_mull);
+    EXPECT_EQ(u >> 26, encoding::_op_mull);
+    EXPECT_EQ(s >> 26, encoding::_op_mull);
     EXPECT_EQ(s ^ u, 1u << kLongMulSignedBit);
     EXPECT_EQ(Emulator32bit::disassemble_instr(u), "umulls x1, x2, x3, x4");
     EXPECT_EQ(Emulator32bit::disassemble_instr(s), "smulls x1, x2, x3, x4");
@@ -109,8 +109,8 @@ TEST_F(EmulatorFixture, bx_and_blx_are_one_opcode_with_a_link_bit)
 {
     const word bx = Emulator32bit::asm_format_b2(ConditionCode::AL, 5);
     const word blx = Emulator32bit::asm_format_b2(ConditionCode::AL, 5, true);
-    EXPECT_EQ(bx >> 26, Emulator32bit::_op_bx);
-    EXPECT_EQ(blx >> 26, Emulator32bit::_op_bx);
+    EXPECT_EQ(bx >> 26, encoding::_op_bx);
+    EXPECT_EQ(blx >> 26, encoding::_op_bx);
     EXPECT_EQ(blx ^ bx, 1u << kBranchLinkBit);
     EXPECT_EQ(Emulator32bit::disassemble_instr(bx), "bx x5");
     EXPECT_EQ(Emulator32bit::disassemble_instr(blx), "blx x5");

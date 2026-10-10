@@ -135,7 +135,7 @@ static std::string disassemble_format_m(word instruction, std::string op,
     std::string disassemble = op;
 
     const U8 adr_mode = bitfield_unsigned<0, 2>(instruction);
-    const bool unaligned = adr_mode == U8(Encoding::AddrType::ADDR_UNALIGNED);
+    const bool unaligned = adr_mode == U8(encoding::AddrType::ADDR_UNALIGNED);
     if (unaligned && has_unaligned_form)
     {
         // ldr -> ldur, strh -> sturh
@@ -154,10 +154,9 @@ static std::string disassemble_format_m(word instruction, std::string op,
 
     disassemble += "[";
     disassemble += disassemble_gpr(instruction, 15);
-    if (adr_mode != U8(Encoding::AddrType::ADDR_PRE_INC)
-        && adr_mode != U8(Encoding::AddrType::ADDR_OFFSET)
-        && adr_mode != U8(Encoding::AddrType::ADDR_POST_INC)
-        && !(unaligned && has_unaligned_form))
+    if (adr_mode != U8(encoding::AddrType::ADDR_PRE_INC)
+        && adr_mode != U8(encoding::AddrType::ADDR_OFFSET)
+        && adr_mode != U8(encoding::AddrType::ADDR_POST_INC) && !(unaligned && has_unaligned_form))
     {
         AEMU_FATAL("disassemble_format_m() - Invalid addressing mode "
                    "in the disassembly of instruction ({}) {}",
@@ -171,15 +170,15 @@ static std::string disassemble_format_m(word instruction, std::string op,
         {
             disassemble += "]";
         }
-        else if (adr_mode == U8(Encoding::AddrType::ADDR_PRE_INC))
+        else if (adr_mode == U8(encoding::AddrType::ADDR_PRE_INC))
         {
             disassemble += ", " + std::to_string(simm12) + "]!";
         }
-        else if (adr_mode == U8(Encoding::AddrType::ADDR_OFFSET) || unaligned)
+        else if (adr_mode == U8(encoding::AddrType::ADDR_OFFSET) || unaligned)
         {
             disassemble += ", " + std::to_string(simm12) + "]";
         }
-        else if (adr_mode == U8(Encoding::AddrType::ADDR_POST_INC))
+        else if (adr_mode == U8(encoding::AddrType::ADDR_POST_INC))
         {
             disassemble += "], " + std::to_string(simm12);
         }
@@ -193,15 +192,15 @@ static std::string disassemble_format_m(word instruction, std::string op,
             shift = ", " + disassemble_shift_operand(instruction);
         }
 
-        if (adr_mode == U8(Encoding::AddrType::ADDR_PRE_INC))
+        if (adr_mode == U8(encoding::AddrType::ADDR_PRE_INC))
         {
             disassemble += ", " + reg + ", " + shift + "]!";
         }
-        else if (adr_mode == U8(Encoding::AddrType::ADDR_OFFSET) || unaligned)
+        else if (adr_mode == U8(encoding::AddrType::ADDR_OFFSET) || unaligned)
         {
             disassemble += ", " + reg + ", " + shift + "]";
         }
-        else if (adr_mode == U8(Encoding::AddrType::ADDR_POST_INC))
+        else if (adr_mode == U8(encoding::AddrType::ADDR_POST_INC))
         {
             disassemble += "], " + reg + ", " + shift;
         }
@@ -341,7 +340,7 @@ static std::string disassemble_nop(word instruction)
 /// The name of a system register as the assembler reads it.
 static std::string disassemble_sysreg(const U8 sysreg)
 {
-    const char *name = Encoding::sysreg_name(sysreg);
+    const char *name = encoding::sysreg_name(sysreg);
     return name != nullptr ? name : "sysreg" + std::to_string(sysreg);
 }
 
@@ -396,16 +395,16 @@ static std::string disassemble_atomic(word instruction)
     std::string disassemble;
     switch (atop)
     {
-    case Encoding::kAtomicId_swp:
+    case encoding::kAtomicId_swp:
         disassemble = "swp";
         break;
-    case Encoding::kAtomicId_ldadd:
+    case encoding::kAtomicId_ldadd:
         disassemble = "ldadd";
         break;
-    case Encoding::kAtomicId_ldclr:
+    case encoding::kAtomicId_ldclr:
         disassemble = "ldclr";
         break;
-    case Encoding::kAtomicId_ldset:
+    case encoding::kAtomicId_ldset:
         disassemble = "ldset";
         break;
     default:
@@ -414,12 +413,12 @@ static std::string disassemble_atomic(word instruction)
 
     switch (width)
     {
-    case Encoding::kAtomicWidth_word:
+    case encoding::kAtomicWidth_word:
         break;
-    case Encoding::kAtomicWidth_byte:
+    case encoding::kAtomicWidth_byte:
         disassemble += "b";
         break;
-    case Encoding::kAtomicWidth_hword:
+    case encoding::kAtomicWidth_hword:
         disassemble += "h";
         break;
     default:
@@ -437,25 +436,25 @@ static std::string disassemble_unary(word instruction)
     const char *name;
     switch (bitfield_unsigned<0, 4>(instruction))
     {
-    case Encoding::kUnaryId_sxtb:
+    case encoding::kUnaryId_sxtb:
         name = "sxtb";
         break;
-    case Encoding::kUnaryId_sxth:
+    case encoding::kUnaryId_sxth:
         name = "sxth";
         break;
-    case Encoding::kUnaryId_uxtb:
+    case encoding::kUnaryId_uxtb:
         name = "uxtb";
         break;
-    case Encoding::kUnaryId_uxth:
+    case encoding::kUnaryId_uxth:
         name = "uxth";
         break;
-    case Encoding::kUnaryId_clz:
+    case encoding::kUnaryId_clz:
         name = "clz";
         break;
-    case Encoding::kUnaryId_rev:
+    case encoding::kUnaryId_rev:
         name = "rev";
         break;
-    case Encoding::kUnaryId_rev16:
+    case encoding::kUnaryId_rev16:
         name = "rev16";
         break;
     default:
@@ -471,25 +470,25 @@ static std::string disassemble_special_instructions(word instruction)
 
     switch (opsec)
     {
-    case Encoding::kSpecialOpId_hlt:
+    case encoding::kSpecialOpId_hlt:
         return disassemble_hlt(instruction);
-    case Encoding::kSpecialOpId_nop:
+    case encoding::kSpecialOpId_nop:
         return disassemble_nop(instruction);
-    case Encoding::kSpecialOpId_msr:
+    case encoding::kSpecialOpId_msr:
         return disassemble_msr(instruction);
-    case Encoding::kSpecialOpId_mrs:
+    case encoding::kSpecialOpId_mrs:
         return disassemble_mrs(instruction);
-    case Encoding::kSpecialOpId_tlbi:
+    case encoding::kSpecialOpId_tlbi:
         return disassemble_tlbi(instruction);
-    case Encoding::kSpecialOpId_atomic:
+    case encoding::kSpecialOpId_atomic:
         return disassemble_atomic(instruction);
-    case Encoding::kSpecialOpId_eret:
+    case encoding::kSpecialOpId_eret:
         return disassemble_eret(instruction);
-    case Encoding::kSpecialOpId_wfi:
+    case encoding::kSpecialOpId_wfi:
         return disassemble_wfi(instruction);
-    case Encoding::kSpecialOpId_brk:
+    case encoding::kSpecialOpId_brk:
         return disassemble_brk(instruction);
-    case Encoding::kSpecialOpId_unary:
+    case encoding::kSpecialOpId_unary:
         return disassemble_unary(instruction);
     default:
         return "ERROR: INVALID SPECOP";
@@ -753,25 +752,25 @@ static std::string disassemble_csel(word instruction)
     const ConditionCode inverse = ConditionCode(cond_bits ^ 1);
     const std::string xd = disassemble_gpr(instruction, 17);
 
-    if (invertible && variant != Encoding::kCselId_csel && zero_pair
-        && variant != Encoding::kCselId_csneg)
+    if (invertible && variant != encoding::kCselId_csel && zero_pair
+        && variant != encoding::kCselId_csneg)
     {
-        return std::string(variant == Encoding::kCselId_csinc ? "cset " : "csetm ") + xd + ", "
+        return std::string(variant == encoding::kCselId_csinc ? "cset " : "csetm ") + xd + ", "
                + disassemble_condition(inverse);
     }
-    if (invertible && variant != Encoding::kCselId_csel && same_pair)
+    if (invertible && variant != encoding::kCselId_csel && same_pair)
     {
-        const char *name = variant == Encoding::kCselId_csinc   ? "cinc "
-                           : variant == Encoding::kCselId_csinv ? "cinv "
-                                                                     : "cneg ";
+        const char *name = variant == encoding::kCselId_csinc   ? "cinc "
+                           : variant == encoding::kCselId_csinv ? "cinv "
+                                                                : "cneg ";
         return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
                + disassemble_condition(inverse);
     }
 
-    const char *name = variant == Encoding::kCselId_csel    ? "csel "
-                       : variant == Encoding::kCselId_csinc ? "csinc "
-                       : variant == Encoding::kCselId_csinv ? "csinv "
-                                                                 : "csneg ";
+    const char *name = variant == encoding::kCselId_csel    ? "csel "
+                       : variant == encoding::kCselId_csinc ? "csinc "
+                       : variant == encoding::kCselId_csinv ? "csinv "
+                                                            : "csneg ";
     return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
            + disassemble_gpr(instruction, 6) + ", "
            + disassemble_condition(ConditionCode(cond_bits));
@@ -792,7 +791,7 @@ std::string disassembler::disassemble(const word instr)
     switch (bitfield_unsigned<26, 6>(instr))
     {
 #define AEMU_DISASSEMBLE_CASE(name, opcode)                                                        \
-    case Encoding::_op_##name:                                                                     \
+    case encoding::_op_##name:                                                                     \
         return disassemble_##name(instr);
         AEMU_OPCODES(AEMU_DISASSEMBLE_CASE)
 #undef AEMU_DISASSEMBLE_CASE

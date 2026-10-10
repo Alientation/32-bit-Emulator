@@ -4,8 +4,8 @@
 ///
 /// Everything that is indexed by opcode is generated from this list, so adding an instruction is
 /// one new row here (plus its behavior):
-///   - the handler declaration `_<name>(word)` and the constant `Emulator32bit::_op_<name>`
-///     (emulator32bit.h),
+///   - the handler declaration `_<name>(word)` (emulator32bit.h) and the constant
+///     `encoding::_op_<name>` (encoding.h),
 ///   - the dispatch switch (Emulator32bit::execute),
 ///   - the disassembler table (disassembler.cpp, which needs a `disassemble_<name>`).
 ///

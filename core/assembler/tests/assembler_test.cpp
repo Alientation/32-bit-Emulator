@@ -93,17 +93,17 @@ class AssemblerUnit : public ToolchainFixture
 TEST_F(AssemblerUnit, alu_with_registers_and_immediates)
 {
     EXPECT_EQ(text("add x1, x2, x3\nadd x1, x2, 40\nsub x1, x2, x3, lsl 4\n"),
-              (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 3,
+              (Words{Emulator32bit::asm_format_o(encoding::_op_add, false, 1, 2, 3,
                                                  ShiftType::SHIFT_LSL, 0),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 40),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_sub, false, 1, 2, 3,
+                     Emulator32bit::asm_format_o(encoding::_op_add, false, 1, 2, 40),
+                     Emulator32bit::asm_format_o(encoding::_op_sub, false, 1, 2, 3,
                                                  ShiftType::SHIFT_LSL, 4)}));
 }
 
 TEST_F(AssemblerUnit, number_literals_in_every_base)
 {
     EXPECT_EQ(text("add x0, x0, 10\nadd x0, x0, 0xA\nadd x0, x0, 0b1010\nadd x0, x0, 0o12\n"),
-              Words(4, Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 0, 10)));
+              Words(4, Emulator32bit::asm_format_o(encoding::_op_add, false, 0, 0, 10)));
 }
 
 TEST_F(AssemblerUnit, the_old_number_notations_are_errors_that_say_what_to_write)
@@ -116,9 +116,9 @@ TEST_F(AssemblerUnit, the_old_number_notations_are_errors_that_say_what_to_write
 TEST_F(AssemblerUnit, flag_setting_suffix)
 {
     const Words words = text("adds x1, x2, 3\nadd x1, x2, 3\nmovs x0, 5\nlsls x1, x2, 3\n");
-    EXPECT_EQ(words[0], Emulator32bit::asm_format_o(Emulator32bit::_op_add, true, 1, 2, 3));
+    EXPECT_EQ(words[0], Emulator32bit::asm_format_o(encoding::_op_add, true, 1, 2, 3));
     EXPECT_NE(words[0], words[1]);
-    EXPECT_EQ(words[2], Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, true, 0, 5));
+    EXPECT_EQ(words[2], Emulator32bit::asm_format_o3(encoding::_op_mov, true, 0, 5));
     EXPECT_EQ(words[3], Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, 1, 2, true, 0, 3, true));
 }
 
@@ -145,7 +145,7 @@ TEST_F(AssemblerUnit, the_second_operand_can_be_shifted_by_each_kind_of_shift)
     {
         const std::string source = std::string("add x1, x2, x3, ") + kind.name + " 4";
         const Words words = text(source + "\n");
-        EXPECT_EQ(words, (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 3,
+        EXPECT_EQ(words, (Words{Emulator32bit::asm_format_o(encoding::_op_add, false, 1, 2, 3,
                                                             kind.type, 4)}))
             << kind.name;
         EXPECT_EQ(Emulator32bit::disassemble_instr(words[0]), source);
@@ -170,7 +170,7 @@ TEST_F(AssemblerUnit, every_condition_name_and_alias_is_a_condition_of_a_branch)
     for (const auto &condition : conditions)
     {
         EXPECT_EQ(text(std::string("b.") + condition.name + " 8\n"),
-                  (Words{Emulator32bit::asm_format_b1(Emulator32bit::_op_b, condition.code, 2)}))
+                  (Words{Emulator32bit::asm_format_b1(encoding::_op_b, condition.code, 2)}))
             << condition.name;
     }
 }
@@ -178,7 +178,7 @@ TEST_F(AssemblerUnit, every_condition_name_and_alias_is_a_condition_of_a_branch)
 TEST_F(AssemblerUnit, multiply)
 {
     EXPECT_EQ(text("mul x1, x2, x3\numull x1, x2, x3, x4\n"),
-              (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_mul, false, 1, 2, 3,
+              (Words{Emulator32bit::asm_format_o(encoding::_op_mul, false, 1, 2, 3,
                                                  ShiftType::SHIFT_LSL, 0),
                      Emulator32bit::asm_format_o2(false, false, 1, 2, 3, 4)}));
 }
@@ -186,13 +186,12 @@ TEST_F(AssemblerUnit, multiply)
 TEST_F(AssemblerUnit, compare_instructions_are_flag_setting_operations_with_xzr_as_destination)
 {
     const Words compares = text("cmp x1, 5\ncmn x1, x2\ntst x3, 7\nteq x3, x4\n");
-    EXPECT_EQ(compares,
-              (Words{Emulator32bit::asm_format_o(Emulator32bit::_op_sub, true, kXzr, 1, 5),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_add, true, kXzr, 1, 2,
-                                                 ShiftType::SHIFT_LSL, 0),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_and, true, kXzr, 3, 7),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_eor, true, kXzr, 3, 4,
-                                                 ShiftType::SHIFT_LSL, 0)}));
+    EXPECT_EQ(compares, (Words{Emulator32bit::asm_format_o(encoding::_op_sub, true, kXzr, 1, 5),
+                               Emulator32bit::asm_format_o(encoding::_op_add, true, kXzr, 1, 2,
+                                                           ShiftType::SHIFT_LSL, 0),
+                               Emulator32bit::asm_format_o(encoding::_op_and, true, kXzr, 3, 7),
+                               Emulator32bit::asm_format_o(encoding::_op_eor, true, kXzr, 3, 4,
+                                                           ShiftType::SHIFT_LSL, 0)}));
 
     // Writing the operation out gives the same words, and the disassembler names them cmp, ...
     EXPECT_EQ(text("subs xzr, x1, 5\nadds xzr, x1, x2\nands xzr, x3, 7\neors xzr, x3, x4\n"),
@@ -211,9 +210,9 @@ TEST_F(AssemblerUnit, compare_instructions_are_flag_setting_operations_with_xzr_
 TEST_F(AssemblerUnit, mov_and_mvn)
 {
     EXPECT_EQ(text("mov x0, 5\nmov x1, x2\nmvn x3, 9\n"),
-              (Words{Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 0, 5),
-                     Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, 2, 0),
-                     Emulator32bit::asm_format_o3(Emulator32bit::_op_mvn, false, 3, 9)}));
+              (Words{Emulator32bit::asm_format_o3(encoding::_op_mov, false, 0, 5),
+                     Emulator32bit::asm_format_o3(encoding::_op_mov, false, 1, 2, 0),
+                     Emulator32bit::asm_format_o3(encoding::_op_mvn, false, 3, 9)}));
 }
 
 TEST_F(AssemblerUnit, ret_is_bx_with_the_link_register)
@@ -231,7 +230,7 @@ TEST_F(AssemblerUnit, hlt_and_nop)
 
 TEST_F(AssemblerUnit, memory_addressing_modes)
 {
-    using Addr = Emulator32bit::AddrType;
+    using Addr = encoding::AddrType;
     EXPECT_EQ(
         text("ldr x0, [x1]\n"
              "ldr x0, [x1, 8]\n"
@@ -243,61 +242,54 @@ TEST_F(AssemblerUnit, memory_addressing_modes)
              "ldr x0, [x1, x2]\n"
              "ldr x0, [x1, x2, lsl 2]\n"),
         (Words{
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 0, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 8, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -4, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 4, Addr::ADDR_PRE_INC),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 4,
-                                        Addr::ADDR_POST_INC),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -4,
-                                        Addr::ADDR_POST_INC),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, kSp, -4,
-                                        Addr::ADDR_PRE_INC),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
-                                        ShiftType::SHIFT_LSL, 0, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
-                                        ShiftType::SHIFT_LSL, 2, Addr::ADDR_OFFSET)}));
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 0, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 8, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -4, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 4, Addr::ADDR_PRE_INC),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 4, Addr::ADDR_POST_INC),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -4, Addr::ADDR_POST_INC),
+            Emulator32bit::asm_format_m(encoding::_op_str, false, 0, kSp, -4, Addr::ADDR_PRE_INC),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 2, ShiftType::SHIFT_LSL, 0,
+                                        Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 2, ShiftType::SHIFT_LSL, 2,
+                                        Addr::ADDR_OFFSET)}));
 }
 
 TEST_F(AssemblerUnit, sign_extending_loads_and_stores)
 {
-    using Addr = Emulator32bit::AddrType;
+    using Addr = encoding::AddrType;
     EXPECT_EQ(
         text("ldrsb x0, [x1]\nldrb x0, [x1]\nldrsh x2, [x3]\nstrh x2, [x3]\n"),
         (Words{
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldrb, true, 0, 1, 0, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldrb, false, 0, 1, 0, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, true, 2, 3, 0, Addr::ADDR_OFFSET),
-            Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 2, 3, 0,
-                                        Addr::ADDR_OFFSET)}));
+            Emulator32bit::asm_format_m(encoding::_op_ldrb, true, 0, 1, 0, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldrb, false, 0, 1, 0, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_ldrh, true, 2, 3, 0, Addr::ADDR_OFFSET),
+            Emulator32bit::asm_format_m(encoding::_op_strh, false, 2, 3, 0, Addr::ADDR_OFFSET)}));
 }
 
 // ldur, ldurh, stur and sturh are the loads and stores that do not need an aligned address. They
 // are the same opcodes as ldr, ldrh, str and strh with the unaligned address mode.
 TEST_F(AssemblerUnit, unaligned_loads_and_stores)
 {
-    using Addr = Emulator32bit::AddrType;
-    EXPECT_EQ(text("ldur x0, [x1]\n"
-                   "ldur x0, [x1, -3]\n"
-                   "stur x0, [x1, 5]\n"
-                   "ldurh x0, [x1, 1]\n"
-                   "ldursh x0, [x1, 1]\n"
-                   "sturh x0, [x1, x2]\n"
-                   "ldur x0, [x1, x2, lsl 2]\n"),
-              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 0,
-                                                 Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -3,
-                                                 Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_str, false, 0, 1, 5,
-                                                 Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, false, 0, 1, 1,
-                                                 Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldrh, true, 0, 1, 1,
-                                                 Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_strh, false, 0, 1, 2,
-                                                 ShiftType::SHIFT_LSL, 0, Addr::ADDR_UNALIGNED),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 2,
-                                                 ShiftType::SHIFT_LSL, 2, Addr::ADDR_UNALIGNED)}));
+    using Addr = encoding::AddrType;
+    EXPECT_EQ(
+        text("ldur x0, [x1]\n"
+             "ldur x0, [x1, -3]\n"
+             "stur x0, [x1, 5]\n"
+             "ldurh x0, [x1, 1]\n"
+             "ldursh x0, [x1, 1]\n"
+             "sturh x0, [x1, x2]\n"
+             "ldur x0, [x1, x2, lsl 2]\n"),
+        (Words{
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 0, Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -3, Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_str, false, 0, 1, 5, Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_ldrh, false, 0, 1, 1, Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_ldrh, true, 0, 1, 1, Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_strh, false, 0, 1, 2, ShiftType::SHIFT_LSL, 0,
+                                        Addr::ADDR_UNALIGNED),
+            Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 2, ShiftType::SHIFT_LSL, 2,
+                                        Addr::ADDR_UNALIGNED)}));
 
     // The disassembler writes them back the same way.
     for (const char *line : {"ldur x0, [x1]", "stur x0, [x1, 5]", "ldurh x0, [x1, 1]",
@@ -341,8 +333,8 @@ TEST_F(AssemblerUnit, load_into_its_own_base_register_warns_about_the_lost_write
     // The access still assembles to the same instruction.
     EXPECT_EQ(warnings_of("ldr x1, [x1, 4]!\n").size(), 1u);
     EXPECT_EQ(text("ldr x1, [x1, 4]!\n"),
-              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 1, 1, 4,
-                                                 Emulator32bit::AddrType::ADDR_PRE_INC)}));
+              (Words{Emulator32bit::asm_format_m(encoding::_op_ldr, false, 1, 1, 4,
+                                                 encoding::AddrType::ADDR_PRE_INC)}));
 }
 
 TEST_F(AssemblerUnit, store_of_its_own_base_register_warns_about_the_stored_value)
@@ -396,18 +388,18 @@ TEST_F(AssemblerUnit, ordinary_memory_accesses_do_not_warn)
 TEST_F(AssemblerUnit, atomics)
 {
     EXPECT_EQ(text("swp x1, x2, [x3]\nldaddb x1, x2, [x3]\n"),
-              (Words{Emulator32bit::asm_atomic(1, 2, 3, Emulator32bit::kAtomicWidth_word,
-                                               Emulator32bit::kAtomicId_swp),
-                     Emulator32bit::asm_atomic(1, 2, 3, Emulator32bit::kAtomicWidth_byte,
-                                               Emulator32bit::kAtomicId_ldadd)}));
+              (Words{Emulator32bit::asm_atomic(1, 2, 3, encoding::kAtomicWidth_word,
+                                               encoding::kAtomicId_swp),
+                     Emulator32bit::asm_atomic(1, 2, 3, encoding::kAtomicWidth_byte,
+                                               encoding::kAtomicId_ldadd)}));
 }
 
 TEST_F(AssemblerUnit, system_registers)
 {
     EXPECT_EQ(text("msr PSTATE, 5\nmsr PSTATE, x1\nmrs x2, PSTATE\n"),
-              (Words{Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, true, 5),
-                     Emulator32bit::asm_msr(Emulator32bit::kSysregId_pstate, false, 1),
-                     Emulator32bit::asm_mrs(2, Emulator32bit::kSysregId_pstate)}));
+              (Words{Emulator32bit::asm_msr(encoding::kSysregId_pstate, true, 5),
+                     Emulator32bit::asm_msr(encoding::kSysregId_pstate, false, 1),
+                     Emulator32bit::asm_mrs(2, encoding::kSysregId_pstate)}));
 }
 
 TEST_F(AssemblerUnit, branches_by_register_and_with_conditions)
@@ -421,23 +413,23 @@ TEST_F(AssemblerUnit, branches_by_register_and_with_conditions)
 TEST_F(AssemblerUnit, branch_with_an_immediate_offset)
 {
     EXPECT_EQ(text("b 8\nb.lt 4\n"),
-              (Words{Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 2),
-                     Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::LT, 1)}));
+              (Words{Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 2),
+                     Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::LT, 1)}));
 }
 
 TEST_F(AssemblerUnit, a_branch_offset_in_bytes_is_signed)
 {
     using E = Emulator32bit;
     EXPECT_EQ(text("b -4\nb.ne -8\nbl 4 * 3\nb 0 - 16\n"),
-              (Words{E::asm_format_b1(E::_op_b, ConditionCode::AL, -1),
-                     E::asm_format_b1(E::_op_b, ConditionCode::NE, -2),
-                     E::asm_format_b1(E::_op_bl, ConditionCode::AL, 3),
-                     E::asm_format_b1(E::_op_b, ConditionCode::AL, -4)}));
+              (Words{E::asm_format_b1(encoding::_op_b, ConditionCode::AL, -1),
+                     E::asm_format_b1(encoding::_op_b, ConditionCode::NE, -2),
+                     E::asm_format_b1(encoding::_op_bl, ConditionCode::AL, 3),
+                     E::asm_format_b1(encoding::_op_b, ConditionCode::AL, -4)}));
 
     // The ends of the range: 22 bits of words, so -2^23 to 2^23 - 4 bytes.
     EXPECT_EQ(text("b 8388604\nb -8388608\n"),
-              (Words{E::asm_format_b1(E::_op_b, ConditionCode::AL, (1 << 21) - 1),
-                     E::asm_format_b1(E::_op_b, ConditionCode::AL, -(1 << 21))}));
+              (Words{E::asm_format_b1(encoding::_op_b, ConditionCode::AL, (1 << 21) - 1),
+                     E::asm_format_b1(encoding::_op_b, ConditionCode::AL, -(1 << 21))}));
 }
 
 TEST_F(AssemblerUnit, a_branch_offset_out_of_range_is_an_error)
@@ -465,7 +457,7 @@ TEST_F(AssemblerUnit, branch_to_a_label_in_the_file_is_resolved)
     const ObjectFile object = assemble(".text\nnop\nloop: nop\nb.ne loop\n");
     EXPECT_TRUE(object.rel_text.empty());
     EXPECT_EQ(object.text_section[2],
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::NE, -1));
+              Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::NE, -1));
     EXPECT_EQ(symbol(object, "loop").symbol_value, 4u);
 }
 
@@ -474,7 +466,7 @@ TEST_F(AssemblerUnit, branch_to_a_label_defined_later_is_resolved)
     const ObjectFile object = assemble(".text\nbl func\nnop\nfunc: ret\n");
     EXPECT_TRUE(object.rel_text.empty());
     EXPECT_EQ(object.text_section[0],
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_bl, ConditionCode::AL, 2));
+              Emulator32bit::asm_format_b1(encoding::_op_bl, ConditionCode::AL, 2));
 }
 
 TEST_F(AssemblerUnit, branch_to_an_unknown_symbol_leaves_a_relocation)
@@ -531,7 +523,7 @@ TEST_F(AssemblerUnit, adr_is_a_pc_relative_relocation_with_an_addend)
     EXPECT_EQ(object.rel_text[1].addend, 8);
     EXPECT_EQ(object.rel_text[2].type, Type::R_EMU32_ADR_PCREL21)
         << "a label of the file as well, the linker places the sections";
-    EXPECT_EQ(object.text_section[0], Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 3, 0));
+    EXPECT_EQ(object.text_section[0], Emulator32bit::asm_format_m1(encoding::_op_adr, 3, 0));
 }
 
 TEST_F(AssemblerUnit, adr_takes_a_symbol_and_not_a_part_of_an_address)
@@ -701,13 +693,13 @@ TEST_F(AssemblerUnit, division_follows_the_sign_of_c)
 TEST_F(AssemblerUnit, expressions_are_usable_wherever_a_number_is)
 {
     EXPECT_EQ(text("mov x1, (3 + 4) * 2\nadd x1, x2, 1 << 4\n"),
-              (Words{Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, 14),
-                     Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 16)}));
+              (Words{Emulator32bit::asm_format_o3(encoding::_op_mov, false, 1, 14),
+                     Emulator32bit::asm_format_o(encoding::_op_add, false, 1, 2, 16)}));
     EXPECT_EQ(text("ldr x0, [x1, -2 * 4]\nldr x0, [x1, (1 + 1) * 4]\n"),
-              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -8,
-                                                 Emulator32bit::AddrType::ADDR_OFFSET),
-                     Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, 8,
-                                                 Emulator32bit::AddrType::ADDR_OFFSET)}));
+              (Words{Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -8,
+                                                 encoding::AddrType::ADDR_OFFSET),
+                     Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, 8,
+                                                 encoding::AddrType::ADDR_OFFSET)}));
     EXPECT_EQ(data(".byte -1, ~0 & 255, 3 * 3\n"), (Bytes{0xFF, 0xFF, 9}));
 }
 
@@ -715,8 +707,8 @@ TEST_F(AssemblerUnit, a_negative_memory_offset_is_a_value_not_a_prefix)
 {
     // The minus used to negate everything after it, so `-2 + 1` was -3.
     EXPECT_EQ(text("ldr x0, [x1, -4 + 2]\n"),
-              (Words{Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -2,
-                                                 Emulator32bit::AddrType::ADDR_OFFSET)}));
+              (Words{Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -2,
+                                                 encoding::AddrType::ADDR_OFFSET)}));
     EXPECT_TRUE(
         contains(error(".text\nldr x0, [x1, -2049]\n"), "offset must be a signed 12 bit value"));
     EXPECT_TRUE(
@@ -731,11 +723,11 @@ TEST_F(AssemblerUnit, equ_names_a_number)
     // Wherever a number is.
     EXPECT_EQ(
         text(".equ N, 5\nmov x1, N * 2\nadd x1, x2, N\nldr x0, [x1, -N]\nb.ne N - 1 + 3 - 3 + 4\n"),
-        (Words{Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, 10),
-               Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 1, 2, 5),
-               Emulator32bit::asm_format_m(Emulator32bit::_op_ldr, false, 0, 1, -5,
-                                           Emulator32bit::AddrType::ADDR_OFFSET),
-               Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::NE, 2)}));
+        (Words{Emulator32bit::asm_format_o3(encoding::_op_mov, false, 1, 10),
+               Emulator32bit::asm_format_o(encoding::_op_add, false, 1, 2, 5),
+               Emulator32bit::asm_format_m(encoding::_op_ldr, false, 0, 1, -5,
+                                           encoding::AddrType::ADDR_OFFSET),
+               Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::NE, 2)}));
 
     // A constant is not a symbol of the object file.
     EXPECT_EQ(assemble(".equ N, 5\n").symbol_table.size(), 0u);
@@ -752,7 +744,7 @@ TEST_F(AssemblerUnit, a_constant_alone_in_a_data_directive_is_its_value_not_an_a
 TEST_F(AssemblerUnit, a_constant_can_be_a_branch_distance)
 {
     EXPECT_EQ(text(".equ BACK, -8\nnop\nnop\nb BACK\n").back(),
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -2));
+              Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, -2));
 }
 
 TEST_F(AssemblerUnit, the_distance_between_two_labels_is_a_number)
@@ -763,7 +755,7 @@ TEST_F(AssemblerUnit, the_distance_between_two_labels_is_a_number)
 
     // A constant takes the distance, and the labels need not be in .data.
     EXPECT_EQ(text("first: nop\nnop\nlast:\n.equ LEN, last - first\nmov x0, LEN\n").back(),
-              Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 0, 8));
+              Emulator32bit::asm_format_o3(encoding::_op_mov, false, 0, 8));
 }
 
 TEST_F(AssemblerUnit, constants_and_labels_follow_scopes)
@@ -1102,12 +1094,12 @@ TEST_F(AssemblerUnit, a_branch_to_a_label_of_the_file_with_a_number_is_resolved)
     ObjectFile object = assemble(".text\nstart: nop\nnop\nnop\nb start + 8\n");
     EXPECT_TRUE(object.rel_text.empty());
     EXPECT_EQ(object.text_section[3],
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -1));
+              Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, -1));
 
     object = assemble(".text\nb later + 4\nnop\nlater: nop\nnop\n");
     EXPECT_TRUE(object.rel_text.empty());
     EXPECT_EQ(object.text_section[0],
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 3));
+              Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 3));
 
     EXPECT_TRUE(contains(error(".text\nstart: nop\nb start + 2\n"), "4 byte aligned"));
 }
@@ -1305,13 +1297,12 @@ TEST_F(AssemblerUnit, instructions_in_an_executable_section_are_bytes_with_reloc
                                        "target: hlt\n"
                                        ".text\n");
     const ObjectFile::UserSection &code = *object.find_user_section("code");
-    const Words expected = {
-        Emulator32bit::asm_nop(),
-        Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, 0),
-        Emulator32bit::asm_format_m1(Emulator32bit::_op_adr, 1, 0),
-        Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 2, 0),
-        Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 2, 2, 0),
-        Emulator32bit::asm_hlt()};
+    const Words expected = {Emulator32bit::asm_nop(),
+                            Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, 0),
+                            Emulator32bit::asm_format_m1(encoding::_op_adr, 1, 0),
+                            Emulator32bit::asm_format_m1(encoding::_op_adrp, 2, 0),
+                            Emulator32bit::asm_format_o(encoding::_op_add, false, 2, 2, 0),
+                            Emulator32bit::asm_hlt()};
     ASSERT_EQ(code.bytes.size(), expected.size() * 4);
     for (size_t i = 0; i < expected.size(); i++)
     {

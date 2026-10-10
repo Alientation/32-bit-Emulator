@@ -326,17 +326,16 @@ TEST_F(LinkerScript, every_relocation_is_resolved_at_link_time)
     constexpr word kFunc = 0x400 + 6 * 4;
     ASSERT_EQ(exe.text_section.size(), 7u);
     // adrp is relative to the page of the instruction: page 2 from page 0.
-    EXPECT_EQ(exe.text_section[0], Emulator32bit::asm_format_m1(Emulator32bit::_op_adrp, 0, 2));
+    EXPECT_EQ(exe.text_section[0], Emulator32bit::asm_format_m1(encoding::_op_adrp, 0, 2));
     EXPECT_EQ(exe.text_section[1],
-              Emulator32bit::asm_format_o(Emulator32bit::_op_add, false, 0, 0, kBuf & 0xFFF));
+              Emulator32bit::asm_format_o(encoding::_op_add, false, 0, 0, kBuf & 0xFFF));
     EXPECT_EQ(exe.text_section[2],
-              Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, kBuf >> 19));
+              Emulator32bit::asm_format_o3(encoding::_op_mov, false, 1, kBuf >> 19));
     EXPECT_EQ(exe.text_section[3],
-              Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, 1, kBuf & 0x7FFFF));
+              Emulator32bit::asm_format_o3(encoding::_op_mov, false, 1, kBuf & 0x7FFFF));
     // The call is at 0x400 + 4 * 4 and func is two instructions later.
-    EXPECT_EQ(exe.text_section[4],
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_bl, ConditionCode::AL,
-                                           (kFunc - (0x400 + 4 * 4)) / 4));
+    EXPECT_EQ(exe.text_section[4], Emulator32bit::asm_format_b1(encoding::_op_bl, ConditionCode::AL,
+                                                                (kFunc - (0x400 + 4 * 4)) / 4));
 }
 
 TEST_F(LinkerScript, default_script)
@@ -551,7 +550,7 @@ TEST_F(LinkerScript, the_words_and_instructions_of_a_user_section_are_relocated)
     // The branch is at 8 and goes to 0.
     const ObjectFile::UserSection &vectors = *exe.find_user_section("vectors");
     EXPECT_EQ(word_at(vectors.bytes, 4),
-              Emulator32bit::asm_format_b1(Emulator32bit::_op_b, ConditionCode::AL, -2));
+              Emulator32bit::asm_format_b1(encoding::_op_b, ConditionCode::AL, -2));
     EXPECT_TRUE(exe.find_user_section("vectors")->relocations.empty());
     EXPECT_TRUE(table.relocations.empty());
 }

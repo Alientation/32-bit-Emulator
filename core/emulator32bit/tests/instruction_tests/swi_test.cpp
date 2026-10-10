@@ -38,7 +38,7 @@ class SoftwareInterrupt : public EmulatorFixture
         cpu.write_reg(Register::X2, a2);
         cpu.write_reg(Register::X3, a3);
         cpu.write_reg(Register::X4, a4);
-        return step(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_swi, ConditionCode::AL, 0));
+        return step(0, Emulator32bit::asm_format_b1(encoding::_op_swi, ConditionCode::AL, 0));
     }
 };
 
@@ -153,10 +153,10 @@ TEST_F(SoftwareInterrupt, an_unknown_call_is_a_fault)
 // wrong ends the run, it is not an undefined instruction that a handler would see.
 TEST_F(SoftwareInterrupt, a_wrong_call_is_a_fault_and_not_an_exception_with_a_vector_table)
 {
-    cpu.write_sysreg(Emulator32bit::kSysregId_vbar, 0x800);
+    cpu.write_sysreg(encoding::kSysregId_vbar, 0x800);
     cpu.write_reg(Register::SYSCALL, 7);
     const auto result =
-        step(0, Emulator32bit::asm_format_b1(Emulator32bit::_op_swi, ConditionCode::AL, 1));
+        step(0, Emulator32bit::asm_format_b1(encoding::_op_swi, ConditionCode::AL, 1));
 
     EXPECT_EQ(result.status, Status::FAULT);
     EXPECT_NE(result.message.find("Invalid syscall number 7"), std::string::npos);

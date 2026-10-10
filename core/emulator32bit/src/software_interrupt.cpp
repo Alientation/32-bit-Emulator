@@ -6,6 +6,8 @@
 #include <format>
 #include <iostream>
 
+using namespace encoding;
+
 namespace
 {
 

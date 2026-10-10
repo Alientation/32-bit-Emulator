@@ -23,17 +23,19 @@ constexpr word kIrqMask = 1 << kIrqMaskBit;
 
 word mov(const U8 xd, const word value)
 {
-    return E::asm_format_o3(E::_op_mov, false, xd, value);
+    return E::asm_format_o3(encoding::_op_mov, false, xd, value);
 }
 
 word store_at(const U8 xt, const U8 xn, const int offset)
 {
-    return E::asm_format_m(E::_op_str, false, xt, xn, offset, E::AddrType::ADDR_OFFSET);
+    return E::asm_format_m(encoding::_op_str, false, xt, xn, offset,
+                           encoding::AddrType::ADDR_OFFSET);
 }
 
 word load_at(const U8 xt, const U8 xn, const int offset)
 {
-    return E::asm_format_m(E::_op_ldr, false, xt, xn, offset, E::AddrType::ADDR_OFFSET);
+    return E::asm_format_m(encoding::_op_ldr, false, xt, xn, offset,
+                           encoding::AddrType::ADDR_OFFSET);
 }
 
 word nop()
@@ -45,7 +47,7 @@ word nop()
 std::vector<word> constant(const U8 xd, const word value)
 {
     return {mov(xd, value >> 14), E::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0, 14),
-            E::asm_format_o(E::_op_orr, false, xd, xd, int(value & 0x3FFF))};
+            E::asm_format_o(encoding::_op_orr, false, xd, xd, int(value & 0x3FFF))};
 }
 
 void append(std::vector<word> &code, const std::vector<word> &more)
@@ -81,7 +83,7 @@ class Devices : public ::testing::Test
             write(kVectors + 16 * c, {E::asm_hlt()});
         }
         write(kIrqVector, irq);
-        cpu.write_sysreg(E::kSysregId_vbar, kVectors);
+        cpu.write_sysreg(encoding::kSysregId_vbar, kVectors);
     }
 
     Emulator32bit::RunResult run(const std::vector<word> &program, const U64 limit = 1000)
@@ -276,9 +278,9 @@ TEST_F(Devices, input_from_the_host_interrupts_a_program_that_is_running)
     std::vector<word> program;
     append(program, constant(10, kIntcBase));
     append(program, constant(11, kConsoleBase));
-    program.insert(program.end(), {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08),
-                                   mov(1, 1), store_at(1, 11, 0x08),
-                                   E::asm_msr(E::kSysregId_pstate, true, 0)});
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08), mov(1, 1),
+                    store_at(1, 11, 0x08), E::asm_msr(encoding::kSysregId_pstate, true, 0)});
     program.insert(program.end(), 20, nop());
     program.push_back(E::asm_hlt());
 
@@ -371,16 +373,16 @@ TEST_F(Devices, a_reset_clears_the_devices)
 // The timer fires while a run of nops executes, the handler claims the line and returns.
 TEST_F(Devices, an_interrupt_runs_the_handler_between_two_instructions_and_eret_goes_on)
 {
-    install_vectors(
-        {mov(7, 1), load_at(8, 10, 0), E::asm_format_o(E::_op_add, false, 9, 9, 1), E::asm_eret()});
+    install_vectors({mov(7, 1), load_at(8, 10, 0),
+                     E::asm_format_o(encoding::_op_add, false, 9, 9, 1), E::asm_eret()});
 
     std::vector<word> program;
     append(program, constant(10, kIntcBase));
     append(program, constant(11, kTimerBase));
-    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08),           // enable line 0
-                                   mov(1, 40), store_at(1, 11, 0x04),          // compare
-                                   mov(1, 1), store_at(1, 11, 0x08),           // start
-                                   E::asm_msr(E::kSysregId_pstate, true, 0)}); // unmask
+    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08),  // enable line 0
+                                   mov(1, 40), store_at(1, 11, 0x04), // compare
+                                   mov(1, 1), store_at(1, 11, 0x08),  // start
+                                   E::asm_msr(encoding::kSysregId_pstate, true, 0)}); // unmask
     const size_t nops_at = program.size();
     program.insert(program.end(), 80, nop());
     program.push_back(E::asm_hlt());
@@ -393,10 +395,10 @@ TEST_F(Devices, an_interrupt_runs_the_handler_between_two_instructions_and_eret_
     EXPECT_FALSE(cpu.system_bus->intc.has_pending());
 
     // It came back into the nops: the resume address was a nop, not the handler.
-    const word elr = cpu.read_sysreg(E::kSysregId_elr);
+    const word elr = cpu.read_sysreg(encoding::kSysregId_elr);
     EXPECT_GE(elr, kProgram + 4 * nops_at);
     EXPECT_LT(elr, kProgram + 4 * (nops_at + 80));
-    EXPECT_EQ(cpu.read_sysreg(E::kSysregId_esr) >> 26, word(Class::IRQ));
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_esr) >> 26, word(Class::IRQ));
     EXPECT_EQ(cpu.get_pc(), kProgram + 4 * (nops_at + 80)) << "the final hlt";
     EXPECT_FALSE(cpu.get_flag(kIrqMaskBit)) << "ERET restored the unmasked state";
 }
@@ -425,7 +427,7 @@ TEST_F(Devices, without_a_vector_table_nothing_is_taken)
     append(program, constant(10, kIntcBase));
     program.insert(program.end(),
                    {mov(1, 1), store_at(1, 10, 0x08), mov(2, 0), store_at(2, 10, 0x0C),
-                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+                    E::asm_msr(encoding::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
     const auto result = run(program);
     EXPECT_EQ(result.status, Status::HALTED);
     EXPECT_TRUE(cpu.system_bus->intc.has_pending()) << "it was raised";
@@ -443,7 +445,7 @@ TEST_F(Devices, interrupts_are_served_first_come_first_served)
                    {mov(1, 3), store_at(1, 10, 0x08), // lines 0 and 1
                     mov(1, 1), store_at(1, 10, 0x0C), // raise 1
                     mov(1, 0), store_at(1, 10, 0x0C), // raise 0
-                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+                    E::asm_msr(encoding::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
     const auto result = run(program);
     ASSERT_EQ(result.status, Status::HALTED) << result.message;
     EXPECT_EQ(cpu.read_reg(8), 1u);
@@ -452,15 +454,15 @@ TEST_F(Devices, interrupts_are_served_first_come_first_served)
 
 TEST_F(Devices, the_handler_runs_with_irqs_masked_in_kernel_mode_on_its_own_stack)
 {
-    install_vectors({E::asm_msr(E::kSysregId_spsr, true, 0), E::asm_hlt()});
+    install_vectors({E::asm_msr(encoding::kSysregId_spsr, true, 0), E::asm_hlt()});
     cpu.write_reg(U8(Register::SP), 0x1000);
-    cpu.write_sysreg(E::kSysregId_usp, 0x2000);
+    cpu.write_sysreg(encoding::kSysregId_usp, 0x2000);
 
     std::vector<word> program;
     append(program, constant(10, kIntcBase));
     program.insert(program.end(),
                    {mov(1, 1), store_at(1, 10, 0x08), mov(2, 0), store_at(2, 10, 0x0C),
-                    E::asm_msr(E::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
+                    E::asm_msr(encoding::kSysregId_pstate, true, 0), nop(), nop(), E::asm_hlt()});
     ASSERT_EQ(run(program).status, Status::HALTED);
     EXPECT_EQ(cpu.get_pc(), kIrqVector + 4) << "stopped in the handler";
     EXPECT_FALSE(cpu.user_mode());
@@ -478,14 +480,14 @@ TEST_F(Devices, an_interrupt_in_user_mode_comes_back_to_user_mode)
     cpu.system_bus->intc.raise(0);
 
     // The user program is a few nops and the system call that stops the run (hlt is privileged).
-    write(kProgram, {nop(), nop(), E::asm_format_b1(E::_op_swi, ConditionCode::AL, 0)});
+    write(kProgram, {nop(), nop(), E::asm_format_b1(encoding::_op_swi, ConditionCode::AL, 0)});
     write(kVectors + 16 * word(Class::SUPERVISOR_CALL), {E::asm_hlt()});
-    cpu.write_sysreg(E::kSysregId_pstate, 1 << kUserModeBit); // user mode, IRQs unmasked
+    cpu.write_sysreg(encoding::kSysregId_pstate, 1 << kUserModeBit); // user mode, IRQs unmasked
     cpu.set_pc(kProgram);
     const auto result = cpu.run(100);
     ASSERT_EQ(result.status, Status::HALTED);
     EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
-    EXPECT_EQ(cpu.read_sysreg(E::kSysregId_elr), kProgram + 4 * 2 + 4)
+    EXPECT_EQ(cpu.read_sysreg(encoding::kSysregId_elr), kProgram + 4 * 2 + 4)
         << "the system call was reached after the handler returned";
 }
 

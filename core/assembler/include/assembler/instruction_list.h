@@ -49,15 +49,15 @@
 #define BASM_INSTRUCTION_LIST(F, X)                                                                \
     F(X, HLT, "hlt", false, HLT, 0, 0)                                                             \
     F(X, NOP, "nop", false, NOP, 0, 0)                                                             \
-    F(X, ADD, "add", true, O, Emulator32bit::_op_add, 0)                                           \
-    F(X, SUB, "sub", true, O, Emulator32bit::_op_sub, 0)                                           \
-    F(X, RSB, "rsb", true, O, Emulator32bit::_op_rsb, 0)                                           \
-    F(X, ADC, "adc", true, O, Emulator32bit::_op_adc, 0)                                           \
-    F(X, SBC, "sbc", true, O, Emulator32bit::_op_sbc, 0)                                           \
-    F(X, RSC, "rsc", true, O, Emulator32bit::_op_rsc, 0)                                           \
-    F(X, MUL, "mul", true, O, Emulator32bit::_op_mul, 0)                                           \
-    F(X, UMULL, "umull", true, O2, Emulator32bit::_op_mull, 0)                                    \
-    F(X, SMULL, "smull", true, O2, Emulator32bit::_op_mull, 1)                                    \
+    F(X, ADD, "add", true, O, encoding::_op_add, 0)                                                \
+    F(X, SUB, "sub", true, O, encoding::_op_sub, 0)                                                \
+    F(X, RSB, "rsb", true, O, encoding::_op_rsb, 0)                                                \
+    F(X, ADC, "adc", true, O, encoding::_op_adc, 0)                                                \
+    F(X, SBC, "sbc", true, O, encoding::_op_sbc, 0)                                                \
+    F(X, RSC, "rsc", true, O, encoding::_op_rsc, 0)                                                \
+    F(X, MUL, "mul", true, O, encoding::_op_mul, 0)                                                \
+    F(X, UMULL, "umull", true, O2, encoding::_op_mull, 0)                                          \
+    F(X, SMULL, "smull", true, O2, encoding::_op_mull, 1)                                          \
     BASM_FP_PAIR(F, X, FADD, "fadd", F2, fpu::kBinaryFn_add)                                       \
     BASM_FP_PAIR(F, X, FSUB, "fsub", F2, fpu::kBinaryFn_sub)                                       \
     BASM_FP_PAIR(F, X, FMUL, "fmul", F2, fpu::kBinaryFn_mul)                                       \
@@ -89,85 +89,73 @@
     BASM_FP_PAIR(F, X, FCMP, "fcmp", F3, 0)                                                        \
     BASM_FP_PAIR(F, X, FCMPE, "fcmpe", F3, 1)                                                      \
     BASM_FP_PAIR(F, X, FMOV, "fmov", FMOV, 0)                                                      \
-    F(X, AND, "and", true, O, Emulator32bit::_op_and, 0)                                           \
-    F(X, ORR, "orr", true, O, Emulator32bit::_op_orr, 0)                                           \
-    F(X, EOR, "eor", true, O, Emulator32bit::_op_eor, 0)                                           \
-    F(X, BIC, "bic", true, O, Emulator32bit::_op_bic, 0)                                           \
-    F(X, LSL, "lsl", true, O1, Emulator32bit::_op_shift, 0)                                            \
-    F(X, LSR, "lsr", true, O1, Emulator32bit::_op_shift, 1)                                            \
-    F(X, ASR, "asr", true, O1, Emulator32bit::_op_shift, 2)                                            \
-    F(X, ROR, "ror", true, O1, Emulator32bit::_op_shift, 3)                                            \
-    F(X, CMP, "cmp", false, O_NO_DEST, Emulator32bit::_op_sub, 0)                                  \
-    F(X, CMN, "cmn", false, O_NO_DEST, Emulator32bit::_op_add, 0)                                  \
-    F(X, TST, "tst", false, O_NO_DEST, Emulator32bit::_op_and, 0)                                  \
-    F(X, TEQ, "teq", false, O_NO_DEST, Emulator32bit::_op_eor, 0)                                  \
-    F(X, MOV, "mov", true, O3, Emulator32bit::_op_mov, 0)                                          \
-    F(X, MVN, "mvn", true, O3, Emulator32bit::_op_mvn, 0)                                          \
-    F(X, LDR, "ldr", false, M, Emulator32bit::_op_ldr, 0)                                          \
-    F(X, STR, "str", false, M, Emulator32bit::_op_str, 0)                                          \
-    F(X, SWP, "swp", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                              \
-      Emulator32bit::kAtomicId_swp)                                                                \
-    F(X, LDRB, "ldrb", false, M, Emulator32bit::_op_ldrb, 0)                                       \
-    F(X, STRB, "strb", false, M, Emulator32bit::_op_strb, 0)                                       \
-    F(X, SWPB, "swpb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                            \
-      Emulator32bit::kAtomicId_swp)                                                                \
-    F(X, LDRH, "ldrh", false, M, Emulator32bit::_op_ldrh, 0)                                       \
-    F(X, STRH, "strh", false, M, Emulator32bit::_op_strh, 0)                                       \
-    F(X, SWPH, "swph", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                           \
-      Emulator32bit::kAtomicId_swp)                                                                \
-    F(X, LDUR, "ldur", false, M, Emulator32bit::_op_ldr, 1)                                        \
-    F(X, STUR, "stur", false, M, Emulator32bit::_op_str, 1)                                        \
-    F(X, LDURH, "ldurh", false, M, Emulator32bit::_op_ldrh, 1)                                     \
-    F(X, STURH, "sturh", false, M, Emulator32bit::_op_strh, 1)                                     \
-    F(X, UDIV, "udiv", true, O, Emulator32bit::_op_udiv, 0)                                        \
-    F(X, SDIV, "sdiv", true, O, Emulator32bit::_op_sdiv, 0)                                        \
-    F(X, CSEL, "csel", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csel)          \
-    F(X, CSINC, "csinc", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)       \
-    F(X, CSINV, "csinv", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)       \
-    F(X, CSNEG, "csneg", false, CSEL, Emulator32bit::_op_csel, Emulator32bit::kCselId_csneg)       \
-    F(X, CSET, "cset", false, CSET, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)         \
-    F(X, CSETM, "csetm", false, CSET, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)       \
-    F(X, CINC, "cinc", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinc)         \
-    F(X, CINV, "cinv", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csinv)         \
-    F(X, CNEG, "cneg", false, CINC, Emulator32bit::_op_csel, Emulator32bit::kCselId_csneg)         \
+    F(X, AND, "and", true, O, encoding::_op_and, 0)                                                \
+    F(X, ORR, "orr", true, O, encoding::_op_orr, 0)                                                \
+    F(X, EOR, "eor", true, O, encoding::_op_eor, 0)                                                \
+    F(X, BIC, "bic", true, O, encoding::_op_bic, 0)                                                \
+    F(X, LSL, "lsl", true, O1, encoding::_op_shift, 0)                                             \
+    F(X, LSR, "lsr", true, O1, encoding::_op_shift, 1)                                             \
+    F(X, ASR, "asr", true, O1, encoding::_op_shift, 2)                                             \
+    F(X, ROR, "ror", true, O1, encoding::_op_shift, 3)                                             \
+    F(X, CMP, "cmp", false, O_NO_DEST, encoding::_op_sub, 0)                                       \
+    F(X, CMN, "cmn", false, O_NO_DEST, encoding::_op_add, 0)                                       \
+    F(X, TST, "tst", false, O_NO_DEST, encoding::_op_and, 0)                                       \
+    F(X, TEQ, "teq", false, O_NO_DEST, encoding::_op_eor, 0)                                       \
+    F(X, MOV, "mov", true, O3, encoding::_op_mov, 0)                                               \
+    F(X, MVN, "mvn", true, O3, encoding::_op_mvn, 0)                                               \
+    F(X, LDR, "ldr", false, M, encoding::_op_ldr, 0)                                               \
+    F(X, STR, "str", false, M, encoding::_op_str, 0)                                               \
+    F(X, SWP, "swp", false, ATOMIC, encoding::kAtomicWidth_word, encoding::kAtomicId_swp)          \
+    F(X, LDRB, "ldrb", false, M, encoding::_op_ldrb, 0)                                            \
+    F(X, STRB, "strb", false, M, encoding::_op_strb, 0)                                            \
+    F(X, SWPB, "swpb", false, ATOMIC, encoding::kAtomicWidth_byte, encoding::kAtomicId_swp)        \
+    F(X, LDRH, "ldrh", false, M, encoding::_op_ldrh, 0)                                            \
+    F(X, STRH, "strh", false, M, encoding::_op_strh, 0)                                            \
+    F(X, SWPH, "swph", false, ATOMIC, encoding::kAtomicWidth_hword, encoding::kAtomicId_swp)       \
+    F(X, LDUR, "ldur", false, M, encoding::_op_ldr, 1)                                             \
+    F(X, STUR, "stur", false, M, encoding::_op_str, 1)                                             \
+    F(X, LDURH, "ldurh", false, M, encoding::_op_ldrh, 1)                                          \
+    F(X, STURH, "sturh", false, M, encoding::_op_strh, 1)                                          \
+    F(X, UDIV, "udiv", true, O, encoding::_op_udiv, 0)                                             \
+    F(X, SDIV, "sdiv", true, O, encoding::_op_sdiv, 0)                                             \
+    F(X, CSEL, "csel", false, CSEL, encoding::_op_csel, encoding::kCselId_csel)                    \
+    F(X, CSINC, "csinc", false, CSEL, encoding::_op_csel, encoding::kCselId_csinc)                 \
+    F(X, CSINV, "csinv", false, CSEL, encoding::_op_csel, encoding::kCselId_csinv)                 \
+    F(X, CSNEG, "csneg", false, CSEL, encoding::_op_csel, encoding::kCselId_csneg)                 \
+    F(X, CSET, "cset", false, CSET, encoding::_op_csel, encoding::kCselId_csinc)                   \
+    F(X, CSETM, "csetm", false, CSET, encoding::_op_csel, encoding::kCselId_csinv)                 \
+    F(X, CINC, "cinc", false, CINC, encoding::_op_csel, encoding::kCselId_csinc)                   \
+    F(X, CINV, "cinv", false, CINC, encoding::_op_csel, encoding::kCselId_csinv)                   \
+    F(X, CNEG, "cneg", false, CINC, encoding::_op_csel, encoding::kCselId_csneg)                   \
     F(X, MSR, "msr", false, MSR, 0, 0)                                                             \
     F(X, MRS, "mrs", false, MRS, 0, 0)                                                             \
     F(X, TLBI, "tlbi", false, TLBI, 0, 0)                                                          \
     F(X, ERET, "eret", false, ERET, 0, 0)                                                          \
     F(X, WFI, "wfi", false, WFI, 0, 0)                                                             \
     F(X, BRK, "brk", false, BRK, 0, 0)                                                             \
-    F(X, SXTB, "sxtb", false, UNARY, Emulator32bit::kUnaryId_sxtb, 0)                              \
-    F(X, SXTH, "sxth", false, UNARY, Emulator32bit::kUnaryId_sxth, 0)                              \
-    F(X, UXTB, "uxtb", false, UNARY, Emulator32bit::kUnaryId_uxtb, 0)                              \
-    F(X, UXTH, "uxth", false, UNARY, Emulator32bit::kUnaryId_uxth, 0)                              \
-    F(X, CLZ, "clz", false, UNARY, Emulator32bit::kUnaryId_clz, 0)                                 \
-    F(X, REV, "rev", false, UNARY, Emulator32bit::kUnaryId_rev, 0)                                 \
-    F(X, REV16, "rev16", false, UNARY, Emulator32bit::kUnaryId_rev16, 0)                           \
-    F(X, LDADD, "ldadd", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                          \
-      Emulator32bit::kAtomicId_ldadd)                                                              \
-    F(X, LDADDB, "ldaddb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                        \
-      Emulator32bit::kAtomicId_ldadd)                                                              \
-    F(X, LDADDH, "ldaddh", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                       \
-      Emulator32bit::kAtomicId_ldadd)                                                              \
-    F(X, LDCLR, "ldclr", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                          \
-      Emulator32bit::kAtomicId_ldclr)                                                              \
-    F(X, LDCLRB, "ldclrb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                        \
-      Emulator32bit::kAtomicId_ldclr)                                                              \
-    F(X, LDCLRH, "ldclrh", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                       \
-      Emulator32bit::kAtomicId_ldclr)                                                              \
-    F(X, LDSET, "ldset", false, ATOMIC, Emulator32bit::kAtomicWidth_word,                          \
-      Emulator32bit::kAtomicId_ldset)                                                              \
-    F(X, LDSETB, "ldsetb", false, ATOMIC, Emulator32bit::kAtomicWidth_byte,                        \
-      Emulator32bit::kAtomicId_ldset)                                                              \
-    F(X, LDSETH, "ldseth", false, ATOMIC, Emulator32bit::kAtomicWidth_hword,                       \
-      Emulator32bit::kAtomicId_ldset)                                                              \
-    F(X, B, "b", false, B1, Emulator32bit::_op_b, 0)                                               \
-    F(X, BL, "bl", false, B1, Emulator32bit::_op_bl, 0)                                            \
-    F(X, BX, "bx", false, B2, Emulator32bit::_op_bx, 0)                                            \
-    F(X, BLX, "blx", false, B2, Emulator32bit::_op_bx, 1)                                         \
-    F(X, SWI, "swi", false, SWI, Emulator32bit::_op_swi, 0)                                        \
-    F(X, ADRP, "adrp", false, M1, Emulator32bit::_op_adrp, 0)                                      \
-    F(X, ADR, "adr", false, M1, Emulator32bit::_op_adr, 0)                                         \
+    F(X, SXTB, "sxtb", false, UNARY, encoding::kUnaryId_sxtb, 0)                                   \
+    F(X, SXTH, "sxth", false, UNARY, encoding::kUnaryId_sxth, 0)                                   \
+    F(X, UXTB, "uxtb", false, UNARY, encoding::kUnaryId_uxtb, 0)                                   \
+    F(X, UXTH, "uxth", false, UNARY, encoding::kUnaryId_uxth, 0)                                   \
+    F(X, CLZ, "clz", false, UNARY, encoding::kUnaryId_clz, 0)                                      \
+    F(X, REV, "rev", false, UNARY, encoding::kUnaryId_rev, 0)                                      \
+    F(X, REV16, "rev16", false, UNARY, encoding::kUnaryId_rev16, 0)                                \
+    F(X, LDADD, "ldadd", false, ATOMIC, encoding::kAtomicWidth_word, encoding::kAtomicId_ldadd)    \
+    F(X, LDADDB, "ldaddb", false, ATOMIC, encoding::kAtomicWidth_byte, encoding::kAtomicId_ldadd)  \
+    F(X, LDADDH, "ldaddh", false, ATOMIC, encoding::kAtomicWidth_hword, encoding::kAtomicId_ldadd) \
+    F(X, LDCLR, "ldclr", false, ATOMIC, encoding::kAtomicWidth_word, encoding::kAtomicId_ldclr)    \
+    F(X, LDCLRB, "ldclrb", false, ATOMIC, encoding::kAtomicWidth_byte, encoding::kAtomicId_ldclr)  \
+    F(X, LDCLRH, "ldclrh", false, ATOMIC, encoding::kAtomicWidth_hword, encoding::kAtomicId_ldclr) \
+    F(X, LDSET, "ldset", false, ATOMIC, encoding::kAtomicWidth_word, encoding::kAtomicId_ldset)    \
+    F(X, LDSETB, "ldsetb", false, ATOMIC, encoding::kAtomicWidth_byte, encoding::kAtomicId_ldset)  \
+    F(X, LDSETH, "ldseth", false, ATOMIC, encoding::kAtomicWidth_hword, encoding::kAtomicId_ldset) \
+    F(X, B, "b", false, B1, encoding::_op_b, 0)                                                    \
+    F(X, BL, "bl", false, B1, encoding::_op_bl, 0)                                                 \
+    F(X, BX, "bx", false, B2, encoding::_op_bx, 0)                                                 \
+    F(X, BLX, "blx", false, B2, encoding::_op_bx, 1)                                               \
+    F(X, SWI, "swi", false, SWI, encoding::_op_swi, 0)                                             \
+    F(X, ADRP, "adrp", false, M1, encoding::_op_adrp, 0)                                           \
+    F(X, ADR, "adr", false, M1, encoding::_op_adr, 0)                                              \
     BASM_FP_PAIR(F, X, FMADD, "fmadd", F4, fpu::kFmaFn_madd)                                       \
     BASM_FP_PAIR(F, X, FMSUB, "fmsub", F4, fpu::kFmaFn_msub)                                       \
     BASM_FP_PAIR(F, X, FNMADD, "fnmadd", F4, fpu::kFmaFn_nmadd)                                    \

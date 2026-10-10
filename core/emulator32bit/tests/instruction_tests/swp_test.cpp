@@ -8,8 +8,8 @@ TEST_F(EmulatorFixture, swp_basic)
     reset(2, 0, nullptr, 0, 2);
     cpu.memory.write_word(kPageSize, 0x34251607);
     // swp x0, x1, [x2]
-    cpu.memory.write_word(0, Emulator32bit::asm_atomic(0, 1, 2, Emulator32bit::kAtomicWidth_word,
-                                                       Emulator32bit::kAtomicId_swp));
+    cpu.memory.write_word(0, Emulator32bit::asm_atomic(0, 1, 2, encoding::kAtomicWidth_word,
+                                                       encoding::kAtomicId_swp));
     cpu.set_pc(0);
     cpu.write_reg(1, 0x76543210);
     cpu.write_reg(2, kPageSize);

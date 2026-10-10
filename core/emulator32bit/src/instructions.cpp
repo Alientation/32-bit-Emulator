@@ -7,6 +7,8 @@
 #include <format>
 #include <string>
 
+using namespace encoding;
+
 /// Useful macros to extract information from instruction bits
 #define _X1(instr) (bitfield_unsigned<20, 5>(instr))  // bits 20 to 24
 #define _X2(instr) (bitfield_unsigned<15, 5>(instr))  // bits 15 to 19
@@ -931,8 +933,7 @@ Emulator32bit::decode_mem_operand(const word instr)
                     "Bad memory address mode " + std::to_string(addr_mode), kUndefinedIss_ext_op);
 }
 
-static_assert(Emulator32bit::_op_ldr < Emulator32bit::_op_strh
-                  && Emulator32bit::_op_strh - Emulator32bit::_op_ldr == 5,
+static_assert(encoding::_op_ldr < encoding::_op_strh && encoding::_op_strh - encoding::_op_ldr == 5,
               "data_address_of treats ldr..strh as the range of the format M accesses");
 
 word Emulator32bit::data_address_of(const word instr)

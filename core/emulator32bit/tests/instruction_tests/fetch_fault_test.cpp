@@ -52,7 +52,7 @@ TEST_F(EmulatorFixture, fetch_outside_of_ram_faults)
 TEST_F(EmulatorFixture, atomic_with_invalid_width_faults_instead_of_exiting)
 {
     // Width field 0b11 is not a valid atomic width.
-    const word instr = Emulator32bit::asm_atomic(1, 2, 3, 0b11, Emulator32bit::kAtomicId_swp);
+    const word instr = Emulator32bit::asm_atomic(1, 2, 3, 0b11, encoding::kAtomicId_swp);
     const auto result = step(0, instr);
 
     EXPECT_EQ(result.status, Status::FAULT);
