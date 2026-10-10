@@ -43,7 +43,7 @@ loop:       subs    x0, x0, 1
 
 `x0`–`x29`, `sp` (= x30) and `xzr` (= x31, reads as 0, writes are discarded).
 
-By convention: `x0`–`x7` are the arguments, `x0` also the return value, `x8` the system call number, `x28` the frame pointer and `x29` the link register (`bl` stores the return address there).
+By convention: `x0`–`x7` are the arguments, `x0` also the return value (`x0` and `x1` for 64 bits, see [abi.md](abi.md#results)), `x8` the system call number, `x28` the frame pointer and `x29` the link register (`bl` stores the return address there).
 
 The flags are N, Z, C and V. Subtraction, `cmp` and `sbc` set C when there is **no borrow** (the ARM convention).
 

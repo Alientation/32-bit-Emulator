@@ -38,7 +38,7 @@ A register number above 31 reads as 0 and ignores writes (not reachable from a 5
 
 | Registers | Role |
 |-----------|------|
-| `x0`–`x7` | parameters (`x0` is also the return value) |
+| `x0`–`x7` | parameters (`x0` is also the return value, `x0` and `x1` for 64 bits, see [abi.md](abi.md#results)) |
 | `x8` | system call number |
 | `x0`–`x17` | caller saved |
 | `x18` | not assigned a role (reserved) |

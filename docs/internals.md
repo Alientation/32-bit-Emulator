@@ -393,7 +393,7 @@ changing the assembler.
   `@17` are lexical errors that say what to write; `%` is only the remainder operator now; `010` is
   decimal 10).
 - Registers: `x0`–`x29`, `sp` (x30), `xzr` (x31). x29 is the link register, x28 the frame pointer,
-  x8 the syscall number, x0–x7 the arguments, and x0 the return value.
+  x8 the syscall number, x0–x7 the arguments, and x0 the return value (x0 and x1 for 64 bits).
 - ALU ops are `op xd, xn, <xm[, shift] | imm14>`. The immediate is **unsigned 14-bit**. A trailing
   `s` sets flags (`adds`). `lsl/lsr/asr/ror` take `xm` or an imm5 and also accept `s` (N, Z and C
   from the last bit shifted out, V unchanged). Instructions that share an opcode: `lsl/lsr/asr/ror`
