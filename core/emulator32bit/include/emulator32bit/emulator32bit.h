@@ -10,14 +10,23 @@
 #include "emulator32bit/symbols.h"
 #include "emulator32bit/system_bus.h"
 #include "emulator32bit/virtual_memory.h"
+#include "util/bitarray.h"
 
-#include <deque>
 #include <iosfwd>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
+
+/// The most watchpoints that can be set at once (`add_watchpoint`).
+inline constexpr unsigned kMaxWatchpoints = 16;
+
+/// The most registers that can be watched at once (`add_register_watch`).
+inline constexpr unsigned kMaxRegisterWatches = 8;
+
+/// The most instructions that the history can keep (`set_history_size`).
+inline constexpr size_t kMaxHistory = size_t(1) << 20;
 
 /// A software simulated 32 bit processor, modeled off of the ARM architecture with many
 /// simplifications.
@@ -262,7 +271,8 @@ class Emulator32bit : public Encoding
     ///        the same memory under another virtual address)
     /// @param compare the condition on the value of the access
     /// @param compare_value the number the value is compared with
-    void add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE,
+    /// @return false if there are kMaxWatchpoints already and this is not a replacement
+    bool add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE,
                         bool physical = false, WatchCompare compare = WatchCompare::NONE,
                         word compare_value = 0);
 
@@ -276,8 +286,15 @@ class Emulator32bit : public Encoding
     /// Removes every watchpoint.
     void clear_watchpoints();
 
-    /// @return the watchpoints
-    const std::vector<Watchpoint> &watchpoints() const;
+    /// @return the number of watchpoints, at most kMaxWatchpoints
+    unsigned watchpoint_count() const
+    {
+        return m_watch_count;
+    }
+
+    /// @param i the index, below watchpoint_count (it changes when one is removed)
+    /// @return the watchpoint
+    Watchpoint watchpoint(unsigned i) const;
 
     /// What the last watchpoint that stopped a run was hit by.
     struct WatchHit
@@ -296,11 +313,19 @@ class Emulator32bit : public Encoding
     /// Makes run () stop, with Status::BREAKPOINT, once an instruction (or exception entry) has
     /// changed the register (0-29 or sp, the one of the current mode). With `value`, only a change
     /// to that value stops. A write of the value it already has is not a change. The pc is then at
-    /// the next instruction. Costs nothing while no register is watched. One watch per register.
+    /// the next instruction. Costs nothing while no register is watched. One watch per register,
+    /// and a watch on a register that is watched already replaces it.
     ///
     /// @param reg the number of the register
-    /// @param value the value that stops the run, or nothing for any change
-    void add_register_watch(U8 reg, std::optional<word> value = std::nullopt);
+    /// @return false if kMaxRegisterWatches registers are watched already and this is not one
+    bool add_register_watch(U8 reg);
+
+    /// A watch that only stops when the register changes to `value`.
+    ///
+    /// @param reg the number of the register
+    /// @param value the value that stops the run
+    /// @return false if kMaxRegisterWatches registers are watched already and this is not one
+    bool add_register_watch(U8 reg, word value);
 
     /// @param reg the number of a watched register
     /// @return whether the register was watched
@@ -312,12 +337,20 @@ class Emulator32bit : public Encoding
     struct RegisterWatch
     {
         U8 reg;
-        std::optional<word> value;
+        bool has_value; ///< only a change to `value` counts
+        word value;
         word last; ///< the value when the watch was last checked
     };
 
-    /// @return the register watches
-    const std::vector<RegisterWatch> &register_watches() const;
+    /// @return the number of register watches, at most kMaxRegisterWatches
+    unsigned register_watch_count() const
+    {
+        return m_regwatch_count;
+    }
+
+    /// @param i the index, below register_watch_count (it changes when one is removed)
+    /// @return the register watch
+    RegisterWatch register_watch(unsigned i) const;
 
     /// Writes a line per instruction to the stream before the next run (), or nothing for nullptr:
     /// `pc <symbol>: instruction | what changed`, or the reason when the instruction faulted.
@@ -326,9 +359,10 @@ class Emulator32bit : public Encoding
     void set_trace(std::ostream *out);
 
     /// Keeps the last `count` instructions that were executed (0 turns it off and clears it).
-    /// Includes the instruction that faulted, which is the newest one.
+    /// Includes the instruction that faulted, which is the newest one. A smaller count than the
+    /// history has keeps the newest ones.
     ///
-    /// @param count the number of instructions to keep
+    /// @param count the number of instructions to keep, at most kMaxHistory
     void set_history_size(size_t count);
 
     /// @return the number of instructions that the history keeps
@@ -614,8 +648,6 @@ class Emulator32bit : public Encoding
     void require_kernel();
 
     std::set<word> m_breakpoints;
-    std::vector<Watchpoint> m_watchpoints;
-    std::vector<RegisterWatch> m_register_watches;
     /// The first watchpoint the running instruction hit, as the message run () reports.
     std::string m_watch_hit;
     WatchHit m_last_watch_hit{0, WatchKind::WRITE};
@@ -643,8 +675,18 @@ class Emulator32bit : public Encoding
     void execute_hooked(word instr);
     std::ostream *m_trace = nullptr;
     const SymbolMap *m_symbols = nullptr;
-    size_t m_history_size = 0;
-    std::deque<ExecutedInstruction> m_history;
+
+    /// Puts the instruction that is about to execute in the history, over the oldest one if full.
+    void record_history(word instr);
+
+    /// @return the index of the watchpoint at the address, or m_watch_count if there is none
+    unsigned find_watchpoint(word address, bool physical) const;
+
+    /// @return the index of the watch on the register, or m_regwatch_count if there is none
+    unsigned find_register_watch(U8 reg) const;
+
+    /// Adds a register watch or replaces the one on `reg`; add_register_watch.
+    bool set_register_watch(U8 reg, bool has_value, word value);
 
     // The floating point registers are last, so that adding them did not move the members that
     // every instruction reads (see the benchmarks in CLAUDE.md).
@@ -652,6 +694,34 @@ class Emulator32bit : public Encoding
     word m_instr_in_flight = 0;
     word m_fpcr = 0; ///< Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
     word m_fpsr = 0; ///< Floating point status: the cumulative exception flags, bits 4-0.
+
+    // The tables of the debugger are after the members that every instruction reads. Struct of
+    // arrays: the fields of entry i are at index i of each array, and [0, count) are the entries.
+    // A removed entry is replaced by the last one.
+
+    /// The watchpoints, see Watchpoint.
+    unsigned m_watch_count = 0;
+    word m_watch_address[kMaxWatchpoints];
+    word m_watch_length[kMaxWatchpoints];
+    WatchKind m_watch_kind[kMaxWatchpoints];
+    WatchCompare m_watch_compare[kMaxWatchpoints];
+    word m_watch_compare_value[kMaxWatchpoints];
+    BitArray m_watch_physical;
+
+    /// The register watches, see RegisterWatch.
+    unsigned m_regwatch_count = 0;
+    U8 m_regwatch_reg[kMaxRegisterWatches];
+    word m_regwatch_value[kMaxRegisterWatches];
+    word m_regwatch_last[kMaxRegisterWatches];
+    BitArray m_regwatch_has_value;
+
+    /// The history is a ring buffer of `m_history_size` entries, of which the newest
+    /// `m_history_count` are valid, and the next one goes to `m_history_head`.
+    size_t m_history_size = 0;
+    size_t m_history_count = 0;
+    size_t m_history_head = 0;
+    std::vector<word> m_history_pc;
+    std::vector<word> m_history_instruction;
 
     // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
     // the opcode constant _op_<name>.

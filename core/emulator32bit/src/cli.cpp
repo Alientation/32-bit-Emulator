@@ -248,6 +248,11 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
     args.limit = number_option("limit");
     args.flags = number_option("flags");
     args.history_size = number_option("history");
+    if (args.history_size > kMaxHistory)
+    {
+        std::cerr << "ERROR: --history keeps at most " << kMaxHistory << " instructions\n";
+        parse_error = true;
+    }
 
     const std::string format = result["format"].as<std::string>();
     if (format != "pretty" && format != "plain")
@@ -515,12 +520,22 @@ static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &r
     }
     for (const WatchSpec &watch : args.watchpoints)
     {
-        emu->add_watchpoint(watch.address, watch.length, watch.kind, watch.physical, watch.compare,
-                            watch.compare_value);
+        if (!emu->add_watchpoint(watch.address, watch.length, watch.kind, watch.physical,
+                                 watch.compare, watch.compare_value))
+        {
+            std::cerr << "ERROR: at most " << kMaxWatchpoints << " --watch can be set\n";
+            return nullptr;
+        }
     }
     for (const RegisterWatchSpec &watch : args.register_watches)
     {
-        emu->add_register_watch(watch.reg, watch.value);
+        if (!(watch.has_value ? emu->add_register_watch(watch.reg, watch.value)
+                              : emu->add_register_watch(watch.reg)))
+        {
+            std::cerr << "ERROR: at most " << kMaxRegisterWatches
+                      << " registers can be watched with --watch-reg\n";
+            return nullptr;
+        }
     }
     return emu;
 }

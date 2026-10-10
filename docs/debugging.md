@@ -28,7 +28,7 @@ After the `;`: every register whose value changed (`name=old->new`), the flags i
 
 ## History
 
-`--history 8` prints, after the run (in `--format plain` as `history[i]=<pc> <word> <assembly> <symbol>` lines, oldest first), the last 8 instructions. If the run ended in a fault, the last one is the instruction that faulted. The debugger turns it on (32 entries) when it is off.
+`--history 8` prints, after the run (in `--format plain` as `history[i]=<pc> <word> <assembly> <symbol>` lines, oldest first), the last 8 instructions. If the run ended in a fault, the last one is the instruction that faulted. The debugger turns it on (32 entries) when it is off. The most it keeps is 1048576 (`kMaxHistory`; `--history` above that is a usage error).
 
 ## Breakpoints
 
@@ -38,7 +38,7 @@ Breakpoints are virtual addresses, like the PC.
 
 ## Watchpoints
 
-`--watch counter` (or `--watch 0x1000:4:rw`) runs until an instruction writes the watched bytes, with `status=breakpoint` and exit code 4. After the address come, in any order, an optional length in bytes (default 1), an optional kind, `r` (reads), `w` (writes, the default) or `rw`, `p` for a physical address and a condition on the value. The message says what happened: `Watchpoint 0x00001000: write of 0x5 (4 bytes) at 0x00001000 by the instruction at 0x00000010, the old value was 0x3`. From the library: `Emulator32bit::add_watchpoint (address, length, kind, physical, compare, compare_value)`, `remove_watchpoint`, `clear_watchpoints`; the result is `Status::BREAKPOINT` as for a breakpoint.
+`--watch counter` (or `--watch 0x1000:4:rw`) runs until an instruction writes the watched bytes, with `status=breakpoint` and exit code 4. After the address come, in any order, an optional length in bytes (default 1), an optional kind, `r` (reads), `w` (writes, the default) or `rw`, `p` for a physical address and a condition on the value. The message says what happened: `Watchpoint 0x00001000: write of 0x5 (4 bytes) at 0x00001000 by the instruction at 0x00000010, the old value was 0x3`. From the library: `Emulator32bit::add_watchpoint (address, length, kind, physical, compare, compare_value)`, `remove_watchpoint`, `clear_watchpoints`, `watchpoint_count ()` and `watchpoint (i)`; the result is `Status::BREAKPOINT` as for a breakpoint.
 
 - **Condition.** `--watch counter:==5` stops only when the value of the access is 5: the number that was stored, or that was loaded. The operators are `==`, `!=`, `<`, `<=`, `>`, `>=`, compared as unsigned numbers; the value of an access is its bytes, so a `strb` of 0x1FE is the value 0xFE. An access that does not match does nothing, and is written to the memory as usual. In the debugger: `watch counter 4 w == 5`.
 - **Physical addresses.** `--watch 0x14000:4:p` watches the memory at that physical address, whatever virtual address (or page table, or process) reaches it, and the address in the message is the virtual one of the access. A symbol is a virtual address, so a physical watch needs a number. In the debugger: `watch 0x14000 4 p` and `unwatch 0x14000 p`.
@@ -47,13 +47,13 @@ Breakpoints are virtual addresses, like the PC.
 - Any overlap counts: a `strb` to byte 2 of a watched word is a hit. A watch is on virtual addresses (the address the instruction computed) unless it has `p`; with the MMU on, another virtual address of the same page is not seen by a virtual watch.
 - Only loads, stores and atomics count. Instruction fetches, the page table walker, device activity, `swi` emulator calls (which write memory for the host) and the debugger's own `mem` do not. An atomic is a read and a write; when both match, the write is reported.
 - An access that faults does not count, since it did nothing.
-- A watchpoint at an address that is already watched replaces the old one (one per start address and kind of address, virtual or physical).
+- A watchpoint at an address that is already watched replaces the old one (one per start address and kind of address, virtual or physical). There are at most 16 (`kMaxWatchpoints`): `add_watchpoint` returns false for one more, `--watch` is a usage error, the debugger says so and a gdb `Z2`/`Z3`/`Z4` is answered with `E02`. Removing one moves the last into its place, so `watchpoint (i)` changes.
 - The value reported is the one loaded or stored (the low bytes for `strb`/`strh`). A write also says what the bytes held before, read just before the store (an atomic knows it already). A load has no old value.
 - It costs one test per memory instruction while none is set, so it is free when unused. With a watch set the stores take a path of their own (`store_watched`).
 
 ### Register watches
 
-`--watch-reg fp` runs until `fp` (`x28`) has a different value, `--watch-reg sp=0x1000` until `sp` becomes 0x1000 (`x0`-`x29`, `fp`, `lr` and `sp`). The message is `Register watch fp: 0x2000 -> 0x1ff8, next instruction at 0x00000024`, with `status=breakpoint` and exit code 4. From the library: `add_register_watch (reg, optional value)`, `remove_register_watch`, `clear_register_watches`, `register_watches ()`.
+`--watch-reg fp` runs until `fp` (`x28`) has a different value, `--watch-reg sp=0x1000` until `sp` becomes 0x1000 (`x0`-`x29`, `fp`, `lr` and `sp`). The message is `Register watch fp: 0x2000 -> 0x1ff8, next instruction at 0x00000024`, with `status=breakpoint` and exit code 4. From the library: `add_register_watch (reg)` or `add_register_watch (reg, value)` (false when 8, `kMaxRegisterWatches`, registers are watched already), `remove_register_watch`, `clear_register_watches`, `register_watch_count ()` and `register_watch (i)`.
 
 - It watches for a **change**: writing the value the register already has does nothing. There are no read watches for registers.
 - The registers are compared between instructions, so an exception entry (which switches the banked `sp`) or an `eret` is noticed too, and the check is free while no register is watched. A change that the debugger itself makes with `set` between runs is not reported.

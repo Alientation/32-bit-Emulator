@@ -197,12 +197,19 @@ TEST_F(GdbTest, a_watchpoint_stops_after_the_access)
     EXPECT_EQ(ask("s"), "W00") << "the hlt";
 
     cpu.set_pc(0);
-    EXPECT_TRUE(cpu.watchpoints().empty());
+    EXPECT_EQ(cpu.watchpoint_count(), 0u);
     EXPECT_EQ(ask("Z3,100,4"), "OK");
-    EXPECT_EQ(cpu.watchpoints()[0].kind, Emulator32bit::WatchKind::READ);
+    EXPECT_EQ(cpu.watchpoint(0).kind, Emulator32bit::WatchKind::READ);
     EXPECT_EQ(ask("Z4,100,4"), "OK");
-    EXPECT_EQ(cpu.watchpoints()[0].kind, Emulator32bit::WatchKind::ACCESS);
+    EXPECT_EQ(cpu.watchpoint(0).kind, Emulator32bit::WatchKind::ACCESS);
     EXPECT_EQ(ask("Z2,100,0"), "E01") << "no length";
+
+    EXPECT_EQ(ask("z4,100,4"), "OK");
+    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    {
+        EXPECT_EQ(ask(std::format("Z2,{:x},4", 0x1000 + 0x10 * i)), "OK");
+    }
+    EXPECT_EQ(ask("Z2,2000,4"), "E02") << "no more watchpoints";
 }
 
 TEST_F(GdbTest, a_halt_is_an_exit_and_a_fault_is_a_signal)

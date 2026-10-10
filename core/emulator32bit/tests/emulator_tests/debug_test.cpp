@@ -1,7 +1,9 @@
 #include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/symbols.h"
+#include "util/logger.h"
 
+#include <format>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -195,6 +197,40 @@ TEST_F(HistoryTest, a_size_of_zero_turns_it_off)
     EXPECT_TRUE(cpu.history().empty());
     cpu.run(0);
     EXPECT_TRUE(cpu.history().empty());
+}
+
+TEST_F(HistoryTest, changing_the_size_keeps_the_newest_in_order)
+{
+    cpu.set_history_size(3);
+    cpu.run(0); // four instructions into three entries: the ring has wrapped
+    auto history = cpu.history();
+    ASSERT_EQ(history.size(), 3u);
+    EXPECT_EQ(history[0].pc, 4u);
+    EXPECT_EQ(history[1].pc, 8u);
+    EXPECT_EQ(history[2].pc, 12u);
+
+    cpu.set_history_size(2);
+    history = cpu.history();
+    ASSERT_EQ(history.size(), 2u);
+    EXPECT_EQ(history[0].pc, 8u);
+    EXPECT_EQ(history[1].pc, 12u);
+
+    cpu.set_history_size(4); // room to grow, and the next entries go after the old ones
+    cpu.set_pc(0);
+    cpu.run(3);
+    history = cpu.history();
+    ASSERT_EQ(history.size(), 4u);
+    EXPECT_EQ(history[0].pc, 12u);
+    EXPECT_EQ(history[1].pc, 0u);
+    EXPECT_EQ(history[2].pc, 4u);
+    EXPECT_EQ(history[3].pc, 8u);
+}
+
+TEST_F(HistoryTest, the_size_has_a_limit)
+{
+    aemu::log::ScopedFatalAction guard(aemu::log::FatalAction::Throw);
+    EXPECT_NO_THROW(cpu.set_history_size(kMaxHistory));
+    EXPECT_THROW(cpu.set_history_size(kMaxHistory + 1), aemu::log::FatalError);
 }
 
 TEST(SymbolMapTest, describes_addresses_relative_to_the_closest_symbol_below)
@@ -559,8 +595,8 @@ TEST_F(WatchpointTest, removing_and_clearing)
 {
     cpu.add_watchpoint(kWatched);
     cpu.add_watchpoint(kWatched, 8); // replaces the first one
-    EXPECT_EQ(cpu.watchpoints().size(), 1u);
-    EXPECT_EQ(cpu.watchpoints()[0].length, 8u);
+    EXPECT_EQ(cpu.watchpoint_count(), 1u);
+    EXPECT_EQ(cpu.watchpoint(0).length, 8u);
 
     EXPECT_FALSE(cpu.remove_watchpoint(0x200));
     EXPECT_TRUE(cpu.remove_watchpoint(kWatched));
@@ -570,6 +606,45 @@ TEST_F(WatchpointTest, removing_and_clearing)
     cpu.clear_watchpoints();
     cpu.set_pc(0);
     EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+}
+
+TEST_F(WatchpointTest, there_is_a_limit_and_a_replacement_needs_no_room)
+{
+    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    {
+        EXPECT_TRUE(cpu.add_watchpoint(0x1000 + 0x10 * i));
+    }
+    EXPECT_FALSE(cpu.add_watchpoint(0x2000));
+    EXPECT_EQ(cpu.watchpoint_count(), kMaxWatchpoints);
+
+    EXPECT_TRUE(cpu.add_watchpoint(0x1000, 8)); // replaces
+    EXPECT_EQ(cpu.watchpoint(0).length, 8u);
+    EXPECT_FALSE(cpu.add_watchpoint(0x1000, 4, Emulator32bit::WatchKind::WRITE, true))
+        << "a physical watchpoint at the same address is another one, and there is no room";
+}
+
+TEST_F(WatchpointTest, removing_one_moves_the_last_with_all_its_fields)
+{
+    using Compare = Emulator32bit::WatchCompare;
+    cpu.add_watchpoint(0x300, 1, Emulator32bit::WatchKind::READ, true, Compare::NE, 7);
+    cpu.add_watchpoint(0x310, 2, Emulator32bit::WatchKind::WRITE);
+    cpu.add_watchpoint(0x320, 4, Emulator32bit::WatchKind::ACCESS, false, Compare::GT, 9);
+
+    EXPECT_TRUE(cpu.remove_watchpoint(0x300, true));
+    ASSERT_EQ(cpu.watchpoint_count(), 2u);
+
+    const Emulator32bit::Watchpoint moved = cpu.watchpoint(0);
+    EXPECT_EQ(moved.address, 0x320u);
+    EXPECT_EQ(moved.length, 4u);
+    EXPECT_EQ(moved.kind, Emulator32bit::WatchKind::ACCESS);
+    EXPECT_FALSE(moved.physical);
+    EXPECT_EQ(moved.compare, Compare::GT);
+    EXPECT_EQ(moved.compare_value, 9u);
+
+    const Emulator32bit::Watchpoint kept = cpu.watchpoint(1);
+    EXPECT_EQ(kept.address, 0x310u);
+    EXPECT_EQ(kept.length, 2u);
+    EXPECT_EQ(kept.compare, Compare::NONE);
 }
 
 TEST_F(WatchpointTest, a_single_step_that_hits_reports_it)
@@ -653,7 +728,7 @@ TEST_F(WatchpointTest, a_physical_watchpoint_is_another_one_than_a_virtual_one)
 {
     cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::WRITE, true);
     cpu.add_watchpoint(kWatched, 4, Emulator32bit::WatchKind::READ, false);
-    EXPECT_EQ(cpu.watchpoints().size(), 2u);
+    EXPECT_EQ(cpu.watchpoint_count(), 2u);
 
     const auto result = cpu.run(0);
     EXPECT_EQ(result.status, Status::BREAKPOINT) << "no virtual memory: the same address";
@@ -662,8 +737,8 @@ TEST_F(WatchpointTest, a_physical_watchpoint_is_another_one_than_a_virtual_one)
 
     EXPECT_FALSE(cpu.remove_watchpoint(kWatched + 4, true));
     EXPECT_TRUE(cpu.remove_watchpoint(kWatched, true));
-    EXPECT_EQ(cpu.watchpoints().size(), 1u);
-    EXPECT_FALSE(cpu.watchpoints()[0].physical);
+    EXPECT_EQ(cpu.watchpoint_count(), 1u);
+    EXPECT_FALSE(cpu.watchpoint(0).physical);
 }
 
 TEST_F(WatchpointTest, specs_are_parsed)
@@ -786,6 +861,24 @@ TEST_F(RegisterWatchTest, fp_and_lr_are_named_so)
     EXPECT_NE(cpu.run(0).message.find("Register watch lr: 0x0 -> 0x7"), std::string::npos);
 }
 
+TEST_F(RegisterWatchTest, there_is_a_limit_and_removing_moves_the_last_with_its_value)
+{
+    for (U8 reg = 0; reg < kMaxRegisterWatches; reg++)
+    {
+        EXPECT_TRUE(cpu.add_register_watch(reg));
+    }
+    EXPECT_FALSE(cpu.add_register_watch(kMaxRegisterWatches));
+    EXPECT_TRUE(cpu.add_register_watch(kMaxRegisterWatches - 1, 5)) << "replaces, needs no room";
+
+    EXPECT_TRUE(cpu.remove_register_watch(0));
+    ASSERT_EQ(cpu.register_watch_count(), kMaxRegisterWatches - 1);
+    const Emulator32bit::RegisterWatch moved = cpu.register_watch(0);
+    EXPECT_EQ(moved.reg, kMaxRegisterWatches - 1);
+    EXPECT_TRUE(moved.has_value);
+    EXPECT_EQ(moved.value, 5u);
+    EXPECT_FALSE(cpu.register_watch(1).has_value);
+}
+
 TEST_F(RegisterWatchTest, the_stack_pointer_is_named_sp)
 {
     write_program({add_imm(30, 30, 8), Emulator32bit::asm_hlt()});
@@ -799,14 +892,14 @@ TEST_F(RegisterWatchTest, removing_and_replacing)
 {
     cpu.add_register_watch(0);
     cpu.add_register_watch(0, 3); // replaces
-    EXPECT_EQ(cpu.register_watches().size(), 1u);
+    EXPECT_EQ(cpu.register_watch_count(), 1u);
     EXPECT_FALSE(cpu.remove_register_watch(5));
     EXPECT_TRUE(cpu.remove_register_watch(0));
     EXPECT_EQ(cpu.run(0).status, Status::HALTED);
 
     cpu.add_register_watch(0);
     cpu.clear_register_watches();
-    EXPECT_TRUE(cpu.register_watches().empty());
+    EXPECT_EQ(cpu.register_watch_count(), 0u);
 }
 
 TEST_F(RegisterWatchTest, specs_are_parsed)
@@ -814,11 +907,12 @@ TEST_F(RegisterWatchTest, specs_are_parsed)
     const auto plain = parse_register_watch_spec("x5");
     ASSERT_TRUE(plain);
     EXPECT_EQ(plain->reg, 5);
-    EXPECT_FALSE(plain->value);
+    EXPECT_FALSE(plain->has_value);
 
     const auto with_value = parse_register_watch_spec("sp=0x100");
     ASSERT_TRUE(with_value);
     EXPECT_EQ(with_value->reg, static_cast<U8>(Register::SP));
+    EXPECT_TRUE(with_value->has_value);
     EXPECT_EQ(with_value->value, 0x100u);
 
     const auto named = parse_register_watch_spec("fp");
@@ -850,7 +944,7 @@ TEST_F(DebuggerTest, watchreg_commands)
 
     command("watchreg sp");
     EXPECT_NE(command("unwatchreg all").find("All register watches removed"), std::string::npos);
-    EXPECT_TRUE(cpu.register_watches().empty());
+    EXPECT_EQ(cpu.register_watch_count(), 0u);
 }
 
 class WatchpointDebuggerTest : public WatchpointTest
@@ -910,6 +1004,22 @@ TEST_F(WatchpointDebuggerTest, a_condition_and_a_physical_address_in_the_command
     EXPECT_NE(command("unwatch var q").find("Expected"), std::string::npos);
 }
 
+TEST_F(WatchpointDebuggerTest, a_full_table_says_so)
+{
+    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    {
+        command(std::format("watch {:#x}", 0x1000 + 0x10 * i));
+    }
+    EXPECT_NE(command("watch 0x2000").find("remove one"), std::string::npos);
+    EXPECT_EQ(cpu.watchpoint_count(), kMaxWatchpoints);
+
+    for (U8 reg = 0; reg < kMaxRegisterWatches; reg++)
+    {
+        command(std::format("watchreg x{}", reg));
+    }
+    EXPECT_NE(command("watchreg x20").find("watched already"), std::string::npos);
+}
+
 TEST_F(WatchpointDebuggerTest, bad_input_and_unwatch_all)
 {
     EXPECT_NE(command("watch").find("Usage"), std::string::npos);
@@ -919,7 +1029,7 @@ TEST_F(WatchpointDebuggerTest, bad_input_and_unwatch_all)
 
     command("w var");
     EXPECT_NE(command("unwatch all").find("All watchpoints removed"), std::string::npos);
-    EXPECT_TRUE(cpu.watchpoints().empty());
+    EXPECT_EQ(cpu.watchpoint_count(), 0u);
 }
 
 } // namespace

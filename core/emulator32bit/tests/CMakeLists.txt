@@ -4,6 +4,7 @@ aemu_add_gtest(emulator32bit_tests
     SOURCES
         ./alu_tests/alu_test.cpp
         ./alu_tests/bit_util_test.cpp
+        ./alu_tests/bitarray_test.cpp
         ./emulator_tests/emulator_test.cpp
         ./emulator_tests/fbl_test.cpp
         ./emulator_tests/frame_allocator_test.cpp

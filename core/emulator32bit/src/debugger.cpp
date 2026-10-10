@@ -370,8 +370,12 @@ void Debugger::command_watch(const std::vector<std::string> &args)
         return;
     }
 
-    m_emu.add_watchpoint(watch->address, watch->length, watch->kind, watch->physical,
-                         watch->compare, watch->compare_value);
+    if (!m_emu.add_watchpoint(watch->address, watch->length, watch->kind, watch->physical,
+                              watch->compare, watch->compare_value))
+    {
+        m_out << "There are " << kMaxWatchpoints << " watchpoints already; remove one with unwatch.\n";
+        return;
+    }
     m_out << "Watching " << watch->length << " byte" << (watch->length == 1 ? "" : "s") << " at "
           << (watch->physical ? std::format("physical {:#010x}", watch->address)
                               : describe(watch->address))
@@ -410,17 +414,19 @@ void Debugger::command_unwatch(const std::vector<std::string> &args)
 
 void Debugger::command_watches()
 {
-    if (m_emu.watchpoints().empty() && m_emu.register_watches().empty())
+    if (m_emu.watchpoint_count() == 0 && m_emu.register_watch_count() == 0)
     {
         m_out << "No watchpoints.\n";
     }
-    for (const Emulator32bit::RegisterWatch &watch : m_emu.register_watches())
+    for (unsigned i = 0; i < m_emu.register_watch_count(); i++)
     {
+        const Emulator32bit::RegisterWatch watch = m_emu.register_watch(i);
         m_out << "  " << register_name(watch.reg) << ", changes"
-              << (watch.value ? std::format(" to {:#x}", *watch.value) : "") << "\n";
+              << (watch.has_value ? std::format(" to {:#x}", watch.value) : "") << "\n";
     }
-    for (const Emulator32bit::Watchpoint &watch : m_emu.watchpoints())
+    for (unsigned i = 0; i < m_emu.watchpoint_count(); i++)
     {
+        const Emulator32bit::Watchpoint watch = m_emu.watchpoint(i);
         m_out << "  "
               << (watch.physical ? std::format("physical {:#010x}", watch.address)
                                  : describe(watch.address))
@@ -449,9 +455,14 @@ void Debugger::command_watchreg(const std::vector<std::string> &args)
         return;
     }
 
-    m_emu.add_register_watch(watch->reg, watch->value);
+    if (!(watch->has_value ? m_emu.add_register_watch(watch->reg, watch->value)
+                           : m_emu.add_register_watch(watch->reg)))
+    {
+        m_out << kMaxRegisterWatches << " registers are watched already; remove one with unwatchreg.\n";
+        return;
+    }
     m_out << "Watching " << register_name(watch->reg) << " for a change"
-          << (watch->value ? std::format(" to {:#x}", *watch->value) : "") << ".\n";
+          << (watch->has_value ? std::format(" to {:#x}", watch->value) : "") << ".\n";
 }
 
 void Debugger::command_unwatchreg(const std::vector<std::string> &args)
@@ -721,7 +732,7 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
         return std::nullopt;
     }
 
-    RegisterWatchSpec spec{.reg = *reg, .value = std::nullopt};
+    RegisterWatchSpec spec{.reg = *reg, .has_value = false, .value = 0};
     if (equals != std::string::npos)
     {
         const std::optional<U64> value = parse_number(text.substr(equals + 1));
@@ -729,6 +740,7 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
         {
             return std::nullopt;
         }
+        spec.has_value = true;
         spec.value = static_cast<word>(*value);
     }
     return spec;

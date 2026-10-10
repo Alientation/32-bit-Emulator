@@ -93,13 +93,13 @@ and the release build has debug info so the samples can be attributed to source 
     come from the `.bexe` (`SymbolMap`, a local label has its `:LOCAL:n` suffix stripped). The
     library side is `Emulator32bit::add_breakpoint`/`set_trace`/`set_history_size`/`set_symbols`;
     `RunResult::Status::BREAKPOINT` is a fourth status, so a `switch` over it needs the case. The
-    first instruction of a `run()` never stops at a breakpoint. `Debugger` turns on `set_brk_stops`,
+    pc a `run()` starts at is never a breakpoint hit (`leaving_start` in `run ()`). `Debugger` turns on `set_brk_stops`,
     so a `brk` instruction stops the run too (pc at the next instruction). `--watch
     addr|symbol[:len][:r|w|rw][:p][:<op><value>]` / `add_watchpoint` stop after a load, store or
     atomic touches virtual (or, with `p`, physical: the access is translated again by
     `watch_access`) bytes whose value matches the condition (also `Status::BREAKPOINT`, with the
     instruction finished and the pc at the next one); the hook is `watch_access ()`, called by the
-    memory handlers in `instructions.cpp` only when the list is not empty (the stores test it at
+    memory handlers in `instructions.cpp` only when there is a watchpoint (the stores test it at
     the top and go to `store_watched`, which reads the old value first), and the REPL has `watch`/`unwatch`/`watches`. `--watch-reg
     reg[=value]` / `add_register_watch` stop after a register changes: `run ()` compares the watched
     registers at the top of each iteration (and once after the loop), nothing is hooked into
@@ -109,6 +109,11 @@ and the release build has debug info so the samples can be attributed to source 
     fires; set the hooks between runs, not inside one. The conditions are one table lookup
     (`check_cond`, `kConditionTable` in `alu.h`: the four flags are the low bits of PSTATE and index
     a 16 bit mask per flag combination).
+    The watchpoints, the register watches and the history are structs of arrays (`m_watch_*`,
+    `m_regwatch_*`, `m_history_*`) at the end of `Emulator32bit`, after the members that every
+    instruction reads: the fixed tables hold `kMaxWatchpoints` and `kMaxRegisterWatches` entries,
+    their booleans are a `BitArray` (`util/bitarray.h`), and a removed entry is replaced by the
+    last one. The history is a ring buffer of `m_history_size` entries.
   - `--no-semihosting` makes `swi 1`, the emulator calls, an undefined instruction. The plain dump
     also has `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`.
   - `pc` is the virtual address where execution stopped (the loader sets it to `_start`, and fetch

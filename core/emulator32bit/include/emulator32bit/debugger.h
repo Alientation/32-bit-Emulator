@@ -43,7 +43,8 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
 struct RegisterWatchSpec
 {
     U8 reg;
-    std::optional<word> value;
+    bool has_value; ///< only a change to `value` stops
+    word value;
 };
 
 /// Parses the argument of `--watch-reg`.

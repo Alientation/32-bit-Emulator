@@ -303,10 +303,14 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
         if (kind == 0) return "E01"; // the length of the watched range
         if (insert)
         {
-            m_emu.add_watchpoint(address, kind,
-                                 type_text[0] == '2'   ? Emulator32bit::WatchKind::WRITE
-                                 : type_text[0] == '3' ? Emulator32bit::WatchKind::READ
-                                                       : Emulator32bit::WatchKind::ACCESS);
+            // gdb takes an error as: no more hardware watchpoints
+            if (!m_emu.add_watchpoint(address, kind,
+                                      type_text[0] == '2'   ? Emulator32bit::WatchKind::WRITE
+                                      : type_text[0] == '3' ? Emulator32bit::WatchKind::READ
+                                                            : Emulator32bit::WatchKind::ACCESS))
+            {
+                return "E02";
+            }
         }
         else
         {

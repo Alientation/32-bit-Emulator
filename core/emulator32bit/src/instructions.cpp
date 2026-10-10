@@ -612,7 +612,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
     }
 
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         // The write is reported first: it is the more interesting half of a read-modify-write.
         watch_access(mem_adr, size, true, new_val, val_mem);
@@ -993,7 +993,7 @@ void Emulator32bit::_ldr(const word instr)
 {
     const MemOperand mem = decode_mem_operand<true>(instr);
     const word read_val = load<word>(memory, mem.address, mem.unaligned);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 4, false, read_val);
     }
@@ -1006,7 +1006,7 @@ void Emulator32bit::_ldrb(const word instr)
     const bool sign = test_bit<25>(instr);
     const MemOperand mem = decode_mem_operand<false>(instr);
     word read_val = load<byte>(memory, mem.address, false);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 1, false, read_val);
     }
@@ -1023,7 +1023,7 @@ void Emulator32bit::_ldrh(const word instr)
     const bool sign = test_bit<25>(instr);
     const MemOperand mem = decode_mem_operand<true>(instr);
     word read_val = load<hword>(memory, mem.address, mem.unaligned);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 2, false, read_val);
     }
@@ -1041,7 +1041,7 @@ void Emulator32bit::_str(const word instr)
     const MemOperand mem = decode_mem_operand<true>(instr);
     const word value = read_reg(_X1(instr));
     store<word>(memory, mem.address, value, mem.unaligned);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 4, true, value, m_watch_old);
     }
@@ -1053,7 +1053,7 @@ void Emulator32bit::_strb(const word instr)
     const MemOperand mem = decode_mem_operand<false>(instr);
     const word value = read_reg(_X1(instr));
     store<byte>(memory, mem.address, value, false);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 1, true, value & 0xFF, m_watch_old);
     }
@@ -1065,7 +1065,7 @@ void Emulator32bit::_strh(const word instr)
     const MemOperand mem = decode_mem_operand<true>(instr);
     const word value = read_reg(_X1(instr));
     store<hword>(memory, mem.address, value, mem.unaligned);
-    if (UNLIKELY(!m_watchpoints.empty()))
+    if (UNLIKELY(m_watch_count != 0))
     {
         watch_access(mem.address, 2, true, value & 0xFFFF, m_watch_old);
     }
