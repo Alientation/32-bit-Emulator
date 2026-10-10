@@ -551,7 +551,7 @@ static const char *disassemble_precision(word instruction)
     return test_bit<25>(instruction) ? "f64" : "f32";
 }
 
-static std::string disassemble_vop1(word instruction)
+static std::string disassemble_fop1(word instruction)
 {
     const U8 fn = bitfield_unsigned<0, 5>(instruction);
     const bool dbl = test_bit<25>(instruction);
@@ -561,49 +561,49 @@ static std::string disassemble_vop1(word instruction)
     switch (fn)
     {
     case fpu::kUnaryFn_abs:
-        name = "vabs." + precision;
+        name = "fabs." + precision;
         break;
     case fpu::kUnaryFn_neg:
-        name = "vneg." + precision;
+        name = "fneg." + precision;
         break;
     case fpu::kUnaryFn_sqrt:
-        name = "vsqrt." + precision;
+        name = "fsqrt." + precision;
         break;
     case fpu::kUnaryFn_rint:
-        name = "vrint." + precision;
+        name = "frint." + precision;
         break;
     case fpu::kUnaryFn_rintz:
-        name = "vrintz." + precision;
+        name = "frintz." + precision;
         break;
     case fpu::kUnaryFn_rintm:
-        name = "vrintm." + precision;
+        name = "frintm." + precision;
         break;
     case fpu::kUnaryFn_rintp:
-        name = "vrintp." + precision;
+        name = "frintp." + precision;
         break;
     case fpu::kUnaryFn_rinta:
-        name = "vrinta." + precision;
+        name = "frinta." + precision;
         break;
     case fpu::kUnaryFn_tos32:
-        name = "vcvt.s32." + precision;
+        name = "fcvt.s32." + precision;
         break;
     case fpu::kUnaryFn_tou32:
-        name = "vcvt.u32." + precision;
+        name = "fcvt.u32." + precision;
         break;
     case fpu::kUnaryFn_tos32r:
-        name = "vcvtr.s32." + precision;
+        name = "fcvtr.s32." + precision;
         break;
     case fpu::kUnaryFn_tou32r:
-        name = "vcvtr.u32." + precision;
+        name = "fcvtr.u32." + precision;
         break;
     case fpu::kUnaryFn_froms32:
-        name = "vcvt." + precision + ".s32";
+        name = "fcvt." + precision + ".s32";
         break;
     case fpu::kUnaryFn_fromu32:
-        name = "vcvt." + precision + ".u32";
+        name = "fcvt." + precision + ".u32";
         break;
     case fpu::kUnaryFn_fcvt:
-        name = dbl ? "vcvt.f32.f64" : "vcvt.f64.f32";
+        name = dbl ? "fcvt.f32.f64" : "fcvt.f64.f32";
         break;
     default:
         return "ERROR: INVALID FLOATING POINT FUNCTION";
@@ -611,10 +611,10 @@ static std::string disassemble_vop1(word instruction)
     return name + " " + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15);
 }
 
-static std::string disassemble_vop2(word instruction)
+static std::string disassemble_fop2(word instruction)
 {
-    static const char *const kNames[fpu::kBinaryFn_count] = {"vadd", "vsub", "vmul",
-                                                             "vdiv", "vmin", "vmax"};
+    static const char *const kNames[fpu::kBinaryFn_count] = {"fadd", "fsub", "fmul",
+                                                             "fdiv", "fmin", "fmax"};
     const U8 fn = bitfield_unsigned<0, 5>(instruction);
     if (fn >= fpu::kBinaryFn_count)
     {
@@ -625,9 +625,9 @@ static std::string disassemble_vop2(word instruction)
            + disassemble_gpr(instruction, 9);
 }
 
-static std::string disassemble_vcmp(word instruction)
+static std::string disassemble_fcmp(word instruction)
 {
-    return std::string(test_bit<24>(instruction) ? "vcmpe." : "vcmp.")
+    return std::string(test_bit<24>(instruction) ? "fcmpe." : "fcmp.")
            + disassemble_precision(instruction) + " " + disassemble_gpr(instruction, 15) + ", "
            + disassemble_gpr(instruction, 9);
 }

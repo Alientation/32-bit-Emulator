@@ -73,7 +73,7 @@ word store_unaligned(const U8 xt, const U8 xn)
 /// double that starts in x29.
 constexpr word kBadOpcode = 0xFC000000;
 constexpr word kBadExtOp = 0b1001u << 22;
-const word kBadFpPair = Emulator32bit::asm_vop2(fpu::kBinaryFn_add, true, 29, 0, 0);
+const word kBadFpPair = Emulator32bit::asm_fop2(fpu::kBinaryFn_add, true, 29, 0, 0);
 
 class Exceptions : public ::testing::Test
 {
@@ -687,7 +687,7 @@ TEST_F(Exceptions, user_mode_can_use_the_floating_point_registers)
     // Round toward zero, divide (inexact), read FPSR, clear it. The run ends in the hlt after
     // them, which a user program may not do; the fault is the end of the run.
     const auto result = run({msr(Emulator32bit::kSysregId_fpcr, 1),
-                             Emulator32bit::asm_vop2(fpu::kBinaryFn_div, false, 5, 3, 4),
+                             Emulator32bit::asm_fop2(fpu::kBinaryFn_div, false, 5, 3, 4),
                              mrs(2, Emulator32bit::kSysregId_fpsr),
                              msr(Emulator32bit::kSysregId_fpsr, 0), mrs(6, Emulator32bit::kSysregId_fpcr),
                              mrs(7, Emulator32bit::kSysregId_fpsr)});

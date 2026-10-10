@@ -8,7 +8,7 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 
 ## Instruction set
 
-- `vfma`, the fused multiply-add (and the negated forms `vfms`, `vfnma`, `vfnms`) for `fmaf`/`fma`. It has four register operands, so it is an opcode of its own with a function field, and it needs a single rounding, which the host's `std::fma` gives. See [isa.md](isa.md#floating-point-3).
+- `fmadd`, the fused multiply-add (and the negated forms `fmsub`, `fnmadd`, `fnmsub`) for `fmaf`/`fma`. It has four register operands, so it is an opcode of its own with a function field, and it needs a single rounding, which the host's `std::fma` gives. See [isa.md](isa.md#floating-point-3).
 
 ## Devices
 

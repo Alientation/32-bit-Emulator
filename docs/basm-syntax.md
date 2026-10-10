@@ -225,19 +225,19 @@ Condition codes: `eq` `ne` `cs`/`hs` `cc`/`lo` `mi` `pl` `vs` `vc` `hi` `ls` `ge
 
 ### Floating point
 
-A `float` is a register and a `double` a pair of registers (`x2` and `x3` for `x2`), see [isa.md](isa.md#floating-point-3). Every mnemonic has the suffix `.f32` or `.f64`, which makes it a single word for the assembler (`vadd.f32`, `vcvt.s32.f64`). The first register of a double has to be `x0` to `x28`.
+A `float` is a register and a `double` a pair of registers (`x2` and `x3` for `x2`), see [isa.md](isa.md#floating-point-3). Every mnemonic has the suffix `.f32` or `.f64`, which makes it a single word for the assembler (`fadd.f32`, `fcvt.s32.f64`). The first register of a double has to be `x0` to `x28`.
 
 | Form | Instructions |
 |------|--------------|
-| `op.f32 xd, xn, xm` | `vadd` `vsub` `vmul` `vdiv` `vmin` `vmax` |
-| `op.f32 xd, xn` | `vabs` `vneg` `vsqrt` `vrint` `vrintz` `vrintm` `vrintp` `vrinta` |
-| `vcmp.f32 xn, xm` | `vcmp` `vcmpe`: set the flags, then `b.eq`, `b.mi` (less than), `b.ls` (less or equal), `b.gt`, `b.ge`, `b.vs` (unordered) |
-| `vcvt.s32.f32 xd, xn` | float to integer, toward zero: `vcvt.s32.f32` `vcvt.u32.f32` `vcvt.s32.f64` `vcvt.u32.f64`. `vcvtr` rounds in the mode of `fpcr` |
-| `vcvt.f32.s32 xd, xn` | integer to float: `vcvt.f32.s32` `vcvt.f32.u32` `vcvt.f64.s32` `vcvt.f64.u32` |
-| `vcvt.f64.f32 xd, xn` | `vcvt.f64.f32` `vcvt.f32.f64` |
-| `vmov.f32 xd, xm` / `vmov.f32 xd, 1.5` | a **pseudo instruction**: a move (`mov`, two for a pair) or the load of a constant, with the instructions of `ldr xd, =bits`. `vmov.f64 x2, 0.1` loads both halves |
+| `op.f32 xd, xn, xm` | `fadd` `fsub` `fmul` `fdiv` `fmin` `fmax` |
+| `op.f32 xd, xn` | `fabs` `fneg` `fsqrt` `frint` `frintz` `frintm` `frintp` `frinta` |
+| `fcmp.f32 xn, xm` | `fcmp` `fcmpe`: set the flags, then `b.eq`, `b.mi` (less than), `b.ls` (less or equal), `b.gt`, `b.ge`, `b.vs` (unordered) |
+| `fcvt.s32.f32 xd, xn` | float to integer, toward zero: `fcvt.s32.f32` `fcvt.u32.f32` `fcvt.s32.f64` `fcvt.u32.f64`. `fcvtr` rounds in the mode of `fpcr` |
+| `fcvt.f32.s32 xd, xn` | integer to float: `fcvt.f32.s32` `fcvt.f32.u32` `fcvt.f64.s32` `fcvt.f64.u32` |
+| `fcvt.f64.f32 xd, xn` | `fcvt.f64.f32` `fcvt.f32.f64` |
+| `fmov.f32 xd, xm` / `fmov.f32 xd, 1.5` | a **pseudo instruction**: a move (`mov`, two for a pair) or the load of a constant, with the instructions of `ldr xd, =bits`. `fmov.f64 x2, 0.1` loads both halves |
 
-A floating point number is written with a decimal point, `1.5`, `-0.25`, `.5` (an integer, `3`, is accepted where a number is expected too). It is converted to the type it is for in one step, so `vmov.f32 x0, 0.1` is the float closest to 0.1. There is no exponent. `msr fpcr, x0` and `mrs x1, fpsr` set the rounding mode and read the flags, also in user mode.
+A floating point number is written with a decimal point, `1.5`, `-0.25`, `.5` (an integer, `3`, is accepted where a number is expected too). It is converted to the type it is for in one step, so `fmov.f32 x0, 0.1` is the float closest to 0.1. There is no exponent. `msr fpcr, x0` and `mrs x1, fpsr` set the rounding mode and read the flags, also in user mode.
 
 ## Directives
 
@@ -249,7 +249,7 @@ A floating point number is written with a decimal point, `1.5`, `-0.25`, `.5` (a
 | `.global sym` / `.extern sym` / `.weak sym` / `.comm sym, size` | see [Labels and symbols](#labels-and-symbols); allowed anywhere, also in a macro |
 | `.equ name, expr` | constant, see above |
 | `.scope` / `.scend` | local scope |
-| `.float` / `.double` | floating point numbers, comma separated, 4 or 8 bytes each, little endian: `.float 1.5, -2`, `.double 0.1`. Written like the numbers of `vmov`, and only in the data sections |
+| `.float` / `.double` | floating point numbers, comma separated, 4 or 8 bytes each, little endian: `.float 1.5, -2`, `.double 0.1`. Written like the numbers of `fmov`, and only in the data sections |
 | `.byte` `.dbyte` `.word` `.dword` | 1, 2, 4 and 8 byte values, little endian, comma separated: `.word 1, 2, table + 4`. A value has to fit. `.word` also takes an address (`symbol`, `symbol + 4`); the others cannot |
 | `.fill count{, size{, value}}` | `count` copies of a `size` byte value (1, 2, 4 or 8; default 1), little endian. The value defaults to 0, has to fit, and with size 4 can be an address like `.word`'s: `.fill 16, 4, 0xDEADBEEF`. For zeros `.advance` is shorter |
 | `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end. A character is a number, so `.byte 'a', 'b'` is one byte for each character |

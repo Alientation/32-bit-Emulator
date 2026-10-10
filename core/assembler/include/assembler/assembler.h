@@ -347,15 +347,15 @@ class Assembler
     word parse_format_cinc(byte opcode, byte variant);
     /// sxtb xd, xn   (and the other unary operations)
     word parse_format_unary(byte operation);
-    /// vadd.f32 xd, xn, xm   (and the other binary floating point instructions)
+    /// fadd.f32 xd, xn, xm   (and the other binary floating point instructions)
     word parse_format_v2(byte fn, bool dbl);
-    /// vsqrt.f32 xd, xn   (and the other unary instructions and the conversions)
+    /// fsqrt.f32 xd, xn   (and the other unary instructions and the conversions)
     word parse_format_v1(byte fn, bool dbl);
-    /// vcmp.f32 xn, xm   (and vcmpe)
+    /// fcmp.f32 xn, xm   (and fcmpe)
     word parse_format_v3(bool signaling, bool dbl);
-    /// vmov.f32 xd, xm  /  vmov.f32 xd, 1.5: moves a float or a double (a register pair), or
+    /// fmov.f32 xd, xm  /  fmov.f32 xd, 1.5: moves a float or a double (a register pair), or
     /// loads a constant with the instructions of `ldr xd, =value`.
-    void assemble_vmov(bool dbl);
+    void assemble_fmov(bool dbl);
     /// Reads a register, and for a double checks that it can start a pair.
     ///
     /// @param pair whether the register is the first of a pair (x0-x28)

@@ -17,7 +17,7 @@ The convention is not enforced by the toolchain. The instruction set support it 
 
 `char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment. `ldr`, `str`, `ldrh` and `strh` fault on an address that is not aligned to the access, so a member of a `packed` struct, or a pointer that was cast to a type of a larger alignment, is accessed with `ldur`, `stur`, `ldurh`, `sturh` (see [isa.md](isa.md#memory-access-6)).
 
-`float` and `double` are IEEE 754 binary32/binary64. The CPU has hardware floating point ([isa.md](isa.md#floating-point-3)) that works on the integer registers, in which these types are passed anyway, so the same registers are used whether the compiler emits `vadd.f32` or calls the software routine of the [runtime library](#runtime-library) (for what the instructions do not do: `long long` to float, and the math library).
+`float` and `double` are IEEE 754 binary32/binary64. The CPU has hardware floating point ([isa.md](isa.md#floating-point-3)) that works on the integer registers, in which these types are passed anyway, so the same registers are used whether the compiler emits `fadd.f32` or calls the software routine of the [runtime library](#runtime-library) (for what the instructions do not do: `long long` to float, and the math library).
 
 ## Registers
 
@@ -128,10 +128,10 @@ How a compiler uses the instruction set:
 | `long long` add/sub | `adds` + `adc`, `subs` + `sbc` |
 | `long long` multiply | `umull` for the low parts plus `mul` of the cross terms |
 | `long long` shifts, compares | inline sequences, or the runtime library |
-| `float`/`double` `+ - * /`, `sqrtf`, `fabs`, `-x` | `vadd`, `vsub`, `vmul`, `vdiv`, `vsqrt`, `vabs`, `vneg` with `.f32`/`.f64` (a double is a register pair) |
-| `(int) f`, `(float) i`, `(double) f` | `vcvt.s32.f32`, `vcvt.f32.s32`, `vcvt.f64.f32`, ... (the cast rounds toward zero; `lrintf` is `vcvtr`) |
-| `f < g`, `f <= g`, `f == g` | `vcmp.f32` then `b.mi`/`b.ls`/`b.eq` (not `lt`/`le`: they are also true for a NaN); `floorf`, `ceilf`, `truncf`, `roundf` are `vrintm`, `vrintp`, `vrintz`, `vrinta` |
-| a float constant | `vmov.f32 xd, 1.5` (the same instructions as `ldr xd, =bits`) |
+| `float`/`double` `+ - * /`, `sqrtf`, `fabs`, `-x` | `fadd`, `fsub`, `fmul`, `fdiv`, `fsqrt`, `fabs`, `fneg` with `.f32`/`.f64` (a double is a register pair) |
+| `(int) f`, `(float) i`, `(double) f` | `fcvt.s32.f32`, `fcvt.f32.s32`, `fcvt.f64.f32`, ... (the cast rounds toward zero; `lrintf` is `fcvtr`) |
+| `f < g`, `f <= g`, `f == g` | `fcmp.f32` then `b.mi`/`b.ls`/`b.eq` (not `lt`/`le`: they are also true for a NaN); `floorf`, `ceilf`, `truncf`, `roundf` are `frintm`, `frintp`, `frintz`, `frinta` |
+| a float constant | `fmov.f32 xd, 1.5` (the same instructions as `ldr xd, =bits`) |
 | constants up to `0x7FFFF` | `mov xd, imm` (`mvn` for the complement, so −1 to −524288 are one instruction) |
 | any other 32 bit constant | `ldr xd, =value`, which the assembler expands to `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (two instructions when the low 14 bits are 0). No literal pool, no scratch register |
 | address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym`; `adr xd, sym` when it is within 1 MiB of the instruction (a static, a string, a function of the same file) |

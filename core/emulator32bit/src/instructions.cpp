@@ -748,13 +748,13 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
 }
 
 // The three handlers are large and rare, so they stay out of line and out of the dispatch switch.
-[[gnu::noinline]] void Emulator32bit::_vop1(const word instr)
+[[gnu::noinline]] void Emulator32bit::_fop1(const word instr)
 {
     const U8 fn = bitfield_unsigned<0, 5>(instr);
     const bool dbl = test_bit<25>(instr);
     if (fn >= fpu::kUnaryFn_count)
     {
-        bad_fp_function("vop1", fn);
+        bad_fp_function("fop1", fn);
     }
 
     const U8 xd = _X1(instr);
@@ -770,13 +770,13 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
     write_fp(*this, xd, dest_pair, result.value);
 }
 
-[[gnu::noinline]] void Emulator32bit::_vop2(const word instr)
+[[gnu::noinline]] void Emulator32bit::_fop2(const word instr)
 {
     const U8 fn = bitfield_unsigned<0, 5>(instr);
     const bool dbl = test_bit<25>(instr);
     if (fn >= fpu::kBinaryFn_count)
     {
-        bad_fp_function("vop2", fn);
+        bad_fp_function("fop2", fn);
     }
 
     const U8 xd = _X1(instr);
@@ -792,7 +792,7 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
     write_fp(*this, xd, dbl, result.value);
 }
 
-[[gnu::noinline]] void Emulator32bit::_vcmp(const word instr)
+[[gnu::noinline]] void Emulator32bit::_fcmp(const word instr)
 {
     const bool dbl = test_bit<25>(instr);
     const bool signaling = test_bit<24>(instr);
@@ -805,21 +805,21 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
              result.value & 1);
 }
 
-word Emulator32bit::asm_vop1(const U8 fn, const bool dbl, const int xd, const int xn)
+word Emulator32bit::asm_fop1(const U8 fn, const bool dbl, const int xd, const int xn)
 {
-    return Joiner() << JPart(6, _op_vop1) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
+    return Joiner() << JPart(6, _op_fop1) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(10) << JPart(5, fn);
 }
 
-word Emulator32bit::asm_vop2(const U8 fn, const bool dbl, const int xd, const int xn, const int xm)
+word Emulator32bit::asm_fop2(const U8 fn, const bool dbl, const int xd, const int xn, const int xm)
 {
-    return Joiner() << JPart(6, _op_vop2) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
+    return Joiner() << JPart(6, _op_fop2) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(1) << JPart(5, xm) << Zeros(4) << JPart(5, fn);
 }
 
-word Emulator32bit::asm_vcmp(const bool dbl, const bool signaling, const int xn, const int xm)
+word Emulator32bit::asm_fcmp(const bool dbl, const bool signaling, const int xn, const int xm)
 {
-    return Joiner() << JPart(6, _op_vcmp) << JPart(1, dbl) << JPart(1, signaling) << Zeros(4)
+    return Joiner() << JPart(6, _op_fcmp) << JPart(1, dbl) << JPart(1, signaling) << Zeros(4)
                     << JPart(5, xn) << Zeros(1) << JPart(5, xm) << Zeros(9);
 }
 

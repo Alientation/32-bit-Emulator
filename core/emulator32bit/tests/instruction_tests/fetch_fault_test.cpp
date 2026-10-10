@@ -13,10 +13,10 @@ TEST_F(EmulatorFixture, unused_opcode_faults_instead_of_halting)
 
 TEST_F(EmulatorFixture, a_floating_point_function_that_is_not_assigned_faults)
 {
-    const auto result = step(0, Emulator32bit::asm_vop2(31, false, 0, 0, 0));
+    const auto result = step(0, Emulator32bit::asm_fop2(31, false, 0, 0, 0));
 
     EXPECT_EQ(result.status, Status::FAULT);
-    EXPECT_NE(result.message.find("Undefined vop2 function 31"), std::string::npos)
+    EXPECT_NE(result.message.find("Undefined fop2 function 31"), std::string::npos)
         << result.message;
 }
 

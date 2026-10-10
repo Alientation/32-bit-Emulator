@@ -26,10 +26,10 @@ enum class InstructionFormat
     CSET,      ///< cset, csetm: op xd, cond (xn and xm are xzr, the condition is inverted)
     CINC,      ///< cinc, cinv, cneg: op xd, xn, cond (xn is also xm, the condition is inverted)
     UNARY,     ///< sxtb, sxth, uxtb, uxth, clz, rev, rev16: op xd, xn
-    V1,        ///< unary floating point and conversions: op.f32 xd, xn
-    V2,        ///< binary floating point: op.f32 xd, xn, xm
-    V3,        ///< vcmp, vcmpe: op.f32 xn, xm
-    VMOV,      ///< vmov.f32 xd, <xm | float literal>, a pseudo instruction
+    F1,        ///< unary floating point and conversions: op.f32 xd, xn
+    F2,        ///< binary floating point: op.f32 xd, xn, xm
+    F3,        ///< fcmp, fcmpe: op.f32 xn, xm
+    FMOV,      ///< fmov.f32 xd, <xm | float literal>, a pseudo instruction
     HLT,
     NOP,
     TLBI,      ///< tlbi [xn]: forget the translation of the page of xn, or all of them

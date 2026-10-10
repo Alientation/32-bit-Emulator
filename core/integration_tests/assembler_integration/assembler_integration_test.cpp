@@ -2933,36 +2933,36 @@ TEST_F(AssemblerIntegration, floating_point_in_the_integer_registers)
 
 .text
 _start:
-                vmov.f32    x0, 1.5
-                vmov.f32    x1, 2.25
-                vmul.f32    x2, x0, x1              ; 3.375
-                vcvt.s32.f32 x3, x2                 ; 3
-                vmov.f64    x4, 0.1
-                vmov.f64    x6, 0.2
-                vadd.f64    x8, x4, x6              ; 0.30000000000000004
-                vcmp.f32    x0, x1
+                fmov.f32    x0, 1.5
+                fmov.f32    x1, 2.25
+                fmul.f32    x2, x0, x1              ; 3.375
+                fcvt.s32.f32 x3, x2                 ; 3
+                fmov.f64    x4, 0.1
+                fmov.f64    x6, 0.2
+                fadd.f64    x8, x4, x6              ; 0.30000000000000004
+                fcmp.f32    x0, x1
                 cset        x10, mi                 ; 1.5 < 2.25
-                vcmp.f32    x1, x0
+                fcmp.f32    x1, x0
                 cset        x11, mi                 ; 2.25 < 1.5 is false
-                vmov.f32    x12, 0.0
+                fmov.f32    x12, 0.0
                 msr         fpsr, xzr               ; the conversion and the double were inexact
-                vdiv.f32    x13, x0, x12            ; +infinity
+                fdiv.f32    x13, x0, x12            ; +infinity
                 mrs         x14, fpsr               ; divide by zero
                 msr         fpsr, xzr
                 mov         x15, 3
                 msr         fpcr, x15               ; round toward zero
-                vmov.f32    x0, 1.0
-                vmov.f32    x1, 3.0
-                vdiv.f32    x16, x0, x1             ; 0x3EAAAAAA, not ...AB
+                fmov.f32    x0, 1.0
+                fmov.f32    x1, 3.0
+                fdiv.f32    x16, x0, x1             ; 0x3EAAAAAA, not ...AB
                 mrs         x17, fpsr               ; inexact
                 msr         fpcr, xzr
-                vdiv.f32    x18, x0, x1             ; 0x3EAAAAAB
+                fdiv.f32    x18, x0, x1             ; 0x3EAAAAAB
                 adrp        x20, values
                 add         x20, x20, :lo12:values
                 ldr         x21, [x20]              ; the float 1.5
                 ldr         x22, [x20, 4]           ; the double 0.5, low word
                 ldr         x23, [x20, 8]           ; and high word
-                vcvt.f32.f64 x24, x22               ; back to a float: 0.5
+                fcvt.f32.f64 x24, x22               ; back to a float: 0.5
                 hlt
 
 .data
@@ -2990,22 +2990,22 @@ values:         .float 1.5
     EXPECT_EQ(state("fpcr"), "0x00000000");
 }
 
-// vcmp sets the flags that the branches read; a NaN is unordered (V), so mi is false and lt true.
-TEST_F(AssemblerIntegration, the_flags_of_vcmp_decide_the_branches_and_a_nan_is_unordered)
+// fcmp sets the flags that the branches read; a NaN is unordered (V), so mi is false and lt true.
+TEST_F(AssemblerIntegration, the_flags_of_fcmp_decide_the_branches_and_a_nan_is_unordered)
 {
     write_file("fpbranch.basm", R"(.global _start
 
 .text
 _start:
-                vmov.f32    x0, 0.0
-                vdiv.f32    x1, x0, x0              ; 0/0 is not a number
-                vcmp.f32    x1, x1
+                fmov.f32    x0, 0.0
+                fdiv.f32    x1, x0, x0              ; 0/0 is not a number
+                fcmp.f32    x1, x1
                 b.vs        L_unordered
                 mov         x2, 1                   ; a number is ordered with itself
                 hlt
 L_unordered:    mov         x2, 2
-                vmov.f32    x3, 1.0
-                vcmp.f32    x1, x3
+                fmov.f32    x3, 1.0
+                fcmp.f32    x1, x3
                 b.mi        L_less                  ; mi is not taken for a NaN
                 mov         x4, 5
                 b.lt        L_lt_taken              ; but lt is

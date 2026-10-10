@@ -58,11 +58,11 @@ const char *operands_of(InstructionFormat format)
         return "x1, x2, eq";
     case InstructionFormat::UNARY:
         return "x1, x2";
-    case InstructionFormat::V1:
+    case InstructionFormat::F1:
         return "x2, x4";
-    case InstructionFormat::V2:
+    case InstructionFormat::F2:
         return "x2, x4, x6";
-    case InstructionFormat::V3:
+    case InstructionFormat::F3:
         return "x2, x4";
     default:
         return "";
@@ -115,7 +115,7 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
             || format == InstructionFormat::TLBI || format == InstructionFormat::BRK
             || format == InstructionFormat::MSR || format == InstructionFormat::MRS
             || format == InstructionFormat::RET || format == InstructionFormat::ATOMIC
-            || format == InstructionFormat::VMOV) // a pseudo instruction, no opcode of its own
+            || format == InstructionFormat::FMOV) // a pseudo instruction, no opcode of its own
         {
             continue;
         }
@@ -131,24 +131,24 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         {
             opcode = Emulator32bit::_op_special_instructions;
         }
-        else if (format == InstructionFormat::V1)
+        else if (format == InstructionFormat::F1)
         {
-            opcode = Emulator32bit::_op_vop1;
+            opcode = Emulator32bit::_op_fop1;
         }
-        else if (format == InstructionFormat::V2)
+        else if (format == InstructionFormat::F2)
         {
-            opcode = Emulator32bit::_op_vop2;
+            opcode = Emulator32bit::_op_fop2;
         }
-        else if (format == InstructionFormat::V3)
+        else if (format == InstructionFormat::F3)
         {
-            opcode = Emulator32bit::_op_vcmp;
+            opcode = Emulator32bit::_op_fcmp;
         }
         EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), opcode) << line;
 
-        // `vadd.f32` is one word of the disassembly, the dot is part of it.
+        // `fadd.f32` is one word of the disassembly, the dot is part of it.
         const std::string disassembly = Emulator32bit::disassemble_instr(words[0]);
-        const bool is_float = format == InstructionFormat::V1 || format == InstructionFormat::V2
-                              || format == InstructionFormat::V3;
+        const bool is_float = format == InstructionFormat::F1 || format == InstructionFormat::F2
+                              || format == InstructionFormat::F3;
         EXPECT_EQ(is_float ? disassembly.substr(0, disassembly.find(' ')) : mnemonic_of(disassembly),
                   spec->text)
             << line;
@@ -362,45 +362,45 @@ using fpu::kBinaryFn_div;
 
 TEST_F(InstructionTable, floating_point_instructions_encode_their_function_and_precision)
 {
-    EXPECT_EQ(assemble("vadd.f32 x1, x2, x3"),
-              std::vector<word>{Emulator::asm_vop2(kBinaryFn_add, false, 1, 2, 3)});
-    EXPECT_EQ(assemble("vadd.f64 x2, x4, x6"),
-              std::vector<word>{Emulator::asm_vop2(kBinaryFn_add, true, 2, 4, 6)});
-    EXPECT_EQ(assemble("vdiv.f32 x1, sp, xzr"),
-              std::vector<word>{Emulator::asm_vop2(kBinaryFn_div, false, 1, 30, 31)});
-    EXPECT_EQ(assemble("vsqrt.f64 x2, x4"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_sqrt, true, 2, 4)});
-    EXPECT_EQ(assemble("vabs.f32 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_abs, false, 1, 2)});
-    EXPECT_EQ(assemble("vrintm.f32 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_rintm, false, 1, 2)});
-    EXPECT_EQ(assemble("vcmp.f32 x1, x2"), std::vector<word>{Emulator::asm_vcmp(false, false, 1, 2)});
-    EXPECT_EQ(assemble("vcmpe.f64 x2, x4"), std::vector<word>{Emulator::asm_vcmp(true, true, 2, 4)});
+    EXPECT_EQ(assemble("fadd.f32 x1, x2, x3"),
+              std::vector<word>{Emulator::asm_fop2(kBinaryFn_add, false, 1, 2, 3)});
+    EXPECT_EQ(assemble("fadd.f64 x2, x4, x6"),
+              std::vector<word>{Emulator::asm_fop2(kBinaryFn_add, true, 2, 4, 6)});
+    EXPECT_EQ(assemble("fdiv.f32 x1, sp, xzr"),
+              std::vector<word>{Emulator::asm_fop2(kBinaryFn_div, false, 1, 30, 31)});
+    EXPECT_EQ(assemble("fsqrt.f64 x2, x4"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_sqrt, true, 2, 4)});
+    EXPECT_EQ(assemble("fabs.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_abs, false, 1, 2)});
+    EXPECT_EQ(assemble("frintm.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_rintm, false, 1, 2)});
+    EXPECT_EQ(assemble("fcmp.f32 x1, x2"), std::vector<word>{Emulator::asm_fcmp(false, false, 1, 2)});
+    EXPECT_EQ(assemble("fcmpe.f64 x2, x4"), std::vector<word>{Emulator::asm_fcmp(true, true, 2, 4)});
 }
 
 TEST_F(InstructionTable, the_conversions_are_named_by_their_types)
 {
-    EXPECT_EQ(assemble("vcvt.s32.f32 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tos32, false, 1, 2)});
-    EXPECT_EQ(assemble("vcvt.u32.f64 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tou32, true, 1, 2)});
-    EXPECT_EQ(assemble("vcvtr.s32.f32 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tos32r, false, 1, 2)});
-    EXPECT_EQ(assemble("vcvtr.u32.f64 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tou32r, true, 1, 2)});
-    EXPECT_EQ(assemble("vcvt.f32.s32 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_froms32, false, 1, 2)});
-    EXPECT_EQ(assemble("vcvt.f64.u32 x2, x1"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fromu32, true, 2, 1)});
-    EXPECT_EQ(assemble("vcvt.f64.f32 x2, x1"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fcvt, false, 2, 1)});
-    EXPECT_EQ(assemble("vcvt.f32.f64 x1, x2"),
-              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fcvt, true, 1, 2)});
+    EXPECT_EQ(assemble("fcvt.s32.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_tos32, false, 1, 2)});
+    EXPECT_EQ(assemble("fcvt.u32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_tou32, true, 1, 2)});
+    EXPECT_EQ(assemble("fcvtr.s32.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_tos32r, false, 1, 2)});
+    EXPECT_EQ(assemble("fcvtr.u32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_tou32r, true, 1, 2)});
+    EXPECT_EQ(assemble("fcvt.f32.s32 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_froms32, false, 1, 2)});
+    EXPECT_EQ(assemble("fcvt.f64.u32 x2, x1"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_fromu32, true, 2, 1)});
+    EXPECT_EQ(assemble("fcvt.f64.f32 x2, x1"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_fcvt, false, 2, 1)});
+    EXPECT_EQ(assemble("fcvt.f32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_fcvt, true, 1, 2)});
 
     // They disassemble to what was written.
-    for (const char *text : {"vcvt.s32.f64 x1, x2", "vcvtr.u32.f32 x1, x2", "vcvt.f64.s32 x2, x1",
-                             "vcvt.f32.f64 x1, x2", "vcvt.f64.f32 x2, x1", "vrinta.f64 x2, x4",
-                             "vcmpe.f32 x1, x2", "vmin.f64 x2, x4, x6", "vmax.f32 x1, x2, x3"})
+    for (const char *text : {"fcvt.s32.f64 x1, x2", "fcvtr.u32.f32 x1, x2", "fcvt.f64.s32 x2, x1",
+                             "fcvt.f32.f64 x1, x2", "fcvt.f64.f32 x2, x1", "frinta.f64 x2, x4",
+                             "fcmpe.f32 x1, x2", "fmin.f64 x2, x4, x6", "fmax.f32 x1, x2, x3"})
     {
         EXPECT_EQ(Emulator::disassemble_instr(assemble(text)[0]), text);
     }
@@ -408,52 +408,52 @@ TEST_F(InstructionTable, the_conversions_are_named_by_their_types)
 
 TEST_F(InstructionTable, a_double_must_start_in_a_register_that_can_hold_a_pair)
 {
-    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f64 x29, x0, x2"); }), "pair"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f64 x0, sp, x2"); }), "pair"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcmp.f64 x0, xzr"); }), "pair"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcvt.s32.f64 x1, x29"); }), "pair"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcvt.f64.s32 sp, x1"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fadd.f64 x29, x0, x2"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fadd.f64 x0, sp, x2"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fcmp.f64 x0, xzr"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fcvt.s32.f64 x1, x29"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fcvt.f64.s32 sp, x1"); }), "pair"));
 
     // x28 is the last one, and the single register of a conversion can be any
-    EXPECT_EQ(assemble("vadd.f64 x28, x0, x2").size(), 1u);
-    EXPECT_EQ(assemble("vcvt.s32.f64 x29, x2").size(), 1u);
-    EXPECT_EQ(assemble("vcvt.f64.s32 x28, x29").size(), 1u);
-    EXPECT_EQ(assemble("vadd.f32 x29, sp, xzr").size(), 1u);
+    EXPECT_EQ(assemble("fadd.f64 x28, x0, x2").size(), 1u);
+    EXPECT_EQ(assemble("fcvt.s32.f64 x29, x2").size(), 1u);
+    EXPECT_EQ(assemble("fcvt.f64.s32 x28, x29").size(), 1u);
+    EXPECT_EQ(assemble("fadd.f32 x29, sp, xzr").size(), 1u);
 }
 
 TEST_F(InstructionTable, floating_point_instructions_need_all_their_operands)
 {
-    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f32 x0, x1"); }), "expected ','"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vsqrt.f32 x0"); }), "expected ','"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcmp.f32 x0, 5"); }), "register"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f32 x0, x1, 2.5"); }), "register"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fadd.f32 x0, x1"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fsqrt.f32 x0"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fcmp.f32 x0, 5"); }), "register"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fadd.f32 x0, x1, 2.5"); }), "register"));
 }
 
-TEST_F(InstructionTable, vmov_moves_a_register_or_loads_a_constant)
+TEST_F(InstructionTable, fmov_moves_a_register_or_loads_a_constant)
 {
     const auto move = [](const int to, const int from)
     { return Emulator::asm_format_o3(Emulator::_op_mov, false, to, from, 0); };
 
-    EXPECT_EQ(assemble("vmov.f32 x1, x2"), std::vector<word>{move(1, 2)});
+    EXPECT_EQ(assemble("fmov.f32 x1, x2"), std::vector<word>{move(1, 2)});
     // a pair is two moves, in the order that does not overwrite what is still to be read
-    EXPECT_EQ(assemble("vmov.f64 x2, x6"), (std::vector<word>{move(2, 6), move(3, 7)}));
-    EXPECT_EQ(assemble("vmov.f64 x3, x2"), (std::vector<word>{move(4, 3), move(3, 2)}));
-    EXPECT_EQ(assemble("vmov.f64 x2, x3"), (std::vector<word>{move(2, 3), move(3, 4)}));
+    EXPECT_EQ(assemble("fmov.f64 x2, x6"), (std::vector<word>{move(2, 6), move(3, 7)}));
+    EXPECT_EQ(assemble("fmov.f64 x3, x2"), (std::vector<word>{move(4, 3), move(3, 2)}));
+    EXPECT_EQ(assemble("fmov.f64 x2, x3"), (std::vector<word>{move(2, 3), move(3, 4)}));
 
     // A constant is loaded as `ldr xd, =bits` does.
-    EXPECT_EQ(assemble("vmov.f32 x1, 1.0"), assemble("ldr x1, =0x3F800000"));
-    EXPECT_EQ(assemble("vmov.f32 x1, -2.5"), assemble("ldr x1, =0xC0200000"));
-    EXPECT_EQ(assemble("vmov.f32 x1, 3"), assemble("ldr x1, =0x40400000")) << "an integer is a number";
-    EXPECT_EQ(assemble("vmov.f32 x1, 0.0"), assemble("ldr x1, =0"));
-    EXPECT_EQ(assemble("vmov.f32 x1, 0.1"), assemble("ldr x1, =0x3DCCCCCD"))
+    EXPECT_EQ(assemble("fmov.f32 x1, 1.0"), assemble("ldr x1, =0x3F800000"));
+    EXPECT_EQ(assemble("fmov.f32 x1, -2.5"), assemble("ldr x1, =0xC0200000"));
+    EXPECT_EQ(assemble("fmov.f32 x1, 3"), assemble("ldr x1, =0x40400000")) << "an integer is a number";
+    EXPECT_EQ(assemble("fmov.f32 x1, 0.0"), assemble("ldr x1, =0"));
+    EXPECT_EQ(assemble("fmov.f32 x1, 0.1"), assemble("ldr x1, =0x3DCCCCCD"))
         << "the decimal number is rounded once, to a float";
-    EXPECT_EQ(assemble("vmov.f64 x2, 1.5"), assemble("ldr x2, =0\nldr x3, =0x3FF80000"));
-    EXPECT_EQ(assemble("vmov.f64 x2, 0.1"), assemble("ldr x2, =0x9999999A\nldr x3, =0x3FB99999"));
-    EXPECT_EQ(assemble("vmov.f64 x4, -0.5"), assemble("ldr x4, =0\nldr x5, =0xBFE00000"));
+    EXPECT_EQ(assemble("fmov.f64 x2, 1.5"), assemble("ldr x2, =0\nldr x3, =0x3FF80000"));
+    EXPECT_EQ(assemble("fmov.f64 x2, 0.1"), assemble("ldr x2, =0x9999999A\nldr x3, =0x3FB99999"));
+    EXPECT_EQ(assemble("fmov.f64 x4, -0.5"), assemble("ldr x4, =0\nldr x5, =0xBFE00000"));
 
-    EXPECT_TRUE(contains(error_of([&] { assemble("vmov.f32 x1, foo"); }),
+    EXPECT_TRUE(contains(error_of([&] { assemble("fmov.f32 x1, foo"); }),
                          "expected a floating point number"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vmov.f64 x29, 1.0"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("fmov.f64 x29, 1.0"); }), "pair"));
 }
 
 TEST_F(InstructionTable, float_and_double_define_data)

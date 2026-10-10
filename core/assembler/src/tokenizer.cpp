@@ -829,9 +829,9 @@ class Lexer
         std::size_t end = begin + 1;
         while (end < n && is_ident_char(m_src[end])) end++;
 
-        // Floating point mnemonics contain dots: vadd.f32, vcvt.s32.f32, ... The longest piece
+        // Floating point mnemonics contain dots: fadd.f32, fcvt.s32.f32, ... The longest piece
         // that is a mnemonic is one.
-        if (assembly() && m_src[begin] == 'v' && end < n && m_src[end] == '.')
+        if (assembly() && m_src[begin] == 'f' && end < n && m_src[end] == '.')
         {
             std::size_t e2 = end;
             std::size_t best = 0;

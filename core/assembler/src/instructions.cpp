@@ -657,7 +657,7 @@ word Assembler::parse_format_v2(const byte fn, const bool dbl)
     const byte xn = parse_fp_register(dbl);
     expect(TokenType::COMMA, "expected ',' and a register");
     const byte xm = parse_fp_register(dbl);
-    return Emulator32bit::asm_vop2(fn, dbl, xd, xn, xm);
+    return Emulator32bit::asm_fop2(fn, dbl, xd, xn, xm);
 }
 
 word Assembler::parse_format_v1(const byte fn, const bool dbl)
@@ -667,7 +667,7 @@ word Assembler::parse_format_v1(const byte fn, const bool dbl)
     const byte xd = parse_fp_register(fpu::unary_dest_is_pair(fn, dbl));
     expect(TokenType::COMMA, "expected ',' and a register");
     const byte xn = parse_fp_register(fpu::unary_source_is_pair(fn, dbl));
-    return Emulator32bit::asm_vop1(fn, dbl, xd, xn);
+    return Emulator32bit::asm_fop1(fn, dbl, xd, xn);
 }
 
 word Assembler::parse_format_v3(const bool signaling, const bool dbl)
@@ -677,7 +677,7 @@ word Assembler::parse_format_v3(const bool signaling, const bool dbl)
     const byte xn = parse_fp_register(dbl);
     expect(TokenType::COMMA, "expected ',' and a register");
     const byte xm = parse_fp_register(dbl);
-    return Emulator32bit::asm_vcmp(dbl, signaling, xn, xm);
+    return Emulator32bit::asm_fcmp(dbl, signaling, xn, xm);
 }
 
 U64 Assembler::parse_float_constant(const bool dbl)
@@ -730,7 +730,7 @@ U64 Assembler::parse_float_constant(const bool dbl)
     return U64(std::bit_cast<word>(value));
 }
 
-void Assembler::assemble_vmov(const bool dbl)
+void Assembler::assemble_fmov(const bool dbl)
 {
     m_cursor.next();
 
@@ -871,17 +871,17 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::UNARY:
         instruction = parse_format_unary(spec.a);
         break;
-    case Format::V1:
+    case Format::F1:
         instruction = parse_format_v1(spec.a, spec.b != 0);
         break;
-    case Format::V2:
+    case Format::F2:
         instruction = parse_format_v2(spec.a, spec.b != 0);
         break;
-    case Format::V3:
+    case Format::F3:
         instruction = parse_format_v3(spec.a != 0, spec.b != 0);
         break;
-    case Format::VMOV:
-        assemble_vmov(spec.b != 0);
+    case Format::FMOV:
+        assemble_fmov(spec.b != 0);
         return;
     case Format::M1:
         instruction = parse_format_m1(spec.a);

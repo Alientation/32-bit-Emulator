@@ -37,9 +37,9 @@
 ///
 /// The floating point instructions come in a pair of rows, `.f32` and `.f64`, made by
 /// BASM_FP_PAIR: `a` is the function (fpu::kBinaryFn_*, fpu::kUnaryFn_*, or 1 for the signaling
-/// `vcmpe`) and `b` the precision bit. The conversions are written out, their names carry both
-/// types. `vmov` is not an instruction but a pseudo instruction for the moves and the loading of
-/// a constant (format VMOV).
+/// `fcmpe`) and `b` the precision bit. The conversions are written out, their names carry both
+/// types. `fmov` is not an instruction but a pseudo instruction for the moves and the loading of
+/// a constant (format FMOV).
 ///
 /// Two rows of a pair: F(X, NAME_F32, text ".f32", ...) and F(X, NAME_F64, text ".f64", ...).
 #define BASM_FP_PAIR(F, X, NAME, text, format, fn)                                                 \
@@ -58,37 +58,37 @@
     F(X, MUL, "mul", true, O, Emulator32bit::_op_mul, 0)                                           \
     F(X, UMULL, "umull", true, O2, Emulator32bit::_op_mull, 0)                                    \
     F(X, SMULL, "smull", true, O2, Emulator32bit::_op_mull, 1)                                    \
-    BASM_FP_PAIR(F, X, VADD, "vadd", V2, fpu::kBinaryFn_add)                                       \
-    BASM_FP_PAIR(F, X, VSUB, "vsub", V2, fpu::kBinaryFn_sub)                                       \
-    BASM_FP_PAIR(F, X, VMUL, "vmul", V2, fpu::kBinaryFn_mul)                                       \
-    BASM_FP_PAIR(F, X, VDIV, "vdiv", V2, fpu::kBinaryFn_div)                                       \
-    BASM_FP_PAIR(F, X, VMIN, "vmin", V2, fpu::kBinaryFn_min)                                       \
-    BASM_FP_PAIR(F, X, VMAX, "vmax", V2, fpu::kBinaryFn_max)                                       \
-    BASM_FP_PAIR(F, X, VABS, "vabs", V1, fpu::kUnaryFn_abs)                                        \
-    BASM_FP_PAIR(F, X, VNEG, "vneg", V1, fpu::kUnaryFn_neg)                                        \
-    BASM_FP_PAIR(F, X, VSQRT, "vsqrt", V1, fpu::kUnaryFn_sqrt)                                     \
-    BASM_FP_PAIR(F, X, VRINT, "vrint", V1, fpu::kUnaryFn_rint)                                     \
-    BASM_FP_PAIR(F, X, VRINTZ, "vrintz", V1, fpu::kUnaryFn_rintz)                                  \
-    BASM_FP_PAIR(F, X, VRINTM, "vrintm", V1, fpu::kUnaryFn_rintm)                                  \
-    BASM_FP_PAIR(F, X, VRINTP, "vrintp", V1, fpu::kUnaryFn_rintp)                                  \
-    BASM_FP_PAIR(F, X, VRINTA, "vrinta", V1, fpu::kUnaryFn_rinta)                                  \
-    F(X, VCVT_S32_F32, "vcvt.s32.f32", false, V1, fpu::kUnaryFn_tos32, 0)                          \
-    F(X, VCVT_S32_F64, "vcvt.s32.f64", false, V1, fpu::kUnaryFn_tos32, 1)                          \
-    F(X, VCVT_U32_F32, "vcvt.u32.f32", false, V1, fpu::kUnaryFn_tou32, 0)                          \
-    F(X, VCVT_U32_F64, "vcvt.u32.f64", false, V1, fpu::kUnaryFn_tou32, 1)                          \
-    F(X, VCVTR_S32_F32, "vcvtr.s32.f32", false, V1, fpu::kUnaryFn_tos32r, 0)                       \
-    F(X, VCVTR_S32_F64, "vcvtr.s32.f64", false, V1, fpu::kUnaryFn_tos32r, 1)                       \
-    F(X, VCVTR_U32_F32, "vcvtr.u32.f32", false, V1, fpu::kUnaryFn_tou32r, 0)                       \
-    F(X, VCVTR_U32_F64, "vcvtr.u32.f64", false, V1, fpu::kUnaryFn_tou32r, 1)                       \
-    F(X, VCVT_F32_S32, "vcvt.f32.s32", false, V1, fpu::kUnaryFn_froms32, 0)                        \
-    F(X, VCVT_F64_S32, "vcvt.f64.s32", false, V1, fpu::kUnaryFn_froms32, 1)                        \
-    F(X, VCVT_F32_U32, "vcvt.f32.u32", false, V1, fpu::kUnaryFn_fromu32, 0)                        \
-    F(X, VCVT_F64_U32, "vcvt.f64.u32", false, V1, fpu::kUnaryFn_fromu32, 1)                        \
-    F(X, VCVT_F64_F32, "vcvt.f64.f32", false, V1, fpu::kUnaryFn_fcvt, 0)                           \
-    F(X, VCVT_F32_F64, "vcvt.f32.f64", false, V1, fpu::kUnaryFn_fcvt, 1)                           \
-    BASM_FP_PAIR(F, X, VCMP, "vcmp", V3, 0)                                                        \
-    BASM_FP_PAIR(F, X, VCMPE, "vcmpe", V3, 1)                                                      \
-    BASM_FP_PAIR(F, X, VMOV, "vmov", VMOV, 0)                                                      \
+    BASM_FP_PAIR(F, X, FADD, "fadd", F2, fpu::kBinaryFn_add)                                       \
+    BASM_FP_PAIR(F, X, FSUB, "fsub", F2, fpu::kBinaryFn_sub)                                       \
+    BASM_FP_PAIR(F, X, FMUL, "fmul", F2, fpu::kBinaryFn_mul)                                       \
+    BASM_FP_PAIR(F, X, FDIV, "fdiv", F2, fpu::kBinaryFn_div)                                       \
+    BASM_FP_PAIR(F, X, FMIN, "fmin", F2, fpu::kBinaryFn_min)                                       \
+    BASM_FP_PAIR(F, X, FMAX, "fmax", F2, fpu::kBinaryFn_max)                                       \
+    BASM_FP_PAIR(F, X, FABS, "fabs", F1, fpu::kUnaryFn_abs)                                        \
+    BASM_FP_PAIR(F, X, FNEG, "fneg", F1, fpu::kUnaryFn_neg)                                        \
+    BASM_FP_PAIR(F, X, FSQRT, "fsqrt", F1, fpu::kUnaryFn_sqrt)                                     \
+    BASM_FP_PAIR(F, X, FRINT, "frint", F1, fpu::kUnaryFn_rint)                                     \
+    BASM_FP_PAIR(F, X, FRINTZ, "frintz", F1, fpu::kUnaryFn_rintz)                                  \
+    BASM_FP_PAIR(F, X, FRINTM, "frintm", F1, fpu::kUnaryFn_rintm)                                  \
+    BASM_FP_PAIR(F, X, FRINTP, "frintp", F1, fpu::kUnaryFn_rintp)                                  \
+    BASM_FP_PAIR(F, X, FRINTA, "frinta", F1, fpu::kUnaryFn_rinta)                                  \
+    F(X, FCVT_S32_F32, "fcvt.s32.f32", false, F1, fpu::kUnaryFn_tos32, 0)                          \
+    F(X, FCVT_S32_F64, "fcvt.s32.f64", false, F1, fpu::kUnaryFn_tos32, 1)                          \
+    F(X, FCVT_U32_F32, "fcvt.u32.f32", false, F1, fpu::kUnaryFn_tou32, 0)                          \
+    F(X, FCVT_U32_F64, "fcvt.u32.f64", false, F1, fpu::kUnaryFn_tou32, 1)                          \
+    F(X, FCVTR_S32_F32, "fcvtr.s32.f32", false, F1, fpu::kUnaryFn_tos32r, 0)                       \
+    F(X, FCVTR_S32_F64, "fcvtr.s32.f64", false, F1, fpu::kUnaryFn_tos32r, 1)                       \
+    F(X, FCVTR_U32_F32, "fcvtr.u32.f32", false, F1, fpu::kUnaryFn_tou32r, 0)                       \
+    F(X, FCVTR_U32_F64, "fcvtr.u32.f64", false, F1, fpu::kUnaryFn_tou32r, 1)                       \
+    F(X, FCVT_F32_S32, "fcvt.f32.s32", false, F1, fpu::kUnaryFn_froms32, 0)                        \
+    F(X, FCVT_F64_S32, "fcvt.f64.s32", false, F1, fpu::kUnaryFn_froms32, 1)                        \
+    F(X, FCVT_F32_U32, "fcvt.f32.u32", false, F1, fpu::kUnaryFn_fromu32, 0)                        \
+    F(X, FCVT_F64_U32, "fcvt.f64.u32", false, F1, fpu::kUnaryFn_fromu32, 1)                        \
+    F(X, FCVT_F64_F32, "fcvt.f64.f32", false, F1, fpu::kUnaryFn_fcvt, 0)                           \
+    F(X, FCVT_F32_F64, "fcvt.f32.f64", false, F1, fpu::kUnaryFn_fcvt, 1)                           \
+    BASM_FP_PAIR(F, X, FCMP, "fcmp", F3, 0)                                                        \
+    BASM_FP_PAIR(F, X, FCMPE, "fcmpe", F3, 1)                                                      \
+    BASM_FP_PAIR(F, X, FMOV, "fmov", FMOV, 0)                                                      \
     F(X, AND, "and", true, O, Emulator32bit::_op_and, 0)                                           \
     F(X, ORR, "orr", true, O, Emulator32bit::_op_orr, 0)                                           \
     F(X, EOR, "eor", true, O, Emulator32bit::_op_eor, 0)                                           \

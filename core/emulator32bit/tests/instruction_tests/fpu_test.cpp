@@ -1,4 +1,4 @@
-// Tests for the floating point instructions (vop1, vop2, vcmp, docs/isa.md, "Floating point").
+// Tests for the floating point instructions (fop1, fop2, fcmp, docs/isa.md, "Floating point").
 //
 // The expected results are of two kinds: values worked out by hand (the IEEE 754 results that
 // anybody can check), and a differential check against a plain C++ computation on the host with
@@ -90,32 +90,32 @@ class FpuTest : public EmulatorFixture
         cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
     }
 
-    /// vop2: xd = xa fn xb
+    /// fop2: xd = xa fn xb
     Out binary(const U8 fn, const bool dbl, const U64 a, const U64 b, const word rounding = 0)
     {
         start(rounding);
         set_value(kXa, dbl, a);
         set_value(kXb, dbl, b);
-        execute(Emulator32bit::asm_vop2(fn, dbl, kXd, kXa, kXb));
+        execute(Emulator32bit::asm_fop2(fn, dbl, kXd, kXa, kXb));
         return {get_value(kXd, dbl), fpsr()};
     }
 
-    /// vop1: xd = fn(xa)
+    /// fop1: xd = fn(xa)
     Out unary(const U8 fn, const bool dbl, const U64 a, const word rounding = 0)
     {
         start(rounding);
         set_value(kXa, unary_source_is_pair(fn, dbl), a);
-        execute(Emulator32bit::asm_vop1(fn, dbl, kXd, kXa));
+        execute(Emulator32bit::asm_fop1(fn, dbl, kXd, kXa));
         return {get_value(kXd, unary_dest_is_pair(fn, dbl)), fpsr()};
     }
 
-    /// vcmp: NZCV (bit 3 is N)
+    /// fcmp: NZCV (bit 3 is N)
     Out compare(const bool dbl, const bool signaling, const U64 a, const U64 b)
     {
         start(kRoundNearest);
         set_value(kXa, dbl, a);
         set_value(kXb, dbl, b);
-        execute(Emulator32bit::asm_vcmp(dbl, signaling, kXa, kXb));
+        execute(Emulator32bit::asm_fcmp(dbl, signaling, kXa, kXb));
         const NZCVFlags f = flags();
         return {word(f.n) << 3 | word(f.z) << 2 | word(f.c) << 1 | word(f.v), fpsr()};
     }
@@ -201,7 +201,7 @@ template <class T>
 // The names of the operations, for the messages.
 const char *binary_name(const U8 fn)
 {
-    constexpr const char *kNames[] = {"vadd", "vsub", "vmul", "vdiv", "vmin", "vmax"};
+    constexpr const char *kNames[] = {"fadd", "fsub", "fmul", "fdiv", "fmin", "fmax"};
     return kNames[fn];
 }
 
@@ -215,7 +215,7 @@ std::string describe(const U8 fn, const bool dbl, const U64 a, const U64 b, cons
 
 } // namespace
 
-// ----- vop2 -----
+// ----- fop2 -----
 
 TEST_F(FpuTest, binary_results_worked_out_by_hand)
 {
@@ -414,7 +414,7 @@ TEST_F(FpuTest, min_and_max_ignore_a_quiet_nan_like_fmin_and_fmax)
     EXPECT_EQ(binary(kBinaryFn_max, true, bits(1.5), bits(-1.5)), (Out{bits(1.5), 0}));
 }
 
-// ----- vop1 -----
+// ----- fop1 -----
 
 TEST_F(FpuTest, abs_and_neg_only_touch_the_sign_bit)
 {
@@ -486,7 +486,7 @@ TEST_F(FpuTest, rounding_to_an_integral_value)
         EXPECT_EQ(unary(kUnaryFn_rintz, true, bits(double(c.in))), (Out{bits(double(c.rintz)), 0}));
     }
 
-    // vrint follows the FPCR; the others do not.
+    // frint follows the FPCR; the others do not.
     EXPECT_EQ(unary(kUnaryFn_rint, false, bits(2.5f), kRoundUp), (Out{bits(3.0f), 0}));
     EXPECT_EQ(unary(kUnaryFn_rint, false, bits(2.5f), kRoundDown), (Out{bits(2.0f), 0}));
     EXPECT_EQ(unary(kUnaryFn_rint, false, bits(-2.5f), kRoundZero), (Out{bits(-2.0f), 0}));
@@ -536,7 +536,7 @@ TEST_F(FpuTest, float_to_integer_saturates_and_a_nan_is_zero)
 
 TEST_F(FpuTest, float_to_integer_in_the_mode_of_the_fpcr)
 {
-    // vcvtr: 2.5 to nearest even is 2, 3.5 is 4.
+    // fcvtr: 2.5 to nearest even is 2, 3.5 is 4.
     EXPECT_EQ(unary(kUnaryFn_tos32r, false, bits(2.5f), kRoundNearest), (Out{2, kInexact}));
     EXPECT_EQ(unary(kUnaryFn_tos32r, false, bits(3.5f), kRoundNearest), (Out{4, kInexact}));
     EXPECT_EQ(unary(kUnaryFn_tos32r, false, bits(2.5f), kRoundUp), (Out{3, kInexact}));
@@ -589,7 +589,7 @@ TEST_F(FpuTest, converting_between_the_precisions)
     EXPECT_EQ(unary(kUnaryFn_fcvt, true, kSignalingNan64), (Out{kQuietNan32, kInvalid}));
 }
 
-// ----- vcmp -----
+// ----- fcmp -----
 
 TEST_F(FpuTest, compare_sets_the_flags_like_a_comparison_of_integers)
 {
@@ -607,7 +607,7 @@ TEST_F(FpuTest, compare_sets_the_flags_like_a_comparison_of_integers)
 
 TEST_F(FpuTest, compare_with_a_nan_is_unordered)
 {
-    // A quiet NaN is silent for vcmp and an error for vcmpe; a signaling one is an error for both.
+    // A quiet NaN is silent for fcmp and an error for fcmpe; a signaling one is an error for both.
     EXPECT_EQ(compare(false, false, kQuietNan32, bits(1.0f)), (Out{kUnordered, 0}));
     EXPECT_EQ(compare(false, false, bits(1.0f), kQuietNan32), (Out{kUnordered, 0}));
     EXPECT_EQ(compare(false, false, kQuietNan32, kQuietNan32), (Out{kUnordered, 0}));
@@ -626,7 +626,7 @@ TEST_F(FpuTest, the_conditions_after_a_compare_follow_c_for_a_nan)
         const char *name;
         bool less, equal, greater, unordered;
     };
-    // What the flags of vcmp make the condition: eq, mi (<), ls (<=), gt and ge are false for a
+    // What the flags of fcmp make the condition: eq, mi (<), ls (<=), gt and ge are false for a
     // NaN, ne is true. (lt and le are true for a NaN, so a compiler uses mi and ls.)
     const Case cases[] = {
         {ConditionCode::EQ, "eq", false, true, false, false},
@@ -666,7 +666,7 @@ TEST_F(FpuTest, a_double_is_a_pair_with_the_low_word_in_the_lower_register)
     cpu.write_reg(5, word(bits(2.25) >> 32));
     const auto before = snapshot_registers();
 
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, true, 6, 2, 4));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, 2, 4));
 
     EXPECT_EQ(cpu.read_reg(6), word(bits(3.75)));
     EXPECT_EQ(cpu.read_reg(7), word(bits(3.75) >> 32));
@@ -675,7 +675,7 @@ TEST_F(FpuTest, a_double_is_a_pair_with_the_low_word_in_the_lower_register)
 
 TEST_F(FpuTest, the_pairs_may_overlap)
 {
-    // vadd.f64 x2, x2, x3: the sources are the pairs (x2,x3) and (x3,x4), the destination (x2,x3).
+    // fadd.f64 x2, x2, x3: the sources are the pairs (x2,x3) and (x3,x4), the destination (x2,x3).
     // Both are read before anything is written.
     start(kRoundNearest);
     cpu.write_reg(2, 0x00000000);
@@ -687,7 +687,7 @@ TEST_F(FpuTest, the_pairs_may_overlap)
         host_binary<double>(kBinaryFn_add, value_of<double>(a), value_of<double>(b), kRoundNearest);
     ASSERT_NE(value_of<double>(b), 2.0) << "the test needs the overlap to matter";
 
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, true, 2, 2, 3));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, true, 2, 2, 3));
 
     EXPECT_EQ(get_value(2, true), expected.value);
     EXPECT_EQ(cpu.read_reg(4), 0x40000000u) << "x4 was only read";
@@ -700,14 +700,14 @@ TEST_F(FpuTest, the_zero_register_is_zero_and_discards_a_result)
     cpu.write_reg(2, bits(2.5f));
 
     // xzr is +0.0
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, false, 6, 2, U8(Register::XZR)));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, false, 6, 2, U8(Register::XZR)));
     EXPECT_EQ(cpu.read_reg(6), bits(2.5f));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_div, false, 6, U8(Register::XZR), 2));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, 6, U8(Register::XZR), 2));
     EXPECT_EQ(cpu.read_reg(6), 0u);
 
     // A result written to xzr is dropped, the flags it raised are not.
     cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
-    execute(Emulator32bit::asm_vop2(kBinaryFn_div, false, U8(Register::XZR), 2, U8(Register::XZR)));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, U8(Register::XZR), 2, U8(Register::XZR)));
     EXPECT_EQ(cpu.read_reg(U8(Register::XZR)), 0u);
     EXPECT_EQ(fpsr(), kDivByZero);
 }
@@ -720,7 +720,7 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
 
     // double to int: a pair in, one register out
     set_value(kXa, true, bits(-7.9));
-    execute(Emulator32bit::asm_vop1(kUnaryFn_tos32, true, kXd, kXa));
+    execute(Emulator32bit::asm_fop1(kUnaryFn_tos32, true, kXd, kXa));
     EXPECT_EQ(cpu.read_reg(kXd), word(-7));
     expect_registers_unchanged_except(before, {kXd, kXa, U8(kXa + 1)});
 
@@ -728,7 +728,7 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     fill_registers();
     cpu.write_reg(kXa, 100);
     const auto before2 = snapshot_registers();
-    execute(Emulator32bit::asm_vop1(kUnaryFn_froms32, true, kXd, kXa));
+    execute(Emulator32bit::asm_fop1(kUnaryFn_froms32, true, kXd, kXa));
     EXPECT_EQ(get_value(kXd, true), bits(100.0));
     expect_registers_unchanged_except(before2, {kXd, U8(kXd + 1)});
 
@@ -736,10 +736,10 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     fill_registers();
     cpu.write_reg(kXa, bits(0.5f));
     const auto before3 = snapshot_registers();
-    execute(Emulator32bit::asm_vop1(kUnaryFn_fcvt, false, kXd, kXa)); // f32 -> f64
+    execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, kXd, kXa)); // f32 -> f64
     EXPECT_EQ(get_value(kXd, true), bits(0.5));
     expect_registers_unchanged_except(before3, {kXd, U8(kXd + 1)});
-    execute(Emulator32bit::asm_vop1(kUnaryFn_fcvt, true, kXa, kXd)); // f64 -> f32
+    execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, true, kXa, kXd)); // f64 -> f32
     EXPECT_EQ(cpu.read_reg(kXa), bits(0.5f));
 }
 
@@ -748,15 +748,15 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
     for (const U8 reg : {U8(29), U8(30), U8(31)})
     {
         const std::vector<std::pair<const char *, word>> instructions = {
-            {"destination of vop2", Emulator32bit::asm_vop2(kBinaryFn_add, true, reg, 2, 4)},
-            {"first source of vop2", Emulator32bit::asm_vop2(kBinaryFn_add, true, 6, reg, 4)},
-            {"second source of vop2", Emulator32bit::asm_vop2(kBinaryFn_add, true, 6, 2, reg)},
-            {"vcmp", Emulator32bit::asm_vcmp(true, false, reg, 4)},
-            {"destination of a double result", Emulator32bit::asm_vop1(kUnaryFn_sqrt, true, reg, 2)},
-            {"source of a double to int", Emulator32bit::asm_vop1(kUnaryFn_tos32, true, 6, reg)},
-            {"destination of int to double", Emulator32bit::asm_vop1(kUnaryFn_froms32, true, reg, 2)},
-            {"destination of float to double", Emulator32bit::asm_vop1(kUnaryFn_fcvt, false, reg, 2)},
-            {"source of double to float", Emulator32bit::asm_vop1(kUnaryFn_fcvt, true, 6, reg)},
+            {"destination of fop2", Emulator32bit::asm_fop2(kBinaryFn_add, true, reg, 2, 4)},
+            {"first source of fop2", Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, reg, 4)},
+            {"second source of fop2", Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, 2, reg)},
+            {"fcmp", Emulator32bit::asm_fcmp(true, false, reg, 4)},
+            {"destination of a double result", Emulator32bit::asm_fop1(kUnaryFn_sqrt, true, reg, 2)},
+            {"source of a double to int", Emulator32bit::asm_fop1(kUnaryFn_tos32, true, 6, reg)},
+            {"destination of int to double", Emulator32bit::asm_fop1(kUnaryFn_froms32, true, reg, 2)},
+            {"destination of float to double", Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, reg, 2)},
+            {"source of double to float", Emulator32bit::asm_fop1(kUnaryFn_fcvt, true, 6, reg)},
         };
         for (const auto &[what, instruction] : instructions)
         {
@@ -777,23 +777,23 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
 
     // x28 is the last register that can start one, and a single does not care.
     start(kRoundNearest);
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, true, 28, 2, 4));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, false, 29, 2, 4));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_add, false, U8(Register::SP), 2, 4));
-    execute(Emulator32bit::asm_vop1(kUnaryFn_tos32, true, 29, 2));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, true, 28, 2, 4));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, false, 29, 2, 4));
+    execute(Emulator32bit::asm_fop2(kBinaryFn_add, false, U8(Register::SP), 2, 4));
+    execute(Emulator32bit::asm_fop1(kUnaryFn_tos32, true, 29, 2));
 }
 
 TEST_F(FpuTest, an_unassigned_function_faults)
 {
     fill_registers();
     const auto before = snapshot_registers();
-    const auto result = step(0, Emulator32bit::asm_vop1(kUnaryFn_count, false, 6, 2));
+    const auto result = step(0, Emulator32bit::asm_fop1(kUnaryFn_count, false, 6, 2));
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
-    EXPECT_NE(result.message.find("Undefined vop1 function 15"), std::string::npos)
+    EXPECT_NE(result.message.find("Undefined fop1 function 15"), std::string::npos)
         << result.message;
     expect_registers_unchanged_except(before, {});
 
-    const auto result2 = step(0, Emulator32bit::asm_vop2(kBinaryFn_count, false, 6, 2, 4));
+    const auto result2 = step(0, Emulator32bit::asm_fop2(kBinaryFn_count, false, 6, 2, 4));
     EXPECT_EQ(result2.status, Emulator32bit::RunResult::Status::FAULT);
 }
 
@@ -804,15 +804,15 @@ TEST_F(FpuTest, fpsr_collects_the_flags_until_it_is_written)
     start(kRoundNearest);
     set_value(kXa, false, bits(1.0f));
     set_value(kXb, false, bits(0.0f));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_div, false, kXd, kXa, kXb)); // divide by zero
+    execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, kXd, kXa, kXb)); // divide by zero
     EXPECT_EQ(fpsr(), kDivByZero);
 
     set_value(kXb, false, bits(3.0f));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_div, false, kXd, kXa, kXb)); // inexact
+    execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, kXd, kXa, kXb)); // inexact
     EXPECT_EQ(fpsr(), kDivByZero | kInexact) << "the first one is still there";
 
     set_value(kXb, false, bits(2.0f));
-    execute(Emulator32bit::asm_vop2(kBinaryFn_div, false, kXd, kXa, kXb)); // exact
+    execute(Emulator32bit::asm_fop2(kBinaryFn_div, false, kXd, kXa, kXb)); // exact
     EXPECT_EQ(fpsr(), kDivByZero | kInexact) << "an exact result clears nothing";
 
     cpu.write_sysreg(Emulator32bit::kSysregId_fpsr, 0);
@@ -839,9 +839,9 @@ TEST_F(FpuTest, a_reset_clears_the_floating_point_registers)
     EXPECT_EQ(cpu.read_sysreg(Emulator32bit::kSysregId_fpsr), 0u);
 }
 
-TEST_F(FpuTest, only_vcmp_changes_the_integer_flags)
+TEST_F(FpuTest, only_fcmp_changes_the_integer_flags)
 {
-    // Everything but vcmp leaves NZCV as it was.
+    // Everything but fcmp leaves NZCV as it was.
     set_flags(flags_from_bits(0b1010));
     binary(kBinaryFn_add, false, bits(1.0f), bits(2.0f));
     EXPECT_EQ(flags(), flags_from_bits(0b1010));

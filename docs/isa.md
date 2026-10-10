@@ -244,30 +244,30 @@ The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` 
 
 Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`011110`). Bits 1–16 are unused.
 
-### V1, V2, V3: floating point
+### F1, F2, F3: floating point
 
-`OP.F32 xd, xn` (V1), `OP.F32 xd, xn, xm` (V2), `OP.F32 xn, xm` (V3). `.F64` for a double.
+`OP.F32 xd, xn` (F1), `OP.F32 xd, xn, xm` (F2), `OP.F32 xn, xm` (F3). `.F64` for a double.
 
 ```
  31   26 25 24  20 19  15 14       5 4    0
 +-------+--+------+------+----------+------+
-|opcode | p|  xd  |  xn  |     -    |  fn  |   V1
+|opcode | p|  xd  |  xn  |     -    |  fn  |   F1
 +-------+--+------+------+----------+------+
 
  31   26 25 24  20 19  15 14 13  9 8  5 4    0
 +-------+--+------+------+--+-----+-----+------+
-|opcode | p|  xd  |  xn  | -|  xm |  -  |  fn  |   V2
+|opcode | p|  xd  |  xn  | -|  xm |  -  |  fn  |   F2
 +-------+--+------+------+--+-----+-----+------+
 
  31   26 25 24 23  20 19  15 14 13  9 8          0
 +-------+--+--+------+------+--+-----+-------------+
-|opcode | p| e|  -   |  xn  | -|  xm |      -      |   V3
+|opcode | p| e|  -   |  xn  | -|  xm |      -      |   F3
 +-------+--+--+------+------+--+-----+-------------+
 ```
 
 - `p` (bit 25) is the precision: clear is `.F32`, set is `.F64`. For the conversion between the two it is the precision of the source.
 - `fn` (bits 0–4) is the function of the opcode, see [Floating point](#floating-point-3). A function that is not assigned is an undefined instruction (ISS 1).
-- `e` (bit 24) of V3 is set for `VCMPE`.
+- `e` (bit 24) of F3 is set for `FCMPE`.
 - A double names the first register of a pair, which has to be x0–x28 (ISS 5 otherwise).
 - The unused bits are 0 and are ignored.
 
@@ -420,45 +420,45 @@ A `float` is the IEEE 754 binary32 value in a register, a `double` the binary64 
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `001001` | `VABS`, `VNEG`, `VSQRT`, `VRINT*`, `VCVT*`, `VCVTR*` | V1 | `xd = fn(xn)`, see below |
-| `001010` | `VADD`, `VSUB`, `VMUL`, `VDIV`, `VMIN`, `VMAX` | V2 | `xd = xn fn xm` |
-| `001011` | `VCMP`, `VCMPE xn, xm` | V3 | sets N, Z, C and V from the comparison |
+| `001001` | `FABS`, `FNEG`, `FSQRT`, `FRINT*`, `FCVT*`, `FCVTR*` | F1 | `xd = fn(xn)`, see below |
+| `001010` | `FADD`, `FSUB`, `FMUL`, `FDIV`, `FMIN`, `FMAX` | F2 | `xd = xn fn xm` |
+| `001011` | `FCMP`, `FCMPE xn, xm` | F3 | sets N, Z, C and V from the comparison |
 
-Every mnemonic has the suffix `.f32` or `.f64` (`vadd.f32 x0, x1, x2`, `vadd.f64 x0, x2, x4`).
+Every mnemonic has the suffix `.f32` or `.f64` (`fadd.f32 x0, x1, x2`, `fadd.f64 x0, x2, x4`).
 
-`VOP2` (opcode `001010`), `fn`: `0` `VADD`, `1` `VSUB`, `2` `VMUL`, `3` `VDIV`, `4` `VMIN`, `5` `VMAX`. The operands and the result have the same precision. `VMIN` and `VMAX` are `fmin` and `fmax` of C: a quiet NaN operand is skipped (two of them give the default NaN), a signaling NaN is an invalid operation, and -0 is smaller than +0.
+`FOP2` (opcode `001010`), `fn`: `0` `FADD`, `1` `FSUB`, `2` `FMUL`, `3` `FDIV`, `4` `FMIN`, `5` `FMAX`. The operands and the result have the same precision. `FMIN` and `FMAX` are `fmin` and `fmax` of C: a quiet NaN operand is skipped (two of them give the default NaN), a signaling NaN is an invalid operation, and -0 is smaller than +0.
 
-`VOP1` (opcode `001001`), `fn`. The precision of the instruction is that of the floating point operand:
+`FOP1` (opcode `001001`), `fn`. The precision of the instruction is that of the floating point operand:
 
 | `fn` | Instruction | Operation | `xd` | `xn` |
 |------|-------------|-----------|------|------|
-| 0 | `VABS` | clears the sign bit | float | float |
-| 1 | `VNEG` | flips the sign bit | float | float |
-| 2 | `VSQRT` | square root | float | float |
-| 3 | `VRINT` | rounds to an integral value in the mode of FPCR | float | float |
-| 4 | `VRINTZ` | toward zero | float | float |
-| 5 | `VRINTM` | toward -infinity (floor) | float | float |
-| 6 | `VRINTP` | toward +infinity (ceil) | float | float |
-| 7 | `VRINTA` | to nearest, ties away from zero (`round`) | float | float |
-| 8 | `VCVT.S32.Fx` | float to signed integer, toward zero (the C cast) | int32 | float |
-| 9 | `VCVT.U32.Fx` | float to unsigned integer, toward zero | uint32 | float |
-| 10 | `VCVTR.S32.Fx` | float to signed integer in the mode of FPCR (`lrint`) | int32 | float |
-| 11 | `VCVTR.U32.Fx` | float to unsigned integer in the mode of FPCR | uint32 | float |
-| 12 | `VCVT.Fx.S32` | signed integer to float, rounded as FPCR says | float | int32 |
-| 13 | `VCVT.Fx.U32` | unsigned integer to float | float | uint32 |
-| 14 | `VCVT.F64.F32`, `VCVT.F32.F64` | float to the other precision (`p` is the source's) | the other | the source |
+| 0 | `FABS` | clears the sign bit | float | float |
+| 1 | `FNEG` | flips the sign bit | float | float |
+| 2 | `FSQRT` | square root | float | float |
+| 3 | `FRINT` | rounds to an integral value in the mode of FPCR | float | float |
+| 4 | `FRINTZ` | toward zero | float | float |
+| 5 | `FRINTM` | toward -infinity (floor) | float | float |
+| 6 | `FRINTP` | toward +infinity (ceil) | float | float |
+| 7 | `FRINTA` | to nearest, ties away from zero (`round`) | float | float |
+| 8 | `FCVT.S32.Fx` | float to signed integer, toward zero (the C cast) | int32 | float |
+| 9 | `FCVT.U32.Fx` | float to unsigned integer, toward zero | uint32 | float |
+| 10 | `FCVTR.S32.Fx` | float to signed integer in the mode of FPCR (`lrint`) | int32 | float |
+| 11 | `FCVTR.U32.Fx` | float to unsigned integer in the mode of FPCR | uint32 | float |
+| 12 | `FCVT.Fx.S32` | signed integer to float, rounded as FPCR says | float | int32 |
+| 13 | `FCVT.Fx.U32` | unsigned integer to float | float | uint32 |
+| 14 | `FCVT.F64.F32`, `FCVT.F32.F64` | float to the other precision (`p` is the source's) | the other | the source |
 
-Where a column says float, a `.f64` instruction uses a register pair. Integers are a single register. So `vcvt.s32.f64 x0, x2` reads the pair (x2, x3), `vcvt.f64.s32 x2, x0` writes the pair (x2, x3), and `vcvt.f64.f32 x2, x0` widens x0 into (x2, x3).
+Where a column says float, a `.f64` instruction uses a register pair. Integers are a single register. So `fcvt.s32.f64 x0, x2` reads the pair (x2, x3), `fcvt.f64.s32 x2, x0` writes the pair (x2, x3), and `fcvt.f64.f32 x2, x0` widens x0 into (x2, x3).
 
 The results:
 
-- **Rounding.** The result of `VADD`, `VSUB`, `VMUL`, `VDIV`, `VSQRT` and the conversions to a float is the exact result rounded as the IEEE 754 standard says, in the mode of FPCR. They raise the flags of [FPSR](#fpcr-and-fpsr). Denormal numbers are fully supported (nothing is flushed to zero). Whether tininess for `UFC` is found before or after rounding is up to the host FPU, which the standard allows.
-- **NaN.** An operation never passes a NaN on: its result is the default NaN, quiet, positive and with no payload (`0x7FC00000`, `0x7FF8000000000000`), so the same program gives the same bits on every host. A signaling NaN operand raises `IOC`, a quiet one does not. `VABS` and `VNEG` are bit operations and leave a NaN as it is.
-- **`VRINT`** raises `IOC` for a signaling NaN and nothing else, not `IXC`.
+- **Rounding.** The result of `FADD`, `FSUB`, `FMUL`, `FDIV`, `FSQRT` and the conversions to a float is the exact result rounded as the IEEE 754 standard says, in the mode of FPCR. They raise the flags of [FPSR](#fpcr-and-fpsr). Denormal numbers are fully supported (nothing is flushed to zero). Whether tininess for `UFC` is found before or after rounding is up to the host FPU, which the standard allows.
+- **NaN.** An operation never passes a NaN on: its result is the default NaN, quiet, positive and with no payload (`0x7FC00000`, `0x7FF8000000000000`), so the same program gives the same bits on every host. A signaling NaN operand raises `IOC`, a quiet one does not. `FABS` and `FNEG` are bit operations and leave a NaN as it is.
+- **`FRINT`** raises `IOC` for a signaling NaN and nothing else, not `IXC`.
 - **Float to integer** saturates. A NaN gives 0, a number too large the largest integer, a number too small the smallest one (0 for an unsigned integer), all with `IOC`. Otherwise `IXC` says that the number had a fraction. The conversions with `R` round first and then check the range, so `-0.5` is 0 with `IXC` in the nearest mode and out of range for an unsigned integer in the mode toward -infinity.
 - **Integer to float** is exact for a double and rounds for a float larger than 2^24, with `IXC`.
 - **Float to double** is exact, double to float rounds and can raise `OFC`, `UFC` and `IXC`.
-- **`VCMP`** does not change a register but sets the flags like a comparison of integers: equal is `Z` and `C` (`0110`), less than is `N` (`1000`), greater than is `C` (`0010`), and unordered, when an operand is a NaN, is `C` and `V` (`0011`). `+0` equals `-0`. `VCMP` raises `IOC` for a signaling NaN, `VCMPE` for any NaN. The flags are those of the conditions, but note what they do for a NaN:
+- **`FCMP`** does not change a register but sets the flags like a comparison of integers: equal is `Z` and `C` (`0110`), less than is `N` (`1000`), greater than is `C` (`0010`), and unordered, when an operand is a NaN, is `C` and `V` (`0011`). `+0` equals `-0`. `FCMP` raises `IOC` for a signaling NaN, `FCMPE` for any NaN. The flags are those of the conditions, but note what they do for a NaN:
 
 | Condition | `a<b` | `a==b` | `a>b` | NaN |
 |-----------|-------|--------|-------|-----|
@@ -475,8 +475,8 @@ The results:
 So a compiler uses `MI` and `LS` for `<` and `<=`, as `LT` and `LE` are also true for a NaN.
 
 - **Registers.** An operand read through `xzr` is 0, a result written to it is dropped (its flags are not). The sources are read before the result is written, so a result may overwrite an operand, also a half of an overlapping pair. A double in a register that cannot start a pair (x29, `sp`, `xzr`) is an undefined instruction (ISS 5), as is a `fn` that is not assigned (ISS 1). An instruction that faults changes no register, no flag and not FPSR.
-- The integer flags are changed by `VCMP` only.
-- The assembler has the pseudo instruction `vmov.f32 xd, xm | float`, `vmov.f64`, see [basm-syntax.md](basm-syntax.md#floating-point). There is no instruction for it, a move is `mov`.
+- The integer flags are changed by `FCMP` only.
+- The assembler has the pseudo instruction `fmov.f32 xd, xm | float`, `fmov.f64`, see [basm-syntax.md](basm-syntax.md#floating-point). There is no instruction for it, a move is `mov`.
 - A fused multiply-add is not there yet, see [todo.md](todo.md).
 
 ### Bitwise (5)

@@ -19,9 +19,9 @@ TEST_F(EmulatorFixture, opcode_constants_come_from_the_list)
 {
     EXPECT_EQ(Emulator32bit::_op_special_instructions, 0b000000u);
     EXPECT_EQ(Emulator32bit::_op_add, 0b000001u);
-    EXPECT_EQ(Emulator32bit::_op_vop1, 0b001001u);
-    EXPECT_EQ(Emulator32bit::_op_vop2, 0b001010u);
-    EXPECT_EQ(Emulator32bit::_op_vcmp, 0b001011u);
+    EXPECT_EQ(Emulator32bit::_op_fop1, 0b001001u);
+    EXPECT_EQ(Emulator32bit::_op_fop2, 0b001010u);
+    EXPECT_EQ(Emulator32bit::_op_fcmp, 0b001011u);
     EXPECT_EQ(Emulator32bit::_op_shift, 0b010000u);
     EXPECT_EQ(Emulator32bit::_op_mov, 0b010001u);
     EXPECT_EQ(Emulator32bit::_op_ldr, 0b010011u);

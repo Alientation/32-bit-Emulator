@@ -36,7 +36,7 @@ constexpr word kUnderflow = 1u << 3;
 constexpr word kInexact = 1u << 4;
 constexpr word kFpsrMask = 0b11111;
 
-/// The function field (bits 4-0) of `vop2`.
+/// The function field (bits 4-0) of `fop2`.
 constexpr U8 kBinaryFn_add = 0;
 constexpr U8 kBinaryFn_sub = 1;
 constexpr U8 kBinaryFn_mul = 2;
@@ -45,7 +45,7 @@ constexpr U8 kBinaryFn_min = 4;
 constexpr U8 kBinaryFn_max = 5;
 constexpr U8 kBinaryFn_count = 6;
 
-/// The function field (bits 4-0) of `vop1`.
+/// The function field (bits 4-0) of `fop1`.
 constexpr U8 kUnaryFn_abs = 0;
 constexpr U8 kUnaryFn_neg = 1;
 constexpr U8 kUnaryFn_sqrt = 2;
@@ -94,14 +94,14 @@ struct Result
     word flags;
 };
 
-/// `vop2`.
+/// `fop2`.
 ///
 /// @param fn a kBinaryFn_* below kBinaryFn_count
 /// @param dbl whether the operands and the result are doubles
 /// @param rounding the mode of the FPCR (kRound*)
 Result binary(U8 fn, bool dbl, U64 a, U64 b, word rounding);
 
-/// `vop1`: @p a is the source in the representation of its type, the result the destination in
+/// `fop1`: @p a is the source in the representation of its type, the result the destination in
 /// the representation of its type (a float, a double, or the 32 bits of an integer).
 ///
 /// @param fn a kUnaryFn_* below kUnaryFn_count
@@ -109,10 +109,10 @@ Result binary(U8 fn, bool dbl, U64 a, U64 b, word rounding);
 /// @param rounding the mode of the FPCR (kRound*)
 Result unary(U8 fn, bool dbl, U64 a, word rounding);
 
-/// `vcmp`: the value of the result is NZCV in bits 3-0 (N is bit 3), as the flags are set by a
+/// `fcmp`: the value of the result is NZCV in bits 3-0 (N is bit 3), as the flags are set by a
 /// comparison of integers. Equal is Z and C, less is N, greater is C and unordered is C and V.
 ///
-/// @param signaling whether any NaN raises Invalid (`vcmpe`); otherwise only a signaling one does
+/// @param signaling whether any NaN raises Invalid (`fcmpe`); otherwise only a signaling one does
 Result compare(bool dbl, bool signaling, U64 a, U64 b);
 
 } // namespace fpu

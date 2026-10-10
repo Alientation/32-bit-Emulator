@@ -865,7 +865,7 @@ TEST_F(AssemblerUnit, statement_errors)
     EXPECT_TRUE(
         contains(error(".data\n.byte 1 2\n"), "unexpected '2' at the end of the statement"));
     EXPECT_TRUE(contains(error(".text\nfoo x0\n"), "cannot parse 'foo'"));
-    EXPECT_TRUE(contains(error(".text\nvadd.f32 x0, x1\n"), "expected ',' and a register"));
+    EXPECT_TRUE(contains(error(".text\nfadd.f32 x0, x1\n"), "expected ',' and a register"));
 }
 
 TEST_F(AssemblerUnit, section_errors)

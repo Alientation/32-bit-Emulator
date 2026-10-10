@@ -90,7 +90,7 @@ TEST_F(PreprocessorUnit, output_lexes_like_the_input)
                                "adds x0, x0, :lo12:buf\n"
                                "b.ne loop\n"
                                ".word 10 % 3, 0o17, 1<<2\n"
-                               "vadd.f32 x0, x1\n";
+                               "fadd.f32 x0, x1\n";
     EXPECT_EQ(lexed(preprocess(source)), lexed(source));
 }
 

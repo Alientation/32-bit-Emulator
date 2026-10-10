@@ -713,25 +713,25 @@ class Emulator32bit
     /// @param xn the source register
     static word asm_unary(word op, word xd, word xn);
 
-    /// Encodes a unary floating point instruction or a conversion (`vabs`, `vsqrt`, `vcvt`...,
-    /// format V1).
+    /// Encodes a unary floating point instruction or a conversion (`fabs`, `fsqrt`, `fcvt`...,
+    /// format F1).
     ///
     /// @param fn the function (fpu::kUnaryFn_*)
     /// @param dbl the precision bit, see fpu::unary_dest_is_pair
     /// @param xd the destination register (the first one of a pair for a double)
     /// @param xn the source register
-    static word asm_vop1(U8 fn, bool dbl, int xd, int xn);
+    static word asm_fop1(U8 fn, bool dbl, int xd, int xn);
 
-    /// Encodes a binary floating point instruction `vadd`, ... `xd, xn, xm` (format V2).
+    /// Encodes a binary floating point instruction `fadd`, ... `xd, xn, xm` (format F2).
     ///
     /// @param fn the function (fpu::kBinaryFn_*)
     /// @param dbl whether the operands and the result are doubles
-    static word asm_vop2(U8 fn, bool dbl, int xd, int xn, int xm);
+    static word asm_fop2(U8 fn, bool dbl, int xd, int xn, int xm);
 
-    /// Encodes `vcmp` or `vcmpe xn, xm` (format V3).
+    /// Encodes `fcmp` or `fcmpe xn, xm` (format F3).
     ///
-    /// @param signaling `vcmpe`: a quiet NaN raises Invalid too
-    static word asm_vcmp(bool dbl, bool signaling, int xn, int xm);
+    /// @param signaling `fcmpe`: a quiet NaN raises Invalid too
+    static word asm_fcmp(bool dbl, bool signaling, int xn, int xm);
 
     /// Encodes `csel`, `csinc`, `csinv` or `csneg xd, xn, xm, cond`.
     ///

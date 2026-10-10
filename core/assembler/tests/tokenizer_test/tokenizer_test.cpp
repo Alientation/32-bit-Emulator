@@ -163,21 +163,21 @@ TEST(tokenizer_v2, registers)
 TEST(tokenizer_v2, float_mnemonics)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, "vadd.f32 x0, x1, x2\nvcvt.s32.f64 x0, x1\n");
+    const LexResult r = lex_asm(sm, "fadd.f32 x0, x1, x2\nfcvt.s32.f64 x0, x1\n");
     EXPECT_FALSE(r.has_errors);
-    EXPECT_EQ(r.tokens[0].type, T::INSTRUCTION_VADD_F32);
-    EXPECT_EQ(r.tokens[0].text, "vadd.f32");
-    EXPECT_EQ(r.tokens[7].type, T::INSTRUCTION_VCVT_S32_F64);
-    EXPECT_EQ(r.tokens[7].text, "vcvt.s32.f64");
+    EXPECT_EQ(r.tokens[0].type, T::INSTRUCTION_FADD_F32);
+    EXPECT_EQ(r.tokens[0].text, "fadd.f32");
+    EXPECT_EQ(r.tokens[7].type, T::INSTRUCTION_FCVT_S32_F64);
+    EXPECT_EQ(r.tokens[7].text, "fcvt.s32.f64");
 }
 
 TEST(tokenizer_v2, a_name_that_starts_like_a_float_mnemonic_is_a_symbol)
 {
     SourceManager sm;
-    const LexResult r = lex_asm(sm, "b vadd\nb vadd.f16\nvcvt.f32\n");
+    const LexResult r = lex_asm(sm, "b fadd\nb fadd.f16\nfcvt.f32\n");
     EXPECT_FALSE(r.has_errors);
     EXPECT_EQ(r.tokens[1].type, T::SYMBOL);
-    EXPECT_EQ(r.tokens[1].text, "vadd");
+    EXPECT_EQ(r.tokens[1].text, "fadd");
 }
 
 TEST(tokenizer_v2, number_literals)
