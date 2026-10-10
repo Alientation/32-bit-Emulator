@@ -1,4 +1,4 @@
-#include "disassembler/disassembler.h"
+#include "emulator32bit/disassembler.h"
 
 #include "emulator32bit/alu.h"
 #include "emulator32bit/encoding.h"

@@ -14,6 +14,7 @@ add_library(emulator32bit STATIC
     src/devices.cpp
     src/host_input.cpp
     src/gdb_server.cpp
+    src/disassembler.cpp
 )
 add_library(aemu::emulator32bit ALIAS emulator32bit)
 
@@ -25,7 +26,7 @@ target_include_directories(emulator32bit
 
 target_compile_features(emulator32bit PUBLIC cxx_std_20)
 find_package(Threads REQUIRED)
-target_link_libraries(emulator32bit PUBLIC aemu::util Threads::Threads PRIVATE aemu::disassembler)
+target_link_libraries(emulator32bit PUBLIC aemu::util Threads::Threads)
 aemu_target_defaults(emulator32bit)
 
 # Debug postfix

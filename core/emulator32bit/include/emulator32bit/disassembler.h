@@ -5,9 +5,8 @@
 #include <string>
 
 /// The disassembler of the instruction set (docs/isa.md). It reads an instruction word and needs
-/// nothing of the machine but the numbers of the encoding (emulator32bit/encoding.h), so the
-/// emulator (the trace, the debugger) and the assembler (the listing of `basm -dump`) use it
-/// without it knowing either.
+/// nothing of the machine but the numbers of the encoding (emulator32bit/encoding.h). The trace
+/// and the debugger use it through `Emulator32bit::disassemble_instr`.
 namespace disassembler
 {
 

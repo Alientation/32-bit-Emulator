@@ -147,12 +147,12 @@ Add a test by writing a `TEST_F (AssemblerIntegration, ...)` that calls `write_f
 then `run`, then asserts.
 
 ## Architecture
-Static libraries with this dependency chain: `util` ← `disassembler` ← `emulator32bit` ← `assembler` ← `app`.
+Static libraries with this dependency chain: `util` ← `emulator32bit` ← `assembler` ← `app`.
 
 - **util**: logging (`logger.h`), `File`/`Directory` helpers, string utilities, and the fixed-width
   types (`byte`, `hword`, `word`, `U8`, ...).
-- **disassembler**: `disassembler::disassemble (word)` (`disassembler/disassembler.h`, `src/disassembler.cpp`), the instruction word as assembly text. It includes only the headers of the encoding from the emulator library, which are constants and inline functions (`encoding.h`: the opcode constants `_op_<name>`, the operations of the special group, `AddrType`, the system register numbers and names; `opcodes.h`, `alu.h`, `fpu.h`), so that nothing of the machine is linked into it. `Emulator32bit` derives from `Encoding`, which is why `Emulator32bit::_op_add` and `Emulator32bit::kSysregId_elr` still exist. `Emulator32bit::disassemble_instr` calls it.
 - **emulator32bit**: the CPU itself is `Emulator32bit` (`emulator32bit.h`).
+  - The disassembler is `disassembler::disassemble (word)` (`disassembler.h`, `src/disassembler.cpp`), the instruction word as assembly text. It includes only the headers of the encoding, which are constants and inline functions (`encoding.h`: the opcode constants `_op_<name>`, the operations of the special group, `AddrType`, the system register numbers and names; `opcodes.h`, `alu.h`, `fpu.h`), and nothing of the machine. `Emulator32bit` derives from `Encoding`, which is why `Emulator32bit::_op_add` and `Emulator32bit::kSysregId_elr` still exist. `Emulator32bit::disassemble_instr` calls it.
   - Instructions are fixed-width 4 bytes with a 6-bit opcode, so there are at most 64 instructions.
     The `AEMU_OPCODES(X)` list in `opcodes.h` is the single source of opcodes (a variant of an
     opcode, like the four shifts, is not a row: one handler decodes it). The handler declarations
@@ -164,7 +164,7 @@ Static libraries with this dependency chain: `util` ← `disassembler` ← `emul
     `_bad_opcode`, which faults with `BAD_INSTR`.
   - Execution handlers live in `src/instructions.cpp`. Each instruction also has a static
     `asm_<name>()` encoder, which the assembler calls, and a matching disassembler entry in
-    `disassembler/src/disassembler.cpp`.
+    `emulator32bit/src/disassembler.cpp`.
   - Memory: `SystemBus` is the physical address space: it decodes an address
     (`find_memory`/`route_memory`) to `RAM`/`ROM` (`memory.h`), to `Disk` (a page cache over a file,
     `disk.h`) or to a device, and owns all of them. Every address on it is physical, it has no MMU.
@@ -367,7 +367,7 @@ Static libraries with this dependency chain: `util` ← `disassembler` ← `emul
 
 **Adding or changing an instruction touches a few places.** Emulator side: a row in `AEMU_OPCODES`
 (`opcodes.h`), the handler `_<name>` (`instructions.cpp`), a `disassemble_<name>` function
-(`disassembler/src/disassembler.cpp`) and, for the assembler to call, an `asm_*` encoder. Assembler side: one row in
+(`emulator32bit/src/disassembler.cpp`) and, for the assembler to call, an `asm_*` encoder. Assembler side: one row in
 `BASM_INSTRUCTION_LIST` (`assembler/include/assembler/instruction_list.h`, in the same position as
 in the opcode list, with `HLT` first and `RET` last). That row generates the `INSTRUCTION_<NAME>`
 token type, the lexer keyword (with its `s` variant) and the encoding rule: its `InstructionFormat`
