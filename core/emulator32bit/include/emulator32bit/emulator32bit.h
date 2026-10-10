@@ -706,14 +706,14 @@ class Emulator32bit : public Encoding
     WatchKind m_watch_kind[kMaxWatchpoints];
     WatchCompare m_watch_compare[kMaxWatchpoints];
     word m_watch_compare_value[kMaxWatchpoints];
-    BitArray m_watch_physical;
+    BitArray<kMaxWatchpoints> m_watch_physical;
 
     /// The register watches, see RegisterWatch.
     unsigned m_regwatch_count = 0;
     U8 m_regwatch_reg[kMaxRegisterWatches];
     word m_regwatch_value[kMaxRegisterWatches];
     word m_regwatch_last[kMaxRegisterWatches];
-    BitArray m_regwatch_has_value;
+    BitArray<kMaxRegisterWatches> m_regwatch_has_value;
 
     /// The history is a ring buffer of `m_history_size` entries, of which the newest
     /// `m_history_count` are valid, and the next one goes to `m_history_head`.

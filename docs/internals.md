@@ -112,7 +112,7 @@ and the release build has debug info so the samples can be attributed to source 
     The watchpoints, the register watches and the history are structs of arrays (`m_watch_*`,
     `m_regwatch_*`, `m_history_*`) at the end of `Emulator32bit`, after the members that every
     instruction reads: the fixed tables hold `kMaxWatchpoints` and `kMaxRegisterWatches` entries,
-    their booleans are a `BitArray` (`util/bitarray.h`), and a removed entry is replaced by the
+    their booleans are a `BitArray<N>` (`util/bitarray.h`), and a removed entry is replaced by the
     last one. The history is a ring buffer of `m_history_size` entries.
   - `--no-semihosting` makes `swi 1`, the emulator calls, an undefined instruction. The plain dump
     also has `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`.

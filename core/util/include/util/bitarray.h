@@ -4,28 +4,33 @@
 
 #include <cassert>
 
-/// A fixed array of up to 64 booleans, kept in one word. For the flags of the entries of a table
-/// that is a few entries long (struct of arrays: a `BitArray` instead of a `bool` array or an
-/// optional per entry). Not a template: the capacity is always 64.
+/// A fixed array of `N` booleans, kept in words of 64. For the flags of the entries of a table
+/// (struct of arrays: a `BitArray` instead of a `bool` array or an optional per entry).
+///
+/// @tparam N the number of bits, at least 1
+template<unsigned N>
 class BitArray
 {
-  public:
-    static constexpr unsigned kCapacity = 64;
+    static_assert(N > 0, "A BitArray has at least one bit");
 
-    /// @param i the index, below kCapacity
+  public:
+    static constexpr unsigned kCapacity = N;
+
+    /// @param i the index, below N
     /// @return the bit
     bool test(const unsigned i) const
     {
-        assert(i < kCapacity);
-        return (m_bits >> i) & 1;
+        assert(i < N);
+        return (m_words[i / 64] >> (i % 64)) & 1;
     }
 
-    /// @param i the index, below kCapacity
+    /// @param i the index, below N
     /// @param value what the bit becomes
     void assign(const unsigned i, const bool value)
     {
-        assert(i < kCapacity);
-        m_bits = (m_bits & ~(U64(1) << i)) | (U64(value) << i);
+        assert(i < N);
+        U64 &word = m_words[i / 64];
+        word = (word & ~(U64(1) << (i % 64))) | (U64(value) << (i % 64));
     }
 
     /// Copies the bit at `from` to `to`: the move of the last entry into a removed one.
@@ -36,15 +41,20 @@ class BitArray
 
     void clear()
     {
-        m_bits = 0;
+        for (U64 &word : m_words) word = 0;
     }
 
     /// @return whether any bit is set
     bool any() const
     {
-        return m_bits != 0;
+        for (const U64 word : m_words)
+        {
+            if (word != 0) return true;
+        }
+        return false;
     }
 
   private:
-    U64 m_bits = 0;
+    static constexpr unsigned kWords = (N + 63) / 64;
+    U64 m_words[kWords] = {};
 };
