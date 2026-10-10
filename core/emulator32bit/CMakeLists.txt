@@ -1,6 +1,5 @@
 add_library(emulator32bit STATIC
     src/emulator32bit.cpp
-    src/disassembler.cpp
     src/instructions.cpp
     src/fpu.cpp
     src/software_interrupt.cpp
@@ -25,7 +24,7 @@ target_include_directories(emulator32bit
 
 target_compile_features(emulator32bit PUBLIC cxx_std_20)
 find_package(Threads REQUIRED)
-target_link_libraries(emulator32bit PUBLIC aemu::util Threads::Threads)
+target_link_libraries(emulator32bit PUBLIC aemu::util Threads::Threads PRIVATE aemu::disassembler)
 aemu_target_defaults(emulator32bit)
 
 # Debug postfix

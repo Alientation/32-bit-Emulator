@@ -1,5 +1,9 @@
-#include "emulator32bit/emulator32bit.h"
+#include "disassembler/disassembler.h"
+
+#include "emulator32bit/alu.h"
+#include "emulator32bit/encoding.h"
 #include "emulator32bit/fpu.h"
+#include "emulator32bit/opcodes.h"
 #include "util/common.h"
 #include "util/logger.h"
 
@@ -143,7 +147,7 @@ static std::string disassemble_format_m(word instruction, std::string op,
     std::string disassemble = op;
 
     const U8 adr_mode = bitfield_unsigned<0, 2>(instruction);
-    const bool unaligned = adr_mode == U8(Emulator32bit::AddrType::ADDR_UNALIGNED);
+    const bool unaligned = adr_mode == U8(Encoding::AddrType::ADDR_UNALIGNED);
     if (unaligned && has_unaligned_form)
     {
         // ldr -> ldur, strh -> sturh
@@ -162,9 +166,9 @@ static std::string disassemble_format_m(word instruction, std::string op,
 
     disassemble += "[";
     disassemble += disassemble_gpr(instruction, 15);
-    if (adr_mode != U8(Emulator32bit::AddrType::ADDR_PRE_INC)
-        && adr_mode != U8(Emulator32bit::AddrType::ADDR_OFFSET)
-        && adr_mode != U8(Emulator32bit::AddrType::ADDR_POST_INC)
+    if (adr_mode != U8(Encoding::AddrType::ADDR_PRE_INC)
+        && adr_mode != U8(Encoding::AddrType::ADDR_OFFSET)
+        && adr_mode != U8(Encoding::AddrType::ADDR_POST_INC)
         && !(unaligned && has_unaligned_form))
     {
         AEMU_FATAL("disassemble_format_m() - Invalid addressing mode "
@@ -179,15 +183,15 @@ static std::string disassemble_format_m(word instruction, std::string op,
         {
             disassemble += "]";
         }
-        else if (adr_mode == U8(Emulator32bit::AddrType::ADDR_PRE_INC))
+        else if (adr_mode == U8(Encoding::AddrType::ADDR_PRE_INC))
         {
             disassemble += ", " + std::to_string(simm12) + "]!";
         }
-        else if (adr_mode == U8(Emulator32bit::AddrType::ADDR_OFFSET) || unaligned)
+        else if (adr_mode == U8(Encoding::AddrType::ADDR_OFFSET) || unaligned)
         {
             disassemble += ", " + std::to_string(simm12) + "]";
         }
-        else if (adr_mode == U8(Emulator32bit::AddrType::ADDR_POST_INC))
+        else if (adr_mode == U8(Encoding::AddrType::ADDR_POST_INC))
         {
             disassemble += "], " + std::to_string(simm12);
         }
@@ -201,15 +205,15 @@ static std::string disassemble_format_m(word instruction, std::string op,
             shift = ", " + disassemble_shift_operand(instruction);
         }
 
-        if (adr_mode == U8(Emulator32bit::AddrType::ADDR_PRE_INC))
+        if (adr_mode == U8(Encoding::AddrType::ADDR_PRE_INC))
         {
             disassemble += ", " + reg + ", " + shift + "]!";
         }
-        else if (adr_mode == U8(Emulator32bit::AddrType::ADDR_OFFSET) || unaligned)
+        else if (adr_mode == U8(Encoding::AddrType::ADDR_OFFSET) || unaligned)
         {
             disassemble += ", " + reg + ", " + shift + "]";
         }
-        else if (adr_mode == U8(Emulator32bit::AddrType::ADDR_POST_INC))
+        else if (adr_mode == U8(Encoding::AddrType::ADDR_POST_INC))
         {
             disassemble += "], " + reg + ", " + shift;
         }
@@ -349,7 +353,7 @@ static std::string disassemble_nop(word instruction)
 /// The name of a system register as the assembler reads it.
 static std::string disassemble_sysreg(const U8 sysreg)
 {
-    const char *name = Emulator32bit::sysreg_name(sysreg);
+    const char *name = Encoding::sysreg_name(sysreg);
     return name != nullptr ? name : "sysreg" + std::to_string(sysreg);
 }
 
@@ -404,16 +408,16 @@ static std::string disassemble_atomic(word instruction)
     std::string disassemble;
     switch (atop)
     {
-    case Emulator32bit::kAtomicId_swp:
+    case Encoding::kAtomicId_swp:
         disassemble = "swp";
         break;
-    case Emulator32bit::kAtomicId_ldadd:
+    case Encoding::kAtomicId_ldadd:
         disassemble = "ldadd";
         break;
-    case Emulator32bit::kAtomicId_ldclr:
+    case Encoding::kAtomicId_ldclr:
         disassemble = "ldclr";
         break;
-    case Emulator32bit::kAtomicId_ldset:
+    case Encoding::kAtomicId_ldset:
         disassemble = "ldset";
         break;
     default:
@@ -422,12 +426,12 @@ static std::string disassemble_atomic(word instruction)
 
     switch (width)
     {
-    case Emulator32bit::kAtomicWidth_word:
+    case Encoding::kAtomicWidth_word:
         break;
-    case Emulator32bit::kAtomicWidth_byte:
+    case Encoding::kAtomicWidth_byte:
         disassemble += "b";
         break;
-    case Emulator32bit::kAtomicWidth_hword:
+    case Encoding::kAtomicWidth_hword:
         disassemble += "h";
         break;
     default:
@@ -445,25 +449,25 @@ static std::string disassemble_unary(word instruction)
     const char *name;
     switch (bitfield_unsigned<0, 4>(instruction))
     {
-    case Emulator32bit::kUnaryId_sxtb:
+    case Encoding::kUnaryId_sxtb:
         name = "sxtb";
         break;
-    case Emulator32bit::kUnaryId_sxth:
+    case Encoding::kUnaryId_sxth:
         name = "sxth";
         break;
-    case Emulator32bit::kUnaryId_uxtb:
+    case Encoding::kUnaryId_uxtb:
         name = "uxtb";
         break;
-    case Emulator32bit::kUnaryId_uxth:
+    case Encoding::kUnaryId_uxth:
         name = "uxth";
         break;
-    case Emulator32bit::kUnaryId_clz:
+    case Encoding::kUnaryId_clz:
         name = "clz";
         break;
-    case Emulator32bit::kUnaryId_rev:
+    case Encoding::kUnaryId_rev:
         name = "rev";
         break;
-    case Emulator32bit::kUnaryId_rev16:
+    case Encoding::kUnaryId_rev16:
         name = "rev16";
         break;
     default:
@@ -479,25 +483,25 @@ static std::string disassemble_special_instructions(word instruction)
 
     switch (opsec)
     {
-    case Emulator32bit::kSpecialOpId_hlt:
+    case Encoding::kSpecialOpId_hlt:
         return disassemble_hlt(instruction);
-    case Emulator32bit::kSpecialOpId_nop:
+    case Encoding::kSpecialOpId_nop:
         return disassemble_nop(instruction);
-    case Emulator32bit::kSpecialOpId_msr:
+    case Encoding::kSpecialOpId_msr:
         return disassemble_msr(instruction);
-    case Emulator32bit::kSpecialOpId_mrs:
+    case Encoding::kSpecialOpId_mrs:
         return disassemble_mrs(instruction);
-    case Emulator32bit::kSpecialOpId_tlbi:
+    case Encoding::kSpecialOpId_tlbi:
         return disassemble_tlbi(instruction);
-    case Emulator32bit::kSpecialOpId_atomic:
+    case Encoding::kSpecialOpId_atomic:
         return disassemble_atomic(instruction);
-    case Emulator32bit::kSpecialOpId_eret:
+    case Encoding::kSpecialOpId_eret:
         return disassemble_eret(instruction);
-    case Emulator32bit::kSpecialOpId_wfi:
+    case Encoding::kSpecialOpId_wfi:
         return disassemble_wfi(instruction);
-    case Emulator32bit::kSpecialOpId_brk:
+    case Encoding::kSpecialOpId_brk:
         return disassemble_brk(instruction);
-    case Emulator32bit::kSpecialOpId_unary:
+    case Encoding::kSpecialOpId_unary:
         return disassemble_unary(instruction);
     default:
         return "ERROR: INVALID SPECOP";
@@ -761,24 +765,24 @@ static std::string disassemble_csel(word instruction)
     const ConditionCode inverse = ConditionCode(cond_bits ^ 1);
     const std::string xd = disassemble_gpr(instruction, 17);
 
-    if (invertible && variant != Emulator32bit::kCselId_csel && zero_pair
-        && variant != Emulator32bit::kCselId_csneg)
+    if (invertible && variant != Encoding::kCselId_csel && zero_pair
+        && variant != Encoding::kCselId_csneg)
     {
-        return std::string(variant == Emulator32bit::kCselId_csinc ? "cset " : "csetm ") + xd + ", "
+        return std::string(variant == Encoding::kCselId_csinc ? "cset " : "csetm ") + xd + ", "
                + disassemble_condition(inverse);
     }
-    if (invertible && variant != Emulator32bit::kCselId_csel && same_pair)
+    if (invertible && variant != Encoding::kCselId_csel && same_pair)
     {
-        const char *name = variant == Emulator32bit::kCselId_csinc   ? "cinc "
-                           : variant == Emulator32bit::kCselId_csinv ? "cinv "
+        const char *name = variant == Encoding::kCselId_csinc   ? "cinc "
+                           : variant == Encoding::kCselId_csinv ? "cinv "
                                                                      : "cneg ";
         return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
                + disassemble_condition(inverse);
     }
 
-    const char *name = variant == Emulator32bit::kCselId_csel    ? "csel "
-                       : variant == Emulator32bit::kCselId_csinc ? "csinc "
-                       : variant == Emulator32bit::kCselId_csinv ? "csinv "
+    const char *name = variant == Encoding::kCselId_csel    ? "csel "
+                       : variant == Encoding::kCselId_csinc ? "csinc "
+                       : variant == Encoding::kCselId_csinv ? "csinv "
                                                                  : "csneg ";
     return std::string(name) + xd + ", " + disassemble_gpr(instruction, 11) + ", "
            + disassemble_gpr(instruction, 6) + ", "
@@ -795,32 +799,16 @@ static std::string disassemble_adr(word instruction)
     return disassemble_format_m1(instruction, "adr");
 }
 
-// Construct disassembler instruction mapping.
-using DisassemblerFunction = std::string (*)(word);
-static DisassemblerFunction _disassembler_instructions[kMaxInstructions];
-
-static void disassembler_init()
+std::string disassembler::disassemble(const word instr)
 {
-    static bool init = false;
-    if (init)
+    switch (bitfield_unsigned<26, 6>(instr))
     {
-        return;
+#define AEMU_DISASSEMBLE_CASE(name, opcode)                                                        \
+    case Encoding::_op_##name:                                                                     \
+        return disassemble_##name(instr);
+        AEMU_OPCODES(AEMU_DISASSEMBLE_CASE)
+#undef AEMU_DISASSEMBLE_CASE
+    default:
+        return disassemble_nop(instr);
     }
-    init = true;
-
-    for (U8 i = 0; i < kMaxInstructions; i++)
-    {
-        _disassembler_instructions[i] = disassemble_nop;
-    }
-
-#define AEMU_SET_DISASSEMBLER(name, opcode)                                                        \
-    _disassembler_instructions[Emulator32bit::_op_##name] = disassemble_##name;
-    AEMU_OPCODES(AEMU_SET_DISASSEMBLER)
-#undef AEMU_SET_DISASSEMBLER
-}
-
-std::string Emulator32bit::disassemble_instr(word instr)
-{
-    disassembler_init();
-    return (*_disassembler_instructions[bitfield_unsigned<26, 6>(instr)])(instr);
 }

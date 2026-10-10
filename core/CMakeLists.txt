@@ -85,6 +85,7 @@ add_subdirectory(external/cxxopts)
 
 # Submodules
 add_subdirectory(util)
+add_subdirectory(disassembler)
 add_subdirectory(emulator32bit)
 # Comment out ccompiler for now until it is fixed.
 # add_subdirectory(ccompiler)

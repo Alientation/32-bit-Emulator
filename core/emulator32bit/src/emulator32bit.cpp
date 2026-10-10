@@ -1,5 +1,6 @@
 
 #include "emulator32bit/emulator32bit.h"
+#include "disassembler/disassembler.h"
 #include "emulator32bit/fpu.h"
 
 #include "emulator32bit/virtual_memory.h"
@@ -644,26 +645,10 @@ void Emulator32bit::execute_traced(const word instr)
     *m_trace << line << (changes.empty() ? "" : " ;" + changes) << "\n";
 }
 
-namespace
+std::string Emulator32bit::disassemble_instr(const word instr)
 {
-
-/// The system registers by name, in the order of their numbers.
-struct SysregName
-{
-    U8 id;
-    const char *name;
-};
-
-constexpr SysregName kSysregNames[] = {
-    {Emulator32bit::kSysregId_pstate, "pstate"}, {Emulator32bit::kSysregId_elr, "elr"},
-    {Emulator32bit::kSysregId_spsr, "spsr"},     {Emulator32bit::kSysregId_esr, "esr"},
-    {Emulator32bit::kSysregId_far, "far"},       {Emulator32bit::kSysregId_vbar, "vbar"},
-    {Emulator32bit::kSysregId_usp, "usp"},       {Emulator32bit::kSysregId_ptbr, "ptbr"},
-    {Emulator32bit::kSysregId_sctlr, "sctlr"},   {Emulator32bit::kSysregId_fpcr, "fpcr"},
-    {Emulator32bit::kSysregId_fpsr, "fpsr"},
-};
-
-} // namespace
+    return disassembler::disassemble(instr);
+}
 
 const char *Emulator32bit::exception_class_name(const ExceptionClass cls)
 {
@@ -684,18 +669,6 @@ const char *Emulator32bit::exception_class_name(const ExceptionClass cls)
         return "irq";
     }
     return "?";
-}
-
-const char *Emulator32bit::sysreg_name(const U8 id)
-{
-    for (const SysregName &sysreg : kSysregNames)
-    {
-        if (sysreg.id == id)
-        {
-            return sysreg.name;
-        }
-    }
-    return nullptr;
 }
 
 std::optional<U8> Emulator32bit::sysreg_id(const std::string &name)

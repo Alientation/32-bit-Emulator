@@ -2,6 +2,7 @@
 
 #include "emulator32bit/alu.h"
 #include "emulator32bit/disk.h"
+#include "emulator32bit/encoding.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/memory_port.h"
@@ -20,7 +21,7 @@
 
 /// A software simulated 32 bit processor, modeled off of the ARM architecture with many
 /// simplifications.
-class Emulator32bit
+class Emulator32bit : public Encoding
 {
   public:
     /// Makes an emulator with a RAM, a ROM that holds the given image and a MockDisk.
@@ -144,21 +145,6 @@ class Emulator32bit
 
         /// @return the syndrome of the exception that this becomes
         word get_iss() const noexcept;
-    };
-
-    /// How a load or a store uses its offset: added to the base, added before the base is updated
-    /// (pre-index) or after the access (post-index).
-    ///
-    /// ADDR_UNALIGNED is the offset form of `ldur`, `ldurh`, `stur` and `sturh`: the same as
-    /// ADDR_OFFSET, but the address does not have to be aligned to the size of the access. It
-    /// exists for the word and half-word accesses only (a byte is always aligned), and has no
-    /// pre or post indexed form.
-    enum class AddrType : U8
-    {
-        ADDR_OFFSET,
-        ADDR_PRE_INC,
-        ADDR_POST_INC,
-        ADDR_UNALIGNED,
     };
 
     /// The machine: the physical memory and the devices, the MMU that translates the addresses of
@@ -481,11 +467,6 @@ class Emulator32bit
     /// @param value the value to store, of which only the bits that the register has are kept
     void write_sysreg(U8 id, word value);
 
-    /// @param id the number of a system register
-    /// @return the name of the register as written in assembly (lower case), nullptr if there is
-    ///     no register with the number
-    static const char *sysreg_name(U8 id);
-
     /// @param name the name of a system register, in any case
     /// @return the number of the register, or nothing if there is none with the name
     static std::optional<U8> sysreg_id(const std::string &name);
@@ -661,10 +642,7 @@ class Emulator32bit
     // the opcode constant _op_<name>.
 #define AEMU_DECLARE_OPCODE(name, opcode)                                                          \
   private:                                                                                         \
-    void _##name(word instr);                                                                      \
-                                                                                                   \
-  public:                                                                                          \
-    static constexpr word _op_##name = opcode;
+    void _##name(word instr);
 
     AEMU_OPCODES(AEMU_DECLARE_OPCODE)
 #undef AEMU_DECLARE_OPCODE
@@ -929,59 +907,4 @@ class Emulator32bit
     /// @param instr an instruction word
     /// @return the instruction as assembly text
     static std::string disassemble_instr(word instr);
-
-    // Since these operations are encoded under one 'Special' instruction,
-    // these are the id for each operation.
-    static constexpr word kSpecialOpId_hlt = 0b0000;
-    static constexpr word kSpecialOpId_nop = 0b1111;
-    static constexpr word kSpecialOpId_msr = 0b0001;
-    static constexpr word kSpecialOpId_mrs = 0b0010;
-    static constexpr word kSpecialOpId_tlbi = 0b0011;
-    static constexpr word kSpecialOpId_atomic = 0b0100;
-    static constexpr word kSpecialOpId_eret = 0b0101;
-    static constexpr word kSpecialOpId_wfi = 0b0110;
-    static constexpr word kSpecialOpId_brk = 0b0111;
-    static constexpr word kSpecialOpId_unary = 0b1000;
-
-    // The operations of the unary special instruction (`op xd, xn`, bits 0-3).
-    static constexpr word kUnaryId_sxtb = 0b0000;
-    static constexpr word kUnaryId_sxth = 0b0001;
-    static constexpr word kUnaryId_uxtb = 0b0010;
-    static constexpr word kUnaryId_uxth = 0b0011;
-    static constexpr word kUnaryId_clz = 0b0100;
-    static constexpr word kUnaryId_rev = 0b0101;
-    static constexpr word kUnaryId_rev16 = 0b0110;
-
-    // The variants of CSEL (bits 4-5): what is written when the condition is false.
-    static constexpr word kCselId_csel = 0b00;  ///< xm
-    static constexpr word kCselId_csinc = 0b01; ///< xm + 1
-    static constexpr word kCselId_csinv = 0b10; ///< ~xm
-    static constexpr word kCselId_csneg = 0b11; ///< -xm
-
-    static constexpr word kAtomicId_swp = 0b0000;
-    static constexpr word kAtomicId_ldadd = 0b0001;
-    static constexpr word kAtomicId_ldclr = 0b0010;
-    static constexpr word kAtomicId_ldset = 0b0011;
-
-    static constexpr word kAtomicWidth_word = 0b00;
-    static constexpr word kAtomicWidth_byte = 0b01;
-    static constexpr word kAtomicWidth_hword = 0b10;
-
-    // The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
-    static constexpr word kSctlrMmuEnable = 1; ///< Bit 0 of SCTLR.
-    static constexpr word kSysregId_pstate = 1;
-    static constexpr word kSysregId_elr = 2;
-    static constexpr word kSysregId_spsr = 3;
-    static constexpr word kSysregId_esr = 4;
-    static constexpr word kSysregId_far = 5;
-    static constexpr word kSysregId_vbar = 6;
-    static constexpr word kSysregId_usp = 7;
-    static constexpr word kSysregId_ptbr = 8;
-    static constexpr word kSysregId_sctlr = 9;
-    static constexpr word kSysregId_fpcr = 10;
-    static constexpr word kSysregId_fpsr = 11;
-
-    /// The immediate of `swi` that is an emulator call, see _swi. Every other one is a system call
-    /// of the operating system.
-    static constexpr word kSwiSemihosting = 1;
 };

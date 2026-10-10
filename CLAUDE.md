@@ -7,7 +7,7 @@ An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assemble
 
 File types: `.basm` source, `.binc` header, `.bi` preprocessed file, `.bo` relocatable object (the custom ELF-like "belf" format), `.ba` static library, `.bexe` executable, `.ld` linker script.
 
-Dependency chain of the static libraries: `util` ← `emulator32bit` ← `assembler` ← `app`. Executables (under `build/<config>/`): `emulator32bit/emu32` (runs a `.bexe`), `assembler/basm` (preprocess → assemble → link), `app/emulator_app` (builds and runs).
+Dependency chain of the static libraries: `util` ← `disassembler` ← `emulator32bit` ← `assembler` ← `app`. Executables (under `build/<config>/`): `emulator32bit/emu32` (runs a `.bexe`), `assembler/basm` (preprocess → assemble → link), `app/emulator_app` (builds and runs).
 
 ## Build & test
 Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compiler. You also need the cxxopts submodule: `git submodule update --init --recursive`. GoogleTest is fetched by CMake.
@@ -52,7 +52,7 @@ Each of these has a test, but only for the way it has broken so far. Details: [i
 - **Exceptions:** a `throw Exception (BAD_INSTR/BAD_REG, ...)` passes a `kUndefinedIss_*`. An argument error of an emulator call (`swi 1`) is `PROGRAM_ERROR`, a pc or an access that is not aligned is `MISALIGNED`. Privileged instructions call `require_kernel ()`. `HALT_INSTR`, a failed assertion and a `FatalError` are never exceptions.
 - **Memory instructions:** a load, store or atomic changes no register until its access succeeded; a new kind of access is added to `data_address_of` and calls `watch_access ()` when watchpoints are set (the stores test that at their top and go to `store_watched`).
 - **Floating point:** the operands and results of the host FPU operations are `volatile` and the guard has signal fences; test the `<cfenv>` path with `-DAEMU_FPU_FENV` after touching `fpu.cpp`.
-- **New instruction:** a row in `AEMU_OPCODES` (the next free opcode), the handler, `disassemble_<name>`, `asm_*`, one row of `BASM_INSTRUCTION_LIST` in the same position, a test in `instruction_tests/`, `docs/isa.md`.
+- **New instruction:** a row in `AEMU_OPCODES` (the next free opcode), the handler, `disassemble_<name>` (`disassembler/src/disassembler.cpp`), `asm_*`, one row of `BASM_INSTRUCTION_LIST` in the same position, a test in `instruction_tests/`, `docs/isa.md`.
 - **Errors:** library code reports with `AEMU_FATAL`/`AEMU_CHECK` and never calls `exit`; `main` functions and test fixtures set `FatalAction::Throw`. Constructors only store their inputs; `run ()`, `link ()`, `load ()`, `preprocess ()` and `assemble ()` do the work.
 - **Compile time:** do not include `<iostream>`, `<sstream>`, `<chrono>` or `<filesystem>` in a header that many files include (`types.h`, `logger.h`, `file.h`, `emulator32bit.h`): use `<iosfwd>` and put the code in a `.cpp`.
 

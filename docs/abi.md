@@ -113,7 +113,7 @@ They take the same `arg` as the other O instructions (a register with a shift, o
 - **`INT_MIN / -1`** gives `INT_MIN` (the result wraps, no exception).
 - **Remainder** has no instruction: `r = n - (n / d) * d`, i.e. `sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`. With `d = 0` that gives `n`, which is consistent with the quotient being 0.
 
-Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler.cpp`, and one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp`, and the two table checks.
+Where it is: `opcodes.h` (two rows), `alu.h` (`alu_udiv`, `alu_sdiv`), `instructions.cpp` (`_udiv`, `_sdiv`), `disassembler/src/disassembler.cpp`, and one row each in `BASM_INSTRUCTION_LIST` (`instruction_list.h`). Tests: `alu_test.cpp` (including the remainder identity), the `kOps` table of `dataproc_test.cpp`, and the two table checks.
 
 ## Lowering of C operations
 
