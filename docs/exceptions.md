@@ -18,7 +18,7 @@ PSTATE has two bits besides the flags. Its reset value is `0x20`: kernel mode, I
 
 In **user mode**:
 
-- `MSR`, `MRS` (except the NZCV bits of PSTATE), `TLBI`, `ERET`, `WFI` and `HLT` raise [undefined instruction](#exception-classes) (ISS 2).
+- `MSR`, `MRS` (except the NZCV bits of PSTATE, and `fpcr` and `fpsr`), `TLBI`, `ERET`, `WFI` and `HLT` raise [undefined instruction](#exception-classes) (ISS 2).
 - `sp` is the user stack pointer, see [banked stack pointer](#banked-stack-pointer).
 - With the page tables on (`SCTLR.M`), a page without the `U` bit faults (permission), and the kernel never executes a `U` page, see [mmu.md](mmu.md#permissions). The per process MMU that is used while `SCTLR.M` is 0 has its own notion of privilege (`begin_process (kernel_privilege)`) that does not follow `PSTATE.U`.
 
@@ -33,7 +33,7 @@ An exception is **synchronous** (caused by the instruction that is executing) or
 | Vector | Class | Cause | `ELR` (resume address) |
 |--------|-------|-------|------------------------|
 | 0 | reserved | | |
-| 1 | undefined instruction | unassigned opcode or extended op, an instruction that is not implemented (`v*`), a privileged instruction in user mode, a system register that does not exist | the instruction itself |
+| 1 | undefined instruction | unassigned opcode or extended op, a floating point instruction with a function that is not assigned or a double in a register that cannot start a pair, a privileged instruction in user mode, a system register that does not exist | the instruction itself |
 | 2 | supervisor call | `swi` | the next instruction |
 | 3 | instruction abort | fetch from an unmapped, non-executable, kernel-only or misaligned address, or from a physical address with no memory | the instruction itself |
 | 4 | data abort | load, store or atomic that is unmapped, not permitted or hits a physical address with no memory, or an `ldr`, `ldrh`, `str`, `strh` or a word or half-word atomic at an address that is not a multiple of the size of the access (`ldur`, `ldurh`, `stur`, `sturh` may be unaligned) | the instruction itself |
@@ -58,7 +58,7 @@ Some conditions are never an exception: a failing semihosting assertion, a `Fata
 
 | EC | ISS |
 |----|-----|
-| undefined instruction | 0 unassigned opcode, 1 unassigned extended op or encoding, 2 privileged in user mode, 3 not implemented (the `v*` instructions, or a `swi` that is not available), 4 bad system register |
+| undefined instruction | 0 unassigned opcode, 1 unassigned extended op or encoding, 2 privileged in user mode, 3 not available (a `swi` with no vector table and no emulator call), 4 bad system register, 5 a floating point instruction with a double in x29, `sp` or `xzr` as the first register of its pair |
 | supervisor call | the 22 bit immediate of `swi` |
 | instruction abort / data abort | bits 0–2 fault type: 1 translation (unmapped), 2 permission (write to read-only, execute of non-executable, kernel only), 3 alignment (a pc that is not a multiple of 4, or a data access that is not aligned to its size), 4 bus error (no such physical address). Data abort: bit 3 is set for a write |
 | breakpoint | the 22 bit immediate of `BRK` |
@@ -82,11 +82,13 @@ Some conditions are never an exception: a failing semihosting assertion, a `Fata
 | 7 | `USP` | kernel | the stack pointer of the other mode: the user one while in kernel mode |
 | 8 | `PTBR` | kernel | physical address of the first level page table (low 12 bits read 0), see [mmu.md](mmu.md) |
 | 9 | `SCTLR` | kernel | system control. Bit 0 (`M`) turns on translation by the page tables; the other bits read 0 |
-| 10–31 | | | reserved. The devices (timer, interrupt controller) are memory mapped, not system registers |
+| 10 | `FPCR` | kernel and user | floating point control: the rounding mode, bits 1–0. See [isa.md](isa.md#fpcr-and-fpsr) |
+| 11 | `FPSR` | kernel and user | floating point status: the cumulative exception flags, bits 4–0 |
+| 12–31 | | | reserved. The devices (timer, interrupt controller) are memory mapped, not system registers |
 
 Reading or writing a number that is not listed is an undefined instruction with ISS 4. In assembly the registers are written by name: `msr vbar, x0`, `mrs x1, ESR`, `msr spsr, 16`.
 
-The emulator shows them: `emu32 --format plain` prints `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`, the debugger's `regs` prints them once a vector table is installed, and the trace has a line for each exception taken.
+The emulator shows them: `emu32 --format plain` prints `mode`, `pstate`, `elr`, `spsr`, `esr`, `far`, `vbar`, `fpcr` and `fpsr`, the debugger's `regs` prints them once a vector table is installed, and the trace has a line for each exception taken.
 
 ## Taking an exception
 
@@ -124,7 +126,7 @@ The special group (opcode `000000`) holds `ERET` (`0101`), `WFI` (`0110`) and `B
 
 ## `swi` and the emulator calls
 
-`swi` keeps the opcode `110001` and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3`. `swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`. The number is unsigned and is not an offset.
+`swi` has the opcode `011111` and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3`. `swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`. The number is unsigned and is not an offset.
 
 - `swi 0`, and any number but 1, is a system call of the operating system: it raises the supervisor call exception with the number as the syndrome. The call number is in `x8`, the arguments in `x0`–`x5` and the result in `x0` ([abi.md](abi.md#system-calls)).
 - `swi 1` is a semihosting call that the emulator handles itself, in either mode. It does not raise an exception. The call number is in `x8` and the calls (`emu_print`, `emu_assert*`, `emu_log`, `emu_error`) are listed in `software_interrupt.cpp`. They are a debugging aid, not an interface for an operating system. With `emu32 --no-semihosting` (`Emulator32bit::set_semihosting (false)`) `swi 1` is an undefined instruction.

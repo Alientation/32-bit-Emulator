@@ -31,10 +31,11 @@ BASELINE=""
 # (callbench), indexed accesses and branches that depend on the data (sortbench), a mix of
 # instructions in a random order (mixbench) and the swapping memory (swapbench, whose MIPS mean
 # little: it runs few instructions and many page faults, compare its time) and TLB misses that are
-# not faults (tlbbench, which has a linker script next to it).
+# not faults (tlbbench, which has a linker script next to it) and the floating point instructions,
+# which ask the host FPU for each result (fpbench).
 PROGRAMS=(tools/bench/membench.basm tools/bench/walkbench.basm app/programs/src/long_loop.basm
     tools/bench/callbench.basm tools/bench/sortbench.basm tools/bench/mixbench.basm
-    tools/bench/swapbench.basm tools/bench/tlbbench.basm)
+    tools/bench/swapbench.basm tools/bench/tlbbench.basm tools/bench/fpbench.basm)
 
 usage()
 {

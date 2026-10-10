@@ -86,11 +86,14 @@ class Emulator32bit
     static constexpr word kUndefinedIss_ext_op = 1;
     /// A privileged instruction in user mode.
     static constexpr word kUndefinedIss_privileged = 2;
-    /// An instruction that is assigned but not available: the `v*` instructions, or a `swi` that
-    /// has no vector table to go to and no emulator calls to serve it.
+    /// An instruction that is assigned but not available: a `swi` that has no vector table to go
+    /// to and no emulator calls to serve it.
     static constexpr word kUndefinedIss_unimplemented = 3;
     /// A system register that does not exist.
     static constexpr word kUndefinedIss_sysreg = 4;
+    /// A floating point instruction that names a double in a register that cannot start a pair
+    /// (x29, sp, xzr).
+    static constexpr word kUndefinedIss_fp_operand = 5;
 
     /// ISS of an instruction or data abort: one fault type, and for a data abort `kAbortIss_write`
     /// is or'd in when the access was a write.
@@ -586,6 +589,13 @@ class Emulator32bit
     size_t m_history_size = 0;
     std::deque<ExecutedInstruction> m_history;
 
+    // The floating point registers are last, so that adding them did not move the members that
+    // every instruction reads (see the benchmarks in CLAUDE.md).
+    /// The instruction that run () is executing, for the exception it may raise.
+    word m_instr_in_flight = 0;
+    word m_fpcr = 0; ///< Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
+    word m_fpsr = 0; ///< Floating point status: the cumulative exception flags, bits 4-0.
+
     // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
     // the opcode constant _op_<name>.
 #define AEMU_DECLARE_OPCODE(name, opcode)                                                          \
@@ -702,6 +712,26 @@ class Emulator32bit
     /// @param xd the destination register
     /// @param xn the source register
     static word asm_unary(word op, word xd, word xn);
+
+    /// Encodes a unary floating point instruction or a conversion (`vabs`, `vsqrt`, `vcvt`...,
+    /// format V1).
+    ///
+    /// @param fn the function (fpu::kUnaryFn_*)
+    /// @param dbl the precision bit, see fpu::unary_dest_is_pair
+    /// @param xd the destination register (the first one of a pair for a double)
+    /// @param xn the source register
+    static word asm_vop1(U8 fn, bool dbl, int xd, int xn);
+
+    /// Encodes a binary floating point instruction `vadd`, ... `xd, xn, xm` (format V2).
+    ///
+    /// @param fn the function (fpu::kBinaryFn_*)
+    /// @param dbl whether the operands and the result are doubles
+    static word asm_vop2(U8 fn, bool dbl, int xd, int xn, int xm);
+
+    /// Encodes `vcmp` or `vcmpe xn, xm` (format V3).
+    ///
+    /// @param signaling `vcmpe`: a quiet NaN raises Invalid too
+    static word asm_vcmp(bool dbl, bool signaling, int xn, int xm);
 
     /// Encodes `csel`, `csinc`, `csinv` or `csneg xd, xn, xm, cond`.
     ///
@@ -877,6 +907,8 @@ class Emulator32bit
     static constexpr word kSysregId_usp = 7;
     static constexpr word kSysregId_ptbr = 8;
     static constexpr word kSysregId_sctlr = 9;
+    static constexpr word kSysregId_fpcr = 10;
+    static constexpr word kSysregId_fpsr = 11;
 
     /// The immediate of `swi` that is an emulator call, see _swi. Every other one is a system call
     /// of the operating system.

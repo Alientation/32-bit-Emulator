@@ -1,4 +1,5 @@
 #include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/fpu.h"
 #include "util/common.h"
 #include "util/logger.h"
 
@@ -268,7 +269,11 @@ void Emulator32bit::_msr(const word instr)
         return;
     }
 
-    require_kernel();
+    // The floating point registers belong to the program, not to the kernel.
+    if (sysreg != kSysregId_fpcr && sysreg != kSysregId_fpsr)
+    {
+        require_kernel();
+    }
     write_sysreg(sysreg, val);
 }
 
@@ -297,7 +302,10 @@ void Emulator32bit::_mrs(const word instr)
         return;
     }
 
-    require_kernel();
+    if (sysreg != kSysregId_fpcr && sysreg != kSysregId_fpsr)
+    {
+        require_kernel();
+    }
     write_reg(xn, read_sysreg(sysreg));
 }
 
@@ -692,29 +700,128 @@ void Emulator32bit::_mull(const word instr)
     write_reg(_X2(instr), word(result.result >> 32));
 }
 
-// Vector/floating point instructions are not implemented. Executing one is a fault instead of a
-// silent no-op.
-#define UNIMPLEMENTED_OP(name, mnemonic)                                                           \
-    void Emulator32bit::name(const word instr)                                                     \
-    {                                                                                              \
-        UNUSED(instr);                                                                             \
-        throw Exception(InterruptType::BAD_INSTR, mnemonic " is not implemented.",                 \
-                        kUndefinedIss_unimplemented);                                              \
+// ----- floating point -----
+//
+// A float is the 32 bits of a register, a double a pair (xN, xN+1) with the low word in xN, and the
+// registers are the ones of the integers (docs/isa.md, "Floating point"). The arithmetic is
+// fpu.cpp; the handlers here only fetch the operands, collect the flags into FPSR and write the
+// result back, after everything that can fault has been checked.
+
+/// The first register of a double must leave room for the second one among x0-x29.
+static void check_pair(const U8 reg)
+{
+    if (reg > 28)
+    {
+        throw Emulator32bit::Exception(
+            Emulator32bit::InterruptType::BAD_INSTR,
+            "A double is a register pair and cannot start in "
+                + std::string(reg == 29 ? "x29" : reg == 30 ? "sp" : "xzr") + ".",
+            Emulator32bit::kUndefinedIss_fp_operand);
+    }
+}
+
+static U64 read_fp(Emulator32bit &cpu, const U8 reg, const bool pair)
+{
+    if (!pair)
+    {
+        return cpu.read_reg(reg);
+    }
+    check_pair(reg);
+    return U64(cpu.read_reg(reg)) | (U64(cpu.read_reg(U8(reg + 1))) << 32);
+}
+
+static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U64 value)
+{
+    cpu.write_reg(reg, word(value));
+    if (pair)
+    {
+        cpu.write_reg(U8(reg + 1), word(value >> 32));
+    }
+}
+
+[[noreturn]] static void bad_fp_function(const char *name, const U8 fn)
+{
+    throw Emulator32bit::Exception(Emulator32bit::InterruptType::BAD_INSTR,
+                                   std::string("Undefined ") + name + " function "
+                                       + std::to_string(fn) + ".",
+                                   Emulator32bit::kUndefinedIss_ext_op);
+}
+
+// The three handlers are large and rare, so they stay out of line and out of the dispatch switch.
+[[gnu::noinline]] void Emulator32bit::_vop1(const word instr)
+{
+    const U8 fn = bitfield_unsigned<0, 5>(instr);
+    const bool dbl = test_bit<25>(instr);
+    if (fn >= fpu::kUnaryFn_count)
+    {
+        bad_fp_function("vop1", fn);
     }
 
-UNIMPLEMENTED_OP(_vabs, "vabs")
-UNIMPLEMENTED_OP(_vneg, "vneg")
-UNIMPLEMENTED_OP(_vsqrt, "vsqrt")
-UNIMPLEMENTED_OP(_vadd, "vadd")
-UNIMPLEMENTED_OP(_vsub, "vsub")
-UNIMPLEMENTED_OP(_vdiv, "vdiv")
-UNIMPLEMENTED_OP(_vmul, "vmul")
-UNIMPLEMENTED_OP(_vcmp, "vcmp")
-UNIMPLEMENTED_OP(_vsel, "vsel")
-UNIMPLEMENTED_OP(_vcint, "vcint")
-UNIMPLEMENTED_OP(_vcflo, "vcflo")
-UNIMPLEMENTED_OP(_vmov, "vmov")
-#undef UNIMPLEMENTED_OP
+    const U8 xd = _X1(instr);
+    const bool dest_pair = fpu::unary_dest_is_pair(fn, dbl);
+    if (dest_pair)
+    {
+        check_pair(xd);
+    }
+    const U64 source = read_fp(*this, _X2(instr), fpu::unary_source_is_pair(fn, dbl));
+
+    const fpu::Result result = fpu::unary(fn, dbl, source, m_fpcr);
+    m_fpsr |= result.flags;
+    write_fp(*this, xd, dest_pair, result.value);
+}
+
+[[gnu::noinline]] void Emulator32bit::_vop2(const word instr)
+{
+    const U8 fn = bitfield_unsigned<0, 5>(instr);
+    const bool dbl = test_bit<25>(instr);
+    if (fn >= fpu::kBinaryFn_count)
+    {
+        bad_fp_function("vop2", fn);
+    }
+
+    const U8 xd = _X1(instr);
+    if (dbl)
+    {
+        check_pair(xd);
+    }
+    const U64 a = read_fp(*this, _X2(instr), dbl);
+    const U64 b = read_fp(*this, _X3(instr), dbl);
+
+    const fpu::Result result = fpu::binary(fn, dbl, a, b, m_fpcr);
+    m_fpsr |= result.flags;
+    write_fp(*this, xd, dbl, result.value);
+}
+
+[[gnu::noinline]] void Emulator32bit::_vcmp(const word instr)
+{
+    const bool dbl = test_bit<25>(instr);
+    const bool signaling = test_bit<24>(instr);
+    const U64 a = read_fp(*this, _X2(instr), dbl);
+    const U64 b = read_fp(*this, _X3(instr), dbl);
+
+    const fpu::Result result = fpu::compare(dbl, signaling, a, b);
+    m_fpsr |= result.flags;
+    set_NZCV((result.value >> 3) & 1, (result.value >> 2) & 1, (result.value >> 1) & 1,
+             result.value & 1);
+}
+
+word Emulator32bit::asm_vop1(const U8 fn, const bool dbl, const int xd, const int xn)
+{
+    return Joiner() << JPart(6, _op_vop1) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
+                    << Zeros(10) << JPart(5, fn);
+}
+
+word Emulator32bit::asm_vop2(const U8 fn, const bool dbl, const int xd, const int xn, const int xm)
+{
+    return Joiner() << JPart(6, _op_vop2) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
+                    << Zeros(1) << JPart(5, xm) << Zeros(4) << JPart(5, fn);
+}
+
+word Emulator32bit::asm_vcmp(const bool dbl, const bool signaling, const int xn, const int xm)
+{
+    return Joiner() << JPart(6, _op_vcmp) << JPart(1, dbl) << JPart(1, signaling) << Zeros(4)
+                    << JPart(5, xn) << Zeros(1) << JPart(5, xm) << Zeros(9);
+}
 
 static word get_mov_arg(Emulator32bit &cpu, const word instr)
 {

@@ -282,6 +282,10 @@ class Assembler
     /// Shared by .byte, .dbyte, .word, ... Appends the arguments to .data, `n_bytes` each.
     void define_data(const char *directive, U8 n_bytes);
 
+    /// Shared by .float and .double. Appends the arguments, floating point numbers, to the
+    /// current section.
+    void define_float(const char *directive, bool dbl);
+
     /// Appends one value of `n_bytes` to the current section, little endian: a number that
     /// fits, or (for 4 bytes) the address of a symbol, which becomes a relocation.
     /// `first` is the token the value starts at, for errors.
@@ -343,6 +347,26 @@ class Assembler
     word parse_format_cinc(byte opcode, byte variant);
     /// sxtb xd, xn   (and the other unary operations)
     word parse_format_unary(byte operation);
+    /// vadd.f32 xd, xn, xm   (and the other binary floating point instructions)
+    word parse_format_v2(byte fn, bool dbl);
+    /// vsqrt.f32 xd, xn   (and the other unary instructions and the conversions)
+    word parse_format_v1(byte fn, bool dbl);
+    /// vcmp.f32 xn, xm   (and vcmpe)
+    word parse_format_v3(bool signaling, bool dbl);
+    /// vmov.f32 xd, xm  /  vmov.f32 xd, 1.5: moves a float or a double (a register pair), or
+    /// loads a constant with the instructions of `ldr xd, =value`.
+    void assemble_vmov(bool dbl);
+    /// Reads a register, and for a double checks that it can start a pair.
+    ///
+    /// @param pair whether the register is the first of a pair (x0-x28)
+    U8 parse_fp_register(bool pair);
+    /// Parses a float literal, an integer literal or either with a sign: `1.5`, `-2`.
+    ///
+    /// @param dbl whether to make a double rather than a float
+    /// @return the bit pattern, the float in the low 32 bits
+    U64 parse_float_constant(bool dbl);
+    /// Emits the instructions that put a 32 bit value in a register, see assemble_load_constant.
+    void emit_load_constant(byte xd, word value);
     /// Parses a condition (`eq`, `ne`, ...).
     ///
     /// @return the condition
@@ -486,6 +510,9 @@ class Assembler
     void _dbyte();
     void _word();
     void _dword();
+    /// Floating point data: `.float 1.5, -2` (4 bytes each) and `.double 0.1` (8 bytes).
+    void _float();
+    void _double();
     /// Repeats a value: `count` copies of a `size` byte value (little endian).
     /// The size is 1, 2, 4 or 8 and defaults to 1, the value defaults to 0 and
     /// is a number that fits (for a size of 4 it can also be the address of a
@@ -556,6 +583,8 @@ class Assembler
         {basm::TokenType::ASSEMBLER_DBYTE, &Assembler::_dbyte},
         {basm::TokenType::ASSEMBLER_WORD, &Assembler::_word},
         {basm::TokenType::ASSEMBLER_DWORD, &Assembler::_dword},
+        {basm::TokenType::ASSEMBLER_FLOAT, &Assembler::_float},
+        {basm::TokenType::ASSEMBLER_DOUBLE, &Assembler::_double},
         {basm::TokenType::ASSEMBLER_ASCII, &Assembler::_ascii},
         {basm::TokenType::ASSEMBLER_ASCIZ, &Assembler::_asciz},
     };

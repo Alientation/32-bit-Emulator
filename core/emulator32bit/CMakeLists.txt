@@ -2,6 +2,7 @@ add_library(emulator32bit STATIC
     src/emulator32bit.cpp
     src/disassembler.cpp
     src/instructions.cpp
+    src/fpu.cpp
     src/software_interrupt.cpp
     src/memory.cpp
     src/virtual_memory.cpp

@@ -3,6 +3,7 @@
 
 #include "assembler/instruction_table.h"
 #include "assembler_test/toolchain_fixture.h"
+#include "emulator32bit/fpu.h"
 
 namespace
 {
@@ -57,6 +58,12 @@ const char *operands_of(InstructionFormat format)
         return "x1, x2, eq";
     case InstructionFormat::UNARY:
         return "x1, x2";
+    case InstructionFormat::V1:
+        return "x2, x4";
+    case InstructionFormat::V2:
+        return "x2, x4, x6";
+    case InstructionFormat::V3:
+        return "x2, x4";
     default:
         return "";
     }
@@ -107,8 +114,8 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
             || format == InstructionFormat::ERET || format == InstructionFormat::WFI
             || format == InstructionFormat::TLBI || format == InstructionFormat::BRK
             || format == InstructionFormat::MSR || format == InstructionFormat::MRS
-            || format == InstructionFormat::RET || format == InstructionFormat::UNIMPLEMENTED
-            || format == InstructionFormat::ATOMIC)
+            || format == InstructionFormat::RET || format == InstructionFormat::ATOMIC
+            || format == InstructionFormat::VMOV) // a pseudo instruction, no opcode of its own
         {
             continue;
         }
@@ -117,11 +124,34 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         const std::vector<word> words = assemble(line);
         ASSERT_EQ(words.size(), 1u) << line;
 
-        // The unary instructions are in the special group, their row has the operation instead.
-        const word opcode =
-            format == InstructionFormat::UNARY ? Emulator32bit::_op_special_instructions : spec->a;
+        // The unary instructions are in the special group, their row has the operation instead,
+        // and the rows of the floating point instructions have the function.
+        word opcode = spec->a;
+        if (format == InstructionFormat::UNARY)
+        {
+            opcode = Emulator32bit::_op_special_instructions;
+        }
+        else if (format == InstructionFormat::V1)
+        {
+            opcode = Emulator32bit::_op_vop1;
+        }
+        else if (format == InstructionFormat::V2)
+        {
+            opcode = Emulator32bit::_op_vop2;
+        }
+        else if (format == InstructionFormat::V3)
+        {
+            opcode = Emulator32bit::_op_vcmp;
+        }
         EXPECT_EQ(bitfield_unsigned(words[0], 26, 6), opcode) << line;
-        EXPECT_EQ(mnemonic_of(Emulator32bit::disassemble_instr(words[0])), spec->text) << line;
+
+        // `vadd.f32` is one word of the disassembly, the dot is part of it.
+        const std::string disassembly = Emulator32bit::disassemble_instr(words[0]);
+        const bool is_float = format == InstructionFormat::V1 || format == InstructionFormat::V2
+                              || format == InstructionFormat::V3;
+        EXPECT_EQ(is_float ? disassembly.substr(0, disassembly.find(' ')) : mnemonic_of(disassembly),
+                  spec->text)
+            << line;
         checked++;
     }
     EXPECT_GT(checked, 30);
@@ -154,28 +184,9 @@ TEST_F(InstructionTable, atomics_encode_the_width_and_operation_of_their_row)
     EXPECT_EQ(checked, 12); // swp, ldadd, ldclr, ldset in word, byte and halfword widths
 }
 
-TEST_F(InstructionTable, unimplemented_instructions_say_so)
-{
-    int checked = 0;
-    for (const InstructionSpec *spec : all_instructions())
-    {
-        if (spec->format != InstructionFormat::UNIMPLEMENTED)
-        {
-            continue;
-        }
-        EXPECT_TRUE(contains(error_of([&] { assemble(std::string(spec->text) + " x1, x2"); }),
-                             std::string(spec->text) + " is not implemented yet"));
-        checked++;
-    }
-    EXPECT_GT(checked, 10);
-}
-
 TEST_F(InstructionTable, other_spellings_of_an_instruction)
 {
-    // The lexer has a keyword for the signed conversions and for sign extending loads on top of
-    // the one of the row.
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcint.s32.f32 x1, x2"); }), "not implemented"));
-    EXPECT_TRUE(contains(error_of([&] { assemble("vcflo.s32.f32 x1, x2"); }), "not implemented"));
+    // The lexer has a keyword for sign extending loads on top of the one of the row.
     EXPECT_EQ(assemble("ldrsb x1, [x2]").size(), 1u);
     EXPECT_EQ(assemble("ldrsh x1, [x2]").size(), 1u);
 }
@@ -338,4 +349,131 @@ TEST_F(InstructionTable, mov_takes_a_19_bit_immediate)
     EXPECT_EQ(assemble("mov x1, 524287"),
               std::vector<word>{E::asm_format_o3(E::_op_mov, false, 1, 0x7FFFF)});
     EXPECT_TRUE(contains(error_of([&] { assemble("mov x1, 524288"); }), "19 bit"));
+}
+
+// ----- floating point (docs/isa.md, "Floating point") -----
+
+namespace
+{
+using Emulator = Emulator32bit;
+using fpu::kBinaryFn_add;
+using fpu::kBinaryFn_div;
+}
+
+TEST_F(InstructionTable, floating_point_instructions_encode_their_function_and_precision)
+{
+    EXPECT_EQ(assemble("vadd.f32 x1, x2, x3"),
+              std::vector<word>{Emulator::asm_vop2(kBinaryFn_add, false, 1, 2, 3)});
+    EXPECT_EQ(assemble("vadd.f64 x2, x4, x6"),
+              std::vector<word>{Emulator::asm_vop2(kBinaryFn_add, true, 2, 4, 6)});
+    EXPECT_EQ(assemble("vdiv.f32 x1, sp, xzr"),
+              std::vector<word>{Emulator::asm_vop2(kBinaryFn_div, false, 1, 30, 31)});
+    EXPECT_EQ(assemble("vsqrt.f64 x2, x4"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_sqrt, true, 2, 4)});
+    EXPECT_EQ(assemble("vabs.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_abs, false, 1, 2)});
+    EXPECT_EQ(assemble("vrintm.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_rintm, false, 1, 2)});
+    EXPECT_EQ(assemble("vcmp.f32 x1, x2"), std::vector<word>{Emulator::asm_vcmp(false, false, 1, 2)});
+    EXPECT_EQ(assemble("vcmpe.f64 x2, x4"), std::vector<word>{Emulator::asm_vcmp(true, true, 2, 4)});
+}
+
+TEST_F(InstructionTable, the_conversions_are_named_by_their_types)
+{
+    EXPECT_EQ(assemble("vcvt.s32.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tos32, false, 1, 2)});
+    EXPECT_EQ(assemble("vcvt.u32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tou32, true, 1, 2)});
+    EXPECT_EQ(assemble("vcvtr.s32.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tos32r, false, 1, 2)});
+    EXPECT_EQ(assemble("vcvtr.u32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_tou32r, true, 1, 2)});
+    EXPECT_EQ(assemble("vcvt.f32.s32 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_froms32, false, 1, 2)});
+    EXPECT_EQ(assemble("vcvt.f64.u32 x2, x1"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fromu32, true, 2, 1)});
+    EXPECT_EQ(assemble("vcvt.f64.f32 x2, x1"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fcvt, false, 2, 1)});
+    EXPECT_EQ(assemble("vcvt.f32.f64 x1, x2"),
+              std::vector<word>{Emulator::asm_vop1(fpu::kUnaryFn_fcvt, true, 1, 2)});
+
+    // They disassemble to what was written.
+    for (const char *text : {"vcvt.s32.f64 x1, x2", "vcvtr.u32.f32 x1, x2", "vcvt.f64.s32 x2, x1",
+                             "vcvt.f32.f64 x1, x2", "vcvt.f64.f32 x2, x1", "vrinta.f64 x2, x4",
+                             "vcmpe.f32 x1, x2", "vmin.f64 x2, x4, x6", "vmax.f32 x1, x2, x3"})
+    {
+        EXPECT_EQ(Emulator::disassemble_instr(assemble(text)[0]), text);
+    }
+}
+
+TEST_F(InstructionTable, a_double_must_start_in_a_register_that_can_hold_a_pair)
+{
+    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f64 x29, x0, x2"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f64 x0, sp, x2"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vcmp.f64 x0, xzr"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vcvt.s32.f64 x1, x29"); }), "pair"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vcvt.f64.s32 sp, x1"); }), "pair"));
+
+    // x28 is the last one, and the single register of a conversion can be any
+    EXPECT_EQ(assemble("vadd.f64 x28, x0, x2").size(), 1u);
+    EXPECT_EQ(assemble("vcvt.s32.f64 x29, x2").size(), 1u);
+    EXPECT_EQ(assemble("vcvt.f64.s32 x28, x29").size(), 1u);
+    EXPECT_EQ(assemble("vadd.f32 x29, sp, xzr").size(), 1u);
+}
+
+TEST_F(InstructionTable, floating_point_instructions_need_all_their_operands)
+{
+    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f32 x0, x1"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vsqrt.f32 x0"); }), "expected ','"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vcmp.f32 x0, 5"); }), "register"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vadd.f32 x0, x1, 2.5"); }), "register"));
+}
+
+TEST_F(InstructionTable, vmov_moves_a_register_or_loads_a_constant)
+{
+    const auto move = [](const int to, const int from)
+    { return Emulator::asm_format_o3(Emulator::_op_mov, false, to, from, 0); };
+
+    EXPECT_EQ(assemble("vmov.f32 x1, x2"), std::vector<word>{move(1, 2)});
+    // a pair is two moves, in the order that does not overwrite what is still to be read
+    EXPECT_EQ(assemble("vmov.f64 x2, x6"), (std::vector<word>{move(2, 6), move(3, 7)}));
+    EXPECT_EQ(assemble("vmov.f64 x3, x2"), (std::vector<word>{move(4, 3), move(3, 2)}));
+    EXPECT_EQ(assemble("vmov.f64 x2, x3"), (std::vector<word>{move(2, 3), move(3, 4)}));
+
+    // A constant is loaded as `ldr xd, =bits` does.
+    EXPECT_EQ(assemble("vmov.f32 x1, 1.0"), assemble("ldr x1, =0x3F800000"));
+    EXPECT_EQ(assemble("vmov.f32 x1, -2.5"), assemble("ldr x1, =0xC0200000"));
+    EXPECT_EQ(assemble("vmov.f32 x1, 3"), assemble("ldr x1, =0x40400000")) << "an integer is a number";
+    EXPECT_EQ(assemble("vmov.f32 x1, 0.0"), assemble("ldr x1, =0"));
+    EXPECT_EQ(assemble("vmov.f32 x1, 0.1"), assemble("ldr x1, =0x3DCCCCCD"))
+        << "the decimal number is rounded once, to a float";
+    EXPECT_EQ(assemble("vmov.f64 x2, 1.5"), assemble("ldr x2, =0\nldr x3, =0x3FF80000"));
+    EXPECT_EQ(assemble("vmov.f64 x2, 0.1"), assemble("ldr x2, =0x9999999A\nldr x3, =0x3FB99999"));
+    EXPECT_EQ(assemble("vmov.f64 x4, -0.5"), assemble("ldr x4, =0\nldr x5, =0xBFE00000"));
+
+    EXPECT_TRUE(contains(error_of([&] { assemble("vmov.f32 x1, foo"); }),
+                         "expected a floating point number"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("vmov.f64 x29, 1.0"); }), "pair"));
+}
+
+TEST_F(InstructionTable, float_and_double_define_data)
+{
+    const auto data_of = [&](const std::string &source)
+    {
+        const std::string input = write("data.bi", ".data\n" + source + "\n");
+        Assembler assembler(File(input), (m_dir / "out" / "data.bo").string());
+        assembler.assemble();
+        return ObjectFile(assembler.get_output_file()).data_section;
+    };
+
+    EXPECT_EQ(data_of(".float 1.5, -2, 0.1"),
+              (std::vector<byte>{0x00, 0x00, 0xC0, 0x3F, 0x00, 0x00, 0x00, 0xC0, 0xCD, 0xCC, 0xCC,
+                                 0x3D}));
+    EXPECT_EQ(data_of(".double 0.1, 2"),
+              (std::vector<byte>{0x9A, 0x99, 0x99, 0x99, 0x99, 0x99, 0xB9, 0x3F, 0, 0, 0, 0, 0, 0,
+                                 0, 0x40}));
+    EXPECT_EQ(data_of(".float 0.0\n.float +1"), (std::vector<byte>{0, 0, 0, 0, 0, 0, 0x80, 0x3F}));
+
+    EXPECT_TRUE(contains(error_of([&] { data_of(".float foo"); }), "expected a floating point number"));
+    EXPECT_TRUE(contains(error_of([&] { assemble(".float 1.0"); }), "can only define data"));
 }

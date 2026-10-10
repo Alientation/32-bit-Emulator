@@ -1,4 +1,5 @@
 #include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/fpu.h"
 #include "util/common.h"
 #include "util/logger.h"
 
@@ -544,76 +545,91 @@ static std::string disassemble_mull(word instruction)
                                  test_bit<kLongMulSignedBit>(instruction) ? "smull" : "umull");
 }
 
-static std::string disassemble_vabs(word instruction)
+/// The name of the precision of a floating point instruction: `f32` or `f64`.
+static const char *disassemble_precision(word instruction)
 {
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
+    return test_bit<25>(instruction) ? "f64" : "f32";
 }
 
-static std::string disassemble_vneg(word instruction)
+static std::string disassemble_vop1(word instruction)
 {
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
+    const U8 fn = bitfield_unsigned<0, 5>(instruction);
+    const bool dbl = test_bit<25>(instruction);
+    const std::string precision = disassemble_precision(instruction);
+
+    std::string name;
+    switch (fn)
+    {
+    case fpu::kUnaryFn_abs:
+        name = "vabs." + precision;
+        break;
+    case fpu::kUnaryFn_neg:
+        name = "vneg." + precision;
+        break;
+    case fpu::kUnaryFn_sqrt:
+        name = "vsqrt." + precision;
+        break;
+    case fpu::kUnaryFn_rint:
+        name = "vrint." + precision;
+        break;
+    case fpu::kUnaryFn_rintz:
+        name = "vrintz." + precision;
+        break;
+    case fpu::kUnaryFn_rintm:
+        name = "vrintm." + precision;
+        break;
+    case fpu::kUnaryFn_rintp:
+        name = "vrintp." + precision;
+        break;
+    case fpu::kUnaryFn_rinta:
+        name = "vrinta." + precision;
+        break;
+    case fpu::kUnaryFn_tos32:
+        name = "vcvt.s32." + precision;
+        break;
+    case fpu::kUnaryFn_tou32:
+        name = "vcvt.u32." + precision;
+        break;
+    case fpu::kUnaryFn_tos32r:
+        name = "vcvtr.s32." + precision;
+        break;
+    case fpu::kUnaryFn_tou32r:
+        name = "vcvtr.u32." + precision;
+        break;
+    case fpu::kUnaryFn_froms32:
+        name = "vcvt." + precision + ".s32";
+        break;
+    case fpu::kUnaryFn_fromu32:
+        name = "vcvt." + precision + ".u32";
+        break;
+    case fpu::kUnaryFn_fcvt:
+        name = dbl ? "vcvt.f32.f64" : "vcvt.f64.f32";
+        break;
+    default:
+        return "ERROR: INVALID FLOATING POINT FUNCTION";
+    }
+    return name + " " + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15);
 }
 
-static std::string disassemble_vsqrt(word instruction)
+static std::string disassemble_vop2(word instruction)
 {
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vadd(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vsub(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vdiv(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vmul(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
+    static const char *const kNames[fpu::kBinaryFn_count] = {"vadd", "vsub", "vmul",
+                                                             "vdiv", "vmin", "vmax"};
+    const U8 fn = bitfield_unsigned<0, 5>(instruction);
+    if (fn >= fpu::kBinaryFn_count)
+    {
+        return "ERROR: INVALID FLOATING POINT FUNCTION";
+    }
+    return std::string(kNames[fn]) + "." + disassemble_precision(instruction) + " "
+           + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15) + ", "
+           + disassemble_gpr(instruction, 9);
 }
 
 static std::string disassemble_vcmp(word instruction)
 {
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vsel(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vcint(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vcflo(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
-}
-
-static std::string disassemble_vmov(word instruction)
-{
-    UNUSED(instruction);
-    return "UNIMPLEMENTED";
+    return std::string(test_bit<24>(instruction) ? "vcmpe." : "vcmp.")
+           + disassemble_precision(instruction) + " " + disassemble_gpr(instruction, 15) + ", "
+           + disassemble_gpr(instruction, 9);
 }
 
 static std::string disassemble_and(word instruction)

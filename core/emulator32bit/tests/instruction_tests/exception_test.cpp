@@ -2,6 +2,7 @@
 // does with an instruction that cannot complete once a vector table is installed, how the handler
 // gets back, and what user mode may not do.
 
+#include "emulator32bit/fpu.h"
 #include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/virtual_memory.h"
 
@@ -69,10 +70,10 @@ word store_unaligned(const U8 xt, const U8 xn)
 }
 
 /// An opcode that is not assigned, an extended op of the special group that is not assigned, and a
-/// floating point instruction (reserved, not implemented).
+/// double that starts in x29.
 constexpr word kBadOpcode = 0xFC000000;
 constexpr word kBadExtOp = 0b1001u << 22;
-constexpr word kNotImplemented = word(Emulator32bit::_op_vadd) << 26;
+const word kBadFpPair = Emulator32bit::asm_vop2(fpu::kBinaryFn_add, true, 29, 0, 0);
 
 class Exceptions : public ::testing::Test
 {
@@ -216,8 +217,8 @@ TEST_F(Exceptions, the_syndrome_tells_why_an_instruction_is_undefined)
     expect_in_handler(run({kBadExtOp}), Class::UNDEFINED_INSTRUCTION);
     EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_ext_op);
 
-    expect_in_handler(run({kNotImplemented}), Class::UNDEFINED_INSTRUCTION);
-    EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_unimplemented);
+    expect_in_handler(run({kBadFpPair}), Class::UNDEFINED_INSTRUCTION);
+    EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_fp_operand);
 
     expect_in_handler(run({mrs(1, 20)}), Class::UNDEFINED_INSTRUCTION);
     EXPECT_EQ(esr_iss(), Emulator32bit::kUndefinedIss_sysreg);
@@ -674,6 +675,30 @@ TEST_F(Exceptions, user_mode_can_use_the_flags_of_pstate_and_nothing_else)
     EXPECT_TRUE(cpu.user_mode()) << "the mode cannot be changed from user mode";
     EXPECT_EQ(cpu.read_reg(U8(2)), 0b1111u) << "the flags are all that is seen";
     EXPECT_EQ(cpu.get_pstate() & 0b1111, 0b1111u);
+}
+
+TEST_F(Exceptions, user_mode_can_use_the_floating_point_registers)
+{
+    cpu.write_sysreg(Emulator32bit::kSysregId_pstate, kUserBit);
+    cpu.write_reg(U8(1), fpu::kRoundZero);
+    cpu.write_reg(U8(3), 0x3F800000); // 1.0
+    cpu.write_reg(U8(4), 0x40400000); // 3.0
+
+    // Round toward zero, divide (inexact), read FPSR, clear it. The run ends in the hlt after
+    // them, which a user program may not do; the fault is the end of the run.
+    const auto result = run({msr(Emulator32bit::kSysregId_fpcr, 1),
+                             Emulator32bit::asm_vop2(fpu::kBinaryFn_div, false, 5, 3, 4),
+                             mrs(2, Emulator32bit::kSysregId_fpsr),
+                             msr(Emulator32bit::kSysregId_fpsr, 0), mrs(6, Emulator32bit::kSysregId_fpcr),
+                             mrs(7, Emulator32bit::kSysregId_fpsr)});
+
+    EXPECT_EQ(result.status, Status::FAULT);
+    EXPECT_NE(result.message.find("Privileged"), std::string::npos) << result.message;
+    EXPECT_TRUE(cpu.user_mode());
+    EXPECT_EQ(cpu.read_reg(U8(5)), 0x3EAAAAAAu) << "the FPCR it set rounded toward zero";
+    EXPECT_EQ(cpu.read_reg(U8(2)), fpu::kInexact);
+    EXPECT_EQ(cpu.read_reg(U8(6)), fpu::kRoundZero);
+    EXPECT_EQ(cpu.read_reg(U8(7)), 0u) << "x0, which is 0, was written to FPSR";
 }
 
 TEST_F(Exceptions, the_trace_shows_the_exception_and_the_eret)

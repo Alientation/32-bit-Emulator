@@ -19,11 +19,14 @@ TEST_F(EmulatorFixture, opcode_constants_come_from_the_list)
 {
     EXPECT_EQ(Emulator32bit::_op_special_instructions, 0b000000u);
     EXPECT_EQ(Emulator32bit::_op_add, 0b000001u);
-    EXPECT_EQ(Emulator32bit::_op_shift, 0b011001u);
-    EXPECT_EQ(Emulator32bit::_op_mov, 0b011010u);
-    EXPECT_EQ(Emulator32bit::_op_ldr, 0b011100u);
-    EXPECT_EQ(Emulator32bit::_op_adrp, 0b101001u);
-    EXPECT_EQ(Emulator32bit::_op_adr, 0b101010u);
+    EXPECT_EQ(Emulator32bit::_op_vop1, 0b001001u);
+    EXPECT_EQ(Emulator32bit::_op_vop2, 0b001010u);
+    EXPECT_EQ(Emulator32bit::_op_vcmp, 0b001011u);
+    EXPECT_EQ(Emulator32bit::_op_shift, 0b010000u);
+    EXPECT_EQ(Emulator32bit::_op_mov, 0b010001u);
+    EXPECT_EQ(Emulator32bit::_op_ldr, 0b010011u);
+    EXPECT_EQ(Emulator32bit::_op_adrp, 0b100000u);
+    EXPECT_EQ(Emulator32bit::_op_adr, 0b100001u);
 }
 
 // The listed opcodes are one range from 0, so that every unused opcode is in the range after it.
@@ -38,7 +41,7 @@ TEST(OpcodeTable, the_unused_opcodes_are_one_range_at_the_end)
 
     word first_unused = 0;
     while (first_unused < kMaxInstructions && listed[first_unused]) first_unused++;
-    EXPECT_EQ(first_unused, 0b101011u);
+    EXPECT_EQ(first_unused, 0b100010u);
     for (word opcode = first_unused; opcode < kMaxInstructions; opcode++)
     {
         EXPECT_FALSE(listed[opcode]) << "opcode " << opcode;

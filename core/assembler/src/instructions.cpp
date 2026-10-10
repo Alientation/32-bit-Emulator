@@ -1,7 +1,10 @@
 #include "assembler/assembler.h"
+#include "emulator32bit/fpu.h"
 #include "util/common.h"
 #include "util/logger.h"
 
+#include <bit>
+#include <charconv>
 #include <iterator>
 #include <string>
 
@@ -604,8 +607,12 @@ bool Assembler::assemble_load_constant()
     {
         fail(first, "the value " + std::to_string(number) + " does not fit in 32 bits");
     }
-    const word value = word(number);
+    emit_load_constant(xd, word(number));
+    return true;
+}
 
+void Assembler::emit_load_constant(const byte xd, const word value)
+{
     if (value < (1u << 19))
     {
         emit_instruction(
@@ -627,7 +634,140 @@ bool Assembler::assemble_load_constant()
                                                          int(value & 0x3FFF)));
         }
     }
-    return true;
+}
+
+U8 Assembler::parse_fp_register(const bool pair)
+{
+    const Token &token = m_cursor.peek();
+    const U8 reg = parse_register();
+    if (pair && reg > 28)
+    {
+        fail(token, "a double is a pair of registers and cannot start in " + basm::describe(token)
+                        + ", use x0 to x28");
+    }
+    return reg;
+}
+
+word Assembler::parse_format_v2(const byte fn, const bool dbl)
+{
+    m_cursor.next();
+
+    const byte xd = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xn = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xm = parse_fp_register(dbl);
+    return Emulator32bit::asm_vop2(fn, dbl, xd, xn, xm);
+}
+
+word Assembler::parse_format_v1(const byte fn, const bool dbl)
+{
+    m_cursor.next();
+
+    const byte xd = parse_fp_register(fpu::unary_dest_is_pair(fn, dbl));
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xn = parse_fp_register(fpu::unary_source_is_pair(fn, dbl));
+    return Emulator32bit::asm_vop1(fn, dbl, xd, xn);
+}
+
+word Assembler::parse_format_v3(const bool signaling, const bool dbl)
+{
+    m_cursor.next();
+
+    const byte xn = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register");
+    const byte xm = parse_fp_register(dbl);
+    return Emulator32bit::asm_vcmp(dbl, signaling, xn, xm);
+}
+
+U64 Assembler::parse_float_constant(const bool dbl)
+{
+    bool negative = false;
+    if (m_cursor.check_any({TokenType::OPERATOR_SUBTRACTION, TokenType::OPERATOR_ADDITION}))
+    {
+        negative = m_cursor.next().type == TokenType::OPERATOR_SUBTRACTION;
+    }
+
+    const Token &literal = m_cursor.peek();
+    if (!basm::is_number_literal(literal.type) || literal.is(TokenType::LITERAL_CHAR))
+    {
+        fail(literal, "expected a floating point number, got " + basm::describe(literal));
+    }
+    m_cursor.next();
+
+    // A decimal literal is converted to the type it is for in one step, so that a float is
+    // not a rounded double.
+    std::string text(literal.text);
+    if (negative)
+    {
+        text.insert(0, "-");
+    }
+    const bool is_integer = literal.type != TokenType::LITERAL_FLOAT_32;
+
+    if (dbl)
+    {
+        double value = 0;
+        if (is_integer)
+        {
+            value = negative ? -double(literal.int_value) : double(literal.int_value);
+        }
+        else if (std::from_chars(text.data(), text.data() + text.size(), value).ec != std::errc())
+        {
+            fail(literal, "invalid floating point literal '" + text + "'");
+        }
+        return std::bit_cast<U64>(value);
+    }
+
+    float value = 0;
+    if (is_integer)
+    {
+        value = negative ? -float(literal.int_value) : float(literal.int_value);
+    }
+    else if (std::from_chars(text.data(), text.data() + text.size(), value).ec != std::errc())
+    {
+        fail(literal, "invalid floating point literal '" + text + "'");
+    }
+    return U64(std::bit_cast<word>(value));
+}
+
+void Assembler::assemble_vmov(const bool dbl)
+{
+    m_cursor.next();
+
+    const byte xd = parse_fp_register(dbl);
+    expect(TokenType::COMMA, "expected ',' and a register or a floating point number");
+
+    if (basm::is_register(m_cursor.peek().type))
+    {
+        const byte xm = parse_fp_register(dbl);
+        const auto move = [&](byte to, byte from)
+        {
+            emit_instruction(Emulator32bit::asm_format_o3(Emulator32bit::_op_mov, false, to, from, 0));
+        };
+        if (!dbl)
+        {
+            move(xd, xm);
+        }
+        else if (xd < xm)
+        {
+            // the pairs may overlap: copy the half that is not read again first
+            move(xd, xm);
+            move(xd + 1, xm + 1);
+        }
+        else if (xd > xm)
+        {
+            move(xd + 1, xm + 1);
+            move(xd, xm);
+        }
+        return;
+    }
+
+    const U64 bits = parse_float_constant(dbl);
+    emit_load_constant(xd, word(bits));
+    if (dbl)
+    {
+        emit_load_constant(xd + 1, word(bits >> 32));
+    }
 }
 
 word Assembler::parse_format_atomic(byte width, byte atopcode)
@@ -731,6 +871,18 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::UNARY:
         instruction = parse_format_unary(spec.a);
         break;
+    case Format::V1:
+        instruction = parse_format_v1(spec.a, spec.b != 0);
+        break;
+    case Format::V2:
+        instruction = parse_format_v2(spec.a, spec.b != 0);
+        break;
+    case Format::V3:
+        instruction = parse_format_v3(spec.a != 0, spec.b != 0);
+        break;
+    case Format::VMOV:
+        assemble_vmov(spec.b != 0);
+        return;
     case Format::M1:
         instruction = parse_format_m1(spec.a);
         break;
@@ -773,8 +925,6 @@ void Assembler::assemble_instruction(const basm::InstructionSpec &spec)
     case Format::RET:
         _ret();
         return;
-    case Format::UNIMPLEMENTED:
-        fail(*m_statement, std::string(spec.text) + " is not implemented yet");
     }
     emit_instruction(instruction);
 }

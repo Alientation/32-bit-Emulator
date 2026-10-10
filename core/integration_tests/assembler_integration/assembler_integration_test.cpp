@@ -2924,3 +2924,99 @@ _start:
     const std::string log = log_tail("basm.log", 100000);
     EXPECT_NE(log.find("Contents of section table:"), std::string::npos) << log;
 }
+
+// Hardware floating point: floats and doubles in the integer registers, the rounding mode and the
+// flags of FPCR and FPSR, a compare that decides a branch, and floating point data.
+TEST_F(AssemblerIntegration, floating_point_in_the_integer_registers)
+{
+    write_file("fp.basm", R"(.global _start
+
+.text
+_start:
+                vmov.f32    x0, 1.5
+                vmov.f32    x1, 2.25
+                vmul.f32    x2, x0, x1              ; 3.375
+                vcvt.s32.f32 x3, x2                 ; 3
+                vmov.f64    x4, 0.1
+                vmov.f64    x6, 0.2
+                vadd.f64    x8, x4, x6              ; 0.30000000000000004
+                vcmp.f32    x0, x1
+                cset        x10, mi                 ; 1.5 < 2.25
+                vcmp.f32    x1, x0
+                cset        x11, mi                 ; 2.25 < 1.5 is false
+                vmov.f32    x12, 0.0
+                msr         fpsr, xzr               ; the conversion and the double were inexact
+                vdiv.f32    x13, x0, x12            ; +infinity
+                mrs         x14, fpsr               ; divide by zero
+                msr         fpsr, xzr
+                mov         x15, 3
+                msr         fpcr, x15               ; round toward zero
+                vmov.f32    x0, 1.0
+                vmov.f32    x1, 3.0
+                vdiv.f32    x16, x0, x1             ; 0x3EAAAAAA, not ...AB
+                mrs         x17, fpsr               ; inexact
+                msr         fpcr, xzr
+                vdiv.f32    x18, x0, x1             ; 0x3EAAAAAB
+                adrp        x20, values
+                add         x20, x20, :lo12:values
+                ldr         x21, [x20]              ; the float 1.5
+                ldr         x22, [x20, 4]           ; the double 0.5, low word
+                ldr         x23, [x20, 8]           ; and high word
+                vcvt.f32.f64 x24, x22               ; back to a float: 0.5
+                hlt
+
+.data
+values:         .float 1.5
+                .double 0.5
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o fp fp.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("fp.bexe"));
+
+    EXPECT_EQ(reg(2), 0x40580000u) << "1.5 * 2.25 = 3.375";
+    EXPECT_EQ(reg(3), 3u);
+    EXPECT_EQ(reg(8), 0x33333334u) << "0.1 + 0.2, low word";
+    EXPECT_EQ(reg(9), 0x3FD33333u) << "and high word";
+    EXPECT_EQ(reg(10), 1u);
+    EXPECT_EQ(reg(11), 0u);
+    EXPECT_EQ(reg(13), 0x7F800000u);
+    EXPECT_EQ(reg(14), 0b00010u) << "FPSR.DZC";
+    EXPECT_EQ(reg(16), 0x3EAAAAAAu);
+    EXPECT_EQ(reg(17), 0b10000u) << "FPSR.IXC, after the flags were cleared";
+    EXPECT_EQ(reg(18), 0x3EAAAAABu);
+    EXPECT_EQ(reg(21), 0x3FC00000u);
+    EXPECT_EQ(reg(22), 0u);
+    EXPECT_EQ(reg(23), 0x3FE00000u);
+    EXPECT_EQ(reg(24), 0x3F000000u);
+    EXPECT_EQ(state("fpcr"), "0x00000000");
+}
+
+// vcmp sets the flags that the branches read; a NaN is unordered (V), so mi is false and lt true.
+TEST_F(AssemblerIntegration, the_flags_of_vcmp_decide_the_branches_and_a_nan_is_unordered)
+{
+    write_file("fpbranch.basm", R"(.global _start
+
+.text
+_start:
+                vmov.f32    x0, 0.0
+                vdiv.f32    x1, x0, x0              ; 0/0 is not a number
+                vcmp.f32    x1, x1
+                b.vs        L_unordered
+                mov         x2, 1                   ; a number is ordered with itself
+                hlt
+L_unordered:    mov         x2, 2
+                vmov.f32    x3, 1.0
+                vcmp.f32    x1, x3
+                b.mi        L_less                  ; mi is not taken for a NaN
+                mov         x4, 5
+                b.lt        L_lt_taken              ; but lt is
+                hlt
+L_lt_taken:     mov         x4, 6
+                hlt
+L_less:         mov         x4, 7
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o fpbranch fpbranch.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("fpbranch.bexe"));
+    EXPECT_EQ(reg(2), 2u) << "NaN compared with itself is unordered (V)";
+    EXPECT_EQ(reg(4), 6u) << "lt is true for a NaN, mi is not";
+}

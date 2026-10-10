@@ -20,6 +20,7 @@ aemu_add_gtest(emulator32bit_tests
         ./instruction_tests/dataproc_test.cpp
         ./instruction_tests/shift_test.cpp
         ./instruction_tests/long_multiply_test.cpp
+        ./instruction_tests/fpu_test.cpp
         ./instruction_tests/move_test.cpp
         ./instruction_tests/memory_test.cpp
         ./instruction_tests/tlbi_test.cpp

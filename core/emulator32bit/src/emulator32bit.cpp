@@ -1,5 +1,6 @@
 
 #include "emulator32bit/emulator32bit.h"
+#include "emulator32bit/fpu.h"
 
 #include "emulator32bit/virtual_memory.h"
 #include "util/logger.h"
@@ -227,6 +228,11 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 m_history.push_back({.pc = m_pc, .instruction = instr});
             }
 
+            // The handler of an exception needs the instruction, to work out the address of a data
+            // abort. It is kept here and not in `instr`, which would then be live across every
+            // handler call, and the handlers use all the registers that a call may change: the
+            // compiler kept `instr` in memory for the whole loop, and the dispatch waited for it.
+            m_instr_in_flight = instr;
             try
             {
                 if (UNLIKELY(hooked) && m_trace != nullptr) execute_traced(instr);
@@ -234,7 +240,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
             catch (const std::exception &error)
             {
-                if (!deliver_exception(error, false, instr)) throw;
+                if (!deliver_exception(error, false, m_instr_in_flight)) throw;
                 m_pc_written = false;
                 continue;
             }
@@ -537,7 +543,8 @@ constexpr SysregName kSysregNames[] = {
     {Emulator32bit::kSysregId_spsr, "spsr"},     {Emulator32bit::kSysregId_esr, "esr"},
     {Emulator32bit::kSysregId_far, "far"},       {Emulator32bit::kSysregId_vbar, "vbar"},
     {Emulator32bit::kSysregId_usp, "usp"},       {Emulator32bit::kSysregId_ptbr, "ptbr"},
-    {Emulator32bit::kSysregId_sctlr, "sctlr"},
+    {Emulator32bit::kSysregId_sctlr, "sctlr"},   {Emulator32bit::kSysregId_fpcr, "fpcr"},
+    {Emulator32bit::kSysregId_fpsr, "fpsr"},
 };
 
 const char *exception_class_name(const Emulator32bit::ExceptionClass cls)
@@ -616,6 +623,10 @@ word Emulator32bit::read_sysreg(const U8 id) const
         return m_ptbr;
     case kSysregId_sctlr:
         return m_sctlr;
+    case kSysregId_fpcr:
+        return m_fpcr;
+    case kSysregId_fpsr:
+        return m_fpsr;
     default:
         throw Exception(InterruptType::BAD_REG,
                         "System register " + std::to_string(id) + " unimplemented.",
@@ -658,6 +669,12 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
     case kSysregId_sctlr:
         m_sctlr = value & kSctlrMmuEnable; // the only bit there is
         mmu->set_walk_enabled(test_bit<0>(m_sctlr));
+        break;
+    case kSysregId_fpcr:
+        m_fpcr = value & fpu::kFpcrMask;
+        break;
+    case kSysregId_fpsr:
+        m_fpsr = value & fpu::kFpsrMask;
         break;
     default:
         throw Exception(InterruptType::BAD_REG,
@@ -812,6 +829,7 @@ void Emulator32bit::reset()
 
     m_sp_other = 0;
     m_elr = m_spsr = m_esr = m_far = m_vbar = m_ptbr = m_sctlr = 0;
+    m_fpcr = m_fpsr = 0;
     mmu->set_user_mode(false);
     mmu->set_page_table_base(0);
     mmu->set_walk_enabled(false);

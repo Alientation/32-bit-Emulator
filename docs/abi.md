@@ -17,7 +17,7 @@ The convention is not enforced by the toolchain. The instruction set support it 
 
 `char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment. `ldr`, `str`, `ldrh` and `strh` fault on an address that is not aligned to the access, so a member of a `packed` struct, or a pointer that was cast to a type of a larger alignment, is accessed with `ldur`, `stur`, `ldurh`, `sturh` (see [isa.md](isa.md#memory-access-6)).
 
-There is no hardware floating point ([isa.md](isa.md#floating-point-12-not-implemented)). `float` and `double` use the software routines of the [runtime library](#runtime-library), with the IEEE 754 binary32/binary64 formats, so the compiler's choice does not change if hardware is added.
+`float` and `double` are IEEE 754 binary32/binary64. The CPU has hardware floating point ([isa.md](isa.md#floating-point-3)) that works on the integer registers, in which these types are passed anyway, so the same registers are used whether the compiler emits `vadd.f32` or calls the software routine of the [runtime library](#runtime-library) (for what the instructions do not do: `long long` to float, and the math library).
 
 ## Registers
 
@@ -34,7 +34,7 @@ There is no hardware floating point ([isa.md](isa.md#floating-point-12-not-imple
 | `sp` | stack pointer | callee (restored on return) |
 | `xzr` | zero | |
 
-The flags NZCV are not preserved across calls and no function expects them set on entry.
+The flags NZCV are not preserved across calls and no function expects them set on entry. The floating point control register `fpcr` (the rounding mode) is not changed by a function, except to set it for a computation and put it back (`fesetround`). The status flags `fpsr` accumulate across calls and no function relies on them being clear.
 
 ## Calling convention
 
@@ -104,8 +104,8 @@ Division is two instructions, `UDIV` and `SDIV`. (A remainder has no instruction
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `101010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
-| `101011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
+| `011001` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
+| `011010` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
 They take the same `arg` as the other O instructions (a register with a shift, or an unsigned `imm14`), and `S` updates N and Z from the result with C and V unchanged, like `MUL`. They are in [isa.md](isa.md#division-2).
 
@@ -128,6 +128,10 @@ How a compiler uses the instruction set:
 | `long long` add/sub | `adds` + `adc`, `subs` + `sbc` |
 | `long long` multiply | `umull` for the low parts plus `mul` of the cross terms |
 | `long long` shifts, compares | inline sequences, or the runtime library |
+| `float`/`double` `+ - * /`, `sqrtf`, `fabs`, `-x` | `vadd`, `vsub`, `vmul`, `vdiv`, `vsqrt`, `vabs`, `vneg` with `.f32`/`.f64` (a double is a register pair) |
+| `(int) f`, `(float) i`, `(double) f` | `vcvt.s32.f32`, `vcvt.f32.s32`, `vcvt.f64.f32`, ... (the cast rounds toward zero; `lrintf` is `vcvtr`) |
+| `f < g`, `f <= g`, `f == g` | `vcmp.f32` then `b.mi`/`b.ls`/`b.eq` (not `lt`/`le`: they are also true for a NaN); `floorf`, `ceilf`, `truncf`, `roundf` are `vrintm`, `vrintp`, `vrintz`, `vrinta` |
+| a float constant | `vmov.f32 xd, 1.5` (the same instructions as `ldr xd, =bits`) |
 | constants up to `0x7FFFF` | `mov xd, imm` (`mvn` for the complement, so −1 to −524288 are one instruction) |
 | any other 32 bit constant | `ldr xd, =value`, which the assembler expands to `mov xd, value >> 14` / `lsl xd, xd, 14` / `orr xd, xd, value & 0x3FFF` (two instructions when the low 14 bits are 0). No literal pool, no scratch register |
 | address of a global | `adrp xd, sym` + `add xd, xd, :lo12:sym`, or `ldr xd, =sym`; `adr xd, sym` when it is within 1 MiB of the instruction (a static, a string, a function of the same file) |
@@ -146,7 +150,7 @@ How a compiler uses the instruction set:
 A static library (`libbasmrt.ba`, linked with `-l`) provides what the instructions do not, with the usual names. It is not written yet; this is the interface the compiler expects:
 
 - 64 bit: `__muldi3` (if not inlined), `__divdi3`, `__udivdi3`, `__moddi3`, `__umoddi3`, `__ashldi3`, `__lshrdi3`, `__ashrdi3`, `__cmpdi2`, `__ucmpdi2`.
-- Software floating point: `__addsf3`, `__subsf3`, `__mulsf3`, `__divsf3`, `__adddf3`, ..., the conversions `__floatsisf`, `__fixsfsi`, `__extendsfdf2`, `__truncdfsf2`, and the comparisons `__ltsf2`, `__gtsf2`, `__eqsf2`, ...
+- Software floating point, for a compiler that does not use the instructions (`-msoft-float`): `__addsf3`, `__subsf3`, `__mulsf3`, `__divsf3`, `__adddf3`, ..., the conversions `__floatsisf`, `__fixsfsi`, `__extendsfdf2`, `__truncdfsf2`, and the comparisons `__ltsf2`, `__gtsf2`, `__eqsf2`, ... With the instructions only `long long` to and from float (`__floatdisf`, `__fixdfdi`, ...) stay.
 - `memcpy`, `memmove`, `memset`, `memcmp`, `strlen` (hand written, word at a time).
 
 Members are only linked when used (`select_library_members`), so an unused part costs nothing.
@@ -160,5 +164,5 @@ These are needed to follow the convention, and all are implemented (see [basm-sy
 - `.init_array` / `.fini_array` with the `__init_array_start`/`_end` and `__fini_array_start`/`_end` symbols, for `__attribute__((constructor))`. `crt0` calls what is between the bounds before `main` and after it.
 - `ldr xd, =value` (no literal pool, see the lowering table), `cset`/`csel` and their family, and `sxtb`/`sxth`/`uxtb`/`uxth`/`clz`/`rev`/`rev16`.
 - `mov xd, imm` takes the whole `imm19`.
-- `adr xd, sym` (opcode `110011`): a pc relative address within 1 MiB in one instruction instead of the `adrp` pair.
+- `adr xd, sym` (opcode `100001`): a pc relative address within 1 MiB in one instruction instead of the `adrp` pair.
 - `.section "name", "flags"`: sections of the program's own (`"r"`, `"rw"`, `"rx"`), for `__attribute__((section("x")))`, a section for each function or object (`-ffunction-sections`, `-fdata-sections`) and the pieces of a kernel (a vector table, a boot stub) that a linker script places by name.

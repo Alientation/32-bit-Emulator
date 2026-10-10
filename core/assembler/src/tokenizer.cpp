@@ -314,8 +314,6 @@ const KeywordMap &assembly_keywords()
 #undef BASM_KEYWORD
 
         // Other spellings.
-        add("vcint.s32.f32", TokenType::INSTRUCTION_VCINT);
-        add("vcflo.s32.f32", TokenType::INSTRUCTION_VCFLO);
         add("ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
         add("ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
         add("ldursh", TokenType::INSTRUCTION_LDURH, false, SIGN_EXTEND);
@@ -387,6 +385,8 @@ const KeywordMap &assembler_directives()
         D(".dbyte", DBYTE);
         D(".word", WORD);
         D(".dword", DWORD);
+        D(".float", FLOAT);
+        D(".double", DOUBLE);
         D(".ascii", ASCII);
         D(".asciz", ASCIZ);
 #undef D
@@ -829,20 +829,24 @@ class Lexer
         std::size_t end = begin + 1;
         while (end < n && is_ident_char(m_src[end])) end++;
 
-        // Floating point mnemonics contain dots: vadd.f32, vcint.u32.f32, ...
+        // Floating point mnemonics contain dots: vadd.f32, vcvt.s32.f32, ... The longest piece
+        // that is a mnemonic is one.
         if (assembly() && m_src[begin] == 'v' && end < n && m_src[end] == '.')
         {
-            for (std::string_view suffix : {std::string_view(".u32.f32"),
-                                            std::string_view(".s32.f32"), std::string_view(".f32")})
+            std::size_t e2 = end;
+            std::size_t best = 0;
+            while (e2 + 1 < n && m_src[e2] == '.' && is_ident_char(m_src[e2 + 1]))
             {
-                if (m_src.compare(end, suffix.size(), suffix) != 0) continue;
-                const std::size_t e2 = end + suffix.size();
-                if (e2 < n && is_ident_char(m_src[e2])) continue;
+                e2++;
+                while (e2 < n && is_ident_char(m_src[e2])) e2++;
                 if (assembly_keywords().count(m_src.substr(begin, e2 - begin)) != 0)
                 {
-                    end = e2;
-                    break;
+                    best = e2;
                 }
+            }
+            if (best != 0)
+            {
+                end = best;
             }
         }
 

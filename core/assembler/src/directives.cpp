@@ -1056,6 +1056,32 @@ void Assembler::_dword()
     define_data(".dword", 8);
 }
 
+void Assembler::define_float(const char *directive, const bool dbl)
+{
+    check(in_byte_section(),
+          std::string(directive)
+              + " can only define data in the .data section or another "
+                "data section (.rodata, .init_array, .fini_array)");
+
+    m_cursor.next();
+    do
+    {
+        const U64 bits = parse_float_constant(dbl);
+        const std::vector<byte> data = convert_little_endian({dword(bits)}, dbl ? 8 : 4);
+        section_bytes().insert(section_bytes().end(), data.begin(), data.end());
+    } while (m_cursor.accept(TokenType::COMMA));
+}
+
+void Assembler::_float()
+{
+    define_float(".float", false);
+}
+
+void Assembler::_double()
+{
+    define_float(".double", true);
+}
+
 void Assembler::_fill()
 {
     check(in_byte_section(),

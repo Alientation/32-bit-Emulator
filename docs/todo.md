@@ -8,7 +8,7 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 
 ## Instruction set
 
-- Hardware floating point. The `V*` opcodes are reserved and the `fimm` immediate of the F2 format has no layout, see [isa.md](isa.md#f-floating-point-not-implemented). `FPCR`/`FPSR` do not exist.
+- `vfma`, the fused multiply-add (and the negated forms `vfms`, `vfnma`, `vfnms`) for `fmaf`/`fma`. It has four register operands, so it is an opcode of its own with a function field, and it needs a single rounding, which the host's `std::fma` gives. See [isa.md](isa.md#floating-point-3).
 
 ## Devices
 

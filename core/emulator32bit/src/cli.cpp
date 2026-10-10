@@ -69,7 +69,8 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
     out << "mode=" << (emu.user_mode() ? "user" : "kernel") << "\n";
     for (const U8 id : {Emulator32bit::kSysregId_pstate, Emulator32bit::kSysregId_elr,
                         Emulator32bit::kSysregId_spsr, Emulator32bit::kSysregId_esr,
-                        Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_vbar})
+                        Emulator32bit::kSysregId_far, Emulator32bit::kSysregId_vbar,
+                        Emulator32bit::kSysregId_fpcr, Emulator32bit::kSysregId_fpsr})
     {
         out << Emulator32bit::sysreg_name(id) << "=" << hex(emu.read_sysreg(id)) << "\n";
     }

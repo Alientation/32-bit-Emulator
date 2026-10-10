@@ -30,7 +30,7 @@ Not in the register file:
 
 - **PC**: not addressable. It is 0 after reset, and the emulator adds 4 after each instruction.
 - **PSTATE**: see below.
-- **FPCR / FPSR**: not implemented ([FPCR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpcr--floating-point-control-register), [FPSR](https://developer.arm.com/documentation/100446/0100/aarch64-register-descriptions/fpsr--floating-point-status-register)). The floating point instructions are reserved, see [Floating point](#floating-point-12-not-implemented).
+- **FPCR / FPSR**: the floating point control and status registers, see [FPCR and FPSR](#fpcr-and-fpsr). There is no separate floating point register file: a `float` is the 32 bits of a register and a `double` a pair of them, see [Floating point](#floating-point-3).
 
 A register number above 31 reads as 0 and ignores writes (not reachable from a 5 bit field).
 
@@ -63,6 +63,29 @@ Reset value is `0x20`: kernel mode, IRQs masked.
 
 `MSR`/`MRS` access it as system register 1, see [exceptions.md](exceptions.md#system-registers). The other bits are reserved. There are two stack pointers behind `sp`, one for each mode.
 
+### FPCR and FPSR
+
+System registers 10 (`fpcr`) and 11 (`fpsr`), read and written with `MSR`/`MRS`. Unlike the other system registers they can be used in **user mode**, since a C library changes the rounding mode and tests the flags. Both are 0 after reset. Taking an exception does not save or change them, so an operating system keeps them per thread.
+
+FPCR, bits 1–0, the rounding mode of the floating point instructions (the other bits read 0 and ignore writes):
+
+| `RMode` | Rounds |
+|---------|--------|
+| `00` | to nearest, ties to even |
+| `01` | toward +infinity |
+| `10` | toward -infinity |
+| `11` | toward zero |
+
+FPSR, bits 4–0, the cumulative exception flags. An instruction sets a flag when it raises the exception and never clears one; a program clears them by writing the register. Nothing traps. The other bits read 0 and ignore writes.
+
+| Bit | Flag | Raised when |
+|-----|------|-------------|
+| 0 | `IOC` invalid operation | the result has no meaning (`0/0`, `inf - inf`, the square root of a negative number), an operand is a signaling NaN, a float to integer conversion is out of range or a NaN |
+| 1 | `DZC` division by zero | a finite non-zero number is divided by zero |
+| 2 | `OFC` overflow | the rounded result is too large for the format |
+| 3 | `UFC` underflow | the result is tiny and inexact |
+| 4 | `IXC` inexact | the result had to be rounded |
+
 ### Carry flag convention
 
 - **Addition** (`ADD`, `ADC`, `CMN`): C is the carry out.
@@ -71,7 +94,7 @@ Reset value is `0x20`: kernel mode, IRQs masked.
 ## Encoding overview
 
 - Bits 26–31 are the opcode. Opcode `000000` is the [special group](#special-instructions-opcode-000000).
-- Bit 25 is the update flags bit (`S`) in the formats that have one.
+- Bit 25 is the update flags bit (`S`) in the formats that have one, and the precision bit (`p`) in the floating point formats.
 - Every format is 32 bits. The diagrams below go from bit 31 down to bit 0.
 
 ## Instruction formats
@@ -111,7 +134,7 @@ Register form (bit 14 clear):
 +-------+--+------+------+--+-----+---+------+---+
 ```
 
-- `type` (bits 7–8) is the shift: `00` `LSL`, `01` `LSR`, `10` `ASR`, `11` `ROR`. The four are one opcode (`011001`).
+- `type` (bits 7–8) is the shift: `00` `LSL`, `01` `LSR`, `10` `ASR`, `11` `ROR`. The four are one opcode (`010000`).
 - `?imm` (bit 14) set: the shift amount is `imm5` (bits 2–6).
 - `?imm` clear: the shift amount is the **low 5 bits** of `xm`, so 0–31.
 - With `S`: N and Z come from the result, C from the last bit shifted out, V is unchanged. A shift amount of 0 leaves C unchanged.
@@ -219,19 +242,34 @@ The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` 
 +-------+------+------+----------------+-+
 ```
 
-Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`100111`). Bits 1–16 are unused.
+Bit 0 (`l`) is the link bit: clear is `BX`, set is `BLX`, one opcode (`011110`). Bits 1–16 are unused.
 
-### F: floating point (not implemented)
+### V1, V2, V3: floating point
 
-The opcodes are reserved and the assembler recognizes the mnemonics, but it reports "Instruction not implemented yet". If such a word is executed anyway, the emulator faults with `BAD_INSTR` ("`<name>` is not implemented.").
+`OP.F32 xd, xn` (V1), `OP.F32 xd, xn, xm` (V2), `OP.F32 xn, xm` (V3). `.F64` for a double.
 
-| Format | Syntax | Layout |
-|--------|--------|--------|
-| F | `OP.F32 xd, xn` | `opcode(6) - (1) xd(5) xn(5) ---(15)` |
-| F1 | `OP.F32 xd, xn, xm` | `opcode(6) - (1) xd(5) xn(5) -(1) xm(5) ---(9)` |
-| F2 | `OP.F32 xn, {xm \| 0}` | `opcode(6) ?fimm(1) xn(5) fimm(20)`, or with `?fimm` clear: `xn(5) xm(5) ---(16)` |
+```
+ 31   26 25 24  20 19  15 14       5 4    0
++-------+--+------+------+----------+------+
+|opcode | p|  xd  |  xn  |     -    |  fn  |   V1
++-------+--+------+------+----------+------+
 
-`fimm` has 20 bits. How they encode a value is not defined, since floating point is not implemented.
+ 31   26 25 24  20 19  15 14 13  9 8  5 4    0
++-------+--+------+------+--+-----+-----+------+
+|opcode | p|  xd  |  xn  | -|  xm |  -  |  fn  |   V2
++-------+--+------+------+--+-----+-----+------+
+
+ 31   26 25 24 23  20 19  15 14 13  9 8          0
++-------+--+--+------+------+--+-----+-------------+
+|opcode | p| e|  -   |  xn  | -|  xm |      -      |   V3
++-------+--+--+------+------+--+-----+-------------+
+```
+
+- `p` (bit 25) is the precision: clear is `.F32`, set is `.F64`. For the conversion between the two it is the precision of the source.
+- `fn` (bits 0–4) is the function of the opcode, see [Floating point](#floating-point-3). A function that is not assigned is an undefined instruction (ISS 1).
+- `e` (bit 24) of V3 is set for `VCMPE`.
+- A double names the first register of a pair, which has to be x0–x28 (ISS 5 otherwise).
+- The unused bits are 0 and are ignored.
 
 ## Special instructions (opcode `000000`)
 
@@ -247,8 +285,8 @@ The extended op is bits 22–25. An unknown extended op is an [undefined instruc
 | ext. op | Instruction | Description |
 |---------|-------------|-------------|
 | `0000` | `HLT` | stops the program. Privileged |
-| `0001` | `MSR sysreg, xn \| imm16` | Privileged, except for the flags of PSTATE |
-| `0010` | `MRS xn, sysreg` | Privileged, except for the flags of PSTATE |
+| `0001` | `MSR sysreg, xn \| imm16` | Privileged, except for the flags of PSTATE and FPCR and FPSR |
+| `0010` | `MRS xn, sysreg` | Privileged, except for the flags of PSTATE and FPCR and FPSR |
 | `0011` | `TLBI{ xt}` | Privileged. Forgets cached page table translations |
 | `0100` | atomic operations | see [Atomic operations](#atomic-operations) |
 | `0101` | `ERET` | Privileged. Returns from an exception |
@@ -289,7 +327,7 @@ Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 +-------+------+------+--+--------------+---------+
 ```
 
-Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register, see [exceptions.md](exceptions.md#system-registers) for the registers. A register that does not exist is an undefined instruction (ISS 4, "System register N unimplemented."). In user mode only the flags of PSTATE can be written.
+Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register, see [exceptions.md](exceptions.md#system-registers) for the registers. A register that does not exist is an undefined instruction (ISS 4, "System register N unimplemented."). In user mode only the flags of PSTATE and FPCR and FPSR can be written.
 
 ### MRS
 
@@ -300,7 +338,7 @@ Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a 
 +-------+------+------+--+--------+---------+
 ```
 
-Moves from a system register. In user mode only the flags of PSTATE can be read.
+Moves from a system register. In user mode only the flags of PSTATE and FPCR and FPSR can be read.
 
 ### TLBI
 
@@ -376,34 +414,80 @@ Other values of `op` are an undefined instruction (ISS 1). `xd` and `xn` may be 
 | `000111` | `MUL{S} xd, xn, arg` | O | `xd = low 32 bits of xn * arg`. `S` updates N and Z, C and V are unchanged |
 | `001000` | `UMULL{S} xlo, xhi, xn, xm`<br>`SMULL{S} xlo, xhi, xn, xm` | O2 | `{xhi, xlo} = xn * xm`, unsigned or signed (the signed bit). `S`: N is bit 63, Z is "64 bit result is 0", C and V are unchanged |
 
-### Floating point (12), not implemented
+### Floating point (3)
 
-Reserved opcodes. The handlers fault with `BAD_INSTR`. See [ARM floating point instructions](https://developer.arm.com/documentation/dui0802/b/Advanced-SIMD-and-Floating-point-Programming--32-bit-/Floating-point-instructions).
+A `float` is the IEEE 754 binary32 value in a register, a `double` the binary64 value in a pair of registers (`xN` holds the low word, `xN+1` the high word). The registers are the integer ones, so `mov`, `ldr`, `str`, `csel` and the bit operations move and test floats, and `xzr` is +0.0. This is how [abi.md](abi.md) passes them. The three opcodes have a function field `fn` and the precision bit `p`.
 
-| Opcode | Instruction | Format |
-|--------|-------------|--------|
-| `001001` | `VABS.F32 xd, xn` | F |
-| `001010` | `VNEG.F32 xd, xn` | F |
-| `001011` | `VSQRT.F32 xd, xn` | F |
-| `001100` | `VADD.F32 xd, xn, xm` | F1 |
-| `001101` | `VSUB.F32 xd, xn, xm` | F1 |
-| `001110` | `VDIV.F32 xd, xn, xm` | F1 |
-| `001111` | `VMUL.F32 xd, xn, xm` | F1 |
-| `010000` | `VCMP.F32 xn, {xm \| 0}` | F2 |
-| `010001` | `VSEL.cond.F32 xd, xn, xm` | F1 |
-| `010010` | `VCINT.{u32\|s32}.F32 xd, xn` | F |
-| `010011` | `VCFLO.{u32\|s32}.F32 xd, xn` | F |
-| `010100` | `VMOV.F32 xd, {xn \| #fimm}` | F2 |
+| Opcode | Instruction | Format | Operation |
+|--------|-------------|--------|-----------|
+| `001001` | `VABS`, `VNEG`, `VSQRT`, `VRINT*`, `VCVT*`, `VCVTR*` | V1 | `xd = fn(xn)`, see below |
+| `001010` | `VADD`, `VSUB`, `VMUL`, `VDIV`, `VMIN`, `VMAX` | V2 | `xd = xn fn xm` |
+| `001011` | `VCMP`, `VCMPE xn, xm` | V3 | sets N, Z, C and V from the comparison |
+
+Every mnemonic has the suffix `.f32` or `.f64` (`vadd.f32 x0, x1, x2`, `vadd.f64 x0, x2, x4`).
+
+`VOP2` (opcode `001010`), `fn`: `0` `VADD`, `1` `VSUB`, `2` `VMUL`, `3` `VDIV`, `4` `VMIN`, `5` `VMAX`. The operands and the result have the same precision. `VMIN` and `VMAX` are `fmin` and `fmax` of C: a quiet NaN operand is skipped (two of them give the default NaN), a signaling NaN is an invalid operation, and -0 is smaller than +0.
+
+`VOP1` (opcode `001001`), `fn`. The precision of the instruction is that of the floating point operand:
+
+| `fn` | Instruction | Operation | `xd` | `xn` |
+|------|-------------|-----------|------|------|
+| 0 | `VABS` | clears the sign bit | float | float |
+| 1 | `VNEG` | flips the sign bit | float | float |
+| 2 | `VSQRT` | square root | float | float |
+| 3 | `VRINT` | rounds to an integral value in the mode of FPCR | float | float |
+| 4 | `VRINTZ` | toward zero | float | float |
+| 5 | `VRINTM` | toward -infinity (floor) | float | float |
+| 6 | `VRINTP` | toward +infinity (ceil) | float | float |
+| 7 | `VRINTA` | to nearest, ties away from zero (`round`) | float | float |
+| 8 | `VCVT.S32.Fx` | float to signed integer, toward zero (the C cast) | int32 | float |
+| 9 | `VCVT.U32.Fx` | float to unsigned integer, toward zero | uint32 | float |
+| 10 | `VCVTR.S32.Fx` | float to signed integer in the mode of FPCR (`lrint`) | int32 | float |
+| 11 | `VCVTR.U32.Fx` | float to unsigned integer in the mode of FPCR | uint32 | float |
+| 12 | `VCVT.Fx.S32` | signed integer to float, rounded as FPCR says | float | int32 |
+| 13 | `VCVT.Fx.U32` | unsigned integer to float | float | uint32 |
+| 14 | `VCVT.F64.F32`, `VCVT.F32.F64` | float to the other precision (`p` is the source's) | the other | the source |
+
+Where a column says float, a `.f64` instruction uses a register pair. Integers are a single register. So `vcvt.s32.f64 x0, x2` reads the pair (x2, x3), `vcvt.f64.s32 x2, x0` writes the pair (x2, x3), and `vcvt.f64.f32 x2, x0` widens x0 into (x2, x3).
+
+The results:
+
+- **Rounding.** The result of `VADD`, `VSUB`, `VMUL`, `VDIV`, `VSQRT` and the conversions to a float is the exact result rounded as the IEEE 754 standard says, in the mode of FPCR. They raise the flags of [FPSR](#fpcr-and-fpsr). Denormal numbers are fully supported (nothing is flushed to zero). Whether tininess for `UFC` is found before or after rounding is up to the host FPU, which the standard allows.
+- **NaN.** An operation never passes a NaN on: its result is the default NaN, quiet, positive and with no payload (`0x7FC00000`, `0x7FF8000000000000`), so the same program gives the same bits on every host. A signaling NaN operand raises `IOC`, a quiet one does not. `VABS` and `VNEG` are bit operations and leave a NaN as it is.
+- **`VRINT`** raises `IOC` for a signaling NaN and nothing else, not `IXC`.
+- **Float to integer** saturates. A NaN gives 0, a number too large the largest integer, a number too small the smallest one (0 for an unsigned integer), all with `IOC`. Otherwise `IXC` says that the number had a fraction. The conversions with `R` round first and then check the range, so `-0.5` is 0 with `IXC` in the nearest mode and out of range for an unsigned integer in the mode toward -infinity.
+- **Integer to float** is exact for a double and rounds for a float larger than 2^24, with `IXC`.
+- **Float to double** is exact, double to float rounds and can raise `OFC`, `UFC` and `IXC`.
+- **`VCMP`** does not change a register but sets the flags like a comparison of integers: equal is `Z` and `C` (`0110`), less than is `N` (`1000`), greater than is `C` (`0010`), and unordered, when an operand is a NaN, is `C` and `V` (`0011`). `+0` equals `-0`. `VCMP` raises `IOC` for a signaling NaN, `VCMPE` for any NaN. The flags are those of the conditions, but note what they do for a NaN:
+
+| Condition | `a<b` | `a==b` | `a>b` | NaN |
+|-----------|-------|--------|-------|-----|
+| `EQ` | no | yes | no | no |
+| `NE` | yes | no | yes | yes |
+| `MI` (less than) | yes | no | no | no |
+| `LS` (less or equal) | yes | yes | no | no |
+| `GT` | no | no | yes | no |
+| `GE` | no | yes | yes | no |
+| `VS` (unordered) | no | no | no | yes |
+| `LT` (`N != V`) | yes | no | no | yes |
+| `LE` | yes | yes | no | yes |
+
+So a compiler uses `MI` and `LS` for `<` and `<=`, as `LT` and `LE` are also true for a NaN.
+
+- **Registers.** An operand read through `xzr` is 0, a result written to it is dropped (its flags are not). The sources are read before the result is written, so a result may overwrite an operand, also a half of an overlapping pair. A double in a register that cannot start a pair (x29, `sp`, `xzr`) is an undefined instruction (ISS 5), as is a `fn` that is not assigned (ISS 1). An instruction that faults changes no register, no flag and not FPSR.
+- The integer flags are changed by `VCMP` only.
+- The assembler has the pseudo instruction `vmov.f32 xd, xm | float`, `vmov.f64`, see [basm-syntax.md](basm-syntax.md#floating-point). There is no instruction for it, a move is `mov`.
+- A fused multiply-add is not there yet, see [todo.md](todo.md).
 
 ### Bitwise (5)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `010101` | `AND{S} xd, xn, arg` | O | `xn & arg` |
-| `010110` | `ORR{S} xd, xn, arg` | O | `xn \| arg` |
-| `010111` | `EOR{S} xd, xn, arg` | O | `xn ^ arg` |
-| `011000` | `BIC{S} xd, xn, arg` | O | `xn & ~arg` |
-| `011001` | `LSL{S}`, `LSR{S}`, `ASR{S}`, `ROR{S} xd, xn, {xm \| #imm5}` | O1 | logical shift left, logical shift right, arithmetic shift right, rotate right (the type) |
+| `001100` | `AND{S} xd, xn, arg` | O | `xn & arg` |
+| `001101` | `ORR{S} xd, xn, arg` | O | `xn \| arg` |
+| `001110` | `EOR{S} xd, xn, arg` | O | `xn ^ arg` |
+| `001111` | `BIC{S} xd, xn, arg` | O | `xn & ~arg` |
+| `010000` | `LSL{S}`, `LSR{S}`, `ASR{S}`, `ROR{S} xd, xn, {xm \| #imm5}` | O1 | logical shift left, logical shift right, arithmetic shift right, rotate right (the type) |
 
 - `AND`/`ORR`/`EOR`/`BIC` with `S` update N and Z. C and V are unchanged (the carry out of the shifted `arg` is ignored).
 - The shifts take the amount from `imm5` or the low 5 bits of `xm` (0–31). With `S`, N and Z come from the result, C is the last bit shifted out and V is unchanged. A shift of 0 leaves C unchanged.
@@ -423,8 +507,8 @@ Reserved opcodes. The handlers fault with `BAD_INSTR`. See [ARM floating point i
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `011010` | `MOV{S} xd, arg` | O3 | `xd = arg` |
-| `011011` | `MVN{S} xd, arg` | O3 | `xd = ~arg` |
+| `010001` | `MOV{S} xd, arg` | O3 | `xd = arg` |
+| `010010` | `MVN{S} xd, arg` | O3 | `xd = ~arg` |
 
 `S` updates N and Z, C and V are unchanged. `arg` is an `imm19`, or `xn + imm14`.
 
@@ -432,12 +516,12 @@ Reserved opcodes. The handlers fault with `BAD_INSTR`. See [ARM floating point i
 
 | Opcode | Instruction | Access |
 |--------|-------------|--------|
-| `011100` | `LDR xt, mem` | word |
-| `011101` | `LDRB xt, mem` | byte (`LDRSB` with `?sign`) |
-| `011110` | `LDRH xt, mem` | half-word (`LDRSH` with `?sign`) |
-| `011111` | `STR xt, mem` | word |
-| `100000` | `STRB xt, mem` | byte |
-| `100001` | `STRH xt, mem` | half-word |
+| `010011` | `LDR xt, mem` | word |
+| `010100` | `LDRB xt, mem` | byte (`LDRSB` with `?sign`) |
+| `010101` | `LDRH xt, mem` | half-word (`LDRSH` with `?sign`) |
+| `010110` | `STR xt, mem` | word |
+| `010111` | `STRB xt, mem` | byte |
+| `011000` | `STRH xt, mem` | half-word |
 
 All are format M. See [mem](#operands) for the addressing modes.
 
@@ -454,8 +538,8 @@ All are format M. See [mem](#operands) for the addressing modes.
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `100010` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
-| `100011` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
+| `011001` | `UDIV{S} xd, xn, arg` | O | `xd = xn / arg`, unsigned |
+| `011010` | `SDIV{S} xd, xn, arg` | O | `xd = xn / arg`, signed, rounded toward zero |
 
 `S` updates N and Z from the result, C and V are unchanged. **Dividing by zero gives 0** and raises nothing, and `INT_MIN / -1` is `INT_MIN`. There is no remainder instruction: `r = n - (n / d) * d` (`sdiv t, n, d` / `mul t, t, d` / `sub r, n, t`), which is `n` for a `d` of 0. See [abi.md](abi.md#division).
 
@@ -463,7 +547,7 @@ All are format M. See [mem](#operands) for the addressing modes.
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `100100` | `CSEL`, `CSINC`, `CSINV`, `CSNEG xd, xn, xm, cond` | C | `xd = cond ? xn : f(xm)` |
+| `011011` | `CSEL`, `CSINC`, `CSINV`, `CSNEG xd, xn, xm, cond` | C | `xd = cond ? xn : f(xm)` |
 
 ```
  31   26 25  22 21  17 16 15  11 10   6 5  4 3    0
@@ -490,17 +574,17 @@ The assembler writes the common cases as aliases, which store the **opposite** c
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `100101` | `B{CD} simm22` | B1 | `pc += simm22 * 4` |
-| `100110` | `BL{CD} simm22` | B1 | `x29 = address of the next instruction`, then branch |
-| `100111` | `BX{CD} xd`<br>`BLX{CD} xd` | B2 | `BX`: `pc = xd`, and `BX x29` is `ret`. `BLX` (the link bit): `x29 = address of the next instruction`, and `pc = xd`; `xd` is read before `x29` is written, so `BLX x29` jumps to the old `x29` |
-| `101000` | `SWI{CD}` | B1 | [software interrupt](#software-interrupts-swi) |
+| `011100` | `B{CD} simm22` | B1 | `pc += simm22 * 4` |
+| `011101` | `BL{CD} simm22` | B1 | `x29 = address of the next instruction`, then branch |
+| `011110` | `BX{CD} xd`<br>`BLX{CD} xd` | B2 | `BX`: `pc = xd`, and `BX x29` is `ret`. `BLX` (the link bit): `x29 = address of the next instruction`, and `pc = xd`; `xd` is read before `x29` is written, so `BLX x29` jumps to the old `x29` |
+| `011111` | `SWI{CD}` | B1 | [software interrupt](#software-interrupts-swi) |
 
 ### Addressing (1)
 
 | Opcode | Instruction | Format | Operation |
 |--------|-------------|--------|-----------|
-| `101001` | `ADRP xd, symbol` | M1 | `xd = (pc & ~0xFFF) + page offset`. The linker computes the page offset from the relocation (`:hi20:`, which the assembler applies implicitly, so `adrp xd, sym` is enough). Add `:lo12:sym` with `add xd, xd, :lo12:sym` for the full address |
-| `101010` | `ADR xd, symbol` | M1 | `xd = pc + byte offset` (±1 MiB), the full address in one instruction. The linker computes the offset from the relocation (`R_EMU32_ADR_PCREL21`) |
+| `100000` | `ADRP xd, symbol` | M1 | `xd = (pc & ~0xFFF) + page offset`. The linker computes the page offset from the relocation (`:hi20:`, which the assembler applies implicitly, so `adrp xd, sym` is enough). Add `:lo12:sym` with `add xd, xd, :lo12:sym` for the full address |
+| `100001` | `ADR xd, symbol` | M1 | `xd = pc + byte offset` (±1 MiB), the full address in one instruction. The linker computes the offset from the relocation (`R_EMU32_ADR_PCREL21`) |
 
 ## Operands
 
@@ -587,6 +671,6 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 ## Unused opcodes
 
-Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `101010`, so the free ones are one range:
+Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `100001`, so the free ones are one range:
 
-`101011` to `111111` (21 opcodes)
+`100010` to `111111` (30 opcodes)

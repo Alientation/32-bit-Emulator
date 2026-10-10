@@ -1,0 +1,30 @@
+; Benchmark of the floating point instructions (tools/bench.sh).
+;
+; Single and double precision arithmetic, a conversion and a compare in a loop of 12 instructions,
+; 3 million times. Every instruction asks the host FPU for the result in the rounding mode of FPCR
+; and for its exception flags, so this is the cost of that. The values stay normal numbers (a
+; denormal or a NaN makes the host FPU slow, which is not what is measured).
+
+.global _start
+
+.text
+_start:
+                ldr     x10, =3000000
+                vmov.f32 x0, 1.0
+                vmov.f32 x1, 0.5
+                vmov.f64 x4, 1.0
+                vmov.f64 x6, 0.5
+loop:
+                vmul.f32 x2, x0, x1             ; 0.5
+                vadd.f32 x3, x2, x1             ; 1.0
+                vdiv.f32 x8, x3, x0             ; 1.0
+                vcvt.s32.f32 x9, x8             ; 1
+                vmul.f64 x12, x4, x6            ; 0.5
+                vadd.f64 x14, x12, x6           ; 1.0
+                vsqrt.f64 x16, x14              ; 1.0
+                vcmp.f64 x16, x4
+                vsub.f32 x8, x8, x0             ; 0.0
+                vcvt.f32.s32 x9, x9             ; 1.0
+                subs    x10, x10, 1
+                b.ne    loop
+                hlt
