@@ -373,7 +373,7 @@ in the opcode list, with `HLT` first and `RET` last). That row generates the `IN
 token type, the lexer keyword (with its `s` variant) and the encoding rule: its `InstructionFormat`
 says which `parse_format_*` function parses the operands, and a new operand syntax is a new format
 (a case of `Assembler::assemble_instruction`) or, if it is one of a kind, a dedicated `_<name>()`
-like `_msr`. `assembler/tests/instruction_table_test` and
+like `_msr`. `assembler/tests/instruction_table_test.cpp` and
 `emulator32bit/tests/instruction_tests/opcode_table_test.cpp` check that the lists, the assembler
 and the disassembler agree. Finally a gtest in `emulator32bit/tests/instruction_tests/` that is
 registered in its CMakeLists. The tests there are table-driven per instruction family
@@ -516,7 +516,7 @@ changing the assembler.
 - **Carry flag:** subtraction/`cmp`/`sbc`/`rsc` use the ARM convention (C = *no borrow*), consistent
   with `HI`/`LS`/`HS`/`LO`. `adc`/`add` carry is the usual carry-out.
 - The suites in `assembler/tests` that run a program (`EmulatorFixture`, the
-  `preprocessor_test/*.cpp` files) use an in-memory `MockDisk` and a working directory of their own
+  `preprocessor_programs_test.cpp`) use an in-memory `MockDisk` and a working directory of their own
   per test, so they are safe to run in parallel (`ctest -j`) and together in one gtest process. Keep
   it that way: a file shared by tests (a `disk.bin`, the default `a.bexe`) makes parallel runs
   flaky.
