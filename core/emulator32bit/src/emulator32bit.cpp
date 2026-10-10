@@ -137,7 +137,7 @@ word Emulator32bit::fetch_instruction()
 {
     if (UNLIKELY(m_pc & 0b11))
     {
-        throw Exception(InterruptType::BAD_INSTR,
+        throw Exception(InterruptType::MISALIGNED,
                         "Misaligned program counter " + std::to_string(m_pc));
     }
     return memory.fetch_instruction(m_pc);
@@ -767,9 +767,16 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
     {
         if (emu->get_type() == InterruptType::MISALIGNED)
         {
-            // Only a load or a store raises this, so it is not the fetch.
-            enter_exception(ExceptionClass::DATA_ABORT, emu->get_iss(), data_address_of(instr),
-                            m_pc);
+            // A pc that is not aligned, or a load or a store at such an address.
+            if (fetching)
+            {
+                enter_exception(ExceptionClass::INSTRUCTION_ABORT, kAbortIss_alignment, m_pc, m_pc);
+            }
+            else
+            {
+                enter_exception(ExceptionClass::DATA_ABORT, emu->get_iss(), data_address_of(instr),
+                                m_pc);
+            }
             return true;
         }
 
@@ -779,15 +786,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
             return false; // halt, a failed assertion, brk with a debugger, a double fault
         }
 
-        if (fetching)
-        {
-            // Only a pc that is not word aligned fails like this.
-            enter_exception(ExceptionClass::INSTRUCTION_ABORT, kAbortIss_alignment, m_pc, m_pc);
-        }
-        else
-        {
-            enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);
-        }
+        enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);
         return true;
     }
 

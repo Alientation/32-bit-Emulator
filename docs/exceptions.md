@@ -129,7 +129,7 @@ The special group (opcode `000000`) holds `ERET` (`0101`), `WFI` (`0110`) and `B
 `swi` has the opcode `011111` and uses the otherwise unused 22 bit field of the B1 format as a number: `swi 3`. `swi` alone is `swi 0`, and it takes a condition like a branch: `swi.eq 3`. The number is unsigned and is not an offset.
 
 - `swi 0`, and any number but 1, is a system call of the operating system: it raises the supervisor call exception with the number as the syndrome. The call number is in `x8`, the arguments in `x0`–`x5` and the result in `x0` ([abi.md](abi.md#system-calls)).
-- `swi 1` is a semihosting call that the emulator handles itself, in either mode. It does not raise an exception. The call number is in `x8` and the calls (`emu_print`, `emu_assert*`, `emu_log`, `emu_error`) are listed in `software_interrupt.cpp`. They are a debugging aid, not an interface for an operating system. With `emu32 --no-semihosting` (`Emulator32bit::set_semihosting (false)`) `swi 1` is an undefined instruction.
+- `swi 1` is a semihosting call that the emulator handles itself, in either mode. It does not raise an exception: a call that is wrong (an unknown call number, a register or a string that does not exist, an assertion that fails) ends the run with `status=fault`. The call number is in `x8` and the calls (`emu_print`, `emu_assert*`, `emu_log`, `emu_error`) are listed in `software_interrupt.cpp`. They are a debugging aid, not an interface for an operating system. With `emu32 --no-semihosting` (`Emulator32bit::set_semihosting (false)`) `swi 1` is an undefined instruction.
 
 ## Without a vector table
 

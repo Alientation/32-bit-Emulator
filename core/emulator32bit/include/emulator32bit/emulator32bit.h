@@ -63,7 +63,8 @@ class Emulator32bit
         /// An exception was raised again before any instruction ran.
         DOUBLE_FAULT,
         /// A word or half-word load or store (not ldur, stur) at an address that is not a multiple
-        /// of its size. Becomes a data abort with the alignment syndrome.
+        /// of its size, becomes a data abort with the alignment syndrome. A pc that is not a
+        /// multiple of 4 is this too, and becomes an instruction abort.
         MISALIGNED,
     };
 

@@ -29,7 +29,7 @@ word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
 {
     if (size == 0 || size > sizeof(word))
     {
-        throw Exception(InterruptType::BAD_INSTR,
+        throw Exception(InterruptType::PROGRAM_ERROR,
                         "A value in memory is 1 to 4 bytes, not " + std::to_string(size));
     }
 
@@ -46,7 +46,8 @@ U8 Emulator32bit::_emu_register_arg(word reg_id)
 {
     if (reg_id >= kNumReg)
     {
-        throw Exception(InterruptType::BAD_REG, "There is no register " + std::to_string(reg_id));
+        throw Exception(InterruptType::PROGRAM_ERROR,
+                        "There is no register " + std::to_string(reg_id));
     }
     return U8(reg_id);
 }
@@ -64,7 +65,7 @@ std::string Emulator32bit::_emu_read_string(word address)
         text += char(c);
     }
 
-    throw Exception(InterruptType::BAD_INSTR,
+    throw Exception(InterruptType::PROGRAM_ERROR,
                     "The string at address " + std::to_string(address) + " is not terminated");
 }
 
@@ -246,6 +247,6 @@ void Emulator32bit::_swi(word instr)
         _emu_err(arg0);
         break;
     default:
-        throw Exception(InterruptType::BAD_INSTR, "Invalid syscall number " + std::to_string(id));
+        throw Exception(InterruptType::PROGRAM_ERROR, "Invalid syscall number " + std::to_string(id));
     }
 }
