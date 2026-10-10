@@ -154,6 +154,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * [`docs/devices.md`](./docs/devices.md): the memory map, the devices, interrupts and the boot sequence
 * [`docs/abi.md`](./docs/abi.md): the calling convention, the data layout and the frame record
 * [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints and the interactive debugger
+* [`docs/internals.md`](./docs/internals.md): how the code is put together, the invariants to keep when changing it, and how to measure a change
 * [`docs/todo.md`](./docs/todo.md): what is not done yet
 * Sample programs are in `core/app/programs/`
 * The documentation of the source code is in the headers (`///` comments)
