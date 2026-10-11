@@ -25,8 +25,11 @@ class SystemBus : public PhysicalPages
     ///
     /// @param ram The RAM.
     /// @param rom The ROM.
-    /// @param disk The disk that backs the swapping.
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom);
+
+    /// @param ram The RAM.
+    /// @param rom The ROM.
+    /// @param disk The disk that backs the swapping.
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
 
     /// Saves the disk and the block device.
@@ -55,7 +58,7 @@ class SystemBus : public PhysicalPages
 
     /// @param address A physical address.
     /// @return The RAM, ROM or disk that has the address, or null.
-    BaseMemory *find_storage(word address);
+    BaseMemory *find_storage(word address) const;
 
     /// @param address A physical address.
     /// @return The memory or device that has the address, or null.
@@ -99,7 +102,7 @@ class SystemBus : public PhysicalPages
   private:
     /// Checks that the RAM, the ROM and the disk do not overlap each other or the devices, which
     /// is a fatal error.
-    void validate_memory();
+    void validate_memory() const;
 
     const std::array<Device *, 4> m_devices{&intc, &timer, &console, &block};
 };

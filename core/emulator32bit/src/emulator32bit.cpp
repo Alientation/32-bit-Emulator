@@ -900,7 +900,7 @@ void Emulator32bit::set_user_mode(const bool user)
     mmu->set_user_mode(user);
 }
 
-void Emulator32bit::require_kernel()
+void Emulator32bit::require_kernel() const
 {
     if (UNLIKELY(user_mode()))
     {

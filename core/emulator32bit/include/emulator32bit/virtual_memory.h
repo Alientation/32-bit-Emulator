@@ -43,6 +43,7 @@ class VirtualMemory
     VirtualMemory(const VirtualMemory &) = delete;
     VirtualMemory &operator=(const VirtualMemory &) = delete;
 
+    /// The disk that the pages are swapped to.
     Disk &m_disk;
 
     /// @return Whether addresses are mapped by the page tables of the processes. Off, they are
@@ -75,8 +76,10 @@ class VirtualMemory
         std::string message;
 
       public:
+        /// @param msg What is wrong.
         Error(const std::string &msg);
 
+        /// @return The message.
         const char *what() const noexcept override;
     };
 
@@ -84,6 +87,7 @@ class VirtualMemory
     class PageFault : public Error
     {
       public:
+        /// Why the access was refused.
         enum class Reason : U8
         {
             UNMAPPED,       ///< The virtual page is not part of the process.
@@ -92,10 +96,18 @@ class VirtualMemory
             KERNEL_ONLY,    ///< Access to a physical page that needs kernel privilege.
         };
 
+        /// @param reason Why the access was refused.
+        /// @param vpage The virtual page that was accessed.
+        /// @param access What the access was.
         PageFault(Reason reason, word vpage, AccessType access);
 
+        /// @return Why the access was refused.
         Reason get_reason() const noexcept;
+
+        /// @return The virtual page that was accessed.
         word get_vpage() const noexcept;
+
+        /// @return What the access was.
         AccessType get_access() const noexcept;
 
       protected:
@@ -111,8 +123,11 @@ class VirtualMemory
         long long invalid_pid;
 
       public:
+        /// @param msg What is wrong.
+        /// @param invalid_pid The process id that is not a process.
         InvalidPid(const std::string &msg, long long invalid_pid);
 
+        /// @return The process id that is not a process.
         long long get_invalid_pid() const noexcept;
     };
 
@@ -125,11 +140,20 @@ class VirtualMemory
         word attempted_mapped_ppage;
 
       public:
+        /// @param msg What is wrong.
+        /// @param vpage The virtual page.
+        /// @param already_mapped_ppage The physical page that it is mapped to.
+        /// @param attempted_mapped_ppage The physical page that it was to be mapped to.
         VPageAlreadyMapped(const std::string &msg, word vpage, word already_mapped_ppage,
                            word attempted_mapped_ppage);
 
+        /// @return The virtual page.
         word get_vpage() const noexcept;
+
+        /// @return The physical page that the virtual page is mapped to.
         word get_already_mapped_ppage() const noexcept;
+
+        /// @return The physical page that it was to be mapped to.
         word get_attempted_mapped_ppage() const noexcept;
     };
 
@@ -140,8 +164,11 @@ class VirtualMemory
         word vpage;
 
       public:
+        /// @param msg What is wrong.
+        /// @param vpage The virtual page.
         InvalidVPage(const std::string &msg, word vpage);
 
+        /// @return The virtual page.
         word get_vpage() const noexcept;
     };
 
@@ -166,7 +193,7 @@ class VirtualMemory
 
     /// Whether addresses are translated by the page tables. Drops all cached translations.
     ///
-    /// @param enabled true to walk the page tables, false for the swapping memory.
+    /// @param enabled `true` to walk the page tables, false for the swapping memory.
     void set_walk_enabled(bool enabled);
 
     /// @return Whether addresses are translated by the page tables.
@@ -175,7 +202,7 @@ class VirtualMemory
         return m_walk;
     }
 
-    /// Drops cached translations.
+    /// Sets the first level table to walk, and drops the cached translations.
     ///
     /// @param base The physical address of the first level table (page aligned).
     void set_page_table_base(word base);
@@ -186,9 +213,9 @@ class VirtualMemory
         return m_ptbr;
     }
 
-    /// Whether accesses are made in user mode, which may only use pages marked user.
+    /// Sets whether accesses are made in user mode, which may only use pages marked user.
     ///
-    /// @param user true for user mode.
+    /// @param user `true` for user mode.
     void set_user_mode(const bool user)
     {
         if (user != m_user)
@@ -215,8 +242,8 @@ class VirtualMemory
 
     /// Sets the current process, which the calls without a pid change the mappings of.
     ///
-    /// @throws InvalidPid When the pid is not a valid process.
     /// @param pid Process id.
+    /// @throws InvalidPid When the pid is not a valid process.
     void set_process(long long pid);
 
     /// Starts a new process with its own virtual memory address space.
@@ -342,11 +369,12 @@ class VirtualMemory
     /// is enabled, otherwise the virtual address is equivalent to the physical
     /// address.
     ///
-    /// @throws PageFault If the process may not make the access.
     /// @param pid ID of the process to translate virtual address.
     /// @param address Virtual address to translate.
     /// @param access What the address is accessed for.
     /// @return Physical address corresponding to the virtual address.
+    /// @throws PageFault If the process may not make the access.
+    /// @throws Error If the pid is not a process (and the virtual memory is enabled).
     inline word translate_address(const long long pid, const word address,
                                   const AccessType access = AccessType::READ)
     {
@@ -731,7 +759,8 @@ class VirtualMemory
     /// @param access What the address is accessed for.
     /// @return Physical space address corresponding to the virtual space address of
     ///     this process.
-    inline word translate_address(PageTable &ptable, const word address, const AccessType access)
+    inline word translate_address(const PageTable &ptable, const word address,
+                                  const AccessType access)
     {
         const word vpage = address >> kNumPageOffsetBits;
         const word ppage = access_vpage(ptable, vpage, access);
@@ -750,7 +779,7 @@ class VirtualMemory
     /// @param vpage Virtual page to map.
     /// @param access What the page is accessed for.
     /// @return Physical page address.
-    inline word access_vpage(PageTable &ptable, const word vpage, const AccessType access)
+    inline word access_vpage(const PageTable &ptable, const word vpage, const AccessType access)
     {
         const TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
         if (LIKELY(tlb.key == tlb_key(ptable.pid, vpage)
@@ -765,7 +794,7 @@ class VirtualMemory
     /// Translates a virtual page that has no translation in the TLB, or that the
     /// translation does not allow to write: checks the permissions, brings the
     /// page in from disk if it is not in memory, and fills in the TLB.
-    word access_vpage_slow(PageTable &ptable, word vpage, AccessType access);
+    word access_vpage_slow(const PageTable &ptable, word vpage, AccessType access);
 
     /// translate_address for everything that is not in the TLB of the current
     /// process: the page tables, addresses that are physical (virtual memory

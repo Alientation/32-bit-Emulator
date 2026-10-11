@@ -817,7 +817,8 @@ void VirtualMemory::ensure_physical_page_mapping(const long long pid, const word
     map_ppage(pid, vpage, ppage);
 }
 
-word VirtualMemory::access_vpage_slow(PageTable &ptable, const word vpage, const AccessType access)
+word VirtualMemory::access_vpage_slow(const PageTable &ptable, const word vpage,
+                                      const AccessType access)
 {
     const auto it = ptable.entries.find(vpage);
     if (UNLIKELY(it == ptable.entries.end()))

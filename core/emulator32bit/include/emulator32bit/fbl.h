@@ -31,33 +31,39 @@ class FreeBlockList
     FreeBlockList(const FreeBlockList &) = delete;
     FreeBlockList &operator=(const FreeBlockList &) = delete;
 
+    /// What the list throws when a block cannot be taken or returned.
     class Error : public std::exception
     {
       private:
         std::string message;
 
       public:
+        /// @param msg What is wrong.
         Error(const std::string &msg);
 
+        /// @return The message.
         const char *what() const noexcept override;
     };
 
-    /// Get a free block of the specified length.
+    /// Takes a free block of the given length, from the first free block that is long enough.
     ///
     /// @param length Length of the block needed.
-    /// @return Address of the start of free block.
+    /// @return Address of the start of the block.
+    /// @throws Error if no free block is long enough.
     word get_free_block(word length);
 
-    /// Allocates a free block at a specified location.
+    /// Takes the free block at a given place.
     ///
-    /// @param addr Address of the start of free block.
+    /// @param addr Address of the start of the block.
     /// @param length Length of the block.
+    /// @throws Error if the block is not all free.
     void remove_block(word addr, word length);
 
-    /// Returns a block back to the list.
+    /// Returns a block back to the list. Free blocks that touch it are merged into one.
     ///
     /// @param addr Address of the start of block.
     /// @param length Length of the block.
+    /// @throws Error if the block is not inside the range of the list or is free in part.
     void return_block(word addr, word length);
 
     /// Returns a block back to the list even if parts of the block may have not
@@ -66,6 +72,7 @@ class FreeBlockList
     ///
     /// @param addr Address of the start of block.
     /// @param length Length of the block.
+    /// @throws Error if the block is not inside the range of the list.
     void force_return_block(word addr, word length);
 
     /// Resets the list back to a clean state.
@@ -73,28 +80,19 @@ class FreeBlockList
     /// All blocks will be considered free.
     void return_all();
 
-    /// Check if a block of a certain length can be taken out of the list.
-    ///
     /// @param length Length of the block.
-    /// @return True if the block can fit, false otherwise.
-    bool can_fit(word length);
+    /// @return Whether a free block is long enough to take a block of that length from.
+    bool can_fit(word length) const;
 
-    /// Whether the list has run out of free blocks.
-    ///
-    /// @return True if there are no free blocks left, false otherwise.
-    bool empty();
+    /// @return Whether there are no free blocks left.
+    bool empty() const;
 
-    /// Return the total size of the free blocks left in the list.
-    ///
-    /// @return The total size.
-    word size();
+    /// @return The total size of the free blocks left in the list.
+    word size() const;
 
-    /// Get all free blocks in the list.
-    ///
-    /// @return Returns a vector of pairs representing the free blocks in
-    ///     ascending order, the first element is the address, and the second
-    ///     is the length of the block.
-    std::vector<std::pair<word, word>> get_blocks();
+    /// @return The free blocks as pairs of the address and the length, in ascending order of the
+    ///     address.
+    std::vector<std::pair<word, word>> get_blocks() const;
 
   private:
     /// Represents a free block node in the doubly linked list.
@@ -110,7 +108,9 @@ class FreeBlockList
     word m_len;                    ///< Length of the range of blocks represented by list.
     FreeBlock *m_head = nullptr;   ///< Start of list.
 
-    /// Whether the block lies within the range of the list.
+    /// @param addr Address of the start of a block.
+    /// @param length Length of the block.
+    /// @return Whether the block lies within the range of the list.
     bool in_range(word addr, word length) const;
 
     /// Joins the given block with the next block if possible.
@@ -123,7 +123,7 @@ class FreeBlockList
     /// @param length Length of block to query.
     /// @return Pointer to the free block that satisfies the request, nullptr if no
     ///     block can be found.
-    FreeBlock *find(word length);
+    FreeBlock *find(word length) const;
 
     /// Inserts a new free block into the list in sorted order.
     /// @note This will insert a new block regardless of whether it is a valid block

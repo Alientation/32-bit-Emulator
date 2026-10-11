@@ -41,13 +41,13 @@ class PhysicalPages
     ///
     /// @param out Receives the word.
     /// @param address The physical address.
-    /// @return false if no memory is there.
+    /// @return `false` if no memory is there.
     virtual bool read_physical_word(word &out, word address) = 0;
 
     /// Writes a word to a physical address.
     ///
     /// @param address The physical address.
     /// @param value The word to store.
-    /// @return false if no memory is there.
+    /// @return `false` if no memory is there.
     virtual bool write_physical_word(word address, word value) = 0;
 };

@@ -148,6 +148,7 @@ class Timer : public Device
         return m_count;
     }
 
+    /// The bits of CTRL.
     static constexpr word kEnabled = 1;
     static constexpr word kPeriodic = 2;
 
@@ -220,7 +221,7 @@ class Console : public Device
 
     /// For WFI with nothing else to wait for: blocks until the host supplies a byte.
     ///
-    /// @return false if the input has ended and no byte will come (or there is no live input).
+    /// @return `false` if the input has ended and no byte will come (or there is no live input).
     bool wait_host_input();
 
     void reset() override;
@@ -316,12 +317,12 @@ class BlockDevice : public Device
     ///
     /// @param path The file.
     /// @param sectors The minimum number of sectors.
-    /// @return false if the file cannot be read.
+    /// @return `false` if the file cannot be read.
     bool open_file(const std::string &path, word sectors = 0);
 
     /// Writes the disk to its file, if it has one.
     ///
-    /// @return false on an error.
+    /// @return `false` on an error.
     bool save();
 
     /// Called after each instruction that completes.
@@ -383,14 +384,14 @@ class BlockDevice : public Device
     ///
     /// @param list The address of the list.
     /// @param count The number of descriptors.
-    /// @return false if there are none, too many, or the list is not all in RAM.
+    /// @return `false` if there are none, too many, or the list is not all in RAM.
     bool read_descriptors(word list, word count);
 
     /// Moves the segments of the command between the disk and RAM. Nothing is moved unless all of
     /// them fit on both sides.
     ///
-    /// @param to_disk true to copy from RAM to the disk, false for the other way.
-    /// @return false if the transfer is not valid.
+    /// @param to_disk `true` to copy from RAM to the disk, false for the other way.
+    /// @return `false` if the transfer is not valid.
     bool transfer(bool to_disk);
 
     /// Finishes the command: does its work, sets done (and error if it failed) and raises the

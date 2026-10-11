@@ -66,7 +66,7 @@ class GdbServer
     /// @param port The TCP port on 127.0.0.1.
     /// @param ready Called with the port once it is listening (0 asks for any free port), or null.
     /// @param log Where to say what happens (a connection, an error), or null.
-    /// @return false if the port could not be listened on.
+    /// @return `false` if the port could not be listened on.
     static bool serve(Emulator32bit &emu, std::uint16_t port, void (*ready)(std::uint16_t port),
                       std::ostream *log);
 

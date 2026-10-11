@@ -623,7 +623,7 @@ class Client : public GdbServer::InterruptSource
         return true;
     }
 
-    /// @return false when the client hung up.
+    /// @return `false` when the client hung up.
     bool read_byte(char &c)
     {
         return recv(m_fd, &c, 1, 0) == 1;

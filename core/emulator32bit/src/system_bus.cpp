@@ -63,7 +63,7 @@ SystemBus::~SystemBus()
     }
 }
 
-void SystemBus::validate_memory()
+void SystemBus::validate_memory() const
 {
     struct Named
     {
@@ -101,7 +101,7 @@ void SystemBus::validate_memory()
     }
 }
 
-BaseMemory *SystemBus::find_storage(const word address)
+BaseMemory *SystemBus::find_storage(const word address) const
 {
     if (ram->in_bounds(address)) return ram.get();
     if (rom->in_bounds(address)) return rom.get();

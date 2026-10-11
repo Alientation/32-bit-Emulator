@@ -243,7 +243,7 @@ static word number_option(bool &parse_error, const cxxopts::ParseResult &result,
 
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
-/// @return false if there was one.
+/// @return `false` if there was one.
 static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 {
     bool parse_error = false;
@@ -423,7 +423,7 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 /// Makes the machine, loads the program and sets the state and the devices up as asked.
 ///
 /// @return The machine, or null (after saying why) if a file could not be read.
-static std::unique_ptr<Emulator32bit> make_machine(CliArgs &args,
+static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
                                                    const cxxopts::ParseResult &result)
 {
     auto ram = std::make_unique<RAM>(args.ram_npages, args.ram_start_page);

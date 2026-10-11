@@ -50,8 +50,10 @@ class Disk : public BaseMemory
         std::string message;
 
       public:
+        /// @param msg What is wrong.
         ReadError(const std::string &msg);
 
+        /// @return The message.
         const char *what() const noexcept override;
     };
 
@@ -62,114 +64,95 @@ class Disk : public BaseMemory
         std::string message;
 
       public:
+        /// @param msg What is wrong.
         WriteError(const std::string &msg);
 
+        /// @return The message.
         const char *what() const noexcept override;
     };
 
-    /// Get a free disk page that is not currently in use.
+    /// Takes a free page of the disk. The page is zeros, whatever it held before.
     ///
-    /// The disk page is not guaranteed to be zero initialized.
-    ///
-    /// @todo The returned exception should be a disk exception to wrap the
-    ///     internal implementation (free block list) and to limit/make more
-    ///     specific what exceptions can actually occur as a result of this request.
-    ///
-    /// @return Address of the free page (the upper bits of a full 32 bit address).
+    /// @return The number of the page (the upper bits of a full 32 bit address).
+    /// @throws FreeBlockList::Error if every page is in use.
     virtual word get_free_page();
 
-    /// Returns a disk page back into the free page list.
+    /// Gives a page back to the free pages.
     ///
-    /// @todo The returned exception should be a disk exception to wrap the
-    ///     internal implementation (free block list) and to limit/make more
-    ///     specific what exceptions can actually occur as a result of this request.
-    ///
-    /// @param page Page address of the returned page.
-    /// @throws Exception Thrown if the return fails TODO: specify what exceptions can
-    ///     occur.
+    /// @param page The number of a page that get_free_page () gave.
+    /// @throws FreeBlockList::Error if the page is not one that is in use.
     virtual void return_page(word page);
 
     /// Reads a disk page.
     ///
-    /// Page data is returned as a vector of @ref kPageSize bytes,
-    /// the first element corresponding to the byte at the start of the page.
-    ///
-    /// @param page Disk page address to read.
-    /// @throws ReadError If the read fails. TODO: specify what exceptions can
-    ///     occur.
-    /// @return Page data corresponding to the page address.
+    /// @param page The number of the page.
+    /// @return The kPageSize bytes of the page, the first one at the start of the page.
+    /// @throws ReadError if the page is not on the disk.
     std::vector<byte> read_page(word page);
 
-    /// Reads a disk page into a buffer, which the swapping uses so that it
-    /// does not allocate a vector for every page.
+    /// Reads a disk page into a buffer, which the swapping uses so that it does not allocate a
+    /// vector for every page.
     ///
     /// @param out Room for kPageSize bytes.
-    /// @param page Disk page address to read.
+    /// @param page The number of the page.
+    /// @throws ReadError if the page is not on the disk.
     virtual void read_page(byte *out, word page);
 
-    /// Reads a byte from disk.
+    /// Reads a byte from the disk.
     ///
-    /// @param address Full address of byte to read.
-    /// @throws ReadError If the read fails. TODO: specify what exceptions can
-    ///     occur.
-    /// @return Byte located at the address in disk.
+    /// @param address The full address of the byte.
+    /// @return The byte.
+    /// @throws ReadError if the address is not on the disk.
     byte read_byte(word address) override;
 
-    /// Reads a half word (2 bytes) from disk.
+    /// Reads a half word (2 bytes) from the disk, little endian.
     ///
-    /// @param address Full address of hword to read.
-    /// @throws ReadError If the read fails. TODO: specify what exceptions can
-    ///     occur.
-    /// @return Half word located at the address in disk in little endian format.
+    /// @param address The full address of the half word.
+    /// @return The half word.
+    /// @throws ReadError if the address is not on the disk.
     hword read_hword(word address) override;
 
-    /// Reads a word (4 bytes) from disk.
+    /// Reads a word (4 bytes) from the disk, little endian.
     ///
-    /// @param address Full address of word to read.
-    /// @throws ReadError If the read fails. TODO: specify what exceptions can
-    ///     occur.
-    /// @return Word located at the address in disk in little endian format.
+    /// @param address The full address of the word.
+    /// @return The word.
+    /// @throws ReadError if the address is not on the disk.
     word read_word(word address) override;
 
-    /// Write a page to disk.
+    /// Writes a page to the disk.
     ///
-    /// Page data is given as a vector of @ref kPageSize bytes, where the first
-    /// byte is written to the start of the page on disk.
-    ///
-    /// @param page Page address to write to.
-    /// @throws WriteError If the write fails. TODO: specify what exceptions can
-    ///     occur.
+    /// @param page The number of the page.
+    /// @param data The new contents: kPageSize bytes, the first one at the start of the page.
+    /// @throws WriteError if `data` is not kPageSize bytes.
+    /// @throws ReadError if the page is not on the disk.
     void write_page(word page, const std::vector<byte> &data);
 
-    /// Writes kPageSize bytes to a disk page (the vector version checks the
-    /// size and calls this).
+    /// Writes kPageSize bytes to a disk page (the vector version checks the size and calls this).
     ///
-    /// @param page Page address to write to.
+    /// @param page The number of the page.
     /// @param data kPageSize bytes.
+    /// @throws ReadError if the page is not on the disk.
     virtual void write_page(word page, const byte *data);
 
-    /// Writes a byte to disk.
+    /// Writes a byte to the disk.
     ///
-    /// @param address Full address of the location to write the byte to.
-    /// @param data Byte to write.
-    /// @throws WriteError If the write fails. TODO: specify what exceptions can
-    ///     occur.
+    /// @param address The full address of the byte.
+    /// @param data The byte to write.
+    /// @throws ReadError if the address is not on the disk.
     void write_byte(word address, byte data) override;
 
-    /// Writes a half word (2 bytes) to disk in little endian format.
+    /// Writes a half word (2 bytes) to the disk, little endian.
     ///
-    /// @param address Full address of the location to write the half word to.
-    /// @param data Half word to write.
-    /// @throws WriteError If the write fails. TODO: specify what exceptions can
-    ///     occur.
+    /// @param address The full address of the half word.
+    /// @param data The half word to write.
+    /// @throws ReadError if the address is not on the disk.
     void write_hword(word address, hword data) override;
 
-    /// Writes a word (4 bytes) to disk in little endian format.
+    /// Writes a word (4 bytes) to the disk, little endian.
     ///
-    /// @param address Full address of the location to write the word to.
-    /// @param data Word to write.
-    /// @throws WriteError If the write fails. TODO: specify what exceptions can
-    ///     occur.
+    /// @param address The full address of the word.
+    /// @param data The word to write.
+    /// @throws ReadError if the address is not on the disk.
     void write_word(word address, word data) override;
 
     /// Saves the simulated disk to file.
@@ -211,14 +194,10 @@ class Disk : public BaseMemory
     /// Interfaced with by the read byte/hword/word public functions. Note,
     /// reading anything more than 8 bytes will not produce useful results.
     ///
-    /// @todo Have a separate method that reads a stream of bytes so we are not
-    ///     limited by primitive data types.
-    ///
     /// @param address Address to read from.
     /// @param n_bytes Number of bytes to read.
-    /// @throws ReadError If read fails. TODO: Specify what
-    ///     exceptions can occur.
     /// @return Value read.
+    /// @throws ReadError if the address is not on the disk.
     dword read_val(word address, int n_bytes);
 
     /// Writes a little endian value of specified size to disk.
@@ -226,14 +205,10 @@ class Disk : public BaseMemory
     /// Interfaced with by the write byte/hword/word public functions. Note,
     /// writing anything more than 8 bytes will not be useful.
     ///
-    /// @todo Have a separate method that writes a stream of bytes so we are not
-    ///     limited by primitive data types.
-    ///
     /// @param address Address to write to.
     /// @param val Value to write.
     /// @param n_bytes Number of bytes to write.
-    /// @throws WriteError If write fails. TODO: Specify what
-    ///     exceptions can occur.
+    /// @throws ReadError if the address is not on the disk.
     void write_val(word address, dword val, int n_bytes);
 
     /// Accesses a cache page.
@@ -277,7 +252,7 @@ class MockDisk : public Disk
   public:
     MockDisk();
 
-    // The same operations as Disk, on the pages in memory.
+    // The same operations as Disk, on the pages in memory (see Disk for what each one does).
     word get_free_page() override;
     void return_page(word page) override;
 
@@ -285,7 +260,7 @@ class MockDisk : public Disk
     using Disk::write_page;
     void read_page(byte *out, word page) override;
     byte read_byte(word address) override;
-    hword read_hword(word addressn) override;
+    hword read_hword(word address) override;
     word read_word(word address) override;
 
     void write_page(word page, const byte *data) override;

@@ -276,7 +276,7 @@ class Emulator32bit
     ///        the same memory under another virtual address).
     /// @param compare The condition on the value of the access.
     /// @param compare_value The number the value is compared with.
-    /// @return false if there are kMaxWatchpoints already and this is not a replacement.
+    /// @return `false` if there are kMaxWatchpoints already and this is not a replacement.
     bool add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE,
                         bool physical = false, WatchCompare compare = WatchCompare::NONE,
                         word compare_value = 0);
@@ -322,14 +322,14 @@ class Emulator32bit
     /// and a watch on a register that is watched already replaces it.
     ///
     /// @param reg The number of the register.
-    /// @return false if kMaxRegisterWatches registers are watched already and this is not one.
+    /// @return `false` if kMaxRegisterWatches registers are watched already and this is not one.
     bool add_register_watch(U8 reg);
 
     /// A watch that only stops when the register changes to `value`.
     ///
     /// @param reg The number of the register.
     /// @param value The value that stops the run.
-    /// @return false if kMaxRegisterWatches registers are watched already and this is not one.
+    /// @return `false` if kMaxRegisterWatches registers are watched already and this is not one.
     bool add_register_watch(U8 reg, word value);
 
     /// @param reg The number of a watched register.
@@ -418,7 +418,7 @@ class Emulator32bit
     }
 
     /// @return The virtual address of the next instruction.
-    inline word get_pc()
+    inline word get_pc() const
     {
         return m_pc;
     }
@@ -467,7 +467,7 @@ class Emulator32bit
 
     /// @param flag The bit number of PSTATE, e.g. kZFlagBit.
     /// @return Whether the bit is set.
-    inline bool get_flag(const U8 flag)
+    inline bool get_flag(const U8 flag) const
     {
         return test_bit(m_pstate, flag);
     }
@@ -491,7 +491,7 @@ class Emulator32bit
     }
 
     /// @return The NZCV flags of PSTATE.
-    inline NZCVFlags get_NZCV()
+    inline NZCVFlags get_NZCV() const
     {
         return {
             .n = test_bit<kNFlagBit>(m_pstate),
@@ -649,11 +649,11 @@ class Emulator32bit
 
     /// Switches to user or kernel mode, and to the stack pointer of that mode.
     ///
-    /// @param user true for user mode.
+    /// @param user `true` for user mode.
     void set_user_mode(bool user);
 
     /// Throws the undefined instruction exception of a privileged instruction in user mode.
-    void require_kernel();
+    void require_kernel() const;
 
     /// Called by the memory instructions after a successful access of `length` bytes. `value` is
     /// what was loaded or stored.
@@ -843,12 +843,14 @@ class Emulator32bit
     /// @param sysreg The system register number (kSysregId_*).
     /// @param imm Whether the source is an immediate, otherwise a register.
     /// @param xn_or_imm16 The register number, or the 16 bit immediate.
+    /// @return The instruction word.
     static word asm_msr(U8 sysreg, bool imm, word xn_or_imm16);
 
     /// Encodes `mrs xn, sysreg`.
     ///
     /// @param xn The destination register.
     /// @param sysreg The system register number (kSysregId_*).
+    /// @return The instruction word.
     static word asm_mrs(U8 xn, U8 sysreg);
 
     /// Encodes `tlbi` (all translations) or `tlbi xt` (the page that holds the address in xt).
@@ -856,6 +858,7 @@ class Emulator32bit
     /// @param xt The register that holds the address.
     /// @param isxt Whether the form with a register is used.
     /// @param imm16 Reserved, 0.
+    /// @return The instruction word.
     static word asm_tlbi(U8 xt, bool isxt, word imm16);
 
     /// @return `eret`.
@@ -867,6 +870,7 @@ class Emulator32bit
     /// Encodes `brk imm22`.
     ///
     /// @param imm22 The 22 bit number of the breakpoint.
+    /// @return The instruction word.
     static word asm_brk(word imm22);
 
     /// Encodes one of the unary operations `op xd, xn` (sxtb, clz, rev, ...).
@@ -874,6 +878,7 @@ class Emulator32bit
     /// @param op The operation (kUnaryId_*).
     /// @param xd The destination register.
     /// @param xn The source register.
+    /// @return The instruction word.
     static word asm_unary(word op, word xd, word xn);
 
     /// Encodes a unary floating point instruction or a conversion (`fabs`, `fsqrt`, `fcvt`...,
@@ -883,23 +888,37 @@ class Emulator32bit
     /// @param dbl The precision bit, see fpu::unary_dest_is_pair.
     /// @param xd The destination register (the first one of a pair for a double).
     /// @param xn The source register.
+    /// @return The instruction word.
     static word asm_fop1(U8 fn, bool dbl, int xd, int xn);
 
     /// Encodes a binary floating point instruction `fadd`, ... `xd, xn, xm` (format F2).
     ///
     /// @param fn The function (fpu::kBinaryFn_*).
     /// @param dbl Whether the operands and the result are doubles.
+    /// @param xd The destination register (the first one of a pair for a double).
+    /// @param xn The first operand.
+    /// @param xm The second operand.
+    /// @return The instruction word.
     static word asm_fop2(U8 fn, bool dbl, int xd, int xn, int xm);
 
     /// Encodes a fused multiply-add `fmadd`, ... `xd, xn, xm, xa` (format F4).
     ///
     /// @param fn The function (fpu::kFmaFn_*).
     /// @param dbl Whether the operands and the result are doubles.
+    /// @param xd The destination register (the first one of a pair for a double).
+    /// @param xn The first factor.
+    /// @param xm The second factor.
+    /// @param xa The addend.
+    /// @return The instruction word.
     static word asm_fop3(U8 fn, bool dbl, int xd, int xn, int xm, int xa);
 
     /// Encodes `fcmp` or `fcmpe xn, xm` (format F3).
     ///
+    /// @param dbl Whether the operands are doubles.
     /// @param signaling `fcmpe`: a quiet NaN raises Invalid too.
+    /// @param xn The first operand.
+    /// @param xm The second operand.
+    /// @return The instruction word.
     static word asm_fcmp(bool dbl, bool signaling, int xn, int xm);
 
     /// Encodes `csel`, `csinc`, `csinv` or `csneg xd, xn, xm, cond`.
@@ -909,6 +928,7 @@ class Emulator32bit
     /// @param xd The destination register.
     /// @param xn The register that is chosen if the condition holds.
     /// @param xm The register that the other value is made from.
+    /// @return The instruction word.
     static word asm_csel(word variant, ConditionCode cond, word xd, word xn, word xm);
 
     /// Encodes an atomic read-modify-write.
@@ -918,6 +938,7 @@ class Emulator32bit
     /// @param xm The register that holds the operand.
     /// @param width The access width (kAtomicWidth_*).
     /// @param atop The operation (kAtomicId_*).
+    /// @return The instruction word.
     static word asm_atomic(word xt, word xn, word xm, U8 width, U8 atop);
 
     /// Constructs instructions of format O with an imm14 operand.
@@ -950,17 +971,19 @@ class Emulator32bit
     /// @param xm 5 bit register identifier of the amount.
     /// @param imm5 The amount.
     /// @param s Whether condition flags are set.
+    /// @return The instruction word.
     static word asm_format_o1(ShiftType type, int xd, int xn, bool imm, int xm, int imm5,
                               bool s = false);
 
     /// Constructs instructions of format O2 (the long multiplies), with two destination registers.
     ///
-    /// @param is_signed smull, otherwise umull; they are one opcode, `_op_mull`.
+    /// @param is_signed Smull, otherwise umull; they are one opcode, `_op_mull`.
     /// @param s Whether condition flags are set.
     /// @param xlo 5 bit register identifier that receives the low word.
     /// @param xhi 5 bit register identifier that receives the high word.
     /// @param xn 5 bit identifier of the first operand register.
     /// @param xm 5 bit identifier of the second operand register.
+    /// @return The instruction word.
     static word asm_format_o2(bool is_signed, bool s, int xlo, int xhi, int xn, int xm);
 
     /// Constructs instructions of format O3 with an imm19 operand (`mov`, `mvn`).
@@ -969,6 +992,7 @@ class Emulator32bit
     /// @param s Whether condition flags are set.
     /// @param xd 5 bit destination register identifier.
     /// @param imm19 19 bit immediate value.
+    /// @return The instruction word.
     static word asm_format_o3(U8 opcode, bool s, int xd, int imm19);
 
     /// Constructs instructions of format O3 with a register and an imm14 operand.
@@ -978,6 +1002,7 @@ class Emulator32bit
     /// @param xd 5 bit destination register identifier.
     /// @param xn 5 bit operand register identifier.
     /// @param imm14 14 bit immediate value.
+    /// @return The instruction word.
     static word asm_format_o3(U8 opcode, bool s, int xd, int xn, int imm14);
 
     /// Constructs a load or store (format M) with a register offset.
@@ -990,6 +1015,7 @@ class Emulator32bit
     /// @param shift Shift type to be applied on the value in the xm register.
     /// @param imm5 Shift amount.
     /// @param adr How the offset is applied to the base.
+    /// @return The instruction word.
     static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
                              int imm5, encoding::AddrType adr);
 
@@ -1001,6 +1027,7 @@ class Emulator32bit
     /// @param xn 5 bit base register identifier.
     /// @param simm12 12 bit signed offset.
     /// @param adr How the offset is applied to the base.
+    /// @return The instruction word.
     static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int simm12,
                              encoding::AddrType adr);
 
@@ -1009,6 +1036,7 @@ class Emulator32bit
     /// @param opcode 6 bit identifier of the instruction.
     /// @param xd 5 bit destination register identifier.
     /// @param imm20 20 bit immediate value.
+    /// @return The instruction word.
     static word asm_format_m1(U8 opcode, int xd, int imm20);
 
     /// Constructs an instruction of format B1: a branch to a pc relative offset (also `swi`).
@@ -1016,6 +1044,7 @@ class Emulator32bit
     /// @param opcode 6 bit identifier of the instruction.
     /// @param cond The condition under which the branch is taken.
     /// @param simm22 22 bit signed offset, in instructions.
+    /// @return The instruction word.
     static word asm_format_b1(U8 opcode, ConditionCode cond, sword simm22);
 
     /// Constructs a branch (format B2) to the address in a register (`bx`, or `blx` with `link`).
@@ -1023,6 +1052,7 @@ class Emulator32bit
     /// @param cond The condition under which the branch is taken.
     /// @param xd 5 bit register identifier that holds the target.
     /// @param link Whether x29 gets the address of the next instruction (`blx`).
+    /// @return The instruction word.
     static word asm_format_b2(ConditionCode cond, int xd, bool link = false);
 
     /// @param instr An instruction word.

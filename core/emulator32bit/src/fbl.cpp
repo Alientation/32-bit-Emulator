@@ -215,7 +215,7 @@ void FreeBlockList::return_all()
                           };
 }
 
-std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
+std::vector<std::pair<word, word>> FreeBlockList::get_blocks() const
 {
     std::vector<std::pair<word, word>> blocks;
     for (const FreeBlock *cur = m_head; cur; cur = cur->next)
@@ -225,17 +225,17 @@ std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
     return blocks;
 }
 
-bool FreeBlockList::can_fit(const word length)
+bool FreeBlockList::can_fit(const word length) const
 {
     return find(length) != nullptr;
 }
 
-bool FreeBlockList::empty()
+bool FreeBlockList::empty() const
 {
     return size() == 0;
 }
 
-word FreeBlockList::size()
+word FreeBlockList::size() const
 {
     word size = 0;
     for (const FreeBlock *cur = m_head; cur; cur = cur->next)
@@ -245,7 +245,7 @@ word FreeBlockList::size()
     return size;
 }
 
-FreeBlockList::FreeBlock *FreeBlockList::find(const word length)
+FreeBlockList::FreeBlock *FreeBlockList::find(const word length) const
 {
     for (FreeBlock *cur = m_head; cur; cur = cur->next)
     {

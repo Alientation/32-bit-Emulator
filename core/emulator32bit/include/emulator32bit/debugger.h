@@ -86,7 +86,7 @@ class Debugger
     /// Executes one command line.
     ///
     /// @param line The command and its arguments.
-    /// @return false when the debugger should end.
+    /// @return `false` when the debugger should end.
     bool execute(const std::string &line);
 
     /// @return Whether the program ended (halted or faulted). It can run again after the pc is set.

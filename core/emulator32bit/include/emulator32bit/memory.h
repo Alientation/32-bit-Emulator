@@ -104,6 +104,8 @@ class BaseMemory
 /// Reads a byte, half word or word (T is `byte`, `hword` or `word`) from a memory. Called with a
 /// RAM or ROM the access is not virtual, called with a BaseMemory it is.
 ///
+/// @tparam T The type to read.
+/// @tparam Mem The type of the memory.
 /// @param memory The memory to read from.
 /// @param address The address to read at.
 /// @return The value.
@@ -117,6 +119,8 @@ template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
 
 /// The counterpart of mem_read.
 ///
+/// @tparam T The type to write.
+/// @tparam Mem The type of the memory.
 /// @param memory The memory to write to.
 /// @param address The address to write at.
 /// @param value The value to store.
@@ -225,8 +229,8 @@ class RAM final : public Memory
 {
   public:
     /// @param npages The number of pages in the RAM.
-    /// @param start_pages The page number of the first page.
-    RAM(word npages, word start_pages);
+    /// @param start_page The page number of the first page.
+    RAM(word npages, word start_page);
 };
 
 /// Memory that a program cannot write. The ROM object itself is writable, which is how an image
