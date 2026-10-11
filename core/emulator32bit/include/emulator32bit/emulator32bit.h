@@ -607,6 +607,7 @@ class Emulator32bit
     void write_back_base(const MemOperand &operand);
 
     /// Runs the handler of the opcode of `instr` (a switch generated from AEMU_OPCODES).
+    /// An opcode that is not listed faults with BAD_INSTR.
     void execute(word instr);
 
     /// `execute ()` that writes the trace line of the instruction:

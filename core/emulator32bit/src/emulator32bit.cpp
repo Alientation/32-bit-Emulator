@@ -17,23 +17,23 @@ using namespace encoding;
 namespace
 {
 
-// AEMU_OPCODES is the only list of opcodes, so this is where a mistake in it is caught.
 constexpr word kListedOpcodes[] = {
 #define AEMU_OPCODE_VALUE(name, opcode) opcode,
     AEMU_OPCODES(AEMU_OPCODE_VALUE)
 #undef AEMU_OPCODE_VALUE
 };
 
+// AEMU_OPCODES is the only list of opcodes, so this checks it at compile time.
 constexpr bool opcodes_are_valid()
 {
     for (size_t i = 0; i < std::size(kListedOpcodes); i++)
     {
-        // Does not fit in the 6 bit opcode field.
+        // The opcode does not fit in the 6 bit opcode field.
         if (kListedOpcodes[i] >= kMaxInstructions) return false;
 
         for (size_t j = 0; j < i; j++)
         {
-            // Two instructions with one opcode.
+            // Two instructions with the same opcode.
             if (kListedOpcodes[i] == kListedOpcodes[j]) return false;
         }
     }
@@ -66,8 +66,8 @@ Emulator32bit::Emulator32bit(const word ram_npages, const word ram_start_page,
 Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
                              std::unique_ptr<Disk> disk) :
     system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk))),
-    // The pages that are paged in are the pages of the RAM, and are swapped out to the disk. Made
-    // after the bus owns them, so that they are freed with it if making the MMU throws.
+    // Paged in pages live in the RAM and are swapped out to the disk. The MMU is made after the bus
+    // owns the RAM, ROM and disk, so they are freed with it if making the MMU throws.
     mmu(std::make_unique<VirtualMemory>(*system_bus->disk, system_bus->ram->get_lo_page(),
                                         system_bus->ram->get_mem_pages(), system_bus.get())),
     memory(*system_bus, *mmu)
@@ -100,9 +100,6 @@ Emulator32bit::TrapType Emulator32bit::Trap::get_type() const noexcept
     return type;
 }
 
-// A switch over the opcodes, generated from the list, instead of a table of function pointers: the
-// calls are direct, so the compiler can inline the handlers and jumps through one table. An opcode
-// that is not listed is a bad opcode.
 [[gnu::always_inline]] inline void Emulator32bit::execute(const word instr)
 {
     switch (bitfield_unsigned<26, 6>(instr))
@@ -121,6 +118,7 @@ Emulator32bit::TrapType Emulator32bit::Trap::get_type() const noexcept
 
 inline void Emulator32bit::record_history(const word instr)
 {
+    // Once the ring buffer is full, the oldest entry is overwritten.
     m_history.pc[m_history.head] = m_pc;
     m_history.instruction[m_history.head] = instr;
     if (++m_history.head == m_history.size) m_history.head = 0;
