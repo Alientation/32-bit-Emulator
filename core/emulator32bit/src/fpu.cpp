@@ -143,19 +143,19 @@ struct Format<double>
     static constexpr Bits kDefaultNan = 0x7FF8000000000000ull;
 };
 
-template <class T>
+template<class T>
 T from_bits(const U64 bits)
 {
     return std::bit_cast<T>(typename Format<T>::Bits(bits));
 }
 
-template <class T>
+template<class T>
 U64 to_bits(const T value)
 {
     return U64(std::bit_cast<typename Format<T>::Bits>(value));
 }
 
-template <class T>
+template<class T>
 bool is_signaling_nan(const T value)
 {
     using F = Format<T>;
@@ -165,13 +165,13 @@ bool is_signaling_nan(const T value)
 }
 
 /// @return The bits of @p value, or the default NaN if it is one.
-template <class T>
+template<class T>
 U64 canonical(const T value)
 {
     return value != value ? U64(Format<T>::kDefaultNan) : to_bits(value);
 }
 
-template <class T>
+template<class T>
 Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word rounding)
 {
     const T a = from_bits<T>(abits);
@@ -219,7 +219,7 @@ Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word round
 
 /// a * b + c with one rounding. The signs of the operands are changed first for the other three
 /// functions; a sign change is exact, and the result of a NaN is the default NaN anyway.
-template <class T>
+template<class T>
 Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, const word rounding)
 {
     T a = from_bits<T>(abits);
@@ -243,7 +243,7 @@ Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, 
     return {.value = canonical(value), .flags = host.flags()};
 }
 
-template <class T>
+template<class T>
 Result sqrt_op(const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
@@ -254,7 +254,7 @@ Result sqrt_op(const U64 abits, const word rounding)
 }
 
 /// Abs, neg: the sign bit and nothing else.
-template <class T>
+template<class T>
 Result sign_op(const U8 fn, const U64 abits)
 {
     using F = Format<T>;
@@ -263,7 +263,7 @@ Result sign_op(const U8 fn, const U64 abits)
 }
 
 /// The rint family: round to an integral value and stay a float. Inexact is not raised.
-template <class T>
+template<class T>
 Result rint_op(const U8 fn, const U64 abits, const word rounding)
 {
     const T a = from_bits<T>(abits);
@@ -300,7 +300,7 @@ Result rint_op(const U8 fn, const U64 abits, const word rounding)
 }
 
 /// Float to a 32 bit integer, saturating. A NaN gives 0.
-template <class T>
+template<class T>
 Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     const bool is_signed = fn == kUnaryFn_tos32 || fn == kUnaryFn_tos32r;
@@ -353,7 +353,7 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 }
 
 /// A 32 bit integer to a float, rounded in the mode of the FPCR.
-template <class T>
+template<class T>
 Result from_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     HostFpu host(rounding);

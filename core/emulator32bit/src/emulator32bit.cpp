@@ -28,16 +28,13 @@ constexpr bool opcodes_are_valid()
 {
     for (size_t i = 0; i < std::size(kListedOpcodes); i++)
     {
-        if (kListedOpcodes[i] >= kMaxInstructions)
-        {
-            return false; // does not fit in the 6 bit opcode field
-        }
+        // Does not fit in the 6 bit opcode field.
+        if (kListedOpcodes[i] >= kMaxInstructions) return false;
+
         for (size_t j = 0; j < i; j++)
         {
-            if (kListedOpcodes[i] == kListedOpcodes[j])
-            {
-                return false; // two instructions with one opcode
-            }
+            // Two instructions with one opcode.
+            if (kListedOpcodes[i] == kListedOpcodes[j]) return false;
         }
     }
     return true;
@@ -266,8 +263,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             // An interrupt is taken between two instructions, if the program has installed a
             // vector table and unmasked IRQs. The resume address is the instruction that would
             // have executed.
-            if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0
-                && !test_bit<kIrqMaskBit>(m_pstate))
+            if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0 && !test_bit<kIrqMaskBit>(m_pstate))
             {
                 enter_exception(ExceptionClass::IRQ, 0, 0, m_pc);
                 m_pc_written = false;
@@ -336,8 +332,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
     {
         if (e.get_type() == TrapType::HALT_INSTR)
         {
-            AEMU_DEBUG("Halted after {} instructions.",
-                       result.instructions_ran);
+            AEMU_DEBUG("Halted after {} instructions.", result.instructions_ran);
             result.status = RunResult::Status::HALTED;
             result.message = e.what();
             // The hlt ran, if it was the first instruction of a handler that is not a double fault.
@@ -428,10 +423,7 @@ bool Emulator32bit::add_watchpoint(const word address, const word length, const 
     const unsigned i = find_watchpoint(address, physical);
     if (i == m_watchpoints.count)
     {
-        if (m_watchpoints.count == kMaxWatchpoints)
-        {
-            return false;
-        }
+        if (m_watchpoints.count == kMaxWatchpoints) return false;
         m_watchpoints.count++;
     }
     m_watchpoints.address[i] = address;
@@ -503,11 +495,8 @@ Emulator32bit::Watchpoint Emulator32bit::watchpoint(const unsigned i) const
 unsigned Emulator32bit::find_register_watch(const U8 reg) const
 {
     unsigned i = 0;
-    while (i < m_regwatches.count && m_regwatches.reg[i] != reg)
-    {
-        i++;
-    }
-    return i; // m_regwatches.count if there is none
+    while (i < m_regwatches.count && m_regwatches.reg[i] != reg) i++;
+    return i; // The count, if there is none.
 }
 
 bool Emulator32bit::set_register_watch(const U8 reg, const bool has_value, const word value)
@@ -516,10 +505,7 @@ bool Emulator32bit::set_register_watch(const U8 reg, const bool has_value, const
     const unsigned i = find_register_watch(reg);
     if (i == m_regwatches.count)
     {
-        if (m_regwatches.count == kMaxRegisterWatches)
-        {
-            return false;
-        }
+        if (m_regwatches.count == kMaxRegisterWatches) return false;
         m_regwatches.count++;
     }
     m_regwatches.reg[i] = reg;
@@ -542,10 +528,7 @@ bool Emulator32bit::add_register_watch(const U8 reg, const word value)
 bool Emulator32bit::remove_register_watch(const U8 reg)
 {
     const unsigned i = find_register_watch(reg);
-    if (i == m_regwatches.count)
-    {
-        return false;
-    }
+    if (i == m_regwatches.count) return false;
     const unsigned last = --m_regwatches.count;
     m_regwatches.reg[i] = m_regwatches.reg[last];
     m_regwatches.has_value.copy(last, i);
@@ -595,12 +578,13 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
     for (unsigned i = 0; i < m_watchpoints.count; i++)
     {
         const WatchKind kind = m_watchpoints.kind[i];
-        const bool kind_matches = (static_cast<U8>(kind)
-                                   & (write ? static_cast<U8>(WatchKind::WRITE)
-                                            : static_cast<U8>(WatchKind::READ)))
-                                  != 0;
+        const bool kind_matches =
+            (static_cast<U8>(kind)
+             & (write ? static_cast<U8>(WatchKind::WRITE) : static_cast<U8>(WatchKind::READ)))
+            != 0;
         if (!kind_matches
-            || !watch_compare_holds(m_watchpoints.compare[i], value, m_watchpoints.compare_value[i]))
+            || !watch_compare_holds(m_watchpoints.compare[i], value,
+                                    m_watchpoints.compare_value[i]))
         {
             continue;
         }
@@ -622,12 +606,14 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
         {
             overlaps = first < watched_end && U64(watched) < last;
         }
+
         if (overlaps)
         {
-            m_watchpoints.hit_message = std::format("Watchpoint {}{:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
-                                      "the instruction at {:#010x}",
-                                      physical ? "physical " : "", watched, write ? "write" : "read",
-                                      value, length, length == 1 ? "" : "s", address, m_pc);
+            m_watchpoints.hit_message =
+                std::format("Watchpoint {}{:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
+                            "the instruction at {:#010x}",
+                            physical ? "physical " : "", watched, write ? "write" : "read", value,
+                            length, length == 1 ? "" : "s", address, m_pc);
             if (write)
             {
                 m_watchpoints.hit_message += std::format(", the old value was {:#x}", old_value);
@@ -711,8 +697,10 @@ void Emulator32bit::execute_hooked(const word instr)
         const U8 opcode = bitfield_unsigned<26, 6>(instr);
         if (opcode == _op_str || opcode == _op_strh || opcode == _op_strb)
         {
-            m_watchpoints.old_value = watch_old_value(data_address_of(instr),
-                                          opcode == _op_str ? 4 : opcode == _op_strh ? 2 : 1);
+            m_watchpoints.old_value =
+                watch_old_value(data_address_of(instr), opcode == _op_str    ? 4
+                                                        : opcode == _op_strh ? 2
+                                                                             : 1);
         }
     }
 
@@ -724,20 +712,14 @@ void Emulator32bit::execute_traced(const word instr)
 {
     const word pc = m_pc;
     word regs_before[kNumReg];
-    for (U8 r = 0; r < kNumReg; r++)
-    {
-        regs_before[r] = m_x[r];
-    }
+    for (U8 r = 0; r < kNumReg; r++) regs_before[r] = m_x[r];
     const word pstate_before = m_pstate;
 
     std::string line = std::format("{:#010x}", pc);
     if (m_trace.symbols != nullptr)
     {
         const std::string name = m_trace.symbols->describe(pc);
-        if (!name.empty())
-        {
-            line += " <" + name + ">";
-        }
+        if (!name.empty()) line += " <" + name + ">";
     }
     line += ": " + disassemble_instr(instr);
 
@@ -765,6 +747,7 @@ void Emulator32bit::execute_traced(const word instr)
             changes += std::format(" {}={:#x}->{:#x}", register_name(r), regs_before[r], m_x[r]);
         }
     }
+
     if (m_pstate != pstate_before)
     {
         changes += " NZCV=" + flag_letters(pstate_before) + "->" + flag_letters(m_pstate);
@@ -805,16 +788,10 @@ const char *Emulator32bit::exception_class_name(const ExceptionClass cls)
 std::optional<U8> Emulator32bit::sysreg_id(const std::string &name)
 {
     std::string lower = name;
-    for (char &c : lower)
-    {
-        c = char(std::tolower(static_cast<unsigned char>(c)));
-    }
+    for (char &c : lower) c = char(std::tolower(static_cast<unsigned char>(c)));
     for (const SysregName &sysreg : kSysregNames)
     {
-        if (lower == sysreg.name)
-        {
-            return sysreg.id;
-        }
+        if (lower == sysreg.name) return sysreg.id;
     }
     return std::nullopt;
 }
@@ -963,17 +940,14 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     if (m_trace.out != nullptr)
     {
         *m_trace.out << std::format("-- exception: {}, ESR={:#x}, ELR={:#x}, FAR={:#x} -> {:#x}\n",
-                                exception_class_name(cls), m_esr, m_elr, m_far, m_pc);
+                                    exception_class_name(cls), m_esr, m_elr, m_far, m_pc);
     }
 }
 
 bool Emulator32bit::deliver_exception(const std::exception &error, const bool fetching,
                                       const word instr)
 {
-    if (m_vbar == 0)
-    {
-        return false;
-    }
+    if (m_vbar == 0) return false;
 
     if (const auto *emu = dynamic_cast<const Trap *>(&error))
     {
@@ -1040,10 +1014,8 @@ void Emulator32bit::reset()
 {
     system_bus->reset();
     static_assert(sizeof(m_x) / sizeof(m_x[0]) == kNumReg);
-    for (word &reg : m_x)
-    {
-        reg = 0;
-    }
+    for (word &reg : m_x) reg = 0;
+
     // Kernel mode with IRQs masked, and no vector table.
     m_pstate = word(1) << kIrqMaskBit;
     m_pc = 0;
