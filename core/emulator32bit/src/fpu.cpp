@@ -182,16 +182,16 @@ Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word round
         // Like fmin and fmax of C: a NaN operand is ignored. A signaling one is an error.
         if (is_signaling_nan(a) || is_signaling_nan(b))
         {
-            return {Format<T>::kDefaultNan, kInvalid};
+            return {.value = Format<T>::kDefaultNan, .flags = kInvalid};
         }
         if (a != a || b != b)
         {
             const T number = a != a ? b : a;
-            return {canonical(number), 0};
+            return {.value = canonical(number), .flags = 0};
         }
         const bool pick_a = a == b ? (std::signbit(a) == (fn == kBinaryFn_min))
                                    : (fn == kBinaryFn_min ? a < b : a > b);
-        return {to_bits(pick_a ? a : b), 0};
+        return {.value = to_bits(pick_a ? a : b), .flags = 0};
     }
 
     HostFpu host(rounding);
@@ -214,7 +214,7 @@ Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word round
         break;
     }
     const T value = result;
-    return {canonical(value), host.flags()};
+    return {.value = canonical(value), .flags = host.flags()};
 }
 
 /// a * b + c with one rounding. The signs of the operands are changed first for the other three
@@ -240,7 +240,7 @@ Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, 
     volatile T vc = c;
     volatile T result = std::fma(T(va), T(vb), T(vc));
     const T value = result;
-    return {canonical(value), host.flags()};
+    return {.value = canonical(value), .flags = host.flags()};
 }
 
 template <class T>
@@ -250,7 +250,7 @@ Result sqrt_op(const U64 abits, const word rounding)
     volatile T va = from_bits<T>(abits);
     volatile T result = std::sqrt(T(va));
     const T value = result;
-    return {canonical(value), host.flags()};
+    return {.value = canonical(value), .flags = host.flags()};
 }
 
 /// Abs, neg: the sign bit and nothing else.
@@ -259,7 +259,7 @@ Result sign_op(const U8 fn, const U64 abits)
 {
     using F = Format<T>;
     const typename F::Bits bits = typename F::Bits(abits);
-    return {U64(fn == kUnaryFn_abs ? (bits & ~F::kSign) : (bits ^ F::kSign)), 0};
+    return {.value = U64(fn == kUnaryFn_abs ? (bits & ~F::kSign) : (bits ^ F::kSign)), .flags = 0};
 }
 
 /// The rint family: round to an integral value and stay a float. Inexact is not raised.
@@ -269,7 +269,7 @@ Result rint_op(const U8 fn, const U64 abits, const word rounding)
     const T a = from_bits<T>(abits);
     if (a != a)
     {
-        return {Format<T>::kDefaultNan, is_signaling_nan(a) ? kInvalid : 0};
+        return {.value = Format<T>::kDefaultNan, .flags = is_signaling_nan(a) ? kInvalid : 0};
     }
 
     T value;
@@ -296,7 +296,7 @@ Result rint_op(const U8 fn, const U64 abits, const word rounding)
         break;
     }
     }
-    return {to_bits(value), 0};
+    return {.value = to_bits(value), .flags = 0};
 }
 
 /// Float to a 32 bit integer, saturating. A NaN gives 0.
@@ -309,7 +309,7 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 
     if (a != a)
     {
-        return {0, kInvalid};
+        return {.value = 0, .flags = kInvalid};
     }
 
     T rounded;
@@ -332,23 +332,24 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
     {
         if (rounded >= kTwo31)
         {
-            return {std::uint32_t(INT32_MAX), kInvalid};
+            return {.value = std::uint32_t(INT32_MAX), .flags = kInvalid};
         }
         if (rounded < -kTwo31)
         {
-            return {std::uint32_t(INT32_MIN), kInvalid};
+            return {.value = std::uint32_t(INT32_MIN), .flags = kInvalid};
         }
-        return {std::uint32_t(std::int32_t(rounded)), rounded != a ? kInexact : 0};
+        return {.value = std::uint32_t(std::int32_t(rounded)),
+                .flags = rounded != a ? kInexact : 0};
     }
     if (rounded >= kTwo32)
     {
-        return {UINT32_MAX, kInvalid};
+        return {.value = UINT32_MAX, .flags = kInvalid};
     }
     if (rounded <= T(-1))
     {
-        return {0, kInvalid};
+        return {.value = 0, .flags = kInvalid};
     }
-    return {std::uint32_t(rounded), rounded != a ? kInexact : 0};
+    return {.value = std::uint32_t(rounded), .flags = rounded != a ? kInexact : 0};
 }
 
 /// A 32 bit integer to a float, rounded in the mode of the FPCR.
@@ -360,7 +361,7 @@ Result from_int_op(const U8 fn, const U64 abits, const word rounding)
     volatile std::uint32_t vu = std::uint32_t(abits);
     volatile T result = fn == kUnaryFn_froms32 ? T(vs) : T(vu);
     const T value = result;
-    return {to_bits(value), host.flags()};
+    return {.value = to_bits(value), .flags = host.flags()};
 }
 
 } // namespace
@@ -409,16 +410,17 @@ Result unary(const U8 fn, const bool dbl, const U64 a, const word rounding)
         const float f = from_bits<float>(a);
         if (f != f)
         {
-            return {Format<double>::kDefaultNan, is_signaling_nan(f) ? kInvalid : 0};
+            return {.value = Format<double>::kDefaultNan,
+                    .flags = is_signaling_nan(f) ? kInvalid : 0};
         }
-        return {to_bits(double(f)), 0};
+        return {.value = to_bits(double(f)), .flags = 0};
     }
 
     HostFpu host(rounding);
     volatile double vd = from_bits<double>(a);
     volatile float result = float(vd);
     const float f = result;
-    return {canonical(f), host.flags()};
+    return {.value = canonical(f), .flags = host.flags()};
 }
 
 namespace

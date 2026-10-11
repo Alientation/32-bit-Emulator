@@ -712,7 +712,7 @@ class Emulator32bit
         /// The message of the first watchpoint that the running instruction hit, as run () reports.
         std::string hit_message;
         /// The last hit, see last_watch_hit ().
-        WatchHit last_hit{0, WatchKind::WRITE};
+        WatchHit last_hit{.address = 0, .kind = WatchKind::WRITE};
         /// What the store that is about to run replaces, read by execute_hooked () for the message
         /// of a watchpoint (the store handlers themselves are as they were without watchpoints).
         word old_value = 0;

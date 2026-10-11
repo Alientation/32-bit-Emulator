@@ -399,7 +399,8 @@ void BlockDevice::start(const word command)
     word sectors = 1;
     if (command == kCmdDmaRead || command == kCmdDmaWrite)
     {
-        m_segments.push_back({m_command_sector, m_command_count, m_command_addr});
+        m_segments.push_back(
+            {.sector = m_command_sector, .count = m_command_count, .address = m_command_addr});
         sectors = m_command_count;
     }
     else if (command == kCmdScatterRead || command == kCmdScatterWrite)

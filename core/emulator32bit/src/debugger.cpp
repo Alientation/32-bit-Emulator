@@ -761,9 +761,12 @@ struct ConditionName
 
 // The longer operators first, so that "<=" is not read as "<" and "=5".
 constexpr ConditionName kConditionNames[] = {
-    {"==", Emulator32bit::WatchCompare::EQ}, {"!=", Emulator32bit::WatchCompare::NE},
-    {"<=", Emulator32bit::WatchCompare::LE}, {">=", Emulator32bit::WatchCompare::GE},
-    {"<", Emulator32bit::WatchCompare::LT},  {">", Emulator32bit::WatchCompare::GT},
+    {.text = "==", .compare = Emulator32bit::WatchCompare::EQ},
+    {.text = "!=", .compare = Emulator32bit::WatchCompare::NE},
+    {.text = "<=", .compare = Emulator32bit::WatchCompare::LE},
+    {.text = ">=", .compare = Emulator32bit::WatchCompare::GE},
+    {.text = "<", .compare = Emulator32bit::WatchCompare::LT},
+    {.text = ">", .compare = Emulator32bit::WatchCompare::GT},
 };
 
 /// "==5", ">=0x10": an operator and a number.

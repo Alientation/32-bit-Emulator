@@ -100,10 +100,12 @@ struct SysregName
 
 /// The system registers by number.
 inline constexpr SysregName kSysregNames[] = {
-    {kSysregId_pstate, "pstate"}, {kSysregId_elr, "elr"},   {kSysregId_spsr, "spsr"},
-    {kSysregId_esr, "esr"},       {kSysregId_far, "far"},   {kSysregId_vbar, "vbar"},
-    {kSysregId_usp, "usp"},       {kSysregId_ptbr, "ptbr"}, {kSysregId_sctlr, "sctlr"},
-    {kSysregId_fpcr, "fpcr"},     {kSysregId_fpsr, "fpsr"},
+    {.id = kSysregId_pstate, .name = "pstate"}, {.id = kSysregId_elr, .name = "elr"},
+    {.id = kSysregId_spsr, .name = "spsr"},     {.id = kSysregId_esr, .name = "esr"},
+    {.id = kSysregId_far, .name = "far"},       {.id = kSysregId_vbar, .name = "vbar"},
+    {.id = kSysregId_usp, .name = "usp"},       {.id = kSysregId_ptbr, .name = "ptbr"},
+    {.id = kSysregId_sctlr, .name = "sctlr"},   {.id = kSysregId_fpcr, .name = "fpcr"},
+    {.id = kSysregId_fpsr, .name = "fpsr"},
 };
 
 /// @param id The number of a system register.

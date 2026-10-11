@@ -70,7 +70,12 @@ void SystemBus::validate_memory()
         const char *name;
         const BaseMemory *memory;
     };
-    const Named memories[] = {{"RAM", ram.get()}, {"ROM", rom.get()}, {"DISK", disk.get()}};
+
+    const Named memories[] = {
+        {.name = "RAM", .memory = ram.get()},
+        {.name = "ROM", .memory = rom.get()},
+        {.name = "DISK", .memory = disk.get()},
+    };
 
     for (size_t i = 0; i < std::size(memories); i++)
     {
