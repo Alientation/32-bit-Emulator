@@ -197,6 +197,9 @@ class ObjectFile
     // The sizes in bytes of what the file holds, as in docs/belf-format.md. Numbers are stored in
     // more bytes than they need.
 
+    /// The unused bytes after the magic number in the header.
+    static constexpr U32 kBELFHeaderPadding = 12;
+
     /// Magic 4, unused 12, file type 2, target machine 2, flags 2, number of sections 2.
     static constexpr U32 kBELFHeaderSize = 24;
 
@@ -361,9 +364,17 @@ class ObjectFile
     U32 add_user_section(const std::string &name, bool writable, bool executable,
                          bool nobits = false);
 
-    /// The four byte sections, in the order .data, .rodata, .init_array,
-    /// .fini_array.
-    static const std::array<ByteSection, 4> &byte_sections();
+    /// The number of byte sections.
+    static constexpr size_t kNumByteSections = 4;
+
+    /// The place of each byte section in `byte_sections()`.
+    static constexpr size_t kDataIndex = 0;
+    static constexpr size_t kRodataIndex = 1;
+    static constexpr size_t kInitArrayIndex = 2;
+    static constexpr size_t kFiniArrayIndex = 3;
+
+    /// The byte sections, in the order .data, .rodata, .init_array, .fini_array.
+    static const std::array<ByteSection, kNumByteSections> &byte_sections();
 
     /// The byte section with the section type or relocation section type, or
     /// null if the type is none of them.

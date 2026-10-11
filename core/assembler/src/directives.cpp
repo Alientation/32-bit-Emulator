@@ -95,6 +95,13 @@ int binary_precedence(const TokenType type)
 /// the stack.
 constexpr int kMaxExpressionDepth = 200;
 
+/// A section, an .advance or a .fill of this many bytes or more is more likely a mistake than what
+/// the program means.
+constexpr word kSizeLimit = 0xffffff;
+
+/// An alignment of this many bytes or more is rejected for the same reason.
+constexpr word kAlignmentLimit = 0xffff;
+
 } // namespace
 
 bool Assembler::at_expression()
@@ -326,9 +333,10 @@ Assembler::ExprValue Assembler::parse_binary_expression(const int min_precedence
             break;
         case TokenType::OPERATOR_BITWISE_LEFT_SHIFT:
         case TokenType::OPERATOR_BITWISE_RIGHT_SHIFT:
-            if (rhs < 0 || rhs >= 64)
+            if (rhs < 0 || rhs >= kNumDwordBits)
             {
-                fail(op, "the shift amount must be 0 to 63, got " + std::to_string(rhs));
+                fail(op, "the shift amount must be 0 to " + std::to_string(kNumDwordBits - 1)
+                             + ", got " + std::to_string(rhs));
             }
             lhs = op.type == TokenType::OPERATOR_BITWISE_LEFT_SHIFT ? sdword(l << rhs) : lhs >> rhs;
             break;
@@ -485,9 +493,10 @@ void Assembler::_comm()
     if (m_cursor.accept(TokenType::COMMA))
     {
         alignment = parse_expression();
-        check(alignment != 0 && alignment < 0xffff, ".comm expects an alignment from 1 to 65535");
+        check(alignment != 0 && alignment < kAlignmentLimit,
+              ".comm expects an alignment from 1 to " + std::to_string(kAlignmentLimit - 1));
     }
-    check(size < 0xffffff,
+    check(size < kSizeLimit,
           ".comm size is large and likely unintentional (" + std::to_string(size) + ")");
 
     const U32 bss = m_obj.section_table[".bss"];
@@ -567,7 +576,7 @@ void Assembler::emit_instruction(const word instruction)
     check(bytes.size() % sizeof(word) == 0,
           "an instruction has to start at a multiple of 4 bytes in the section, it would be at "
               + std::to_string(bytes.size()) + " (.align 4 first)");
-    for (size_t shift = 0; shift < 32; shift += 8)
+    for (size_t shift = 0; shift < kNumWordBits; shift += kNumByteBits)
     {
         bytes.push_back(byte(instruction >> shift));
     }
@@ -575,7 +584,7 @@ void Assembler::emit_instruction(const word instruction)
 
 word Assembler::code_offset()
 {
-    return m_cur_section == Section::TEXT ? word(m_obj.text_section.size() * 4)
+    return m_cur_section == Section::TEXT ? word(m_obj.text_section.size() * kInstructionSize)
                                           : word(section_bytes().size());
 }
 
@@ -614,7 +623,7 @@ void Assembler::_org()
 
     const word val = parse_expression();
 
-    if (val >= 0xffffff)
+    if (val >= kSizeLimit)
     {
         // A value this large is more likely a mistake than what the program means.
         fail(*m_statement,
@@ -642,13 +651,16 @@ void Assembler::_org()
         break;
     case Section::TEXT:
         // .text holds instructions, so the position it moves to is a multiple of 4.
-        check(val >= m_obj.text_section.size() * 4,
+        check(val >= m_obj.text_section.size() * kInstructionSize,
               ".org cannot move the assembler backwards, expected >= "
-                  + std::to_string(m_obj.text_section.size() * 4) + ", got " + std::to_string(val));
-        check(val % 4 == 0, ".org cannot move to a byte that is not word aligned in .text, got "
-                                + std::to_string(val));
+                  + std::to_string(m_obj.text_section.size() * kInstructionSize) + ", got "
+                  + std::to_string(val));
+        check(val % kInstructionSize == 0,
+              ".org cannot move to a byte that is not word aligned in .text, got "
+                  + std::to_string(val));
 
-        for (size_t i = m_obj.text_section.size() * 4; i < val; i += 4)
+        for (size_t i = m_obj.text_section.size() * kInstructionSize; i < val;
+             i += kInstructionSize)
         {
             m_obj.text_section.push_back(0);
         }
@@ -682,7 +694,7 @@ void Assembler::_advance()
 
     // A value this large is more likely a mistake than what the program means, and it is no use
     // to go on with a section of a different size.
-    check(val < 0xffffff,
+    check(val < kSizeLimit,
           ".advance is large and likely unintentional (" + std::to_string(val) + ")");
 
     switch (m_cur_section)
@@ -700,10 +712,11 @@ void Assembler::_advance()
         break;
     case Section::TEXT:
         // .text holds instructions, so the amount it moves by is a multiple of 4.
-        check(val % 4 == 0, ".advance cannot move to a byte that is not word aligned in .text, got "
-                                + std::to_string(val));
+        check(val % kInstructionSize == 0,
+              ".advance cannot move to a byte that is not word aligned in .text, got "
+                  + std::to_string(val));
 
-        for (word i = 0; i < val; i += 4)
+        for (word i = 0; i < val; i += kInstructionSize)
         {
             m_obj.text_section.push_back(0);
         }
@@ -718,7 +731,8 @@ void Assembler::_align()
     m_cursor.next();
 
     const word val = parse_expression();
-    check(val < 0xffff, ".align is large and likely unintentional (" + std::to_string(val) + ")");
+    check(val < kAlignmentLimit,
+          ".align is large and likely unintentional (" + std::to_string(val) + ")");
     check(val != 0, ".align expects a non-zero alignment");
 
     switch (m_cur_section)
@@ -739,9 +753,10 @@ void Assembler::_align()
         break;
     case Section::TEXT:
         // .text holds instructions, so the alignment is a multiple of 4.
-        check(val % 4 == 0, ".align in .text must be a multiple of 4, got " + std::to_string(val));
+        check(val % kInstructionSize == 0,
+              ".align in .text must be a multiple of 4, got " + std::to_string(val));
 
-        while (m_obj.text_section.size() * 4 % val != 0)
+        while (m_obj.text_section.size() * kInstructionSize % val != 0)
         {
             m_obj.text_section.push_back(0);
         }
@@ -972,7 +987,7 @@ std::vector<byte> convert_little_endian(const std::vector<dword> &data, const U8
     {
         for (U8 j = 0; j < n_bytes; j++)
         {
-            little_endian_data.push_back((value >> (j * 8)) & 0xFF);
+            little_endian_data.push_back(byte(value >> (j * kNumByteBits)));
         }
     }
 
@@ -1023,7 +1038,7 @@ void Assembler::append_value(const char *directive, const U8 n_bytes, const Expr
 
     // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
     const S64 signed_value = S64(value);
-    const dword limit = n_bytes < sizeof(dword) ? dword(1) << (8 * n_bytes) : 0;
+    const dword limit = n_bytes < sizeof(dword) ? dword(1) << (kNumByteBits * n_bytes) : 0;
     check(limit == 0 || value < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
           std::string(directive) + " value "
               + std::to_string(signed_value < 0 ? signed_value : S64(value)) + " does not fit in "
@@ -1040,17 +1055,17 @@ void Assembler::_byte()
 
 void Assembler::_dbyte()
 {
-    define_data(".dbyte", 2);
+    define_data(".dbyte", sizeof(hword));
 }
 
 void Assembler::_word()
 {
-    define_data(".word", 4);
+    define_data(".word", sizeof(word));
 }
 
 void Assembler::_dword()
 {
-    define_data(".dword", 8);
+    define_data(".dword", sizeof(dword));
 }
 
 void Assembler::define_float(const char *directive, const bool dbl)
@@ -1093,13 +1108,14 @@ void Assembler::_fill()
     {
         const Token &size_token = m_cursor.peek();
         size = parse_expression();
-        if (size != 1 && size != 2 && size != 4 && size != 8)
+        if (size != sizeof(byte) && size != sizeof(hword) && size != sizeof(word)
+            && size != sizeof(dword))
         {
             fail(size_token, ".fill expects a size of 1, 2, 4 or 8 bytes, got "
                                  + std::to_string(size));
         }
     }
-    if (static_cast<dword>(count) * size >= 0xffffff)
+    if (static_cast<dword>(count) * size >= kSizeLimit)
     {
         fail(count_token,
              ".fill is large and likely unintentional (" + std::to_string(count) + " of "

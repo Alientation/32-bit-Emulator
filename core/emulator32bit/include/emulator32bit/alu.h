@@ -493,7 +493,7 @@ static inline AluResult alu_shift(const word value, const ShiftType type, const 
         {
         case ShiftType::SHIFT_LSL:
             result = value << shift_amt;
-            flags.c = bool((value >> (32 - shift_amt)) & 1);
+            flags.c = bool((value >> (kNumWordBits - shift_amt)) & 1);
             break;
         case ShiftType::SHIFT_LSR:
             result = value >> shift_amt;
@@ -504,7 +504,7 @@ static inline AluResult alu_shift(const word value, const ShiftType type, const 
             flags.c = bool((value >> (shift_amt - 1)) & 1);
             break;
         case ShiftType::SHIFT_ROR:
-            result = (value >> shift_amt) | (value << (32 - shift_amt));
+            result = (value >> shift_amt) | (value << (kNumWordBits - shift_amt));
             flags.c = bool((value >> (shift_amt - 1)) & 1);
             break;
         default: // The four values of the two bit field are all handled.

@@ -14,7 +14,7 @@ std::string to_hex_str(const U64 hex, const int digits)
 
 std::string to_hex_str(const U32 hex)
 {
-    return to_hex_str(hex, 8);
+    return to_hex_str(hex, kWordHexDigits);
 }
 
 std::string to_color_hex_str(const U64 hex, const int digits)
@@ -24,7 +24,7 @@ std::string to_color_hex_str(const U64 hex, const int digits)
 
 std::string to_color_hex_str(const U32 hex)
 {
-    return to_color_hex_str(hex, 8);
+    return to_color_hex_str(hex, kWordHexDigits);
 }
 
 std::string color_val_str(const std::string &string)

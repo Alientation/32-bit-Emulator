@@ -50,10 +50,10 @@ void write_relocations(ByteWriter &byte_writer, int &current_byte,
     AEMU_DEBUG("Writing {} section.", name);
     for (const ObjectFile::RelocationEntry &rel : relocations)
     {
-        byte_writer << ByteWriter::Data(rel.offset, 8);
-        byte_writer << ByteWriter::Data(rel.symbol, 8);
-        byte_writer << ByteWriter::Data(U32(rel.type), 4);
-        byte_writer << ByteWriter::Data(S64(rel.addend), 8);
+        byte_writer << ByteWriter::Data(rel.offset, sizeof(dword));
+        byte_writer << ByteWriter::Data(rel.symbol, sizeof(dword));
+        byte_writer << ByteWriter::Data(U32(rel.type), sizeof(word));
+        byte_writer << ByteWriter::Data(S64(rel.addend), sizeof(dword));
     }
     header.section_size = relocations.size() * ObjectFile::kRelocationEntrySize;
     header.section_start = current_byte;
@@ -64,10 +64,10 @@ void write_relocations(ByteWriter &byte_writer, int &current_byte,
 
 ObjectFile::ObjectFile() = default;
 
-const std::array<ObjectFile::ByteSection, 4> &ObjectFile::byte_sections()
+const std::array<ObjectFile::ByteSection, ObjectFile::kNumByteSections> &ObjectFile::byte_sections()
 {
     using Type = SectionHeader::Type;
-    static const std::array<ByteSection, 4> sections = {{
+    static const std::array<ByteSection, kNumByteSections> sections = {{
         {".data", ".rel.data", Type::DATA, Type::REL_DATA, &ObjectFile::data_section,
          &ObjectFile::rel_data, true, 1},
         {".rodata", ".rel.rodata", Type::RODATA, Type::REL_RODATA, &ObjectFile::rodata_section,
@@ -213,7 +213,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
 
     // Read the BELF header.
     AEMU_DEBUG("Reading BELF Header");
-    if (bytes.size() < kBELFHeaderSize + 8)
+    if (bytes.size() < kBELFHeaderSize + sizeof(dword))
     {
         AEMU_FATAL("'{}' is too small ({} bytes) to be an object file.",
                    m_obj_file.get_path(), bytes.size());
@@ -230,7 +230,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
             return;
         }
     }
-    reader.skip_bytes(12); // 4-15
+    reader.skip_bytes(kBELFHeaderPadding); // 4-15
     file_type = reader.read_hword(); // 16-17
     target_machine = reader.read_hword(); // 18-19
     flags = reader.read_hword(); // 20-21
@@ -244,7 +244,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
     AEMU_DEBUG("Reading section headers");
     ByteReader section_headers_reader(bytes);
     ByteReader section_headers_start_reader(bytes);
-    section_headers_start_reader.skip_bytes(bytes.size() - 8);
+    section_headers_start_reader.skip_bytes(bytes.size() - sizeof(dword));
     dword section_header_start = section_headers_start_reader.read_dword();
     AEMU_DEBUG("Section Header Start = {}", section_header_start);
     if (section_header_start >= bytes.size())
@@ -305,7 +305,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
         {
         case SectionHeader::Type::TEXT:
             AEMU_DEBUG("Disassembling Text Section");
-            for (word i = 0; i < section_header.section_size; i += 4)
+            for (word i = 0; i < section_header.section_size; i += kTextEntrySize)
             {
                 text_section.push_back(reader.read_word());
             }
@@ -504,21 +504,23 @@ void ObjectFile::validate() const
     }
 
     // Where the relocation is, in the section that it is for.
-    check_relocations(*this, path, rel_text, ".text", text_section.size() * kTextEntrySize, 4);
+    check_relocations(*this, path, rel_text, ".text", text_section.size() * kTextEntrySize,
+                      sizeof(word));
     for (const ByteSection &section : byte_sections())
     {
         check_relocations(*this, path, this->*section.relocations, section.name,
-                          (this->*section.bytes).size(), 4);
+                          (this->*section.bytes).size(), sizeof(word));
     }
     check_relocations(*this, path, rel_bss, ".bss", 0, 0);
     for (const UserSection &user : user_sections)
     {
-        check_relocations(*this, path, user.relocations, user.name.c_str(), user.bytes.size(), 4);
+        check_relocations(*this, path, user.relocations, user.name.c_str(), user.bytes.size(),
+                          sizeof(word));
     }
 
     for (const RelocationEntry &rel : rel_text)
     {
-        AEMU_CHECK(rel.offset % 4 == 0,
+        AEMU_CHECK(rel.offset % kTextEntrySize == 0,
                    "'{}' is corrupt, a relocation of .text is at {}, "
                    "which is not the start of an instruction.",
                    path, rel.offset);
@@ -530,13 +532,13 @@ void ObjectFile::validate() const
                    "'{}' is corrupt, the section {} is both writable "
                    "and executable.",
                    path, user.name);
-        AEMU_CHECK(!user.executable || user.bytes.size() % 4 == 0,
+        AEMU_CHECK(!user.executable || user.bytes.size() % kTextEntrySize == 0,
                    "'{}' is corrupt, the code of {} is not made of "
                    "whole instructions.",
                    path, user.name);
         for (const RelocationEntry &rel : user.relocations)
         {
-            AEMU_CHECK(!user.executable || rel.offset % 4 == 0,
+            AEMU_CHECK(!user.executable || rel.offset % kTextEntrySize == 0,
                        "'{}' is corrupt, a relocation of {} is at {}, "
                        "which is not the start of an instruction.",
                        path, user.name, rel.offset);
@@ -684,22 +686,22 @@ void ObjectFile::write_object_file(const File &obj_file)
     // Write the BELF header.
     AEMU_DEBUG("Writing BELF header.");
     m_writer.write("BELF"); // BELF magic number header
-    byte_writer << ByteWriter::Data(0, 12); // Unused padding
-    byte_writer << ByteWriter::Data(file_type, 2); // Object file type
-    byte_writer << ByteWriter::Data(target_machine, 2); // Target machine
-    byte_writer << ByteWriter::Data(flags, 2); // Flags
-    byte_writer << ByteWriter::Data(sections.size(), 2); // Number of sections
+    byte_writer << ByteWriter::Data(0, kBELFHeaderPadding);          // Unused padding
+    byte_writer << ByteWriter::Data(file_type, sizeof(hword));       // Object file type
+    byte_writer << ByteWriter::Data(target_machine, sizeof(hword));  // Target machine
+    byte_writer << ByteWriter::Data(flags, sizeof(hword));           // Flags
+    byte_writer << ByteWriter::Data(sections.size(), sizeof(hword)); // Number of sections
     current_byte += kBELFHeaderSize;
 
     // Write the text section.
     AEMU_DEBUG("Writing .text section.");
     for (size_t i = 0; i < text_section.size(); i++)
     {
-        byte_writer << ByteWriter::Data(text_section.at(i), 4);
+        byte_writer << ByteWriter::Data(text_section.at(i), sizeof(word));
     }
-    sections[section_table[".text"]].section_size = text_section.size() * 4;
+    sections[section_table[".text"]].section_size = text_section.size() * kTextEntrySize;
     sections[section_table[".text"]].section_start = current_byte;
-    current_byte += text_section.size() * 4;
+    current_byte += text_section.size() * kTextEntrySize;
 
     // Write the data, rodata and the arrays of functions.
     for (const ByteSection &section : byte_sections())
@@ -727,10 +729,10 @@ void ObjectFile::write_object_file(const File &obj_file)
     AEMU_DEBUG("Writing .symtab section.");
     for (const auto &[key, symbol] : symbol_table)
     {
-        byte_writer << ByteWriter::Data(symbol.symbol_name, 8);
-        byte_writer << ByteWriter::Data(symbol.symbol_value, 8);
-        byte_writer << ByteWriter::Data(S16(symbol.binding_info), 2);
-        byte_writer << ByteWriter::Data(symbol.section, 8);
+        byte_writer << ByteWriter::Data(symbol.symbol_name, sizeof(dword));
+        byte_writer << ByteWriter::Data(symbol.symbol_value, sizeof(dword));
+        byte_writer << ByteWriter::Data(S16(symbol.binding_info), sizeof(hword));
+        byte_writer << ByteWriter::Data(symbol.section, sizeof(dword));
 
         AEMU_DEBUG("symbol {} = {} ({})[{}]",
                    strings[symbol.symbol_name], symbol.symbol_value, U32(symbol.binding_info),
@@ -795,19 +797,19 @@ void ObjectFile::write_object_file(const File &obj_file)
     AEMU_DEBUG("Writing Section headers.");
     for (size_t i = 0; i < sections.size(); i++)
     {
-        byte_writer << ByteWriter::Data(sections[i].section_name, 8);
-        byte_writer << ByteWriter::Data(U32(sections[i].type), 4);
-        byte_writer << ByteWriter::Data(sections[i].section_start, 8);
-        byte_writer << ByteWriter::Data(sections[i].section_size, 8);
-        byte_writer << ByteWriter::Data(sections[i].entry_size, 8);
+        byte_writer << ByteWriter::Data(sections[i].section_name, sizeof(dword));
+        byte_writer << ByteWriter::Data(U32(sections[i].type), sizeof(word));
+        byte_writer << ByteWriter::Data(sections[i].section_start, sizeof(dword));
+        byte_writer << ByteWriter::Data(sections[i].section_size, sizeof(dword));
+        byte_writer << ByteWriter::Data(sections[i].entry_size, sizeof(dword));
 
         byte_writer << ByteWriter::Data(sections[i].load_at_physical_address, 1);
-        byte_writer << ByteWriter::Data(sections[i].address, 8);
-        byte_writer << ByteWriter::Data(sections[i].alignment, 8);
+        byte_writer << ByteWriter::Data(sections[i].address, sizeof(dword));
+        byte_writer << ByteWriter::Data(sections[i].alignment, sizeof(dword));
     }
     // The offset of the section headers, in the last 8 bytes for easy access.
-    byte_writer << ByteWriter::Data(current_byte, 8);
-    current_byte += 8;
+    byte_writer << ByteWriter::Data(current_byte, sizeof(dword));
+    current_byte += sizeof(dword);
     current_byte += sections.size() * kSectionHeaderSize;
 
     m_writer.close();
@@ -815,7 +817,7 @@ void ObjectFile::write_object_file(const File &obj_file)
 
 word ObjectFile::get_text_section_size()
 {
-    return text_section.size() * 4;
+    return text_section.size() * kTextEntrySize;
 }
 
 word ObjectFile::get_data_section_size()

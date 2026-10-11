@@ -514,21 +514,29 @@ class ScopedTimer
     ScopedTimer &operator=(const ScopedTimer &) = delete;
 
   private:
+    /// Nanoseconds in a microsecond, a millisecond and a second.
+    static constexpr long long kNsPerUs = 1'000;
+    static constexpr long long kNsPerMs = 1'000'000;
+    static constexpr long long kNsPerS = 1'000'000'000;
+
+    /// A duration is shown in the next unit once it is longer than this many of the unit.
+    static constexpr long long kUnitLimit = 10'000;
+
     static std::string format_duration(const long long ns)
     {
-        if (ns <= 10'000)
+        if (ns <= kUnitLimit)
         {
             return std::format("{}ns", ns);
         }
-        if (ns <= 10'000'000)
+        if (ns <= kUnitLimit * kNsPerUs)
         {
-            return std::format("{:.2f}us", static_cast<double>(ns) / 1e3);
+            return std::format("{:.2f}us", static_cast<double>(ns) / kNsPerUs);
         }
-        if (ns <= 10'000'000'000)
+        if (ns <= kUnitLimit * kNsPerMs)
         {
-            return std::format("{:.2f}ms", static_cast<double>(ns) / 1e6);
+            return std::format("{:.2f}ms", static_cast<double>(ns) / kNsPerMs);
         }
-        return std::format("{:.2f}s", static_cast<double>(ns) / 1e9);
+        return std::format("{:.2f}s", static_cast<double>(ns) / kNsPerS);
     }
 
     std::string m_tag;

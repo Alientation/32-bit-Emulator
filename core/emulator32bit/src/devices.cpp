@@ -562,7 +562,7 @@ void BlockDevice::reset()
     m_cursor = 0;
     m_sector = 0;
     m_ctrl = 0;
-    m_latency = 100;
+    m_latency = kDefaultLatency;
     m_dma_addr = 0;
     m_dma_count = 0;
     m_dma_list = 0;

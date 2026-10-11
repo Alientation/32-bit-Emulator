@@ -79,7 +79,7 @@ class Linker
     struct SectionBase
     {
         word text = 0;
-        std::array<word, 4> bytes = {};
+        std::array<word, ObjectFile::kNumByteSections> bytes = {};
         word bss = 0;
         std::vector<word> users = {};
     };

@@ -21,7 +21,7 @@ class BitArray
     bool test(const unsigned i) const
     {
         assert(i < N);
-        return (m_words[i / 64] >> (i % 64)) & 1;
+        return (m_words[i / kNumDwordBits] >> (i % kNumDwordBits)) & 1;
     }
 
     /// @param i the index, below N
@@ -29,8 +29,8 @@ class BitArray
     void assign(const unsigned i, const bool value)
     {
         assert(i < N);
-        U64 &word = m_words[i / 64];
-        word = (word & ~(U64(1) << (i % 64))) | (U64(value) << (i % 64));
+        U64 &word = m_words[i / kNumDwordBits];
+        word = (word & ~(U64(1) << (i % kNumDwordBits))) | (U64(value) << (i % kNumDwordBits));
     }
 
     /// Copies the bit at `from` to `to`: the move of the last entry into a removed one.

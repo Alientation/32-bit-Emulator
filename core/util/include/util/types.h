@@ -30,6 +30,10 @@ inline constexpr U8 kNumWordBits = sizeof(word) << 3;
 inline constexpr U8 kNumHwordBits = sizeof(hword) << 3;
 inline constexpr U8 kNumByteBits = sizeof(byte) << 3;
 
+/// The hexadecimal digits of a 32 bit number and of a 64 bit one.
+inline constexpr int kWordHexDigits = 8;
+inline constexpr int kDwordHexDigits = 16;
+
 inline constexpr const char *kHexPrefix = "0x";
 
 /// Converts a value into hexadecimal string representation
@@ -37,7 +41,7 @@ inline constexpr const char *kHexPrefix = "0x";
 /// @param hex the value to convert
 /// @param digits the number of hexadecimal digits to output
 /// @return the hexadecimal string representation of the value
-std::string to_hex_str(U64 hex, int digits = 16);
+std::string to_hex_str(U64 hex, int digits = kDwordHexDigits);
 
 /// Converts a 32 bit value into hexadecimal string representation
 ///
@@ -57,5 +61,5 @@ std::string color_val_str(const std::string &string);
 /// @param hex the value to convert
 /// @param digits the number of hexadecimal digits to output
 /// @return the colored hexadecimal string representation of the value
-std::string to_color_hex_str(U64 hex, int digits = 16);
+std::string to_color_hex_str(U64 hex, int digits = kDwordHexDigits);
 std::string to_color_hex_str(U32 hex);

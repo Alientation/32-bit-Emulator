@@ -64,7 +64,7 @@ void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
     // TODO: create a relocation record instead.
     shift_amt = parse_expression();
 
-    check(word(shift_amt) < (1ULL << 5),
+    check(word(shift_amt) < (1ULL << encoding::kShiftAmountBits),
           "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
 }
 
@@ -143,11 +143,14 @@ word Assembler::parse_format_b1(const byte opcode)
         // The offset in bytes from this instruction, as a signed number: `b 8` is two
         // instructions ahead, `b -4` the one before. The field holds 22 bits of words.
         const sdword offset = target.value;
-        check((offset & 0b11) == 0, "branch offset must be 4 byte aligned");
-        check(offset >= -(sdword(1) << 23) && offset < (sdword(1) << 23),
+        check(offset % sdword(kInstructionSize) == 0, "branch offset must be 4 byte aligned");
+
+        // The field is a signed number of words: 2 bits less than bytes.
+        const sdword limit = sdword(1) << (encoding::kBranchFieldBits + 1);
+        check(offset >= -limit && offset < limit,
               "branch offset must be between -8388608 and 8388604 bytes, got "
                   + std::to_string(offset));
-        value = sword(offset >> 2);
+        value = sword(offset / sdword(kInstructionSize));
     }
 
     return Emulator32bit::asm_format_b1(opcode, condition, value);
@@ -193,7 +196,7 @@ word Assembler::parse_format_swi(const byte opcode)
     if (at_expression())
     {
         number = parse_expression();
-        check(number < (1ULL << 22), "the number must fit in 22 bits");
+        check(number < (1ULL << encoding::kBranchFieldBits), "the number must fit in 22 bits");
     }
     return Emulator32bit::asm_format_b1(opcode, condition, sword(number));
 }
@@ -301,7 +304,8 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
         {
             // The offset is a signed 12 bit value (sign extended by the emulator).
             const sdword value = parse_signed_expression();
-            check(value >= -(sdword(1) << 11) && value < (sdword(1) << 11),
+            check(value >= -(sdword(1) << (encoding::kMemoryOffsetBits - 1))
+                      && value < (sdword(1) << (encoding::kMemoryOffsetBits - 1)),
                   "offset must be a signed 12 bit value (-2048 to 2047)");
             const int offset = int(value);
 
@@ -373,7 +377,7 @@ word Assembler::parse_format_o3(const byte opcode)
         if (m_cursor.accept(TokenType::COMMA))
         {
             value = parse_expression();
-            check(value < (1ULL << 14), "immediate must be a 14 bit value");
+            check(value < (1ULL << encoding::kDataImmBits), "immediate must be a 14 bit value");
         }
 
         return Emulator32bit::asm_format_o3(opcode, s, reg1, operand_reg, value);
@@ -398,7 +402,7 @@ word Assembler::parse_format_o3(const byte opcode)
         {
             const word imm = parse_expression();
 
-            check(imm < (1ULL << 19), "immediate value must be a 19 bit number");
+            check(imm < (1ULL << encoding::kMovImmBits), "immediate value must be a 19 bit number");
             return Emulator32bit::asm_format_o3(opcode, s, reg1, imm);
         }
     }
@@ -441,7 +445,7 @@ word Assembler::parse_format_o1(const ShiftType type)
     else
     {
         const int shift_amt = parse_expression();
-        check(word(shift_amt) < (1ULL << 5),
+        check(word(shift_amt) < (1ULL << encoding::kShiftAmountBits),
               "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
         return Emulator32bit::asm_format_o1(type, reg1, reg2, true, 0, shift_amt, s);
     }
@@ -453,7 +457,7 @@ word Assembler::parse_format_o(const byte opcode, const bool implicit_dest)
     // destination.
     const bool s = m_cursor.next().has(basm::SETS_FLAGS) || implicit_dest;
 
-    byte reg1 = 31; // xzr
+    byte reg1 = U8(Register::XZR);
     if (!implicit_dest)
     {
         reg1 = parse_register();
@@ -490,7 +494,7 @@ word Assembler::parse_format_o(const byte opcode, const bool implicit_dest)
         else if (at_expression())
         {
             operand = parse_expression();
-            check(operand < (1ULL << 14), "immediate must be a 14 bit value");
+            check(operand < (1ULL << encoding::kDataImmBits), "immediate must be a 14 bit value");
         }
         else
         {
@@ -611,23 +615,27 @@ bool Assembler::assemble_load_constant()
 
 void Assembler::emit_load_constant(const byte xd, const word value)
 {
-    if (value < (1u << 19))
+    constexpr word kMovLimit = word(1) << encoding::kMovImmBits;
+    if (value < kMovLimit)
     {
         emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, int(value)));
     }
-    else if (~value < (1u << 19))
+    else if (~value < kMovLimit)
     {
         emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, xd, int(~value)));
     }
     else
     {
-        emit_instruction(
-            Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, int(value >> 14)));
-        emit_instruction(Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0, 14));
-        if ((value & 0x3FFF) != 0)
+        // The high part is moved in and shifted left, and the low part is or-ed in.
+        constexpr word kLowMask = (word(1) << encoding::kDataImmBits) - 1;
+        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd,
+                                                      int(value >> encoding::kDataImmBits)));
+        emit_instruction(Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0,
+                                                      encoding::kDataImmBits));
+        if ((value & kLowMask) != 0)
         {
-            emit_instruction(
-                Emulator32bit::asm_format_o(encoding::_op_orr, false, xd, xd, int(value & 0x3FFF)));
+            emit_instruction(Emulator32bit::asm_format_o(encoding::_op_orr, false, xd, xd,
+                                                         int(value & kLowMask)));
         }
     }
 }
@@ -636,7 +644,7 @@ U8 Assembler::parse_fp_register(const bool pair)
 {
     const Token &token = m_cursor.peek();
     const U8 reg = parse_register();
-    if (pair && reg > 28)
+    if (pair && reg > U8(Register::X28))
     {
         fail(token, "a double is a pair of registers and cannot start in " + basm::describe(token)
                         + ", use x0 to x28");
@@ -777,7 +785,7 @@ void Assembler::assemble_fmov(const bool dbl)
     emit_load_constant(xd, word(bits));
     if (dbl)
     {
-        emit_load_constant(xd + 1, word(bits >> 32));
+        emit_load_constant(xd + 1, word(bits >> kNumWordBits));
     }
 }
 
@@ -989,7 +997,7 @@ void Assembler::_brk()
     if (at_expression())
     {
         number = parse_expression();
-        check(number < (1ULL << 22), "the number must fit in 22 bits");
+        check(number < (1ULL << encoding::kBranchFieldBits), "the number must fit in 22 bits");
     }
     emit_instruction(Emulator32bit::asm_brk(number));
 }
@@ -1010,7 +1018,7 @@ void Assembler::_msr()
     else
     {
         const word imm16 = parse_expression();
-        check(imm16 < (1ULL << 16), "immediate must be a 16 bit value");
+        check(imm16 < (1ULL << encoding::kSysregImmBits), "immediate must be a 16 bit value");
 
         instruction = Emulator32bit::asm_msr(sysreg, true, imm16);
     }

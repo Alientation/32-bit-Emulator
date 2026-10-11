@@ -470,7 +470,7 @@ class VirtualMemory
     /// does not exist (processes are numbered below kMaxProcesses).
     static constexpr U64 tlb_key(const long long pid, const word vpage)
     {
-        return (U64(pid) << 32) | vpage;
+        return (U64(pid) << kNumWordBits) | vpage;
     }
 
     /// The key of an entry that has no translation, which no lookup has.

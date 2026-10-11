@@ -10,6 +10,7 @@ namespace
 
 /// The start of a static library, and the version of the format after it.
 constexpr const char *kMagic = "BALB";
+constexpr size_t kMagicLength = 4;
 constexpr unsigned short kVersion = 1;
 
 /// Longer than any name of a file, to refuse a file that is cut or damaged before reading it.
@@ -71,13 +72,13 @@ void write_static_library(const std::vector<File> &objects, const File &out)
     ByteWriter b_writer(writer);
 
     writer.write(kMagic);
-    b_writer << ByteWriter::Data(kVersion, 2);
-    b_writer << ByteWriter::Data(members.size(), 8);
+    b_writer << ByteWriter::Data(kVersion, sizeof(hword));
+    b_writer << ByteWriter::Data(members.size(), sizeof(dword));
     for (const auto &[name, bytes] : members)
     {
-        b_writer << ByteWriter::Data(name.size(), 8);
+        b_writer << ByteWriter::Data(name.size(), sizeof(dword));
         writer.write(name);
-        b_writer << ByteWriter::Data(bytes.size(), 8);
+        b_writer << ByteWriter::Data(bytes.size(), sizeof(dword));
         for (const byte b : bytes)
         {
             b_writer << ByteWriter::Data(b, 1);
@@ -99,12 +100,12 @@ std::vector<LibraryMember> read_static_library(const File &in)
     reader.close();
 
     const std::string &path = in.get_path();
-    const size_t header = std::char_traits<char>::length(kMagic) + 2 + 8;
-    AEMU_CHECK(bytes.size() >= header && std::equal(kMagic, kMagic + 4, bytes.begin()),
+    const size_t header = kMagicLength + sizeof(hword) + sizeof(dword);
+    AEMU_CHECK(bytes.size() >= header && std::equal(kMagic, kMagic + kMagicLength, bytes.begin()),
                "read_static_library() - '{}' is not a static library.", path);
 
     ByteReader b_reader(bytes);
-    b_reader.skip_bytes(4);
+    b_reader.skip_bytes(kMagicLength);
     const unsigned short version = b_reader.read_hword();
     AEMU_CHECK(version == kVersion,
                "read_static_library() - '{}' is version {} of the format, version {} is read.",

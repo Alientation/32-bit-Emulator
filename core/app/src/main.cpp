@@ -20,6 +20,12 @@ static const std::string build_palindrome =
 
 constexpr U64 kMaxCycles = 0x0;
 
+/// The memory of the machine that runs the sample: the RAM from page 0, the ROM after it.
+constexpr word kRamStartPage = 0;
+constexpr word kRamPages = 16;
+constexpr word kRomPages = 16;
+constexpr word kRomStartPage = kRamStartPage + kRamPages;
+
 static int run_app(const int argc, char *argv[])
 {
     // The arguments of the program, or a sample build if there are none.
@@ -44,9 +50,9 @@ static int run_app(const int argc, char *argv[])
         {
             AEMU_SCOPED_TIMER("Loading program into emulator");
             // The ROM and the disk are in memory, a sample does not need files of its own.
-            emulator = std::make_unique<Emulator32bit>(std::make_unique<RAM>(16, 0),
-                                                       std::make_unique<ROM>(16, 16),
-                                                       std::make_unique<MockDisk>());
+            emulator = std::make_unique<Emulator32bit>(
+                std::make_unique<RAM>(kRamPages, kRamStartPage),
+                std::make_unique<ROM>(kRomPages, kRomStartPage), std::make_unique<MockDisk>());
             pid = emulator->mmu->begin_process();
             LoadExecutable loader(*emulator, build->get_exe_file());
             loader.load();

@@ -274,6 +274,9 @@ class BlockDevice : public Device
     /// The size of a sector in bytes.
     static constexpr word kSectorSize = 512;
 
+    /// The instructions a command takes after a reset.
+    static constexpr word kDefaultLatency = 100;
+
     /// The bits of STATUS.
     static constexpr word kBusy = 1;
     static constexpr word kDone = 2;
@@ -402,7 +405,7 @@ class BlockDevice : public Device
     word m_cursor = 0;
     word m_sector = 0;
     word m_ctrl = 0;
-    word m_latency = 100;
+    word m_latency = kDefaultLatency;
     word m_status = 0;
 
     bool m_busy = false;

@@ -250,9 +250,9 @@ ByteWriter::Data::Data(unsigned long long value, const int num_bytes, const bool
     {
         for (int i = 0; i < num_bytes; i++)
         {
-            this->value <<= 8;
-            this->value += value & 0xFF;
-            value >>= 8;
+            this->value <<= kNumByteBits;
+            this->value += byte(value);
+            value >>= kNumByteBits;
         }
     }
     this->num_bytes = num_bytes;
@@ -267,7 +267,7 @@ ByteWriter &ByteWriter::operator<<(const Data &data)
 {
     for (int i = 0; i < data.num_bytes; i++)
     {
-        m_filewriter.write((data.value >> (i * 8)) & 0xFF);
+        m_filewriter.write(byte(data.value >> (i * kNumByteBits)));
     }
     return (*this);
 }
@@ -314,7 +314,7 @@ ByteReader &ByteReader::operator>>(ByteReader::Data &data)
     {
         for (int i = data.num_bytes - 1; i >= 0; i--)
         {
-            data.val <<= 8;
+            data.val <<= kNumByteBits;
             data.val += m_bytes.at(m_cur_byte + i);
         }
         m_cur_byte += data.num_bytes;
@@ -323,7 +323,7 @@ ByteReader &ByteReader::operator>>(ByteReader::Data &data)
     {
         for (int i = data.num_bytes - 1; i >= 0; i--)
         {
-            data.val += U64(m_bytes.at(m_cur_byte)) << (8 * i);
+            data.val += U64(m_bytes.at(m_cur_byte)) << (kNumByteBits * i);
             m_cur_byte++;
         }
     }
@@ -345,21 +345,21 @@ unsigned char ByteReader::read_byte(const bool little_endian)
 
 unsigned short ByteReader::read_hword(const bool little_endian)
 {
-    ByteReader::Data data(2, little_endian);
+    ByteReader::Data data(sizeof(hword), little_endian);
     (*this) >> data;
     return data.val;
 }
 
 unsigned int ByteReader::read_word(const bool little_endian)
 {
-    ByteReader::Data data(4, little_endian);
+    ByteReader::Data data(sizeof(word), little_endian);
     (*this) >> data;
     return data.val;
 }
 
 unsigned long long ByteReader::read_dword(const bool little_endian)
 {
-    ByteReader::Data data(8, little_endian);
+    ByteReader::Data data(sizeof(dword), little_endian);
     (*this) >> data;
     return data.val;
 }

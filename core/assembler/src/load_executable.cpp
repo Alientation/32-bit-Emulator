@@ -115,10 +115,10 @@ void LoadExecutable::load()
 
     // .text is stored as words, the others as bytes. Words are little endian in memory.
     std::vector<byte> text;
-    text.reserve(obj.text_section.size() * 4);
+    text.reserve(obj.text_section.size() * kInstructionSize);
     for (const word instr : obj.text_section)
     {
-        for (int shift = 0; shift < 32; shift += 8)
+        for (int shift = 0; shift < kNumWordBits; shift += kNumByteBits)
         {
             text.push_back(byte(instr >> shift));
         }

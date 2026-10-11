@@ -65,6 +65,15 @@ inline constexpr word kAtomicWidth_word = 0b00;
 inline constexpr word kAtomicWidth_byte = 0b01;
 inline constexpr word kAtomicWidth_hword = 0b10;
 
+/// The widths in bits of the immediates in the instruction formats (docs/isa.md).
+inline constexpr U8 kShiftAmountBits = 5;   ///< The shift amount of a shift by an immediate.
+inline constexpr U8 kDataImmBits = 14;      ///< The immediate of a data processing instruction.
+inline constexpr U8 kMovImmBits = 19;       ///< The immediate of `mov` and `mvn`.
+inline constexpr U8 kMemoryOffsetBits = 12; ///< The signed offset of a load or a store.
+inline constexpr U8 kBranchFieldBits =
+    22; ///< The offset in words of `b`, the number of `swi`, `brk`.
+inline constexpr U8 kSysregImmBits = 16; ///< The immediate of `msr`.
+
 // The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
 inline constexpr word kSctlrMmuEnable = 1; ///< Bit 0 of SCTLR.
 inline constexpr word kSysregId_pstate = 1;

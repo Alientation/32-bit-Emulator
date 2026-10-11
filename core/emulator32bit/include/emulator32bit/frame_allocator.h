@@ -24,14 +24,14 @@ class FrameAllocator
     FrameAllocator(const word first, const word count, const bool all_free) :
         m_first(first),
         m_count(count),
-        m_bits((std::size_t(count) + 63) / 64, 0)
+        m_bits((std::size_t(count) + kNumDwordBits - 1) / kNumDwordBits, 0)
     {
         if (all_free)
         {
             for (std::size_t w = 0; w < m_bits.size(); w++)
             {
-                const U64 left = count - w * 64; // The pages from this word on.
-                m_bits[w] = left >= 64 ? ~U64(0) : (U64(1) << left) - 1;
+                const U64 left = count - w * kNumDwordBits; // The pages from this word on.
+                m_bits[w] = left >= kNumDwordBits ? ~U64(0) : (U64(1) << left) - 1;
             }
             m_free = count;
         }
@@ -53,7 +53,8 @@ class FrameAllocator
     /// @return Whether the page is a frame and is free.
     bool is_free(const word page) const
     {
-        return in_range(page) && (m_bits[index(page) / 64] >> (index(page) % 64)) & 1;
+        return in_range(page)
+               && (m_bits[index(page) / kNumDwordBits] >> (index(page) % kNumDwordBits)) & 1;
     }
 
     /// Takes the lowest free page.
@@ -75,7 +76,7 @@ class FrameAllocator
                 m_bits[w] &= ~(U64(1) << bit);
                 m_hint = w;
                 m_free--;
-                return m_first + word(w * 64 + bit);
+                return m_first + word(w * kNumDwordBits + bit);
             }
         }
         throw FreeBlockList::Error("Not enough space to allocate free block 1");
@@ -91,7 +92,7 @@ class FrameAllocator
         {
             throw FreeBlockList::Error("Invalid returned block " + std::to_string(page) + " - 1.");
         }
-        m_bits[index(page) / 64] &= ~(U64(1) << (index(page) % 64));
+        m_bits[index(page) / kNumDwordBits] &= ~(U64(1) << (index(page) % kNumDwordBits));
         m_free--;
     }
 
@@ -105,11 +106,11 @@ class FrameAllocator
         {
             throw FreeBlockList::Error("Invalid returned block " + std::to_string(page) + " - 1.");
         }
-        m_bits[index(page) / 64] |= U64(1) << (index(page) % 64);
+        m_bits[index(page) / kNumDwordBits] |= U64(1) << (index(page) % kNumDwordBits);
         m_free++;
-        if (index(page) / 64 < m_hint)
+        if (index(page) / kNumDwordBits < m_hint)
         {
-            m_hint = index(page) / 64;
+            m_hint = index(page) / kNumDwordBits;
         }
     }
 

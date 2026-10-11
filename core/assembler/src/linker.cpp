@@ -151,10 +151,14 @@ std::string default_linker_script(const std::vector<ObjectFile> &objects)
 
     address += padding_to(address, kPageSize);
     script += "    .rodata = " + std::to_string(address) + ";\n";
-    for (const size_t k : {1, 2, 3})
+    for (const size_t k :
+         {ObjectFile::kRodataIndex, ObjectFile::kInitArrayIndex, ObjectFile::kFiniArrayIndex})
     {
         place(address, merged_extent(objects, ObjectFile::byte_sections()[k].name));
-        if (k != 1) script += std::string("    ") + ObjectFile::byte_sections()[k].name + ";\n";
+        if (k != ObjectFile::kRodataIndex)
+        {
+            script += std::string("    ") + ObjectFile::byte_sections()[k].name + ";\n";
+        }
     }
     for (const auto &section : user)
     {
@@ -323,10 +327,12 @@ void Linker::_sections()
         case basm::TokenType::ASSEMBLER_FINI_ARRAY:
             m_sections.push_back(
                 {.type = SectionAddress::Type::BYTES,
-                 .byte_index = section.type == basm::TokenType::ASSEMBLER_DATA         ? 0u
-                               : section.type == basm::TokenType::ASSEMBLER_RODATA     ? 1u
-                               : section.type == basm::TokenType::ASSEMBLER_INIT_ARRAY ? 2u
-                                                                                       : 3u,
+                 .byte_index =
+                     section.type == basm::TokenType::ASSEMBLER_DATA     ? ObjectFile::kDataIndex
+                     : section.type == basm::TokenType::ASSEMBLER_RODATA ? ObjectFile::kRodataIndex
+                     : section.type == basm::TokenType::ASSEMBLER_INIT_ARRAY
+                         ? ObjectFile::kInitArrayIndex
+                         : ObjectFile::kFiniArrayIndex,
                  .physical = m_physical});
             break;
         case basm::TokenType::ASSEMBLER_BSS:
@@ -538,7 +544,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
         case SectionAddress::Type::TEXT:
             name = ".text";
-            size = word(exe.text_section.size() * 4);
+            size = word(exe.text_section.size() * kInstructionSize);
             section_address = &addresses.text;
             break;
         case SectionAddress::Type::BYTES:
@@ -632,10 +638,10 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
 
 void Linker::define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const
 {
-    const ObjectFile::ByteSection &init = ObjectFile::byte_sections()[2];
-    const ObjectFile::ByteSection &fini = ObjectFile::byte_sections()[3];
-    const word init_start = addresses.bytes[2];
-    const word fini_start = addresses.bytes[3];
+    const ObjectFile::ByteSection &init = ObjectFile::byte_sections()[ObjectFile::kInitArrayIndex];
+    const ObjectFile::ByteSection &fini = ObjectFile::byte_sections()[ObjectFile::kFiniArrayIndex];
+    const word init_start = addresses.bytes[ObjectFile::kInitArrayIndex];
+    const word fini_start = addresses.bytes[ObjectFile::kFiniArrayIndex];
     define_array_symbol(exe, "__init_array_start", init, init_start);
     define_array_symbol(exe, "__init_array_end", init, init_start + word((exe.*init.bytes).size()));
     define_array_symbol(exe, "__fini_array_start", fini, fini_start);
@@ -770,8 +776,8 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
             const word instr_i = (bases[i].text + rel.offset) / 4;
             const word instr_address = addresses.text + bases[i].text + rel.offset;
             exe.text_section[instr_i] =
-                apply_relocation(rel.type, obj.text_section[rel.offset / 4], instr_address,
-                                 symbol.symbol_value + word(rel.addend));
+                apply_relocation(rel.type, obj.text_section[rel.offset / kInstructionSize],
+                                 instr_address, symbol.symbol_value + word(rel.addend));
         }
 
         // The words of .data, .rodata and the arrays that hold the address of a symbol.
@@ -793,7 +799,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                 word current = 0;
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    current |= word((obj.*section.bytes)[rel.offset + b]) << (8 * b);
+                    current |= word((obj.*section.bytes)[rel.offset + b]) << (kNumByteBits * b);
                 }
 
                 const word index = bases[i].bytes[k] + rel.offset;
@@ -801,7 +807,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                                       symbol.symbol_value + word(rel.addend));
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    (exe.*section.bytes)[index + b] = byte(patched >> (8 * b));
+                    (exe.*section.bytes)[index + b] = byte(patched >> (kNumByteBits * b));
                 }
             }
         }
@@ -827,7 +833,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                 word current = 0;
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    current |= word(user.bytes[rel.offset + b]) << (8 * b);
+                    current |= word(user.bytes[rel.offset + b]) << (kNumByteBits * b);
                 }
 
                 const word index = bases[i].users[e] + rel.offset;
@@ -836,7 +842,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                      symbol.symbol_value + word(rel.addend));
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    exe.user_sections[e].bytes[index + b] = byte(patched >> (8 * b));
+                    exe.user_sections[e].bytes[index + b] = byte(patched >> (kNumByteBits * b));
                 }
             }
         }

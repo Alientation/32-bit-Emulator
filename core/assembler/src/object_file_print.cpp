@@ -18,6 +18,16 @@ namespace
 /// each bit of the number of the instruction (so it gets narrower further down).
 constexpr int kRelocationNameWidth = 29;
 
+/// The bytes of a section on a line of the listing, and the bytes in a group on that line.
+constexpr size_t kBytesPerLine = 16;
+constexpr size_t kBytesPerGroup = 4;
+
+/// The least number of digits of the addresses that start the lines of the contents.
+constexpr int kMinAddressDigits = 4;
+
+/// The characters of the name of an instruction that are listed.
+constexpr size_t kMnemonicWidth = 12;
+
 const char *relocation_name(const ObjectFile::RelocationEntry::Type type)
 {
     using Type = ObjectFile::RelocationEntry::Type;
@@ -65,7 +75,7 @@ std::string address_text(const U64 address)
 int digits_for(const size_t count)
 {
     const int digits = int(std::bit_width(count));
-    return digits > 4 ? digits : 4;
+    return digits > kMinAddressDigits ? digits : kMinAddressDigits;
 }
 
 /// Lists the bytes of a section, 16 to a line, and then its relocations. `separator` is what
@@ -75,14 +85,14 @@ void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator
                  const std::vector<ObjectFile::RelocationEntry> &relocations)
 {
     out << std::format("{}Contents of section {}:", separator, name);
-    const int width = digits_for(bytes_of_section.size() / 16);
+    const int width = digits_for(bytes_of_section.size() / kBytesPerLine);
     for (size_t i = 0; i < bytes_of_section.size(); i++)
     {
-        if (i % 16 == 0)
+        if (i % kBytesPerLine == 0)
         {
             out << std::format("\n{:0{}x} ", i, width);
         }
-        if (i % 4 == 0 && i % 16 != 0)
+        if (i % kBytesPerGroup == 0 && i % kBytesPerLine != 0)
         {
             out << ' ';
         }
@@ -210,7 +220,7 @@ void ObjectFile::print(std::ostream &out)
         const size_t space = disassembly.find_first_of(' ');
         if (space != std::string::npos)
         {
-            const std::string op = disassembly.substr(0, space).substr(0, 12);
+            const std::string op = disassembly.substr(0, space).substr(0, kMnemonicWidth);
             const std::string operands = disassembly.substr(space + 1);
             out << std::format(":\t{:08x}\t{}\t\t{}", text_section[i], op, operands);
 
@@ -236,7 +246,8 @@ void ObjectFile::print(std::ostream &out)
         }
         else
         {
-            out << std::format(":\t{:08x}\t{}", text_section[i], disassembly.substr(0, 12));
+            out << std::format(":\t{:08x}\t{}", text_section[i],
+                               disassembly.substr(0, kMnemonicWidth));
         }
 
         // Check whether there is a relocation record here.
