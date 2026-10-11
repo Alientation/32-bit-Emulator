@@ -267,7 +267,9 @@ ByteWriter &ByteWriter::operator<<(const Data &data)
 {
     for (int i = 0; i < data.num_bytes; i++)
     {
-        m_filewriter.write(byte(data.value >> (i * kNumByteBits)));
+        // Bytes past the width of the value are zero.
+        const bool in_value = i < static_cast<int>(sizeof(data.value));
+        m_filewriter.write(in_value ? byte(data.value >> (i * kNumByteBits)) : byte(0));
     }
     return (*this);
 }

@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 
 TEST(ByteReaderTest, reading_into_the_same_data_again_replaces_the_value)
 {
@@ -26,6 +27,24 @@ TEST(ByteReaderTest, a_value_is_little_endian_unless_asked_otherwise)
     EXPECT_EQ(reader.read_word(false), 0x01020304u);
     EXPECT_FALSE(reader.has_next());
     EXPECT_THROW(reader.read_byte(), std::out_of_range);
+}
+
+TEST(ByteWriterTest, bytes_past_the_width_of_the_value_are_zero)
+{
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "aemu_byte_writer";
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "bytes.bin").string();
+    {
+        FileWriter writer(File(path), std::ios::out | std::ios::binary);
+        ByteWriter bytes(writer);
+        bytes << ByteWriter::Data(0x0102030405060708ull, 10);
+        writer.close();
+    }
+
+    std::ifstream in(path, std::ios::binary);
+    const std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(written, std::string("\x08\x07\x06\x05\x04\x03\x02\x01\0\0", 10));
+    std::filesystem::remove_all(dir);
 }
 
 TEST(TrimDirPathTest, dots_are_dropped_and_dot_dot_removes_the_segment_before_it)
