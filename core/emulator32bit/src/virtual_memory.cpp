@@ -700,12 +700,12 @@ void VirtualMemory::check_vm()
     }
 }
 
-void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
+void VirtualMemory::evict_ppage(PhysicalPage &page)
 {
-    const word ppage = evicted_ppage.ppage;
+    const word ppage = page.ppage;
     AEMU_DEBUG("Evicting physical page {} to disk.", ppage);
 
-    if (evicted_ppage.mapped_vpages.empty())
+    if (page.mapped_vpages.empty())
     {
         throw Error("Cannot evict physical page " + std::to_string(ppage)
                     + " because no virtual page is mapped to it.");
@@ -726,22 +726,22 @@ void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
             m_disk.write_page(diskpage, m_page_buffer.data());
         }
     }
-    for (PageTableEntry *removed_entry : evicted_ppage.mapped_vpages)
+    for (PageTableEntry *removed_entry : page.mapped_vpages)
     {
         removed_entry->disk = true;
         removed_entry->diskpage = diskpage;
         invalidate_tlb(removed_entry->pid, removed_entry->vpage);
     }
-    evicted_ppage.mapped_vpages.clear();
-    evicted_ppage.used = false;
-    clock_remove(evicted_ppage);
+    page.mapped_vpages.clear();
+    page.used = false;
+    clock_remove(page);
 
     release_frame(ppage);
 }
 
-void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &mapped_ppage)
+void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &page)
 {
-    const word ppage = mapped_ppage.ppage;
+    const word ppage = page.ppage;
     AEMU_DEBUG("Disk Fetch from page {} to physical page {}.", entry.diskpage, ppage);
 
     // The contents are copied in before the entry is changed, so a page that could not be read is
@@ -763,14 +763,14 @@ void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &mapp
     entry.ppage = ppage;
     entry.disk = false;
 
-    mapped_ppage.mapped_vpages.push_back(&entry);
-    mapped_ppage.used = true;
+    page.mapped_vpages.push_back(&entry);
+    page.used = true;
 
-    if (mapped_ppage.swappable && !mapped_ppage.in_clock)
+    if (page.swappable && !page.in_clock)
     {
-        clock_add(mapped_ppage);
+        clock_add(page);
     }
-    mark_referenced(mapped_ppage);
+    mark_referenced(page);
 }
 
 void VirtualMemory::ensure_physical_page_mapping(const long long pid, const word vpage,

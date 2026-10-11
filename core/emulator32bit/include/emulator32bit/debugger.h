@@ -166,9 +166,9 @@ class Debugger
 
     /// Prints a line of the backtrace.
     ///
-    /// @param[in,out] index The number of the frame, which is one more afterwards.
+    /// @param[in] index The number of the frame.
     /// @param[in] address The address of the frame.
-    void print_frame(size_t &index, word address);
+    void print_frame(size_t index, word address);
 
     /// @param[in] address An address.
     /// @return The address as hex, followed by `<symbol+offset>` if a symbol is at or below it.

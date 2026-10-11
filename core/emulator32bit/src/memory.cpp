@@ -46,12 +46,12 @@ RAM::RAM(const word npages, const word start_page) :
 
 // ROM.
 
-ROM::ROM(const byte *rom_data, const word npages, const word start_page) :
+ROM::ROM(const byte *data, const word npages, const word start_page) :
     Memory(npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
     {
-        m_data[i] = rom_data[i];
+        m_data[i] = data[i];
     }
 }
 

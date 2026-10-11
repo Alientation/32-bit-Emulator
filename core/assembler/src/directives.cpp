@@ -1023,10 +1023,10 @@ void Assembler::define_data(const char *directive, const U8 n_bytes)
     } while (m_cursor.accept(TokenType::COMMA));
 }
 
-void Assembler::append_value(const char *directive, const U8 n_bytes, const ExprValue &result,
+void Assembler::append_value(const char *directive, const U8 n_bytes, const ExprValue &value,
                              const Token &first)
 {
-    if (result.label != nullptr)
+    if (value.label != nullptr)
     {
         // `.word symbol + 4` is the address of the symbol plus a number, which is only known
         // when the program is linked. Zeros are there until then, and a relocation says where
@@ -1037,22 +1037,22 @@ void Assembler::append_value(const char *directive, const U8 n_bytes, const Expr
                             + " cannot hold the address of a symbol, only .word can");
         }
         add_relocation(section_relocations(), word(section_bytes().size()),
-                       ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, result);
+                       ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, value);
         section_bytes().insert(section_bytes().end(), sizeof(word), 0);
         return;
     }
 
-    const dword value = dword(result.value);
+    const dword number = dword(value.value);
 
     // An unsigned number of the size, or a negative number (0 - 1) that fits as signed.
-    const S64 signed_value = S64(value);
+    const S64 signed_value = S64(number);
     const dword limit = n_bytes < sizeof(dword) ? dword(1) << (kNumByteBits * n_bytes) : 0;
-    check(limit == 0 || value < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
+    check(limit == 0 || number < limit || (signed_value < 0 && signed_value >= -S64(limit / 2)),
           std::string(directive) + " value "
-              + std::to_string(signed_value < 0 ? signed_value : S64(value)) + " does not fit in "
+              + std::to_string(signed_value < 0 ? signed_value : S64(number)) + " does not fit in "
               + std::to_string(n_bytes) + " byte(s)");
 
-    const std::vector<byte> data = convert_little_endian({value}, n_bytes);
+    const std::vector<byte> data = convert_little_endian({number}, n_bytes);
     section_bytes().insert(section_bytes().end(), data.begin(), data.end());
 }
 

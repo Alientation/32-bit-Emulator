@@ -123,9 +123,9 @@ class FileWriter
     ~FileWriter();
 
     /// Same as write().
-    FileWriter &operator<<(const std::string &);
+    FileWriter &operator<<(const std::string &str);
     FileWriter &operator<<(char byte);
-    FileWriter &operator<<(const char *bytes);
+    FileWriter &operator<<(const char *str);
 
     /// Writes a string to the file.
     ///

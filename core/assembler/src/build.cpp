@@ -118,13 +118,7 @@ Build::Build(const std::vector<std::string> &args)
         // TODO: -C keeps comments in the preprocessed output.
     };
 
-    std::vector<std::string> args_list = args;
-    for (size_t i = 0; i < args_list.size(); i++)
-    {
-        AEMU_DEBUG("args_list[{}]: {}", i, args_list[i]);
-    }
-
-    evaluate_args(args_list);
+    evaluate_args(args);
 }
 
 void Build::run()
@@ -196,14 +190,14 @@ std::vector<std::string> Build::split_args(const std::string &line)
     return args;
 }
 
-void Build::evaluate_args(std::vector<std::string> &args_list)
+void Build::evaluate_args(const std::vector<std::string> &args_list)
 {
     // Evaluate the arguments.
     for (size_t i = 0; i < args_list.size(); i++)
     {
         AEMU_DEBUG("arg {}: {}", i, args_list[i]);
 
-        std::string &arg = args_list[i];
+        const std::string &arg = args_list[i];
         if (m_parse_options && !arg.empty() && arg[0] == '-')
         {
             // This is a flag.

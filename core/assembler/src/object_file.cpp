@@ -209,9 +209,9 @@ void ObjectFile::read_object_file(const std::vector<byte> &bytes)
     deserialize_checked(bytes);
 }
 
-void ObjectFile::read_object_file(const File &obj_file)
+void ObjectFile::read_object_file(const File &object_file)
 {
-    m_obj_file = obj_file;
+    m_obj_file = object_file;
 
     FileReader file_reader(m_obj_file, std::ios::in | std::ios::binary);
 
@@ -700,18 +700,18 @@ void ObjectFile::add_symbol(const std::string &symbol, const word value,
     }
 }
 
-void ObjectFile::write_object_file(const File &obj_file)
+void ObjectFile::write_object_file(const File &object_file)
 {
     AEMU_DEBUG("Writing to object file.");
-    m_obj_file = obj_file;
+    m_obj_file = object_file;
 
     // Clear the object file.
     std::ofstream ofs;
-    ofs.open(obj_file.get_path(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(object_file.get_path(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
     // Create the writer for the object file.
-    FileWriter m_writer = FileWriter(obj_file, std::ios::out | std::ios::binary);
+    FileWriter m_writer = FileWriter(object_file, std::ios::out | std::ios::binary);
 
     ByteWriter byte_writer(m_writer);
     int current_byte = 0;

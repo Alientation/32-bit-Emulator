@@ -384,16 +384,16 @@ void Linker::link()
     tokenize_ld();
     parse_ld();
 
-    ObjectFile exe = new_executable();
-    const std::vector<SectionBase> bases = merge_sections(exe);
-    const SectionBase addresses = place_sections(exe);
-    const std::vector<SymbolMap> symbols = merge_symbols(exe, bases, addresses);
-    define_entry(exe);
-    define_array_symbols(exe, addresses);
-    relocate(exe, bases, addresses, symbols);
+    m_exe = new_executable();
+    const std::vector<SectionBase> bases = merge_sections();
+    const SectionBase addresses = place_sections();
+    const std::vector<SymbolMap> symbols = merge_symbols(bases, addresses);
+    define_entry();
+    define_array_symbols(addresses);
+    relocate(bases, addresses, symbols);
 
     // There are no relocations in .data and .bss, and none are left in the executable.
-    exe.write_object_file(m_exe_file);
+    m_exe.write_object_file(m_exe_file);
 }
 
 ObjectFile Linker::new_executable() const
@@ -432,7 +432,7 @@ ObjectFile Linker::new_executable() const
     return exe;
 }
 
-std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
+std::vector<Linker::SectionBase> Linker::merge_sections()
 {
     const auto &byte_sections = ObjectFile::byte_sections();
     SectionBase alignment = {.text = kInstructionSize, .bytes = {}, .bss = 1};
@@ -440,27 +440,27 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
     {
         alignment.bytes[k] = 1;
     }
-    alignment.users.assign(exe.user_sections.size(), 1);
+    alignment.users.assign(m_exe.user_sections.size(), 1);
 
     std::vector<SectionBase> bases;
     for (const ObjectFile &obj : m_obj_files)
     {
         SectionBase base;
-        base.users.assign(exe.user_sections.size(), 0);
+        base.users.assign(m_exe.user_sections.size(), 0);
 
         const word wanted_text = alignment_of(obj, ".text");
         const word text_padding =
-            padding_to(word(exe.text_section.size() * kInstructionSize), wanted_text);
-        exe.text_section.insert(exe.text_section.end(), text_padding / kInstructionSize, 0);
+            padding_to(word(m_exe.text_section.size() * kInstructionSize), wanted_text);
+        m_exe.text_section.insert(m_exe.text_section.end(), text_padding / kInstructionSize, 0);
         if (wanted_text > alignment.text) alignment.text = wanted_text;
-        base.text = word(exe.text_section.size() * kInstructionSize);
-        exe.text_section.insert(exe.text_section.end(), obj.text_section.begin(),
-                                obj.text_section.end());
+        base.text = word(m_exe.text_section.size() * kInstructionSize);
+        m_exe.text_section.insert(m_exe.text_section.end(), obj.text_section.begin(),
+                                  obj.text_section.end());
 
         for (size_t k = 0; k < byte_sections.size(); k++)
         {
             const ObjectFile::ByteSection &section = byte_sections[k];
-            std::vector<byte> &merged = exe.*section.bytes;
+            std::vector<byte> &merged = m_exe.*section.bytes;
             const word wanted = alignment_of(obj, section.name);
             merged.insert(merged.end(), padding_to(word(merged.size()), wanted), 0);
             if (wanted > alignment.bytes[k]) alignment.bytes[k] = wanted;
@@ -470,8 +470,8 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
 
         for (const ObjectFile::UserSection &section : obj.user_sections)
         {
-            const size_t e = user_index(exe, section.name);
-            ObjectFile::UserSection &merged = exe.user_sections[e];
+            const size_t e = user_index(m_exe, section.name);
+            ObjectFile::UserSection &merged = m_exe.user_sections[e];
             const word wanted = alignment_of(obj, section.name);
             if (wanted > alignment.users[e]) alignment.users[e] = wanted;
             if (merged.nobits)
@@ -488,33 +488,34 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         }
 
         const word wanted_bss = alignment_of(obj, ".bss");
-        exe.bss_section += padding_to(exe.bss_section, wanted_bss);
+        m_exe.bss_section += padding_to(m_exe.bss_section, wanted_bss);
         if (wanted_bss > alignment.bss) alignment.bss = wanted_bss;
-        base.bss = exe.bss_section;
-        exe.bss_section += obj.bss_section;
+        base.bss = m_exe.bss_section;
+        m_exe.bss_section += obj.bss_section;
 
         bases.push_back(base);
     }
 
-    exe.sections[exe.section_table.at(".text")].alignment = alignment.text;
+    m_exe.sections[m_exe.section_table.at(".text")].alignment = alignment.text;
     for (size_t k = 0; k < byte_sections.size(); k++)
     {
-        exe.sections[exe.section_table.at(byte_sections[k].name)].alignment = alignment.bytes[k];
+        m_exe.sections[m_exe.section_table.at(byte_sections[k].name)].alignment =
+            alignment.bytes[k];
     }
-    exe.sections[exe.section_table.at(".bss")].alignment = alignment.bss;
-    for (size_t e = 0; e < exe.user_sections.size(); e++)
+    m_exe.sections[m_exe.section_table.at(".bss")].alignment = alignment.bss;
+    for (size_t e = 0; e < m_exe.user_sections.size(); e++)
     {
-        exe.sections[exe.user_sections[e].header_index].alignment = alignment.users[e];
+        m_exe.sections[m_exe.user_sections[e].header_index].alignment = alignment.users[e];
     }
     return bases;
 }
 
-Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
+Linker::SectionBase Linker::place_sections()
 {
     std::vector<Placed> placed;
 
     SectionBase addresses;
-    addresses.users.assign(exe.user_sections.size(), 0);
+    addresses.users.assign(m_exe.user_sections.size(), 0);
     word address = 0;
     for (const SectionAddress &section : m_sections)
     {
@@ -531,10 +532,10 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         {
             // A script can list a section that none of the files has (it may be shared between
             // programs), which is empty.
-            const size_t e = user_index(exe, section.name);
+            const size_t e = user_index(m_exe, section.name);
             if (e == size_t(-1)) continue;
 
-            const ObjectFile::UserSection &user = exe.user_sections[e];
+            const ObjectFile::UserSection &user = m_exe.user_sections[e];
             name = user.name.c_str();
             size = user.size();
             section_address = &addresses.users[e];
@@ -544,25 +545,25 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
         case SectionAddress::Type::TEXT:
             name = ".text";
-            size = word(exe.text_section.size() * kInstructionSize);
+            size = word(m_exe.text_section.size() * kInstructionSize);
             section_address = &addresses.text;
             break;
         case SectionAddress::Type::BYTES:
         {
             const ObjectFile::ByteSection &bytes = ObjectFile::byte_sections()[section.byte_index];
             name = bytes.name;
-            size = word((exe.*bytes.bytes).size()); // bytes, unlike .text
+            size = word((m_exe.*bytes.bytes).size()); // bytes, unlike .text
             section_address = &addresses.bytes[section.byte_index];
             break;
         }
         case SectionAddress::Type::BSS:
             name = ".bss";
-            size = exe.bss_section;
+            size = m_exe.bss_section;
             section_address = &addresses.bss;
             break;
         }
 
-        ObjectFile::SectionHeader &header = exe.sections[exe.section_table.at(name)];
+        ObjectFile::SectionHeader &header = m_exe.sections[m_exe.section_table.at(name)];
         const word alignment = header.alignment == 0 ? 1 : header.alignment;
 
         // A section the script gives no address starts after the previous one, at an address that
@@ -627,13 +628,13 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
     }
 
-    check_placed(placed, ".text", word(exe.text_section.size() * kInstructionSize));
+    check_placed(placed, ".text", word(m_exe.text_section.size() * kInstructionSize));
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
     {
-        check_placed(placed, section.name, word((exe.*section.bytes).size()));
+        check_placed(placed, section.name, word((m_exe.*section.bytes).size()));
     }
-    check_placed(placed, ".bss", exe.bss_section);
-    for (const ObjectFile::UserSection &user : exe.user_sections)
+    check_placed(placed, ".bss", m_exe.bss_section);
+    for (const ObjectFile::UserSection &user : m_exe.user_sections)
     {
         check_placed(placed, user.name, user.size());
     }
@@ -641,21 +642,22 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
     return addresses;
 }
 
-void Linker::define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const
+void Linker::define_array_symbols(const SectionBase &addresses)
 {
     const ObjectFile::ByteSection &init = ObjectFile::byte_sections()[ObjectFile::kInitArrayIndex];
     const ObjectFile::ByteSection &fini = ObjectFile::byte_sections()[ObjectFile::kFiniArrayIndex];
     const word init_start = addresses.bytes[ObjectFile::kInitArrayIndex];
     const word fini_start = addresses.bytes[ObjectFile::kFiniArrayIndex];
-    define_array_symbol(exe, "__init_array_start", init, init_start);
-    define_array_symbol(exe, "__init_array_end", init, init_start + word((exe.*init.bytes).size()));
-    define_array_symbol(exe, "__fini_array_start", fini, fini_start);
-    define_array_symbol(exe, "__fini_array_end", fini, fini_start + word((exe.*fini.bytes).size()));
+    define_array_symbol(m_exe, "__init_array_start", init, init_start);
+    define_array_symbol(m_exe, "__init_array_end", init,
+                        init_start + word((m_exe.*init.bytes).size()));
+    define_array_symbol(m_exe, "__fini_array_start", fini, fini_start);
+    define_array_symbol(m_exe, "__fini_array_end", fini,
+                        fini_start + word((m_exe.*fini.bytes).size()));
 }
 
-std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
-                                                     const std::vector<SectionBase> &bases,
-                                                     const SectionBase &addresses) const
+std::vector<Linker::SymbolMap> Linker::merge_symbols(const std::vector<SectionBase> &bases,
+                                                     const SectionBase &addresses)
 {
     std::vector<SymbolMap> maps(m_obj_files.size());
     for (size_t i = 0; i < m_obj_files.size(); i++)
@@ -681,7 +683,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 const ObjectFile::SectionHeader::Type type = obj.sections[symbol.section].type;
                 const std::string &section_name =
                     obj.strings[obj.sections[symbol.section].section_name];
-                section = exe.section_table.at(section_name);
+                section = m_exe.section_table.at(section_name);
 
                 if (type == ObjectFile::SectionHeader::Type::TEXT)
                 {
@@ -693,7 +695,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 }
                 else if (ObjectFile::is_user_section_type(type))
                 {
-                    const size_t e = user_index(exe, section_name);
+                    const size_t e = user_index(m_exe, section_name);
                     value += addresses.users[e] + bases[i].users[e];
                 }
                 else if (const ObjectFile::ByteSection *bytes = ObjectFile::byte_section_of(type))
@@ -703,17 +705,17 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                 }
             }
 
-            const auto found = exe.string_table.find(name);
-            if (found == exe.string_table.end())
+            const auto found = m_exe.string_table.find(name);
+            if (found == m_exe.string_table.end())
             {
-                exe.add_symbol(name, value, symbol.binding_info, section);
+                m_exe.add_symbol(name, value, symbol.binding_info, section);
             }
             else
             {
                 // Seen in an earlier file. A definition beats a reference, a strong definition
                 // beats a weak one (`.weak`, `.comm`), and of two weak ones the first stays. A
                 // reference that is not weak makes the symbol one that has to be defined.
-                ObjectFile::SymbolTableEntry &entry = exe.symbol_table.at(found->second);
+                ObjectFile::SymbolTableEntry &entry = m_exe.symbol_table.at(found->second);
                 const bool defined = symbol.section != U32(-1);
                 const bool weak = symbol.binding_info == Binding::WEAK_DECLARED;
                 const bool entry_defined = entry.section != U32(-1);
@@ -737,34 +739,34 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
                     AEMU_FATAL("Multiple definition of symbol '{}'.", name);
                 }
             }
-            maps[i][key] = exe.string_table.at(name);
+            maps[i][key] = m_exe.string_table.at(name);
         }
     }
     return maps;
 }
 
-void Linker::define_entry(ObjectFile &exe) const
+void Linker::define_entry()
 {
     if (m_entry_symbol != "_start")
     {
-        AEMU_CHECK(is_defined(exe, m_entry_symbol),
+        AEMU_CHECK(is_defined(m_exe, m_entry_symbol),
                    "The entry point '{}' set by ENTRY is not defined.", m_entry_symbol);
-        AEMU_CHECK(!is_defined(exe, "_start"),
+        AEMU_CHECK(!is_defined(m_exe, "_start"),
                    "ENTRY({}) conflicts with the symbol _start that is also "
                    "defined.",
                    m_entry_symbol);
 
         const ObjectFile::SymbolTableEntry entry =
-            exe.symbol_table.at(exe.string_table.at(m_entry_symbol));
-        exe.add_symbol("_start", entry.symbol_value,
-                       ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
+            m_exe.symbol_table.at(m_exe.string_table.at(m_entry_symbol));
+        m_exe.add_symbol("_start", entry.symbol_value,
+                         ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
     }
 
-    AEMU_CHECK(is_defined(exe, "_start"), "The entry point '{}' is not defined.", m_entry_symbol);
+    AEMU_CHECK(is_defined(m_exe, "_start"), "The entry point '{}' is not defined.", m_entry_symbol);
 }
 
-void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
-                      const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const
+void Linker::relocate(const std::vector<SectionBase> &bases, const SectionBase &addresses,
+                      const std::vector<SymbolMap> &symbols)
 {
     for (size_t i = 0; i < m_obj_files.size(); i++)
     {
@@ -772,15 +774,14 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
         for (const ObjectFile::RelocationEntry &rel : obj.rel_text)
         {
             const ObjectFile::SymbolTableEntry &symbol =
-                exe.symbol_table.at(symbols[i].at(rel.symbol));
+                m_exe.symbol_table.at(symbols[i].at(rel.symbol));
 
-            AEMU_CHECK(is_resolvable(symbol),
-                       "Error, undefined reference to '{}'.",
-                       exe.strings.at(symbol.symbol_name));
+            AEMU_CHECK(is_resolvable(symbol), "Error, undefined reference to '{}'.",
+                       m_exe.strings.at(symbol.symbol_name));
 
             const word instr_i = (bases[i].text + rel.offset) / 4;
             const word instr_address = addresses.text + bases[i].text + rel.offset;
-            exe.text_section[instr_i] =
+            m_exe.text_section[instr_i] =
                 apply_relocation(rel.type, obj.text_section[rel.offset / kInstructionSize],
                                  instr_address, symbol.symbol_value + word(rel.addend));
         }
@@ -792,11 +793,10 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
             for (const ObjectFile::RelocationEntry &rel : obj.*section.relocations)
             {
                 const ObjectFile::SymbolTableEntry &symbol =
-                    exe.symbol_table.at(symbols[i].at(rel.symbol));
+                    m_exe.symbol_table.at(symbols[i].at(rel.symbol));
 
-                AEMU_CHECK(is_resolvable(symbol),
-                           "Error, undefined reference to '{}'.",
-                           exe.strings.at(symbol.symbol_name));
+                AEMU_CHECK(is_resolvable(symbol), "Error, undefined reference to '{}'.",
+                           m_exe.strings.at(symbol.symbol_name));
                 AEMU_CHECK(rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
                            "A relocation in {} of type {} is not supported.",
                            section.name, U32(rel.type));
@@ -812,7 +812,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                                       symbol.symbol_value + word(rel.addend));
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    (exe.*section.bytes)[index + b] = byte(patched >> (kNumByteBits * b));
+                    (m_exe.*section.bytes)[index + b] = byte(patched >> (kNumByteBits * b));
                 }
             }
         }
@@ -821,15 +821,14 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
         // in an executable one, which is patched like one of .text.
         for (const ObjectFile::UserSection &user : obj.user_sections)
         {
-            const size_t e = user_index(exe, user.name);
+            const size_t e = user_index(m_exe, user.name);
             for (const ObjectFile::RelocationEntry &rel : user.relocations)
             {
                 const ObjectFile::SymbolTableEntry &symbol =
-                    exe.symbol_table.at(symbols[i].at(rel.symbol));
+                    m_exe.symbol_table.at(symbols[i].at(rel.symbol));
 
-                AEMU_CHECK(is_resolvable(symbol),
-                           "Error, undefined reference to '{}'.",
-                           exe.strings.at(symbol.symbol_name));
+                AEMU_CHECK(is_resolvable(symbol), "Error, undefined reference to '{}'.",
+                           m_exe.strings.at(symbol.symbol_name));
                 AEMU_CHECK(user.executable
                                || rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
                            "A relocation in {} of type {} is not supported.",
@@ -847,7 +846,7 @@ void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                      symbol.symbol_value + word(rel.addend));
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
-                    exe.user_sections[e].bytes[index + b] = byte(patched >> (kNumByteBits * b));
+                    m_exe.user_sections[e].bytes[index + b] = byte(patched >> (kNumByteBits * b));
                 }
             }
         }

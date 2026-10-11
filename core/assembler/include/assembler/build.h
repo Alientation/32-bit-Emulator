@@ -101,7 +101,7 @@ class Build
     /// Processes the arguments: each flag calls its handler, anything else is a source file.
     ///
     /// @param[in] args_list The list of arguments to process.
-    void evaluate_args(std::vector<std::string> &args_list);
+    void evaluate_args(const std::vector<std::string> &args_list);
 
     /// Runs the stages that the flags asked for: preprocess, assemble, link.
     void build();

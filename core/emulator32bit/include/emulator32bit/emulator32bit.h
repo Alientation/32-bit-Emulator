@@ -428,7 +428,7 @@ class Emulator32bit
     ///
     /// @param[in] reg The register.
     /// @return The value of the register.
-    inline word read_reg(const Register reg)
+    inline word read_reg(const Register reg) const
     {
         return m_x[register_to_U8(reg)];
     }
@@ -437,7 +437,7 @@ class Emulator32bit
     ///
     /// @param[in] reg The number of the register.
     /// @return The value, 0 for a number that is not a register.
-    inline word read_reg(const U8 reg)
+    inline word read_reg(const U8 reg) const
     {
         return LIKELY(reg < kNumReg) ? m_x[reg] : 0;
     }

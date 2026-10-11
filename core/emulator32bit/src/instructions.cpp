@@ -25,7 +25,7 @@ using namespace encoding;
 /// @param[in] cpu The emulator, which the register is read from.
 /// @param[in] instr The instruction.
 /// @return The value of the operand.
-static word get_format_o_arg(Emulator32bit &cpu, const word instr)
+static word get_format_o_arg(const Emulator32bit &cpu, const word instr)
 {
     if (test_bit<14>(instr))
     {
