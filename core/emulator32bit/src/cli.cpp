@@ -123,10 +123,9 @@ SymbolMap read_symbols(const std::string &exe_path)
     {
         if (symbol.section != U32(-1))
         {
-            // The linker renames a local symbol `name:LOCAL:<file number>`, only the name is of use
-            // here.
-            const std::string name = obj.get_symbol_name(name_index);
-            symbols.add(name.substr(0, name.find(":LOCAL:")), symbol.symbol_value);
+            // Two labels called `loop` in different scopes or files get the same name here, and a
+            // lookup by name (`break loop`) finds the one that was added first.
+            symbols.add(source_name(obj.get_symbol_name(name_index)), symbol.symbol_value);
         }
     }
     return symbols;

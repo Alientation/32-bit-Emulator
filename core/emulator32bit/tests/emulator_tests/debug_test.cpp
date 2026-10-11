@@ -258,6 +258,14 @@ TEST(SymbolMapTest, finds_symbols_by_name_and_keeps_the_first_name_of_an_address
     EXPECT_EQ(symbols.describe(0x10), "first");
 }
 
+TEST(SymbolMapTest, source_name_drops_what_the_assembler_and_the_linker_add)
+{
+    EXPECT_EQ(source_name("main"), "main");
+    EXPECT_EQ(source_name("loop::SCOPE:3"), "loop");
+    EXPECT_EQ(source_name("count:LOCAL:1"), "count");
+    EXPECT_EQ(source_name("loop::SCOPE:0:LOCAL:2"), "loop");
+}
+
 TEST(ParseTest, numbers_registers_and_addresses)
 {
     EXPECT_EQ(parse_number("42"), std::optional<U64>(42));

@@ -2,6 +2,11 @@
 
 #include <format>
 
+std::string source_name(const std::string &linked_name)
+{
+    return linked_name.substr(0, linked_name.find(':'));
+}
+
 void SymbolMap::add(const std::string &name, const word address)
 {
     m_by_address.emplace(address, name);

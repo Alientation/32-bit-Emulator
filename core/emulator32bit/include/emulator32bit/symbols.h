@@ -6,6 +6,14 @@
 #include <optional>
 #include <string>
 
+/// The name of a symbol as it is written in the source. The assembler and the linker add to a name
+/// what tells apart two symbols that are called the same: `name::SCOPE:<scope number>` for a label
+/// in a `.scope` and `name:LOCAL:<file number>` for a symbol that is private to its file.
+///
+/// @param linked_name The name of a symbol in an executable.
+/// @return The name up to the first colon, which a name in the source does not have.
+std::string source_name(const std::string &linked_name);
+
 /// Names for addresses, used by the trace and the debugger to show `main+0x8` instead of a number.
 class SymbolMap
 {

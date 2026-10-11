@@ -90,7 +90,8 @@ and the release build has debug info so the samples can be attributed to source 
     (`GdbServer` in `gdb_server.h`: the packet handler `handle ()` is separate from the socket loop
     `serve ()`; it describes the ARM core registers to gdb and absorbs the step that gdb makes
     after a watchpoint hit). Symbols
-    come from the `.bexe` (`SymbolMap`, a local label has its `:LOCAL:n` suffix stripped). The
+    come from the `.bexe` (`SymbolMap`; `source_name` strips the `:LOCAL:n` suffix of the linker
+    and the `::SCOPE:n` suffix of the assembler). The
     library side is `Emulator32bit::add_breakpoint`/`set_trace`/`set_history_size`/`set_symbols`;
     `RunResult::Status::BREAKPOINT` is a fourth status, so a `switch` over it needs the case. The
     pc a `run()` starts at is never a breakpoint hit (`leaving_start` in `run ()`). `Debugger` turns on `set_brk_stops`,
