@@ -155,42 +155,81 @@ word Emulator32bit::fetch_instruction()
     return memory.fetch_instruction(m_pc);
 }
 
-Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
+namespace
 {
-    RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
-    // the debugger may have changed it between runs
-    m_watchpoints.hit_message.clear();
-    for (unsigned i = 0; i < m_regwatches.count; i++) m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
 
-    // True (and the result is set) when a watched register changed since it was last looked at.
-    // Checked between instructions, which covers a retired instruction and an exception entry.
-    const auto register_watch_hit = [&]()
+/// What stops the program is reported through the result, and logged at the level of how unusual
+/// it is. Anything that goes wrong in the machine is a fault of the program, whatever part of the
+/// machine it is in.
+///
+/// @param result The result of the run, which becomes a fault.
+/// @param what The kind of fault.
+/// @param message What happened.
+void fault(Emulator32bit::RunResult &result, const char *what, const std::string &message)
+{
+    AEMU_WARN("{}: {}", what, message);
+    result.status = Emulator32bit::RunResult::Status::FAULT;
+    result.message = message;
+}
+
+/// The physical address of a byte of an access that succeeded, for a watchpoint on physical
+/// addresses. A byte that cannot be translated is one that nothing watches.
+///
+/// @param mmu The MMU that translated the access.
+/// @param virtual_address The address of the byte.
+/// @param physical_address Receives the physical address.
+/// @return Whether there is one.
+bool translate_watched_byte(VirtualMemory &mmu, const word virtual_address, word &physical_address)
+{
+    try
     {
-        for (unsigned i = 0; i < m_regwatches.count; i++)
-        {
-            const word now = read_reg(m_regwatches.reg[i]);
-            const word before = m_regwatches.last[i];
-            if (now == before) continue;
-            m_regwatches.last[i] = now;
-            if (m_regwatches.has_value.test(i) && now != m_regwatches.value[i]) continue;
-            result.status = RunResult::Status::BREAKPOINT;
-            result.message = std::format(
-                "Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
-                register_name(m_regwatches.reg[i]), before, now, m_pc);
-            return true;
-        }
+        physical_address = mmu.translate_address(virtual_address);
+        return true;
+    }
+    catch (const std::exception &)
+    {
         return false;
+    }
+}
+
+} // namespace
+
+bool Emulator32bit::register_watch_hit(RunResult &result)
+{
+    for (unsigned i = 0; i < m_regwatches.count; i++)
+    {
+        const word now = read_reg(m_regwatches.reg[i]);
+        const word before = m_regwatches.last[i];
+        // Register value did not change.
+        if (now == before) continue;
+        m_regwatches.last[i] = now;
+
+        // Register value does not match the watchpoint's conditioned value.
+        if (m_regwatches.has_value.test(i) && now != m_regwatches.value[i]) continue;
+
+        result.status = RunResult::Status::BREAKPOINT;
+        result.message =
+            std::format("Register watch {}: {:#x} -> {:#x}, next instruction at {:#010x}",
+                        register_name(m_regwatches.reg[i]), before, now, m_pc);
+        return true;
+    }
+    return false;
+}
+
+Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
+{
+    RunResult result{
+        .status = RunResult::Status::LIMIT_REACHED,
+        .instructions_ran = 0,
+        .message = "",
     };
 
-    // What stops the program is reported through the result, and logged at the level of how
-    // unusual it is. Anything that goes wrong in the machine is a fault of the program, whatever
-    // part of the machine it is in.
-    const auto fault = [&](const char *what, const std::string &message)
+    // The debugger may have changed it between runs.
+    m_watchpoints.hit_message.clear();
+    for (unsigned i = 0; i < m_regwatches.count; i++)
     {
-        AEMU_WARN("{}: {}", what, message);
-        result.status = RunResult::Status::FAULT;
-        result.message = message;
-    };
+        m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
+    }
 
     // Whether anything looks at each instruction (the debugger's breakpoints and watches, the
     // trace, the history). They are set between runs, so the loop tests this one local instead of
@@ -216,7 +255,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
                 // Input from the host raises its interrupt here, between instructions.
                 bus.console.poll_host_input();
 
-                if (m_regwatches.count != 0 && register_watch_hit()) break;
+                if (m_regwatches.count != 0 && register_watch_hit(result)) break;
 
                 if (!leaving_start && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
                 {
@@ -293,7 +332,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         // after the last instruction is executed.
         if (result.status == RunResult::Status::LIMIT_REACHED && UNLIKELY(m_regwatches.count != 0))
         {
-            register_watch_hit();
+            register_watch_hit(result);
         }
     }
     catch (const Trap &e)
@@ -318,30 +357,30 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
         }
         else
         {
-            fault("Emulator exception", e.what());
+            fault(result, "Emulator exception", e.what());
         }
     }
     catch (const SystemBus::BusError &e)
     {
-        fault("System bus exception", e.what());
+        fault(result, "System bus exception", e.what());
     }
     catch (const VirtualMemory::Error &e)
     {
         // E.g. an access to an unmapped virtual page, or to memory that the page does not allow.
-        fault("Virtual memory exception", e.what());
+        fault(result, "Virtual memory exception", e.what());
     }
     catch (const FreeBlockList::Error &e)
     {
         // There are no more pages on the disk, or no more process numbers.
-        fault("Out of resources", e.what());
+        fault(result, "Out of resources", e.what());
     }
     catch (const Disk::ReadError &e)
     {
-        fault("Disk read error", e.what());
+        fault(result, "Disk read error", e.what());
     }
     catch (const Disk::WriteError &e)
     {
-        fault("Disk write error", e.what());
+        fault(result, "Disk write error", e.what());
     }
     catch (const aemu::log::FatalError &e)
     {
@@ -550,26 +589,9 @@ word Emulator32bit::watch_old_value(const word address, const word length)
 void Emulator32bit::watch_access(const word address, const word length, const bool write,
                                  const word value, const word old_value)
 {
-    if (!m_watchpoints.hit_message.empty())
-    {
-        return; // the first hit of the instruction is the one that is reported
-    }
-
-    // The byte of the access that ends up at `target`, for a watchpoint on physical addresses. It
-    // succeeded, so the translation is there. A byte that cannot be translated is one that
-    // nothing watches.
-    const auto physical_address = [&](const word virtual_address, word &target)
-    {
-        try
-        {
-            target = mmu->translate_address(virtual_address);
-            return true;
-        }
-        catch (const std::exception &)
-        {
-            return false;
-        }
-    };
+    // The first hit of the instruction is the one that is reported,
+    // do not overwrite it with any subsequent hits.
+    if (!m_watchpoints.hit_message.empty()) return;
 
     const U64 first = address;
     const U64 last = first + length; // One past, 64 bit so it cannot wrap.
@@ -595,7 +617,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
             for (word k = 0; k < length && !overlaps; k++)
             {
                 word target;
-                overlaps = physical_address(address + k, target) && target >= watched
+                overlaps = translate_watched_byte(*mmu, address + k, target) && target >= watched
                            && U64(target) < watched_end;
             }
         }

@@ -221,33 +221,40 @@ struct CliArgs
     std::ostream *trace = nullptr;
 };
 
+/// Reads an option that is a number.
+///
+/// @param result The parsed command line.
+/// @param option The name of the option.
+/// @param parse_error Set if the value is not a number, which is reported.
+/// @return The number, or 0 if it is not one.
+static word number_option(const cxxopts::ParseResult &result, const char *option, bool &parse_error)
+{
+    const std::string value = result[option].as<std::string>();
+    const std::optional<U64> number = parse_number(value);
+    if (!number)
+    {
+        std::cerr << "ERROR: Invalid number for --" << option << ": " << value << "\n";
+        parse_error = true;
+        return 0;
+    }
+    return static_cast<word>(*number);
+}
+
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
 /// @return false if there was one.
 static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
 {
     bool parse_error = false;
-    auto number_option = [&](const char *option) -> word
-    {
-        const std::string value = result[option].as<std::string>();
-        const std::optional<U64> number = parse_number(value);
-        if (!number)
-        {
-            std::cerr << "ERROR: Invalid number for --" << option << ": " << value << "\n";
-            parse_error = true;
-            return 0;
-        }
-        return static_cast<word>(*number);
-    };
 
-    args.ram_npages = number_option("ram-pages");
-    args.ram_start_page = number_option("ram-start");
-    args.rom_npages = number_option("rom-pages");
-    args.rom_start_page = number_option("rom-start");
-    args.pc = number_option("pc");
-    args.limit = number_option("limit");
-    args.flags = number_option("flags");
-    args.history_size = number_option("history");
+    args.ram_npages = number_option(result, "ram-pages", parse_error);
+    args.ram_start_page = number_option(result, "ram-start", parse_error);
+    args.rom_npages = number_option(result, "rom-pages", parse_error);
+    args.rom_start_page = number_option(result, "rom-start", parse_error);
+    args.pc = number_option(result, "pc", parse_error);
+    args.limit = number_option(result, "limit", parse_error);
+    args.flags = number_option(result, "flags", parse_error);
+    args.history_size = number_option(result, "history", parse_error);
     if (args.history_size > kMaxHistory)
     {
         std::cerr << "ERROR: --history keeps at most " << kMaxHistory << " instructions\n";
@@ -318,8 +325,8 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
         }
         else
         {
-            args.disk_npages = number_option("disk-pages");
-            args.disk_start_page = number_option("disk-start");
+            args.disk_npages = number_option(result, "disk-pages", parse_error);
+            args.disk_start_page = number_option(result, "disk-start", parse_error);
         }
     }
 
@@ -587,7 +594,15 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
     }
 }
 
-static int run_cli(int argc, char *argv[])
+/// Tells the user which port the gdb server listens on, which matters when they asked for any.
+///
+/// @param port The port that is listening.
+static void report_gdb_port(const std::uint16_t port)
+{
+    std::cout << "gdb: listening on 127.0.0.1:" << port << std::endl;
+}
+
+static int run_cli(const int argc, char *argv[])
 {
     using ExitCode = Emulator32bit::EmuCLIExitCode;
 
@@ -654,13 +669,8 @@ static int run_cli(int argc, char *argv[])
             std::cerr << "ERROR: Invalid port for --gdb\n";
             return S32(ExitCode::EXIT_USAGE_ERROR);
         }
-        const bool served = GdbServer::serve(
-            *emu, static_cast<std::uint16_t>(*port),
-            [](const std::uint16_t listening)
-            {
-                std::cout << "gdb: listening on 127.0.0.1:" << listening << std::endl;
-            },
-            &std::cerr);
+        const bool served =
+            GdbServer::serve(*emu, static_cast<std::uint16_t>(*port), report_gdb_port, &std::cerr);
         if (!served)
         {
             std::cerr << "ERROR: Cannot listen on port " << *port << "\n";

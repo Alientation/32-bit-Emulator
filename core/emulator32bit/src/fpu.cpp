@@ -421,26 +421,41 @@ Result unary(const U8 fn, const bool dbl, const U64 a, const word rounding)
     return {canonical(f), host.flags()};
 }
 
+namespace
+{
+
+/// The NZCV flags of `fcmp`, as the bits of the result.
+constexpr U64 kCompareN = 0b1000;
+constexpr U64 kCompareZ = 0b0100;
+constexpr U64 kCompareC = 0b0010;
+constexpr U64 kCompareV = 0b0001;
+
+/// Compares two values of the type `T`, given as their bits.
+///
+/// @param signaling Whether a quiet NaN raises Invalid too (`fcmpe`).
+/// @return The flags (less than: N, equal: ZC, greater than: C, unordered: CV) and the exceptions.
+template<class T>
+Result compare_as(const bool signaling, const U64 a, const U64 b)
+{
+    const T x = from_bits<T>(a);
+    const T y = from_bits<T>(b);
+    if (x != x || y != y)
+    {
+        const bool invalid = signaling || is_signaling_nan(x) || is_signaling_nan(y);
+        return {.value = kCompareC | kCompareV, .flags = invalid ? kInvalid : 0};
+    }
+    if (x == y)
+    {
+        return {.value = kCompareZ | kCompareC, .flags = 0};
+    }
+    return {.value = x < y ? kCompareN : kCompareC, .flags = 0};
+}
+
+} // namespace
+
 Result compare(const bool dbl, const bool signaling, const U64 a, const U64 b)
 {
-    constexpr U64 kN = 0b1000, kZ = 0b0100, kC = 0b0010, kV = 0b0001;
-
-    auto compare_as = [&]<class T>(T) -> Result
-    {
-        const T x = from_bits<T>(a);
-        const T y = from_bits<T>(b);
-        if (x != x || y != y)
-        {
-            const bool invalid = signaling || is_signaling_nan(x) || is_signaling_nan(y);
-            return {kC | kV, invalid ? kInvalid : 0};
-        }
-        if (x == y)
-        {
-            return {kZ | kC, 0};
-        }
-        return {x < y ? kN : kC, 0};
-    };
-    return dbl ? compare_as(double{}) : compare_as(float{});
+    return dbl ? compare_as<double>(signaling, a, b) : compare_as<float>(signaling, a, b);
 }
 
 } // namespace fpu

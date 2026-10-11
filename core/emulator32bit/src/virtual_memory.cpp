@@ -992,13 +992,12 @@ word VirtualMemory::translate_fetch_slow(const word address)
 word VirtualMemory::walk_translate(const word address, const AccessType access)
 {
     const word vpage = address >> kNumPageOffsetBits;
-    const auto fault = [&](const PageFault::Reason reason) { throw_fault(reason, vpage, access); };
 
     word first = 0;
     if (!m_physical->read_physical_word(m_ptbr + ((address >> 22) << 2), first)
         || !(first & kPteValid))
     {
-        fault(PageFault::Reason::UNMAPPED);
+        throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }
 
     const word entry_address =
@@ -1006,28 +1005,28 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
     word entry = 0;
     if (!m_physical->read_physical_word(entry_address, entry) || !(entry & kPteValid))
     {
-        fault(PageFault::Reason::UNMAPPED);
+        throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }
 
     if (m_user && !(entry & kPteUser))
     {
-        fault(PageFault::Reason::KERNEL_ONLY);
+        throw_fault(PageFault::Reason::KERNEL_ONLY, vpage, access);
     }
     if (access == AccessType::WRITE && !(entry & kPteWrite))
     {
-        fault(PageFault::Reason::WRITE_DENIED);
+        throw_fault(PageFault::Reason::WRITE_DENIED, vpage, access);
     }
     // The kernel does not run code that a user process can write.
     if (access == AccessType::EXECUTE
         && (!(entry & kPteExecute) || (!m_user && (entry & kPteUser))))
     {
-        fault(PageFault::Reason::EXECUTE_DENIED);
+        throw_fault(PageFault::Reason::EXECUTE_DENIED, vpage, access);
     }
 
     const word marked = entry | kPteAccessed | (access == AccessType::WRITE ? kPteDirty : 0);
     if (marked != entry && !m_physical->write_physical_word(entry_address, marked))
     {
-        fault(PageFault::Reason::UNMAPPED);
+        throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }
 
     // The slot may have held the entry of the page that is fetched from. The visible TLB keeps a

@@ -670,7 +670,15 @@ class Emulator32bit
     /// @return The index of the watchpoint at the address, or m_watchpoints.count if there is none.
     unsigned find_watchpoint(word address, bool physical) const;
 
-    /// @return the index of the watch on the register, or m_regwatches.count if there is none
+    /// Looks at the watched registers between two instructions, which covers a completed
+    /// instruction and an exception entry.
+    ///
+    /// @param result The result of the run, which becomes a stop at a breakpoint if a watched
+    ///        register changed since it was last looked at.
+    /// @return Whether a register watch stopped the run.
+    bool register_watch_hit(RunResult &result);
+
+    /// @return The index of the watch on the register, or m_regwatches.count if there is none.
     unsigned find_register_watch(U8 reg) const;
 
     /// Adds a register watch or replaces the one on `reg`; add_register_watch.

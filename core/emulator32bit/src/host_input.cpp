@@ -40,6 +40,6 @@ bool HostInput::finished() const
 bool HostInput::wait()
 {
     std::unique_lock lock(m_mutex);
-    m_arrived.wait(lock, [this] { return !m_bytes.empty() || m_closed; });
+    while (m_bytes.empty() && !m_closed) m_arrived.wait(lock);
     return !m_bytes.empty();
 }

@@ -610,19 +610,21 @@ void Debugger::command_history()
     }
 }
 
+void Debugger::print_frame(const word address, size_t &index)
+{
+    m_out << std::format("#{:<3}{}\n", index++, describe(address));
+}
+
 void Debugger::command_backtrace()
 {
     constexpr size_t kMaxFrames = 64;
 
     size_t index = 0;
-    const auto print_frame = [&](const word address)
-    { m_out << std::format("#{:<3}{}\n", index++, describe(address)); };
-
     const word pc = m_emu.get_pc();
-    print_frame(pc);
+    print_frame(pc, index);
     if (m_symbols.has_symbol_at(pc))
     {
-        print_frame(m_emu.read_reg(Register::LR));
+        print_frame(m_emu.read_reg(Register::LR), index);
     }
 
     // In a handler the frame records go on with the code that was interrupted (a handler that
@@ -641,7 +643,7 @@ void Debugger::command_backtrace()
             is_abort ? std::format(", FAR={:#010x}", m_emu.read_sysreg(encoding::kSysregId_far))
                      : "",
             m_emu.exception_depth() > 1 ? " (the last of several)" : "");
-        print_frame(m_emu.read_sysreg(encoding::kSysregId_elr));
+        print_frame(m_emu.read_sysreg(encoding::kSysregId_elr), index);
     }
 
     word fp = m_emu.read_reg(Register::FP);
@@ -666,7 +668,7 @@ void Debugger::command_backtrace()
             return;
         }
 
-        print_frame(return_address);
+        print_frame(return_address, index);
         // The stack grows down, so the record of a caller is at a higher address.
         if (caller_fp != 0 && caller_fp <= fp)
         {
