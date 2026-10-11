@@ -128,8 +128,9 @@ class ObjectFile
         /// Size of the section in bytes.
         word section_size;
 
-        /// Size of an entry in the section.
-        /// @todo Why is this necessary? ELF seems to have this but why.
+        /// Size in bytes of an entry of a section that is a table: 4 for the instructions of .text,
+        /// kSymbolTableEntrySize and kRelocationEntrySize for the symbols and the relocations. 0
+        /// for the others. Nothing reads it back, the sizes are known from the type of the section.
         word entry_size;
 
         /// Whether the section is loaded at a physical address, as opposed to a

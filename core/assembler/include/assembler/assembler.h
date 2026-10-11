@@ -318,6 +318,7 @@ class Assembler
 
     /// Operations of the form `op xd, xn, <xm[, shift] | imm14 | :lo12:symbol>`.
     ///
+    /// @param opcode The opcode of the operation.
     /// @param implicit_dest The destination is not written, it is xzr (cmp, cmn, tst, teq).
     word parse_format_o(byte opcode, bool implicit_dest = false);
     /// The shifts: `op xd, xn, <xm | imm5>`.

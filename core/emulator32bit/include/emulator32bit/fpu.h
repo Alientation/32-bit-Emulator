@@ -22,9 +22,9 @@ namespace fpu
 
 /// FPCR: the rounding mode, bits 1-0.
 constexpr word kRoundNearest = 0; ///< To nearest, ties to even.
-constexpr word kRoundUp = 1;      ///< toward +infinity
-constexpr word kRoundDown = 2;    ///< toward -infinity
-constexpr word kRoundZero = 3;    ///< toward zero
+constexpr word kRoundUp = 1;      ///< Toward +infinity.
+constexpr word kRoundDown = 2;    ///< Toward -infinity.
+constexpr word kRoundZero = 3;    ///< Toward zero.
 constexpr word kFpcrMask = 0b11;
 
 /// FPSR: the cumulative exception flags, bits 4-0. They are set by an operation and only cleared
@@ -49,7 +49,7 @@ constexpr U8 kBinaryFn_count = 6;
 /// `c` are the operands `xn`, `xm` and `xa`, and the product is not rounded before it is added.
 constexpr U8 kFmaFn_madd = 0;  ///< a * b + c
 constexpr U8 kFmaFn_msub = 1;  ///< c - a * b
-constexpr U8 kFmaFn_nmadd = 2; ///< -c - a * b.
+constexpr U8 kFmaFn_nmadd = 2; ///< -c - a * b
 constexpr U8 kFmaFn_nmsub = 3; ///< a * b - c
 constexpr U8 kFmaFn_count = 4;
 
@@ -58,7 +58,7 @@ constexpr U8 kUnaryFn_abs = 0;
 constexpr U8 kUnaryFn_neg = 1;
 constexpr U8 kUnaryFn_sqrt = 2;
 constexpr U8 kUnaryFn_rint = 3;  ///< Round to an integral value, in the mode of the FPCR.
-constexpr U8 kUnaryFn_rintz = 4; ///< toward zero
+constexpr U8 kUnaryFn_rintz = 4; ///< Toward zero.
 constexpr U8 kUnaryFn_rintm = 5; ///< Toward -infinity (floor).
 constexpr U8 kUnaryFn_rintp = 6; ///< Toward +infinity (ceil).
 constexpr U8 kUnaryFn_rinta = 7; ///< To nearest, ties away from zero.
@@ -84,7 +84,9 @@ constexpr bool unary_dest_is_pair(const U8 fn, const bool dbl)
     return fn == kUnaryFn_fcvt ? !dbl : dbl;
 }
 
-/// @return Whether the source is a register pair (a double), see unary_dest_is_pair.
+/// @param fn A kUnaryFn_*.
+/// @param dbl The precision bit of the instruction, see unary_dest_is_pair.
+/// @return Whether the source is a register pair (a double).
 constexpr bool unary_source_is_pair(const U8 fn, const bool dbl)
 {
     if (fn == kUnaryFn_froms32 || fn == kUnaryFn_fromu32)
@@ -106,14 +108,21 @@ struct Result
 ///
 /// @param fn A kBinaryFn_* below kBinaryFn_count.
 /// @param dbl Whether the operands and the result are doubles.
+/// @param a The first operand, as a bit pattern.
+/// @param b The second operand, as a bit pattern.
 /// @param rounding The mode of the FPCR (kRound*).
+/// @return The result and the exception flags it raised.
 Result binary(U8 fn, bool dbl, U64 a, U64 b, word rounding);
 
 /// `fop3`: the product of @p a and @p b added to or subtracted from @p c with one rounding.
 ///
 /// @param fn A kFmaFn_* below kFmaFn_count.
 /// @param dbl Whether the operands and the result are doubles.
+/// @param a The first factor, as a bit pattern.
+/// @param b The second factor, as a bit pattern.
+/// @param c The addend, as a bit pattern.
 /// @param rounding The mode of the FPCR (kRound*).
+/// @return The result and the exception flags it raised.
 Result fused(U8 fn, bool dbl, U64 a, U64 b, U64 c, word rounding);
 
 /// `fop1`: @p a is the source in the representation of its type, the result the destination in
@@ -121,13 +130,19 @@ Result fused(U8 fn, bool dbl, U64 a, U64 b, U64 c, word rounding);
 ///
 /// @param fn A kUnaryFn_* below kUnaryFn_count.
 /// @param dbl See unary_dest_is_pair.
+/// @param a The source.
 /// @param rounding The mode of the FPCR (kRound*).
+/// @return The result and the exception flags it raised.
 Result unary(U8 fn, bool dbl, U64 a, word rounding);
 
 /// `fcmp`: the value of the result is NZCV in bits 3-0 (N is bit 3), as the flags are set by a
 /// comparison of integers. Equal is Z and C, less is N, greater is C and unordered is C and V.
 ///
+/// @param dbl Whether the operands are doubles.
 /// @param signaling Whether any NaN raises Invalid (`fcmpe`); otherwise only a signaling one does.
+/// @param a The first operand, as a bit pattern.
+/// @param b The second operand, as a bit pattern.
+/// @return The flags in the value, and the exception flags it raised.
 Result compare(bool dbl, bool signaling, U64 a, U64 b);
 
 } // namespace fpu

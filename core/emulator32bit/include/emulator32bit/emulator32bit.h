@@ -225,7 +225,7 @@ class Emulator32bit
     {
         READ = 1,
         WRITE = 2,
-        ACCESS = 3, ///< either
+        ACCESS = 3, ///< Either.
     };
 
     /// How the value of an access is compared with the number of a watchpoint (unsigned).

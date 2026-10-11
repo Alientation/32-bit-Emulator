@@ -30,6 +30,10 @@ struct WatchSpec
 };
 
 /// The condition of a watchpoint as text: "" without one, "==0x5" with one.
+///
+/// @param compare The comparison.
+/// @param value The number the value of the access is compared with.
+/// @return The text.
 std::string describe_watch_condition(Emulator32bit::WatchCompare compare, word value);
 
 /// Parses the argument of `--watch`.

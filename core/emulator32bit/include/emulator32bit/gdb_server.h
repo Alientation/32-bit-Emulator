@@ -58,11 +58,12 @@ class GdbServer
         return m_silent;
     }
 
-    /// The XML that tells gdb what registers there are.
+    /// @return The XML that tells gdb what registers there are.
     static std::string target_description();
 
     /// Serves one client.
     ///
+    /// @param emu The machine, with the program loaded.
     /// @param port The TCP port on 127.0.0.1.
     /// @param ready Called with the port once it is listening (0 asks for any free port), or null.
     /// @param log Where to say what happens (a connection, an error), or null.
@@ -71,18 +72,28 @@ class GdbServer
                       std::ostream *log);
 
     /// Encodes bytes as the hexadecimal text of the protocol.
+    ///
+    /// @param bytes The bytes.
+    /// @return Two lower case digits for each byte.
     static std::string to_hex(const std::string &bytes);
 
-    /// @return The bytes of the hexadecimal text, or nothing if it is not valid.
+    /// Decodes the hexadecimal text of the protocol.
+    ///
+    /// @param bytes Receives the bytes.
+    /// @param text Two digits for each byte.
+    /// @return `false` if the text is not valid (an odd number of digits, or a character that is
+    ///     not one).
     static bool from_hex(std::string &bytes, const std::string &text);
 
   private:
-    /// The stop reply after the program ran.
+    /// @param result How the run ended.
+    /// @return The stop reply after the program ran.
     std::string stop_reply(const Emulator32bit::RunResult &result);
 
     /// Runs until something stops it, or the client interrupts.
     ///
     /// @param steps 1 for a single step, 0 to go on.
+    /// @return The stop reply.
     std::string resume(U64 steps);
 
     std::string read_registers();
