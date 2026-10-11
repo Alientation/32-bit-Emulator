@@ -496,7 +496,7 @@ void Debugger::command_regs()
 
     for (U8 reg = 0; reg < static_cast<U8>(Register::SP); reg++)
     {
-        m_out << std::format(" {:>3} {:#010x}", "x" + std::to_string(reg), m_emu.read_reg(reg));
+        m_out << std::format(" {:>3} {:#010x}", register_name(reg), m_emu.read_reg(reg));
         m_out << (reg % 4 == 3 ? "\n" : " ");
     }
     m_out << "\n" << std::format("  sp {:#010x}\n", m_emu.read_reg(Register::SP));

@@ -133,19 +133,14 @@ inline void Emulator32bit::record_history(const word instr)
 void Emulator32bit::print()
 {
     *m_out << "32 bit emulator\nRegisters:\n";
-    *m_out << std::format(" pc: {}\n sp: {}\nxzr: {}\n", to_color_hex_str(m_pc),
-                          to_color_hex_str(read_reg(Register::SP)), to_color_hex_str(word(0)));
-    for (U8 i = 0; i <= register_to_U8(Register::X29); i++)
+    *m_out << std::format(" pc: {}\n", to_color_hex_str(m_pc));
+    for (U8 reg = 0; reg < kNumReg; reg++)
     {
-        // x00-x27 are numbered, fp and lr are named like pc and sp
-        *m_out << (i < register_to_U8(Register::FP) ? std::format("x{:02}", i)
-                                                    : std::format(" {}", register_name(i)))
-               << std::format(": {}\n", to_color_hex_str(read_reg(i)));
+        *m_out << std::format("{:>3}: {}\n", register_name(reg), to_color_hex_str(read_reg(reg)));
     }
 
-    *m_out << std::format("\nN={:d} Z={:d} C={:d} V={:d}\n", test_bit<kNFlagBit>(m_pstate),
-                          test_bit<kZFlagBit>(m_pstate), test_bit<kCFlagBit>(m_pstate),
-                          test_bit<kVFlagBit>(m_pstate));
+    const NZCVFlags flags = get_NZCV();
+    *m_out << std::format("\nN={:d} Z={:d} C={:d} V={:d}\n", flags.n, flags.z, flags.c, flags.v);
 }
 
 word Emulator32bit::fetch_instruction()
