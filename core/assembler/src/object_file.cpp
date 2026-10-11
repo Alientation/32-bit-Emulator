@@ -7,6 +7,61 @@
 
 #include <fstream>
 
+namespace
+{
+
+/// Fails unless the file has a section with the name and the type.
+void require_section(const ObjectFile &obj, const std::string &path, const char *name,
+                     const ObjectFile::SectionHeader::Type type)
+{
+    const auto section = obj.section_table.find(name);
+    AEMU_CHECK(section != obj.section_table.end() && obj.sections[section->second].type == type,
+               "'{}' is not an object file that can be used, it has no {} section.", path, name);
+}
+
+/// Fails unless every relocation is for a symbol of the file, has a type that exists and is
+/// inside the section (`size` bytes long) with `width` bytes to patch.
+void check_relocations(const ObjectFile &obj, const std::string &path,
+                       const std::vector<ObjectFile::RelocationEntry> &relocations,
+                       const char *section, const size_t size, const size_t width)
+{
+    using Type = ObjectFile::RelocationEntry::Type;
+    for (const ObjectFile::RelocationEntry &rel : relocations)
+    {
+        AEMU_CHECK(obj.symbol_table.count(rel.symbol) != 0,
+                   "'{}' is corrupt, a relocation of {} is for the symbol {}, which does not "
+                   "exist.",
+                   path, section, rel.symbol);
+        AEMU_CHECK(rel.type > Type::UNDEFINED && rel.type <= Type::R_EMU32_ADR_PCREL21,
+                   "'{}' is corrupt, a relocation of {} has the invalid type {}.", path, section,
+                   U32(rel.type));
+        AEMU_CHECK(U64(rel.offset) + width <= size,
+                   "'{}' is corrupt, a relocation of {} is at {}, outside of the section.", path,
+                   section, rel.offset);
+    }
+}
+
+/// Writes the relocations of a section where the last write stopped, and gives its header the
+/// size and the place.
+void write_relocations(ByteWriter &byte_writer, int &current_byte,
+                       ObjectFile::SectionHeader &header, const char *name,
+                       const std::vector<ObjectFile::RelocationEntry> &relocations)
+{
+    AEMU_DEBUG("Writing {} section.", name);
+    for (const ObjectFile::RelocationEntry &rel : relocations)
+    {
+        byte_writer << ByteWriter::Data(rel.offset, 8);
+        byte_writer << ByteWriter::Data(rel.symbol, 8);
+        byte_writer << ByteWriter::Data(U32(rel.type), 4);
+        byte_writer << ByteWriter::Data(S64(rel.addend), 8);
+    }
+    header.section_size = relocations.size() * ObjectFile::kRelocationEntrySize;
+    header.section_start = current_byte;
+    current_byte += relocations.size() * ObjectFile::kRelocationEntrySize;
+}
+
+} // namespace
+
 ObjectFile::ObjectFile() = default;
 
 const std::array<ObjectFile::ByteSection, 4> &ObjectFile::byte_sections()
@@ -420,23 +475,14 @@ void ObjectFile::validate() const
     const std::string &path = m_obj_file.get_path();
 
     // The sections that everything else is looked up in.
-    const auto require = [&](const char *name, SectionHeader::Type type)
-    {
-        const auto section = section_table.find(name);
-        AEMU_CHECK(
-            section != section_table.end() && sections[section->second].type == type,
-            "'{}' is not an object file that can be used, it has "
-            "no {} section.",
-            path, name);
-    };
-    require(".text", SectionHeader::Type::TEXT);
+    require_section(*this, path, ".text", SectionHeader::Type::TEXT);
     for (const ByteSection &section : byte_sections())
     {
-        require(section.name, section.type);
+        require_section(*this, path, section.name, section.type);
     }
-    require(".bss", SectionHeader::Type::BSS);
-    require(".symtab", SectionHeader::Type::SYMTAB);
-    require(".strtab", SectionHeader::Type::STRTAB);
+    require_section(*this, path, ".bss", SectionHeader::Type::BSS);
+    require_section(*this, path, ".symtab", SectionHeader::Type::SYMTAB);
+    require_section(*this, path, ".strtab", SectionHeader::Type::STRTAB);
 
     for (const auto &[key, symbol] : symbol_table)
     {
@@ -458,36 +504,16 @@ void ObjectFile::validate() const
     }
 
     // Where the relocation is, in the section that it is for.
-    const auto check_relocations = [&](const std::vector<RelocationEntry> &relocations,
-                                       const char *section, size_t size, size_t width)
-    {
-        for (const RelocationEntry &rel : relocations)
-        {
-            AEMU_CHECK(symbol_table.count(rel.symbol) != 0,
-                       "'{}' is corrupt, a relocation of {} is for the "
-                       "symbol {}, which does not exist.",
-                       path, section, rel.symbol);
-            AEMU_CHECK(rel.type > RelocationEntry::Type::UNDEFINED
-                           && rel.type <= RelocationEntry::Type::R_EMU32_ADR_PCREL21,
-                       "'{}' is corrupt, a relocation of {} has the "
-                       "invalid type {}.",
-                       path, section, U32(rel.type));
-            AEMU_CHECK(U64(rel.offset) + width <= size,
-                       "'{}' is corrupt, a relocation of {} is at {}, "
-                       "outside of the section.",
-                       path, section, rel.offset);
-        }
-    };
-    check_relocations(rel_text, ".text", text_section.size() * 4, 4);
+    check_relocations(*this, path, rel_text, ".text", text_section.size() * kTextEntrySize, 4);
     for (const ByteSection &section : byte_sections())
     {
-        check_relocations(this->*section.relocations, section.name, (this->*section.bytes).size(),
-                          4);
+        check_relocations(*this, path, this->*section.relocations, section.name,
+                          (this->*section.bytes).size(), 4);
     }
-    check_relocations(rel_bss, ".bss", 0, 0);
+    check_relocations(*this, path, rel_bss, ".bss", 0, 0);
     for (const UserSection &user : user_sections)
     {
-        check_relocations(user.relocations, user.name.c_str(), user.bytes.size(), 4);
+        check_relocations(*this, path, user.relocations, user.name.c_str(), user.bytes.size(), 4);
     }
 
     for (const RelocationEntry &rel : rel_text)
@@ -715,27 +741,15 @@ void ObjectFile::write_object_file(File obj_file)
     current_byte += symbol_table.size() * kSymbolTableEntrySize;
 
     // Write the relocation sections.
-    const auto write_relocations =
-        [&](const char *name, const std::vector<RelocationEntry> &relocations)
-    {
-        AEMU_DEBUG("Writing {} section.", name);
-        for (const RelocationEntry &rel : relocations)
-        {
-            byte_writer << ByteWriter::Data(rel.offset, 8);
-            byte_writer << ByteWriter::Data(rel.symbol, 8);
-            byte_writer << ByteWriter::Data(U32(rel.type), 4);
-            byte_writer << ByteWriter::Data(S64(rel.addend), 8);
-        }
-        sections[section_table[name]].section_size = relocations.size() * kRelocationEntrySize;
-        sections[section_table[name]].section_start = current_byte;
-        current_byte += relocations.size() * kRelocationEntrySize;
-    };
-    write_relocations(".rel.text", rel_text);
+    write_relocations(byte_writer, current_byte, sections[section_table[".rel.text"]], ".rel.text",
+                      rel_text);
     for (const ByteSection &section : byte_sections())
     {
-        write_relocations(section.rel_name, this->*section.relocations);
+        write_relocations(byte_writer, current_byte, sections[section_table[section.rel_name]],
+                          section.rel_name, this->*section.relocations);
     }
-    write_relocations(".rel.bss", rel_bss);
+    write_relocations(byte_writer, current_byte, sections[section_table[".rel.bss"]], ".rel.bss",
+                      rel_bss);
 
     // User sections: the bytes and the relocations of each, in the order of their headers.
     for (const UserSection &user : user_sections)
@@ -759,8 +773,9 @@ void ObjectFile::write_object_file(File obj_file)
             current_byte += user.bytes.size();
         }
 
-        write_relocations(strings[sections[user.header_index + 1].section_name].c_str(),
-                          user.relocations);
+        SectionHeader &rel_header = sections[user.header_index + 1];
+        write_relocations(byte_writer, current_byte, rel_header,
+                          strings[rel_header.section_name].c_str(), user.relocations);
     }
 
     // Write the string table.

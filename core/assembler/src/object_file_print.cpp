@@ -14,6 +14,10 @@
 namespace
 {
 
+/// The width that the name of a relocation is padded to in the listing of the code, less one for
+/// each bit of the number of the instruction (so it gets narrower further down).
+constexpr int kRelocationNameWidth = 29;
+
 const char *relocation_name(ObjectFile::RelocationEntry::Type type)
 {
     using Type = ObjectFile::RelocationEntry::Type;
@@ -58,9 +62,42 @@ std::string address_text(U64 address)
 }
 
 /// At least four digits, and room for the highest number of the section.
-int digits_for(size_t count)
+int digits_for(const size_t count)
 {
-    return std::max(4, int(std::bit_width(count)));
+    const int digits = int(std::bit_width(count));
+    return digits > 4 ? digits : 4;
+}
+
+/// Lists the bytes of a section, 16 to a line, and then its relocations. `separator` is what
+/// comes before the section.
+void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator,
+                 const std::string &name, const std::vector<byte> &bytes_of_section,
+                 const std::vector<ObjectFile::RelocationEntry> &relocations)
+{
+    out << std::format("{}Contents of section {}:", separator, name);
+    const int width = digits_for(bytes_of_section.size() / 16);
+    for (size_t i = 0; i < bytes_of_section.size(); i++)
+    {
+        if (i % 16 == 0)
+        {
+            out << std::format("\n{:0{}x} ", i, width);
+        }
+        if (i % 4 == 0 && i % 16 != 0)
+        {
+            out << ' ';
+        }
+        out << std::format("{:02x}", bytes_of_section[i]);
+    }
+
+    if (!relocations.empty())
+    {
+        out << std::format("\n\nRelocations of section {}:", name);
+        for (const ObjectFile::RelocationEntry &rel : relocations)
+        {
+            out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, width, relocation_name(rel.type),
+                               target_text(obj, rel));
+        }
+    }
 }
 
 } // namespace
@@ -104,36 +141,6 @@ void ObjectFile::print(std::ostream &out)
                            section_name, address_text(0), strings[symbol.symbol_name]);
     }
 
-    const auto print_bytes = [&](const char *separator, const std::string &name,
-                                 const std::vector<byte> &bytes_of_section,
-                                 const std::vector<RelocationEntry> &relocations)
-    {
-        out << std::format("{}Contents of section {}:", separator, name);
-        const int width = digits_for(bytes_of_section.size() / 16);
-        for (size_t i = 0; i < bytes_of_section.size(); i++)
-        {
-            if (i % 16 == 0)
-            {
-                out << std::format("\n{:0{}x} ", i, width);
-            }
-            if (i % 4 == 0 && i % 16 != 0)
-            {
-                out << ' ';
-            }
-            out << std::format("{:02x}", bytes_of_section[i]);
-        }
-
-        if (!relocations.empty())
-        {
-            out << std::format("\n\nRelocations of section {}:", name);
-            for (const RelocationEntry &rel : relocations)
-            {
-                out << std::format("\n{:0{}x}: {:<20}{}", rel.offset, width,
-                                   relocation_name(rel.type), target_text(*this, rel));
-            }
-        }
-    };
-
     // .data is always listed, the other byte sections only when they have contents.
     for (const ByteSection &section : byte_sections())
     {
@@ -141,7 +148,7 @@ void ObjectFile::print(std::ostream &out)
         {
             continue;
         }
-        print_bytes(&section == &byte_sections()[0] ? "\n" : "\n\n", section.name,
+        print_bytes(out, *this, &section == &byte_sections()[0] ? "\n" : "\n\n", section.name,
                     this->*section.bytes, this->*section.relocations);
     }
 
@@ -154,7 +161,7 @@ void ObjectFile::print(std::ostream &out)
                                section.name, section.zero_size);
             continue;
         }
-        print_bytes("\n\n", section.name, section.bytes, section.relocations);
+        print_bytes(out, *this, "\n\n", section.name, section.bytes, section.relocations);
     }
 
     out << "\n\nDisassembly of section .text:\n";
@@ -237,9 +244,9 @@ void ObjectFile::print(std::ostream &out)
         if (rel != rel_text_map.end())
         {
             out << "\n" << std::string(text_address_width, ' ');
+            const int name_width = kRelocationNameWidth - int(std::bit_width(i / 4));
             out << std::format(" \t{:x}: {:<{}}{}", address, relocation_name(rel->second.type),
-                               std::max(1, 29 - int(std::bit_width(i / 4))),
-                               target_text(*this, rel->second));
+                               name_width > 1 ? name_width : 1, target_text(*this, rel->second));
         }
     }
     out << "\n";

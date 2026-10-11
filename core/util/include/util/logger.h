@@ -52,7 +52,6 @@
 
 #include "util/console_color.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <cstdint>
@@ -155,8 +154,10 @@ constexpr std::string_view to_string(Level level)
 inline std::optional<Level> parse_level(std::string_view name)
 {
     std::string lower(name);
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    for (char &c : lower)
+    {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
 
     if (lower == "debug")
     {

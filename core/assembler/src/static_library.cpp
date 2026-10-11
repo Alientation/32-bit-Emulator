@@ -15,6 +15,31 @@ constexpr unsigned short kVersion = 1;
 /// Longer than any name of a file, to refuse a file that is cut or damaged before reading it.
 constexpr unsigned long long kMaxNameLength = 4096;
 
+/// Adds the names of the symbols that an object file defines to `defined`, and the ones that it
+/// uses and does not define to `wanted`. A symbol that is local to the object is not seen by the
+/// others.
+void add_symbols(std::set<std::string> &defined, std::set<std::string> &wanted,
+                 const ObjectFile &object)
+{
+    for (const auto &[key, symbol] : object.symbol_table)
+    {
+        if (symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL)
+        {
+            continue;
+        }
+
+        // A weak reference does not need a definition, so it does not pull a member in.
+        if (symbol.section == U32(-1)
+            && symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED)
+        {
+            continue;
+        }
+
+        const std::string &name = object.strings[symbol.symbol_name];
+        (symbol.section == U32(-1) ? wanted : defined).insert(name);
+    }
+}
+
 } // namespace
 
 void write_static_library(const std::vector<File> &objects, File out)
@@ -125,33 +150,11 @@ std::vector<ObjectFile> select_library_members(const std::vector<ObjectFile> &ob
 {
     std::vector<ObjectFile> selected = objects;
 
-    // The symbols that the objects define, and the ones that they use and do not define. A symbol
-    // that is local to an object is not seen by the others.
     std::set<std::string> defined;
     std::set<std::string> wanted;
-    const auto add = [&](const ObjectFile &object)
-    {
-        for (const auto &[key, symbol] : object.symbol_table)
-        {
-            if (symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::LOCAL)
-            {
-                continue;
-            }
-
-            // A weak reference does not need a definition, so it does not pull a member in.
-            if (symbol.section == U32(-1)
-                && symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED)
-            {
-                continue;
-            }
-
-            const std::string &name = object.strings[symbol.symbol_name];
-            (symbol.section == U32(-1) ? wanted : defined).insert(name);
-        }
-    };
     for (const ObjectFile &object : objects)
     {
-        add(object);
+        add_symbols(defined, wanted, object);
     }
 
     // A member brings the symbols of its own that it needs, so go on while members are added.
@@ -184,7 +187,7 @@ std::vector<ObjectFile> select_library_members(const std::vector<ObjectFile> &ob
                 AEMU_DEBUG("select_library_members() - Linking the member {}.", members[i].name);
                 taken[i] = true;
                 selected.push_back(members[i].object);
-                add(members[i].object);
+                add_symbols(defined, wanted, members[i].object);
                 added = true;
             }
         }

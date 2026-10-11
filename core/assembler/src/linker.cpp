@@ -17,25 +17,61 @@ struct Extent
     word alignment = 1;
 };
 
+/// @param size A size or an address.
+/// @param alignment A power of two.
+/// @return How much has to be added to the size to make it a multiple of the alignment.
+word padding_to(const word size, const word alignment)
+{
+    return (alignment - size % alignment) % alignment;
+}
+
+/// @param obj An object file that has the section.
+/// @param name The name of a section of the file.
+/// @return What the section is aligned to, at least 1.
+word alignment_of(const ObjectFile &obj, const std::string &name)
+{
+    return std::max<word>(1, obj.sections[obj.section_table.at(name)].alignment);
+}
+
+/// @param obj An object file that has the section.
+/// @param name The name of a section of code, bytes or the program's own (not .bss).
+/// @return The size of the section in bytes.
+word section_size(const ObjectFile &obj, const std::string &name)
+{
+    if (name == ".text") return word(obj.text_section.size() * kInstructionSize);
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        if (name == section.name) return word((obj.*section.bytes).size());
+    }
+    return obj.find_user_section(name)->size();
+}
+
 /// Extent of a section of the executable made of the same section of each object file, each put at
-/// a multiple of its alignment (what merge_sections does). `size_of` is the size of the section in
-/// bytes in an object file that has it.
-template <class SizeOf>
-Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &name,
-                     const SizeOf &size_of)
+/// a multiple of its alignment (what merge_sections does).
+Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &name)
 {
     Extent extent;
     for (const ObjectFile &obj : objects)
     {
-        const auto header = obj.section_table.find(name);
-        if (header == obj.section_table.end()) continue;
+        if (!obj.section_table.contains(name)) continue;
 
-        const word alignment = std::max<word>(1, obj.sections[header->second].alignment);
+        const word alignment = alignment_of(obj, name);
         extent.alignment = std::max(extent.alignment, alignment);
-        extent.size += (alignment - extent.size % alignment) % alignment;
-        extent.size += size_of(obj);
+        extent.size += padding_to(extent.size, alignment);
+        extent.size += section_size(obj, name);
     }
     return extent;
+}
+
+/// @param sections User sections.
+/// @param name The name of a section.
+/// @return The section with the name, or `sections.end()` if there is none.
+std::vector<ObjectFile::UserSection>::const_iterator
+find_user_section(const std::vector<ObjectFile::UserSection> &sections, const std::string &name)
+{
+    auto it = sections.begin();
+    while (it != sections.end() && it->name != name) ++it;
+    return it;
 }
 
 /// The user sections of the object files: the name, whether the program may write it, whether
@@ -48,8 +84,7 @@ std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFi
     {
         for (const ObjectFile::UserSection &section : obj.user_sections)
         {
-            const auto same = std::find_if(found.begin(), found.end(),
-                                           [&](const auto &s) { return s.name == section.name; });
+            const auto same = find_user_section(found, section.name);
             if (same == found.end())
             {
                 ObjectFile::UserSection permissions;
@@ -94,6 +129,13 @@ std::string quoted(const std::string &name)
     return text + "\"";
 }
 
+/// Puts a section at the next address that it is aligned to, and moves the address past it.
+void place(word &address, const Extent &extent)
+{
+    address += padding_to(address, extent.alignment);
+    address += extent.size;
+}
+
 /// The layout used when no linker script is given. It is part of the program, so linking does not
 /// depend on where the source tree is. The code is first (.text, then the executable sections of
 /// the program). .rodata starts on the first page after it, with .init_array and .fini_array
@@ -102,52 +144,33 @@ std::string quoted(const std::string &name)
 /// never share a page however big they are. .bss follows.
 std::string default_linker_script(const std::vector<ObjectFile> &objects)
 {
-    const auto next_page = [](word size) { return (size + kPageSize - 1) & ~(kPageSize - 1); };
     const std::vector<ObjectFile::UserSection> user = user_sections_of(objects);
 
     word address = 0;
-    const auto add = [&](const Extent &extent)
-    {
-        address += (extent.alignment - address % extent.alignment) % extent.alignment;
-        address += extent.size;
-    };
-    const auto bytes_extent = [&](const ObjectFile::ByteSection &section)
-    {
-        return merged_extent(objects, section.name,
-                             [&](const ObjectFile &obj) { return word((obj.*section.bytes).size()); });
-    };
-    const auto user_extent = [&](const std::string &name)
-    {
-        return merged_extent(objects, name,
-                             [&](const ObjectFile &obj)
-                             { return obj.find_user_section(name)->size(); });
-    };
-
     std::string script = "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n";
-    add(merged_extent(objects, ".text",
-                               [](const ObjectFile &obj) { return word(obj.text_section.size() * 4); }));
+    place(address, merged_extent(objects, ".text"));
     for (const auto &section : user)
     {
         if (!section.executable) continue;
-        add(user_extent(section.name));
+        place(address, merged_extent(objects, section.name));
         script += "    " + quoted(section.name) + ";\n";
     }
 
-    address = next_page(address);
+    address += padding_to(address, kPageSize);
     script += "    .rodata = " + std::to_string(address) + ";\n";
     for (const size_t k : {1, 2, 3})
     {
-        add(bytes_extent(ObjectFile::byte_sections()[k]));
+        place(address, merged_extent(objects, ObjectFile::byte_sections()[k].name));
         if (k != 1) script += std::string("    ") + ObjectFile::byte_sections()[k].name + ";\n";
     }
     for (const auto &section : user)
     {
         if (section.executable || section.writable) continue;
-        add(user_extent(section.name));
+        place(address, merged_extent(objects, section.name));
         script += "    " + quoted(section.name) + ";\n";
     }
 
-    address = next_page(address);
+    address += padding_to(address, kPageSize);
     script += "    .data = " + std::to_string(address) + ";\n";
     for (const auto &section : user)
     {
@@ -158,9 +181,66 @@ std::string default_linker_script(const std::vector<ObjectFile> &objects)
     return script;
 }
 
+/// A section that the linker script placed, with its address and what it may do.
+struct Placed
+{
+    const char *name;
+    word address;
+    word size;
+    bool physical;
+    bool executable;
+    bool writable;
+};
+
 bool is_undefined(const ObjectFile::SymbolTableEntry &symbol)
 {
     return symbol.section == U32(-1);
+}
+
+/// Fails if a section with contents is not one that the script placed, since it would be loaded at
+/// address 0. A script without SECTIONS places nothing at all, which is not an error.
+void check_placed(const std::vector<Placed> &placed, const std::string &name, const word size)
+{
+    if (placed.empty() || size == 0) return;
+
+    bool listed = false;
+    for (const Placed &section : placed)
+    {
+        if (name == section.name) listed = true;
+    }
+    AEMU_CHECK(listed, "The section {} has contents but the linker script does not place it.",
+               name);
+}
+
+/// Defines the symbol in the section, at the value. An object file that defines the symbol itself
+/// keeps its definition, and one that only refers to it gets this one.
+void define_array_symbol(ObjectFile &exe, const char *name, const ObjectFile::ByteSection &section,
+                         const word value)
+{
+    const U32 section_index = exe.section_table.at(section.name);
+
+    const auto found = exe.string_table.find(name);
+    if (found == exe.string_table.end())
+    {
+        exe.add_symbol(name, value, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL,
+                       section_index);
+    }
+    else if (is_undefined(exe.symbol_table.at(found->second)))
+    {
+        ObjectFile::SymbolTableEntry &entry = exe.symbol_table.at(found->second);
+        entry.symbol_value = value;
+        entry.section = section_index;
+        entry.binding_info = ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL;
+    }
+}
+
+/// @param exe The executable.
+/// @param name The name of a symbol.
+/// @return Whether the executable has a symbol with the name that is defined.
+bool is_defined(const ObjectFile &exe, const std::string &name)
+{
+    const auto string = exe.string_table.find(name);
+    return string != exe.string_table.end() && !is_undefined(exe.symbol_table.at(string->second));
 }
 
 /// A relocation can use the symbol: it is defined, or it is weak and nothing defines it, which
@@ -355,13 +435,8 @@ ObjectFile Linker::new_executable() const
 
 std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
 {
-    const auto alignment_of = [](const ObjectFile &obj, const char *section)
-    { return std::max<word>(1, obj.sections[obj.section_table.at(section)].alignment); };
-    const auto pad_to = [](word size, word alignment)
-    { return (alignment - size % alignment) % alignment; };
-
     const auto &byte_sections = ObjectFile::byte_sections();
-    SectionBase alignment = {.text = 4, .bytes = {}, .bss = 1};
+    SectionBase alignment = {.text = kInstructionSize, .bytes = {}, .bss = 1};
     for (size_t k = 0; k < byte_sections.size(); k++)
     {
         alignment.bytes[k] = 1;
@@ -375,10 +450,11 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         base.users.assign(exe.user_sections.size(), 0);
 
         const word wanted_text = alignment_of(obj, ".text");
-        exe.text_section.insert(exe.text_section.end(),
-                                pad_to(word(exe.text_section.size() * 4), wanted_text) / 4, 0);
+        const word text_padding =
+            padding_to(word(exe.text_section.size() * kInstructionSize), wanted_text);
+        exe.text_section.insert(exe.text_section.end(), text_padding / kInstructionSize, 0);
         alignment.text = std::max(alignment.text, wanted_text);
-        base.text = word(exe.text_section.size() * 4);
+        base.text = word(exe.text_section.size() * kInstructionSize);
         exe.text_section.insert(exe.text_section.end(), obj.text_section.begin(),
                                 obj.text_section.end());
 
@@ -387,7 +463,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
             const ObjectFile::ByteSection &section = byte_sections[k];
             std::vector<byte> &merged = exe.*section.bytes;
             const word wanted = alignment_of(obj, section.name);
-            merged.insert(merged.end(), pad_to(word(merged.size()), wanted), 0);
+            merged.insert(merged.end(), padding_to(word(merged.size()), wanted), 0);
             alignment.bytes[k] = std::max(alignment.bytes[k], wanted);
             base.bytes[k] = word(merged.size());
             merged.insert(merged.end(), (obj.*section.bytes).begin(), (obj.*section.bytes).end());
@@ -397,22 +473,23 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         {
             const size_t e = user_index(exe, section.name);
             ObjectFile::UserSection &merged = exe.user_sections[e];
-            const word wanted = alignment_of(obj, section.name.c_str());
+            const word wanted = alignment_of(obj, section.name);
             alignment.users[e] = std::max(alignment.users[e], wanted);
             if (merged.nobits)
             {
-                merged.zero_size += pad_to(merged.zero_size, wanted);
+                merged.zero_size += padding_to(merged.zero_size, wanted);
                 base.users[e] = merged.zero_size;
                 merged.zero_size += section.zero_size;
                 continue;
             }
-            merged.bytes.insert(merged.bytes.end(), pad_to(word(merged.bytes.size()), wanted), 0);
+            merged.bytes.insert(merged.bytes.end(), padding_to(word(merged.bytes.size()), wanted),
+                                0);
             base.users[e] = word(merged.bytes.size());
             merged.bytes.insert(merged.bytes.end(), section.bytes.begin(), section.bytes.end());
         }
 
         const word wanted_bss = alignment_of(obj, ".bss");
-        exe.bss_section += pad_to(exe.bss_section, wanted_bss);
+        exe.bss_section += padding_to(exe.bss_section, wanted_bss);
         alignment.bss = std::max(alignment.bss, wanted_bss);
         base.bss = exe.bss_section;
         exe.bss_section += obj.bss_section;
@@ -435,16 +512,6 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
 
 Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
 {
-    struct Placed
-    {
-        const char *name;
-        word address;
-        word size;
-        bool physical;
-        bool executable;
-        bool writable;
-    };
-
     std::vector<Placed> placed;
 
     SectionBase addresses;
@@ -556,30 +623,15 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
     }
 
-    // A section with contents that the script does not place would be loaded at address 0. (A
-    // script without SECTIONS places nothing at all, which is not an error.)
-    const auto check_placed = [&](const char *name, word size)
-    {
-        if (placed.empty())
-        {
-            return;
-        }
-        const auto listed = std::any_of(placed.begin(), placed.end(), [&](const Placed &p)
-                                        { return std::string_view(p.name) == name; });
-        AEMU_CHECK(size == 0 || listed,
-                   "The section {} has contents but the linker script does not "
-                   "place it.",
-                   name);
-    };
-    check_placed(".text", word(exe.text_section.size() * 4));
+    check_placed(placed, ".text", word(exe.text_section.size() * kInstructionSize));
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
     {
-        check_placed(section.name, word((exe.*section.bytes).size()));
+        check_placed(placed, section.name, word((exe.*section.bytes).size()));
     }
-    check_placed(".bss", exe.bss_section);
+    check_placed(placed, ".bss", exe.bss_section);
     for (const ObjectFile::UserSection &user : exe.user_sections)
     {
-        check_placed(user.name.c_str(), user.size());
+        check_placed(placed, user.name, user.size());
     }
 
     return addresses;
@@ -587,30 +639,14 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
 
 void Linker::define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const
 {
-    const auto define = [&](const char *name, size_t k, bool end)
-    {
-        const ObjectFile::ByteSection &section = ObjectFile::byte_sections()[k];
-        const word value = addresses.bytes[k] + (end ? word((exe.*section.bytes).size()) : 0);
-        const U32 section_index = exe.section_table.at(section.name);
-
-        const auto found = exe.string_table.find(name);
-        if (found == exe.string_table.end())
-        {
-            exe.add_symbol(name, value, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL,
-                           section_index);
-        }
-        else if (is_undefined(exe.symbol_table.at(found->second)))
-        {
-            ObjectFile::SymbolTableEntry &entry = exe.symbol_table.at(found->second);
-            entry.symbol_value = value;
-            entry.section = section_index;
-            entry.binding_info = ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL;
-        }
-    };
-    define("__init_array_start", 2, false);
-    define("__init_array_end", 2, true);
-    define("__fini_array_start", 3, false);
-    define("__fini_array_end", 3, true);
+    const ObjectFile::ByteSection &init = ObjectFile::byte_sections()[2];
+    const ObjectFile::ByteSection &fini = ObjectFile::byte_sections()[3];
+    const word init_start = addresses.bytes[2];
+    const word fini_start = addresses.bytes[3];
+    define_array_symbol(exe, "__init_array_start", init, init_start);
+    define_array_symbol(exe, "__init_array_end", init, init_start + word((exe.*init.bytes).size()));
+    define_array_symbol(exe, "__fini_array_start", fini, fini_start);
+    define_array_symbol(exe, "__fini_array_end", fini, fini_start + word((exe.*fini.bytes).size()));
 }
 
 std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
@@ -705,19 +741,11 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(ObjectFile &exe,
 
 void Linker::define_entry(ObjectFile &exe) const
 {
-    const auto defined = [&](const std::string &name)
-    {
-        const auto string = exe.string_table.find(name);
-        return string != exe.string_table.end()
-               && !is_undefined(exe.symbol_table.at(string->second));
-    };
-
     if (m_entry_symbol != "_start")
     {
-        AEMU_CHECK(defined(m_entry_symbol),
-                   "The entry point '{}' set by ENTRY is not defined.",
-                   m_entry_symbol);
-        AEMU_CHECK(!defined("_start"),
+        AEMU_CHECK(is_defined(exe, m_entry_symbol),
+                   "The entry point '{}' set by ENTRY is not defined.", m_entry_symbol);
+        AEMU_CHECK(!is_defined(exe, "_start"),
                    "ENTRY({}) conflicts with the symbol _start that is also "
                    "defined.",
                    m_entry_symbol);
@@ -728,8 +756,7 @@ void Linker::define_entry(ObjectFile &exe) const
                        ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
     }
 
-    AEMU_CHECK(defined("_start"), "The entry point '{}' is not defined.",
-               m_entry_symbol);
+    AEMU_CHECK(is_defined(exe, "_start"), "The entry point '{}' is not defined.", m_entry_symbol);
 }
 
 void Linker::relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,

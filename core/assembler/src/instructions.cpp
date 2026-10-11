@@ -218,6 +218,46 @@ word Assembler::parse_format_m1(byte opcode)
     return Emulator32bit::asm_format_m1(opcode, reg, 0);
 }
 
+void Assembler::warn_writeback(const encoding::AddrType mode, const byte reg_t, const byte reg_a,
+                               const bool is_load, const bool zero_offset)
+{
+    if (mode == encoding::AddrType::ADDR_OFFSET) return;
+
+    const std::string kind = mode == encoding::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
+    const std::string base = register_name(reg_a);
+    if (reg_a == U8(Register::XZR))
+    {
+        warn(*m_statement, "the " + kind + " writeback to xzr is discarded");
+    }
+    else if (reg_t == reg_a && is_load)
+    {
+        // Two results for one register: the loaded value wins.
+        warn(*m_statement, "the loaded value overwrites the base register '" + base + "', so the "
+                               + kind + " writeback is lost");
+    }
+    else if (reg_t == reg_a)
+    {
+        // Defined, but easy to misread: the value stored is the one from before the writeback.
+        warn(*m_statement, "'" + base
+                               + "' is both the stored value and the base register; the value from "
+                                 "before the "
+                               + kind + " writeback is stored");
+    }
+    else if (zero_offset)
+    {
+        warn(*m_statement,
+             "the " + kind + " offset is zero, so the writeback to '" + base + "' has no effect");
+    }
+}
+
+encoding::AddrType Assembler::encoded_mode(const encoding::AddrType mode, const bool unaligned)
+{
+    if (!unaligned) return mode;
+    check(mode == encoding::AddrType::ADDR_OFFSET,
+          "an unaligned access (ldur, ldurh, stur, sturh) has no pre-index or post-index form");
+    return encoding::AddrType::ADDR_UNALIGNED;
+}
+
 word Assembler::parse_format_m(byte opcode, bool unaligned)
 {
     // Whether the value to be loaded/stored should be interpreted as signed.
@@ -232,51 +272,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
     // Register that contains memory address.
     byte reg_a = parse_register();
 
-    // Pre/post-indexing writes the base register back, which is pointless or surprising in a few
-    // cases. `zero_offset` is true when the offset is known to be 0.
     const bool is_load =
         opcode == encoding::_op_ldr || opcode == encoding::_op_ldrb || opcode == encoding::_op_ldrh;
-    auto warn_writeback = [&](const encoding::AddrType mode, const bool zero_offset)
-    {
-        if (mode == encoding::AddrType::ADDR_OFFSET) return;
-
-        const std::string kind =
-            mode == encoding::AddrType::ADDR_PRE_INC ? "pre-index" : "post-index";
-        const std::string base = register_name(reg_a);
-        if (reg_a == U8(Register::XZR))
-        {
-            warn(*m_statement, "the " + kind + " writeback to xzr is discarded");
-        }
-        else if (reg_t == reg_a && is_load)
-        {
-            // Two results for one register: the loaded value wins.
-            warn(*m_statement, "the loaded value overwrites the base register '" + base
-                                   + "', so the " + kind + " writeback is lost");
-        }
-        else if (reg_t == reg_a)
-        {
-            // Defined, but easy to misread: the value stored is the one from before the writeback.
-            warn(*m_statement, "'" + base
-                                   + "' is both the stored value and the base register; the "
-                                     "value from before the "
-                                   + kind + " writeback is stored");
-        }
-        else if (zero_offset)
-        {
-            warn(*m_statement, "the " + kind + " offset is zero, so the writeback to '" + base
-                                   + "' has no effect");
-        }
-    };
-
-    // The mode that is encoded. ldur and stur take a plain offset, which they encode as the
-    // unaligned mode.
-    const auto encoded_mode = [&](const encoding::AddrType mode)
-    {
-        if (!unaligned) return mode;
-        check(mode == encoding::AddrType::ADDR_OFFSET,
-              "an unaligned access (ldur, ldurh, stur, sturh) has no pre-index or post-index form");
-        return encoding::AddrType::ADDR_UNALIGNED;
-    };
 
     // Parse the address mode.
     encoding::AddrType addressing_mode;
@@ -288,8 +285,9 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
         // A bare `[xn]` is a plain access with no offset. Only `[xn], <offset>` is post indexed.
         if (!m_cursor.check(TokenType::COMMA))
         {
-            return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0,
-                                               encoded_mode(encoding::AddrType::ADDR_OFFSET));
+            return Emulator32bit::asm_format_m(
+                opcode, sign, reg_t, reg_a, 0,
+                encoded_mode(encoding::AddrType::ADDR_OFFSET, unaligned));
         }
 
         addressing_mode = encoding::AddrType::ADDR_POST_INC;
@@ -319,8 +317,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
                                       : encoding::AddrType::ADDR_OFFSET;
             }
 
-            const auto mode = encoded_mode(addressing_mode);
-            warn_writeback(addressing_mode, offset == 0);
+            const auto mode = encoded_mode(addressing_mode, unaligned);
+            warn_writeback(addressing_mode, reg_t, reg_a, is_load, offset == 0);
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, mode);
         }
         else
@@ -345,8 +343,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
                                       : encoding::AddrType::ADDR_OFFSET;
             }
 
-            const auto mode = encoded_mode(addressing_mode);
-            warn_writeback(addressing_mode, reg_b == U8(Register::XZR));
+            const auto mode = encoded_mode(addressing_mode, unaligned);
+            warn_writeback(addressing_mode, reg_t, reg_a, is_load, reg_b == U8(Register::XZR));
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift,
                                                shift_amount, mode);
         }
@@ -354,8 +352,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
 
     // Check for invalid addressing mode.
     check(parsed_addressing_mode, "invalid addressing mode");
-    const auto mode = encoded_mode(addressing_mode);
-    warn_writeback(addressing_mode, true);
+    const auto mode = encoded_mode(addressing_mode, unaligned);
+    warn_writeback(addressing_mode, reg_t, reg_a, is_load, true);
     return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, mode);
 }
 
@@ -742,6 +740,11 @@ U64 Assembler::parse_float_constant(const bool dbl)
     return U64(std::bit_cast<word>(value));
 }
 
+void Assembler::emit_move(const byte to, const byte from)
+{
+    emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, to, from, 0));
+}
+
 void Assembler::assemble_fmov(const bool dbl)
 {
     m_cursor.next();
@@ -752,22 +755,20 @@ void Assembler::assemble_fmov(const bool dbl)
     if (basm::is_register(m_cursor.peek().type))
     {
         const byte xm = parse_fp_register(dbl);
-        const auto move = [&](byte to, byte from)
-        { emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, to, from, 0)); };
         if (!dbl)
         {
-            move(xd, xm);
+            emit_move(xd, xm);
         }
         else if (xd < xm)
         {
             // The pairs may overlap: copy the half that is not read again first.
-            move(xd, xm);
-            move(xd + 1, xm + 1);
+            emit_move(xd, xm);
+            emit_move(xd + 1, xm + 1);
         }
         else if (xd > xm)
         {
-            move(xd + 1, xm + 1);
-            move(xd, xm);
+            emit_move(xd + 1, xm + 1);
+            emit_move(xd, xm);
         }
         return;
     }

@@ -143,6 +143,9 @@ class Assembler
     /// Appends an instruction to the current code section.
     void emit_instruction(word instruction);
 
+    /// Emits `mov to, from`.
+    void emit_move(byte to, byte from);
+
     /// Where the next instruction goes, as an offset in the current code section.
     word code_offset();
 
@@ -327,6 +330,23 @@ class Assembler
     /// @param unaligned whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
     ///        which has a plain offset only
     word parse_format_m(byte opcode, bool unaligned = false);
+
+    /// Warns when the writeback of a pre or post indexed access is useless or easy to misread
+    /// (the base register is xzr, or is the register that is loaded or stored, or the offset is 0).
+    ///
+    /// @param mode The addressing mode as it is written.
+    /// @param reg_t The register that is loaded or stored.
+    /// @param reg_a The base register.
+    /// @param is_load Whether the access is a load.
+    /// @param zero_offset Whether the offset is known to be 0.
+    void warn_writeback(encoding::AddrType mode, byte reg_t, byte reg_a, bool is_load,
+                        bool zero_offset);
+
+    /// @param mode The addressing mode as it is written.
+    /// @param unaligned Whether the access is `ldur`, `ldurh`, `stur` or `sturh`.
+    /// @return The mode that is encoded: those take a plain offset, which is encoded as the
+    ///         unaligned mode. Fails if the mode is pre or post indexed.
+    encoding::AddrType encoded_mode(encoding::AddrType mode, bool unaligned);
 
     /// `op xd, symbol`: the page address instructions (`adrp`, `adr`).
     word parse_format_m1(byte opcode);

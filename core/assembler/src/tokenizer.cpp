@@ -232,6 +232,29 @@ std::string unescape_string_literal(const Token &token)
 // Diagnostics
 // ---------------------------------------------------------------------------------------------
 
+namespace
+{
+
+/// `file:line:col: <label>: <message>`, the source line and a caret under the column.
+std::string diagnostic_entry(const SourceManager &sources, const SourceLocation &at,
+                             const std::string &label, const std::string &message)
+{
+    std::string out = std::string(sources.name(at.source)) + ":" + std::to_string(at.line) + ":"
+                      + std::to_string(at.column) + ": " + label + ": " + message + "\n";
+
+    const std::string_view line = sources.line_text(at.source, at.line);
+    out += "  " + std::string(line) + "\n  ";
+    for (std::size_t i = 0; i + 1 < at.column; i++)
+    {
+        // Keep tabs so the caret lines up whatever the tab width is.
+        out += (i < line.size() && line[i] == '\t') ? '\t' : ' ';
+    }
+    out += "^\n";
+    return out;
+}
+
+} // namespace
+
 std::string format_diagnostic(const SourceManager &sources, const Diagnostic &diagnostic)
 {
     const char *severity = diagnostic.severity == Severity::ERROR ? "error" : "warning";
@@ -242,25 +265,7 @@ std::string format_diagnostic(const SourceManager &sources, const Diagnostic &di
         return std::string(severity) + ": " + diagnostic.message + "\n";
     }
 
-    // `file:line:col: <severity>: <message>`, the source line and a caret.
-    auto entry =
-        [&sources](const SourceLocation &at, const std::string &label, const std::string &message)
-    {
-        std::string out = std::string(sources.name(at.source)) + ":" + std::to_string(at.line) + ":"
-                          + std::to_string(at.column) + ": " + label + ": " + message + "\n";
-
-        const std::string_view line = sources.line_text(at.source, at.line);
-        out += "  " + std::string(line) + "\n  ";
-        for (std::size_t i = 0; i + 1 < at.column; i++)
-        {
-            // Keep tabs so the caret lines up whatever the tab width is.
-            out += (i < line.size() && line[i] == '\t') ? '\t' : ' ';
-        }
-        out += "^\n";
-        return out;
-    };
-
-    std::string out = entry(loc, severity, diagnostic.message);
+    std::string out = diagnostic_entry(sources, loc, severity, diagnostic.message);
 
     // Where the macros and symbols that produced the token were used, innermost first. Every
     // site was recorded before the expansion that refers to it, so the chain is finite.
@@ -272,9 +277,10 @@ std::string format_diagnostic(const SourceManager &sources, const Diagnostic &di
         {
             break;
         }
-        out += entry(expansion->site, "note",
-                     std::string("in expansion of ") + (expansion->is_macro ? "macro" : "symbol")
-                         + " '" + expansion->name + "'");
+        out += diagnostic_entry(sources, expansion->site, "note",
+                                std::string("in expansion of ")
+                                    + (expansion->is_macro ? "macro" : "symbol") + " '"
+                                    + expansion->name + "'");
         id = expansion->site.expansion;
     }
     return out;
@@ -296,168 +302,184 @@ struct Keyword
 
 using KeywordMap = std::unordered_map<std::string_view, Keyword>;
 
-const KeywordMap &assembly_keywords()
+/// Adds a keyword to the map. `text` has to stay alive as long as the map does.
+void add_keyword(KeywordMap &map, const std::string_view text, const TokenType type,
+                 const bool allows_s = false, const U8 flags = 0)
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-        auto add = [&m](std::string_view text, TokenType type, bool allows_s = false, U8 flags = 0)
-        { m[text] = Keyword{.type = type, .flags = flags, .allows_s = allows_s}; };
+    map[text] = Keyword{.type = type, .flags = flags, .allows_s = allows_s};
+}
 
-        add("sp", TokenType::REGISTER_SP);
-        add("xzr", TokenType::REGISTER_XZR);
-        add("fp", TokenType::REGISTER_X28);
-        add("lr", TokenType::REGISTER_X29);
+KeywordMap make_assembly_keywords()
+{
+    KeywordMap m;
+    add_keyword(m, "sp", TokenType::REGISTER_SP);
+    add_keyword(m, "xzr", TokenType::REGISTER_XZR);
+    add_keyword(m, "fp", TokenType::REGISTER_X28);
+    add_keyword(m, "lr", TokenType::REGISTER_X29);
 
-        // Every instruction of instruction_list.h under the text of its row.
+    // Every instruction of instruction_list.h under the text of its row.
 #define BASM_KEYWORD(X, NAME, text, allows_s, ...)                                                 \
-    add(text, TokenType::INSTRUCTION_##NAME, allows_s);
-        BASM_INSTRUCTION_LIST(BASM_KEYWORD, )
+    add_keyword(m, text, TokenType::INSTRUCTION_##NAME, allows_s);
+    BASM_INSTRUCTION_LIST(BASM_KEYWORD, )
 #undef BASM_KEYWORD
 
-        // Other spellings.
-        add("ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
-        add("ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
-        add("ldursh", TokenType::INSTRUCTION_LDURH, false, SIGN_EXTEND);
-        return m;
-    }();
+    // Other spellings.
+    add_keyword(m, "ldrsb", TokenType::INSTRUCTION_LDRB, false, SIGN_EXTEND);
+    add_keyword(m, "ldrsh", TokenType::INSTRUCTION_LDRH, false, SIGN_EXTEND);
+    add_keyword(m, "ldursh", TokenType::INSTRUCTION_LDURH, false, SIGN_EXTEND);
+    return m;
+}
+
+const KeywordMap &assembly_keywords()
+{
+    static const KeywordMap map = make_assembly_keywords();
     return map;
+}
+
+KeywordMap make_condition_keywords()
+{
+    KeywordMap m;
+#define C(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::CONDITION_##name, .flags = 0, .allows_s = false}
+    C("eq", EQ);
+    C("ne", NE);
+    C("cs", CS);
+    C("hs", HS);
+    C("cc", CC);
+    C("lo", LO);
+    C("mi", MI);
+    C("pl", PL);
+    C("vs", VS);
+    C("vc", VC);
+    C("hi", HI);
+    C("ls", LS);
+    C("ge", GE);
+    C("lt", LT);
+    C("gt", GT);
+    C("le", LE);
+    C("al", AL);
+    C("nv", NV);
+#undef C
+    return m;
 }
 
 const KeywordMap &condition_keywords()
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-#define C(text, name)                                                                              \
-    m[text] = Keyword{.type = TokenType::CONDITION_##name, .flags = 0, .allows_s = false}
-        C("eq", EQ);
-        C("ne", NE);
-        C("cs", CS);
-        C("hs", HS);
-        C("cc", CC);
-        C("lo", LO);
-        C("mi", MI);
-        C("pl", PL);
-        C("vs", VS);
-        C("vc", VC);
-        C("hi", HI);
-        C("ls", LS);
-        C("ge", GE);
-        C("lt", LT);
-        C("gt", GT);
-        C("le", LE);
-        C("al", AL);
-        C("nv", NV);
-#undef C
-        return m;
-    }();
+    static const KeywordMap map = make_condition_keywords();
     return map;
+}
+
+KeywordMap make_assembler_directives()
+{
+    KeywordMap m;
+#define D(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::ASSEMBLER_##name, .flags = 0, .allows_s = false}
+    D(".global", GLOBAL);
+    D(".extern", EXTERN);
+    D(".weak", WEAK);
+    D(".comm", COMM);
+    D(".rodata", RODATA);
+    D(".init_array", INIT_ARRAY);
+    D(".fini_array", FINI_ARRAY);
+    D(".equ", EQU);
+    D(".org", ORG);
+    D(".scope", SCOPE);
+    D(".scend", SCEND);
+    D(".advance", ADVANCE);
+    D(".fill", FILL);
+    D(".align", ALIGN);
+    D(".section", SECTION);
+    D(".pushsection", PUSHSECTION);
+    D(".popsection", POPSECTION);
+    D(".bss", BSS);
+    D(".data", DATA);
+    D(".text", TEXT);
+    D(".stop", STOP);
+    D(".byte", BYTE);
+    D(".dbyte", DBYTE);
+    D(".word", WORD);
+    D(".dword", DWORD);
+    D(".float", FLOAT);
+    D(".double", DOUBLE);
+    D(".ascii", ASCII);
+    D(".asciz", ASCIZ);
+#undef D
+    return m;
 }
 
 const KeywordMap &assembler_directives()
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-#define D(text, name)                                                                              \
-    m[text] = Keyword{.type = TokenType::ASSEMBLER_##name, .flags = 0, .allows_s = false}
-        D(".global", GLOBAL);
-        D(".extern", EXTERN);
-        D(".weak", WEAK);
-        D(".comm", COMM);
-        D(".rodata", RODATA);
-        D(".init_array", INIT_ARRAY);
-        D(".fini_array", FINI_ARRAY);
-        D(".equ", EQU);
-        D(".org", ORG);
-        D(".scope", SCOPE);
-        D(".scend", SCEND);
-        D(".advance", ADVANCE);
-        D(".fill", FILL);
-        D(".align", ALIGN);
-        D(".section", SECTION);
-        D(".pushsection", PUSHSECTION);
-        D(".popsection", POPSECTION);
-        D(".bss", BSS);
-        D(".data", DATA);
-        D(".text", TEXT);
-        D(".stop", STOP);
-        D(".byte", BYTE);
-        D(".dbyte", DBYTE);
-        D(".word", WORD);
-        D(".dword", DWORD);
-        D(".float", FLOAT);
-        D(".double", DOUBLE);
-        D(".ascii", ASCII);
-        D(".asciz", ASCIZ);
-#undef D
-        return m;
-    }();
+    static const KeywordMap map = make_assembler_directives();
     return map;
+}
+
+KeywordMap make_linker_keywords()
+{
+    KeywordMap m;
+    m["ENTRY"] = Keyword{.type = TokenType::KEYWORD_ENTRY, .flags = 0, .allows_s = false};
+    m["SECTIONS"] = Keyword{.type = TokenType::KEYWORD_SECTIONS, .flags = 0, .allows_s = false};
+    return m;
 }
 
 const KeywordMap &linker_keywords()
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-        m["ENTRY"] = Keyword{.type = TokenType::KEYWORD_ENTRY, .flags = 0, .allows_s = false};
-        m["SECTIONS"] = Keyword{.type = TokenType::KEYWORD_SECTIONS, .flags = 0, .allows_s = false};
-        return m;
-    }();
+    static const KeywordMap map = make_linker_keywords();
     return map;
+}
+
+KeywordMap make_linker_directives()
+{
+    KeywordMap m;
+    m[".text"] = Keyword{.type = TokenType::ASSEMBLER_TEXT, .flags = 0, .allows_s = false};
+    m[".data"] = Keyword{.type = TokenType::ASSEMBLER_DATA, .flags = 0, .allows_s = false};
+    m[".bss"] = Keyword{.type = TokenType::ASSEMBLER_BSS, .flags = 0, .allows_s = false};
+    m[".rodata"] = Keyword{.type = TokenType::ASSEMBLER_RODATA, .flags = 0, .allows_s = false};
+    m[".init_array"] =
+        Keyword{.type = TokenType::ASSEMBLER_INIT_ARRAY, .flags = 0, .allows_s = false};
+    m[".fini_array"] =
+        Keyword{.type = TokenType::ASSEMBLER_FINI_ARRAY, .flags = 0, .allows_s = false};
+    return m;
 }
 
 const KeywordMap &linker_directives()
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-        m[".text"] = Keyword{.type = TokenType::ASSEMBLER_TEXT, .flags = 0, .allows_s = false};
-        m[".data"] = Keyword{.type = TokenType::ASSEMBLER_DATA, .flags = 0, .allows_s = false};
-        m[".bss"] = Keyword{.type = TokenType::ASSEMBLER_BSS, .flags = 0, .allows_s = false};
-        m[".rodata"] = Keyword{.type = TokenType::ASSEMBLER_RODATA, .flags = 0, .allows_s = false};
-        m[".init_array"] =
-            Keyword{.type = TokenType::ASSEMBLER_INIT_ARRAY, .flags = 0, .allows_s = false};
-        m[".fini_array"] =
-            Keyword{.type = TokenType::ASSEMBLER_FINI_ARRAY, .flags = 0, .allows_s = false};
-        return m;
-    }();
+    static const KeywordMap map = make_linker_directives();
     return map;
+}
+
+KeywordMap make_preprocessor_directives()
+{
+    KeywordMap m;
+#define P(text, name)                                                                              \
+    m[text] = Keyword{.type = TokenType::PREPROCESSOR_##name, .flags = 0, .allows_s = false}
+    P("#include", INCLUDE);
+    P("#macro", MACRO);
+    P("#macret", MACRET);
+    P("#macend", MACEND);
+    P("#invoke", INVOKE);
+    P("#define", DEFINE);
+    P("#undef", UNDEF);
+    P("#ifdef", IFDEF);
+    P("#ifndef", IFNDEF);
+    P("#ifequ", IFEQU);
+    P("#ifnequ", IFNEQU);
+    P("#ifless", IFLESS);
+    P("#ifmore", IFMORE);
+    P("#else", ELSE);
+    P("#elsedef", ELSEDEF);
+    P("#elsendef", ELSENDEF);
+    P("#elseequ", ELSEEQU);
+    P("#elsenequ", ELSENEQU);
+    P("#elseless", ELSELESS);
+    P("#elsemore", ELSEMORE);
+    P("#endif", ENDIF);
+#undef P
+    return m;
 }
 
 const KeywordMap &preprocessor_directives()
 {
-    static const KeywordMap map = []
-    {
-        KeywordMap m;
-#define P(text, name)                                                                              \
-    m[text] = Keyword{.type = TokenType::PREPROCESSOR_##name, .flags = 0, .allows_s = false}
-        P("#include", INCLUDE);
-        P("#macro", MACRO);
-        P("#macret", MACRET);
-        P("#macend", MACEND);
-        P("#invoke", INVOKE);
-        P("#define", DEFINE);
-        P("#undef", UNDEF);
-        P("#ifdef", IFDEF);
-        P("#ifndef", IFNDEF);
-        P("#ifequ", IFEQU);
-        P("#ifnequ", IFNEQU);
-        P("#ifless", IFLESS);
-        P("#ifmore", IFMORE);
-        P("#else", ELSE);
-        P("#elsedef", ELSEDEF);
-        P("#elsendef", ELSENDEF);
-        P("#elseequ", ELSEEQU);
-        P("#elsenequ", ELSENEQU);
-        P("#elseless", ELSELESS);
-        P("#elsemore", ELSEMORE);
-        P("#endif", ENDIF);
-#undef P
-        return m;
-    }();
+    static const KeywordMap map = make_preprocessor_directives();
     return map;
 }
 
@@ -1131,21 +1153,18 @@ class Lexer
         return std::string("byte ") + buf;
     }
 
+    /// Token of `length` characters from `begin`.
+    void emit_punct(TokenType type, std::size_t begin, std::size_t length,
+                    const SourceLocation &loc)
+    {
+        m_pos = begin + length;
+        emit(type, begin, loc);
+    }
+
     void lex_punct(std::size_t begin, const SourceLocation &loc)
     {
         const char c = m_src[begin];
         const char d = peek(1);
-
-        auto one = [&](TokenType type)
-        {
-            m_pos = begin + 1;
-            emit(type, begin, loc);
-        };
-        auto two = [&](TokenType type)
-        {
-            m_pos = begin + 2;
-            emit(type, begin, loc);
-        };
 
         // Relocation specifiers: :lo12: :hi20: :lo19: :hi13:
         if (assembly() && c == ':')
@@ -1176,75 +1195,77 @@ class Lexer
         switch (c)
         {
         case ',':
-            return one(TokenType::COMMA);
+            return emit_punct(TokenType::COMMA, begin, 1, loc);
         case ':':
-            return one(TokenType::COLON);
+            return emit_punct(TokenType::COLON, begin, 1, loc);
         case '(':
-            return one(TokenType::OPEN_PARENTHESIS);
+            return emit_punct(TokenType::OPEN_PARENTHESIS, begin, 1, loc);
         case ')':
-            return one(TokenType::CLOSE_PARENTHESIS);
+            return emit_punct(TokenType::CLOSE_PARENTHESIS, begin, 1, loc);
         case '[':
-            return one(TokenType::OPEN_BRACKET);
+            return emit_punct(TokenType::OPEN_BRACKET, begin, 1, loc);
         case ']':
-            return one(TokenType::CLOSE_BRACKET);
+            return emit_punct(TokenType::CLOSE_BRACKET, begin, 1, loc);
         case '{':
-            return one(TokenType::OPEN_BRACE);
+            return emit_punct(TokenType::OPEN_BRACE, begin, 1, loc);
         case '}':
-            return one(TokenType::CLOSE_BRACE);
+            return emit_punct(TokenType::CLOSE_BRACE, begin, 1, loc);
         case '+':
-            return one(TokenType::OPERATOR_ADDITION);
+            return emit_punct(TokenType::OPERATOR_ADDITION, begin, 1, loc);
         case '-':
-            return one(TokenType::OPERATOR_SUBTRACTION);
+            return emit_punct(TokenType::OPERATOR_SUBTRACTION, begin, 1, loc);
         case '*':
-            return one(TokenType::OPERATOR_MULTIPLICATION);
+            return emit_punct(TokenType::OPERATOR_MULTIPLICATION, begin, 1, loc);
         case '/':
-            return one(TokenType::OPERATOR_DIVISION);
+            return emit_punct(TokenType::OPERATOR_DIVISION, begin, 1, loc);
         case '%':
-            return one(TokenType::OPERATOR_MODULUS);
+            return emit_punct(TokenType::OPERATOR_MODULUS, begin, 1, loc);
         case '^':
-            return one(TokenType::OPERATOR_BITWISE_XOR);
+            return emit_punct(TokenType::OPERATOR_BITWISE_XOR, begin, 1, loc);
         case '~':
-            return one(TokenType::OPERATOR_BITWISE_COMPLEMENT);
+            return emit_punct(TokenType::OPERATOR_BITWISE_COMPLEMENT, begin, 1, loc);
         case '|':
-            return d == '|' ? two(TokenType::OPERATOR_LOGICAL_OR)
-                            : one(TokenType::OPERATOR_BITWISE_OR);
+            return d == '|' ? emit_punct(TokenType::OPERATOR_LOGICAL_OR, begin, 2, loc)
+                            : emit_punct(TokenType::OPERATOR_BITWISE_OR, begin, 1, loc);
         case '&':
-            return d == '&' ? two(TokenType::OPERATOR_LOGICAL_AND)
-                            : one(TokenType::OPERATOR_BITWISE_AND);
+            return d == '&' ? emit_punct(TokenType::OPERATOR_LOGICAL_AND, begin, 2, loc)
+                            : emit_punct(TokenType::OPERATOR_BITWISE_AND, begin, 1, loc);
         case '!':
-            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_NOT_EQUAL)
-                            : one(TokenType::OPERATOR_LOGICAL_NOT);
+            return d == '=' ? emit_punct(TokenType::OPERATOR_LOGICAL_NOT_EQUAL, begin, 2, loc)
+                            : emit_punct(TokenType::OPERATOR_LOGICAL_NOT, begin, 1, loc);
         case '<':
             if (d == '<')
             {
-                return two(TokenType::OPERATOR_BITWISE_LEFT_SHIFT);
+                return emit_punct(TokenType::OPERATOR_BITWISE_LEFT_SHIFT, begin, 2, loc);
             }
-            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL)
-                            : one(TokenType::OPERATOR_LOGICAL_LESS_THAN);
+            return d == '='
+                       ? emit_punct(TokenType::OPERATOR_LOGICAL_LESS_THAN_OR_EQUAL, begin, 2, loc)
+                       : emit_punct(TokenType::OPERATOR_LOGICAL_LESS_THAN, begin, 1, loc);
         case '>':
             if (d == '>')
             {
-                return two(TokenType::OPERATOR_BITWISE_RIGHT_SHIFT);
+                return emit_punct(TokenType::OPERATOR_BITWISE_RIGHT_SHIFT, begin, 2, loc);
             }
-            return d == '=' ? two(TokenType::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL)
-                            : one(TokenType::OPERATOR_LOGICAL_GREATER_THAN);
+            return d == '=' ? emit_punct(TokenType::OPERATOR_LOGICAL_GREATER_THAN_OR_EQUAL, begin,
+                                         2, loc)
+                            : emit_punct(TokenType::OPERATOR_LOGICAL_GREATER_THAN, begin, 1, loc);
         case '=':
             if (d == '=')
             {
-                return two(TokenType::OPERATOR_LOGICAL_EQUAL);
+                return emit_punct(TokenType::OPERATOR_LOGICAL_EQUAL, begin, 2, loc);
             }
             // In assembly it only means something in `ldr xd, =value`.
-            return one(TokenType::EQUAL);
+            return emit_punct(TokenType::EQUAL, begin, 1, loc);
         case ';':
             if (!assembly())
             {
-                return one(TokenType::SEMICOLON);
+                return emit_punct(TokenType::SEMICOLON, begin, 1, loc);
             }
             break;
         case '@':
             if (!assembly())
             {
-                return one(TokenType::AT);
+                return emit_punct(TokenType::AT, begin, 1, loc);
             }
             break;
         default:

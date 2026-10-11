@@ -16,6 +16,35 @@
 #include <sstream>
 #include <vector>
 
+namespace
+{
+
+/// The width of the column of the options in the help.
+constexpr int kOptionWidth = 26;
+
+void print_option(const std::string &option, const std::string &description)
+{
+    std::cout << std::left << std::setw(kOptionWidth) << option << " " << description << '\n';
+}
+
+/// Reads the members of the library into `members`, unless the library was read already (`read`
+/// has the paths of those).
+void add_library(std::vector<LibraryMember> &members, std::set<std::string> &read, const File &lib)
+{
+    const std::string key = std::filesystem::weakly_canonical(lib.get_path()).string();
+    if (!read.insert(key).second)
+    {
+        AEMU_DEBUG("The library {} is already read.", lib.get_path());
+        return;
+    }
+    for (LibraryMember &member : read_static_library(lib))
+    {
+        members.push_back(std::move(member));
+    }
+}
+
+} // namespace
+
 Build::Build(const std::string &assembler_args) :
     Build(split_args(assembler_args))
 {
@@ -275,28 +304,15 @@ void Build::assemble()
 void Build::link()
 {
     // The members of the libraries that are listed, and of the ones found in the directories. A
-    //       library is read once, however many times it is listed.
+    // library is read once, however many times it is listed.
     std::vector<LibraryMember> members;
     std::set<std::string> read;
-    const auto add_library = [&](const File &lib)
-    {
-        const std::string key = std::filesystem::weakly_canonical(lib.get_path()).string();
-        if (!read.insert(key).second)
-        {
-            AEMU_DEBUG("The library {} is already read.", lib.get_path());
-            return;
-        }
-        for (LibraryMember &member : read_static_library(lib))
-        {
-            members.push_back(std::move(member));
-        }
-    };
-    for (const File &lib : m_linked_lib) add_library(lib);
+    for (const File &lib : m_linked_lib) add_library(members, read, lib);
     for (Directory lib_dir : m_library_dirs)
     {
         for (File lib : lib_dir.get_all_subfiles())
         {
-            if (lib.get_extension() == STATIC_LIBRARY_EXTENSION) add_library(lib);
+            if (lib.get_extension() == STATIC_LIBRARY_EXTENSION) add_library(members, read, lib);
         }
     }
 
@@ -470,10 +486,6 @@ void Build::_help(std::vector<std::string> &args, size_t &index)
 
     std::cout << "basm [options] file...\n";
     std::cout << "Options:\n";
-
-    auto print_option =
-        [](const std::string &option, const std::string &description, int width = 26)
-    { std::cout << std::left << std::setw(width) << option << " " << description << '\n'; };
 
     print_option("--", "End of options.");
     print_option("-v, --version", "Display assembler version information.");
