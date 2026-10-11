@@ -50,7 +50,7 @@ slow the *other* instructions by changing the register allocation of `run()`: GC
 is live across every handler call in memory once the handlers use all the registers a call may
 change, which is why `run()` keeps the instruction in `m_instr_in_flight` and not in a local for the
 exception handler; the floating point handlers cost `long_loop` 14% before that, and the benchmark
-showed it, not the tests; and a change that does not touch the emulator at all can move `run()` to another address: when the disassembly of `run()` is the same in both binaries (compare `objdump -d -C` with the addresses blanked out) and `nm -C` puts `Emulator32bit::run` at another address, the difference is where the code sits and not the change. Two builds with the same machine code differed by 10-15% on `long_loop` and `crcbench` with `run()` at `0x5a130` and `0x5a160`, and a build with `-falign-functions=64` was as fast as the faster one, but another 64 byte aligned address was 3-5% slower, so alignment of the function alone does not explain it); a profile where the share of a function dropped is not a speedup until
+showed it, not the tests); a profile where the share of a function dropped is not a speedup until
 the time is (the time just moves to the next thing that waits). `tools/bench.sh --perf` finds perf
 itself: `/usr/bin/perf` is a wrapper that does not work on the WSL2 kernel, so it uses the binary in
 `/usr/lib/linux-tools/*/perf` with the software `cpu-clock` event (WSL2 has no hardware counters),
