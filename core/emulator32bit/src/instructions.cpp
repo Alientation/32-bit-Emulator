@@ -1087,7 +1087,7 @@ void Emulator32bit::_bl(const word instr)
     const U8 cond = bitfield_unsigned<22, 4>(instr);
     if (check_cond(m_pstate, cond))
     {
-        write_reg(Register::LR, m_pc + 4);
+        write_reg(Register::LR, m_pc + kInstructionSize);
         m_pc += bitfield_signed<0, 22>(instr) << 2;
         m_pc_written = true;
     }
@@ -1104,7 +1104,7 @@ void Emulator32bit::_bx(const word instr)
         const word target = read_reg(reg);
         if (test_bit<kBranchLinkBit>(instr))
         {
-            write_reg(Register::LR, m_pc + 4);
+            write_reg(Register::LR, m_pc + kInstructionSize);
         }
         m_pc = target;
         m_pc_written = true;

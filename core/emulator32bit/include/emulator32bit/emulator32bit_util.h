@@ -196,6 +196,9 @@ inline constexpr U8 kIrqMaskBit = 5;
 /// The bits of PSTATE that exist: NZCV, the mode and the IRQ mask.
 inline constexpr word kPstateMask = 0b111111;
 
+/// The size of an instruction in bytes. The pc is a multiple of it.
+inline constexpr word kInstructionSize = 4;
+
 /// Which bit of the instruction determines whether flags will be updated.
 inline constexpr U8 kInstructionUpdateFlagBit = 25;
 

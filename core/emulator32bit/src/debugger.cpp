@@ -594,7 +594,7 @@ void Debugger::command_disasm(const std::vector<std::string> &args)
         count = static_cast<word>(*parsed);
     }
 
-    for (word i = 0; i < count; i++, address += 4)
+    for (word i = 0; i < count; i++, address += kInstructionSize)
     {
         m_out << (address == m_emu.get_pc() ? "=> " : "   ") << describe(address) << ": "
               << disassemble_at(address) << "\n";
@@ -633,7 +633,8 @@ void Debugger::command_backtrace()
     if (m_emu.exception_depth() != 0)
     {
         const word esr = m_emu.read_sysreg(encoding::kSysregId_esr);
-        const auto cls = static_cast<Emulator32bit::ExceptionClass>(esr >> 26);
+        const auto cls =
+            static_cast<Emulator32bit::ExceptionClass>(esr >> encoding::kEsrClassShift);
         const bool is_abort = cls == Emulator32bit::ExceptionClass::INSTRUCTION_ABORT
                               || cls == Emulator32bit::ExceptionClass::DATA_ABORT;
         m_out << std::format(
@@ -649,7 +650,7 @@ void Debugger::command_backtrace()
     word fp = m_emu.read_reg(Register::FP);
     while (fp != 0 && index < kMaxFrames)
     {
-        if (fp & 0b11)
+        if (fp % sizeof(word) != 0)
         {
             m_out << std::format("(stopped: the frame pointer {:#x} is not word aligned)\n", fp);
             return;
@@ -660,7 +661,7 @@ void Debugger::command_backtrace()
         try
         {
             caller_fp = m_emu.memory.read_word(fp);
-            return_address = m_emu.memory.read_word(fp + 4);
+            return_address = m_emu.memory.read_word(fp + sizeof(word));
         }
         catch (const std::exception &)
         {
@@ -700,7 +701,7 @@ void Debugger::command_set(const std::vector<std::string> &args)
 
     if (args[0] == "pc")
     {
-        if (*value & 0b11)
+        if (*value % kInstructionSize != 0)
         {
             m_out << "The pc has to be a multiple of 4.\n";
             return;

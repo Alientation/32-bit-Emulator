@@ -80,6 +80,13 @@ inline constexpr word kSysregId_sctlr = 9;
 inline constexpr word kSysregId_fpcr = 10;
 inline constexpr word kSysregId_fpsr = 11;
 
+/// ESR: the class of the exception is in bits 26-31 and the syndrome (ISS) in the bits below.
+inline constexpr U8 kEsrClassShift = 26;
+inline constexpr word kEsrIssMask = (word(1) << kEsrClassShift) - 1;
+
+/// VBAR: the handler of vector `n` is at `VBAR + n * kVectorSize`, so VBAR is a multiple of it.
+inline constexpr word kVectorSize = 16;
+
 /// The immediate of `swi` that is an emulator call, see _swi. Every other one is a system call
 /// of the operating system.
 inline constexpr word kSwiSemihosting = 1;

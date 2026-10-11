@@ -25,6 +25,9 @@ inline constexpr unsigned kMaxWatchpoints = 16;
 /// The most registers that can be watched at once (`add_register_watch`).
 inline constexpr unsigned kMaxRegisterWatches = 8;
 
+/// The deepest nesting of exceptions that `exception_depth ()` counts. Deeper ones are not counted.
+inline constexpr U8 kMaxExceptionDepth = 255;
+
 /// The most instructions that the history can keep (`set_history_size`).
 inline constexpr size_t kMaxHistory = 256;
 

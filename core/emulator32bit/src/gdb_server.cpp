@@ -417,7 +417,7 @@ std::string GdbServer::monitor(const std::string &command)
             }
         }
         std::string text;
-        for (word i = 0; i < count; i++, address += 4)
+        for (word i = 0; i < count; i++, address += kInstructionSize)
         {
             try
             {

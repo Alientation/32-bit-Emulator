@@ -435,6 +435,10 @@ bool BlockDevice::segment_is_valid(const Segment &segment) const
 
 bool BlockDevice::read_descriptors(const word list, const word count)
 {
+    // A descriptor is three words: the sector, the number of sectors and the RAM address.
+    constexpr word kDescriptorSectorOffset = 0;
+    constexpr word kDescriptorCountOffset = 4;
+    constexpr word kDescriptorAddressOffset = 8;
     constexpr word kDescriptorSize = 12;
     const U64 bytes = U64(count) * kDescriptorSize;
     if (m_dma_memory == nullptr || count == 0 || count > kMaxDescriptors || list % 4 != 0
@@ -446,8 +450,9 @@ bool BlockDevice::read_descriptors(const word list, const word count)
     for (word i = 0; i < count; i++)
     {
         const word at = list + i * kDescriptorSize;
-        m_segments.push_back({m_dma_memory->read_word(at), m_dma_memory->read_word(at + 4),
-                              m_dma_memory->read_word(at + 8)});
+        m_segments.push_back({.sector = m_dma_memory->read_word(at + kDescriptorSectorOffset),
+                              .count = m_dma_memory->read_word(at + kDescriptorCountOffset),
+                              .address = m_dma_memory->read_word(at + kDescriptorAddressOffset)});
     }
     return true;
 }

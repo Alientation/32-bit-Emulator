@@ -150,7 +150,7 @@ void Emulator32bit::print()
 
 word Emulator32bit::fetch_instruction()
 {
-    if (UNLIKELY(m_pc & 0b11))
+    if (UNLIKELY(m_pc % kInstructionSize != 0))
     {
         throw Trap(TrapType::MISALIGNED, "Misaligned program counter " + std::to_string(m_pc));
     }
@@ -314,7 +314,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
 
             // Whatever wrote the pc (ERET, an exception) wrote the address of the next
             // instruction itself.
-            if (LIKELY(!m_pc_written)) m_pc += 4;
+            if (LIKELY(!m_pc_written)) m_pc += kInstructionSize;
             m_pc_written = false;
             m_just_took_exception = false;
             result.instructions_ran++;
@@ -351,7 +351,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
         else if (e.get_type() == TrapType::BREAK_INSTR)
         {
             // The brk completed, the debugger goes on with the next instruction.
-            m_pc += 4;
+            m_pc += kInstructionSize;
             m_just_took_exception = false;
             result.instructions_ran++;
             result.status = RunResult::Status::BREAKPOINT;
@@ -774,11 +774,9 @@ void Emulator32bit::execute_traced(const word instr)
     {
         changes += " NZCV=" + flag_letters(pstate_before) + "->" + flag_letters(m_pstate);
     }
-    const word next_pc = m_pc_written ? m_pc : m_pc + 4;
-    if (next_pc != pc + 4)
-    {
-        changes += std::format(" pc={:#x}", next_pc);
-    }
+
+    const word next_pc = m_pc_written ? m_pc : m_pc + kInstructionSize;
+    if (next_pc != pc + kInstructionSize) changes += std::format(" pc={:#x}", next_pc);
 
     *m_trace.out << line << (changes.empty() ? "" : " ;" + changes) << "\n";
 }
@@ -883,7 +881,7 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         m_far = value;
         break;
     case kSysregId_vbar:
-        m_vbar = value & ~word(0xF); // the entries are 16 bytes
+        m_vbar = value & ~(kVectorSize - 1);
         break;
     case kSysregId_usp:
         m_sp_other = value;
@@ -953,13 +951,10 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     }
     m_just_took_exception = true;
 
-    if (m_exception_depth != 255)
-    {
-        m_exception_depth++;
-    }
+    if (m_exception_depth != kMaxExceptionDepth) m_exception_depth++;
     m_elr = elr;
     m_spsr = m_pstate;
-    m_esr = (word(cls) << 26) | (iss & 0x3FFFFFF);
+    m_esr = (word(cls) << kEsrClassShift) | (iss & kEsrIssMask);
     if (cls == ExceptionClass::INSTRUCTION_ABORT || cls == ExceptionClass::DATA_ABORT)
     {
         m_far = far;
@@ -967,7 +962,7 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
 
     set_user_mode(false);
     m_pstate = set_bit<kIrqMaskBit>(m_pstate, 1);
-    m_pc = m_vbar + 16 * word(cls);
+    m_pc = m_vbar + kVectorSize * word(cls);
     m_pc_written = true;
 
     if (m_trace.out != nullptr)
