@@ -33,7 +33,7 @@ class FakePhysicalPages : public VirtualMemory::PhysicalPages
         return contents;
     }
 
-    void read_page(word ppage, byte *out) override
+    void read_page(byte *out, word ppage) override
     {
         read.push_back(ppage);
         std::copy(page(ppage).begin(), page(ppage).end(), out);
@@ -45,7 +45,7 @@ class FakePhysicalPages : public VirtualMemory::PhysicalPages
         page(ppage).assign(data, data + kPageSize);
     }
 
-    bool read_physical_word(word address, word &out) override
+    bool read_physical_word(word &out, word address) override
     {
         const auto &contents = page(address >> kNumPageOffsetBits);
         const word offset = address & (kPageSize - 1);

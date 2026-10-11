@@ -187,7 +187,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
   - `VirtualMemory` (the MMU, `virtual_memory.h`) pages the virtual pages of a process in and out of
     the physical memory. It copies page contents through the `PhysicalPages` interface
     (`physical_pages.h`) that `SystemBus` implements, and keeps swapped-out pages on the `Disk`
-    (`Disk::read_page (page, byte *out)`/`write_page (page, const byte *)` copy a page without a
+    (`Disk::read_page (byte *out, page)`/`write_page (page, const byte *)` copy a page without a
     vector; the vector versions wrap them). `PhysicalPages::direct_page ()` gives the bytes of a RAM
     page (null for anything else, which goes through a buffer), so a page is copied once between the
     RAM and the disk in each direction. The free frames are a `FrameAllocator` (`frame_allocator.h`,

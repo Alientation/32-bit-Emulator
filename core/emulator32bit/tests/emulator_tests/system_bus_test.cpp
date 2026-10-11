@@ -113,14 +113,14 @@ TEST(system_bus, the_page_table_walker_reads_storage_and_not_devices)
     bus->rom->write_word(vaddr(8, 4), 0x01020304);
 
     word out = 0;
-    EXPECT_TRUE(bus->read_physical_word(8, out));
+    EXPECT_TRUE(bus->read_physical_word(out, 8));
     EXPECT_EQ(out, 0xAABBCCDDu);
-    EXPECT_TRUE(bus->read_physical_word(vaddr(8, 4), out)) << "a table can be in the ROM";
+    EXPECT_TRUE(bus->read_physical_word(out, vaddr(8, 4))) << "a table can be in the ROM";
     EXPECT_EQ(out, 0x01020304u);
 
-    EXPECT_FALSE(bus->read_physical_word(9, out)) << "not aligned";
-    EXPECT_FALSE(bus->read_physical_word(vaddr(4), out)) << "no memory";
-    EXPECT_FALSE(bus->read_physical_word(kConsoleBase, out)) << "a device could have an effect";
+    EXPECT_FALSE(bus->read_physical_word(out, 9)) << "not aligned";
+    EXPECT_FALSE(bus->read_physical_word(out, vaddr(4))) << "no memory";
+    EXPECT_FALSE(bus->read_physical_word(out, kConsoleBase)) << "a device could have an effect";
 }
 
 TEST(system_bus, the_page_table_walker_writes_to_the_ram_only)
@@ -142,9 +142,9 @@ TEST(system_bus, pages_are_copied_to_and_from_the_memory_that_has_them)
     EXPECT_EQ(bus->ram->read_byte(vaddr(2, 5)), data[5]);
 
     std::vector<byte> back(kPageSize);
-    bus->read_page(2, back.data());
+    bus->read_page(back.data(), 2);
     EXPECT_EQ(back, data);
-    EXPECT_THROW(bus->read_page(5, back.data()), SystemBus::BusError) << "no memory there";
+    EXPECT_THROW(bus->read_page(back.data(), 5), SystemBus::BusError) << "no memory there";
 }
 
 TEST(system_bus, only_the_ram_has_pages_that_can_be_copied_directly)

@@ -74,7 +74,7 @@ class GdbServer
     static std::string to_hex(const std::string &bytes);
 
     /// @return The bytes of the hexadecimal text, or nothing if it is not valid.
-    static bool from_hex(const std::string &text, std::string &bytes);
+    static bool from_hex(std::string &bytes, const std::string &text);
 
   private:
     /// The stop reply after the program ran.
@@ -88,7 +88,7 @@ class GdbServer
     std::string read_registers();
     bool write_registers(const std::string &hex);
     bool write_register(unsigned number, word value);
-    bool read_register(unsigned number, word &value);
+    bool read_register(word &value, unsigned number);
     std::string read_memory(word address, word length);
     bool write_memory(word address, const std::string &bytes);
     std::string breakpoint_packet(const std::string &packet, bool insert);

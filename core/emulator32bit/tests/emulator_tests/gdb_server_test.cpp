@@ -123,7 +123,7 @@ TEST_F(GdbTest, cpsr_shows_the_flags_and_the_mode_in_the_bits_of_an_arm_one)
 {
     cpu.set_NZCV(true, false, true, false);
     std::string bytes;
-    ASSERT_TRUE(GdbServer::from_hex(ask("p10"), bytes));
+    ASSERT_TRUE(GdbServer::from_hex(bytes, ask("p10")));
     const word cpsr = word(U8(bytes[0])) | (word(U8(bytes[1])) << 8) | (word(U8(bytes[2])) << 16)
            | (word(U8(bytes[3])) << 24);
     EXPECT_EQ(cpsr >> 28, 0b1010u) << "N and C";
@@ -279,7 +279,7 @@ TEST_F(GdbTest, monitor_disasm_shows_the_instructions_in_the_syntax_of_the_assem
     const auto monitor = [&](const std::string &command)
     {
         std::string text;
-        EXPECT_TRUE(GdbServer::from_hex(ask("qRcmd," + GdbServer::to_hex(command)), text));
+        EXPECT_TRUE(GdbServer::from_hex(text, ask("qRcmd," + GdbServer::to_hex(command))));
         return text;
     };
 
@@ -297,10 +297,10 @@ TEST(GdbHex, bytes_make_hex_and_back)
 {
     EXPECT_EQ(GdbServer::to_hex(std::string("\x01\xAB\xFF", 3)), "01abff");
     std::string bytes;
-    EXPECT_TRUE(GdbServer::from_hex("01aBFf", bytes));
+    EXPECT_TRUE(GdbServer::from_hex(bytes, "01aBFf"));
     EXPECT_EQ(bytes, std::string("\x01\xAB\xFF", 3));
-    EXPECT_FALSE(GdbServer::from_hex("0", bytes));
-    EXPECT_FALSE(GdbServer::from_hex("0g", bytes));
+    EXPECT_FALSE(GdbServer::from_hex(bytes, "0"));
+    EXPECT_FALSE(GdbServer::from_hex(bytes, "0g"));
 }
 
 #ifdef AEMU_TEST_SOCKETS

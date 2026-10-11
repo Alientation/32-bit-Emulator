@@ -12,9 +12,9 @@ class PhysicalPages
 
     /// Copies the physical page to `out`.
     ///
-    /// @param ppage The physical page number.
     /// @param out Where to copy to, with room for kPageSize bytes.
-    virtual void read_page(word ppage, byte *out) = 0;
+    /// @param ppage The physical page number.
+    virtual void read_page(byte *out, word ppage) = 0;
 
     /// Copies kPageSize bytes to the physical page.
     ///
@@ -39,10 +39,10 @@ class PhysicalPages
     /// there but cannot be read (the file of the disk fails) is not "no memory": that is a fatal
     /// error, which `run` reports as a fault (not an exception the program can handle).
     ///
-    /// @param address The physical address.
     /// @param out Receives the word.
+    /// @param address The physical address.
     /// @return false if no memory is there.
-    virtual bool read_physical_word(word address, word &out) = 0;
+    virtual bool read_physical_word(word &out, word address) = 0;
 
     /// Writes a word to a physical address.
     ///

@@ -58,7 +58,7 @@ int hex_digit(const char c)
 }
 
 /// A number in hexadecimal, up to 32 bits.
-bool parse_hex(const std::string &text, word &out)
+bool parse_hex(word &out, const std::string &text)
 {
     if (text.empty() || text.size() > 8) return false;
     word value = 0;
@@ -79,17 +79,17 @@ std::string word_to_hex(const word value)
                        (value >> 16) & 0xFF, value >> 24);
 }
 
-bool hex_to_word(const std::string &text, word &out)
+bool hex_to_word(word &out, const std::string &text)
 {
     std::string bytes;
-    if (text.size() != 8 || !GdbServer::from_hex(text, bytes)) return false;
+    if (text.size() != 8 || !GdbServer::from_hex(bytes, text)) return false;
     out = word(U8(bytes[0])) | (word(U8(bytes[1])) << 8) | (word(U8(bytes[2])) << 16)
           | (word(U8(bytes[3])) << 24);
     return true;
 }
 
 /// Splits "a,b" at the first comma.
-bool split_comma(const std::string &text, std::string &first, std::string &second)
+bool split_comma(std::string &first, std::string &second, const std::string &text)
 {
     const size_t comma = text.find(',');
     if (comma == std::string::npos) return false;
@@ -117,7 +117,7 @@ std::string GdbServer::to_hex(const std::string &bytes)
     return text;
 }
 
-bool GdbServer::from_hex(const std::string &text, std::string &bytes)
+bool GdbServer::from_hex(std::string &bytes, const std::string &text)
 {
     if (text.size() % 2 != 0) return false;
     bytes.clear();
@@ -159,7 +159,7 @@ std::string GdbServer::target_description()
     return xml;
 }
 
-bool GdbServer::read_register(const unsigned number, word &value)
+bool GdbServer::read_register(word &value, const unsigned number)
 {
     if (const int reg = emulator_register(number); reg >= 0)
     {
@@ -214,7 +214,7 @@ std::string GdbServer::read_registers()
     for (unsigned i = 0; i < kRegisterCount; i++)
     {
         word value = 0;
-        read_register(i, value);
+        read_register(value, i);
         text += word_to_hex(value);
     }
     return text;
@@ -226,7 +226,7 @@ bool GdbServer::write_registers(const std::string &hex)
     for (unsigned i = 0; i < kRegisterCount; i++)
     {
         word value = 0;
-        if (!hex_to_word(hex.substr(i * 8, 8), value) || !write_register(i, value)) return false;
+        if (!hex_to_word(value, hex.substr(i * 8, 8)) || !write_register(i, value)) return false;
     }
     return true;
 }
@@ -271,7 +271,7 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
     // Z<type>,<address>,<kind>
     const std::string rest = packet.substr(1);
     std::string type_text, tail, address_text, kind_text;
-    if (!split_comma(rest, type_text, tail) || !split_comma(tail, address_text, kind_text))
+    if (!split_comma(type_text, tail, rest) || !split_comma(address_text, kind_text, tail))
     {
         return "E01";
     }
@@ -279,7 +279,7 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
     kind_text = kind_text.substr(0, kind_text.find(';'));
 
     word address = 0, kind = 0;
-    if (type_text.size() != 1 || !parse_hex(address_text, address) || !parse_hex(kind_text, kind))
+    if (type_text.size() != 1 || !parse_hex(address, address_text) || !parse_hex(kind, kind_text))
     {
         return "E01";
     }
@@ -445,9 +445,9 @@ std::string GdbServer::query(const std::string &packet)
     {
         std::string offset_text, length_text;
         word offset = 0, length = 0;
-        if (!split_comma(packet.substr(std::string("qXfer:features:read:target.xml:").size()),
-                         offset_text, length_text)
-            || !parse_hex(offset_text, offset) || !parse_hex(length_text, length))
+        if (!split_comma(offset_text, length_text,
+                         packet.substr(std::string("qXfer:features:read:target.xml:").size()))
+            || !parse_hex(offset, offset_text) || !parse_hex(length, length_text))
         {
             return "E01";
         }
@@ -459,7 +459,7 @@ std::string GdbServer::query(const std::string &packet)
     if (packet.rfind("qRcmd,", 0) == 0)
     {
         std::string command;
-        if (!from_hex(packet.substr(6), command)) return "E01";
+        if (!from_hex(command, packet.substr(6))) return "E01";
         return to_hex(monitor(command));
     }
     if (packet == "qAttached") return "1";
@@ -489,7 +489,7 @@ std::string GdbServer::handle(const std::string &packet)
     case 'p':
     {
         word number = 0, value = 0;
-        if (!parse_hex(packet.substr(1), number) || !read_register(number, value)) return "E01";
+        if (!parse_hex(number, packet.substr(1)) || !read_register(value, number)) return "E01";
         return word_to_hex(value);
     }
     case 'P':
@@ -500,7 +500,7 @@ std::string GdbServer::handle(const std::string &packet)
         const std::string number_text = packet.substr(1, equals - 1);
         const std::string value_text = packet.substr(equals + 1);
         word number = 0, value = 0;
-        if (!parse_hex(number_text, number) || !hex_to_word(value_text, value)
+        if (!parse_hex(number, number_text) || !hex_to_word(value, value_text)
             || !write_register(number, value))
         {
             return "E01";
@@ -511,8 +511,8 @@ std::string GdbServer::handle(const std::string &packet)
     {
         std::string address_text, length_text;
         word address = 0, length = 0;
-        if (!split_comma(packet.substr(1), address_text, length_text)
-            || !parse_hex(address_text, address) || !parse_hex(length_text, length))
+        if (!split_comma(address_text, length_text, packet.substr(1))
+            || !parse_hex(address, address_text) || !parse_hex(length, length_text))
         {
             return "E01";
         }
@@ -524,9 +524,9 @@ std::string GdbServer::handle(const std::string &packet)
         std::string address_text, length_text, bytes;
         word address = 0, length = 0;
         if (colon == std::string::npos
-            || !split_comma(packet.substr(1, colon - 1), address_text, length_text)
-            || !parse_hex(address_text, address) || !parse_hex(length_text, length)
-            || !from_hex(packet.substr(colon + 1), bytes) || bytes.size() != length)
+            || !split_comma(address_text, length_text, packet.substr(1, colon - 1))
+            || !parse_hex(address, address_text) || !parse_hex(length, length_text)
+            || !from_hex(bytes, packet.substr(colon + 1)) || bytes.size() != length)
         {
             return "E01";
         }
@@ -535,7 +535,7 @@ std::string GdbServer::handle(const std::string &packet)
     case 'c':
     {
         word address = 0;
-        if (packet.size() > 1 && parse_hex(packet.substr(1), address) && address % 4 == 0)
+        if (packet.size() > 1 && parse_hex(address, packet.substr(1)) && address % 4 == 0)
         {
             m_emu.set_pc(address);
         }
@@ -544,7 +544,7 @@ std::string GdbServer::handle(const std::string &packet)
     case 's':
     {
         word address = 0;
-        if (packet.size() > 1 && parse_hex(packet.substr(1), address) && address % 4 == 0)
+        if (packet.size() > 1 && parse_hex(address, packet.substr(1)) && address % 4 == 0)
         {
             m_emu.set_pc(address);
         }

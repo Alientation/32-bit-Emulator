@@ -224,11 +224,11 @@ struct CliArgs
 
 /// Reads an option that is a number.
 ///
+/// @param parse_error Set if the value is not a number, which is reported.
 /// @param result The parsed command line.
 /// @param option The name of the option.
-/// @param parse_error Set if the value is not a number, which is reported.
 /// @return The number, or 0 if it is not one.
-static word number_option(const cxxopts::ParseResult &result, const char *option, bool &parse_error)
+static word number_option(bool &parse_error, const cxxopts::ParseResult &result, const char *option)
 {
     const std::string value = result[option].as<std::string>();
     const std::optional<U64> number = parse_number(value);
@@ -244,18 +244,18 @@ static word number_option(const cxxopts::ParseResult &result, const char *option
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
 /// @return false if there was one.
-static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
+static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 {
     bool parse_error = false;
 
-    args.ram_npages = number_option(result, "ram-pages", parse_error);
-    args.ram_start_page = number_option(result, "ram-start", parse_error);
-    args.rom_npages = number_option(result, "rom-pages", parse_error);
-    args.rom_start_page = number_option(result, "rom-start", parse_error);
-    args.pc = number_option(result, "pc", parse_error);
-    args.limit = number_option(result, "limit", parse_error);
-    args.flags = number_option(result, "flags", parse_error);
-    args.history_size = number_option(result, "history", parse_error);
+    args.ram_npages = number_option(parse_error, result, "ram-pages");
+    args.ram_start_page = number_option(parse_error, result, "ram-start");
+    args.rom_npages = number_option(parse_error, result, "rom-pages");
+    args.rom_start_page = number_option(parse_error, result, "rom-start");
+    args.pc = number_option(parse_error, result, "pc");
+    args.limit = number_option(parse_error, result, "limit");
+    args.flags = number_option(parse_error, result, "flags");
+    args.history_size = number_option(parse_error, result, "history");
     if (args.history_size > kMaxHistory)
     {
         std::cerr << "ERROR: --history keeps at most " << kMaxHistory << " instructions\n";
@@ -326,8 +326,8 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
         }
         else
         {
-            args.disk_npages = number_option(result, "disk-pages", parse_error);
-            args.disk_start_page = number_option(result, "disk-start", parse_error);
+            args.disk_npages = number_option(parse_error, result, "disk-pages");
+            args.disk_start_page = number_option(parse_error, result, "disk-start");
         }
     }
 
@@ -423,8 +423,8 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
 /// Makes the machine, loads the program and sets the state and the devices up as asked.
 ///
 /// @return The machine, or null (after saying why) if a file could not be read.
-static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &result,
-                                                   CliArgs &args)
+static std::unique_ptr<Emulator32bit> make_machine(CliArgs &args,
+                                                   const cxxopts::ParseResult &result)
 {
     auto ram = std::make_unique<RAM>(args.ram_npages, args.ram_start_page);
     auto rom = result.count("rom-file")
@@ -651,12 +651,12 @@ static int run_cli(const int argc, char *argv[])
     }
 
     CliArgs args;
-    if (!parse_args(result, args))
+    if (!parse_args(args, result))
     {
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 
-    const std::unique_ptr<Emulator32bit> emu = make_machine(result, args);
+    const std::unique_ptr<Emulator32bit> emu = make_machine(args, result);
     if (emu == nullptr)
     {
         return S32(ExitCode::EXIT_USAGE_ERROR);

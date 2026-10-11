@@ -103,9 +103,9 @@ class Disk : public BaseMemory
     /// Reads a disk page into a buffer, which the swapping uses so that it
     /// does not allocate a vector for every page.
     ///
-    /// @param page Disk page address to read.
     /// @param out Room for kPageSize bytes.
-    virtual void read_page(word page, byte *out);
+    /// @param page Disk page address to read.
+    virtual void read_page(byte *out, word page);
 
     /// Reads a byte from disk.
     ///
@@ -283,7 +283,7 @@ class MockDisk : public Disk
 
     using Disk::read_page;
     using Disk::write_page;
-    void read_page(word page, byte *out) override;
+    void read_page(byte *out, word page) override;
     byte read_byte(word address) override;
     hword read_hword(word addressn) override;
     word read_word(word address) override;

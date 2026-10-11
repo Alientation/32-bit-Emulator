@@ -479,7 +479,7 @@ bool BlockDevice::transfer(const bool to_disk)
         byte *disk = m_storage.data() + size_t(segment.sector) * kSectorSize;
         if (to_disk)
         {
-            m_dma_memory->read_block(segment.address, disk, bytes);
+            m_dma_memory->read_block(disk, segment.address, bytes);
         }
         else
         {

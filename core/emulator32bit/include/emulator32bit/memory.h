@@ -35,10 +35,10 @@ class BaseMemory
 
     /// Copies `size` bytes starting at the address to `out`. The bytes are all in this memory.
     ///
-    /// @param address The address of the first byte.
     /// @param out Where to copy the bytes to, with room for `size` bytes.
+    /// @param address The address of the first byte.
     /// @param size The number of bytes.
-    virtual void read_block(word address, byte *out, word size)
+    virtual void read_block(byte *out, word address, word size)
     {
         for (word i = 0; i < size; i++)
         {
@@ -182,7 +182,7 @@ class Memory : public BaseMemory
         return m_data + (address - m_start_addr);
     }
 
-    void read_block(word address, byte *out, word size) override
+    void read_block(byte *out, word address, word size) override
     {
         std::copy_n(m_data + (address - m_start_addr), size, out);
     }

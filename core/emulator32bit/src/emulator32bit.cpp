@@ -167,21 +167,21 @@ void fault(Emulator32bit::RunResult &result, const char *what, const std::string
 /// The physical address of a byte of an access that succeeded, for a watchpoint on physical
 /// addresses. A byte that cannot be translated is one that nothing watches.
 ///
+/// @param physical_address Receives the physical address.
 /// @param mmu The MMU that translated the access.
 /// @param virtual_address The address of the byte.
-/// @param physical_address Receives the physical address.
 /// @return Whether there is one.
-bool translate_watched_byte(VirtualMemory &mmu, const word virtual_address, word &physical_address)
+bool translate_watched_byte(word &physical_address, VirtualMemory &mmu, const word virtual_address)
 {
     try
     {
         physical_address = mmu.translate_address(virtual_address);
-        return true;
     }
     catch (const std::exception &)
     {
         return false;
     }
+    return true;
 }
 
 } // namespace
@@ -596,7 +596,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
             for (word k = 0; k < length && !overlaps; k++)
             {
                 word target;
-                overlaps = translate_watched_byte(*mmu, address + k, target) && target >= watched
+                overlaps = translate_watched_byte(target, *mmu, address + k) && target >= watched
                            && U64(target) < watched_end;
             }
         }

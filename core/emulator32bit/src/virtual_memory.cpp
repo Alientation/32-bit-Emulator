@@ -720,7 +720,7 @@ void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
         }
         else
         {
-            m_physical->read_page(ppage, m_page_buffer.data());
+            m_physical->read_page(m_page_buffer.data(), ppage);
             m_disk.write_page(diskpage, m_page_buffer.data());
         }
     }
@@ -747,11 +747,11 @@ void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &mapp
     {
         if (byte *const direct = m_physical->direct_page(ppage))
         {
-            m_disk.read_page(entry.diskpage, direct);
+            m_disk.read_page(direct, entry.diskpage);
         }
         else
         {
-            m_disk.read_page(entry.diskpage, m_page_buffer.data());
+            m_disk.read_page(m_page_buffer.data(), entry.diskpage);
             m_physical->write_page(ppage, m_page_buffer.data());
         }
     }
@@ -999,7 +999,7 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
     const word vpage = address >> kNumPageOffsetBits;
 
     word first = 0;
-    if (!m_physical->read_physical_word(m_ptbr + ((address >> 22) << 2), first)
+    if (!m_physical->read_physical_word(first, m_ptbr + ((address >> 22) << 2))
         || !(first & kPteValid))
     {
         throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
@@ -1008,7 +1008,7 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
     const word entry_address =
         (first & kPteFrameMask) + (((address >> kNumPageOffsetBits) & 0x3FF) << 2);
     word entry = 0;
-    if (!m_physical->read_physical_word(entry_address, entry) || !(entry & kPteValid))
+    if (!m_physical->read_physical_word(entry, entry_address) || !(entry & kPteValid))
     {
         throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }

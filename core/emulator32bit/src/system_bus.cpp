@@ -160,10 +160,10 @@ void SystemBus::reset()
     block.reset();
 }
 
-void SystemBus::read_page(const word ppage, byte *out)
+void SystemBus::read_page(byte *const out, const word ppage)
 {
     const word address = ppage << kNumPageOffsetBits;
-    route_memory(address).read_block(address, out, kPageSize);
+    route_memory(address).read_block(out, address, kPageSize);
 }
 
 void SystemBus::write_page(const word ppage, const byte *data)
@@ -179,7 +179,7 @@ byte *SystemBus::direct_page(const word ppage)
     return ram->in_bounds(address) ? ram->bytes_at(address) : nullptr;
 }
 
-bool SystemBus::read_physical_word(const word address, word &out)
+bool SystemBus::read_physical_word(word &out, const word address)
 {
     BaseMemory *memory = address % sizeof(word) == 0 ? find_storage(address) : nullptr;
     if (UNLIKELY(memory == nullptr)) return false;

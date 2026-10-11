@@ -169,11 +169,11 @@ void Disk::return_page(const word page)
 std::vector<byte> Disk::read_page(const word page)
 {
     std::vector<byte> data(kPageSize);
-    read_page(page, data.data());
+    read_page(data.data(), page);
     return data;
 }
 
-void Disk::read_page(const word page, byte *out)
+void Disk::read_page(byte *const out, const word page)
 {
     const CachePage &cpage = get_cpage(page);
     std::memcpy(out, cpage.data, kPageSize);
@@ -426,7 +426,7 @@ void MockDisk::return_page(const word page)
     }
 }
 
-void MockDisk::read_page(const word page, byte *out)
+void MockDisk::read_page(byte *const out, const word page)
 {
     // Virtual memory fetches a full page from disk the first time a page is touched, so hand back
     // a zeroed page rather than an empty one.
