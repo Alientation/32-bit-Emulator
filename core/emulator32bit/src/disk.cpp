@@ -13,7 +13,7 @@
 // to detect invlaid disk/disk management files.
 #define MAGIC_HEADER 0x4b534944
 
-Disk::Disk(File diskfile, word npages, word lo_page) :
+Disk::Disk(const File &diskfile, const word npages, const word lo_page) :
     BaseMemory(npages, lo_page),
     m_cache(kDiskCacheSize),
     m_free_list(0, npages, false)
@@ -71,7 +71,7 @@ void Disk::read_disk_files()
     {
         // Disk file size is smaller than what is needed,
         // we can correct this by increasing the size to what we want.
-        std::streamsize padding_size = target_size - actual_size;
+        const std::streamsize padding_size = target_size - actual_size;
         AEMU_DEBUG("Padding disk file of size {} bytes with {} bytes.", actual_size, padding_size);
 
         std::ofstream disk_file(m_diskfile.get_path(), std::ios::binary | std::ios::app);
@@ -116,8 +116,8 @@ void Disk::read_disk_manager_file()
     // Read in free blocks from the saved file.
     while (reader.has_next())
     {
-        word page = reader.read_word();
-        word len = reader.read_word();
+        const word page = reader.read_word();
+        const word len = reader.read_word();
 
         m_free_list.return_block(page, len);
     }
@@ -159,21 +159,21 @@ word Disk::get_free_page()
     return addr;
 }
 
-void Disk::return_page(word page)
+void Disk::return_page(const word page)
 {
     m_free_list.return_block(page, 1);
 
     AEMU_DEBUG("Returning disk page {} back to disk.", page);
 }
 
-std::vector<byte> Disk::read_page(word page)
+std::vector<byte> Disk::read_page(const word page)
 {
     std::vector<byte> data(kPageSize);
     read_page(page, data.data());
     return data;
 }
 
-void Disk::read_page(word page, byte *out)
+void Disk::read_page(const word page, byte *out)
 {
     const CachePage &cpage = get_cpage(page);
     std::memcpy(out, cpage.data, kPageSize);
@@ -181,22 +181,22 @@ void Disk::read_page(word page, byte *out)
     AEMU_DEBUG("Reading disk page {}.", page);
 }
 
-byte Disk::read_byte(word address)
+byte Disk::read_byte(const word address)
 {
     return read_val(address, 1);
 }
 
-hword Disk::read_hword(word address)
+hword Disk::read_hword(const word address)
 {
     return read_val(address, 2);
 }
 
-word Disk::read_word(word address)
+word Disk::read_word(const word address)
 {
     return read_val(address, 4);
 }
 
-dword Disk::read_val(word address, int n_bytes)
+dword Disk::read_val(word address, const int n_bytes)
 {
     // TODO: Add warning for when n_bytes is larger than 8.
 
@@ -228,7 +228,7 @@ dword Disk::read_val(word address, int n_bytes)
     return val;
 }
 
-void Disk::write_page(word page, const std::vector<byte> &data)
+void Disk::write_page(const word page, const std::vector<byte> &data)
 {
     if (data.size() != kPageSize)
     {
@@ -243,7 +243,7 @@ void Disk::write_page(word page, const std::vector<byte> &data)
     write_page(page, data.data());
 }
 
-void Disk::write_page(word page, const byte *data)
+void Disk::write_page(const word page, const byte *data)
 {
     // The whole page is replaced, so what the file has of it is not needed.
     CachePage &cpage = get_cpage(page, false);
@@ -253,22 +253,22 @@ void Disk::write_page(word page, const byte *data)
     AEMU_DEBUG("Wrote to disk page {}.", cpage.page);
 }
 
-void Disk::write_byte(word address, byte data)
+void Disk::write_byte(const word address, const byte data)
 {
     write_val(address, data, 1);
 }
 
-void Disk::write_hword(word address, hword data)
+void Disk::write_hword(const word address, const hword data)
 {
     write_val(address, data, 2);
 }
 
-void Disk::write_word(word address, word data)
+void Disk::write_word(const word address, const word data)
 {
     write_val(address, data, 4);
 }
 
-void Disk::write_val(word address, dword val, int n_bytes)
+void Disk::write_val(word address, dword val, const int n_bytes)
 {
     // TODO: Warn when n_bytes is larger than 8.
 
@@ -300,7 +300,7 @@ void Disk::write_val(word address, dword val, int n_bytes)
     }
 }
 
-Disk::CachePage &Disk::get_cpage(word addr, bool load)
+Disk::CachePage &Disk::get_cpage(const word addr, const bool load)
 {
     if (addr >= m_npages)
     {
@@ -383,7 +383,7 @@ void Disk::save()
     FileWriter fwriter(m_diskfile_manager, std::ios::binary | std::ios::out);
     ByteWriter writer(fwriter);
 
-    std::vector<std::pair<word, word>> blocks = m_free_list.get_blocks();
+    const std::vector<std::pair<word, word>> blocks = m_free_list.get_blocks();
     writer << ByteWriter::Data(MAGIC_HEADER, 4);
     for (std::pair<word, word> block : blocks)
     {
@@ -412,7 +412,7 @@ word MockDisk::get_free_page()
     return m_next_page++;
 }
 
-void MockDisk::return_page(word page)
+void MockDisk::return_page(const word page)
 {
     if (page < m_next_page && !m_is_returned[page])
     {
@@ -426,7 +426,7 @@ void MockDisk::return_page(word page)
     }
 }
 
-void MockDisk::read_page(word page, byte *out)
+void MockDisk::read_page(const word page, byte *out)
 {
     // Virtual memory fetches a full page from disk the first time a page is touched, so hand back
     // a zeroed page rather than an empty one.
@@ -440,25 +440,25 @@ void MockDisk::read_page(word page, byte *out)
     }
 }
 
-byte MockDisk::read_byte(word address)
+byte MockDisk::read_byte(const word address)
 {
     UNUSED(address);
     return 0;
 }
 
-hword MockDisk::read_hword(word address)
+hword MockDisk::read_hword(const word address)
 {
     UNUSED(address);
     return 0;
 }
 
-word MockDisk::read_word(word address)
+word MockDisk::read_word(const word address)
 {
     UNUSED(address);
     return 0;
 }
 
-void MockDisk::write_page(word page, const byte *data)
+void MockDisk::write_page(const word page, const byte *data)
 {
     if (page >= m_pages.size())
     {
@@ -480,19 +480,19 @@ void MockDisk::write_page(word page, const byte *data)
     std::memcpy(contents.data(), data, kPageSize);
 }
 
-void MockDisk::write_byte(word address, byte data)
+void MockDisk::write_byte(const word address, const byte data)
 {
     UNUSED(address);
     UNUSED(data);
 }
 
-void MockDisk::write_hword(word address, hword data)
+void MockDisk::write_hword(const word address, const hword data)
 {
     UNUSED(address);
     UNUSED(data);
 }
 
-void MockDisk::write_word(word address, word data)
+void MockDisk::write_word(const word address, const word data)
 {
     UNUSED(address);
     UNUSED(data);

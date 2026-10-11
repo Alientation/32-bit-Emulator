@@ -37,7 +37,7 @@ class Disk : public BaseMemory
     /// @param npages The number of pages the disk should have.
     /// @param lo_page The page number of the first page, so the first address is
     ///     `lo_page << kNumPageOffsetBits`.
-    Disk(File diskfile, word npages, word lo_page);
+    Disk(const File &diskfile, word npages, word lo_page);
     virtual ~Disk();
 
     Disk(const Disk &) = delete;

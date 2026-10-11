@@ -27,7 +27,7 @@ void Emulator32bit::set_error_output(std::ostream &err)
     m_err = &err;
 }
 
-word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
+word Emulator32bit::_emu_read_value(const word mem_addr, const U8 size, const bool little_endian)
 {
     if (size == 0 || size > sizeof(word))
     {
@@ -44,7 +44,7 @@ word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
     return val;
 }
 
-U8 Emulator32bit::_emu_register_arg(word reg_id)
+U8 Emulator32bit::_emu_register_arg(const word reg_id)
 {
     if (reg_id >= kNumReg)
     {
@@ -53,7 +53,7 @@ U8 Emulator32bit::_emu_register_arg(word reg_id)
     return U8(reg_id);
 }
 
-std::string Emulator32bit::_emu_read_string(word address)
+std::string Emulator32bit::_emu_read_string(const word address)
 {
     std::string text;
     for (word length = 0; length < kMaxStringLength; length++)
@@ -75,12 +75,12 @@ void Emulator32bit::_emu_print()
     print();
 }
 
-void Emulator32bit::_emu_printr(U8 reg_id)
+void Emulator32bit::_emu_printr(const U8 reg_id)
 {
     *m_out << std::format("REG: {} = {:x}\n", reg_id, read_reg(reg_id));
 }
 
-void Emulator32bit::_emu_printm(word mem_addr, U8 size, bool little_endian)
+void Emulator32bit::_emu_printm(const word mem_addr, const U8 size, const bool little_endian)
 {
     const word val = _emu_read_value(mem_addr, size, little_endian);
     *m_out << std::format("MEM: {:x} = {:0{}x}\n", mem_addr, val, size * 2);
@@ -93,9 +93,9 @@ void Emulator32bit::_emu_printp()
                           test_bit<kVFlagBit>(m_pstate));
 }
 
-void Emulator32bit::_emu_assertr(U8 reg_id, word min_value, word max_value)
+void Emulator32bit::_emu_assertr(const U8 reg_id, const word min_value, const word max_value)
 {
-    word val = read_reg(reg_id);
+    const word val = read_reg(reg_id);
 
     if (val < min_value || val > max_value)
     {
@@ -107,8 +107,8 @@ void Emulator32bit::_emu_assertr(U8 reg_id, word min_value, word max_value)
     }
 }
 
-void Emulator32bit::_emu_assertm(word mem_addr, U8 size, bool little_endian, word min_value,
-                                 word max_value)
+void Emulator32bit::_emu_assertm(const word mem_addr, const U8 size, const bool little_endian,
+                                 const word min_value, const word max_value)
 {
     const word val = _emu_read_value(mem_addr, size, little_endian);
 
@@ -121,9 +121,9 @@ void Emulator32bit::_emu_assertm(word mem_addr, U8 size, bool little_endian, wor
     }
 }
 
-void Emulator32bit::_emu_assertp(U8 p_state_id, bool expected_value)
+void Emulator32bit::_emu_assertp(const U8 p_state_id, const bool expected_value)
 {
-    bool val = test_bit(m_pstate, p_state_id);
+    const bool val = test_bit(m_pstate, p_state_id);
 
     if (val != expected_value)
     {
@@ -134,12 +134,12 @@ void Emulator32bit::_emu_assertp(U8 p_state_id, bool expected_value)
     }
 }
 
-void Emulator32bit::_emu_log(word str)
+void Emulator32bit::_emu_log(const word str)
 {
     *m_out << _emu_read_string(str) << "\n";
 }
 
-void Emulator32bit::_emu_err(word err)
+void Emulator32bit::_emu_err(const word err)
 {
     const std::string message = _emu_read_string(err);
     *m_err << message << "\n";
@@ -179,9 +179,9 @@ void Emulator32bit::_emu_err(word err)
 /// with a fault.
 /// - Output goes to the streams set with set_output () and set_error_output (), by default
 /// std::cout and std::cerr.
-void Emulator32bit::_swi(word instr)
+void Emulator32bit::_swi(const word instr)
 {
-    byte cond = bitfield_unsigned<22, 4>(instr);
+    const byte cond = bitfield_unsigned<22, 4>(instr);
     AEMU_DEBUG("swi {}", cond);
 
     if (!check_cond(m_pstate, cond))
@@ -209,12 +209,12 @@ void Emulator32bit::_swi(word instr)
 
     // Software interrupts.. perfect to add functionality to this like console print,
     // file operations, ports, etc.
-    word id = read_reg(Register::SYSCALL);
-    word arg0 = read_reg(Register::X0);
-    word arg1 = read_reg(Register::X1);
-    word arg2 = read_reg(Register::X2);
-    word arg3 = read_reg(Register::X3);
-    word arg4 = read_reg(Register::X4);
+    const word id = read_reg(Register::SYSCALL);
+    const word arg0 = read_reg(Register::X0);
+    const word arg1 = read_reg(Register::X1);
+    const word arg2 = read_reg(Register::X2);
+    const word arg3 = read_reg(Register::X3);
+    const word arg4 = read_reg(Register::X4);
     switch (id)
     {
     case 1000:

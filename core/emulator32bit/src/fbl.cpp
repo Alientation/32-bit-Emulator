@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstdio>
 
-FreeBlockList::FreeBlockList(word begin, word len, bool init) :
+FreeBlockList::FreeBlockList(const word begin, word len, const bool init) :
     m_begin(begin),
     m_len(len)
 {
@@ -41,7 +41,7 @@ const char *FreeBlockList::Error::what() const noexcept
     return message.c_str();
 }
 
-word FreeBlockList::get_free_block(word length)
+word FreeBlockList::get_free_block(const word length)
 {
     FreeBlock *freeblock = find(length);
 
@@ -65,7 +65,7 @@ word FreeBlockList::get_free_block(word length)
     return addr;
 }
 
-void FreeBlockList::remove_block(word addr, word length)
+void FreeBlockList::remove_block(const word addr, const word length)
 {
     FreeBlock *cur = m_head;
     while (cur != nullptr && cur->addr + cur->len <= addr)
@@ -80,8 +80,8 @@ void FreeBlockList::remove_block(word addr, word length)
         return;
     }
 
-    word remaining_before = addr - cur->addr;
-    word remaining_after = cur->addr + cur->len - (addr + length);
+    const word remaining_before = addr - cur->addr;
+    const word remaining_after = cur->addr + cur->len - (addr + length);
     const word block_addr = cur->addr;
 
     remove(cur);
@@ -97,7 +97,7 @@ void FreeBlockList::remove_block(word addr, word length)
     }
 }
 
-FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, word length)
+FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, const word length)
 {
     if (!m_head || addr < m_head->addr)
     {
@@ -136,12 +136,12 @@ FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, word length)
     return next;
 }
 
-bool FreeBlockList::in_range(word addr, word length) const
+bool FreeBlockList::in_range(const word addr, const word length) const
 {
     return addr >= m_begin && U64(addr) + length <= U64(m_begin) + m_len;
 }
 
-void FreeBlockList::return_block(word addr, word length)
+void FreeBlockList::return_block(const word addr, const word length)
 {
     if (!in_range(addr, length))
     {
@@ -152,8 +152,9 @@ void FreeBlockList::return_block(word addr, word length)
 
     FreeBlock *ret_block = insert(addr, length);
 
-    bool intersect_prev = ret_block->prev && ret_block->prev->addr + ret_block->prev->len > addr;
-    bool intersect_next = ret_block->next && ret_block->next->addr < addr + length;
+    const bool intersect_prev =
+        ret_block->prev && ret_block->prev->addr + ret_block->prev->len > addr;
+    const bool intersect_next = ret_block->next && ret_block->next->addr < addr + length;
     if (intersect_prev || intersect_next)
     {
         // Undo state change so that the caller can cleanly handle the exception.
@@ -166,7 +167,7 @@ void FreeBlockList::return_block(word addr, word length)
     coalesce(ret_block->prev);
 }
 
-void FreeBlockList::force_return_block(word addr, word length)
+void FreeBlockList::force_return_block(const word addr, const word length)
 {
     if (!in_range(addr, length))
     {
@@ -226,7 +227,7 @@ std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
     return blocks;
 }
 
-bool FreeBlockList::can_fit(word length)
+bool FreeBlockList::can_fit(const word length)
 {
     return find(length) != nullptr;
 }
@@ -246,7 +247,7 @@ word FreeBlockList::size()
     return size;
 }
 
-FreeBlockList::FreeBlock *FreeBlockList::find(word length)
+FreeBlockList::FreeBlock *FreeBlockList::find(const word length)
 {
     for (FreeBlock *cur = m_head; cur; cur = cur->next)
     {

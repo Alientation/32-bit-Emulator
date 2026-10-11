@@ -23,7 +23,7 @@
 namespace
 {
 
-const char *status_name(Emulator32bit::RunResult::Status status)
+const char *status_name(const Emulator32bit::RunResult::Status status)
 {
     switch (status)
     {
@@ -41,7 +41,7 @@ const char *status_name(Emulator32bit::RunResult::Status status)
     }
 }
 
-std::string hex(word value)
+std::string hex(const word value)
 {
     char buf[16];
     std::snprintf(buf, sizeof(buf), "0x%08x", value);
@@ -655,7 +655,7 @@ static int run_cli(const int argc, char *argv[])
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 
-    std::unique_ptr<Emulator32bit> emu = make_machine(result, args);
+    const std::unique_ptr<Emulator32bit> emu = make_machine(result, args);
     if (emu == nullptr)
     {
         return S32(ExitCode::EXIT_USAGE_ERROR);
@@ -695,7 +695,7 @@ static int run_cli(const int argc, char *argv[])
     return report(result, args, *emu, emu->run(args.limit));
 }
 
-int main(int argc, char *argv[])
+int main(const int argc, char *argv[])
 {
     // Errors in the libraries (a bad executable, ...) are thrown. They are already logged by the
     // time they get here, so all that is left to do is to fail.

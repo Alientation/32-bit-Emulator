@@ -186,7 +186,7 @@ word Emulator32bit::asm_format_b2(const ConditionCode cond, const int xd, const 
 
 void Emulator32bit::_special_instructions(const word instr)
 {
-    word opspec = bitfield_unsigned<22, 4>(instr);
+    const word opspec = bitfield_unsigned<22, 4>(instr);
 
     switch (opspec)
     {
@@ -278,7 +278,7 @@ void Emulator32bit::_msr(const word instr)
     write_sysreg(sysreg, val);
 }
 
-word Emulator32bit::asm_msr(U8 sysreg, bool imm, word xn_or_imm16)
+word Emulator32bit::asm_msr(const U8 sysreg, const bool imm, const word xn_or_imm16)
 {
     if (imm)
     {
@@ -310,7 +310,7 @@ void Emulator32bit::_mrs(const word instr)
     write_reg(xn, read_sysreg(sysreg));
 }
 
-word Emulator32bit::asm_mrs(U8 xn, U8 sysreg)
+word Emulator32bit::asm_mrs(const U8 xn, const U8 sysreg)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_mrs)
                     << JPart(5, xn) << Zeros(1) << JPart(5, sysreg) << Zeros(11);
@@ -332,7 +332,7 @@ void Emulator32bit::_tlbi(const word instr)
     }
 }
 
-word Emulator32bit::asm_tlbi(U8 xt, bool isxt, word imm16)
+word Emulator32bit::asm_tlbi(const U8 xt, const bool isxt, const word imm16)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_tlbi)
                     << JPart(5, xt) << JPart(1, isxt) << JPart(16, imm16);
@@ -651,7 +651,8 @@ void Emulator32bit::_atomic(const word instr)
     }
 }
 
-word Emulator32bit::asm_atomic(word xt, word xn, word xm, U8 width, U8 atop)
+word Emulator32bit::asm_atomic(const word xt, const word xn, const word xm, const U8 width,
+                               const U8 atop)
 {
     return Joiner() << JPart(6, _op_special_instructions) << JPart(4, kSpecialOpId_atomic)
                     << JPart(5, xt) << Zeros(1) << JPart(5, xn) << JPart(5, xm) << JPart(2, width)
@@ -1121,7 +1122,7 @@ void Emulator32bit::_adrp(const word instr)
         simm21 -= (1 << 20);
     }
 
-    word val = zero_bits<0, 12>(m_pc) + (simm21 << 12);
+    const word val = zero_bits<0, 12>(m_pc) + (simm21 << 12);
     write_reg(xd, val);
 }
 

@@ -13,6 +13,7 @@ The aim is to keep compile times down and the code readable without knowing the 
 - **Avoid `std::optional` for data.** A value that may be absent is a `bool` next to the value (`has_value`, `value`), or a flag in a `BitArray<N>` when there is a table of them. `std::optional` is for a function that can fail to produce a result (a parser, a lookup), where the absence is the answer. Do not put one in a struct that is stored.
 - **Do not write a template where a function or a class will do.** A template is for something that is sized or typed by a parameter and would otherwise be copied (`BitArray<N>`, the `bitfield_*` helpers). Each instantiation is compiled again in every file that uses it.
 - **Prefer a fixed size where the size is small and known.** See [Tables](#tables).
+- **`const` wherever it holds.** Every local that is not changed, and every by-value parameter in the *definition* (`const word pc` in the `.cpp`, `word pc` in the header, where it is not part of the interface). A class type is passed as `const T &`, not by value. `constexpr` when the value is known at compile time. A local that is returned or moved is left alone, `const` would stop the move.
 - **No `<iostream>`, `<sstream>`, `<chrono>`, `<filesystem>` or `util/logger.h` in a header that many files include** (`types.h`, `file.h`, `alu.h`, `emulator32bit.h`): use `<iosfwd>` and `assert`, and put the code in a `.cpp`.
 - **No precompiled headers.** Clean up heavy includes instead.
 

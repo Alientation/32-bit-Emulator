@@ -5,7 +5,7 @@
 
 #include <fstream>
 
-BaseMemory::BaseMemory(word npages, word start_page) :
+BaseMemory::BaseMemory(const word npages, word start_page) :
     m_npages(npages),
     m_start_page(start_page),
     m_start_addr(start_page << kNumPageOffsetBits)
@@ -16,7 +16,7 @@ BaseMemory::~BaseMemory()
 {
 }
 
-Memory::Memory(word npages, word start_page) :
+Memory::Memory(word npages, const word start_page) :
     BaseMemory(npages, start_page),
     m_data(new byte[(npages << kNumPageOffsetBits)]())
 {
@@ -39,14 +39,14 @@ void Memory::reset()
 }
 
 // RAM.
-RAM::RAM(word npages, word start_page) :
+RAM::RAM(const word npages, const word start_page) :
     Memory(npages, start_page)
 {
 }
 
 // ROM.
 
-ROM::ROM(const byte *rom_data, word npages, word start_page) :
+ROM::ROM(const byte *rom_data, word npages, const word start_page) :
     Memory(npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
@@ -55,7 +55,7 @@ ROM::ROM(const byte *rom_data, word npages, word start_page) :
     }
 }
 
-ROM::ROM(word npages, word start_page) :
+ROM::ROM(word npages, const word start_page) :
     Memory(npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
@@ -64,7 +64,7 @@ ROM::ROM(word npages, word start_page) :
     }
 }
 
-ROM::ROM(File file, word npages, word start_page) :
+ROM::ROM(const File &file, const word npages, const word start_page) :
     Memory(npages, start_page)
 {
     FileReader fr(file, std::ios::binary | std::ios::in);
@@ -89,7 +89,7 @@ ROM::ROM(File file, word npages, word start_page) :
 
 ROM::~ROM() = default;
 
-ROM::ImageTooLarge::ImageTooLarge(std::string msg) :
+ROM::ImageTooLarge::ImageTooLarge(const std::string &msg) :
     message(msg)
 {
 }

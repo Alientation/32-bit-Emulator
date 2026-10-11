@@ -144,19 +144,19 @@ struct Format<double>
 };
 
 template <class T>
-T from_bits(U64 bits)
+T from_bits(const U64 bits)
 {
     return std::bit_cast<T>(typename Format<T>::Bits(bits));
 }
 
 template <class T>
-U64 to_bits(T value)
+U64 to_bits(const T value)
 {
     return U64(std::bit_cast<typename Format<T>::Bits>(value));
 }
 
 template <class T>
-bool is_signaling_nan(T value)
+bool is_signaling_nan(const T value)
 {
     using F = Format<T>;
     const typename F::Bits bits = std::bit_cast<typename F::Bits>(value);
@@ -166,13 +166,13 @@ bool is_signaling_nan(T value)
 
 /// @return The bits of @p value, or the default NaN if it is one.
 template <class T>
-U64 canonical(T value)
+U64 canonical(const T value)
 {
     return value != value ? U64(Format<T>::kDefaultNan) : to_bits(value);
 }
 
 template <class T>
-Result binary_op(U8 fn, U64 abits, U64 bbits, word rounding)
+Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word rounding)
 {
     const T a = from_bits<T>(abits);
     const T b = from_bits<T>(bbits);
@@ -220,7 +220,7 @@ Result binary_op(U8 fn, U64 abits, U64 bbits, word rounding)
 /// a * b + c with one rounding. The signs of the operands are changed first for the other three
 /// functions; a sign change is exact, and the result of a NaN is the default NaN anyway.
 template <class T>
-Result fused_op(U8 fn, U64 abits, U64 bbits, U64 cbits, word rounding)
+Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, const word rounding)
 {
     T a = from_bits<T>(abits);
     const T b = from_bits<T>(bbits);
@@ -244,7 +244,7 @@ Result fused_op(U8 fn, U64 abits, U64 bbits, U64 cbits, word rounding)
 }
 
 template <class T>
-Result sqrt_op(U64 abits, word rounding)
+Result sqrt_op(const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
     volatile T va = from_bits<T>(abits);
@@ -255,7 +255,7 @@ Result sqrt_op(U64 abits, word rounding)
 
 /// Abs, neg: the sign bit and nothing else.
 template <class T>
-Result sign_op(U8 fn, U64 abits)
+Result sign_op(const U8 fn, const U64 abits)
 {
     using F = Format<T>;
     const typename F::Bits bits = typename F::Bits(abits);
@@ -264,7 +264,7 @@ Result sign_op(U8 fn, U64 abits)
 
 /// The rint family: round to an integral value and stay a float. Inexact is not raised.
 template <class T>
-Result rint_op(U8 fn, U64 abits, word rounding)
+Result rint_op(const U8 fn, const U64 abits, const word rounding)
 {
     const T a = from_bits<T>(abits);
     if (a != a)
@@ -301,7 +301,7 @@ Result rint_op(U8 fn, U64 abits, word rounding)
 
 /// Float to a 32 bit integer, saturating. A NaN gives 0.
 template <class T>
-Result to_int_op(U8 fn, U64 abits, word rounding)
+Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     const bool is_signed = fn == kUnaryFn_tos32 || fn == kUnaryFn_tos32r;
     const bool current_mode = fn == kUnaryFn_tos32r || fn == kUnaryFn_tou32r;
@@ -353,7 +353,7 @@ Result to_int_op(U8 fn, U64 abits, word rounding)
 
 /// A 32 bit integer to a float, rounded in the mode of the FPCR.
 template <class T>
-Result from_int_op(U8 fn, U64 abits, word rounding)
+Result from_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
     volatile std::int32_t vs = std::int32_t(std::uint32_t(abits));

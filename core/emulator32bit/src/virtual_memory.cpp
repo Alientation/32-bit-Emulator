@@ -82,12 +82,12 @@ VirtualMemory::all_physical_pages() const
     return pages;
 }
 
-bool VirtualMemory::is_frame(word ppage) const
+bool VirtualMemory::is_frame(const word ppage) const
 {
     return ppage >= m_frame_lo && U64(ppage) < U64(m_frame_lo) + m_frame_pages;
 }
 
-void VirtualMemory::release_frame(word ppage)
+void VirtualMemory::release_frame(const word ppage)
 {
     if (is_frame(ppage))
     {
@@ -95,7 +95,7 @@ void VirtualMemory::release_frame(word ppage)
     }
 }
 
-void VirtualMemory::invalidate_tlb(long long pid, word vpage)
+void VirtualMemory::invalidate_tlb(const long long pid, const word vpage)
 {
     TLB_Entry &tlb_entry = m_tlb[vpage & (kMaxTLBSize - 1)];
     if (tlb_entry.key == tlb_key(pid, vpage))
@@ -242,7 +242,7 @@ const char *VirtualMemory::Error::what() const noexcept
 namespace
 {
 
-const char *access_name(VirtualMemory::AccessType access)
+const char *access_name(const VirtualMemory::AccessType access)
 {
     switch (access)
     {
@@ -256,8 +256,8 @@ const char *access_name(VirtualMemory::AccessType access)
     return "Access";
 }
 
-std::string fault_message(VirtualMemory::PageFault::Reason reason, word vpage,
-                          VirtualMemory::AccessType access)
+std::string fault_message(const VirtualMemory::PageFault::Reason reason, const word vpage,
+                          const VirtualMemory::AccessType access)
 {
     using Reason = VirtualMemory::PageFault::Reason;
     const std::string page = " virtual page " + std::to_string(vpage);
@@ -278,7 +278,8 @@ std::string fault_message(VirtualMemory::PageFault::Reason reason, word vpage,
 
 } // namespace
 
-VirtualMemory::PageFault::PageFault(Reason reason, word vpage, AccessType access) :
+VirtualMemory::PageFault::PageFault(const Reason reason, const word vpage,
+                                    const AccessType access) :
     Error(fault_message(reason, vpage, access)),
     reason(reason),
     vpage(vpage),
@@ -301,12 +302,13 @@ VirtualMemory::AccessType VirtualMemory::PageFault::get_access() const noexcept
     return access;
 }
 
-void VirtualMemory::throw_fault(PageFault::Reason reason, word vpage, AccessType access)
+void VirtualMemory::throw_fault(const PageFault::Reason reason, const word vpage,
+                                const AccessType access)
 {
     throw PageFault(reason, vpage, access);
 }
 
-VirtualMemory::InvalidPid::InvalidPid(const std::string &msg, long long invalid_pid) :
+VirtualMemory::InvalidPid::InvalidPid(const std::string &msg, const long long invalid_pid) :
     Error(msg),
     invalid_pid(invalid_pid)
 {
@@ -317,9 +319,9 @@ long long VirtualMemory::InvalidPid::get_invalid_pid() const noexcept
     return invalid_pid;
 }
 
-VirtualMemory::VPageAlreadyMapped::VPageAlreadyMapped(const std::string &msg, word vpage,
-                                                      word already_mapped_ppage,
-                                                      word attempted_mapped_ppage) :
+VirtualMemory::VPageAlreadyMapped::VPageAlreadyMapped(const std::string &msg, const word vpage,
+                                                      const word already_mapped_ppage,
+                                                      const word attempted_mapped_ppage) :
     Error(msg),
     vpage(vpage),
     already_mapped_ppage(already_mapped_ppage),
@@ -342,7 +344,7 @@ word VirtualMemory::VPageAlreadyMapped::get_attempted_mapped_ppage() const noexc
     return attempted_mapped_ppage;
 }
 
-VirtualMemory::InvalidVPage::InvalidVPage(const std::string &msg, word vpage) :
+VirtualMemory::InvalidVPage::InvalidVPage(const std::string &msg, const word vpage) :
     Error(msg),
     vpage(vpage)
 {
@@ -353,8 +355,9 @@ word VirtualMemory::InvalidVPage::get_vpage() const noexcept
     return vpage;
 }
 
-VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word diskpage, bool write,
-                                              bool execute) :
+VirtualMemory::PageTableEntry::PageTableEntry(const long long pid, const word vpage,
+                                              const word diskpage, const bool write,
+                                              const bool execute) :
     pid(pid),
     vpage(vpage),
     ppage(0),
@@ -367,7 +370,7 @@ VirtualMemory::PageTableEntry::PageTableEntry(long long pid, word vpage, word di
 {
 }
 
-void VirtualMemory::set_process(long long pid)
+void VirtualMemory::set_process(const long long pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
@@ -405,7 +408,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
     return pid;
 }
 
-void VirtualMemory::end_process(long long pid)
+void VirtualMemory::end_process(const long long pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
@@ -451,8 +454,8 @@ long long VirtualMemory::current_process()
     return m_cur_ptable->pid;
 }
 
-void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, bool swappable,
-                                          bool kernel_locked)
+void VirtualMemory::set_ppage_permissions(const word ppage_begin, const word ppage_end,
+                                          bool swappable, bool kernel_locked)
 {
     if (ppage_begin > ppage_end)
     {
@@ -485,8 +488,8 @@ void VirtualMemory::set_ppage_permissions(word ppage_begin, word ppage_end, bool
     flush_tlb();
 }
 
-void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word vpage_end,
-                                          bool write, bool execute)
+void VirtualMemory::set_vpage_permissions(const long long pid, const word vpage_begin,
+                                          const word vpage_end, bool write, bool execute)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -523,7 +526,7 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
     flush_tlb();
 }
 
-bool VirtualMemory::has_vpage(long long pid, word vpage)
+bool VirtualMemory::has_vpage(const long long pid, const word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -534,7 +537,8 @@ bool VirtualMemory::has_vpage(long long pid, word vpage)
     return ptable->entries.find(vpage) != ptable->entries.end();
 }
 
-void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write, bool execute)
+void VirtualMemory::add_vpage(const long long pid, word vpage, const word length, const bool write,
+                              const bool execute)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -579,7 +583,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
     }
 }
 
-void VirtualMemory::map_ppage(long long pid, word vpage, word ppage)
+void VirtualMemory::map_ppage(const long long pid, const word vpage, const word ppage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -613,7 +617,7 @@ void VirtualMemory::map_ppage(long long pid, word vpage, word ppage)
     entry->mapped_ppage = ppage;
 }
 
-void VirtualMemory::remove_vpage(long long pid, word vpage)
+void VirtualMemory::remove_vpage(const long long pid, const word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -671,7 +675,7 @@ void VirtualMemory::check_vm()
 
         if (page.mapped_vpages.size() > 0)
         {
-            word diskpage = page.mapped_vpages.at(0)->diskpage;
+            const word diskpage = page.mapped_vpages.at(0)->diskpage;
             for (PageTableEntry *entry : page.mapped_vpages)
             {
                 AEMU_CHECK(entry->diskpage == diskpage,
@@ -766,7 +770,8 @@ void VirtualMemory::map_vpage_to_ppage(PageTableEntry *entry, PhysicalPage &mapp
     mark_referenced(mapped_ppage);
 }
 
-void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word ppage)
+void VirtualMemory::ensure_physical_page_mapping(const long long pid, const word vpage,
+                                                 const word ppage)
 {
     if (UNLIKELY(!m_enabled))
     {

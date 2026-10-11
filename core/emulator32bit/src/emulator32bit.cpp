@@ -57,8 +57,9 @@ std::ostream *Emulator32bit::default_err()
     return &std::cerr;
 }
 
-Emulator32bit::Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[],
-                             word rom_npages, word rom_start_page) :
+Emulator32bit::Emulator32bit(const word ram_npages, const word ram_start_page,
+                             const byte rom_data[], const word rom_npages,
+                             const word rom_start_page) :
     Emulator32bit(std::make_unique<RAM>(ram_npages, ram_start_page),
                   std::make_unique<ROM>(rom_data, rom_npages, rom_start_page),
                   std::make_unique<MockDisk>())
@@ -79,7 +80,8 @@ Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
 
 Emulator32bit::~Emulator32bit() = default;
 
-Emulator32bit::Trap::Trap(Emulator32bit::TrapType type, const std::string &msg, const word iss) :
+Emulator32bit::Trap::Trap(const Emulator32bit::TrapType type, const std::string &msg,
+                          const word iss) :
     type(type),
     message(msg),
     iss(iss)
@@ -428,7 +430,7 @@ bool Emulator32bit::add_watchpoint(const word address, const word length, const 
                                    const word compare_value)
 {
     AEMU_CHECK(length != 0, "A watchpoint needs a length of at least 1");
-    unsigned i = find_watchpoint(address, physical);
+    const unsigned i = find_watchpoint(address, physical);
     if (i == m_watchpoints.count)
     {
         if (m_watchpoints.count == kMaxWatchpoints)

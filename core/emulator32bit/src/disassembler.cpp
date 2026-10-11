@@ -7,13 +7,13 @@
 #include "util/common.h"
 #include "util/logger.h"
 
-static std::string disassemble_gpr(word instruction, U8 offset)
+static std::string disassemble_gpr(const word instruction, const U8 offset)
 {
     return register_name(bitfield_unsigned(instruction, offset, 5));
 }
 
 /// The `lsl #n` operand of a format M or O instruction with a shifted register.
-static std::string disassemble_shift_operand(word instruction)
+static std::string disassemble_shift_operand(const word instruction)
 {
     std::string disassemble;
     switch (static_cast<ShiftType>(bitfield_unsigned<7, 2>(instruction)))
@@ -39,7 +39,7 @@ static std::string disassemble_shift_operand(word instruction)
     return disassemble;
 }
 
-static std::string disassemble_condition(ConditionCode condition)
+static std::string disassemble_condition(const ConditionCode condition)
 {
     switch (condition)
     {
@@ -79,10 +79,10 @@ static std::string disassemble_condition(ConditionCode condition)
     return "ERROR_CONDITION";
 }
 
-static std::string disassemble_format_b2(word instruction, std::string op)
+static std::string disassemble_format_b2(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
-    ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
+    const ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
     if (condition != ConditionCode::AL)
     {
         disassemble += "." + disassemble_condition(condition);
@@ -100,10 +100,10 @@ static std::string disassemble_format_b2(word instruction, std::string op)
     return disassemble;
 }
 
-static std::string disassemble_format_b1(word instruction, std::string op)
+static std::string disassemble_format_b1(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
-    ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
+    const ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
     if (condition != ConditionCode::AL)
     {
         disassemble += "." + disassemble_condition(condition);
@@ -112,7 +112,7 @@ static std::string disassemble_format_b1(word instruction, std::string op)
     return disassemble;
 }
 
-static std::string disassemble_format_m1(word instruction, std::string op)
+static std::string disassemble_format_m1(const word instruction, const std::string &op)
 {
     std::string disassemble = op + " ";
     disassemble += disassemble_gpr(instruction, 20);
@@ -129,7 +129,7 @@ static std::string disassemble_format_m1(word instruction, std::string op)
 
 /// @param op The name of the instruction, `ldr` for the aligned and the unaligned form.
 /// @param has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
-static std::string disassemble_format_m(word instruction, std::string op,
+static std::string disassemble_format_m(const word instruction, const std::string &op,
                                         bool has_unaligned_form = true)
 {
     std::string disassemble = op;
@@ -165,7 +165,7 @@ static std::string disassemble_format_m(word instruction, std::string op,
 
     if (test_bit<14>(instruction))
     {
-        int simm12 = bitfield_signed<2, 12>(instruction);
+        const int simm12 = bitfield_signed<2, 12>(instruction);
         if (simm12 == 0)
         {
             disassemble += "]";
@@ -208,7 +208,7 @@ static std::string disassemble_format_m(word instruction, std::string op,
     return disassemble;
 }
 
-static std::string disassemble_format_o3(word instruction, std::string op)
+static std::string disassemble_format_o3(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
     if (test_bit<25>(instruction))
@@ -235,7 +235,7 @@ static std::string disassemble_format_o3(word instruction, std::string op)
     return disassemble;
 }
 
-static std::string disassemble_format_o2(word instruction, std::string op)
+static std::string disassemble_format_o2(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
     if (test_bit<25>(instruction))
@@ -258,7 +258,7 @@ static std::string disassemble_format_o2(word instruction, std::string op)
     return disassemble;
 }
 
-static std::string disassemble_format_o1(word instruction, std::string op)
+static std::string disassemble_format_o1(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
     if (test_bit<25>(instruction))
@@ -286,7 +286,7 @@ static std::string disassemble_format_o1(word instruction, std::string op)
 
 /// @param compare The name of the comparison that `op` with S and an `xzr` destination is
 ///        (`subs xzr, ...` is `cmp`), or null if it has none.
-static std::string disassemble_format_o(word instruction, std::string op,
+static std::string disassemble_format_o(const word instruction, const std::string &op,
                                         const char *compare = nullptr)
 {
     const bool is_compare =
@@ -325,13 +325,13 @@ static std::string disassemble_format_o(word instruction, std::string op,
     return disassemble;
 }
 
-static std::string disassemble_hlt(word instruction)
+static std::string disassemble_hlt(const word instruction)
 {
     UNUSED(instruction);
     return "hlt";
 }
 
-static std::string disassemble_nop(word instruction)
+static std::string disassemble_nop(const word instruction)
 {
     UNUSED(instruction);
     return "nop";
@@ -344,7 +344,7 @@ static std::string disassemble_sysreg(const U8 sysreg)
     return name != nullptr ? name : "sysreg" + std::to_string(sysreg);
 }
 
-static std::string disassemble_msr(word instruction)
+static std::string disassemble_msr(const word instruction)
 {
     const U8 sysreg = bitfield_unsigned<17, 5>(instruction);
     const bool imm = test_bit<16>(instruction);
@@ -359,37 +359,37 @@ static std::string disassemble_msr(word instruction)
     }
 }
 
-static std::string disassemble_mrs(word instruction)
+static std::string disassemble_mrs(const word instruction)
 {
     const U8 sysreg = bitfield_unsigned<11, 5>(instruction);
     return "mrs " + disassemble_gpr(instruction, 17) + ", " + disassemble_sysreg(sysreg);
 }
 
-static std::string disassemble_eret(word instruction)
+static std::string disassemble_eret(const word instruction)
 {
     UNUSED(instruction);
     return "eret";
 }
 
-static std::string disassemble_wfi(word instruction)
+static std::string disassemble_wfi(const word instruction)
 {
     UNUSED(instruction);
     return "wfi";
 }
 
-static std::string disassemble_brk(word instruction)
+static std::string disassemble_brk(const word instruction)
 {
     return "brk " + std::to_string(bitfield_unsigned<0, 22>(instruction));
 }
 
-static std::string disassemble_tlbi(word instruction)
+static std::string disassemble_tlbi(const word instruction)
 {
     return test_bit<16>(instruction) ? "tlbi " + disassemble_gpr(instruction, 17) : "tlbi";
 }
 
-static std::string disassemble_atomic(word instruction)
+static std::string disassemble_atomic(const word instruction)
 {
-    word atop = bitfield_unsigned<0, 4>(instruction);
+    const word atop = bitfield_unsigned<0, 4>(instruction);
     const byte width = bitfield_unsigned<4, 2>(instruction);
 
     std::string disassemble;
@@ -431,7 +431,7 @@ static std::string disassemble_atomic(word instruction)
     return disassemble;
 }
 
-static std::string disassemble_unary(word instruction)
+static std::string disassemble_unary(const word instruction)
 {
     const char *name;
     switch (bitfield_unsigned<0, 4>(instruction))
@@ -464,9 +464,9 @@ static std::string disassemble_unary(word instruction)
            + disassemble_gpr(instruction, 11);
 }
 
-static std::string disassemble_special_instructions(word instruction)
+static std::string disassemble_special_instructions(const word instruction)
 {
-    word opsec = bitfield_unsigned<22, 4>(instruction);
+    const word opsec = bitfield_unsigned<22, 4>(instruction);
 
     switch (opsec)
     {
@@ -495,54 +495,54 @@ static std::string disassemble_special_instructions(word instruction)
     }
 }
 
-static std::string disassemble_add(word instruction)
+static std::string disassemble_add(const word instruction)
 {
     return disassemble_format_o(instruction, "add", "cmn");
 }
 
-static std::string disassemble_sub(word instruction)
+static std::string disassemble_sub(const word instruction)
 {
     return disassemble_format_o(instruction, "sub", "cmp");
 }
 
-static std::string disassemble_rsb(word instruction)
+static std::string disassemble_rsb(const word instruction)
 {
     return disassemble_format_o(instruction, "rsb");
 }
 
-static std::string disassemble_adc(word instruction)
+static std::string disassemble_adc(const word instruction)
 {
     return disassemble_format_o(instruction, "adc");
 }
 
-static std::string disassemble_sbc(word instruction)
+static std::string disassemble_sbc(const word instruction)
 {
     return disassemble_format_o(instruction, "sbc");
 }
 
-static std::string disassemble_rsc(word instruction)
+static std::string disassemble_rsc(const word instruction)
 {
     return disassemble_format_o(instruction, "rsc");
 }
 
-static std::string disassemble_mul(word instruction)
+static std::string disassemble_mul(const word instruction)
 {
     return disassemble_format_o(instruction, "mul");
 }
 
-static std::string disassemble_mull(word instruction)
+static std::string disassemble_mull(const word instruction)
 {
     return disassemble_format_o2(instruction,
                                  test_bit<kLongMulSignedBit>(instruction) ? "smull" : "umull");
 }
 
 /// The name of the precision of a floating point instruction: `f32` or `f64`.
-static const char *disassemble_precision(word instruction)
+static const char *disassemble_precision(const word instruction)
 {
     return test_bit<25>(instruction) ? "f64" : "f32";
 }
 
-static std::string disassemble_fop1(word instruction)
+static std::string disassemble_fop1(const word instruction)
 {
     const U8 fn = bitfield_unsigned<0, 5>(instruction);
     const bool dbl = test_bit<25>(instruction);
@@ -602,7 +602,7 @@ static std::string disassemble_fop1(word instruction)
     return name + " " + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15);
 }
 
-static std::string disassemble_fop2(word instruction)
+static std::string disassemble_fop2(const word instruction)
 {
     static const char *const kNames[fpu::kBinaryFn_count] = {"fadd", "fsub", "fmul",
                                                              "fdiv", "fmin", "fmax"};
@@ -616,7 +616,7 @@ static std::string disassemble_fop2(word instruction)
            + disassemble_gpr(instruction, 9);
 }
 
-static std::string disassemble_fop3(word instruction)
+static std::string disassemble_fop3(const word instruction)
 {
     static const char *const kNames[fpu::kFmaFn_count] = {"fmadd", "fmsub", "fnmadd", "fnmsub"};
     const U8 fn = bitfield_unsigned<0, 4>(instruction);
@@ -629,96 +629,96 @@ static std::string disassemble_fop3(word instruction)
            + disassemble_gpr(instruction, 9) + ", " + disassemble_gpr(instruction, 4);
 }
 
-static std::string disassemble_fcmp(word instruction)
+static std::string disassemble_fcmp(const word instruction)
 {
     return std::string(test_bit<24>(instruction) ? "fcmpe." : "fcmp.")
            + disassemble_precision(instruction) + " " + disassemble_gpr(instruction, 15) + ", "
            + disassemble_gpr(instruction, 9);
 }
 
-static std::string disassemble_and(word instruction)
+static std::string disassemble_and(const word instruction)
 {
     return disassemble_format_o(instruction, "and", "tst");
 }
 
-static std::string disassemble_orr(word instruction)
+static std::string disassemble_orr(const word instruction)
 {
     return disassemble_format_o(instruction, "orr");
 }
 
-static std::string disassemble_eor(word instruction)
+static std::string disassemble_eor(const word instruction)
 {
     return disassemble_format_o(instruction, "eor", "teq");
 }
 
-static std::string disassemble_bic(word instruction)
+static std::string disassemble_bic(const word instruction)
 {
     return disassemble_format_o(instruction, "bic");
 }
 
-static std::string disassemble_shift(word instruction)
+static std::string disassemble_shift(const word instruction)
 {
     static const char *const names[] = {"lsl", "lsr", "asr", "ror"};
     return disassemble_format_o1(instruction, names[bitfield_unsigned<7, 2>(instruction)]);
 }
 
-static std::string disassemble_mov(word instruction)
+static std::string disassemble_mov(const word instruction)
 {
     return disassemble_format_o3(instruction, "mov");
 }
 
-static std::string disassemble_mvn(word instruction)
+static std::string disassemble_mvn(const word instruction)
 {
     return disassemble_format_o3(instruction, "mvn");
 }
 
-static std::string disassemble_ldr(word instruction)
+static std::string disassemble_ldr(const word instruction)
 {
     return disassemble_format_m(instruction, "ldr");
 }
 
-static std::string disassemble_str(word instruction)
+static std::string disassemble_str(const word instruction)
 {
     return disassemble_format_m(instruction, "str");
 }
 
-static std::string disassemble_ldrb(word instruction)
+static std::string disassemble_ldrb(const word instruction)
 {
     return disassemble_format_m(instruction, "ldrb", false);
 }
 
-static std::string disassemble_strb(word instruction)
+static std::string disassemble_strb(const word instruction)
 {
     return disassemble_format_m(instruction, "strb", false);
 }
 
-static std::string disassemble_ldrh(word instruction)
+static std::string disassemble_ldrh(const word instruction)
 {
     return disassemble_format_m(instruction, "ldrh");
 }
 
-static std::string disassemble_strh(word instruction)
+static std::string disassemble_strh(const word instruction)
 {
     return disassemble_format_m(instruction, "strh");
 }
 
-static std::string disassemble_b(word instruction)
+static std::string disassemble_b(const word instruction)
 {
     return disassemble_format_b1(instruction, "b");
 }
 
-static std::string disassemble_bl(word instruction)
+static std::string disassemble_bl(const word instruction)
 {
     return disassemble_format_b1(instruction, "bl");
 }
 
-static std::string disassemble_bx(word instruction)
+static std::string disassemble_bx(const word instruction)
 {
     return disassemble_format_b2(instruction, test_bit<kBranchLinkBit>(instruction) ? "blx" : "bx");
 }
 
 /// The 22 bit field is a number, not an offset.
-static std::string disassemble_swi(word instruction)
+static std::string disassemble_swi(const word instruction)
 {
     std::string disassemble = "swi";
     const ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
@@ -729,18 +729,18 @@ static std::string disassemble_swi(word instruction)
     return disassemble + " " + std::to_string(bitfield_unsigned<0, 22>(instruction));
 }
 
-static std::string disassemble_udiv(word instruction)
+static std::string disassemble_udiv(const word instruction)
 {
     return disassemble_format_o(instruction, "udiv");
 }
 
-static std::string disassemble_sdiv(word instruction)
+static std::string disassemble_sdiv(const word instruction)
 {
     return disassemble_format_o(instruction, "sdiv");
 }
 
 /// The aliases are shown the way they are written: `cset x0, lt` is `csinc x0, xzr, xzr, ge`.
-static std::string disassemble_csel(word instruction)
+static std::string disassemble_csel(const word instruction)
 {
     const U8 cond_bits = bitfield_unsigned<22, 4>(instruction);
     const U8 xn = bitfield_unsigned<11, 5>(instruction);
@@ -776,12 +776,12 @@ static std::string disassemble_csel(word instruction)
            + disassemble_condition(ConditionCode(cond_bits));
 }
 
-static std::string disassemble_adrp(word instruction)
+static std::string disassemble_adrp(const word instruction)
 {
     return disassemble_format_m1(instruction, "adrp");
 }
 
-static std::string disassemble_adr(word instruction)
+static std::string disassemble_adr(const word instruction)
 {
     return disassemble_format_m1(instruction, "adr");
 }
