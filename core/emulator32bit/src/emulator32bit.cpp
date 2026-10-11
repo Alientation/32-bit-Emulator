@@ -154,9 +154,9 @@ namespace
 /// Anything that goes wrong in the machine is a fault of the program, whatever part of the machine
 /// it is in.
 ///
-/// @param result The result of the run, which becomes a fault.
-/// @param what The kind of fault.
-/// @param message What happened.
+/// @param[out] result The result of the run, which becomes a fault.
+/// @param[in] what The kind of fault.
+/// @param[in] message What happened.
 void fault(Emulator32bit::RunResult &result, const char *what, const std::string &message)
 {
     AEMU_WARN("{}: {}", what, message);
@@ -167,9 +167,9 @@ void fault(Emulator32bit::RunResult &result, const char *what, const std::string
 /// The physical address of a byte of an access that succeeded, for a watchpoint on physical
 /// addresses. A byte that cannot be translated is one that nothing watches.
 ///
-/// @param physical_address Receives the physical address.
-/// @param mmu The MMU that translated the access.
-/// @param virtual_address The address of the byte.
+/// @param[out] physical_address Receives the physical address.
+/// @param[in] mmu The MMU that translated the access.
+/// @param[in] virtual_address The address of the byte.
 /// @return Whether there is one.
 bool translate_watched_byte(word &physical_address, VirtualMemory &mmu, const word virtual_address)
 {
@@ -236,11 +236,11 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
     {
         // 0 instructions means to run until something stops the program.
         //
-        // The pc that a run starts at is not checked against the breakpoints. The debugger goes
-        // on from the breakpoint it stopped at (continue, step, the `c` of a gdb client), and if
-        // that pc counted the run would stop at once, before any instruction, and never leave. Only
-        // a pc that the program arrives at is a breakpoint hit.
-        bool leaving_start = true;
+        // The pc that a run starts at is not checked against the breakpoints. The debugger
+        // continues on from the breakpoint it stopped at (continue, step, the `c` of a gdb client).
+        // If that pc counted, the run would stop at once before any instruction is executed
+        // and never leave.
+        bool just_started = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
             if (UNLIKELY(hooked))
@@ -248,15 +248,16 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
                 // Input from the host raises its interrupt here, between instructions.
                 bus.console.poll_host_input();
 
+                // Check for debug watchpoints.
                 if (m_regwatches.count != 0 && register_watch_hit(result)) break;
 
-                if (!leaving_start && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
+                if (!just_started && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
                 {
                     result.status = RunResult::Status::BREAKPOINT;
                     result.message = std::format("Breakpoint at {:#010x}", m_pc);
                     break;
                 }
-                leaving_start = false;
+                just_started = false;
             }
 
             // An interrupt is taken between two instructions, if the program has installed a

@@ -40,34 +40,34 @@ inline constexpr const char *kHexPrefix = "0x";
 
 /// Writes a value in hexadecimal.
 ///
-/// @param hex The value to convert.
-/// @param digits The least number of hexadecimal digits: shorter values are padded with zeros,
+/// @param[in] hex The value to convert.
+/// @param[in] digits The least number of hexadecimal digits: shorter values are padded with zeros,
 ///     a longer one has more digits.
 /// @return `0x` and the digits, in lower case.
 std::string to_hex_str(U64 hex, int digits = kDwordHexDigits);
 
 /// Writes a 32 bit value in hexadecimal, with 8 digits.
 ///
-/// @param hex The value to convert.
+/// @param[in] hex The value to convert.
 /// @return `0x` and the digits, in lower case.
 std::string to_hex_str(U32 hex);
 
 /// Colors a number that was written by to_hex_str (): the prefix and the leading zeros are gray
 /// and the other digits bold white. The last digit is never gray, even when it is a zero.
 ///
-/// @param string A number, with the prefix `0x` or without one.
+/// @param[in] string A number, with the prefix `0x` or without one.
 /// @return The string with the escape sequences of the colors, and one that resets them at the end.
 std::string color_val_str(const std::string &string);
 
 /// Same as to_hex_str (), colored with color_val_str ().
 ///
-/// @param hex The value to convert.
-/// @param digits The least number of hexadecimal digits.
+/// @param[in] hex The value to convert.
+/// @param[in] digits The least number of hexadecimal digits.
 /// @return The colored string.
 std::string to_color_hex_str(U64 hex, int digits = kDwordHexDigits);
 
 /// Same as to_hex_str (U32), colored with color_val_str ().
 ///
-/// @param hex The value to convert.
+/// @param[in] hex The value to convert.
 /// @return The colored string, with 8 digits.
 std::string to_color_hex_str(U32 hex);

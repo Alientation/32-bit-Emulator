@@ -20,18 +20,18 @@ class Assembler
     /// Initializes the assembler: creates the output object file and lexes the input file (a
     /// lexical error is fatal).
     ///
-    /// @param processed_file Input file to process. Post preprocessor.
-    /// @param output_path Output file path to write the object file to. If left empty, the object
-    ///     file has the path of the input file with the .bo extension.
+    /// @param[in] processed_file Input file to process. Post preprocessor.
+    /// @param[in] output_path Output file path to write the object file to. If left empty, the
+    ///     object file has the path of the input file with the .bo extension.
     explicit Assembler(const File &processed_file, const std::string &output_path = "");
 
     /// Same, but takes the tokens straight from the preprocessor instead of
     /// lexing the .bi file again. Errors then point at the original source.
     ///
-    /// @param processed_file The .bi file the preprocessor wrote. Only used for its name.
-    /// @param source Result of Preprocessor::take_result().
-    /// @param output_path Output file path to write the object file to. If left empty, the object
-    ///     file has the path of the input file with the .bo extension.
+    /// @param[in] processed_file The .bi file the preprocessor wrote. Only used for its name.
+    /// @param[in] source Result of Preprocessor::take_result().
+    /// @param[in] output_path Output file path to write the object file to. If left empty, the
+    ///     object file has the path of the input file with the .bo extension.
     Assembler(const File &processed_file, basm::PreprocessedSource source,
               const std::string &output_path = "");
 
@@ -49,7 +49,7 @@ class Assembler
     /// Chooses whether a warning ends the assembling like an error does (-W error). Off by
     /// default.
     ///
-    /// @param enabled Whether a warning is an error.
+    /// @param[in] enabled Whether a warning is an error.
     void set_warnings_as_errors(bool enabled);
 
   private:
@@ -72,8 +72,8 @@ class Assembler
 
     /// Sets up the output file and state. Common part of the constructors.
     ///
-    /// @param processed_file The input file.
-    /// @param output_path The path of the object file, empty for the default.
+    /// @param[in] processed_file The input file.
+    /// @param[in] output_path The path of the object file, empty for the default.
     void init(const File &processed_file, const std::string &output_path);
 
     /// Read position in the tokens.
@@ -142,15 +142,15 @@ class Assembler
 
     /// Makes a byte section the current one, as .data and .rodata do.
     ///
-    /// @param section Which section it is.
-    /// @param name The name of the section in the section table.
+    /// @param[in] section Which section it is.
+    /// @param[in] name The name of the section in the section table.
     void enter_byte_section(Section section, const char *name);
 
     /// Fails unless `name`, the name of a section in `.section`, is one the program can
     /// give to a section of its own.
     ///
-    /// @param at The token of the name, for the error.
-    /// @param name The name.
+    /// @param[in] at The token of the name, for the error.
+    /// @param[in] name The name.
     void check_section_name(const basm::Token &at, const std::string &name);
 
     /// @return Whether instructions can be assembled in the current section: .text, or a user
@@ -159,13 +159,13 @@ class Assembler
 
     /// Appends an instruction to the current code section.
     ///
-    /// @param instruction The encoded instruction.
+    /// @param[in] instruction The encoded instruction.
     void emit_instruction(word instruction);
 
     /// Emits `mov to, from`.
     ///
-    /// @param to The destination register.
-    /// @param from The source register.
+    /// @param[in] to The destination register.
+    /// @param[in] from The source register.
     void emit_move(byte to, byte from);
 
     /// @return Where the next instruction goes, as an offset in the current code section.
@@ -211,27 +211,27 @@ class Assembler
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
-    /// @param at The token the error is about.
-    /// @param message What is wrong.
+    /// @param[in] at The token the error is about.
+    /// @param[in] message What is wrong.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 
     /// Logs a warning at the token (file, line, column, source line) and keeps assembling.
     ///
-    /// @param at The token the warning is about.
-    /// @param message What is doubtful.
+    /// @param[in] at The token the warning is about.
+    /// @param[in] message What is doubtful.
     void warn(const basm::Token &at, const std::string &message);
 
     /// Consumes the next token if it has the type, otherwise fails with `message`.
     ///
-    /// @param type The type the token has to have.
-    /// @param message What to say if it does not.
+    /// @param[in] type The type the token has to have.
+    /// @param[in] message What to say if it does not.
     /// @return The consumed token.
     const basm::Token &expect(basm::TokenType type, const std::string &message);
 
     /// Fails with `message` at the next token unless `condition` holds.
     ///
-    /// @param condition What has to hold.
-    /// @param message What to say if it does not.
+    /// @param[in] condition What has to hold.
+    /// @param[in] message What to say if it does not.
     void check(bool condition, const std::string &message);
 
     /// A statement is followed by the end of its line.
@@ -251,8 +251,8 @@ class Assembler
     /// result (so `0 - 1` is all ones). Warns if the value is outside of [min, max], as an
     /// unsigned number.
     ///
-    /// @param min The lowest value that does not get a warning.
-    /// @param max The highest value that does not get a warning.
+    /// @param[in] min The lowest value that does not get a warning.
+    /// @param[in] max The highest value that does not get a warning.
     /// @return The bits of the value.
     dword parse_expression(dword min = 0, dword max = -1);
 
@@ -288,24 +288,24 @@ class Assembler
     /// (`adrp`, `:lo12:`, `.word`, a branch) and fails with `expected` if the expression
     /// is not based on a symbol.
     ///
-    /// @param expected What to say if there is no symbol.
+    /// @param[in] expected What to say if there is no symbol.
     /// @return The symbol and the number added to it.
     ExprValue parse_symbol_operand(const std::string &expected);
 
     /// Adds the relocation of `target`, a symbol with an addend, to `relocations`. It is at
     /// `offset` in the section of the relocations.
     ///
-    /// @param relocations The relocations of the section the relocation is for.
-    /// @param offset Where the relocation applies, in that section.
-    /// @param type The kind of relocation.
-    /// @param target The symbol and the addend.
+    /// @param[in,out] relocations The relocations of the section the relocation is for.
+    /// @param[in] offset Where the relocation applies, in that section.
+    /// @param[in] type The kind of relocation.
+    /// @param[in] target The symbol and the addend.
     void add_relocation(std::vector<ObjectFile::RelocationEntry> &relocations, word offset,
                         ObjectFile::RelocationEntry::Type type, const ExprValue &target);
 
     /// Precedence climbing: parses the part of an expression made of operators of at least
     /// `min_precedence`. All the binary operators associate to the left.
     ///
-    /// @param min_precedence The lowest precedence of an operator that this call may consume.
+    /// @param[in] min_precedence The lowest precedence of an operator that this call may consume.
     /// @return The value of that part of the expression.
     ExprValue parse_binary_expression(int min_precedence);
 
@@ -320,18 +320,18 @@ class Assembler
     /// section. Anything else is a symbol that is not defined yet (it can be later in the file,
     /// or in another file), which has no value but can be the target of a relocation.
     ///
-    /// @param symbol The identifier to look up.
+    /// @param[in] symbol The identifier to look up.
     /// @return The value of the constant or label that `symbol` names here.
     ExprValue lookup_symbol(const basm::Token &symbol);
 
     /// Fails unless the value is a number and not the offset of a label.
     ///
-    /// @param value The value to check.
+    /// @param[in] value The value to check.
     void require_number(const ExprValue &value);
 
     /// Name of a constant or label in the scope that is open, the same as its symbol.
     ///
-    /// @param name The name as written.
+    /// @param[in] name The name as written.
     /// @return The name with the scope.
     std::string scoped_name(const std::string &name) const;
 
@@ -345,25 +345,25 @@ class Assembler
 
     /// Shared by .byte, .dbyte, .word, ... Appends the arguments to .data, `n_bytes` each.
     ///
-    /// @param directive The name of the directive, for the errors.
-    /// @param n_bytes The size of each value.
+    /// @param[in] directive The name of the directive, for the errors.
+    /// @param[in] n_bytes The size of each value.
     void define_data(const char *directive, U8 n_bytes);
 
     /// Shared by .float and .double. Appends the arguments, floating point numbers, to the
     /// current section.
     ///
-    /// @param directive The name of the directive, for the errors.
-    /// @param dbl Whether the numbers are doubles rather than floats.
+    /// @param[in] directive The name of the directive, for the errors.
+    /// @param[in] dbl Whether the numbers are doubles rather than floats.
     void define_float(const char *directive, bool dbl);
 
     /// Appends one value of `n_bytes` to the current section, little endian: a number that
     /// fits, or (for 4 bytes) the address of a symbol, which becomes a relocation.
     /// `first` is the token the value starts at, for errors.
     ///
-    /// @param directive The name of the directive, for the errors.
-    /// @param n_bytes The size of the value.
-    /// @param value The value.
-    /// @param first The first token of the value.
+    /// @param[in] directive The name of the directive, for the errors.
+    /// @param[in] n_bytes The size of the value.
+    /// @param[in] value The value.
+    /// @param[in] first The first token of the value.
     void append_value(const char *directive, U8 n_bytes, const ExprValue &value,
                       const basm::Token &first);
 
@@ -379,39 +379,39 @@ class Assembler
 
     /// Parses a shift: `lsl`, `lsr`, `asr` or `ror` and the amount.
     ///
-    /// @param shift Receives the kind of shift.
-    /// @param shift_amt Receives the amount.
+    /// @param[out] shift Receives the kind of shift.
+    /// @param[out] shift_amt Receives the amount.
     void parse_shift(ShiftType &shift, int &shift_amt);
 
     /// Operations of the form `op xd, xn, <xm[, shift] | imm14 | :lo12:symbol>`.
     ///
-    /// @param opcode The opcode of the operation.
-    /// @param implicit_dest The destination is not written, it is xzr (cmp, cmn, tst, teq).
+    /// @param[in] opcode The opcode of the operation.
+    /// @param[in] implicit_dest The destination is not written, it is xzr (cmp, cmn, tst, teq).
     /// @return The encoded instruction.
     word parse_format_o(byte opcode, bool implicit_dest = false);
 
     /// The shifts: `op xd, xn, <xm | imm5>`.
     ///
-    /// @param type The shift.
+    /// @param[in] type The shift.
     /// @return The encoded instruction.
     word parse_format_o1(ShiftType type);
 
     /// The long multiplies: `op xlo, xhi, xn, xm`.
     ///
-    /// @param is_signed Whether the multiply is signed.
+    /// @param[in] is_signed Whether the multiply is signed.
     /// @return The encoded instruction.
     word parse_format_o2(bool is_signed);
 
     /// The moves: `op xd, <xm | imm19>`.
     ///
-    /// @param opcode The opcode of the move.
+    /// @param[in] opcode The opcode of the move.
     /// @return The encoded instruction.
     word parse_format_o3(byte opcode);
 
     /// The loads and stores: `op xt, [xn{, offset}]`, with the addressing modes of docs/isa.md.
     ///
-    /// @param opcode The opcode of the access.
-    /// @param unaligned Whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
+    /// @param[in] opcode The opcode of the access.
+    /// @param[in] unaligned Whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
     ///        which has a plain offset only.
     /// @return The encoded instruction.
     word parse_format_m(byte opcode, bool unaligned = false);
@@ -419,110 +419,110 @@ class Assembler
     /// Warns when the writeback of a pre or post indexed access is useless or easy to misread
     /// (the base register is xzr, or is the register that is loaded or stored, or the offset is 0).
     ///
-    /// @param mode The addressing mode as it is written.
-    /// @param reg_t The register that is loaded or stored.
-    /// @param reg_a The base register.
-    /// @param is_load Whether the access is a load.
-    /// @param zero_offset Whether the offset is known to be 0.
+    /// @param[in] mode The addressing mode as it is written.
+    /// @param[in] reg_t The register that is loaded or stored.
+    /// @param[in] reg_a The base register.
+    /// @param[in] is_load Whether the access is a load.
+    /// @param[in] zero_offset Whether the offset is known to be 0.
     void warn_writeback(encoding::AddrType mode, byte reg_t, byte reg_a, bool is_load,
                         bool zero_offset);
 
-    /// @param mode The addressing mode as it is written.
-    /// @param unaligned Whether the access is `ldur`, `ldurh`, `stur` or `sturh`.
+    /// @param[in] mode The addressing mode as it is written.
+    /// @param[in] unaligned Whether the access is `ldur`, `ldurh`, `stur` or `sturh`.
     /// @return The mode that is encoded: those take a plain offset, which is encoded as the
     ///         unaligned mode. Fails if the mode is pre or post indexed.
     encoding::AddrType encoded_mode(encoding::AddrType mode, bool unaligned);
 
     /// `op xd, symbol`: the page address instructions (`adrp`, `adr`).
     ///
-    /// @param opcode The opcode.
+    /// @param[in] opcode The opcode.
     /// @return The encoded instruction.
     word parse_format_m1(byte opcode);
 
     /// A branch to a label or a byte distance: `op[.cond] target`.
     ///
-    /// @param opcode The opcode of the branch.
+    /// @param[in] opcode The opcode of the branch.
     /// @return The encoded instruction.
     word parse_format_b1(byte opcode);
 
     /// A branch to a register: `op[.cond] xd`.
     ///
-    /// @param link Whether it saves the return address (`blr`).
+    /// @param[in] link Whether it saves the return address (`blr`).
     /// @return The encoded instruction.
     word parse_format_b2(bool link);
 
     /// swi[.cond] [number]: the number is an immediate, not a branch offset.
     ///
-    /// @param opcode The opcode.
+    /// @param[in] opcode The opcode.
     /// @return The encoded instruction.
     word parse_format_swi(byte opcode);
 
     /// csel xd, xn, xm, cond   (and csinc, csinv, csneg)
     ///
-    /// @param opcode The opcode.
-    /// @param variant Which of csel, csinc, csinv and csneg.
+    /// @param[in] opcode The opcode.
+    /// @param[in] variant Which of csel, csinc, csinv and csneg.
     /// @return The encoded instruction.
     word parse_format_csel(byte opcode, byte variant);
     /// cset xd, cond   (and csetm): xd = cond ? 1 : 0, or all ones.
     ///
-    /// @param opcode The opcode.
-    /// @param variant Which of cset and csetm.
+    /// @param[in] opcode The opcode.
+    /// @param[in] variant Which of cset and csetm.
     /// @return The encoded instruction.
     word parse_format_cset(byte opcode, byte variant);
     /// cinc xd, xn, cond   (and cinv, cneg): xd = cond ? f(xn) : xn.
     ///
-    /// @param opcode The opcode.
-    /// @param variant Which of cinc, cinv and cneg.
+    /// @param[in] opcode The opcode.
+    /// @param[in] variant Which of cinc, cinv and cneg.
     /// @return The encoded instruction.
     word parse_format_cinc(byte opcode, byte variant);
     /// sxtb xd, xn   (and the other unary operations)
     ///
-    /// @param operation Which unary operation.
+    /// @param[in] operation Which unary operation.
     /// @return The encoded instruction.
     word parse_format_unary(byte operation);
     /// fadd.f32 xd, xn, xm   (and the other binary floating point instructions)
     ///
-    /// @param fn Which operation.
-    /// @param dbl Whether it is on doubles rather than floats.
+    /// @param[in] fn Which operation.
+    /// @param[in] dbl Whether it is on doubles rather than floats.
     /// @return The encoded instruction.
     word parse_format_v2(byte fn, bool dbl);
     /// fmadd.f32 xd, xn, xm, xa   (and fmsub, fnmadd, fnmsub)
     ///
-    /// @param fn Which operation.
-    /// @param dbl Whether it is on doubles rather than floats.
+    /// @param[in] fn Which operation.
+    /// @param[in] dbl Whether it is on doubles rather than floats.
     /// @return The encoded instruction.
     word parse_format_v4(byte fn, bool dbl);
     /// fsqrt.f32 xd, xn   (and the other unary instructions and the conversions)
     ///
-    /// @param fn Which operation.
-    /// @param dbl Whether it is on doubles rather than floats.
+    /// @param[in] fn Which operation.
+    /// @param[in] dbl Whether it is on doubles rather than floats.
     /// @return The encoded instruction.
     word parse_format_v1(byte fn, bool dbl);
     /// fcmp.f32 xn, xm   (and fcmpe)
     ///
-    /// @param signaling Whether it is fcmpe, which signals on a NaN.
-    /// @param dbl Whether it is on doubles rather than floats.
+    /// @param[in] signaling Whether it is fcmpe, which signals on a NaN.
+    /// @param[in] dbl Whether it is on doubles rather than floats.
     /// @return The encoded instruction.
     word parse_format_v3(bool signaling, bool dbl);
     /// fmov.f32 xd, xm  /  fmov.f32 xd, 1.5: moves a float or a double (a register pair), or
     /// loads a constant with the instructions of `ldr xd, =value`.
     ///
-    /// @param dbl Whether it moves a double rather than a float.
+    /// @param[in] dbl Whether it moves a double rather than a float.
     void assemble_fmov(bool dbl);
     /// Reads a register, and for a double checks that it can start a pair.
     ///
-    /// @param pair Whether the register is the first of a pair (x0-x28).
+    /// @param[in] pair Whether the register is the first of a pair (x0-x28).
     /// @return The number of the register.
     U8 parse_fp_register(bool pair);
     /// Parses a float literal, an integer literal or either with a sign: `1.5`, `-2`.
     ///
-    /// @param dbl Whether to make a double rather than a float.
+    /// @param[in] dbl Whether to make a double rather than a float.
     /// @return The bit pattern, the float in the low 32 bits.
     U64 parse_float_constant(bool dbl);
     /// Emits the instructions that put a 32 bit value in a register, see assemble_load_constant.
     ///
-    /// @param xd The register.
-    /// @param value The value.
+    /// @param[in] xd The register.
+    /// @param[in] value The value.
     void emit_load_constant(byte xd, word value);
     /// Parses a condition (`eq`, `ne`, ...).
     ///
@@ -547,8 +547,8 @@ class Assembler
     bool assemble_load_constant();
     /// The atomics: `op xt, xn, xm`.
     ///
-    /// @param width The width of the access (kAtomicWidth_*).
-    /// @param atopcode The operation (kAtomicId_*).
+    /// @param[in] width The width of the access (kAtomicWidth_*).
+    /// @param[in] atopcode The operation (kAtomicId_*).
     /// @return The encoded instruction.
     word parse_format_atomic(byte width, byte atopcode);
 
@@ -561,8 +561,8 @@ class Assembler
     /// now. Absolute addresses (e.g. adrp to a .text label) are only known after linking, so those
     /// are left for the linker.
     ///
-    /// @param relocations The relocations of one section.
-    /// @param fill_branches Whether to fill in the branches, which only the code section has.
+    /// @param[in,out] relocations The relocations of one section.
+    /// @param[in] fill_branches Whether to fill in the branches, which only the code section has.
     void fill_local(std::vector<ObjectFile::RelocationEntry> &relocations, bool fill_branches);
 
     // Assembler directives.
@@ -699,7 +699,7 @@ class Assembler
     /// as `cmp xn, <operand>` and encoded with xzr as the destination. `ret` is `bx x29`, x29
     /// being the link register.
     ///
-    /// @param spec The row of the instruction in the instruction list.
+    /// @param[in] spec The row of the instruction in the instruction list.
     void assemble_instruction(const basm::InstructionSpec &spec);
 
     // The instructions that have an operand syntax of their own. Each one assembles its

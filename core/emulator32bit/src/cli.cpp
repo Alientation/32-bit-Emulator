@@ -224,9 +224,9 @@ struct CliArgs
 
 /// Reads an option that is a number.
 ///
-/// @param parse_error Set if the value is not a number, which is reported.
-/// @param result The parsed command line.
-/// @param option The name of the option.
+/// @param[out] parse_error Set if the value is not a number, which is reported.
+/// @param[in] result The parsed command line.
+/// @param[in] option The name of the option.
 /// @return The number, or 0 if it is not one.
 static word number_option(bool &parse_error, const cxxopts::ParseResult &result, const char *option)
 {
@@ -243,8 +243,8 @@ static word number_option(bool &parse_error, const cxxopts::ParseResult &result,
 
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
-/// @param args Receives what the command line asked for.
-/// @param result The parsed command line.
+/// @param[out] args Receives what the command line asked for.
+/// @param[in] result The parsed command line.
 /// @return `false` if there was one.
 static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 {
@@ -424,8 +424,8 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 
 /// Makes the machine, loads the program and sets the state and the devices up as asked.
 ///
-/// @param args What the command line asked for.
-/// @param result The parsed command line.
+/// @param[in] args What the command line asked for.
+/// @param[in] result The parsed command line.
 /// @return The machine, or null (after saying why) if a file could not be read.
 static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
                                                    const cxxopts::ParseResult &result)
@@ -554,10 +554,10 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
 
 /// Writes the state after a run where `--output` says.
 ///
-/// @param result The parsed command line.
-/// @param args What the command line asked for.
-/// @param emu The machine that ran.
-/// @param run_result How the run ended.
+/// @param[in] result The parsed command line.
+/// @param[in] args What the command line asked for.
+/// @param[in] emu The machine that ran.
+/// @param[in] run_result How the run ended.
 /// @return The exit code of the run.
 static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emulator32bit &emu,
                   const Emulator32bit::RunResult &run_result)
@@ -607,7 +607,7 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
 
 /// Tells the user which port the gdb server listens on, which matters when they asked for any.
 ///
-/// @param port The port that is listening.
+/// @param[in] port The port that is listening.
 static void report_gdb_port(const std::uint16_t port)
 {
     std::cout << "gdb: listening on 127.0.0.1:" << port << std::endl;

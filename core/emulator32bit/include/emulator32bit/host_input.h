@@ -18,7 +18,7 @@ class HostInput
   public:
     /// Adds bytes to the input. Any thread.
     ///
-    /// @param bytes The bytes that arrived.
+    /// @param[in] bytes The bytes that arrived.
     void push(const std::string &bytes);
 
     /// Says that no more bytes will come (the end of the input). Any thread.
@@ -33,7 +33,7 @@ class HostInput
 
     /// Moves the bytes that arrived to the end of `out`.
     ///
-    /// @param out Where they go.
+    /// @param[in,out] out Where they go.
     void take(std::deque<byte> &out);
 
     /// @return Whether the input has ended and everything was taken.

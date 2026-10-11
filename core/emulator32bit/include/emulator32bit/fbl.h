@@ -19,9 +19,9 @@ class FreeBlockList
   public:
     /// Makes a list of the range [begin, begin + len).
     ///
-    /// @param begin Start value of the range this free block list represents.
-    /// @param len Length of the range.
-    /// @param init Whether the list is initialized to be all free upon construction.
+    /// @param[in] begin Start value of the range this free block list represents.
+    /// @param[in] len Length of the range.
+    /// @param[in] init Whether the list is initialized to be all free upon construction.
     FreeBlockList(word begin, word len, bool init = true);
 
     /// Frees the nodes of the list.
@@ -38,7 +38,7 @@ class FreeBlockList
         std::string message;
 
       public:
-        /// @param msg What is wrong.
+        /// @param[in] msg What is wrong.
         Error(const std::string &msg);
 
         /// @return The message.
@@ -47,22 +47,22 @@ class FreeBlockList
 
     /// Takes a free block of the given length, from the first free block that is long enough.
     ///
-    /// @param length Length of the block needed.
+    /// @param[in] length Length of the block needed.
     /// @return Address of the start of the block.
     /// @throws Error if no free block is long enough.
     word get_free_block(word length);
 
     /// Takes the free block at a given place.
     ///
-    /// @param addr Address of the start of the block.
-    /// @param length Length of the block.
+    /// @param[in] addr Address of the start of the block.
+    /// @param[in] length Length of the block.
     /// @throws Error if the block is not all free.
     void remove_block(word addr, word length);
 
     /// Returns a block back to the list. Free blocks that touch it are merged into one.
     ///
-    /// @param addr Address of the start of block.
-    /// @param length Length of the block.
+    /// @param[in] addr Address of the start of block.
+    /// @param[in] length Length of the block.
     /// @throws Error if the block is not inside the range of the list or is free in part.
     void return_block(word addr, word length);
 
@@ -70,8 +70,8 @@ class FreeBlockList
     /// been used, that is, even if parts of it are free already. Free blocks that
     /// overlap or touch it are merged into one.
     ///
-    /// @param addr Address of the start of block.
-    /// @param length Length of the block.
+    /// @param[in] addr Address of the start of block.
+    /// @param[in] length Length of the block.
     /// @throws Error if the block is not inside the range of the list.
     void force_return_block(word addr, word length);
 
@@ -80,7 +80,7 @@ class FreeBlockList
     /// All blocks will be considered free.
     void return_all();
 
-    /// @param length Length of the block.
+    /// @param[in] length Length of the block.
     /// @return Whether a free block is long enough to take a block of that length from.
     bool can_fit(word length) const;
 
@@ -108,19 +108,19 @@ class FreeBlockList
     word m_len;                    ///< Length of the range of blocks represented by list.
     FreeBlock *m_head = nullptr;   ///< Start of list.
 
-    /// @param addr Address of the start of a block.
-    /// @param length Length of the block.
+    /// @param[in] addr Address of the start of a block.
+    /// @param[in] length Length of the block.
     /// @return Whether the block lies within the range of the list.
     bool in_range(word addr, word length) const;
 
     /// Joins the given block with the next block if possible.
     ///
-    /// @param first Block to be joined with it's next neighbor.
+    /// @param[in,out] first Block to be joined with it's next neighbor.
     void coalesce(FreeBlock *first);
 
     /// Returns a block that can fit the requested length.
     ///
-    /// @param length Length of block to query.
+    /// @param[in] length Length of block to query.
     /// @return Pointer to the free block that satisfies the request, nullptr if no
     ///     block can be found.
     FreeBlock *find(word length) const;
@@ -130,13 +130,13 @@ class FreeBlockList
     ///     to insert back into the list to maintain no intersections. It is up to
     ///     the caller to handle this.
     ///
-    /// @param addr Address of the start of the new block.
-    /// @param length Length of the new block.
+    /// @param[in] addr Address of the start of the new block.
+    /// @param[in] length Length of the new block.
     /// @return Pointer to the new block.
     FreeBlock *insert(word addr, word length);
 
     /// Remove a block from the list.
     ///
-    /// @param node The block to remove.
+    /// @param[in] node The block to remove.
     void remove(FreeBlock *node);
 };

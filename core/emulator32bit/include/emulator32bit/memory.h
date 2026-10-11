@@ -12,15 +12,15 @@
 class BaseMemory
 {
   public:
-    /// @param npages The number of pages in the memory.
-    /// @param start_page The page number of the first page, so the first address is
+    /// @param[in] npages The number of pages in the memory.
+    /// @param[in] start_page The page number of the first page, so the first address is
     ///     `start_page << kNumPageOffsetBits`.
     BaseMemory(word npages, word start_page);
     virtual ~BaseMemory();
 
     /// Each read returns the value at the address, which has to be in this memory.
     ///
-    /// @param address The full (physical) address.
+    /// @param[in] address The full (physical) address.
     /// @return The value.
     virtual byte read_byte(word address) = 0;
     virtual hword read_hword(word address) = 0;
@@ -28,17 +28,17 @@ class BaseMemory
 
     /// Each write stores the value at the address, which has to be in this memory.
     ///
-    /// @param address The full (physical) address.
-    /// @param value The value to store.
+    /// @param[in] address The full (physical) address.
+    /// @param[in] value The value to store.
     virtual void write_byte(word address, byte value) = 0;
     virtual void write_hword(word address, hword value) = 0;
     virtual void write_word(word address, word value) = 0;
 
     /// Copies `size` bytes starting at the address to `out`. The bytes are all in this memory.
     ///
-    /// @param out Where to copy the bytes to, with room for `size` bytes.
-    /// @param address The address of the first byte.
-    /// @param size The number of bytes.
+    /// @param[out] out Where to copy the bytes to, with room for `size` bytes.
+    /// @param[in] address The address of the first byte.
+    /// @param[in] size The number of bytes.
     virtual void read_block(byte *out, const word address, const word size)
     {
         for (word i = 0; i < size; i++)
@@ -49,9 +49,9 @@ class BaseMemory
 
     /// Copies `size` bytes to the memory starting at the address. They all fit in this memory.
     ///
-    /// @param address The address of the first byte to write.
-    /// @param data The bytes to copy.
-    /// @param size The number of bytes.
+    /// @param[in] address The address of the first byte to write.
+    /// @param[in] data The bytes to copy.
+    /// @param[in] size The number of bytes.
     virtual void write_block(const word address, const byte *data, const word size)
     {
         for (word i = 0; i < size; i++)
@@ -78,7 +78,7 @@ class BaseMemory
         return m_start_page + m_npages - 1;
     }
 
-    /// @param address A physical address.
+    /// @param[in] address A physical address.
     /// @return Whether the address is in this memory.
     inline bool in_bounds(const word address) const
     {
@@ -88,7 +88,7 @@ class BaseMemory
         return word((address >> kNumPageOffsetBits) - m_start_page) < m_npages;
     }
 
-    /// @param other The memory to compare with.
+    /// @param[in] other The memory to compare with.
     /// @return Whether the two memories have a page in common (memory without pages has none).
     inline bool overlap(const BaseMemory &other) const
     {
@@ -107,8 +107,8 @@ class BaseMemory
 ///
 /// @tparam T The type to read.
 /// @tparam Mem The type of the memory.
-/// @param memory The memory to read from.
-/// @param address The address to read at.
+/// @param[in] memory The memory to read from.
+/// @param[in] address The address to read at.
 /// @return The value.
 template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
 {
@@ -122,9 +122,9 @@ template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
 ///
 /// @tparam T The type to write.
 /// @tparam Mem The type of the memory.
-/// @param memory The memory to write to.
-/// @param address The address to write at.
-/// @param value The value to store.
+/// @param[out] memory The memory to write to.
+/// @param[in] address The address to write at.
+/// @param[in] value The value to store.
 template <class T, class Mem> inline void mem_write(Mem &memory, const word address, const T value)
 {
     static_assert(std::is_unsigned_v<T> && sizeof(T) <= sizeof(word), "byte, hword or word");
@@ -139,8 +139,8 @@ class Memory : public BaseMemory
   public:
     /// Makes zeroed memory.
     ///
-    /// @param npages The number of pages in the memory.
-    /// @param start_page The page number of the first page.
+    /// @param[in] npages The number of pages in the memory.
+    /// @param[in] start_page The page number of the first page.
     Memory(word npages, word start_page);
 
     // The memory owns its bytes, so a copy would free them twice.
@@ -173,14 +173,14 @@ class Memory : public BaseMemory
 
     /// Reads a word at an address that is a multiple of 4 (instruction fetch).
     ///
-    /// @param address The address, aligned to 4 bytes.
+    /// @param[in] address The address, aligned to 4 bytes.
     /// @return The word.
     inline word read_word_aligned(const word address)
     {
         return read_word(address);
     }
 
-    /// @param address An address in this memory.
+    /// @param[in] address An address in this memory.
     /// @return A pointer to the bytes from the address on.
     byte *bytes_at(const word address)
     {
@@ -229,8 +229,8 @@ class Memory : public BaseMemory
 class RAM final : public Memory
 {
   public:
-    /// @param npages The number of pages in the RAM.
-    /// @param start_page The page number of the first page.
+    /// @param[in] npages The number of pages in the RAM.
+    /// @param[in] start_page The page number of the first page.
     RAM(word npages, word start_page);
 };
 
@@ -241,22 +241,22 @@ class ROM final : public Memory
   public:
     /// Makes a ROM from an image in memory.
     ///
-    /// @param data The image, of `npages` pages.
-    /// @param npages The number of pages in the ROM.
-    /// @param start_page The page number of the first page.
+    /// @param[in] data The image, of `npages` pages.
+    /// @param[in] npages The number of pages in the ROM.
+    /// @param[in] start_page The page number of the first page.
     ROM(const byte *data, word npages, word start_page);
 
     /// Makes a ROM of zeros.
     ///
-    /// @param npages The number of pages in the ROM.
-    /// @param start_page The page number of the first page.
+    /// @param[in] npages The number of pages in the ROM.
+    /// @param[in] start_page The page number of the first page.
     ROM(word npages, word start_page);
 
     /// Loads the image in the file. The file is only read, never written back.
     ///
-    /// @param file The image.
-    /// @param npages The number of pages in the ROM.
-    /// @param start_page The page number of the first page.
+    /// @param[in] file The image.
+    /// @param[in] npages The number of pages in the ROM.
+    /// @param[in] start_page The page number of the first page.
     /// @throws ImageTooLarge If the file is larger than the ROM.
     ROM(const File &file, word npages, word start_page);
     ~ROM() override;

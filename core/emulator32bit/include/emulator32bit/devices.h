@@ -32,7 +32,7 @@ inline constexpr word kIrqLineBlock = 2;
 class Device : public BaseMemory
 {
   public:
-    /// @param base_address The physical address of the page of registers.
+    /// @param[in] base_address The physical address of the page of registers.
     explicit Device(word base_address);
 
     byte read_byte(word address) override;
@@ -46,12 +46,12 @@ class Device : public BaseMemory
     virtual void reset() = 0;
 
   protected:
-    /// @param offset The offset of the register in the page, a multiple of 4.
+    /// @param[in] offset The offset of the register in the page, a multiple of 4.
     /// @return The value of the register.
     virtual word read_register(word offset) = 0;
 
-    /// @param offset The offset of the register in the page, a multiple of 4.
-    /// @param value The value written to the register.
+    /// @param[in] offset The offset of the register in the page, a multiple of 4.
+    /// @param[in] value The value written to the register.
     virtual void write_register(word offset, word value) = 0;
 };
 
@@ -73,7 +73,7 @@ class InterruptController : public Device
 
     /// A device raises a line. Lost if the line is not enabled or is in the queue already.
     ///
-    /// @param line The number of the line, 0-31.
+    /// @param[in] line The number of the line, 0-31.
     void raise(word line);
 
     /// @return Whether any line is in the queue.
@@ -117,7 +117,7 @@ class InterruptController : public Device
 class Timer : public Device
 {
   public:
-    /// @param intc The controller that gets the interrupt.
+    /// @param[in] intc The controller that gets the interrupt.
     explicit Timer(InterruptController &intc);
 
     /// Called after each instruction that completes.
@@ -137,7 +137,7 @@ class Timer : public Device
 
     /// For WFI: `count` instructions pass at once.
     ///
-    /// @param count The number of instructions, no more than cycles_until_event().
+    /// @param[in] count The number of instructions, no more than cycles_until_event().
     void advance(word count);
 
     void reset() override;
@@ -178,17 +178,17 @@ class Timer : public Device
 class Console : public Device
 {
   public:
-    /// @param intc The controller that gets the interrupt.
+    /// @param[in] intc The controller that gets the interrupt.
     explicit Console(InterruptController &intc);
 
     /// Where the bytes written go. The default is std::cout.
     ///
-    /// @param out The stream, which must outlive the console, or null to discard the bytes.
+    /// @param[in] out The stream, which must outlive the console, or null to discard the bytes.
     void set_output(std::ostream *out);
 
     /// Queues bytes as received input.
     ///
-    /// @param bytes The bytes to receive.
+    /// @param[in] bytes The bytes to receive.
     void push_input(const std::string &bytes);
 
     /// @return Whether a received byte is waiting to be read.
@@ -201,7 +201,7 @@ class Console : public Device
     /// moves it into its queue on the thread of the emulator: when a register is read, when
     /// `Emulator32bit::run` calls `poll_host_input` between instructions, and when `WFI` waits.
     ///
-    /// @param input The input, which the console shares.
+    /// @param[in] input The input, which the console shares.
     void attach_host_input(std::shared_ptr<HostInput> input);
 
     /// @return Whether there is a live input.
@@ -295,13 +295,13 @@ class BlockDevice : public Device
     /// The most descriptors of a scatter/gather command.
     static constexpr word kMaxDescriptors = 1024;
 
-    /// @param intc The controller that gets the interrupt.
+    /// @param[in] intc The controller that gets the interrupt.
     explicit BlockDevice(InterruptController &intc);
 
     /// The memory that DMA reads and writes (the RAM, by physical address). Without it, every DMA
     /// command fails.
     ///
-    /// @param memory The memory, which is not owned.
+    /// @param[in] memory The memory, which is not owned.
     void set_dma_memory(BaseMemory *memory)
     {
         m_dma_memory = memory;
@@ -309,15 +309,15 @@ class BlockDevice : public Device
 
     /// Makes a disk in memory of zeros.
     ///
-    /// @param sectors The number of sectors.
+    /// @param[in] sectors The number of sectors.
     void set_capacity(word sectors);
 
     /// A disk kept in the file. A file that exists is read (its size, rounded up to sectors, is the
     /// capacity unless `sectors` is more); one that does not exist starts as zeros of `sectors`
     /// sectors, and is created when the disk is saved.
     ///
-    /// @param path The file.
-    /// @param sectors The minimum number of sectors.
+    /// @param[in] path The file.
+    /// @param[in] sectors The minimum number of sectors.
     /// @return `false` if the file exists and cannot be read.
     bool open_file(const std::string &path, word sectors = 0);
 
@@ -345,7 +345,7 @@ class BlockDevice : public Device
 
     /// For WFI: `count` instructions pass at once.
     ///
-    /// @param count The number of instructions, no more than cycles_until_event().
+    /// @param[in] count The number of instructions, no more than cycles_until_event().
     void advance(word count);
 
     /// A power cycle of the controller: the contents of the disk stay.
@@ -353,7 +353,7 @@ class BlockDevice : public Device
 
     /// For tests: the bytes of a sector.
     ///
-    /// @param number The sector number.
+    /// @param[in] number The sector number.
     /// @return The 512 bytes of the sector, or nothing if the sector is not on the disk.
     std::vector<byte> sector(word number) const;
 
@@ -366,7 +366,7 @@ class BlockDevice : public Device
     /// is not a command, otherwise it becomes busy for LATENCY instructions (for each sector, for
     /// DMA).
     ///
-    /// @param command The number written to COMMAND.
+    /// @param[in] command The number written to COMMAND.
     void start(word command);
 
     /// A piece of a DMA or scatter/gather command: `count` sectors from `sector` on, and the RAM
@@ -378,21 +378,21 @@ class BlockDevice : public Device
         word address;
     };
 
-    /// @param segment The segment of the descriptor.
+    /// @param[in] segment The segment of the descriptor.
     /// @return Whether the segment is inside the disk and inside the RAM, and aligned.
     bool segment_is_valid(const Segment &segment) const;
 
     /// Reads the descriptors of a scatter/gather command from RAM.
     ///
-    /// @param list The address of the list.
-    /// @param count The number of descriptors.
+    /// @param[in] list The address of the list.
+    /// @param[in] count The number of descriptors.
     /// @return `false` if there are none, too many, or the list is not all in RAM.
     bool read_descriptors(word list, word count);
 
     /// Moves the segments of the command between the disk and RAM. Nothing is moved unless all of
     /// them fit on both sides.
     ///
-    /// @param to_disk `true` to copy from RAM to the disk, false for the other way.
+    /// @param[in] to_disk `true` to copy from RAM to the disk, false for the other way.
     /// @return `false` if the transfer is not valid.
     bool transfer(bool to_disk);
 

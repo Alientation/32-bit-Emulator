@@ -22,8 +22,8 @@ using namespace encoding;
 /// The last operand of a format O instruction: a 14 bit immediate, or a register shifted by a type
 /// and an amount. The offset of a format M instruction has the same layout, so it uses this too.
 ///
-/// @param cpu The emulator, which the register is read from.
-/// @param instr The instruction.
+/// @param[in] cpu The emulator, which the register is read from.
+/// @param[in] instr The instruction.
 /// @return The value of the operand.
 static word get_format_o_arg(Emulator32bit &cpu, const word instr)
 {
@@ -79,7 +79,7 @@ class Joiner
 
     /// Add a new @ref JPart.
     ///
-    /// @param p @ref JPart to add.
+    /// @param[in] p @ref JPart to add.
     /// @return Reference to this object.
     Joiner &operator<<(const JPart &p)
     {
@@ -90,7 +90,7 @@ class Joiner
 
     /// Add filler bits all set to 0.
     ///
-    /// @param zeros The bits to add.
+    /// @param[in] zeros The bits to add.
     /// @return Reference to this object.
     Joiner &operator<<(const Zeros &zeros)
     {
@@ -507,8 +507,8 @@ word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const
 /// The data abort of a word or half-word access at an address that is not a multiple of its size.
 /// The instruction has changed nothing yet.
 ///
-/// @param atomic An atomic (a read and a write, which has no unaligned form), otherwise a load or
-///        store whose message names the unaligned form to use.
+/// @param[in] atomic An atomic (a read and a write, which has no unaligned form), otherwise a load
+///        or store whose message names the unaligned form to use.
 [[noreturn]] static void throw_misaligned(const word address, const unsigned size, const bool write,
                                           const bool atomic = false)
 {

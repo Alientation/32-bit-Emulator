@@ -52,7 +52,7 @@ enum class Register : U8
 inline constexpr U8 kNumReg = static_cast<U8>(Register::NUM_REG);
 static_assert(kNumReg == 32);
 
-/// @param reg The register.
+/// @param[in] reg The register.
 /// @return The number of the register.
 constexpr inline U8 register_to_U8(const Register reg)
 {
@@ -66,7 +66,7 @@ inline constexpr const char *kRegisterNames[kNumReg] = {
     "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21",
     "x22", "x23", "x24", "x25", "x26", "x27", "fp",  "lr",  "sp",  "xzr"};
 
-/// @param reg The number of a register, below kNumReg.
+/// @param[in] reg The number of a register, below kNumReg.
 /// @return Its name: x0-x27, fp, lr, sp or xzr.
 inline const char *register_name(const U8 reg)
 {
@@ -130,11 +130,11 @@ enum class ConditionCode : U8
 
 /// Whether the condition `cond` (4 bits, so every value is a condition) holds for the flags.
 ///
-/// @param N The negative flag.
-/// @param Z The zero flag.
-/// @param C The carry flag.
-/// @param V The overflow flag.
-/// @param cond The condition to test.
+/// @param[in] N The negative flag.
+/// @param[in] Z The zero flag.
+/// @param[in] C The carry flag.
+/// @param[in] V The overflow flag.
+/// @param[in] cond The condition to test.
 /// @return Whether the condition holds.
 constexpr bool condition_holds(const bool N, const bool Z, const bool C, const bool V,
                                const ConditionCode cond)
@@ -210,8 +210,8 @@ inline constexpr std::array<U16, 16> kConditionTable = make_condition_table();
 
 /// Whether the condition holds for the flags in PSTATE, with one table lookup.
 ///
-/// @param pstate The PSTATE value, of which the low four bits are the flags.
-/// @param cond The condition, of which the low four bits are used.
+/// @param[in] pstate The PSTATE value, of which the low four bits are the flags.
+/// @param[in] cond The condition, of which the low four bits are used.
 /// @return Whether the condition holds.
 static inline bool check_cond(const word pstate, const U8 cond)
 {
@@ -246,9 +246,9 @@ struct AluResult
 
 /// Addition with carry. C is the carry out, V the signed overflow.
 ///
-/// @param a The first operand.
-/// @param b The second operand.
-/// @param carry_in 1 to add one more (the carry flag for `adc`, 0 for `add`).
+/// @param[in] a The first operand.
+/// @param[in] b The second operand.
+/// @param[in] carry_in 1 to add one more (the carry flag for `adc`, 0 for `add`).
 /// @return The sum and its flags.
 static inline AluResult alu_add(const word a, const word b, const bool carry_in)
 {
@@ -271,9 +271,9 @@ static inline AluResult alu_add(const word a, const word b, const bool carry_in)
 
 /// Subtraction with borrow, `a - b - !carry_in`. C is "no borrow", the ARM convention.
 ///
-/// @param a The first operand.
-/// @param b The value to subtract.
-/// @param carry_in 1 for `sub`, the carry flag for `sbc`.
+/// @param[in] a The first operand.
+/// @param[in] b The value to subtract.
+/// @param[in] carry_in 1 for `sub`, the carry flag for `sbc`.
 /// @return The difference and its flags.
 static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
 {
@@ -289,8 +289,8 @@ static inline AluResult alu_sub(const word a, const word b, const bool carry_in)
 /// Result of a logical operation or move. N and Z are derived from the result, C and V are kept
 /// from the initial flags.
 ///
-/// @param result The value that the operation computed.
-/// @param initial_flags The flags before the operation.
+/// @param[in] result The value that the operation computed.
+/// @param[in] initial_flags The flags before the operation.
 /// @return The result with the flags.
 static inline AluResult alu_logic_result(const word result, const NZCVFlags initial_flags)
 {
@@ -308,9 +308,9 @@ static inline AluResult alu_logic_result(const word result, const NZCVFlags init
 
 /// Bitwise and: `a & b`. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The first operand.
-/// @param b The second operand.
-/// @param flags The flags before the operation.
+/// @param[in] a The first operand.
+/// @param[in] b The second operand.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_and(const word a, const word b, const NZCVFlags flags)
 {
@@ -319,9 +319,9 @@ static inline AluResult alu_and(const word a, const word b, const NZCVFlags flag
 
 /// Bitwise or: `a | b`. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The first operand.
-/// @param b The second operand.
-/// @param flags The flags before the operation.
+/// @param[in] a The first operand.
+/// @param[in] b The second operand.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_orr(const word a, const word b, const NZCVFlags flags)
 {
@@ -330,9 +330,9 @@ static inline AluResult alu_orr(const word a, const word b, const NZCVFlags flag
 
 /// Bitwise exclusive or: `a ^ b`. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The first operand.
-/// @param b The second operand.
-/// @param flags The flags before the operation.
+/// @param[in] a The first operand.
+/// @param[in] b The second operand.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_eor(const word a, const word b, const NZCVFlags flags)
 {
@@ -341,9 +341,9 @@ static inline AluResult alu_eor(const word a, const word b, const NZCVFlags flag
 
 /// Bit clear: `a & ~b`. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The value to clear bits of.
-/// @param b The bits to clear.
-/// @param flags The flags before the operation.
+/// @param[in] a The value to clear bits of.
+/// @param[in] b The bits to clear.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_bic(const word a, const word b, const NZCVFlags flags)
 {
@@ -352,8 +352,8 @@ static inline AluResult alu_bic(const word a, const word b, const NZCVFlags flag
 
 /// Move: the result is `value`. N and Z are those of the result, C and V are kept.
 ///
-/// @param value The value to move.
-/// @param flags The flags before the operation.
+/// @param[in] value The value to move.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_mov(const word value, const NZCVFlags flags)
 {
@@ -362,8 +362,8 @@ static inline AluResult alu_mov(const word value, const NZCVFlags flags)
 
 /// Move not: the result is `~value`. N and Z are those of the result, C and V are kept.
 ///
-/// @param value The value to invert.
-/// @param flags The flags before the operation.
+/// @param[in] value The value to invert.
+/// @param[in] flags The flags before the operation.
 /// @return The result and its flags.
 static inline AluResult alu_mvn(const word value, const NZCVFlags flags)
 {
@@ -372,9 +372,9 @@ static inline AluResult alu_mvn(const word value, const NZCVFlags flags)
 
 /// Multiplication, keeping the low 32 bits. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The first factor.
-/// @param b The second factor.
-/// @param flags The flags before the operation.
+/// @param[in] a The first factor.
+/// @param[in] b The second factor.
+/// @param[in] flags The flags before the operation.
 /// @return The product and its flags.
 static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flags)
 {
@@ -395,9 +395,9 @@ static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flag
 /// Unsigned long multiplication, with the full 64 bit product. N and Z are those of the 64 bit
 /// result, C and V are kept.
 ///
-/// @param a The first factor.
-/// @param b The second factor.
-/// @param flags The flags before the operation.
+/// @param[in] a The first factor.
+/// @param[in] b The second factor.
+/// @param[in] flags The flags before the operation.
 /// @return The product and its flags.
 static inline AluResult alu_umull(const word a, const word b, const NZCVFlags flags)
 {
@@ -418,9 +418,9 @@ static inline AluResult alu_umull(const word a, const word b, const NZCVFlags fl
 /// Signed long multiplication, with the full 64 bit product. N and Z are those of the 64 bit
 /// result, C and V are kept.
 ///
-/// @param a The first factor, as a signed number.
-/// @param b The second factor, as a signed number.
-/// @param flags The flags before the operation.
+/// @param[in] a The first factor, as a signed number.
+/// @param[in] b The second factor, as a signed number.
+/// @param[in] flags The flags before the operation.
 /// @return The product and its flags.
 static inline AluResult alu_smull(const word a, const word b, const NZCVFlags flags)
 {
@@ -443,9 +443,9 @@ static inline AluResult alu_smull(const word a, const word b, const NZCVFlags fl
 /// Unsigned division. Dividing by zero gives 0 and raises nothing (the ARM A64 behavior). N and Z
 /// are those of the result, C and V are kept.
 ///
-/// @param a The dividend.
-/// @param b The divisor.
-/// @param flags The flags before the operation.
+/// @param[in] a The dividend.
+/// @param[in] b The divisor.
+/// @param[in] flags The flags before the operation.
 /// @return The quotient and its flags.
 static inline AluResult alu_udiv(const word a, const word b, const NZCVFlags flags)
 {
@@ -455,9 +455,9 @@ static inline AluResult alu_udiv(const word a, const word b, const NZCVFlags fla
 /// Signed division, rounded toward zero. Dividing by zero gives 0 and raises nothing, and
 /// INT_MIN / -1 wraps to INT_MIN. N and Z are those of the result, C and V are kept.
 ///
-/// @param a The dividend, as a signed number.
-/// @param b The divisor, as a signed number.
-/// @param flags The flags before the operation.
+/// @param[in] a The dividend, as a signed number.
+/// @param[in] b The divisor, as a signed number.
+/// @param[in] flags The flags before the operation.
 /// @return The quotient and its flags.
 static inline AluResult alu_sdiv(const word a, const word b, const NZCVFlags flags)
 {
@@ -477,10 +477,10 @@ static inline AluResult alu_sdiv(const word a, const word b, const NZCVFlags fla
 /// Performs a shift operation. N and Z are those of the result. C is the last bit shifted out, V
 /// is kept. A shift by 0 leaves the value and C as they were.
 ///
-/// @param value The value to shift.
-/// @param type The shift operation.
-/// @param shift_amt The amount to shift by, in the range [0,31].
-/// @param initial_flags The flags before the operation.
+/// @param[in] value The value to shift.
+/// @param[in] type The shift operation.
+/// @param[in] shift_amt The amount to shift by, in the range [0,31].
+/// @param[in] initial_flags The flags before the operation.
 /// @return The shifted value and its flags.
 static inline AluResult alu_shift(const word value, const ShiftType type, const U8 shift_amt,
                                   const NZCVFlags initial_flags)

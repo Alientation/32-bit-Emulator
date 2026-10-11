@@ -10,7 +10,7 @@
 /// what tells apart two symbols that are called the same: `name::SCOPE:<scope number>` for a label
 /// in a `.scope` and `name:LOCAL:<file number>` for a symbol that is private to its file.
 ///
-/// @param linked_name The name of a symbol in an executable.
+/// @param[in] linked_name The name of a symbol in an executable.
 /// @return The name up to the first colon, which a name in the source does not have.
 std::string source_name(const std::string &linked_name);
 
@@ -21,23 +21,23 @@ class SymbolMap
     /// Adds a symbol. If another symbol is already at the address, the first one is kept for
     /// `describe` (both can be looked up by name).
     ///
-    /// @param name The name of the symbol.
-    /// @param address The address it stands for.
+    /// @param[in] name The name of the symbol.
+    /// @param[in] address The address it stands for.
     void add(const std::string &name, word address);
 
     /// Looks a symbol up by name.
     ///
-    /// @param name The name of the symbol.
+    /// @param[in] name The name of the symbol.
     /// @return The address of the symbol, or nothing if there is none.
     std::optional<word> find(const std::string &name) const;
 
-    /// @param address An address.
+    /// @param[in] address An address.
     /// @return Whether a symbol is exactly at the address.
     bool has_symbol_at(word address) const;
 
     /// Names an address by the closest symbol at or below it.
     ///
-    /// @param address An address.
+    /// @param[in] address An address.
     /// @return `name` or `name+0xOFFSET`, empty if there is no such symbol.
     std::string describe(word address) const;
 

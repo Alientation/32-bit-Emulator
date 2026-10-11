@@ -38,19 +38,19 @@ class Emulator32bit
   public:
     /// Makes an emulator with a RAM, a ROM that holds the given image and a MockDisk.
     ///
-    /// @param ram_npages The number of pages of RAM.
-    /// @param ram_start_page The page number of the first page of the RAM.
-    /// @param rom_data The image of the ROM, of `rom_npages` pages.
-    /// @param rom_npages The number of pages of ROM.
-    /// @param rom_start_page The page number of the first page of the ROM.
+    /// @param[in] ram_npages The number of pages of RAM.
+    /// @param[in] ram_start_page The page number of the first page of the RAM.
+    /// @param[in] rom_data The image of the ROM, of `rom_npages` pages.
+    /// @param[in] rom_npages The number of pages of ROM.
+    /// @param[in] rom_start_page The page number of the first page of the ROM.
     Emulator32bit(word ram_npages, word ram_start_page, const byte rom_data[], word rom_npages,
                   word rom_start_page);
 
     /// The emulator owns the memories and the disk.
     ///
-    /// @param ram The RAM, which holds the frames that the MMU pages in.
-    /// @param rom The ROM.
-    /// @param disk The disk that backs the swapping.
+    /// @param[in] ram The RAM, which holds the frames that the MMU pages in.
+    /// @param[in] rom The ROM.
+    /// @param[in] disk The disk that backs the swapping.
     Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
     ~Emulator32bit();
 
@@ -93,7 +93,7 @@ class Emulator32bit
         IRQ = 6,
     };
 
-    /// @param cls The class.
+    /// @param[in] cls The class.
     /// @return The name of the class ("data abort"), or "?" for a number that is not one.
     static const char *exception_class_name(ExceptionClass cls);
 
@@ -149,9 +149,9 @@ class Emulator32bit
         /// BAD_INSTR and BAD_REG that is an undefined instruction exception, so pass a
         /// kUndefinedIss_* value; the other types ignore it.
         ///
-        /// @param type Why the instruction did not complete.
-        /// @param msg The message that `what` returns.
-        /// @param iss The syndrome of the exception.
+        /// @param[in] type Why the instruction did not complete.
+        /// @param[in] msg The message that `what` returns.
+        /// @param[in] iss The syndrome of the exception.
         Trap(TrapType type, const std::string &msg, word iss = 0);
         const char *what() const noexcept override;
 
@@ -208,10 +208,10 @@ class Emulator32bit
     /// virtual address, like the PC) executes. The first instruction of a run () is never stopped
     /// at, so a run () that starts at a breakpoint goes on.
     ///
-    /// @param pc The virtual address of the instruction.
+    /// @param[in] pc The virtual address of the instruction.
     void add_breakpoint(word pc);
 
-    /// @param pc The virtual address of a breakpoint.
+    /// @param[in] pc The virtual address of a breakpoint.
     /// @return Whether there was a breakpoint at the address.
     bool remove_breakpoint(word pc);
 
@@ -253,9 +253,9 @@ class Emulator32bit
         word compare_value = 0;                    ///< ... compares like this with this one counts.
     };
 
-    /// @param compare How to compare.
-    /// @param value What an access loaded or stored (the bytes of it, zero extended).
-    /// @param against The number to compare with.
+    /// @param[in] compare How to compare.
+    /// @param[in] value What an access loaded or stored (the bytes of it, zero extended).
+    /// @param[in] against The number to compare with.
     /// @return Whether the comparison holds.
     static bool watch_compare_holds(WatchCompare compare, word value, word against);
 
@@ -270,13 +270,13 @@ class Emulator32bit
     /// with `compare_value` counts: `==` 5 stops when a 5 is written. The message of a write says
     /// what was in the memory before.
     ///
-    /// @param address The address of the first byte to watch.
-    /// @param length The number of bytes, at least 1.
-    /// @param kind Which accesses stop the run.
-    /// @param physical Whether the address is physical (a watch that follows the page tables, or
-    ///        the same memory under another virtual address).
-    /// @param compare The condition on the value of the access.
-    /// @param compare_value The number the value is compared with.
+    /// @param[in] address The address of the first byte to watch.
+    /// @param[in] length The number of bytes, at least 1.
+    /// @param[in] kind Which accesses stop the run.
+    /// @param[in] physical Whether the address is physical (a watch that follows the page tables,
+    ///        or the same memory under another virtual address).
+    /// @param[in] compare The condition on the value of the access.
+    /// @param[in] compare_value The number the value is compared with.
     /// @return `false` if there are kMaxWatchpoints already and this is not a replacement.
     bool add_watchpoint(word address, word length = 1, WatchKind kind = WatchKind::WRITE,
                         bool physical = false, WatchCompare compare = WatchCompare::NONE,
@@ -284,8 +284,8 @@ class Emulator32bit
 
     /// Removes the watchpoint that starts at the address.
     ///
-    /// @param address The address the watchpoint starts at.
-    /// @param physical Whether it is a watchpoint on physical addresses.
+    /// @param[in] address The address the watchpoint starts at.
+    /// @param[in] physical Whether it is a watchpoint on physical addresses.
     /// @return Whether there was one.
     bool remove_watchpoint(word address, bool physical = false);
 
@@ -298,7 +298,7 @@ class Emulator32bit
         return m_watchpoints.count;
     }
 
-    /// @param i The index, below watchpoint_count (it changes when one is removed).
+    /// @param[in] i The index, below watchpoint_count (it changes when one is removed).
     /// @return The watchpoint.
     Watchpoint watchpoint(unsigned i) const;
 
@@ -322,18 +322,18 @@ class Emulator32bit
     /// the next instruction. Costs nothing while no register is watched. One watch per register,
     /// and a watch on a register that is watched already replaces it.
     ///
-    /// @param reg The number of the register.
+    /// @param[in] reg The number of the register.
     /// @return `false` if kMaxRegisterWatches registers are watched already and this is not one.
     bool add_register_watch(U8 reg);
 
     /// A watch that only stops when the register changes to `value`.
     ///
-    /// @param reg The number of the register.
-    /// @param value The value that stops the run.
+    /// @param[in] reg The number of the register.
+    /// @param[in] value The value that stops the run.
     /// @return `false` if kMaxRegisterWatches registers are watched already and this is not one.
     bool add_register_watch(U8 reg, word value);
 
-    /// @param reg The number of a watched register.
+    /// @param[in] reg The number of a watched register.
     /// @return Whether the register was watched.
     bool remove_register_watch(U8 reg);
 
@@ -355,21 +355,21 @@ class Emulator32bit
         return m_regwatches.count;
     }
 
-    /// @param i The index, below register_watch_count (it changes when one is removed).
+    /// @param[in] i The index, below register_watch_count (it changes when one is removed).
     /// @return The register watch.
     RegisterWatch register_watch(unsigned i) const;
 
     /// Writes a line per instruction to the stream before the next run (), or nothing for nullptr:
     /// `pc <symbol>: instruction | what changed`, or the reason when the instruction faulted.
     ///
-    /// @param out The stream, which must outlive its use.
+    /// @param[in] out The stream, which must outlive its use.
     void set_trace(std::ostream *out);
 
     /// Keeps the last `count` instructions that were executed (0 turns it off and clears it).
     /// Includes the instruction that faulted, which is the newest one. A smaller count than the
     /// history has keeps the newest ones.
     ///
-    /// @param count The number of instructions to keep, at most kMaxHistory.
+    /// @param[in] count The number of instructions to keep, at most kMaxHistory.
     void set_history_size(size_t count);
 
     /// @return The number of instructions that the history keeps.
@@ -378,18 +378,18 @@ class Emulator32bit
     /// Room for the most instructions that the history can keep.
     using History = std::array<ExecutedInstruction, kMaxHistory>;
 
-    /// @param out Receives the last instructions that were executed, the oldest first.
+    /// @param[out] out Receives the last instructions that were executed, the oldest first.
     /// @return The number of entries of `out` that were written, at most history_size ().
     size_t history(History &out) const;
 
     /// Names for the trace.
     ///
-    /// @param symbols The symbols, which must outlive their use, or nullptr for none.
+    /// @param[in] symbols The symbols, which must outlive their use, or nullptr for none.
     void set_symbols(const SymbolMap *symbols);
 
     /// Runs the program from the pc.
     ///
-    /// @param instructions The number of instructions to run, or 0 to run until something stops
+    /// @param[in] instructions The number of instructions to run, or 0 to run until something stops
     ///     the program (a `hlt`, a fault or a breakpoint).
     /// @return Why execution stopped and how many instructions ran.
     RunResult run(U64 instructions);
@@ -400,19 +400,19 @@ class Emulator32bit
     /// Where the output of the program (the emulator calls that print or log) and of print ()
     /// goes. std::cout by default.
     ///
-    /// @param out The stream, which must outlive its use.
+    /// @param[in] out The stream, which must outlive its use.
     void set_output(std::ostream &out);
 
     /// Where the errors that a program reports go. std::cerr by default.
     ///
-    /// @param err The stream, which must outlive its use.
+    /// @param[in] err The stream, which must outlive its use.
     void set_error_output(std::ostream &err);
 
     /// Resets the processor state: registers, PSTATE (kernel mode, IRQs masked), the system
     /// registers and the bus.
     void reset();
 
-    /// @param pc The virtual address of the next instruction.
+    /// @param[in] pc The virtual address of the next instruction.
     inline void set_pc(const word pc)
     {
         m_pc = pc;
@@ -426,7 +426,7 @@ class Emulator32bit
 
     /// The value of a register. xzr is always 0, and so is a register that does not exist.
     ///
-    /// @param reg The register.
+    /// @param[in] reg The register.
     /// @return The value of the register.
     inline word read_reg(const Register reg)
     {
@@ -435,7 +435,7 @@ class Emulator32bit
 
     /// Same as above, for the number of a register.
     ///
-    /// @param reg The number of the register.
+    /// @param[in] reg The number of the register.
     /// @return The value, 0 for a number that is not a register.
     inline word read_reg(const U8 reg)
     {
@@ -444,8 +444,8 @@ class Emulator32bit
 
     /// Writes a register. Writes to xzr, and to a register that does not exist, are discarded.
     ///
-    /// @param reg The register.
-    /// @param val The value to store.
+    /// @param[in] reg The register.
+    /// @param[in] val The value to store.
     inline void write_reg(const Register reg, const word val)
     {
         write_reg(register_to_U8(reg), val);
@@ -453,8 +453,8 @@ class Emulator32bit
 
     /// Same as above, for the number of a register.
     ///
-    /// @param reg The number of the register.
-    /// @param val The value to store.
+    /// @param[in] reg The number of the register.
+    /// @param[in] val The value to store.
     inline void write_reg(const U8 reg, const word val)
     {
         if (LIKELY(reg < kNumReg && reg != register_to_U8(Register::XZR)))
@@ -465,14 +465,14 @@ class Emulator32bit
 
     /// Sets or clears one bit of PSTATE.
     ///
-    /// @param flag The bit number, e.g. kZFlagBit.
-    /// @param value The new value of the bit.
+    /// @param[in] flag The bit number, e.g. kZFlagBit.
+    /// @param[in] value The new value of the bit.
     inline void set_flag(const U8 flag, const bool value)
     {
         m_pstate = set_bit(m_pstate, flag, value);
     }
 
-    /// @param flag The bit number of PSTATE, e.g. kZFlagBit.
+    /// @param[in] flag The bit number of PSTATE, e.g. kZFlagBit.
     /// @return Whether the bit is set.
     inline bool get_flag(const U8 flag) const
     {
@@ -481,10 +481,10 @@ class Emulator32bit
 
     /// Sets the NZCV flags of PSTATE and leaves the other bits.
     ///
-    /// @param N The negative flag.
-    /// @param Z The zero flag.
-    /// @param C The carry flag.
-    /// @param V The overflow flag.
+    /// @param[in] N The negative flag.
+    /// @param[in] Z The zero flag.
+    /// @param[in] C The carry flag.
+    /// @param[in] V The overflow flag.
     inline void set_NZCV(const bool N, const bool Z, const bool C, const bool V)
     {
         m_pstate = (m_pstate & ~word(0xF)) | (word(N) << kNFlagBit) | (word(Z) << kZFlagBit)
@@ -493,7 +493,7 @@ class Emulator32bit
 
     /// Same as above, with the flags in a struct.
     ///
-    /// @param flags The new flags.
+    /// @param[in] flags The new flags.
     inline void set_NZCV(NZCVFlags flags)
     {
         set_NZCV(flags.n, flags.z, flags.c, flags.v);
@@ -526,28 +526,28 @@ class Emulator32bit
     /// MRS and MSR make of the mode. Throws Trap (BAD_REG) for a register that does not exist.
     /// Writing PSTATE changes the mode (and which stack pointer is in use) like ERET does.
     ///
-    /// @param id The number of the system register (kSysregId_*).
+    /// @param[in] id The number of the system register (kSysregId_*).
     /// @return The value of the register.
     word read_sysreg(U8 id) const;
 
-    /// @param id The number of the system register (kSysregId_*).
-    /// @param value The value to store, of which only the bits that the register has are kept.
+    /// @param[in] id The number of the system register (kSysregId_*).
+    /// @param[in] value The value to store, of which only the bits that the register has are kept.
     void write_sysreg(U8 id, word value);
 
-    /// @param name The name of a system register, in any case.
+    /// @param[in] name The name of a system register, in any case.
     /// @return The number of the register, or nothing if there is none with the name.
     static std::optional<U8> sysreg_id(const std::string &name);
 
     /// Whether `swi 1`, the emulator calls (print, assert, ...), is allowed. On by default. If it
     /// is off, the instruction is an undefined instruction.
     ///
-    /// @param enabled Whether the emulator calls are allowed.
+    /// @param[in] enabled Whether the emulator calls are allowed.
     void set_semihosting(bool enabled);
 
     /// With a debugger attached `brk` stops run () (Status::BREAKPOINT, the pc is the next
     /// instruction) instead of raising the breakpoint exception. Off by default.
     ///
-    /// @param stops Whether `brk` stops the run.
+    /// @param[in] stops Whether `brk` stops the run.
     void set_brk_stops(bool stops);
 
   private:
@@ -609,21 +609,21 @@ class Emulator32bit
     /// Works out the address of a load or store and what the base register becomes, without
     /// changing any register.
     ///
-    /// @param instr The instruction, of format M.
-    /// @param has_unaligned_form Whether the instruction has the ADDR_UNALIGNED form (word and
+    /// @param[in] instr The instruction, of format M.
+    /// @param[in] has_unaligned_form Whether the instruction has the ADDR_UNALIGNED form (word and
     ///        half-word accesses). For a byte access that mode is an undefined instruction.
     /// @return The address and the new base.
     MemOperand decode_mem_operand(word instr, bool has_unaligned_form);
 
     /// Writes the new base register of a pre or post indexed access, after the access succeeded.
     ///
-    /// @param operand What decode_mem_operand returned for the instruction.
+    /// @param[in] operand What decode_mem_operand returned for the instruction.
     void write_back_base(const MemOperand &operand);
 
     /// Runs the handler of the opcode of `instr` (a switch generated from AEMU_OPCODES).
     /// An opcode that is not listed faults with BAD_INSTR.
     ///
-    /// @param instr The instruction.
+    /// @param[in] instr The instruction.
     void execute(word instr);
 
     /// `execute ()` that writes the trace line of the instruction:
@@ -631,24 +631,24 @@ class Emulator32bit
     /// place of the changes when the instruction does not complete. A taken branch shows
     /// `pc=target`.
     ///
-    /// @param instr The instruction to execute.
+    /// @param[in] instr The instruction to execute.
     void execute_traced(word instr);
 
     /// Raises an exception: saves the state, goes to kernel mode and jumps to the vector. A
     /// double fault is thrown instead if no instruction completed since an exception was taken.
     ///
-    /// @param cls The class of the exception, which is also the vector.
-    /// @param iss The syndrome.
-    /// @param far The address of an abort.
-    /// @param elr Where ERET returns to.
+    /// @param[in] cls The class of the exception, which is also the vector.
+    /// @param[in] iss The syndrome.
+    /// @param[in] far The address of an abort.
+    /// @param[in] elr Where ERET returns to.
     void enter_exception(ExceptionClass cls, word iss, word far, word elr);
 
     /// Raises the exception that an error stands for, if the CPU raises one for it and a vector
     /// table is installed. If not, the caller reports the error as a fault.
     ///
-    /// @param error What stopped the instruction.
-    /// @param fetching Whether it happened while fetching the instruction.
-    /// @param instr The instruction that was executing, if not fetching.
+    /// @param[in] error What stopped the instruction.
+    /// @param[in] fetching Whether it happened while fetching the instruction.
+    /// @param[in] instr The instruction that was executing, if not fetching.
     /// @return Whether an exception was raised.
     bool deliver_exception(const std::exception &error, bool fetching, word instr = 0);
 
@@ -657,13 +657,13 @@ class Emulator32bit
     /// instruction changes none until its access succeeded, and it costs nothing in the
     /// instructions that do not fault.
     ///
-    /// @param instr The instruction.
+    /// @param[in] instr The instruction.
     /// @return The address of the access.
     word data_address_of(word instr);
 
     /// Switches to user or kernel mode, and to the stack pointer of that mode.
     ///
-    /// @param user `true` for user mode.
+    /// @param[in] user `true` for user mode.
     void set_user_mode(bool user);
 
     /// Throws the undefined instruction exception of a privileged instruction in user mode.
@@ -672,15 +672,15 @@ class Emulator32bit
     /// Called by the memory instructions after a successful access of `length` bytes. `value` is
     /// what was loaded or stored.
     ///
-    /// @param address The virtual address of the access.
-    /// @param length The number of bytes accessed.
-    /// @param write Whether the access was a store.
-    /// @param value What was loaded or stored.
-    /// @param old_value What a store replaced.
+    /// @param[in] address The virtual address of the access.
+    /// @param[in] length The number of bytes accessed.
+    /// @param[in] write Whether the access was a store.
+    /// @param[in] value What was loaded or stored.
+    /// @param[in] old_value What a store replaced.
     void watch_access(word address, word length, bool write, word value, word old_value = 0);
 
-    /// @param address The virtual address of the store.
-    /// @param length The number of bytes.
+    /// @param[in] address The virtual address of the store.
+    /// @param[in] length The number of bytes.
     /// @return The bytes at the virtual address as they are before a store (0 if they cannot be
     ///         read), for watch_access.
     word watch_old_value(word address, word length);
@@ -688,37 +688,37 @@ class Emulator32bit
     /// `execute ()` for a run where something looks at each instruction: the old value of a store
     /// for the watchpoints, and the trace.
     ///
-    /// @param instr The instruction.
+    /// @param[in] instr The instruction.
     void execute_hooked(word instr);
 
     /// Puts the instruction that is about to execute in the history, over the oldest one if full.
     ///
-    /// @param instr The instruction.
+    /// @param[in] instr The instruction.
     void record_history(word instr);
 
-    /// @param address The address.
-    /// @param physical Whether the watchpoint is on a physical address.
+    /// @param[in] address The address.
+    /// @param[in] physical Whether the watchpoint is on a physical address.
     /// @return The index of the watchpoint at the address, or m_watchpoints.count if there is none.
     unsigned find_watchpoint(word address, bool physical) const;
 
     /// Looks at the watched registers between two instructions, which covers a completed
     /// instruction and an exception entry.
     ///
-    /// @param result The result of the run, which becomes a stop at a breakpoint if a watched
+    /// @param[out] result The result of the run, which becomes a stop at a breakpoint if a watched
     ///        register changed since it was last looked at.
     /// @return Whether a register watch stopped the run.
     bool register_watch_hit(RunResult &result);
 
-    /// @param reg The register.
+    /// @param[in] reg The register.
     /// @return The index of the watch on the register, or m_regwatches.count if there is none.
     unsigned find_register_watch(U8 reg) const;
 
     /// Adds a register watch or replaces the one on `reg`. The overloads of add_register_watch ()
     /// call it.
     ///
-    /// @param reg The register.
-    /// @param has_value Whether the watch only stops on `value`.
-    /// @param value The value to stop on.
+    /// @param[in] reg The register.
+    /// @param[in] has_value Whether the watch only stops on `value`.
+    /// @param[in] value The value to stop on.
     /// @return `false` if there is no room for another watch.
     bool set_register_watch(U8 reg, bool has_value, word value);
 
@@ -828,8 +828,8 @@ class Emulator32bit
 
     /// The read-modify-write atomics: loads the old value into xt and stores the new one.
     ///
-    /// @param instr The instruction.
-    /// @param operation How the new value is made from the old one and xm.
+    /// @param[in] instr The instruction.
+    /// @param[in] operation How the new value is made from the old one and xm.
     void _atomic_rmw(const word instr, AtomicOperation operation);
 
     /// std::cout and std::cerr (emulator32bit.cpp), so that this header needs no <iostream>.
@@ -846,9 +846,9 @@ class Emulator32bit
     /// The value of the size bytes at the address, the most significant byte being the last one in
     /// memory for a little endian value and the first one for a big endian value.
     ///
-    /// @param mem_addr The address of the value.
-    /// @param size The number of bytes.
-    /// @param little_endian Whether the value is stored little endian.
+    /// @param[in] mem_addr The address of the value.
+    /// @param[in] size The number of bytes.
+    /// @param[in] little_endian Whether the value is stored little endian.
     word _emu_read_value(word mem_addr, U8 size, bool little_endian);
     std::string _emu_read_string(word address);
     void _emu_print();
@@ -862,7 +862,7 @@ class Emulator32bit
     /// Prints the message and stops the run.
     /// TODO: raise an exception so that the kernel can handle it.
     ///
-    /// @param err The address of the message.
+    /// @param[in] err The address of the message.
     void _emu_err(word err);
 
   public:
@@ -876,24 +876,24 @@ class Emulator32bit
 
     /// Encodes `msr sysreg, xn` or `msr sysreg, imm16`.
     ///
-    /// @param sysreg The system register number (kSysregId_*).
-    /// @param imm Whether the source is an immediate, otherwise a register.
-    /// @param xn_or_imm16 The register number, or the 16 bit immediate.
+    /// @param[in] sysreg The system register number (kSysregId_*).
+    /// @param[in] imm Whether the source is an immediate, otherwise a register.
+    /// @param[in] xn_or_imm16 The register number, or the 16 bit immediate.
     /// @return The instruction word.
     static word asm_msr(U8 sysreg, bool imm, word xn_or_imm16);
 
     /// Encodes `mrs xn, sysreg`.
     ///
-    /// @param xn The destination register.
-    /// @param sysreg The system register number (kSysregId_*).
+    /// @param[in] xn The destination register.
+    /// @param[in] sysreg The system register number (kSysregId_*).
     /// @return The instruction word.
     static word asm_mrs(U8 xn, U8 sysreg);
 
     /// Encodes `tlbi` (all translations) or `tlbi xt` (the page that holds the address in xt).
     ///
-    /// @param xt The register that holds the address.
-    /// @param isxt Whether the form with a register is used.
-    /// @param imm16 Reserved, 0.
+    /// @param[in] xt The register that holds the address.
+    /// @param[in] isxt Whether the form with a register is used.
+    /// @param[in] imm16 Reserved, 0.
     /// @return The instruction word.
     static word asm_tlbi(U8 xt, bool isxt, word imm16);
 
@@ -905,193 +905,193 @@ class Emulator32bit
 
     /// Encodes `brk imm22`.
     ///
-    /// @param imm22 The 22 bit number of the breakpoint.
+    /// @param[in] imm22 The 22 bit number of the breakpoint.
     /// @return The instruction word.
     static word asm_brk(word imm22);
 
     /// Encodes one of the unary operations `op xd, xn` (sxtb, clz, rev, ...).
     ///
-    /// @param op The operation (kUnaryId_*).
-    /// @param xd The destination register.
-    /// @param xn The source register.
+    /// @param[in] op The operation (kUnaryId_*).
+    /// @param[in] xd The destination register.
+    /// @param[in] xn The source register.
     /// @return The instruction word.
     static word asm_unary(word op, word xd, word xn);
 
     /// Encodes a unary floating point instruction or a conversion (`fabs`, `fsqrt`, `fcvt`...,
     /// format F1).
     ///
-    /// @param fn The function (fpu::kUnaryFn_*).
-    /// @param dbl The precision bit, see fpu::unary_dest_is_pair.
-    /// @param xd The destination register (the first one of a pair for a double).
-    /// @param xn The source register.
+    /// @param[in] fn The function (fpu::kUnaryFn_*).
+    /// @param[in] dbl The precision bit, see fpu::unary_dest_is_pair.
+    /// @param[in] xd The destination register (the first one of a pair for a double).
+    /// @param[in] xn The source register.
     /// @return The instruction word.
     static word asm_fop1(U8 fn, bool dbl, int xd, int xn);
 
     /// Encodes a binary floating point instruction `fadd`, ... `xd, xn, xm` (format F2).
     ///
-    /// @param fn The function (fpu::kBinaryFn_*).
-    /// @param dbl Whether the operands and the result are doubles.
-    /// @param xd The destination register (the first one of a pair for a double).
-    /// @param xn The first operand.
-    /// @param xm The second operand.
+    /// @param[in] fn The function (fpu::kBinaryFn_*).
+    /// @param[in] dbl Whether the operands and the result are doubles.
+    /// @param[in] xd The destination register (the first one of a pair for a double).
+    /// @param[in] xn The first operand.
+    /// @param[in] xm The second operand.
     /// @return The instruction word.
     static word asm_fop2(U8 fn, bool dbl, int xd, int xn, int xm);
 
     /// Encodes a fused multiply-add `fmadd`, ... `xd, xn, xm, xa` (format F4).
     ///
-    /// @param fn The function (fpu::kFmaFn_*).
-    /// @param dbl Whether the operands and the result are doubles.
-    /// @param xd The destination register (the first one of a pair for a double).
-    /// @param xn The first factor.
-    /// @param xm The second factor.
-    /// @param xa The addend.
+    /// @param[in] fn The function (fpu::kFmaFn_*).
+    /// @param[in] dbl Whether the operands and the result are doubles.
+    /// @param[in] xd The destination register (the first one of a pair for a double).
+    /// @param[in] xn The first factor.
+    /// @param[in] xm The second factor.
+    /// @param[in] xa The addend.
     /// @return The instruction word.
     static word asm_fop3(U8 fn, bool dbl, int xd, int xn, int xm, int xa);
 
     /// Encodes `fcmp` or `fcmpe xn, xm` (format F3).
     ///
-    /// @param dbl Whether the operands are doubles.
-    /// @param signaling `fcmpe`: a quiet NaN raises Invalid too.
-    /// @param xn The first operand.
-    /// @param xm The second operand.
+    /// @param[in] dbl Whether the operands are doubles.
+    /// @param[in] signaling `fcmpe`: a quiet NaN raises Invalid too.
+    /// @param[in] xn The first operand.
+    /// @param[in] xm The second operand.
     /// @return The instruction word.
     static word asm_fcmp(bool dbl, bool signaling, int xn, int xm);
 
     /// Encodes `csel`, `csinc`, `csinv` or `csneg xd, xn, xm, cond`.
     ///
-    /// @param variant Which one (kCselId_*).
-    /// @param cond The condition.
-    /// @param xd The destination register.
-    /// @param xn The register that is chosen if the condition holds.
-    /// @param xm The register that the other value is made from.
+    /// @param[in] variant Which one (kCselId_*).
+    /// @param[in] cond The condition.
+    /// @param[in] xd The destination register.
+    /// @param[in] xn The register that is chosen if the condition holds.
+    /// @param[in] xm The register that the other value is made from.
     /// @return The instruction word.
     static word asm_csel(word variant, ConditionCode cond, word xd, word xn, word xm);
 
     /// Encodes an atomic read-modify-write.
     ///
-    /// @param xt The register that receives the old value.
-    /// @param xn The register that holds the address.
-    /// @param xm The register that holds the operand.
-    /// @param width The access width (kAtomicWidth_*).
-    /// @param atop The operation (kAtomicId_*).
+    /// @param[in] xt The register that receives the old value.
+    /// @param[in] xn The register that holds the address.
+    /// @param[in] xm The register that holds the operand.
+    /// @param[in] width The access width (kAtomicWidth_*).
+    /// @param[in] atop The operation (kAtomicId_*).
     /// @return The instruction word.
     static word asm_atomic(word xt, word xn, word xm, U8 width, U8 atop);
 
     /// Constructs instructions of format O with an imm14 operand.
     ///
-    /// @param opcode 6 bit identifier of a format O instruction.
-    /// @param s Whether condition flags are set.
-    /// @param xd 5 bit destination register identifier.
-    /// @param xn 5 bit operand register identifier.
-    /// @param imm14 14 bit immediate value.
+    /// @param[in] opcode 6 bit identifier of a format O instruction.
+    /// @param[in] s Whether condition flags are set.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] xn 5 bit operand register identifier.
+    /// @param[in] imm14 14 bit immediate value.
     /// @return Instruction word.
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int imm14);
     /// Constructs instructions of format O with an arg operand.
     ///
-    /// @param opcode 6 bit identifier of a format O instruction.
-    /// @param s Whether condition flags are set.
-    /// @param xd 5 bit destination register identifier.
-    /// @param xn 5 bit operand register identifier.
-    /// @param xm 5 bit operand register identifier.
-    /// @param shift Shift type to be applied on the value in the xm register.
-    /// @param imm5 Shift amount.
+    /// @param[in] opcode 6 bit identifier of a format O instruction.
+    /// @param[in] s Whether condition flags are set.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] xn 5 bit operand register identifier.
+    /// @param[in] xm 5 bit operand register identifier.
+    /// @param[in] shift Shift type to be applied on the value in the xm register.
+    /// @param[in] imm5 Shift amount.
     /// @return Instruction word.
     static word asm_format_o(U8 opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
 
     /// Constructs instructions of format O1 (the shifts): the amount is a register or an imm5.
     ///
-    /// @param type Which shift it is (lsl, lsr, asr or ror); they are one opcode, `_op_shift`.
-    /// @param xd 5 bit destination register identifier.
-    /// @param xn 5 bit register identifier of the value to shift.
-    /// @param imm Whether the amount is `imm5`, otherwise it is the register `xm`.
-    /// @param xm 5 bit register identifier of the amount.
-    /// @param imm5 The amount.
-    /// @param s Whether condition flags are set.
+    /// @param[in] type Which shift it is (lsl, lsr, asr or ror); they are one opcode, `_op_shift`.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] xn 5 bit register identifier of the value to shift.
+    /// @param[in] imm Whether the amount is `imm5`, otherwise it is the register `xm`.
+    /// @param[in] xm 5 bit register identifier of the amount.
+    /// @param[in] imm5 The amount.
+    /// @param[in] s Whether condition flags are set.
     /// @return The instruction word.
     static word asm_format_o1(ShiftType type, int xd, int xn, bool imm, int xm, int imm5,
                               bool s = false);
 
     /// Constructs instructions of format O2 (the long multiplies), with two destination registers.
     ///
-    /// @param is_signed `smull`, otherwise `umull`; they are one opcode, `_op_mull`.
-    /// @param s Whether condition flags are set.
-    /// @param xlo 5 bit register identifier that receives the low word.
-    /// @param xhi 5 bit register identifier that receives the high word.
-    /// @param xn 5 bit identifier of the first operand register.
-    /// @param xm 5 bit identifier of the second operand register.
+    /// @param[in] is_signed `smull`, otherwise `umull`; they are one opcode, `_op_mull`.
+    /// @param[in] s Whether condition flags are set.
+    /// @param[in] xlo 5 bit register identifier that receives the low word.
+    /// @param[in] xhi 5 bit register identifier that receives the high word.
+    /// @param[in] xn 5 bit identifier of the first operand register.
+    /// @param[in] xm 5 bit identifier of the second operand register.
     /// @return The instruction word.
     static word asm_format_o2(bool is_signed, bool s, int xlo, int xhi, int xn, int xm);
 
     /// Constructs instructions of format O3 with an imm19 operand (`mov`, `mvn`).
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param s Whether condition flags are set.
-    /// @param xd 5 bit destination register identifier.
-    /// @param imm19 19 bit immediate value.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] s Whether condition flags are set.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] imm19 19 bit immediate value.
     /// @return The instruction word.
     static word asm_format_o3(U8 opcode, bool s, int xd, int imm19);
 
     /// Constructs instructions of format O3 with a register and an imm14 operand.
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param s Whether condition flags are set.
-    /// @param xd 5 bit destination register identifier.
-    /// @param xn 5 bit operand register identifier.
-    /// @param imm14 14 bit immediate value.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] s Whether condition flags are set.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] xn 5 bit operand register identifier.
+    /// @param[in] imm14 14 bit immediate value.
     /// @return The instruction word.
     static word asm_format_o3(U8 opcode, bool s, int xd, int xn, int imm14);
 
     /// Constructs a load or store (format M) with a register offset.
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param sign Whether the loaded value is sign extended.
-    /// @param xt 5 bit register identifier that is loaded or stored.
-    /// @param xn 5 bit base register identifier.
-    /// @param xm 5 bit offset register identifier.
-    /// @param shift Shift type to be applied on the value in the xm register.
-    /// @param imm5 Shift amount.
-    /// @param adr How the offset is applied to the base.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] sign Whether the loaded value is sign extended.
+    /// @param[in] xt 5 bit register identifier that is loaded or stored.
+    /// @param[in] xn 5 bit base register identifier.
+    /// @param[in] xm 5 bit offset register identifier.
+    /// @param[in] shift Shift type to be applied on the value in the xm register.
+    /// @param[in] imm5 Shift amount.
+    /// @param[in] adr How the offset is applied to the base.
     /// @return The instruction word.
     static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
                              int imm5, encoding::AddrType adr);
 
     /// Constructs a load or store (format M) with an immediate offset.
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param sign Whether the loaded value is sign extended.
-    /// @param xt 5 bit register identifier that is loaded or stored.
-    /// @param xn 5 bit base register identifier.
-    /// @param simm12 12 bit signed offset.
-    /// @param adr How the offset is applied to the base.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] sign Whether the loaded value is sign extended.
+    /// @param[in] xt 5 bit register identifier that is loaded or stored.
+    /// @param[in] xn 5 bit base register identifier.
+    /// @param[in] simm12 12 bit signed offset.
+    /// @param[in] adr How the offset is applied to the base.
     /// @return The instruction word.
     static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int simm12,
                              encoding::AddrType adr);
 
     /// Constructs instructions of format M1, a register and an imm20 operand (`adrp`, `adr`).
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param xd 5 bit destination register identifier.
-    /// @param imm20 20 bit immediate value.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] xd 5 bit destination register identifier.
+    /// @param[in] imm20 20 bit immediate value.
     /// @return The instruction word.
     static word asm_format_m1(U8 opcode, int xd, int imm20);
 
     /// Constructs an instruction of format B1: a branch to a pc relative offset (also `swi`).
     ///
-    /// @param opcode 6 bit identifier of the instruction.
-    /// @param cond The condition under which the branch is taken.
-    /// @param simm22 22 bit signed offset, in instructions.
+    /// @param[in] opcode 6 bit identifier of the instruction.
+    /// @param[in] cond The condition under which the branch is taken.
+    /// @param[in] simm22 22 bit signed offset, in instructions.
     /// @return The instruction word.
     static word asm_format_b1(U8 opcode, ConditionCode cond, sword simm22);
 
     /// Constructs a branch (format B2) to the address in a register (`bx`, or `blx` with `link`).
     ///
-    /// @param cond The condition under which the branch is taken.
-    /// @param xd 5 bit register identifier that holds the target.
-    /// @param link Whether x29 gets the address of the next instruction (`blx`).
+    /// @param[in] cond The condition under which the branch is taken.
+    /// @param[in] xd 5 bit register identifier that holds the target.
+    /// @param[in] link Whether x29 gets the address of the next instruction (`blx`).
     /// @return The instruction word.
     static word asm_format_b2(ConditionCode cond, int xd, bool link = false);
 
-    /// @param instr An instruction word.
+    /// @param[in] instr An instruction word.
     /// @return The instruction as assembly text.
     static std::string disassemble_instr(word instr);
 };

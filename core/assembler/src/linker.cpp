@@ -17,8 +17,8 @@ struct Extent
     word alignment = 1;
 };
 
-/// @param obj An object file that has the section.
-/// @param name The name of a section of the file.
+/// @param[in] obj An object file that has the section.
+/// @param[in] name The name of a section of the file.
 /// @return What the section is aligned to, at least 1.
 word alignment_of(const ObjectFile &obj, const std::string &name)
 {
@@ -26,8 +26,8 @@ word alignment_of(const ObjectFile &obj, const std::string &name)
     return alignment == 0 ? 1 : alignment;
 }
 
-/// @param obj An object file that has the section.
-/// @param name The name of a section of code, bytes or the program's own (not .bss).
+/// @param[in] obj An object file that has the section.
+/// @param[in] name The name of a section of code, bytes or the program's own (not .bss).
 /// @return The size of the section in bytes.
 word section_size(const ObjectFile &obj, const std::string &name)
 {
@@ -56,8 +56,8 @@ Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &
     return extent;
 }
 
-/// @param sections User sections.
-/// @param name The name of a section.
+/// @param[in] sections User sections.
+/// @param[in] name The name of a section.
 /// @return The section with the name, or `sections.end()` if there is none.
 std::vector<ObjectFile::UserSection>::const_iterator
 find_user_section(const std::vector<ObjectFile::UserSection> &sections, const std::string &name)
@@ -231,8 +231,8 @@ void define_array_symbol(ObjectFile &exe, const char *name, const ObjectFile::By
     }
 }
 
-/// @param exe The executable.
-/// @param name The name of a symbol.
+/// @param[in] exe The executable.
+/// @param[in] name The name of a symbol.
 /// @return Whether the executable has a symbol with the name that is defined.
 bool is_defined(const ObjectFile &exe, const std::string &name)
 {

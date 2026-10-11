@@ -17,7 +17,7 @@ class BitArray
     /// The number of bits.
     static constexpr unsigned kCapacity = N;
 
-    /// @param i The index, below N.
+    /// @param[in] i The index, below N.
     /// @return The bit.
     bool test(const unsigned i) const
     {
@@ -25,8 +25,8 @@ class BitArray
         return (m_words[i / kNumDwordBits] >> (i % kNumDwordBits)) & 1;
     }
 
-    /// @param i The index, below N.
-    /// @param value What the bit becomes.
+    /// @param[in] i The index, below N.
+    /// @param[in] value What the bit becomes.
     void assign(const unsigned i, const bool value)
     {
         assert(i < N);
@@ -36,8 +36,8 @@ class BitArray
 
     /// Copies the bit at `from` to `to`: the move of the last entry into a removed one.
     ///
-    /// @param from The index of the bit to copy.
-    /// @param to The index of the bit to replace.
+    /// @param[in] from The index of the bit to copy.
+    /// @param[in] to The index of the bit to replace.
     void copy(const unsigned from, const unsigned to)
     {
         assign(to, test(from));

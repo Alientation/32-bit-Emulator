@@ -33,9 +33,9 @@ class Disk : public BaseMemory
   public:
     /// Constructs a disk, reading its contents from the file if it exists.
     ///
-    /// @param diskfile The file the disk memory is saved in.
-    /// @param npages The number of pages the disk should have.
-    /// @param lo_page The page number of the first page, so the first address is
+    /// @param[in] diskfile The file the disk memory is saved in.
+    /// @param[in] npages The number of pages the disk should have.
+    /// @param[in] lo_page The page number of the first page, so the first address is
     ///     `lo_page << kNumPageOffsetBits`.
     Disk(const File &diskfile, word npages, word lo_page);
     virtual ~Disk();
@@ -50,7 +50,7 @@ class Disk : public BaseMemory
         std::string message;
 
       public:
-        /// @param msg What is wrong.
+        /// @param[in] msg What is wrong.
         ReadError(const std::string &msg);
 
         /// @return The message.
@@ -64,7 +64,7 @@ class Disk : public BaseMemory
         std::string message;
 
       public:
-        /// @param msg What is wrong.
+        /// @param[in] msg What is wrong.
         WriteError(const std::string &msg);
 
         /// @return The message.
@@ -79,13 +79,13 @@ class Disk : public BaseMemory
 
     /// Gives a page back to the free pages.
     ///
-    /// @param page The number of a page that get_free_page () gave.
+    /// @param[in] page The number of a page that get_free_page () gave.
     /// @throws FreeBlockList::Error if the page is not one that is in use.
     virtual void return_page(word page);
 
     /// Reads a disk page.
     ///
-    /// @param page The number of the page.
+    /// @param[in] page The number of the page.
     /// @return The kPageSize bytes of the page, the first one at the start of the page.
     /// @throws ReadError if the page is not on the disk.
     std::vector<byte> read_page(word page);
@@ -93,65 +93,65 @@ class Disk : public BaseMemory
     /// Reads a disk page into a buffer, which the swapping uses so that it does not allocate a
     /// vector for every page.
     ///
-    /// @param out Room for kPageSize bytes.
-    /// @param page The number of the page.
+    /// @param[out] out Room for kPageSize bytes.
+    /// @param[in] page The number of the page.
     /// @throws ReadError if the page is not on the disk.
     virtual void read_page(byte *out, word page);
 
     /// Reads a byte from the disk.
     ///
-    /// @param address The full address of the byte.
+    /// @param[in] address The full address of the byte.
     /// @return The byte.
     /// @throws ReadError if the address is not on the disk.
     byte read_byte(word address) override;
 
     /// Reads a half word (2 bytes) from the disk, little endian.
     ///
-    /// @param address The full address of the half word.
+    /// @param[in] address The full address of the half word.
     /// @return The half word.
     /// @throws ReadError if the address is not on the disk.
     hword read_hword(word address) override;
 
     /// Reads a word (4 bytes) from the disk, little endian.
     ///
-    /// @param address The full address of the word.
+    /// @param[in] address The full address of the word.
     /// @return The word.
     /// @throws ReadError if the address is not on the disk.
     word read_word(word address) override;
 
     /// Writes a page to the disk.
     ///
-    /// @param page The number of the page.
-    /// @param data The new contents: kPageSize bytes, the first one at the start of the page.
+    /// @param[in] page The number of the page.
+    /// @param[in] data The new contents: kPageSize bytes, the first one at the start of the page.
     /// @throws WriteError if `data` is not kPageSize bytes.
     /// @throws ReadError if the page is not on the disk.
     void write_page(word page, const std::vector<byte> &data);
 
     /// Writes kPageSize bytes to a disk page (the vector version checks the size and calls this).
     ///
-    /// @param page The number of the page.
-    /// @param data The kPageSize bytes.
+    /// @param[in] page The number of the page.
+    /// @param[in] data The kPageSize bytes.
     /// @throws ReadError if the page is not on the disk.
     virtual void write_page(word page, const byte *data);
 
     /// Writes a byte to the disk.
     ///
-    /// @param address The full address of the byte.
-    /// @param data The byte to write.
+    /// @param[in] address The full address of the byte.
+    /// @param[in] data The byte to write.
     /// @throws ReadError if the address is not on the disk.
     void write_byte(word address, byte data) override;
 
     /// Writes a half word (2 bytes) to the disk, little endian.
     ///
-    /// @param address The full address of the half word.
-    /// @param data The half word to write.
+    /// @param[in] address The full address of the half word.
+    /// @param[in] data The half word to write.
     /// @throws ReadError if the address is not on the disk.
     void write_hword(word address, hword data) override;
 
     /// Writes a word (4 bytes) to the disk, little endian.
     ///
-    /// @param address The full address of the word.
-    /// @param data The word to write.
+    /// @param[in] address The full address of the word.
+    /// @param[in] data The word to write.
     /// @throws ReadError if the address is not on the disk.
     void write_word(word address, word data) override;
 
@@ -194,8 +194,8 @@ class Disk : public BaseMemory
     /// Interfaced with by the read byte/hword/word public functions. Note,
     /// reading anything more than 8 bytes will not produce useful results.
     ///
-    /// @param address Address to read from.
-    /// @param n_bytes Number of bytes to read.
+    /// @param[in] address Address to read from.
+    /// @param[in] n_bytes Number of bytes to read.
     /// @return Value read.
     /// @throws ReadError if the address is not on the disk.
     dword read_val(word address, int n_bytes);
@@ -205,9 +205,9 @@ class Disk : public BaseMemory
     /// Interfaced with by the write byte/hword/word public functions. Note,
     /// writing anything more than 8 bytes will not be useful.
     ///
-    /// @param address Address to write to.
-    /// @param val Value to write.
-    /// @param n_bytes Number of bytes to write.
+    /// @param[in] address Address to write to.
+    /// @param[in] val Value to write.
+    /// @param[in] n_bytes Number of bytes to write.
     /// @throws ReadError if the address is not on the disk.
     void write_val(word address, dword val, int n_bytes);
 
@@ -216,8 +216,8 @@ class Disk : public BaseMemory
     /// Fetches the corresponding cache page of the disk page requested,
     /// evicting a page from cache to make room when necessary.
     ///
-    /// @param addr Page to fetch.
-    /// @param load Whether the contents of the page are read from the disk file. Not
+    /// @param[in] addr Page to fetch.
+    /// @param[in] load Whether the contents of the page are read from the disk file. Not
     ///     needed when the whole page is about to be overwritten.
     /// @return Reference to the cache page.
     /// @throws ReadError If the page is not on the disk.
@@ -227,12 +227,12 @@ class Disk : public BaseMemory
     ///
     /// Writes to disk even if the cache page is not valid or dirty.
     ///
-    /// @param cpage Reference to the cache page to write.
+    /// @param[in,out] cpage Reference to the cache page to write.
     void write_cpage(CachePage &cpage);
 
     /// Reads a cache page from disk.
     ///
-    /// @param cpage Reference to cache page to read to.
+    /// @param[in,out] cpage Reference to cache page to read to.
     void read_cpage(CachePage &cpage);
 
     /// Reads and sets up the simulated disk from save files.

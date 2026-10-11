@@ -10,7 +10,7 @@
 namespace disassembler
 {
 
-/// @param instr An instruction word.
+/// @param[in] instr An instruction word.
 /// @return The instruction as assembly text, as the assembler would read it (a pseudo operation
 ///         like `cmp` is named as such). A word that is no instruction is shown as a `nop`.
 std::string disassemble(word instr);

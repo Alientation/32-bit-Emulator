@@ -35,10 +35,10 @@ class Preprocessor
     /// Constructs a preprocessor object with the given file. The output file is created now if the
     /// options ask for it to be written. The extension of the input has to be .basm or .binc.
     ///
-    /// @param input_file The file to preprocess.
-    /// @param output_file_path The path to the output file, default is the input file path with
+    /// @param[in] input_file The file to preprocess.
+    /// @param[in] output_file_path The path to the output file, default is the input file path with
     ///     the .bi extension.
-    /// @param options Include directories etc. of the build.
+    /// @param[in] options Include directories etc. of the build.
     explicit Preprocessor(const File &input_file, const std::string &output_file_path = "",
                           PreprocessorOptions options = {});
 
@@ -139,28 +139,29 @@ class Preprocessor
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
-    /// @param at The token the error is about.
-    /// @param message What is wrong.
+    /// @param[in] at The token the error is about.
+    /// @param[in] message What is wrong.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 
     /// @return Whether tokens are being kept, as opposed to dropped by an #if* that is not taken.
     bool active() const;
 
-    /// @param name The name of a symbol.
-    /// @param num_params The number of parameters.
+    /// @param[in] name The name of a symbol.
+    /// @param[in] num_params The number of parameters.
     /// @return Whether `#define` made a symbol with the name and that many parameters.
     bool is_symbol_def(const std::string &name, std::size_t num_params) const;
 
     /// Pushes a new source of tokens on the stack of frames.
     ///
-    /// @param tokens The tokens, which the frame owns.
+    /// @param[in] tokens The tokens, which the frame owns.
     /// @return The frame.
     Frame &push_frame(Tokens tokens);
 
     /// Pushes a source file (`#include`, or the input file).
     ///
-    /// @param path The path of the file.
-    /// @param include_site The `#include` token for the error messages, null for the input file.
+    /// @param[in] path The path of the file.
+    /// @param[in] include_site The `#include` token for the error messages, null for the input
+    ///     file.
     void push_file(const std::string &path, const basm::Token *include_site);
 
     /// Reads the frames until none is left.
@@ -168,19 +169,19 @@ class Preprocessor
 
     /// Pops a frame whose tokens ran out, after checking that it left nothing open.
     ///
-    /// @param frame The frame.
+    /// @param[in] frame The frame.
     void finish_frame(const Frame &frame);
 
     /// Appends a token to the output, as text and as a token.
     ///
-    /// @param token The token to keep.
+    /// @param[in] token The token to keep.
     void emit(const basm::Token &token);
 
     /// Parses `( a, b, c )` with the cursor on the open parenthesis. Commas inside nested
     /// brackets do not split. `()` has no arguments, and `(,)` has two empty ones.
     ///
-    /// @param args Receives the tokens of each argument.
-    /// @param cursor The cursor of the line.
+    /// @param[in,out] args Receives the tokens of each argument.
+    /// @param[in,out] cursor The cursor of the line.
     /// @return `false` (cursor position unspecified) if the closing parenthesis is not on the same
     ///     line.
     static bool parse_call_args(std::vector<Tokens> &args, basm::TokenCursor &cursor);
@@ -188,7 +189,7 @@ class Preprocessor
     /// Parses `( a, b )` of a definition header into parameter names. Fatal if a name is not a
     /// symbol or is repeated.
     ///
-    /// @param line The cursor of the line, on the open parenthesis.
+    /// @param[in,out] line The cursor of the line, on the open parenthesis.
     /// @return The names.
     std::vector<std::string> parse_params(basm::TokenCursor &line);
 
@@ -196,24 +197,24 @@ class Preprocessor
     /// tokens that come from `body` are marked as produced by expansion `expansion`, the ones
     /// from the arguments keep the location they were written at.
     ///
-    /// @param body The tokens of the definition.
-    /// @param params The names of the parameters.
-    /// @param args The tokens of each argument.
-    /// @param expansion The number of the expansion, for the error messages.
+    /// @param[in] body The tokens of the definition.
+    /// @param[in] params The names of the parameters.
+    /// @param[in] args The tokens of each argument.
+    /// @param[in] expansion The number of the expansion, for the error messages.
     /// @return The tokens with the arguments put in.
     Tokens substitute(const Tokens &body, const std::vector<std::string> &params,
                       const std::vector<Tokens> &args, U32 expansion) const;
 
     /// Replaces a use of a defined symbol with its value.
     ///
-    /// @param frame The frame the token was read from.
-    /// @param token The token that may be a symbol.
+    /// @param[in,out] frame The frame the token was read from.
+    /// @param[in] token The token that may be a symbol.
     /// @return `false`, consuming nothing, if the token is to be emitted as it is.
     bool expand_symbol(Frame &frame, const basm::Token &token);
 
     /// Handles the directive at the cursor of the frame (`#include`, `#define`, ...).
     ///
-    /// @param frame The frame that is being read.
+    /// @param[in,out] frame The frame that is being read.
     void handle_directive(Frame &frame);
 
     /// Inserts the file contents into the current file.
@@ -223,7 +224,7 @@ class Preprocessor
     /// "filepath": looks for files relative to the directory of the including file.
     /// <"filepath">: looks for files in the include directories (-I).
     ///
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _include(basm::TokenCursor &line);
 
     /// Defines a macro with n parameters.
@@ -233,8 +234,8 @@ class Preprocessor
     /// The body is everything up to #macend. It cannot contain another #macro. The same name can be
     /// defined with another number of parameters.
     ///
-    /// @param frame The frame that is being read.
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] frame The frame that is being read.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _macro(Frame &frame, basm::TokenCursor &line);
 
     /// Stops expanding the macro and assigns the value of the expression to the output symbol of
@@ -242,15 +243,15 @@ class Preprocessor
     ///
     /// USAGE: #macret [?expression]
     ///
-    /// @param frame The frame that is being read.
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] frame The frame that is being read.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _macret(Frame &frame, basm::TokenCursor &line);
 
     /// Expands the macro with the given arguments inside a `.scope` / `.scend` pair.
     ///
     /// USAGE: #invoke [name]([arg1, arg2,..., argn]) [?output symbol]
     ///
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _invoke(basm::TokenCursor &line);
 
     /// Associates the symbol with a value. Uses of the symbol are replaced by the value. If the
@@ -259,7 +260,7 @@ class Preprocessor
     ///
     /// USAGE: #define [symbol][?(param1, ..., paramn)] [?value]
     ///
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _define(basm::TokenCursor &line);
 
     /// Defines the symbols of PreprocessorOptions::defines.
@@ -271,7 +272,7 @@ class Preprocessor
     ///
     /// Without a number of parameters every definition of the symbol is removed.
     ///
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _undef(basm::TokenCursor &line);
 
     /// Conditional blocks.
@@ -284,14 +285,14 @@ class Preprocessor
     /// #elsedef, #elsendef, #elseequ, #elsenequ, #elseless, #elsemore, #else
     /// #endif
     ///
-    /// @param frame The frame that is being read.
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in,out] frame The frame that is being read.
+    /// @param[in,out] line The cursor of the line, after the directive.
     void _conditional(Frame &frame, basm::TokenCursor &line);
 
     /// Evaluates the condition of an #if* / #else* directive.
     ///
-    /// @param directive The directive token.
-    /// @param line The cursor of the line, after the directive.
+    /// @param[in] directive The directive token.
+    /// @param[in,out] line The cursor of the line, after the directive.
     /// @return Whether the condition holds.
     bool evaluate_condition(const basm::Token &directive, basm::TokenCursor &line);
 };

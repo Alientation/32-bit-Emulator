@@ -130,7 +130,7 @@ struct Record
 /// sink does not need its own synchronization, but it must not log (that would deadlock).
 using Sink = std::function<void(const Record &)>;
 
-/// @param level A level.
+/// @param[in] level A level.
 /// @return The three letter name of the level that is printed in a log line (`DBG`, `INF`, `WRN`,
 ///     `ERR`, `FTL`, `OFF`).
 constexpr std::string_view to_string(const Level level)
@@ -155,7 +155,7 @@ constexpr std::string_view to_string(const Level level)
 
 /// Parses "debug", "info", "warn"/"warning", "error", "fatal", "off"/"none". Case insensitive.
 ///
-/// @param name The name of a level.
+/// @param[in] name The name of a level.
 /// @return The level, or nothing if the name is none of those.
 inline std::optional<Level> parse_level(const std::string_view name)
 {
@@ -248,7 +248,7 @@ inline State &state()
 
 /// Whether call sites of this level survive AEMU_LOG_COMPILE_LEVEL.
 ///
-/// @param level The level of a call site.
+/// @param[in] level The level of a call site.
 /// @return Whether it is kept.
 constexpr bool compiled_in(const Level level)
 {
@@ -256,7 +256,7 @@ constexpr bool compiled_in(const Level level)
     return static_cast<int>(level) >= kCompileLevel;
 }
 
-/// @param level The level.
+/// @param[in] level The level.
 /// @return The escape sequence that colors the name of the level in the default sink.
 constexpr std::string_view level_color(const Level level)
 {
@@ -279,7 +279,7 @@ constexpr std::string_view level_color(const Level level)
 
 /// "/a/b/c.cpp" -> "c.cpp". Source paths are printed without their directory.
 ///
-/// @param path The path of a source file.
+/// @param[in] path The path of a source file.
 /// @return The file name.
 inline std::string_view basename(const std::string_view path)
 {
@@ -289,9 +289,9 @@ inline std::string_view basename(const std::string_view path)
 
 /// Default sink: `[ERR] [file.cpp:123]: message` on stderr, with an optional time prefix.
 ///
-/// @param record The message.
-/// @param color Whether to use the ANSI colors.
-/// @param timestamps Whether to start the line with the time.
+/// @param[in] record The message.
+/// @param[in] color Whether to use the ANSI colors.
+/// @param[in] timestamps Whether to start the line with the time.
 inline void write_default(const Record &record, const bool color, const bool timestamps)
 {
     std::string line;
@@ -336,13 +336,13 @@ inline Level get_level()
 
 /// Sets the lowest level that is emitted.
 ///
-/// @param level The lowest level.
+/// @param[in] level The lowest level.
 inline void set_level(const Level level)
 {
     detail::state().level.store(level);
 }
 
-/// @param level The level of a message.
+/// @param[in] level The level of a message.
 /// @return Whether a message of this level would be emitted now.
 inline bool enabled(const Level level)
 {
@@ -357,7 +357,7 @@ inline FatalAction get_fatal_action()
 
 /// Chooses what AEMU_FATAL and AEMU_CHECK do after logging.
 ///
-/// @param action What to do.
+/// @param[in] action What to do.
 inline void set_fatal_action(const FatalAction action)
 {
     detail::state().fatal_action.store(action);
@@ -366,7 +366,7 @@ inline void set_fatal_action(const FatalAction action)
 /// Turns the ANSI colors of the default sink on or off. Without a call, they are on when stderr is
 /// a terminal and `NO_COLOR` is not set.
 ///
-/// @param enable Whether to use the colors.
+/// @param[in] enable Whether to use the colors.
 inline void set_color(const bool enable)
 {
     detail::state().color.store(enable);
@@ -375,7 +375,7 @@ inline void set_color(const bool enable)
 /// Turns on or off the prefix of each line of the default sink with the seconds since the logger
 /// was first used.
 ///
-/// @param enable Whether to print the time.
+/// @param[in] enable Whether to print the time.
 inline void set_timestamps(const bool enable)
 {
     detail::state().timestamps.store(enable);
@@ -383,7 +383,7 @@ inline void set_timestamps(const bool enable)
 
 /// Replaces the default stderr output. Pass an empty function (or call reset_sink) to restore it.
 ///
-/// @param sink The function that receives every message.
+/// @param[in] sink The function that receives every message.
 inline void set_sink(Sink sink)
 {
     detail::State &s = detail::state();
@@ -401,7 +401,7 @@ inline void reset_sink()
 class ScopedLevel
 {
   public:
-    /// @param level The level to set until this is destroyed.
+    /// @param[in] level The level to set until this is destroyed.
     explicit ScopedLevel(const Level level) :
         m_previous(get_level())
     {
@@ -425,7 +425,7 @@ class ScopedLevel
 class ScopedFatalAction
 {
   public:
-    /// @param action The action to set until this is destroyed.
+    /// @param[in] action The action to set until this is destroyed.
     explicit ScopedFatalAction(const FatalAction action) :
         m_previous(get_fatal_action())
     {
@@ -451,9 +451,9 @@ class ScopedFatalAction
 /// Emits an already formatted message if `level` passes the filter. Use this when the message is
 /// not a format string, otherwise prefer the AEMU_* macros.
 ///
-/// @param level The level of the message.
-/// @param location Where the message is logged from.
-/// @param message The message.
+/// @param[in] level The level of the message.
+/// @param[in] location Where the message is logged from.
+/// @param[in] message The message.
 inline void write(const Level level, const std::source_location &location,
                   const std::string_view message)
 {
@@ -481,8 +481,8 @@ inline void write(const Level level, const std::source_location &location,
 
 /// Logs at Fatal level, then terminates according to the FatalAction. Never returns.
 ///
-/// @param location Where the message is logged from.
-/// @param message The message.
+/// @param[in] location Where the message is logged from.
+/// @param[in] message The message.
 [[noreturn]] inline void fatal(const std::source_location &location, const std::string_view message)
 {
     write(Level::Fatal, location, message);
@@ -536,8 +536,8 @@ template<typename... Args>
 class ScopedTimer
 {
   public:
-    /// @param tag The name of what is timed, which the message starts with.
-    /// @param location Where the timer is made, which is the place the message is logged at.
+    /// @param[in] tag The name of what is timed, which the message starts with.
+    /// @param[in] location Where the timer is made, which is the place the message is logged at.
     explicit ScopedTimer(std::string tag,
                          const std::source_location location = std::source_location::current()) :
         m_tag(std::move(tag)),

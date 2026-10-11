@@ -120,7 +120,7 @@ inline constexpr SysregName kSysregNames[] = {
     {.id = kSysregId_fpsr, .name = "fpsr"},
 };
 
-/// @param id The number of a system register.
+/// @param[in] id The number of a system register.
 /// @return The name of the register as written in assembly (lower case), nullptr if there is
 ///     no register with the number.
 inline const char *sysreg_name(const U8 id)

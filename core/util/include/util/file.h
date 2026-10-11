@@ -10,7 +10,7 @@
 /// `/`. A `.` segment is dropped and a `..` removes the segment before it (a `..` that has none
 /// before it stays).
 ///
-/// @param str The directory path.
+/// @param[in] str The directory path.
 /// @return The path with `/` between the segments.
 std::string trim_dir_path(const std::string &str);
 
@@ -27,28 +27,28 @@ class File
     /// compatible with other OSes.
     inline static const std::string SEPARATOR = "/";
 
-    /// @param name The file name, without the extension.
+    /// @param[in] name The file name, without the extension.
     /// @return Whether the name is not empty and has none of the characters a name cannot contain.
     static bool valid_name(const std::string &name)
     {
         return name.find_first_of("\\/:*?\"<>|") == std::string::npos && name.size() > 0;
     }
 
-    /// @param extension The extension, without the dot.
+    /// @param[in] extension The extension, without the dot.
     /// @return Whether the extension is not empty and has none of the characters it cannot contain.
     static bool valid_extension(const std::string &extension)
     {
         return extension.find_first_of("\\/:*?\"<>|") == std::string::npos && extension.size() > 0;
     }
 
-    /// @param dir The directory path.
+    /// @param[in] dir The directory path.
     /// @return Whether the directory has none of the characters a path cannot contain.
     static bool valid_dir(const std::string &dir)
     {
         return dir.find_first_of("*?\"<>|") == std::string::npos;
     }
 
-    /// @param path The file path.
+    /// @param[in] path The file path.
     /// @return Whether the path has none of the characters a path cannot contain.
     static bool valid_path(const std::string &path)
     {
@@ -58,18 +58,18 @@ class File
     /// Constructs a file object from its parts. An empty directory is the current directory. An
     /// invalid name, extension or directory is a fatal error.
     ///
-    /// @param name The name of the file, without the extension.
-    /// @param extension The extension of the file, without the dot.
-    /// @param dir The directory of the file.
-    /// @param create_if_not_present Whether to create the file when it does not exist.
+    /// @param[in] name The name of the file, without the extension.
+    /// @param[in] extension The extension of the file, without the dot.
+    /// @param[in] dir The directory of the file.
+    /// @param[in] create_if_not_present Whether to create the file when it does not exist.
     File(const std::string &name, const std::string &extension, const std::string &dir,
          bool create_if_not_present = false);
 
     /// Constructs a file object with the given file path. A path without an extension, or with an
     /// invalid name, extension or directory, is a fatal error.
     ///
-    /// @param path The path of the file.
-    /// @param create_if_not_present Whether to create the file when it does not exist.
+    /// @param[in] path The path of the file.
+    /// @param[in] create_if_not_present Whether to create the file when it does not exist.
     File(const std::string &path, bool create_if_not_present = false);
 
     /// Constructs a file object with no name, extension or directory.
@@ -115,8 +115,8 @@ class FileWriter
   public:
     /// Opens the file for writing with the given stream modes.
     ///
-    /// @param file The file to write to.
-    /// @param flags The open mode of the stream, e.g. `std::ios::binary | std::ios::app`
+    /// @param[in] file The file to write to.
+    /// @param[in] flags The open mode of the stream, e.g. `std::ios::binary | std::ios::app`
     FileWriter(const File &file, std::ios_base::openmode flags);
 
     /// Closes the file.
@@ -129,17 +129,17 @@ class FileWriter
 
     /// Writes a string to the file.
     ///
-    /// @param text The string to write.
+    /// @param[in] text The string to write.
     void write(const std::string &text);
 
     /// Writes a byte to the file.
     ///
-    /// @param byte The byte to write.
+    /// @param[in] byte The byte to write.
     void write(char byte);
 
     /// Writes a null terminated byte array to the file.
     ///
-    /// @param bytes The byte array to write.
+    /// @param[in] bytes The byte array to write.
     void write(const char *bytes);
 
     /// Writes what is buffered to the file.
@@ -158,7 +158,7 @@ class FileWriter
 class ByteWriter
 {
   public:
-    /// @param filewriter The writer the bytes go to, which has to outlive this.
+    /// @param[in] filewriter The writer the bytes go to, which has to outlive this.
     ByteWriter(FileWriter &filewriter);
 
     /// A value and the number of its low bytes to write.
@@ -167,20 +167,20 @@ class ByteWriter
         unsigned long long value = 0;
         int num_bytes;
 
-        /// @param value The value to write.
-        /// @param num_bytes How many bytes of the value to write.
+        /// @param[in] value The value to write.
+        /// @param[in] num_bytes How many bytes of the value to write.
         Data(unsigned long long value, int num_bytes);
 
-        /// @param value The value to write.
-        /// @param num_bytes How many bytes of the value to write.
-        /// @param little_endian Whether the least significant byte is written first, if not
+        /// @param[in] value The value to write.
+        /// @param[in] num_bytes How many bytes of the value to write.
+        /// @param[in] little_endian Whether the least significant byte is written first, if not
         ///     the bytes of the value are reversed.
         Data(unsigned long long value, int num_bytes, bool little_endian);
     };
 
     /// Writes the bytes of the value, the least significant one first.
     ///
-    /// @param data The value and how many bytes of it to write.
+    /// @param[in] data The value and how many bytes of it to write.
     /// @return This writer.
     ByteWriter &operator<<(const Data &data);
 
@@ -194,8 +194,8 @@ class FileReader
   public:
     /// Opens the file for reading with the given stream modes.
     ///
-    /// @param file The file to read.
-    /// @param flags The open mode of the stream, e.g. `std::ios::binary`
+    /// @param[in] file The file to read.
+    /// @param[in] flags The open mode of the stream, e.g. `std::ios::binary`
     FileReader(const File &file, std::ios_base::openmode flags);
 
     /// Closes the file.
@@ -223,7 +223,7 @@ class ByteReader
   public:
     /// Reading past the last byte throws `std::out_of_range`.
     ///
-    /// @param bytes The bytes to read, which have to outlive this.
+    /// @param[in] bytes The bytes to read, which have to outlive this.
     ByteReader(const std::vector<unsigned char> &bytes) :
         m_bytes(bytes){};
 
@@ -234,17 +234,17 @@ class ByteReader
         int num_bytes = 0;
         bool little_endian = true;
 
-        /// @param num_bytes How many bytes to read, little endian.
+        /// @param[in] num_bytes How many bytes to read, little endian.
         Data(int num_bytes);
 
-        /// @param num_bytes How many bytes to read.
-        /// @param little_endian Whether the least significant byte comes first.
+        /// @param[in] num_bytes How many bytes to read.
+        /// @param[in] little_endian Whether the least significant byte comes first.
         Data(int num_bytes, bool little_endian);
     };
 
     /// Reads `data.num_bytes` bytes into `data.val`.
     ///
-    /// @param data The width and byte order, and where the value is stored.
+    /// @param[in,out] data The width and byte order, and where the value is stored.
     /// @return This reader.
     ByteReader &operator>>(Data &data);
 
@@ -253,7 +253,7 @@ class ByteReader
 
     /// Each of the following reads one value of its width.
     ///
-    /// @param little_endian Whether the least significant byte comes first.
+    /// @param[in] little_endian Whether the least significant byte comes first.
     /// @return The value that was read.
     unsigned char read_byte(bool little_endian = true);
     unsigned short read_hword(bool little_endian = true);
@@ -262,7 +262,7 @@ class ByteReader
 
     /// Skips bytes without reading them.
     ///
-    /// @param num_bytes How many bytes to skip.
+    /// @param[in] num_bytes How many bytes to skip.
     void skip_bytes(int num_bytes);
 
   private:

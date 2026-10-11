@@ -23,13 +23,13 @@ class SystemBus : public PhysicalPages
   public:
     /// The bus owns what it is given. Without a disk it uses a MockDisk.
     ///
-    /// @param ram The RAM.
-    /// @param rom The ROM.
+    /// @param[in] ram The RAM.
+    /// @param[in] rom The ROM.
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom);
 
-    /// @param ram The RAM.
-    /// @param rom The ROM.
-    /// @param disk The disk that backs the swapping.
+    /// @param[in] ram The RAM.
+    /// @param[in] rom The ROM.
+    /// @param[in] disk The disk that backs the swapping.
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
 
     /// Saves the disk and the block device.
@@ -56,15 +56,15 @@ class SystemBus : public PhysicalPages
         using std::runtime_error::runtime_error;
     };
 
-    /// @param address A physical address.
+    /// @param[in] address A physical address.
     /// @return The RAM, ROM or disk that has the address, or null.
     BaseMemory *find_storage(word address) const;
 
-    /// @param address A physical address.
+    /// @param[in] address A physical address.
     /// @return The memory or device that has the address, or null.
     BaseMemory *find_memory(word address);
 
-    /// @param address A physical address.
+    /// @param[in] address A physical address.
     /// @return The memory or device that has the address.
     /// @throws SystemBus::BusError if there is none.
     BaseMemory &route_memory(word address);
@@ -73,16 +73,16 @@ class SystemBus : public PhysicalPages
     /// only. (The loader and the host write the ROM through write_block or the ROM itself, which
     /// is how an image gets there.)
     ///
-    /// @param address A physical address.
+    /// @param[in] address A physical address.
     /// @return The memory or device that the store goes to.
     /// @throws SystemBus::BusError if there is none, or the address is in the ROM.
     BaseMemory &route_store(word address);
 
     /// Writes bytes to a physical address. A block can cross from one page to another.
     ///
-    /// @param address The physical address of the first byte.
-    /// @param data The bytes to write.
-    /// @param size The number of bytes.
+    /// @param[in] address The physical address of the first byte.
+    /// @param[in] data The bytes to write.
+    /// @param[in] size The number of bytes.
     /// @throws SystemBus::BusError if there is no memory somewhere in it.
     void write_block(word address, const byte *data, word size);
 

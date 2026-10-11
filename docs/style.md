@@ -44,6 +44,7 @@ For a collection of a few records that the program keeps for its whole run (watc
 ## Comments and documentation
 
 - **Documentation is in the headers:** `///` with `@param`, `@return`, `@tparam`, on every public member, saying what it does and what it promises (limits, order, what is replaced, what is returned on failure, and `@throws` for each exception).
+- **Every `@param` has a direction:** `@param[in]` for what the function only reads (a value, a `const` reference, a reference or pointer it keeps for later, such as the stream a device writes to), `@param[out]` for what it only writes (a buffer, a result, a stream the output goes to), `@param[in,out]` for what it reads and changes (a cursor that is advanced, a container that is appended to, an object that is updated in place). `[in,out]` is a reason to look at the design again: return the result, or make the object a member, where that is possible.
 - **A comment is a sentence:** it starts with a capital letter and ends with a period, also the text after `@param name` and `@return` (`@param pc The address of the instruction.`) and a trailing comment (`return i; // The count, if there is none.`). Exceptions: a comment that starts with a name that has a case of its own (`x0`, `` `hlt` ``, `m_pc`), the rows of a table whose columns are aligned, `// namespace` at a closing brace, and the directives of tools (`clang-format off`, `TODO`).
 - **Reread a comment as someone who has not seen the code.** Every name in it is defined next to it (no stray `k` or `n`), and it states a fact: what is overwritten and when, not that something "is OK". A comment that took a second reading is rewritten.
 - **Few comments in a `.cpp`:** `///` for a `static` or an anonymous-namespace function, `//` in code. No `/* */`. A comment says why, never what.
@@ -77,7 +78,7 @@ Tools that find the places, so that a sweep does not depend on `grep` alone (a `
 | A braced initializer names its fields | `modernize-use-designated-initializers` (it skips what a macro expands to) |
 | No bare numbers | `readability-magic-numbers` with `IgnoredIntegerValues` `0;1` |
 | A by-value parameter that is not `const`, a reference parameter that is never written | `libclang`: list the parameters, add `const`, build, and take back what does not compile |
-| Doc comments | `libclang` gives the `///` comment of each declaration: its `@param` names and order against the declaration, `@return` on `void`, text that is not a sentence |
+| Doc comments | `libclang` gives the `///` comment of each declaration: its `@param` names, order and direction against the declaration (a `const` or by-value parameter is `[in]`, a non-`const` reference or pointer is looked at by hand), `@return` on `void`, text that is not a sentence |
 
 Counts of what a sweep looks at (non-test code under `core/`, from `grep`; they are places to look at, not violations): `std::optional` 70 (all of them the result of a parser or a lookup), `std::function` 1 (`Sink` of the logger, which the tests give lambdas), `std::map` / `std::set` / `std::unordered_map` 36, `std::variant` 0, `std::to_string` 113, `std::stringstream` 4.
 

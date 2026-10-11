@@ -16,15 +16,15 @@ class Linker
   public:
     /// Links with the default linker script.
     ///
-    /// @param obj_files The object files to link.
-    /// @param exe_file The executable to write.
+    /// @param[in] obj_files The object files to link.
+    /// @param[in] exe_file The executable to write.
     Linker(std::vector<ObjectFile> obj_files, const File &exe_file);
 
     /// Links with a linker script.
     ///
-    /// @param obj_files The object files to link.
-    /// @param exe_file The executable to write.
-    /// @param ld_file The linker script.
+    /// @param[in] obj_files The object files to link.
+    /// @param[in] exe_file The executable to write.
+    /// @param[in] ld_file The linker script.
     Linker(std::vector<ObjectFile> obj_files, const File &exe_file, const File &ld_file);
 
     /// Reads the linker script, places the sections of all object files, resolves every symbol and
@@ -103,14 +103,14 @@ class Linker
     /// asked for), so that the offsets it was assembled with stay aligned. The merged section
     /// has the largest alignment.
     ///
-    /// @param exe The executable that gets the merged sections.
+    /// @param[in,out] exe The executable that gets the merged sections.
     /// @return Where the sections of each object file start within the merged ones.
     std::vector<SectionBase> merge_sections(ObjectFile &exe) const;
 
     /// Gives the sections their addresses according to the linker script. A section that the
     /// script does not give an address follows the previous one.
     ///
-    /// @param exe The executable whose sections are placed.
+    /// @param[in,out] exe The executable whose sections are placed.
     /// @return The final address of each section.
     SectionBase place_sections(ObjectFile &exe) const;
 
@@ -118,9 +118,9 @@ class Linker
     /// addresses. A symbol of one object file is the same symbol of another by name, unless it is
     /// local.
     ///
-    /// @param exe The executable that gets the symbols.
-    /// @param bases Where the sections of each object file start within the merged ones.
-    /// @param addresses The final address of each section.
+    /// @param[in,out] exe The executable that gets the symbols.
+    /// @param[in] bases Where the sections of each object file start within the merged ones.
+    /// @param[in] addresses The final address of each section.
     /// @return For each object file, the executable's symbol for each of its symbols.
     std::vector<SymbolMap> merge_symbols(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                          const SectionBase &addresses) const;
@@ -128,7 +128,7 @@ class Linker
     /// The loader starts the program at _start. ENTRY(symbol) makes `symbol` the entry point by
     /// aliasing _start to it.
     ///
-    /// @param exe The executable that gets the symbol.
+    /// @param[in,out] exe The executable that gets the symbol.
     void define_entry(ObjectFile &exe) const;
 
     /// Defines `__init_array_start`, `__init_array_end`, `__fini_array_start` and
@@ -136,17 +136,17 @@ class Linker
     /// in them. A symbol with that name that the program defines itself is left alone, one that
     /// it only refers to gets the value.
     ///
-    /// @param exe The executable that gets the symbols.
-    /// @param addresses The final address of each section.
+    /// @param[in,out] exe The executable that gets the symbols.
+    /// @param[in] addresses The final address of each section.
     void define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const;
 
     /// Every section has its final address by now, so each relocation is resolved here and the
     /// executable needs none at load time.
     ///
-    /// @param exe The executable whose relocations are applied.
-    /// @param bases Where the sections of each object file start within the merged ones.
-    /// @param addresses The final address of each section.
-    /// @param symbols For each object file, the executable's symbol for each of its symbols.
+    /// @param[in,out] exe The executable whose relocations are applied.
+    /// @param[in] bases Where the sections of each object file start within the merged ones.
+    /// @param[in] addresses The final address of each section.
+    /// @param[in] symbols For each object file, the executable's symbol for each of its symbols.
     void relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                   const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const;
 
@@ -169,14 +169,14 @@ class Linker
 
     /// Consumes the next token if it has the type, otherwise fails saying what was expected.
     ///
-    /// @param type The type the token has to have.
-    /// @param expected What the error says was expected.
+    /// @param[in] type The type the token has to have.
+    /// @param[in] expected What the error says was expected.
     /// @return The token.
     const basm::Token &expect(basm::TokenType type, const std::string &expected);
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
-    /// @param at The token the error is about.
-    /// @param message What is wrong.
+    /// @param[in] at The token the error is about.
+    /// @param[in] message What is wrong.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 };

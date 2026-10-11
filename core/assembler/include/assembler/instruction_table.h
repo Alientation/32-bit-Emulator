@@ -58,7 +58,7 @@ struct InstructionSpec
     byte b;
 };
 
-/// @param type The type of an instruction token: `is_instruction (type)` must hold.
+/// @param[in] type The type of an instruction token: `is_instruction (type)` must hold.
 /// @return The row of the instruction.
 const InstructionSpec &instruction_spec(TokenType type);
 

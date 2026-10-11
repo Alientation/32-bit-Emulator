@@ -9,7 +9,7 @@
 class Directory
 {
   public:
-    /// @param path The path to check.
+    /// @param[in] path The path to check.
     /// @return Whether the path has none of the characters that a path cannot contain.
     static bool valid_path(const std::string &path)
     {
@@ -18,8 +18,8 @@ class Directory
 
     /// Constructs a directory with the given path. An invalid path is a fatal error.
     ///
-    /// @param path The path of the directory.
-    /// @param create_if_not_present Whether to create the directory when it does not exist.
+    /// @param[in] path The path of the directory.
+    /// @param[in] create_if_not_present Whether to create the directory when it does not exist.
     Directory(const std::string &path, bool create_if_not_present = false);
 
     /// @return The name of the directory: the last segment of its path.
@@ -32,7 +32,7 @@ class Directory
     ///     directory does not exist.
     std::vector<File> get_all_subfiles();
 
-    /// @param subfile_path The path of a file or directory, relative to this directory.
+    /// @param[in] subfile_path The path of a file or directory, relative to this directory.
     /// @return Whether it exists.
     bool subfile_exists(const std::string &subfile_path);
 

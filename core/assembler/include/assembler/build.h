@@ -30,18 +30,18 @@ class Build
   public:
     /// The arguments as they are in argv (without the program name). A path can have spaces.
     ///
-    /// @param args The arguments, one for each element.
+    /// @param[in] args The arguments, one for each element.
     explicit Build(const std::vector<std::string> &args);
 
     /// The arguments as one line, which is split on whitespace (unless it is in quotes).
     ///
-    /// @param assembler_args The arguments.
+    /// @param[in] assembler_args The arguments.
     explicit Build(const std::string &assembler_args = "");
 
     /// Splits a line of arguments on whitespace. Whitespace in "quotes" does not split, and a
     /// backslash makes the next character part of the argument.
     ///
-    /// @param line The arguments in one line.
+    /// @param[in] line The arguments in one line.
     /// @return The arguments.
     static std::vector<std::string> split_args(const std::string &line);
 
@@ -100,7 +100,7 @@ class Build
 
     /// Processes the arguments: each flag calls its handler, anything else is a source file.
     ///
-    /// @param args_list The list of arguments to process.
+    /// @param[in] args_list The list of arguments to process.
     void evaluate_args(std::vector<std::string> &args_list);
 
     /// Runs the stages that the flags asked for: preprocess, assemble, link.
@@ -120,7 +120,7 @@ class Build
 
     /// Prints an objdump-style listing of the files.
     ///
-    /// @param files The object files and the executable.
+    /// @param[in] files The object files and the executable.
     static void dump(const std::vector<File> &files);
 
     // The handlers of the flags. Each one takes `index`, the position of its flag in `args`, the

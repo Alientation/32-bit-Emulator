@@ -435,7 +435,7 @@ constexpr U64 kCompareV = 0b0001;
 
 /// Compares two values of the type `T`, given as their bits.
 ///
-/// @param signaling Whether a quiet NaN raises Invalid too (`fcmpe`).
+/// @param[in] signaling Whether a quiet NaN raises Invalid too (`fcmpe`).
 /// @return The flags (less than: N, equal: ZC, greater than: C, unordered: CV) and the exceptions.
 template<class T>
 Result compare_as(const bool signaling, const U64 a, const U64 b)

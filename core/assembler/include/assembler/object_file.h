@@ -9,8 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-/// @param size A size or an address.
-/// @param alignment A power of two.
+/// @param[in] size A size or an address.
+/// @param[in] alignment A power of two.
 /// @return How much has to be added to the size to make it a multiple of the alignment.
 inline word padding_to(const word size, const word alignment)
 {
@@ -29,23 +29,23 @@ class ObjectFile
 
     /// Reads an object file.
     ///
-    /// @param obj_file The file to read.
+    /// @param[in] obj_file The file to read.
     ObjectFile(const File &obj_file);
 
     /// Replaces the contents with those of a file. A file that is not valid is a fatal error.
     ///
-    /// @param object_file The file to read.
+    /// @param[in] object_file The file to read.
     void read_object_file(const File &object_file);
 
     /// Replaces the contents with those of an object file that is in memory (a member of a static
     /// library). A file that is not valid is a fatal error, which does not name a file.
     ///
-    /// @param bytes The bytes of the file.
+    /// @param[in] bytes The bytes of the file.
     void read_object_file(const std::vector<byte> &bytes);
 
     /// Writes the object file.
     ///
-    /// @param object_file The file to write.
+    /// @param[in] object_file The file to write.
     void write_object_file(const File &object_file);
 
     /// A symbol of this file: one it defines, or one it refers to.
@@ -348,25 +348,25 @@ class ObjectFile
     /// The user sections, in the order they were added.
     std::vector<UserSection> user_sections;
 
-    /// @param writable Whether the section is writable.
-    /// @param executable Whether the section is executable.
-    /// @param nobits Whether the section is zero filled.
+    /// @param[in] writable Whether the section is writable.
+    /// @param[in] executable Whether the section is executable.
+    /// @param[in] nobits Whether the section is zero filled.
     /// @return The type of the header of a user section with the permissions.
     static SectionHeader::Type user_section_type(bool writable, bool executable,
                                                  bool nobits = false);
 
-    /// @param type The type of a section header.
+    /// @param[in] type The type of a section header.
     /// @return Whether the type is the type of a header of a user section.
     static bool is_user_section_type(SectionHeader::Type type);
 
-    /// @param name The name of the section.
+    /// @param[in] name The name of the section.
     /// @return The user section with the name, or null.
     UserSection *find_user_section(const std::string &name);
 
     /// @copydoc find_user_section(const std::string &)
     const UserSection *find_user_section(const std::string &name) const;
 
-    /// @param header_index The index into `sections`.
+    /// @param[in] header_index The index into `sections`.
     /// @return The user section whose header is the one at the index, or null if that is not the
     ///     header of one.
     UserSection *user_section_at(U32 header_index);
@@ -377,10 +377,10 @@ class ObjectFile
     /// Adds a user section and its two headers. The name is not one that is
     /// taken (a section of the file already, or one of the reserved names).
     ///
-    /// @param name The name of the section.
-    /// @param writable Whether the section is writable.
-    /// @param executable Whether the section is executable.
-    /// @param nobits Whether the section is zero filled.
+    /// @param[in] name The name of the section.
+    /// @param[in] writable Whether the section is writable.
+    /// @param[in] executable Whether the section is executable.
+    /// @param[in] nobits Whether the section is zero filled.
     /// @return Index into `sections` of its header.
     U32 add_user_section(const std::string &name, bool writable, bool executable,
                          bool nobits = false);
@@ -397,7 +397,7 @@ class ObjectFile
     /// @return The byte sections, in the order .data, .rodata, .init_array, .fini_array.
     static const std::array<ByteSection, kNumByteSections> &byte_sections();
 
-    /// @param type A section type or relocation section type.
+    /// @param[in] type A section type or relocation section type.
     /// @return The byte section with the type, or null if the type is none of them.
     static const ByteSection *byte_section_of(SectionHeader::Type type);
 
@@ -419,7 +419,7 @@ class ObjectFile
 
     /// Adds a string to the string table. Fatal if the string is in it already.
     ///
-    /// @param string The string to add.
+    /// @param[in] string The string to add.
     /// @return The index of the string.
     U32 add_string(const std::string &string);
 
@@ -428,21 +428,21 @@ class ObjectFile
     /// fatal error. The binding becomes the new one if that is GLOBAL or WEAK_DECLARED, or LOCAL for
     /// a symbol that was only used.
     ///
-    /// @param symbol The name of the symbol.
-    /// @param value The value of the symbol if it is defined.
-    /// @param binding_info The visibility of the symbol.
-    /// @param section The section it is defined in, -1 if it is not defined in a section.
+    /// @param[in] symbol The name of the symbol.
+    /// @param[in] value The value of the symbol if it is defined.
+    /// @param[in] binding_info The visibility of the symbol.
+    /// @param[in] section The section it is defined in, -1 if it is not defined in a section.
     void add_symbol(const std::string &symbol, word value,
                     SymbolTableEntry::BindingInfo binding_info, U32 section = U32(-1));
 
     /// Adds a section header. Fatal if there is a section with the name already.
     ///
-    /// @param section_name The name of the section.
-    /// @param type The type of the section.
+    /// @param[in] section_name The name of the section.
+    /// @param[in] type The type of the section.
     /// @return The index of the header in `sections`.
     U32 add_section(const std::string &section_name, SectionHeader::Type type);
 
-    /// @param symbol The index of a symbol, the key of `symbol_table`.
+    /// @param[in] symbol The index of a symbol, the key of `symbol_table`.
     /// @return The name of the symbol.
     std::string get_symbol_name(U32 symbol) const;
 
@@ -463,7 +463,7 @@ class ObjectFile
 
     /// The current size of a section, which is the offset that the next item added to it will have.
     ///
-    /// @param section Index into `sections`.
+    /// @param[in] section Index into `sections`.
     /// @return Size of the section in bytes.
     word get_section_size(U32 section) const;
 
@@ -474,7 +474,7 @@ class ObjectFile
 
     /// Same, to a stream.
     ///
-    /// @param out Where the listing goes.
+    /// @param[out] out Where the listing goes.
     void print(std::ostream &out) const;
 
   private:
@@ -483,12 +483,12 @@ class ObjectFile
 
     /// Reads the sections, symbols and relocations from the bytes of a file.
     ///
-    /// @param bytes The bytes of the file.
+    /// @param[in] bytes The bytes of the file.
     void deserialize(const std::vector<byte> &bytes);
 
     /// deserialize () that reports a truncated or corrupt file as a fatal error.
     ///
-    /// @param bytes The bytes of the file.
+    /// @param[in] bytes The bytes of the file.
     void deserialize_checked(const std::vector<byte> &bytes);
 
     /// Fatal if what was read is not a file that the linker and the loader can

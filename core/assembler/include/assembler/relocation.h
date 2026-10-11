@@ -11,11 +11,11 @@
 /// Fatal if the value cannot be encoded (a branch target that is not a multiple of 4 or is too
 /// far, an `adr` that cannot reach).
 ///
-/// @param type How the instruction refers to the target.
-/// @param instr The instruction. For a relocation in a data section (R_EMU32_ABS32) it is the word
-///     that is there.
-/// @param instr_address Where the instruction is.
-/// @param target The address that the instruction has to refer to, plus the addend.
+/// @param[in] type How the instruction refers to the target.
+/// @param[in] instr The instruction. For a relocation in a data section (R_EMU32_ABS32) it is the
+///     word that is there.
+/// @param[in] instr_address Where the instruction is.
+/// @param[in] target The address that the instruction has to refer to, plus the addend.
 /// @return The patched instruction.
 word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word instr_address,
                       word target);

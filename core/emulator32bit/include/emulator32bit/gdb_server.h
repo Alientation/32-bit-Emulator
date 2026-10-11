@@ -30,10 +30,10 @@ class GdbServer
         virtual bool interrupted() = 0;
     };
 
-    /// @param emu The machine, with the program loaded.
+    /// @param[in,out] emu The machine, with the program loaded.
     explicit GdbServer(Emulator32bit &emu);
 
-    /// @param source Where to look for an interrupt while the program runs, or null for none.
+    /// @param[in] source Where to look for an interrupt while the program runs, or null for none.
     void set_interrupt_source(InterruptSource *source)
     {
         m_interrupt = source;
@@ -41,7 +41,7 @@ class GdbServer
 
     /// Handles one packet.
     ///
-    /// @param packet The payload, between `$` and `#`.
+    /// @param[in] packet The payload, between `$` and `#`.
     /// @return The payload of the reply; empty for a packet that is not supported, which is what
     ///         the protocol asks for. For a packet that has no reply (`k`) see `finished`.
     std::string handle(const std::string &packet);
@@ -63,36 +63,37 @@ class GdbServer
 
     /// Serves one client.
     ///
-    /// @param emu The machine, with the program loaded.
-    /// @param port The TCP port on 127.0.0.1.
-    /// @param ready Called with the port once it is listening (0 asks for any free port), or null.
-    /// @param log Where to say what happens (a connection, an error), or null.
+    /// @param[in,out] emu The machine, with the program loaded.
+    /// @param[in] port The TCP port on 127.0.0.1.
+    /// @param[in] ready Called with the port once it is listening (0 asks for any free port), or
+    ///     null.
+    /// @param[out] log Where to say what happens (a connection, an error), or null.
     /// @return `false` if the port could not be listened on.
     static bool serve(Emulator32bit &emu, std::uint16_t port, void (*ready)(std::uint16_t port),
                       std::ostream *log);
 
     /// Encodes bytes as the hexadecimal text of the protocol.
     ///
-    /// @param bytes The bytes.
+    /// @param[in] bytes The bytes.
     /// @return Two lower case digits for each byte.
     static std::string to_hex(const std::string &bytes);
 
     /// Decodes the hexadecimal text of the protocol.
     ///
-    /// @param bytes Receives the bytes.
-    /// @param text Two digits for each byte.
+    /// @param[out] bytes Receives the bytes.
+    /// @param[in] text Two digits for each byte.
     /// @return `false` if the text is not valid (an odd number of digits, or a character that is
     ///     not one).
     static bool from_hex(std::string &bytes, const std::string &text);
 
   private:
-    /// @param result How the run ended.
+    /// @param[in] result How the run ended.
     /// @return The stop reply after the program ran.
     std::string stop_reply(const Emulator32bit::RunResult &result);
 
     /// Runs until something stops it, or the client interrupts.
     ///
-    /// @param steps 1 for a single step, 0 to go on.
+    /// @param[in] steps 1 for a single step, 0 to go on.
     /// @return The stop reply.
     std::string resume(U64 steps);
 
@@ -103,54 +104,54 @@ class GdbServer
 
     /// Handles `G`.
     ///
-    /// @param hex The values of all the registers, as hex.
+    /// @param[in] hex The values of all the registers, as hex.
     /// @return Whether it was accepted.
     bool write_registers(const std::string &hex);
 
     /// Handles `P`. Only the flags of cpsr change.
     ///
-    /// @param number The register number of the protocol: x0-x29, sp, xzr, pc, cpsr.
-    /// @param value The value.
+    /// @param[in] number The register number of the protocol: x0-x29, sp, xzr, pc, cpsr.
+    /// @param[in] value The value.
     /// @return Whether there is such a register and the value is allowed.
     bool write_register(unsigned number, word value);
 
     /// Handles `p`.
     ///
-    /// @param value Receives the value.
-    /// @param number The register number of the protocol.
+    /// @param[out] value Receives the value.
+    /// @param[in] number The register number of the protocol.
     /// @return Whether there is such a register.
     bool read_register(word &value, unsigned number);
 
     /// Handles `m`.
     ///
-    /// @param address The virtual address.
-    /// @param length The number of bytes.
+    /// @param[in] address The virtual address.
+    /// @param[in] length The number of bytes.
     /// @return The bytes as hex, shorter if an address failed after the first, or an error reply.
     std::string read_memory(word address, word length);
 
     /// Handles `M`.
     ///
-    /// @param address The virtual address.
-    /// @param bytes The bytes.
+    /// @param[in] address The virtual address.
+    /// @param[in] bytes The bytes.
     /// @return Whether all of them were written.
     bool write_memory(word address, const std::string &bytes);
 
     /// Handles `Z` and `z`, the breakpoints and watchpoints.
     ///
-    /// @param packet The `Z` or `z` packet.
-    /// @param insert Whether it is `Z`, which inserts, as opposed to `z`.
+    /// @param[in] packet The `Z` or `z` packet.
+    /// @param[in] insert Whether it is `Z`, which inserts, as opposed to `z`.
     /// @return The reply: `OK`, an error, or empty if the type is not supported.
     std::string breakpoint_packet(const std::string &packet, bool insert);
 
     /// Handles `q`.
     ///
-    /// @param packet The `q` packet.
+    /// @param[in] packet The `q` packet.
     /// @return The reply, empty if the query is not supported.
     std::string query(const std::string &packet);
 
     /// `monitor <command>` of gdb.
     ///
-    /// @param command The command line.
+    /// @param[in] command The command line.
     /// @return The text to show.
     std::string monitor(const std::string &command);
 

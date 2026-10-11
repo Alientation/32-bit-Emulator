@@ -10,7 +10,7 @@
 
 /// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers.
 ///
-/// @param str The text of the number.
+/// @param[in] str The text of the number.
 /// @return The number, or nothing if the text is not one.
 std::optional<U64> parse_number(const std::string &str);
 
@@ -31,15 +31,15 @@ struct WatchSpec
 
 /// The condition of a watchpoint as text: "" without one, "==0x5" with one.
 ///
-/// @param compare The comparison.
-/// @param value The number the value of the access is compared with.
+/// @param[in] compare The comparison.
+/// @param[in] value The number the value of the access is compared with.
 /// @return The text.
 std::string describe_watch_condition(Emulator32bit::WatchCompare compare, word value);
 
 /// Parses the argument of `--watch`.
 ///
-/// @param symbols The symbols that an address can be named by.
-/// @param text The argument.
+/// @param[in] symbols The symbols that an address can be named by.
+/// @param[in] text The argument.
 /// @return The watchpoint, or nothing if any part is malformed.
 std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text);
 
@@ -53,20 +53,20 @@ struct RegisterWatchSpec
 
 /// Parses the argument of `--watch-reg`.
 ///
-/// @param text The argument.
+/// @param[in] text The argument.
 /// @return The register watch, or nothing if the text is malformed.
 std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &text);
 
 /// Parses a register name: x0-x29, fp, lr, sp, xzr, or a bare register number.
 ///
-/// @param str The text of the register.
+/// @param[in] str The text of the register.
 /// @return The number of the register, or nothing if the text is not one.
 std::optional<U8> parse_register_name(const std::string &str);
 
 /// Resolves an address given as a number, a symbol, or `symbol+number`.
 ///
-/// @param symbols The symbols to look the name up in.
-/// @param text The address.
+/// @param[in] symbols The symbols to look the name up in.
+/// @param[in] text The address.
 /// @return The address, or nothing if it cannot be resolved.
 std::optional<word> resolve_address(const SymbolMap &symbols, const std::string &text);
 
@@ -78,10 +78,10 @@ class Debugger
   public:
     /// Turns the instruction history on (if it is off) so a fault can show how it came about.
     ///
-    /// @param emu The emulator to debug, which must outlive the debugger.
-    /// @param symbols The names of addresses, which must outlive the debugger.
-    /// @param in Where the commands are read from.
-    /// @param out Where the output goes.
+    /// @param[in,out] emu The emulator to debug, which must outlive the debugger.
+    /// @param[in] symbols The names of addresses, which must outlive the debugger.
+    /// @param[in] in Where the commands are read from.
+    /// @param[in] out Where the output goes.
     Debugger(Emulator32bit &emu, const SymbolMap &symbols, std::istream &in, std::ostream &out);
 
     /// Reads and executes commands until `quit` or the end of the input.
@@ -89,7 +89,7 @@ class Debugger
 
     /// Executes one command line.
     ///
-    /// @param line The command and its arguments.
+    /// @param[in] line The command and its arguments.
     /// @return `false` when the debugger should end.
     bool execute(const std::string &line);
 
@@ -146,13 +146,13 @@ class Debugger
 
     /// Same as the free resolve_address(), with the symbols of this debugger.
     ///
-    /// @param text A number, a symbol, or `symbol+number`.
+    /// @param[in] text A number, a symbol, or `symbol+number`.
     /// @return The address, or nothing if the text is none of those.
     std::optional<word> resolve_address(const std::string &text) const;
 
     /// Runs and reports why it stopped.
     ///
-    /// @param instructions The number of instructions to run, 0 for no limit.
+    /// @param[in] instructions The number of instructions to run, 0 for no limit.
     void run_and_report(U64 instructions);
 
     /// Prints the pc and the instruction there.
@@ -160,21 +160,21 @@ class Debugger
 
     /// Prints the last instructions that were executed, the newest last.
     ///
-    /// @param count How many to print at most.
+    /// @param[in] count How many to print at most.
     /// @return How many were printed.
     size_t print_history(size_t count);
 
     /// Prints a line of the backtrace.
     ///
-    /// @param index The number of the frame, which is one more afterwards.
-    /// @param address The address of the frame.
+    /// @param[in,out] index The number of the frame, which is one more afterwards.
+    /// @param[in] address The address of the frame.
     void print_frame(size_t &index, word address);
 
-    /// @param address An address.
+    /// @param[in] address An address.
     /// @return The address as hex, followed by `<symbol+offset>` if a symbol is at or below it.
     std::string describe(word address) const;
 
-    /// @param address A virtual address.
+    /// @param[in] address A virtual address.
     /// @return The disassembled instruction there, or `<unreadable>`.
     std::string disassemble_at(word address) const;
 

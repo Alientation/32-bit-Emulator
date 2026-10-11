@@ -75,8 +75,8 @@ constexpr U8 kUnaryFn_fromu32 = 13; ///< uint32 to float.
 constexpr U8 kUnaryFn_fcvt = 14;    ///< Float to the other precision.
 constexpr U8 kUnaryFn_count = 15;
 
-/// @param fn A kUnaryFn_*.
-/// @param dbl The precision bit of the instruction: the float operand is a double. For
+/// @param[in] fn A kUnaryFn_*.
+/// @param[in] dbl The precision bit of the instruction: the float operand is a double. For
 ///        kUnaryFn_fcvt it is the precision of the source.
 /// @return Whether the destination is a register pair (a double).
 constexpr bool unary_dest_is_pair(const U8 fn, const bool dbl)
@@ -88,8 +88,8 @@ constexpr bool unary_dest_is_pair(const U8 fn, const bool dbl)
     return fn == kUnaryFn_fcvt ? !dbl : dbl;
 }
 
-/// @param fn A kUnaryFn_*.
-/// @param dbl The precision bit of the instruction, see unary_dest_is_pair.
+/// @param[in] fn A kUnaryFn_*.
+/// @param[in] dbl The precision bit of the instruction, see unary_dest_is_pair.
 /// @return Whether the source is a register pair (a double).
 constexpr bool unary_source_is_pair(const U8 fn, const bool dbl)
 {
@@ -110,42 +110,43 @@ struct Result
 
 /// `fop2`.
 ///
-/// @param fn A kBinaryFn_* below kBinaryFn_count.
-/// @param dbl Whether the operands and the result are doubles.
-/// @param a The first operand, as a bit pattern.
-/// @param b The second operand, as a bit pattern.
-/// @param rounding The mode of the FPCR (kRound*).
+/// @param[in] fn A kBinaryFn_* below kBinaryFn_count.
+/// @param[in] dbl Whether the operands and the result are doubles.
+/// @param[in] a The first operand, as a bit pattern.
+/// @param[in] b The second operand, as a bit pattern.
+/// @param[in] rounding The mode of the FPCR (kRound*).
 /// @return The result and the exception flags it raised.
 Result binary(U8 fn, bool dbl, U64 a, U64 b, word rounding);
 
 /// `fop3`: the product of @p a and @p b added to or subtracted from @p c with one rounding.
 ///
-/// @param fn A kFmaFn_* below kFmaFn_count.
-/// @param dbl Whether the operands and the result are doubles.
-/// @param a The first factor, as a bit pattern.
-/// @param b The second factor, as a bit pattern.
-/// @param c The addend, as a bit pattern.
-/// @param rounding The mode of the FPCR (kRound*).
+/// @param[in] fn A kFmaFn_* below kFmaFn_count.
+/// @param[in] dbl Whether the operands and the result are doubles.
+/// @param[in] a The first factor, as a bit pattern.
+/// @param[in] b The second factor, as a bit pattern.
+/// @param[in] c The addend, as a bit pattern.
+/// @param[in] rounding The mode of the FPCR (kRound*).
 /// @return The result and the exception flags it raised.
 Result fused(U8 fn, bool dbl, U64 a, U64 b, U64 c, word rounding);
 
 /// `fop1`: @p a is the source in the representation of its type, the result the destination in
 /// the representation of its type (a float, a double, or the 32 bits of an integer).
 ///
-/// @param fn A kUnaryFn_* below kUnaryFn_count.
-/// @param dbl See unary_dest_is_pair.
-/// @param a The source.
-/// @param rounding The mode of the FPCR (kRound*).
+/// @param[in] fn A kUnaryFn_* below kUnaryFn_count.
+/// @param[in] dbl See unary_dest_is_pair.
+/// @param[in] a The source.
+/// @param[in] rounding The mode of the FPCR (kRound*).
 /// @return The result and the exception flags it raised.
 Result unary(U8 fn, bool dbl, U64 a, word rounding);
 
 /// `fcmp`: the value of the result is NZCV in bits 3-0 (N is bit 3), as the flags are set by a
 /// comparison of integers. Equal is Z and C, less is N, greater is C and unordered is C and V.
 ///
-/// @param dbl Whether the operands are doubles.
-/// @param signaling Whether any NaN raises Invalid (`fcmpe`); otherwise only a signaling one does.
-/// @param a The first operand, as a bit pattern.
-/// @param b The second operand, as a bit pattern.
+/// @param[in] dbl Whether the operands are doubles.
+/// @param[in] signaling Whether any NaN raises Invalid (`fcmpe`); otherwise only a signaling one
+///     does.
+/// @param[in] a The first operand, as a bit pattern.
+/// @param[in] b The second operand, as a bit pattern.
 /// @return The flags in the value, and the exception flags it raised.
 Result compare(bool dbl, bool signaling, U64 a, U64 b);
 

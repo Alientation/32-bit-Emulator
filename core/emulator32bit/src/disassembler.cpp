@@ -127,8 +127,8 @@ static std::string disassemble_format_m1(const word instruction, const std::stri
     return disassemble;
 }
 
-/// @param op The name of the instruction, `ldr` for the aligned and the unaligned form.
-/// @param has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
+/// @param[in] op The name of the instruction, `ldr` for the aligned and the unaligned form.
+/// @param[in] has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
 static std::string disassemble_format_m(const word instruction, const std::string &op,
                                         const bool has_unaligned_form = true)
 {
@@ -284,7 +284,7 @@ static std::string disassemble_format_o1(const word instruction, const std::stri
     return disassemble;
 }
 
-/// @param compare The name of the comparison that `op` with S and an `xzr` destination is
+/// @param[in] compare The name of the comparison that `op` with S and an `xzr` destination is
 ///        (`subs xzr, ...` is `cmp`), or null if it has none.
 static std::string disassemble_format_o(const word instruction, const std::string &op,
                                         const char *compare = nullptr)
