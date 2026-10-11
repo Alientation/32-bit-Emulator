@@ -44,25 +44,25 @@ class Disk : public BaseMemory
     Disk &operator=(const Disk &) = delete;
 
     /// Thrown when a page cannot be read from the disk.
-    class DiskReadException : public std::exception
+    class ReadError : public std::exception
     {
       private:
         std::string message;
 
       public:
-        DiskReadException(const std::string &msg);
+        ReadError(const std::string &msg);
 
         const char *what() const noexcept override;
     };
 
     /// Thrown when a page cannot be written to the disk.
-    class DiskWriteException : public std::exception
+    class WriteError : public std::exception
     {
       private:
         std::string message;
 
       public:
-        DiskWriteException(const std::string &msg);
+        WriteError(const std::string &msg);
 
         const char *what() const noexcept override;
     };
@@ -95,7 +95,7 @@ class Disk : public BaseMemory
     /// the first element corresponding to the byte at the start of the page.
     ///
     /// @param page Disk page address to read.
-    /// @throws DiskReadException if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError if the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Page data corresponding to the page address.
     std::vector<byte> read_page(word page);
@@ -110,7 +110,7 @@ class Disk : public BaseMemory
     /// Reads a byte from disk.
     ///
     /// @param address Full address of byte to read.
-    /// @throws DiskReadException if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError if the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Byte located at the address in disk.
     byte read_byte(word address) override;
@@ -118,7 +118,7 @@ class Disk : public BaseMemory
     /// Reads a half word (2 bytes) from disk.
     ///
     /// @param address Full address of hword to read.
-    /// @throws DiskReadException if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError if the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Half word located at the address in disk in little endian format.
     hword read_hword(word address) override;
@@ -126,7 +126,7 @@ class Disk : public BaseMemory
     /// Reads a word (4 bytes) from disk.
     ///
     /// @param address Full address of word to read.
-    /// @throws DiskReadException if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError if the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Word located at the address in disk in little endian format.
     word read_word(word address) override;
@@ -137,7 +137,7 @@ class Disk : public BaseMemory
     /// byte is written to the start of the page on disk.
     ///
     /// @param page Page address to write to.
-    /// @throws DiskWriteException if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError if the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_page(word page, const std::vector<byte> &data);
 
@@ -152,7 +152,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the byte to.
     /// @param data Byte to write.
-    /// @throws DiskWriteException if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError if the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_byte(word address, byte data) override;
 
@@ -160,7 +160,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the half word to.
     /// @param data Half word to write.
-    /// @throws DiskWriteException if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError if the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_hword(word address, hword data) override;
 
@@ -168,7 +168,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the word to.
     /// @param data Word to write.
-    /// @throws DiskWriteException if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError if the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_word(word address, word data) override;
 
@@ -216,7 +216,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Address to read from.
     /// @param n_bytes Number of bytes to read.
-    /// @throws DiskReadException if read fails. TODO: Specify what
+    /// @throws ReadError if read fails. TODO: Specify what
     ///     exceptions can occur.
     /// @return value read.
     dword read_val(word address, int n_bytes);
@@ -232,7 +232,7 @@ class Disk : public BaseMemory
     /// @param address Address to write to.
     /// @param val Value to write.
     /// @param n_bytes Number of bytes to write.
-    /// @throws DiskWriteException if write fails. TODO: Specify what
+    /// @throws WriteError if write fails. TODO: Specify what
     ///     exceptions can occur.
     void write_val(word address, dword val, int n_bytes);
 
@@ -245,7 +245,7 @@ class Disk : public BaseMemory
     /// @param load Whether the contents of the page are read from the disk file. Not
     ///     needed when the whole page is about to be overwritten.
     /// @return Reference to the cache page.
-    /// @throws DiskReadException if the page is not on the disk.
+    /// @throws ReadError if the page is not on the disk.
     CachePage &get_cpage(word addr, bool load = true);
 
     /// Writes a cache page to disk.

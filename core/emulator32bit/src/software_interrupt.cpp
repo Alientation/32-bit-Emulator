@@ -31,8 +31,8 @@ word Emulator32bit::_emu_read_value(word mem_addr, U8 size, bool little_endian)
 {
     if (size == 0 || size > sizeof(word))
     {
-        throw Exception(InterruptType::PROGRAM_ERROR,
-                        "A value in memory is 1 to 4 bytes, not " + std::to_string(size));
+        throw Trap(TrapType::PROGRAM_ERROR,
+                   "A value in memory is 1 to 4 bytes, not " + std::to_string(size));
     }
 
     word val = 0;
@@ -48,8 +48,7 @@ U8 Emulator32bit::_emu_register_arg(word reg_id)
 {
     if (reg_id >= kNumReg)
     {
-        throw Exception(InterruptType::PROGRAM_ERROR,
-                        "There is no register " + std::to_string(reg_id));
+        throw Trap(TrapType::PROGRAM_ERROR, "There is no register " + std::to_string(reg_id));
     }
     return U8(reg_id);
 }
@@ -67,8 +66,8 @@ std::string Emulator32bit::_emu_read_string(word address)
         text += char(c);
     }
 
-    throw Exception(InterruptType::PROGRAM_ERROR,
-                    "The string at address " + std::to_string(address) + " is not terminated");
+    throw Trap(TrapType::PROGRAM_ERROR,
+               "The string at address " + std::to_string(address) + " is not terminated");
 }
 
 void Emulator32bit::_emu_print()
@@ -100,11 +99,11 @@ void Emulator32bit::_emu_assertr(U8 reg_id, word min_value, word max_value)
 
     if (val < min_value || val > max_value)
     {
-        throw Exception(InterruptType::FAILED_ASSERT,
-                        "Failed system call assertion. Expected register " + std::to_string(reg_id)
-                            + " to contain a value between " + std::to_string(min_value) + " and "
-                            + std::to_string(max_value) + " but it contains " + std::to_string(val)
-                            + ".");
+        throw Trap(TrapType::FAILED_ASSERT,
+                   "Failed system call assertion. Expected register " + std::to_string(reg_id)
+                       + " to contain a value between " + std::to_string(min_value) + " and "
+                       + std::to_string(max_value) + " but it contains " + std::to_string(val)
+                       + ".");
     }
 }
 
@@ -115,10 +114,10 @@ void Emulator32bit::_emu_assertm(word mem_addr, U8 size, bool little_endian, wor
 
     if (val < min_value || val > max_value)
     {
-        throw Exception(InterruptType::FAILED_ASSERT,
-                        "Expected value at memory address " + std::to_string(mem_addr)
-                            + " to be between " + std::to_string(min_value) + " and "
-                            + std::to_string(max_value) + ". Got " + std::to_string(val) + ".");
+        throw Trap(TrapType::FAILED_ASSERT,
+                   "Expected value at memory address " + std::to_string(mem_addr)
+                       + " to be between " + std::to_string(min_value) + " and "
+                       + std::to_string(max_value) + ". Got " + std::to_string(val) + ".");
     }
 }
 
@@ -128,11 +127,10 @@ void Emulator32bit::_emu_assertp(U8 p_state_id, bool expected_value)
 
     if (val != expected_value)
     {
-        throw Exception(InterruptType::FAILED_ASSERT,
-                        "Failed system call assertion. Expected PSTATE "
-                            + std::to_string(p_state_id) + " to be "
-                            + std::to_string(expected_value) + ". Got " + std::to_string(val)
-                            + ".");
+        throw Trap(TrapType::FAILED_ASSERT, "Failed system call assertion. Expected PSTATE "
+                                                + std::to_string(p_state_id) + " to be "
+                                                + std::to_string(expected_value) + ". Got "
+                                                + std::to_string(val) + ".");
     }
 }
 
@@ -145,7 +143,7 @@ void Emulator32bit::_emu_err(word err)
 {
     const std::string message = _emu_read_string(err);
     *m_err << message << "\n";
-    throw Exception(InterruptType::PROGRAM_ERROR, "The program reported an error: " + message);
+    throw Trap(TrapType::PROGRAM_ERROR, "The program reported an error: " + message);
 }
 
 /// `swi <imm22>`. With a vector table (VBAR != 0) it raises the supervisor
@@ -202,11 +200,11 @@ void Emulator32bit::_swi(word instr)
     }
     if (imm > kSwiSemihosting || !m_semihosting)
     {
-        throw Exception(InterruptType::BAD_INSTR,
-                        std::format("swi {} is not available ({})", imm,
-                                    m_semihosting ? "there is no vector table to take it"
-                                                  : "the emulator calls are off"),
-                        kUndefinedIss_unimplemented);
+        throw Trap(TrapType::BAD_INSTR,
+                   std::format("swi {} is not available ({})", imm,
+                               m_semihosting ? "there is no vector table to take it"
+                                             : "the emulator calls are off"),
+                   kUndefinedIss_unimplemented);
     }
 
     // software interrupts.. perfect to add functionality to this like console print,
@@ -249,6 +247,6 @@ void Emulator32bit::_swi(word instr)
         _emu_err(arg0);
         break;
     default:
-        throw Exception(InterruptType::PROGRAM_ERROR, "Invalid syscall number " + std::to_string(id));
+        throw Trap(TrapType::PROGRAM_ERROR, "Invalid syscall number " + std::to_string(id));
     }
 }

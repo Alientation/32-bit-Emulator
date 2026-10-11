@@ -31,13 +31,13 @@ class FreeBlockList
     FreeBlockList(const FreeBlockList &) = delete;
     FreeBlockList &operator=(const FreeBlockList &) = delete;
 
-    class FreeBlockListException : public std::exception
+    class Error : public std::exception
     {
       private:
         std::string message;
 
       public:
-        FreeBlockListException(const std::string &msg);
+        Error(const std::string &msg);
 
         const char *what() const noexcept override;
     };

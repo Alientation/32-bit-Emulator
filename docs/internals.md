@@ -178,7 +178,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     (`memory`, `memory_port.h`), the load/store unit that translates through the MMU and then
     accesses the bus: `memory.read_word (vaddr)`, `read<T>`/`write<T>`, `write_block`,
     `fetch_instruction`. A store of a program to the ROM is a bus error (`SystemBus::route_store`, a
-    `SystemBus::Exception`); the loader's physical sections and the host (`ROM::write_*`) can still
+    `SystemBus::BusError`); the loader's physical sections and the host (`ROM::write_*`) can still
     write the image. The bus owns the memories and the disk (`unique_ptr`; the `Emulator32bit` and
     `SystemBus` constructors take `std::unique_ptr`s, e.g. `std::make_unique<RAM> (...)`).
     `MockDisk` is a disk in memory (it keeps the pages written to it, and has no addresses), `Disk`
@@ -191,7 +191,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     vector; the vector versions wrap them). `PhysicalPages::direct_page ()` gives the bytes of a RAM
     page (null for anything else, which goes through a buffer), so a page is copied once between the
     RAM and the disk in each direction. The free frames are a `FrameAllocator` (`frame_allocator.h`,
-    a bitmap that hands out the lowest free page first and throws `FreeBlockListException` in the
+    a bitmap that hands out the lowest free page first and throws `Error` in the
     cases the free block list did, which the tests compare), and the paging functions take the
     `PageTableEntry`/`PhysicalPage` they already have instead of looking them up again (each lookup
     is a hash and a division). The information about the frames (`PhysicalPage`) is in chunks of 512
@@ -223,19 +223,19 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     ()`; a missing call is wrong in one direction (swapping entries still hit while the page tables
     are on). An access that is not allowed (unmapped, write to a read-only page, execute of a page
     that is not executable, kernel memory without kernel privilege) throws
-    `VirtualMemory::PageFaultException` with the reason, and `run` reports it as a fault. The
+    `VirtualMemory::PageFault` with the reason, and `run` reports it as a fault. The
     emulator calls are in `software_interrupt.cpp`: `swi 1` (and `swi` without a vector table) with
     the call number in x8 (the table is above `Emulator32bit::_swi`), and `Emulator32bit::set_output
     ()`/`set_error_output ()` choose where their output goes.
   - **Exceptions and privilege** (`docs/exceptions.md`): PSTATE has a mode bit (`U`, kernel = 0, the
     CPU starts in kernel mode) and an IRQ mask. Once `VBAR` (system register, `msr vbar, x0`) is not
     0, `run()` turns what stops an instruction into an exception instead of ending the run:
-    `deliver_exception` maps the C++ exceptions (`Emulator32bit::Exception` of type
-    `BAD_INSTR`/`BAD_REG`, `PageFaultException`, `SystemBus::Exception`) to undefined instruction /
+    `deliver_exception` maps the C++ exceptions (`Emulator32bit::Trap` of type
+    `BAD_INSTR`/`BAD_REG`, `PageFault`, `SystemBus::BusError`) to undefined instruction /
     instruction abort / data abort, `enter_exception` saves ELR/SPSR/ESR/FAR, goes to kernel mode
     (banked `sp`) and jumps to `VBAR + 16 * class`; `ERET` returns. `HALT_INSTR`, a failed assertion
     and a `FatalError` are never exceptions. With `VBAR == 0` nothing changes (the old fault path).
-    An `Exception` carries an ISS (`kUndefinedIss_*`) for the syndrome, so a new `throw Exception
+    A `Trap` carries an ISS (`kUndefinedIss_*`) for the syndrome, so a new `throw Trap
     (BAD_INSTR, ...)` should pass the right one. A handler that sets `m_pc` itself (a taken
     branch, `ERET`, `enter_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
     call `require_kernel ()`.
@@ -260,7 +260,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     two level table at `PTBR` (physical): entries `V W X U A D` + frame, `A`/`D` set by the walker,
     a visible 4096-entry TLB (`WalkEntry`) that only `tlbi`/`tlbi xn`, `PTBR` and `SCTLR` writes
     clear, user mode needs `U`, the kernel never fetches from a `U` page. Faults are the normal
-    `PageFaultException` → abort. `PhysicalPages` has `read_physical_word`/`write_physical_word` for
+    `PageFault` → abort. `PhysicalPages` has `read_physical_word`/`write_physical_word` for
     the walker; `MemoryPort::fetch_instruction` fetches with `EXECUTE` in this mode (through
     `VirtualMemory::translate_fetch`, whose remembered page is dropped exactly when the TLB entry
     is); `Emulator32bit::set_user_mode` tells the MMU the mode. With `SCTLR.M = 0` nothing changes.
@@ -277,7 +277,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     otherwise the access is only made if the instruction is the unaligned form
     (`MemOperand::unaligned`, from `decode_mem_operand (instr, has_unaligned_form)`; false for the byte
     handlers, where `adr` = `11` is an undefined instruction) and else `throw_misaligned` raises
-    `Exception` of type `MISALIGNED`, which `deliver_exception` turns into a data abort with ISS
+    `Trap` of type `MISALIGNED`, which `deliver_exception` turns into a data abort with ISS
     `kAbortIss_alignment` (and FAR from `data_address_of`) and `run()` reports as a fault. The word
     and half-word atomics (`_atomic_rmw`) check it too, with no unaligned form (the message says
     "atomic access"). `MemoryPort::read<T>`/`write<T>`, used by the host and the debugger, still

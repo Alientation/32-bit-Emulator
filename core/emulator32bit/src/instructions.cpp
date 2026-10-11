@@ -221,8 +221,8 @@ void Emulator32bit::_special_instructions(const word instr)
         _unary(instr);
         break;
     default:
-        throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
-                        "Bad OPSPEC specifier " + std::to_string(opspec), kUndefinedIss_ext_op);
+        throw Trap(Emulator32bit::TrapType::BAD_INSTR,
+                   "Bad OPSPEC specifier " + std::to_string(opspec), kUndefinedIss_ext_op);
     }
 }
 
@@ -230,14 +230,13 @@ void Emulator32bit::_hlt(const word instr)
 {
     UNUSED(instr);
     require_kernel();
-    throw Exception(InterruptType::HALT_INSTR, "HLT Exception");
+    throw Trap(TrapType::HALT_INSTR, "HLT Exception");
 }
 
 void Emulator32bit::_bad_opcode(const word instr)
 {
-    throw Exception(InterruptType::BAD_INSTR,
-                    "Bad opcode " + std::to_string(bitfield_unsigned<26, 6>(instr)),
-                    kUndefinedIss_opcode);
+    throw Trap(TrapType::BAD_INSTR, "Bad opcode " + std::to_string(bitfield_unsigned<26, 6>(instr)),
+               kUndefinedIss_opcode);
 }
 
 word Emulator32bit::asm_hlt()
@@ -391,7 +390,7 @@ void Emulator32bit::_wfi(const word instr)
     {
         return;
     }
-    throw Exception(InterruptType::HALT_INSTR, "WFI with no interrupt source");
+    throw Trap(TrapType::HALT_INSTR, "WFI with no interrupt source");
 }
 
 word Emulator32bit::asm_wfi()
@@ -406,17 +405,16 @@ void Emulator32bit::_brk(const word instr)
 
     if (m_brk_stops)
     {
-        throw Exception(InterruptType::BREAK_INSTR, std::format("brk {} at {:#010x}", imm, m_pc));
+        throw Trap(TrapType::BREAK_INSTR, std::format("brk {} at {:#010x}", imm, m_pc));
     }
     if (m_vbar != 0)
     {
         enter_exception(ExceptionClass::BREAKPOINT, imm, 0, m_pc);
         return;
     }
-    throw Exception(
-        InterruptType::PROGRAM_ERROR,
-        std::format("brk {} executed at {:#010x}, there is no vector table and no debugger", imm,
-                    m_pc));
+    throw Trap(TrapType::PROGRAM_ERROR,
+               std::format("brk {} executed at {:#010x}, there is no vector table and no debugger",
+                           imm, m_pc));
 }
 
 word Emulator32bit::asm_brk(const word imm22)
@@ -455,8 +453,8 @@ void Emulator32bit::_unary(const word instr)
         result = ((xn & 0x00FF00FF) << 8) | ((xn >> 8) & 0x00FF00FF);
         break;
     default:
-        throw Exception(InterruptType::BAD_INSTR, "Bad unary operation " + std::to_string(op),
-                        kUndefinedIss_ext_op);
+        throw Trap(TrapType::BAD_INSTR, "Bad unary operation " + std::to_string(op),
+                   kUndefinedIss_ext_op);
     }
     write_reg(_SX1(instr), result);
 }
@@ -519,8 +517,8 @@ word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const
         atomic ? ""
                : std::format(" (use {} for an unaligned access)",
                              size == 4 ? (write ? "stur" : "ldur") : (write ? "sturh" : "ldurh"));
-    throw Emulator32bit::Exception(
-        Emulator32bit::InterruptType::MISALIGNED,
+    throw Emulator32bit::Trap(
+        Emulator32bit::TrapType::MISALIGNED,
         std::format("Misaligned {} of {} bytes at address {:#010x}{}", kind, size, address, hint),
         Emulator32bit::kAbortIss_alignment | (write ? Emulator32bit::kAbortIss_write : 0));
 }
@@ -561,8 +559,8 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        throw Exception(InterruptType::BAD_INSTR, "Invalid atomic width " + std::to_string(width),
-                        kUndefinedIss_ext_op);
+        throw Trap(TrapType::BAD_INSTR, "Invalid atomic width " + std::to_string(width),
+                   kUndefinedIss_ext_op);
     }
 
     // The value in the source register is truncated to the
@@ -590,9 +588,9 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        throw Exception(InterruptType::BAD_INSTR,
-                        "Invalid atomic operation " + std::to_string(static_cast<int>(operation)),
-                        kUndefinedIss_ext_op);
+        throw Trap(TrapType::BAD_INSTR,
+                   "Invalid atomic operation " + std::to_string(static_cast<int>(operation)),
+                   kUndefinedIss_ext_op);
     }
 
     switch (width)
@@ -645,9 +643,8 @@ void Emulator32bit::_atomic(const word instr)
         _atomic_rmw(instr, AtomicOperation::LDSET);
         break;
     default:
-        throw Exception(Emulator32bit::InterruptType::BAD_INSTR,
-                        "Atomic op " + std::to_string(atop) + " unimplemented.",
-                        kUndefinedIss_ext_op);
+        throw Trap(Emulator32bit::TrapType::BAD_INSTR,
+                   "Atomic op " + std::to_string(atop) + " unimplemented.", kUndefinedIss_ext_op);
     }
 }
 
@@ -726,11 +723,10 @@ static void check_pair(const U8 reg)
 {
     if (reg > 28)
     {
-        throw Emulator32bit::Exception(
-            Emulator32bit::InterruptType::BAD_INSTR,
-            "A double is a register pair and cannot start in "
-                + std::string(register_name(reg)) + ".",
-            Emulator32bit::kUndefinedIss_fp_operand);
+        throw Emulator32bit::Trap(Emulator32bit::TrapType::BAD_INSTR,
+                                  "A double is a register pair and cannot start in "
+                                      + std::string(register_name(reg)) + ".",
+                                  Emulator32bit::kUndefinedIss_fp_operand);
     }
 }
 
@@ -755,10 +751,10 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
 
 [[noreturn]] static void bad_fp_function(const char *name, const U8 fn)
 {
-    throw Emulator32bit::Exception(Emulator32bit::InterruptType::BAD_INSTR,
-                                   std::string("Undefined ") + name + " function "
-                                       + std::to_string(fn) + ".",
-                                   Emulator32bit::kUndefinedIss_ext_op);
+    throw Emulator32bit::Trap(Emulator32bit::TrapType::BAD_INSTR,
+                              std::string("Undefined ") + name + " function " + std::to_string(fn)
+                                  + ".",
+                              Emulator32bit::kUndefinedIss_ext_op);
 }
 
 // The three handlers are large and rare, so they stay out of line and out of the dispatch switch.
@@ -928,8 +924,8 @@ Emulator32bit::decode_mem_operand(const word instr, const bool has_unaligned_for
         break;
     }
 
-    throw Exception(InterruptType::BAD_INSTR,
-                    "Bad memory address mode " + std::to_string(addr_mode), kUndefinedIss_ext_op);
+    throw Trap(TrapType::BAD_INSTR, "Bad memory address mode " + std::to_string(addr_mode),
+               kUndefinedIss_ext_op);
 }
 
 static_assert(encoding::_op_ldr < encoding::_op_strh && encoding::_op_strh - encoding::_op_ldr == 5,

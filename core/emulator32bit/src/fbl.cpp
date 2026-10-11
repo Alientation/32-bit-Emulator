@@ -31,12 +31,12 @@ FreeBlockList::~FreeBlockList()
     // DEBUG("Destroying Free Block List");
 }
 
-FreeBlockList::FreeBlockListException::FreeBlockListException(const std::string &msg) :
+FreeBlockList::Error::Error(const std::string &msg) :
     message(msg)
 {
 }
 
-const char *FreeBlockList::FreeBlockListException::what() const noexcept
+const char *FreeBlockList::Error::what() const noexcept
 {
     return message.c_str();
 }
@@ -47,8 +47,7 @@ word FreeBlockList::get_free_block(word length)
 
     if (!freeblock)
     {
-        throw FreeBlockListException("Not enough space to allocate free block "
-                                     + std::to_string(length));
+        throw Error("Not enough space to allocate free block " + std::to_string(length));
         return 0;
     }
 
@@ -76,8 +75,8 @@ void FreeBlockList::remove_block(word addr, word length)
 
     if (cur == nullptr || cur->addr > addr || cur->addr + cur->len < addr + length)
     {
-        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
-                                     + std::to_string(length) + ".");
+        throw Error("Invalid returned block " + std::to_string(addr) + " - "
+                    + std::to_string(length) + ".");
         return;
     }
 
@@ -146,8 +145,8 @@ void FreeBlockList::return_block(word addr, word length)
 {
     if (!in_range(addr, length))
     {
-        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
-                                     + std::to_string(length) + ".");
+        throw Error("Invalid returned block " + std::to_string(addr) + " - "
+                    + std::to_string(length) + ".");
         return;
     }
 
@@ -159,8 +158,8 @@ void FreeBlockList::return_block(word addr, word length)
     {
         // Undo state change so that the caller can cleanly handle the exception.
         remove(ret_block);
-        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
-                                     + std::to_string(length) + ".");
+        throw Error("Invalid returned block " + std::to_string(addr) + " - "
+                    + std::to_string(length) + ".");
     }
 
     coalesce(ret_block);
@@ -171,8 +170,8 @@ void FreeBlockList::force_return_block(word addr, word length)
 {
     if (!in_range(addr, length))
     {
-        throw FreeBlockListException("Invalid returned block " + std::to_string(addr) + " - "
-                                     + std::to_string(length) + ".");
+        throw Error("Invalid returned block " + std::to_string(addr) + " - "
+                    + std::to_string(length) + ".");
     }
     if (length == 0)
     {

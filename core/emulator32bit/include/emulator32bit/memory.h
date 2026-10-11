@@ -252,18 +252,18 @@ class ROM final : public Memory
     /// @param file the image
     /// @param npages the number of pages in the ROM
     /// @param start_page the page number of the first page
-    /// @throws ROM_Exception if the file is larger than the ROM
+    /// @throws ImageTooLarge if the file is larger than the ROM
     ROM(File file, word npages, word start_page);
     ~ROM() override;
 
     /// Thrown when the image does not fit in the ROM.
-    class ROM_Exception : public std::exception
+    class ImageTooLarge : public std::exception
     {
       private:
         std::string message;
 
       public:
-        ROM_Exception(std::string msg);
+        ImageTooLarge(std::string msg);
         const char *what() const noexcept override;
     };
 

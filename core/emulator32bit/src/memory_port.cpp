@@ -59,6 +59,6 @@ word MemoryPort::fetch_outside_ram(const word real_addr, const word address)
     // Code can also run from the ROM, which is where a machine boots from.
     if (m_rom->in_bounds(real_addr)) return m_rom->read_word_aligned(real_addr);
 
-    throw SystemBus::Exception("Instruction fetch outside of RAM and ROM at address "
-                               + std::to_string(address));
+    throw SystemBus::BusError("Instruction fetch outside of RAM and ROM at address "
+                              + std::to_string(address));
 }

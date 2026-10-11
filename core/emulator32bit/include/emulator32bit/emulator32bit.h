@@ -55,7 +55,7 @@ class Emulator32bit
     Emulator32bit &operator=(const Emulator32bit &) = delete;
 
     /// Why an instruction did not complete.
-    enum class InterruptType : U8
+    enum class TrapType : U8
     {
         /// A register that does not exist. Becomes an undefined instruction exception.
         BAD_REG,
@@ -100,7 +100,7 @@ class Emulator32bit
         return m_exception_depth;
     }
 
-    /// ISS of an undefined instruction exception (and of the Exception that causes it).
+    /// ISS of an undefined instruction exception (and of the Trap that causes it).
     /// An opcode that is not assigned.
     static constexpr word kUndefinedIss_opcode = 0;
     /// An extended op or encoding that is not assigned.
@@ -131,10 +131,10 @@ class Emulator32bit
     static constexpr word kAbortIss_write = 1 << 3;
 
     /// What stops an instruction from completing: a fault of the program, a `hlt` or a `brk`.
-    class Exception : public std::exception
+    class Trap : public std::exception
     {
       private:
-        InterruptType type;
+        TrapType type;
         std::string message;
         word iss;
 
@@ -146,11 +146,11 @@ class Emulator32bit
         /// @param type why the instruction did not complete
         /// @param msg the message that `what` returns
         /// @param iss the syndrome of the exception
-        Exception(InterruptType type, const std::string &msg, word iss = 0);
+        Trap(TrapType type, const std::string &msg, word iss = 0);
         const char *what() const noexcept override;
 
         /// @return why the instruction did not complete
-        InterruptType get_type() const noexcept;
+        TrapType get_type() const noexcept;
 
         /// @return the syndrome of the exception that this becomes
         word get_iss() const noexcept;
@@ -176,7 +176,7 @@ class Emulator32bit
 
         Status status;
         U64 instructions_ran;
-        std::string message; ///< Exception message, empty if the limit was reached.
+        std::string message; ///< Message of the trap or fault, empty if the limit was reached.
     };
 
     /// Exit code of the emulator CLI interface.
@@ -504,7 +504,7 @@ class Emulator32bit
     }
 
     /// The system registers the way the kernel sees them (kSysregId_*), without the checks that
-    /// MRS and MSR make of the mode. Throws Exception (BAD_REG) for a register that does not exist.
+    /// MRS and MSR make of the mode. Throws Trap (BAD_REG) for a register that does not exist.
     /// Writing PSTATE changes the mode (and which stack pointer is in use) like ERET does.
     ///
     /// @param id the number of the system register (kSysregId_*)

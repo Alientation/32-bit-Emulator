@@ -79,25 +79,24 @@ Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
 
 Emulator32bit::~Emulator32bit() = default;
 
-Emulator32bit::Exception::Exception(Emulator32bit::InterruptType type, const std::string &msg,
-                                    const word iss) :
+Emulator32bit::Trap::Trap(Emulator32bit::TrapType type, const std::string &msg, const word iss) :
     type(type),
     message(msg),
     iss(iss)
 {
 }
 
-word Emulator32bit::Exception::get_iss() const noexcept
+word Emulator32bit::Trap::get_iss() const noexcept
 {
     return iss;
 }
 
-const char *Emulator32bit::Exception::what() const noexcept
+const char *Emulator32bit::Trap::what() const noexcept
 {
     return message.c_str();
 }
 
-Emulator32bit::InterruptType Emulator32bit::Exception::get_type() const noexcept
+Emulator32bit::TrapType Emulator32bit::Trap::get_type() const noexcept
 {
     return type;
 }
@@ -151,8 +150,7 @@ word Emulator32bit::fetch_instruction()
 {
     if (UNLIKELY(m_pc & 0b11))
     {
-        throw Exception(InterruptType::MISALIGNED,
-                        "Misaligned program counter " + std::to_string(m_pc));
+        throw Trap(TrapType::MISALIGNED, "Misaligned program counter " + std::to_string(m_pc));
     }
     return memory.fetch_instruction(m_pc);
 }
@@ -298,9 +296,9 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             register_watch_hit();
         }
     }
-    catch (const Exception &e)
+    catch (const Trap &e)
     {
-        if (e.get_type() == InterruptType::HALT_INSTR)
+        if (e.get_type() == TrapType::HALT_INSTR)
         {
             AEMU_DEBUG("Halted after {} instructions.",
                        result.instructions_ran);
@@ -309,7 +307,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             // The hlt ran, if it was the first instruction of a handler that is not a double fault.
             m_just_took_exception = false;
         }
-        else if (e.get_type() == InterruptType::BREAK_INSTR)
+        else if (e.get_type() == TrapType::BREAK_INSTR)
         {
             // The brk completed, the debugger goes on with the next instruction.
             m_pc += 4;
@@ -323,25 +321,25 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             fault("Emulator exception", e.what());
         }
     }
-    catch (const SystemBus::Exception &e)
+    catch (const SystemBus::BusError &e)
     {
         fault("System bus exception", e.what());
     }
-    catch (const VirtualMemory::VirtualMemoryException &e)
+    catch (const VirtualMemory::Error &e)
     {
         // E.g. an access to an unmapped virtual page, or to memory that the page does not allow.
         fault("Virtual memory exception", e.what());
     }
-    catch (const FreeBlockList::FreeBlockListException &e)
+    catch (const FreeBlockList::Error &e)
     {
         // There are no more pages on the disk, or no more process numbers.
         fault("Out of resources", e.what());
     }
-    catch (const Disk::DiskReadException &e)
+    catch (const Disk::ReadError &e)
     {
         fault("Disk read error", e.what());
     }
-    catch (const Disk::DiskWriteException &e)
+    catch (const Disk::WriteError &e)
     {
         fault("Disk write error", e.what());
     }
@@ -728,10 +726,10 @@ void Emulator32bit::execute_traced(const word instr)
     {
         execute(instr);
     }
-    catch (const Exception &e)
+    catch (const Trap &e)
     {
-        *m_trace.out << line << " ; " << (e.get_type() == InterruptType::HALT_INSTR ? "halt" : e.what())
-                 << "\n";
+        *m_trace.out << line << " ; " << (e.get_type() == TrapType::HALT_INSTR ? "halt" : e.what())
+                     << "\n";
         throw;
     }
     catch (const std::exception &e)
@@ -833,9 +831,8 @@ word Emulator32bit::read_sysreg(const U8 id) const
     case kSysregId_fpsr:
         return m_fpsr;
     default:
-        throw Exception(InterruptType::BAD_REG,
-                        "System register " + std::to_string(id) + " unimplemented.",
-                        kUndefinedIss_sysreg);
+        throw Trap(TrapType::BAD_REG, "System register " + std::to_string(id) + " unimplemented.",
+                   kUndefinedIss_sysreg);
     }
 }
 
@@ -882,9 +879,8 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         m_fpsr = value & fpu::kFpsrMask;
         break;
     default:
-        throw Exception(InterruptType::BAD_REG,
-                        "System register " + std::to_string(id) + " unimplemented.",
-                        kUndefinedIss_sysreg);
+        throw Trap(TrapType::BAD_REG, "System register " + std::to_string(id) + " unimplemented.",
+                   kUndefinedIss_sysreg);
     }
 }
 
@@ -912,8 +908,8 @@ void Emulator32bit::require_kernel()
 {
     if (UNLIKELY(user_mode()))
     {
-        throw Exception(InterruptType::BAD_INSTR, "Privileged instruction in user mode.",
-                        kUndefinedIss_privileged);
+        throw Trap(TrapType::BAD_INSTR, "Privileged instruction in user mode.",
+                   kUndefinedIss_privileged);
     }
 }
 
@@ -922,10 +918,10 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
 {
     if (m_just_took_exception)
     {
-        throw Exception(InterruptType::DOUBLE_FAULT,
-                        std::format("Double fault: {} raised at {:#010x} before any instruction of "
-                                    "the handler ran",
-                                    exception_class_name(cls), m_pc));
+        throw Trap(TrapType::DOUBLE_FAULT,
+                   std::format("Double fault: {} raised at {:#010x} before any instruction of "
+                               "the handler ran",
+                               exception_class_name(cls), m_pc));
     }
     m_just_took_exception = true;
 
@@ -961,9 +957,9 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
         return false;
     }
 
-    if (const auto *emu = dynamic_cast<const Exception *>(&error))
+    if (const auto *emu = dynamic_cast<const Trap *>(&error))
     {
-        if (emu->get_type() == InterruptType::MISALIGNED)
+        if (emu->get_type() == TrapType::MISALIGNED)
         {
             // A pc that is not aligned, or a load or a store at such an address.
             if (fetching)
@@ -978,8 +974,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
             return true;
         }
 
-        if (emu->get_type() != InterruptType::BAD_INSTR
-            && emu->get_type() != InterruptType::BAD_REG)
+        if (emu->get_type() != TrapType::BAD_INSTR && emu->get_type() != TrapType::BAD_REG)
         {
             return false; // halt, a failed assertion, brk with a debugger, a double fault
         }
@@ -991,9 +986,9 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
     const ExceptionClass abort_class =
         fetching ? ExceptionClass::INSTRUCTION_ABORT : ExceptionClass::DATA_ABORT;
 
-    if (const auto *fault = dynamic_cast<const VirtualMemory::PageFaultException *>(&error))
+    if (const auto *fault = dynamic_cast<const VirtualMemory::PageFault *>(&error))
     {
-        using Reason = VirtualMemory::PageFaultException::Reason;
+        using Reason = VirtualMemory::PageFault::Reason;
         word iss =
             fault->get_reason() == Reason::UNMAPPED ? kAbortIss_translation : kAbortIss_permission;
         if (!fetching && fault->get_access() == VirtualMemory::AccessType::WRITE)
@@ -1014,7 +1009,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
         return true;
     }
 
-    if (dynamic_cast<const SystemBus::Exception *>(&error) != nullptr)
+    if (dynamic_cast<const SystemBus::BusError *>(&error) != nullptr)
     {
         enter_exception(abort_class, kAbortIss_bus, fetching ? m_pc : data_address_of(instr), m_pc);
         return true;

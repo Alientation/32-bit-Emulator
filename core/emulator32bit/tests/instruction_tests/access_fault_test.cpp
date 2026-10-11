@@ -130,7 +130,7 @@ TEST_F(AccessFault, a_store_across_a_page_boundary_that_faults_stores_nothing)
     cpu.memory.write_byte(address, 0x11);
     cpu.memory.write_byte(address + 1, 0x22);
 
-    EXPECT_THROW(cpu.memory.write_word(address, 0xAABBCCDD), VirtualMemory::PageFaultException);
+    EXPECT_THROW(cpu.memory.write_word(address, 0xAABBCCDD), VirtualMemory::PageFault);
     EXPECT_EQ(cpu.memory.read_byte(address), 0x11);
     EXPECT_EQ(cpu.memory.read_byte(address + 1), 0x22);
 }

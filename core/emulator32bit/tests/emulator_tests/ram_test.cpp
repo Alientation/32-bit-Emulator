@@ -121,6 +121,6 @@ TEST(rom, an_image_larger_than_the_rom_is_an_error)
         std::ofstream image(path, std::ios::binary);
         image << std::string(kPageSize + 1, 'x');
     }
-    EXPECT_THROW(ROM(File(path), 1, 0), ROM::ROM_Exception);
+    EXPECT_THROW(ROM(File(path), 1, 0), ROM::ImageTooLarge);
     std::filesystem::remove_all(dir);
 }

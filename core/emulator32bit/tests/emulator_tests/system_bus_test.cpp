@@ -72,8 +72,8 @@ TEST(system_bus, an_address_goes_to_the_memory_or_device_that_has_it)
 TEST(system_bus, an_address_with_nothing_behind_it_is_an_error)
 {
     auto bus = make_bus();
-    EXPECT_THROW(bus->route_memory(vaddr(4)), SystemBus::Exception);
-    EXPECT_THROW(bus->route_memory(0xFFFFFFFF), SystemBus::Exception);
+    EXPECT_THROW(bus->route_memory(vaddr(4)), SystemBus::BusError);
+    EXPECT_THROW(bus->route_memory(0xFFFFFFFF), SystemBus::BusError);
 }
 
 TEST(system_bus, a_device_is_not_storage)
@@ -103,7 +103,7 @@ TEST(system_bus, a_block_that_runs_into_nothing_is_an_error)
 {
     auto bus = make_bus();
     const std::vector<byte> data = pattern(100);
-    EXPECT_THROW(bus->write_block(vaddr(4) - 10, data.data(), data.size()), SystemBus::Exception);
+    EXPECT_THROW(bus->write_block(vaddr(4) - 10, data.data(), data.size()), SystemBus::BusError);
 }
 
 TEST(system_bus, the_page_table_walker_reads_storage_and_not_devices)
@@ -144,7 +144,7 @@ TEST(system_bus, pages_are_copied_to_and_from_the_memory_that_has_them)
     std::vector<byte> back(kPageSize);
     bus->read_page(2, back.data());
     EXPECT_EQ(back, data);
-    EXPECT_THROW(bus->read_page(5, back.data()), SystemBus::Exception) << "no memory there";
+    EXPECT_THROW(bus->read_page(5, back.data()), SystemBus::BusError) << "no memory there";
 }
 
 TEST(system_bus, only_the_ram_has_pages_that_can_be_copied_directly)
@@ -228,7 +228,7 @@ TEST_F(MemoryPortTest, a_store_into_a_page_that_cannot_be_written_changes_nothin
     cpu.mmu->set_vpage_permissions(pid, 11, 11, false, false);
 
     EXPECT_THROW(cpu.memory.write_word(vaddr(10, kPageSize - 2), 0x11223344),
-                 VirtualMemory::PageFaultException);
+                 VirtualMemory::PageFault);
     EXPECT_EQ(physical(3, kPageSize - 2), 0) << "the part in the page that can be written either";
     EXPECT_EQ(physical(3, kPageSize - 1), 0);
 }
@@ -254,7 +254,7 @@ TEST_F(MemoryPortTest, a_block_stops_at_a_page_that_cannot_be_written)
     const std::vector<byte> data = pattern(600);
 
     EXPECT_THROW(cpu.memory.write_block(vaddr(10, kPageSize - 256), data.data(), data.size()),
-                 VirtualMemory::PageFaultException);
+                 VirtualMemory::PageFault);
     EXPECT_EQ(physical(3, kPageSize - 256), data[0]) << "the page before it was written";
     EXPECT_EQ(physical(7, 0), 0);
 }
@@ -269,9 +269,9 @@ TEST(system_bus, a_store_by_a_program_cannot_reach_the_rom_but_the_host_can_writ
 {
     auto bus = make_bus();
     EXPECT_EQ(&bus->route_store(vaddr(1)), bus->ram.get());
-    EXPECT_THROW(bus->route_store(vaddr(8)), SystemBus::Exception);
-    EXPECT_THROW(bus->route_store(vaddr(9, 0xFFF)), SystemBus::Exception);
-    EXPECT_THROW(bus->route_store(vaddr(4)), SystemBus::Exception) << "no memory there either";
+    EXPECT_THROW(bus->route_store(vaddr(8)), SystemBus::BusError);
+    EXPECT_THROW(bus->route_store(vaddr(9, 0xFFF)), SystemBus::BusError);
+    EXPECT_THROW(bus->route_store(vaddr(4)), SystemBus::BusError) << "no memory there either";
 
     const std::vector<byte> data = pattern(16);
     bus->write_block(vaddr(8, 4), data.data(), data.size());
@@ -284,15 +284,15 @@ TEST_F(MemoryPortTest, a_store_into_the_rom_changes_nothing)
     constexpr word kRom = 16 * kPageSize;
     cpu.system_bus->rom->write_word(kRom, 0x600DF00D);
 
-    EXPECT_THROW(cpu.memory.write_word(kRom, 1), SystemBus::Exception);
-    EXPECT_THROW(cpu.memory.write_byte(kRom + 1, 1), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.write_word(kRom, 1), SystemBus::BusError);
+    EXPECT_THROW(cpu.memory.write_byte(kRom + 1, 1), SystemBus::BusError);
     EXPECT_EQ(cpu.system_bus->rom->read_word(kRom), 0x600DF00Du);
 
-    EXPECT_THROW(cpu.memory.write_word(kRom - 2, 0x11223344), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.write_word(kRom - 2, 0x11223344), SystemBus::BusError);
     EXPECT_EQ(cpu.system_bus->ram->read_hword(kRom - 2), 0u) << "the part in the RAM either";
 
     const std::vector<byte> data = pattern(8);
-    EXPECT_THROW(cpu.memory.write_block(kRom, data.data(), data.size()), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.write_block(kRom, data.data(), data.size()), SystemBus::BusError);
     EXPECT_EQ(cpu.memory.read_word(kRom), 0x600DF00Du) << "and it can be read";
 }
 
@@ -302,5 +302,5 @@ TEST_F(MemoryPortTest, instructions_can_be_fetched_from_the_rom_and_not_from_whe
     cpu.system_bus->rom->write_word(vaddr(16, 4), 0x12345678);
     EXPECT_EQ(cpu.memory.fetch_instruction(vaddr(16, 4)), 0x12345678u);
 
-    EXPECT_THROW(cpu.memory.fetch_instruction(0x7FFF0000), SystemBus::Exception);
+    EXPECT_THROW(cpu.memory.fetch_instruction(0x7FFF0000), SystemBus::BusError);
 }

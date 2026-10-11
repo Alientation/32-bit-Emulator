@@ -9,7 +9,7 @@
 namespace
 {
 
-using Fault = VirtualMemory::PageFaultException;
+using Fault = VirtualMemory::PageFault;
 using Access = VirtualMemory::AccessType;
 
 word vaddr(word vpage, word offset = 0)
@@ -226,7 +226,7 @@ TEST(virtual_memory, unmapped_vpage_access_throws)
     Machine m;
     m.vm.begin_process();
 
-    EXPECT_THROW(m.vm.translate_address(vaddr(9)), VirtualMemory::VirtualMemoryException);
+    EXPECT_THROW(m.vm.translate_address(vaddr(9)), VirtualMemory::Error);
 }
 
 TEST(virtual_memory, an_unmapped_access_is_a_page_fault_that_says_so)
@@ -458,7 +458,7 @@ TEST(virtual_memory, running_out_of_pages_that_can_be_swapped_is_an_error_and_no
 
     const word only = ppage_of(m.vm, 10);
     m.vm.set_ppage_permissions(only, only, false, false);
-    EXPECT_THROW(ppage_of(m.vm, 11), VirtualMemory::VirtualMemoryException);
+    EXPECT_THROW(ppage_of(m.vm, 11), VirtualMemory::Error);
 }
 
 TEST(virtual_memory, a_page_keeps_its_contents_when_it_is_swapped_out_and_in)
@@ -522,7 +522,7 @@ TEST(virtual_memory, a_page_on_disk_is_not_mapped_to_page_0_by_accident)
     const long long pid = m.vm.begin_process();
     m.vm.add_vpage(pid, 5, 1, true, false); // not in memory, so it has no physical page
 
-    EXPECT_THROW(m.vm.ensure_physical_page_mapping(pid, 5, 0), VirtualMemory::VPageRemapException);
+    EXPECT_THROW(m.vm.ensure_physical_page_mapping(pid, 5, 0), VirtualMemory::VPageAlreadyMapped);
 }
 
 TEST(virtual_memory, permissions_can_be_set_up_to_the_last_page)
@@ -535,8 +535,7 @@ TEST(virtual_memory, permissions_can_be_set_up_to_the_last_page)
     EXPECT_TRUE(m.vm.has_vpage(pid, 0xFFFFF));
     m.vm.set_ppage_permissions(0xFFFFE, 0xFFFFF, true, false);
     EXPECT_NO_THROW(m.vm.add_vpage(pid, 0xFFFFD, 0, true, false)) << "no pages is nothing to add";
-    EXPECT_THROW(m.vm.add_vpage(pid, 0xFFFFF, 2, true, false),
-                 VirtualMemory::InvalidVPageException);
+    EXPECT_THROW(m.vm.add_vpage(pid, 0xFFFFF, 2, true, false), VirtualMemory::InvalidVPage);
 }
 
 TEST(virtual_memory, a_virtual_memory_is_cheap_to_create)

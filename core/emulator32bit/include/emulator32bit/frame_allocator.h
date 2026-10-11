@@ -59,12 +59,12 @@ class FrameAllocator
     /// Takes the lowest free page.
     ///
     /// @return the page, which is not free anymore
-    /// @throws FreeBlockList::FreeBlockListException if there is none.
+    /// @throws FreeBlockList::Error if there is none.
     word allocate()
     {
         if (m_free == 0)
         {
-            throw FreeBlockList::FreeBlockListException("Not enough space to allocate free block 1");
+            throw FreeBlockList::Error("Not enough space to allocate free block 1");
         }
         // The pages before m_hint are known not to be free.
         for (std::size_t w = m_hint; w < m_bits.size(); w++)
@@ -78,19 +78,18 @@ class FrameAllocator
                 return m_first + word(w * 64 + bit);
             }
         }
-        throw FreeBlockList::FreeBlockListException("Not enough space to allocate free block 1");
+        throw FreeBlockList::Error("Not enough space to allocate free block 1");
     }
 
     /// Takes a page that is free, to give it to something else.
     ///
     /// @param page the page to take
-    /// @throws FreeBlockList::FreeBlockListException if it is not free.
+    /// @throws FreeBlockList::Error if it is not free.
     void take(word page)
     {
         if (!is_free(page))
         {
-            throw FreeBlockList::FreeBlockListException("Invalid returned block "
-                                                        + std::to_string(page) + " - 1.");
+            throw FreeBlockList::Error("Invalid returned block " + std::to_string(page) + " - 1.");
         }
         m_bits[index(page) / 64] &= ~(U64(1) << (index(page) % 64));
         m_free--;
@@ -99,13 +98,12 @@ class FrameAllocator
     /// Makes a page free again.
     ///
     /// @param page the page to give back
-    /// @throws FreeBlockList::FreeBlockListException if it is not a frame or is free already.
+    /// @throws FreeBlockList::Error if it is not a frame or is free already.
     void release(word page)
     {
         if (!in_range(page) || is_free(page))
         {
-            throw FreeBlockList::FreeBlockListException("Invalid returned block "
-                                                        + std::to_string(page) + " - 1.");
+            throw FreeBlockList::Error("Invalid returned block " + std::to_string(page) + " - 1.");
         }
         m_bits[index(page) / 64] |= U64(1) << (index(page) % 64);
         m_free++;

@@ -226,15 +226,15 @@ VirtualMemory::PhysicalPage &VirtualMemory::clock_victim()
         }
     }
 
-    throw VirtualMemoryException("Out of physical memory, there is no page that can be swapped.");
+    throw Error("Out of physical memory, there is no page that can be swapped.");
 }
 
-VirtualMemory::VirtualMemoryException::VirtualMemoryException(const std::string &msg) :
+VirtualMemory::Error::Error(const std::string &msg) :
     message(msg)
 {
 }
 
-const char *VirtualMemory::VirtualMemoryException::what() const noexcept
+const char *VirtualMemory::Error::what() const noexcept
 {
     return message.c_str();
 }
@@ -256,10 +256,10 @@ const char *access_name(VirtualMemory::AccessType access)
     return "Access";
 }
 
-std::string fault_message(VirtualMemory::PageFaultException::Reason reason, word vpage,
+std::string fault_message(VirtualMemory::PageFault::Reason reason, word vpage,
                           VirtualMemory::AccessType access)
 {
-    using Reason = VirtualMemory::PageFaultException::Reason;
+    using Reason = VirtualMemory::PageFault::Reason;
     const std::string page = " virtual page " + std::to_string(vpage);
     switch (reason)
     {
@@ -278,80 +278,77 @@ std::string fault_message(VirtualMemory::PageFaultException::Reason reason, word
 
 } // namespace
 
-VirtualMemory::PageFaultException::PageFaultException(Reason reason, word vpage,
-                                                      AccessType access) :
-    VirtualMemoryException(fault_message(reason, vpage, access)),
+VirtualMemory::PageFault::PageFault(Reason reason, word vpage, AccessType access) :
+    Error(fault_message(reason, vpage, access)),
     reason(reason),
     vpage(vpage),
     access(access)
 {
 }
 
-VirtualMemory::PageFaultException::Reason
-VirtualMemory::PageFaultException::get_reason() const noexcept
+VirtualMemory::PageFault::Reason VirtualMemory::PageFault::get_reason() const noexcept
 {
     return reason;
 }
 
-word VirtualMemory::PageFaultException::get_vpage() const noexcept
+word VirtualMemory::PageFault::get_vpage() const noexcept
 {
     return vpage;
 }
 
-VirtualMemory::AccessType VirtualMemory::PageFaultException::get_access() const noexcept
+VirtualMemory::AccessType VirtualMemory::PageFault::get_access() const noexcept
 {
     return access;
 }
 
-void VirtualMemory::throw_fault(PageFaultException::Reason reason, word vpage, AccessType access)
+void VirtualMemory::throw_fault(PageFault::Reason reason, word vpage, AccessType access)
 {
-    throw PageFaultException(reason, vpage, access);
+    throw PageFault(reason, vpage, access);
 }
 
-VirtualMemory::InvalidPIDException::InvalidPIDException(const std::string &msg,
-                                                        long long invalid_pid) :
-    VirtualMemoryException(msg),
+VirtualMemory::InvalidPid::InvalidPid(const std::string &msg, long long invalid_pid) :
+    Error(msg),
     invalid_pid(invalid_pid)
 {
 }
 
-long long VirtualMemory::InvalidPIDException::get_invalid_pid() const noexcept
+long long VirtualMemory::InvalidPid::get_invalid_pid() const noexcept
 {
     return invalid_pid;
 }
 
-VirtualMemory::VPageRemapException::VPageRemapException(const std::string &msg, word vpage,
-                                                        word already_mapped_ppage,
-                                                        word attempted_mapped_ppage) :
-    VirtualMemoryException(msg),
+VirtualMemory::VPageAlreadyMapped::VPageAlreadyMapped(const std::string &msg, word vpage,
+                                                      word already_mapped_ppage,
+                                                      word attempted_mapped_ppage) :
+    Error(msg),
     vpage(vpage),
     already_mapped_ppage(already_mapped_ppage),
     attempted_mapped_ppage(attempted_mapped_ppage)
 {
 }
 
-word VirtualMemory::VPageRemapException::get_vpage() const noexcept
+word VirtualMemory::VPageAlreadyMapped::get_vpage() const noexcept
 {
     return vpage;
 }
 
-word VirtualMemory::VPageRemapException::get_already_mapped_ppage() const noexcept
+word VirtualMemory::VPageAlreadyMapped::get_already_mapped_ppage() const noexcept
 {
     return already_mapped_ppage;
 }
 
-word VirtualMemory::VPageRemapException::get_attempted_mapped_ppage() const noexcept
+word VirtualMemory::VPageAlreadyMapped::get_attempted_mapped_ppage() const noexcept
 {
     return attempted_mapped_ppage;
 }
 
-VirtualMemory::InvalidVPageException::InvalidVPageException(const std::string &msg, word vpage) :
-    VirtualMemoryException(msg),
+VirtualMemory::InvalidVPage::InvalidVPage(const std::string &msg, word vpage) :
+    Error(msg),
     vpage(vpage)
 {
 }
 
-word VirtualMemory::InvalidVPageException::get_vpage() const noexcept
+word VirtualMemory::InvalidVPage::get_vpage() const noexcept
 {
     return vpage;
 }
@@ -374,9 +371,9 @@ void VirtualMemory::set_process(long long pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
-        throw InvalidPIDException("Cannot set memory map of process " + std::to_string(pid)
-                                      + " because it doesn't exist.",
-                                  pid);
+        throw InvalidPid("Cannot set memory map of process " + std::to_string(pid)
+                             + " because it doesn't exist.",
+                         pid);
     }
 
     m_cur_ptable = m_process_ptable_map.at(pid);
@@ -389,8 +386,7 @@ long long VirtualMemory::begin_process(bool kernel_privilege)
 {
     if (!m_freepids.can_fit(1))
     {
-        throw VirtualMemoryException(
-            "Reached the MAX_PROCESSES limit. Cannot create a new process.");
+        throw Error("Reached the MAX_PROCESSES limit. Cannot create a new process.");
     }
 
     word pid = m_freepids.get_free_block(1);
@@ -413,10 +409,10 @@ void VirtualMemory::end_process(long long pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
-        throw InvalidPIDException("Cannot end process " + std::to_string(pid)
-                                      + " since it does "
-                                        "not exist.",
-                                  pid);
+        throw InvalidPid("Cannot end process " + std::to_string(pid)
+                             + " since it does "
+                               "not exist.",
+                         pid);
     }
 
     // Store into a temporary array because when vpage entry is removed, it will also be removed
@@ -494,7 +490,7 @@ void VirtualMemory::set_vpage_permissions(long long pid, word vpage_begin, word 
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException("Cannot set vpage permissions since pid is invalid.", pid);
+        throw InvalidPid("Cannot set vpage permissions since pid is invalid.", pid);
     }
 
     if (vpage_begin > vpage_end)
@@ -531,7 +527,7 @@ bool VirtualMemory::has_vpage(long long pid, word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException("Cannot check virtual page because pid is invalid.", pid);
+        throw InvalidPid("Cannot check virtual page because pid is invalid.", pid);
     }
 
     const PageTable *ptable = m_process_ptable_map.at(pid);
@@ -542,7 +538,7 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException("Cannot add virtual pages because pid is invalid.", pid);
+        throw InvalidPid("Cannot add virtual pages because pid is invalid.", pid);
     }
 
     if (length == 0)
@@ -551,10 +547,10 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
     }
     if (U64(vpage) + length > (U64(1) << (8 * sizeof(word) - kNumPageOffsetBits)))
     {
-        throw InvalidVPageException(
-            "Cannot add " + std::to_string(length) + " virtual pages from virtual page "
-                + std::to_string(vpage) + ", they are not all in the address space.",
-            vpage);
+        throw InvalidVPage("Cannot add " + std::to_string(length)
+                               + " virtual pages from virtual page " + std::to_string(vpage)
+                               + ", they are not all in the address space.",
+                           vpage);
     }
 
     AEMU_DEBUG("Adding vpages from {} to {}.", vpage, vpage + length - 1);
@@ -565,10 +561,10 @@ void VirtualMemory::add_vpage(long long pid, word vpage, word length, bool write
     {
         if (ptable->entries.find(vpage) != ptable->entries.end())
         {
-            throw InvalidVPageException("Cannot add virtual page " + std::to_string(vpage)
-                                            + " because it is already mapped to process "
-                                            + std::to_string(pid),
-                                        vpage);
+            throw InvalidVPage("Cannot add virtual page " + std::to_string(vpage)
+                                   + " because it is already mapped to process "
+                                   + std::to_string(pid),
+                               vpage);
         }
 
         ptable->entries.insert(std::make_pair(
@@ -587,14 +583,13 @@ void VirtualMemory::map_ppage(long long pid, word vpage, word ppage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException(
-            "Cannot map virtual page to physical page because pid is invalid.", pid);
+        throw InvalidPid("Cannot map virtual page to physical page because pid is invalid.", pid);
     }
 
     PageTable *ptable = m_process_ptable_map.at(pid);
     if (ptable->entries.find(vpage) != ptable->entries.end())
     {
-        throw InvalidVPageException(
+        throw InvalidVPage(
             "Cannot map virtual page to physical page because virtual page has already been added.",
             vpage);
     }
@@ -622,15 +617,15 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException("Cannot remove virtual page because pid is invalid.", pid);
+        throw InvalidPid("Cannot remove virtual page because pid is invalid.", pid);
     }
 
     PageTable *ptable = m_process_ptable_map.at(pid);
 
     if (ptable->entries.find(vpage) == ptable->entries.end())
     {
-        throw InvalidVPageException(
-            "Cannot remove virtual page because it is not mapped to process.", vpage);
+        throw InvalidVPage("Cannot remove virtual page because it is not mapped to process.",
+                           vpage);
     }
 
     PageTableEntry *entry = ptable->entries.at(vpage);
@@ -706,8 +701,8 @@ void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
 
     if (evicted_ppage.mapped_vpages.empty())
     {
-        throw VirtualMemoryException("Cannot evict physical page " + std::to_string(ppage)
-                                     + " because no virtual page is mapped to it.");
+        throw Error("Cannot evict physical page " + std::to_string(ppage)
+                    + " because no virtual page is mapped to it.");
     }
 
     // Every virtual page that maps to the physical page shares one disk page. The page is saved
@@ -780,7 +775,7 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
 
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
-        throw InvalidPIDException("Invalid Process ID " + std::to_string(pid), pid);
+        throw InvalidPid("Invalid Process ID " + std::to_string(pid), pid);
     }
 
     PageTable *ptable = m_process_ptable_map.at(pid);
@@ -801,12 +796,12 @@ void VirtualMemory::ensure_physical_page_mapping(long long pid, word vpage, word
         }
 
         const word mapped_to = entry->mapped ? entry->mapped_ppage : entry->ppage;
-        throw VPageRemapException("Virtual page " + std::to_string(vpage)
-                                      + " is already "
-                                        "mapped to a different physical page "
-                                      + std::to_string(mapped_to) + " of process "
-                                      + std::to_string(pid),
-                                  vpage, mapped_to, ppage);
+        throw VPageAlreadyMapped("Virtual page " + std::to_string(vpage)
+                                     + " is already "
+                                       "mapped to a different physical page "
+                                     + std::to_string(mapped_to) + " of process "
+                                     + std::to_string(pid),
+                                 vpage, mapped_to, ppage);
     }
 
     AEMU_DEBUG("Mapping physical page {} to virtual page {}.", ppage, vpage);
@@ -819,13 +814,13 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
     const auto it = ptable->entries.find(vpage);
     if (UNLIKELY(it == ptable->entries.end()))
     {
-        throw_fault(PageFaultException::Reason::UNMAPPED, vpage, access);
+        throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }
     PageTableEntry *entry = it->second;
 
     if (UNLIKELY(access == AccessType::WRITE && !entry->write))
     {
-        throw_fault(PageFaultException::Reason::WRITE_DENIED, vpage, access);
+        throw_fault(PageFault::Reason::WRITE_DENIED, vpage, access);
     }
 
     // * Likely that the virtual page being accessed has not been evicted to the disk.
@@ -872,7 +867,7 @@ word VirtualMemory::access_vpage_slow(PageTable *ptable, word vpage, AccessType 
     PhysicalPage &page = page_in != nullptr ? *page_in : physical_page(entry->ppage);
     if (UNLIKELY(page.kernel_locked && !ptable->kernel_privilege))
     {
-        throw_fault(PageFaultException::Reason::KERNEL_ONLY, vpage, access);
+        throw_fault(PageFault::Reason::KERNEL_ONLY, vpage, access);
     }
 
     // Update the TLB with the result of the translation of virtual page to physical page.
@@ -984,7 +979,7 @@ word VirtualMemory::translate_fetch_slow(const word address)
         translate_address(address, m_walk ? AccessType::EXECUTE : AccessType::READ);
     if (UNLIKELY(!m_walk && !can_execute_address(address)))
     {
-        throw_fault(PageFaultException::Reason::EXECUTE_DENIED, vpage, AccessType::EXECUTE);
+        throw_fault(PageFault::Reason::EXECUTE_DENIED, vpage, AccessType::EXECUTE);
     }
 
     // Only now: the translation can have dropped it (the walk fills the TLB, a page that is
@@ -997,14 +992,13 @@ word VirtualMemory::translate_fetch_slow(const word address)
 word VirtualMemory::walk_translate(const word address, const AccessType access)
 {
     const word vpage = address >> kNumPageOffsetBits;
-    const auto fault = [&](const PageFaultException::Reason reason)
-    { throw_fault(reason, vpage, access); };
+    const auto fault = [&](const PageFault::Reason reason) { throw_fault(reason, vpage, access); };
 
     word first = 0;
     if (!m_physical->read_physical_word(m_ptbr + ((address >> 22) << 2), first)
         || !(first & kPteValid))
     {
-        fault(PageFaultException::Reason::UNMAPPED);
+        fault(PageFault::Reason::UNMAPPED);
     }
 
     const word entry_address =
@@ -1012,28 +1006,28 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
     word entry = 0;
     if (!m_physical->read_physical_word(entry_address, entry) || !(entry & kPteValid))
     {
-        fault(PageFaultException::Reason::UNMAPPED);
+        fault(PageFault::Reason::UNMAPPED);
     }
 
     if (m_user && !(entry & kPteUser))
     {
-        fault(PageFaultException::Reason::KERNEL_ONLY);
+        fault(PageFault::Reason::KERNEL_ONLY);
     }
     if (access == AccessType::WRITE && !(entry & kPteWrite))
     {
-        fault(PageFaultException::Reason::WRITE_DENIED);
+        fault(PageFault::Reason::WRITE_DENIED);
     }
     // The kernel does not run code that a user process can write.
     if (access == AccessType::EXECUTE
         && (!(entry & kPteExecute) || (!m_user && (entry & kPteUser))))
     {
-        fault(PageFaultException::Reason::EXECUTE_DENIED);
+        fault(PageFault::Reason::EXECUTE_DENIED);
     }
 
     const word marked = entry | kPteAccessed | (access == AccessType::WRITE ? kPteDirty : 0);
     if (marked != entry && !m_physical->write_physical_word(entry_address, marked))
     {
-        fault(PageFaultException::Reason::UNMAPPED);
+        fault(PageFault::Reason::UNMAPPED);
     }
 
     // The slot may have held the entry of the page that is fetched from. The visible TLB keeps a

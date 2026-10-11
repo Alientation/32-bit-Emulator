@@ -125,22 +125,22 @@ void Disk::read_disk_manager_file()
 
 Disk::~Disk() = default;
 
-Disk::DiskReadException::DiskReadException(const std::string &msg) :
+Disk::ReadError::ReadError(const std::string &msg) :
     message(msg)
 {
 }
 
-const char *Disk::DiskReadException::what() const noexcept
+const char *Disk::ReadError::what() const noexcept
 {
     return message.c_str();
 }
 
-Disk::DiskWriteException::DiskWriteException(const std::string &msg) :
+Disk::WriteError::WriteError(const std::string &msg) :
     message(msg)
 {
 }
 
-const char *Disk::DiskWriteException::what() const noexcept
+const char *Disk::WriteError::what() const noexcept
 {
     return message.c_str();
 }
@@ -233,10 +233,10 @@ void Disk::write_page(word page, const std::vector<byte> &data)
     if (data.size() != kPageSize)
     {
         // We expect to write a full page to disk.
-        throw DiskWriteException("Tried to write to disk an invalid number of bytes. "
-                                 "Expected "
-                                 + std::to_string(kPageSize) + " bytes. Got "
-                                 + std::to_string(data.size()));
+        throw WriteError("Tried to write to disk an invalid number of bytes. "
+                         "Expected "
+                         + std::to_string(kPageSize) + " bytes. Got "
+                         + std::to_string(data.size()));
         return;
     }
 
@@ -304,9 +304,8 @@ Disk::CachePage &Disk::get_cpage(word addr, bool load)
 {
     if (addr >= m_npages)
     {
-        throw DiskReadException("Disk page " + std::to_string(addr)
-                                + " is out of range, the disk has " + std::to_string(m_npages)
-                                + " pages.");
+        throw ReadError("Disk page " + std::to_string(addr) + " is out of range, the disk has "
+                        + std::to_string(m_npages) + " pages.");
     }
 
     // Bitwise AND does the same as modulus to index into table since cache size is a power of 2.

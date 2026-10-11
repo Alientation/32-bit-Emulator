@@ -81,9 +81,9 @@ TEST_F(DiskTest, a_page_that_is_not_on_the_disk_is_an_error)
 {
     Disk disk(disk_file(), 4, 0);
 
-    EXPECT_THROW(disk.read_page(4), Disk::DiskReadException);
-    EXPECT_THROW(disk.write_page(100, std::vector<byte>(kPageSize)), Disk::DiskReadException);
-    EXPECT_THROW(disk.read_word(4 * kPageSize), Disk::DiskReadException);
+    EXPECT_THROW(disk.read_page(4), Disk::ReadError);
+    EXPECT_THROW(disk.write_page(100, std::vector<byte>(kPageSize)), Disk::ReadError);
+    EXPECT_THROW(disk.read_word(4 * kPageSize), Disk::ReadError);
 }
 
 TEST_F(DiskTest, a_page_that_was_not_written_to_is_not_written_back)
@@ -195,6 +195,5 @@ TEST(mock_disk, a_returned_page_is_given_out_again_as_zeros)
 TEST(mock_disk, only_whole_pages_can_be_written)
 {
     MockDisk disk;
-    EXPECT_THROW(disk.write_page(disk.get_free_page(), std::vector<byte>(10)),
-                 Disk::DiskWriteException);
+    EXPECT_THROW(disk.write_page(disk.get_free_page(), std::vector<byte>(10)), Disk::WriteError);
 }

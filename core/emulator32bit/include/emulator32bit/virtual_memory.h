@@ -21,7 +21,7 @@ constexpr U32 kMaxPhysicalPages = 1 << (8 * sizeof(word) - kNumPageOffsetBits);
 /// into the frames (the pages of the RAM) when they are used and swapped out to the Disk when the
 /// frames are full, evicting a page with a clock that approximates least recently used. Every
 /// virtual page has read/write/execute permissions, and an access that is not allowed throws a
-/// PageFaultException. A virtual page can also be mapped to a specific physical page (RAM, ROM, a
+/// PageFault. A virtual page can also be mapped to a specific physical page (RAM, ROM, a
 /// device), which is then never swapped.
 ///
 /// With `SCTLR.M` set (set_walk_enabled), the addresses are translated by walking the two level
@@ -69,19 +69,19 @@ class VirtualMemory
     };
 
     /// Any error of the virtual memory.
-    class VirtualMemoryException : public std::exception
+    class Error : public std::exception
     {
       protected:
         std::string message;
 
       public:
-        VirtualMemoryException(const std::string &msg);
+        Error(const std::string &msg);
 
         const char *what() const noexcept override;
     };
 
     /// An access that the page tables do not allow. The access did not happen.
-    class PageFaultException : public VirtualMemoryException
+    class PageFault : public Error
     {
       public:
         enum class Reason : U8
@@ -92,7 +92,7 @@ class VirtualMemory
             KERNEL_ONLY,    ///< Access to a physical page that needs kernel privilege.
         };
 
-        PageFaultException(Reason reason, word vpage, AccessType access);
+        PageFault(Reason reason, word vpage, AccessType access);
 
         Reason get_reason() const noexcept;
         word get_vpage() const noexcept;
@@ -105,19 +105,19 @@ class VirtualMemory
     };
 
     /// A process id that is not a process.
-    class InvalidPIDException : public VirtualMemoryException
+    class InvalidPid : public Error
     {
       protected:
         long long invalid_pid;
 
       public:
-        InvalidPIDException(const std::string &msg, long long invalid_pid);
+        InvalidPid(const std::string &msg, long long invalid_pid);
 
         long long get_invalid_pid() const noexcept;
     };
 
     /// A virtual page that is mapped to a physical page was mapped to another one.
-    class VPageRemapException : public VirtualMemoryException
+    class VPageAlreadyMapped : public Error
     {
       protected:
         word vpage;
@@ -125,8 +125,8 @@ class VirtualMemory
         word attempted_mapped_ppage;
 
       public:
-        VPageRemapException(const std::string &msg, word vpage, word already_mapped_ppage,
-                            word attempted_mapped_ppage);
+        VPageAlreadyMapped(const std::string &msg, word vpage, word already_mapped_ppage,
+                           word attempted_mapped_ppage);
 
         word get_vpage() const noexcept;
         word get_already_mapped_ppage() const noexcept;
@@ -134,13 +134,13 @@ class VirtualMemory
     };
 
     /// A virtual page that is already part of the process, or is not.
-    class InvalidVPageException : public VirtualMemoryException
+    class InvalidVPage : public Error
     {
       protected:
         word vpage;
 
       public:
-        InvalidVPageException(const std::string &msg, word vpage);
+        InvalidVPage(const std::string &msg, word vpage);
 
         word get_vpage() const noexcept;
     };
@@ -216,13 +216,13 @@ class VirtualMemory
 
     /// Sets the current proccess to change the virtual space mappings.
     ///
-    /// @throws InvalidPIDException when the pid is not a valid process.
+    /// @throws InvalidPid when the pid is not a valid process.
     /// @param pid Process id.
     void set_process(long long pid);
 
     /// Starts a new process with it's own virtual memory address space.
     ///
-    /// @throws VirtualMemoryException when MAX_PROCESSES limit is reached.
+    /// @throws Error when MAX_PROCESSES limit is reached.
     /// @param kernel_privilege Whether the process has the kernel level access
     ///     privilege
     /// @return New process id.
@@ -230,7 +230,7 @@ class VirtualMemory
 
     /// Ends a specified process.
     ///
-    /// @throws InvalidPIDException when the pid is not a valid process.
+    /// @throws InvalidPid when the pid is not a valid process.
     /// @param pid Process id.
     void end_process(long long pid);
 
@@ -261,7 +261,7 @@ class VirtualMemory
 
     /// Set the access permissions of virtual memory specific to a process.
     ///
-    /// @throws InvalidPIDException if the pid is invalid.
+    /// @throws InvalidPid if the pid is invalid.
     /// @param pid Process to set the access permissions.
     /// @param vpage_begin First virtual page to update permissions.
     /// @param vpage_end Last virtual page to update permissions.
@@ -272,7 +272,7 @@ class VirtualMemory
 
     /// Checks whether the virtual page has been added to the process.
     ///
-    /// @throws InvalidPIDException when pid is invalid.
+    /// @throws InvalidPid when pid is invalid.
     /// @param pid Process identifier.
     /// @param vpage Virtual page to check.
     /// @return Whether the virtual page is mapped for the process.
@@ -280,8 +280,8 @@ class VirtualMemory
 
     /// Adds new virtual pages to the specified process.
     ///
-    /// @throws InvalidPIDException when pid is invalid.
-    /// @throws InvalidVPageException when a virtual page has already been mapped to
+    /// @throws InvalidPid when pid is invalid.
+    /// @throws InvalidVPage when a virtual page has already been mapped to
     ///     the process.
     /// @param pid ID of the process to add virtual pages to.
     /// @param vpage First virtual page to add.
@@ -319,7 +319,7 @@ class VirtualMemory
     /// hand of the clock clears the mark of the page, which is how a page that
     /// is used by the fetch alone stays in memory.
     ///
-    /// @throws PageFaultException if the page may not be executed.
+    /// @throws PageFault if the page may not be executed.
     /// @param address Virtual address of the instruction.
     /// @return Physical address of the instruction.
     inline word translate_fetch(word address)
@@ -336,15 +336,14 @@ class VirtualMemory
     /// @param reason Why the access is not allowed.
     /// @param vpage The virtual page of the access.
     /// @param access What the page is accessed for.
-    [[noreturn]] static void throw_fault(PageFaultException::Reason reason, word vpage,
-                                         AccessType access);
+    [[noreturn]] static void throw_fault(PageFault::Reason reason, word vpage, AccessType access);
 
     /// Converts a virtual address into a physical address of the process
     /// specified by the process id if virtual memory
     /// is enabled, otherwise the virtual address is equivalent to the physical
     /// address.
     ///
-    /// @throws PageFaultException if the process may not make the access.
+    /// @throws PageFault if the process may not make the access.
     /// @param pid ID of the process to translate virtual address.
     /// @param address Virtual address to translate.
     /// @param access What the address is accessed for.
@@ -358,7 +357,7 @@ class VirtualMemory
 
         if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
         {
-            throw VirtualMemoryException("Invalid Process ID: " + std::to_string(pid));
+            throw Error("Invalid Process ID: " + std::to_string(pid));
         }
 
         return translate_address(m_process_ptable_map.at(pid), address, access);
@@ -368,7 +367,7 @@ class VirtualMemory
     /// is enabled, otherwise the virtual address is equivalent to the physical
     /// address.
     ///
-    /// @throws PageFaultException if the process may not make the access.
+    /// @throws PageFault if the process may not make the access.
     /// @param address Virtual address to translate.
     /// @param access What the address is accessed for.
     /// @return Physical address corresponding to the virtual address.
@@ -400,7 +399,7 @@ class VirtualMemory
     /// Makes a force mapping of the virtual page to the physical page if it
     /// is not yet mapped.
     ///
-    /// @throws InvalidPIDException if pid is invalid.
+    /// @throws InvalidPid if pid is invalid.
     /// @param pid Process identifier.
     /// @param vpage Virtual page to force map to physical page if not yet mapped.
     /// @param ppage Physical page to force map to.
@@ -557,7 +556,7 @@ class VirtualMemory
     /// @param address the virtual address
     /// @param access what the address is accessed for
     /// @return the physical address
-    /// @throws PageFaultException if the access is not allowed
+    /// @throws PageFault if the access is not allowed
     word walk_translate(word address, AccessType access);
 
     /// Free PIDs not in use by any process.
@@ -688,7 +687,7 @@ class VirtualMemory
     /// since the hand was last there is passed over and marked as not used, the
     /// first page that is not marked and is a frame and can be swapped is it.
     ///
-    /// @throws VirtualMemoryException if there is none.
+    /// @throws Error if there is none.
     PhysicalPage &clock_victim();
 
     /// Ensures the clock of the in use physical pages is valid.
@@ -710,8 +709,8 @@ class VirtualMemory
     /// Maps a new virtual page to a physical page of the specified process.
     /// Note this forces the virtual page to always map to the physical page.
     ///
-    /// @throws InvalidPIDException if pid is invalid.
-    /// @throws InvalidVPageException if virtual page has already been added.
+    /// @throws InvalidPid if pid is invalid.
+    /// @throws InvalidVPage if virtual page has already been added.
     /// @param pid Process id to map virtual page.
     /// @param vpage Virtual page to map.
     /// @param ppage Physical page to map to.
@@ -719,8 +718,8 @@ class VirtualMemory
 
     /// Removes the virtual page from a process referenced by it's pid.
     ///
-    /// @throws InvalidPIDException if pid is invalid.
-    /// @throws InvalidVPageException if virtual page is not mapped to process.
+    /// @throws InvalidPid if pid is invalid.
+    /// @throws InvalidVPage if virtual page is not mapped to process.
     /// @param pid Process id.
     /// @param vpage Virtual page to remove.
     void remove_vpage(long long pid, word vpage);

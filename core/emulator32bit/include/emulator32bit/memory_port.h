@@ -33,8 +33,8 @@ class MemoryPort
     /// Read a byte, half word or word (T is `byte`, `hword` or `word`) at a virtual address. The
     /// value is little endian in memory, and may cross a page.
     ///
-    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
-    /// @throws SystemBus::Exception if no memory is at the physical address.
+    /// @throws VirtualMemory::PageFault if the access is not allowed.
+    /// @throws SystemBus::BusError if no memory is at the physical address.
     template<class T>
     inline T read(const word address)
     {
@@ -50,8 +50,8 @@ class MemoryPort
     /// read<T> for an address that lies within one page, which an address that is a multiple of
     /// sizeof(T) always does: one translation and no check for a page boundary.
     ///
-    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
-    /// @throws SystemBus::Exception if no memory is at the physical address.
+    /// @throws VirtualMemory::PageFault if the access is not allowed.
+    /// @throws SystemBus::BusError if no memory is at the physical address.
     template<class T>
     inline T read_aligned(const word address)
     {
@@ -64,8 +64,8 @@ class MemoryPort
     /// value is little endian in memory, and may cross a page. A store that crosses into a page
     /// that cannot be written leaves memory as it was.
     ///
-    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
-    /// @throws SystemBus::Exception if no memory is at the physical address.
+    /// @throws VirtualMemory::PageFault if the access is not allowed.
+    /// @throws SystemBus::BusError if no memory is at the physical address.
     template<class T>
     inline void write(const word address, const T data)
     {
@@ -83,8 +83,8 @@ class MemoryPort
 
     /// write<T> for an address that lies within one page, see read_aligned<T>.
     ///
-    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
-    /// @throws SystemBus::Exception if no memory is at the physical address.
+    /// @throws VirtualMemory::PageFault if the access is not allowed.
+    /// @throws SystemBus::BusError if no memory is at the physical address.
     template<class T>
     inline void write_aligned(const word address, const T data)
     {
@@ -135,15 +135,15 @@ class MemoryPort
     /// Write bytes at a virtual address, a translation for each page and not for each byte.
     /// Meant for loading a program. The pages before one that cannot be written have been written.
     ///
-    /// @throws VirtualMemory::PageFaultException if the access is not allowed.
-    /// @throws SystemBus::Exception if no memory is at the physical address.
+    /// @throws VirtualMemory::PageFault if the access is not allowed.
+    /// @throws SystemBus::BusError if no memory is at the physical address.
     void write_block(word address, const byte *data, word size);
 
     /// Fetch an instruction. The address must be word aligned, which the caller checks.
     ///
     /// @param address The virtual address of the instruction.
-    /// @throws VirtualMemory::PageFaultException if the address is unmapped or not executable.
-    /// @throws SystemBus::Exception if the instruction is not in RAM or ROM.
+    /// @throws VirtualMemory::PageFault if the address is unmapped or not executable.
+    /// @throws SystemBus::BusError if the instruction is not in RAM or ROM.
     inline word fetch_instruction(const word address)
     {
         const word real_addr = m_mmu.translate_fetch(address);

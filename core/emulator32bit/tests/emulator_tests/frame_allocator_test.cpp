@@ -4,7 +4,7 @@
 
 #include <random>
 
-using Error = FreeBlockList::FreeBlockListException;
+using Error = FreeBlockList::Error;
 
 TEST(frame_allocator, pages_are_handed_out_lowest_first_until_there_are_none)
 {

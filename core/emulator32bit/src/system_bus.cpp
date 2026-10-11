@@ -10,14 +10,13 @@ namespace
 
 [[noreturn, gnu::cold]] void throw_unroutable(const word address)
 {
-    throw SystemBus::Exception("Could not route address " + std::to_string(address)
-                               + " to memory.");
+    throw SystemBus::BusError("Could not route address " + std::to_string(address) + " to memory.");
 }
 
 [[noreturn, gnu::cold]] void throw_read_only(const word address)
 {
-    throw SystemBus::Exception("Could not write to address " + std::to_string(address)
-                               + ", it is in the ROM.");
+    throw SystemBus::BusError("Could not write to address " + std::to_string(address)
+                              + ", it is in the ROM.");
 }
 
 } // namespace

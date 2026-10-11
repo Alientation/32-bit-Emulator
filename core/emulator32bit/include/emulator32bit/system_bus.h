@@ -47,7 +47,7 @@ class SystemBus : public PhysicalPages
     BlockDevice block{intc};
 
     /// An address that no memory or device answers to.
-    class Exception : public std::runtime_error
+    class BusError : public std::runtime_error
     {
       public:
         using std::runtime_error::runtime_error;
@@ -63,7 +63,7 @@ class SystemBus : public PhysicalPages
 
     /// @param address a physical address
     /// @return the memory or device that has the address
-    /// @throws SystemBus::Exception if there is none.
+    /// @throws SystemBus::BusError if there is none.
     BaseMemory &route_memory(word address);
 
     /// The memory or device that a store by a program goes to: route_memory, but the ROM is read
@@ -72,7 +72,7 @@ class SystemBus : public PhysicalPages
     ///
     /// @param address a physical address
     /// @return the memory or device that the store goes to
-    /// @throws SystemBus::Exception if there is none, or the address is in the ROM.
+    /// @throws SystemBus::BusError if there is none, or the address is in the ROM.
     BaseMemory &route_store(word address);
 
     /// Writes bytes to a physical address. A block can cross from one page to another.
@@ -80,7 +80,7 @@ class SystemBus : public PhysicalPages
     /// @param address the physical address of the first byte
     /// @param data the bytes to write
     /// @param size the number of bytes
-    /// @throws SystemBus::Exception if there is no memory somewhere in it.
+    /// @throws SystemBus::BusError if there is no memory somewhere in it.
     void write_block(word address, const byte *data, word size);
 
     /// Resets the RAM and the devices. The ROM and the disk are left as they are.

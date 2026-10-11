@@ -65,7 +65,7 @@ TEST(fbl, overlapping_return_is_rejected_and_undone)
 {
     FreeBlockList fbl(0, 100, false);
     fbl.return_block(10, 4);
-    ASSERT_THROW(fbl.return_block(12, 4), FreeBlockList::FreeBlockListException);
+    ASSERT_THROW(fbl.return_block(12, 4), FreeBlockList::Error);
     ASSERT_EQ(fbl.size(), 4);
     ASSERT_EQ(fbl.get_blocks().size(), 1);
 }
@@ -133,9 +133,9 @@ TEST(fbl, force_return_of_a_free_range_changes_nothing)
 TEST(fbl, force_return_out_of_range_throws)
 {
     FreeBlockList fbl(10, 10, false);
-    ASSERT_THROW(fbl.force_return_block(5, 2), FreeBlockList::FreeBlockListException);
-    ASSERT_THROW(fbl.force_return_block(18, 5), FreeBlockList::FreeBlockListException);
-    ASSERT_THROW(fbl.force_return_block(0xFFFFFFFF, 2), FreeBlockList::FreeBlockListException);
+    ASSERT_THROW(fbl.force_return_block(5, 2), FreeBlockList::Error);
+    ASSERT_THROW(fbl.force_return_block(18, 5), FreeBlockList::Error);
+    ASSERT_THROW(fbl.force_return_block(0xFFFFFFFF, 2), FreeBlockList::Error);
     ASSERT_TRUE(fbl.empty());
 }
 
@@ -161,7 +161,7 @@ TEST(fbl, remove_block_from_the_middle_splits_the_block)
 TEST(fbl, remove_block_not_free_throws)
 {
     FreeBlockList fbl(0, 100, false);
-    ASSERT_THROW(fbl.remove_block(5, 1), FreeBlockList::FreeBlockListException);
+    ASSERT_THROW(fbl.remove_block(5, 1), FreeBlockList::Error);
 }
 
 TEST(fbl, out_of_order)

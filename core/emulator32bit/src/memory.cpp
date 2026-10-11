@@ -76,7 +76,7 @@ ROM::ROM(File file, word npages, word start_page) :
 
     if (bytes.size() > npages << kNumPageOffsetBits)
     {
-        throw ROM_Exception("ROM File is larger than the specified ROM size "
+        throw ImageTooLarge("ROM File is larger than the specified ROM size "
                             + std::to_string(npages << kNumPageOffsetBits) + " bytes. Got "
                             + std::to_string(bytes.size()) + " bytes.");
     }
@@ -89,12 +89,12 @@ ROM::ROM(File file, word npages, word start_page) :
 
 ROM::~ROM() = default;
 
-ROM::ROM_Exception::ROM_Exception(std::string msg) :
+ROM::ImageTooLarge::ImageTooLarge(std::string msg) :
     message(msg)
 {
 }
 
-const char *ROM::ROM_Exception::what() const noexcept
+const char *ROM::ImageTooLarge::what() const noexcept
 {
     return message.c_str();
 }
