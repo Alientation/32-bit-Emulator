@@ -71,7 +71,7 @@ Emulator32bit::Emulator32bit(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
     system_bus(std::make_unique<SystemBus>(std::move(ram), std::move(rom), std::move(disk))),
     // The pages that are paged in are the pages of the RAM, and are swapped out to the disk. Made
     // after the bus owns them, so that they are freed with it if making the MMU throws.
-    mmu(std::make_unique<VirtualMemory>(system_bus->disk.get(), system_bus->ram->get_lo_page(),
+    mmu(std::make_unique<VirtualMemory>(*system_bus->disk, system_bus->ram->get_lo_page(),
                                         system_bus->ram->get_mem_pages(), system_bus.get())),
     memory(*system_bus, *mmu)
 {

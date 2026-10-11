@@ -37,13 +37,13 @@ class VirtualMemory
     /// @param frame_pages Number of such pages.
     /// @param physical Where the pages that are paged in are, see set_physical_pages. Without it
     ///     the pages have no contents, which is enough to look at the mappings.
-    VirtualMemory(Disk *disk, word frame_lo_page = 0, word frame_pages = kMaxPhysicalPages,
+    VirtualMemory(Disk &disk, word frame_lo_page = 0, word frame_pages = kMaxPhysicalPages,
                   PhysicalPages *physical = nullptr);
     ~VirtualMemory();
     VirtualMemory(const VirtualMemory &) = delete;
     VirtualMemory &operator=(const VirtualMemory &) = delete;
 
-    Disk *m_disk;
+    Disk &m_disk;
 
     /// @return Whether addresses are mapped by the page tables of the processes. Off, they are
     ///     physical.
@@ -360,7 +360,7 @@ class VirtualMemory
             throw Error("Invalid Process ID: " + std::to_string(pid));
         }
 
-        return translate_address(m_process_ptable_map.at(pid), address, access);
+        return translate_address(*m_process_ptable_map.at(pid), address, access);
     }
 
     /// Converts a virtual address into a physical address if virtual memory
@@ -704,7 +704,7 @@ class VirtualMemory
     ///
     /// @param entry The virtual page, of a process that exists.
     /// @param page Physical page to map to.
-    void map_vpage_to_ppage(PageTableEntry *entry, PhysicalPage &page);
+    void map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &page);
 
     /// Maps a new virtual page to a physical page of the specified process.
     /// Note this forces the virtual page to always map to the physical page.
@@ -733,7 +733,7 @@ class VirtualMemory
     /// @param access What the address is accessed for.
     /// @return Physical space address corresponding to the virtual space address of
     ///     this process.
-    inline word translate_address(PageTable *ptable, word address, AccessType access)
+    inline word translate_address(PageTable &ptable, word address, AccessType access)
     {
         word vpage = address >> kNumPageOffsetBits;
         word ppage = access_vpage(ptable, vpage, access);
@@ -752,10 +752,10 @@ class VirtualMemory
     /// @param vpage Virtual page to map.
     /// @param access What the page is accessed for.
     /// @return Physical page address.
-    inline word access_vpage(PageTable *ptable, word vpage, AccessType access)
+    inline word access_vpage(PageTable &ptable, word vpage, AccessType access)
     {
         const TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
-        if (LIKELY(tlb.key == tlb_key(ptable->pid, vpage)
+        if (LIKELY(tlb.key == tlb_key(ptable.pid, vpage)
                    && (access != AccessType::WRITE || tlb.write)))
         {
             return tlb.ppage;
@@ -767,7 +767,7 @@ class VirtualMemory
     /// Translates a virtual page that has no translation in the TLB, or that the
     /// translation does not allow to write: checks the permissions, brings the
     /// page in from disk if it is not in memory, and fills in the TLB.
-    word access_vpage_slow(PageTable *ptable, word vpage, AccessType access);
+    word access_vpage_slow(PageTable &ptable, word vpage, AccessType access);
 
     /// translate_address for everything that is not in the TLB of the current
     /// process: the page tables, addresses that are physical (virtual memory

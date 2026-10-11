@@ -74,7 +74,7 @@ struct Machine
     VirtualMemory vm;
 
     explicit Machine(word frame_lo = 0, word frame_pages = kMaxPhysicalPages) :
-        vm(&disk, frame_lo, frame_pages)
+        vm(disk, frame_lo, frame_pages)
     {
         vm.set_physical_pages(&physical);
     }
@@ -544,7 +544,7 @@ TEST(virtual_memory, a_virtual_memory_is_cheap_to_create)
     MockDisk disk;
     for (int i = 0; i < 200; i++)
     {
-        VirtualMemory vm(&disk);
+        VirtualMemory vm(disk);
     }
 }
 
