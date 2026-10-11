@@ -22,7 +22,7 @@ concept BitInt = std::integral<T> && !std::same_as<T, bool>;
 
 /// The width of T in bits.
 template<typename T>
-inline constexpr unsigned kWidth = sizeof(T) * 8;
+inline constexpr unsigned kWidth = sizeof(T) * kNumByteBits;
 
 /// Whether a single bit position is inside T.
 template<typename T>

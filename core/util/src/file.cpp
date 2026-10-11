@@ -174,8 +174,7 @@ bool File::create()
     }
 
     std::ofstream file(get_path());
-    file.close();
-    return true;
+    return bool(file);
 }
 
 bool File::clear()
@@ -183,7 +182,8 @@ bool File::clear()
     std::ofstream ofs;
     ofs.open(get_path(), std::ofstream::out | std::ofstream::trunc);
 
-    if (ofs.bad())
+    // A file that cannot be opened (no directory above it) sets failbit, not badbit.
+    if (!ofs)
     {
         return false;
     }

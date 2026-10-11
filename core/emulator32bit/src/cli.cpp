@@ -243,6 +243,8 @@ static word number_option(bool &parse_error, const cxxopts::ParseResult &result,
 
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
+/// @param args Receives what the command line asked for.
+/// @param result The parsed command line.
 /// @return `false` if there was one.
 static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 {
@@ -422,6 +424,8 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 
 /// Makes the machine, loads the program and sets the state and the devices up as asked.
 ///
+/// @param args What the command line asked for.
+/// @param result The parsed command line.
 /// @return The machine, or null (after saying why) if a file could not be read.
 static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
                                                    const cxxopts::ParseResult &result)
@@ -548,7 +552,13 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     return emu;
 }
 
-/// Writes the state after a run where `--output` says, and returns the exit code of the run.
+/// Writes the state after a run where `--output` says.
+///
+/// @param result The parsed command line.
+/// @param args What the command line asked for.
+/// @param emu The machine that ran.
+/// @param run_result How the run ended.
+/// @return The exit code of the run.
 static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emulator32bit &emu,
                   const Emulator32bit::RunResult &run_result)
 {

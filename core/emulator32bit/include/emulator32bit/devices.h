@@ -313,11 +313,12 @@ class BlockDevice : public Device
     void set_capacity(word sectors);
 
     /// A disk kept in the file. A file that exists is read (its size, rounded up to sectors, is the
-    /// capacity unless `sectors` is more); one that does not is made with `sectors` sectors.
+    /// capacity unless `sectors` is more); one that does not exist starts as zeros of `sectors`
+    /// sectors, and is created when the disk is saved.
     ///
     /// @param path The file.
     /// @param sectors The minimum number of sectors.
-    /// @return `false` if the file cannot be read.
+    /// @return `false` if the file exists and cannot be read.
     bool open_file(const std::string &path, word sectors = 0);
 
     /// Writes the disk to its file, if it has one.
@@ -353,7 +354,7 @@ class BlockDevice : public Device
     /// For tests: the bytes of a sector.
     ///
     /// @param number The sector number.
-    /// @return The 512 bytes of the sector.
+    /// @return The 512 bytes of the sector, or nothing if the sector is not on the disk.
     std::vector<byte> sector(word number) const;
 
   protected:

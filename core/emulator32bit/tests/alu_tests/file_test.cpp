@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+
 TEST(ByteReaderTest, reading_into_the_same_data_again_replaces_the_value)
 {
     std::vector<unsigned char> bytes = {0x34, 0x12, 0x78, 0x56};
@@ -30,4 +33,22 @@ TEST(TrimDirPathTest, dots_are_dropped_and_dot_dot_removes_the_segment_before_it
     EXPECT_EQ(trim_dir_path("a/./b"), "a/b");
     EXPECT_EQ(trim_dir_path("a\\b/../c"), "a/c");
     EXPECT_EQ(trim_dir_path("../a"), "../a");
+}
+
+TEST(FileTest, clear_empties_a_file_and_fails_for_a_directory_that_does_not_exist)
+{
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "aemu_file_test";
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "contents.txt").string();
+    {
+        std::ofstream(path) << "some text";
+    }
+
+    File file(path);
+    EXPECT_TRUE(file.clear());
+    EXPECT_EQ(std::filesystem::file_size(path), 0u);
+
+    File missing((dir / "no_such_directory" / "contents.txt").string());
+    EXPECT_FALSE(missing.clear());
+    std::filesystem::remove_all(dir);
 }

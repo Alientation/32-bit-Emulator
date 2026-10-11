@@ -561,7 +561,8 @@ class Emulator32bit
     word m_spsr = 0;  ///< PSTATE of the code that was interrupted.
     word m_esr = 0;   ///< Class (bits 26-31) and syndrome of the last exception.
     word m_far = 0;   ///< Address of the last abort.
-    word m_vbar = 0;  ///< Vector table. 0: there is none and nothing is raised, see below.
+    word m_vbar =
+        0; ///< Vector table. 0: there is none and nothing is raised, see deliver_exception ().
     word m_ptbr = 0;  ///< Physical address of the first level page table (a page).
     word m_sctlr = 0; ///< System control: bit 0 turns on translation by the page tables.
 
@@ -977,7 +978,7 @@ class Emulator32bit
 
     /// Constructs instructions of format O2 (the long multiplies), with two destination registers.
     ///
-    /// @param is_signed Smull, otherwise umull; they are one opcode, `_op_mull`.
+    /// @param is_signed `smull`, otherwise `umull`; they are one opcode, `_op_mull`.
     /// @param s Whether condition flags are set.
     /// @param xlo 5 bit register identifier that receives the low word.
     /// @param xhi 5 bit register identifier that receives the high word.

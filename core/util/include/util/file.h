@@ -93,7 +93,7 @@ class File
     /// Creates the file, and the directories above it that do not exist. A file that exists is
     /// emptied.
     ///
-    /// @return `false` if the directories above the file could not be created.
+    /// @return `false` if the directories above the file or the file could not be created.
     bool create();
 
     /// Empties the file. A file that does not exist is created empty.
