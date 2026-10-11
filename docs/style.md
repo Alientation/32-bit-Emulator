@@ -43,7 +43,7 @@ For a collection of a few records that the program keeps for its whole run (watc
 
 ## Comments and documentation
 
-- **Documentation is in the headers:** `///` with `@param`, `@return`, `@tparam`, on every public member, saying what it does and what it promises (limits, order, what is replaced, what is returned on failure).
+- **Documentation is in the headers:** `///` with `@param`, `@return`, `@tparam`, on every public member, saying what it does and what it promises (limits, order, what is replaced, what is returned on failure, and `@throws` for each exception).
 - **A comment is a sentence:** it starts with a capital letter and ends with a period, also the text after `@param name` and `@return` (`@param pc The address of the instruction.`) and a trailing comment (`return i; // The count, if there is none.`). Exceptions: a comment that starts with a name that has a case of its own (`x0`, `` `hlt` ``, `m_pc`), the rows of a table whose columns are aligned, `// namespace` at a closing brace, and the directives of tools (`clang-format off`, `TODO`).
 - **Reread a comment as someone who has not seen the code.** Every name in it is defined next to it (no stray `k` or `n`), and it states a fact: what is overwritten and when, not that something "is OK". A comment that took a second reading is rewritten.
 - **Few comments in a `.cpp`:** `///` for a `static` or an anonymous-namespace function, `//` in code. No `/* */`. A comment says why, never what.
@@ -66,15 +66,19 @@ For a collection of a few records that the program keeps for its whole run (watc
 
 ## Applying it
 
-The rules are partly applied: the debugger tables, `register_name` and `BitArray` follow them. The rest of the code predates them. A sweep goes one rule at a time, one commit per rule, each with the full `./build.sh` passing, and a benchmark when it touches the hot path. Counts of what a sweep would look at (non-test code under `core/`, excluding `external/`, from `grep`; they are places to look at, not violations):
+The rules hold for all the code under `core/` (the C compiler in `ccompiler/` is not built and was not swept; `external/` is not ours). A rule that is added is applied in a sweep: one commit per rule, each with the full `./build.sh` passing, and a benchmark when it touches the hot path. Tests keep their lambdas and are changed only where an API change forces it.
 
-| Pattern | Places |
-|---------|--------|
-| `std::optional` | ~90 |
-| `std::function` | ~60 |
-| `std::map` / `std::set` / `std::unordered_map` | ~70 |
-| `std::variant` | ~12 |
-| `std::to_string` (check for a register or other name that should be a helper) | ~115 |
-| `std::stringstream` / `ostringstream` | ~45 |
+Tools that find the places, so that a sweep does not depend on `grep` alone (a `clang-tidy` and `libclang` from `pip` in a virtual environment work with `build/release/compile_commands.json`; give them the include directories of the standard library with `-isystem`):
+
+| Rule | Tool |
+|------|------|
+| `const` wherever it holds (locals) | `clang-tidy -checks=-*,misc-const-correctness` |
+| A member function that can be `const` | `readability-make-member-function-const` (it does not look through a pointer member: check those by hand) |
+| A braced initializer names its fields | `modernize-use-designated-initializers` (it skips what a macro expands to) |
+| No bare numbers | `readability-magic-numbers` with `IgnoredIntegerValues` `0;1` |
+| A by-value parameter that is not `const`, a reference parameter that is never written | `libclang`: list the parameters, add `const`, build, and take back what does not compile |
+| Doc comments | `libclang` gives the `///` comment of each declaration: its `@param` names and order against the declaration, `@return` on `void`, text that is not a sentence |
+
+Counts of what a sweep looks at (non-test code under `core/`, from `grep`; they are places to look at, not violations): `std::optional` 70 (all of them the result of a parser or a lookup), `std::function` 1 (`Sink` of the logger, which the tests give lambdas), `std::map` / `std::set` / `std::unordered_map` 36, `std::variant` 0, `std::to_string` 113, `std::stringstream` 4.
 
 Other things to check in a sweep: other tables that are a `std::vector` of records with a small bound (breakpoints are a `std::set`), other places that build a name by hand, and flags that have no comment on why they exist.
