@@ -158,7 +158,7 @@ static std::string disassemble_format_m(const word instruction, const std::strin
         && adr_mode != U8(encoding::AddrType::ADDR_OFFSET)
         && adr_mode != U8(encoding::AddrType::ADDR_POST_INC) && !(unaligned && has_unaligned_form))
     {
-        AEMU_FATAL("disassemble_format_m() - Invalid addressing mode "
+        AEMU_FATAL("Invalid addressing mode "
                    "in the disassembly of instruction ({}) {}",
                    op.c_str(), instruction);
     }
