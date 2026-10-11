@@ -188,8 +188,8 @@ void FreeBlockList::force_return_block(word addr, word length)
         const U64 cur_hi = U64(cur->addr) + cur->len;
         if (cur->addr <= hi && cur_hi >= lo)
         {
-            lo = std::min<U64>(lo, cur->addr);
-            hi = std::max<U64>(hi, cur_hi);
+            if (cur->addr < lo) lo = cur->addr;
+            if (cur_hi > hi) hi = cur_hi;
             remove(cur);
         }
         cur = next;

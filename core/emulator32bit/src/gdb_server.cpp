@@ -399,8 +399,10 @@ std::string GdbServer::monitor(const std::string &command)
     // which is not this one.
     if (command.rfind("disasm", 0) == 0)
     {
+        constexpr word kDefaultCount = 8;
+        constexpr word kMaxCount = 256;
         word address = m_emu.get_pc();
-        word count = 8;
+        word count = kDefaultCount;
         const size_t first = command.find(' ');
         if (first != std::string::npos)
         {
@@ -409,7 +411,9 @@ std::string GdbServer::monitor(const std::string &command)
             address = word(std::strtoul(rest.c_str(), &end, 0));
             if (end != nullptr && *end == ' ')
             {
-                count = std::clamp<word>(word(std::strtoul(end + 1, nullptr, 0)), 1, 256);
+                count = word(std::strtoul(end + 1, nullptr, 0));
+                if (count == 0) count = 1;
+                else if (count > kMaxCount) count = kMaxCount;
             }
         }
         std::string text;

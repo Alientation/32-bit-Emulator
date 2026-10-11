@@ -545,11 +545,13 @@ void Debugger::command_mem(const std::vector<std::string> &args)
         length = static_cast<word>(*parsed);
     }
 
-    for (word offset = 0; offset < length; offset += 16)
+    constexpr word kBytesPerRow = 16;
+    for (word offset = 0; offset < length; offset += kBytesPerRow)
     {
         m_out << std::format("{:#010x}:", *address + offset);
         std::string text;
-        for (word i = offset; i < std::min<word>(offset + 16, length); i++)
+        const word row_end = offset + kBytesPerRow < length ? offset + kBytesPerRow : length;
+        for (word i = offset; i < row_end; i++)
         {
             try
             {

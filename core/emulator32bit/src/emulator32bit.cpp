@@ -898,7 +898,11 @@ void Emulator32bit::set_user_mode(const bool user)
 {
     if (user != user_mode())
     {
-        std::swap(m_x[register_to_U8(Register::SP)], m_sp_other);
+        // The stack pointer in use goes to the other mode, and the one of the new mode comes back.
+        word &sp = m_x[register_to_U8(Register::SP)];
+        const word sp_of_old_mode = sp;
+        sp = m_sp_other;
+        m_sp_other = sp_of_old_mode;
     }
     m_pstate = set_bit<kUserModeBit>(m_pstate, user);
     mmu->set_user_mode(user);

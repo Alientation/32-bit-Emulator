@@ -137,7 +137,8 @@ void SystemBus::write_block(word address, const byte *data, word size)
     // Page by page, the pages of a block do not have to be in the same memory.
     while (size != 0)
     {
-        const word in_page = std::min<word>(size, kPageSize - (address & (kPageSize - 1)));
+        const word left_in_page = kPageSize - (address & (kPageSize - 1));
+        const word in_page = size < left_in_page ? size : left_in_page;
         route_memory(address).write_block(address, data, in_page);
         address += in_page;
         data += in_page;

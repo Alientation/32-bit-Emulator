@@ -339,9 +339,10 @@ bool BlockDevice::open_file(const std::string &path, const word sectors)
         return false; // Exists, cannot be read.
     }
 
-    const size_t wanted =
-        std::max<size_t>(size_t(sectors) * kSectorSize,
-                         (m_storage.size() + kSectorSize - 1) / kSectorSize * kSectorSize);
+    const size_t sectors_size = size_t(sectors) * kSectorSize;
+    const size_t whole_sectors_size =
+        (m_storage.size() + kSectorSize - 1) / kSectorSize * kSectorSize;
+    const size_t wanted = sectors_size > whole_sectors_size ? sectors_size : whole_sectors_size;
     m_storage.resize(wanted, 0);
     return true;
 }
@@ -370,6 +371,10 @@ std::vector<byte> BlockDevice::sector(const word number) const
 
 void BlockDevice::start(const word command)
 {
+    // The most sectors that a command is timed for, which keeps the time from overflowing. A command
+    // for more than that fails.
+    constexpr word kMaxTimedSectors = 1 << 16;
+
     if (m_busy)
     {
         m_status |= kError; // Not accepted.
@@ -387,7 +392,8 @@ void BlockDevice::start(const word command)
     m_command_sector = m_sector;
     m_command_addr = m_dma_addr;
     m_command_count = m_dma_count;
-    m_remaining = std::max<word>(1, m_latency);
+    // At least one instruction.
+    m_remaining = m_latency != 0 ? m_latency : 1;
     m_segments.clear();
     m_segments_valid = true;
     word sectors = 1;
@@ -404,10 +410,12 @@ void BlockDevice::start(const word command)
         {
             total += segment.count;
         }
-        sectors = word(std::min<U64>(total, 1 << 16));
+        sectors = total < kMaxTimedSectors ? word(total) : kMaxTimedSectors;
     }
     // Per sector. The count is capped so the time cannot overflow; a count that big fails.
-    m_remaining *= std::clamp<word>(sectors, 1, 1 << 16);
+    if (sectors == 0) sectors = 1;
+    else if (sectors > kMaxTimedSectors) sectors = kMaxTimedSectors;
+    m_remaining *= sectors;
     if (command == kCmdWrite)
     {
         std::copy(std::begin(m_buffer), std::end(m_buffer), std::begin(m_write_data));

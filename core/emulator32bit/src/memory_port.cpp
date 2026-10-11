@@ -45,7 +45,8 @@ void MemoryPort::write_block(word address, const byte *data, word size)
 {
     while (size != 0)
     {
-        const word in_page = std::min<word>(size, kPageSize - (address & (kPageSize - 1)));
+        const word left_in_page = kPageSize - (address & (kPageSize - 1));
+        const word in_page = size < left_in_page ? size : left_in_page;
         const word real_addr = m_mmu.translate_address(address, VirtualMemory::AccessType::WRITE);
         m_bus.route_store(real_addr).write_block(real_addr, data, in_page);
         address += in_page;
