@@ -424,7 +424,10 @@ inline void write(const Level level, const std::source_location &location,
         return;
     }
 
-    const Record record{level, location, message, detail::monotonic_ns() - s.start_ns};
+    const Record record{.level = level,
+                        .location = location,
+                        .message = message,
+                        .since_start_ns = detail::monotonic_ns() - s.start_ns};
 
     const std::lock_guard lock(s.mutex);
     if (s.sink)

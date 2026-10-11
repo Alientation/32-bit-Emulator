@@ -246,7 +246,7 @@ basm::PreprocessedSource Preprocessor::take_result()
 {
     AEMU_CHECK(m_state == State::PROCESSED_SUCCESS,
                "The file is not preprocessed");
-    return {m_sources, std::move(m_out_tokens)};
+    return {.sources = m_sources, .tokens = std::move(m_out_tokens)};
 }
 
 bool Preprocessor::active() const

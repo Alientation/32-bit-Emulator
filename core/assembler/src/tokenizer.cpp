@@ -75,7 +75,7 @@ std::string_view SourceManager::line_text(const SourceId id, const U32 line) con
 
 U32 SourceManager::add_expansion(std::string name, const bool is_macro, const SourceLocation &site)
 {
-    m_expansions.push_back({std::move(name), is_macro, site});
+    m_expansions.push_back({.name = std::move(name), .is_macro = is_macro, .site = site});
     return static_cast<U32>(m_expansions.size());
 }
 
@@ -603,7 +603,8 @@ class Lexer
     void report(const Severity severity, const SourceLocation &loc, std::string message)
     {
         if (severity == Severity::ERROR) m_result.has_errors = true;
-        m_result.diagnostics.push_back({severity, loc, std::move(message)});
+        m_result.diagnostics.push_back(
+            {.severity = severity, .loc = loc, .message = std::move(message)});
     }
 
     void error(const SourceLocation &loc, std::string message)
@@ -898,7 +899,7 @@ class Lexer
             if (!kw)
             {
                 if (const std::optional<TokenType> reg = parse_register(text))
-                    kw = Keyword{*reg, 0, false};
+                    kw = Keyword{.type = *reg, .flags = 0, .allows_s = false};
                 else kw = find_keyword(assembly_keywords(), text);
             }
             if (kw)
@@ -1335,7 +1336,8 @@ void fatal_if_errors(const SourceManager &sources, const LexResult &result)
 
 void fatal_at(const SourceManager &sources, const SourceLocation &loc, const std::string &message)
 {
-    std::string text = format_diagnostic(sources, {Severity::ERROR, loc, message});
+    std::string text =
+        format_diagnostic(sources, {.severity = Severity::ERROR, .loc = loc, .message = message});
     while (!text.empty() && text.back() == '\n') text.pop_back();
     AEMU_FATAL("{}", text);
 }

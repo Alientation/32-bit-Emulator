@@ -18,8 +18,8 @@ void Assembler::warn(const Token &at, const std::string &message)
         fail(at, message + " (a warning, and warnings are errors)");
     }
 
-    std::string text =
-        basm::format_diagnostic(*m_sources, {basm::Severity::WARNING, at.loc, message});
+    std::string text = basm::format_diagnostic(
+        *m_sources, {.severity = basm::Severity::WARNING, .loc = at.loc, .message = message});
     while (!text.empty() && text.back() == '\n') text.pop_back();
     AEMU_WARN("{}", text);
 }
@@ -838,13 +838,20 @@ void Assembler::_section()
         bool writable;
         bool executable;
     };
+
     static constexpr Builtin kBuiltin[] = {
-        {".text", Section::TEXT, false, true},
-        {".data", Section::DATA, true, false},
-        {".bss", Section::BSS, true, false},
-        {".rodata", Section::RODATA, false, false},
-        {".init_array", Section::INIT_ARRAY, false, false},
-        {".fini_array", Section::FINI_ARRAY, false, false},
+        {.name = ".text", .section = Section::TEXT, .writable = false, .executable = true},
+        {.name = ".data", .section = Section::DATA, .writable = true, .executable = false},
+        {.name = ".bss", .section = Section::BSS, .writable = true, .executable = false},
+        {.name = ".rodata", .section = Section::RODATA, .writable = false, .executable = false},
+        {.name = ".init_array",
+         .section = Section::INIT_ARRAY,
+         .writable = false,
+         .executable = false},
+        {.name = ".fini_array",
+         .section = Section::FINI_ARRAY,
+         .writable = false,
+         .executable = false},
     };
     for (const Builtin &builtin : kBuiltin)
     {
@@ -899,7 +906,8 @@ void Assembler::_section()
 
 void Assembler::_pushsection()
 {
-    m_saved_sections.push_back({m_cur_section, m_cur_section_index, m_statement});
+    m_saved_sections.push_back(
+        {.section = m_cur_section, .index = m_cur_section_index, .site = m_statement});
     _section(); // It starts by skipping the directive, which is this one.
 }
 

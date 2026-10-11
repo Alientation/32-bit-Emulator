@@ -583,7 +583,12 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         header.address = *section_address;
         address = header.address + size;
 
-        placed.push_back({name, header.address, size, section.physical, executable, writable});
+        placed.push_back({.name = name,
+                          .address = header.address,
+                          .size = size,
+                          .physical = section.physical,
+                          .executable = executable,
+                          .writable = writable});
     }
 
     for (size_t i = 0; i < placed.size(); i++)
