@@ -814,23 +814,27 @@ namespace basm
 namespace
 {
 
-#define BASM_INSTRUCTION_SPEC(X, NAME, text, allows_s, format, a, b)                               \
-    {TokenType::INSTRUCTION_##NAME, text, InstructionFormat::format, byte(a), byte(b)},
+#define BASM_INSTRUCTION_SPEC(X, NAME, TEXT, ALLOWS_S, FORMAT, A, B)                               \
+    {.token = TokenType::INSTRUCTION_##NAME,                                                       \
+     .text = TEXT,                                                                                 \
+     .format = InstructionFormat::FORMAT,                                                          \
+     .a = byte(A),                                                                                 \
+     .b = byte(B)},
 constexpr InstructionSpec kInstructionSpecs[] = {BASM_INSTRUCTION_LIST(BASM_INSTRUCTION_SPEC, )};
 #undef BASM_INSTRUCTION_SPEC
 
 /// The table is indexed by token type, so its rows must follow the order of the token types.
 constexpr bool specs_follow_the_token_order()
 {
-    constexpr size_t first = size_t(TokenType::INSTRUCTION_HLT);
-    constexpr size_t last = size_t(TokenType::INSTRUCTION_RET);
-    if (std::size(kInstructionSpecs) != last - first + 1)
+    constexpr size_t kFirst = size_t(TokenType::INSTRUCTION_HLT);
+    constexpr size_t kLast = size_t(TokenType::INSTRUCTION_RET);
+    if (std::size(kInstructionSpecs) != kLast - kFirst + 1)
     {
         return false;
     }
     for (size_t i = 0; i < std::size(kInstructionSpecs); i++)
     {
-        if (size_t(kInstructionSpecs[i].token) != first + i)
+        if (size_t(kInstructionSpecs[i].token) != kFirst + i)
         {
             return false;
         }
