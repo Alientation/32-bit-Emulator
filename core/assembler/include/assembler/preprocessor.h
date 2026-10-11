@@ -107,7 +107,7 @@ class Preprocessor
         /// Whether tokens are being kept right now.
         bool active;
 
-        /// #else was seen, no further branch is allowed.
+        /// #else was seen, so no further branch is allowed.
         bool seen_else;
 
         basm::SourceLocation loc;
@@ -117,10 +117,10 @@ class Preprocessor
 
     PreprocessorOptions m_options;
 
-    // the .basm or .binc file being preprocessed
+    // The .basm or .binc file being preprocessed.
     File m_input_file;
 
-    // the output file of the processed file, usually a .bi file
+    // The output file of the processed file, usually a .bi file.
     File m_output_file;
     State m_state;
 

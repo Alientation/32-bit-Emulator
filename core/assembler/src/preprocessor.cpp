@@ -158,9 +158,9 @@ Preprocessor::Preprocessor(const File &input_file, const std::string &output_fil
     m_input_file(input_file),
     m_sources(std::make_shared<basm::SourceManager>())
 {
-    // default output file path if not supplied in the constructor. The file is only created if it
-    // is going to be written, there is nothing to leave behind (or to fail on a directory that
-    // cannot be written to) otherwise.
+    // The output file path defaults to a path made from the input file if none was supplied. The
+    // file is only created if it is going to be written: otherwise there is nothing to leave
+    // behind, and no failure on a directory that cannot be written to.
     const bool create = m_options.write_output;
     if (output_file_path.empty())
     {

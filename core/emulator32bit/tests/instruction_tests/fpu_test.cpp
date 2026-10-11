@@ -91,7 +91,7 @@ class FpuTest : public EmulatorFixture
         cpu.write_sysreg(encoding::kSysregId_fpsr, 0);
     }
 
-    /// fop2: xd = xa fn xb
+    /// fop2: xd = xa fn xb.
     Out binary(const U8 fn, const bool dbl, const U64 a, const U64 b, const word rounding = 0)
     {
         start(rounding);
@@ -307,7 +307,7 @@ TEST_F(FpuTest, a_nan_result_is_always_the_default_nan)
 {
     const word inf = bits(std::numeric_limits<float>::infinity());
 
-    // Invalid operations
+    // Invalid operations.
     EXPECT_EQ(binary(kBinaryFn_div, false, 0, 0), (Out{kQuietNan32, kInvalid}));
     EXPECT_EQ(binary(kBinaryFn_sub, false, inf, inf), (Out{kQuietNan32, kInvalid}));
     EXPECT_EQ(binary(kBinaryFn_mul, false, inf, 0), (Out{kQuietNan32, kInvalid}));
@@ -485,7 +485,7 @@ TEST_F(FpuTest, sqrt)
     EXPECT_EQ(unary(kUnaryFn_sqrt, false, bits(std::numeric_limits<float>::infinity())),
               (Out{0x7F800000, 0}));
 
-    // Rounding of the root of 2
+    // Rounding of the root of 2.
     EXPECT_EQ(unary(kUnaryFn_sqrt, false, bits(2.0f), kRoundUp), (Out{0x3FB504F4, kInexact}));
     EXPECT_EQ(unary(kUnaryFn_sqrt, false, bits(2.0f), kRoundZero), (Out{0x3FB504F3, kInexact}));
 }
@@ -614,7 +614,7 @@ TEST_F(FpuTest, integer_to_float_rounds_in_the_mode_of_the_fpcr)
 
 TEST_F(FpuTest, converting_between_the_precisions)
 {
-    // float to double is exact
+    // Float to double is exact.
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, bits(1.5f)), (Out{bits(1.5), 0}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, bits(-0.1f)), (Out{bits(double(-0.1f)), 0}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0x00000001), (Out{bits(double(std::bit_cast<float>(1u))), 0}));
@@ -622,7 +622,7 @@ TEST_F(FpuTest, converting_between_the_precisions)
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, kSignalingNan32), (Out{kQuietNan64, kInvalid}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0xFFC00001), (Out{kQuietNan64, 0}));
 
-    // double to float rounds
+    // Double to float rounds.
     EXPECT_EQ(unary(kUnaryFn_fcvt, true, bits(0.1)), (Out{0x3DCCCCCD, kInexact}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, true, bits(0.1), kRoundZero), (Out{0x3DCCCCCC, kInexact}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, true, bits(1.5)), (Out{bits(1.5f), 0}));
@@ -762,13 +762,13 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     fill_registers();
     const auto before = snapshot_registers();
 
-    // double to int: a pair in, one register out
+    // Double to int: a pair in, one register out.
     set_value(kXa, true, bits(-7.9));
     execute(Emulator32bit::asm_fop1(kUnaryFn_tos32, true, kXd, kXa));
     EXPECT_EQ(cpu.read_reg(kXd), word(-7));
     expect_registers_unchanged_except(before, {kXd, kXa, U8(kXa + 1)});
 
-    // int to double: one register in, a pair out
+    // Int to double: one register in, a pair out.
     fill_registers();
     cpu.write_reg(kXa, 100);
     const auto before2 = snapshot_registers();
@@ -776,7 +776,7 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     EXPECT_EQ(get_value(kXd, true), bits(100.0));
     expect_registers_unchanged_except(before2, {kXd, U8(kXd + 1)});
 
-    // float to double and back
+    // Float to double and back.
     fill_registers();
     cpu.write_reg(kXa, bits(0.5f));
     const auto before3 = snapshot_registers();

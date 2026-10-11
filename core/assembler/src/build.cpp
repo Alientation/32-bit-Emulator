@@ -120,13 +120,13 @@ std::vector<std::string> Build::split_args(const std::string &line)
     std::vector<std::string> args;
     bool is_escaped = false;
     bool is_quoted = false;
-    bool in_arg = false; // an empty "" is an argument too
+    bool in_arg = false; // An empty "" is an argument too.
     std::string cur_arg;
     for (const char c : line)
     {
         if (is_escaped)
         {
-            // whatever it is, it is part of the argument
+            // Whatever it is, it is part of the argument.
             cur_arg += c;
             is_escaped = false;
         }
@@ -156,7 +156,7 @@ std::vector<std::string> Build::split_args(const std::string &line)
         }
     }
 
-    // check if there are any dangling quotes or escape characters
+    // Check for a quote or an escape that is not closed.
     AEMU_CHECK(!is_quoted, "Missing end quotes: {}", line);
     AEMU_CHECK(!is_escaped, "Dangling escape character: {}", line);
 
@@ -169,7 +169,7 @@ std::vector<std::string> Build::split_args(const std::string &line)
 
 void Build::evaluate_args(std::vector<std::string> &args_list)
 {
-    // evaluate arguments
+    // Evaluate the arguments.
     for (size_t i = 0; i < args_list.size(); i++)
     {
         AEMU_DEBUG("arg {}: {}", i, args_list[i]);
@@ -177,7 +177,7 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
         std::string &arg = args_list[i];
         if (m_parse_options && !arg.empty() && arg[0] == '-')
         {
-            // this is a flag
+            // This is a flag.
             AEMU_CHECK(flags.find(arg) != flags.end(), "Invalid flag: {}",
                        arg);
 
@@ -188,12 +188,12 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
         }
         else
         {
-            // this should be a file
+            // This should be a file.
             File file(arg);
 
             AEMU_DEBUG("Adding file {}", file.get_path());
 
-            // check the extension
+            // Check the extension.
             AEMU_CHECK(file.get_extension() == SOURCE_EXTENSION,
                        "Invalid file extension: {}", file.get_extension());
 
@@ -218,7 +218,7 @@ void Build::build()
         return;
     }
 
-    // Only compiles object files
+    // Only compiles object files.
     if (m_only_compile) return;
     link();
 
@@ -348,7 +348,7 @@ void Build::_output(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing output file path.");
     m_output_file = args[++index];
 
-    // check if the output file is valid
+    // Check that the output file is valid.
     AEMU_CHECK(File::valid_path(m_output_file),
                "Invalid output file path: '{}'.", m_output_file);
 }
@@ -358,7 +358,7 @@ void Build::_outdir(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing output directory path.");
     m_output_dir = args[++index];
     m_has_output_dir = true;
-    // check if the output file is valid
+    // Check that the output directory is valid.
     AEMU_CHECK(Directory::valid_path(m_output_dir),
                "Invalid output directory path: '{}'.", m_output_dir);
 }
@@ -368,7 +368,7 @@ void Build::_warn(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing warning type.");
     std::string warning_type = args[++index];
 
-    // check if the warning type is valid
+    // Check that the warning type is valid.
     AEMU_CHECK(WARNINGS.find(warning_type) != WARNINGS.end(),
                "Invalid warning type: '{}'.", warning_type);
     m_enabled_warnings.insert(warning_type);
@@ -387,7 +387,7 @@ void Build::_include(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing include directory path.");
     std::string dpath = args[++index];
 
-    // check if the include directory is valid
+    // Check that the include directory is valid.
     AEMU_CHECK(Directory::valid_path(dpath),
                "Invalid include directory path: '{}'.", dpath);
     m_system_dirs.push_back(Directory(dpath));
@@ -398,7 +398,7 @@ void Build::_library(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing library file path.");
     std::string fpath = args[++index];
 
-    // check if the library name is valid
+    // Check that the library name is valid.
     AEMU_CHECK(File::valid_path(fpath), "Invalid library file path: '{}'.",
                fpath);
     m_linked_lib.push_back(File(fpath));
@@ -410,7 +410,7 @@ void Build::_library_directory(std::vector<std::string> &args, size_t &index)
                "Missing library directory path.");
     std::string dpath = args[++index];
 
-    // check if the library directory is valid
+    // Check that the library directory is valid.
     AEMU_CHECK(Directory::valid_path(dpath),
                "Invalid library directory path: '{}'.", dpath);
     m_library_dirs.push_back(Directory(dpath));
@@ -421,11 +421,11 @@ void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing preprocessor flag.");
     std::string flag = args[++index];
 
-    // check if there is a value
+    // Check whether there is a value.
     std::string value = "";
     if (flag.find('=') != std::string::npos)
     {
-        // there is a value
+        // There is a value.
         value = flag.substr(flag.find('=') + 1);
         flag = flag.substr(0, flag.find('='));
     }
@@ -446,7 +446,7 @@ void Build::_ld(std::vector<std::string> &args, size_t &index)
     AEMU_CHECK(index + 1 < args.size(), "Missing linker script file path.");
     std::string fpath = args[++index];
 
-    // check if the library name is valid
+    // Check that the linker script name is valid.
     AEMU_CHECK(File::valid_path(fpath), "Invalid linker script file path: '{}'.",
                fpath);
     m_ld_file = File(fpath);
@@ -500,7 +500,7 @@ void Build::_help(std::vector<std::string> &args, size_t &index)
     m_has_work = false;
 }
 
-// FOR NOW getters
+// Getters.
 bool Build::does_create_exe() const
 {
     return !m_make_lib && !m_only_compile;

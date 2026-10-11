@@ -116,8 +116,8 @@ ObjectFile::ObjectFile(File obj_file) :
 
 void ObjectFile::read_object_file(std::vector<byte> &bytes)
 {
-    // m_obj_file will not be set
-    // this is way for static libraries to be decomposed into a list of object files easily
+    // m_obj_file is not set.
+    // This is how a static library is decomposed into a list of object files.
     deserialize_checked(bytes);
 }
 
@@ -156,7 +156,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
     AEMU_DEBUG("Disassembling");
     ByteReader reader(bytes);
 
-    // BELF Header
+    // Read the BELF header.
     AEMU_DEBUG("Reading BELF Header");
     if (bytes.size() < kBELFHeaderSize + 8)
     {
@@ -185,7 +185,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
                "flags={}, n_sections={})",
                file_type, target_machine, flags, n_sections);
 
-    // Section headers
+    // Read the section headers.
     AEMU_DEBUG("Reading section headers");
     ByteReader section_headers_reader(bytes);
     ByteReader section_headers_start_reader(bytes);
@@ -206,7 +206,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
             .section_name = U32(section_headers_reader.read_dword()),
             .type = (SectionHeader::Type) section_headers_reader.read_word(),
 
-            // TODO: Why are we reading in dwords and then immediatelly casting to words?
+            // TODO: Why are we reading in dwords and then immediately casting to words?
             .section_start = word(section_headers_reader.read_dword()),
             .section_size = word(section_headers_reader.read_dword()),
             .entry_size = word(section_headers_reader.read_dword()),
@@ -392,7 +392,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
         }
     }
 
-    // Fill in section table
+    // Fill in the section table.
     AEMU_DEBUG("Filling in Section table");
     for (size_t i = 0; i < sections.size(); i++)
     {
@@ -644,18 +644,18 @@ void ObjectFile::write_object_file(File obj_file)
     AEMU_DEBUG("Writing to object file.");
     m_obj_file = obj_file;
 
-    // clearing object file
+    // Clear the object file.
     std::ofstream ofs;
     ofs.open(obj_file.get_path(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
-    // create writer for object file
+    // Create the writer for the object file.
     FileWriter m_writer = FileWriter(obj_file, std::ios::out | std::ios::binary);
 
     ByteWriter byte_writer(m_writer);
     int current_byte = 0;
 
-    // BELF Header
+    // Write the BELF header.
     AEMU_DEBUG("Writing BELF header.");
     m_writer.write("BELF"); // BELF magic number header
     byte_writer << ByteWriter::Data(0, 12); // Unused padding
@@ -665,7 +665,7 @@ void ObjectFile::write_object_file(File obj_file)
     byte_writer << ByteWriter::Data(sections.size(), 2); // Number of sections
     current_byte += kBELFHeaderSize;
 
-    // Text Section
+    // Write the text section.
     AEMU_DEBUG("Writing .text section.");
     for (size_t i = 0; i < text_section.size(); i++)
     {
@@ -675,7 +675,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".text"]].section_start = current_byte;
     current_byte += text_section.size() * 4;
 
-    // Data, rodata and the arrays of functions
+    // Write the data, rodata and the arrays of functions.
     for (const ByteSection &section : byte_sections())
     {
         AEMU_DEBUG("Writing {} section.", section.name);
@@ -689,7 +689,7 @@ void ObjectFile::write_object_file(File obj_file)
         current_byte += bytes_of_section.size();
     }
 
-    // BSS Section
+    // Write the BSS section.
     AEMU_DEBUG("Writing .bss section. Size {} bytes.",
                bss_section);
     byte_writer << ByteWriter::Data(bss_section, kBSSSectionSize);
@@ -697,7 +697,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".bss"]].section_start = current_byte;
     current_byte += kBSSSectionSize;
 
-    // Symbol Table
+    // Write the symbol table.
     AEMU_DEBUG("Writing .symtab section.");
     for (const auto &[key, symbol] : symbol_table)
     {
@@ -714,7 +714,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".symtab"]].section_start = current_byte;
     current_byte += symbol_table.size() * kSymbolTableEntrySize;
 
-    // Relocation sections
+    // Write the relocation sections.
     const auto write_relocations =
         [&](const char *name, const std::vector<RelocationEntry> &relocations)
     {
@@ -763,7 +763,7 @@ void ObjectFile::write_object_file(File obj_file)
                           user.relocations);
     }
 
-    // String Table
+    // Write the string table.
     AEMU_DEBUG("Writing .strtab section.");
     int size = 0;
     for (size_t i = 0; i < strings.size(); i++)
@@ -776,7 +776,7 @@ void ObjectFile::write_object_file(File obj_file)
     sections[section_table[".strtab"]].section_start = current_byte;
     current_byte += size;
 
-    // Section headers
+    // Write the section headers.
     AEMU_DEBUG("Writing Section headers.");
     for (size_t i = 0; i < sections.size(); i++)
     {
@@ -790,7 +790,7 @@ void ObjectFile::write_object_file(File obj_file)
         byte_writer << ByteWriter::Data(sections[i].address, 8);
         byte_writer << ByteWriter::Data(sections[i].alignment, 8);
     }
-    // For easy access
+    // The offset of the section headers, in the last 8 bytes for easy access.
     byte_writer << ByteWriter::Data(current_byte, 8);
     current_byte += 8;
     current_byte += sections.size() * kSectionHeaderSize;

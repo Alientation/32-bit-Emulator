@@ -36,14 +36,14 @@ std::string color_val_str(std::string string)
         iterator++;
     }
 
-    // gray out any leading zeros except for the last zero
+    // Gray out the leading zeros, except for the last zero.
     while ((*iterator) == '0' && iterator != string.end() - 1)
     {
         result += *iterator;
         iterator++;
     }
 
-    // bold the remaining digits
+    // Bold the remaining digits.
     result += ccolor::BOLD_WHITE;
     while (iterator != string.end())
     {

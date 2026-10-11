@@ -453,7 +453,7 @@ TEST_F(InstructionTable, a_double_must_start_in_a_register_that_can_hold_a_pair)
     EXPECT_TRUE(contains(error_of([&] { assemble("fcvt.s32.f64 x1, x29"); }), "pair"));
     EXPECT_TRUE(contains(error_of([&] { assemble("fcvt.f64.s32 sp, x1"); }), "pair"));
 
-    // x28 is the last one, and the single register of a conversion can be any
+    // x28 is the last one, and the single register of a conversion can be any.
     EXPECT_EQ(assemble("fadd.f64 x28, x0, x2").size(), 1u);
     EXPECT_EQ(assemble("fcvt.s32.f64 x29, x2").size(), 1u);
     EXPECT_EQ(assemble("fcvt.f64.s32 x28, x29").size(), 1u);
@@ -474,7 +474,7 @@ TEST_F(InstructionTable, fmov_moves_a_register_or_loads_a_constant)
     { return Emulator::asm_format_o3(encoding::_op_mov, false, to, from, 0); };
 
     EXPECT_EQ(assemble("fmov.f32 x1, x2"), std::vector<word>{move(1, 2)});
-    // a pair is two moves, in the order that does not overwrite what is still to be read
+    // A pair is two moves, in the order that does not overwrite what is still to be read.
     EXPECT_EQ(assemble("fmov.f64 x2, x6"), (std::vector<word>{move(2, 6), move(3, 7)}));
     EXPECT_EQ(assemble("fmov.f64 x3, x2"), (std::vector<word>{move(4, 3), move(3, 2)}));
     EXPECT_EQ(assemble("fmov.f64 x2, x3"), (std::vector<word>{move(2, 3), move(3, 4)}));

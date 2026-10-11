@@ -1125,8 +1125,6 @@ TEST_F(AssemblerUnit, the_addend_is_kept_in_the_object_file)
 }
 
 // A label of a scope is not the label of the same name in another scope (a macro that is used twice).
-
-// A label of a scope is not the label of the same name in another scope (a macro that is used twice).
 TEST_F(AssemblerUnit, a_symbol_in_data_is_looked_up_in_the_scopes)
 {
     const ObjectFile object = assemble(".data\n"

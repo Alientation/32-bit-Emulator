@@ -61,7 +61,7 @@ void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
     }
     m_cursor.next();
 
-    // Note, in future, we could change this to create relocation record instead.
+    // TODO: create a relocation record instead.
     shift_amt = parse_expression();
 
     check(word(shift_amt) < (1ULL << 5),
@@ -204,7 +204,8 @@ word Assembler::parse_format_m1(byte opcode)
     const byte reg = parse_register();
     expect(TokenType::COMMA, "expected ',' and a symbol");
 
-    // adrp implicitly has :hi20:. adr is the distance in bytes, it has no part of an address.
+    // An adrp implicitly has :hi20:. An adr is the distance in bytes, so it has no part of an
+    // address.
     const bool is_adr = opcode == encoding::_op_adr;
     if (!is_adr) m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
 
@@ -222,7 +223,7 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
     // Whether the value to be loaded/stored should be interpreted as signed.
     const bool sign = m_cursor.next().has(basm::SIGN_EXTEND);
 
-    // Target register. For reads, stores read value; for writes, stores write value.
+    // The register that is loaded (for a load) or stored (for a store).
     byte reg_t = parse_register();
 
     expect(TokenType::COMMA, "expected ',' and a memory address");
@@ -281,7 +282,7 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
     encoding::AddrType addressing_mode;
     bool parsed_addressing_mode = false;
 
-    // Post indexed, offset is applied to value at register after accessing.
+    // Post indexed: the offset is added to the base register after the access.
     if (m_cursor.accept(TokenType::CLOSE_BRACKET))
     {
         // A bare `[xn]` is a plain access with no offset. Only `[xn], <offset>` is post indexed.
@@ -311,8 +312,8 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
             {
                 expect(TokenType::CLOSE_BRACKET, "expected ']' after the offset");
 
-                // Preindexed, offset is applied to value at register before accessing. Otherwise a
-                // simple offset.
+                // Pre indexed: the offset is added to the base register before the access.
+                // Otherwise it is a plain offset.
                 addressing_mode = m_cursor.accept(TokenType::OPERATOR_LOGICAL_NOT)
                                       ? encoding::AddrType::ADDR_PRE_INC
                                       : encoding::AddrType::ADDR_OFFSET;
@@ -324,8 +325,7 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
         }
         else
         {
-            // Since there is a comma, there is another argument that is not the above checked
-            // offset.
+            // After the comma comes a register offset, as it is not an immediate.
             const byte reg_b = parse_register();
 
             // Shift argument.
@@ -760,7 +760,7 @@ void Assembler::assemble_fmov(const bool dbl)
         }
         else if (xd < xm)
         {
-            // the pairs may overlap: copy the half that is not read again first
+            // The pairs may overlap: copy the half that is not read again first.
             move(xd, xm);
             move(xd + 1, xm + 1);
         }

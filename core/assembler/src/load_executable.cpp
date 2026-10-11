@@ -143,14 +143,14 @@ void LoadExecutable::load()
     copy_section(m_emu, placement_of(obj, ".bss"), std::vector<byte>(obj.bss_section, 0), true,
                  false, permissions);
 
-    // The program runs with the permissions of its sections, code cannot be written.
+    // The program runs with the permissions of its sections, so code cannot be written.
     VirtualMemory &mmu = *m_emu.mmu;
     for (const auto &[vpage, access] : permissions)
     {
         mmu.set_vpage_permissions(mmu.current_process(), vpage, vpage, access.first, access.second);
     }
 
-    // start program at _start label
+    // Start the program at the _start label.
     const auto start = obj.string_table.find("_start");
     AEMU_CHECK(start != obj.string_table.end()
                    && obj.symbol_table.at(start->second).section != U32(-1),

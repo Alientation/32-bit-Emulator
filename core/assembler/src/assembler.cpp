@@ -115,7 +115,7 @@ void Assembler::assemble()
             }
 
             // The symbol name depends on its scope level. This allows for nested scopes to have
-            // the same label names while refering to different locations in code.
+            // the same label names while referring to different locations in code.
             // However if two symbols with the same name are in the same scope block, this will
             // cause the later symbol to overshadow the prior symbol and likely is unintended.
             // TODO: Warn the user if this is the case. Keep track at each scope level what are
@@ -295,7 +295,7 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
             apply_relocation(rel.type, m_obj.text_section[rel.offset / 4], rel.offset,
                              symbol_entry.symbol_value + word(rel.addend));
 
-        kept--; // resolved here, so it is not kept
+        kept--; // It is resolved here, so it is not kept.
     }
     relocations.resize(kept);
 }

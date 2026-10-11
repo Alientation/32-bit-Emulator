@@ -39,7 +39,7 @@ class ObjectFile
     /// @param object_file the file to write
     void write_object_file(File object_file);
 
-    /// Symbols defined in this unit.
+    /// A symbol of this file: one it defines, or one it refers to.
     struct SymbolTableEntry
     {
         /// Index into the string table.
@@ -58,8 +58,8 @@ class ObjectFile
             /// Defined in this file and visible to the others (`.global`).
             GLOBAL = 1,
 
-            /// A reference that nothing defined in this file yet (what `.extern` and
-            /// the use of a name give), which the linker resolves.
+            /// A reference to a symbol that this file does not define (what `.extern` and the
+            /// use of a name give). The linker resolves it.
             WEAK = 2,
 
             /// Declared with `.weak`. A definition of it is used only if no other
@@ -139,7 +139,7 @@ class ObjectFile
     /// file is linked.
     struct RelocationEntry
     {
-        /// Offset from the beginning of the section to symbol.
+        /// Offset from the beginning of the section to the place that holds the address.
         word offset;
 
         /// Index into symbol table.
@@ -181,7 +181,8 @@ class ObjectFile
         /// reader keeps the low 32 bits. The 32 bit arithmetic wraps.
         sword addend;
 
-        /// Token index that the relocation entry is used on. Use to fill local symbols.
+        /// The position in the tokens of the source where the relocation was made, which tells
+        /// the assembler which scopes were open when it fills in local symbols.
         size_t token;
     };
 

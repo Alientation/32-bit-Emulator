@@ -97,7 +97,7 @@ enum class Level : std::uint8_t
 /// What AEMU_FATAL / a failed AEMU_CHECK does after logging the message.
 enum class FatalAction : std::uint8_t
 {
-    /// std::exit(EXIT_FAILURE). Default, matches the old behavior of ERROR().
+    /// std::exit(EXIT_FAILURE). The default.
     Exit,
 
     /// std::abort(). Produces a core dump / debugger break.
@@ -481,11 +481,11 @@ template<typename... Args>
 } // namespace detail
 
 // ---------------------------------------------------------------------------------------------
-// Scoped timer (replaces CLOCK_START / CLOCK_END)
+// Scoped timer
 // ---------------------------------------------------------------------------------------------
 
-/// Logs how long its scope took at Debug level when destroyed. Unlike the old start/end clocks
-/// it cannot be left unbalanced, and it keeps no global state.
+/// Logs how long its scope took at Debug level when destroyed. It cannot be left unbalanced, and
+/// it keeps no global state.
 class ScopedTimer
 {
   public:

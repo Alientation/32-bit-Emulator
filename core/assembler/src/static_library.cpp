@@ -37,7 +37,7 @@ void write_static_library(const std::vector<File> &objects, File out)
         members.emplace_back(file.get_name() + "." + file.get_extension(), std::move(bytes));
     }
 
-    // clearing library file
+    // Clear the library file.
     std::ofstream ofs;
     ofs.open(out.get_path(), std::ofstream::out | std::ofstream::trunc);
     ofs.close();

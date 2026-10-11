@@ -68,7 +68,7 @@ TEST(tokenizer_v2, exact_locations)
     EXPECT_EQ(r.tokens[0].loc.column, 3u);
     EXPECT_EQ(r.tokens[1].loc.column, 7u);
 
-    // second line, tab counts as one byte
+    // Second line, tab counts as one byte.
     const Token &sub = r.tokens[5];
     ASSERT_EQ(sub.type, T::INSTRUCTION_SUB);
     EXPECT_EQ(sub.loc.line, 2u);
@@ -239,7 +239,7 @@ TEST(tokenizer_v2, bad_numbers_are_diagnosed)
     EXPECT_NE(r.diagnostics[2].message.find("too large"), std::string::npos);
     EXPECT_NE(r.diagnostics[3].message.find("invalid octal literal '0o9'"), std::string::npos);
     EXPECT_NE(r.diagnostics[4].message.find("invalid hexadecimal literal '0x'"), std::string::npos);
-    // lexing continued after the errors
+    // Lexing continued after the errors.
     EXPECT_EQ(r.tokens.back().type, T::END_OF_FILE);
 }
 
@@ -269,7 +269,7 @@ TEST(tokenizer_v2, comments)
     const LexResult r = lex_asm(sm, "add ; comment\n;* multi\nline *; sub\n");
     EXPECT_EQ(types(r), (std::vector<TokenType>{T::INSTRUCTION_ADD, T::NEWLINE, T::INSTRUCTION_SUB,
                                                 T::NEWLINE, T::END_OF_FILE}));
-    // the multi line comment still advanced the line counter
+    // The multi line comment still advanced the line counter.
     EXPECT_EQ(r.tokens[2].loc.line, 3u);
     EXPECT_TRUE(r.tokens[2].has(SPACE_BEFORE));
 
@@ -439,7 +439,7 @@ TEST(tokenizer_v2, linker_script)
     EXPECT_EQ(dec, 1);
     EXPECT_TRUE(saw_at && saw_semicolon && saw_equal);
 
-    // section names are shared with the assembler directive token types
+    // Section names are shared with the assembler directive token types.
     bool saw_text = false;
     for (const Token &t : r.tokens)
     {
@@ -480,7 +480,7 @@ TEST(tokenizer_v2, cursor_basics)
     cur.skip_line();
     EXPECT_TRUE(cur.at_end());
 
-    // reading past the end is safe
+    // Reading past the end is safe.
     EXPECT_EQ(cur.next().type, T::END_OF_FILE);
     EXPECT_EQ(cur.peek(100).type, T::END_OF_FILE);
 }
@@ -507,7 +507,7 @@ TEST(tokenizer_v2, source_manager_survives_many_sources)
     {
         sm.add("n" + std::to_string(i), "nop\n");
     }
-    // the view taken from the first source is still valid
+    // The view taken from the first source is still valid.
     EXPECT_EQ(first.tokens[0].text, "hlt");
 }
 

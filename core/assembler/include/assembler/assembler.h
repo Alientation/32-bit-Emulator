@@ -21,9 +21,8 @@ class Assembler
     /// Initializes the assembler and creates the output object file.
     ///
     /// @param processed_file Input file to process. Post preprocessor.
-    /// @param output_path Output file path to write the object file to. If left empty, creates
-    ///     the object file as the same path as the input file with the .bo
-    ///     extension.
+    /// @param output_path Output file path to write the object file to. If left empty, the object
+    ///     file has the path of the input file with the .bo extension.
     explicit Assembler(const File processed_file, const std::string &output_path = "");
 
     /// Same, but takes the tokens straight from the preprocessor instead of
@@ -130,7 +129,7 @@ class Assembler
     /// The relocations of that section.
     std::vector<ObjectFile::RelocationEntry> &section_relocations();
 
-    /// Switches the directive to a byte section and makes it the current one.
+    /// Makes a byte section the current one, as .data and .rodata do.
     void enter_byte_section(Section section, const char *name);
 
     /// Fails unless `name`, the name of a section in `.section`, is one the program can
@@ -144,9 +143,10 @@ class Assembler
     /// Appends an instruction to the current code section.
     void emit_instruction(word instruction);
 
-    /// Where the next instruction goes, as an offset in the current code section, and the
-    /// relocations of that section.
+    /// Where the next instruction goes, as an offset in the current code section.
     word code_offset();
+
+    /// The relocations of the current code section.
     std::vector<ObjectFile::RelocationEntry> &code_relocations();
 
     /// Index into the section table of the current section.
@@ -156,7 +156,7 @@ class Assembler
     /// a whole (as opposed to one of its tokens) are reported.
     const basm::Token *m_statement = nullptr;
 
-    /// Total number of declared scopes. Monotically increasing.
+    /// Total number of declared scopes. Monotonically increasing.
     U32 m_total_scopes = 0;
 
     /// Nested scope id.
@@ -178,7 +178,7 @@ class Assembler
     /// How deep the expression being parsed is nested (parentheses, unary operators).
     int m_expression_depth = 0;
 
-    /// Whether .stop ended the assembling, the rest of the source (like the end of a scope)
+    /// Whether .stop ended the assembling, so the rest of the source (like the end of a scope)
     /// was not looked at.
     bool m_stopped = false;
 
@@ -337,7 +337,7 @@ class Assembler
     /// A branch to a register: `op[.cond] xd`.
     word parse_format_b2(bool link);
 
-    /// swi[.cond] [number]: the number is not an offset, a branch is not involved.
+    /// swi[.cond] [number]: the number is an immediate, not a branch offset.
     word parse_format_swi(byte opcode);
     /// csel xd, xn, xm, cond   (and csinc, csinv, csneg)
     word parse_format_csel(byte opcode, byte variant);
@@ -403,7 +403,7 @@ class Assembler
     /// are left for the linker.
     void fill_local(std::vector<ObjectFile::RelocationEntry> &relocations, bool fill_branches);
 
-    /// Assembler directives.
+    // Assembler directives.
 
     /// Declares a symbol to be global outside this compilation unit. It does not depend on the
     /// section, so it can be anywhere (a macro can declare one).
@@ -450,7 +450,7 @@ class Assembler
     void _org();
     /// Defines a local scope. Any symbol defined inside will be marked as
     /// local and will not be able to be marked as global. Symbols defined
-    /// here will be postfixed with a special identifier <symbol>:<scope_id>.
+    /// here are renamed <symbol>::SCOPE:<scope_id>.
     /// Local symbols defined at current scope level or above will have
     /// higher precedence over globally defined symbols.
     /// USAGE:                  .scope
@@ -491,19 +491,16 @@ class Assembler
     /// Goes back to the section that the last .pushsection left.
     /// USAGE:                  .popsection
     void _popsection();
-    /// Creates a new text section.
-    /// @warning Currently will simply add on to the previously defined text section if it exists.
+    /// Switches to the text section. Using it again continues the same section.
     ///     USAGE:                  .text
     void _text();
-    /// Creates a new data section.
-    /// @warning Currently will simply add on to the previously defined data section if it exists
+    /// Switches to the data section. Using it again continues the same section.
     ///     USAGE:                  .data
     void _data();
-    /// Creates a new bss section.
-    /// @warning Currently will simply add on to the previously defined bss section if it exists
+    /// Switches to the bss section. Using it again continues the same section.
     ///     USAGE:                  .bss
     void _bss();
-    /// Stops assembling
+    /// Stops assembling.
     /// USAGE:                  .stop
     void _stop();
     /// Data directives: append the comma separated values to the current section, little endian.
@@ -526,7 +523,7 @@ class Assembler
     void _ascii();
     void _asciz();
 
-    /// Instructions.
+    // Instructions.
 
     /// Assembles the instruction at the cursor and appends it to .text. How depends on its row in
     /// instruction_list.h.

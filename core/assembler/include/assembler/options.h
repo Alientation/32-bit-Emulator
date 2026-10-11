@@ -14,7 +14,7 @@ inline const std::string OBJECT_EXTENSION = "bo";
 inline const std::string EXECUTABLE_EXTENSION = "bexe";
 inline const std::string STATIC_LIBRARY_EXTENSION = "ba";
 
-/// What the preprocessor needs to know about the build. The command line driver (Process) fills
+/// What the preprocessor needs to know about the build. The command line driver (Build) fills
 /// it in, tests and other embedders can build one directly.
 struct PreprocessorOptions
 {

@@ -210,7 +210,7 @@ void ObjectFile::print(std::ostream &out)
             const U8 opcode = bitfield_unsigned<26, 6>(text_section[i]);
             if (opcode == encoding::_op_b || opcode == encoding::_op_bl)
             {
-                // branch offsets are in words, relative to the branch instruction itself
+                // Branch offsets are in words, relative to the branch instruction itself.
                 const sword offset_words = bitfield_signed<0, 22>(text_section[i]);
                 const sword target = sword(address) + offset_words * 4;
                 auto label = labels.upper_bound(target);
@@ -232,7 +232,7 @@ void ObjectFile::print(std::ostream &out)
             out << std::format(":\t{:08x}\t{}", text_section[i], disassembly.substr(0, 12));
         }
 
-        // Check if there is a relocation record here
+        // Check whether there is a relocation record here.
         const auto rel = rel_text_map.find(address);
         if (rel != rel_text_map.end())
         {

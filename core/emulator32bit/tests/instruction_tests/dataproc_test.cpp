@@ -366,41 +366,41 @@ const Golden kGolden[] = {
     {"add", 0xFFFFFFFF, 1,          0, 0x00000000, 0b0110},
     {"add", 0x80000000, 0x80000000, 0, 0x00000000, 0b0111},
     {"add", 0,          0,          0, 0x00000000, 0b0100},
-    // sub: C is "no borrow"
+    // sub: C is "no borrow".
     {"sub", 5,          5,          0, 0x00000000, 0b0110},
     {"sub", 0,          1,          0, 0xFFFFFFFF, 0b1000},
     {"sub", 0x80000000, 1,          0, 0x7FFFFFFF, 0b0011},
     {"sub", 0x7FFFFFFF, 0xFFFFFFFF, 0, 0x80000000, 0b1001},
-    // rsb: operands swapped
+    // rsb: operands swapped.
     {"rsb", 3,          10,         0, 7,          0b0010},
     {"rsb", 10,         3,          0, 0xFFFFFFF9, 0b1000},
-    // adc: consumes C
+    // adc: consumes C.
     {"adc", 0xFFFFFFFF, 0,          0b0010, 0x00000000, 0b0110},
     {"adc", 1,          1,          0b0010, 3,          0b0000},
     {"adc", 1,          1,          0,      2,          0b0000},
-    // sbc: a - b - !C
+    // sbc: a - b - !C.
     {"sbc", 5,          3,          0b0010, 2,          0b0010},
     {"sbc", 5,          3,          0,      1,          0b0010},
     {"sbc", 5,          5,          0,      0xFFFFFFFF, 0b1000},
     {"sbc", 0x80000000, 0,          0,      0x7FFFFFFF, 0b0011},
     {"sbc", 0,          0x7FFFFFFF, 0,      0x80000000, 0b1000},
-    // rsc: b - a - !C
+    // rsc: b - a - !C.
     {"rsc", 3,          10,         0,      6,          0b0010},
     {"rsc", 10,         3,          0b0010, 0xFFFFFFF9, 0b1000},
-    // mul: N and Z from the low 32 bits, C and V preserved
+    // mul: N and Z from the low 32 bits, C and V preserved.
     {"mul", 0x10000,    0x10000,    0b0011, 0,          0b0111},
     {"mul", 0xFFFFFFFF, 0xFFFFFFFF, 0,      1,          0b0000},
     {"mul", 0x80000000, 1,          0,      0x80000000, 0b1000},
     {"mul", 3,          0,          0,      0,          0b0100},
     {"mul", 0xFFFFFFFF, 2,          0,      0xFFFFFFFE, 0b1000},
-    // logical ops: N and Z only, C and V preserved
+    // Logical ops: N and Z only, C and V preserved.
     {"and", 0xF0F0F0F0, 0xFF00FF00, 0b0011, 0xF000F000, 0b1011},
     {"and", 0xF0,       0x0F,       0,      0,          0b0100},
     {"orr", 0x80000000, 1,          0,      0x80000001, 0b1000},
     {"eor", 0xFFFFFFFF, 0xFFFFFFFF, 0b0010, 0,          0b0110},
     {"bic", 0xFFFFFFFF, 0xFF,       0,      0xFFFFFF00, 0b1000},
     {"bic", 0xFF,       0xFF,       0,      0,          0b0100},
-    // compare/test: flags only
+    // Compare/test: flags only.
     {"cmp", 5,          5,          0,      0,          0b0110},
     {"cmp", 3,          5,          0,      0,          0b1000},
     {"cmp", 0x80000000, 1,          0,      0,          0b0011},

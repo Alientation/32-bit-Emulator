@@ -615,7 +615,7 @@ void Assembler::_org()
 
     if (val >= 0xffffff)
     {
-        // Safety exit. Likely unintentional behavior.
+        // A value this large is more likely a mistake than what the program means.
         fail(*m_statement,
              "new value is large and likely unintentional (" + std::to_string(val) + ")");
     }
@@ -640,8 +640,7 @@ void Assembler::_org()
         section_bytes().resize(val, 0);
         break;
     case Section::TEXT:
-        // It is likely not very useful to allow .org to move pc in a text section,
-        // comparatively to .data and .bss.
+        // .text holds instructions, so the position it moves to is a multiple of 4.
         check(val >= m_obj.text_section.size() * 4,
               ".org cannot move the assembler backwards, expected >= "
                   + std::to_string(m_obj.text_section.size() * 4) + ", got " + std::to_string(val));
@@ -680,8 +679,8 @@ void Assembler::_advance()
 
     const word val = parse_expression();
 
-    // Safety exit. Likely unintentional behavior, and it is no use to go on with a section of a
-    // different size than the program means.
+    // A value this large is more likely a mistake than what the program means, and it is no use
+    // to go on with a section of a different size.
     check(val < 0xffffff,
           ".advance is large and likely unintentional (" + std::to_string(val) + ")");
 
@@ -699,8 +698,7 @@ void Assembler::_advance()
         section_bytes().insert(section_bytes().end(), val, 0);
         break;
     case Section::TEXT:
-        // It is likely not very useful to allow .org to move pc in a text section,
-        // comparatively to .data and .bss.
+        // .text holds instructions, so the amount it moves by is a multiple of 4.
         check(val % 4 == 0, ".advance cannot move to a byte that is not word aligned in .text, got "
                                 + std::to_string(val));
 
@@ -739,8 +737,7 @@ void Assembler::_align()
         }
         break;
     case Section::TEXT:
-        // It is likely not very useful to allow .org to move pc in a text section,
-        // comparatively to .data and .bss.
+        // .text holds instructions, so the alignment is a multiple of 4.
         check(val % 4 == 0, ".align in .text must be a multiple of 4, got " + std::to_string(val));
 
         while (m_obj.text_section.size() * 4 % val != 0)
@@ -887,7 +884,7 @@ void Assembler::_section()
 void Assembler::_pushsection()
 {
     m_saved_sections.push_back({m_cur_section, m_cur_section_index, m_statement});
-    _section(); // starts by skipping the directive, which is this one
+    _section(); // It starts by skipping the directive, which is this one.
 }
 
 void Assembler::_popsection()

@@ -43,8 +43,7 @@ if [ $# -gt 0 ]; then
     elif [[ "$ARG1" == "coverage" ]]; then
         rm -rf "$COVERAGE_DIR"
 
-        # Capture and exclude tests/external code simultaneously
-        # (This completely eliminates the tst_test.cpp / smull_test.cpp warnings)
+        # Capture the coverage and leave out the tests and the external code in one step.
         lcov --capture                  \
             --directory build/debug     \
             --base-directory .          \

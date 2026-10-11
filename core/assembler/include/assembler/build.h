@@ -60,7 +60,7 @@ class Build
     File get_exe_file() const;
 
   private:
-    // process flags
+    // The state of the flags.
     bool m_parse_options = true;
     bool m_make_lib = false;
     bool m_only_compile = false;
@@ -83,7 +83,7 @@ class Build
     File m_ld_file;
     bool m_has_ld_file = false;
 
-    // process files
+    // The files that are built.
     std::vector<File> m_processed_files;
 
     /// Tokens of m_processed_files (same order), handed to the assembler so it does not lex the

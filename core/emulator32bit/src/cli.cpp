@@ -123,7 +123,8 @@ SymbolMap read_symbols(const std::string &exe_path)
     {
         if (symbol.section != U32(-1))
         {
-            // The assembler names a local symbol `name:LOCAL:<scope>`, only the name is of use here.
+            // The linker renames a local symbol `name:LOCAL:<file number>`, only the name is of use
+            // here.
             const std::string name = obj.get_symbol_name(name_index);
             symbols.add(name.substr(0, name.find(":LOCAL:")), symbol.symbol_value);
         }

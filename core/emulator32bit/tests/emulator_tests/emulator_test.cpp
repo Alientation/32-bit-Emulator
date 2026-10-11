@@ -227,7 +227,7 @@ TEST_F(EmulatorFixture, branch_b_condition_codes_match_flags)
             cpu.set_NZCV(n, z, c, v);
             cpu.run(1);
 
-            // taken: 0 + 12, not taken: falls through to the next instruction
+            // Taken: 0 + 12, not taken: falls through to the next instruction.
             const word expected = cond_holds(cond, n, z, c, v) ? 12u : 4u;
             EXPECT_EQ(cpu.get_pc(), expected)
                 << "cond=" << cond << " N=" << n << " Z=" << z << " C=" << c << " V=" << v;

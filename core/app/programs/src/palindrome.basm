@@ -51,7 +51,7 @@ pal_check_loop_end:
                 add     x1, x1, 1
                 b       loop_begin
 loop_end:
-                ldrb    x10, [x9]                       ; for now, since dumping memory is not implemented yet, write to registers
+                ldrb    x10, [x9]                       ; the results go to registers
                 ldrb    x11, [x9, 1]
                 hlt
 .data

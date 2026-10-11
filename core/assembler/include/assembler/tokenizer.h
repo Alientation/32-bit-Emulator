@@ -408,7 +408,7 @@ struct LexOptions
 
 struct LexResult
 {
-    /// Always ends with END_OF_FILE. Without `keep_newlines=false` the token before that is
+    /// Always ends with END_OF_FILE. Unless `keep_newlines` is false, the token before that is
     /// always a NEWLINE (synthesized at the end of the file if the last line has none).
     std::vector<Token> tokens;
 

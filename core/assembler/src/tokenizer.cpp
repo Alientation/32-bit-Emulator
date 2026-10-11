@@ -478,7 +478,7 @@ std::optional<Keyword> find_keyword(const KeywordMap &map, std::string_view text
     return std::nullopt;
 }
 
-/// x0 - x29 only (no leading zeros).
+/// Only x0-x29 are registers, written without leading zeros.
 std::optional<TokenType> parse_register(std::string_view text)
 {
     if (text.size() < 2 || text.size() > 3 || text[0] != 'x' || !is_digit(text[1]))
@@ -749,7 +749,7 @@ class Lexer
             case '\'':
                 lex_char(begin, loc);
                 break;
-            // $FF, %101 and @17 were how numbers were written once. The error says what to write.
+            // $FF, %101 and @17 are the old way to write numbers. The error says what to write now.
             case '$':
                 if (assembly() && is_ident_char(peek(1)))
                 {
@@ -767,7 +767,7 @@ class Lexer
                 }
                 else
                 {
-                    lex_punct(begin, loc); // the remainder operator
+                    lex_punct(begin, loc); // The remainder operator.
                 }
                 break;
             case '@':
@@ -1080,7 +1080,7 @@ class Lexer
 
         if (assembly())
         {
-            // 12.5
+            // A number like 12.5.
             std::size_t i = begin;
             while (i < n && is_digit(m_src[i]))
             {
