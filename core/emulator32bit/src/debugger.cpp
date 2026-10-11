@@ -244,7 +244,7 @@ bool Debugger::refuse_if_finished()
     {
         return false;
     }
-    m_out << "The program has ended (" << m_finished->message
+    m_out << "The program has ended (" << m_result.message
           << "). Change the pc with 'set pc <address>' to run it again, or 'quit'.\n";
     return true;
 }
@@ -706,7 +706,7 @@ void Debugger::command_set(const std::vector<std::string> &args)
             return;
         }
         m_emu.set_pc(static_cast<word>(*value));
-        m_finished.reset();
+        m_finished = false;
         print_location();
         return;
     }
@@ -907,11 +907,13 @@ void Debugger::run_and_report(const U64 instructions)
     switch (result.status)
     {
     case Status::HALTED:
-        m_finished = result;
+        m_finished = true;
+        m_result = result;
         m_out << "Program halted after " << m_instructions << " instructions.\n";
         break;
     case Status::FAULT:
-        m_finished = result;
+        m_finished = true;
+        m_result = result;
         m_out << "Fault: " << result.message << "\n";
         print_history(kFaultHistory);
         break;

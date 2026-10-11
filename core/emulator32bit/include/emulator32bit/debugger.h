@@ -89,10 +89,16 @@ class Debugger
     /// @return false when the debugger should end.
     bool execute(const std::string &line);
 
-    /// @return How the program ended (halt or fault), or nothing while it can still run.
-    const std::optional<Emulator32bit::RunResult> &finished() const
+    /// @return Whether the program ended (halted or faulted). It can run again after the pc is set.
+    bool finished() const
     {
         return m_finished;
+    }
+
+    /// @return How the program ended. Only meaningful while `finished ()` is true.
+    const Emulator32bit::RunResult &result() const
+    {
+        return m_result;
     }
 
     /// @return The instructions executed by the commands so far.
@@ -106,7 +112,10 @@ class Debugger
     const SymbolMap &m_symbols;
     std::istream &m_in;
     std::ostream &m_out;
-    std::optional<Emulator32bit::RunResult> m_finished;
+    bool m_finished = false;
+    Emulator32bit::RunResult m_result = {.status = Emulator32bit::RunResult::Status::LIMIT_REACHED,
+                                         .instructions_ran = 0,
+                                         .message = ""};
     U64 m_instructions = 0;
 
     // The commands, one for each command of the prompt. `args` are the words after its name.

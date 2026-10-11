@@ -334,7 +334,7 @@ TEST_F(DebuggerTest, continue_runs_to_a_breakpoint_then_to_the_halt)
 
     EXPECT_NE(command("c").find("halted"), std::string::npos);
     ASSERT_TRUE(debugger->finished());
-    EXPECT_EQ(debugger->finished()->status, Status::HALTED);
+    EXPECT_EQ(debugger->result().status, Status::HALTED);
 
     EXPECT_NE(command("step").find("has ended"), std::string::npos);
 }
@@ -347,7 +347,7 @@ TEST_F(DebuggerTest, a_fault_is_reported_with_the_history)
     EXPECT_NE(text.find("Fault: "), std::string::npos) << text;
     EXPECT_NE(text.find("Bad opcode"), std::string::npos) << text;
     ASSERT_TRUE(debugger->finished());
-    EXPECT_EQ(debugger->finished()->status, Status::FAULT);
+    EXPECT_EQ(debugger->result().status, Status::FAULT);
 }
 
 TEST_F(DebuggerTest, set_pc_runs_the_program_again)

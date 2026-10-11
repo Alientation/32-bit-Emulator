@@ -685,8 +685,8 @@ static int run_cli(const int argc, char *argv[])
         Debugger debugger(*emu, args.symbols, std::cin, std::cout);
         debugger.run();
 
-        const auto &finished = debugger.finished();
-        if (finished && finished->status == Emulator32bit::RunResult::Status::FAULT)
+        if (debugger.finished()
+            && debugger.result().status == Emulator32bit::RunResult::Status::FAULT)
         {
             return S32(ExitCode::EXIT_FAULT);
         }
