@@ -121,63 +121,63 @@ class Build
     /// @param files the object files and the executable
     static void dump(const std::vector<File> &files);
 
-    // The handlers of the flags. Each one takes all the arguments and the index of its flag,
-    // and leaves the index at the last argument it used, so that a value (`-o a.out`) is not read
-    // as a source file.
+    // The handlers of the flags. Each one takes the index of its flag and all the arguments, and
+    // leaves the index at the last argument it used, so that a value (`-o a.out`) is not read as a
+    // source file.
 
     /// `--`: everything after it is a source file, even if it starts with a dash.
-    void _ignore(std::vector<std::string> &args, size_t &index);
+    void _ignore(size_t &index, const std::vector<std::string> &args);
 
     /// `-v`, `--version`: prints the version and builds nothing.
-    void _version(std::vector<std::string> &args, size_t &index);
+    void _version(size_t &index, const std::vector<std::string> &args);
 
     /// `-c`, `--compile`: stops after the object files.
-    void _compile(std::vector<std::string> &args, size_t &index);
+    void _compile(size_t &index, const std::vector<std::string> &args);
 
     /// `-ar`, `--archive`: packages the object files into a static library (.ba) instead of
     /// linking an executable.
-    void _ar(std::vector<std::string> &args, size_t &index);
+    void _ar(size_t &index, const std::vector<std::string> &args);
 
     /// `-o`, `--output <name>`: the name of the output, without the extension.
-    void _output(std::vector<std::string> &args, size_t &index);
+    void _output(size_t &index, const std::vector<std::string> &args);
 
     /// `-outdir <directory>`: where the object files go.
-    void _outdir(std::vector<std::string> &args, size_t &index);
+    void _outdir(size_t &index, const std::vector<std::string> &args);
 
     /// `-W`, `--warning <type>`: turns on a kind of warning. The only one is `error`, which turns
     /// warnings into errors.
-    void _warn(std::vector<std::string> &args, size_t &index);
+    void _warn(size_t &index, const std::vector<std::string> &args);
 
     /// `-wall`: turns on every kind of warning.
-    void _warn_all(std::vector<std::string> &args, size_t &index);
+    void _warn_all(size_t &index, const std::vector<std::string> &args);
 
     /// `-I`, `--include <directory>`: adds a directory to search for the files of
     /// `#include <"file">`.
-    void _include(std::vector<std::string> &args, size_t &index);
+    void _include(size_t &index, const std::vector<std::string> &args);
 
     /// `-l`, `--library <file>`: links a static library (.ba) with the object files.
-    void _library(std::vector<std::string> &args, size_t &index);
+    void _library(size_t &index, const std::vector<std::string> &args);
 
     /// `-L`, `--librarydir <directory>`: links every static library in the directory.
-    void _library_directory(std::vector<std::string> &args, size_t &index);
+    void _library_directory(size_t &index, const std::vector<std::string> &args);
 
     /// `-D <name[=value]>`: defines a preprocessor symbol, as if the source began with
     /// `#define name value`.
-    void _preprocessor_flag(std::vector<std::string> &args, size_t &index);
+    void _preprocessor_flag(size_t &index, const std::vector<std::string> &args);
 
     /// `-kp`: writes the preprocessed text of each source to a .bi file and keeps it.
-    void _keep_preprocessor_output(std::vector<std::string> &args, size_t &index);
+    void _keep_preprocessor_output(size_t &index, const std::vector<std::string> &args);
 
     /// `-ld`, `--linker-script <file>`: the linker script to use instead of the default layout.
-    void _ld(std::vector<std::string> &args, size_t &index);
+    void _ld(size_t &index, const std::vector<std::string> &args);
 
     /// `-dump`: prints a listing of every object file and the executable.
-    void _dump(std::vector<std::string> &args, size_t &index);
+    void _dump(size_t &index, const std::vector<std::string> &args);
 
     /// `-h`, `--help`: prints the options and builds nothing.
-    void _help(std::vector<std::string> &args, size_t &index);
+    void _help(size_t &index, const std::vector<std::string> &args);
 
     /// A flag handler.
-    typedef void (Build::*FlagFunction)(std::vector<std::string> &args, size_t &index);
+    typedef void (Build::*FlagFunction)(size_t &index, const std::vector<std::string> &args);
     std::map<std::string, FlagFunction> flags;
 };

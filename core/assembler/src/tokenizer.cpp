@@ -189,7 +189,7 @@ bool digits_valid(std::string_view digits, int base)
 }
 
 /// Digits must already be validated. Returns false on overflow.
-bool parse_uint(std::string_view digits, int base, U64 &out)
+bool parse_uint(U64 &out, std::string_view digits, int base)
 {
     U64 value = 0;
     for (char c : digits)
@@ -1087,7 +1087,7 @@ class Lexer
         }
 
         U64 value = 0;
-        if (!parse_uint(digits, base, value))
+        if (!parse_uint(value, digits, base))
         {
             error(loc, "integer literal '" + std::string(text) + "' is too large");
             emit(TokenType::INVALID, begin, loc);

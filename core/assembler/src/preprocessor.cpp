@@ -369,7 +369,7 @@ void Preprocessor::emit(const Token &token)
     }
 }
 
-bool Preprocessor::parse_call_args(TokenCursor &cursor, std::vector<Tokens> &args)
+bool Preprocessor::parse_call_args(std::vector<Tokens> &args, TokenCursor &cursor)
 {
     cursor.next(); // '('
 
@@ -522,7 +522,7 @@ bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
         && !frame.cursor.peek().has(TokenFlag::SPACE_BEFORE))
     {
         const std::size_t after_name = frame.cursor.mark();
-        if (parse_call_args(frame.cursor, args))
+        if (parse_call_args(args, frame.cursor))
         {
             const auto it = definitions.find(args.size());
             if (it != definitions.end())
@@ -805,7 +805,7 @@ void Preprocessor::_invoke(TokenCursor &line)
         fail(where(line), "expected '(' after the macro name, got " + describe_next(line));
     }
     std::vector<Tokens> args;
-    if (!parse_call_args(line, args))
+    if (!parse_call_args(args, line))
     {
         fail(name, "missing ')' after the macro arguments");
     }

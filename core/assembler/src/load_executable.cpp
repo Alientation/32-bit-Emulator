@@ -29,8 +29,8 @@ using PagePermissions = std::map<word, std::pair<bool, bool>>;
 /// Adds the pages of a section to the process. A page can hold more than one section (by default
 /// .bss directly follows .data), and then has the permissions of both. The pages can be written
 /// while the program is loaded, `permissions` is what they are afterwards.
-void map_pages(VirtualMemory &mmu, word start_addr, word size, bool write, bool execute,
-               PagePermissions &permissions)
+void map_pages(PagePermissions &permissions, VirtualMemory &mmu, word start_addr, word size,
+               bool write, bool execute)
 {
     const long long pid = mmu.current_process();
     const word last_vpage = (start_addr + size - 1) >> kNumPageOffsetBits;
@@ -53,8 +53,8 @@ void map_pages(VirtualMemory &mmu, word start_addr, word size, bool write, bool 
 }
 
 /// Copies `bytes` to the section's address.
-void copy_section(Emulator32bit &emu, Placement where, std::span<const byte> bytes, bool write,
-                  bool execute, PagePermissions &permissions)
+void copy_section(PagePermissions &permissions, Emulator32bit &emu, Placement where,
+                  std::span<const byte> bytes, bool write, bool execute)
 {
     if (bytes.empty())
     {
@@ -83,7 +83,7 @@ void copy_section(Emulator32bit &emu, Placement where, std::span<const byte> byt
         return;
     }
 
-    map_pages(*emu.mmu, where.address, size, write, execute, permissions);
+    map_pages(permissions, *emu.mmu, where.address, size, write, execute);
     emu.memory.write_block(where.address, bytes.data(), size);
 }
 
@@ -125,23 +125,23 @@ void LoadExecutable::load()
     }
 
     PagePermissions permissions;
-    copy_section(m_emu, placement_of(obj, ".text"), text, false, true, permissions);
+    copy_section(permissions, m_emu, placement_of(obj, ".text"), text, false, true);
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
     {
-        copy_section(m_emu, placement_of(obj, section.name), obj.*section.bytes, section.writable,
-                     false, permissions);
+        copy_section(permissions, m_emu, placement_of(obj, section.name), obj.*section.bytes,
+                     section.writable, false);
     }
     for (const ObjectFile::UserSection &section : obj.user_sections)
     {
         // A nobits section has no bytes in the file, only a size (zeros, like .bss).
         const std::vector<byte> zeros(section.zero_size, 0);
-        copy_section(m_emu, placement_of(obj, section.name),
+        copy_section(permissions, m_emu, placement_of(obj, section.name),
                      section.nobits ? std::span<const byte>(zeros)
                                     : std::span<const byte>(section.bytes),
-                     section.writable, section.executable, permissions);
+                     section.writable, section.executable);
     }
-    copy_section(m_emu, placement_of(obj, ".bss"), std::vector<byte>(obj.bss_section, 0), true,
-                 false, permissions);
+    copy_section(permissions, m_emu, placement_of(obj, ".bss"),
+                 std::vector<byte>(obj.bss_section, 0), true, false);
 
     // The program runs with the permissions of its sections, so code cannot be written.
     VirtualMemory &mmu = *m_emu.mmu;

@@ -210,7 +210,7 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
             AEMU_CHECK(flags.find(arg) != flags.end(), "Invalid flag: {}",
                        arg);
 
-            (this->*flags[arg])(args_list, i);
+            (this->*flags[arg])(i, args_list);
 
             // --help and --version print and stop, whatever follows is not looked at
             if (!m_has_work) return;
@@ -327,14 +327,14 @@ void Build::link()
     linker.link();
 }
 
-void Build::_ignore(std::vector<std::string> &args, size_t &index)
+void Build::_ignore(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
     m_parse_options = false;
 }
 
-void Build::_version(std::vector<std::string> &args, size_t &index)
+void Build::_version(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -343,7 +343,7 @@ void Build::_version(std::vector<std::string> &args, size_t &index)
     m_has_work = false;
 }
 
-void Build::_ar(std::vector<std::string> &args, size_t &index)
+void Build::_ar(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -351,7 +351,7 @@ void Build::_ar(std::vector<std::string> &args, size_t &index)
     m_make_lib = true;
 }
 
-void Build::_compile(std::vector<std::string> &args, size_t &index)
+void Build::_compile(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -359,7 +359,7 @@ void Build::_compile(std::vector<std::string> &args, size_t &index)
     m_only_compile = true;
 }
 
-void Build::_output(std::vector<std::string> &args, size_t &index)
+void Build::_output(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing output file path.");
     m_output_file = args[++index];
@@ -369,7 +369,7 @@ void Build::_output(std::vector<std::string> &args, size_t &index)
                "Invalid output file path: '{}'.", m_output_file);
 }
 
-void Build::_outdir(std::vector<std::string> &args, size_t &index)
+void Build::_outdir(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing output directory path.");
     m_output_dir = args[++index];
@@ -379,7 +379,7 @@ void Build::_outdir(std::vector<std::string> &args, size_t &index)
                "Invalid output directory path: '{}'.", m_output_dir);
 }
 
-void Build::_warn(std::vector<std::string> &args, size_t &index)
+void Build::_warn(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing warning type.");
     std::string warning_type = args[++index];
@@ -390,7 +390,7 @@ void Build::_warn(std::vector<std::string> &args, size_t &index)
     m_enabled_warnings.insert(warning_type);
 }
 
-void Build::_warn_all(std::vector<std::string> &args, size_t &index)
+void Build::_warn_all(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -398,7 +398,7 @@ void Build::_warn_all(std::vector<std::string> &args, size_t &index)
     for (std::string warning_type : WARNINGS) m_enabled_warnings.insert(warning_type);
 }
 
-void Build::_include(std::vector<std::string> &args, size_t &index)
+void Build::_include(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing include directory path.");
     std::string dpath = args[++index];
@@ -409,7 +409,7 @@ void Build::_include(std::vector<std::string> &args, size_t &index)
     m_system_dirs.push_back(Directory(dpath));
 }
 
-void Build::_library(std::vector<std::string> &args, size_t &index)
+void Build::_library(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing library file path.");
     std::string fpath = args[++index];
@@ -420,7 +420,7 @@ void Build::_library(std::vector<std::string> &args, size_t &index)
     m_linked_lib.push_back(File(fpath));
 }
 
-void Build::_library_directory(std::vector<std::string> &args, size_t &index)
+void Build::_library_directory(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(),
                "Missing library directory path.");
@@ -432,7 +432,7 @@ void Build::_library_directory(std::vector<std::string> &args, size_t &index)
     m_library_dirs.push_back(Directory(dpath));
 }
 
-void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
+void Build::_preprocessor_flag(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing preprocessor flag.");
     std::string flag = args[++index];
@@ -449,7 +449,7 @@ void Build::_preprocessor_flag(std::vector<std::string> &args, size_t &index)
     m_preprocessor_flags[flag] = value;
 }
 
-void Build::_keep_preprocessor_output(std::vector<std::string> &args, size_t &index)
+void Build::_keep_preprocessor_output(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -457,7 +457,7 @@ void Build::_keep_preprocessor_output(std::vector<std::string> &args, size_t &in
     keep_proccessed_files = true;
 }
 
-void Build::_ld(std::vector<std::string> &args, size_t &index)
+void Build::_ld(size_t &index, const std::vector<std::string> &args)
 {
     AEMU_CHECK(index + 1 < args.size(), "Missing linker script file path.");
     std::string fpath = args[++index];
@@ -469,7 +469,7 @@ void Build::_ld(std::vector<std::string> &args, size_t &index)
     m_has_ld_file = true;
 }
 
-void Build::_dump(std::vector<std::string> &args, size_t &index)
+void Build::_dump(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);
@@ -477,7 +477,7 @@ void Build::_dump(std::vector<std::string> &args, size_t &index)
     m_dump = true;
 }
 
-void Build::_help(std::vector<std::string> &args, size_t &index)
+void Build::_help(size_t &index, const std::vector<std::string> &args)
 {
     UNUSED(args);
     UNUSED(index);

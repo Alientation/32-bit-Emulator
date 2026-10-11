@@ -177,11 +177,11 @@ class Preprocessor
     /// Parses `( a, b, c )` with the cursor on the open parenthesis. Commas inside nested
     /// brackets do not split.
     ///
-    /// @param cursor the cursor of the line
-    /// @param args receives the tokens of each argument
+    /// @param args Receives the tokens of each argument.
+    /// @param cursor The cursor of the line.
     /// @return false (cursor position unspecified) if the closing parenthesis is not on the same
     ///     line
-    static bool parse_call_args(basm::TokenCursor &cursor, std::vector<Tokens> &args);
+    static bool parse_call_args(std::vector<Tokens> &args, basm::TokenCursor &cursor);
 
     /// Parses `( a, b )` of a definition header into parameter names.
     ///
