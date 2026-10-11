@@ -652,12 +652,13 @@ void Emulator32bit::set_history_size(const size_t count)
 {
     AEMU_CHECK(count <= kMaxHistory, "The history keeps at most {} instructions", kMaxHistory);
     // The newest entries that fit, oldest first, are what the new ring starts with.
-    const std::vector<ExecutedInstruction> old = history();
-    const size_t kept = old.size() < count ? old.size() : count;
+    History old;
+    const size_t old_count = history(old);
+    const size_t kept = old_count < count ? old_count : count;
 
     for (size_t i = 0; i < kept; i++)
     {
-        const ExecutedInstruction &entry = old[old.size() - kept + i];
+        const ExecutedInstruction &entry = old[old_count - kept + i];
         m_history.pc[i] = entry.pc;
         m_history.instruction[i] = entry.instruction;
     }
@@ -671,19 +672,18 @@ size_t Emulator32bit::history_size() const
     return m_history.size;
 }
 
-std::vector<Emulator32bit::ExecutedInstruction> Emulator32bit::history() const
+size_t Emulator32bit::history(History &out) const
 {
-    std::vector<ExecutedInstruction> out;
-    out.reserve(m_history.count);
-    // the oldest entry is `count` before the head, going around
-    size_t i = m_history.head >= m_history.count ? m_history.head - m_history.count
-                                                 : m_history.head + m_history.size - m_history.count;
+    // The oldest entry is `count` before the head, going around.
+    size_t i = m_history.head >= m_history.count
+                   ? m_history.head - m_history.count
+                   : m_history.head + m_history.size - m_history.count;
     for (size_t n = 0; n < m_history.count; n++)
     {
-        out.push_back({.pc = m_history.pc[i], .instruction = m_history.instruction[i]});
+        out[n] = {.pc = m_history.pc[i], .instruction = m_history.instruction[i]};
         if (++i == m_history.size) i = 0;
     }
-    return out;
+    return m_history.count;
 }
 
 void Emulator32bit::set_symbols(const SymbolMap *symbols)

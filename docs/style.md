@@ -28,6 +28,7 @@ For a collection of a few records that the program keeps for its whole run (watc
 - **Struct of arrays.** One array per field (`m_watchpoints.address[i]`, `m_watchpoints.length[i]`) and a count, together in one struct per table; the entries are `[0, count)`. A public accessor builds the record by value (`watchpoint (i)`), so the layout is not part of the API.
 - **Remove by moving the last entry into the gap** and decrementing the count. The order is not stable, and the documentation says so.
 - **Flags are a `BitArray<N>`**, not a `bool` array and not an optional per entry.
+- **A bounded list is returned by filling the caller's `std::array`** and returning the count (`history (History &out)`), not as a `std::vector`: there is no allocation, and the caller sees the bound.
 - **Where the order matters, a ring buffer** (the instruction history): an array per field, a head and a count, and the oldest entry is `count` before the head. The arrays have the maximum size (`kMaxHistory`), the size that the user chooses is stored and the front ends validate it against the maximum.
 - **Put the table at the end of a class that has hot members**, after what every instruction reads, so that it does not move them (see the benchmark notes in [internals.md](internals.md#measuring-a-change)).
 

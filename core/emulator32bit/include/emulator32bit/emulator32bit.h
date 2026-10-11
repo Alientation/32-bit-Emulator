@@ -12,12 +12,12 @@
 #include "emulator32bit/virtual_memory.h"
 #include "util/bitarray.h"
 
+#include <array>
 #include <iosfwd>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
-#include <vector>
 
 /// The most watchpoints that can be set at once (`add_watchpoint`).
 inline constexpr unsigned kMaxWatchpoints = 16;
@@ -371,8 +371,12 @@ class Emulator32bit
     /// @return The number of instructions that the history keeps.
     size_t history_size() const;
 
-    /// @return the last instructions that were executed, the oldest first
-    std::vector<ExecutedInstruction> history() const;
+    /// The instructions that the history keeps, in the most that it can.
+    using History = std::array<ExecutedInstruction, kMaxHistory>;
+
+    /// @param out Receives the last instructions that were executed, the oldest first.
+    /// @return The number of entries of `out` that were written, at most history_size ().
+    size_t history(History &out) const;
 
     /// Names for the trace.
     ///

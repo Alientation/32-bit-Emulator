@@ -603,8 +603,7 @@ void Debugger::command_disasm(const std::vector<std::string> &args)
 
 void Debugger::command_history()
 {
-    print_history(m_emu.history().size());
-    if (m_emu.history().empty())
+    if (print_history(kMaxHistory) == 0)
     {
         m_out << "No instructions executed yet.\n";
     }
@@ -930,15 +929,17 @@ void Debugger::print_location()
     m_out << "=> " << describe(m_emu.get_pc()) << ": " << disassemble_at(m_emu.get_pc()) << "\n";
 }
 
-void Debugger::print_history(const size_t count)
+size_t Debugger::print_history(const size_t count)
 {
-    const std::vector<Emulator32bit::ExecutedInstruction> history = m_emu.history();
-    const size_t first = history.size() > count ? history.size() - count : 0;
-    for (size_t i = first; i < history.size(); i++)
+    Emulator32bit::History history;
+    const size_t kept = m_emu.history(history);
+    const size_t first = kept > count ? kept - count : 0;
+    for (size_t i = first; i < kept; i++)
     {
         m_out << "   " << describe(history[i].pc) << ": "
               << Emulator32bit::disassemble_instr(history[i].instruction) << "\n";
     }
+    return kept - first;
 }
 
 std::string Debugger::describe(const word address) const

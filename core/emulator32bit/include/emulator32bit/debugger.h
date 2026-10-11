@@ -144,8 +144,9 @@ class Debugger
 
     /// Prints the last instructions that were executed, the newest last.
     ///
-    /// @param count how many to print at most
-    void print_history(size_t count);
+    /// @param count How many to print at most.
+    /// @return How many were printed.
+    size_t print_history(size_t count);
 
     /// Prints a line of the backtrace.
     ///

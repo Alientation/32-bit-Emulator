@@ -103,8 +103,9 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
 /// The newest one is the instruction that faulted, if the run ended in a fault.
 void print_history(std::ostream &out, const Emulator32bit &emu, const SymbolMap &symbols)
 {
-    const std::vector<Emulator32bit::ExecutedInstruction> history = emu.history();
-    for (size_t i = 0; i < history.size(); i++)
+    Emulator32bit::History history;
+    const size_t count = emu.history(history);
+    for (size_t i = 0; i < count; i++)
     {
         const std::string name = symbols.describe(history[i].pc);
         out << "history[" << i << "]=" << hex(history[i].pc) << " " << hex(history[i].instruction)

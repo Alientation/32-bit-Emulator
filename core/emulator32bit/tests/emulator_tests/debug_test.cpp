@@ -167,8 +167,8 @@ TEST_F(HistoryTest, keeps_the_newest_instructions)
     cpu.set_history_size(2);
     cpu.run(0);
 
-    const auto history = cpu.history();
-    ASSERT_EQ(history.size(), 2u);
+    Emulator32bit::History history;
+    ASSERT_EQ(cpu.history(history), 2u);
     EXPECT_EQ(history[0].pc, 8u);
     EXPECT_EQ(history[0].instruction, add_imm(0, 0, 1));
     EXPECT_EQ(history[1].pc, 12u);
@@ -181,45 +181,44 @@ TEST_F(HistoryTest, ends_with_the_instruction_that_faulted)
     cpu.set_history_size(8);
     EXPECT_EQ(cpu.run(0).status, Status::FAULT);
 
-    const auto history = cpu.history();
-    ASSERT_EQ(history.size(), 2u);
-    EXPECT_EQ(history.back().pc, 4u);
-    EXPECT_EQ(history.back().instruction, kBadInstruction);
+    Emulator32bit::History history;
+    ASSERT_EQ(cpu.history(history), 2u);
+    EXPECT_EQ(history[1].pc, 4u);
+    EXPECT_EQ(history[1].instruction, kBadInstruction);
 }
 
 TEST_F(HistoryTest, a_size_of_zero_turns_it_off)
 {
     cpu.set_history_size(4);
     cpu.run(2);
-    EXPECT_EQ(cpu.history().size(), 2u);
+    Emulator32bit::History history;
+    EXPECT_EQ(cpu.history(history), 2u);
 
     cpu.set_history_size(0);
-    EXPECT_TRUE(cpu.history().empty());
+    EXPECT_EQ(cpu.history(history), 0u);
     cpu.run(0);
-    EXPECT_TRUE(cpu.history().empty());
+    EXPECT_EQ(cpu.history(history), 0u);
 }
 
 TEST_F(HistoryTest, changing_the_size_keeps_the_newest_in_order)
 {
     cpu.set_history_size(3);
     cpu.run(0); // four instructions into three entries: the ring has wrapped
-    auto history = cpu.history();
-    ASSERT_EQ(history.size(), 3u);
+    Emulator32bit::History history;
+    ASSERT_EQ(cpu.history(history), 3u);
     EXPECT_EQ(history[0].pc, 4u);
     EXPECT_EQ(history[1].pc, 8u);
     EXPECT_EQ(history[2].pc, 12u);
 
     cpu.set_history_size(2);
-    history = cpu.history();
-    ASSERT_EQ(history.size(), 2u);
+    ASSERT_EQ(cpu.history(history), 2u);
     EXPECT_EQ(history[0].pc, 8u);
     EXPECT_EQ(history[1].pc, 12u);
 
     cpu.set_history_size(4); // room to grow, and the next entries go after the old ones
     cpu.set_pc(0);
     cpu.run(3);
-    history = cpu.history();
-    ASSERT_EQ(history.size(), 4u);
+    ASSERT_EQ(cpu.history(history), 4u);
     EXPECT_EQ(history[0].pc, 12u);
     EXPECT_EQ(history[1].pc, 0u);
     EXPECT_EQ(history[2].pc, 4u);
