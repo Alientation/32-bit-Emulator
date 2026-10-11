@@ -204,7 +204,8 @@ constexpr std::array<U16, 16> make_condition_table()
     return table;
 }
 
-/// Indexed by the low four bits of PSTATE (NZCV).
+/// For each value of the flags (the low four bits of PSTATE, NZCV), the mask of the conditions that
+/// hold: bit `cond` is set when the condition `cond` holds.
 inline constexpr std::array<U16, 16> kConditionTable = make_condition_table();
 
 /// Whether the condition holds for the flags in PSTATE, with one table lookup.
@@ -378,14 +379,13 @@ static inline AluResult alu_mvn(const word value, const NZCVFlags flags)
 static inline AluResult alu_mul(const word a, const word b, const NZCVFlags flags)
 {
     const word result = a * b;
-    const word result32 = word(result);
 
     return {
         .result = result,
         .flags =
             {
-                .n = test_bit<31>(result32),
-                .z = result32 == 0,
+                .n = test_bit<31>(result),
+                .z = result == 0,
                 .c = flags.c,
                 .v = flags.v,
             },

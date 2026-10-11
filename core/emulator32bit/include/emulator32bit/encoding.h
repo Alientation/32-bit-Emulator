@@ -24,12 +24,12 @@ enum class AddrType : U8
     ADDR_UNALIGNED,
 };
 
-// The opcode constants `_op_<name>`, one for each row of AEMU_OPCODES (opcodes.h).
+/// The opcode constants `_op_<name>`, one for each row of AEMU_OPCODES (opcodes.h).
 #define AEMU_DECLARE_OPCODE_CONSTANT(name, opcode) inline constexpr word _op_##name = opcode;
 AEMU_OPCODES(AEMU_DECLARE_OPCODE_CONSTANT)
 #undef AEMU_DECLARE_OPCODE_CONSTANT
 
-// The id of each operation of the special instruction (opcode 0).
+/// The id of each operation of the special instruction (opcode 0), bits 22-25.
 inline constexpr word kSpecialOpId_hlt = 0b0000;
 inline constexpr word kSpecialOpId_nop = 0b1111;
 inline constexpr word kSpecialOpId_msr = 0b0001;
@@ -41,7 +41,7 @@ inline constexpr word kSpecialOpId_wfi = 0b0110;
 inline constexpr word kSpecialOpId_brk = 0b0111;
 inline constexpr word kSpecialOpId_unary = 0b1000;
 
-// The operations of the unary special instruction (`op xd, xn`, bits 0-3).
+/// The operations of the unary special instruction (`op xd, xn`, bits 0-3).
 inline constexpr word kUnaryId_sxtb = 0b0000;
 inline constexpr word kUnaryId_sxth = 0b0001;
 inline constexpr word kUnaryId_uxtb = 0b0010;
@@ -50,17 +50,19 @@ inline constexpr word kUnaryId_clz = 0b0100;
 inline constexpr word kUnaryId_rev = 0b0101;
 inline constexpr word kUnaryId_rev16 = 0b0110;
 
-// The variants of CSEL (bits 4-5): what is written when the condition is false.
+/// The variants of CSEL (bits 4-5): what is written when the condition is false.
 inline constexpr word kCselId_csel = 0b00;  ///< xm
 inline constexpr word kCselId_csinc = 0b01; ///< `xm` + 1.
 inline constexpr word kCselId_csinv = 0b10; ///< ~xm
 inline constexpr word kCselId_csneg = 0b11; ///< -xm
 
+/// The operation of an atomic instruction (bits 0-3): what is written to memory.
 inline constexpr word kAtomicId_swp = 0b0000;
 inline constexpr word kAtomicId_ldadd = 0b0001;
 inline constexpr word kAtomicId_ldclr = 0b0010;
 inline constexpr word kAtomicId_ldset = 0b0011;
 
+/// The width of the access of an atomic instruction (bits 4-5).
 inline constexpr word kAtomicWidth_word = 0b00;
 inline constexpr word kAtomicWidth_byte = 0b01;
 inline constexpr word kAtomicWidth_hword = 0b10;
@@ -70,12 +72,13 @@ inline constexpr U8 kShiftAmountBits = 5;   ///< The shift amount of a shift by 
 inline constexpr U8 kDataImmBits = 14;      ///< The immediate of a data processing instruction.
 inline constexpr U8 kMovImmBits = 19;       ///< The immediate of `mov` and `mvn`.
 inline constexpr U8 kMemoryOffsetBits = 12; ///< The signed offset of a load or a store.
-inline constexpr U8 kBranchFieldBits =
-    22; ///< The offset in words of `b`, the number of `swi`, `brk`.
+inline constexpr U8 kBranchFieldBits = 22;  ///< The offset of `b`, the number of `swi` and `brk`.
 inline constexpr U8 kSysregImmBits = 16; ///< The immediate of `msr`.
 
-// The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
-inline constexpr word kSctlrMmuEnable = 1; ///< Bit 0 of SCTLR.
+/// Bit 0 of SCTLR, which turns on translation by the page tables.
+inline constexpr word kSctlrMmuEnable = 1;
+
+/// The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
 inline constexpr word kSysregId_pstate = 1;
 inline constexpr word kSysregId_elr = 2;
 inline constexpr word kSysregId_spsr = 3;
@@ -90,6 +93,7 @@ inline constexpr word kSysregId_fpsr = 11;
 
 /// ESR: the class of the exception is in bits 26-31 and the syndrome (ISS) in the bits below.
 inline constexpr U8 kEsrClassShift = 26;
+/// The bits of ESR below the class.
 inline constexpr word kEsrIssMask = (word(1) << kEsrClassShift) - 1;
 
 /// VBAR: the handler of vector `n` is at `VBAR + n * kVectorSize`, so VBAR is a multiple of it.
