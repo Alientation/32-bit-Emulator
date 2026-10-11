@@ -57,7 +57,7 @@ class HostFpu
     HostFpu(const HostFpu &) = delete;
     HostFpu &operator=(const HostFpu &) = delete;
 
-    /// @return the flags the operations since the constructor raised, as an FPSR value
+    /// @return The flags the operations since the constructor raised, as an FPSR value.
     [[gnu::always_inline]] word flags() const
     {
         host_barrier();
@@ -164,7 +164,7 @@ bool is_signaling_nan(T value)
            && (bits & ~(F::kSign | F::kExponent)) != 0 && (bits & F::kQuiet) == 0;
 }
 
-/// @return the bits of @p value, or the default NaN if it is one
+/// @return The bits of @p value, or the default NaN if it is one.
 template <class T>
 U64 canonical(T value)
 {
@@ -253,7 +253,7 @@ Result sqrt_op(U64 abits, word rounding)
     return {canonical(value), host.flags()};
 }
 
-/// abs, neg: the sign bit and nothing else
+/// Abs, neg: the sign bit and nothing else.
 template <class T>
 Result sign_op(U8 fn, U64 abits)
 {
@@ -405,7 +405,7 @@ Result unary(const U8 fn, const bool dbl, const U64 a, const word rounding)
 
     if (!dbl)
     {
-        // float to double: always exact
+        // Float to double: always exact.
         const float f = from_bits<float>(a);
         if (f != f)
         {

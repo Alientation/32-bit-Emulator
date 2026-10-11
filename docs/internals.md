@@ -241,7 +241,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     call `require_kernel ()`.
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
     `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
-    CLAIM register), `Timer` (counts retired instructions, `tick()` is called by `run()` after each
+    CLAIM register), `Timer` (counts executed instructions, `tick()` is called by `run()` after each
     one), `Console` (stream out, queued bytes in, and the live input of a `HostInput` that another
     thread fills: it is taken on the emulator thread, by `poll_host_input ()` from the register
     reads and from the `hooked` part of `run ()`, which a live input turns on) and `BlockDevice` (512 byte sectors, data

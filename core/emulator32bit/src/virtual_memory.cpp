@@ -651,7 +651,7 @@ void VirtualMemory::remove_vpage(long long pid, word vpage)
             physical.used = false;
             clock_remove(physical);
 
-            // add back to free list
+            // Add back to free list.
             release_frame(entry->ppage);
 
             AEMU_DEBUG("Returning physical page {} corresponding to virtual page {}.", entry->ppage,

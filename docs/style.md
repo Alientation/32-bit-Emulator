@@ -30,12 +30,14 @@ For a collection of a few records that the program keeps for its whole run (watc
 
 - **A piece of text that is built in more than one place is a helper.** A register is named by `register_name (reg)` (`alu.h`), never by `"x" + std::to_string (reg)` or a local ternary. The same goes for any other name that is printed (conditions, system registers, exception classes): one table.
 - **Register names:** `x0`–`x27`, `fp` (x28), `lr` (x29), `sp`, `xzr`. They are what is printed (disassembler, trace, messages, debugger) and what the assembler and the debugger accept, together with `x28` and `x29`. Formats meant for programs to read (`--output`, the gdb target description) keep the numbers.
-- **Name a flag for what it means, not for when it is true.** `leaving_start`, not `first`.
+- **Name a flag for what it means, not for when it is true.** `leaving_start`, not `first`. A flag that guards one check is named for the situation it detects: `m_just_took_exception` (an exception raised while it is set is a double fault), not `m_retired_since_entry`.
+- **Plain words, no jargon.** An instruction is executed or completed, not "retired".
 - Filenames are lowercase. Constants are `kName`; members are `m_name`; the handler of an opcode is `_name`.
 
 ## Comments and documentation
 
 - **Documentation is in the headers:** `///` with `@param`, `@return`, `@tparam`, on every public member, saying what it does and what it promises (limits, order, what is replaced, what is returned on failure).
+- **A comment is a sentence:** it starts with a capital letter and ends with a period, also the text after `@param name` and `@return` (`@param pc The address of the instruction.`) and a trailing comment (`return i; // The count, if there is none.`). Exceptions: a comment that starts with a name that has a case of its own (`x0`, `` `hlt` ``, `m_pc`), the rows of a table whose columns are aligned, `// namespace` at a closing brace, and the directives of tools (`clang-format off`, `TODO`).
 - **Few comments in a `.cpp`:** `///` for a `static` or an anonymous-namespace function, `//` in code. No `/* */`. A comment says why, never what.
 - **A flag, a special case or a workaround always gets the reason.** If it reads as a patch, either the comment explains the case it handles or the code is changed so it is not needed. The test for a comment: could a reader who did not write this work out what the variable is for?
 - No function names in log messages (the logger prints the file and line).

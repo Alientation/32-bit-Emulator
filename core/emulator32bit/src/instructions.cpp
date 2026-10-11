@@ -9,20 +9,20 @@
 
 using namespace encoding;
 
-/// Useful macros to extract information from instruction bits
-#define _X1(instr) (bitfield_unsigned<20, 5>(instr))  // bits 20 to 24
-#define _X2(instr) (bitfield_unsigned<15, 5>(instr))  // bits 15 to 19
-#define _X3(instr) (bitfield_unsigned<9, 5>(instr))   // bits 9 to 13
-#define _X4(instr) (bitfield_unsigned<4, 5>(instr))   // bits 4 to 8
+/// Useful macros to extract information from instruction bits.
+#define _X1(instr) (bitfield_unsigned<20, 5>(instr))  // Bits 20 to 24.
+#define _X2(instr) (bitfield_unsigned<15, 5>(instr))  // Bits 15 to 19.
+#define _X3(instr) (bitfield_unsigned<9, 5>(instr))   // Bits 9 to 13.
+#define _X4(instr) (bitfield_unsigned<4, 5>(instr))   // Bits 4 to 8.
 
-#define _SX1(instr) (bitfield_unsigned<17, 5>(instr)) // bits 17 to 21
-#define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) // bits 11 to 15
-#define _SX3(instr) (bitfield_unsigned<6, 5>(instr))  // bits 6 to 10
+#define _SX1(instr) (bitfield_unsigned<17, 5>(instr)) // Bits 17 to 21.
+#define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) // Bits 11 to 15.
+#define _SX3(instr) (bitfield_unsigned<6, 5>(instr))  // Bits 6 to 10.
 
-/// Parse the value of the argument for instruction format O
+/// Parse the value of the argument for instruction format O.
 ///
 /// Also used to parse value of argument for some other instruction format
-/// like format M which conveniently has a similar structure
+/// like format M which conveniently has a similar structure.
 ///
 /// @param cpu Emulator context.
 /// @param instr 32 bit instruction to extract the value of the argument.
@@ -40,7 +40,7 @@ static word get_format_o_arg(Emulator32bit &cpu, const word instr)
     return alu_shift(value, type, amount, {}).result;
 }
 
-/// A sequence of bits to add to a @ref Joiner
+/// A sequence of bits to add to a @ref Joiner.
 struct JPart
 {
     // A value that does not fit in its bits would spill into the fields next to it, and the
@@ -61,7 +61,7 @@ struct JPart
     const word val;
 };
 
-/// Bits of an instruction that are 0 (unused, or a flag that is off)
+/// Bits of an instruction that are 0 (unused, or a flag that is off).
 struct Zeros
 {
     explicit Zeros(const int bits) :
@@ -72,16 +72,16 @@ struct Zeros
     const int bits;
 };
 
-/// A value that is formed by joining @ref JPart
+/// A value that is formed by joining @ref JPart.
 class Joiner
 {
   public:
-    word val = 0; // Content stored so far
+    word val = 0; // Content stored so far.
 
-    /// Add a new @ref JPart
+    /// Add a new @ref JPart.
     ///
-    /// @param p @ref JPart to add
-    /// @return Reference to this object
+    /// @param p @ref JPart to add.
+    /// @return Reference to this object.
     Joiner &operator<<(const JPart &p)
     {
         val <<= p.bits;
@@ -89,19 +89,19 @@ class Joiner
         return *this;
     }
 
-    /// Add filler bits all set to 0
+    /// Add filler bits all set to 0.
     ///
-    /// @param zeros The bits to add
-    /// @return Reference to this object
+    /// @param zeros The bits to add.
+    /// @return Reference to this object.
     Joiner &operator<<(const Zeros &zeros)
     {
         val <<= zeros.bits;
         return *this;
     }
 
-    /// Extract the value of this object
+    /// Extract the value of this object.
     ///
-    /// @return word
+    /// @return word.
     operator word() const
     {
         return val;
@@ -248,7 +248,7 @@ word Emulator32bit::asm_hlt()
 void Emulator32bit::_nop(const word instr)
 {
     UNUSED(instr);
-    return; // do nothing
+    return; // Do nothing.
 }
 
 word Emulator32bit::asm_nop()
@@ -507,8 +507,8 @@ word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const
 /// The data abort of a word or half-word access at an address that is not a multiple of its size.
 /// The instruction has changed nothing yet.
 ///
-/// @param atomic an atomic (a read and a write, which has no unaligned form), otherwise a load or
-///        store whose message names the unaligned form to use
+/// @param atomic An atomic (a read and a write, which has no unaligned form), otherwise a load or
+///        store whose message names the unaligned form to use.
 [[noreturn]] static void throw_misaligned(const word address, const unsigned size, const bool write,
                                           const bool atomic = false)
 {
@@ -802,7 +802,7 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
     write_fp(*this, xd, dbl, result.value);
 }
 
-// xd = fn(xn * xm, xa): the fields are those of fop2 and the accumulator is in bits 8-4.
+// `xd` = fn(xn * xm, xa): the fields are those of fop2 and the accumulator is in bits 8-4.
 [[gnu::noinline]] void Emulator32bit::_fop3(const word instr)
 {
     const U8 fn = bitfield_unsigned<0, 2>(instr);

@@ -207,8 +207,8 @@ void Emulator32bit::_swi(word instr)
                    kUndefinedIss_unimplemented);
     }
 
-    // software interrupts.. perfect to add functionality to this like console print,
-    // file operations, ports, etc
+    // Software interrupts.. perfect to add functionality to this like console print,
+    // file operations, ports, etc.
     word id = read_reg(Register::SYSCALL);
     word arg0 = read_reg(Register::X0);
     word arg1 = read_reg(Register::X1);

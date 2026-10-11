@@ -18,13 +18,13 @@ class HostInput
   public:
     /// Adds bytes to the input. Any thread.
     ///
-    /// @param bytes the bytes that arrived
+    /// @param bytes The bytes that arrived.
     void push(const std::string &bytes);
 
     /// Says that no more bytes will come (the end of the input). Any thread.
     void close();
 
-    /// @return whether bytes are waiting to be taken, or the input has ended (so that `take`
+    /// @return Whether bytes are waiting to be taken, or the input has ended (so that `take`
     ///         would change something). Cheap.
     bool pending() const
     {
@@ -33,15 +33,15 @@ class HostInput
 
     /// Moves the bytes that arrived to the end of `out`.
     ///
-    /// @param out where they go
+    /// @param out Where they go.
     void take(std::deque<byte> &out);
 
-    /// @return whether the input has ended and everything was taken
+    /// @return Whether the input has ended and everything was taken.
     bool finished() const;
 
     /// Blocks until bytes are waiting or the input has ended.
     ///
-    /// @return whether there are bytes to take
+    /// @return Whether there are bytes to take.
     bool wait();
 
   private:

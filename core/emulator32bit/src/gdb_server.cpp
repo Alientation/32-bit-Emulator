@@ -27,10 +27,10 @@ constexpr unsigned kRegisterSp = 13;
 constexpr unsigned kRegisterLr = 14;
 constexpr unsigned kRegisterPc = 15;
 constexpr unsigned kRegisterCpsr = 16;
-constexpr unsigned kRegisterFirstExtra = 17; // x13
-constexpr unsigned kRegisterCount = 33;      // up to x28
+constexpr unsigned kRegisterFirstExtra = 17; // The gdb number of x13.
+constexpr unsigned kRegisterCount = 33;      // Up to x28.
 
-/// @return the number of the emulator register that gdb's register is, or -1 for pc and cpsr
+/// @return The number of the emulator register that gdb's register is, or -1 for pc and cpsr.
 int emulator_register(const unsigned number)
 {
     if (number <= 12) return int(number);
@@ -193,7 +193,7 @@ bool GdbServer::write_register(const unsigned number, const word value)
     }
     else if (number == kRegisterPc)
     {
-        if (value % 4 != 0) return false; // the pc of the machine is always a multiple of 4
+        if (value % 4 != 0) return false; // The pc of the machine is always a multiple of 4.
         m_emu.set_pc(value);
     }
     else if (number == kRegisterCpsr)
@@ -300,10 +300,10 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
     case '2':
     case '3':
     case '4':
-        if (kind == 0) return "E01"; // the length of the watched range
+        if (kind == 0) return "E01"; // The length of the watched range.
         if (insert)
         {
-            // gdb takes an error as: no more hardware watchpoints
+            // GDB takes an error as: no more hardware watchpoints.
             if (!m_emu.add_watchpoint(address, kind,
                                       type_text[0] == '2'   ? Emulator32bit::WatchKind::WRITE
                                       : type_text[0] == '3' ? Emulator32bit::WatchKind::READ
@@ -318,7 +318,7 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
         }
         return "OK";
     default:
-        return ""; // not supported
+        return ""; // Not supported.
     }
 }
 
@@ -328,7 +328,7 @@ std::string GdbServer::stop_reply(const Emulator32bit::RunResult &result)
     switch (result.status)
     {
     case Status::HALTED:
-        m_finished = false; // the client says when it is over, with a detach or a kill
+        m_finished = false;    // The client says when it is over, with a detach or a kill.
         return "W00";
     case Status::FAULT:
         return "T0bthread:1;"; // SIGSEGV
@@ -336,7 +336,7 @@ std::string GdbServer::stop_reply(const Emulator32bit::RunResult &result)
     {
         if (result.message.rfind("Watchpoint", 0) == 0)
         {
-            // gdb needs the kind of the watchpoint and the address that was accessed to know
+            // GDB needs the kind of the watchpoint and the address that was accessed to know
             // which of its watchpoints it is.
             const Emulator32bit::WatchHit &hit = m_emu.last_watch_hit();
             const char *kind = hit.kind == Emulator32bit::WatchKind::WRITE  ? "watch"
@@ -377,7 +377,7 @@ std::string GdbServer::resume(const U64 steps)
             m_last_stop = stop_reply(result);
             return m_last_stop;
         }
-        // run () does not stop at a breakpoint on the first instruction of a call, which is right
+        // Run () does not stop at a breakpoint on the first instruction of a call, which is right
         // for the first slice (the program is at the breakpoint it was stopped at) and wrong for
         // the others.
         if (m_emu.breakpoints().contains(m_emu.get_pc()))
@@ -560,9 +560,9 @@ std::string GdbServer::handle(const std::string &packet)
             m_finished = true;
             return "OK";
         }
-        return ""; // vMustReplyEmpty and the others
+        return "";   // vMustReplyEmpty and the others.
     case 'H':
-        return "OK"; // one thread
+        return "OK"; // One thread.
     case 'T':
         return "OK";
     case 'Z':
@@ -579,7 +579,7 @@ std::string GdbServer::handle(const std::string &packet)
         m_silent = true;
         return "";
     default:
-        return ""; // not supported
+        return ""; // Not supported.
     }
 }
 
@@ -614,12 +614,12 @@ class Client : public GdbServer::InterruptSource
         }
         char c = 0;
         if (recv(m_fd, &c, 1, MSG_PEEK) != 1) return false;
-        if (c != 0x03) return false; // a packet of the next command: left for the loop to read
+        if (c != 0x03) return false; // A packet of the next command: left for the loop to read.
         recv(m_fd, &c, 1, 0);
         return true;
     }
 
-    /// @return false when the client hung up
+    /// @return false when the client hung up.
     bool read_byte(char &c)
     {
         return recv(m_fd, &c, 1, 0) == 1;
@@ -694,7 +694,7 @@ bool GdbServer::serve(Emulator32bit &emu, const std::uint16_t port,
             client.send(std::format("$T02thread:1;#{:02x}", checksum("T02thread:1;")));
             continue;
         }
-        if (c != '$') continue; // an acknowledgement, or noise
+        if (c != '$') continue; // An acknowledgement, or noise.
 
         std::string payload;
         while (client.read_byte(c) && c != '#')

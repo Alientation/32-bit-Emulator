@@ -12,8 +12,8 @@
 class MemoryPort
 {
   public:
-    /// @param bus the physical address space that the accesses end up on
-    /// @param mmu the MMU that translates the virtual addresses of a program
+    /// @param bus The physical address space that the accesses end up on.
+    /// @param mmu The MMU that translates the virtual addresses of a program.
     MemoryPort(SystemBus &bus, VirtualMemory &mmu);
 
     MemoryPort(const MemoryPort &) = delete;
@@ -99,9 +99,9 @@ class MemoryPort
 
     /// The sized forms of read<T> and write<T>, at a virtual address.
     ///
-    /// @param address the virtual address
-    /// @param data the value to store
-    /// @return the value that was read
+    /// @param address The virtual address.
+    /// @param data The value to store.
+    /// @return The value that was read.
     inline byte read_byte(const word address)
     {
         return read<byte>(address);
@@ -154,24 +154,24 @@ class MemoryPort
   private:
     /// Reads a value that crosses a page, put together byte by byte.
     ///
-    /// @param address the virtual address of the first byte
-    /// @param n_bytes the size of the value
-    /// @return the value
+    /// @param address The virtual address of the first byte.
+    /// @param n_bytes The size of the value.
+    /// @return The value.
     dword read_val(word address, U8 n_bytes);
 
     /// Writes a value that crosses a page. The pages are translated one by one, and the stores
     /// are made only after all of them were.
     ///
-    /// @param address the virtual address of the first byte
-    /// @param val the value to store
-    /// @param n_bytes the size of the value
+    /// @param address The virtual address of the first byte.
+    /// @param val The value to store.
+    /// @param n_bytes The size of the value.
     void write_val(word address, dword val, U8 n_bytes);
 
     /// What is left of a fetch that is not in RAM: the ROM, or an exception.
     ///
-    /// @param real_addr the physical address of the instruction
-    /// @param address the virtual address of the instruction
-    /// @return the instruction
+    /// @param real_addr The physical address of the instruction.
+    /// @param address The virtual address of the instruction.
+    /// @return The instruction.
     word fetch_outside_ram(word real_addr, word address);
 
     SystemBus &m_bus;

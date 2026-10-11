@@ -130,7 +130,7 @@ class EmulatorFixture : public ::testing::Test
         return cpu.run(1);
     }
 
-    /// Executes `instr` at address 0 and expects it to retire normally.
+    /// Executes `instr` at address 0 and expects it to complete normally.
     void execute(word instr)
     {
         const auto result = step(0, instr);

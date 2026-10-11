@@ -106,14 +106,14 @@ void Disk::read_disk_manager_file()
 
     if (!reader.has_next() || reader.read_word() != MAGIC_HEADER)
     {
-        // set up page managment from scratch since there was no valid header
+        // Set up page managment from scratch since there was no valid header.
         m_free_list.return_block(0, m_npages);
 
         AEMU_DEBUG("Creating empty disk.");
         return;
     }
 
-    // Read in free blocks from the saved file
+    // Read in free blocks from the saved file.
     while (reader.has_next())
     {
         word page = reader.read_word();
@@ -379,7 +379,7 @@ void Disk::save()
     AEMU_CHECK(bool(m_stream), "Error writing to the disk file.");
     AEMU_DEBUG("Successfully wrote dirty cache pages to disk");
 
-    // store disk management info.
+    // Store disk management info.
     FileWriter fwriter(m_diskfile_manager, std::ios::binary | std::ios::out);
     ByteWriter writer(fwriter);
 

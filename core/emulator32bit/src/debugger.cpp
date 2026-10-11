@@ -76,7 +76,7 @@ std::optional<U64> parse_number(const std::string &str)
 
 std::optional<U8> parse_register_name(const std::string &str)
 {
-    // fp, lr, sp and xzr
+    // fp, lr, sp and xzr.
     for (U8 reg = static_cast<U8>(Register::FP); reg < kNumReg; reg++)
     {
         if (str == register_name(reg))

@@ -32,7 +32,7 @@ inline constexpr word kIrqLineBlock = 2;
 class Device : public BaseMemory
 {
   public:
-    /// @param base_address the physical address of the page of registers
+    /// @param base_address The physical address of the page of registers.
     explicit Device(word base_address);
 
     byte read_byte(word address) override;
@@ -46,12 +46,12 @@ class Device : public BaseMemory
     virtual void reset() = 0;
 
   protected:
-    /// @param offset the offset of the register in the page, a multiple of 4
-    /// @return the value of the register
+    /// @param offset The offset of the register in the page, a multiple of 4.
+    /// @return The value of the register.
     virtual word read_register(word offset) = 0;
 
-    /// @param offset the offset of the register in the page, a multiple of 4
-    /// @param value the value written to the register
+    /// @param offset The offset of the register in the page, a multiple of 4.
+    /// @param value The value written to the register.
     virtual void write_register(word offset, word value) = 0;
 };
 
@@ -73,10 +73,10 @@ class InterruptController : public Device
 
     /// A device raises a line. Lost if the line is not enabled or is in the queue already.
     ///
-    /// @param line the number of the line, 0-31
+    /// @param line The number of the line, 0-31.
     void raise(word line);
 
-    /// @return whether any line is in the queue
+    /// @return Whether any line is in the queue.
     bool has_pending() const
     {
         return !m_queue.empty();
@@ -84,12 +84,12 @@ class InterruptController : public Device
 
     /// Removes the line at the head of the queue.
     ///
-    /// @return the line, 0xFFFFFFFF if the queue is empty
+    /// @return The line, 0xFFFFFFFF if the queue is empty.
     word claim();
 
     void reset() override;
 
-    /// @return the ENABLE register: bit n is set when line n can be raised
+    /// @return The ENABLE register: bit n is set when line n can be raised.
     word enable_mask() const
     {
         return m_enable;
@@ -101,11 +101,11 @@ class InterruptController : public Device
 
   private:
     std::deque<word> m_queue;
-    word m_queued = 0; ///< bit n: line n is in the queue
+    word m_queued = 0; ///< Bit n: line n is in the queue.
     word m_enable = 0;
 };
 
-/// A timer that counts retired instructions, so a run is the same every time. Raises line 0.
+/// A timer that counts executed instructions, so a run is the same every time. Raises line 0.
 ///
 /// | Offset | Name     | Access | |
 /// | 0x00   | COUNT    | r/w    | instructions since reset (or since it was written) |
@@ -117,10 +117,10 @@ class InterruptController : public Device
 class Timer : public Device
 {
   public:
-    /// @param intc the controller that gets the interrupt
+    /// @param intc The controller that gets the interrupt.
     explicit Timer(InterruptController &intc);
 
-    /// One instruction retired.
+    /// One instruction completed.
     void tick()
     {
         m_count++;
@@ -132,17 +132,17 @@ class Timer : public Device
 
     /// For WFI: how long until the timer raises its interrupt.
     ///
-    /// @return the number of instructions, or nothing if it is not going to
+    /// @return The number of instructions, or nothing if it is not going to.
     std::optional<word> cycles_until_event() const;
 
     /// For WFI: `count` instructions pass at once.
     ///
-    /// @param count the number of instructions, no more than cycles_until_event()
+    /// @param count The number of instructions, no more than cycles_until_event().
     void advance(word count);
 
     void reset() override;
 
-    /// @return the COUNT register: the instructions since reset
+    /// @return The COUNT register: the instructions since reset.
     word count() const
     {
         return m_count;
@@ -177,20 +177,20 @@ class Timer : public Device
 class Console : public Device
 {
   public:
-    /// @param intc the controller that gets the interrupt
+    /// @param intc The controller that gets the interrupt.
     explicit Console(InterruptController &intc);
 
     /// Where the bytes written go. The default is std::cout.
     ///
-    /// @param out the stream, which must outlive the console, or null to discard the bytes
+    /// @param out The stream, which must outlive the console, or null to discard the bytes.
     void set_output(std::ostream *out);
 
     /// Queues bytes as received input.
     ///
-    /// @param bytes the bytes to receive
+    /// @param bytes The bytes to receive.
     void push_input(const std::string &bytes);
 
-    /// @return whether a received byte is waiting to be read
+    /// @return Whether a received byte is waiting to be read.
     bool input_waiting() const
     {
         return !m_input.empty();
@@ -200,10 +200,10 @@ class Console : public Device
     /// moves it into its queue on the thread of the emulator: when a register is read, when
     /// `Emulator32bit::run` calls `poll_host_input` between instructions, and when `WFI` waits.
     ///
-    /// @param input the input, which the console shares
+    /// @param input The input, which the console shares.
     void attach_host_input(std::shared_ptr<HostInput> input);
 
-    /// @return whether there is a live input
+    /// @return Whether there is a live input.
     bool has_host_input() const
     {
         return m_host != nullptr;
@@ -212,7 +212,7 @@ class Console : public Device
     /// Takes the bytes the host has supplied, and raises the interrupt if that is enabled.
     void poll_host_input();
 
-    /// @return whether a received byte raises the interrupt (CTRL bit 0)
+    /// @return Whether a received byte raises the interrupt (CTRL bit 0).
     bool receive_interrupt_enabled() const
     {
         return (m_ctrl & 1) != 0;
@@ -220,7 +220,7 @@ class Console : public Device
 
     /// For WFI with nothing else to wait for: blocks until the host supplies a byte.
     ///
-    /// @return false if the input has ended and no byte will come (or there is no live input)
+    /// @return false if the input has ended and no byte will come (or there is no live input).
     bool wait_host_input();
 
     void reset() override;
@@ -239,7 +239,7 @@ class Console : public Device
 
 /// A block device for the operating system: a disk of 512 byte sectors that is read and written one
 /// sector at a time through a buffer in the device and a data register, or many sectors at once by
-/// DMA straight to and from physical RAM. A command takes `LATENCY` retired instructions (per
+/// DMA straight to and from physical RAM. A command takes `LATENCY` executed instructions (per
 /// sector for DMA) to complete, then the status says so and line 2 is raised if that is enabled, so
 /// the kernel can wait with `WFI`.
 ///
@@ -291,13 +291,13 @@ class BlockDevice : public Device
     /// The most descriptors of a scatter/gather command.
     static constexpr word kMaxDescriptors = 1024;
 
-    /// @param intc the controller that gets the interrupt
+    /// @param intc The controller that gets the interrupt.
     explicit BlockDevice(InterruptController &intc);
 
     /// The memory that DMA reads and writes (the RAM, by physical address). Without it, every DMA
     /// command fails.
     ///
-    /// @param memory the memory, which is not owned
+    /// @param memory The memory, which is not owned.
     void set_dma_memory(BaseMemory *memory)
     {
         m_dma_memory = memory;
@@ -305,23 +305,23 @@ class BlockDevice : public Device
 
     /// Makes a disk in memory of zeros.
     ///
-    /// @param sectors the number of sectors
+    /// @param sectors The number of sectors.
     void set_capacity(word sectors);
 
     /// A disk kept in the file. A file that exists is read (its size, rounded up to sectors, is the
     /// capacity unless `sectors` is more); one that does not is made with `sectors` sectors.
     ///
-    /// @param path the file
-    /// @param sectors the minimum number of sectors
-    /// @return false if the file cannot be read
+    /// @param path The file.
+    /// @param sectors The minimum number of sectors.
+    /// @return false if the file cannot be read.
     bool open_file(const std::string &path, word sectors = 0);
 
     /// Writes the disk to its file, if it has one.
     ///
-    /// @return false on an error
+    /// @return false on an error.
     bool save();
 
-    /// One instruction retired.
+    /// One instruction completed.
     void tick()
     {
         if (UNLIKELY(m_busy))
@@ -335,12 +335,12 @@ class BlockDevice : public Device
 
     /// For WFI: how long until the command in progress completes.
     ///
-    /// @return the number of instructions, or nothing if no command is in progress
+    /// @return The number of instructions, or nothing if no command is in progress.
     std::optional<word> cycles_until_event() const;
 
     /// For WFI: `count` instructions pass at once.
     ///
-    /// @param count the number of instructions, no more than cycles_until_event()
+    /// @param count The number of instructions, no more than cycles_until_event().
     void advance(word count);
 
     /// A power cycle of the controller: the contents of the disk stay.
@@ -348,8 +348,8 @@ class BlockDevice : public Device
 
     /// For tests: the bytes of a sector.
     ///
-    /// @param number the sector number
-    /// @return the 512 bytes of the sector
+    /// @param number The sector number.
+    /// @return The 512 bytes of the sector.
     std::vector<byte> sector(word number) const;
 
   protected:
@@ -361,7 +361,7 @@ class BlockDevice : public Device
     /// is not a command, otherwise it becomes busy for LATENCY instructions (for each sector, for
     /// DMA).
     ///
-    /// @param command the number written to COMMAND
+    /// @param command The number written to COMMAND.
     void start(word command);
 
     /// A piece of a DMA or scatter/gather command: `count` sectors from `sector` on, and the RAM
@@ -373,21 +373,21 @@ class BlockDevice : public Device
         word address;
     };
 
-    /// @return whether the segment is inside the disk and inside the RAM, and aligned
+    /// @return Whether the segment is inside the disk and inside the RAM, and aligned.
     bool segment_is_valid(const Segment &segment) const;
 
     /// Reads the descriptors of a scatter/gather command from RAM.
     ///
-    /// @param list the address of the list
-    /// @param count the number of descriptors
-    /// @return false if there are none, too many, or the list is not all in RAM
+    /// @param list The address of the list.
+    /// @param count The number of descriptors.
+    /// @return false if there are none, too many, or the list is not all in RAM.
     bool read_descriptors(word list, word count);
 
     /// Moves the segments of the command between the disk and RAM. Nothing is moved unless all of
     /// them fit on both sides.
     ///
-    /// @param to_disk true to copy from RAM to the disk, false for the other way
-    /// @return false if the transfer is not valid
+    /// @param to_disk true to copy from RAM to the disk, false for the other way.
+    /// @return false if the transfer is not valid.
     bool transfer(bool to_disk);
 
     /// Finishes the command: does its work, sets done (and error if it failed) and raises the
@@ -413,9 +413,9 @@ class BlockDevice : public Device
     word m_dma_addr = 0;
     word m_dma_count = 0;
     word m_dma_list = 0;
-    word m_command_addr = 0;             ///< DMA_ADDR and DMA_COUNT when the command was given
+    word m_command_addr = 0;         ///< DMA_ADDR and DMA_COUNT when the command was given.
     word m_command_count = 0;
-    std::vector<Segment> m_segments;     ///< what the command moves, from the registers or the list
-    bool m_segments_valid = false;       ///< whether they could be read
-    byte m_write_data[kSectorSize] = {}; ///< the buffer when a write command was given
+    std::vector<Segment> m_segments; ///< What the command moves, from the registers or the list.
+    bool m_segments_valid = false;   ///< Whether they could be read.
+    byte m_write_data[kSectorSize] = {}; ///< The buffer when a write command was given.
 };

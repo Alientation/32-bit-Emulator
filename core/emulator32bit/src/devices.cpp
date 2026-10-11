@@ -336,7 +336,7 @@ bool BlockDevice::open_file(const std::string &path, const word sectors)
     }
     else if (std::ifstream(path).good())
     {
-        return false; // exists, cannot be read
+        return false; // Exists, cannot be read.
     }
 
     const size_t wanted =
@@ -372,7 +372,7 @@ void BlockDevice::start(const word command)
 {
     if (m_busy)
     {
-        m_status |= kError; // not accepted
+        m_status |= kError; // Not accepted.
         return;
     }
     if (command < kCmdRead || command > kCmdScatterWrite)

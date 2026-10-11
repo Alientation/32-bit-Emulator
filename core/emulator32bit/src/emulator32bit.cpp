@@ -289,9 +289,9 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             }
         }
 
-        // The loop looks at the registers before each instruction, so the last one is left.
-        if (result.status == RunResult::Status::LIMIT_REACHED
-            && UNLIKELY(m_regwatches.count != 0))
+        // The loop looks at the registers before each instruction, we need to also check again
+        // after the last instruction is executed.
+        if (result.status == RunResult::Status::LIMIT_REACHED && UNLIKELY(m_regwatches.count != 0))
         {
             register_watch_hit();
         }
@@ -381,7 +381,7 @@ unsigned Emulator32bit::find_watchpoint(const word address, const bool physical)
     {
         i++;
     }
-    return i; // m_watchpoints.count if there is none
+    return i; // The count, if there is none.
 }
 
 bool Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind,
@@ -543,7 +543,7 @@ word Emulator32bit::watch_old_value(const word address, const word length)
     }
     catch (const std::exception &)
     {
-        return 0; // the store faults as well, and nothing is reported for it
+        return 0; // The store faults as well, and nothing is reported for it.
     }
 }
 
@@ -572,7 +572,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
     };
 
     const U64 first = address;
-    const U64 last = first + length; // one past, 64 bit so it cannot wrap
+    const U64 last = first + length; // One past, 64 bit so it cannot wrap.
     for (unsigned i = 0; i < m_watchpoints.count; i++)
     {
         const WatchKind kind = m_watchpoints.kind[i];
@@ -865,11 +865,11 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         m_sp_other = value;
         break;
     case kSysregId_ptbr:
-        m_ptbr = value & ~word(kPageSize - 1); // the first level table is a page
+        m_ptbr = value & ~word(kPageSize - 1); // The first level table is a page.
         mmu->set_page_table_base(m_ptbr);
         break;
     case kSysregId_sctlr:
-        m_sctlr = value & kSctlrMmuEnable; // the only bit there is
+        m_sctlr = value & kSctlrMmuEnable; // The only bit there is.
         mmu->set_walk_enabled(test_bit<0>(m_sctlr));
         break;
     case kSysregId_fpcr:
@@ -976,7 +976,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
 
         if (emu->get_type() != TrapType::BAD_INSTR && emu->get_type() != TrapType::BAD_REG)
         {
-            return false; // halt, a failed assertion, brk with a debugger, a double fault
+            return false; // Halt, a failed assertion, brk with a debugger, a double fault.
         }
 
         enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);

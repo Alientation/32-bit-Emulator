@@ -213,7 +213,7 @@ struct CliArgs
     bool plain = false;
     std::vector<std::pair<word, word>> mem_ranges;
     std::vector<std::pair<U8, word>> reg_values;
-    SymbolMap symbols; // of the executable, which the breakpoints and watchpoints can name
+    SymbolMap symbols; // Of the executable, which the breakpoints and watchpoints can name.
     std::vector<word> breakpoints;
     std::vector<WatchSpec> watchpoints;
     std::vector<RegisterWatchSpec> register_watches;
@@ -223,7 +223,7 @@ struct CliArgs
 
 /// Reads the options into `args`. Every mistake is reported, not just the first.
 ///
-/// @return false if there was one
+/// @return false if there was one.
 static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
 {
     bool parse_error = false;
@@ -414,7 +414,7 @@ static bool parse_args(const cxxopts::ParseResult &result, CliArgs &args)
 
 /// Makes the machine, loads the program and sets the state and the devices up as asked.
 ///
-/// @return the machine, or null (after saying why) if a file could not be read
+/// @return The machine, or null (after saying why) if a file could not be read.
 static std::unique_ptr<Emulator32bit> make_machine(const cxxopts::ParseResult &result,
                                                    CliArgs &args)
 {

@@ -49,9 +49,9 @@ constexpr U low_mask(unsigned len)
 
 /// Tests if a bit is set.
 ///
-/// @param val the value to look at
-/// @param bit_i the position of the bit, 0 being the least significant
-/// @return whether the bit is 1
+/// @param val The value to look at.
+/// @param bit_i The position of the bit, 0 being the least significant.
+/// @return Whether the bit is 1.
 template<bit_detail::BitInt T>
 constexpr bool test_bit(T val, unsigned bit_i)
 {
@@ -62,10 +62,10 @@ constexpr bool test_bit(T val, unsigned bit_i)
 
 /// Sets a bit to 1 if `to` is true and clears it otherwise.
 ///
-/// @param val the value to change
-/// @param bit_i the position of the bit
-/// @param to the new value of the bit
-/// @return the value with the bit changed
+/// @param val The value to change.
+/// @param bit_i The position of the bit.
+/// @param to The new value of the bit.
+/// @return The value with the bit changed.
 template<bit_detail::BitInt T>
 constexpr T set_bit(T val, unsigned bit_i, bool to)
 {
@@ -77,10 +77,10 @@ constexpr T set_bit(T val, unsigned bit_i, bool to)
 
 /// Extracts a field of bits as an unsigned number.
 ///
-/// @param val the value to take the field from
-/// @param bit_i the position of the lowest bit of the field
-/// @param len the number of bits in the field
-/// @return the field, in the low bits
+/// @param val The value to take the field from.
+/// @param bit_i The position of the lowest bit of the field.
+/// @param len The number of bits in the field.
+/// @return The field, in the low bits.
 template<bit_detail::BitInt T>
 constexpr T bitfield_unsigned(T val, unsigned bit_i, unsigned len)
 {
@@ -91,10 +91,10 @@ constexpr T bitfield_unsigned(T val, unsigned bit_i, unsigned len)
 
 /// Extracts a field of bits as a signed number: the top bit of the field is extended.
 ///
-/// @param val the value to take the field from
-/// @param bit_i the position of the lowest bit of the field
-/// @param len the number of bits in the field
-/// @return the sign extended field
+/// @param val The value to take the field from.
+/// @param bit_i The position of the lowest bit of the field.
+/// @param len The number of bits in the field.
+/// @return The sign extended field.
 template<bit_detail::BitInt T>
 constexpr T bitfield_signed(T val, unsigned bit_i, unsigned len)
 {
@@ -108,10 +108,10 @@ constexpr T bitfield_signed(T val, unsigned bit_i, unsigned len)
 
 /// Clears a field of bits.
 ///
-/// @param val the value to change
-/// @param bit_i the position of the lowest bit of the field
-/// @param len the number of bits in the field
-/// @return the value with the field set to 0
+/// @param val The value to change.
+/// @param bit_i The position of the lowest bit of the field.
+/// @param len The number of bits in the field.
+/// @return The value with the field set to 0.
 template<bit_detail::BitInt T>
 constexpr T zero_bits(T val, unsigned bit_i, unsigned len)
 {

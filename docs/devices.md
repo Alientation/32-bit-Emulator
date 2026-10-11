@@ -44,7 +44,7 @@ Without a vector table nothing is ever delivered (the queue just fills), which k
 
 ### Timer (`0xF0001000`)
 
-The timer counts **retired instructions**, not host time, so a run is the same every time and a debugger session does not change when it fires.
+The timer counts **executed instructions**, not host time, so a run is the same every time and a debugger session does not change when it fires.
 
 | Offset | Name | Access | |
 |--------|------|--------|---|
@@ -69,7 +69,7 @@ Input can also arrive **while the machine runs**: `emu32 --console-stdin` hands 
 
 ### Block device (`0xF0003000`)
 
-A disk of **512 byte sectors** for the operating system. It is used either one sector at a time through a buffer inside the device and a data register (programmed I/O), or by **DMA**, many sectors straight to and from physical RAM. A command takes `LATENCY` retired instructions (per sector for DMA), like the timer counts, and then the status says so and line 2 is raised if enabled.
+A disk of **512 byte sectors** for the operating system. It is used either one sector at a time through a buffer inside the device and a data register (programmed I/O), or by **DMA**, many sectors straight to and from physical RAM. A command takes `LATENCY` executed instructions (per sector for DMA), like the timer counts, and then the status says so and line 2 is raised if enabled.
 
 | Offset | Name | Access | |
 |--------|------|--------|---|
@@ -141,4 +141,4 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Where it is in the code
 
-`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each retired instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.
+`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each executed instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.

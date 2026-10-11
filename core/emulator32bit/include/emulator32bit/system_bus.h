@@ -23,9 +23,9 @@ class SystemBus : public PhysicalPages
   public:
     /// The bus owns what it is given. Without a disk it uses a MockDisk.
     ///
-    /// @param ram the RAM
-    /// @param rom the ROM
-    /// @param disk the disk that backs the swapping
+    /// @param ram The RAM.
+    /// @param rom The ROM.
+    /// @param disk The disk that backs the swapping.
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom);
     SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom, std::unique_ptr<Disk> disk);
 
@@ -35,7 +35,7 @@ class SystemBus : public PhysicalPages
     SystemBus(const SystemBus &) = delete;
     SystemBus &operator=(const SystemBus &) = delete;
 
-    // expose for now
+    // Expose for now.
     std::unique_ptr<RAM> ram;
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
@@ -53,33 +53,33 @@ class SystemBus : public PhysicalPages
         using std::runtime_error::runtime_error;
     };
 
-    /// @param address a physical address
-    /// @return the RAM, ROM or disk that has the address, or null
+    /// @param address A physical address.
+    /// @return The RAM, ROM or disk that has the address, or null.
     BaseMemory *find_storage(word address);
 
-    /// @param address a physical address
-    /// @return the memory or device that has the address, or null
+    /// @param address A physical address.
+    /// @return The memory or device that has the address, or null.
     BaseMemory *find_memory(word address);
 
-    /// @param address a physical address
-    /// @return the memory or device that has the address
+    /// @param address A physical address.
+    /// @return The memory or device that has the address.
     /// @throws SystemBus::BusError if there is none.
     BaseMemory &route_memory(word address);
 
     /// The memory or device that a store by a program goes to: route_memory, but the ROM is read
     /// only. (The loader and the host write the ROM through write_block or the ROM itself, that
-    /// is how an image gets there.)
+    /// is how an image gets there.).
     ///
-    /// @param address a physical address
-    /// @return the memory or device that the store goes to
+    /// @param address A physical address.
+    /// @return The memory or device that the store goes to.
     /// @throws SystemBus::BusError if there is none, or the address is in the ROM.
     BaseMemory &route_store(word address);
 
     /// Writes bytes to a physical address. A block can cross from one page to another.
     ///
-    /// @param address the physical address of the first byte
-    /// @param data the bytes to write
-    /// @param size the number of bytes
+    /// @param address The physical address of the first byte.
+    /// @param data The bytes to write.
+    /// @param size The number of bytes.
     /// @throws SystemBus::BusError if there is no memory somewhere in it.
     void write_block(word address, const byte *data, word size);
 

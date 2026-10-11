@@ -18,9 +18,9 @@
 class FrameAllocator
 {
   public:
-    /// @param first the number of the first frame
-    /// @param count the number of frames
-    /// @param all_free whether every frame starts out free, otherwise every frame is taken
+    /// @param first The number of the first frame.
+    /// @param count The number of frames.
+    /// @param all_free Whether every frame starts out free, otherwise every frame is taken.
     FrameAllocator(word first, word count, bool all_free) :
         m_first(first),
         m_count(count),
@@ -30,7 +30,7 @@ class FrameAllocator
         {
             for (std::size_t w = 0; w < m_bits.size(); w++)
             {
-                const U64 left = count - w * 64; // the pages from this word on
+                const U64 left = count - w * 64; // The pages from this word on.
                 m_bits[w] = left >= 64 ? ~U64(0) : (U64(1) << left) - 1;
             }
             m_free = count;
@@ -43,14 +43,14 @@ class FrameAllocator
         return m_free != 0;
     }
 
-    /// @return how many frames are free
+    /// @return How many frames are free.
     word free_count() const
     {
         return m_free;
     }
 
-    /// @param page a page number
-    /// @return whether the page is a frame and is free
+    /// @param page A page number.
+    /// @return Whether the page is a frame and is free.
     bool is_free(word page) const
     {
         return in_range(page) && (m_bits[index(page) / 64] >> (index(page) % 64)) & 1;
@@ -58,7 +58,7 @@ class FrameAllocator
 
     /// Takes the lowest free page.
     ///
-    /// @return the page, which is not free anymore
+    /// @return The page, which is not free anymore.
     /// @throws FreeBlockList::Error if there is none.
     word allocate()
     {
@@ -83,7 +83,7 @@ class FrameAllocator
 
     /// Takes a page that is free, to give it to something else.
     ///
-    /// @param page the page to take
+    /// @param page The page to take.
     /// @throws FreeBlockList::Error if it is not free.
     void take(word page)
     {
@@ -97,7 +97,7 @@ class FrameAllocator
 
     /// Makes a page free again.
     ///
-    /// @param page the page to give back
+    /// @param page The page to give back.
     /// @throws FreeBlockList::Error if it is not a frame or is free already.
     void release(word page)
     {
@@ -114,13 +114,13 @@ class FrameAllocator
     }
 
   private:
-    /// @return whether the page is one of the frames
+    /// @return Whether the page is one of the frames.
     bool in_range(word page) const
     {
         return page >= m_first && U64(page) - m_first < m_count;
     }
 
-    /// @return the position of the page among the frames
+    /// @return The position of the page among the frames.
     std::size_t index(word page) const
     {
         return std::size_t(page - m_first);

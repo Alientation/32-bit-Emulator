@@ -100,15 +100,15 @@ class FreeBlockList
     /// Represents a free block node in the doubly linked list.
     struct FreeBlock
     {
-        word addr = 0;             ///< Address of the start of the block
-        word len = 0;              ///< Length of the block
-        FreeBlock *next = nullptr; ///< Next block in the list
-        FreeBlock *prev = nullptr; ///< Previous block in the list
+        word addr = 0;             ///< Address of the start of the block.
+        word len = 0;              ///< Length of the block.
+        FreeBlock *next = nullptr; ///< Next block in the list.
+        FreeBlock *prev = nullptr; ///< Previous block in the list.
     };
 
-    word m_begin;                  ///< Start of the range of blocks represented by list
-    word m_len;                    ///< Length of the range of blocks represented by list
-    FreeBlock *m_head = nullptr;   ///< Start of list
+    word m_begin;                  ///< Start of the range of blocks represented by list.
+    word m_len;                    ///< Length of the range of blocks represented by list.
+    FreeBlock *m_head = nullptr;   ///< Start of list.
 
     /// Whether the block lies within the range of the list.
     bool in_range(word addr, word length) const;

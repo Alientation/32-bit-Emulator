@@ -16,7 +16,7 @@ static_assert((kDiskCacheSize & (kDiskCacheSize - 1)) == 0, "The cache size is a
 
 /// Simulates disk memory with a file to maintain data across utilizations.
 ///
-/// Disk memory is stored in terms of pages. Each page is of size
+/// Disk memory is stored in terms of pages. Each page is of size.
 /// @ref kPageSize bytes (currently 4096 bytes). Contains a cache that can hold
 /// @ref kDiskCacheSize pages and features optimized page eviction like
 /// avoiding writing back clean pages. Disk memory is organized by a memory manager
@@ -33,10 +33,10 @@ class Disk : public BaseMemory
   public:
     /// Constructs a disk, reading its contents from the file if it exists.
     ///
-    /// @param diskfile the file the disk memory is saved in.
-    /// @param npages the number of pages the disk should have.
-    /// @param lo_page the page number of the first page, so the first address is
-    ///     `lo_page << kNumPageOffsetBits`
+    /// @param diskfile The file the disk memory is saved in.
+    /// @param npages The number of pages the disk should have.
+    /// @param lo_page The page number of the first page, so the first address is
+    ///     `lo_page << kNumPageOffsetBits`.
     Disk(File diskfile, word npages, word lo_page);
     virtual ~Disk();
 
@@ -85,7 +85,7 @@ class Disk : public BaseMemory
     ///     specific what exceptions can actually occur as a result of this request.
     ///
     /// @param page Page address of the returned page.
-    /// @throws Exception thrown if the return fails TODO: specify what exceptions can
+    /// @throws Exception Thrown if the return fails TODO: specify what exceptions can
     ///     occur.
     virtual void return_page(word page);
 
@@ -95,7 +95,7 @@ class Disk : public BaseMemory
     /// the first element corresponding to the byte at the start of the page.
     ///
     /// @param page Disk page address to read.
-    /// @throws ReadError if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError If the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Page data corresponding to the page address.
     std::vector<byte> read_page(word page);
@@ -110,7 +110,7 @@ class Disk : public BaseMemory
     /// Reads a byte from disk.
     ///
     /// @param address Full address of byte to read.
-    /// @throws ReadError if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError If the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Byte located at the address in disk.
     byte read_byte(word address) override;
@@ -118,7 +118,7 @@ class Disk : public BaseMemory
     /// Reads a half word (2 bytes) from disk.
     ///
     /// @param address Full address of hword to read.
-    /// @throws ReadError if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError If the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Half word located at the address in disk in little endian format.
     hword read_hword(word address) override;
@@ -126,7 +126,7 @@ class Disk : public BaseMemory
     /// Reads a word (4 bytes) from disk.
     ///
     /// @param address Full address of word to read.
-    /// @throws ReadError if the read fails. TODO: specify what exceptions can
+    /// @throws ReadError If the read fails. TODO: specify what exceptions can
     ///     occur.
     /// @return Word located at the address in disk in little endian format.
     word read_word(word address) override;
@@ -137,7 +137,7 @@ class Disk : public BaseMemory
     /// byte is written to the start of the page on disk.
     ///
     /// @param page Page address to write to.
-    /// @throws WriteError if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError If the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_page(word page, const std::vector<byte> &data);
 
@@ -152,7 +152,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the byte to.
     /// @param data Byte to write.
-    /// @throws WriteError if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError If the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_byte(word address, byte data) override;
 
@@ -160,7 +160,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the half word to.
     /// @param data Half word to write.
-    /// @throws WriteError if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError If the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_hword(word address, hword data) override;
 
@@ -168,7 +168,7 @@ class Disk : public BaseMemory
     ///
     /// @param address Full address of the location to write the word to.
     /// @param data Word to write.
-    /// @throws WriteError if the write fails. TODO: specify what exceptions can
+    /// @throws WriteError If the write fails. TODO: specify what exceptions can
     ///     occur.
     void write_word(word address, word data) override;
 
@@ -182,29 +182,29 @@ class Disk : public BaseMemory
     Disk();
 
   private:
-    /// Disk page located in cache
+    /// Disk page located in cache.
     struct CachePage
     {
-        /// Disk page address that the cache page refers to
+        /// Disk page address that the cache page refers to.
         word page;
 
-        /// Data stored in the cache page
+        /// Data stored in the cache page.
         byte data[kPageSize];
 
-        /// Whether the data has been written to after bringing into cache
+        /// Whether the data has been written to after bringing into cache.
         bool dirty = false;
 
-        /// Whether the cache page refers to an actual disk page or is an empty page
+        /// Whether the cache page refers to an actual disk page or is an empty page.
         bool valid = false;
     };
 
-    File m_diskfile;                ///< Where the contents of disk memory are stored at
-    File m_diskfile_manager;        ///< Where the disk memory manager data is stored at
-    std::fstream m_stream;          ///< The disk file, open for as long as the disk exists
-    std::streamsize m_npages = 0;   ///< Number of pages the disk memory contains
-    std::vector<CachePage> m_cache; ///< Disk cache for read/write optimization
+    File m_diskfile;                ///< Where the contents of disk memory are stored at.
+    File m_diskfile_manager;        ///< Where the disk memory manager data is stored at.
+    std::fstream m_stream;          ///< The disk file, open for as long as the disk exists.
+    std::streamsize m_npages = 0;   ///< Number of pages the disk memory contains.
+    std::vector<CachePage> m_cache; ///< Disk cache for read/write optimization.
 
-    FreeBlockList m_free_list;      ///< Disk manager, which pages are free to use
+    FreeBlockList m_free_list;      ///< Disk manager, which pages are free to use.
 
     /// Reads a specified size little endian value from disk.
     ///
@@ -216,9 +216,9 @@ class Disk : public BaseMemory
     ///
     /// @param address Address to read from.
     /// @param n_bytes Number of bytes to read.
-    /// @throws ReadError if read fails. TODO: Specify what
+    /// @throws ReadError If read fails. TODO: Specify what
     ///     exceptions can occur.
-    /// @return value read.
+    /// @return Value read.
     dword read_val(word address, int n_bytes);
 
     /// Writes a little endian value of specified size to disk.
@@ -232,7 +232,7 @@ class Disk : public BaseMemory
     /// @param address Address to write to.
     /// @param val Value to write.
     /// @param n_bytes Number of bytes to write.
-    /// @throws WriteError if write fails. TODO: Specify what
+    /// @throws WriteError If write fails. TODO: Specify what
     ///     exceptions can occur.
     void write_val(word address, dword val, int n_bytes);
 
@@ -245,7 +245,7 @@ class Disk : public BaseMemory
     /// @param load Whether the contents of the page are read from the disk file. Not
     ///     needed when the whole page is about to be overwritten.
     /// @return Reference to the cache page.
-    /// @throws ReadError if the page is not on the disk.
+    /// @throws ReadError If the page is not on the disk.
     CachePage &get_cpage(word addr, bool load = true);
 
     /// Writes a cache page to disk.

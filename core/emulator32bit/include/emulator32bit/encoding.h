@@ -53,7 +53,7 @@ inline constexpr word kUnaryId_rev16 = 0b0110;
 
 // The variants of CSEL (bits 4-5): what is written when the condition is false.
 inline constexpr word kCselId_csel = 0b00;  ///< xm
-inline constexpr word kCselId_csinc = 0b01; ///< xm + 1
+inline constexpr word kCselId_csinc = 0b01; ///< `xm` + 1.
 inline constexpr word kCselId_csinv = 0b10; ///< ~xm
 inline constexpr word kCselId_csneg = 0b11; ///< -xm
 
@@ -99,9 +99,9 @@ inline constexpr SysregName kSysregNames[] = {
     {kSysregId_fpcr, "fpcr"},     {kSysregId_fpsr, "fpsr"},
 };
 
-/// @param id the number of a system register
-/// @return the name of the register as written in assembly (lower case), nullptr if there is
-///     no register with the number
+/// @param id The number of a system register.
+/// @return The name of the register as written in assembly (lower case), nullptr if there is
+///     no register with the number.
 inline const char *sysreg_name(const U8 id)
 {
     for (const SysregName &sysreg : kSysregNames)

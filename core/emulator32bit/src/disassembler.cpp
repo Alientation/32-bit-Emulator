@@ -127,8 +127,8 @@ static std::string disassemble_format_m1(word instruction, std::string op)
     return disassemble;
 }
 
-/// @param op the name of the instruction, `ldr` for the aligned and the unaligned form
-/// @param has_unaligned_form whether the unaligned form exists (ldur, ldurh, stur, sturh)
+/// @param op The name of the instruction, `ldr` for the aligned and the unaligned form.
+/// @param has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
 static std::string disassemble_format_m(word instruction, std::string op,
                                         bool has_unaligned_form = true)
 {
@@ -138,13 +138,13 @@ static std::string disassemble_format_m(word instruction, std::string op,
     const bool unaligned = adr_mode == U8(encoding::AddrType::ADDR_UNALIGNED);
     if (unaligned && has_unaligned_form)
     {
-        // ldr -> ldur, strh -> sturh
+        // ldr -> ldur, strh -> sturh.
         disassemble.insert(disassemble.begin() + 2, 'u');
     }
 
     if (test_bit<25>(instruction))
     {
-        // ldrb -> ldrsb, ldurh -> ldursh
+        // ldrb -> ldrsb, ldurh -> ldursh.
         disassemble.insert(disassemble.begin() + (unaligned && has_unaligned_form ? 4 : 3), 's');
     }
     disassemble += " ";
@@ -284,8 +284,8 @@ static std::string disassemble_format_o1(word instruction, std::string op)
     return disassemble;
 }
 
-/// @param compare the name of the comparison that `op` with S and an `xzr` destination is
-///        (`subs xzr, ...` is `cmp`), or null if it has none
+/// @param compare The name of the comparison that `op` with S and an `xzr` destination is
+///        (`subs xzr, ...` is `cmp`), or null if it has none.
 static std::string disassemble_format_o(word instruction, std::string op,
                                         const char *compare = nullptr)
 {

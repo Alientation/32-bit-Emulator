@@ -10,8 +10,8 @@
 
 /// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers.
 ///
-/// @param str the text of the number
-/// @return the number, or nothing if the text is not one
+/// @param str The text of the number.
+/// @return The number, or nothing if the text is not one.
 std::optional<U64> parse_number(const std::string &str);
 
 /// A watchpoint as written in `--watch`: `<address|symbol>[:length][:r|w|rw][:p][:<op><number>]`.
@@ -34,36 +34,36 @@ std::string describe_watch_condition(Emulator32bit::WatchCompare compare, word v
 
 /// Parses the argument of `--watch`.
 ///
-/// @param symbols the symbols that an address can be named by
-/// @param text the argument
-/// @return the watchpoint, or nothing if any part is malformed
+/// @param symbols The symbols that an address can be named by.
+/// @param text The argument.
+/// @return The watchpoint, or nothing if any part is malformed.
 std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::string &text);
 
 /// A register watch as written in `--watch-reg`: `<reg>[=<value>]` (x0-x29, fp, lr or sp).
 struct RegisterWatchSpec
 {
     U8 reg;
-    bool has_value; ///< only a change to `value` stops
+    bool has_value; ///< Only a change to `value` stops.
     word value;
 };
 
 /// Parses the argument of `--watch-reg`.
 ///
-/// @param text the argument
-/// @return the register watch, or nothing if the text is malformed
+/// @param text The argument.
+/// @return The register watch, or nothing if the text is malformed.
 std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &text);
 
 /// Parses a register name: x0-x29, fp, lr, sp, xzr, or a bare register number.
 ///
-/// @param str the text of the register
-/// @return the number of the register, or nothing if the text is not one
+/// @param str The text of the register.
+/// @return The number of the register, or nothing if the text is not one.
 std::optional<U8> parse_register_name(const std::string &str);
 
 /// Resolves an address given as a number, a symbol, or `symbol+number`.
 ///
-/// @param symbols the symbols to look the name up in
-/// @param text the address
-/// @return the address, or nothing if it cannot be resolved
+/// @param symbols The symbols to look the name up in.
+/// @param text The address.
+/// @return The address, or nothing if it cannot be resolved.
 std::optional<word> resolve_address(const SymbolMap &symbols, const std::string &text);
 
 /// An interactive debugger for an emulator: a prompt that steps, continues, sets breakpoints and
@@ -74,10 +74,10 @@ class Debugger
   public:
     /// Turns the instruction history on (if it is off) so a fault can show how it came about.
     ///
-    /// @param emu the emulator to debug, which must outlive the debugger
-    /// @param symbols the names of addresses, which must outlive the debugger
-    /// @param in where the commands are read from
-    /// @param out where the output goes
+    /// @param emu The emulator to debug, which must outlive the debugger.
+    /// @param symbols The names of addresses, which must outlive the debugger.
+    /// @param in Where the commands are read from.
+    /// @param out Where the output goes.
     Debugger(Emulator32bit &emu, const SymbolMap &symbols, std::istream &in, std::ostream &out);
 
     /// Reads and executes commands until `quit` or the end of the input.
@@ -85,17 +85,17 @@ class Debugger
 
     /// Executes one command line.
     ///
-    /// @param line the command and its arguments
-    /// @return false when the debugger should end
+    /// @param line The command and its arguments.
+    /// @return false when the debugger should end.
     bool execute(const std::string &line);
 
-    /// @return how the program ended (halt or fault), or nothing while it can still run
+    /// @return How the program ended (halt or fault), or nothing while it can still run.
     const std::optional<Emulator32bit::RunResult> &finished() const
     {
         return m_finished;
     }
 
-    /// @return the instructions executed by the commands so far
+    /// @return The instructions executed by the commands so far.
     U64 instructions() const
     {
         return m_instructions;
@@ -136,7 +136,7 @@ class Debugger
 
     /// Runs and reports why it stopped.
     ///
-    /// @param instructions the number of instructions to run, 0 for no limit
+    /// @param instructions The number of instructions to run, 0 for no limit.
     void run_and_report(U64 instructions);
 
     /// Prints the pc and the instruction there.
@@ -151,12 +151,12 @@ class Debugger
     /// @return the address as hex, followed by `<symbol+offset>` if a symbol is at or below it
     std::string describe(word address) const;
 
-    /// @param address a virtual address
-    /// @return the disassembled instruction there, or `<unreadable>`
+    /// @param address A virtual address.
+    /// @return The disassembled instruction there, or `<unreadable>`.
     std::string disassemble_at(word address) const;
 
     /// For the commands that need a program that can still run.
     ///
-    /// @return whether the program has ended, in which case it said so
+    /// @return Whether the program has ended, in which case it said so.
     bool refuse_if_finished();
 };

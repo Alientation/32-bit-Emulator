@@ -26,14 +26,14 @@ class GdbServer
       public:
         virtual ~InterruptSource() = default;
 
-        /// @return whether the program should stop now
+        /// @return Whether the program should stop now.
         virtual bool interrupted() = 0;
     };
 
-    /// @param emu the machine, with the program loaded
+    /// @param emu The machine, with the program loaded.
     explicit GdbServer(Emulator32bit &emu);
 
-    /// @param source where to look for an interrupt while the program runs, or null for none
+    /// @param source Where to look for an interrupt while the program runs, or null for none.
     void set_interrupt_source(InterruptSource *source)
     {
         m_interrupt = source;
@@ -41,18 +41,18 @@ class GdbServer
 
     /// Handles one packet.
     ///
-    /// @param packet the payload, between `$` and `#`
-    /// @return the payload of the reply; empty for a packet that is not supported, which is what
+    /// @param packet The payload, between `$` and `#`.
+    /// @return The payload of the reply; empty for a packet that is not supported, which is what
     ///         the protocol asks for. For a packet that has no reply (`k`) see `finished`.
     std::string handle(const std::string &packet);
 
-    /// @return whether the client detached or killed the program, so the session is over
+    /// @return Whether the client detached or killed the program, so the session is over.
     bool finished() const
     {
         return m_finished;
     }
 
-    /// @return whether the last reply was to a packet that has no reply at all
+    /// @return Whether the last reply was to a packet that has no reply at all.
     bool silent() const
     {
         return m_silent;
@@ -63,17 +63,17 @@ class GdbServer
 
     /// Serves one client.
     ///
-    /// @param port the TCP port on 127.0.0.1
-    /// @param ready called with the port once it is listening (0 asks for any free port), or null
-    /// @param log where to say what happens (a connection, an error), or null
-    /// @return false if the port could not be listened on
+    /// @param port The TCP port on 127.0.0.1.
+    /// @param ready Called with the port once it is listening (0 asks for any free port), or null.
+    /// @param log Where to say what happens (a connection, an error), or null.
+    /// @return false if the port could not be listened on.
     static bool serve(Emulator32bit &emu, std::uint16_t port, void (*ready)(std::uint16_t port),
                       std::ostream *log);
 
     /// Encodes bytes as the hexadecimal text of the protocol.
     static std::string to_hex(const std::string &bytes);
 
-    /// @return the bytes of the hexadecimal text, or nothing if it is not valid
+    /// @return The bytes of the hexadecimal text, or nothing if it is not valid.
     static bool from_hex(const std::string &text, std::string &bytes);
 
   private:
@@ -82,7 +82,7 @@ class GdbServer
 
     /// Runs until something stops it, or the client interrupts.
     ///
-    /// @param steps 1 for a single step, 0 to go on
+    /// @param steps 1 for a single step, 0 to go on.
     std::string resume(U64 steps);
 
     std::string read_registers();
@@ -96,7 +96,7 @@ class GdbServer
 
     /// `monitor <command>` of gdb.
     ///
-    /// @return the text to show
+    /// @return The text to show.
     std::string monitor(const std::string &command);
 
     Emulator32bit &m_emu;
