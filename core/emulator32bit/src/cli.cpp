@@ -440,7 +440,7 @@ static std::unique_ptr<Emulator32bit> make_machine(CliArgs &args,
     }
     else
     {
-        // A default constructed Disk has no backing file and errors when it saves.
+        // Without a file the disk is a MockDisk, which keeps its pages in memory.
         disk = std::make_unique<MockDisk>();
     }
 

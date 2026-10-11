@@ -208,6 +208,5 @@ inline constexpr U8 kLongMulSignedBit = 0;
 /// The bit of `bx` (format B2) that makes it a call (`blx`): x29 gets the return address.
 inline constexpr U8 kBranchLinkBit = 0;
 
-/// Max supported instructions. 6 bits are used to represent the opcode for easy
-/// look-up table translations.
+/// The number of opcodes that fit in the 6 bit opcode field.
 inline constexpr U8 kMaxInstructions = 64;

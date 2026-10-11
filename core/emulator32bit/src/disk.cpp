@@ -9,8 +9,8 @@
 #include <filesystem>
 #include <iterator>
 
-// Located at the beginning of disk and the disk page management files
-// to detect invlaid disk/disk management files.
+// At the beginning of the disk file and of the disk page management file, to detect a file that
+// is not one of them.
 #define MAGIC_HEADER 0x4b534944
 
 Disk::Disk(const File &diskfile, const word npages, const word lo_page) :
@@ -106,7 +106,7 @@ void Disk::read_disk_manager_file()
 
     if (!reader.has_next() || reader.read_word() != MAGIC_HEADER)
     {
-        // Set up page managment from scratch since there was no valid header.
+        // Set up page management from scratch since there was no valid header.
         m_free_list.return_block(0, m_npages);
 
         AEMU_DEBUG("Creating empty disk.");
@@ -150,7 +150,7 @@ word Disk::get_free_page()
     word addr = m_free_list.get_free_block(1);
 
     // A page that was used before still has its old contents. Whoever gets the page starts with
-    //       zeros, not with the data of a page that was freed.
+    // zeros, not with the data of a page that was freed.
     CachePage &cpage = get_cpage(addr, false);
     std::fill(std::begin(cpage.data), std::end(cpage.data), byte(0));
     cpage.dirty = true;
@@ -287,7 +287,6 @@ void Disk::write_val(word address, dword val, const int n_bytes)
         {
             // We might go beyond the end of the page since we are incrementing the address.
             // Correct the offset and page address appropriately when that happens.
-
             offset = 0;
             page++;
             cpage = &get_cpage(page);

@@ -11,20 +11,20 @@
 /// of the list. Provides a standard way of organizing used and free resources
 /// like used pages in @ref Disk memory.
 ///
-/// @todo an optimzation that could be made to reduce memory allocation would be to
+/// @todo An optimization that could be made to reduce memory allocation would be to
 ///     store allocated memory into a list to then be used when creating new
 ///     FreeBlock nodes.
 class FreeBlockList
 {
   public:
-    /// Construct a new Free Block List object.
+    /// Makes a list of the range [begin, begin + len).
     ///
     /// @param begin Start value of the range this free block list represents.
     /// @param len Length of the range.
     /// @param init Whether the list is initialized to be all free upon construction.
     FreeBlockList(word begin, word len, bool init = true);
 
-    /// Destroy the Free Block List object and cleans up resources used.
+    /// Frees the nodes of the list.
     ~FreeBlockList();
 
     // The list owns its nodes, so a copy would free them twice.
@@ -79,7 +79,7 @@ class FreeBlockList
     /// @return True if the block can fit, false otherwise.
     bool can_fit(word length);
 
-    /// Return if there are any free blocks left in the list.
+    /// Whether the list has run out of free blocks.
     ///
     /// @return True if there are no free blocks left, false otherwise.
     bool empty();

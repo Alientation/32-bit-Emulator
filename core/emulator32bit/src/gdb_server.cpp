@@ -303,7 +303,7 @@ std::string GdbServer::breakpoint_packet(const std::string &packet, const bool i
         if (kind == 0) return "E01"; // The length of the watched range.
         if (insert)
         {
-            // GDB takes an error as: no more hardware watchpoints.
+            // gdb takes this error to mean that there are no more hardware watchpoints.
             if (!m_emu.add_watchpoint(address, kind,
                                       type_text[0] == '2'   ? Emulator32bit::WatchKind::WRITE
                                       : type_text[0] == '3' ? Emulator32bit::WatchKind::READ
@@ -377,7 +377,7 @@ std::string GdbServer::resume(const U64 steps)
             m_last_stop = stop_reply(result);
             return m_last_stop;
         }
-        // Run () does not stop at a breakpoint on the first instruction of a call, which is right
+        // run () does not stop at a breakpoint on the first instruction of a call, which is right
         // for the first slice (the program is at the breakpoint it was stopped at) and wrong for
         // the others.
         if (m_emu.breakpoints().contains(m_emu.get_pc()))

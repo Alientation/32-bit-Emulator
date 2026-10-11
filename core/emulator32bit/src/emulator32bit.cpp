@@ -150,9 +150,9 @@ word Emulator32bit::fetch_instruction()
 namespace
 {
 
-/// What stops the program is reported through the result, and logged at the level of how unusual
-/// it is. Anything that goes wrong in the machine is a fault of the program, whatever part of the
-/// machine it is in.
+/// Ends the run with a fault: the result says what happened, and it is logged as a warning.
+/// Anything that goes wrong in the machine is a fault of the program, whatever part of the machine
+/// it is in.
 ///
 /// @param result The result of the run, which becomes a fault.
 /// @param what The kind of fault.
@@ -192,11 +192,11 @@ bool Emulator32bit::register_watch_hit(RunResult &result)
     {
         const word now = read_reg(m_regwatches.reg[i]);
         const word before = m_regwatches.last[i];
-        // Register value did not change.
+        // The register did not change.
         if (now == before) continue;
         m_regwatches.last[i] = now;
 
-        // Register value does not match the watchpoint's conditioned value.
+        // The watch is for one value, and the register changed to another.
         if (m_regwatches.has_value.test(i) && now != m_regwatches.value[i]) continue;
 
         result.status = RunResult::Status::BREAKPOINT;
@@ -216,7 +216,8 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
         .message = "",
     };
 
-    // The debugger may have changed it between runs.
+    // Start without the hit of the last run. The debugger may have changed the watched registers
+    // between runs, so their last values are read again.
     m_watchpoints.hit_message.clear();
     for (unsigned i = 0; i < m_regwatches.count; i++)
     {
@@ -301,8 +302,8 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
                 continue;
             }
 
-            // Whatever wrote the pc (ERET, an exception) wrote the address of the next
-            // instruction itself.
+            // Whatever wrote the pc (a taken branch, ERET, an exception) wrote the address of the
+            // next instruction itself.
             if (LIKELY(!m_pc_written)) m_pc += kInstructionSize;
             m_pc_written = false;
             m_just_took_exception = false;
@@ -319,8 +320,8 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             }
         }
 
-        // The loop looks at the registers before each instruction, we need to also check again
-        // after the last instruction is executed.
+        // The loop looks at the registers before each instruction, so they are also looked at
+        // after the last one.
         if (result.status == RunResult::Status::LIMIT_REACHED && UNLIKELY(m_regwatches.count != 0))
         {
             register_watch_hit(result);
@@ -333,12 +334,12 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             AEMU_DEBUG("Halted after {} instructions.", result.instructions_ran);
             result.status = RunResult::Status::HALTED;
             result.message = e.what();
-            // The hlt ran, if it was the first instruction of a handler that is not a double fault.
+            // The hlt completed, so an exception after it is not a double fault.
             m_just_took_exception = false;
         }
         else if (e.get_type() == TrapType::BREAK_INSTR)
         {
-            // The brk completed, the debugger goes on with the next instruction.
+            // The brk completed, so the debugger goes on with the next instruction.
             m_pc += kInstructionSize;
             m_just_took_exception = false;
             result.instructions_ran++;
@@ -410,7 +411,7 @@ unsigned Emulator32bit::find_watchpoint(const word address, const bool physical)
     {
         i++;
     }
-    return i; // The count, if there is none.
+    return i; // Not found: the count.
 }
 
 bool Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind,
@@ -494,7 +495,7 @@ unsigned Emulator32bit::find_register_watch(const U8 reg) const
 {
     unsigned i = 0;
     while (i < m_regwatches.count && m_regwatches.reg[i] != reg) i++;
-    return i; // The count, if there is none.
+    return i; // Not found: the count.
 }
 
 bool Emulator32bit::set_register_watch(const U8 reg, const bool has_value, const word value)
@@ -560,19 +561,18 @@ word Emulator32bit::watch_old_value(const word address, const word length)
     }
     catch (const std::exception &)
     {
-        return 0; // The store faults as well, and nothing is reported for it.
+        return 0; // The store will fault too, and that is what is reported.
     }
 }
 
 void Emulator32bit::watch_access(const word address, const word length, const bool write,
                                  const word value, const word old_value)
 {
-    // The first hit of the instruction is the one that is reported,
-    // do not overwrite it with any subsequent hits.
+    // Only the first hit of an instruction is reported, later hits do not replace it.
     if (!m_watchpoints.hit_message.empty()) return;
 
     const U64 first = address;
-    const U64 last = first + length; // One past, 64 bit so it cannot wrap.
+    const U64 last = first + length; // One past the end, in 64 bits so that it cannot wrap.
     for (unsigned i = 0; i < m_watchpoints.count; i++)
     {
         const WatchKind kind = m_watchpoints.kind[i];
@@ -857,11 +857,11 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
         m_sp_other = value;
         break;
     case kSysregId_ptbr:
-        m_ptbr = value & ~word(kPageSize - 1); // The first level table is a page.
+        m_ptbr = value & ~word(kPageSize - 1); // The first level table is page aligned.
         mmu->set_page_table_base(m_ptbr);
         break;
     case kSysregId_sctlr:
-        m_sctlr = value & kSctlrMmuEnable; // The only bit there is.
+        m_sctlr = value & kSctlrMmuEnable; // The MMU enable is the only bit.
         mmu->set_walk_enabled(test_bit<0>(m_sctlr));
         break;
     case kSysregId_fpcr:
@@ -966,7 +966,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
 
         if (emu->get_type() != TrapType::BAD_INSTR && emu->get_type() != TrapType::BAD_REG)
         {
-            return false; // Halt, a failed assertion, brk with a debugger, a double fault.
+            return false; // These are never exceptions: halt, failed assertion, brk, double fault.
         }
 
         enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);

@@ -19,13 +19,12 @@ using namespace encoding;
 #define _SX2(instr) (bitfield_unsigned<11, 5>(instr)) // Bits 11 to 15.
 #define _SX3(instr) (bitfield_unsigned<6, 5>(instr))  // Bits 6 to 10.
 
-/// Parse the value of the argument for instruction format O.
+/// The last operand of a format O instruction: a 14 bit immediate, or a register shifted by a type
+/// and an amount. The offset of a format M instruction has the same layout, so it uses this too.
 ///
-/// Also used to parse value of argument for some other instruction format
-/// like format M which conveniently has a similar structure.
-///
-/// @param cpu Emulator context.
-/// @param instr 32 bit instruction to extract the value of the argument.
+/// @param cpu The emulator, which the register is read from.
+/// @param instr The instruction.
+/// @return The value of the operand.
 static word get_format_o_arg(Emulator32bit &cpu, const word instr)
 {
     if (test_bit<14>(instr))
@@ -99,9 +98,7 @@ class Joiner
         return *this;
     }
 
-    /// Extract the value of this object.
-    ///
-    /// @return word.
+    /// @return The bits that were joined.
     operator word() const
     {
         return val;
@@ -320,8 +317,8 @@ void Emulator32bit::_tlbi(const word instr)
 {
     require_kernel();
 
-    // With `?xt` the translation of the page that holds the address in xt, otherwise all of them.
-    // imm16 is reserved (0).
+    // With the `xt` form (bit 16) only the translation of the page that holds the address in xt is
+    // invalidated, otherwise all of them. imm16 is reserved (0).
     if (test_bit<16>(instr))
     {
         mmu->invalidate_translation(read_reg(_SX1(instr)));
@@ -386,8 +383,8 @@ void Emulator32bit::_wfi(const word instr)
         }
     }
 
-    // Nothing in the machine will wake it, but a terminal can, if the program asked to be told
-    // about a byte: wait for the host, in its time.
+    // Nothing in the machine will wake it, but the terminal can if the program asked for the
+    // receive interrupt: wait for the host, which takes its own time.
     if (bus.console.has_host_input() && bus.console.receive_interrupt_enabled()
         && bus.console.wait_host_input() && bus.intc.has_pending())
     {
@@ -537,7 +534,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
 
     const word val_reg = read_reg(xn);
 
-    // An atomic access is naturally aligned, there is no unaligned form (a byte always is).
+    // An atomic access has to be naturally aligned, there is no unaligned form (a byte always is).
     const unsigned size = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
     if (UNLIKELY((mem_adr & (size - 1)) != 0))
     {
@@ -611,7 +608,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         break;
 
     default:
-        // Already validated above.
+        // The width was checked above.
         break;
     }
 
@@ -622,8 +619,8 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
         watch_access(mem_adr, size, false, val_mem);
     }
 
-    // Return the original memory value in Xt. Only once the memory is written, a write that
-    // faults leaves the registers as they were.
+    // The old value goes to xt only after the memory was written, so that a write that faults
+    // leaves the registers as they were.
     write_reg(xt, val_mem);
 }
 
@@ -1035,7 +1032,7 @@ void Emulator32bit::_ldrh(const word instr)
     write_reg(_X1(instr), read_val);
 }
 
-/// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
+/// A store has no sign bit: the bytes that are stored are the low ones of xt.
 void Emulator32bit::_str(const word instr)
 {
     const MemOperand mem = decode_mem_operand(instr, true);

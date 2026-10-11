@@ -19,8 +19,7 @@ class MemoryPort
     MemoryPort(const MemoryPort &) = delete;
     MemoryPort &operator=(const MemoryPort &) = delete;
 
-    /// Check if data at an address is in one page. This allows using a single virtual address
-    /// translation.
+    /// Whether the bytes at an address are all in one page, so that one translation covers them.
     ///
     /// @param address The start address (lowest address of the block of data).
     /// @param n_bytes The size of the data. Data is located at [address, address + n_bytes - 1].

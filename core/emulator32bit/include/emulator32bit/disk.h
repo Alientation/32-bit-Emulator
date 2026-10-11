@@ -16,8 +16,8 @@ static_assert((kDiskCacheSize & (kDiskCacheSize - 1)) == 0, "The cache size is a
 
 /// Simulates disk memory with a file to maintain data across utilizations.
 ///
-/// Disk memory is stored in terms of pages. Each page is of size.
-/// @ref kPageSize bytes (currently 4096 bytes). Contains a cache that can hold
+/// Disk memory is stored in terms of pages. Each page is @ref kPageSize bytes (currently 4096
+/// bytes). Contains a cache that can hold
 /// @ref kDiskCacheSize pages and features optimized page eviction like
 /// avoiding writing back clean pages. Disk memory is organized by a memory manager
 /// that maintains a free block list of page blocks that are not in use. This means
@@ -91,7 +91,7 @@ class Disk : public BaseMemory
 
     /// Reads a disk page.
     ///
-    /// Page data is returned as a vector of @ref PAGE_SIZE bytes,
+    /// Page data is returned as a vector of @ref kPageSize bytes,
     /// the first element corresponding to the byte at the start of the page.
     ///
     /// @param page Disk page address to read.
@@ -133,7 +133,7 @@ class Disk : public BaseMemory
 
     /// Write a page to disk.
     ///
-    /// Page data is given as a vector of @ref PAGE_SIZE bytes, where the first
+    /// Page data is given as a vector of @ref kPageSize bytes, where the first
     /// byte is written to the start of the page on disk.
     ///
     /// @param page Page address to write to.
@@ -226,7 +226,7 @@ class Disk : public BaseMemory
     /// Interfaced with by the write byte/hword/word public functions. Note,
     /// writing anything more than 8 bytes will not be useful.
     ///
-    /// @todo Have a separate method that writes a stream of bytes so we are no
+    /// @todo Have a separate method that writes a stream of bytes so we are not
     ///     limited by primitive data types.
     ///
     /// @param address Address to write to.

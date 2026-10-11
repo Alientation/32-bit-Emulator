@@ -35,7 +35,7 @@ class SystemBus : public PhysicalPages
     SystemBus(const SystemBus &) = delete;
     SystemBus &operator=(const SystemBus &) = delete;
 
-    // Expose for now.
+    // The memories are public: the emulator, the loader and the tests reach them directly.
     std::unique_ptr<RAM> ram;
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
@@ -67,8 +67,8 @@ class SystemBus : public PhysicalPages
     BaseMemory &route_memory(word address);
 
     /// The memory or device that a store by a program goes to: route_memory, but the ROM is read
-    /// only. (The loader and the host write the ROM through write_block or the ROM itself, that
-    /// is how an image gets there.).
+    /// only. (The loader and the host write the ROM through write_block or the ROM itself, which
+    /// is how an image gets there.)
     ///
     /// @param address A physical address.
     /// @return The memory or device that the store goes to.

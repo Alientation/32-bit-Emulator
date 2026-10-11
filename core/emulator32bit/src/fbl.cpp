@@ -16,7 +16,6 @@ FreeBlockList::FreeBlockList(const word begin, word len, const bool init) :
             .len = len,
         };
     }
-    // DEBUG("Initializing Free Block List");
 }
 
 FreeBlockList::~FreeBlockList()
@@ -28,7 +27,6 @@ FreeBlockList::~FreeBlockList()
         delete (cur);
         cur = next;
     }
-    // DEBUG("Destroying Free Block List");
 }
 
 FreeBlockList::Error::Error(const std::string &msg) :
@@ -51,7 +49,7 @@ word FreeBlockList::get_free_block(const word length)
         return 0;
     }
 
-    // * Split the block, front part is the returned free block.
+    // Split the block: the front part is the free block that is returned.
     word addr = freeblock->addr;
     freeblock->len -= length;
     freeblock->addr += length;
@@ -180,7 +178,7 @@ void FreeBlockList::force_return_block(const word addr, const word length)
     }
 
     // The free blocks that overlap or touch the returned block become part of it. Ends are
-    //       exclusive, and fit in 64 bits where a block ending at the top of the range does not.
+    // exclusive, and fit in 64 bits where a block ending at the top of the range does not.
     U64 lo = addr;
     U64 hi = U64(addr) + length;
     for (FreeBlock *cur = m_head; cur != nullptr;)

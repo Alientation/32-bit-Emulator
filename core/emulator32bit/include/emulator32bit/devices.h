@@ -120,7 +120,7 @@ class Timer : public Device
     /// @param intc The controller that gets the interrupt.
     explicit Timer(InterruptController &intc);
 
-    /// One instruction completed.
+    /// Called after each instruction that completes.
     void tick()
     {
         m_count++;
@@ -245,9 +245,6 @@ class Console : public Device
 ///
 /// | Offset | Name     | Access | |
 /// | 0x00   | COMMAND  | write  | 1 read the sector into the buffer, 2 write the buffer to the sector, 3 flush the storage to its file, 4 DMA read, 5 DMA write, 6 scatter/gather read, 7 scatter/gather write |
-/// | 0x20   | DMA_ADDR | r/w    | physical RAM address of a DMA transfer, a multiple of 4 |
-/// | 0x24   | DMA_COUNT| r/w    | the number of sectors of a DMA transfer, from SECTOR on (at least 1); for 6 and 7 the number of descriptors |
-/// | 0x28   | DMA_LIST | r/w    | physical RAM address of the descriptors of a command 6 or 7, a multiple of 4 |
 /// | 0x04   | STATUS   | r/w    | bit 0: busy, bit 1: done, bit 2: error. A write clears done and error |
 /// | 0x08   | SECTOR   | r/w    | the sector number of the next command |
 /// | 0x0C   | DATA     | r/w    | the word of the buffer at CURSOR, and CURSOR moves on by 4 (use word accesses) |
@@ -255,6 +252,9 @@ class Console : public Device
 /// | 0x14   | CAPACITY | read   | the number of sectors, 0 when there is no disk |
 /// | 0x18   | CTRL     | r/w    | bit 0: raise line 2 when a command completes |
 /// | 0x1C   | LATENCY  | r/w    | instructions a command takes (at least 1). Reset: 100 |
+/// | 0x20   | DMA_ADDR | r/w    | physical RAM address of a DMA transfer, a multiple of 4 |
+/// | 0x24   | DMA_COUNT| r/w    | the number of sectors of a DMA transfer, from SECTOR on (at least 1); for 6 and 7 the number of descriptors |
+/// | 0x28   | DMA_LIST | r/w    | physical RAM address of the descriptors of a command 6 or 7, a multiple of 4 |
 ///
 /// A scatter/gather command moves the disk to or from several buffers in one command: DMA_LIST
 /// points at DMA_COUNT descriptors of three words, `sector`, `count` (sectors) and `address` (RAM,
@@ -321,7 +321,7 @@ class BlockDevice : public Device
     /// @return false on an error.
     bool save();
 
-    /// One instruction completed.
+    /// Called after each instruction that completes.
     void tick()
     {
         if (UNLIKELY(m_busy))

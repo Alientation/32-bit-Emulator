@@ -418,8 +418,8 @@ void VirtualMemory::end_process(const long long pid)
                          pid);
     }
 
-    // Store into a temporary array because when vpage entry is removed, it will also be removed
-    // from the process PageTableEntry map. This would have caused a concurrent modification error.
+    // Collected first, because removing a page also removes its entry from the map of the page
+    // table, which would change the map while it is walked.
     std::vector<word> vpages;
     for (std::pair<const word, PageTableEntry *> &pair : m_process_ptable_map.at(pid)->entries)
     {
@@ -710,7 +710,7 @@ void VirtualMemory::evict_ppage(PhysicalPage &evicted_ppage)
     }
 
     // Every virtual page that maps to the physical page shares one disk page. The page is saved
-    //       before the pages are changed, if that fails they are still in memory.
+    // before the entries are changed, so that if saving fails the pages are still in memory.
     const word diskpage = m_disk.get_free_page();
     if (m_physical != nullptr)
     {
@@ -742,7 +742,8 @@ void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &mapp
     const word ppage = mapped_ppage.ppage;
     AEMU_DEBUG("Disk Fetch from page {} to physical page {}.", entry.diskpage, ppage);
 
-    // The contents are in place before the page is, a page that could not be read is still on disk.
+    // The contents are copied in before the entry is changed, so a page that could not be read is
+    // still on disk.
     if (m_physical != nullptr)
     {
         if (byte *const direct = m_physical->direct_page(ppage))
@@ -785,13 +786,13 @@ void VirtualMemory::ensure_physical_page_mapping(const long long pid, const word
 
     PageTable *ptable = m_process_ptable_map.at(pid);
 
-    // It is likely that the virtual page has already been mapped since this is a temporary
-    // way to allow the emulator to load a program at a specific physical address.
+    // Likely the virtual page is mapped already, and then it has to be mapped to this physical
+    // page.
     if (LIKELY(ptable->entries.find(vpage) != ptable->entries.end()))
     {
         const PageTableEntry *entry = ptable->entries.at(vpage);
 
-        // It is likely that the virtual page maps to the same physical page. A page that is on
+        // Likely it is mapped to the same physical page. A page that is on
         // disk is still mapped to its physical page if it was mapped to it explicitly, otherwise it
         // has none (its ppage is not valid).
         if (LIKELY(entry->disk ? (entry->mapped && entry->mapped_ppage == ppage)
@@ -828,20 +829,18 @@ word VirtualMemory::access_vpage_slow(PageTable &ptable, const word vpage, const
         throw_fault(PageFault::Reason::WRITE_DENIED, vpage, access);
     }
 
-    // * Likely that the virtual page being accessed has not been evicted to the disk.
-    // The physical page that the virtual page is in, which is looked up once: it is known when
-    // the page is brought in here, and found by its number when it is in memory already.
+    // Likely the virtual page has not been evicted to the disk. The physical page that the virtual
+    // page is in is looked up once: it is known when the page is brought in here, and found by its
+    // number when it is in memory already.
     PhysicalPage *page_in = nullptr;
     if (UNLIKELY(entry->disk))
     {
-        // * Unlikely that the virtual page has been forcibly mapped to a physical page.
-        // *
-        // * Maintains any explicit mappings of virtual page to physical page, like
-        // * writing/reading from memory mapped I/O or ports.
+        // Unlikely, a virtual page that was mapped to a physical page explicitly, which is kept
+        // that way (for memory mapped I/O or ports).
         if (UNLIKELY(entry->mapped))
         {
-            // Since the virtual page is mapped to a physical page on disk, we can assume it was
-            // evicted and some other page may be in use at the spot.
+            // The page is on the disk, so it was evicted, and another page may have taken its
+            // physical page since.
             PhysicalPage &target = physical_page(entry->mapped_ppage);
             if (target.used)
             {
@@ -857,7 +856,7 @@ word VirtualMemory::access_vpage_slow(PageTable &ptable, const word vpage, const
         }
         else
         {
-            // * Unlikely that all physical pages are in use.
+            // Unlikely that every frame is in use.
             if (UNLIKELY(!m_frames.any_free()))
             {
                 evict_ppage(clock_victim());
@@ -941,8 +940,9 @@ void VirtualMemory::invalidate_translation(const word address)
     {
         entry.valid = false;
     }
-    // The page that is fetched from stands for the entry of the TLB that has it, so it goes with
-    // it, and only with it (the entry of another page in the same slot stays, and so does it).
+    // The fetch cache stands for the TLB entry of the page that is fetched from, so it goes with
+    // that entry, and only with it (the entry of another page in the same slot stays, and so does
+    // the fetch cache).
     if (vpage == m_fetch_vpage)
     {
         drop_fetch_cache();
@@ -1034,8 +1034,8 @@ word VirtualMemory::walk_translate(const word address, const AccessType access)
         throw_fault(PageFault::Reason::UNMAPPED, vpage, access);
     }
 
-    // The slot may have held the entry of the page that is fetched from. The visible TLB keeps a
-    // stale entry only as long as it is there, so what stands for it goes as well.
+    // The slot may have held the entry of the page that is fetched from, which the fetch cache
+    // stands for, so the fetch cache goes with it.
     drop_fetch_cache();
     WalkEntry &cached = m_walk_tlb[vpage & (kMaxTLBSize - 1)];
     cached = {.valid = true,

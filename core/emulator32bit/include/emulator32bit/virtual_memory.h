@@ -116,7 +116,7 @@ class VirtualMemory
         long long get_invalid_pid() const noexcept;
     };
 
-    /// A virtual page that is mapped to a physical page was mapped to another one.
+    /// A virtual page that is mapped to a physical page was mapped to another physical page.
     class VPageAlreadyMapped : public Error
     {
       protected:
@@ -133,7 +133,7 @@ class VirtualMemory
         word get_attempted_mapped_ppage() const noexcept;
     };
 
-    /// A virtual page that is already part of the process, or is not.
+    /// A virtual page that was added to a process twice, or that was never added to it.
     class InvalidVPage : public Error
     {
       protected:
@@ -151,12 +151,11 @@ class VirtualMemory
 
     /// @name Page tables in memory
     /// When the walk is enabled (`SCTLR.M`), virtual addresses are translated by walking a two
-    /// level table in physical memory that the operating system owns, `process`es, the swapping
-    /// and `begin_process` are not used. See docs/mmu.md.
+    /// level table in physical memory that the operating system owns. Processes, the swapping and
+    /// `begin_process` are not used. See docs/mmu.md.
     /// @{
 
-    /// Bits of a page table entry (the last level, and the first level only needs
-    /// valid and the frame).
+    /// The bits of a page table entry. An entry of the first level only uses valid and the frame.
     static constexpr word kPteValid = 1u << 0;
     static constexpr word kPteWrite = 1u << 1;
     static constexpr word kPteExecute = 1u << 2;
@@ -208,19 +207,19 @@ class VirtualMemory
     void invalidate_translations();
     /// @}
 
-    /// Sets where the pages that are paged in are. Without it the pages have no
-    /// contents, which is enough to look at the mappings.
+    /// Sets the physical memory that holds the pages that are paged in. Without it the pages have
+    /// no contents, which is enough to look at the mappings.
     ///
     /// @param physical The physical memory, which must outlive this.
     void set_physical_pages(PhysicalPages *physical);
 
-    /// Sets the current proccess to change the virtual space mappings.
+    /// Sets the current process, which the calls without a pid change the mappings of.
     ///
     /// @throws InvalidPid When the pid is not a valid process.
     /// @param pid Process id.
     void set_process(long long pid);
 
-    /// Starts a new process with it's own virtual memory address space.
+    /// Starts a new process with its own virtual memory address space.
     ///
     /// @throws Error When MAX_PROCESSES limit is reached.
     /// @param kernel_privilege Whether the process has the kernel level access
@@ -247,7 +246,7 @@ class VirtualMemory
         check_clock();
     }
 
-    /// Set the the access permissions of physical memory. Used by the kernel
+    /// Sets the access permissions of physical memory. Used by the kernel
     /// to set up memory mapped regions for I/O.
     ///
     /// @param ppage_begin First physical page to set the permissions to.
@@ -396,8 +395,7 @@ class VirtualMemory
         return translate_address_slow(address, access);
     }
 
-    /// Makes a force mapping of the virtual page to the physical page if it
-    /// is not yet mapped.
+    /// Maps the virtual page to the physical page, as a forced mapping, if it is not mapped yet.
     ///
     /// @throws InvalidPid If pid is invalid.
     /// @param pid Process identifier.
@@ -406,11 +404,11 @@ class VirtualMemory
     void ensure_physical_page_mapping(long long pid, word vpage, word ppage);
 
   private:
-    /// Contains information about a physical page and what virtual pages
-    /// map to it.
+    /// The mapping of one virtual page of a process: whether it is in a physical page or on the
+    /// disk, and what the process may do with it.
     struct PageTableEntry
     {
-        /// Construct a new Page Table Entry object.
+        /// Makes the entry of a virtual page that is on the disk.
         ///
         /// @param pid Process ID.
         /// @param vpage Virtual page of this mapping.
@@ -431,6 +429,7 @@ class VirtualMemory
         bool execute; ///< Whether this virtual page contains code to execute.
     };
 
+    /// A physical page, and the virtual pages that are mapped to it.
     struct PhysicalPage
     {
         std::vector<PageTableEntry *> mapped_vpages;
@@ -476,9 +475,9 @@ class VirtualMemory
     /// The key of an entry that has no translation, which no lookup has.
     static constexpr U64 kNoKey = ~U64(0);
 
-    /// What is looked up with when there is no process whose pages are translated (virtual memory
-    /// is off, the page tables are used, or there is no process): not a key that an entry has,
-    /// or that is kNoKey, so that the lookup fails and the slow path decides.
+    /// The key that is looked up when no process has its pages translated through the TLB (the
+    /// virtual memory is off, the page tables are used, or there is no process). No entry has it,
+    /// and it is not kNoKey either, so the lookup fails and the slow path decides.
     static constexpr U64 kNoProcessKey = U64(1) << 62;
 
     /// An entry of the TLB.
@@ -489,8 +488,8 @@ class VirtualMemory
         bool write = false; ///< Whether the translation can be used to write.
     };
 
-    /// Translation Lookaside Buffer. Contains the recently translated virtual
-    /// page address to physical page address. An entry is only filled when the
+    /// The translation lookaside buffer: the recent translations of a virtual page to a physical
+    /// page. An entry is only filled when the
     /// process may access the page, and has the permission to write that the
     /// page had then.
     ///
@@ -504,8 +503,8 @@ class VirtualMemory
     /// pages of no process are translated through m_tlb. Kept up to date by update_swap_key.
     U64 m_swap_key = kNoProcessKey;
 
-    /// To be called when the current process, whether the virtual memory is on or the use of the
-    /// page tables changes.
+    /// Called when the current process changes, or whether the virtual memory is on, or whether
+    /// the page tables are used.
     inline void update_swap_key()
     {
         m_swap_key = (m_cur_ptable != nullptr && m_enabled && !m_walk)
@@ -595,8 +594,7 @@ class VirtualMemory
     /// allocate one for every page.
     std::vector<byte> m_page_buffer = std::vector<byte>(kPageSize);
 
-    /// Current active process in which all calls to the virtual memory to
-    /// manipulate/use mappings without a supplied PID refers to.
+    /// The page table of the current process, which the calls without a pid use.
     PageTable *m_cur_ptable = nullptr;
 
     bool m_enabled = true;
@@ -618,8 +616,8 @@ class VirtualMemory
     /// translate_fetch for a page that is not remembered: translates, checks and remembers it.
     word translate_fetch_slow(word address);
 
-    /// Beginning and end of the list that makes up the clock, the pages that can be
-    /// swapped. The end is followed by the beginning.
+    /// The first and the last page of the list that makes up the clock, the pages that can be
+    /// swapped. The last is followed by the first.
     PhysicalPage *m_clock_head = nullptr;
     PhysicalPage *m_clock_tail = nullptr;
 
@@ -651,7 +649,7 @@ class VirtualMemory
     /// checks use it).
     std::vector<std::pair<word, const PhysicalPage *>> all_physical_pages() const;
 
-    /// Whether a virtual page that is paged in can be put in the physical page.
+    /// Whether the physical page is one of the frames, which the pages that are paged in go to.
     bool is_frame(word ppage) const;
 
     /// Gives a physical page back to the free pages, if it is one of the frames.
@@ -663,7 +661,7 @@ class VirtualMemory
     /// Drops all cached translations.
     void flush_tlb();
 
-    /// Ensures that the virtual memory page tables memory mappings are valid.
+    /// Checks that the page tables and the mappings agree (see check_consistency ()).
     void check_vm();
 
     /// Records that a physical page was just used, so that the clock gives it
@@ -690,17 +688,17 @@ class VirtualMemory
     /// @throws Error If there is none.
     PhysicalPage &clock_victim();
 
-    /// Ensures the clock of the in use physical pages is valid.
+    /// Checks that the list of the clock is linked both ways and holds the pages that are on it.
     void check_clock();
 
-    /// Removes the physical page and writes it back to disk, freeing up a
-    /// location for another virtual page to map to.
+    /// Writes the contents of the physical page back to the disk and frees the page for another
+    /// virtual page to map to.
     ///
     /// @param page Physical page to evict.
     void evict_ppage(PhysicalPage &page);
 
     /// Brings a virtual page that is on the disk into a physical page, which is
-    /// free. The callers have both already (a lookup of either costs a hash).
+    /// free. The callers already have the entry and the page, and looking up either costs a hash.
     ///
     /// @param entry The virtual page, of a process that exists.
     /// @param page Physical page to map to.
@@ -716,7 +714,7 @@ class VirtualMemory
     /// @param ppage Physical page to map to.
     void map_ppage(long long pid, word vpage, word ppage);
 
-    /// Removes the virtual page from a process referenced by it's pid.
+    /// Removes the virtual page from the process with the pid.
     ///
     /// @throws InvalidPid If pid is invalid.
     /// @throws InvalidVPage If virtual page is not mapped to process.
@@ -724,9 +722,8 @@ class VirtualMemory
     /// @param vpage Virtual page to remove.
     void remove_vpage(long long pid, word vpage);
 
-    /// Translates a virtual space address to a physical space address. Note these
-    /// are not page addresses, but full memory address in the 0 to 2^31 - 1
-    /// range.
+    /// Translates a virtual address to a physical address. These are full addresses, not page
+    /// numbers.
     ///
     /// @param ptable Page table of the process to access.
     /// @param address Virtual space address.

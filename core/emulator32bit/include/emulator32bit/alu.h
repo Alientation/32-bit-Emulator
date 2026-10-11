@@ -106,7 +106,7 @@ enum class ConditionCode : U8
     /// Unsigned higher                 : C==1 && Z==0
     HI = 8,
 
-    /// Unsigned lower or same          : C==0 || Z==0
+    /// Unsigned lower or same          : C==0 || Z==1
     LS = 9,
 
     /// Signed greater than or equal    : N==V
@@ -121,10 +121,10 @@ enum class ConditionCode : U8
     /// Signed less than or equal       : Z==1 || N!=V
     LE = 13,
 
-    /// Always executed                 : NONE
+    /// Always executed                 : no condition
     AL = 14,
 
-    /// Never executed                  : NONE
+    /// Never executed                  : no condition
     NV = 15,
 };
 

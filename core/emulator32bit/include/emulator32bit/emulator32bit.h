@@ -103,7 +103,8 @@ class Emulator32bit
         return m_exception_depth;
     }
 
-    /// ISS of an undefined instruction exception (and of the Trap that causes it).
+    // The ISS (syndrome) of an undefined instruction exception, and of the Trap that causes it.
+
     /// An opcode that is not assigned.
     static constexpr word kUndefinedIss_opcode = 0;
     /// An extended op or encoding that is not assigned.
@@ -119,18 +120,19 @@ class Emulator32bit
     /// (x29, sp, xzr).
     static constexpr word kUndefinedIss_fp_operand = 5;
 
-    /// ISS of an instruction or data abort: one fault type, and for a data abort `kAbortIss_write`
-    /// is or'd in when the access was a write.
-    /// Not mapped.
+    // The ISS (syndrome) of an instruction or data abort: one fault type, and for a data abort
+    // `kAbortIss_write` is or'd in when the access was a write.
+
+    /// The address is not mapped.
     static constexpr word kAbortIss_translation = 1;
-    /// Write to read-only, execute of data, kernel only.
+    /// A write to read-only memory, an execute of data, or a user access to kernel memory.
     static constexpr word kAbortIss_permission = 2;
     /// A pc that is not a multiple of 4, or a data access (ldr, str, ldrh, strh) that is not
     /// aligned to its size.
     static constexpr word kAbortIss_alignment = 3;
     /// No memory at the physical address.
     static constexpr word kAbortIss_bus = 4;
-    /// Bit 3: the access was a write.
+    /// Bit 3 of the ISS, set when the access was a write.
     static constexpr word kAbortIss_write = 1 << 3;
 
     /// What stops an instruction from completing: a fault of the program, a `hlt` or a `brk`.
@@ -192,7 +194,7 @@ class Emulator32bit
         EXIT_BREAKPOINT = 4,
     };
 
-    /// An instruction that was executed (or tried to), for the history.
+    /// An instruction that was executed or attempted, for the history.
     struct ExecutedInstruction
     {
         word pc;
@@ -337,6 +339,7 @@ class Emulator32bit
     /// Removes every register watch.
     void clear_register_watches();
 
+    /// A watch on a register, see add_register_watch ().
     struct RegisterWatch
     {
         U8 reg;
@@ -371,7 +374,7 @@ class Emulator32bit
     /// @return The number of instructions that the history keeps.
     size_t history_size() const;
 
-    /// The instructions that the history keeps, in the most that it can.
+    /// Room for the most instructions that the history can keep.
     using History = std::array<ExecutedInstruction, kMaxHistory>;
 
     /// @param out Receives the last instructions that were executed, the oldest first.
@@ -538,11 +541,9 @@ class Emulator32bit
     /// @param stops Whether `brk` stops the run.
     void set_brk_stops(bool stops);
 
-    // TODO: determine if fp registers (fpcr, fpsr) are needed.
-
   private:
-    /// General purpose registers x0-x29, sp and xzr. x29 is the link register. xzr is always 0 and
-    /// is never written.
+    /// General purpose registers x0-x29, sp and xzr. x28 is the frame pointer and x29 the link
+    /// register. xzr is always 0 and is never written.
     word m_x[kNumReg];
 
     /// Program counter.
@@ -564,7 +565,8 @@ class Emulator32bit
     word m_ptbr = 0;  ///< Physical address of the first level page table (a page).
     word m_sctlr = 0; ///< System control: bit 0 turns on translation by the page tables.
 
-    /// Set by what writes the pc itself (ERET, taking an exception), run () then does not add 4.
+    /// Set by a handler that writes the pc itself (a taken branch, ERET, taking an exception).
+    /// run () then does not add 4.
     bool m_pc_written = false;
 
     /// Set when an exception is taken, cleared when an instruction completes. An exception that is
@@ -619,7 +621,7 @@ class Emulator32bit
     void execute_traced(word instr);
 
     /// Raises an exception: saves the state, goes to kernel mode and jumps to the vector. A
-    /// double fault is thrown instead if no instruction completed since the last one.
+    /// double fault is thrown instead if no instruction completed since an exception was taken.
     ///
     /// @param cls The class of the exception, which is also the vector.
     /// @param iss The syndrome.
@@ -627,9 +629,8 @@ class Emulator32bit
     /// @param elr Where ERET returns to.
     void enter_exception(ExceptionClass cls, word iss, word far, word elr);
 
-    /// If the exception that stopped an instruction (`fetching`: while fetching it, else `instr`
-    /// is the instruction that was executing) is one the CPU raises, and a vector table is
-    /// installed, raises it and returns true. Otherwise false and the caller reports the fault.
+    /// Raises the exception that an error stands for, if the CPU raises one for it and a vector
+    /// table is installed. If not, the caller reports the error as a fault.
     ///
     /// @param error What stopped the instruction.
     /// @param fetching Whether it happened while fetching the instruction.
@@ -689,11 +690,13 @@ class Emulator32bit
     /// @return The index of the watch on the register, or m_regwatches.count if there is none.
     unsigned find_register_watch(U8 reg) const;
 
-    /// Adds a register watch or replaces the one on `reg`; add_register_watch.
+    /// Adds a register watch or replaces the one on `reg`. The overloads of add_register_watch ()
+    /// call it.
     bool set_register_watch(U8 reg, bool has_value, word value);
 
-    // The floating point registers are last, so that adding them did not move the members that
-    // every instruction reads (see the benchmarks in CLAUDE.md).
+    // These members are last, so that adding them did not move the members that every instruction
+    // reads (see the benchmark notes in docs/internals.md).
+
     /// The instruction that run () is executing, for the exception it may raise.
     word m_instr_in_flight = 0;
     word m_fpcr = 0; ///< Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
@@ -763,8 +766,8 @@ class Emulator32bit
     AEMU_OPCODES(AEMU_DECLARE_OPCODE)
 #undef AEMU_DECLARE_OPCODE
 
-    // Operations of the special instruction, and the fallback of unused opcodes. Each handler
-    // executes the instruction `instr`.
+    // The operations of the special instruction (opcode 0), and the fallback for an opcode that is
+    // not listed. Each handler executes the instruction `instr`.
     void _hlt(const word instr);
     /// Handler of every opcode that is not an instruction. Faults with BAD_INSTR.
     void _bad_opcode(const word instr);
@@ -775,10 +778,10 @@ class Emulator32bit
     void _tlbi(const word instr);
     /// PC = ELR and PSTATE = SPSR. The mode comes back with SPSR, and with it the stack pointer.
     void _eret(const word instr);
-    /// Waits until an interrupt is pending (masked or not, the next instruction then runs, and
-    /// takes the interrupt if it is not masked). Nothing else happens while waiting, so the only
-    /// things that can raise one are the timer and a block device command: time jumps to the
-    /// first of them. With nothing to wait for the program ends like it does with hlt, so that it
+    /// Waits until an interrupt is pending, masked or not. The next instruction then runs, which
+    /// takes the interrupt if it is not masked. Nothing else happens while waiting, so only the
+    /// timer and a block device command can raise one: time jumps ahead to the first of their
+    /// events. If there is nothing to wait for, the program ends as it does with hlt, so that it
     /// does not hang.
     void _wfi(const word instr);
     void _brk(const word instr);
@@ -822,7 +825,8 @@ class Emulator32bit
     void _emu_assertm(word mem_addr, U8 size, bool little_endian, word min_value, word max_value);
     void _emu_assertp(U8 p_state_id, bool expected_value);
     void _emu_log(word str);
-    /// TODO: raise interrupt so kernel can handle
+    /// Prints the message and stops the run.
+    /// TODO: raise an exception so that the kernel can handle it.
     void _emu_err(word err);
 
   public:

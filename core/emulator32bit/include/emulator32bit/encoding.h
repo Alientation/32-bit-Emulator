@@ -29,8 +29,7 @@ enum class AddrType : U8
 AEMU_OPCODES(AEMU_DECLARE_OPCODE_CONSTANT)
 #undef AEMU_DECLARE_OPCODE_CONSTANT
 
-// Since these operations are encoded under one 'Special' instruction,
-// these are the id for each operation.
+// The id of each operation of the special instruction (opcode 0).
 inline constexpr word kSpecialOpId_hlt = 0b0000;
 inline constexpr word kSpecialOpId_nop = 0b1111;
 inline constexpr word kSpecialOpId_msr = 0b0001;

@@ -153,11 +153,10 @@ void Emulator32bit::_emu_err(const word err)
 /// The emulator calls: the number of the call is in the register
 /// SYSCALL (x8), the arguments in x0-x4.
 ///
-/// In future, we need a vector table that contains various jump instructions
-/// to handle various exceptions, and the system calls of an operating
-/// system (https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit)
-/// would be implemented in the kernel, not here. That needs a linker script
-/// that places the kernel at a fixed address, which exists now.
+/// With a vector table, the system calls of an operating system
+/// (https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit)
+/// are implemented in the kernel, not here. The emulator calls are for programs that run without
+/// one.
 ///
 /// | ID   | NAME         | x0               | x1            | x2              | x3        | x4        |
 /// |------|--------------|------------------|---------------|-----------------|-----------|-----------|
@@ -207,8 +206,7 @@ void Emulator32bit::_swi(const word instr)
                    kUndefinedIss_unimplemented);
     }
 
-    // Software interrupts.. perfect to add functionality to this like console print,
-    // file operations, ports, etc.
+    // More emulator calls (file operations, ports, ...) are added as cases here.
     const word id = read_reg(Register::SYSCALL);
     const word arg0 = read_reg(Register::X0);
     const word arg1 = read_reg(Register::X1);

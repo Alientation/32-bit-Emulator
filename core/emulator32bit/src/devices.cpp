@@ -336,7 +336,7 @@ bool BlockDevice::open_file(const std::string &path, const word sectors)
     }
     else if (std::ifstream(path).good())
     {
-        return false; // Exists, cannot be read.
+        return false; // The file exists, but cannot be read.
     }
 
     const size_t sectors_size = size_t(sectors) * kSectorSize;
@@ -377,7 +377,7 @@ void BlockDevice::start(const word command)
 
     if (m_busy)
     {
-        m_status |= kError; // Not accepted.
+        m_status |= kError; // The command is not accepted.
         return;
     }
     if (command < kCmdRead || command > kCmdScatterWrite)
@@ -392,7 +392,7 @@ void BlockDevice::start(const word command)
     m_command_sector = m_sector;
     m_command_addr = m_dma_addr;
     m_command_count = m_dma_count;
-    // At least one instruction.
+    // A command takes at least one instruction.
     m_remaining = m_latency != 0 ? m_latency : 1;
     m_segments.clear();
     m_segments_valid = true;
