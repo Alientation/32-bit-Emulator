@@ -10,6 +10,8 @@
 class LoadExecutable
 {
   public:
+    /// @param emu The emulator that gets the program.
+    /// @param exe_file The executable to load. It is read by load (), not here.
     LoadExecutable(Emulator32bit &emu, const File &exe_file);
 
     /// Reads the executable and copies it into the emulator. The emulator must already have a

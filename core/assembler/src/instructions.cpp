@@ -1046,6 +1046,5 @@ void Assembler::_ret()
 {
     m_cursor.next();
 
-    constexpr byte kLinkRegister = 29;
-    emit_instruction(Emulator32bit::asm_format_b2(ConditionCode::AL, kLinkRegister));
+    emit_instruction(Emulator32bit::asm_format_b2(ConditionCode::AL, U8(Register::LR)));
 }

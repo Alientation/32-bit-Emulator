@@ -32,27 +32,29 @@ class Preprocessor
         PROCESSED_ERROR
     };
 
-    /// Constructs a preprocessor object with the given file.
+    /// Constructs a preprocessor object with the given file. The output file is created now if the
+    /// options ask for it to be written. The extension of the input has to be .basm or .binc.
     ///
-    /// @param input_file the file to preprocess.
-    /// @param output_file_path the path to the output file, default is the input file path with
+    /// @param input_file The file to preprocess.
+    /// @param output_file_path The path to the output file, default is the input file path with
     ///     the .bi extension.
-    /// @param options include directories etc. of the build.
+    /// @param options Include directories etc. of the build.
     explicit Preprocessor(const File &input_file, const std::string &output_file_path = "",
                           PreprocessorOptions options = {});
+
     ~Preprocessor();
 
     /// Preprocesses the input file and writes the .bi file if the options ask for it.
     ///
-    /// @return the output file
+    /// @return The output file.
     File preprocess();
 
-    /// @return how far preprocess() got
-    State get_state();
+    /// @return How far preprocess() got.
+    State get_state() const;
 
     /// The tokens preprocess() produced. Call once, after preprocess().
     ///
-    /// @return the preprocessed tokens
+    /// @return The preprocessed tokens.
     basm::PreprocessedSource take_result();
 
   private:
@@ -113,6 +115,8 @@ class Preprocessor
         basm::SourceLocation loc;
     };
 
+    /// How many frames can be open at once, so that a file that includes itself or a symbol that
+    /// expands to itself ends with an error.
     static constexpr std::size_t kMaxFrames = 256;
 
     PreprocessorOptions m_options;
@@ -137,28 +141,28 @@ class Preprocessor
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
-    /// @param at the token the error is about
-    /// @param message what is wrong
+    /// @param at The token the error is about.
+    /// @param message What is wrong.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 
-    /// @return whether tokens are being kept, as opposed to dropped by an #if* that is not taken
+    /// @return Whether tokens are being kept, as opposed to dropped by an #if* that is not taken.
     bool active() const;
 
-    /// @param name the name of a symbol
-    /// @param num_params the number of parameters
-    /// @return whether `#define` made a symbol with the name and that many parameters
+    /// @param name The name of a symbol.
+    /// @param num_params The number of parameters.
+    /// @return Whether `#define` made a symbol with the name and that many parameters.
     bool is_symbol_def(const std::string &name, std::size_t num_params) const;
 
     /// Pushes a new source of tokens on the stack of frames.
     ///
-    /// @param tokens the tokens, which the frame owns
-    /// @return the frame
+    /// @param tokens The tokens, which the frame owns.
+    /// @return The frame.
     Frame &push_frame(Tokens tokens);
 
     /// Pushes a source file (`#include`, or the input file).
     ///
-    /// @param path the path of the file
-    /// @param include_site the `#include` token for the error messages, null for the input file
+    /// @param path The path of the file.
+    /// @param include_site The `#include` token for the error messages, null for the input file.
     void push_file(const std::string &path, const basm::Token *include_site);
 
     /// Reads the frames until none is left.
@@ -166,51 +170,52 @@ class Preprocessor
 
     /// Pops a frame whose tokens ran out, after checking that it left nothing open.
     ///
-    /// @param frame the frame
-    void finish_frame(Frame &frame);
+    /// @param frame The frame.
+    void finish_frame(const Frame &frame);
 
     /// Appends a token to the output, as text and as a token.
     ///
-    /// @param token the token to keep
+    /// @param token The token to keep.
     void emit(const basm::Token &token);
 
     /// Parses `( a, b, c )` with the cursor on the open parenthesis. Commas inside nested
-    /// brackets do not split.
+    /// brackets do not split. `()` has no arguments, and `(,)` has two empty ones.
     ///
     /// @param args Receives the tokens of each argument.
     /// @param cursor The cursor of the line.
-    /// @return false (cursor position unspecified) if the closing parenthesis is not on the same
-    ///     line
+    /// @return `false` (cursor position unspecified) if the closing parenthesis is not on the same
+    ///     line.
     static bool parse_call_args(std::vector<Tokens> &args, basm::TokenCursor &cursor);
 
-    /// Parses `( a, b )` of a definition header into parameter names.
+    /// Parses `( a, b )` of a definition header into parameter names. Fatal if a name is not a
+    /// symbol or is repeated.
     ///
-    /// @param line the cursor of the line, on the open parenthesis
-    /// @return the names
+    /// @param line The cursor of the line, on the open parenthesis.
+    /// @return The names.
     std::vector<std::string> parse_params(basm::TokenCursor &line);
 
     /// Copy of `body` with every use of a parameter replaced by the matching argument. The
     /// tokens that come from `body` are marked as produced by expansion `expansion`, the ones
     /// from the arguments keep the location they were written at.
     ///
-    /// @param body the tokens of the definition
-    /// @param params the names of the parameters
-    /// @param args the tokens of each argument
-    /// @param expansion the number of the expansion, for the error messages
-    /// @return the tokens with the arguments put in
+    /// @param body The tokens of the definition.
+    /// @param params The names of the parameters.
+    /// @param args The tokens of each argument.
+    /// @param expansion The number of the expansion, for the error messages.
+    /// @return The tokens with the arguments put in.
     Tokens substitute(const Tokens &body, const std::vector<std::string> &params,
                       const std::vector<Tokens> &args, U32 expansion) const;
 
     /// Replaces a use of a defined symbol with its value.
     ///
-    /// @param frame the frame the token was read from
-    /// @param token the token that may be a symbol
-    /// @return false, consuming nothing, if the token is to be emitted as it is
+    /// @param frame The frame the token was read from.
+    /// @param token The token that may be a symbol.
+    /// @return `false`, consuming nothing, if the token is to be emitted as it is.
     bool expand_symbol(Frame &frame, const basm::Token &token);
 
     /// Handles the directive at the cursor of the frame (`#include`, `#define`, ...).
     ///
-    /// @param frame the frame that is being read
+    /// @param frame The frame that is being read.
     void handle_directive(Frame &frame);
 
     /// Inserts the file contents into the current file.
@@ -225,7 +230,8 @@ class Preprocessor
     ///
     /// USAGE: #macro [name]([param1, param2,..., paramn])
     ///
-    /// The body is everything up to #macend. It cannot contain another #macro.
+    /// The body is everything up to #macend. It cannot contain another #macro. The same name can be
+    /// defined with another number of parameters.
     void _macro(Frame &frame, basm::TokenCursor &line);
 
     /// Stops expanding the macro and assigns the value of the expression to the output symbol of
@@ -269,8 +275,8 @@ class Preprocessor
 
     /// Evaluates the condition of an #if* / #else* directive.
     ///
-    /// @param directive the directive token
-    /// @param line the cursor of the line, after the directive
-    /// @return whether the condition holds
+    /// @param directive The directive token.
+    /// @param line The cursor of the line, after the directive.
+    /// @return Whether the condition holds.
     bool evaluate_condition(const basm::Token &directive, basm::TokenCursor &line);
 };

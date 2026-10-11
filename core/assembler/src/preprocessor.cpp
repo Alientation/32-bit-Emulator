@@ -184,7 +184,7 @@ Preprocessor::~Preprocessor()
 {
 }
 
-Preprocessor::State Preprocessor::get_state()
+Preprocessor::State Preprocessor::get_state() const
 {
     return m_state;
 }
@@ -330,7 +330,7 @@ void Preprocessor::run()
     }
 }
 
-void Preprocessor::finish_frame(Frame &frame)
+void Preprocessor::finish_frame(const Frame &frame)
 {
     if (m_conds.size() > frame.cond_base)
     {

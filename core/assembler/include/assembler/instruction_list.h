@@ -14,9 +14,9 @@
 ///
 /// Several rows can share an opcode. `cmp`, `cmn`, `tst` and `teq` (format O_NO_DEST) carry the
 /// opcode of `sub`, `add`, `and` and `eor` and are encoded with S set and `xzr` as the
-/// destination. `lsl`, `lsr`, `asr` and `ror` share `shift` (`b` is the ShiftType: 0 to 3), `umull` and
-/// `smull` share `mull` (`b` is 1 for the signed one), `bx` and `blx` share `bx` (`b` is 1 for the
-/// call).
+/// destination. `lsl`, `lsr`, `asr` and `ror` share `shift` (`b` is the ShiftType: 0 to 3), `umull`
+/// and `smull` share `mull` (`b` is 1 for the signed one), `bx` and `blx` share `bx` (`b` is 1 for
+/// the call).
 ///
 ///   F(X, NAME, text, allows_s, format, a, b)
 ///

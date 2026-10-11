@@ -223,7 +223,7 @@ class ByteReader
     /// Reading past the last byte throws `std::out_of_range`.
     ///
     /// @param bytes The bytes to read, which have to outlive this.
-    ByteReader(std::vector<unsigned char> &bytes) :
+    ByteReader(const std::vector<unsigned char> &bytes) :
         m_bytes(bytes){};
 
     /// How many bytes to read, in which order, and the value that was read.
@@ -265,6 +265,6 @@ class ByteReader
     void skip_bytes(int num_bytes);
 
   private:
-    std::vector<unsigned char> &m_bytes;
+    const std::vector<unsigned char> &m_bytes;
     size_t m_cur_byte = 0;
 };

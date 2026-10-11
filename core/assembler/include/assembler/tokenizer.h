@@ -35,9 +35,14 @@ namespace basm
 // Sources and locations
 // ---------------------------------------------------------------------------------------------
 
+/// The number of a source in a SourceManager.
 using SourceId = U32;
+
+/// The id of no source: the one that SourceLocation starts with, and what add_file () gives for a
+/// file that cannot be read.
 inline constexpr SourceId kInvalidSource = ~SourceId(0);
 
+/// A place in a source, for the diagnostics.
 struct SourceLocation
 {
     SourceId source = kInvalidSource;
@@ -69,22 +74,42 @@ class SourceManager
     SourceManager &operator=(SourceManager &&) = default;
 
     /// Registers in memory text (also used for text synthesized by the preprocessor).
+    ///
+    /// @param name What the diagnostics call the source (the path, for a file).
+    /// @param text The text.
+    /// @return The id of the source.
     SourceId add(std::string name, std::string text);
 
-    /// Reads a file. Returns nullopt if it cannot be read.
+    /// Reads a file.
+    ///
+    /// @param path The path of the file.
+    /// @return The id of the source, or kInvalidSource if the file cannot be read.
     SourceId add_file(const std::string &path);
 
+    /// @param id The id of a source.
+    /// @return The name of the source, empty if the id is unknown.
     std::string_view name(SourceId id) const;
+
+    /// @param id The id of a source.
+    /// @return The text of the source, empty if the id is unknown.
     std::string_view text(SourceId id) const;
 
-    /// Text of a 1 based line without its line terminator. Empty if out of range.
+    /// @param id The id of a source.
+    /// @param line A 1 based line number.
+    /// @return The text of the line without its line terminator, empty if there is no such line.
     std::string_view line_text(SourceId id, U32 line) const;
 
     /// Records that tokens were produced by expanding `name` (a macro or a #define) used at
-    /// `site`. Returns the id to store in SourceLocation::expansion. `site` has its own
-    /// expansion id if the use was itself inside an expansion, which links the chain.
+    /// `site`. `site` has its own expansion id if the use was itself inside an expansion, which
+    /// links the chain.
+    ///
+    /// @param name The name of the macro or symbol.
+    /// @param is_macro Whether it is a macro, as opposed to a symbol of #define.
+    /// @param site Where it was used.
+    /// @return The id to store in SourceLocation::expansion.
     U32 add_expansion(std::string name, bool is_macro, const SourceLocation &site);
 
+    /// The expansion of a macro or a symbol, see add_expansion ().
     struct Expansion
     {
         std::string name;
@@ -92,7 +117,8 @@ class SourceManager
         SourceLocation site;
     };
 
-    /// Expansion with the given id (never 0). nullptr if unknown.
+    /// @param id An id that add_expansion () returned.
+    /// @return The expansion, or nullptr if the id is 0 or unknown.
     const Expansion *expansion(U32 id) const;
 
   private:
@@ -103,8 +129,8 @@ class SourceManager
         std::vector<U32> line_starts;
     };
 
-    /// @param id the id of a source
-    /// @return the source, or nullptr if the id is unknown
+    /// @param id The id of a source.
+    /// @return The source, or nullptr if the id is unknown.
     const Source *get(SourceId id) const;
 
     std::deque<Source> m_sources;
@@ -189,70 +215,70 @@ std::string_view to_string(TokenType type);
 
 namespace detail
 {
-/// @return whether `t` is one of the types from `lo` to `hi`
+/// @return Whether `t` is one of the types from `lo` to `hi`
 constexpr bool in_range(const TokenType t, const TokenType lo, const TokenType hi)
 {
     return t >= lo && t <= hi;
 }
 } // namespace detail
 
-/// @return whether the type is a comment
+/// @return Whether the type is a comment.
 constexpr bool is_comment(const TokenType t)
 {
     return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
 }
 
-/// @return whether the type is a preprocessor directive (`#define`, ...)
+/// @return Whether the type is a preprocessor directive (`#define`, ...)
 constexpr bool is_preprocessor_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
 }
 
-/// @return whether the type is an assembler directive (`.global`, ...)
+/// @return Whether the type is an assembler directive (`.global`, ...)
 constexpr bool is_assembler_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
 }
 
-/// @return whether the type is a relocation operator (`:lo12:`, ...)
+/// @return Whether the type is a relocation operator (`:lo12:`, ...)
 constexpr bool is_relocation(const TokenType t)
 {
     return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
                             TokenType::RELOCATION_EMU32_MOV_HI13);
 }
 
-/// @return whether the type is a register (x0-x29, sp, xzr)
+/// @return Whether the type is a register (x0-x29, sp, xzr).
 constexpr bool is_register(const TokenType t)
 {
     return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
 }
 
-/// @return whether the type is an instruction mnemonic
+/// @return Whether the type is an instruction mnemonic.
 constexpr bool is_instruction(const TokenType t)
 {
     return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
 }
 
-/// @return whether the type is a condition code (eq, ne, ...)
+/// @return Whether the type is a condition code (eq, ne, ...)
 constexpr bool is_condition(const TokenType t)
 {
     return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
 }
 
-/// @return whether the type is an integer literal
+/// @return Whether the type is an integer literal.
 constexpr bool is_integer_literal(const TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_NUMBER_BINARY,
                             TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
-/// @return whether the type is an integer or floating point literal
+/// @return Whether the type is an integer or floating point literal.
 constexpr bool is_number_literal(const TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
-/// @return whether the type is an operator of an expression
+/// @return Whether the type is an operator of an expression.
 constexpr bool is_operator(const TokenType t)
 {
     return detail::in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
@@ -268,6 +294,7 @@ constexpr byte register_index(const TokenType t)
 // Tokens
 // ---------------------------------------------------------------------------------------------
 
+/// Bits of Token::flags.
 enum TokenFlag : U8
 {
     /// Whitespace, a comment or a line continuation immediately precedes this token.
@@ -287,6 +314,7 @@ enum TokenFlag : U8
     SYNTHETIC = 1 << 4,
 };
 
+/// A piece of the source that the lexer recognised, with where it is.
 struct Token
 {
     TokenType type = TokenType::END_OF_FILE;
@@ -302,13 +330,13 @@ struct Token
     /// Value of integer and character literals (LITERAL_NUMBER_* except float, LITERAL_CHAR).
     U64 int_value = 0;
 
-    /// @return whether the token has this type
+    /// @return Whether the token has this type.
     bool is(const TokenType t) const
     {
         return type == t;
     }
 
-    /// @return whether the token has one of these types
+    /// @return Whether the token has one of these types.
     bool is_one_of(const std::initializer_list<TokenType> types) const
     {
         for (const TokenType t : types)
@@ -321,21 +349,25 @@ struct Token
         return false;
     }
 
-    /// @return whether the token has this flag
+    /// @return Whether the token has this flag.
     bool has(const TokenFlag flag) const
     {
         return (flags & flag) != 0;
     }
 
-    /// @return a copy of the text of the token
+    /// @return A copy of the text of the token.
     std::string str() const
     {
         return std::string(text);
     }
 
     /// Creates a token that is not backed by lexed source, e.g. the `xzr` the assembler injects
-    /// for `cmp`. `static_text` must outlive the token (use a string literal). Pass `origin` to
-    /// inherit its location for diagnostics.
+    /// for `cmp`.
+    ///
+    /// @param type The type of the token.
+    /// @param static_text The text, which has to outlive the token (use a string literal).
+    /// @param origin The token whose location the new one gets for diagnostics, or null.
+    /// @return The token.
     static Token synthetic(const TokenType type, const std::string_view static_text,
                            const Token *origin = nullptr)
     {
@@ -351,22 +383,27 @@ struct Token
     }
 };
 
-/// Human readable token for error messages: `'add'`, `end of line`, `end of file`.
+/// @param token A token.
+/// @return A human readable name of the token for error messages: `'add'`, `end of line`,
+///     `end of file`.
 std::string describe(const Token &token);
 
-/// Contents of a LITERAL_STRING token without the quotes and with escape sequences resolved.
+/// @param token A LITERAL_STRING token.
+/// @return Its contents without the quotes and with the escape sequences resolved.
 std::string unescape_string_literal(const Token &token);
 
 // ---------------------------------------------------------------------------------------------
 // Diagnostics
 // ---------------------------------------------------------------------------------------------
 
+/// How bad a Diagnostic is.
 enum class Severity : U8
 {
     WARNING,
     ERROR,
 };
 
+/// A warning or an error that the lexer found.
 struct Diagnostic
 {
     Severity severity = Severity::ERROR;
@@ -374,24 +411,31 @@ struct Diagnostic
     std::string message;
 };
 
-/// `file:line:col: error: message`, followed by the source line and a caret.
+/// Writes a diagnostic as `file:line:col: error: message`, followed by the source line and a
+/// caret, and a note for each macro or symbol expansion it came from.
+///
+/// @param sources The sources the diagnostic is about.
+/// @param diagnostic The diagnostic.
+/// @return The text, which ends with a newline.
 std::string format_diagnostic(const SourceManager &sources, const Diagnostic &diagnostic);
 
 // ---------------------------------------------------------------------------------------------
 // Lexing
 // ---------------------------------------------------------------------------------------------
 
+/// What kind of text is lexed.
 enum class LexMode : U8
 {
-    /// .basm / .binc / .bi sources. `;` comments, `$hex %bin @oct` literals, `#` directives,
+    /// .basm / .binc / .bi sources. `;` comments, `0x` `0b` `0o` literals, `#` directives,
     /// instructions, registers.
     ASSEMBLY,
 
     /// .ld linker scripts. `//` and `/* */` comments, `0x` / `0b` literals, `;` `=` `@`,
-    /// ENTRY / SECTIONS keywords and the `.text` `.data` `.bss` section names.
+    /// ENTRY / SECTIONS keywords and the names of the sections.
     LINKER_SCRIPT,
 };
 
+/// What the lexer keeps and how it reads the text.
 struct LexOptions
 {
     LexMode mode = LexMode::ASSEMBLY;
@@ -406,6 +450,7 @@ struct LexOptions
     bool collapse_newlines = false;
 };
 
+/// The tokens of a source and the diagnostics.
 struct LexResult
 {
     /// Always ends with END_OF_FILE. Unless `keep_newlines` is false, the token before that is
@@ -431,18 +476,36 @@ struct PreprocessedSource
     std::vector<Token> tokens;
 };
 
-/// Lexes the already registered source `id`.
+/// Lexes a source that is registered already.
+///
+/// @param sources The sources, which have to outlive the tokens.
+/// @param id The source to lex.
+/// @param options What to keep, and the kind of text.
+/// @return The tokens and the diagnostics.
 LexResult lex(const SourceManager &sources, SourceId id, const LexOptions &options = {});
 
-/// Convenience: registers `text` and lexes it.
+/// Registers `text` and lexes it.
+///
+/// @param sources The sources, which get the text and have to outlive the tokens.
+/// @param name What the diagnostics call the text.
+/// @param text The text to lex.
+/// @param options What to keep, and the kind of text.
+/// @return The tokens and the diagnostics.
 LexResult lex_text(SourceManager &sources, std::string name, std::string text,
                    const LexOptions &options = {});
 
 /// Logs every diagnostic of `result` (with its source line and caret). If any of them is an
 /// error, terminates through AEMU_FATAL (which throws under FatalAction::Throw).
+///
+/// @param sources The sources the diagnostics are about.
+/// @param result The result of lexing.
 void fatal_if_errors(const SourceManager &sources, const LexResult &result);
 
 /// Logs `message` at `loc` (file:line:col, source line, caret) and terminates through AEMU_FATAL.
+///
+/// @param sources The sources the location is in.
+/// @param loc Where the error is.
+/// @param message What is wrong.
 [[noreturn]] void fatal_at(const SourceManager &sources, const SourceLocation &loc,
                            const std::string &message);
 
@@ -460,40 +523,51 @@ class TokenCursor
   public:
     TokenCursor() = default;
 
-    /// @param tokens the tokens to read, which have to outlive the cursor
+    /// @param tokens The tokens to read, which have to outlive the cursor.
     explicit TokenCursor(const std::span<const Token> tokens) :
         m_tokens(tokens)
     {
     }
 
-    /// Token `ahead` positions from the current one without consuming.
+    /// Looks at a token without consuming it.
+    ///
+    /// @param ahead How many tokens after the current one.
+    /// @return The token, or the END_OF_FILE one if there are not that many.
     const Token &peek(std::size_t ahead = 0) const;
 
-    /// Consumes and returns the current token. Never moves past END_OF_FILE.
+    /// Consumes the current token. Never moves past END_OF_FILE.
+    ///
+    /// @return The token.
     const Token &next();
 
-    /// @return whether the next token is END_OF_FILE
+    /// @return Whether the next token is END_OF_FILE.
     bool at_end() const
     {
         return peek().type == TokenType::END_OF_FILE;
     }
 
-    /// @return whether the next token has this type, which is not consumed
+    /// @return Whether the next token has this type, which is not consumed.
     bool check(const TokenType type) const
     {
         return peek().type == type;
     }
 
-    /// @return whether the next token has one of these types, which is not consumed
+    /// @return Whether the next token has one of these types, which is not consumed.
     bool check_any(const std::initializer_list<TokenType> types) const
     {
         return peek().is_one_of(types);
     }
 
     /// Consumes the current token if it has this type.
+    ///
+    /// @param type The type to look for.
+    /// @return Whether it had the type.
     bool accept(TokenType type);
 
-    /// Like accept but returns the consumed token, nullptr if the type did not match.
+    /// Like accept (), but gives the token.
+    ///
+    /// @param type The type to look for.
+    /// @return The consumed token, or nullptr if the type did not match.
     const Token *try_next(TokenType type);
 
     /// Skips consecutive NEWLINE tokens.
@@ -507,13 +581,13 @@ class TokenCursor
     /// the NEWLINE. The span stays valid as long as the underlying token list does.
     std::span<const Token> take_line();
 
-    /// @return the index of the next token
+    /// @return The index of the next token.
     std::size_t position() const
     {
         return m_pos;
     }
 
-    /// Save/restore for backtracking.
+    /// @return The position to give to rewind () to go back to this point.
     std::size_t mark() const
     {
         return m_pos;
@@ -521,13 +595,13 @@ class TokenCursor
 
     /// Goes back to a position that mark() returned.
     ///
-    /// @param mark the position to go back to
+    /// @param mark The position to go back to.
     void rewind(const std::size_t mark)
     {
         m_pos = mark;
     }
 
-    /// @return all the tokens that the cursor reads
+    /// @return All the tokens that the cursor reads.
     std::span<const Token> tokens() const
     {
         return m_tokens;

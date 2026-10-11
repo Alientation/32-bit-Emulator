@@ -159,6 +159,15 @@ ObjectFile::UserSection *ObjectFile::user_section_at(const U32 header_index)
     return nullptr;
 }
 
+const ObjectFile::UserSection *ObjectFile::user_section_at(const U32 header_index) const
+{
+    for (const UserSection &section : user_sections)
+    {
+        if (section.header_index == header_index) return &section;
+    }
+    return nullptr;
+}
+
 U32 ObjectFile::add_user_section(const std::string &name, const bool writable,
                                  const bool executable, const bool nobits)
 {
@@ -193,7 +202,7 @@ ObjectFile::ObjectFile(const File &obj_file) :
     read_object_file(obj_file);
 }
 
-void ObjectFile::read_object_file(std::vector<byte> &bytes)
+void ObjectFile::read_object_file(const std::vector<byte> &bytes)
 {
     // m_obj_file is not set.
     // This is how a static library is decomposed into a list of object files.
@@ -216,7 +225,7 @@ void ObjectFile::read_object_file(const File &obj_file)
     deserialize_checked(bytes);
 }
 
-void ObjectFile::deserialize_checked(std::vector<byte> &bytes)
+void ObjectFile::deserialize_checked(const std::vector<byte> &bytes)
 {
     try
     {
@@ -230,7 +239,7 @@ void ObjectFile::deserialize_checked(std::vector<byte> &bytes)
     }
 }
 
-void ObjectFile::deserialize(std::vector<byte> &bytes)
+void ObjectFile::deserialize(const std::vector<byte> &bytes)
 {
     AEMU_DEBUG("Disassembling");
     ByteReader reader(bytes);
@@ -644,7 +653,7 @@ U32 ObjectFile::add_string(const std::string &string)
     return strings.size() - 1;
 }
 
-std::string ObjectFile::get_symbol_name(const U32 symbol)
+std::string ObjectFile::get_symbol_name(const U32 symbol) const
 {
     return strings.at(symbol_table.at(symbol).symbol_name);
 }
@@ -839,22 +848,22 @@ void ObjectFile::write_object_file(const File &obj_file)
     m_writer.close();
 }
 
-word ObjectFile::get_text_section_size()
+word ObjectFile::get_text_section_size() const
 {
     return text_section.size() * kTextEntrySize;
 }
 
-word ObjectFile::get_data_section_size()
+word ObjectFile::get_data_section_size() const
 {
     return data_section.size();
 }
 
-word ObjectFile::get_bss_section_size()
+word ObjectFile::get_bss_section_size() const
 {
     return bss_section;
 }
 
-word ObjectFile::get_section_size(const U32 section)
+word ObjectFile::get_section_size(const U32 section) const
 {
     AEMU_CHECK(section < sections.size(), "No section {}.",
                section);

@@ -31,21 +31,23 @@ enum class InstructionFormat
     F3,        ///< fcmp, fcmpe: op.f32 xn, xm
     F4,        ///< fused multiply-add: op.f32 xd, xn, xm, xa
     FMOV,      ///< fmov.f32 xd, <xm | float literal>, a pseudo instruction
-    HLT,
-    NOP,
+    HLT,       ///< hlt
+    NOP,       ///< nop
     TLBI,      ///< tlbi [xn]: forget the translation of the page of xn, or all of them
-    ERET,
-    WFI,
+    ERET,      ///< eret
+    WFI,       ///< wfi
     BRK,       ///< brk [number], a number of 22 bits (0 if left out)
-    MSR,
-    MRS,
-    RET,
+    MSR,       ///< msr sysreg, <xn | imm16>
+    MRS,       ///< mrs xd, sysreg
+    RET,       ///< ret
 };
 
 /// One row of instruction_list.h.
 struct InstructionSpec
 {
     TokenType token;
+
+    /// What is written in assembly.
     std::string_view text;
     InstructionFormat format;
 
@@ -56,7 +58,8 @@ struct InstructionSpec
     byte b;
 };
 
-/// The row of an instruction token. `is_instruction(type)` must hold.
+/// @param type The type of an instruction token: `is_instruction (type)` must hold.
+/// @return The row of the instruction.
 const InstructionSpec &instruction_spec(TokenType type);
 
 } // namespace basm

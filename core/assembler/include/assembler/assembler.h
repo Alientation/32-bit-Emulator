@@ -12,13 +12,13 @@
 #include <unordered_map>
 
 /// Assembler to convert a basm assembly file into an object file.
-/// Specific to an assembly file, cannot reassemble this or another file.
-///
-/// @todo Add assembly documentation
+/// Specific to an assembly file, cannot reassemble this or another file. The syntax it reads is in
+/// docs/basm-syntax.md.
 class Assembler
 {
   public:
-    /// Initializes the assembler and creates the output object file.
+    /// Initializes the assembler: creates the output object file and lexes the input file (a
+    /// lexical error is fatal).
     ///
     /// @param processed_file Input file to process. Post preprocessor.
     /// @param output_path Output file path to write the object file to. If left empty, the object
@@ -30,24 +30,26 @@ class Assembler
     ///
     /// @param processed_file The .bi file the preprocessor wrote. Only used for its name.
     /// @param source Result of Preprocessor::take_result().
-    /// @param output_path See above.
+    /// @param output_path Output file path to write the object file to. If left empty, the object
+    ///     file has the path of the input file with the .bo extension.
     Assembler(const File &processed_file, basm::PreprocessedSource source,
               const std::string &output_path = "");
 
-    /// Assembles the input assembly into an object file.
+    /// Assembles the input assembly into an object file and writes it. Does nothing if it was done
+    /// already. A syntax error is fatal.
     void assemble();
 
-    /// Get the output object file.
-    ///
-    /// @return The file.
+    /// @return The object file that assemble () writes.
     File get_output_file() const;
 
-    /// The object file that was assembled, the same that was written. Only valid
-    /// once assemble() is done.
+    /// @return The object file that was assembled, the same that was written. Only valid once
+    ///     assemble () is done.
     const ObjectFile &object() const;
 
-    /// Whether a warning ends the assembling like an error does (-W error).
-    /// Off by default.
+    /// Chooses whether a warning ends the assembling like an error does (-W error). Off by
+    /// default.
+    ///
+    /// @param enabled Whether a warning is an error.
     void set_warnings_as_errors(bool enabled);
 
   private:
@@ -69,6 +71,9 @@ class Assembler
     std::vector<basm::Token> m_tokens;
 
     /// Sets up the output file and state. Common part of the constructors.
+    ///
+    /// @param processed_file The input file.
+    /// @param output_path The path of the object file, empty for the default.
     void init(const File &processed_file, const std::string &output_path);
 
     /// Read position in the tokens.
@@ -116,7 +121,7 @@ class Assembler
     ObjectFile::UserSection *current_user_section();
 
     /// The size of the current section if it is .bss or a user section that is `nobits`,
-    /// which is what .org, .advance and .align move. Only valid in those two.
+    /// which is what .org, .advance and .align move. Only valid in those sections.
     word &zero_size();
 
     /// Whether the current section holds bytes, as opposed to code or a size: .data,
@@ -146,7 +151,7 @@ class Assembler
     /// Emits `mov to, from`.
     void emit_move(byte to, byte from);
 
-    /// Where the next instruction goes, as an offset in the current code section.
+    /// @return Where the next instruction goes, as an offset in the current code section.
     word code_offset();
 
     /// The relocations of the current code section.
@@ -254,8 +259,8 @@ class Assembler
     /// Precedence climbing: parses the part of an expression made of operators of at least
     /// `min_precedence`. All the binary operators associate to the left.
     ///
-    /// @param min_precedence the lowest precedence of an operator that this call may consume
-    /// @return the value of that part of the expression
+    /// @param min_precedence The lowest precedence of an operator that this call may consume.
+    /// @return The value of that part of the expression.
     ExprValue parse_binary_expression(int min_precedence);
     /// operand := number | char | constant | label
     /// | '(' expression ')' | ('-' | '+' | '~' | '!') operand
@@ -266,8 +271,8 @@ class Assembler
     /// section. Anything else is a symbol that is not defined yet (it can be later in the file,
     /// or in another file), which has no value but can be the target of a relocation.
     ///
-    /// @param symbol the identifier to look up
-    /// @return the value of the constant or label that `symbol` names here
+    /// @param symbol The identifier to look up.
+    /// @return The value of the constant or label that `symbol` names here.
     ExprValue lookup_symbol(const basm::Token &symbol);
 
     /// Fails unless the value is a number and not the offset of a label.
@@ -297,18 +302,18 @@ class Assembler
 
     /// Parses the name of a system register (`vbar`, `elr`, ...).
     ///
-    /// @return the number of the register
+    /// @return The number of the register.
     byte parse_sysreg();
 
     /// Parses a register: x0-x29, sp or xzr.
     ///
-    /// @return the number of the register
+    /// @return The number of the register.
     byte parse_register();
 
     /// Parses a shift: `lsl`, `lsr`, `asr` or `ror` and the amount.
     ///
-    /// @param shift receives the kind of shift
-    /// @param shift_amt receives the amount
+    /// @param shift Receives the kind of shift.
+    /// @param shift_amt Receives the amount.
     void parse_shift(ShiftType &shift, int &shift_amt);
 
     /// Operations of the form `op xd, xn, <xm[, shift] | imm14 | :lo12:symbol>`.
@@ -326,9 +331,9 @@ class Assembler
 
     /// The loads and stores: `op xt, [xn{, offset}]`, with the addressing modes of docs/isa.md.
     ///
-    /// @param opcode the opcode of the access
-    /// @param unaligned whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
-    ///        which has a plain offset only
+    /// @param opcode The opcode of the access.
+    /// @param unaligned Whether this is the unaligned form (`ldur`, `ldurh`, `stur`, `sturh`),
+    ///        which has a plain offset only.
     word parse_format_m(byte opcode, bool unaligned = false);
 
     /// Warns when the writeback of a pre or post indexed access is useless or easy to misread
@@ -380,18 +385,19 @@ class Assembler
     void assemble_fmov(bool dbl);
     /// Reads a register, and for a double checks that it can start a pair.
     ///
-    /// @param pair whether the register is the first of a pair (x0-x28)
+    /// @param pair Whether the register is the first of a pair (x0-x28).
+    /// @return The number of the register.
     U8 parse_fp_register(bool pair);
     /// Parses a float literal, an integer literal or either with a sign: `1.5`, `-2`.
     ///
-    /// @param dbl whether to make a double rather than a float
-    /// @return the bit pattern, the float in the low 32 bits
+    /// @param dbl Whether to make a double rather than a float.
+    /// @return The bit pattern, the float in the low 32 bits.
     U64 parse_float_constant(bool dbl);
     /// Emits the instructions that put a 32 bit value in a register, see assemble_load_constant.
     void emit_load_constant(byte xd, word value);
     /// Parses a condition (`eq`, `ne`, ...).
     ///
-    /// @return the condition
+    /// @return The condition.
     ConditionCode parse_condition();
 
     /// The condition of the aliases is the one under which the *first* register is chosen, the
@@ -406,15 +412,16 @@ class Assembler
     ///   anything else:       mov  xd, value >> 14 / lsl xd, xd, 14 / orr xd, xd, value & 0x3FFF
     /// (the `orr` is left out when those bits are 0). A symbol is its address, adrp + add :lo12:.
     ///
-    /// @return false, having consumed nothing, if the statement is not of that form
+    /// @return `false`, having consumed nothing, if the statement is not of that form.
     bool assemble_load_constant();
     /// The atomics: `op xt, xn, xm`.
     ///
-    /// @param width the width of the access (kAtomicWidth_*)
-    /// @param atopcode the operation (kAtomicId_*)
+    /// @param width The width of the access (kAtomicWidth_*).
+    /// @param atopcode The operation (kAtomicId_*).
     word parse_format_atomic(byte width, byte atopcode);
 
-    /// Fills in what is known without linking in all the relocations of the file, see below.
+    /// Fills in what is known without linking in all the relocations of the file, see below. The
+    /// relocations that are filled in are removed.
     void fill_local();
 
     /// A relocation names the label of the innermost scope that has it, if there is one, and a
@@ -481,10 +488,9 @@ class Assembler
     /// Moves where the assembler is in a section forward by a certain amount of bytes.
     /// USAGE:                  .advance <expression>
     void _advance();
-    /// Aligns where the assembler is in the current section.
-    /// @note This is useless unless we can specify in the program header of the
-    ///     object file the alignment of the whole program
-    ///     USAGE:                  .align <expression>
+    /// Pads the current section with zeros up to a multiple of the alignment. The section keeps
+    /// the largest alignment given, which the linker keeps when it puts the sections together.
+    /// USAGE:                  .align <expression>
     void _align();
     /// Makes a section with a name of the program's choosing the current one,
     /// and creates it the first time. The flags are a string of the letters
@@ -558,7 +564,7 @@ class Assembler
     /// as `cmp xn, <operand>` and encoded with xzr as the destination. `ret` is `bx x29`, x29
     /// being the link register.
     ///
-    /// @param spec the row of the instruction in the instruction list
+    /// @param spec The row of the instruction in the instruction list.
     void assemble_instruction(const basm::InstructionSpec &spec);
 
     // The instructions that have an operand syntax of their own. Each one assembles its

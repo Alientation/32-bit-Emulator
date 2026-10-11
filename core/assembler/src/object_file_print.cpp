@@ -112,12 +112,12 @@ void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator
 
 } // namespace
 
-void ObjectFile::print()
+void ObjectFile::print() const
 {
     print(std::cout);
 }
 
-void ObjectFile::print(std::ostream &out)
+void ObjectFile::print(std::ostream &out) const
 {
     // An object that was neither read nor assembled has nothing to list.
     if (sections.empty())

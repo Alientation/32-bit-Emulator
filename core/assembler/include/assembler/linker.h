@@ -16,15 +16,15 @@ class Linker
   public:
     /// Links with the default linker script.
     ///
-    /// @param obj_files the object files to link
-    /// @param exe_file the executable to write
+    /// @param obj_files The object files to link.
+    /// @param exe_file The executable to write.
     Linker(std::vector<ObjectFile> obj_files, const File &exe_file);
 
     /// Links with a linker script.
     ///
-    /// @param obj_files the object files to link
-    /// @param exe_file the executable to write
-    /// @param ld_file the linker script
+    /// @param obj_files The object files to link.
+    /// @param exe_file The executable to write.
+    /// @param ld_file The linker script.
     Linker(std::vector<ObjectFile> obj_files, const File &exe_file, const File &ld_file);
 
     /// Reads the linker script, places the sections of all object files, resolves every symbol and
@@ -48,6 +48,7 @@ class Linker
 
     std::string m_entry_symbol = "_start";
 
+    /// A section named in `SECTIONS`, in the order of the script.
     struct SectionAddress
     {
         enum class Type
@@ -65,11 +66,15 @@ class Linker
         /// The name of a USER section, as written in the script (a string).
         std::string name = {};
 
+        /// Whether the script gave the section an address.
         bool set_address = false;
         word address = 0;
+
+        /// Whether the section is placed at a physical address (`@P;`).
         bool physical = false;
     };
 
+    /// While parsing the script: whether the sections that follow are physical (`@P;`).
     bool m_physical = false;
     std::vector<SectionAddress> m_sections;
 
@@ -90,7 +95,7 @@ class Linker
 
     // The stages of link().
 
-    /// @return an executable with the header and no contents yet
+    /// @return An executable with the header and no contents yet.
     ObjectFile new_executable() const;
 
     /// Puts the sections of the object files one after another, in the order of the object
@@ -98,45 +103,50 @@ class Linker
     /// asked for), so that the offsets it was assembled with stay aligned. The merged section
     /// has the largest alignment.
     ///
-    /// @param exe the executable that gets the merged sections
-    /// @return where the sections of each object file start within the merged ones
+    /// @param exe The executable that gets the merged sections.
+    /// @return Where the sections of each object file start within the merged ones.
     std::vector<SectionBase> merge_sections(ObjectFile &exe) const;
+
     /// Gives the sections their addresses according to the linker script. A section that the
     /// script does not give an address follows the previous one.
     ///
-    /// @param exe the executable whose sections are placed
-    /// @return the final address of each section
+    /// @param exe The executable whose sections are placed.
+    /// @return The final address of each section.
     SectionBase place_sections(ObjectFile &exe) const;
+
     /// Puts the symbols of all object files into the symbol table of the executable, with the final
     /// addresses. A symbol of one object file is the same symbol of another by name, unless it is
     /// local.
     ///
-    /// @param exe the executable that gets the symbols
-    /// @param bases where the sections of each object file start within the merged ones
-    /// @param addresses the final address of each section
-    /// @return for each object file, the executable's symbol for each of its symbols
+    /// @param exe The executable that gets the symbols.
+    /// @param bases Where the sections of each object file start within the merged ones.
+    /// @param addresses The final address of each section.
+    /// @return For each object file, the executable's symbol for each of its symbols.
     std::vector<SymbolMap> merge_symbols(ObjectFile &exe, const std::vector<SectionBase> &bases,
                                          const SectionBase &addresses) const;
+
     /// The loader starts the program at _start. ENTRY(symbol) makes `symbol` the entry point by
     /// aliasing _start to it.
     ///
-    /// @param exe the executable that gets the symbol
+    /// @param exe The executable that gets the symbol.
     void define_entry(ObjectFile &exe) const;
+
     /// Defines `__init_array_start`, `__init_array_end`, `__fini_array_start` and
     /// `__fini_array_end`, the bounds of the two arrays, for the startup code that calls what is
     /// in them. A symbol with that name that the program defines itself is left alone, one that
     /// it only refers to gets the value.
     ///
-    /// @param exe the executable that gets the symbols
-    /// @param addresses the final address of each section
+    /// @param exe The executable that gets the symbols.
+    /// @param addresses The final address of each section.
     void define_array_symbols(ObjectFile &exe, const SectionBase &addresses) const;
+
     /// Every section has its final address by now, so each relocation is resolved here and the
     /// executable needs none at load time.
     ///
-    /// @param exe the executable whose relocations are applied
-    /// @param bases where the sections of each object file start within the merged ones
-    /// @param addresses the final address of each section
-    /// @param symbols for each object file, the executable's symbol for each of its symbols
+    /// @param exe The executable whose relocations are applied.
+    /// @param bases Where the sections of each object file start within the merged ones.
+    /// @param addresses The final address of each section.
+    /// @param symbols For each object file, the executable's symbol for each of its symbols.
     void relocate(ObjectFile &exe, const std::vector<SectionBase> &bases,
                   const SectionBase &addresses, const std::vector<SymbolMap> &symbols) const;
 
@@ -154,19 +164,19 @@ class Linker
 
     /// Parses an address.
     ///
-    /// @return the number, which has to fit in 32 bits
+    /// @return The number, which has to fit in 32 bits.
     word parse_value();
 
     /// Consumes the next token if it has the type, otherwise fails saying what was expected.
     ///
-    /// @param type the type the token has to have
-    /// @param expected what the error says was expected
-    /// @return the token
+    /// @param type The type the token has to have.
+    /// @param expected What the error says was expected.
+    /// @return The token.
     const basm::Token &expect(basm::TokenType type, const std::string &expected);
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
-    /// @param at the token the error is about
-    /// @param message what is wrong
+    /// @param at The token the error is about.
+    /// @param message What is wrong.
     [[noreturn]] void fail(const basm::Token &at, const std::string &message);
 };

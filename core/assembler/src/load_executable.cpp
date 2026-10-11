@@ -17,7 +17,7 @@ struct Placement
     bool physical;
 };
 
-Placement placement_of(ObjectFile &obj, const std::string &section)
+Placement placement_of(const ObjectFile &obj, const std::string &section)
 {
     const ObjectFile::SectionHeader &header = obj.sections[obj.section_table.at(section)];
     return {.address = header.address, .physical = header.load_at_physical_address};

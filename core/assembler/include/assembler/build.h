@@ -10,12 +10,14 @@
 #include <set>
 #include <vector>
 
+/// The version that -v prints.
 inline const std::string ASSEMBLER_VERSION = "0.0.1";
 
 /// The kinds of warning that -W accepts.
 inline const std::set<std::string> WARNINGS = {
     "error",
 };
+
 /// The name of the output (without the extension) when -o is not given.
 inline const std::string DEFAULT_OUTPUT_FILE = "a";
 
@@ -28,35 +30,35 @@ class Build
   public:
     /// The arguments as they are in argv (without the program name). A path can have spaces.
     ///
-    /// @param args the arguments, one for each element
+    /// @param args The arguments, one for each element.
     explicit Build(const std::vector<std::string> &args);
 
     /// The arguments as one line, which is split on whitespace (unless it is in quotes).
     ///
-    /// @param assembler_args the arguments
+    /// @param assembler_args The arguments.
     explicit Build(const std::string &assembler_args = "");
 
     /// Splits a line of arguments on whitespace. Whitespace in "quotes" does not split, and a
     /// backslash makes the next character part of the argument.
     ///
-    /// @param line the arguments in one line
-    /// @return the arguments
+    /// @param line The arguments in one line.
+    /// @return The arguments.
     static std::vector<std::string> split_args(const std::string &line);
 
     /// Builds what the arguments asked for. Does nothing for --help and --version, which only
     /// print. Call once.
     void run();
 
-    /// @return whether the arguments asked to build something, as opposed to --help or --version
+    /// @return Whether the arguments asked to build something, as opposed to --help or --version.
     bool has_work() const;
 
-    /// @return whether the build links an executable (not -c or -ar)
+    /// @return Whether the build links an executable (not -c or -ar).
     bool does_create_exe() const;
 
-    /// @return the kinds of warning that were turned on (-W, -wall)
+    /// @return The kinds of warning that were turned on (-W, -wall).
     std::set<std::string> get_enabled_warnings() const;
 
-    /// @return the executable (.bexe) that run() linked
+    /// @return The executable (.bexe) that run() linked.
     File get_exe_file() const;
 
   private:
@@ -74,7 +76,7 @@ class Build
     std::vector<File> m_src_files;
     std::string m_output_dir = "";
     bool m_has_output_dir = false;
-    bool keep_proccessed_files = false;
+    bool m_keep_processed_files = false;
     bool m_dump = false;
 
     /// Cleared by --help and --version, which only print.
@@ -98,13 +100,13 @@ class Build
 
     /// Processes the arguments: each flag calls its handler, anything else is a source file.
     ///
-    /// @param args_list the list of arguments to process
+    /// @param args_list The list of arguments to process.
     void evaluate_args(std::vector<std::string> &args_list);
 
     /// Runs the stages that the flags asked for: preprocess, assemble, link.
     void build();
 
-    /// @return the options for the preprocessor (-I, -D, -kp)
+    /// @return The options for the preprocessor (-I, -D, -kp).
     PreprocessorOptions preprocessor_options() const;
 
     /// Preprocesses the source files.
@@ -118,7 +120,7 @@ class Build
 
     /// Prints an objdump-style listing of the files.
     ///
-    /// @param files the object files and the executable
+    /// @param files The object files and the executable.
     static void dump(const std::vector<File> &files);
 
     // The handlers of the flags. Each one takes the index of its flag and all the arguments, and
@@ -138,7 +140,8 @@ class Build
     /// linking an executable.
     void _ar(size_t &index, const std::vector<std::string> &args);
 
-    /// `-o`, `--output <name>`: the name of the output, without the extension.
+    /// `-o`, `--output <name>`: the path of the output, without the extension (`.bexe`, or `.ba`
+    /// with -ar, is added).
     void _output(size_t &index, const std::vector<std::string> &args);
 
     /// `-outdir <directory>`: where the object files go.
@@ -179,5 +182,5 @@ class Build
 
     /// A flag handler.
     typedef void (Build::*FlagFunction)(size_t &index, const std::vector<std::string> &args);
-    std::map<std::string, FlagFunction> flags;
+    std::map<std::string, FlagFunction> m_flags;
 };

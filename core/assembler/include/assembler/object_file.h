@@ -29,22 +29,23 @@ class ObjectFile
 
     /// Reads an object file.
     ///
-    /// @param obj_file the file to read
+    /// @param obj_file The file to read.
     ObjectFile(const File &obj_file);
 
     /// Replaces the contents with those of a file. A file that is not valid is a fatal error.
     ///
-    /// @param object_file the file to read
+    /// @param object_file The file to read.
     void read_object_file(const File &object_file);
 
-    /// Replaces the contents with those of an object file that is in memory.
+    /// Replaces the contents with those of an object file that is in memory (a member of a static
+    /// library). A file that is not valid is a fatal error, which does not name a file.
     ///
-    /// @param bytes the bytes of the file
-    void read_object_file(std::vector<byte> &bytes);
+    /// @param bytes The bytes of the file.
+    void read_object_file(const std::vector<byte> &bytes);
 
     /// Writes the object file.
     ///
-    /// @param object_file the file to write
+    /// @param object_file The file to write.
     void write_object_file(const File &object_file);
 
     /// A symbol of this file: one it defines, or one it refers to.
@@ -176,7 +177,7 @@ class ObjectFile
             /// the last 2 bits are 0).
             R_EMU32_B_OFFSET22,
 
-            /// The 32 bit address of the symbol, in .data (`.word symbol`).
+            /// The 32 bit address of the symbol, in a section of bytes (`.word symbol`).
             R_EMU32_ABS32,
 
             /// `adr`: the distance in bytes from the instruction to the target, a
@@ -269,11 +270,10 @@ class ObjectFile
     /// References to symbols that need to be relocated.
     std::vector<RelocationEntry> rel_text;
 
-    /// For now, no purpose.
+    /// `.word symbol` in .data.
     std::vector<RelocationEntry> rel_data;
 
-    /// For now, no purpose.
-    /// @todo Will this ever be used?
+    /// Always empty, since .bss has no contents. The file format has the section for symmetry.
     std::vector<RelocationEntry> rel_bss;
 
     /// `.word symbol` in .rodata, .init_array and .fini_array.
@@ -287,10 +287,15 @@ class ObjectFile
     /// assembler, linker, loader and file reader/writer loop over them.
     struct ByteSection
     {
+        /// The name of the section, and of the section of its relocations.
         const char *name;
         const char *rel_name;
+
+        /// The types of the headers of the two.
         SectionHeader::Type type;
         SectionHeader::Type rel_type;
+
+        /// The members of ObjectFile that hold the bytes and the relocations.
         std::vector<byte> ObjectFile::*bytes;
         std::vector<RelocationEntry> ObjectFile::*relocations;
 
@@ -356,6 +361,7 @@ class ObjectFile
     /// The user section whose header is the one at the index, or null if that
     /// is not the header of one.
     UserSection *user_section_at(U32 header_index);
+    const UserSection *user_section_at(U32 header_index) const;
 
     /// Adds a user section and its two headers. The name is not one that is
     /// taken (a section of the file already, or one of the reserved names).
@@ -396,63 +402,65 @@ class ObjectFile
     /// Map section name to index in sections.
     std::unordered_map<std::string, U32> section_table;
 
-    /// Adds a string to the string table. The string is not in it yet.
+    /// Adds a string to the string table. Fatal if the string is in it already.
     ///
-    /// @param string the string to add
-    /// @return the index of the string
+    /// @param string The string to add.
+    /// @return The index of the string.
     U32 add_string(const std::string &string);
 
-    /// Adds a symbol to the symbol table.
+    /// Adds a symbol to the symbol table. A symbol that is in it already, because it was used
+    /// before, is defined by this call: it gets the section and the value. Defining it twice is a
+    /// fatal error. The binding becomes the new one if that is GLOBAL or WEAK_DECLARED, or LOCAL for
+    /// a symbol that was only used.
     ///
-    /// @param symbol the name of the symbol
-    /// @param value the value of the symbol if it is defined
-    /// @param binding_info the visibility of the symbol
-    /// @param section the section it is defined in, -1 if it is not defined in a section
+    /// @param symbol The name of the symbol.
+    /// @param value The value of the symbol if it is defined.
+    /// @param binding_info The visibility of the symbol.
+    /// @param section The section it is defined in, -1 if it is not defined in a section.
     void add_symbol(const std::string &symbol, word value,
                     SymbolTableEntry::BindingInfo binding_info, U32 section = U32(-1));
 
-    /// Adds a section header. The name is not the name of a section yet.
+    /// Adds a section header. Fatal if there is a section with the name already.
     ///
-    /// @param section_name the name of the section
-    /// @param type the type of the section
-    /// @return the index of the header in `sections`
+    /// @param section_name The name of the section.
+    /// @param type The type of the section.
+    /// @return The index of the header in `sections`.
     U32 add_section(const std::string &section_name, SectionHeader::Type type);
 
-    /// @param symbol the index of a symbol, the key of `symbol_table`
-    /// @return the name of the symbol
-    std::string get_symbol_name(U32 symbol);
+    /// @param symbol The index of a symbol, the key of `symbol_table`.
+    /// @return The name of the symbol.
+    std::string get_symbol_name(U32 symbol) const;
 
     /// Get the size of the .text section.
     ///
     /// @return Size of .text section in bytes.
-    word get_text_section_size();
+    word get_text_section_size() const;
 
     /// Get size of .data section.
     ///
     /// @return Size of .data section in bytes.
-    word get_data_section_size();
+    word get_data_section_size() const;
 
     /// Get size of .bss section.
     ///
     /// @return Size of .bss section in bytes.
-    word get_bss_section_size();
+    word get_bss_section_size() const;
 
-    /// Get the current size of a .text, .data or .bss section, which is the
-    /// offset that the next item added to it will have.
+    /// The current size of a section, which is the offset that the next item added to it will have.
     ///
-    /// @param section Index into the section table.
+    /// @param section Index into `sections`.
     /// @return Size of the section in bytes.
-    word get_section_size(U32 section);
+    word get_section_size(U32 section) const;
 
-    /// Prints an objdump-style listing (symbols, .data, disassembled .text with
-    /// relocations) to the stream, stdout by default. Prints an error line
-    /// instead if the object has no sections (it was never read or assembled).
-    void print();
+    /// Prints an objdump-style listing to stdout: the symbols, the contents of the sections with
+    /// their relocations, and the disassembled .text. Prints an error line instead if the object
+    /// has no sections (it was never read or assembled).
+    void print() const;
 
-    /// Same, to the stream.
+    /// Same, to a stream.
     ///
-    /// @param out where the listing goes
-    void print(std::ostream &out);
+    /// @param out Where the listing goes.
+    void print(std::ostream &out) const;
 
   private:
     /// The file that was read, for the error messages.
@@ -460,11 +468,13 @@ class ObjectFile
 
     /// Reads the sections, symbols and relocations from the bytes of a file.
     ///
-    /// @param bytes the bytes of the file
-    void deserialize(std::vector<byte> &bytes);
+    /// @param bytes The bytes of the file.
+    void deserialize(const std::vector<byte> &bytes);
 
-    /// deserialize() that reports a truncated or corrupt file as a fatal error.
-    void deserialize_checked(std::vector<byte> &bytes);
+    /// deserialize () that reports a truncated or corrupt file as a fatal error.
+    ///
+    /// @param bytes The bytes of the file.
+    void deserialize_checked(const std::vector<byte> &bytes);
 
     /// Fatal if what was read is not a file that the linker and the loader can
     /// use: sections that are missing, and symbols, sections and relocations

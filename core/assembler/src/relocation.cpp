@@ -15,7 +15,7 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
     case Type::R_EMU32_ADRP_HI20:
     {
         // An adrp is relative to the page of the instruction itself.
-        const int pages = int(target >> 12) - int(instr_address >> 12);
+        const int pages = int(target >> kNumPageOffsetBits) - int(instr_address >> kNumPageOffsetBits);
         word patched = zero_bits<0, 20>(instr) + bitfield_unsigned<0, 20>(pages);
         if ((pages >> 20) & 1)
         {
@@ -44,12 +44,12 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
         return zero_bits<0, 19>(instr) + bitfield_unsigned<19, 13>(target);
     case Type::R_EMU32_B_OFFSET22:
     {
-        AEMU_CHECK((target & 0b11) == 0,
+        AEMU_CHECK(target % kInstructionSize == 0,
                    "Expected the branch target to be 4 byte aligned. Got {}",
                    target);
 
         // The offset in words, relative to the branch instruction itself.
-        const sword delta_words = (sword(target) - sword(instr_address)) / 4;
+        const sword delta_words = (sword(target) - sword(instr_address)) / sword(kInstructionSize);
         AEMU_CHECK(delta_words >= -(1 << 21) && delta_words < (1 << 21),
                    "Branch at {:#x} cannot reach {:#x}, the offset does not "
                    "fit in 22 bits.",

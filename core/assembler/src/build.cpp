@@ -55,7 +55,7 @@ Build::Build(const std::vector<std::string> &args)
     AEMU_INFO("Build: {} argument(s).", args.size());
     AEMU_INFO("Current Working Directory: {}", std::filesystem::current_path().string());
 
-    flags = {
+    m_flags = {
         // Treats everything after as a regular argument.
         {"--", &Build::_ignore},
 
@@ -141,7 +141,7 @@ PreprocessorOptions Build::preprocessor_options() const
 {
     return {.system_dirs = m_system_dirs,
             .defines = m_preprocessor_flags,
-            .write_output = keep_proccessed_files};
+            .write_output = m_keep_processed_files};
 }
 
 std::vector<std::string> Build::split_args(const std::string &line)
@@ -207,10 +207,10 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
         if (m_parse_options && !arg.empty() && arg[0] == '-')
         {
             // This is a flag.
-            AEMU_CHECK(flags.find(arg) != flags.end(), "Invalid flag: {}",
+            AEMU_CHECK(m_flags.find(arg) != m_flags.end(), "Invalid flag: {}",
                        arg);
 
-            (this->*flags[arg])(i, args_list);
+            (this->*m_flags[arg])(i, args_list);
 
             // --help and --version print and stop, whatever follows is not looked at
             if (!m_has_work) return;
@@ -454,7 +454,7 @@ void Build::_keep_preprocessor_output(size_t &index, const std::vector<std::stri
     UNUSED(args);
     UNUSED(index);
 
-    keep_proccessed_files = true;
+    m_keep_processed_files = true;
 }
 
 void Build::_ld(size_t &index, const std::vector<std::string> &args)
