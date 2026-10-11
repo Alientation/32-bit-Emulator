@@ -9,39 +9,37 @@
 class Directory
 {
   public:
-    /// @param path the path to check
-    /// @return whether the path has none of the characters that a path cannot contain
+    /// @param path The path to check.
+    /// @return Whether the path has none of the characters that a path cannot contain.
     static bool valid_path(const std::string &path)
     {
         return path.find_first_of("*?\"<>|") == std::string::npos;
     }
 
-    /// Constructs a directory with the given path.
+    /// Constructs a directory with the given path. An invalid path is a fatal error.
     ///
-    /// @param path the path of the directory
-    /// @param create_if_not_present whether to create the directory when it does not exist
+    /// @param path The path of the directory.
+    /// @param create_if_not_present Whether to create the directory when it does not exist.
     Directory(const std::string &path, bool create_if_not_present = false);
 
-    /// @return the name of the directory
+    /// @return The name of the directory: the last segment of its path.
     std::string get_name() const;
 
-    /// @return relative path to the directory
+    /// @return The path of the directory as it was given, normalized by trim_dir_path ().
     std::string get_path() const;
 
-    /// @return all files located underneath this directory
+    /// @return The regular files in this directory and in the directories below it. Fails if the
+    ///     directory does not exist.
     std::vector<File> get_all_subfiles();
 
-    /// Returns whether or not the subfile exists
-    ///
-    /// @param subfile_path the path of the subfile relative to the current directory
-    ///
-    /// @return whether or not the subfile exists
+    /// @param subfile_path The path of a file or directory, relative to this directory.
+    /// @return Whether it exists.
     bool subfile_exists(const std::string &subfile_path);
 
-    /// @return whether or not the directory exists
+    /// @return Whether the directory exists.
     bool exists() const;
 
-    /// Creates the directory
+    /// Creates the directory, and the directories above it that do not exist.
     void create();
 
   private:

@@ -7,25 +7,26 @@
 /// A fixed array of `N` booleans, kept in words of 64. For the flags of the entries of a table
 /// (struct of arrays: a `BitArray` instead of a `bool` array or an optional per entry).
 ///
-/// @tparam N the number of bits, at least 1
+/// @tparam N The number of bits, at least 1.
 template<unsigned N>
 class BitArray
 {
     static_assert(N > 0, "A BitArray has at least one bit");
 
   public:
+    /// The number of bits.
     static constexpr unsigned kCapacity = N;
 
-    /// @param i the index, below N
-    /// @return the bit
+    /// @param i The index, below N.
+    /// @return The bit.
     bool test(const unsigned i) const
     {
         assert(i < N);
         return (m_words[i / kNumDwordBits] >> (i % kNumDwordBits)) & 1;
     }
 
-    /// @param i the index, below N
-    /// @param value what the bit becomes
+    /// @param i The index, below N.
+    /// @param value What the bit becomes.
     void assign(const unsigned i, const bool value)
     {
         assert(i < N);
@@ -39,12 +40,13 @@ class BitArray
         assign(to, test(from));
     }
 
+    /// Clears every bit.
     void clear()
     {
         for (U64 &word : m_words) word = 0;
     }
 
-    /// @return whether any bit is set
+    /// @return Whether any bit is set.
     bool any() const
     {
         for (const U64 word : m_words)

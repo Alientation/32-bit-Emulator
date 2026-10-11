@@ -1,5 +1,8 @@
 #pragma once
 
+/// ANSI escape sequences for the style and the color of text on a terminal. RESET ends all of them.
+/// The BOLD_ colors are the bright ones (90 to 97), and GRAY is the SGR color black (30), which
+/// terminals draw dark gray.
 namespace ccolor
 {
 inline constexpr const char *RESET = "\033[0m";

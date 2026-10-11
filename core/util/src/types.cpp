@@ -31,13 +31,16 @@ std::string color_val_str(const std::string &string)
 {
     std::string result = ccolor::GRAY;
     auto iterator = string.begin();
-    if ((*iterator) == '$' || (*iterator) == '%' || (*iterator) == '#' || (*iterator) == '@')
+
+    // The prefix is gray with the leading zeros.
+    if (string.starts_with(kHexPrefix))
     {
-        iterator++;
+        result += kHexPrefix;
+        iterator += std::string_view(kHexPrefix).size();
     }
 
-    // Gray out the leading zeros, except for the last zero.
-    while ((*iterator) == '0' && iterator != string.end() - 1)
+    // Gray out the leading zeros, except for the last digit.
+    while (iterator + 1 < string.end() && *iterator == '0')
     {
         result += *iterator;
         iterator++;

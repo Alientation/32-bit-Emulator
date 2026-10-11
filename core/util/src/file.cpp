@@ -310,6 +310,7 @@ ByteReader::Data::Data(const int num_bytes, const bool little_endian) :
 
 ByteReader &ByteReader::operator>>(ByteReader::Data &data)
 {
+    data.val = 0;
     if (data.little_endian)
     {
         for (int i = data.num_bytes - 1; i >= 0; i--)

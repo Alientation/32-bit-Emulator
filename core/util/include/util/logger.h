@@ -130,6 +130,9 @@ struct Record
 /// sink does not need its own synchronization, but it must not log (that would deadlock).
 using Sink = std::function<void(const Record &)>;
 
+/// @param level A level.
+/// @return The three letter name of the level that is printed in a log line (`DBG`, `INF`, `WRN`,
+///     `ERR`, `FTL`, `OFF`).
 constexpr std::string_view to_string(const Level level)
 {
     switch (level)
@@ -151,6 +154,9 @@ constexpr std::string_view to_string(const Level level)
 }
 
 /// Parses "debug", "info", "warn"/"warning", "error", "fatal", "off"/"none". Case insensitive.
+///
+/// @param name The name of a level.
+/// @return The level, or nothing if the name is none of those.
 inline std::optional<Level> parse_level(const std::string_view name)
 {
     std::string lower(name);
@@ -245,6 +251,7 @@ constexpr bool compiled_in(const Level level)
     return static_cast<int>(level) >= kCompileLevel;
 }
 
+/// @return The escape sequence that colors the name of the level in the default sink.
 constexpr std::string_view level_color(const Level level)
 {
     switch (level)
@@ -308,25 +315,26 @@ inline void write_default(const Record &record, const bool color, const bool tim
 // Configuration
 // ---------------------------------------------------------------------------------------------
 
-/// Current minimum level that is emitted.
+/// @return The lowest level that is emitted.
 inline Level get_level()
 {
     return detail::state().level.load(std::memory_order_relaxed);
 }
 
-/// Sets the minimum level that is emitted.
+/// Sets the lowest level that is emitted.
 inline void set_level(const Level level)
 {
     detail::state().level.store(level);
 }
 
-/// Whether a message of this level would currently be emitted.
+/// @param level The level of a message.
+/// @return Whether a message of this level would be emitted now.
 inline bool enabled(const Level level)
 {
     return level >= get_level();
 }
 
-/// What AEMU_FATAL and AEMU_CHECK do after logging: end the process or throw FatalError.
+/// @return What AEMU_FATAL and a failed AEMU_CHECK do after logging.
 inline FatalAction get_fatal_action()
 {
     return detail::state().fatal_action.load();
@@ -338,19 +346,23 @@ inline void set_fatal_action(const FatalAction action)
     detail::state().fatal_action.store(action);
 }
 
-/// Enable or disable ANSI colors in the default sink. Auto detected by default (tty, NO_COLOR).
+/// Turns the ANSI colors of the default sink on or off. Without a call, they are on when stderr is
+/// a terminal and `NO_COLOR` is not set.
 inline void set_color(const bool enable)
 {
     detail::state().color.store(enable);
 }
 
-/// Prefix each line of the default sink with the seconds since the logger started.
+/// Turns on or off the prefix of each line of the default sink with the seconds since the logger
+/// was first used.
 inline void set_timestamps(const bool enable)
 {
     detail::state().timestamps.store(enable);
 }
 
 /// Replaces the default stderr output. Pass an empty function (or call reset_sink) to restore it.
+///
+/// @param sink The function that receives every message.
 inline void set_sink(Sink sink)
 {
     detail::State &s = detail::state();
@@ -368,6 +380,7 @@ inline void reset_sink()
 class ScopedLevel
 {
   public:
+    /// @param level The level to set until this is destroyed.
     explicit ScopedLevel(const Level level) :
         m_previous(get_level())
     {
@@ -391,6 +404,7 @@ class ScopedLevel
 class ScopedFatalAction
 {
   public:
+    /// @param action The action to set until this is destroyed.
     explicit ScopedFatalAction(const FatalAction action) :
         m_previous(get_fatal_action())
     {
@@ -415,6 +429,10 @@ class ScopedFatalAction
 
 /// Emits an already formatted message if `level` passes the filter. Use this when the message is
 /// not a format string, otherwise prefer the AEMU_* macros.
+///
+/// @param level The level of the message.
+/// @param location Where the message is logged from.
+/// @param message The message.
 inline void write(const Level level, const std::source_location &location,
                   const std::string_view message)
 {
@@ -441,6 +459,9 @@ inline void write(const Level level, const std::source_location &location,
 }
 
 /// Logs at Fatal level, then terminates according to the FatalAction. Never returns.
+///
+/// @param location Where the message is logged from.
+/// @param message The message.
 [[noreturn]] inline void fatal(const std::source_location &location, const std::string_view message)
 {
     write(Level::Fatal, location, message);
@@ -494,6 +515,8 @@ template<typename... Args>
 class ScopedTimer
 {
   public:
+    /// @param tag The name of what is timed, which the message starts with.
+    /// @param location Where the timer is made, which is the place the message is logged at.
     explicit ScopedTimer(std::string tag,
                          const std::source_location location = std::source_location::current()) :
         m_tag(std::move(tag)),
