@@ -9,6 +9,14 @@
 #include <unordered_map>
 #include <vector>
 
+/// @param size A size or an address.
+/// @param alignment A power of two.
+/// @return How much has to be added to the size to make it a multiple of the alignment.
+inline word padding_to(const word size, const word alignment)
+{
+    return (alignment - size % alignment) % alignment;
+}
+
 /// A relocatable object file (.bo) or an executable (.bexe), in memory: the sections, the symbols
 /// and the relocations, with the code to read and write the BELF format (docs/belf-format.md).
 class ObjectFile

@@ -17,20 +17,13 @@ struct Extent
     word alignment = 1;
 };
 
-/// @param size A size or an address.
-/// @param alignment A power of two.
-/// @return How much has to be added to the size to make it a multiple of the alignment.
-word padding_to(const word size, const word alignment)
-{
-    return (alignment - size % alignment) % alignment;
-}
-
 /// @param obj An object file that has the section.
 /// @param name The name of a section of the file.
 /// @return What the section is aligned to, at least 1.
 word alignment_of(const ObjectFile &obj, const std::string &name)
 {
-    return std::max<word>(1, obj.sections[obj.section_table.at(name)].alignment);
+    const word alignment = obj.sections[obj.section_table.at(name)].alignment;
+    return alignment == 0 ? 1 : alignment;
 }
 
 /// @param obj An object file that has the section.
@@ -56,7 +49,7 @@ Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &
         if (!obj.section_table.contains(name)) continue;
 
         const word alignment = alignment_of(obj, name);
-        extent.alignment = std::max(extent.alignment, alignment);
+        if (alignment > extent.alignment) extent.alignment = alignment;
         extent.size += padding_to(extent.size, alignment);
         extent.size += section_size(obj, name);
     }
@@ -453,7 +446,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
         const word text_padding =
             padding_to(word(exe.text_section.size() * kInstructionSize), wanted_text);
         exe.text_section.insert(exe.text_section.end(), text_padding / kInstructionSize, 0);
-        alignment.text = std::max(alignment.text, wanted_text);
+        if (wanted_text > alignment.text) alignment.text = wanted_text;
         base.text = word(exe.text_section.size() * kInstructionSize);
         exe.text_section.insert(exe.text_section.end(), obj.text_section.begin(),
                                 obj.text_section.end());
@@ -464,7 +457,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
             std::vector<byte> &merged = exe.*section.bytes;
             const word wanted = alignment_of(obj, section.name);
             merged.insert(merged.end(), padding_to(word(merged.size()), wanted), 0);
-            alignment.bytes[k] = std::max(alignment.bytes[k], wanted);
+            if (wanted > alignment.bytes[k]) alignment.bytes[k] = wanted;
             base.bytes[k] = word(merged.size());
             merged.insert(merged.end(), (obj.*section.bytes).begin(), (obj.*section.bytes).end());
         }
@@ -474,7 +467,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
             const size_t e = user_index(exe, section.name);
             ObjectFile::UserSection &merged = exe.user_sections[e];
             const word wanted = alignment_of(obj, section.name);
-            alignment.users[e] = std::max(alignment.users[e], wanted);
+            if (wanted > alignment.users[e]) alignment.users[e] = wanted;
             if (merged.nobits)
             {
                 merged.zero_size += padding_to(merged.zero_size, wanted);
@@ -490,7 +483,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections(ObjectFile &exe) const
 
         const word wanted_bss = alignment_of(obj, ".bss");
         exe.bss_section += padding_to(exe.bss_section, wanted_bss);
-        alignment.bss = std::max(alignment.bss, wanted_bss);
+        if (wanted_bss > alignment.bss) alignment.bss = wanted_bss;
         base.bss = exe.bss_section;
         exe.bss_section += obj.bss_section;
 
@@ -564,7 +557,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
 
         ObjectFile::SectionHeader &header = exe.sections[exe.section_table.at(name)];
-        const word alignment = std::max<word>(1, header.alignment);
+        const word alignment = header.alignment == 0 ? 1 : header.alignment;
 
         // A section the script gives no address starts after the previous one, at an address that
         // keeps what was aligned in the object files aligned. An address from the script has to.
@@ -577,7 +570,7 @@ Linker::SectionBase Linker::place_sections(ObjectFile &exe) const
         }
         else
         {
-            *section_address = address + (alignment - address % alignment) % alignment;
+            *section_address = address + padding_to(address, alignment);
         }
 
         header.load_at_physical_address = section.physical;

@@ -495,8 +495,8 @@ void Assembler::_comm()
               || m_obj.symbol_table.at(existing->second).section == U32(-1),
           "'" + name.str() + "' is already defined");
 
-    m_obj.bss_section += (alignment - (m_obj.bss_section % alignment)) % alignment;
-    m_obj.sections[bss].alignment = std::max(m_obj.sections[bss].alignment, alignment);
+    m_obj.bss_section += padding_to(m_obj.bss_section, alignment);
+    if (alignment > m_obj.sections[bss].alignment) m_obj.sections[bss].alignment = alignment;
     m_obj.add_symbol(name.str(), m_obj.bss_section,
                      ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED, bss);
     m_obj.bss_section += size;
@@ -724,7 +724,7 @@ void Assembler::_align()
     {
     case Section::BSS:
     case Section::USER_BSS:
-        zero_size() += (val - (zero_size() % val)) % val;
+        zero_size() += padding_to(zero_size(), val);
         break;
     case Section::DATA:
     case Section::RODATA:
@@ -752,7 +752,7 @@ void Assembler::_align()
     // The alignment is of the offset in this section. The section is put at an address, and joined
     // with the same section of other files, in a way that keeps it.
     ObjectFile::SectionHeader &header = m_obj.sections[m_cur_section_index];
-    header.alignment = std::max(header.alignment, val);
+    if (val > header.alignment) header.alignment = val;
 }
 
 void Assembler::_section()

@@ -785,7 +785,7 @@ void Preprocessor::_macret(Frame &frame, TokenCursor &line)
     }
 
     // Leaves the macro, closing the blocks it left open.
-    m_conds.resize(std::min(m_conds.size(), frame.cond_base));
+    if (frame.cond_base < m_conds.size()) m_conds.resize(frame.cond_base);
     frame.cursor.rewind(frame.tail);
 }
 
