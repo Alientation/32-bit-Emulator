@@ -51,14 +51,11 @@ This project simulates a computer processor by simulating the execution of machi
 
 ## **Installation**
 ```
-# Clone the repo (with the cxxopts submodule)
-git clone --recurse-submodules https://github.com/Alientation/32-bit-Emulator.git
+# Clone the repo
+git clone https://github.com/Alientation/32-bit-Emulator.git
 
 # Navigate to the core directory
 cd 32-bit-Emulator/core
-
-# If the repo was cloned without submodules
-git submodule update --init --recursive
 
 # Ensure CMake (>= 3.15) and Ninja are installed
 cmake --version
@@ -66,7 +63,7 @@ ninja --version
 
 # Run the build script or CMake to configure and build directly
 # Requires a C++20 compiler and Ninja to build (and gcc/gcov, lcov for code coverage)
-# GoogleTest is downloaded automatically by CMake
+# cxxopts and GoogleTest are downloaded automatically by CMake
 # Builds both build/debug and build/release (and runs the tests)
 ./build.sh [clean | compile | test | coverage | asan | ubsan]
 ```

@@ -10,7 +10,7 @@ File types: `.basm` source, `.binc` header, `.bi` preprocessed file, `.bo` reloc
 Dependency chain of the static libraries: `util` ← `emulator32bit` ← `assembler` ← `app`. Executables (under `build/<config>/`): `emulator32bit/emu32` (runs a `.bexe`), `assembler/basm` (preprocess → assemble → link), `app/emulator_app` (builds and runs).
 
 ## Build & test
-Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compiler. You also need the cxxopts submodule: `git submodule update --init --recursive`. GoogleTest is fetched by CMake.
+Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compiler. cxxopts and GoogleTest are fetched by CMake (FetchContent), so the first configure needs network access.
 
 ```bash
 ./build.sh            # configure + build debug (build/debug) and release (build/release, RelWithDebInfo), then run ctest on both

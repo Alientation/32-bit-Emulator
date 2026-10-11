@@ -57,11 +57,11 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(AemuHelpers)
+include(FetchContent)
 
 if(BUILD_TESTS)
     enable_testing()
 
-    include(FetchContent)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_Declare(
@@ -74,14 +74,16 @@ if(BUILD_TESTS)
 endif()
 
 # External dependency
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/cxxopts/CMakeLists.txt")
-    message(FATAL_ERROR
-        "cxxopts submodule is missing. Run: git submodule update --init --recursive")
-endif()
 set(CXXOPTS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(CXXOPTS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CXXOPTS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-add_subdirectory(external/cxxopts)
+FetchContent_Declare(
+    cxxopts
+    URL https://github.com/jarro2783/cxxopts/archive/refs/tags/v3.3.1.zip
+    URL_HASH SHA256=f35f27daa5f6fab84e4fffd02fc171cae085b14647e19687357394c1fe90ce6a
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(cxxopts)
 
 # Submodules
 add_subdirectory(util)
