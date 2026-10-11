@@ -114,7 +114,10 @@ and the release build has debug info so the samples can be attributed to source 
     instruction reads. The first two are structs of arrays with `kMaxWatchpoints` and
     `kMaxRegisterWatches` entries, their booleans are a `BitArray<N>` (`util/bitarray.h`), and a
     removed entry is replaced by the last one. The history is a ring buffer in arrays of
-    `kMaxHistory` entries, of which the first `m_history.size` are used.
+    `kMaxHistory` entries, of which the first `m_history.size` are used. The state of the last
+    watchpoint hit (`hit_message`, `last_hit`, and `old_value`, what the next store replaces) is
+    in `m_watchpoints` too; `m_breakpoints` (a `std::set`, so that `breaks` lists them in order) and
+    `m_trace` (the stream and the symbols) follow the tables.
   - `--no-semihosting` makes `swi 1`, the emulator calls, an undefined instruction. The plain dump
     also has `mode`, `pstate`, `elr`, `spsr`, `esr`, `far` and `vbar`.
   - `pc` is the virtual address where execution stopped (the loader sets it to `_start`, and fetch
@@ -272,7 +275,7 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     `load<T>`/`store<T>`: an address that is a multiple of `sizeof(T)` takes
     `MemoryPort::read_aligned<T>`/`write_aligned<T>` (no page-crossing check, it cannot cross),
     otherwise the access is only made if the instruction is the unaligned form
-    (`MemOperand::unaligned`, from `decode_mem_operand<kHasUnalignedForm>`; false for the byte
+    (`MemOperand::unaligned`, from `decode_mem_operand (instr, has_unaligned_form)`; false for the byte
     handlers, where `adr` = `11` is an undefined instruction) and else `throw_misaligned` raises
     `Exception` of type `MISALIGNED`, which `deliver_exception` turns into a data abort with ISS
     `kAbortIss_alignment` (and FAR from `data_address_of`) and `run()` reports as a fault. The word

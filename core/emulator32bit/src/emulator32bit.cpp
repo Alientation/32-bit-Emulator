@@ -161,7 +161,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
 {
     RunResult result{RunResult::Status::LIMIT_REACHED, 0, ""};
     // the debugger may have changed it between runs
-    m_watch_hit.clear();
+    m_watchpoints.hit_message.clear();
     for (unsigned i = 0; i < m_regwatches.count; i++) m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
 
     // True (and the result is set) when a watched register changed since it was last looked at.
@@ -198,7 +198,7 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
     // trace, the history). They are set between runs, so the loop tests this one local instead of
     // each of them, which are loads from memory.
     const bool hooked = m_regwatches.count != 0 || !m_breakpoints.empty() || m_history.size != 0
-                        || m_trace != nullptr || m_watchpoints.count != 0
+                        || m_trace.out != nullptr || m_watchpoints.count != 0
                         || system_bus->console.has_host_input();
     SystemBus &bus = *system_bus;
 
@@ -277,16 +277,16 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             // instruction itself.
             if (LIKELY(!m_pc_written)) m_pc += 4;
             m_pc_written = false;
-            m_retired_since_entry = true;
+            m_just_took_exception = false;
             result.instructions_ran++;
             bus.timer.tick();
             bus.block.tick();
 
-            if (UNLIKELY(hooked) && !m_watch_hit.empty())
+            if (UNLIKELY(hooked) && !m_watchpoints.hit_message.empty())
             {
                 result.status = RunResult::Status::BREAKPOINT;
-                result.message = std::move(m_watch_hit);
-                m_watch_hit.clear();
+                result.message = std::move(m_watchpoints.hit_message);
+                m_watchpoints.hit_message.clear();
                 break;
             }
         }
@@ -307,13 +307,13 @@ Emulator32bit::RunResult Emulator32bit::run(U64 instructions)
             result.status = RunResult::Status::HALTED;
             result.message = e.what();
             // The hlt ran, if it was the first instruction of a handler that is not a double fault.
-            m_retired_since_entry = true;
+            m_just_took_exception = false;
         }
         else if (e.get_type() == InterruptType::BREAK_INSTR)
         {
             // The brk completed, the debugger goes on with the next instruction.
             m_pc += 4;
-            m_retired_since_entry = true;
+            m_just_took_exception = false;
             result.instructions_ran++;
             result.status = RunResult::Status::BREAKPOINT;
             result.message = e.what();
@@ -552,7 +552,7 @@ word Emulator32bit::watch_old_value(const word address, const word length)
 void Emulator32bit::watch_access(const word address, const word length, const bool write,
                                  const word value, const word old_value)
 {
-    if (!m_watch_hit.empty())
+    if (!m_watchpoints.hit_message.empty())
     {
         return; // the first hit of the instruction is the one that is reported
     }
@@ -607,15 +607,15 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
         }
         if (overlaps)
         {
-            m_watch_hit = std::format("Watchpoint {}{:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
+            m_watchpoints.hit_message = std::format("Watchpoint {}{:#010x}: {} of {:#x} ({} byte{}) at {:#010x} by "
                                       "the instruction at {:#010x}",
                                       physical ? "physical " : "", watched, write ? "write" : "read",
                                       value, length, length == 1 ? "" : "s", address, m_pc);
             if (write)
             {
-                m_watch_hit += std::format(", the old value was {:#x}", old_value);
+                m_watchpoints.hit_message += std::format(", the old value was {:#x}", old_value);
             }
-            m_last_watch_hit = {address, kind};
+            m_watchpoints.last_hit = {address, kind};
             return;
         }
     }
@@ -623,7 +623,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
 
 void Emulator32bit::set_trace(std::ostream *out)
 {
-    m_trace = out;
+    m_trace.out = out;
 }
 
 void Emulator32bit::set_history_size(const size_t count)
@@ -666,7 +666,7 @@ std::vector<Emulator32bit::ExecutedInstruction> Emulator32bit::history() const
 
 void Emulator32bit::set_symbols(const SymbolMap *symbols)
 {
-    m_symbols = symbols;
+    m_trace.symbols = symbols;
 }
 
 namespace
@@ -694,12 +694,12 @@ void Emulator32bit::execute_hooked(const word instr)
         const U8 opcode = bitfield_unsigned<26, 6>(instr);
         if (opcode == _op_str || opcode == _op_strh || opcode == _op_strb)
         {
-            m_watch_old = watch_old_value(data_address_of(instr),
+            m_watchpoints.old_value = watch_old_value(data_address_of(instr),
                                           opcode == _op_str ? 4 : opcode == _op_strh ? 2 : 1);
         }
     }
 
-    if (m_trace != nullptr) execute_traced(instr);
+    if (m_trace.out != nullptr) execute_traced(instr);
     else execute(instr);
 }
 
@@ -714,9 +714,9 @@ void Emulator32bit::execute_traced(const word instr)
     const word pstate_before = m_pstate;
 
     std::string line = std::format("{:#010x}", pc);
-    if (m_symbols != nullptr)
+    if (m_trace.symbols != nullptr)
     {
-        const std::string name = m_symbols->describe(pc);
+        const std::string name = m_trace.symbols->describe(pc);
         if (!name.empty())
         {
             line += " <" + name + ">";
@@ -730,13 +730,13 @@ void Emulator32bit::execute_traced(const word instr)
     }
     catch (const Exception &e)
     {
-        *m_trace << line << " ; " << (e.get_type() == InterruptType::HALT_INSTR ? "halt" : e.what())
+        *m_trace.out << line << " ; " << (e.get_type() == InterruptType::HALT_INSTR ? "halt" : e.what())
                  << "\n";
         throw;
     }
     catch (const std::exception &e)
     {
-        *m_trace << line << " ; " << e.what() << "\n";
+        *m_trace.out << line << " ; " << e.what() << "\n";
         throw;
     }
 
@@ -758,7 +758,7 @@ void Emulator32bit::execute_traced(const word instr)
         changes += std::format(" pc={:#x}", next_pc);
     }
 
-    *m_trace << line << (changes.empty() ? "" : " ;" + changes) << "\n";
+    *m_trace.out << line << (changes.empty() ? "" : " ;" + changes) << "\n";
 }
 
 std::string Emulator32bit::disassemble_instr(const word instr)
@@ -920,14 +920,14 @@ void Emulator32bit::require_kernel()
 void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, const word far,
                                     const word elr)
 {
-    if (!m_retired_since_entry)
+    if (m_just_took_exception)
     {
         throw Exception(InterruptType::DOUBLE_FAULT,
                         std::format("Double fault: {} raised at {:#010x} before any instruction of "
                                     "the handler ran",
                                     exception_class_name(cls), m_pc));
     }
-    m_retired_since_entry = false;
+    m_just_took_exception = true;
 
     if (m_exception_depth != 255)
     {
@@ -946,9 +946,9 @@ void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, co
     m_pc = m_vbar + 16 * word(cls);
     m_pc_written = true;
 
-    if (m_trace != nullptr)
+    if (m_trace.out != nullptr)
     {
-        *m_trace << std::format("-- exception: {}, ESR={:#x}, ELR={:#x}, FAR={:#x} -> {:#x}\n",
+        *m_trace.out << std::format("-- exception: {}, ESR={:#x}, ELR={:#x}, FAR={:#x} -> {:#x}\n",
                                 exception_class_name(cls), m_esr, m_elr, m_far, m_pc);
     }
 }
@@ -1042,6 +1042,6 @@ void Emulator32bit::reset()
     mmu->set_page_table_base(0);
     mmu->set_walk_enabled(false);
     m_pc_written = false;
-    m_retired_since_entry = true;
+    m_just_took_exception = false;
     m_exception_depth = 0;
 }

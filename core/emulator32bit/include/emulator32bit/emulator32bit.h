@@ -2,8 +2,8 @@
 
 #include "emulator32bit/alu.h"
 #include "emulator32bit/disk.h"
-#include "emulator32bit/encoding.h"
 #include "emulator32bit/emulator32bit_util.h"
+#include "emulator32bit/encoding.h"
 #include "emulator32bit/memory.h"
 #include "emulator32bit/memory_port.h"
 #include "emulator32bit/opcodes.h"
@@ -240,7 +240,7 @@ class Emulator32bit
     struct Watchpoint
     {
         word address;
-        word length; ///< at least 1
+        word length;           ///< at least 1
         WatchKind kind;
         bool physical = false; ///< `address` is where the access ends up after the translation
         WatchCompare compare = WatchCompare::NONE; ///< only an access whose value ...
@@ -307,7 +307,7 @@ class Emulator32bit
     ///         watchpoint
     const WatchHit &last_watch_hit() const
     {
-        return m_last_watch_hit;
+        return m_watchpoints.last_hit;
     }
 
     /// Makes run () stop, with Status::BREAKPOINT, once an instruction (or exception entry) has
@@ -339,7 +339,7 @@ class Emulator32bit
         U8 reg;
         bool has_value; ///< only a change to `value` counts
         word value;
-        word last; ///< the value when the watch was last checked
+        word last;      ///< the value when the watch was last checked
     };
 
     /// @return the number of register watches, at most kMaxRegisterWatches
@@ -560,9 +560,9 @@ class Emulator32bit
     /// Set by what writes the pc itself (ERET, taking an exception), run () then does not add 4.
     bool m_pc_written = false;
 
-    /// Whether an instruction completed since an exception was taken. An exception that is raised
-    /// when none has is a double fault.
-    bool m_retired_since_entry = true;
+    /// Set when an exception is taken, cleared when an instruction completes. An exception that is
+    /// raised while it is set (before any instruction of the handler ran) is a double fault.
+    bool m_just_took_exception = false;
 
     /// Exceptions taken and not returned from, see exception_depth ().
     U8 m_exception_depth = 0;
@@ -588,12 +588,11 @@ class Emulator32bit
     /// Works out the address of a load or store and what the base register becomes, without
     /// changing any register.
     ///
-    /// @tparam kHasUnalignedForm whether the instruction has the ADDR_UNALIGNED form (word and
-    ///         half-word accesses). For a byte access that mode is an undefined instruction.
     /// @param instr the instruction, of format M
+    /// @param has_unaligned_form whether the instruction has the ADDR_UNALIGNED form (word and
+    ///        half-word accesses). For a byte access that mode is an undefined instruction.
     /// @return the address and the new base
-    template<bool kHasUnalignedForm>
-    MemOperand decode_mem_operand(word instr);
+    MemOperand decode_mem_operand(word instr, bool has_unaligned_form);
 
     /// Writes the new base register of a pre or post indexed access, after the access succeeded.
     ///
@@ -647,11 +646,6 @@ class Emulator32bit
     /// Throws the undefined instruction exception of a privileged instruction in user mode.
     void require_kernel();
 
-    std::set<word> m_breakpoints;
-    /// The first watchpoint the running instruction hit, as the message run () reports.
-    std::string m_watch_hit;
-    WatchHit m_last_watch_hit{0, WatchKind::WRITE};
-
     /// Called by the memory instructions after a successful access of `length` bytes. `value` is
     /// what was loaded or stored.
     ///
@@ -666,15 +660,9 @@ class Emulator32bit
     ///         read), for watch_access
     word watch_old_value(word address, word length);
 
-    /// What the store that is about to run replaces, read by execute_hooked () for the message of
-    /// a watchpoint (the store handlers themselves are as they were without watchpoints).
-    word m_watch_old = 0;
-
     /// execute () for a run where something looks at each instruction: the old value of a store
     /// for the watchpoints, and the trace.
     void execute_hooked(word instr);
-    std::ostream *m_trace = nullptr;
-    const SymbolMap *m_symbols = nullptr;
 
     /// Puts the instruction that is about to execute in the history, over the oldest one if full.
     void record_history(word instr);
@@ -709,8 +697,15 @@ class Emulator32bit
         WatchCompare compare[kMaxWatchpoints];
         word compare_value[kMaxWatchpoints];
         BitArray<kMaxWatchpoints> physical;
-    };
-    WatchpointTable m_watchpoints;
+
+        /// The message of the first watchpoint that the running instruction hit, as run () reports.
+        std::string hit_message;
+        /// The last hit, see last_watch_hit ().
+        WatchHit last_hit{0, WatchKind::WRITE};
+        /// What the store that is about to run replaces, read by execute_hooked () for the message
+        /// of a watchpoint (the store handlers themselves are as they were without watchpoints).
+        word old_value = 0;
+    } m_watchpoints;
 
     /// The register watches, see RegisterWatch.
     struct RegisterWatchTable
@@ -720,8 +715,7 @@ class Emulator32bit
         word value[kMaxRegisterWatches];
         word last[kMaxRegisterWatches];
         BitArray<kMaxRegisterWatches> has_value;
-    };
-    RegisterWatchTable m_regwatches;
+    } m_regwatches;
 
     /// The history is a ring buffer of `size` entries (at most kMaxHistory), of which the newest
     /// `count` are valid, and the next one goes to `head`.
@@ -732,8 +726,17 @@ class Emulator32bit
         size_t head = 0;
         word pc[kMaxHistory];
         word instruction[kMaxHistory];
-    };
-    HistoryRing m_history;
+    } m_history;
+
+    /// The addresses that run () stops before.
+    std::set<word> m_breakpoints;
+
+    /// Where the trace of each instruction goes, and the symbols that name its addresses.
+    struct Trace
+    {
+        std::ostream *out = nullptr;
+        const SymbolMap *symbols = nullptr;
+    } m_trace;
 
     // Instruction handling. For every row of AEMU_OPCODES (opcodes.h): the handler _<name> and
     // the opcode constant _op_<name>.

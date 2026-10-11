@@ -887,9 +887,8 @@ MOVE_OP(_mov, alu_mov)
 MOVE_OP(_mvn, alu_mvn)
 #undef MOVE_OP
 
-template<bool kHasUnalignedForm>
 [[gnu::always_inline]] inline Emulator32bit::MemOperand
-Emulator32bit::decode_mem_operand(const word instr)
+Emulator32bit::decode_mem_operand(const word instr, const bool has_unaligned_form)
 {
     const U8 xn = _X2(instr);
     const bool simm = test_bit<14>(instr);
@@ -918,7 +917,7 @@ Emulator32bit::decode_mem_operand(const word instr)
                 .writes_back = true,
                 .unaligned = false};
     case AddrType::ADDR_UNALIGNED:
-        if constexpr (kHasUnalignedForm)
+        if (has_unaligned_form)
         {
             return {.address = base + offset,
                     .base = xn,
@@ -941,7 +940,7 @@ word Emulator32bit::data_address_of(const word instr)
     const word opcode = bitfield_unsigned<26, 6>(instr);
     if (opcode >= _op_ldr && opcode <= _op_strh)
     {
-        return decode_mem_operand<true>(instr).address;
+        return decode_mem_operand(instr, true).address;
     }
     if (opcode == _op_special_instructions
         && bitfield_unsigned<22, 4>(instr) == kSpecialOpId_atomic)
@@ -992,7 +991,7 @@ template<class T>
 /// access, `ldur`, `ldurh`, `stur` and `sturh` (ADDR_UNALIGNED) do not.
 void Emulator32bit::_ldr(const word instr)
 {
-    const MemOperand mem = decode_mem_operand<true>(instr);
+    const MemOperand mem = decode_mem_operand(instr, true);
     const word read_val = load<word>(memory, mem.address, mem.unaligned);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
@@ -1005,7 +1004,7 @@ void Emulator32bit::_ldr(const word instr)
 void Emulator32bit::_ldrb(const word instr)
 {
     const bool sign = test_bit<25>(instr);
-    const MemOperand mem = decode_mem_operand<false>(instr);
+    const MemOperand mem = decode_mem_operand(instr, false);
     word read_val = load<byte>(memory, mem.address, false);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
@@ -1022,7 +1021,7 @@ void Emulator32bit::_ldrb(const word instr)
 void Emulator32bit::_ldrh(const word instr)
 {
     const bool sign = test_bit<25>(instr);
-    const MemOperand mem = decode_mem_operand<true>(instr);
+    const MemOperand mem = decode_mem_operand(instr, true);
     word read_val = load<hword>(memory, mem.address, mem.unaligned);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
@@ -1039,36 +1038,36 @@ void Emulator32bit::_ldrh(const word instr)
 /// There is no sign bit in a store, the bytes that are stored are the low ones of xt.
 void Emulator32bit::_str(const word instr)
 {
-    const MemOperand mem = decode_mem_operand<true>(instr);
+    const MemOperand mem = decode_mem_operand(instr, true);
     const word value = read_reg(_X1(instr));
     store<word>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
-        watch_access(mem.address, 4, true, value, m_watch_old);
+        watch_access(mem.address, 4, true, value, m_watchpoints.old_value);
     }
     write_back_base(mem);
 }
 
 void Emulator32bit::_strb(const word instr)
 {
-    const MemOperand mem = decode_mem_operand<false>(instr);
+    const MemOperand mem = decode_mem_operand(instr, false);
     const word value = read_reg(_X1(instr));
     store<byte>(memory, mem.address, value, false);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
-        watch_access(mem.address, 1, true, value & 0xFF, m_watch_old);
+        watch_access(mem.address, 1, true, value & 0xFF, m_watchpoints.old_value);
     }
     write_back_base(mem);
 }
 
 void Emulator32bit::_strh(const word instr)
 {
-    const MemOperand mem = decode_mem_operand<true>(instr);
+    const MemOperand mem = decode_mem_operand(instr, true);
     const word value = read_reg(_X1(instr));
     store<hword>(memory, mem.address, value, mem.unaligned);
     if (UNLIKELY(m_watchpoints.count != 0))
     {
-        watch_access(mem.address, 2, true, value & 0xFFFF, m_watch_old);
+        watch_access(mem.address, 2, true, value & 0xFFFF, m_watchpoints.old_value);
     }
     write_back_base(mem);
 }
