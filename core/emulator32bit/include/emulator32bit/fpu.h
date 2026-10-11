@@ -25,6 +25,7 @@ constexpr word kRoundNearest = 0; ///< To nearest, ties to even.
 constexpr word kRoundUp = 1;      ///< Toward +infinity.
 constexpr word kRoundDown = 2;    ///< Toward -infinity.
 constexpr word kRoundZero = 3;    ///< Toward zero.
+/// The bits of FPCR that exist.
 constexpr word kFpcrMask = 0b11;
 
 /// FPSR: the cumulative exception flags, bits 4-0. They are set by an operation and only cleared
@@ -34,6 +35,7 @@ constexpr word kDivByZero = 1u << 1;
 constexpr word kOverflow = 1u << 2;
 constexpr word kUnderflow = 1u << 3;
 constexpr word kInexact = 1u << 4;
+/// The bits of FPSR that exist.
 constexpr word kFpsrMask = 0b11111;
 
 /// The function field (bits 4-0) of `fop2`.
@@ -43,6 +45,7 @@ constexpr U8 kBinaryFn_mul = 2;
 constexpr U8 kBinaryFn_div = 3;
 constexpr U8 kBinaryFn_min = 4;
 constexpr U8 kBinaryFn_max = 5;
+/// The number of functions of `fop2`.
 constexpr U8 kBinaryFn_count = 6;
 
 /// The function field (bits 1-0) of `fop3`, with the names and the signs of AArch64: `a`, `b` and
@@ -51,6 +54,7 @@ constexpr U8 kFmaFn_madd = 0;  ///< a * b + c
 constexpr U8 kFmaFn_msub = 1;  ///< c - a * b
 constexpr U8 kFmaFn_nmadd = 2; ///< -c - a * b
 constexpr U8 kFmaFn_nmsub = 3; ///< a * b - c
+/// The number of functions of `fop3`.
 constexpr U8 kFmaFn_count = 4;
 
 /// The function field (bits 4-0) of `fop1`.

@@ -9,9 +9,16 @@
 #include <memory>
 #include <unordered_map>
 
+/// The number of bits of the virtual page that pick an entry of the TLB.
 constexpr U8 kNumTLBBits = 12;
+
+/// The number of entries of the TLB.
 constexpr U32 kMaxTLBSize = 1 << kNumTLBBits;
+
+/// The number of processes. Their numbers are below it.
 constexpr U32 kMaxProcesses = 1024;
+
+/// The number of pages of the physical address space.
 constexpr U32 kMaxPhysicalPages = 1 << (8 * sizeof(word) - kNumPageOffsetBits);
 
 /// The MMU: translates the virtual addresses of a program to physical addresses, in one of two
@@ -189,6 +196,7 @@ class VirtualMemory
     static constexpr word kPteUser = 1u << 3;
     static constexpr word kPteAccessed = 1u << 4; ///< Set by the hardware on any access.
     static constexpr word kPteDirty = 1u << 5;    ///< Set by the hardware on a write.
+    /// The bits of an entry that are the physical page.
     static constexpr word kPteFrameMask = ~word(kPageSize - 1);
 
     /// Whether addresses are translated by the page tables. Drops all cached translations.
@@ -496,6 +504,10 @@ class VirtualMemory
     /// What an entry of the TLB is looked up by: the process in the upper half, the virtual page
     /// in the lower, so that the lookup is one comparison. No entry has the key of a process that
     /// does not exist (processes are numbered below kMaxProcesses).
+    ///
+    /// @param pid The process.
+    /// @param vpage The virtual page.
+    /// @return The key.
     static constexpr U64 tlb_key(const long long pid, const word vpage)
     {
         return (U64(pid) << kNumWordBits) | vpage;
@@ -560,6 +572,10 @@ class VirtualMemory
     word m_ptbr = 0;
 
     /// Whether the cached translation allows the access in the current mode.
+    ///
+    /// @param entry The cached translation.
+    /// @param access The kind of access.
+    /// @return Whether it is allowed.
     inline bool walk_allows(const WalkEntry &entry, const AccessType access) const
     {
         if (m_user ? !entry.user : (access == AccessType::EXECUTE && entry.user))
@@ -643,6 +659,9 @@ class VirtualMemory
     }
 
     /// translate_fetch for a page that is not remembered: translates, checks and remembers it.
+    ///
+    /// @param address The virtual address of the instruction.
+    /// @return The physical address.
     word translate_fetch_slow(word address);
 
     /// The first and the last page of the list that makes up the clock, the pages that can be
@@ -655,6 +674,9 @@ class VirtualMemory
     PhysicalPage *m_clock_hand = nullptr;
 
     /// The information about a physical page, which is added if there is none.
+    ///
+    /// @param ppage The physical page.
+    /// @return The information.
     PhysicalPage &physical_page(const word ppage)
     {
         // A frame whose chunk is made: two loads. The index wraps for a page below the frames.
@@ -672,19 +694,32 @@ class VirtualMemory
 
     /// physical_page () for a frame whose chunk is not made yet, and for a page that is not a
     /// frame.
+    ///
+    /// @param ppage The physical page.
+    /// @return The information.
     PhysicalPage &physical_page_slow(word ppage);
 
     /// Every physical page that there is information about, with its number (the consistency
     /// checks use it).
+    ///
+    /// @return Each page and its information.
     std::vector<std::pair<word, const PhysicalPage *>> all_physical_pages() const;
 
     /// Whether the physical page is one of the frames, which the pages that are paged in go to.
+    ///
+    /// @param ppage The physical page.
+    /// @return Whether it is.
     bool is_frame(word ppage) const;
 
     /// Gives a physical page back to the free pages, if it is one of the frames.
+    ///
+    /// @param ppage The physical page.
     void release_frame(word ppage);
 
     /// Drops the cached translation of the virtual page of a process, if any.
+    ///
+    /// @param pid The process.
+    /// @param vpage The virtual page.
     void invalidate_tlb(long long pid, word vpage);
 
     /// Drops all cached translations.
@@ -697,6 +732,8 @@ class VirtualMemory
     /// another turn. A translation that fills the TLB does it, a hit on the
     /// TLB does not (see m_tlb), which is why the clock costs a translation
     /// nothing.
+    ///
+    /// @param page The page.
     static inline void mark_referenced(PhysicalPage &page)
     {
         page.referenced = true;
@@ -705,15 +742,20 @@ class VirtualMemory
     /// Puts a physical page on the clock, just behind the hand (so that it is
     /// the last page the hand gets to), as used. A page that is on it already
     /// is moved.
+    ///
+    /// @param page The page.
     void clock_add(PhysicalPage &page);
 
     /// Takes a physical page off the clock, if it is on it.
+    ///
+    /// @param page The page.
     void clock_remove(PhysicalPage &page);
 
     /// The page to evict to make room. The hand goes round: a page that was used
     /// since the hand was last there is passed over and marked as not used, the
     /// first page that is not marked and is a frame and can be swapped is it.
     ///
+    /// @return The page.
     /// @throws Error If there is none.
     PhysicalPage &clock_victim();
 
@@ -794,10 +836,19 @@ class VirtualMemory
     /// Translates a virtual page that has no translation in the TLB, or that the
     /// translation does not allow to write: checks the permissions, brings the
     /// page in from disk if it is not in memory, and fills in the TLB.
+    ///
+    /// @param ptable The page table of the process.
+    /// @param vpage The virtual page.
+    /// @param access The kind of access.
+    /// @return The physical page, as a page number.
     word access_vpage_slow(const PageTable &ptable, word vpage, AccessType access);
 
     /// translate_address for everything that is not in the TLB of the current
     /// process: the page tables, addresses that are physical (virtual memory
     /// off, no process, the devices) and the first access to a page.
+    ///
+    /// @param address The virtual address.
+    /// @param access The kind of access.
+    /// @return The physical address.
     word translate_address_slow(word address, AccessType access);
 };

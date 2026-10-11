@@ -180,10 +180,6 @@ Preprocessor::Preprocessor(const File &input_file, const std::string &output_fil
     m_state = State::UNPROCESSED;
 }
 
-Preprocessor::~Preprocessor()
-{
-}
-
 Preprocessor::State Preprocessor::get_state() const
 {
     return m_state;

@@ -21,6 +21,7 @@ class BaseMemory
     /// Each read returns the value at the address, which has to be in this memory.
     ///
     /// @param address The full (physical) address.
+    /// @return The value.
     virtual byte read_byte(word address) = 0;
     virtual hword read_hword(word address) = 0;
     virtual word read_word(word address) = 0;

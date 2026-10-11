@@ -378,6 +378,7 @@ class BlockDevice : public Device
         word address;
     };
 
+    /// @param segment The segment of the descriptor.
     /// @return Whether the segment is inside the disk and inside the RAM, and aligned.
     bool segment_is_valid(const Segment &segment) const;
 

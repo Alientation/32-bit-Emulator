@@ -23,7 +23,8 @@ std::string trim_dir_path(const std::string &str);
 class File
 {
   public:
-    // Windows supports both / and \\ as separators, so use / to be compatible with other OSes.
+    /// The separator of the parts of a path. Windows supports both / and \\, so / is used to be
+    /// compatible with other OSes.
     inline static const std::string SEPARATOR = "/";
 
     /// @param name The file name, without the extension.

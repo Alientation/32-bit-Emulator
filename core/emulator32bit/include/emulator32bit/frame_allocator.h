@@ -37,7 +37,7 @@ class FrameAllocator
         }
     }
 
-    /// Whether a page can be allocated.
+    /// @return Whether a page can be allocated.
     bool any_free() const
     {
         return m_free != 0;
@@ -115,12 +115,14 @@ class FrameAllocator
     }
 
   private:
+    /// @param page The page number.
     /// @return Whether the page is one of the frames.
     bool in_range(const word page) const
     {
         return page >= m_first && U64(page) - m_first < m_count;
     }
 
+    /// @param page The page number.
     /// @return The position of the page among the frames.
     std::size_t index(const word page) const
     {

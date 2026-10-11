@@ -93,6 +93,7 @@ class Emulator32bit
         IRQ = 6,
     };
 
+    /// @param cls The class.
     /// @return The name of the class ("data abort"), or "?" for a number that is not one.
     static const char *exception_class_name(ExceptionClass cls);
 
@@ -433,6 +434,9 @@ class Emulator32bit
     }
 
     /// Same as above, for the number of a register.
+    ///
+    /// @param reg The number of the register.
+    /// @return The value, 0 for a number that is not a register.
     inline word read_reg(const U8 reg)
     {
         return LIKELY(reg < kNumReg) ? m_x[reg] : 0;
@@ -448,6 +452,9 @@ class Emulator32bit
     }
 
     /// Same as above, for the number of a register.
+    ///
+    /// @param reg The number of the register.
+    /// @param val The value to store.
     inline void write_reg(const U8 reg, const word val)
     {
         if (LIKELY(reg < kNumReg && reg != register_to_U8(Register::XZR)))
@@ -485,6 +492,8 @@ class Emulator32bit
     }
 
     /// Same as above, with the flags in a struct.
+    ///
+    /// @param flags The new flags.
     inline void set_NZCV(NZCVFlags flags)
     {
         set_NZCV(flags.n, flags.z, flags.c, flags.v);
@@ -582,6 +591,8 @@ class Emulator32bit
 
     /// Fetches the instruction at the PC (a virtual address). Faults when the PC is not word
     /// aligned, not mapped, not executable or not in RAM.
+    ///
+    /// @return The instruction.
     word fetch_instruction();
 
     /// The address that a load or a store (format M) accesses, and what the base register is after
@@ -611,6 +622,8 @@ class Emulator32bit
 
     /// Runs the handler of the opcode of `instr` (a switch generated from AEMU_OPCODES).
     /// An opcode that is not listed faults with BAD_INSTR.
+    ///
+    /// @param instr The instruction.
     void execute(word instr);
 
     /// `execute ()` that writes the trace line of the instruction:
@@ -666,17 +679,25 @@ class Emulator32bit
     /// @param old_value What a store replaced.
     void watch_access(word address, word length, bool write, word value, word old_value = 0);
 
+    /// @param address The virtual address of the store.
+    /// @param length The number of bytes.
     /// @return The bytes at the virtual address as they are before a store (0 if they cannot be
     ///         read), for watch_access.
     word watch_old_value(word address, word length);
 
     /// `execute ()` for a run where something looks at each instruction: the old value of a store
     /// for the watchpoints, and the trace.
+    ///
+    /// @param instr The instruction.
     void execute_hooked(word instr);
 
     /// Puts the instruction that is about to execute in the history, over the oldest one if full.
+    ///
+    /// @param instr The instruction.
     void record_history(word instr);
 
+    /// @param address The address.
+    /// @param physical Whether the watchpoint is on a physical address.
     /// @return The index of the watchpoint at the address, or m_watchpoints.count if there is none.
     unsigned find_watchpoint(word address, bool physical) const;
 
@@ -688,11 +709,17 @@ class Emulator32bit
     /// @return Whether a register watch stopped the run.
     bool register_watch_hit(RunResult &result);
 
+    /// @param reg The register.
     /// @return The index of the watch on the register, or m_regwatches.count if there is none.
     unsigned find_register_watch(U8 reg) const;
 
     /// Adds a register watch or replaces the one on `reg`. The overloads of add_register_watch ()
     /// call it.
+    ///
+    /// @param reg The register.
+    /// @param has_value Whether the watch only stops on `value`.
+    /// @param value The value to stop on.
+    /// @return `false` if there is no room for another watch.
     bool set_register_watch(U8 reg, bool has_value, word value);
 
     // These members are last, so that adding them did not move the members that every instruction
@@ -806,6 +833,8 @@ class Emulator32bit
     void _atomic_rmw(const word instr, AtomicOperation operation);
 
     /// std::cout and std::cerr (emulator32bit.cpp), so that this header needs no <iostream>.
+    ///
+    /// @return The stream.
     static std::ostream *default_out();
     static std::ostream *default_err();
 
@@ -816,6 +845,10 @@ class Emulator32bit
     U8 _emu_register_arg(word reg_id);
     /// The value of the size bytes at the address, the most significant byte being the last one in
     /// memory for a little endian value and the first one for a big endian value.
+    ///
+    /// @param mem_addr The address of the value.
+    /// @param size The number of bytes.
+    /// @param little_endian Whether the value is stored little endian.
     word _emu_read_value(word mem_addr, U8 size, bool little_endian);
     std::string _emu_read_string(word address);
     void _emu_print();
@@ -828,6 +861,8 @@ class Emulator32bit
     void _emu_log(word str);
     /// Prints the message and stops the run.
     /// TODO: raise an exception so that the kernel can handle it.
+    ///
+    /// @param err The address of the message.
     void _emu_err(word err);
 
   public:

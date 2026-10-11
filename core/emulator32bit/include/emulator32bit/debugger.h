@@ -145,6 +145,9 @@ class Debugger
     void command_set(const std::vector<std::string> &args);
 
     /// Same as the free resolve_address(), with the symbols of this debugger.
+    ///
+    /// @param text A number, a symbol, or `symbol+number`.
+    /// @return The address, or nothing if the text is none of those.
     std::optional<word> resolve_address(const std::string &text) const;
 
     /// Runs and reports why it stopped.

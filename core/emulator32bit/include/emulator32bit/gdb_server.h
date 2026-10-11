@@ -96,17 +96,61 @@ class GdbServer
     /// @return The stop reply.
     std::string resume(U64 steps);
 
+    /// Handles `g`.
+    ///
+    /// @return The values of all the registers, as hex.
     std::string read_registers();
+
+    /// Handles `G`.
+    ///
+    /// @param hex The values of all the registers, as hex.
+    /// @return Whether it was accepted.
     bool write_registers(const std::string &hex);
+
+    /// Handles `P`. Only the flags of cpsr change.
+    ///
+    /// @param number The register number of the protocol: x0-x29, sp, xzr, pc, cpsr.
+    /// @param value The value.
+    /// @return Whether there is such a register and the value is allowed.
     bool write_register(unsigned number, word value);
+
+    /// Handles `p`.
+    ///
+    /// @param value Receives the value.
+    /// @param number The register number of the protocol.
+    /// @return Whether there is such a register.
     bool read_register(word &value, unsigned number);
+
+    /// Handles `m`.
+    ///
+    /// @param address The virtual address.
+    /// @param length The number of bytes.
+    /// @return The bytes as hex, shorter if an address failed after the first, or an error reply.
     std::string read_memory(word address, word length);
+
+    /// Handles `M`.
+    ///
+    /// @param address The virtual address.
+    /// @param bytes The bytes.
+    /// @return Whether all of them were written.
     bool write_memory(word address, const std::string &bytes);
+
+    /// Handles `Z` and `z`, the breakpoints and watchpoints.
+    ///
+    /// @param packet The `Z` or `z` packet.
+    /// @param insert Whether it is `Z`, which inserts, as opposed to `z`.
+    /// @return The reply: `OK`, an error, or empty if the type is not supported.
     std::string breakpoint_packet(const std::string &packet, bool insert);
+
+    /// Handles `q`.
+    ///
+    /// @param packet The `q` packet.
+    /// @return The reply, empty if the query is not supported.
     std::string query(const std::string &packet);
 
     /// `monitor <command>` of gdb.
     ///
+    /// @param command The command line.
     /// @return The text to show.
     std::string monitor(const std::string &command);
 

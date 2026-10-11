@@ -334,7 +334,7 @@ class ObjectFile
         /// The size of a nobits section.
         word zero_size = 0;
 
-        /// Size in bytes, `zero_size` for a nobits section.
+        /// @return The size in bytes, `zero_size` for a nobits section.
         word size() const
         {
             return nobits ? zero_size : word(bytes.size());
@@ -348,25 +348,39 @@ class ObjectFile
     /// The user sections, in the order they were added.
     std::vector<UserSection> user_sections;
 
-    /// The type of the header of a user section with the permissions.
+    /// @param writable Whether the section is writable.
+    /// @param executable Whether the section is executable.
+    /// @param nobits Whether the section is zero filled.
+    /// @return The type of the header of a user section with the permissions.
     static SectionHeader::Type user_section_type(bool writable, bool executable,
                                                  bool nobits = false);
 
-    /// Whether the type is the type of a header of a user section.
+    /// @param type The type of a section header.
+    /// @return Whether the type is the type of a header of a user section.
     static bool is_user_section_type(SectionHeader::Type type);
 
-    /// The user section with the name, or null.
+    /// @param name The name of the section.
+    /// @return The user section with the name, or null.
     UserSection *find_user_section(const std::string &name);
+
+    /// @copydoc find_user_section(const std::string &)
     const UserSection *find_user_section(const std::string &name) const;
 
-    /// The user section whose header is the one at the index, or null if that
-    /// is not the header of one.
+    /// @param header_index The index into `sections`.
+    /// @return The user section whose header is the one at the index, or null if that is not the
+    ///     header of one.
     UserSection *user_section_at(U32 header_index);
+
+    /// @copydoc user_section_at(U32)
     const UserSection *user_section_at(U32 header_index) const;
 
     /// Adds a user section and its two headers. The name is not one that is
     /// taken (a section of the file already, or one of the reserved names).
     ///
+    /// @param name The name of the section.
+    /// @param writable Whether the section is writable.
+    /// @param executable Whether the section is executable.
+    /// @param nobits Whether the section is zero filled.
     /// @return Index into `sections` of its header.
     U32 add_user_section(const std::string &name, bool writable, bool executable,
                          bool nobits = false);
@@ -380,11 +394,11 @@ class ObjectFile
     static constexpr size_t kInitArrayIndex = 2;
     static constexpr size_t kFiniArrayIndex = 3;
 
-    /// The byte sections, in the order .data, .rodata, .init_array, .fini_array.
+    /// @return The byte sections, in the order .data, .rodata, .init_array, .fini_array.
     static const std::array<ByteSection, kNumByteSections> &byte_sections();
 
-    /// The byte section with the section type or relocation section type, or
-    /// null if the type is none of them.
+    /// @param type A section type or relocation section type.
+    /// @return The byte section with the type, or null if the type is none of them.
     static const ByteSection *byte_section_of(SectionHeader::Type type);
 
     // TODO: possibly add a separate string table for the section headers, like ELF files.

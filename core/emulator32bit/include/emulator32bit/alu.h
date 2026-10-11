@@ -184,6 +184,8 @@ static_assert(kNFlagBit == 0 && kZFlagBit == 1 && kCFlagBit == 2 && kVFlagBit ==
 
 /// Builds kConditionTable: for each combination of the four flags, a mask with bit `cond` set when
 /// the condition holds.
+///
+/// @return The table, indexed by the flags.
 constexpr std::array<U16, 16> make_condition_table()
 {
     std::array<U16, 16> table{};

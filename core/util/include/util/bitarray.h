@@ -35,6 +35,9 @@ class BitArray
     }
 
     /// Copies the bit at `from` to `to`: the move of the last entry into a removed one.
+    ///
+    /// @param from The index of the bit to copy.
+    /// @param to The index of the bit to replace.
     void copy(const unsigned from, const unsigned to)
     {
         assign(to, test(from));

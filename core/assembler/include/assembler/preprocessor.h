@@ -42,8 +42,6 @@ class Preprocessor
     explicit Preprocessor(const File &input_file, const std::string &output_file_path = "",
                           PreprocessorOptions options = {});
 
-    ~Preprocessor();
-
     /// Preprocesses the input file and writes the .bi file if the options ask for it.
     ///
     /// @return The output file.
@@ -224,6 +222,8 @@ class Preprocessor
     ///
     /// "filepath": looks for files relative to the directory of the including file.
     /// <"filepath">: looks for files in the include directories (-I).
+    ///
+    /// @param line The cursor of the line, after the directive.
     void _include(basm::TokenCursor &line);
 
     /// Defines a macro with n parameters.
@@ -232,17 +232,25 @@ class Preprocessor
     ///
     /// The body is everything up to #macend. It cannot contain another #macro. The same name can be
     /// defined with another number of parameters.
+    ///
+    /// @param frame The frame that is being read.
+    /// @param line The cursor of the line, after the directive.
     void _macro(Frame &frame, basm::TokenCursor &line);
 
     /// Stops expanding the macro and assigns the value of the expression to the output symbol of
     /// the #invoke.
     ///
     /// USAGE: #macret [?expression]
+    ///
+    /// @param frame The frame that is being read.
+    /// @param line The cursor of the line, after the directive.
     void _macret(Frame &frame, basm::TokenCursor &line);
 
     /// Expands the macro with the given arguments inside a `.scope` / `.scend` pair.
     ///
     /// USAGE: #invoke [name]([arg1, arg2,..., argn]) [?output symbol]
+    ///
+    /// @param line The cursor of the line, after the directive.
     void _invoke(basm::TokenCursor &line);
 
     /// Associates the symbol with a value. Uses of the symbol are replaced by the value. If the
@@ -250,6 +258,8 @@ class Preprocessor
     /// `#define F(x) x` takes a parameter and `#define F (x)` is the value `(x)`.
     ///
     /// USAGE: #define [symbol][?(param1, ..., paramn)] [?value]
+    ///
+    /// @param line The cursor of the line, after the directive.
     void _define(basm::TokenCursor &line);
 
     /// Defines the symbols of PreprocessorOptions::defines.
@@ -260,6 +270,8 @@ class Preprocessor
     /// USAGE: #undef [symbol] [?number of parameters]
     ///
     /// Without a number of parameters every definition of the symbol is removed.
+    ///
+    /// @param line The cursor of the line, after the directive.
     void _undef(basm::TokenCursor &line);
 
     /// Conditional blocks.
@@ -271,6 +283,9 @@ class Preprocessor
     /// with)
     /// #elsedef, #elsendef, #elseequ, #elsenequ, #elseless, #elsemore, #else
     /// #endif
+    ///
+    /// @param frame The frame that is being read.
+    /// @param line The cursor of the line, after the directive.
     void _conditional(Frame &frame, basm::TokenCursor &line);
 
     /// Evaluates the condition of an #if* / #else* directive.

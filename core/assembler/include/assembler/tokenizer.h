@@ -122,6 +122,7 @@ class SourceManager
     const Expansion *expansion(U32 id) const;
 
   private:
+    /// One file or string that was added: its text and where its lines start.
     struct Source
     {
         std::string name;
@@ -211,60 +212,82 @@ enum class TokenType : U16
 };
 
 /// Name of the enumerator, e.g. "INSTRUCTION_ADD".
+///
+/// @param type The type.
+/// @return The name.
 std::string_view to_string(TokenType type);
 
 namespace detail
 {
-/// @return Whether `t` is one of the types from `lo` to `hi`
+/// @param t The type to look at.
+/// @param lo The first type of the range.
+/// @param hi The last type of the range.
+/// @return Whether `t` is one of the types from `lo` to `hi`.
 constexpr bool in_range(const TokenType t, const TokenType lo, const TokenType hi)
 {
     return t >= lo && t <= hi;
 }
 } // namespace detail
 
+///
+/// @param t The type.
 /// @return Whether the type is a comment.
 constexpr bool is_comment(const TokenType t)
 {
     return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
 }
 
-/// @return Whether the type is a preprocessor directive (`#define`, ...)
+///
+/// @param t The type.
+/// @return Whether the type is a preprocessor directive (`#define`, ...).
 constexpr bool is_preprocessor_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
 }
 
-/// @return Whether the type is an assembler directive (`.global`, ...)
+///
+/// @param t The type.
+/// @return Whether the type is an assembler directive (`.global`, ...).
 constexpr bool is_assembler_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
 }
 
-/// @return Whether the type is a relocation operator (`:lo12:`, ...)
+///
+/// @param t The type.
+/// @return Whether the type is a relocation operator (`:lo12:`, ...).
 constexpr bool is_relocation(const TokenType t)
 {
     return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
                             TokenType::RELOCATION_EMU32_MOV_HI13);
 }
 
+///
+/// @param t The type.
 /// @return Whether the type is a register (x0-x29, sp, xzr).
 constexpr bool is_register(const TokenType t)
 {
     return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
 }
 
+///
+/// @param t The type.
 /// @return Whether the type is an instruction mnemonic.
 constexpr bool is_instruction(const TokenType t)
 {
     return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
 }
 
-/// @return Whether the type is a condition code (eq, ne, ...)
+///
+/// @param t The type.
+/// @return Whether the type is a condition code (eq, ne, ...).
 constexpr bool is_condition(const TokenType t)
 {
     return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
 }
 
+///
+/// @param t The type.
 /// @return Whether the type is an integer literal.
 constexpr bool is_integer_literal(const TokenType t)
 {
@@ -272,12 +295,16 @@ constexpr bool is_integer_literal(const TokenType t)
                             TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
+///
+/// @param t The type.
 /// @return Whether the type is an integer or floating point literal.
 constexpr bool is_number_literal(const TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
+///
+/// @param t The type.
 /// @return Whether the type is an operator of an expression.
 constexpr bool is_operator(const TokenType t)
 {
@@ -285,6 +312,9 @@ constexpr bool is_operator(const TokenType t)
 }
 
 /// Register number of a register token: x0-x29 are 0-29, sp is 30, xzr is 31.
+///
+/// @param t The type of a register token.
+/// @return The register number.
 constexpr byte register_index(const TokenType t)
 {
     return byte(U16(t) - U16(TokenType::REGISTER_X0));
@@ -330,12 +360,14 @@ struct Token
     /// Value of integer and character literals (LITERAL_NUMBER_* except float, LITERAL_CHAR).
     U64 int_value = 0;
 
+    /// @param t The type.
     /// @return Whether the token has this type.
     bool is(const TokenType t) const
     {
         return type == t;
     }
 
+    /// @param types The types.
     /// @return Whether the token has one of these types.
     bool is_one_of(const std::initializer_list<TokenType> types) const
     {
@@ -349,6 +381,7 @@ struct Token
         return false;
     }
 
+    /// @param flag The flag.
     /// @return Whether the token has this flag.
     bool has(const TokenFlag flag) const
     {
@@ -546,12 +579,14 @@ class TokenCursor
         return peek().type == TokenType::END_OF_FILE;
     }
 
+    /// @param type The type.
     /// @return Whether the next token has this type, which is not consumed.
     bool check(const TokenType type) const
     {
         return peek().type == type;
     }
 
+    /// @param types The types.
     /// @return Whether the next token has one of these types, which is not consumed.
     bool check_any(const std::initializer_list<TokenType> types) const
     {
@@ -579,6 +614,8 @@ class TokenCursor
 
     /// Consumes the rest of the current line including its NEWLINE and returns the tokens before
     /// the NEWLINE. The span stays valid as long as the underlying token list does.
+    ///
+    /// @return The tokens of the line.
     std::span<const Token> take_line();
 
     /// @return The index of the next token.

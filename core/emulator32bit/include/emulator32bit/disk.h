@@ -130,7 +130,7 @@ class Disk : public BaseMemory
     /// Writes kPageSize bytes to a disk page (the vector version checks the size and calls this).
     ///
     /// @param page The number of the page.
-    /// @param data kPageSize bytes.
+    /// @param data The kPageSize bytes.
     /// @throws ReadError if the page is not on the disk.
     virtual void write_page(word page, const byte *data);
 

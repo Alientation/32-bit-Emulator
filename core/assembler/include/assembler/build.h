@@ -123,9 +123,9 @@ class Build
     /// @param files The object files and the executable.
     static void dump(const std::vector<File> &files);
 
-    // The handlers of the flags. Each one takes the index of its flag and all the arguments, and
-    // leaves the index at the last argument it used, so that a value (`-o a.out`) is not read as a
-    // source file.
+    // The handlers of the flags. Each one takes `index`, the position of its flag in `args`, the
+    // arguments of the command line, and leaves `index` at the last argument it used, so that a
+    // value (`-o a.out`) is not read as a source file.
 
     /// `--`: everything after it is a source file, even if it starts with a dash.
     void _ignore(size_t &index, const std::vector<std::string> &args);

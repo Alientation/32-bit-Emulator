@@ -206,6 +206,8 @@ inline bool stream_is_tty(std::FILE *stream)
 
 /// Nanoseconds on a clock that only goes forward (util/src/logger.cpp, so that <chrono> is not
 /// included by every file that logs).
+///
+/// @return The time in nanoseconds.
 long long monotonic_ns();
 
 /// Global logger state. One instance for the whole program, since this is a function local
@@ -245,12 +247,16 @@ inline State &state()
 }
 
 /// Whether call sites of this level survive AEMU_LOG_COMPILE_LEVEL.
+///
+/// @param level The level of a call site.
+/// @return Whether it is kept.
 constexpr bool compiled_in(const Level level)
 {
     constexpr int kCompileLevel = AEMU_LOG_COMPILE_LEVEL;
     return static_cast<int>(level) >= kCompileLevel;
 }
 
+/// @param level The level.
 /// @return The escape sequence that colors the name of the level in the default sink.
 constexpr std::string_view level_color(const Level level)
 {
@@ -272,6 +278,9 @@ constexpr std::string_view level_color(const Level level)
 }
 
 /// "/a/b/c.cpp" -> "c.cpp". Source paths are printed without their directory.
+///
+/// @param path The path of a source file.
+/// @return The file name.
 inline std::string_view basename(const std::string_view path)
 {
     const size_t slash = path.find_last_of("/\\");
@@ -279,6 +288,10 @@ inline std::string_view basename(const std::string_view path)
 }
 
 /// Default sink: `[ERR] [file.cpp:123]: message` on stderr, with an optional time prefix.
+///
+/// @param record The message.
+/// @param color Whether to use the ANSI colors.
+/// @param timestamps Whether to start the line with the time.
 inline void write_default(const Record &record, const bool color, const bool timestamps)
 {
     std::string line;
@@ -322,6 +335,8 @@ inline Level get_level()
 }
 
 /// Sets the lowest level that is emitted.
+///
+/// @param level The lowest level.
 inline void set_level(const Level level)
 {
     detail::state().level.store(level);
@@ -341,6 +356,8 @@ inline FatalAction get_fatal_action()
 }
 
 /// Chooses what AEMU_FATAL and AEMU_CHECK do after logging.
+///
+/// @param action What to do.
 inline void set_fatal_action(const FatalAction action)
 {
     detail::state().fatal_action.store(action);
@@ -348,6 +365,8 @@ inline void set_fatal_action(const FatalAction action)
 
 /// Turns the ANSI colors of the default sink on or off. Without a call, they are on when stderr is
 /// a terminal and `NO_COLOR` is not set.
+///
+/// @param enable Whether to use the colors.
 inline void set_color(const bool enable)
 {
     detail::state().color.store(enable);
@@ -355,6 +374,8 @@ inline void set_color(const bool enable)
 
 /// Turns on or off the prefix of each line of the default sink with the seconds since the logger
 /// was first used.
+///
+/// @param enable Whether to print the time.
 inline void set_timestamps(const bool enable)
 {
     detail::state().timestamps.store(enable);
