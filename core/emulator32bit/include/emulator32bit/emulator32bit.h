@@ -412,7 +412,7 @@ class Emulator32bit
     void reset();
 
     /// @param pc The virtual address of the next instruction.
-    inline void set_pc(word pc)
+    inline void set_pc(const word pc)
     {
         m_pc = pc;
     }
@@ -427,13 +427,13 @@ class Emulator32bit
     ///
     /// @param reg The register.
     /// @return The value of the register.
-    inline word read_reg(Register reg)
+    inline word read_reg(const Register reg)
     {
         return m_x[register_to_U8(reg)];
     }
 
     /// Same as above, for the number of a register.
-    inline word read_reg(U8 reg)
+    inline word read_reg(const U8 reg)
     {
         return LIKELY(reg < kNumReg) ? m_x[reg] : 0;
     }
@@ -442,13 +442,13 @@ class Emulator32bit
     ///
     /// @param reg The register.
     /// @param val The value to store.
-    inline void write_reg(Register reg, word val)
+    inline void write_reg(const Register reg, const word val)
     {
         write_reg(register_to_U8(reg), val);
     }
 
     /// Same as above, for the number of a register.
-    inline void write_reg(U8 reg, word val)
+    inline void write_reg(const U8 reg, const word val)
     {
         if (LIKELY(reg < kNumReg && reg != register_to_U8(Register::XZR)))
         {
@@ -460,14 +460,14 @@ class Emulator32bit
     ///
     /// @param flag The bit number, e.g. kZFlagBit.
     /// @param value The new value of the bit.
-    inline void set_flag(U8 flag, bool value)
+    inline void set_flag(const U8 flag, const bool value)
     {
         m_pstate = set_bit(m_pstate, flag, value);
     }
 
     /// @param flag The bit number of PSTATE, e.g. kZFlagBit.
     /// @return Whether the bit is set.
-    inline bool get_flag(U8 flag)
+    inline bool get_flag(const U8 flag)
     {
         return test_bit(m_pstate, flag);
     }
@@ -478,7 +478,7 @@ class Emulator32bit
     /// @param Z The zero flag.
     /// @param C The carry flag.
     /// @param V The overflow flag.
-    inline void set_NZCV(bool N, bool Z, bool C, bool V)
+    inline void set_NZCV(const bool N, const bool Z, const bool C, const bool V)
     {
         m_pstate = (m_pstate & ~word(0xF)) | (word(N) << kNFlagBit) | (word(Z) << kZFlagBit)
                    | (word(C) << kCFlagBit) | (word(V) << kVFlagBit);

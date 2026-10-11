@@ -207,7 +207,7 @@ dword Disk::read_val(word address, const int n_bytes)
     address += n_bytes - 1;
     word page = address >> kNumPageOffsetBits; // Get the page address (upper bits).
     word offset = address & (kPageSize - 1); // Offset into the page (lower bits).
-    CachePage *cpage = &get_cpage(page);
+    const CachePage *cpage = &get_cpage(page);
 
     dword val = 0;
     for (int i = 0; i < n_bytes; i++)
@@ -384,7 +384,7 @@ void Disk::save()
 
     const std::vector<std::pair<word, word>> blocks = m_free_list.get_blocks();
     writer << ByteWriter::Data(MAGIC_HEADER, 4);
-    for (std::pair<word, word> block : blocks)
+    for (const std::pair<word, word> &block : blocks)
     {
         writer << ByteWriter::Data(block.first, 4);
         writer << ByteWriter::Data(block.second, 4);

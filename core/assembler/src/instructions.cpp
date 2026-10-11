@@ -68,7 +68,7 @@ void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
           "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
 }
 
-ConditionCode get_cond_code(TokenType type)
+ConditionCode get_cond_code(const TokenType type)
 {
     switch (type)
     {
@@ -113,7 +113,7 @@ ConditionCode get_cond_code(TokenType type)
     }
 }
 
-word Assembler::parse_format_b1(byte opcode)
+word Assembler::parse_format_b1(const byte opcode)
 {
     m_cursor.next();
 
@@ -153,7 +153,7 @@ word Assembler::parse_format_b1(byte opcode)
     return Emulator32bit::asm_format_b1(opcode, condition, value);
 }
 
-word Assembler::parse_format_b2(bool link)
+word Assembler::parse_format_b2(const bool link)
 {
     m_cursor.next();
 
@@ -173,7 +173,7 @@ word Assembler::parse_format_b2(bool link)
     return Emulator32bit::asm_format_b2(condition, reg, link);
 }
 
-word Assembler::parse_format_swi(byte opcode)
+word Assembler::parse_format_swi(const byte opcode)
 {
     m_cursor.next();
 
@@ -198,7 +198,7 @@ word Assembler::parse_format_swi(byte opcode)
     return Emulator32bit::asm_format_b1(opcode, condition, sword(number));
 }
 
-word Assembler::parse_format_m1(byte opcode)
+word Assembler::parse_format_m1(const byte opcode)
 {
     m_cursor.next();
     const byte reg = parse_register();
@@ -258,19 +258,19 @@ encoding::AddrType Assembler::encoded_mode(const encoding::AddrType mode, const 
     return encoding::AddrType::ADDR_UNALIGNED;
 }
 
-word Assembler::parse_format_m(byte opcode, bool unaligned)
+word Assembler::parse_format_m(const byte opcode, const bool unaligned)
 {
     // Whether the value to be loaded/stored should be interpreted as signed.
     const bool sign = m_cursor.next().has(basm::SIGN_EXTEND);
 
     // The register that is loaded (for a load) or stored (for a store).
-    byte reg_t = parse_register();
+    const byte reg_t = parse_register();
 
     expect(TokenType::COMMA, "expected ',' and a memory address");
     expect(TokenType::OPEN_BRACKET, "expected '[' to start the memory address");
 
     // Register that contains memory address.
-    byte reg_a = parse_register();
+    const byte reg_a = parse_register();
 
     const bool is_load =
         opcode == encoding::_op_ldr || opcode == encoding::_op_ldrb || opcode == encoding::_op_ldrh;
@@ -357,7 +357,7 @@ word Assembler::parse_format_m(byte opcode, bool unaligned)
     return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, mode);
 }
 
-word Assembler::parse_format_o3(byte opcode)
+word Assembler::parse_format_o3(const byte opcode)
 {
     // TODO: make sure to handle relocation.
     const bool s = m_cursor.next().has(basm::SETS_FLAGS);
@@ -406,9 +406,9 @@ word Assembler::parse_format_o3(byte opcode)
     return 0;
 }
 
-word Assembler::parse_format_o2(bool is_signed)
+word Assembler::parse_format_o2(const bool is_signed)
 {
-    bool s = m_cursor.next().has(basm::SETS_FLAGS);
+    const bool s = m_cursor.next().has(basm::SETS_FLAGS);
 
     const byte reg1 = parse_register();
     expect(TokenType::COMMA, "expected ','");
@@ -423,7 +423,7 @@ word Assembler::parse_format_o2(bool is_signed)
     return Emulator32bit::asm_format_o2(is_signed, s, reg1, reg2, operand_reg1, operand_reg2);
 }
 
-word Assembler::parse_format_o1(ShiftType type)
+word Assembler::parse_format_o1(const ShiftType type)
 {
     const bool s = m_cursor.next().has(basm::SETS_FLAGS);
 
@@ -447,7 +447,7 @@ word Assembler::parse_format_o1(ShiftType type)
     }
 }
 
-word Assembler::parse_format_o(byte opcode, bool implicit_dest)
+word Assembler::parse_format_o(const byte opcode, const bool implicit_dest)
 {
     // cmp, cmn, tst and teq are the flag setting form of their operation, with xzr as the
     // destination.
@@ -524,7 +524,7 @@ ConditionCode Assembler::parse_inverted_condition()
     return ConditionCode(U8(condition) ^ 1);
 }
 
-word Assembler::parse_format_csel(byte opcode, byte variant)
+word Assembler::parse_format_csel(const byte opcode, const byte variant)
 {
     UNUSED(opcode);
     m_cursor.next();
@@ -539,7 +539,7 @@ word Assembler::parse_format_csel(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, condition, xd, xn, xm);
 }
 
-word Assembler::parse_format_cset(byte opcode, byte variant)
+word Assembler::parse_format_cset(const byte opcode, const byte variant)
 {
     UNUSED(opcode);
     m_cursor.next();
@@ -551,7 +551,7 @@ word Assembler::parse_format_cset(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, inverse, xd, kZero, kZero);
 }
 
-word Assembler::parse_format_cinc(byte opcode, byte variant)
+word Assembler::parse_format_cinc(const byte opcode, const byte variant)
 {
     UNUSED(opcode);
     m_cursor.next();
@@ -564,7 +564,7 @@ word Assembler::parse_format_cinc(byte opcode, byte variant)
     return Emulator32bit::asm_csel(variant, inverse, xd, xn, xn);
 }
 
-word Assembler::parse_format_unary(byte operation)
+word Assembler::parse_format_unary(const byte operation)
 {
     m_cursor.next();
 
@@ -781,7 +781,7 @@ void Assembler::assemble_fmov(const bool dbl)
     }
 }
 
-word Assembler::parse_format_atomic(byte width, byte atopcode)
+word Assembler::parse_format_atomic(const byte width, const byte atopcode)
 {
     m_cursor.next();
 
@@ -834,7 +834,7 @@ static_assert(specs_follow_the_token_order());
 
 } // namespace
 
-const InstructionSpec &instruction_spec(TokenType type)
+const InstructionSpec &instruction_spec(const TokenType type)
 {
     return kInstructionSpecs[size_t(type) - size_t(TokenType::INSTRUCTION_HLT)];
 }

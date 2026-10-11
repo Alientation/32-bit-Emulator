@@ -54,7 +54,7 @@ std::string trim_dir_path(const std::string &str)
 }
 
 File::File(const std::string &name, const std::string &extension, const std::string &dir,
-           bool create_if_not_present) :
+           const bool create_if_not_present) :
     m_name(name),
     m_extension(extension)
 {
@@ -86,16 +86,17 @@ File::File(const std::string &name, const std::string &extension, const std::str
     }
 }
 
-File::File(const std::string &path, bool create_if_not_present)
+File::File(const std::string &path, const bool create_if_not_present)
 {
-    std::size_t extension_separator_index = path.find_last_of(".");
+    const std::size_t extension_separator_index = path.find_last_of(".");
     if (extension_separator_index == std::string::npos)
     {
         AEMU_FATAL("File path does not contain an extension: {}", path);
     }
 
-    bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
-    std::string name_and_extension = has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
+    const bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
+    const std::string name_and_extension =
+        has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
     m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
     m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
     m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
@@ -157,7 +158,7 @@ bool File::exists() const
 
 bool File::create()
 {
-    std::filesystem::path fs_path(get_path());
+    const std::filesystem::path fs_path(get_path());
 
     // Create all necessary directories. A bare file name has no parent directory, and
     // create_directories returns false when the directories already exist, so check the error
@@ -191,7 +192,7 @@ bool File::clear()
     return true;
 }
 
-FileWriter::FileWriter(const File &file, std::ios_base::openmode flags) :
+FileWriter::FileWriter(const File &file, const std::ios_base::openmode flags) :
     m_file(file)
 {
     m_file_stream = new std::ofstream(file.get_path(), flags);
@@ -208,13 +209,13 @@ FileWriter::~FileWriter()
     this->close();
 }
 
-FileWriter &FileWriter::operator<<(std::string str)
+FileWriter &FileWriter::operator<<(const std::string &str)
 {
     this->write(str);
     return *this;
 }
 
-FileWriter &FileWriter::operator<<(char byte)
+FileWriter &FileWriter::operator<<(const char byte)
 {
     this->write(byte);
     return *this;
@@ -226,20 +227,20 @@ FileWriter &FileWriter::operator<<(const char *str)
     return *this;
 }
 
-void FileWriter::write(const std::string text)
+void FileWriter::write(const std::string &text)
 {
     AEMU_CHECK(!m_closed, "The file is closed.");
 
     (*m_file_stream) << text;
 }
 
-ByteWriter::Data::Data(unsigned long long value, int num_bytes) :
+ByteWriter::Data::Data(const unsigned long long value, const int num_bytes) :
     value(value),
     num_bytes(num_bytes)
 {
 }
 
-ByteWriter::Data::Data(unsigned long long value, int num_bytes, bool little_endian)
+ByteWriter::Data::Data(unsigned long long value, const int num_bytes, const bool little_endian)
 {
     if (little_endian)
     {
@@ -262,12 +263,11 @@ ByteWriter::ByteWriter(FileWriter &filewriter) :
 {
 }
 
-ByteWriter &ByteWriter::operator<<(Data data)
+ByteWriter &ByteWriter::operator<<(const Data &data)
 {
     for (int i = 0; i < data.num_bytes; i++)
     {
-        m_filewriter.write(data.value & 0xFF);
-        data.value >>= 8;
+        m_filewriter.write((data.value >> (i * 8)) & 0xFF);
     }
     return (*this);
 }
@@ -302,9 +302,9 @@ void FileWriter::close()
     }
 }
 
-ByteReader::Data::Data(int num_bytes) :
+ByteReader::Data::Data(const int num_bytes) :
     num_bytes(num_bytes){};
-ByteReader::Data::Data(int num_bytes, bool little_endian) :
+ByteReader::Data::Data(const int num_bytes, const bool little_endian) :
     num_bytes(num_bytes),
     little_endian(little_endian){};
 
@@ -336,40 +336,40 @@ bool ByteReader::has_next()
     return m_cur_byte < m_bytes.size();
 }
 
-unsigned char ByteReader::read_byte(bool little_endian)
+unsigned char ByteReader::read_byte(const bool little_endian)
 {
     ByteReader::Data data(1, little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned short ByteReader::read_hword(bool little_endian)
+unsigned short ByteReader::read_hword(const bool little_endian)
 {
     ByteReader::Data data(2, little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned int ByteReader::read_word(bool little_endian)
+unsigned int ByteReader::read_word(const bool little_endian)
 {
     ByteReader::Data data(4, little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned long long ByteReader::read_dword(bool little_endian)
+unsigned long long ByteReader::read_dword(const bool little_endian)
 {
     ByteReader::Data data(8, little_endian);
     (*this) >> data;
     return data.val;
 }
 
-void ByteReader::skip_bytes(int num_bytes)
+void ByteReader::skip_bytes(const int num_bytes)
 {
     m_cur_byte += num_bytes;
 }
 
-FileReader::FileReader(const File &file, std::ios_base::openmode flags) :
+FileReader::FileReader(const File &file, const std::ios_base::openmode flags) :
     m_file(file)
 {
     m_file_stream = new std::ifstream(m_file.get_path(), flags);

@@ -45,24 +45,24 @@ SourceId SourceManager::add_file(const std::string &path)
     return add(path, std::move(text));
 }
 
-const SourceManager::Source *SourceManager::get(SourceId id) const
+const SourceManager::Source *SourceManager::get(const SourceId id) const
 {
     return id < m_sources.size() ? &m_sources[id] : nullptr;
 }
 
-std::string_view SourceManager::name(SourceId id) const
+std::string_view SourceManager::name(const SourceId id) const
 {
     const Source *s = get(id);
     return s ? std::string_view(s->name) : std::string_view();
 }
 
-std::string_view SourceManager::text(SourceId id) const
+std::string_view SourceManager::text(const SourceId id) const
 {
     const Source *s = get(id);
     return s ? std::string_view(s->text) : std::string_view();
 }
 
-std::string_view SourceManager::line_text(SourceId id, U32 line) const
+std::string_view SourceManager::line_text(const SourceId id, const U32 line) const
 {
     const Source *s = get(id);
     if (s == nullptr || line == 0 || line > s->line_starts.size()) return {};
@@ -73,13 +73,13 @@ std::string_view SourceManager::line_text(SourceId id, U32 line) const
     return std::string_view(s->text).substr(begin, end - begin);
 }
 
-U32 SourceManager::add_expansion(std::string name, bool is_macro, const SourceLocation &site)
+U32 SourceManager::add_expansion(std::string name, const bool is_macro, const SourceLocation &site)
 {
     m_expansions.push_back({std::move(name), is_macro, site});
     return static_cast<U32>(m_expansions.size());
 }
 
-const SourceManager::Expansion *SourceManager::expansion(U32 id) const
+const SourceManager::Expansion *SourceManager::expansion(const U32 id) const
 {
     if (id == 0 || id > m_expansions.size()) return nullptr;
     return &m_expansions[id - 1];
@@ -89,7 +89,7 @@ const SourceManager::Expansion *SourceManager::expansion(U32 id) const
 // Token helpers
 // ---------------------------------------------------------------------------------------------
 
-std::string_view to_string(TokenType type)
+std::string_view to_string(const TokenType type)
 {
     static constexpr std::string_view kNames[] = {
 #define BASM_X(name) #name,
@@ -116,27 +116,27 @@ std::string describe(const Token &token)
 namespace
 {
 
-static constexpr bool is_digit(char c)
+static constexpr bool is_digit(const char c)
 {
     return c >= '0' && c <= '9';
 }
 
-static constexpr bool is_ident_start(char c)
+static constexpr bool is_ident_start(const char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-static constexpr bool is_ident_char(char c)
+static constexpr bool is_ident_char(const char c)
 {
     return is_ident_start(c) || is_digit(c);
 }
 
-static constexpr bool is_newline(char c)
+static constexpr bool is_newline(const char c)
 {
     return c == '\n' || c == '\r';
 }
 
-static constexpr int digit_value(char c)
+static constexpr int digit_value(const char c)
 {
     if (c >= '0' && c <= '9')
     {
@@ -153,7 +153,7 @@ static constexpr int digit_value(char c)
     return -1;
 }
 
-static constexpr U64 escape_value(char c)
+static constexpr U64 escape_value(const char c)
 {
     switch (c)
     {
@@ -178,9 +178,9 @@ static constexpr U64 escape_value(char c)
     }
 }
 
-bool digits_valid(std::string_view digits, int base)
+bool digits_valid(const std::string_view digits, const int base)
 {
-    for (char c : digits)
+    for (const char c : digits)
     {
         const int d = digit_value(c);
         if (d < 0 || d >= base) return false;
@@ -189,10 +189,10 @@ bool digits_valid(std::string_view digits, int base)
 }
 
 /// Digits must already be validated. Returns false on overflow.
-bool parse_uint(U64 &out, std::string_view digits, int base)
+bool parse_uint(U64 &out, const std::string_view digits, const int base)
 {
     U64 value = 0;
-    for (char c : digits)
+    for (const char c : digits)
     {
         const U64 d = U64(digit_value(c));
         if (value > (UINT64_MAX - d) / U64(base)) return false;
@@ -484,7 +484,7 @@ const KeywordMap &preprocessor_directives()
 }
 
 /// Exact match, or the flag setting `s` variant of an instruction that allows it.
-std::optional<Keyword> find_keyword(const KeywordMap &map, std::string_view text)
+std::optional<Keyword> find_keyword(const KeywordMap &map, const std::string_view text)
 {
     if (auto it = map.find(text); it != map.end()) return it->second;
     if (text.size() > 1 && text.back() == 's')
@@ -501,7 +501,7 @@ std::optional<Keyword> find_keyword(const KeywordMap &map, std::string_view text
 }
 
 /// Only x0-x29 are registers, written without leading zeros.
-std::optional<TokenType> parse_register(std::string_view text)
+std::optional<TokenType> parse_register(const std::string_view text)
 {
     if (text.size() < 2 || text.size() > 3 || text[0] != 'x' || !is_digit(text[1]))
         return std::nullopt;
@@ -518,7 +518,7 @@ std::optional<TokenType> parse_register(std::string_view text)
 class Lexer
 {
   public:
-    Lexer(std::string_view src, SourceId id, const LexOptions &options) :
+    Lexer(const std::string_view src, const SourceId id, const LexOptions &options) :
         m_src(src),
         m_id(id),
         m_opts(options)
@@ -572,13 +572,13 @@ class Lexer
                 .column = U32(m_pos - m_line_start + 1)};
     }
 
-    char peek(std::size_t ahead = 0) const
+    char peek(const std::size_t ahead = 0) const
     {
         return m_pos + ahead < m_src.size() ? m_src[m_pos + ahead] : '\0';
     }
 
-    void emit_text(TokenType type, std::size_t begin, std::size_t len, const SourceLocation &loc,
-                   U8 flags = 0, U64 value = 0)
+    void emit_text(const TokenType type, const std::size_t begin, const std::size_t len,
+                   const SourceLocation &loc, const U8 flags = 0, const U64 value = 0)
     {
         Token tok;
         tok.type = type;
@@ -594,13 +594,13 @@ class Lexer
     }
 
     /// Token covering [begin, m_pos).
-    void emit(TokenType type, std::size_t begin, const SourceLocation &loc, U8 flags = 0,
-              U64 value = 0)
+    void emit(const TokenType type, const std::size_t begin, const SourceLocation &loc,
+              const U8 flags = 0, const U64 value = 0)
     {
         emit_text(type, begin, m_pos - begin, loc, flags, value);
     }
 
-    void report(Severity severity, const SourceLocation &loc, std::string message)
+    void report(const Severity severity, const SourceLocation &loc, std::string message)
     {
         if (severity == Severity::ERROR) m_result.has_errors = true;
         m_result.diagnostics.push_back({severity, loc, std::move(message)});
@@ -612,7 +612,7 @@ class Lexer
     }
 
     /// Moves to `end`, keeping line information right for any line breaks skipped.
-    void advance_to(std::size_t end)
+    void advance_to(const std::size_t end)
     {
         for (std::size_t i = m_pos; i < end; i++)
         {
@@ -809,7 +809,7 @@ class Lexer
         }
     }
 
-    bool is_condition_position(std::size_t begin) const
+    bool is_condition_position(const std::size_t begin) const
     {
         const std::vector<Token> &toks = m_result.tokens;
         if (toks.size() < 2 || m_space) return false;
@@ -847,7 +847,7 @@ class Lexer
                && toks[first].type <= TokenType::INSTRUCTION_CNEG;
     }
 
-    void lex_word(std::size_t begin, const SourceLocation &loc)
+    void lex_word(const std::size_t begin, const SourceLocation &loc)
     {
         const std::size_t n = m_src.size();
         std::size_t end = begin + 1;
@@ -915,7 +915,7 @@ class Lexer
         emit(type, begin, loc, flags);
     }
 
-    void lex_dot(std::size_t begin, const SourceLocation &loc)
+    void lex_dot(const std::size_t begin, const SourceLocation &loc)
     {
         const char d = peek(1);
 
@@ -954,7 +954,7 @@ class Lexer
         emit(TokenType::PERIOD, begin, loc);
     }
 
-    void lex_hash(std::size_t begin, const SourceLocation &loc)
+    void lex_hash(const std::size_t begin, const SourceLocation &loc)
     {
         if (!assembly() || !is_ident_start(peek(1)))
         {
@@ -980,7 +980,7 @@ class Lexer
         }
     }
 
-    void lex_string(std::size_t begin, const SourceLocation &loc)
+    void lex_string(const std::size_t begin, const SourceLocation &loc)
     {
         const std::size_t n = m_src.size();
         std::size_t i = begin + 1;
@@ -1003,7 +1003,7 @@ class Lexer
         }
     }
 
-    void lex_char(std::size_t begin, const SourceLocation &loc)
+    void lex_char(const std::size_t begin, const SourceLocation &loc)
     {
         const std::size_t n = m_src.size();
         std::size_t i = begin + 1;
@@ -1036,7 +1036,7 @@ class Lexer
 
     // ----- numbers -----
 
-    void finish_float(std::size_t begin, const SourceLocation &loc)
+    void finish_float(const std::size_t begin, const SourceLocation &loc)
     {
         if (is_ident_char(peek()))
         {
@@ -1051,7 +1051,7 @@ class Lexer
 
     /// A number in the notation that was dropped (`$FF`, `%101`, `@17`): consumes it and says how
     /// the numbers of that base are written now.
-    void lex_old_number(std::size_t begin, const SourceLocation &loc, const char *base_name,
+    void lex_old_number(const std::size_t begin, const SourceLocation &loc, const char *base_name,
                         const char *new_example, const char *old_example)
     {
         std::size_t end = begin + 1;
@@ -1066,8 +1066,9 @@ class Lexer
     /// Integer literal whose digits start after `prefix_len` characters. The whole identifier
     /// run is consumed so that `0x12G` is one bad token instead of a number and a symbol.
     /// `consume` false means there is nothing valid after the prefix.
-    void lex_prefixed(std::size_t begin, const SourceLocation &loc, std::size_t prefix_len,
-                      int base, TokenType type, const char *name, bool consume)
+    void lex_prefixed(const std::size_t begin, const SourceLocation &loc,
+                      const std::size_t prefix_len, const int base, const TokenType type,
+                      const char *name, const bool consume)
     {
         std::size_t end = begin + prefix_len;
         if (consume)
@@ -1096,7 +1097,7 @@ class Lexer
         emit(type, begin, loc, 0, value);
     }
 
-    void lex_number(std::size_t begin, const SourceLocation &loc)
+    void lex_number(const std::size_t begin, const SourceLocation &loc)
     {
         const std::size_t n = m_src.size();
 
@@ -1144,7 +1145,7 @@ class Lexer
 
     // ----- punctuation and operators -----
 
-    static std::string describe_byte(char c)
+    static std::string describe_byte(const char c)
     {
         const unsigned char u = static_cast<unsigned char>(c);
         if (u >= 0x20 && u < 0x7F) return std::string("'") + c + "'";
@@ -1154,14 +1155,14 @@ class Lexer
     }
 
     /// Token of `length` characters from `begin`.
-    void emit_punct(TokenType type, std::size_t begin, std::size_t length,
+    void emit_punct(const TokenType type, const std::size_t begin, const std::size_t length,
                     const SourceLocation &loc)
     {
         m_pos = begin + length;
         emit(type, begin, loc);
     }
 
-    void lex_punct(std::size_t begin, const SourceLocation &loc)
+    void lex_punct(const std::size_t begin, const SourceLocation &loc)
     {
         const char c = m_src[begin];
         const char d = peek(1);
@@ -1299,7 +1300,7 @@ class Lexer
 
 } // namespace
 
-LexResult lex(const SourceManager &sources, SourceId id, const LexOptions &options)
+LexResult lex(const SourceManager &sources, const SourceId id, const LexOptions &options)
 {
     return Lexer(sources.text(id), id, options).run();
 }
@@ -1343,7 +1344,7 @@ void fatal_at(const SourceManager &sources, const SourceLocation &loc, const std
 // TokenCursor
 // ---------------------------------------------------------------------------------------------
 
-const Token &TokenCursor::peek(std::size_t ahead) const
+const Token &TokenCursor::peek(const std::size_t ahead) const
 {
     static const Token kEof{};
     if (m_pos + ahead < m_tokens.size()) return m_tokens[m_pos + ahead];
@@ -1358,12 +1359,12 @@ const Token &TokenCursor::next()
     return tok;
 }
 
-bool TokenCursor::accept(TokenType type)
+bool TokenCursor::accept(const TokenType type)
 {
     return try_next(type) != nullptr;
 }
 
-const Token *TokenCursor::try_next(TokenType type)
+const Token *TokenCursor::try_next(const TokenType type)
 {
     if (!check(type)) return nullptr;
     return &next();

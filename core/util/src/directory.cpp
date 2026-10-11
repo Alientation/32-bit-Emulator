@@ -5,7 +5,7 @@
 
 #include <filesystem>
 
-Directory::Directory(const std::string &path, bool create_if_not_present)
+Directory::Directory(const std::string &path, const bool create_if_not_present)
 {
     this->m_dir_path = trim_dir_path(path);
 

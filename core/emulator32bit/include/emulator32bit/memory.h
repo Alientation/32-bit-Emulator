@@ -38,7 +38,7 @@ class BaseMemory
     /// @param out Where to copy the bytes to, with room for `size` bytes.
     /// @param address The address of the first byte.
     /// @param size The number of bytes.
-    virtual void read_block(byte *out, word address, word size)
+    virtual void read_block(byte *out, const word address, const word size)
     {
         for (word i = 0; i < size; i++)
         {
@@ -51,7 +51,7 @@ class BaseMemory
     /// @param address The address of the first byte to write.
     /// @param data The bytes to copy.
     /// @param size The number of bytes.
-    virtual void write_block(word address, const byte *data, word size)
+    virtual void write_block(const word address, const byte *data, const word size)
     {
         for (word i = 0; i < size; i++)
         {
@@ -79,7 +79,7 @@ class BaseMemory
 
     /// @param address A physical address.
     /// @return Whether the address is in this memory.
-    inline bool in_bounds(word address) const
+    inline bool in_bounds(const word address) const
     {
         // Compared as pages: the end of memory at the top of the address space is 2^32, which
         // is not an address. A page below the start wraps around to a number that is larger than
@@ -149,18 +149,18 @@ class Memory : public BaseMemory
     // Values are little endian in memory whatever the host is. The bytes are put together one by
     // one, a pointer to the memory as a word would not be aligned for an odd address, and the
     // compiler turns this into one load.
-    inline byte read_byte(word address) override
+    inline byte read_byte(const word address) override
     {
         return m_data[address - m_start_addr];
     }
 
-    inline hword read_hword(word address) override
+    inline hword read_hword(const word address) override
     {
         const byte *p = m_data + (address - m_start_addr);
         return hword(p[0] | (hword(p[1]) << 8));
     }
 
-    inline word read_word(word address) override
+    inline word read_word(const word address) override
     {
         const byte *p = m_data + (address - m_start_addr);
         return word(p[0]) | (word(p[1]) << 8) | (word(p[2]) << 16) | (word(p[3]) << 24);
@@ -170,41 +170,41 @@ class Memory : public BaseMemory
     ///
     /// @param address The address, aligned to 4 bytes.
     /// @return The word.
-    inline word read_word_aligned(word address)
+    inline word read_word_aligned(const word address)
     {
         return read_word(address);
     }
 
     /// @param address An address in this memory.
     /// @return A pointer to the bytes from the address on.
-    byte *bytes_at(word address)
+    byte *bytes_at(const word address)
     {
         return m_data + (address - m_start_addr);
     }
 
-    void read_block(byte *out, word address, word size) override
+    void read_block(byte *out, const word address, const word size) override
     {
         std::copy_n(m_data + (address - m_start_addr), size, out);
     }
 
-    void write_block(word address, const byte *data, word size) override
+    void write_block(const word address, const byte *data, const word size) override
     {
         std::copy_n(data, size, m_data + (address - m_start_addr));
     }
 
-    inline void write_byte(word address, byte value) override
+    inline void write_byte(const word address, const byte value) override
     {
         m_data[address - m_start_addr] = value;
     }
 
-    inline void write_hword(word address, hword value) override
+    inline void write_hword(const word address, const hword value) override
     {
         byte *p = m_data + (address - m_start_addr);
         p[0] = byte(value);
         p[1] = byte(value >> 8);
     }
 
-    inline void write_word(word address, word value) override
+    inline void write_word(const word address, const word value) override
     {
         byte *p = m_data + (address - m_start_addr);
         p[0] = byte(value);

@@ -3,8 +3,8 @@
 #include "emulator32bit/emulator32bit.h"
 #include "util/logger.h"
 
-word apply_relocation(ObjectFile::RelocationEntry::Type type, word instr, word instr_address,
-                      word target)
+word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word instr,
+                      const word instr_address, const word target)
 {
     using Type = ObjectFile::RelocationEntry::Type;
 

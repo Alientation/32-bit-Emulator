@@ -10,7 +10,7 @@
 class LoadExecutable
 {
   public:
-    LoadExecutable(Emulator32bit &emu, File exe_file);
+    LoadExecutable(Emulator32bit &emu, const File &exe_file);
 
     /// Reads the executable and copies it into the emulator. The emulator must already have a
     /// current process (VirtualMemory::begin_process) if the sections are placed at virtual

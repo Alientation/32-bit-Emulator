@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstdio>
 
-FreeBlockList::FreeBlockList(const word begin, word len, const bool init) :
+FreeBlockList::FreeBlockList(const word begin, const word len, const bool init) :
     m_begin(begin),
     m_len(len)
 {
@@ -20,10 +20,10 @@ FreeBlockList::FreeBlockList(const word begin, word len, const bool init) :
 
 FreeBlockList::~FreeBlockList()
 {
-    FreeBlock *cur = m_head;
+    const FreeBlock *cur = m_head;
     while (cur != nullptr)
     {
-        FreeBlock *next = cur->next;
+        const FreeBlock *next = cur->next;
         delete (cur);
         cur = next;
     }
@@ -50,7 +50,7 @@ word FreeBlockList::get_free_block(const word length)
     }
 
     // Split the block: the front part is the free block that is returned.
-    word addr = freeblock->addr;
+    const word addr = freeblock->addr;
     freeblock->len -= length;
     freeblock->addr += length;
 
@@ -95,7 +95,7 @@ void FreeBlockList::remove_block(const word addr, const word length)
     }
 }
 
-FreeBlockList::FreeBlock *FreeBlockList::insert(word addr, const word length)
+FreeBlockList::FreeBlock *FreeBlockList::insert(const word addr, const word length)
 {
     if (!m_head || addr < m_head->addr)
     {
@@ -199,10 +199,10 @@ void FreeBlockList::force_return_block(const word addr, const word length)
 
 void FreeBlockList::return_all()
 {
-    FreeBlock *cur = m_head;
+    const FreeBlock *cur = m_head;
     while (cur)
     {
-        FreeBlock *next = cur;
+        const FreeBlock *next = cur;
         cur = cur->next;
         delete next;
     }
@@ -218,7 +218,7 @@ void FreeBlockList::return_all()
 std::vector<std::pair<word, word>> FreeBlockList::get_blocks()
 {
     std::vector<std::pair<word, word>> blocks;
-    for (FreeBlock *cur = m_head; cur; cur = cur->next)
+    for (const FreeBlock *cur = m_head; cur; cur = cur->next)
     {
         blocks.push_back(std::pair<word, word>(cur->addr, cur->len));
     }
@@ -238,7 +238,7 @@ bool FreeBlockList::empty()
 word FreeBlockList::size()
 {
     word size = 0;
-    for (FreeBlock *cur = m_head; cur; cur = cur->next)
+    for (const FreeBlock *cur = m_head; cur; cur = cur->next)
     {
         size += cur->len;
     }
@@ -289,7 +289,7 @@ void FreeBlockList::coalesce(FreeBlock *first)
     }
 
     first->len += first->next->len;
-    FreeBlock *cur = first->next;
+    const FreeBlock *cur = first->next;
     first->next = first->next->next;
 
     if (first->next)

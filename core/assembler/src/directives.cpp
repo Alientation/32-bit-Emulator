@@ -24,7 +24,7 @@ void Assembler::warn(const Token &at, const std::string &message)
     AEMU_WARN("{}", text);
 }
 
-const Token &Assembler::expect(TokenType type, const std::string &message)
+const Token &Assembler::expect(const TokenType type, const std::string &message)
 {
     if (!m_cursor.check(type))
     {
@@ -33,7 +33,7 @@ const Token &Assembler::expect(TokenType type, const std::string &message)
     return m_cursor.next();
 }
 
-void Assembler::check(bool condition, const std::string &message)
+void Assembler::check(const bool condition, const std::string &message)
 {
     if (!condition)
     {
@@ -54,7 +54,7 @@ namespace
 {
 
 /// Binding strength of a binary operator, 0 if the token is not one. Same order as C.
-int binary_precedence(TokenType type)
+int binary_precedence(const TokenType type)
 {
     switch (type)
     {
@@ -225,7 +225,7 @@ Assembler::ExprValue Assembler::parse_unary_expression()
     }
 }
 
-Assembler::ExprValue Assembler::parse_binary_expression(int min_precedence)
+Assembler::ExprValue Assembler::parse_binary_expression(const int min_precedence)
 {
     ExprValue left = parse_unary_expression();
     while (true)
@@ -394,8 +394,9 @@ Assembler::ExprValue Assembler::parse_symbol_operand(const std::string &expected
     return target;
 }
 
-void Assembler::add_relocation(std::vector<ObjectFile::RelocationEntry> &relocations, word offset,
-                               ObjectFile::RelocationEntry::Type type, const ExprValue &target)
+void Assembler::add_relocation(std::vector<ObjectFile::RelocationEntry> &relocations,
+                               const word offset, const ObjectFile::RelocationEntry::Type type,
+                               const ExprValue &target)
 {
     const S64 addend = S64(target.value) - S64(target.base);
     check(addend >= INT32_MIN && addend <= INT32_MAX,
@@ -429,7 +430,7 @@ void Assembler::_equ()
     m_constants[key] = value;
 }
 
-dword Assembler::parse_expression(dword min, dword max)
+dword Assembler::parse_expression(const dword min, const dword max)
 {
     AEMU_DEBUG("Parsing expression.");
 
@@ -583,7 +584,7 @@ std::vector<ObjectFile::RelocationEntry> &Assembler::code_relocations()
     return m_cur_section == Section::TEXT ? m_obj.rel_text : section_relocations();
 }
 
-void Assembler::enter_byte_section(Section section, const char *name)
+void Assembler::enter_byte_section(const Section section, const char *name)
 {
     m_cur_section = section;
     m_cur_section_index = m_obj.section_table[name];
@@ -856,7 +857,7 @@ void Assembler::_section()
     // .strtab, .rel.* and what the relocations of a section of the program are called.
     check_section_name(name_token, name);
 
-    ObjectFile::UserSection *user = m_obj.find_user_section(name);
+    const ObjectFile::UserSection *user = m_obj.find_user_section(name);
     if (user == nullptr)
     {
         if (flags_token == nullptr) writable = true; // "rw"
@@ -963,23 +964,22 @@ std::vector<dword> Assembler::parse_arguments()
     return args;
 }
 
-std::vector<byte> convert_little_endian(std::vector<dword> data, U8 n_bytes)
+std::vector<byte> convert_little_endian(const std::vector<dword> &data, const U8 n_bytes)
 {
     std::vector<byte> little_endian_data;
 
-    for (size_t i = 0; i < data.size(); i++)
+    for (const dword value : data)
     {
         for (U8 j = 0; j < n_bytes; j++)
         {
-            little_endian_data.push_back(data.at(i) & 0xFF);
-            data.at(i) >>= 8;
+            little_endian_data.push_back((value >> (j * 8)) & 0xFF);
         }
     }
 
     return little_endian_data;
 }
 
-void Assembler::define_data(const char *directive, U8 n_bytes)
+void Assembler::define_data(const char *directive, const U8 n_bytes)
 {
     check(in_byte_section(),
           std::string(directive)
@@ -1000,7 +1000,7 @@ void Assembler::define_data(const char *directive, U8 n_bytes)
     } while (m_cursor.accept(TokenType::COMMA));
 }
 
-void Assembler::append_value(const char *directive, U8 n_bytes, const ExprValue &result,
+void Assembler::append_value(const char *directive, const U8 n_bytes, const ExprValue &result,
                              const Token &first)
 {
     if (result.label != nullptr)

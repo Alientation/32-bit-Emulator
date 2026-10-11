@@ -18,14 +18,14 @@ class Linker
     ///
     /// @param obj_files the object files to link
     /// @param exe_file the executable to write
-    Linker(std::vector<ObjectFile> obj_files, File exe_file);
+    Linker(std::vector<ObjectFile> obj_files, const File &exe_file);
 
     /// Links with a linker script.
     ///
     /// @param obj_files the object files to link
     /// @param exe_file the executable to write
     /// @param ld_file the linker script
-    Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file);
+    Linker(std::vector<ObjectFile> obj_files, const File &exe_file, const File &ld_file);
 
     /// Reads the linker script, places the sections of all object files, resolves every symbol and
     /// relocation, and writes the executable. Fatal on a bad script or an undefined symbol.

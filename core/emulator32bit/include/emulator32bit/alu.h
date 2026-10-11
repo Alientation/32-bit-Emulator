@@ -54,7 +54,7 @@ static_assert(kNumReg == 32);
 
 /// @param reg The register.
 /// @return The number of the register.
-constexpr inline U8 register_to_U8(Register reg)
+constexpr inline U8 register_to_U8(const Register reg)
 {
     return static_cast<U8>(reg);
 }
@@ -68,7 +68,7 @@ inline constexpr const char *kRegisterNames[kNumReg] = {
 
 /// @param reg The number of a register, below kNumReg.
 /// @return Its name: x0-x27, fp, lr, sp or xzr.
-inline const char *register_name(U8 reg)
+inline const char *register_name(const U8 reg)
 {
     assert(reg < kNumReg);
     return kRegisterNames[reg];

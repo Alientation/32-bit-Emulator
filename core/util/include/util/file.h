@@ -120,14 +120,14 @@ class FileWriter
     ~FileWriter();
 
     /// Same as write().
-    FileWriter &operator<<(std::string);
+    FileWriter &operator<<(const std::string &);
     FileWriter &operator<<(char byte);
     FileWriter &operator<<(const char *bytes);
 
     /// Writes a string to the file.
     ///
     /// @param text the string to write
-    void write(std::string text);
+    void write(const std::string &text);
 
     /// Writes a byte to the file.
     ///
@@ -179,7 +179,7 @@ class ByteWriter
     ///
     /// @param data the value and how many bytes of it to write
     /// @return this writer
-    ByteWriter &operator<<(Data data);
+    ByteWriter &operator<<(const Data &data);
 
   private:
     FileWriter &m_filewriter;

@@ -49,7 +49,7 @@ std::string to_hex_str(U32 hex);
 ///
 /// @param string the string to pretty stringify
 /// @return the pretty stringified value
-std::string color_val_str(std::string string);
+std::string color_val_str(const std::string &string);
 
 /// Same as to_hex_str(), colored with color_val_str(). The 64 bit overload takes the number of
 /// digits, the 32 bit one has 8.

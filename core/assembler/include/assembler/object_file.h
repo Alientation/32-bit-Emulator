@@ -30,12 +30,12 @@ class ObjectFile
     /// Reads an object file.
     ///
     /// @param obj_file the file to read
-    ObjectFile(File obj_file);
+    ObjectFile(const File &obj_file);
 
     /// Replaces the contents with those of a file. A file that is not valid is a fatal error.
     ///
     /// @param object_file the file to read
-    void read_object_file(File object_file);
+    void read_object_file(const File &object_file);
 
     /// Replaces the contents with those of an object file that is in memory.
     ///
@@ -45,7 +45,7 @@ class ObjectFile
     /// Writes the object file.
     ///
     /// @param object_file the file to write
-    void write_object_file(File object_file);
+    void write_object_file(const File &object_file);
 
     /// A symbol of this file: one it defines, or one it refers to.
     struct SymbolTableEntry

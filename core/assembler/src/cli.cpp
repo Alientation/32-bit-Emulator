@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-int main(int argc, char *argv[])
+int main(const int argc, char *argv[])
 {
     // The arguments are passed as they are, a path with spaces in it is one argument.
     const std::vector<std::string> args(argv + 1, argv + argc);

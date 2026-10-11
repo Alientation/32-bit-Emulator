@@ -39,7 +39,8 @@ inline void host_barrier()
 class HostFpu
 {
   public:
-    [[gnu::always_inline]] explicit HostFpu(word rounding) : m_saved(_mm_getcsr())
+    [[gnu::always_inline]] explicit HostFpu(const word rounding) :
+        m_saved(_mm_getcsr())
     {
         // All exceptions masked (0x1F80), the rounding control in bits 14-13: 00 nearest,
         // 01 down, 10 up, 11 zero.

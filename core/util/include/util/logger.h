@@ -130,7 +130,7 @@ struct Record
 /// sink does not need its own synchronization, but it must not log (that would deadlock).
 using Sink = std::function<void(const Record &)>;
 
-constexpr std::string_view to_string(Level level)
+constexpr std::string_view to_string(const Level level)
 {
     switch (level)
     {
@@ -151,7 +151,7 @@ constexpr std::string_view to_string(Level level)
 }
 
 /// Parses "debug", "info", "warn"/"warning", "error", "fatal", "off"/"none". Case insensitive.
-inline std::optional<Level> parse_level(std::string_view name)
+inline std::optional<Level> parse_level(const std::string_view name)
 {
     std::string lower(name);
     for (char &c : lower)
@@ -239,13 +239,13 @@ inline State &state()
 }
 
 /// Whether call sites of this level survive AEMU_LOG_COMPILE_LEVEL.
-constexpr bool compiled_in(Level level)
+constexpr bool compiled_in(const Level level)
 {
     constexpr int kCompileLevel = AEMU_LOG_COMPILE_LEVEL;
     return static_cast<int>(level) >= kCompileLevel;
 }
 
-constexpr std::string_view level_color(Level level)
+constexpr std::string_view level_color(const Level level)
 {
     switch (level)
     {
@@ -265,14 +265,14 @@ constexpr std::string_view level_color(Level level)
 }
 
 /// "/a/b/c.cpp" -> "c.cpp". Source paths are printed without their directory.
-inline std::string_view basename(std::string_view path)
+inline std::string_view basename(const std::string_view path)
 {
     const size_t slash = path.find_last_of("/\\");
     return slash == std::string_view::npos ? path : path.substr(slash + 1);
 }
 
 /// Default sink: `[ERR] [file.cpp:123]: message` on stderr, with an optional time prefix.
-inline void write_default(const Record &record, bool color, bool timestamps)
+inline void write_default(const Record &record, const bool color, const bool timestamps)
 {
     std::string line;
 
@@ -315,13 +315,13 @@ inline Level get_level()
 }
 
 /// Sets the minimum level that is emitted.
-inline void set_level(Level level)
+inline void set_level(const Level level)
 {
     detail::state().level.store(level);
 }
 
 /// Whether a message of this level would currently be emitted.
-inline bool enabled(Level level)
+inline bool enabled(const Level level)
 {
     return level >= get_level();
 }
@@ -333,19 +333,19 @@ inline FatalAction get_fatal_action()
 }
 
 /// Chooses what AEMU_FATAL and AEMU_CHECK do after logging.
-inline void set_fatal_action(FatalAction action)
+inline void set_fatal_action(const FatalAction action)
 {
     detail::state().fatal_action.store(action);
 }
 
 /// Enable or disable ANSI colors in the default sink. Auto detected by default (tty, NO_COLOR).
-inline void set_color(bool enable)
+inline void set_color(const bool enable)
 {
     detail::state().color.store(enable);
 }
 
 /// Prefix each line of the default sink with the seconds since the logger started.
-inline void set_timestamps(bool enable)
+inline void set_timestamps(const bool enable)
 {
     detail::state().timestamps.store(enable);
 }
@@ -354,7 +354,7 @@ inline void set_timestamps(bool enable)
 inline void set_sink(Sink sink)
 {
     detail::State &s = detail::state();
-    std::lock_guard lock(s.mutex);
+    const std::lock_guard lock(s.mutex);
     s.sink = std::move(sink);
 }
 
@@ -368,7 +368,7 @@ inline void reset_sink()
 class ScopedLevel
 {
   public:
-    explicit ScopedLevel(Level level) :
+    explicit ScopedLevel(const Level level) :
         m_previous(get_level())
     {
         set_level(level);
@@ -391,7 +391,7 @@ class ScopedLevel
 class ScopedFatalAction
 {
   public:
-    explicit ScopedFatalAction(FatalAction action) :
+    explicit ScopedFatalAction(const FatalAction action) :
         m_previous(get_fatal_action())
     {
         set_fatal_action(action);
@@ -415,7 +415,8 @@ class ScopedFatalAction
 
 /// Emits an already formatted message if `level` passes the filter. Use this when the message is
 /// not a format string, otherwise prefer the AEMU_* macros.
-inline void write(Level level, const std::source_location &location, std::string_view message)
+inline void write(const Level level, const std::source_location &location,
+                  const std::string_view message)
 {
     detail::State &s = detail::state();
     if (level < s.level.load(std::memory_order_relaxed))
@@ -425,7 +426,7 @@ inline void write(Level level, const std::source_location &location, std::string
 
     const Record record{level, location, message, detail::monotonic_ns() - s.start_ns};
 
-    std::lock_guard lock(s.mutex);
+    const std::lock_guard lock(s.mutex);
     if (s.sink)
     {
         s.sink(record);
@@ -437,7 +438,7 @@ inline void write(Level level, const std::source_location &location, std::string
 }
 
 /// Logs at Fatal level, then terminates according to the FatalAction. Never returns.
-[[noreturn]] inline void fatal(const std::source_location &location, std::string_view message)
+[[noreturn]] inline void fatal(const std::source_location &location, const std::string_view message)
 {
     write(Level::Fatal, location, message);
 
@@ -491,7 +492,7 @@ class ScopedTimer
 {
   public:
     explicit ScopedTimer(std::string tag,
-                         std::source_location location = std::source_location::current()) :
+                         const std::source_location location = std::source_location::current()) :
         m_tag(std::move(tag)),
         m_location(location),
         m_start(detail::monotonic_ns())
@@ -513,7 +514,7 @@ class ScopedTimer
     ScopedTimer &operator=(const ScopedTimer &) = delete;
 
   private:
-    static std::string format_duration(long long ns)
+    static std::string format_duration(const long long ns)
     {
         if (ns <= 10'000)
         {

@@ -75,7 +75,7 @@ constexpr U8 kUnaryFn_count = 15;
 /// @param dbl The precision bit of the instruction: the float operand is a double. For
 ///        kUnaryFn_fcvt it is the precision of the source.
 /// @return Whether the destination is a register pair (a double).
-constexpr bool unary_dest_is_pair(U8 fn, bool dbl)
+constexpr bool unary_dest_is_pair(const U8 fn, const bool dbl)
 {
     if (fn >= kUnaryFn_tos32 && fn <= kUnaryFn_tou32r)
     {
@@ -85,7 +85,7 @@ constexpr bool unary_dest_is_pair(U8 fn, bool dbl)
 }
 
 /// @return Whether the source is a register pair (a double), see unary_dest_is_pair.
-constexpr bool unary_source_is_pair(U8 fn, bool dbl)
+constexpr bool unary_source_is_pair(const U8 fn, const bool dbl)
 {
     if (fn == kUnaryFn_froms32 || fn == kUnaryFn_fromu32)
     {

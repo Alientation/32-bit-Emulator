@@ -29,7 +29,7 @@ class PhysicalPages
     ///
     /// @param ppage The physical page number.
     /// @return The bytes of the page, or null.
-    virtual byte *direct_page(word ppage)
+    virtual byte *direct_page(const word ppage)
     {
         (void)ppage;
         return nullptr;

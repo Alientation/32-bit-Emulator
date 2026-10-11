@@ -29,7 +29,7 @@ std::string describe_next(const TokenCursor &line)
     return line.at_end() ? "end of line" : basm::describe(line.peek());
 }
 
-bool is_value_conditional(TokenType type)
+bool is_value_conditional(const TokenType type)
 {
     switch (type)
     {
@@ -47,7 +47,7 @@ bool is_value_conditional(TokenType type)
     }
 }
 
-bool is_if(TokenType type)
+bool is_if(const TokenType type)
 {
     switch (type)
     {
@@ -63,7 +63,7 @@ bool is_if(TokenType type)
     }
 }
 
-bool is_else(TokenType type)
+bool is_else(const TokenType type)
 {
     switch (type)
     {
@@ -80,7 +80,7 @@ bool is_else(TokenType type)
     }
 }
 
-bool is_conditional(TokenType type)
+bool is_conditional(const TokenType type)
 {
     return is_if(type) || is_else(type) || type == TokenType::PREPROCESSOR_ENDIF;
 }
@@ -133,18 +133,18 @@ int compare_values(const std::string &left, const std::string &right)
     return left.compare(right) < 0 ? -1 : (left == right ? 0 : 1);
 }
 
-constexpr bool is_ident_char(char c)
+constexpr bool is_ident_char(const char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
-constexpr bool is_operator_char(char c)
+constexpr bool is_operator_char(const char c)
 {
     return c == '<' || c == '>' || c == '=' || c == '!' || c == '&' || c == '|';
 }
 
 /// Whether printing two tokens next to each other would lex differently than they did.
-bool would_merge(char last, char first)
+bool would_merge(const char last, const char first)
 {
     return (is_ident_char(last) && is_ident_char(first))
            || (is_operator_char(last) && is_operator_char(first));
@@ -254,7 +254,7 @@ bool Preprocessor::active() const
     return m_conds.empty() || m_conds.back().active;
 }
 
-bool Preprocessor::is_symbol_def(const std::string &name, std::size_t num_params) const
+bool Preprocessor::is_symbol_def(const std::string &name, const std::size_t num_params) const
 {
     const auto it = m_symbols.find(name);
     return it != m_symbols.end() && it->second.find(num_params) != it->second.end();
@@ -458,7 +458,8 @@ std::vector<std::string> Preprocessor::parse_params(TokenCursor &line)
 
 Preprocessor::Tokens Preprocessor::substitute(const Tokens &body,
                                               const std::vector<std::string> &params,
-                                              const std::vector<Tokens> &args, U32 expansion) const
+                                              const std::vector<Tokens> &args,
+                                              const U32 expansion) const
 {
     Tokens result;
     result.reserve(body.size());

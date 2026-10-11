@@ -218,7 +218,7 @@ void Build::evaluate_args(std::vector<std::string> &args_list)
         else
         {
             // This should be a file.
-            File file(arg);
+            const File file(arg);
 
             AEMU_DEBUG("Adding file {}", file.get_path());
 
@@ -310,7 +310,7 @@ void Build::link()
     for (const File &lib : m_linked_lib) add_library(members, read, lib);
     for (Directory lib_dir : m_library_dirs)
     {
-        for (File lib : lib_dir.get_all_subfiles())
+        for (const File &lib : lib_dir.get_all_subfiles())
         {
             if (lib.get_extension() == STATIC_LIBRARY_EXTENSION) add_library(members, read, lib);
         }
@@ -395,7 +395,7 @@ void Build::_warn_all(size_t &index, const std::vector<std::string> &args)
     UNUSED(args);
     UNUSED(index);
 
-    for (std::string warning_type : WARNINGS) m_enabled_warnings.insert(warning_type);
+    for (const std::string &warning_type : WARNINGS) m_enabled_warnings.insert(warning_type);
 }
 
 void Build::_include(size_t &index, const std::vector<std::string> &args)

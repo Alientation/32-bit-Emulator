@@ -23,7 +23,7 @@ class Assembler
     /// @param processed_file Input file to process. Post preprocessor.
     /// @param output_path Output file path to write the object file to. If left empty, the object
     ///     file has the path of the input file with the .bo extension.
-    explicit Assembler(const File processed_file, const std::string &output_path = "");
+    explicit Assembler(const File &processed_file, const std::string &output_path = "");
 
     /// Same, but takes the tokens straight from the preprocessor instead of
     /// lexing the .bi file again. Errors then point at the original source.
@@ -31,7 +31,7 @@ class Assembler
     /// @param processed_file The .bi file the preprocessor wrote. Only used for its name.
     /// @param source Result of Preprocessor::take_result().
     /// @param output_path See above.
-    Assembler(const File processed_file, basm::PreprocessedSource source,
+    Assembler(const File &processed_file, basm::PreprocessedSource source,
               const std::string &output_path = "");
 
     /// Assembles the input assembly into an object file.

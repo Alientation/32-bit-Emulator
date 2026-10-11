@@ -53,7 +53,7 @@ class VirtualMemory
     }
 
     /// @param enabled Whether addresses are mapped by the processes, or physical.
-    void set_enabled(bool enabled)
+    void set_enabled(const bool enabled)
     {
         m_enabled = enabled;
         update_swap_key();
@@ -189,7 +189,7 @@ class VirtualMemory
     /// Whether accesses are made in user mode, which may only use pages marked user.
     ///
     /// @param user true for user mode.
-    void set_user_mode(bool user)
+    void set_user_mode(const bool user)
     {
         if (user != m_user)
         {
@@ -295,7 +295,7 @@ class VirtualMemory
     ///
     /// @param address Virtual address to check.
     /// @return Whether the code can be executed.
-    inline bool can_execute_address(word address)
+    inline bool can_execute_address(const word address)
     {
         if (UNLIKELY(m_cur_ptable == nullptr || !m_enabled))
         {
@@ -321,7 +321,7 @@ class VirtualMemory
     /// @throws PageFault If the page may not be executed.
     /// @param address Virtual address of the instruction.
     /// @return Physical address of the instruction.
-    inline word translate_fetch(word address)
+    inline word translate_fetch(const word address)
     {
         if (LIKELY((address >> kNumPageOffsetBits) == m_fetch_vpage))
         {
@@ -347,7 +347,8 @@ class VirtualMemory
     /// @param address Virtual address to translate.
     /// @param access What the address is accessed for.
     /// @return Physical address corresponding to the virtual address.
-    inline word translate_address(long long pid, word address, AccessType access = AccessType::READ)
+    inline word translate_address(const long long pid, const word address,
+                                  const AccessType access = AccessType::READ)
     {
         if (UNLIKELY(!m_enabled))
         {
@@ -370,7 +371,7 @@ class VirtualMemory
     /// @param address Virtual address to translate.
     /// @param access What the address is accessed for.
     /// @return Physical address corresponding to the virtual address.
-    inline word translate_address(word address, AccessType access = AccessType::READ)
+    inline word translate_address(const word address, const AccessType access = AccessType::READ)
     {
         // The translation of a page of the current process, in the swapping memory, is what
         // nearly every access finds. It is one comparison: when the virtual memory is off, or the
@@ -467,7 +468,7 @@ class VirtualMemory
     /// What an entry of the TLB is looked up by: the process in the upper half, the virtual page
     /// in the lower, so that the lookup is one comparison. No entry has the key of a process that
     /// does not exist (processes are numbered below kMaxProcesses).
-    static constexpr U64 tlb_key(long long pid, word vpage)
+    static constexpr U64 tlb_key(const long long pid, const word vpage)
     {
         return (U64(pid) << 32) | vpage;
     }
@@ -531,7 +532,7 @@ class VirtualMemory
     word m_ptbr = 0;
 
     /// Whether the cached translation allows the access in the current mode.
-    inline bool walk_allows(const WalkEntry &entry, AccessType access) const
+    inline bool walk_allows(const WalkEntry &entry, const AccessType access) const
     {
         if (m_user ? !entry.user : (access == AccessType::EXECUTE && entry.user))
         {
@@ -626,7 +627,7 @@ class VirtualMemory
     PhysicalPage *m_clock_hand = nullptr;
 
     /// The information about a physical page, which is added if there is none.
-    PhysicalPage &physical_page(word ppage)
+    PhysicalPage &physical_page(const word ppage)
     {
         // A frame whose chunk is made: two loads. The index wraps for a page below the frames.
         const U64 index = U64(ppage) - m_frame_lo;
@@ -730,10 +731,10 @@ class VirtualMemory
     /// @param access What the address is accessed for.
     /// @return Physical space address corresponding to the virtual space address of
     ///     this process.
-    inline word translate_address(PageTable &ptable, word address, AccessType access)
+    inline word translate_address(PageTable &ptable, const word address, const AccessType access)
     {
-        word vpage = address >> kNumPageOffsetBits;
-        word ppage = access_vpage(ptable, vpage, access);
+        const word vpage = address >> kNumPageOffsetBits;
+        const word ppage = access_vpage(ptable, vpage, access);
 
         return (ppage << kNumPageOffsetBits) + (address & (kPageSize - 1));
     }
@@ -749,7 +750,7 @@ class VirtualMemory
     /// @param vpage Virtual page to map.
     /// @param access What the page is accessed for.
     /// @return Physical page address.
-    inline word access_vpage(PageTable &ptable, word vpage, AccessType access)
+    inline word access_vpage(PageTable &ptable, const word vpage, const AccessType access)
     {
         const TLB_Entry &tlb = m_tlb[vpage & (kMaxTLBSize - 1)];
         if (LIKELY(tlb.key == tlb_key(ptable.pid, vpage)

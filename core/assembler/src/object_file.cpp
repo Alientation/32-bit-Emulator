@@ -80,7 +80,7 @@ const std::array<ObjectFile::ByteSection, 4> &ObjectFile::byte_sections()
     return sections;
 }
 
-const ObjectFile::ByteSection *ObjectFile::byte_section_of(SectionHeader::Type type)
+const ObjectFile::ByteSection *ObjectFile::byte_section_of(const SectionHeader::Type type)
 {
     for (const ByteSection &section : byte_sections())
     {
@@ -163,7 +163,7 @@ U32 ObjectFile::add_user_section(const std::string &name, const bool writable,
     return header;
 }
 
-ObjectFile::ObjectFile(File obj_file) :
+ObjectFile::ObjectFile(const File &obj_file) :
     ObjectFile()
 {
     read_object_file(obj_file);
@@ -176,7 +176,7 @@ void ObjectFile::read_object_file(std::vector<byte> &bytes)
     deserialize_checked(bytes);
 }
 
-void ObjectFile::read_object_file(File obj_file)
+void ObjectFile::read_object_file(const File &obj_file)
 {
     m_obj_file = obj_file;
 
@@ -220,7 +220,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
         return;
     }
 
-    byte expected[4] = {'B', 'E', 'L', 'F'}; // 0-3
+    const byte expected[4] = {'B', 'E', 'L', 'F'}; // 0-3
     for (unsigned long long i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
     {
         if (expected[i] != reader.read_byte())
@@ -410,7 +410,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
                                                                      : rel_bss;
             for (word i = 0; i < section_header.section_size; i += kRelocationEntrySize)
             {
-                RelocationEntry rel = {
+                const RelocationEntry rel = {
                     .offset = word(reader.read_dword()),
                     .symbol = U32(reader.read_dword()),
                     .type = (RelocationEntry::Type) reader.read_word(),
@@ -427,7 +427,7 @@ void ObjectFile::deserialize(std::vector<byte> &bytes)
             std::string current_string;
             for (word i = 0; i < section_header.section_size; i++)
             {
-                byte b = reader.read_byte();
+                const byte b = reader.read_byte();
                 if (b == '\0')
                 {
                     string_table[current_string] = strings.size();
@@ -544,7 +544,7 @@ void ObjectFile::validate() const
     }
 }
 
-U32 ObjectFile::add_section(const std::string &section_name, SectionHeader::Type type)
+U32 ObjectFile::add_section(const std::string &section_name, const SectionHeader::Type type)
 {
     AEMU_CHECK(section_table.find(section_name) == section_table.end(),
                "Section name exists in section table");
@@ -618,13 +618,13 @@ U32 ObjectFile::add_string(const std::string &string)
     return strings.size() - 1;
 }
 
-std::string ObjectFile::get_symbol_name(U32 symbol)
+std::string ObjectFile::get_symbol_name(const U32 symbol)
 {
     return strings.at(symbol_table.at(symbol).symbol_name);
 }
 
-void ObjectFile::add_symbol(const std::string &symbol, word value,
-                            SymbolTableEntry::BindingInfo binding_info, U32 section)
+void ObjectFile::add_symbol(const std::string &symbol, const word value,
+                            const SymbolTableEntry::BindingInfo binding_info, const U32 section)
 {
     // If symbol does not exist yet, create it.
     if (string_table.find(symbol) == string_table.end())
@@ -665,7 +665,7 @@ void ObjectFile::add_symbol(const std::string &symbol, word value,
     }
 }
 
-void ObjectFile::write_object_file(File obj_file)
+void ObjectFile::write_object_file(const File &obj_file)
 {
     AEMU_DEBUG("Writing to object file.");
     m_obj_file = obj_file;
@@ -828,7 +828,7 @@ word ObjectFile::get_bss_section_size()
     return bss_section;
 }
 
-word ObjectFile::get_section_size(U32 section)
+word ObjectFile::get_section_size(const U32 section)
 {
     AEMU_CHECK(section < sections.size(), "No section {}.",
                section);

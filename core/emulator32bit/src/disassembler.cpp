@@ -130,7 +130,7 @@ static std::string disassemble_format_m1(const word instruction, const std::stri
 /// @param op The name of the instruction, `ldr` for the aligned and the unaligned form.
 /// @param has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
 static std::string disassemble_format_m(const word instruction, const std::string &op,
-                                        bool has_unaligned_form = true)
+                                        const bool has_unaligned_form = true)
 {
     std::string disassemble = op;
 

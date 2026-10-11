@@ -190,76 +190,76 @@ std::string_view to_string(TokenType type);
 namespace detail
 {
 /// @return whether `t` is one of the types from `lo` to `hi`
-constexpr bool in_range(TokenType t, TokenType lo, TokenType hi)
+constexpr bool in_range(const TokenType t, const TokenType lo, const TokenType hi)
 {
     return t >= lo && t <= hi;
 }
 } // namespace detail
 
 /// @return whether the type is a comment
-constexpr bool is_comment(TokenType t)
+constexpr bool is_comment(const TokenType t)
 {
     return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
 }
 
 /// @return whether the type is a preprocessor directive (`#define`, ...)
-constexpr bool is_preprocessor_directive(TokenType t)
+constexpr bool is_preprocessor_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
 }
 
 /// @return whether the type is an assembler directive (`.global`, ...)
-constexpr bool is_assembler_directive(TokenType t)
+constexpr bool is_assembler_directive(const TokenType t)
 {
     return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
 }
 
 /// @return whether the type is a relocation operator (`:lo12:`, ...)
-constexpr bool is_relocation(TokenType t)
+constexpr bool is_relocation(const TokenType t)
 {
     return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
                             TokenType::RELOCATION_EMU32_MOV_HI13);
 }
 
 /// @return whether the type is a register (x0-x29, sp, xzr)
-constexpr bool is_register(TokenType t)
+constexpr bool is_register(const TokenType t)
 {
     return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
 }
 
 /// @return whether the type is an instruction mnemonic
-constexpr bool is_instruction(TokenType t)
+constexpr bool is_instruction(const TokenType t)
 {
     return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
 }
 
 /// @return whether the type is a condition code (eq, ne, ...)
-constexpr bool is_condition(TokenType t)
+constexpr bool is_condition(const TokenType t)
 {
     return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
 }
 
 /// @return whether the type is an integer literal
-constexpr bool is_integer_literal(TokenType t)
+constexpr bool is_integer_literal(const TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_NUMBER_BINARY,
                             TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
 /// @return whether the type is an integer or floating point literal
-constexpr bool is_number_literal(TokenType t)
+constexpr bool is_number_literal(const TokenType t)
 {
     return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
 /// @return whether the type is an operator of an expression
-constexpr bool is_operator(TokenType t)
+constexpr bool is_operator(const TokenType t)
 {
     return detail::in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
 }
 
 /// Register number of a register token: x0-x29 are 0-29, sp is 30, xzr is 31.
-constexpr byte register_index(TokenType t)
+constexpr byte register_index(const TokenType t)
 {
     return byte(U16(t) - U16(TokenType::REGISTER_X0));
 }
@@ -303,15 +303,15 @@ struct Token
     U64 int_value = 0;
 
     /// @return whether the token has this type
-    bool is(TokenType t) const
+    bool is(const TokenType t) const
     {
         return type == t;
     }
 
     /// @return whether the token has one of these types
-    bool is_one_of(std::initializer_list<TokenType> types) const
+    bool is_one_of(const std::initializer_list<TokenType> types) const
     {
-        for (TokenType t : types)
+        for (const TokenType t : types)
         {
             if (t == type)
             {
@@ -322,7 +322,7 @@ struct Token
     }
 
     /// @return whether the token has this flag
-    bool has(TokenFlag flag) const
+    bool has(const TokenFlag flag) const
     {
         return (flags & flag) != 0;
     }
@@ -336,7 +336,7 @@ struct Token
     /// Creates a token that is not backed by lexed source, e.g. the `xzr` the assembler injects
     /// for `cmp`. `static_text` must outlive the token (use a string literal). Pass `origin` to
     /// inherit its location for diagnostics.
-    static Token synthetic(TokenType type, std::string_view static_text,
+    static Token synthetic(const TokenType type, const std::string_view static_text,
                            const Token *origin = nullptr)
     {
         Token tok;
@@ -461,7 +461,7 @@ class TokenCursor
     TokenCursor() = default;
 
     /// @param tokens the tokens to read, which have to outlive the cursor
-    explicit TokenCursor(std::span<const Token> tokens) :
+    explicit TokenCursor(const std::span<const Token> tokens) :
         m_tokens(tokens)
     {
     }
@@ -479,13 +479,13 @@ class TokenCursor
     }
 
     /// @return whether the next token has this type, which is not consumed
-    bool check(TokenType type) const
+    bool check(const TokenType type) const
     {
         return peek().type == type;
     }
 
     /// @return whether the next token has one of these types, which is not consumed
-    bool check_any(std::initializer_list<TokenType> types) const
+    bool check_any(const std::initializer_list<TokenType> types) const
     {
         return peek().is_one_of(types);
     }
@@ -522,7 +522,7 @@ class TokenCursor
     /// Goes back to a position that mark() returned.
     ///
     /// @param mark the position to go back to
-    void rewind(std::size_t mark)
+    void rewind(const std::size_t mark)
     {
         m_pos = mark;
     }

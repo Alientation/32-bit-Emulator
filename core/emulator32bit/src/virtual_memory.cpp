@@ -33,7 +33,7 @@ void VirtualMemory::set_physical_pages(PhysicalPages *physical)
     m_physical = physical;
 }
 
-VirtualMemory::PhysicalPage &VirtualMemory::physical_page_slow(word ppage)
+VirtualMemory::PhysicalPage &VirtualMemory::physical_page_slow(const word ppage)
 {
     if (is_frame(ppage))
     {
@@ -385,7 +385,7 @@ void VirtualMemory::set_process(const long long pid)
     AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
 
-long long VirtualMemory::begin_process(bool kernel_privilege)
+long long VirtualMemory::begin_process(const bool kernel_privilege)
 {
     if (!m_freepids.can_fit(1))
     {
@@ -421,12 +421,13 @@ void VirtualMemory::end_process(const long long pid)
     // Collected first, because removing a page also removes its entry from the map of the page
     // table, which would change the map while it is walked.
     std::vector<word> vpages;
-    for (std::pair<const word, PageTableEntry *> &pair : m_process_ptable_map.at(pid)->entries)
+    for (const std::pair<const word, PageTableEntry *> &pair :
+         m_process_ptable_map.at(pid)->entries)
     {
         vpages.push_back(pair.first);
     }
 
-    for (word vpage : vpages)
+    for (const word vpage : vpages)
     {
         remove_vpage(pid, vpage);
     }
@@ -455,7 +456,7 @@ long long VirtualMemory::current_process()
 }
 
 void VirtualMemory::set_ppage_permissions(const word ppage_begin, const word ppage_end,
-                                          bool swappable, bool kernel_locked)
+                                          const bool swappable, const bool kernel_locked)
 {
     if (ppage_begin > ppage_end)
     {
@@ -489,7 +490,8 @@ void VirtualMemory::set_ppage_permissions(const word ppage_begin, const word ppa
 }
 
 void VirtualMemory::set_vpage_permissions(const long long pid, const word vpage_begin,
-                                          const word vpage_end, bool write, bool execute)
+                                          const word vpage_end, const bool write,
+                                          const bool execute)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -676,7 +678,7 @@ void VirtualMemory::check_vm()
         if (page.mapped_vpages.size() > 0)
         {
             const word diskpage = page.mapped_vpages.at(0)->diskpage;
-            for (PageTableEntry *entry : page.mapped_vpages)
+            for (const PageTableEntry *entry : page.mapped_vpages)
             {
                 AEMU_CHECK(entry->diskpage == diskpage,
                            "Expected all virtual pages mapped to the "

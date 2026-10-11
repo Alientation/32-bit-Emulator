@@ -15,11 +15,11 @@ struct LibraryMember
 };
 
 /// Packs the object files into a static library, one member for each.
-void write_static_library(const std::vector<File> &objects, File out);
+void write_static_library(const std::vector<File> &objects, const File &out);
 
 /// The members of a static library.
 /// Fatal if the file is not a static library, or is cut short.
-std::vector<LibraryMember> read_static_library(File in);
+std::vector<LibraryMember> read_static_library(const File &in);
 
 /// The object files to link when a program is made of `objects` and of the members of libraries.
 /// These are `objects`, and then every member that defines a symbol that is used and not defined

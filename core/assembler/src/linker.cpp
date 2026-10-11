@@ -246,14 +246,14 @@ bool is_resolvable(const ObjectFile::SymbolTableEntry &symbol)
 
 } // namespace
 
-Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file) :
+Linker::Linker(std::vector<ObjectFile> obj_files, const File &exe_file) :
     m_obj_files(std::move(obj_files)),
     m_exe_file(exe_file),
     m_use_default_script(true)
 {
 }
 
-Linker::Linker(std::vector<ObjectFile> obj_files, File exe_file, File ld_file) :
+Linker::Linker(std::vector<ObjectFile> obj_files, const File &exe_file, const File &ld_file) :
     m_obj_files(std::move(obj_files)),
     m_exe_file(exe_file),
     m_ld_file(ld_file)
@@ -265,7 +265,7 @@ void Linker::fail(const basm::Token &at, const std::string &message)
     basm::fatal_at(m_sources, at.loc, message);
 }
 
-const basm::Token &Linker::expect(basm::TokenType type, const std::string &expected)
+const basm::Token &Linker::expect(const basm::TokenType type, const std::string &expected)
 {
     if (!m_cursor.check(type))
     {

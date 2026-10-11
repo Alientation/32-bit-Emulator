@@ -29,8 +29,8 @@ using PagePermissions = std::map<word, std::pair<bool, bool>>;
 /// Adds the pages of a section to the process. A page can hold more than one section (by default
 /// .bss directly follows .data), and then has the permissions of both. The pages can be written
 /// while the program is loaded, `permissions` is what they are afterwards.
-void map_pages(PagePermissions &permissions, VirtualMemory &mmu, word start_addr, word size,
-               bool write, bool execute)
+void map_pages(PagePermissions &permissions, VirtualMemory &mmu, const word start_addr,
+               const word size, const bool write, const bool execute)
 {
     const long long pid = mmu.current_process();
     const word last_vpage = (start_addr + size - 1) >> kNumPageOffsetBits;
@@ -53,8 +53,8 @@ void map_pages(PagePermissions &permissions, VirtualMemory &mmu, word start_addr
 }
 
 /// Copies `bytes` to the section's address.
-void copy_section(PagePermissions &permissions, Emulator32bit &emu, Placement where,
-                  std::span<const byte> bytes, bool write, bool execute)
+void copy_section(PagePermissions &permissions, Emulator32bit &emu, const Placement &where,
+                  const std::span<const byte> bytes, const bool write, const bool execute)
 {
     if (bytes.empty())
     {
@@ -89,7 +89,7 @@ void copy_section(PagePermissions &permissions, Emulator32bit &emu, Placement wh
 
 } // namespace
 
-LoadExecutable::LoadExecutable(Emulator32bit &emu, File exe_file) :
+LoadExecutable::LoadExecutable(Emulator32bit &emu, const File &exe_file) :
     m_emu(emu),
     m_exe_file(exe_file)
 {

@@ -5,7 +5,7 @@
 
 #include <fstream>
 
-BaseMemory::BaseMemory(const word npages, word start_page) :
+BaseMemory::BaseMemory(const word npages, const word start_page) :
     m_npages(npages),
     m_start_page(start_page),
     m_start_addr(start_page << kNumPageOffsetBits)
@@ -16,7 +16,7 @@ BaseMemory::~BaseMemory()
 {
 }
 
-Memory::Memory(word npages, const word start_page) :
+Memory::Memory(const word npages, const word start_page) :
     BaseMemory(npages, start_page),
     m_data(new byte[(npages << kNumPageOffsetBits)]())
 {
@@ -46,7 +46,7 @@ RAM::RAM(const word npages, const word start_page) :
 
 // ROM.
 
-ROM::ROM(const byte *rom_data, word npages, const word start_page) :
+ROM::ROM(const byte *rom_data, const word npages, const word start_page) :
     Memory(npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; ++i)
@@ -55,7 +55,7 @@ ROM::ROM(const byte *rom_data, word npages, const word start_page) :
     }
 }
 
-ROM::ROM(word npages, const word start_page) :
+ROM::ROM(const word npages, const word start_page) :
     Memory(npages, start_page)
 {
     for (word i = 0; i < npages << kNumPageOffsetBits; ++i)

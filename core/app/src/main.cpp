@@ -20,7 +20,7 @@ static const std::string build_palindrome =
 
 constexpr U64 kMaxCycles = 0x0;
 
-static int run_app(int argc, char *argv[])
+static int run_app(const int argc, char *argv[])
 {
     // The arguments of the program, or a sample build if there are none.
     std::vector<std::string> args = Build::split_args(build_palindrome);
@@ -63,7 +63,7 @@ static int run_app(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-int main(int argc, char *argv[])
+int main(const int argc, char *argv[])
 {
     // Errors in the toolchain and emulator libraries are thrown. They are already logged by the
     // time they get here.

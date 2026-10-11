@@ -9,7 +9,7 @@
 #include <optional>
 #include <span>
 
-Assembler::Assembler(const File processed_file, const std::string &output_path) :
+Assembler::Assembler(const File &processed_file, const std::string &output_path) :
     m_in_file(processed_file),
     m_sources(std::make_shared<basm::SourceManager>())
 {
@@ -25,7 +25,7 @@ Assembler::Assembler(const File processed_file, const std::string &output_path) 
     m_cursor = basm::TokenCursor(std::span<const basm::Token>(m_tokens));
 }
 
-Assembler::Assembler(const File processed_file, basm::PreprocessedSource source,
+Assembler::Assembler(const File &processed_file, basm::PreprocessedSource source,
                      const std::string &output_path) :
     m_in_file(processed_file),
     m_sources(std::move(source.sources)),
@@ -194,7 +194,7 @@ const ObjectFile &Assembler::object() const
     return m_obj;
 }
 
-void Assembler::set_warnings_as_errors(bool enabled)
+void Assembler::set_warnings_as_errors(const bool enabled)
 {
     m_warnings_as_errors = enabled;
 }
@@ -217,7 +217,7 @@ void Assembler::fill_local()
 }
 
 void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations,
-                           bool fill_branches)
+                           const bool fill_branches)
 {
     const std::vector<basm::Token> &tokens = m_tokens;
     size_t tok_i = 0;
@@ -250,10 +250,10 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
         // First find if symbol is defined in local scope.
         ObjectFile::SymbolTableEntry symbol_entry;
         bool found_local = false;
-        std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
+        const std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
         for (size_t scopeI = local_scope.size() - 1; scopeI + 1 != 0; scopeI--)
         {
-            std::string local_symbol_name =
+            const std::string local_symbol_name =
                 symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);
             if (m_obj.string_table.find(local_symbol_name) == m_obj.string_table.end())
             {

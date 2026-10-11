@@ -18,7 +18,7 @@ namespace
 /// each bit of the number of the instruction (so it gets narrower further down).
 constexpr int kRelocationNameWidth = 29;
 
-const char *relocation_name(ObjectFile::RelocationEntry::Type type)
+const char *relocation_name(const ObjectFile::RelocationEntry::Type type)
 {
     using Type = ObjectFile::RelocationEntry::Type;
     switch (type)
@@ -56,7 +56,7 @@ std::string target_text(const ObjectFile &obj, const ObjectFile::RelocationEntry
 }
 
 /// An address the way it is shown at the start of a line.
-std::string address_text(U64 address)
+std::string address_text(const U64 address)
 {
     return color_val_str(to_hex_str(dword(address)));
 }

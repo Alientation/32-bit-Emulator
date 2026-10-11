@@ -42,7 +42,7 @@ void add_symbols(std::set<std::string> &defined, std::set<std::string> &wanted,
 
 } // namespace
 
-void write_static_library(const std::vector<File> &objects, File out)
+void write_static_library(const std::vector<File> &objects, const File &out)
 {
     // The whole library is read before the old one is touched.
     std::vector<std::pair<std::string, std::vector<byte>>> members;
@@ -87,7 +87,7 @@ void write_static_library(const std::vector<File> &objects, File out)
     writer.close();
 }
 
-std::vector<LibraryMember> read_static_library(File in)
+std::vector<LibraryMember> read_static_library(const File &in)
 {
     FileReader reader = FileReader(in, std::ios::in | std::ios::binary);
 
