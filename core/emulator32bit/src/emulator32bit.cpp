@@ -14,9 +14,6 @@
 
 using namespace encoding;
 
-namespace
-{
-
 constexpr word kListedOpcodes[] = {
 #define AEMU_OPCODE_VALUE(name, opcode) opcode,
     AEMU_OPCODES(AEMU_OPCODE_VALUE)
@@ -41,8 +38,6 @@ static constexpr bool opcodes_are_valid()
 }
 
 static_assert(opcodes_are_valid(), "AEMU_OPCODES has an opcode that is used twice or is above 63");
-
-} // namespace
 
 std::ostream *Emulator32bit::default_out()
 {
@@ -147,9 +142,6 @@ word Emulator32bit::fetch_instruction()
     return memory.fetch_instruction(m_pc);
 }
 
-namespace
-{
-
 /// Ends the run with a fault: the result says what happened, and it is logged as a warning.
 /// Anything that goes wrong in the machine is a fault of the program, whatever part of the machine
 /// it is in.
@@ -157,21 +149,22 @@ namespace
 /// @param[out] result The result of the run, which becomes a fault.
 /// @param[in] what The kind of fault.
 /// @param[in] message What happened.
-void fault(Emulator32bit::RunResult &result, const char *what, const std::string &message)
+static void fault(Emulator32bit::RunResult &result, const char *what, const std::string &message)
 {
     AEMU_WARN("{}: {}", what, message);
     result.status = Emulator32bit::RunResult::Status::FAULT;
     result.message = message;
 }
 
-/// The physical address of a byte of an access that succeeded, for a watchpoint on physical
-/// addresses. A byte that cannot be translated is one that nothing watches.
+/// Retrieve the physical address of a byte of an access that succeeded for a watchpoint on physical
+/// addresses. Ignore virtual addresses that cannot be translated to a physical address.
 ///
-/// @param[out] physical_address Receives the physical address.
-/// @param[in] mmu The MMU that translated the access.
+/// @param[out] physical_address The physical address corresponding to the virtual address.
+/// @param[in] mmu The MMU that translates the access.
 /// @param[in] virtual_address The address of the byte.
-/// @return Whether there is one.
-bool translate_watched_byte(word &physical_address, VirtualMemory &mmu, const word virtual_address)
+/// @return Whether the translation succeeded.
+static bool translate_watched_byte(word &physical_address, VirtualMemory &mmu,
+                                   const word virtual_address)
 {
     try
     {
@@ -184,8 +177,6 @@ bool translate_watched_byte(word &physical_address, VirtualMemory &mmu, const wo
     return true;
 }
 
-} // namespace
-
 bool Emulator32bit::register_watch_hit(RunResult &result)
 {
     for (size_t i = 0; i < m_regwatches.count; i++)
@@ -196,7 +187,8 @@ bool Emulator32bit::register_watch_hit(RunResult &result)
         if (now == before) continue;
         m_regwatches.last[i] = now;
 
-        // The watch is for one value, and the register changed to another.
+        // Check whether the register watch point specifies a specific value
+        // to watch for, if so and it does not match, do not break.
         if (m_regwatches.has_value.test(i) && now != m_regwatches.value[i]) continue;
 
         result.status = RunResult::Status::BREAKPOINT;
@@ -216,17 +208,18 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
         .message = "",
     };
 
-    // Start without the hit of the last run. The debugger may have changed the watched registers
-    // between runs, so their last values are read again.
+    // Clear old hit message.
     m_watchpoints.hit_message.clear();
+
+    // The debugger may have changed the watched registers between runs,
+    // so regrab the saved registers.
     for (size_t i = 0; i < m_regwatches.count; i++)
     {
         m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
     }
 
-    // Whether anything looks at each instruction (the debugger's breakpoints and watches, the
-    // trace, the history). They are set between runs, so the loop tests this one local instead of
-    // each of them, which are loads from memory.
+    // Whether anything needs to look at each instruction (the debugger's breakpoints and watches,
+    // the trace, the history). This is used to skip expensive operations.
     const bool hooked = m_regwatches.count != 0 || !m_breakpoints.empty() || m_history.size != 0
                         || m_trace.out != nullptr || m_watchpoints.count != 0
                         || system_bus->console.has_host_input();
@@ -234,21 +227,22 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
 
     try
     {
-        // 0 instructions means to run until something stops the program.
+        // instructions set to 0 means to run until termination.
         //
         // The pc that a run starts at is not checked against the breakpoints. The debugger
-        // continues on from the breakpoint it stopped at (continue, step, the `c` of a gdb client).
-        // If that pc counted, the run would stop at once before any instruction is executed
-        // and never leave.
+        // continues on from the breakpoint it stopped at (continue, step, etc).
+        // If that pc counted, the run would stop immediately before any instruction is executed.
         bool just_started = true;
         while (instructions == 0 || result.instructions_ran < instructions)
         {
             if (UNLIKELY(hooked))
             {
-                // Input from the host raises its interrupt here, between instructions.
+                // Check for input interrupt from the host.
                 bus.console.poll_host_input();
 
-                // Check for debug watchpoints.
+                // Check for debug watchpoints. Does not need to check just_started because
+                // register values are saved before starting and register watchpoints only hit
+                // on value change.
                 if (m_regwatches.count != 0 && register_watch_hit(result)) break;
 
                 if (!just_started && !m_breakpoints.empty() && m_breakpoints.contains(m_pc))
@@ -260,9 +254,8 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
                 just_started = false;
             }
 
-            // An interrupt is taken between two instructions, if the program has installed a
-            // vector table and unmasked IRQs. The resume address is the instruction that would
-            // have executed.
+            // Check to take interrupt request if the program has installed a vector table and the
+            // IRQ is unmasked. The resume address is the instruction that would have executed.
             if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0 && !test_bit<kIrqMaskBit>(m_pstate))
             {
                 raise_exception(ExceptionClass::IRQ, 0, 0, m_pc);
@@ -270,8 +263,6 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
                 continue;
             }
 
-            // With a vector table installed (VBAR != 0) the exceptions of the CPU are raised
-            // instead of ending the run, and the next instruction is the first one of the handler.
             word instr;
             try
             {
@@ -674,21 +665,17 @@ void Emulator32bit::set_symbols(const SymbolMap *symbols)
     m_trace.symbols = symbols;
 }
 
-namespace
-{
-
-/// "NzCv": an upper case letter is a flag that is set.
-std::string flag_letters(const word pstate)
+/// "NzCv": uppercase letter for a set flag, lowercase letter otherwise.
+static std::string flag_letters(const word pstate)
 {
     std::string letters;
+    letters.reserve(4);
     letters += test_bit<kNFlagBit>(pstate) ? 'N' : 'n';
     letters += test_bit<kZFlagBit>(pstate) ? 'Z' : 'z';
     letters += test_bit<kCFlagBit>(pstate) ? 'C' : 'c';
     letters += test_bit<kVFlagBit>(pstate) ? 'V' : 'v';
     return letters;
 }
-
-} // namespace
 
 void Emulator32bit::execute_hooked(const word instr)
 {
