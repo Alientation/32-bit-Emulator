@@ -88,6 +88,8 @@ if [ $# -gt 0 ]; then
     fi
 fi
 
+# Turns on the pre-push check of the formatting (.githooks) for this clone.
+tools/install_hooks.sh
 
 if $DO_COMPILE; then
     # Create build directories

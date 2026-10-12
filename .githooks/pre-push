@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+# Refuses a push while the code is not formatted. Installed by core/build.sh (core/tools/
+# install_hooks.sh), which sets core.hooksPath to .githooks. It checks the working tree, not the
+# commits that are pushed.
+#
+# To push anyway, say so: git push --no-verify
+
+# A push that only deletes branches or tags has nothing to format.
+DELETE_ONLY=1
+while read -r _ local_sha _ _; do
+    if [[ ! "$local_sha" =~ ^0+$ ]]; then
+        DELETE_ONLY=0
+    fi
+done
+if [ "$DELETE_ONLY" -eq 1 ]; then
+    exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)/core"
+if ! tools/format.sh --check; then
+    echo "Push refused: run core/tools/format.sh, commit the result and push again." >&2
+    echo "To push unformatted code on purpose: git push --no-verify" >&2
+    exit 1
+fi
