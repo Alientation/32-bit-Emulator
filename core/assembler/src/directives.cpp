@@ -50,11 +50,8 @@ void Assembler::expect_end_of_statement()
     }
 }
 
-namespace
-{
-
 /// Binding strength of a binary operator, 0 if the token is not one. Same order as C.
-S32 binary_precedence(const TokenType type)
+static S32 binary_precedence(const TokenType type)
 {
     switch (type)
     {
@@ -101,8 +98,6 @@ constexpr word kSizeLimit = 0xffffff;
 
 /// An alignment of this many bytes or more is rejected for the same reason.
 constexpr word kAlignmentLimit = 0xffff;
-
-} // namespace
 
 bool Assembler::at_expression()
 {
@@ -987,7 +982,7 @@ std::vector<dword> Assembler::parse_arguments()
     return args;
 }
 
-std::vector<byte> convert_little_endian(const std::vector<dword> &data, const U8 n_bytes)
+static std::vector<byte> convert_little_endian(const std::vector<dword> &data, const U8 n_bytes)
 {
     std::vector<byte> little_endian_data;
 

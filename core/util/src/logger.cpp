@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace aemu::log::detail
+namespace aemu::log
 {
 S64 monotonic_ns()
 {
@@ -10,4 +10,4 @@ S64 monotonic_ns()
                std::chrono::steady_clock::now().time_since_epoch())
         .count();
 }
-} // namespace aemu::log::detail
+} // namespace aemu::log

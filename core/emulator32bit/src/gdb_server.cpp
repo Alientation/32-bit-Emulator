@@ -16,9 +16,6 @@
 #include <unistd.h>
 #endif
 
-namespace
-{
-
 // The numbers of the registers in the packets. gdb has no architecture for this processor, so the
 // description is the ARM core one, which it accepts with any more registers: r0-r12 are x0-x12, sp
 // is sp, lr is x29 (the link register), pc is pc, cpsr is the processor state in the bits of an ARM
@@ -31,7 +28,7 @@ constexpr U32 kRegisterFirstExtra = 17; // The gdb number of x13.
 constexpr U32 kRegisterCount = 33;      // Up to x28.
 
 /// @return The number of the emulator register that gdb's register is, or -1 for pc and cpsr.
-S32 emulator_register(const U32 number)
+static S32 emulator_register(const U32 number)
 {
     if (number <= 12) return S32(number);
     if (number == kRegisterSp) return 30;
@@ -49,7 +46,7 @@ constexpr U64 kSlice = 20000;
 /// The most bytes a read or write of memory moves in one packet.
 constexpr word kMaxTransfer = 0x4000;
 
-S32 hex_digit(const char c)
+static S32 hex_digit(const char c)
 {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -58,7 +55,7 @@ S32 hex_digit(const char c)
 }
 
 /// A number in hexadecimal, up to 32 bits.
-bool parse_hex(word &out, const std::string &text)
+static bool parse_hex(word &out, const std::string &text)
 {
     if (text.empty() || text.size() > 8) return false;
     word value = 0;
@@ -73,13 +70,13 @@ bool parse_hex(word &out, const std::string &text)
 }
 
 /// The bytes of a word, least significant first, as hexadecimal text.
-std::string word_to_hex(const word value)
+static std::string word_to_hex(const word value)
 {
     return std::format("{:02x}{:02x}{:02x}{:02x}", value & 0xFF, (value >> 8) & 0xFF,
                        (value >> 16) & 0xFF, value >> 24);
 }
 
-bool hex_to_word(word &out, const std::string &text)
+static bool hex_to_word(word &out, const std::string &text)
 {
     std::string bytes;
     if (text.size() != 8 || !GdbServer::from_hex(bytes, text)) return false;
@@ -89,7 +86,7 @@ bool hex_to_word(word &out, const std::string &text)
 }
 
 /// Splits "a,b" at the first comma.
-bool split_comma(std::string &first, std::string &second, const std::string &text)
+static bool split_comma(std::string &first, std::string &second, const std::string &text)
 {
     const size_t comma = text.find(',');
     if (comma == std::string::npos) return false;
@@ -97,8 +94,6 @@ bool split_comma(std::string &first, std::string &second, const std::string &tex
     second = text.substr(comma + 1);
     return true;
 }
-
-} // namespace
 
 GdbServer::GdbServer(Emulator32bit &emu) :
     m_emu(emu)
@@ -589,9 +584,6 @@ std::string GdbServer::handle(const std::string &packet)
 
 #ifdef AEMU_GDB_SOCKETS
 
-namespace
-{
-
 /// A client on a socket: reads the packets and says whether it sent Ctrl-C.
 class Client : public GdbServer::InterruptSource
 {
@@ -644,7 +636,7 @@ class Client : public GdbServer::InterruptSource
     int m_fd;
 };
 
-U32 checksum(const std::string &payload)
+static U32 checksum(const std::string &payload)
 {
     U32 sum = 0;
     for (const char c : payload)
@@ -653,8 +645,6 @@ U32 checksum(const std::string &payload)
     }
     return sum & 0xFF;
 }
-
-} // namespace
 
 bool GdbServer::serve(Emulator32bit &emu, const U16 port, void (*ready)(U16 port),
                       std::ostream *log)

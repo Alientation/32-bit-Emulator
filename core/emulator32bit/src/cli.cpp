@@ -20,10 +20,7 @@
 #include <thread>
 #include <vector>
 
-namespace
-{
-
-const char *status_name(const Emulator32bit::RunResult::Status status)
+static const char *status_name(const Emulator32bit::RunResult::Status status)
 {
     switch (status)
     {
@@ -41,7 +38,7 @@ const char *status_name(const Emulator32bit::RunResult::Status status)
     }
 }
 
-std::string hex(const word value)
+static std::string hex(const word value)
 {
     char buf[16];
     std::snprintf(buf, sizeof(buf), "0x%08x", value);
@@ -49,8 +46,9 @@ std::string hex(const word value)
 }
 
 /// Machine readable state dump, one "key=value" pair per line.
-void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::RunResult &result,
-                 const std::vector<std::pair<word, word>> &mem_ranges)
+static void print_plain(std::ostream &out, Emulator32bit &emu,
+                        const Emulator32bit::RunResult &result,
+                        const std::vector<std::pair<word, word>> &mem_ranges)
 {
     out << "status=" << status_name(result.status) << "\n";
     out << "instructions=" << result.instructions_ran << "\n";
@@ -101,7 +99,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
 
 /// The last executed instructions, oldest first: `history[0]=<pc> <instruction word> <assembly>`.
 /// The newest one is the instruction that faulted, if the run ended in a fault.
-void print_history(std::ostream &out, const Emulator32bit &emu, const SymbolMap &symbols)
+static void print_history(std::ostream &out, const Emulator32bit &emu, const SymbolMap &symbols)
 {
     Emulator32bit::History history;
     const size_t count = emu.history(history);
@@ -115,7 +113,7 @@ void print_history(std::ostream &out, const Emulator32bit &emu, const SymbolMap 
 }
 
 /// The names of the symbols that the linker put in an executable, for the trace and the debugger.
-SymbolMap read_symbols(const std::string &exe_path)
+static SymbolMap read_symbols(const std::string &exe_path)
 {
     SymbolMap symbols;
     ObjectFile obj{File(exe_path)};
@@ -130,8 +128,6 @@ SymbolMap read_symbols(const std::string &exe_path)
     }
     return symbols;
 }
-
-} // namespace
 
 /// The declaration of the options. Kept apart so that the rest of the file does not depend on
 /// how they are written.

@@ -217,24 +217,21 @@ enum class TokenType : U16
 /// @return The name.
 std::string_view to_string(TokenType type);
 
-namespace detail
-{
 /// @param[in] t The type to look at.
 /// @param[in] lo The first type of the range.
 /// @param[in] hi The last type of the range.
 /// @return Whether `t` is one of the types from `lo` to `hi`.
-constexpr bool in_range(const TokenType t, const TokenType lo, const TokenType hi)
+constexpr bool type_in_range(const TokenType t, const TokenType lo, const TokenType hi)
 {
     return t >= lo && t <= hi;
 }
-} // namespace detail
 
 ///
 /// @param[in] t The type.
 /// @return Whether the type is a comment.
 constexpr bool is_comment(const TokenType t)
 {
-    return detail::in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
+    return type_in_range(t, TokenType::COMMENT_SINGLE_LINE, TokenType::COMMENT_MULTI_LINE);
 }
 
 ///
@@ -242,7 +239,7 @@ constexpr bool is_comment(const TokenType t)
 /// @return Whether the type is a preprocessor directive (`#define`, ...).
 constexpr bool is_preprocessor_directive(const TokenType t)
 {
-    return detail::in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
+    return type_in_range(t, TokenType::PREPROCESSOR_INCLUDE, TokenType::PREPROCESSOR_ENDIF);
 }
 
 ///
@@ -250,7 +247,7 @@ constexpr bool is_preprocessor_directive(const TokenType t)
 /// @return Whether the type is an assembler directive (`.global`, ...).
 constexpr bool is_assembler_directive(const TokenType t)
 {
-    return detail::in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
+    return type_in_range(t, TokenType::ASSEMBLER_GLOBAL, TokenType::ASSEMBLER_ASCIZ);
 }
 
 ///
@@ -258,8 +255,8 @@ constexpr bool is_assembler_directive(const TokenType t)
 /// @return Whether the type is a relocation operator (`:lo12:`, ...).
 constexpr bool is_relocation(const TokenType t)
 {
-    return detail::in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
-                            TokenType::RELOCATION_EMU32_MOV_HI13);
+    return type_in_range(t, TokenType::RELOCATION_EMU32_O_LO12,
+                         TokenType::RELOCATION_EMU32_MOV_HI13);
 }
 
 ///
@@ -267,7 +264,7 @@ constexpr bool is_relocation(const TokenType t)
 /// @return Whether the type is a register (x0-x29, sp, xzr).
 constexpr bool is_register(const TokenType t)
 {
-    return detail::in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
+    return type_in_range(t, TokenType::REGISTER_X0, TokenType::REGISTER_XZR);
 }
 
 ///
@@ -275,7 +272,7 @@ constexpr bool is_register(const TokenType t)
 /// @return Whether the type is an instruction mnemonic.
 constexpr bool is_instruction(const TokenType t)
 {
-    return detail::in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
+    return type_in_range(t, TokenType::INSTRUCTION_HLT, TokenType::INSTRUCTION_RET);
 }
 
 ///
@@ -283,7 +280,7 @@ constexpr bool is_instruction(const TokenType t)
 /// @return Whether the type is a condition code (eq, ne, ...).
 constexpr bool is_condition(const TokenType t)
 {
-    return detail::in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
+    return type_in_range(t, TokenType::CONDITION_EQ, TokenType::CONDITION_NV);
 }
 
 ///
@@ -291,8 +288,8 @@ constexpr bool is_condition(const TokenType t)
 /// @return Whether the type is an integer literal.
 constexpr bool is_integer_literal(const TokenType t)
 {
-    return detail::in_range(t, TokenType::LITERAL_NUMBER_BINARY,
-                            TokenType::LITERAL_NUMBER_HEXADECIMAL);
+    return type_in_range(t, TokenType::LITERAL_NUMBER_BINARY,
+                         TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
 ///
@@ -300,7 +297,7 @@ constexpr bool is_integer_literal(const TokenType t)
 /// @return Whether the type is an integer or floating point literal.
 constexpr bool is_number_literal(const TokenType t)
 {
-    return detail::in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
+    return type_in_range(t, TokenType::LITERAL_FLOAT_32, TokenType::LITERAL_NUMBER_HEXADECIMAL);
 }
 
 ///
@@ -308,7 +305,7 @@ constexpr bool is_number_literal(const TokenType t)
 /// @return Whether the type is an operator of an expression.
 constexpr bool is_operator(const TokenType t)
 {
-    return detail::in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
+    return type_in_range(t, TokenType::OPERATOR_ADDITION, TokenType::OPERATOR_LOGICAL_AND);
 }
 
 /// Register number of a register token: x0-x29 are 0-29, sp is 30, xzr is 31.

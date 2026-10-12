@@ -7,9 +7,6 @@
 #include <ostream>
 #include <sstream>
 
-namespace
-{
-
 /// How many instructions of the history a fault shows.
 constexpr size_t kFaultHistory = 8;
 
@@ -19,7 +16,7 @@ constexpr size_t kDebuggerHistory = 32;
 constexpr word kDefaultDumpBytes = 16;
 constexpr word kDefaultDisassembledInstructions = 8;
 
-const char *kHelp =
+static const char *kHelp =
     "Commands (an address is a number, a symbol, or symbol+number):\n"
     "  step [n]            (s)    execute n instructions (default 1)\n"
     "  continue [limit]    (c)    run until a breakpoint, a halt or a fault\n"
@@ -43,8 +40,6 @@ const char *kHelp =
     "  set <reg|pc> <value>       change a register or the pc\n"
     "  help                (h)    this text\n"
     "  quit                (q)    leave the debugger\n";
-
-} // namespace
 
 std::optional<U64> parse_number(const std::string &str)
 {
@@ -752,8 +747,6 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
     return spec;
 }
 
-namespace
-{
 struct ConditionName
 {
     const char *text;
@@ -771,7 +764,7 @@ constexpr ConditionName kConditionNames[] = {
 };
 
 /// "==5", ">=0x10": an operator and a number.
-std::optional<std::pair<Emulator32bit::WatchCompare, word>>
+static std::optional<std::pair<Emulator32bit::WatchCompare, word>>
 parse_watch_condition(const std::string &text)
 {
     for (const ConditionName &name : kConditionNames)
@@ -789,7 +782,6 @@ parse_watch_condition(const std::string &text)
     }
     return std::nullopt;
 }
-} // namespace
 
 std::string describe_watch_condition(const Emulator32bit::WatchCompare compare, const word value)
 {

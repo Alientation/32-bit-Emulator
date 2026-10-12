@@ -8,14 +8,9 @@
 
 using namespace encoding;
 
-namespace
-{
-
 /// The longest string that a program can ask the emulator to print. A string that does not end
 /// before that is a program that lost track of its memory.
 constexpr word kMaxStringLength = 1 << 16;
-
-} // namespace
 
 void Emulator32bit::set_output(std::ostream &out)
 {

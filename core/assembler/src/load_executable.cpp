@@ -6,9 +6,6 @@
 #include <map>
 #include <span>
 
-namespace
-{
-
 /// Where a section is loaded. Sections that are not placed at a physical address live in virtual
 /// memory, which needs the pages to be mapped before they are written.
 struct Placement
@@ -17,7 +14,7 @@ struct Placement
     bool physical;
 };
 
-Placement placement_of(const ObjectFile &obj, const std::string &section)
+static Placement placement_of(const ObjectFile &obj, const std::string &section)
 {
     const ObjectFile::SectionHeader &header = obj.sections[obj.section_table.at(section)];
     return {.address = header.address, .physical = header.load_at_physical_address};
@@ -29,8 +26,8 @@ using PagePermissions = std::map<word, std::pair<bool, bool>>;
 /// Adds the pages of a section to the process. A page can hold more than one section (by default
 /// .bss directly follows .data), and then has the permissions of both. The pages can be written
 /// while the program is loaded, `permissions` is what they are afterwards.
-void map_pages(PagePermissions &permissions, VirtualMemory &mmu, const word start_addr,
-               const word size, const bool write, const bool execute)
+static void map_pages(PagePermissions &permissions, VirtualMemory &mmu, const word start_addr,
+                      const word size, const bool write, const bool execute)
 {
     const S64 pid = mmu.current_process();
     const word last_vpage = (start_addr + size - 1) >> kNumPageOffsetBits;
@@ -53,8 +50,8 @@ void map_pages(PagePermissions &permissions, VirtualMemory &mmu, const word star
 }
 
 /// Copies `bytes` to the section's address.
-void copy_section(PagePermissions &permissions, Emulator32bit &emu, const Placement &where,
-                  const std::span<const byte> bytes, const bool write, const bool execute)
+static void copy_section(PagePermissions &permissions, Emulator32bit &emu, const Placement &where,
+                         const std::span<const byte> bytes, const bool write, const bool execute)
 {
     if (bytes.empty())
     {
@@ -86,8 +83,6 @@ void copy_section(PagePermissions &permissions, Emulator32bit &emu, const Placem
     map_pages(permissions, *emu.mmu, where.address, size, write, execute);
     emu.memory.write_block(where.address, bytes.data(), size);
 }
-
-} // namespace
 
 LoadExecutable::LoadExecutable(Emulator32bit &emu, const File &exe_file) :
     m_emu(emu),

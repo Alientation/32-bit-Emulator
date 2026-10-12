@@ -192,9 +192,6 @@ inline std::optional<Level> parse_level(const std::string_view name)
     return std::nullopt;
 }
 
-namespace detail
-{
-
 inline bool stream_is_tty(std::FILE *stream)
 {
 #ifdef _WIN32
@@ -321,8 +318,6 @@ inline void write_default(const Record &record, const bool color, const bool tim
     }
 }
 
-} // namespace detail
-
 // ---------------------------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------------------------
@@ -330,7 +325,7 @@ inline void write_default(const Record &record, const bool color, const bool tim
 /// @return The lowest level that is emitted.
 inline Level get_level()
 {
-    return detail::state().level.load(std::memory_order_relaxed);
+    return state().level.load(std::memory_order_relaxed);
 }
 
 /// Sets the lowest level that is emitted.
@@ -338,7 +333,7 @@ inline Level get_level()
 /// @param[in] level The lowest level.
 inline void set_level(const Level level)
 {
-    detail::state().level.store(level);
+    state().level.store(level);
 }
 
 /// @param[in] level The level of a message.
@@ -351,7 +346,7 @@ inline bool enabled(const Level level)
 /// @return What AEMU_FATAL and a failed AEMU_CHECK do after logging.
 inline FatalAction get_fatal_action()
 {
-    return detail::state().fatal_action.load();
+    return state().fatal_action.load();
 }
 
 /// Chooses what AEMU_FATAL and AEMU_CHECK do after logging.
@@ -359,7 +354,7 @@ inline FatalAction get_fatal_action()
 /// @param[in] action What to do.
 inline void set_fatal_action(const FatalAction action)
 {
-    detail::state().fatal_action.store(action);
+    state().fatal_action.store(action);
 }
 
 /// Turns the ANSI colors of the default sink on or off. Without a call, they are on when stderr is
@@ -368,7 +363,7 @@ inline void set_fatal_action(const FatalAction action)
 /// @param[in] enable Whether to use the colors.
 inline void set_color(const bool enable)
 {
-    detail::state().color.store(enable);
+    state().color.store(enable);
 }
 
 /// Turns on or off the prefix of each line of the default sink with the seconds since the logger
@@ -377,7 +372,7 @@ inline void set_color(const bool enable)
 /// @param[in] enable Whether to print the time.
 inline void set_timestamps(const bool enable)
 {
-    detail::state().timestamps.store(enable);
+    state().timestamps.store(enable);
 }
 
 /// Replaces the default stderr output. Pass an empty function (or call reset_sink) to restore it.
@@ -385,7 +380,7 @@ inline void set_timestamps(const bool enable)
 /// @param[in] sink The function that receives every message.
 inline void set_sink(Sink sink)
 {
-    detail::State &s = detail::state();
+    State &s = state();
     const std::lock_guard lock(s.mutex);
     s.sink = std::move(sink);
 }
@@ -456,7 +451,7 @@ class ScopedFatalAction
 inline void write(const Level level, const std::source_location &location,
                   const std::string_view message)
 {
-    detail::State &s = detail::state();
+    State &s = state();
     if (level < s.level.load(std::memory_order_relaxed))
     {
         return;
@@ -465,7 +460,7 @@ inline void write(const Level level, const std::source_location &location,
     const Record record{.level = level,
                         .location = location,
                         .message = message,
-                        .since_start_ns = detail::monotonic_ns() - s.start_ns};
+                        .since_start_ns = monotonic_ns() - s.start_ns};
 
     const std::lock_guard lock(s.mutex);
     if (s.sink)
@@ -474,7 +469,7 @@ inline void write(const Level level, const std::source_location &location,
     }
     else
     {
-        detail::write_default(record, s.color.load(), s.timestamps.load());
+        write_default(record, s.color.load(), s.timestamps.load());
     }
 }
 
@@ -498,19 +493,16 @@ inline void write(const Level level, const std::source_location &location,
     std::exit(EXIT_FAILURE);
 }
 
-namespace detail
-{
-
 template<typename... Args>
-void log(Level level, const std::source_location &location, std::format_string<Args...> fmt,
-         Args &&...args)
+void log_formatted(Level level, const std::source_location &location,
+                   std::format_string<Args...> fmt, Args &&...args)
 {
     write(level, location, std::format(fmt, std::forward<Args>(args)...));
 }
 
 template<typename... Args>
-[[noreturn]] void fatal(const std::source_location &location, std::format_string<Args...> fmt,
-                        Args &&...args)
+[[noreturn]] void fatal_formatted(const std::source_location &location,
+                                  std::format_string<Args...> fmt, Args &&...args)
 {
     ::aemu::log::fatal(location, std::string_view(std::format(fmt, std::forward<Args>(args)...)));
 }
@@ -523,8 +515,6 @@ template<typename... Args>
         location, std::string_view(std::format("Check failed: ({}): {}", expression,
                                                std::format(fmt, std::forward<Args>(args)...))));
 }
-
-} // namespace detail
 
 // ---------------------------------------------------------------------------------------------
 // Scoped timer
@@ -541,7 +531,7 @@ class ScopedTimer
                          const std::source_location location = std::source_location::current()) :
         m_tag(std::move(tag)),
         m_location(location),
-        m_start(detail::monotonic_ns())
+        m_start(monotonic_ns())
     {
     }
 
@@ -552,7 +542,7 @@ class ScopedTimer
             return;
         }
 
-        const S64 ns = detail::monotonic_ns() - m_start;
+        const S64 ns = monotonic_ns() - m_start;
         write(Level::Debug, m_location, std::format("{} took {}", m_tag, format_duration(ns)));
     }
 
@@ -603,11 +593,11 @@ class ScopedTimer
 #define AEMU_LOG_AT_(level, ...)                                                                   \
     do                                                                                             \
     {                                                                                              \
-        if constexpr (::aemu::log::detail::compiled_in(level))                                     \
+        if constexpr (::aemu::log::compiled_in(level))                                             \
         {                                                                                          \
             if (::aemu::log::enabled(level))                                                       \
             {                                                                                      \
-                ::aemu::log::detail::log(level, std::source_location::current(), __VA_ARGS__);     \
+                ::aemu::log::log_formatted(level, std::source_location::current(), __VA_ARGS__);   \
             }                                                                                      \
         }                                                                                          \
     } while (0)
@@ -618,7 +608,7 @@ class ScopedTimer
 #define AEMU_ERROR(...) AEMU_LOG_AT_(::aemu::log::Level::Error, __VA_ARGS__)
 
 /// Logs and terminates. Never returns, so no `return;` is needed afterwards.
-#define AEMU_FATAL(...) ::aemu::log::detail::fatal(std::source_location::current(), __VA_ARGS__)
+#define AEMU_FATAL(...) ::aemu::log::fatal_formatted(std::source_location::current(), __VA_ARGS__)
 
 /// Always evaluated. Fatal when `cond` is false. The message is mandatory (use "" if none).
 #define AEMU_CHECK(cond, ...)                                                                      \
@@ -626,8 +616,7 @@ class ScopedTimer
     {                                                                                              \
         if (!(cond)) [[unlikely]]                                                                  \
         {                                                                                          \
-            ::aemu::log::detail::check_failed(std::source_location::current(), #cond,              \
-                                              __VA_ARGS__);                                        \
+            ::aemu::log::check_failed(std::source_location::current(), #cond, __VA_ARGS__);        \
         }                                                                                          \
     } while (0)
 

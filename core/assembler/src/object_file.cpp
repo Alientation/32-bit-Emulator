@@ -7,12 +7,9 @@
 
 #include <fstream>
 
-namespace
-{
-
 /// Fails unless the file has a section with the name and the type.
-void require_section(const ObjectFile &obj, const std::string &path, const char *name,
-                     const ObjectFile::SectionHeader::Type type)
+static void require_section(const ObjectFile &obj, const std::string &path, const char *name,
+                            const ObjectFile::SectionHeader::Type type)
 {
     const auto section = obj.section_table.find(name);
     AEMU_CHECK(section != obj.section_table.end() && obj.sections[section->second].type == type,
@@ -21,9 +18,9 @@ void require_section(const ObjectFile &obj, const std::string &path, const char 
 
 /// Fails unless every relocation is for a symbol of the file, has a type that exists and is
 /// inside the section (`size` bytes long) with `width` bytes to patch.
-void check_relocations(const ObjectFile &obj, const std::string &path,
-                       const std::vector<ObjectFile::RelocationEntry> &relocations,
-                       const char *section, const size_t size, const size_t width)
+static void check_relocations(const ObjectFile &obj, const std::string &path,
+                              const std::vector<ObjectFile::RelocationEntry> &relocations,
+                              const char *section, const size_t size, const size_t width)
 {
     using Type = ObjectFile::RelocationEntry::Type;
     for (const ObjectFile::RelocationEntry &rel : relocations)
@@ -43,9 +40,9 @@ void check_relocations(const ObjectFile &obj, const std::string &path,
 
 /// Writes the relocations of a section where the last write stopped, and gives its header the
 /// size and the place.
-void write_relocations(ByteWriter &byte_writer, size_t &current_byte,
-                       ObjectFile::SectionHeader &header, const char *name,
-                       const std::vector<ObjectFile::RelocationEntry> &relocations)
+static void write_relocations(ByteWriter &byte_writer, size_t &current_byte,
+                              ObjectFile::SectionHeader &header, const char *name,
+                              const std::vector<ObjectFile::RelocationEntry> &relocations)
 {
     AEMU_DEBUG("Writing {} section.", name);
     for (const ObjectFile::RelocationEntry &rel : relocations)
@@ -59,8 +56,6 @@ void write_relocations(ByteWriter &byte_writer, size_t &current_byte,
     header.section_start = current_byte;
     current_byte += relocations.size() * ObjectFile::kRelocationEntrySize;
 }
-
-} // namespace
 
 ObjectFile::ObjectFile() = default;
 

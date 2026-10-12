@@ -68,7 +68,7 @@ void Assembler::parse_shift(ShiftType &shift, S32 &shift_amt)
           "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
 }
 
-ConditionCode get_cond_code(const TokenType type)
+static ConditionCode get_cond_code(const TokenType type)
 {
     switch (type)
     {
@@ -811,8 +811,6 @@ word Assembler::parse_format_atomic(const byte width, const byte atopcode)
 // row of instruction_list.h. The table is built from it.
 namespace basm
 {
-namespace
-{
 
 #define BASM_INSTRUCTION_SPEC(X, NAME, TEXT, ALLOWS_S, FORMAT, A, B)                               \
     {.token = TokenType::INSTRUCTION_##NAME,                                                       \
@@ -843,8 +841,6 @@ constexpr bool specs_follow_the_token_order()
 }
 
 static_assert(specs_follow_the_token_order());
-
-} // namespace
 
 const InstructionSpec &instruction_spec(const TokenType type)
 {

@@ -16,20 +16,18 @@
 #include <sstream>
 #include <vector>
 
-namespace
-{
-
 /// The width of the column of the options in the help.
 constexpr S32 kOptionWidth = 26;
 
-void print_option(const std::string &option, const std::string &description)
+static void print_option(const std::string &option, const std::string &description)
 {
     std::cout << std::left << std::setw(kOptionWidth) << option << " " << description << '\n';
 }
 
 /// Reads the members of the library into `members`, unless the library was read already (`read`
 /// has the paths of those).
-void add_library(std::vector<LibraryMember> &members, std::set<std::string> &read, const File &lib)
+static void add_library(std::vector<LibraryMember> &members, std::set<std::string> &read,
+                        const File &lib)
 {
     const std::string key = std::filesystem::weakly_canonical(lib.get_path()).string();
     if (!read.insert(key).second)
@@ -42,8 +40,6 @@ void add_library(std::vector<LibraryMember> &members, std::set<std::string> &rea
         members.push_back(std::move(member));
     }
 }
-
-} // namespace
 
 Build::Build(const std::string &assembler_args) :
     Build(split_args(assembler_args))

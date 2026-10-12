@@ -5,21 +5,16 @@
 #include <algorithm>
 #include <iterator>
 
-namespace
-{
-
-[[noreturn, gnu::cold]] void throw_unroutable(const word address)
+[[noreturn, gnu::cold]] static void throw_unroutable(const word address)
 {
     throw SystemBus::BusError("Could not route address " + std::to_string(address) + " to memory.");
 }
 
-[[noreturn, gnu::cold]] void throw_read_only(const word address)
+[[noreturn, gnu::cold]] static void throw_read_only(const word address)
 {
     throw SystemBus::BusError("Could not write to address " + std::to_string(address)
                               + ", it is in the ROM.");
 }
-
-} // namespace
 
 SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom) :
     SystemBus(std::move(ram), std::move(rom), std::make_unique<MockDisk>())

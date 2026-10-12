@@ -239,10 +239,7 @@ const char *VirtualMemory::Error::what() const noexcept
     return message.c_str();
 }
 
-namespace
-{
-
-const char *access_name(const VirtualMemory::AccessType access)
+static const char *access_name(const VirtualMemory::AccessType access)
 {
     switch (access)
     {
@@ -256,8 +253,8 @@ const char *access_name(const VirtualMemory::AccessType access)
     return "Access";
 }
 
-std::string fault_message(const VirtualMemory::PageFault::Reason reason, const word vpage,
-                          const VirtualMemory::AccessType access)
+static std::string fault_message(const VirtualMemory::PageFault::Reason reason, const word vpage,
+                                 const VirtualMemory::AccessType access)
 {
     using Reason = VirtualMemory::PageFault::Reason;
     const std::string page = " virtual page " + std::to_string(vpage);
@@ -275,8 +272,6 @@ std::string fault_message(const VirtualMemory::PageFault::Reason reason, const w
     }
     return "Page fault";
 }
-
-} // namespace
 
 VirtualMemory::PageFault::PageFault(const Reason reason, const word vpage,
                                     const AccessType access) :

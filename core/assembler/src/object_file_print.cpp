@@ -11,9 +11,6 @@
 #include <map>
 #include <unordered_map>
 
-namespace
-{
-
 /// The width that the name of a relocation is padded to in the listing of the code, less one for
 /// each bit of the number of the instruction (so it gets narrower further down).
 constexpr S32 kRelocationNameWidth = 29;
@@ -28,7 +25,7 @@ constexpr S32 kMinAddressDigits = 4;
 /// The characters of the name of an instruction that are listed.
 constexpr size_t kMnemonicWidth = 12;
 
-const char *relocation_name(const ObjectFile::RelocationEntry::Type type)
+static const char *relocation_name(const ObjectFile::RelocationEntry::Type type)
 {
     using Type = ObjectFile::RelocationEntry::Type;
     switch (type)
@@ -54,7 +51,7 @@ const char *relocation_name(const ObjectFile::RelocationEntry::Type type)
 }
 
 /// The symbol of a relocation with its addend, `table+0x8`.
-std::string target_text(const ObjectFile &obj, const ObjectFile::RelocationEntry &rel)
+static std::string target_text(const ObjectFile &obj, const ObjectFile::RelocationEntry &rel)
 {
     const std::string &name = obj.strings[obj.symbol_table.at(rel.symbol).symbol_name];
     if (rel.addend == 0)
@@ -66,13 +63,13 @@ std::string target_text(const ObjectFile &obj, const ObjectFile::RelocationEntry
 }
 
 /// An address the way it is shown at the start of a line.
-std::string address_text(const U64 address)
+static std::string address_text(const U64 address)
 {
     return color_val_str(to_hex_str(dword(address)));
 }
 
 /// At least four digits, and room for the highest number of the section.
-S32 digits_for(const size_t count)
+static S32 digits_for(const size_t count)
 {
     const S32 digits = S32(std::bit_width(count));
     return digits > kMinAddressDigits ? digits : kMinAddressDigits;
@@ -80,9 +77,9 @@ S32 digits_for(const size_t count)
 
 /// Lists the bytes of a section, 16 to a line, and then its relocations. `separator` is what
 /// comes before the section.
-void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator,
-                 const std::string &name, const std::vector<byte> &bytes_of_section,
-                 const std::vector<ObjectFile::RelocationEntry> &relocations)
+static void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator,
+                        const std::string &name, const std::vector<byte> &bytes_of_section,
+                        const std::vector<ObjectFile::RelocationEntry> &relocations)
 {
     out << std::format("{}Contents of section {}:", separator, name);
     const S32 width = digits_for(bytes_of_section.size() / kBytesPerLine);
@@ -109,8 +106,6 @@ void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator
         }
     }
 }
-
-} // namespace
 
 void ObjectFile::print() const
 {

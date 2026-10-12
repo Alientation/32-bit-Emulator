@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <span>
 
-namespace
-{
-
 /// How much a section takes in the executable, and what it is aligned to.
 struct Extent
 {
@@ -20,7 +17,7 @@ struct Extent
 /// @param[in] obj An object file that has the section.
 /// @param[in] name The name of a section of the file.
 /// @return What the section is aligned to, at least 1.
-word alignment_of(const ObjectFile &obj, const std::string &name)
+static word alignment_of(const ObjectFile &obj, const std::string &name)
 {
     const word alignment = obj.sections[obj.section_table.at(name)].alignment;
     return alignment == 0 ? 1 : alignment;
@@ -29,7 +26,7 @@ word alignment_of(const ObjectFile &obj, const std::string &name)
 /// @param[in] obj An object file that has the section.
 /// @param[in] name The name of a section of code, bytes or the program's own (not .bss).
 /// @return The size of the section in bytes.
-word section_size(const ObjectFile &obj, const std::string &name)
+static word section_size(const ObjectFile &obj, const std::string &name)
 {
     if (name == ".text") return word(obj.text_section.size() * kInstructionSize);
     for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
@@ -41,7 +38,7 @@ word section_size(const ObjectFile &obj, const std::string &name)
 
 /// Extent of a section of the executable made of the same section of each object file, each put at
 /// a multiple of its alignment (what merge_sections does).
-Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &name)
+static Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &name)
 {
     Extent extent;
     for (const ObjectFile &obj : objects)
@@ -59,7 +56,7 @@ Extent merged_extent(const std::vector<ObjectFile> &objects, const std::string &
 /// @param[in] sections User sections.
 /// @param[in] name The name of a section.
 /// @return The section with the name, or `sections.end()` if there is none.
-std::vector<ObjectFile::UserSection>::const_iterator
+static std::vector<ObjectFile::UserSection>::const_iterator
 find_user_section(const std::vector<ObjectFile::UserSection> &sections, const std::string &name)
 {
     auto it = sections.begin();
@@ -70,7 +67,7 @@ find_user_section(const std::vector<ObjectFile::UserSection> &sections, const st
 /// The user sections of the object files: the name, whether the program may write it, whether
 /// it runs code from it and whether it is zero filled. In the order they are first seen, and the
 /// same section in two files has to have the same permissions and kind.
-std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFile> &objects)
+static std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFile> &objects)
 {
     std::vector<ObjectFile::UserSection> found;
     for (const ObjectFile &obj : objects)
@@ -102,7 +99,7 @@ std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<ObjectFi
 }
 
 /// Where the user section is in the executable's list, which is the order of `found` above.
-size_t user_index(const ObjectFile &exe, const std::string &name)
+static size_t user_index(const ObjectFile &exe, const std::string &name)
 {
     for (size_t i = 0; i < exe.user_sections.size(); i++)
     {
@@ -111,7 +108,7 @@ size_t user_index(const ObjectFile &exe, const std::string &name)
     return size_t(-1);
 }
 
-std::string quoted(const std::string &name)
+static std::string quoted(const std::string &name)
 {
     std::string text = "\"";
     for (const char c : name)
@@ -123,7 +120,7 @@ std::string quoted(const std::string &name)
 }
 
 /// Puts a section at the next address that it is aligned to, and moves the address past it.
-void place(word &address, const Extent &extent)
+static void place(word &address, const Extent &extent)
 {
     address += padding_to(address, extent.alignment);
     address += extent.size;
@@ -135,7 +132,7 @@ void place(word &address, const Extent &extent)
 /// following it, then the read only sections of the program. .data starts on the first page after
 /// those, followed by the writable sections of the program, so that code, read only data and data
 /// never share a page however big they are. .bss follows.
-std::string default_linker_script(const std::vector<ObjectFile> &objects)
+static std::string default_linker_script(const std::vector<ObjectFile> &objects)
 {
     const std::vector<ObjectFile::UserSection> user = user_sections_of(objects);
 
@@ -189,14 +186,15 @@ struct Placed
     bool writable;
 };
 
-bool is_undefined(const ObjectFile::SymbolTableEntry &symbol)
+static bool is_undefined(const ObjectFile::SymbolTableEntry &symbol)
 {
     return symbol.section == U32(-1);
 }
 
 /// Fails if a section with contents is not one that the script placed, since it would be loaded at
 /// address 0. A script without SECTIONS places nothing at all, which is not an error.
-void check_placed(const std::vector<Placed> &placed, const std::string &name, const word size)
+static void check_placed(const std::vector<Placed> &placed, const std::string &name,
+                         const word size)
 {
     if (placed.empty() || size == 0) return;
 
@@ -211,8 +209,8 @@ void check_placed(const std::vector<Placed> &placed, const std::string &name, co
 
 /// Defines the symbol in the section, at the value. An object file that defines the symbol itself
 /// keeps its definition, and one that only refers to it gets this one.
-void define_array_symbol(ObjectFile &exe, const char *name, const ObjectFile::ByteSection &section,
-                         const word value)
+static void define_array_symbol(ObjectFile &exe, const char *name,
+                                const ObjectFile::ByteSection &section, const word value)
 {
     const U32 section_index = exe.section_table.at(section.name);
 
@@ -234,7 +232,7 @@ void define_array_symbol(ObjectFile &exe, const char *name, const ObjectFile::By
 /// @param[in] exe The executable.
 /// @param[in] name The name of a symbol.
 /// @return Whether the executable has a symbol with the name that is defined.
-bool is_defined(const ObjectFile &exe, const std::string &name)
+static bool is_defined(const ObjectFile &exe, const std::string &name)
 {
     const auto string = exe.string_table.find(name);
     return string != exe.string_table.end() && !is_undefined(exe.symbol_table.at(string->second));
@@ -242,13 +240,11 @@ bool is_defined(const ObjectFile &exe, const std::string &name)
 
 /// A relocation can use the symbol: it is defined, or it is weak and nothing defines it, which
 /// makes it 0.
-bool is_resolvable(const ObjectFile::SymbolTableEntry &symbol)
+static bool is_resolvable(const ObjectFile::SymbolTableEntry &symbol)
 {
     return !is_undefined(symbol)
            || symbol.binding_info == ObjectFile::SymbolTableEntry::BindingInfo::WEAK_DECLARED;
 }
-
-} // namespace
 
 Linker::Linker(std::vector<ObjectFile> obj_files, const File &exe_file) :
     m_obj_files(std::move(obj_files)),

@@ -14,22 +14,19 @@ using basm::TokenCursor;
 using basm::TokenFlag;
 using basm::TokenType;
 
-namespace
-{
-
 /// Token to point an error at when the line ended before something expected.
-const Token &where(const TokenCursor &line)
+static const Token &where(const TokenCursor &line)
 {
     if (line.at_end() && !line.tokens().empty()) return line.tokens().back();
     return line.peek();
 }
 
-std::string describe_next(const TokenCursor &line)
+static std::string describe_next(const TokenCursor &line)
 {
     return line.at_end() ? "end of line" : basm::describe(line.peek());
 }
 
-bool is_value_conditional(const TokenType type)
+static bool is_value_conditional(const TokenType type)
 {
     switch (type)
     {
@@ -47,7 +44,7 @@ bool is_value_conditional(const TokenType type)
     }
 }
 
-bool is_if(const TokenType type)
+static bool is_if(const TokenType type)
 {
     switch (type)
     {
@@ -63,7 +60,7 @@ bool is_if(const TokenType type)
     }
 }
 
-bool is_else(const TokenType type)
+static bool is_else(const TokenType type)
 {
     switch (type)
     {
@@ -80,13 +77,13 @@ bool is_else(const TokenType type)
     }
 }
 
-bool is_conditional(const TokenType type)
+static bool is_conditional(const TokenType type)
 {
     return is_if(type) || is_else(type) || type == TokenType::PREPROCESSOR_ENDIF;
 }
 
 /// The text of the tokens, with one space wherever the source had whitespace.
-std::string join(const std::vector<Token> &tokens)
+static std::string join(const std::vector<Token> &tokens)
 {
     std::string text;
     for (std::size_t i = 0; i < tokens.size(); i++)
@@ -99,7 +96,7 @@ std::string join(const std::vector<Token> &tokens)
 
 /// The value of text that is a whole number written the way the assembler writes one: 42, 0x2A,
 /// 0b101 or 0o17, with an optional '-'.
-std::optional<S64> as_number(const std::string &text)
+static std::optional<S64> as_number(const std::string &text)
 {
     std::size_t i = 0;
     const bool negative = !text.empty() && text[0] == '-';
@@ -125,7 +122,7 @@ std::optional<S64> as_number(const std::string &text)
 
 /// Compares the values of an #ifequ, #ifless, ... They are compared as numbers when both are
 /// numbers (9 is less than 10) and as text otherwise.
-S32 compare_values(const std::string &left, const std::string &right)
+static S32 compare_values(const std::string &left, const std::string &right)
 {
     const std::optional<S64> a = as_number(left);
     const std::optional<S64> b = as_number(right);
@@ -144,13 +141,11 @@ constexpr bool is_operator_char(const char c)
 }
 
 /// Whether printing two tokens next to each other would lex differently than they did.
-bool would_merge(const char last, const char first)
+static bool would_merge(const char last, const char first)
 {
     return (is_ident_char(last) && is_ident_char(first))
            || (is_operator_char(last) && is_operator_char(first));
 }
-
-} // namespace
 
 Preprocessor::Preprocessor(const File &input_file, const std::string &output_file_path,
                            PreprocessorOptions options) :

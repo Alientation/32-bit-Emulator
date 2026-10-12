@@ -17,13 +17,11 @@
 
 namespace fpu
 {
-namespace
-{
 
 /// A compiler may not move a floating point operation across the change of the rounding mode or
 /// the read of the flags (it knows nothing of them), so the operands and the results of the
 /// operations below are volatile and the changes are bracketed by this.
-inline void host_barrier()
+static inline void host_barrier()
 {
     std::atomic_signal_fence(std::memory_order_seq_cst);
 }
@@ -146,19 +144,19 @@ struct Format<double>
 };
 
 template<class T>
-T from_bits(const U64 bits)
+static T from_bits(const U64 bits)
 {
     return std::bit_cast<T>(typename Format<T>::Bits(bits));
 }
 
 template<class T>
-U64 to_bits(const T value)
+static U64 to_bits(const T value)
 {
     return U64(std::bit_cast<typename Format<T>::Bits>(value));
 }
 
 template<class T>
-bool is_signaling_nan(const T value)
+static bool is_signaling_nan(const T value)
 {
     using F = Format<T>;
     const typename F::Bits bits = std::bit_cast<typename F::Bits>(value);
@@ -168,13 +166,13 @@ bool is_signaling_nan(const T value)
 
 /// @return The bits of @p value, or the default NaN if it is one.
 template<class T>
-U64 canonical(const T value)
+static U64 canonical(const T value)
 {
     return value != value ? U64(Format<T>::kDefaultNan) : to_bits(value);
 }
 
 template<class T>
-Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word rounding)
+static Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word rounding)
 {
     const T a = from_bits<T>(abits);
     const T b = from_bits<T>(bbits);
@@ -222,7 +220,8 @@ Result binary_op(const U8 fn, const U64 abits, const U64 bbits, const word round
 /// a * b + c with one rounding. The signs of the operands are changed first for the other three
 /// functions; a sign change is exact, and the result of a NaN is the default NaN anyway.
 template<class T>
-Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, const word rounding)
+static Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits,
+                       const word rounding)
 {
     T a = from_bits<T>(abits);
     const T b = from_bits<T>(bbits);
@@ -246,7 +245,7 @@ Result fused_op(const U8 fn, const U64 abits, const U64 bbits, const U64 cbits, 
 }
 
 template<class T>
-Result sqrt_op(const U64 abits, const word rounding)
+static Result sqrt_op(const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
     volatile T va = from_bits<T>(abits);
@@ -257,7 +256,7 @@ Result sqrt_op(const U64 abits, const word rounding)
 
 /// Abs, neg: the sign bit and nothing else.
 template<class T>
-Result sign_op(const U8 fn, const U64 abits)
+static Result sign_op(const U8 fn, const U64 abits)
 {
     using F = Format<T>;
     const typename F::Bits bits = typename F::Bits(abits);
@@ -266,7 +265,7 @@ Result sign_op(const U8 fn, const U64 abits)
 
 /// The rint family: round to an integral value and stay a float. Inexact is not raised.
 template<class T>
-Result rint_op(const U8 fn, const U64 abits, const word rounding)
+static Result rint_op(const U8 fn, const U64 abits, const word rounding)
 {
     const T a = from_bits<T>(abits);
     if (a != a)
@@ -303,7 +302,7 @@ Result rint_op(const U8 fn, const U64 abits, const word rounding)
 
 /// Float to a 32 bit integer, saturating. A NaN gives 0.
 template<class T>
-Result to_int_op(const U8 fn, const U64 abits, const word rounding)
+static Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     const bool is_signed = fn == kUnaryFn_tos32 || fn == kUnaryFn_tos32r;
     const bool current_mode = fn == kUnaryFn_tos32r || fn == kUnaryFn_tou32r;
@@ -355,7 +354,7 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
 
 /// A 32 bit integer to a float, rounded in the mode of the FPCR.
 template<class T>
-Result from_int_op(const U8 fn, const U64 abits, const word rounding)
+static Result from_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
     volatile S32 vs = S32(U32(abits));
@@ -364,8 +363,6 @@ Result from_int_op(const U8 fn, const U64 abits, const word rounding)
     const T value = result;
     return {.value = to_bits(value), .flags = host.flags()};
 }
-
-} // namespace
 
 Result binary(const U8 fn, const bool dbl, const U64 a, const U64 b, const word rounding)
 {
@@ -424,9 +421,6 @@ Result unary(const U8 fn, const bool dbl, const U64 a, const word rounding)
     return {.value = canonical(f), .flags = host.flags()};
 }
 
-namespace
-{
-
 /// The NZCV flags of `fcmp`, as the bits of the result.
 constexpr U64 kCompareN = 0b1000;
 constexpr U64 kCompareZ = 0b0100;
@@ -438,7 +432,7 @@ constexpr U64 kCompareV = 0b0001;
 /// @param[in] signaling Whether a quiet NaN raises Invalid too (`fcmpe`).
 /// @return The flags (less than: N, equal: ZC, greater than: C, unordered: CV) and the exceptions.
 template<class T>
-Result compare_as(const bool signaling, const U64 a, const U64 b)
+static Result compare_as(const bool signaling, const U64 a, const U64 b)
 {
     const T x = from_bits<T>(a);
     const T y = from_bits<T>(b);
@@ -453,8 +447,6 @@ Result compare_as(const bool signaling, const U64 a, const U64 b)
     }
     return {.value = x < y ? kCompareN : kCompareC, .flags = 0};
 }
-
-} // namespace
 
 Result compare(const bool dbl, const bool signaling, const U64 a, const U64 b)
 {

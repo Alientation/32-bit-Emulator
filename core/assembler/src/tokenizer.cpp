@@ -113,9 +113,6 @@ std::string describe(const Token &token)
     }
 }
 
-namespace
-{
-
 static constexpr bool is_digit(const char c)
 {
     return c >= '0' && c <= '9';
@@ -178,7 +175,7 @@ static constexpr U64 escape_value(const char c)
     }
 }
 
-bool digits_valid(const std::string_view digits, const S32 base)
+static bool digits_valid(const std::string_view digits, const S32 base)
 {
     for (const char c : digits)
     {
@@ -189,7 +186,7 @@ bool digits_valid(const std::string_view digits, const S32 base)
 }
 
 /// Digits must already be validated. Returns false on overflow.
-bool parse_uint(U64 &out, const std::string_view digits, const S32 base)
+static bool parse_uint(U64 &out, const std::string_view digits, const S32 base)
 {
     U64 value = 0;
     for (const char c : digits)
@@ -201,8 +198,6 @@ bool parse_uint(U64 &out, const std::string_view digits, const S32 base)
     out = value;
     return true;
 }
-
-} // namespace
 
 std::string unescape_string_literal(const Token &token)
 {
@@ -232,12 +227,9 @@ std::string unescape_string_literal(const Token &token)
 // Diagnostics
 // ---------------------------------------------------------------------------------------------
 
-namespace
-{
-
 /// `file:line:col: <label>: <message>`, the source line and a caret under the column.
-std::string diagnostic_entry(const SourceManager &sources, const SourceLocation &at,
-                             const std::string &label, const std::string &message)
+static std::string diagnostic_entry(const SourceManager &sources, const SourceLocation &at,
+                                    const std::string &label, const std::string &message)
 {
     std::string out = std::string(sources.name(at.source)) + ":" + std::to_string(at.line) + ":"
                       + std::to_string(at.column) + ": " + label + ": " + message + "\n";
@@ -252,8 +244,6 @@ std::string diagnostic_entry(const SourceManager &sources, const SourceLocation 
     out += "^\n";
     return out;
 }
-
-} // namespace
 
 std::string format_diagnostic(const SourceManager &sources, const Diagnostic &diagnostic)
 {
@@ -290,9 +280,6 @@ std::string format_diagnostic(const SourceManager &sources, const Diagnostic &di
 // Keyword tables
 // ---------------------------------------------------------------------------------------------
 
-namespace
-{
-
 struct Keyword
 {
     TokenType type;
@@ -303,13 +290,13 @@ struct Keyword
 using KeywordMap = std::unordered_map<std::string_view, Keyword>;
 
 /// Adds a keyword to the map. `text` has to stay alive as long as the map does.
-void add_keyword(KeywordMap &map, const std::string_view text, const TokenType type,
-                 const bool allows_s = false, const U8 flags = 0)
+static void add_keyword(KeywordMap &map, const std::string_view text, const TokenType type,
+                        const bool allows_s = false, const U8 flags = 0)
 {
     map[text] = Keyword{.type = type, .flags = flags, .allows_s = allows_s};
 }
 
-KeywordMap make_assembly_keywords()
+static KeywordMap make_assembly_keywords()
 {
     KeywordMap m;
     add_keyword(m, "sp", TokenType::REGISTER_SP);
@@ -330,13 +317,13 @@ KeywordMap make_assembly_keywords()
     return m;
 }
 
-const KeywordMap &assembly_keywords()
+static const KeywordMap &assembly_keywords()
 {
     static const KeywordMap map = make_assembly_keywords();
     return map;
 }
 
-KeywordMap make_condition_keywords()
+static KeywordMap make_condition_keywords()
 {
     KeywordMap m;
 #define C(text, name)                                                                              \
@@ -363,13 +350,13 @@ KeywordMap make_condition_keywords()
     return m;
 }
 
-const KeywordMap &condition_keywords()
+static const KeywordMap &condition_keywords()
 {
     static const KeywordMap map = make_condition_keywords();
     return map;
 }
 
-KeywordMap make_assembler_directives()
+static KeywordMap make_assembler_directives()
 {
     KeywordMap m;
 #define D(text, name)                                                                              \
@@ -407,13 +394,13 @@ KeywordMap make_assembler_directives()
     return m;
 }
 
-const KeywordMap &assembler_directives()
+static const KeywordMap &assembler_directives()
 {
     static const KeywordMap map = make_assembler_directives();
     return map;
 }
 
-KeywordMap make_linker_keywords()
+static KeywordMap make_linker_keywords()
 {
     KeywordMap m;
     m["ENTRY"] = Keyword{.type = TokenType::KEYWORD_ENTRY, .flags = 0, .allows_s = false};
@@ -421,13 +408,13 @@ KeywordMap make_linker_keywords()
     return m;
 }
 
-const KeywordMap &linker_keywords()
+static const KeywordMap &linker_keywords()
 {
     static const KeywordMap map = make_linker_keywords();
     return map;
 }
 
-KeywordMap make_linker_directives()
+static KeywordMap make_linker_directives()
 {
     KeywordMap m;
     m[".text"] = Keyword{.type = TokenType::ASSEMBLER_TEXT, .flags = 0, .allows_s = false};
@@ -441,13 +428,13 @@ KeywordMap make_linker_directives()
     return m;
 }
 
-const KeywordMap &linker_directives()
+static const KeywordMap &linker_directives()
 {
     static const KeywordMap map = make_linker_directives();
     return map;
 }
 
-KeywordMap make_preprocessor_directives()
+static KeywordMap make_preprocessor_directives()
 {
     KeywordMap m;
 #define P(text, name)                                                                              \
@@ -477,14 +464,14 @@ KeywordMap make_preprocessor_directives()
     return m;
 }
 
-const KeywordMap &preprocessor_directives()
+static const KeywordMap &preprocessor_directives()
 {
     static const KeywordMap map = make_preprocessor_directives();
     return map;
 }
 
 /// Exact match, or the flag setting `s` variant of an instruction that allows it.
-std::optional<Keyword> find_keyword(const KeywordMap &map, const std::string_view text)
+static std::optional<Keyword> find_keyword(const KeywordMap &map, const std::string_view text)
 {
     if (auto it = map.find(text); it != map.end()) return it->second;
     if (text.size() > 1 && text.back() == 's')
@@ -501,7 +488,7 @@ std::optional<Keyword> find_keyword(const KeywordMap &map, const std::string_vie
 }
 
 /// Only x0-x29 are registers, written without leading zeros.
-std::optional<TokenType> parse_register(const std::string_view text)
+static std::optional<TokenType> parse_register(const std::string_view text)
 {
     if (text.size() < 2 || text.size() > 3 || text[0] != 'x' || !is_digit(text[1]))
         return std::nullopt;
@@ -1297,8 +1284,6 @@ class Lexer
 
     LexResult m_result;
 };
-
-} // namespace
 
 LexResult lex(const SourceManager &sources, const SourceId id, const LexOptions &options)
 {

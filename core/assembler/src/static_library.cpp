@@ -5,9 +5,6 @@
 #include <fstream>
 #include <set>
 
-namespace
-{
-
 /// The start of a static library, and the version of the format after it.
 constexpr const char *kMagic = "BALB";
 constexpr size_t kMagicLength = 4;
@@ -19,8 +16,8 @@ constexpr U64 kMaxNameLength = 4096;
 /// Adds the names of the symbols that an object file defines to `defined`, and the ones that it
 /// uses and does not define to `wanted`. A symbol that is local to the object is not seen by the
 /// others.
-void add_symbols(std::set<std::string> &defined, std::set<std::string> &wanted,
-                 const ObjectFile &object)
+static void add_symbols(std::set<std::string> &defined, std::set<std::string> &wanted,
+                        const ObjectFile &object)
 {
     for (const auto &[key, symbol] : object.symbol_table)
     {
@@ -40,8 +37,6 @@ void add_symbols(std::set<std::string> &defined, std::set<std::string> &wanted,
         (symbol.section == U32(-1) ? wanted : defined).insert(name);
     }
 }
-
-} // namespace
 
 void write_static_library(const std::vector<File> &objects, const File &out)
 {
