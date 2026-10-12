@@ -790,7 +790,7 @@ const char *Emulator32bit::exception_class_name(const ExceptionClass cls)
 std::optional<U8> Emulator32bit::sysreg_id(const std::string &name)
 {
     std::string lower = name;
-    for (char &c : lower) c = char(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : lower) c = char(std::tolower(static_cast<U8>(c)));
     for (const SysregName &sysreg : kSysregNames)
     {
         if (lower == sysreg.name) return sysreg.id;

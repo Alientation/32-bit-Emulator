@@ -15,7 +15,8 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
     case Type::R_EMU32_ADRP_HI20:
     {
         // An adrp is relative to the page of the instruction itself.
-        const int pages = int(target >> kNumPageOffsetBits) - int(instr_address >> kNumPageOffsetBits);
+        const S32 pages =
+            S32(target >> kNumPageOffsetBits) - S32(instr_address >> kNumPageOffsetBits);
         word patched = zero_bits<0, 20>(instr) + bitfield_unsigned<0, 20>(pages);
         if ((pages >> 20) & 1)
         {
@@ -26,7 +27,7 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
     case Type::R_EMU32_ADR_PCREL21:
     {
         // The distance in bytes from the adr itself.
-        const int64_t distance = int64_t(sword(target)) - int64_t(sword(instr_address));
+        const S64 distance = S64(sword(target)) - S64(sword(instr_address));
         AEMU_CHECK(distance >= -(1 << 20) && distance < (1 << 20),
                    "Adr at {:#x} cannot reach {:#x}, the distance does not "
                    "fit in 21 bits.",
@@ -62,5 +63,5 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
     case Type::UNDEFINED:
         break;
     }
-    AEMU_FATAL("Unknown relocation entry type ({}).", int(type));
+    AEMU_FATAL("Unknown relocation entry type ({}).", S32(type));
 }

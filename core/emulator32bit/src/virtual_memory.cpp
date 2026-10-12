@@ -95,7 +95,7 @@ void VirtualMemory::release_frame(const word ppage)
     }
 }
 
-void VirtualMemory::invalidate_tlb(const long long pid, const word vpage)
+void VirtualMemory::invalidate_tlb(const S64 pid, const word vpage)
 {
     TLB_Entry &tlb_entry = m_tlb[vpage & (kMaxTLBSize - 1)];
     if (tlb_entry.key == tlb_key(pid, vpage))
@@ -201,7 +201,7 @@ VirtualMemory::PhysicalPage &VirtualMemory::clock_victim()
     PhysicalPage *const start = m_clock_hand != nullptr ? m_clock_hand : m_clock_head;
     if (start != nullptr)
     {
-        for (int turn = 0; turn < 2; turn++)
+        for (size_t turn = 0; turn < 2; turn++)
         {
             PhysicalPage *page = start;
             do
@@ -308,13 +308,13 @@ void VirtualMemory::throw_fault(const PageFault::Reason reason, const word vpage
     throw PageFault(reason, vpage, access);
 }
 
-VirtualMemory::InvalidPid::InvalidPid(const std::string &msg, const long long invalid_pid) :
+VirtualMemory::InvalidPid::InvalidPid(const std::string &msg, const S64 invalid_pid) :
     Error(msg),
     invalid_pid(invalid_pid)
 {
 }
 
-long long VirtualMemory::InvalidPid::get_invalid_pid() const noexcept
+S64 VirtualMemory::InvalidPid::get_invalid_pid() const noexcept
 {
     return invalid_pid;
 }
@@ -355,9 +355,8 @@ word VirtualMemory::InvalidVPage::get_vpage() const noexcept
     return vpage;
 }
 
-VirtualMemory::PageTableEntry::PageTableEntry(const long long pid, const word vpage,
-                                              const word diskpage, const bool write,
-                                              const bool execute) :
+VirtualMemory::PageTableEntry::PageTableEntry(const S64 pid, const word vpage, const word diskpage,
+                                              const bool write, const bool execute) :
     pid(pid),
     vpage(vpage),
     ppage(0),
@@ -370,7 +369,7 @@ VirtualMemory::PageTableEntry::PageTableEntry(const long long pid, const word vp
 {
 }
 
-void VirtualMemory::set_process(const long long pid)
+void VirtualMemory::set_process(const S64 pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
@@ -385,7 +384,7 @@ void VirtualMemory::set_process(const long long pid)
     AEMU_DEBUG("Setting memory map to process {}.", pid);
 }
 
-long long VirtualMemory::begin_process(const bool kernel_privilege)
+S64 VirtualMemory::begin_process(const bool kernel_privilege)
 {
     if (!m_freepids.can_fit(1))
     {
@@ -408,7 +407,7 @@ long long VirtualMemory::begin_process(const bool kernel_privilege)
     return pid;
 }
 
-void VirtualMemory::end_process(const long long pid)
+void VirtualMemory::end_process(const S64 pid)
 {
     if (m_process_ptable_map.find(pid) == m_process_ptable_map.end())
     {
@@ -445,7 +444,7 @@ void VirtualMemory::end_process(const long long pid)
     AEMU_DEBUG("Ending process {}.", pid);
 }
 
-long long VirtualMemory::current_process()
+S64 VirtualMemory::current_process()
 {
     if (m_cur_ptable == nullptr)
     {
@@ -489,7 +488,7 @@ void VirtualMemory::set_ppage_permissions(const word ppage_begin, const word ppa
     flush_tlb();
 }
 
-void VirtualMemory::set_vpage_permissions(const long long pid, const word vpage_begin,
+void VirtualMemory::set_vpage_permissions(const S64 pid, const word vpage_begin,
                                           const word vpage_end, const bool write,
                                           const bool execute)
 {
@@ -528,7 +527,7 @@ void VirtualMemory::set_vpage_permissions(const long long pid, const word vpage_
     flush_tlb();
 }
 
-bool VirtualMemory::has_vpage(const long long pid, const word vpage)
+bool VirtualMemory::has_vpage(const S64 pid, const word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -539,7 +538,7 @@ bool VirtualMemory::has_vpage(const long long pid, const word vpage)
     return ptable->entries.find(vpage) != ptable->entries.end();
 }
 
-void VirtualMemory::add_vpage(const long long pid, word vpage, const word length, const bool write,
+void VirtualMemory::add_vpage(const S64 pid, word vpage, const word length, const bool write,
                               const bool execute)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
@@ -585,7 +584,7 @@ void VirtualMemory::add_vpage(const long long pid, word vpage, const word length
     }
 }
 
-void VirtualMemory::map_ppage(const long long pid, const word vpage, const word ppage)
+void VirtualMemory::map_ppage(const S64 pid, const word vpage, const word ppage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -619,7 +618,7 @@ void VirtualMemory::map_ppage(const long long pid, const word vpage, const word 
     entry->mapped_ppage = ppage;
 }
 
-void VirtualMemory::remove_vpage(const long long pid, const word vpage)
+void VirtualMemory::remove_vpage(const S64 pid, const word vpage)
 {
     if (UNLIKELY(m_process_ptable_map.find(pid) == m_process_ptable_map.end()))
     {
@@ -687,7 +686,7 @@ void VirtualMemory::check_vm()
         }
     }
 
-    for (std::pair<long long, PageTable *> pair : m_process_ptable_map)
+    for (std::pair<S64, PageTable *> pair : m_process_ptable_map)
     {
         AEMU_DEBUG("Checking process {}.", pair.first);
         AEMU_CHECK(pair.second->pid == pair.first, "Expected Process ID to match");
@@ -773,8 +772,7 @@ void VirtualMemory::map_vpage_to_ppage(PageTableEntry &entry, PhysicalPage &page
     mark_referenced(page);
 }
 
-void VirtualMemory::ensure_physical_page_mapping(const long long pid, const word vpage,
-                                                 const word ppage)
+void VirtualMemory::ensure_physical_page_mapping(const S64 pid, const word vpage, const word ppage)
 {
     if (UNLIKELY(!m_enabled))
     {

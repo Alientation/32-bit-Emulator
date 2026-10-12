@@ -136,7 +136,7 @@ static constexpr bool is_newline(const char c)
     return c == '\n' || c == '\r';
 }
 
-static constexpr int digit_value(const char c)
+static constexpr S32 digit_value(const char c)
 {
     if (c >= '0' && c <= '9')
     {
@@ -174,22 +174,22 @@ static constexpr U64 escape_value(const char c)
     case 'v':
         return '\v';
     default:
-        return (unsigned char) (c);
+        return (U8) (c);
     }
 }
 
-bool digits_valid(const std::string_view digits, const int base)
+bool digits_valid(const std::string_view digits, const S32 base)
 {
     for (const char c : digits)
     {
-        const int d = digit_value(c);
+        const S32 d = digit_value(c);
         if (d < 0 || d >= base) return false;
     }
     return true;
 }
 
 /// Digits must already be validated. Returns false on overflow.
-bool parse_uint(U64 &out, const std::string_view digits, const int base)
+bool parse_uint(U64 &out, const std::string_view digits, const S32 base)
 {
     U64 value = 0;
     for (const char c : digits)
@@ -506,7 +506,7 @@ std::optional<TokenType> parse_register(const std::string_view text)
     if (text.size() < 2 || text.size() > 3 || text[0] != 'x' || !is_digit(text[1]))
         return std::nullopt;
     if (text.size() == 3 && (!is_digit(text[2]) || text[1] == '0')) return std::nullopt;
-    const int n = text.size() == 2 ? text[1] - '0' : (text[1] - '0') * 10 + (text[2] - '0');
+    const S32 n = text.size() == 2 ? text[1] - '0' : (text[1] - '0') * 10 + (text[2] - '0');
     if (n > 29) return std::nullopt;
     return TokenType(U16(TokenType::REGISTER_X0) + n);
 }
@@ -1019,7 +1019,7 @@ class Lexer
         }
         else if (ok)
         {
-            value = static_cast<unsigned char>(m_src[i++]);
+            value = static_cast<U8>(m_src[i++]);
         }
 
         if (ok && i < n && m_src[i] == '\'')
@@ -1068,7 +1068,7 @@ class Lexer
     /// run is consumed so that `0x12G` is one bad token instead of a number and a symbol.
     /// `consume` false means there is nothing valid after the prefix.
     void lex_prefixed(const std::size_t begin, const SourceLocation &loc,
-                      const std::size_t prefix_len, const int base, const TokenType type,
+                      const std::size_t prefix_len, const S32 base, const TokenType type,
                       const char *name, const bool consume)
     {
         std::size_t end = begin + prefix_len;
@@ -1148,7 +1148,7 @@ class Lexer
 
     static std::string describe_byte(const char c)
     {
-        const unsigned char u = static_cast<unsigned char>(c);
+        const U8 u = static_cast<U8>(c);
         if (u >= 0x20 && u < 0x7F) return std::string("'") + c + "'";
         char buf[8];
         std::snprintf(buf, sizeof(buf), "0x%02X", u);
@@ -1276,10 +1276,9 @@ class Lexer
 
         // Unknown character. Swallow a whole UTF-8 sequence so one bad glyph is one error.
         std::size_t end = begin + 1;
-        if (static_cast<unsigned char>(c) >= 0xC0)
+        if (static_cast<U8>(c) >= 0xC0)
         {
-            while (end < m_src.size() && (static_cast<unsigned char>(m_src[end]) & 0xC0) == 0x80)
-                end++;
+            while (end < m_src.size() && (static_cast<U8>(m_src[end]) & 0xC0) == 0x80) end++;
         }
         m_pos = end;
         error(loc, "unexpected character " + describe_byte(c));

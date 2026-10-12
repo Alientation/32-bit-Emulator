@@ -44,7 +44,7 @@ class HostFpu
     {
         // All exceptions masked (0x1F80), the rounding control in bits 14-13: 00 nearest,
         // 01 down, 10 up, 11 zero.
-        constexpr unsigned kMxcsrRounding[4] = {0, 2, 1, 3};
+        constexpr U32 kMxcsrRounding[4] = {0, 2, 1, 3};
         _mm_setcsr(0x1F80u | (kMxcsrRounding[rounding & 3] << 13));
         host_barrier();
     }
@@ -62,7 +62,7 @@ class HostFpu
     [[gnu::always_inline]] word flags() const
     {
         host_barrier();
-        const unsigned csr = _mm_getcsr();
+        const U32 csr = _mm_getcsr();
         word flags = 0;
         flags |= (csr & 0x01) ? kInvalid : 0;   // IE
         flags |= (csr & 0x04) ? kDivByZero : 0; // ZE
@@ -73,7 +73,7 @@ class HostFpu
     }
 
   private:
-    unsigned m_saved;
+    U32 m_saved;
 };
 
 #else
@@ -83,7 +83,7 @@ class HostFpu
   public:
     [[gnu::always_inline]] explicit HostFpu(word rounding) : m_saved(std::fegetround())
     {
-        constexpr int kModes[4] = {FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO};
+        constexpr S32 kModes[4] = {FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO};
         std::feclearexcept(FE_ALL_EXCEPT);
         if (kModes[rounding & 3] != m_saved)
         {
@@ -104,7 +104,7 @@ class HostFpu
     [[gnu::always_inline]] word flags() const
     {
         host_barrier();
-        const int raised = std::fetestexcept(FE_ALL_EXCEPT);
+        const S32 raised = std::fetestexcept(FE_ALL_EXCEPT);
         word flags = 0;
         flags |= (raised & FE_INVALID) ? kInvalid : 0;
         flags |= (raised & FE_DIVBYZERO) ? kDivByZero : 0;
@@ -115,7 +115,7 @@ class HostFpu
     }
 
   private:
-    int m_saved;
+    S32 m_saved;
 };
 
 #endif
@@ -127,7 +127,7 @@ struct Format;
 template <>
 struct Format<float>
 {
-    using Bits = std::uint32_t;
+    using Bits = U32;
     static constexpr Bits kSign = 0x80000000u;
     static constexpr Bits kQuiet = 0x00400000u;
     static constexpr Bits kExponent = 0x7F800000u;
@@ -137,7 +137,7 @@ struct Format<float>
 template <>
 struct Format<double>
 {
-    using Bits = std::uint64_t;
+    using Bits = U64;
     static constexpr Bits kSign = 0x8000000000000000ull;
     static constexpr Bits kQuiet = 0x0008000000000000ull;
     static constexpr Bits kExponent = 0x7FF0000000000000ull;
@@ -333,14 +333,13 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
     {
         if (rounded >= kTwo31)
         {
-            return {.value = std::uint32_t(INT32_MAX), .flags = kInvalid};
+            return {.value = U32(INT32_MAX), .flags = kInvalid};
         }
         if (rounded < -kTwo31)
         {
-            return {.value = std::uint32_t(INT32_MIN), .flags = kInvalid};
+            return {.value = U32(INT32_MIN), .flags = kInvalid};
         }
-        return {.value = std::uint32_t(std::int32_t(rounded)),
-                .flags = rounded != a ? kInexact : 0};
+        return {.value = U32(S32(rounded)), .flags = rounded != a ? kInexact : 0};
     }
     if (rounded >= kTwo32)
     {
@@ -350,7 +349,7 @@ Result to_int_op(const U8 fn, const U64 abits, const word rounding)
     {
         return {.value = 0, .flags = kInvalid};
     }
-    return {.value = std::uint32_t(rounded), .flags = rounded != a ? kInexact : 0};
+    return {.value = U32(rounded), .flags = rounded != a ? kInexact : 0};
 }
 
 /// A 32 bit integer to a float, rounded in the mode of the FPCR.
@@ -358,8 +357,8 @@ template<class T>
 Result from_int_op(const U8 fn, const U64 abits, const word rounding)
 {
     HostFpu host(rounding);
-    volatile std::int32_t vs = std::int32_t(std::uint32_t(abits));
-    volatile std::uint32_t vu = std::uint32_t(abits);
+    volatile S32 vs = S32(U32(abits));
+    volatile U32 vu = U32(abits);
     volatile T result = fn == kUnaryFn_froms32 ? T(vs) : T(vu);
     const T value = result;
     return {.value = to_bits(value), .flags = host.flags()};

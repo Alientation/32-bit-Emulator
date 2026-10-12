@@ -11,10 +11,10 @@ namespace
 /// The start of a static library, and the version of the format after it.
 constexpr const char *kMagic = "BALB";
 constexpr size_t kMagicLength = 4;
-constexpr unsigned short kVersion = 1;
+constexpr U16 kVersion = 1;
 
 /// Longer than any name of a file, to refuse a file that is cut or damaged before reading it.
-constexpr unsigned long long kMaxNameLength = 4096;
+constexpr U64 kMaxNameLength = 4096;
 
 /// Adds the names of the symbols that an object file defines to `defined`, and the ones that it
 /// uses and does not define to `wanted`. A symbol that is local to the object is not seen by the
@@ -106,7 +106,7 @@ std::vector<LibraryMember> read_static_library(const File &in)
 
     ByteReader b_reader(bytes);
     b_reader.skip_bytes(kMagicLength);
-    const unsigned short version = b_reader.read_hword();
+    const U16 version = b_reader.read_hword();
     AEMU_CHECK(version == kVersion,
                "'{}' is version {} of the format, version {} is read.",
                path, version, kVersion);
@@ -114,22 +114,22 @@ std::vector<LibraryMember> read_static_library(const File &in)
     std::vector<LibraryMember> members;
     try
     {
-        const unsigned long long count = b_reader.read_dword();
-        for (unsigned long long i = 0; i < count; i++)
+        const U64 count = b_reader.read_dword();
+        for (size_t i = 0; i < count; i++)
         {
-            const unsigned long long name_length = b_reader.read_dword();
+            const U64 name_length = b_reader.read_dword();
             AEMU_CHECK(name_length <= kMaxNameLength,
                        "'{}' is corrupt, a member has a name of {} bytes.",
                        path, name_length);
             std::string name;
-            for (unsigned long long b = 0; b < name_length; b++)
+            for (size_t b = 0; b < name_length; b++)
             {
                 name += char(b_reader.read_byte());
             }
 
-            const unsigned long long size = b_reader.read_dword();
+            const U64 size = b_reader.read_dword();
             std::vector<byte> data;
-            for (unsigned long long b = 0; b < size; b++)
+            for (size_t b = 0; b < size; b++)
             {
                 data.push_back(b_reader.read_byte());
             }

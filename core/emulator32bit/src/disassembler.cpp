@@ -118,7 +118,7 @@ static std::string disassemble_format_m1(const word instruction, const std::stri
     disassemble += disassemble_gpr(instruction, 20);
     disassemble += ", ";
 
-    int32_t offset = bitfield_unsigned<0, 20>(instruction);
+    S32 offset = bitfield_unsigned<0, 20>(instruction);
     if (test_bit<kInstructionUpdateFlagBit>(instruction))
     {
         offset -= 1 << 20;
@@ -165,7 +165,7 @@ static std::string disassemble_format_m(const word instruction, const std::strin
 
     if (test_bit<14>(instruction))
     {
-        const int simm12 = bitfield_signed<2, 12>(instruction);
+        const S32 simm12 = bitfield_signed<2, 12>(instruction);
         if (simm12 == 0)
         {
             disassemble += "]";

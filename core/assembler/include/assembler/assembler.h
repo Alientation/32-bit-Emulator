@@ -203,7 +203,7 @@ class Assembler
     std::vector<SavedSection> m_saved_sections;
 
     /// How deep the expression being parsed is nested (parentheses, unary operators).
-    int m_expression_depth = 0;
+    size_t m_expression_depth = 0;
 
     /// Whether .stop ended the assembling, so the rest of the source (like the end of a scope)
     /// was not looked at.
@@ -307,7 +307,7 @@ class Assembler
     ///
     /// @param[in] min_precedence The lowest precedence of an operator that this call may consume.
     /// @return The value of that part of the expression.
-    ExprValue parse_binary_expression(int min_precedence);
+    ExprValue parse_binary_expression(S32 min_precedence);
 
     /// operand := number | char | constant | label
     /// | '(' expression ')' | ('-' | '+' | '~' | '!') operand
@@ -381,7 +381,7 @@ class Assembler
     ///
     /// @param[out] shift Receives the kind of shift.
     /// @param[out] shift_amt Receives the amount.
-    void parse_shift(ShiftType &shift, int &shift_amt);
+    void parse_shift(ShiftType &shift, S32 &shift_amt);
 
     /// Operations of the form `op xd, xn, <xm[, shift] | imm14 | :lo12:symbol>`.
     ///

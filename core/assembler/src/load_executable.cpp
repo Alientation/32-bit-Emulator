@@ -32,7 +32,7 @@ using PagePermissions = std::map<word, std::pair<bool, bool>>;
 void map_pages(PagePermissions &permissions, VirtualMemory &mmu, const word start_addr,
                const word size, const bool write, const bool execute)
 {
-    const long long pid = mmu.current_process();
+    const S64 pid = mmu.current_process();
     const word last_vpage = (start_addr + size - 1) >> kNumPageOffsetBits;
     for (word vpage = start_addr >> kNumPageOffsetBits;; vpage++)
     {
@@ -67,7 +67,7 @@ void copy_section(PagePermissions &permissions, Emulator32bit &emu, const Placem
         // The pages are mapped to themselves, so that the program can reach them, and the bytes
         // are written to them directly.
         VirtualMemory &mmu = *emu.mmu;
-        const long long pid = mmu.current_process();
+        const S64 pid = mmu.current_process();
         const word last_page = (where.address + size - 1) >> kNumPageOffsetBits;
         for (word page = where.address >> kNumPageOffsetBits;; page++)
         {
@@ -118,7 +118,7 @@ void LoadExecutable::load()
     text.reserve(obj.text_section.size() * kInstructionSize);
     for (const word instr : obj.text_section)
     {
-        for (int shift = 0; shift < kNumWordBits; shift += kNumByteBits)
+        for (S32 shift = 0; shift < kNumWordBits; shift += kNumByteBits)
         {
             text.push_back(byte(instr >> shift));
         }

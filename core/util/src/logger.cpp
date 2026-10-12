@@ -4,7 +4,7 @@
 
 namespace aemu::log::detail
 {
-long long monotonic_ns()
+S64 monotonic_ns()
 {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
                std::chrono::steady_clock::now().time_since_epoch())

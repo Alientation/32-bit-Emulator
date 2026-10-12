@@ -72,7 +72,7 @@ class FrameAllocator
         {
             if (m_bits[w] != 0)
             {
-                const unsigned bit = std::countr_zero(m_bits[w]);
+                const U32 bit = std::countr_zero(m_bits[w]);
                 m_bits[w] &= ~(U64(1) << bit);
                 m_hint = w;
                 m_free--;

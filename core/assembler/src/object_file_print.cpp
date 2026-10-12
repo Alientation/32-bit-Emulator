@@ -16,14 +16,14 @@ namespace
 
 /// The width that the name of a relocation is padded to in the listing of the code, less one for
 /// each bit of the number of the instruction (so it gets narrower further down).
-constexpr int kRelocationNameWidth = 29;
+constexpr S32 kRelocationNameWidth = 29;
 
 /// The bytes of a section on a line of the listing, and the bytes in a group on that line.
 constexpr size_t kBytesPerLine = 16;
 constexpr size_t kBytesPerGroup = 4;
 
 /// The least number of digits of the addresses that start the lines of the contents.
-constexpr int kMinAddressDigits = 4;
+constexpr S32 kMinAddressDigits = 4;
 
 /// The characters of the name of an instruction that are listed.
 constexpr size_t kMnemonicWidth = 12;
@@ -72,9 +72,9 @@ std::string address_text(const U64 address)
 }
 
 /// At least four digits, and room for the highest number of the section.
-int digits_for(const size_t count)
+S32 digits_for(const size_t count)
 {
-    const int digits = int(std::bit_width(count));
+    const S32 digits = S32(std::bit_width(count));
     return digits > kMinAddressDigits ? digits : kMinAddressDigits;
 }
 
@@ -85,7 +85,7 @@ void print_bytes(std::ostream &out, const ObjectFile &obj, const char *separator
                  const std::vector<ObjectFile::RelocationEntry> &relocations)
 {
     out << std::format("{}Contents of section {}:", separator, name);
-    const int width = digits_for(bytes_of_section.size() / kBytesPerLine);
+    const S32 width = digits_for(bytes_of_section.size() / kBytesPerLine);
     for (size_t i = 0; i < bytes_of_section.size(); i++)
     {
         if (i % kBytesPerLine == 0)
@@ -200,7 +200,7 @@ void ObjectFile::print(std::ostream &out) const
         out << address_text(0) << ":";
     }
 
-    const int text_address_width = digits_for(text_section.size() / 4);
+    const S32 text_address_width = digits_for(text_section.size() / 4);
     for (size_t i = 0; i < text_section.size(); i++)
     {
         const word address = word(i * 4);
@@ -255,7 +255,7 @@ void ObjectFile::print(std::ostream &out) const
         if (rel != rel_text_map.end())
         {
             out << "\n" << std::string(text_address_width, ' ');
-            const int name_width = kRelocationNameWidth - int(std::bit_width(i / 4));
+            const S32 name_width = kRelocationNameWidth - S32(std::bit_width(i / 4));
             out << std::format(" \t{:x}: {:<{}}{}", address, relocation_name(rel->second.type),
                                name_width > 1 ? name_width : 1, target_text(*this, rel->second));
         }

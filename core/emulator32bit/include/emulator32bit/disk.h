@@ -198,7 +198,7 @@ class Disk : public BaseMemory
     /// @param[in] n_bytes Number of bytes to read.
     /// @return Value read.
     /// @throws ReadError if the address is not on the disk.
-    dword read_val(word address, int n_bytes);
+    dword read_val(word address, size_t n_bytes);
 
     /// Writes a little endian value of specified size to disk.
     ///
@@ -209,7 +209,7 @@ class Disk : public BaseMemory
     /// @param[in] val Value to write.
     /// @param[in] n_bytes Number of bytes to write.
     /// @throws ReadError if the address is not on the disk.
-    void write_val(word address, dword val, int n_bytes);
+    void write_val(word address, dword val, size_t n_bytes);
 
     /// Accesses a cache page.
     ///

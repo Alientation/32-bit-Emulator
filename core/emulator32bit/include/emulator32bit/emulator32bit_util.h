@@ -22,11 +22,11 @@ concept BitInt = std::integral<T> && !std::same_as<T, bool>;
 
 /// The width of T in bits.
 template<typename T>
-inline constexpr unsigned kWidth = sizeof(T) * kNumByteBits;
+inline constexpr U32 kWidth = sizeof(T) * kNumByteBits;
 
 /// Whether a single bit position is inside T.
 template<typename T>
-constexpr bool bit_in_range(unsigned bit_i)
+constexpr bool bit_in_range(U32 bit_i)
 {
     return bit_i < kWidth<T>;
 }
@@ -34,14 +34,14 @@ constexpr bool bit_in_range(unsigned bit_i)
 /// Whether a field of `len` bits at `bit_i` is not empty and lies inside T (written so it cannot
 /// wrap).
 template<typename T>
-constexpr bool field_in_range(unsigned bit_i, unsigned len)
+constexpr bool field_in_range(U32 bit_i, U32 len)
 {
     return len >= 1 && len <= kWidth<T> && bit_i <= kWidth<T> - len;
 }
 
 /// The low `len` bits set, `len` in [0, width] (a shift by the full width would be undefined).
 template<typename U>
-constexpr U low_mask(unsigned len)
+constexpr U low_mask(U32 len)
 {
     return len >= kWidth<U> ? U(~U(0)) : U((U(1) << len) - 1);
 }
@@ -53,7 +53,7 @@ constexpr U low_mask(unsigned len)
 /// @param[in] bit_i The position of the bit, 0 being the least significant.
 /// @return Whether the bit is 1.
 template<bit_detail::BitInt T>
-constexpr bool test_bit(T val, unsigned bit_i)
+constexpr bool test_bit(T val, U32 bit_i)
 {
     using U = std::make_unsigned_t<T>;
     assert(bit_detail::bit_in_range<T>(bit_i));
@@ -67,7 +67,7 @@ constexpr bool test_bit(T val, unsigned bit_i)
 /// @param[in] to The new value of the bit.
 /// @return The value with the bit changed.
 template<bit_detail::BitInt T>
-constexpr T set_bit(T val, unsigned bit_i, bool to)
+constexpr T set_bit(T val, U32 bit_i, bool to)
 {
     using U = std::make_unsigned_t<T>;
     assert(bit_detail::bit_in_range<T>(bit_i));
@@ -82,7 +82,7 @@ constexpr T set_bit(T val, unsigned bit_i, bool to)
 /// @param[in] len The number of bits in the field.
 /// @return The field, in the low bits.
 template<bit_detail::BitInt T>
-constexpr T bitfield_unsigned(T val, unsigned bit_i, unsigned len)
+constexpr T bitfield_unsigned(T val, U32 bit_i, U32 len)
 {
     using U = std::make_unsigned_t<T>;
     assert(bit_detail::field_in_range<T>(bit_i, len));
@@ -96,7 +96,7 @@ constexpr T bitfield_unsigned(T val, unsigned bit_i, unsigned len)
 /// @param[in] len The number of bits in the field.
 /// @return The sign extended field.
 template<bit_detail::BitInt T>
-constexpr T bitfield_signed(T val, unsigned bit_i, unsigned len)
+constexpr T bitfield_signed(T val, U32 bit_i, U32 len)
 {
     using U = std::make_unsigned_t<T>;
     using S = std::make_signed_t<T>;
@@ -113,7 +113,7 @@ constexpr T bitfield_signed(T val, unsigned bit_i, unsigned len)
 /// @param[in] len The number of bits in the field.
 /// @return The value with the field set to 0.
 template<bit_detail::BitInt T>
-constexpr T zero_bits(T val, unsigned bit_i, unsigned len)
+constexpr T zero_bits(T val, U32 bit_i, U32 len)
 {
     using U = std::make_unsigned_t<T>;
     assert(bit_detail::field_in_range<T>(bit_i, len));
@@ -126,7 +126,7 @@ constexpr T zero_bits(T val, unsigned bit_i, unsigned len)
 // fails to compile.
 
 /// Same as test_bit(val, BitI).
-template<unsigned BitI, bit_detail::BitInt T>
+template<U32 BitI, bit_detail::BitInt T>
 constexpr bool test_bit(T val)
 {
     static_assert(bit_detail::bit_in_range<T>(BitI), "bit index is outside the type");
@@ -134,7 +134,7 @@ constexpr bool test_bit(T val)
 }
 
 /// Same as set_bit(val, BitI, to).
-template<unsigned BitI, bit_detail::BitInt T>
+template<U32 BitI, bit_detail::BitInt T>
 constexpr T set_bit(T val, bool to)
 {
     static_assert(bit_detail::bit_in_range<T>(BitI), "bit index is outside the type");
@@ -142,7 +142,7 @@ constexpr T set_bit(T val, bool to)
 }
 
 /// Same as bitfield_unsigned(val, BitI, Len).
-template<unsigned BitI, unsigned Len, bit_detail::BitInt T>
+template<U32 BitI, U32 Len, bit_detail::BitInt T>
 constexpr T bitfield_unsigned(T val)
 {
     static_assert(bit_detail::field_in_range<T>(BitI, Len), "bit field is outside the type");
@@ -150,7 +150,7 @@ constexpr T bitfield_unsigned(T val)
 }
 
 /// Same as bitfield_signed(val, BitI, Len).
-template<unsigned BitI, unsigned Len, bit_detail::BitInt T>
+template<U32 BitI, U32 Len, bit_detail::BitInt T>
 constexpr T bitfield_signed(T val)
 {
     static_assert(bit_detail::field_in_range<T>(BitI, Len), "bit field is outside the type");
@@ -158,7 +158,7 @@ constexpr T bitfield_signed(T val)
 }
 
 /// Same as zero_bits(val, BitI, Len).
-template<unsigned BitI, unsigned Len, bit_detail::BitInt T>
+template<U32 BitI, U32 Len, bit_detail::BitInt T>
 constexpr T zero_bits(T val)
 {
     static_assert(bit_detail::field_in_range<T>(BitI, Len), "bit field is outside the type");

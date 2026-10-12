@@ -196,7 +196,7 @@ word Disk::read_word(const word address)
     return read_val(address, 4);
 }
 
-dword Disk::read_val(word address, const int n_bytes)
+dword Disk::read_val(word address, const size_t n_bytes)
 {
     // TODO: Add warning for when n_bytes is larger than 8.
 
@@ -210,7 +210,7 @@ dword Disk::read_val(word address, const int n_bytes)
     const CachePage *cpage = &get_cpage(page);
 
     dword val = 0;
-    for (int i = 0; i < n_bytes; i++)
+    for (size_t i = 0; i < n_bytes; i++)
     {
         if (offset + 1 == 0)
         {
@@ -268,7 +268,7 @@ void Disk::write_word(const word address, const word data)
     write_val(address, data, 4);
 }
 
-void Disk::write_val(word address, dword val, const int n_bytes)
+void Disk::write_val(word address, dword val, const size_t n_bytes)
 {
     // TODO: Warn when n_bytes is larger than 8.
 
@@ -281,7 +281,7 @@ void Disk::write_val(word address, dword val, const int n_bytes)
     cpage->dirty = true;
 
     // Write the bytes in little endian.
-    for (int i = 0; i < n_bytes; i++)
+    for (size_t i = 0; i < n_bytes; i++)
     {
         if (offset == kPageSize)
         {

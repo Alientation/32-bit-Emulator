@@ -46,7 +46,7 @@ static int run_app(const int argc, char *argv[])
     if (build->has_work() && build->does_create_exe())
     {
         std::unique_ptr<Emulator32bit> emulator;
-        long long pid;
+        S64 pid;
         {
             AEMU_SCOPED_TIMER("Loading program into emulator");
             // The ROM and the disk are in memory, a sample does not need files of its own.

@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <sstream>
 
-std::string to_hex_str(const U64 hex, const int digits)
+std::string to_hex_str(const U64 hex, const size_t digits)
 {
     std::stringstream stream;
     stream << kHexPrefix << std::setfill('0') << std::setw(digits) << std::hex << hex;
@@ -17,7 +17,7 @@ std::string to_hex_str(const U32 hex)
     return to_hex_str(hex, kWordHexDigits);
 }
 
-std::string to_color_hex_str(const U64 hex, const int digits)
+std::string to_color_hex_str(const U64 hex, const size_t digits)
 {
     return color_val_str(to_hex_str(hex, digits));
 }

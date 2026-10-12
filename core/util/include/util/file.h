@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cstdint>
+#include "util/types.h"
+
 #include <ios>
 #include <iosfwd>
 #include <string>
@@ -164,18 +165,18 @@ class ByteWriter
     /// A value and the number of its low bytes to write.
     struct Data
     {
-        unsigned long long value = 0;
-        int num_bytes;
+        U64 value = 0;
+        size_t num_bytes;
 
         /// @param[in] value The value to write.
         /// @param[in] num_bytes How many bytes of the value to write.
-        Data(unsigned long long value, int num_bytes);
+        Data(U64 value, size_t num_bytes);
 
         /// @param[in] value The value to write.
         /// @param[in] num_bytes How many bytes of the value to write.
         /// @param[in] little_endian Whether the least significant byte is written first, if not
         ///     the bytes of the value are reversed.
-        Data(unsigned long long value, int num_bytes, bool little_endian);
+        Data(U64 value, size_t num_bytes, bool little_endian);
     };
 
     /// Writes the bytes of the value, the least significant one first.
@@ -224,22 +225,22 @@ class ByteReader
     /// Reading past the last byte throws `std::out_of_range`.
     ///
     /// @param[in] bytes The bytes to read, which have to outlive this.
-    ByteReader(const std::vector<unsigned char> &bytes) :
+    ByteReader(const std::vector<U8> &bytes) :
         m_bytes(bytes){};
 
     /// How many bytes to read, in which order, and the value that was read.
     struct Data
     {
-        unsigned long long val = 0;
-        int num_bytes = 0;
+        U64 val = 0;
+        size_t num_bytes = 0;
         bool little_endian = true;
 
         /// @param[in] num_bytes How many bytes to read, little endian.
-        Data(int num_bytes);
+        Data(size_t num_bytes);
 
         /// @param[in] num_bytes How many bytes to read.
         /// @param[in] little_endian Whether the least significant byte comes first.
-        Data(int num_bytes, bool little_endian);
+        Data(size_t num_bytes, bool little_endian);
     };
 
     /// Reads `data.num_bytes` bytes into `data.val`.
@@ -255,17 +256,17 @@ class ByteReader
     ///
     /// @param[in] little_endian Whether the least significant byte comes first.
     /// @return The value that was read.
-    unsigned char read_byte(bool little_endian = true);
-    unsigned short read_hword(bool little_endian = true);
-    unsigned int read_word(bool little_endian = true);
-    unsigned long long read_dword(bool little_endian = true);
+    U8 read_byte(bool little_endian = true);
+    U16 read_hword(bool little_endian = true);
+    U32 read_word(bool little_endian = true);
+    U64 read_dword(bool little_endian = true);
 
     /// Skips bytes without reading them.
     ///
     /// @param[in] num_bytes How many bytes to skip.
-    void skip_bytes(int num_bytes);
+    void skip_bytes(size_t num_bytes);
 
   private:
-    const std::vector<unsigned char> &m_bytes;
+    const std::vector<U8> &m_bytes;
     size_t m_cur_byte = 0;
 };

@@ -59,7 +59,7 @@ void print_plain(std::ostream &out, Emulator32bit &emu, const Emulator32bit::Run
     out << "pc=" << hex(emu.get_pc()) << "\n";
     for (U8 reg = 0; reg < static_cast<U8>(Register::SP); reg++)
     {
-        out << "x" << int(reg) << "=" << hex(emu.read_reg(reg)) << "\n";
+        out << "x" << S32(reg) << "=" << hex(emu.read_reg(reg)) << "\n";
     }
     out << "sp=" << hex(emu.read_reg(Register::SP)) << "\n";
 
@@ -608,7 +608,7 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
 /// Tells the user which port the gdb server listens on, which matters when they asked for any.
 ///
 /// @param[in] port The port that is listening.
-static void report_gdb_port(const std::uint16_t port)
+static void report_gdb_port(const U16 port)
 {
     std::cout << "gdb: listening on 127.0.0.1:" << port << std::endl;
 }
@@ -681,7 +681,7 @@ static int run_cli(const int argc, char *argv[])
             return S32(ExitCode::EXIT_USAGE_ERROR);
         }
         const bool served =
-            GdbServer::serve(*emu, static_cast<std::uint16_t>(*port), report_gdb_port, &std::cerr);
+            GdbServer::serve(*emu, static_cast<U16>(*port), report_gdb_port, &std::cerr);
         if (!served)
         {
             std::cerr << "ERROR: Cannot listen on port " << *port << "\n";

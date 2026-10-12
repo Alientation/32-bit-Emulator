@@ -39,7 +39,7 @@ U8 Assembler::parse_register()
     return basm::register_index(reg.type);
 }
 
-void Assembler::parse_shift(ShiftType &shift, int &shift_amt)
+void Assembler::parse_shift(ShiftType &shift, S32 &shift_amt)
 {
     const Token &kind = m_cursor.peek();
     switch (kind.type)
@@ -307,7 +307,7 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
             check(value >= -(sdword(1) << (encoding::kMemoryOffsetBits - 1))
                       && value < (sdword(1) << (encoding::kMemoryOffsetBits - 1)),
                   "offset must be a signed 12 bit value (-2048 to 2047)");
-            const int offset = int(value);
+            const S32 offset = S32(value);
 
             // Post indexed (`[xn], offset`) already consumed the close bracket.
             if (!parsed_addressing_mode)
@@ -332,7 +332,7 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
 
             // Shift argument.
             ShiftType shift = ShiftType::SHIFT_LSL;
-            int shift_amount = 0;
+            S32 shift_amount = 0;
             if (m_cursor.accept(TokenType::COMMA))
             {
                 parse_shift(shift, shift_amount);
@@ -444,7 +444,7 @@ word Assembler::parse_format_o1(const ShiftType type)
     }
     else
     {
-        const int shift_amt = parse_expression();
+        const S32 shift_amt = parse_expression();
         check(word(shift_amt) < (1ULL << encoding::kShiftAmountBits),
               "shift amount must fit in 5 bits, expected < 32, got " + std::to_string(shift_amt));
         return Emulator32bit::asm_format_o1(type, reg1, reg2, true, 0, shift_amt, s);
@@ -473,7 +473,7 @@ word Assembler::parse_format_o(const byte opcode, const bool implicit_dest)
 
         // Shift.
         ShiftType shift = ShiftType::SHIFT_LSL;
-        int shift_amt = 0;
+        S32 shift_amt = 0;
         if (m_cursor.accept(TokenType::COMMA))
         {
             parse_shift(shift, shift_amt);
@@ -618,24 +618,24 @@ void Assembler::emit_load_constant(const byte xd, const word value)
     constexpr word kMovLimit = word(1) << encoding::kMovImmBits;
     if (value < kMovLimit)
     {
-        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, int(value)));
+        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd, S32(value)));
     }
     else if (~value < kMovLimit)
     {
-        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, xd, int(~value)));
+        emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mvn, false, xd, S32(~value)));
     }
     else
     {
         // The high part is moved in and shifted left, and the low part is or-ed in.
         constexpr word kLowMask = (word(1) << encoding::kDataImmBits) - 1;
         emit_instruction(Emulator32bit::asm_format_o3(encoding::_op_mov, false, xd,
-                                                      int(value >> encoding::kDataImmBits)));
+                                                      S32(value >> encoding::kDataImmBits)));
         emit_instruction(Emulator32bit::asm_format_o1(ShiftType::SHIFT_LSL, xd, xd, true, 0,
                                                       encoding::kDataImmBits));
         if ((value & kLowMask) != 0)
         {
             emit_instruction(Emulator32bit::asm_format_o(encoding::_op_orr, false, xd, xd,
-                                                         int(value & kLowMask)));
+                                                         S32(value & kLowMask)));
         }
     }
 }

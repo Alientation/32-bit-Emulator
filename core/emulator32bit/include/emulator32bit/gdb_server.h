@@ -69,8 +69,7 @@ class GdbServer
     ///     null.
     /// @param[out] log Where to say what happens (a connection, an error), or null.
     /// @return `false` if the port could not be listened on.
-    static bool serve(Emulator32bit &emu, std::uint16_t port, void (*ready)(std::uint16_t port),
-                      std::ostream *log);
+    static bool serve(Emulator32bit &emu, U16 port, void (*ready)(U16 port), std::ostream *log);
 
     /// Encodes bytes as the hexadecimal text of the protocol.
     ///
@@ -113,14 +112,14 @@ class GdbServer
     /// @param[in] number The register number of the protocol: x0-x29, sp, xzr, pc, cpsr.
     /// @param[in] value The value.
     /// @return Whether there is such a register and the value is allowed.
-    bool write_register(unsigned number, word value);
+    bool write_register(U32 number, word value);
 
     /// Handles `p`.
     ///
     /// @param[out] value Receives the value.
     /// @param[in] number The register number of the protocol.
     /// @return Whether there is such a register.
-    bool read_register(word &value, unsigned number);
+    bool read_register(word &value, U32 number);
 
     /// Handles `m`.
     ///

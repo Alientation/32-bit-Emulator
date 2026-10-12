@@ -222,8 +222,8 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
     const std::vector<basm::Token> &tokens = m_tokens;
     size_t tok_i = 0;
 
-    std::vector<int> local_scope;
-    int local_count_scope = 0;
+    std::vector<size_t> local_scope;
+    size_t local_count_scope = 0;
     size_t kept = 0;
     for (size_t i = 0; i < relocations.size(); i++)
     {
@@ -251,7 +251,7 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
         ObjectFile::SymbolTableEntry symbol_entry;
         bool found_local = false;
         const std::string symbol = m_obj.strings[m_obj.symbol_table[rel.symbol].symbol_name];
-        for (size_t scopeI = local_scope.size() - 1; scopeI + 1 != 0; scopeI--)
+        for (size_t scopeI = local_scope.size() - 1; scopeI != U64(-1); scopeI--)
         {
             const std::string local_symbol_name =
                 symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);

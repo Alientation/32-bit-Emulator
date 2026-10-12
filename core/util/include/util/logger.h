@@ -51,10 +51,10 @@
 /// Requires C++20 (<format>, <source_location>).
 
 #include "util/console_color.h"
+#include "util/types.h"
 
 #include <atomic>
 #include <cctype>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <format>
@@ -83,7 +83,7 @@ namespace aemu::log
 {
 
 /// Severity of a message, in increasing order. `Off` is only meaningful as a threshold.
-enum class Level : std::uint8_t
+enum class Level : U8
 {
     Debug = 0,
     Info,
@@ -94,7 +94,7 @@ enum class Level : std::uint8_t
 };
 
 /// What AEMU_FATAL / a failed AEMU_CHECK does after logging the message.
-enum class FatalAction : std::uint8_t
+enum class FatalAction : U8
 {
     /// std::exit(EXIT_FAILURE). The default.
     Exit,
@@ -123,7 +123,7 @@ struct Record
     std::string_view message;
 
     /// Nanoseconds since the logger was first used.
-    long long since_start_ns;
+    S64 since_start_ns;
 };
 
 /// Receives every message that passes the level filter. Called with the logger lock held, so a
@@ -162,7 +162,7 @@ inline std::optional<Level> parse_level(const std::string_view name)
     std::string lower(name);
     for (char &c : lower)
     {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = static_cast<char>(std::tolower(static_cast<U8>(c)));
     }
 
     if (lower == "debug")
@@ -208,7 +208,7 @@ inline bool stream_is_tty(std::FILE *stream)
 /// included by every file that logs).
 ///
 /// @return The time in nanoseconds.
-long long monotonic_ns();
+S64 monotonic_ns();
 
 /// Global logger state. One instance for the whole program, since this is a function local
 /// static in an inline function. Intentionally leaked so logging from other static destructors
@@ -223,7 +223,7 @@ struct State
     std::mutex mutex; ///< Guards `sink` and serializes output.
     Sink sink;        ///< Empty means the default stderr sink.
 
-    const long long start_ns = monotonic_ns();
+    const S64 start_ns = monotonic_ns();
 
     State()
     {
@@ -252,8 +252,8 @@ inline State &state()
 /// @return Whether it is kept.
 constexpr bool compiled_in(const Level level)
 {
-    constexpr int kCompileLevel = AEMU_LOG_COMPILE_LEVEL;
-    return static_cast<int>(level) >= kCompileLevel;
+    constexpr S32 kCompileLevel = AEMU_LOG_COMPILE_LEVEL;
+    return static_cast<S32>(level) >= kCompileLevel;
 }
 
 /// @param[in] level The level.
@@ -553,7 +553,7 @@ class ScopedTimer
             return;
         }
 
-        const long long ns = detail::monotonic_ns() - m_start;
+        const S64 ns = detail::monotonic_ns() - m_start;
         write(Level::Debug, m_location, std::format("{} took {}", m_tag, format_duration(ns)));
     }
 
@@ -562,14 +562,14 @@ class ScopedTimer
 
   private:
     /// Nanoseconds in a microsecond, a millisecond and a second.
-    static constexpr long long kNsPerUs = 1'000;
-    static constexpr long long kNsPerMs = 1'000'000;
-    static constexpr long long kNsPerS = 1'000'000'000;
+    static constexpr S64 kNsPerUs = 1'000;
+    static constexpr S64 kNsPerMs = 1'000'000;
+    static constexpr S64 kNsPerS = 1'000'000'000;
 
     /// A duration is shown in the next unit once it is longer than this many of the unit.
-    static constexpr long long kUnitLimit = 10'000;
+    static constexpr S64 kUnitLimit = 10'000;
 
-    static std::string format_duration(const long long ns)
+    static std::string format_duration(const S64 ns)
     {
         if (ns <= kUnitLimit)
         {
@@ -588,7 +588,7 @@ class ScopedTimer
 
     std::string m_tag;
     std::source_location m_location;
-    long long m_start;
+    S64 m_start;
 };
 
 } // namespace aemu::log

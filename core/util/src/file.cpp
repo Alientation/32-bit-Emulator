@@ -234,13 +234,13 @@ void FileWriter::write(const std::string &text)
     (*m_file_stream) << text;
 }
 
-ByteWriter::Data::Data(const unsigned long long value, const int num_bytes) :
+ByteWriter::Data::Data(const U64 value, const size_t num_bytes) :
     value(value),
     num_bytes(num_bytes)
 {
 }
 
-ByteWriter::Data::Data(unsigned long long value, const int num_bytes, const bool little_endian)
+ByteWriter::Data::Data(U64 value, const size_t num_bytes, const bool little_endian)
 {
     if (little_endian)
     {
@@ -248,7 +248,7 @@ ByteWriter::Data::Data(unsigned long long value, const int num_bytes, const bool
     }
     else
     {
-        for (int i = 0; i < num_bytes; i++)
+        for (size_t i = 0; i < num_bytes; i++)
         {
             this->value <<= kNumByteBits;
             this->value += byte(value);
@@ -265,10 +265,10 @@ ByteWriter::ByteWriter(FileWriter &filewriter) :
 
 ByteWriter &ByteWriter::operator<<(const Data &data)
 {
-    for (int i = 0; i < data.num_bytes; i++)
+    for (size_t i = 0; i < data.num_bytes; i++)
     {
         // Bytes past the width of the value are zero.
-        const bool in_value = i < static_cast<int>(sizeof(data.value));
+        const bool in_value = i < sizeof(data.value);
         m_filewriter.write(in_value ? byte(data.value >> (i * kNumByteBits)) : byte(0));
     }
     return (*this);
@@ -304,9 +304,9 @@ void FileWriter::close()
     }
 }
 
-ByteReader::Data::Data(const int num_bytes) :
+ByteReader::Data::Data(const size_t num_bytes) :
     num_bytes(num_bytes){};
-ByteReader::Data::Data(const int num_bytes, const bool little_endian) :
+ByteReader::Data::Data(const size_t num_bytes, const bool little_endian) :
     num_bytes(num_bytes),
     little_endian(little_endian){};
 
@@ -315,7 +315,7 @@ ByteReader &ByteReader::operator>>(ByteReader::Data &data)
     data.val = 0;
     if (data.little_endian)
     {
-        for (int i = data.num_bytes - 1; i >= 0; i--)
+        for (size_t i = data.num_bytes - 1; i != U64(-1); i--)
         {
             data.val <<= kNumByteBits;
             data.val += m_bytes.at(m_cur_byte + i);
@@ -324,7 +324,7 @@ ByteReader &ByteReader::operator>>(ByteReader::Data &data)
     }
     else
     {
-        for (int i = data.num_bytes - 1; i >= 0; i--)
+        for (size_t i = data.num_bytes - 1; i != U64(-1); i--)
         {
             data.val += U64(m_bytes.at(m_cur_byte)) << (kNumByteBits * i);
             m_cur_byte++;
@@ -339,35 +339,35 @@ bool ByteReader::has_next()
     return m_cur_byte < m_bytes.size();
 }
 
-unsigned char ByteReader::read_byte(const bool little_endian)
+U8 ByteReader::read_byte(const bool little_endian)
 {
     ByteReader::Data data(1, little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned short ByteReader::read_hword(const bool little_endian)
+U16 ByteReader::read_hword(const bool little_endian)
 {
     ByteReader::Data data(sizeof(hword), little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned int ByteReader::read_word(const bool little_endian)
+U32 ByteReader::read_word(const bool little_endian)
 {
     ByteReader::Data data(sizeof(word), little_endian);
     (*this) >> data;
     return data.val;
 }
 
-unsigned long long ByteReader::read_dword(const bool little_endian)
+U64 ByteReader::read_dword(const bool little_endian)
 {
     ByteReader::Data data(sizeof(dword), little_endian);
     (*this) >> data;
     return data.val;
 }
 
-void ByteReader::skip_bytes(const int num_bytes)
+void ByteReader::skip_bytes(const size_t num_bytes)
 {
     m_cur_byte += num_bytes;
 }

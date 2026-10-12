@@ -43,7 +43,7 @@ void check_relocations(const ObjectFile &obj, const std::string &path,
 
 /// Writes the relocations of a section where the last write stopped, and gives its header the
 /// size and the place.
-void write_relocations(ByteWriter &byte_writer, int &current_byte,
+void write_relocations(ByteWriter &byte_writer, size_t &current_byte,
                        ObjectFile::SectionHeader &header, const char *name,
                        const std::vector<ObjectFile::RelocationEntry> &relocations)
 {
@@ -254,7 +254,7 @@ void ObjectFile::deserialize(const std::vector<byte> &bytes)
     }
 
     const byte expected[4] = {'B', 'E', 'L', 'F'}; // 0-3
-    for (unsigned long long i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
+    for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
     {
         if (expected[i] != reader.read_byte())
         {
@@ -288,7 +288,7 @@ void ObjectFile::deserialize(const std::vector<byte> &bytes)
         return;
     }
     section_headers_reader.skip_bytes(section_header_start);
-    for (int i = 0; i < n_sections; i++)
+    for (size_t i = 0; i < n_sections; i++)
     {
         SectionHeader section_header = {
             .section_name = U32(section_headers_reader.read_dword()),
@@ -714,7 +714,7 @@ void ObjectFile::write_object_file(const File &object_file)
     FileWriter m_writer = FileWriter(object_file, std::ios::out | std::ios::binary);
 
     ByteWriter byte_writer(m_writer);
-    int current_byte = 0;
+    size_t current_byte = 0;
 
     // Write the BELF header.
     AEMU_DEBUG("Writing BELF header.");
@@ -815,7 +815,7 @@ void ObjectFile::write_object_file(const File &object_file)
 
     // Write the string table.
     AEMU_DEBUG("Writing .strtab section.");
-    int size = 0;
+    size_t size = 0;
     for (size_t i = 0; i < strings.size(); i++)
     {
         m_writer.write(strings[i]);

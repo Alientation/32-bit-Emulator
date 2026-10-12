@@ -44,17 +44,17 @@ struct JPart
 {
     // A value that does not fit in its bits would spill into the fields next to it, and the
     // instruction would silently be another one.
-    JPart(const int bits, const word val = 0) :
+    JPart(const U8 bits, const word val = 0) :
         bits(bits),
         val(val)
     {
-        AEMU_CHECK(bits >= int(sizeof(word) * 8) || val < (word(1) << bits),
+        AEMU_CHECK(bits >= S32(sizeof(word) * 8) || val < (word(1) << bits),
                    "Emulator32bit - The value {} does not fit in {} bits of an instruction.", val,
                    bits);
     }
 
     /// Number of bits stored in this part.
-    const int bits;
+    const U8 bits;
 
     /// Contents of the bits stored in this part, with the first bit in the most significant bit.
     const word val;
@@ -63,12 +63,12 @@ struct JPart
 /// Bits of an instruction that are 0 (unused, or a flag that is off).
 struct Zeros
 {
-    explicit Zeros(const int bits) :
+    explicit Zeros(const U8 bits) :
         bits(bits)
     {
     }
 
-    const int bits;
+    const U8 bits;
 };
 
 /// A value that is formed by joining @ref JPart.
@@ -105,50 +105,50 @@ class Joiner
     }
 };
 
-word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, const int xn,
-                                 const int imm14)
+word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const U8 xd, const U8 xn,
+                                 const S32 imm14)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
                     << JPart(1, 1) << JPart(14, imm14);
 }
 
-word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const int xd, const int xn,
-                                 const int xm, const ShiftType shift, const int imm5)
+word Emulator32bit::asm_format_o(const U8 opcode, const bool s, const U8 xd, const U8 xn,
+                                 const U8 xm, const ShiftType shift, const S32 imm5)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(5, xn) << Zeros(1)
                     << JPart(5, xm) << JPart(2, U8(shift)) << JPart(5, imm5) << Zeros(2);
 }
 
-word Emulator32bit::asm_format_o1(const ShiftType type, const int xd, const int xn, const bool imm,
-                                  const int xm, const int imm5, const bool s)
+word Emulator32bit::asm_format_o1(const ShiftType type, const U8 xd, const U8 xn, const bool imm,
+                                  const U8 xm, const S32 imm5, const bool s)
 {
     return Joiner() << JPart(6, _op_shift) << JPart(1, s) << JPart(5, xd) << JPart(5, xn)
                     << JPart(1, imm) << JPart(5, xm) << JPart(2, U8(type)) << JPart(5, imm5)
                     << Zeros(2);
 }
 
-word Emulator32bit::asm_format_o2(const bool is_signed, const bool s, const int xlo, const int xhi,
-                                  const int xn, const int xm)
+word Emulator32bit::asm_format_o2(const bool is_signed, const bool s, const U8 xlo, const U8 xhi,
+                                  const U8 xn, const U8 xm)
 {
     return Joiner() << JPart(6, _op_mull) << JPart(1, s) << JPart(5, xlo) << JPart(5, xhi)
                     << Zeros(1) << JPart(5, xn) << JPart(5, xm) << Zeros(3) << JPart(1, is_signed);
 }
 
-word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, const int imm19)
+word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const U8 xd, const S32 imm19)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(1, 1)
                     << JPart(19, imm19);
 }
 
-word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const int xd, const int xn,
-                                  const int imm14)
+word Emulator32bit::asm_format_o3(const U8 opcode, const bool s, const U8 xd, const U8 xn,
+                                  const S32 imm14)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, s) << JPart(5, xd) << JPart(1, 0)
                     << JPart(5, xn) << JPart(14, imm14);
 }
 
-word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt, const int xn,
-                                 const int xm, const ShiftType shift, const int imm5,
+word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const U8 xt, const U8 xn,
+                                 const U8 xm, const ShiftType shift, const S32 imm5,
                                  const AddrType adr)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn)
@@ -156,15 +156,15 @@ word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt,
                     << JPart(2, U8(adr));
 }
 
-word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const int xt, const int xn,
-                                 const int simm12, const AddrType adr)
+word Emulator32bit::asm_format_m(const U8 opcode, const bool sign, const U8 xt, const U8 xn,
+                                 const S32 simm12, const AddrType adr)
 {
     return Joiner() << JPart(6, opcode) << JPart(1, sign) << JPart(5, xt) << JPart(5, xn)
                     << JPart(1, 1) << JPart(12, bitfield_unsigned<0, 12>(simm12))
                     << JPart(2, U8(adr));
 }
 
-word Emulator32bit::asm_format_m1(const U8 opcode, const int xd, const int imm20)
+word Emulator32bit::asm_format_m1(const U8 opcode, const U8 xd, const S32 imm20)
 {
     return Joiner() << JPart(6, opcode) << Zeros(1) << JPart(5, xd) << JPart(20, imm20);
 }
@@ -175,7 +175,7 @@ word Emulator32bit::asm_format_b1(const U8 opcode, const ConditionCode cond, con
                     << JPart(22, bitfield_unsigned<0, 22>(simm22));
 }
 
-word Emulator32bit::asm_format_b2(const ConditionCode cond, const int xd, const bool link)
+word Emulator32bit::asm_format_b2(const ConditionCode cond, const U8 xd, const bool link)
 {
     return Joiner() << JPart(6, _op_bx) << JPart(4, word(cond)) << JPart(5, xd) << Zeros(16)
                     << JPart(1, link);
@@ -509,7 +509,7 @@ word Emulator32bit::asm_csel(const word variant, const ConditionCode cond, const
 ///
 /// @param[in] atomic An atomic (a read and a write, which has no unaligned form), otherwise a load
 ///        or store whose message names the unaligned form to use.
-[[noreturn]] static void throw_misaligned(const word address, const unsigned size, const bool write,
+[[noreturn]] static void throw_misaligned(const word address, const U32 size, const bool write,
                                           const bool atomic = false)
 {
     const char *const kind = atomic ? "atomic access" : write ? "store" : "load";
@@ -535,7 +535,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
     const word val_reg = read_reg(xn);
 
     // An atomic access has to be naturally aligned, there is no unaligned form (a byte always is).
-    const unsigned size = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
+    const U32 size = width == kAtomicWidth_word ? 4 : width == kAtomicWidth_hword ? 2 : 1;
     if (UNLIKELY((mem_adr & (size - 1)) != 0))
     {
         throw_misaligned(mem_adr, size, true, true);
@@ -589,7 +589,7 @@ void Emulator32bit::_atomic_rmw(const word instr, const AtomicOperation operatio
 
     default:
         throw Trap(TrapType::BAD_INSTR,
-                   "Invalid atomic operation " + std::to_string(static_cast<int>(operation)),
+                   "Invalid atomic operation " + std::to_string(static_cast<S32>(operation)),
                    kUndefinedIss_ext_op);
     }
 
@@ -692,7 +692,7 @@ ALU_OP(_bic, alu_bic(rn, op2, get_NZCV()))
 // lsl, lsr, asr, ror: the type is in bits 7-8, the amount is an imm5 or the low 5 bits of xm.
 void Emulator32bit::_shift(const word instr)
 {
-    const unsigned amount =
+    const U32 amount =
         test_bit<14>(instr) ? bitfield_unsigned<2, 5>(instr) : (read_reg(_X3(instr)) & 0x1F);
     const ShiftType type = ShiftType(bitfield_unsigned<7, 2>(instr));
     const AluResult result = alu_shift(read_reg(_X2(instr)), type, amount, get_NZCV());
@@ -840,26 +840,26 @@ static void write_fp(Emulator32bit &cpu, const U8 reg, const bool pair, const U6
              result.value & 1);
 }
 
-word Emulator32bit::asm_fop1(const U8 fn, const bool dbl, const int xd, const int xn)
+word Emulator32bit::asm_fop1(const U8 fn, const bool dbl, const U8 xd, const U8 xn)
 {
     return Joiner() << JPart(6, _op_fop1) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(10) << JPart(5, fn);
 }
 
-word Emulator32bit::asm_fop2(const U8 fn, const bool dbl, const int xd, const int xn, const int xm)
+word Emulator32bit::asm_fop2(const U8 fn, const bool dbl, const U8 xd, const U8 xn, const U8 xm)
 {
     return Joiner() << JPart(6, _op_fop2) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(1) << JPart(5, xm) << Zeros(4) << JPart(5, fn);
 }
 
-word Emulator32bit::asm_fop3(const U8 fn, const bool dbl, const int xd, const int xn, const int xm,
-                             const int xa)
+word Emulator32bit::asm_fop3(const U8 fn, const bool dbl, const U8 xd, const U8 xn, const U8 xm,
+                             const U8 xa)
 {
     return Joiner() << JPart(6, _op_fop3) << JPart(1, dbl) << JPart(5, xd) << JPart(5, xn)
                     << Zeros(1) << JPart(5, xm) << JPart(5, xa) << Zeros(2) << JPart(2, fn);
 }
 
-word Emulator32bit::asm_fcmp(const bool dbl, const bool signaling, const int xn, const int xm)
+word Emulator32bit::asm_fcmp(const bool dbl, const bool signaling, const U8 xn, const U8 xm)
 {
     return Joiner() << JPart(6, _op_fcmp) << JPart(1, dbl) << JPart(1, signaling) << Zeros(4)
                     << JPart(5, xn) << Zeros(1) << JPart(5, xm) << Zeros(9);
@@ -1113,7 +1113,7 @@ void Emulator32bit::_adrp(const word instr)
     const U8 xd = _X1(instr);
     const word imm20 = bitfield_unsigned<0, 20>(instr);
 
-    signed int simm21 = imm20;
+    S32 simm21 = imm20;
     if (test_bit<kInstructionUpdateFlagBit>(instr))
     {
         simm21 -= (1 << 20);

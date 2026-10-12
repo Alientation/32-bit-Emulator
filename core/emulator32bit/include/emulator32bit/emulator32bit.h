@@ -928,7 +928,7 @@ class Emulator32bit
     /// @param[in] xd The destination register (the first one of a pair for a double).
     /// @param[in] xn The source register.
     /// @return The instruction word.
-    static word asm_fop1(U8 fn, bool dbl, int xd, int xn);
+    static word asm_fop1(U8 fn, bool dbl, U8 xd, U8 xn);
 
     /// Encodes a binary floating point instruction `fadd`, ... `xd, xn, xm` (format F2).
     ///
@@ -938,7 +938,7 @@ class Emulator32bit
     /// @param[in] xn The first operand.
     /// @param[in] xm The second operand.
     /// @return The instruction word.
-    static word asm_fop2(U8 fn, bool dbl, int xd, int xn, int xm);
+    static word asm_fop2(U8 fn, bool dbl, U8 xd, U8 xn, U8 xm);
 
     /// Encodes a fused multiply-add `fmadd`, ... `xd, xn, xm, xa` (format F4).
     ///
@@ -949,7 +949,7 @@ class Emulator32bit
     /// @param[in] xm The second factor.
     /// @param[in] xa The addend.
     /// @return The instruction word.
-    static word asm_fop3(U8 fn, bool dbl, int xd, int xn, int xm, int xa);
+    static word asm_fop3(U8 fn, bool dbl, U8 xd, U8 xn, U8 xm, U8 xa);
 
     /// Encodes `fcmp` or `fcmpe xn, xm` (format F3).
     ///
@@ -958,7 +958,7 @@ class Emulator32bit
     /// @param[in] xn The first operand.
     /// @param[in] xm The second operand.
     /// @return The instruction word.
-    static word asm_fcmp(bool dbl, bool signaling, int xn, int xm);
+    static word asm_fcmp(bool dbl, bool signaling, U8 xn, U8 xm);
 
     /// Encodes `csel`, `csinc`, `csinv` or `csneg xd, xn, xm, cond`.
     ///
@@ -988,7 +988,7 @@ class Emulator32bit
     /// @param[in] xn 5 bit operand register identifier.
     /// @param[in] imm14 14 bit immediate value.
     /// @return Instruction word.
-    static word asm_format_o(U8 opcode, bool s, int xd, int xn, int imm14);
+    static word asm_format_o(U8 opcode, bool s, U8 xd, U8 xn, S32 imm14);
     /// Constructs instructions of format O with an arg operand.
     ///
     /// @param[in] opcode 6 bit identifier of a format O instruction.
@@ -999,7 +999,7 @@ class Emulator32bit
     /// @param[in] shift Shift type to be applied on the value in the xm register.
     /// @param[in] imm5 Shift amount.
     /// @return Instruction word.
-    static word asm_format_o(U8 opcode, bool s, int xd, int xn, int xm, ShiftType shift, int imm5);
+    static word asm_format_o(U8 opcode, bool s, U8 xd, U8 xn, U8 xm, ShiftType shift, S32 imm5);
 
     /// Constructs instructions of format O1 (the shifts): the amount is a register or an imm5.
     ///
@@ -1011,7 +1011,7 @@ class Emulator32bit
     /// @param[in] imm5 The amount.
     /// @param[in] s Whether condition flags are set.
     /// @return The instruction word.
-    static word asm_format_o1(ShiftType type, int xd, int xn, bool imm, int xm, int imm5,
+    static word asm_format_o1(ShiftType type, U8 xd, U8 xn, bool imm, U8 xm, S32 imm5,
                               bool s = false);
 
     /// Constructs instructions of format O2 (the long multiplies), with two destination registers.
@@ -1023,7 +1023,7 @@ class Emulator32bit
     /// @param[in] xn 5 bit identifier of the first operand register.
     /// @param[in] xm 5 bit identifier of the second operand register.
     /// @return The instruction word.
-    static word asm_format_o2(bool is_signed, bool s, int xlo, int xhi, int xn, int xm);
+    static word asm_format_o2(bool is_signed, bool s, U8 xlo, U8 xhi, U8 xn, U8 xm);
 
     /// Constructs instructions of format O3 with an imm19 operand (`mov`, `mvn`).
     ///
@@ -1032,7 +1032,7 @@ class Emulator32bit
     /// @param[in] xd 5 bit destination register identifier.
     /// @param[in] imm19 19 bit immediate value.
     /// @return The instruction word.
-    static word asm_format_o3(U8 opcode, bool s, int xd, int imm19);
+    static word asm_format_o3(U8 opcode, bool s, U8 xd, S32 imm19);
 
     /// Constructs instructions of format O3 with a register and an imm14 operand.
     ///
@@ -1042,7 +1042,7 @@ class Emulator32bit
     /// @param[in] xn 5 bit operand register identifier.
     /// @param[in] imm14 14 bit immediate value.
     /// @return The instruction word.
-    static word asm_format_o3(U8 opcode, bool s, int xd, int xn, int imm14);
+    static word asm_format_o3(U8 opcode, bool s, U8 xd, U8 xn, S32 imm14);
 
     /// Constructs a load or store (format M) with a register offset.
     ///
@@ -1055,8 +1055,8 @@ class Emulator32bit
     /// @param[in] imm5 Shift amount.
     /// @param[in] adr How the offset is applied to the base.
     /// @return The instruction word.
-    static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int xm, ShiftType shift,
-                             int imm5, encoding::AddrType adr);
+    static word asm_format_m(U8 opcode, bool sign, U8 xt, U8 xn, U8 xm, ShiftType shift, S32 imm5,
+                             encoding::AddrType adr);
 
     /// Constructs a load or store (format M) with an immediate offset.
     ///
@@ -1067,7 +1067,7 @@ class Emulator32bit
     /// @param[in] simm12 12 bit signed offset.
     /// @param[in] adr How the offset is applied to the base.
     /// @return The instruction word.
-    static word asm_format_m(U8 opcode, bool sign, int xt, int xn, int simm12,
+    static word asm_format_m(U8 opcode, bool sign, U8 xt, U8 xn, S32 simm12,
                              encoding::AddrType adr);
 
     /// Constructs instructions of format M1, a register and an imm20 operand (`adrp`, `adr`).
@@ -1076,7 +1076,7 @@ class Emulator32bit
     /// @param[in] xd 5 bit destination register identifier.
     /// @param[in] imm20 20 bit immediate value.
     /// @return The instruction word.
-    static word asm_format_m1(U8 opcode, int xd, int imm20);
+    static word asm_format_m1(U8 opcode, U8 xd, S32 imm20);
 
     /// Constructs an instruction of format B1: a branch to a pc relative offset (also `swi`).
     ///
@@ -1092,7 +1092,7 @@ class Emulator32bit
     /// @param[in] xd 5 bit register identifier that holds the target.
     /// @param[in] link Whether x29 gets the address of the next instruction (`blx`).
     /// @return The instruction word.
-    static word asm_format_b2(ConditionCode cond, int xd, bool link = false);
+    static word asm_format_b2(ConditionCode cond, U8 xd, bool link = false);
 
     /// @param[in] instr An instruction word.
     /// @return The instruction as assembly text.

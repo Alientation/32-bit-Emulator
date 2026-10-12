@@ -54,7 +54,7 @@ namespace
 {
 
 /// Binding strength of a binary operator, 0 if the token is not one. Same order as C.
-int binary_precedence(const TokenType type)
+S32 binary_precedence(const TokenType type)
 {
     switch (type)
     {
@@ -93,7 +93,7 @@ int binary_precedence(const TokenType type)
 
 /// How many parentheses and unary operators may nest, so that a hostile source cannot overflow
 /// the stack.
-constexpr int kMaxExpressionDepth = 200;
+constexpr size_t kMaxExpressionDepth = 200;
 
 /// A section, an .advance or a .fill of this many bytes or more is more likely a mistake than what
 /// the program means.
@@ -139,7 +139,7 @@ void Assembler::require_number(const ExprValue &value)
 Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
 {
     const std::string name = symbol.str();
-    for (size_t i = m_scopes.size() + 1; i-- > 0;)
+    for (size_t i = m_scopes.size(); i != U64(-1); i--)
     {
         const std::string key = i == 0 ? name : name + "::SCOPE:" + std::to_string(m_scopes[i - 1]);
 
@@ -176,9 +176,9 @@ Assembler::ExprValue Assembler::parse_unary_expression()
 
     struct Depth
     {
-        int &depth;
+        size_t &depth;
 
-        explicit Depth(int &d) :
+        explicit Depth(size_t &d) :
             depth(d)
         {
             depth++;
@@ -232,13 +232,13 @@ Assembler::ExprValue Assembler::parse_unary_expression()
     }
 }
 
-Assembler::ExprValue Assembler::parse_binary_expression(const int min_precedence)
+Assembler::ExprValue Assembler::parse_binary_expression(const S32 min_precedence)
 {
     ExprValue left = parse_unary_expression();
     while (true)
     {
         const Token &op = m_cursor.peek();
-        const int precedence = binary_precedence(op.type);
+        const S32 precedence = binary_precedence(op.type);
         if (precedence == 0 || precedence < min_precedence)
         {
             return left;

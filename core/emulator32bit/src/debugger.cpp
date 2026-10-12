@@ -730,8 +730,7 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
     const size_t equals = text.find('=');
     const std::optional<U8> reg = parse_register_name(text.substr(0, equals));
     // xzr never changes, and a bare number would be a register number in parse_register_name.
-    if (!reg || *reg > static_cast<U8>(Register::SP)
-        || std::isdigit(static_cast<unsigned char>(text[0])))
+    if (!reg || *reg > static_cast<U8>(Register::SP) || std::isdigit(static_cast<U8>(text[0])))
     {
         return std::nullopt;
     }

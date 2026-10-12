@@ -99,13 +99,13 @@ std::string join(const std::vector<Token> &tokens)
 
 /// The value of text that is a whole number written the way the assembler writes one: 42, 0x2A,
 /// 0b101 or 0o17, with an optional '-'.
-std::optional<long long> as_number(const std::string &text)
+std::optional<S64> as_number(const std::string &text)
 {
     std::size_t i = 0;
     const bool negative = !text.empty() && text[0] == '-';
     if (negative) i++;
 
-    int base = 10;
+    S32 base = 10;
     if (i + 1 < text.size() && text[i] == '0')
     {
         const char prefix = static_cast<char>(text[i + 1] | 0x20); // lower case
@@ -116,7 +116,7 @@ std::optional<long long> as_number(const std::string &text)
     if (base != 10) i += 2;
     if (i >= text.size()) return std::nullopt;
 
-    long long value = 0;
+    S64 value = 0;
     const auto [end, error] =
         std::from_chars(text.data() + i, text.data() + text.size(), value, base);
     if (error != std::errc() || end != text.data() + text.size()) return std::nullopt;
@@ -125,10 +125,10 @@ std::optional<long long> as_number(const std::string &text)
 
 /// Compares the values of an #ifequ, #ifless, ... They are compared as numbers when both are
 /// numbers (9 is less than 10) and as text otherwise.
-int compare_values(const std::string &left, const std::string &right)
+S32 compare_values(const std::string &left, const std::string &right)
 {
-    const std::optional<long long> a = as_number(left);
-    const std::optional<long long> b = as_number(right);
+    const std::optional<S64> a = as_number(left);
+    const std::optional<S64> b = as_number(right);
     if (a && b) return *a < *b ? -1 : (*a > *b ? 1 : 0);
     return left.compare(right) < 0 ? -1 : (left == right ? 0 : 1);
 }
@@ -371,7 +371,7 @@ bool Preprocessor::parse_call_args(std::vector<Tokens> &args, TokenCursor &curso
 
     Tokens current;
     bool separated = false;
-    int depth = 0;
+    S32 depth = 0;
     while (true)
     {
         const Token &token = cursor.peek();
@@ -487,8 +487,8 @@ Preprocessor::Tokens Preprocessor::substitute(const Tokens &body,
             Token copy = args[index][i];
             if (i == 0)
             {
-                copy.flags = static_cast<std::uint8_t>((copy.flags & ~TokenFlag::SPACE_BEFORE)
-                                                       | (token.flags & TokenFlag::SPACE_BEFORE));
+                copy.flags = static_cast<U8>((copy.flags & ~TokenFlag::SPACE_BEFORE)
+                                             | (token.flags & TokenFlag::SPACE_BEFORE));
             }
             result.push_back(copy);
         }
@@ -567,8 +567,8 @@ bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
     if (!expansion.empty())
     {
         expansion.front().flags =
-            static_cast<std::uint8_t>((expansion.front().flags & ~TokenFlag::SPACE_BEFORE)
-                                      | (site.flags & TokenFlag::SPACE_BEFORE));
+            static_cast<U8>((expansion.front().flags & ~TokenFlag::SPACE_BEFORE)
+                            | (site.flags & TokenFlag::SPACE_BEFORE));
         push_frame(std::move(expansion));
     }
     return true;

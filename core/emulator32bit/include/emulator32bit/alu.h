@@ -189,9 +189,9 @@ static_assert(kNFlagBit == 0 && kZFlagBit == 1 && kCFlagBit == 2 && kVFlagBit ==
 constexpr std::array<U16, 16> make_condition_table()
 {
     std::array<U16, 16> table{};
-    for (unsigned flags = 0; flags < 16; flags++)
+    for (U32 flags = 0; flags < 16; flags++)
     {
-        for (unsigned cond = 0; cond < 16; cond++)
+        for (U32 cond = 0; cond < 16; cond++)
         {
             if (condition_holds(test_bit<kNFlagBit>(flags), test_bit<kZFlagBit>(flags),
                                 test_bit<kCFlagBit>(flags), test_bit<kVFlagBit>(flags),

@@ -8,18 +8,18 @@
 /// (struct of arrays: a `BitArray` instead of a `bool` array or an optional per entry).
 ///
 /// @tparam N The number of bits, at least 1.
-template<unsigned N>
+template<size_t N>
 class BitArray
 {
     static_assert(N > 0, "A BitArray has at least one bit");
 
   public:
     /// The number of bits.
-    static constexpr unsigned kCapacity = N;
+    static constexpr size_t kCapacity = N;
 
     /// @param[in] i The index, below N.
     /// @return The bit.
-    bool test(const unsigned i) const
+    bool test(const size_t i) const
     {
         assert(i < N);
         return (m_words[i / kNumDwordBits] >> (i % kNumDwordBits)) & 1;
@@ -27,7 +27,7 @@ class BitArray
 
     /// @param[in] i The index, below N.
     /// @param[in] value What the bit becomes.
-    void assign(const unsigned i, const bool value)
+    void assign(const size_t i, const bool value)
     {
         assert(i < N);
         U64 &word = m_words[i / kNumDwordBits];
@@ -38,7 +38,7 @@ class BitArray
     ///
     /// @param[in] from The index of the bit to copy.
     /// @param[in] to The index of the bit to replace.
-    void copy(const unsigned from, const unsigned to)
+    void copy(const size_t from, const size_t to)
     {
         assign(to, test(from));
     }
@@ -60,6 +60,6 @@ class BitArray
     }
 
   private:
-    static constexpr unsigned kWords = (N + 63) / 64;
+    static constexpr size_t kWords = (N + 63) / 64;
     U64 m_words[kWords] = {};
 };

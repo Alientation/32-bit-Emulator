@@ -20,7 +20,7 @@ namespace
 {
 
 /// The width of the column of the options in the help.
-constexpr int kOptionWidth = 26;
+constexpr S32 kOptionWidth = 26;
 
 void print_option(const std::string &option, const std::string &description)
 {
@@ -163,7 +163,7 @@ std::vector<std::string> Build::split_args(const std::string &line)
             is_quoted = !is_quoted;
             in_arg = true;
         }
-        else if (std::isspace(static_cast<unsigned char>(c)) && !is_quoted)
+        else if (std::isspace(static_cast<U8>(c)) && !is_quoted)
         {
             if (in_arg)
             {

@@ -23,22 +23,22 @@ namespace
 // description is the ARM core one, which it accepts with any more registers: r0-r12 are x0-x12, sp
 // is sp, lr is x29 (the link register), pc is pc, cpsr is the processor state in the bits of an ARM
 // one, and x13-x28 follow as registers of their own.
-constexpr unsigned kRegisterSp = 13;
-constexpr unsigned kRegisterLr = 14;
-constexpr unsigned kRegisterPc = 15;
-constexpr unsigned kRegisterCpsr = 16;
-constexpr unsigned kRegisterFirstExtra = 17; // The gdb number of x13.
-constexpr unsigned kRegisterCount = 33;      // Up to x28.
+constexpr U32 kRegisterSp = 13;
+constexpr U32 kRegisterLr = 14;
+constexpr U32 kRegisterPc = 15;
+constexpr U32 kRegisterCpsr = 16;
+constexpr U32 kRegisterFirstExtra = 17; // The gdb number of x13.
+constexpr U32 kRegisterCount = 33;      // Up to x28.
 
 /// @return The number of the emulator register that gdb's register is, or -1 for pc and cpsr.
-int emulator_register(const unsigned number)
+S32 emulator_register(const U32 number)
 {
-    if (number <= 12) return int(number);
+    if (number <= 12) return S32(number);
     if (number == kRegisterSp) return 30;
     if (number == kRegisterLr) return 29;
     if (number >= kRegisterFirstExtra && number < kRegisterCount)
     {
-        return int(number - kRegisterFirstExtra + 13);
+        return S32(number - kRegisterFirstExtra + 13);
     }
     return -1;
 }
@@ -49,7 +49,7 @@ constexpr U64 kSlice = 20000;
 /// The most bytes a read or write of memory moves in one packet.
 constexpr word kMaxTransfer = 0x4000;
 
-int hex_digit(const char c)
+S32 hex_digit(const char c)
 {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -64,7 +64,7 @@ bool parse_hex(word &out, const std::string &text)
     word value = 0;
     for (const char c : text)
     {
-        const int digit = hex_digit(c);
+        const S32 digit = hex_digit(c);
         if (digit < 0) return false;
         value = (value << 4) | word(digit);
     }
@@ -123,8 +123,8 @@ bool GdbServer::from_hex(std::string &bytes, const std::string &text)
     bytes.clear();
     for (size_t i = 0; i < text.size(); i += 2)
     {
-        const int high = hex_digit(text[i]);
-        const int low = hex_digit(text[i + 1]);
+        const S32 high = hex_digit(text[i]);
+        const S32 low = hex_digit(text[i + 1]);
         if (high < 0 || low < 0) return false;
         bytes += char(high * 16 + low);
     }
@@ -139,7 +139,7 @@ std::string GdbServer::target_description()
         "<target version=\"1.0\">\n"
         "  <architecture>arm</architecture>\n"
         "  <feature name=\"org.gnu.gdb.arm.core\">\n";
-    for (unsigned i = 0; i <= 12; i++)
+    for (U32 i = 0; i <= 12; i++)
     {
         xml += std::format("    <reg name=\"r{}\" bitsize=\"32\" regnum=\"{}\"/>\n", i, i);
     }
@@ -149,7 +149,7 @@ std::string GdbServer::target_description()
            "    <reg name=\"cpsr\" bitsize=\"32\" regnum=\"16\"/>\n"
            "  </feature>\n"
            "  <feature name=\"org.aemu.emu32.extra\">\n";
-    for (unsigned i = kRegisterFirstExtra; i < kRegisterCount; i++)
+    for (U32 i = kRegisterFirstExtra; i < kRegisterCount; i++)
     {
         xml += std::format("    <reg name=\"x{}\" bitsize=\"32\" regnum=\"{}\"/>\n",
                            i - kRegisterFirstExtra + 13, i);
@@ -159,9 +159,9 @@ std::string GdbServer::target_description()
     return xml;
 }
 
-bool GdbServer::read_register(word &value, const unsigned number)
+bool GdbServer::read_register(word &value, const U32 number)
 {
-    if (const int reg = emulator_register(number); reg >= 0)
+    if (const S32 reg = emulator_register(number); reg >= 0)
     {
         value = m_emu.read_reg(U8(reg));
     }
@@ -185,9 +185,9 @@ bool GdbServer::read_register(word &value, const unsigned number)
     return true;
 }
 
-bool GdbServer::write_register(const unsigned number, const word value)
+bool GdbServer::write_register(const U32 number, const word value)
 {
-    if (const int reg = emulator_register(number); reg >= 0)
+    if (const S32 reg = emulator_register(number); reg >= 0)
     {
         m_emu.write_reg(U8(reg), value);
     }
@@ -211,7 +211,7 @@ bool GdbServer::write_register(const unsigned number, const word value)
 std::string GdbServer::read_registers()
 {
     std::string text;
-    for (unsigned i = 0; i < kRegisterCount; i++)
+    for (U32 i = 0; i < kRegisterCount; i++)
     {
         word value = 0;
         read_register(value, i);
@@ -223,7 +223,7 @@ std::string GdbServer::read_registers()
 bool GdbServer::write_registers(const std::string &hex)
 {
     if (hex.size() != kRegisterCount * 8) return false;
-    for (unsigned i = 0; i < kRegisterCount; i++)
+    for (U32 i = 0; i < kRegisterCount; i++)
     {
         word value = 0;
         if (!hex_to_word(value, hex.substr(i * 8, 8)) || !write_register(i, value)) return false;
@@ -644,9 +644,9 @@ class Client : public GdbServer::InterruptSource
     int m_fd;
 };
 
-unsigned checksum(const std::string &payload)
+U32 checksum(const std::string &payload)
 {
-    unsigned sum = 0;
+    U32 sum = 0;
     for (const char c : payload)
     {
         sum += U8(c);
@@ -656,8 +656,8 @@ unsigned checksum(const std::string &payload)
 
 } // namespace
 
-bool GdbServer::serve(Emulator32bit &emu, const std::uint16_t port,
-                      void (*ready)(std::uint16_t port), std::ostream *log)
+bool GdbServer::serve(Emulator32bit &emu, const U16 port, void (*ready)(U16 port),
+                      std::ostream *log)
 {
     const int listener = socket(AF_INET, SOCK_STREAM, 0);
     if (listener < 0) return false;
@@ -708,7 +708,7 @@ bool GdbServer::serve(Emulator32bit &emu, const std::uint16_t port,
         char high = 0, low = 0;
         if (!client.read_byte(high) || !client.read_byte(low)) break;
         if (hex_digit(high) < 0 || hex_digit(low) < 0
-            || unsigned(hex_digit(high) * 16 + hex_digit(low)) != checksum(payload))
+            || U32(hex_digit(high) * 16 + hex_digit(low)) != checksum(payload))
         {
             client.send("-");
             continue;
@@ -727,7 +727,7 @@ bool GdbServer::serve(Emulator32bit &emu, const std::uint16_t port,
 
 #else
 
-bool GdbServer::serve(Emulator32bit &, std::uint16_t, void (*)(std::uint16_t), std::ostream *log)
+bool GdbServer::serve(Emulator32bit &, U16, void (*)(U16), std::ostream *log)
 {
     if (log != nullptr) *log << "The gdb server needs sockets, which this build does not have\n";
     return false;
