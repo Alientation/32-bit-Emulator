@@ -720,7 +720,8 @@ TEST_F(FpuTest, a_double_is_a_pair_with_the_low_word_in_the_lower_register)
     cpu.write_reg(3, word(bits(1.5) >> 32));
     cpu.write_reg(4, word(bits(2.25)));
     cpu.write_reg(5, word(bits(2.25) >> 32));
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+    snapshot_registers(before);
 
     execute(Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, 2, 4));
 
@@ -772,7 +773,8 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
 {
     start(kRoundNearest);
     fill_registers();
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+    snapshot_registers(before);
 
     // Double to int: a pair in, one register out.
     set_value(kXa, true, bits(-7.9));
@@ -783,7 +785,8 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     // Int to double: one register in, a pair out.
     fill_registers();
     cpu.write_reg(kXa, 100);
-    const auto before2 = snapshot_registers();
+    word before2[kNumReg];
+    snapshot_registers(before2);
     execute(Emulator32bit::asm_fop1(kUnaryFn_froms32, true, kXd, kXa));
     EXPECT_EQ(get_value(kXd, true), bits(100.0));
     expect_registers_unchanged_except(before2, {kXd, U8(kXd + 1)});
@@ -791,7 +794,8 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     // Float to double and back.
     fill_registers();
     cpu.write_reg(kXa, bits(0.5f));
-    const auto before3 = snapshot_registers();
+    word before3[kNumReg];
+    snapshot_registers(before3);
     execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, kXd, kXa)); // f32 -> f64
     EXPECT_EQ(get_value(kXd, true), bits(0.5));
     expect_registers_unchanged_except(before3, {kXd, U8(kXd + 1)});
@@ -821,7 +825,8 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
         {
             start(kRoundNearest);
             fill_registers();
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             const NZCVFlags flags_before = flags();
 
             const auto result = step(0, instruction);
@@ -846,7 +851,8 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
 TEST_F(FpuTest, an_unassigned_function_faults)
 {
     fill_registers();
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+    snapshot_registers(before);
     const auto result = step(0, Emulator32bit::asm_fop1(kUnaryFn_count, false, 6, 2));
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
     EXPECT_NE(result.message.find("Undefined fop1 function 15"), std::string::npos)
@@ -986,7 +992,8 @@ TEST_F(FpuTest, a_fused_operation_with_a_double_cannot_start_in_x29_sp_or_xzr)
         {
             start(kRoundNearest);
             fill_registers();
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
 
             const auto result = step(0, instruction);
 
@@ -1003,7 +1010,8 @@ TEST_F(FpuTest, a_fused_operation_with_a_double_cannot_start_in_x29_sp_or_xzr)
 TEST_F(FpuTest, a_fused_operation_with_a_reserved_bit_set_faults)
 {
     fill_registers();
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+    snapshot_registers(before);
     const auto result = step(0, Emulator32bit::asm_fop3(kFmaFn_madd, false, 6, 2, 4, 8) | 0b100);
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
     EXPECT_NE(result.message.find("Undefined fop3 function"), std::string::npos) << result.message;

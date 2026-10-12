@@ -160,7 +160,8 @@ class MemoryTest : public EmulatorFixture
         const word offset = a.offset();
         const word addr = a.mode == AddrType::ADDR_POST_INC ? kBase : kBase + offset;
         const word base_after = a.mode == AddrType::ADDR_OFFSET ? kBase : kBase + offset;
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const std::string ctx =
             std::string(op.name) + (sign ? " (sign)" : "") + " " + a.str() + " addr=" + hex32(addr);
 
@@ -390,7 +391,8 @@ TEST_F(MemoryTest, zero_register)
     // Loading into xzr discards the value.
     fill_registers();
     cpu.write_reg(kXn, kBase + 0x100);
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+    snapshot_registers(before);
     execute(
         Emulator32bit::asm_format_m(encoding::_op_ldr, false, kXzr, kXn, 0, AddrType::ADDR_OFFSET));
     EXPECT_EQ(cpu.read_reg(kXzr), 0u);
@@ -473,7 +475,8 @@ TEST_F(MemoryTest, an_access_that_is_not_aligned_to_its_size_faults_and_does_not
                 cpu.write_reg(kXn, mode == AddrType::ADDR_POST_INC ? kBase + skew : kBase);
                 cpu.write_reg(kXt, kStoreValue);
                 const int offset = mode == AddrType::ADDR_POST_INC ? 8 : int(8 + skew);
-                const auto before = snapshot_registers();
+                word before[kNumReg];
+                snapshot_registers(before);
 
                 const auto result =
                     step(0, Emulator32bit::asm_format_m(op.opcode, false, kXt, kXn, offset, mode));
@@ -529,7 +532,8 @@ TEST_F(MemoryTest, the_unaligned_forms_access_any_address)
                     cpu.write_reg(kXn, kBase);
                     cpu.write_reg(kXm, addr - kBase);
                     cpu.write_reg(kXt, kStoreValue);
-                    const auto before = snapshot_registers();
+                    word before[kNumReg];
+                    snapshot_registers(before);
 
                     const word instr =
                         reg_offset ? Emulator32bit::asm_format_m(op.opcode, sign, kXt, kXn, kXm,

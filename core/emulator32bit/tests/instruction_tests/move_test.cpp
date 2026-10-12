@@ -38,7 +38,8 @@ class MoveTest : public EmulatorFixture
     {
         fill_registers();
         set_flags(in);
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const word expected = op.apply(operand);
         const std::string ctx =
             std::string(op.name) + (s ? "s " : " ") + desc + " flags_in=" + flags_to_string(in);
@@ -86,7 +87,8 @@ TEST_F(MoveTest, register_plus_immediate14)
                         fill_registers();
                         cpu.write_reg(kXn, rn);
                         set_flags(in);
-                        const auto before = snapshot_registers();
+                        word before[kNumReg];
+                        snapshot_registers(before);
                         const word expected = op.apply(rn + imm); // wraps modulo 2^32
                         const std::string ctx = std::string(op.name) + (s ? "s" : "")
                                                 + " rn=" + hex32(rn) + " + " + hex32(imm)
@@ -136,7 +138,8 @@ TEST_F(MoveTest, every_register_index_is_decoded)
             const U8 xn = (xd + 1) % kNumReg;
             fill_registers();
             set_flags(flags_from_bits(0));
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             const word expected = op.apply(cpu.read_reg(xn) + 3);
             const std::string ctx = std::string(op.name) + " x" + std::to_string(xd) + ", x"
                                     + std::to_string(xn) + " + 3";
@@ -160,7 +163,8 @@ TEST_F(MoveTest, every_register_index_is_decoded)
         for (U8 xd = 0; xd < kNumReg - 1; ++xd)
         {
             fill_registers();
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             execute(Emulator32bit::asm_format_o3(op.opcode, false, xd, 0x12345));
             EXPECT_EQ(cpu.read_reg(xd), op.apply(0x12345)) << op.name << " x" << int(xd);
             expect_registers_unchanged_except(before, {xd}, op.name);
@@ -179,7 +183,8 @@ TEST_F(MoveTest, zero_register)
         // xzr as the destination discards the value but the S bit still updates the flags.
         fill_registers();
         set_flags(flags_from_bits(0));
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         execute(Emulator32bit::asm_format_o3(op.opcode, true, kXzr, 0));
         EXPECT_EQ(cpu.read_reg(kXzr), 0u) << op.name;
         expect_registers_unchanged_except(before, {}, op.name);

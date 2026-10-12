@@ -1,6 +1,5 @@
 #include "emulator32bit/emulator32bit_util.h"
 
-#include <array>
 #include <gtest/gtest.h>
 #include <type_traits>
 
@@ -14,7 +13,7 @@ bool ref_bit(const T val, const unsigned i)
     return (U64(std::make_unsigned_t<T>(val)) / (U64(1) << i)) % 2 == 1;
 }
 
-using Bits = std::array<bool, 64>;
+using Bits = bool[64];
 
 template<typename T>
 T pack(const Bits &bits)
@@ -75,16 +74,13 @@ T ref_mask_0(const T val, const unsigned bit_i, const unsigned len)
 }
 
 template<typename T>
-std::array<T, 7> sample_values()
-{
-    return {T(0),
-            T(1),
-            T(~U64(0)),
-            T(U64(1) << (sizeof(T) * 8 - 1)),
-            T(0x5555555555555555ULL),
-            T(0xAAAAAAAAAAAAAAAAULL),
-            T(0x123456789ABCDEF0ULL)};
-}
+constexpr T kSampleValues[] = {T(0),
+                               T(1),
+                               T(~U64(0)),
+                               T(U64(1) << (sizeof(T) * 8 - 1)),
+                               T(0x5555555555555555ULL),
+                               T(0xAAAAAAAAAAAAAAAAULL),
+                               T(0x123456789ABCDEF0ULL)};
 } // namespace
 
 template<typename T>
@@ -98,7 +94,7 @@ TYPED_TEST_SUITE(BitUtilTest, BitUtilTypes);
 TYPED_TEST(BitUtilTest, test_bit_matches_reference)
 {
     constexpr unsigned width = sizeof(TypeParam) * 8;
-    for (const TypeParam val : sample_values<TypeParam>())
+    for (const TypeParam val : kSampleValues<TypeParam>)
     {
         for (unsigned i = 0; i < width; i++)
         {
@@ -110,7 +106,7 @@ TYPED_TEST(BitUtilTest, test_bit_matches_reference)
 TYPED_TEST(BitUtilTest, set_bit_matches_reference)
 {
     constexpr unsigned width = sizeof(TypeParam) * 8;
-    for (const TypeParam val : sample_values<TypeParam>())
+    for (const TypeParam val : kSampleValues<TypeParam>)
     {
         for (unsigned i = 0; i < width; i++)
         {
@@ -126,7 +122,7 @@ TYPED_TEST(BitUtilTest, set_bit_matches_reference)
 TYPED_TEST(BitUtilTest, fields_match_reference)
 {
     constexpr unsigned width = sizeof(TypeParam) * 8;
-    for (const TypeParam val : sample_values<TypeParam>())
+    for (const TypeParam val : kSampleValues<TypeParam>)
     {
         for (unsigned bit_i = 0; bit_i < width; bit_i++)
         {

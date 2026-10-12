@@ -119,7 +119,9 @@ TEST_F(SelectTest, csel_reads_xzr_as_zero_and_writes_to_it_nowhere)
                          none),
               0u);
 
-    const auto before = snapshot_registers();
+    word before[kNumReg];
+
+    snapshot_registers(before);
     execute(Emulator32bit::asm_csel(encoding::kCselId_csel, ConditionCode::AL, kXzr, kXn, kXm));
     EXPECT_EQ(cpu.read_reg(kXzr), 0u);
     EXPECT_EQ(cpu.read_reg(kXn), before[kXn]);

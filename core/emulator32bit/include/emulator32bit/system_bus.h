@@ -6,7 +6,6 @@
 #include "emulator32bit/memory.h"
 #include "emulator32bit/physical_pages.h"
 
-#include <array>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -104,5 +103,5 @@ class SystemBus : public PhysicalPages
     /// is a fatal error.
     void validate_memory() const;
 
-    const std::array<Device *, 4> m_devices{&intc, &timer, &console, &block};
+    Device *const m_devices[4] = {&intc, &timer, &console, &block};
 };

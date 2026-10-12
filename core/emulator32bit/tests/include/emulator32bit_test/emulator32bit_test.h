@@ -4,7 +4,6 @@
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/emulator32bit_util.h"
 
-#include <array>
 #include <gtest/gtest.h>
 #include <iomanip>
 #include <new>
@@ -47,16 +46,16 @@ inline std::ostream &operator<<(std::ostream &os, const NZCVFlags &f)
 }
 
 /// Values that sit on sign, carry and overflow boundaries.
-inline constexpr std::array<word, 10> kBoundaryValues = {
+inline constexpr word kBoundaryValues[] = {
     0x00000000, 0x00000001, 0x00000002, 0x7FFFFFFF, 0x80000000,
     0x80000001, 0xFFFFFFFE, 0xFFFFFFFF, 0x55555555, 0xAAAAAAAA,
 };
 
 /// Immediates that sit on the edges of the unsigned imm14 field.
-inline constexpr std::array<word, 6> kImm14Values = {0, 1, 2, 0x1FFF, 0x2000, 0x3FFF};
+inline constexpr word kImm14Values[] = {0, 1, 2, 0x1FFF, 0x2000, 0x3FFF};
 
-constexpr std::array<ShiftType, 4> kShiftTypes = {ShiftType::SHIFT_LSL, ShiftType::SHIFT_LSR,
-                                                  ShiftType::SHIFT_ASR, ShiftType::SHIFT_ROR};
+constexpr ShiftType kShiftTypes[] = {ShiftType::SHIFT_LSL, ShiftType::SHIFT_LSR,
+                                     ShiftType::SHIFT_ASR, ShiftType::SHIFT_ROR};
 
 inline const char *shift_name(const ShiftType t)
 {
@@ -155,15 +154,14 @@ class EmulatorFixture : public ::testing::Test
         for (U8 r = 0; r < kNumReg; ++r) cpu.write_reg(r, 0xA5000000u | (word(r) * 0x01010101u));
     }
 
-    std::array<word, kNumReg> snapshot_registers()
+    /// @param[out] out Receives the value of every register.
+    void snapshot_registers(word (&out)[kNumReg])
     {
-        std::array<word, kNumReg> regs{};
-        for (U8 r = 0; r < kNumReg; ++r) regs[r] = cpu.read_reg(r);
-        return regs;
+        for (U8 r = 0; r < kNumReg; ++r) out[r] = cpu.read_reg(r);
     }
 
     /// Expects every register other than those in `except` to equal its value in `before`.
-    void expect_registers_unchanged_except(const std::array<word, kNumReg> &before,
+    void expect_registers_unchanged_except(const word (&before)[kNumReg],
                                            std::initializer_list<U8> except,
                                            const std::string &ctx = "")
     {

@@ -52,7 +52,8 @@ class ShiftTest : public EmulatorFixture
         cpu.write_reg(kXn, value);
         cpu.write_reg(kXm, amount_reg);
         set_flags(in);
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const std::string ctx =
             std::string(op.name) + (s ? "s" : "") + " value=" + hex32(value)
             + (use_imm ? " #" + std::to_string(amount) : " xm=" + hex32(amount_reg))
@@ -162,7 +163,8 @@ TEST_F(ShiftTest, every_register_index_is_decoded)
             const U8 xm = (xd + 2) % kNumReg;
             fill_registers();
             set_flags(flags_from_bits(0));
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             const word value = cpu.read_reg(xn);
             const unsigned amount = cpu.read_reg(xm) & 0x1F;
             const std::string ctx = std::string(op.name) + " x" + std::to_string(xd) + ", x"
@@ -207,7 +209,8 @@ TEST_F(ShiftTest, zero_register_operands)
         fill_registers();
         cpu.write_reg(kXn, 0x80000000);
         set_flags(flags_from_bits(0));
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         execute(Emulator32bit::asm_format_o1(op.type, kXzr, kXn, true, 0, 1, true));
         EXPECT_EQ(cpu.read_reg(kXzr), 0u) << op.name;
         expect_registers_unchanged_except(before, {}, op.name);

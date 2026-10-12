@@ -128,7 +128,8 @@ class DataProcessingTest : public EmulatorFixture
         cpu.write_reg(kXn, rn);
         if (!op2.is_imm) cpu.write_reg(kXm, op2.value);
         set_flags(in);
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
 
         const AluResult expected = op.model(rn, op2.effective(), in);
         const std::string ctx = std::string(op.name) + (s ? "s" : "") + " rn=" + hex32(rn) + " "
@@ -228,7 +229,8 @@ TEST_F(DataProcessingTest, every_register_index_is_decoded)
             const U8 xm = (xd + 2) % kNumReg;
             fill_registers();
             set_flags(flags_from_bits(0));
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             const word rn = cpu.read_reg(xn);
             const word rm = cpu.read_reg(xm);
             const AluResult expected = op.model(rn, rm, flags());
@@ -335,7 +337,8 @@ TEST_F(DataProcessingTest, zero_register_destination_discards_the_result_but_set
         cpu.write_reg(kXn, 0xFFFFFFFF);
         cpu.write_reg(kXm, 1);
         set_flags(flags_from_bits(0));
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const AluResult expected = op.model(0xFFFFFFFF, 1, flags());
 
         execute(encode_reg(op, true, kXzr, kXn, kXm));

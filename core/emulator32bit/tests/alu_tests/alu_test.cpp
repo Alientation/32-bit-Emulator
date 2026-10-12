@@ -1,6 +1,5 @@
 #include "emulator32bit/alu.h"
 
-#include <array>
 #include <gtest/gtest.h>
 
 namespace
@@ -9,7 +8,7 @@ constexpr NZCVFlags kNoFlags = {false, false, false, false};
 constexpr NZCVFlags kAllFlags = {true, true, true, true};
 
 // Edge values that exercise sign, carry and overflow boundaries.
-constexpr std::array<word, 12> kEdgeValues = {
+constexpr word kEdgeValues[] = {
     0x00000000, 0x00000001, 0x00000002, 0x7FFFFFFE, 0x7FFFFFFF, 0x80000000,
     0x80000001, 0xFFFFFFFE, 0xFFFFFFFF, 0x12345678, 0x0000FFFF, 0xFFFF0000,
 };

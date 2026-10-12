@@ -39,7 +39,8 @@ class LongMultiplyTest : public EmulatorFixture
         cpu.write_reg(kXn, a);
         cpu.write_reg(kXm, b);
         set_flags(in);
-        const auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const dword product = op.product(a, b);
         const std::string ctx = std::string(op.name) + (s ? "s" : "") + " a=" + hex32(a)
                                 + " b=" + hex32(b) + " flags_in=" + flags_to_string(in);
@@ -116,7 +117,8 @@ TEST_F(LongMultiplyTest, every_register_index_is_decoded)
             const U8 xm = (xlo + 3) % kNumReg;
             fill_registers();
             set_flags(flags_from_bits(0));
-            const auto before = snapshot_registers();
+            word before[kNumReg];
+            snapshot_registers(before);
             const dword product = op.product(cpu.read_reg(xn), cpu.read_reg(xm));
             const std::string ctx = std::string(op.name) + " xlo=x" + std::to_string(xlo) + " xhi=x"
                                     + std::to_string(xhi) + " xn=x" + std::to_string(xn) + " xm=x"
@@ -155,7 +157,8 @@ TEST_F(LongMultiplyTest, zero_register)
         cpu.write_reg(kXn, 0xFFFFFFFF);
         cpu.write_reg(kXm, 0xFFFFFFFF);
         set_flags(flags_from_bits(0));
-        auto before = snapshot_registers();
+        word before[kNumReg];
+        snapshot_registers(before);
         const dword product = op.product(0xFFFFFFFF, 0xFFFFFFFF);
         execute(Emulator32bit::asm_format_o2(op.is_signed, true, kXlo, kXzr, kXn, kXm));
         EXPECT_EQ(cpu.read_reg(kXlo), word(product)) << op.name;
@@ -167,7 +170,7 @@ TEST_F(LongMultiplyTest, zero_register)
         fill_registers();
         cpu.write_reg(kXn, 0x10000);
         cpu.write_reg(kXm, 0x10000);
-        before = snapshot_registers();
+        snapshot_registers(before);
         execute(Emulator32bit::asm_format_o2(op.is_signed, true, kXzr, kXhi, kXn, kXm));
         EXPECT_EQ(cpu.read_reg(kXhi), 1u) << op.name;
         expect_registers_unchanged_except(before, {kXhi}, op.name);
