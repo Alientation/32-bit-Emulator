@@ -4,10 +4,8 @@
 #include "util/common.h"
 #include "util/logger.h"
 
-#include <algorithm>
 #include <cstring>
 #include <filesystem>
-#include <iterator>
 
 // At the beginning of the disk file and of the disk page management file, to detect a file that
 // is not one of them.
@@ -152,7 +150,7 @@ word Disk::get_free_page()
     // A page that was used before still has its old contents. Whoever gets the page starts with
     // zeros, not with the data of a page that was freed.
     CachePage &cpage = get_cpage(addr, false);
-    std::fill(std::begin(cpage.data), std::end(cpage.data), byte(0));
+    std::memset(cpage.data, 0, kPageSize);
     cpage.dirty = true;
 
     AEMU_DEBUG("Getting free disk page {}.", addr);

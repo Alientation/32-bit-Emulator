@@ -3,7 +3,7 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
 
-#include <algorithm>
+#include <cstring>
 #include <string>
 #include <type_traits>
 
@@ -191,12 +191,12 @@ class Memory : public BaseMemory
 
     void read_block(byte *out, const word address, const word size) override
     {
-        std::copy_n(m_data + (address - m_start_addr), size, out);
+        std::memcpy(out, m_data + (address - m_start_addr), size);
     }
 
     void write_block(const word address, const byte *data, const word size) override
     {
-        std::copy_n(data, size, m_data + (address - m_start_addr));
+        std::memcpy(m_data + (address - m_start_addr), data, size);
     }
 
     inline void write_byte(const word address, const byte value) override

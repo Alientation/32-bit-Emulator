@@ -2,6 +2,7 @@
 
 #include "util/logger.h"
 
+#include <cstring>
 #include <fstream>
 #include <set>
 
@@ -96,7 +97,7 @@ std::vector<LibraryMember> read_static_library(const File &in)
 
     const std::string &path = in.get_path();
     const size_t header = kMagicLength + sizeof(hword) + sizeof(dword);
-    AEMU_CHECK(bytes.size() >= header && std::equal(kMagic, kMagic + kMagicLength, bytes.begin()),
+    AEMU_CHECK(bytes.size() >= header && std::memcmp(kMagic, bytes.data(), kMagicLength) == 0,
                "'{}' is not a static library.", path);
 
     ByteReader b_reader(bytes);

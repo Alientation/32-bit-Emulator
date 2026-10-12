@@ -367,14 +367,12 @@ void Emulator32bit::_wfi(const word instr)
     }
 
     // Time jumps to the first event, whichever device it is.
-    const std::optional<word> timer = bus.timer.cycles_until_event();
-    const std::optional<word> block = bus.block.cycles_until_event();
-    if (timer || block)
+    constexpr word kNever = word(-1);
+    const word timer_wait = bus.timer.cycles_until_event();
+    const word block_wait = bus.block.cycles_until_event();
+    const word wait = timer_wait < block_wait ? timer_wait : block_wait;
+    if (wait != kNever)
     {
-        constexpr word kNever = ~word(0);
-        const word timer_wait = timer.value_or(kNever);
-        const word block_wait = block.value_or(kNever);
-        const word wait = timer_wait < block_wait ? timer_wait : block_wait;
         bus.timer.advance(wait);
         bus.block.advance(wait);
         if (bus.intc.has_pending())

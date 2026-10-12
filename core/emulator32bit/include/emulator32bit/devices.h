@@ -7,7 +7,6 @@
 #include <deque>
 #include <iosfwd>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -85,7 +84,7 @@ class InterruptController : public Device
 
     /// Removes the line at the head of the queue.
     ///
-    /// @return The line, 0xFFFFFFFF if the queue is empty.
+    /// @return The line, kNoLine if the queue is empty.
     word claim();
 
     void reset() override;
@@ -95,6 +94,16 @@ class InterruptController : public Device
     {
         return m_enable;
     }
+
+    /// What CLAIM gives when the queue is empty.
+    static constexpr word kNoLine = 0xFFFFFFFF;
+
+    /// The offsets of the registers.
+    static constexpr word kRegClaim = 0x00;
+    static constexpr word kRegCount = 0x04;
+    static constexpr word kRegEnable = 0x08;
+    static constexpr word kRegRaise = 0x0C;
+    static constexpr word kRegPending = 0x10;
 
   protected:
     word read_register(word offset) override;
@@ -138,8 +147,8 @@ class Timer : public Device
 
     /// For WFI: how long until the timer raises its interrupt.
     ///
-    /// @return The number of instructions, or nothing if it is not going to.
-    std::optional<word> cycles_until_event() const;
+    /// @return The number of instructions, or word(-1) if it is not going to.
+    word cycles_until_event() const;
 
     /// For WFI: `count` instructions pass at once.
     ///
@@ -157,6 +166,12 @@ class Timer : public Device
     /// The bits of CTRL.
     static constexpr word kEnabled = 1;
     static constexpr word kPeriodic = 2;
+
+    /// The offsets of the registers.
+    static constexpr word kRegCount = 0x00;
+    static constexpr word kRegCompare = 0x04;
+    static constexpr word kRegCtrl = 0x08;
+    static constexpr word kRegInterval = 0x0C;
 
   protected:
     word read_register(word offset) override;
@@ -222,7 +237,7 @@ class Console : public Device
     /// @return Whether a received byte raises the interrupt (CTRL bit 0).
     bool receive_interrupt_enabled() const
     {
-        return (m_ctrl & 1) != 0;
+        return (m_ctrl & kCtrlRxInterrupt) != 0;
     }
 
     /// For WFI with nothing else to wait for: blocks until the host supplies a byte.
@@ -231,6 +246,18 @@ class Console : public Device
     bool wait_host_input();
 
     void reset() override;
+
+    /// The bits of STATUS.
+    static constexpr word kStatusRxWaiting = 1;
+    static constexpr word kStatusTxReady = 2;
+
+    /// The bits of CTRL.
+    static constexpr word kCtrlRxInterrupt = 1;
+
+    /// The offsets of the registers.
+    static constexpr word kRegData = 0x00;
+    static constexpr word kRegStatus = 0x04;
+    static constexpr word kRegCtrl = 0x08;
 
   protected:
     word read_register(word offset) override;
@@ -289,6 +316,22 @@ class BlockDevice : public Device
     static constexpr word kDone = 2;
     static constexpr word kError = 4;
 
+    /// The bits of CTRL.
+    static constexpr word kCtrlDoneInterrupt = 1;
+
+    /// The offsets of the registers.
+    static constexpr word kRegCommand = 0x00;
+    static constexpr word kRegStatus = 0x04;
+    static constexpr word kRegSector = 0x08;
+    static constexpr word kRegData = 0x0C;
+    static constexpr word kRegCursor = 0x10;
+    static constexpr word kRegCapacity = 0x14;
+    static constexpr word kRegCtrl = 0x18;
+    static constexpr word kRegLatency = 0x1C;
+    static constexpr word kRegDmaAddr = 0x20;
+    static constexpr word kRegDmaCount = 0x24;
+    static constexpr word kRegDmaList = 0x28;
+
     /// The commands.
     static constexpr word kCmdRead = 1;
     static constexpr word kCmdWrite = 2;
@@ -346,8 +389,8 @@ class BlockDevice : public Device
 
     /// For WFI: how long until the command in progress completes.
     ///
-    /// @return The number of instructions, or nothing if no command is in progress.
-    std::optional<word> cycles_until_event() const;
+    /// @return The number of instructions, or word(-1) if no command is in progress.
+    word cycles_until_event() const;
 
     /// For WFI: `count` instructions pass at once.
     ///

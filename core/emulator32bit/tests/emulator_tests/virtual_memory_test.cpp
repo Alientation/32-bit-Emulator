@@ -2,6 +2,7 @@
 #include "emulator32bit/virtual_memory.h"
 #include "emulator32bit_test/emulator32bit_test.h"
 
+#include <cstring>
 #include <map>
 #include <optional>
 #include <set>
@@ -36,7 +37,7 @@ class FakePhysicalPages : public VirtualMemory::PhysicalPages
     void read_page(byte *out, word ppage) override
     {
         read.push_back(ppage);
-        std::copy(page(ppage).begin(), page(ppage).end(), out);
+        std::memcpy(out, page(ppage).data(), page(ppage).size());
     }
 
     void write_page(word ppage, const byte *data) override

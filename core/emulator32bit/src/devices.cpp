@@ -2,7 +2,7 @@
 
 #include "emulator32bit/host_input.h"
 
-#include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -52,10 +52,8 @@ InterruptController::InterruptController() :
 
 void InterruptController::raise(const word line)
 {
-    if (line >= kLines || !test_bit(m_enable, line) || test_bit(m_queued, line))
-    {
-        return;
-    }
+    if (line >= kLines || !test_bit(m_enable, line) || test_bit(m_queued, line)) return;
+
     m_queued = set_bit(m_queued, line, true);
     m_ring[(m_head + m_count) & (kLines - 1)] = U8(line);
     ++m_count;
@@ -63,10 +61,8 @@ void InterruptController::raise(const word line)
 
 word InterruptController::claim()
 {
-    if (m_count == 0)
-    {
-        return 0xFFFFFFFF;
-    }
+    if (m_count == 0) return kNoLine;
+
     const U8 line = m_ring[m_head];
     m_head = U8((m_head + 1) & (kLines - 1));
     --m_count;
@@ -85,13 +81,13 @@ word InterruptController::read_register(const word offset)
 {
     switch (offset)
     {
-    case 0x00:
+    case kRegClaim:
         return claim();
-    case 0x04:
+    case kRegCount:
         return m_count;
-    case 0x08:
+    case kRegEnable:
         return m_enable;
-    case 0x10:
+    case kRegPending:
         return m_queued;
     default:
         return 0;
@@ -102,10 +98,10 @@ void InterruptController::write_register(const word offset, const word value)
 {
     switch (offset)
     {
-    case 0x08:
+    case kRegEnable:
         m_enable = value;
         break;
-    case 0x0C:
+    case kRegRaise:
         raise(value);
         break;
     default:
@@ -135,23 +131,17 @@ void Timer::fire()
     }
 }
 
-std::optional<word> Timer::cycles_until_event() const
+word Timer::cycles_until_event() const
 {
     // A compare equal to the count only matches after the count wraps, which is not waited for.
-    if ((m_ctrl & kEnabled) && m_compare != m_count)
-    {
-        return m_compare - m_count;
-    }
-    return std::nullopt;
+    if ((m_ctrl & kEnabled) && m_compare != m_count) return m_compare - m_count;
+    return word(-1);
 }
 
 void Timer::advance(const word count)
 {
     m_count += count;
-    if ((m_ctrl & kEnabled) && m_count == m_compare)
-    {
-        fire();
-    }
+    if ((m_ctrl & kEnabled) && m_count == m_compare) fire();
 }
 
 void Timer::reset()
@@ -163,13 +153,13 @@ word Timer::read_register(const word offset)
 {
     switch (offset)
     {
-    case 0x00:
+    case kRegCount:
         return m_count;
-    case 0x04:
+    case kRegCompare:
         return m_compare;
-    case 0x08:
+    case kRegCtrl:
         return m_ctrl;
-    case 0x0C:
+    case kRegInterval:
         return m_interval;
     default:
         return 0;
@@ -180,16 +170,16 @@ void Timer::write_register(const word offset, const word value)
 {
     switch (offset)
     {
-    case 0x00:
+    case kRegCount:
         m_count = value;
         break;
-    case 0x04:
+    case kRegCompare:
         m_compare = value;
         break;
-    case 0x08:
+    case kRegCtrl:
         m_ctrl = value & (kEnabled | kPeriodic);
         break;
-    case 0x0C:
+    case kRegInterval:
         m_interval = value;
         break;
     default:
@@ -217,10 +207,7 @@ void Console::push_input(const std::string &bytes)
     for (const char c : bytes)
     {
         m_input.push_back(byte(c));
-        if (m_ctrl & 1)
-        {
-            m_intc.raise(kIrqLineConsole);
-        }
+        if (m_ctrl & kCtrlRxInterrupt) m_intc.raise(kIrqLineConsole);
     }
 }
 
@@ -231,24 +218,17 @@ void Console::attach_host_input(std::shared_ptr<HostInput> input)
 
 void Console::poll_host_input()
 {
-    if (m_host == nullptr || !m_host->pending())
-    {
-        return;
-    }
+    if (m_host == nullptr || !m_host->pending()) return;
+
     const size_t before = m_input.size();
     m_host->take(m_input);
-    if (m_input.size() != before && (m_ctrl & 1))
-    {
-        m_intc.raise(kIrqLineConsole);
-    }
+
+    if (m_input.size() != before && (m_ctrl & kCtrlRxInterrupt)) m_intc.raise(kIrqLineConsole);
 }
 
 bool Console::wait_host_input()
 {
-    if (m_host == nullptr)
-    {
-        return false;
-    }
+    if (m_host == nullptr) return false;
     const bool arrived = m_host->wait();
     poll_host_input();
     return arrived;
@@ -262,25 +242,20 @@ void Console::reset()
 
 word Console::read_register(const word offset)
 {
-    if (offset == 0x00 || offset == 0x04)
-    {
-        poll_host_input();
-    }
+    if (offset == kRegData || offset == kRegStatus) poll_host_input();
+
     switch (offset)
     {
-    case 0x00:
+    case kRegData:
     {
-        if (m_input.empty())
-        {
-            return 0;
-        }
+        if (m_input.empty()) return 0;
         const byte next = m_input.front();
         m_input.pop_front();
         return next;
     }
-    case 0x04:
-        return (m_input.empty() ? 0 : 1) | 2;
-    case 0x08:
+    case kRegStatus:
+        return (m_input.empty() ? 0 : kStatusRxWaiting) | kStatusTxReady;
+    case kRegCtrl:
         return m_ctrl;
     default:
         return 0;
@@ -291,20 +266,17 @@ void Console::write_register(const word offset, const word value)
 {
     switch (offset)
     {
-    case 0x00:
+    case kRegData:
         if (m_out != nullptr)
         {
             m_out->put(char(value & 0xFF));
             m_out->flush();
         }
         break;
-    case 0x08:
-        m_ctrl = value & 1;
+    case kRegCtrl:
+        m_ctrl = value & kCtrlRxInterrupt;
         // Input that is already waiting counts as arriving now.
-        if ((m_ctrl & 1) && !m_input.empty())
-        {
-            m_intc.raise(kIrqLineConsole);
-        }
+        if ((m_ctrl & kCtrlRxInterrupt) && !m_input.empty()) m_intc.raise(kIrqLineConsole);
         break;
     default:
         break;
@@ -351,10 +323,8 @@ bool BlockDevice::open_file(const std::string &path, const word sectors)
 
 bool BlockDevice::save()
 {
-    if (m_path.empty())
-    {
-        return true;
-    }
+    if (m_path.empty()) return true;
+
     std::ofstream out(m_path, std::ios::binary | std::ios::trunc);
     out.write(reinterpret_cast<const char *>(m_storage.data()), std::streamsize(m_storage.size()));
     return bool(out);
@@ -363,10 +333,8 @@ bool BlockDevice::save()
 std::vector<byte> BlockDevice::sector(const word number) const
 {
     const size_t start = size_t(number) * kSectorSize;
-    if (start + kSectorSize > m_storage.size())
-    {
-        return {};
-    }
+    if (start + kSectorSize > m_storage.size()) return {};
+
     return {m_storage.begin() + std::ptrdiff_t(start),
             m_storage.begin() + std::ptrdiff_t(start + kSectorSize)};
 }
@@ -409,10 +377,7 @@ void BlockDevice::start(const word command)
     {
         m_segments_valid = read_descriptors(m_dma_list, m_command_count);
         U64 total = 0;
-        for (const Segment &segment : m_segments)
-        {
-            total += segment.count;
-        }
+        for (const Segment &segment : m_segments) total += segment.count;
         sectors = total < kMaxTimedSectors ? word(total) : kMaxTimedSectors;
     }
     // Per sector. The count is capped so the time cannot overflow; a count that big fails.
@@ -421,7 +386,7 @@ void BlockDevice::start(const word command)
     m_remaining *= sectors;
     if (command == kCmdWrite)
     {
-        std::copy(std::begin(m_buffer), std::end(m_buffer), std::begin(m_write_data));
+        std::memcpy(m_write_data, m_buffer, kSectorSize);
     }
 }
 
@@ -462,16 +427,11 @@ bool BlockDevice::read_descriptors(const word list, const word count)
 
 bool BlockDevice::transfer(const bool to_disk)
 {
-    if (!m_segments_valid || m_segments.empty())
-    {
-        return false;
-    }
+    if (!m_segments_valid || m_segments.empty()) return false;
+
     for (const Segment &segment : m_segments)
     {
-        if (!segment_is_valid(segment))
-        {
-            return false;
-        }
+        if (!segment_is_valid(segment)) return false;
     }
 
     // In order, so where two segments overlap the later one wins.
@@ -503,7 +463,7 @@ void BlockDevice::complete()
             error = true;
             break;
         }
-        std::copy_n(m_storage.begin() + std::ptrdiff_t(start), kSectorSize, std::begin(m_buffer));
+        std::memcpy(m_buffer, m_storage.data() + start, kSectorSize);
         m_cursor = 0;
         break;
     case kCmdWrite:
@@ -512,8 +472,7 @@ void BlockDevice::complete()
             error = true;
             break;
         }
-        std::copy(std::begin(m_write_data), std::end(m_write_data),
-                  m_storage.begin() + std::ptrdiff_t(start));
+        std::memcpy(m_storage.data() + start, m_write_data, kSectorSize);
         break;
     case kCmdDmaRead:
     case kCmdDmaWrite:
@@ -529,19 +488,13 @@ void BlockDevice::complete()
     m_busy = false;
     m_remaining = 0;
     m_status |= kDone | (error ? kError : 0);
-    if (m_ctrl & 1)
-    {
-        m_intc.raise(kIrqLineBlock);
-    }
+    if (m_ctrl & kCtrlDoneInterrupt) m_intc.raise(kIrqLineBlock);
 }
 
-std::optional<word> BlockDevice::cycles_until_event() const
+word BlockDevice::cycles_until_event() const
 {
-    if (m_busy)
-    {
-        return m_remaining;
-    }
-    return std::nullopt;
+    if (m_busy) return m_remaining;
+    return word(-1);
 }
 
 void BlockDevice::advance(const word count)
@@ -549,10 +502,7 @@ void BlockDevice::advance(const word count)
     if (m_busy)
     {
         m_remaining = count >= m_remaining ? 0 : m_remaining - count;
-        if (m_remaining == 0)
-        {
-            complete();
-        }
+        if (m_remaining == 0) complete();
     }
 }
 
@@ -568,40 +518,37 @@ void BlockDevice::reset()
     m_dma_addr = 0;
     m_dma_count = 0;
     m_dma_list = 0;
-    std::fill(std::begin(m_buffer), std::end(m_buffer), byte(0));
+    std::memset(m_buffer, 0, kSectorSize);
 }
 
 word BlockDevice::read_register(const word offset)
 {
     switch (offset)
     {
-    case 0x04:
+    case kRegStatus:
         return m_status | (m_busy ? kBusy : 0);
-    case 0x08:
+    case kRegSector:
         return m_sector;
-    case 0x0C:
+    case kRegData:
     {
-        if (m_cursor >= kSectorSize)
-        {
-            return 0;
-        }
+        if (m_cursor >= kSectorSize) return 0;
         const byte *p = m_buffer + m_cursor;
         m_cursor += 4;
         return word(p[0]) | (word(p[1]) << 8) | (word(p[2]) << 16) | (word(p[3]) << 24);
     }
-    case 0x10:
+    case kRegCursor:
         return m_cursor;
-    case 0x14:
+    case kRegCapacity:
         return word(m_storage.size() / kSectorSize);
-    case 0x18:
+    case kRegCtrl:
         return m_ctrl;
-    case 0x1C:
+    case kRegLatency:
         return m_latency;
-    case 0x20:
+    case kRegDmaAddr:
         return m_dma_addr;
-    case 0x24:
+    case kRegDmaCount:
         return m_dma_count;
-    case 0x28:
+    case kRegDmaList:
         return m_dma_list;
     default:
         return 0;
@@ -612,16 +559,16 @@ void BlockDevice::write_register(const word offset, const word value)
 {
     switch (offset)
     {
-    case 0x00:
+    case kRegCommand:
         start(value);
         break;
-    case 0x04:
+    case kRegStatus:
         m_status &= ~(kDone | kError);
         break;
-    case 0x08:
+    case kRegSector:
         m_sector = value;
         break;
-    case 0x0C:
+    case kRegData:
         if (m_cursor < kSectorSize)
         {
             byte *p = m_buffer + m_cursor;
@@ -632,22 +579,22 @@ void BlockDevice::write_register(const word offset, const word value)
             m_cursor += 4;
         }
         break;
-    case 0x10:
+    case kRegCursor:
         m_cursor = value & ~word(3);
         break;
-    case 0x18:
-        m_ctrl = value & 1;
+    case kRegCtrl:
+        m_ctrl = value & kCtrlDoneInterrupt;
         break;
-    case 0x1C:
+    case kRegLatency:
         m_latency = value;
         break;
-    case 0x20:
+    case kRegDmaAddr:
         m_dma_addr = value;
         break;
-    case 0x24:
+    case kRegDmaCount:
         m_dma_count = value;
         break;
-    case 0x28:
+    case kRegDmaList:
         m_dma_list = value;
         break;
     default:
