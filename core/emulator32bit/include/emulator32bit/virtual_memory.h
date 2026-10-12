@@ -97,10 +97,10 @@ class VirtualMemory
         /// Why the access was refused.
         enum class Reason : U8
         {
-            UNMAPPED,       ///< The virtual page is not part of the process.
-            WRITE_DENIED,   ///< Write to a page that is not writable.
-            EXECUTE_DENIED, ///< Execute of a page that is not executable.
-            KERNEL_ONLY,    ///< Access to a physical page that needs kernel privilege.
+            UNMAPPED,       /// The virtual page is not part of the process.
+            WRITE_DENIED,   /// Write to a page that is not writable.
+            EXECUTE_DENIED, /// Execute of a page that is not executable.
+            KERNEL_ONLY,    /// Access to a physical page that needs kernel privilege.
         };
 
         /// @param[in] reason Why the access was refused.
@@ -194,8 +194,8 @@ class VirtualMemory
     static constexpr word kPteWrite = 1u << 1;
     static constexpr word kPteExecute = 1u << 2;
     static constexpr word kPteUser = 1u << 3;
-    static constexpr word kPteAccessed = 1u << 4; ///< Set by the hardware on any access.
-    static constexpr word kPteDirty = 1u << 5;    ///< Set by the hardware on a write.
+    static constexpr word kPteAccessed = 1u << 4; /// Set by the hardware on any access.
+    static constexpr word kPteDirty = 1u << 5;    /// Set by the hardware on a write.
     /// The bits of an entry that are the physical page.
     static constexpr word kPteFrameMask = ~word(kPageSize - 1);
 
@@ -453,16 +453,16 @@ class VirtualMemory
         /// @param[in] execute Whether code can be executed from the virtual page.
         PageTableEntry(S64 pid, word vpage, word diskpage, bool write, bool execute);
 
-        S64 pid;    ///< Process that has this mapping.
-        word vpage; ///< Virtual page.
-        word ppage; ///< Mapped physical page if not on disk.
-        bool disk; ///< Whether the virtual page is on disk.
-        word diskpage; ///< Corresponding disk page where the virtual page resides.
-        bool mapped; ///< Whether this is a mapped virtual page with a permanent physical page.
-        word mapped_ppage; ///< Corresponding physical page as mentioned above.
+        S64 pid;           /// Process that has this mapping.
+        word vpage;        /// Virtual page.
+        word ppage;        /// Mapped physical page if not on disk.
+        bool disk;         /// Whether the virtual page is on disk.
+        word diskpage;     /// Corresponding disk page where the virtual page resides.
+        bool mapped;       /// Whether this is a mapped virtual page with a permanent physical page.
+        word mapped_ppage; /// Corresponding physical page as mentioned above.
 
-        bool write; ///< Whether this virtual page can be written to.
-        bool execute; ///< Whether this virtual page contains code to execute.
+        bool write;        /// Whether this virtual page can be written to.
+        bool execute;      /// Whether this virtual page contains code to execute.
     };
 
     /// A physical page, and the virtual pages that are mapped to it.
@@ -473,8 +473,8 @@ class VirtualMemory
 
         bool used = false;
 
-        bool swappable = true; ///< Whether this physical page can be evicted/swapped.
-        bool kernel_locked = false; ///< Whether this physical page requires kernel privilege.
+        bool swappable = true;      /// Whether this physical page can be evicted/swapped.
+        bool kernel_locked = false; /// Whether this physical page requires kernel privilege.
 
         /// The pages in use that can be swapped are on the clock, a ring in the order they were
         /// brought in (a list whose end is followed by its beginning).
@@ -491,7 +491,7 @@ class VirtualMemory
     /// Contains information about the memory mapping of a specific process.
     struct PageTable
     {
-        S64 pid = 0; ///< Process ID.
+        S64 pid = 0; /// Process ID.
 
         /// Mapping of virtual page address to the corresponding PageTableEntry.
         std::unordered_map<word, PageTableEntry *> entries =
@@ -523,9 +523,9 @@ class VirtualMemory
     /// An entry of the TLB.
     struct TLB_Entry
     {
-        U64 key = kNoKey; ///< The process and the virtual page of the translation, see tlb_key.
-        word ppage = 0; ///< Resulting physical page address of the translation.
-        bool write = false; ///< Whether the translation can be used to write.
+        U64 key = kNoKey;   /// The process and the virtual page of the translation, see tlb_key.
+        word ppage = 0;     /// Resulting physical page address of the translation.
+        bool write = false; /// Whether the translation can be used to write.
     };
 
     /// The translation lookaside buffer: the recent translations of a virtual page to a physical

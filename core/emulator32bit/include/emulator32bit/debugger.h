@@ -47,7 +47,7 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
 struct RegisterWatchSpec
 {
     U8 reg;
-    bool has_value; ///< Only a change to `value` stops.
+    bool has_value; /// Only a change to `value` stops.
     word value;
 };
 

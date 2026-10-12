@@ -101,7 +101,7 @@ class InterruptController : public Device
 
   private:
     std::deque<word> m_queue;
-    word m_queued = 0; ///< Bit n: line n is in the queue.
+    word m_queued = 0; /// Bit n: line n is in the queue.
     word m_enable = 0;
 };
 
@@ -419,9 +419,9 @@ class BlockDevice : public Device
     word m_dma_addr = 0;
     word m_dma_count = 0;
     word m_dma_list = 0;
-    word m_command_addr = 0;         ///< DMA_ADDR and DMA_COUNT when the command was given.
+    word m_command_addr = 0;             /// DMA_ADDR and DMA_COUNT when the command was given.
     word m_command_count = 0;
-    std::vector<Segment> m_segments; ///< What the command moves, from the registers or the list.
-    bool m_segments_valid = false;   ///< Whether they could be read.
-    byte m_write_data[kSectorSize] = {}; ///< The buffer when a write command was given.
+    std::vector<Segment> m_segments;     /// What the command moves, from the registers or the list.
+    bool m_segments_valid = false;       /// Whether they could be read.
+    byte m_write_data[kSectorSize] = {}; /// The buffer when a write command was given.
 };

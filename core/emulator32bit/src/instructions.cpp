@@ -409,7 +409,7 @@ void Emulator32bit::_brk(const word instr)
     }
     if (m_vbar != 0)
     {
-        enter_exception(ExceptionClass::BREAKPOINT, imm, 0, m_pc);
+        raise_exception(ExceptionClass::BREAKPOINT, imm, 0, m_pc);
         return;
     }
     throw Trap(TrapType::PROGRAM_ERROR,

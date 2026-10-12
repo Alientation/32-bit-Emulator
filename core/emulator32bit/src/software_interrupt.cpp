@@ -194,7 +194,7 @@ void Emulator32bit::_swi(const word instr)
     const word imm = bitfield_unsigned<0, 22>(instr);
     if (m_vbar != 0 && imm != kSwiSemihosting)
     {
-        enter_exception(ExceptionClass::SUPERVISOR_CALL, imm, 0, m_pc + kInstructionSize);
+        raise_exception(ExceptionClass::SUPERVISOR_CALL, imm, 0, m_pc + kInstructionSize);
         return;
     }
     if (imm > kSwiSemihosting || !m_semihosting)

@@ -57,9 +57,9 @@ class Linker
         enum class Type
         {
             TEXT,
-            BYTES, ///< One of ObjectFile::byte_sections(), `byte_index` says which.
+            BYTES, /// One of ObjectFile::byte_sections(), `byte_index` says which.
             BSS,
-            USER   ///< A section of the program's own, `name` says which.
+            USER   /// A section of the program's own, `name` says which.
         };
         Type type;
 

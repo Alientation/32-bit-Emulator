@@ -81,8 +81,8 @@ class Emulator32bit
         MISALIGNED,
     };
 
-    /// The exceptions the CPU raises, see docs/exceptions.md. The value is the number of the vector
-    /// (the handler is at VBAR + kVectorSize * vector) and the EC field of ESR.
+    /// The exception class the CPU raises, see docs/exceptions.md. The value is the number of
+    /// the vector (the handler is at VBAR + kVectorSize * vector) and the EC field of ESR.
     enum class ExceptionClass : U8
     {
         UNDEFINED_INSTRUCTION = 1,
@@ -104,7 +104,7 @@ class Emulator32bit
         return m_exception_depth;
     }
 
-    // The ISS (syndrome) of an undefined instruction exception, and of the Trap that causes it.
+    // The ISS (instruction specific syndrome) of an undefined instruction exception..
 
     /// An opcode that is not assigned.
     static constexpr word kUndefinedIss_opcode = 0;
@@ -145,9 +145,9 @@ class Emulator32bit
         word iss;
 
       public:
-        /// `iss` is the syndrome of the exception that this becomes when the CPU takes it. For
-        /// BAD_INSTR and BAD_REG that is an undefined instruction exception, so pass a
-        /// kUndefinedIss_* value; the other types ignore it.
+        /// `iss` is the instruction specific syndrome of the exception. BAD_INSTR and BAD_REG are
+        /// an undefined instruction exception, so pass a kUndefinedIss_* value. For other
+        /// exception types, leave unset.
         ///
         /// @param[in] type Why the instruction did not complete.
         /// @param[in] msg The message that `what` returns.
@@ -174,15 +174,15 @@ class Emulator32bit
     {
         enum class Status : U8
         {
-            HALTED,        ///< Executed a HLT instruction.
-            LIMIT_REACHED, ///< Executed the requested number of instructions.
-            FAULT,         ///< Any other emulator or system bus exception.
-            BREAKPOINT,    ///< The PC is at a breakpoint, the instruction there did not run.
+            HALTED,        /// Executed a HLT instruction.
+            LIMIT_REACHED, /// Executed the requested number of instructions.
+            FAULT,         /// Any other emulator or system bus exception.
+            BREAKPOINT,    /// The PC is at a breakpoint, the instruction there did not run.
         };
 
         Status status;
         U64 instructions_ran;
-        std::string message; ///< Message of the trap or fault, empty if the limit was reached.
+        std::string message; /// Message of the trap or fault, empty if the limit was reached.
     };
 
     /// Exit code of the emulator CLI interface.
@@ -226,13 +226,13 @@ class Emulator32bit
     {
         READ = 1,
         WRITE = 2,
-        ACCESS = 3, ///< Either.
+        ACCESS = 3, /// Either.
     };
 
     /// How the value of an access is compared with watchpoint's value.
     enum class WatchCompare : U8
     {
-        NONE, ///< Every access counts.
+        NONE, /// Every access counts.
         EQ,
         NE,
         LT,
@@ -246,11 +246,11 @@ class Emulator32bit
     struct Watchpoint
     {
         word address;
-        word length;           ///< At least 1.
+        word length;           /// At least 1.
         WatchKind kind;
-        bool physical = false; ///< `address` is where the access ends up after the translation.
-        WatchCompare compare = WatchCompare::NONE; ///< Only an access whose value ...
-        word compare_value = 0;                    ///< ... compares like this with this one counts.
+        bool physical = false; /// `address` is where the access ends up after the translation.
+        WatchCompare compare = WatchCompare::NONE; /// Only an access whose value ...
+        word compare_value = 0;                    /// ... compares like this with this one counts.
     };
 
     /// @param[in] compare How to compare.
@@ -305,8 +305,8 @@ class Emulator32bit
     /// What the last watchpoint that stopped a run was hit by.
     struct WatchHit
     {
-        word address;   ///< The first byte of the access.
-        WatchKind kind; ///< The kind of the watchpoint.
+        word address;   /// The first byte of the access.
+        WatchKind kind; /// The kind of the watchpoint.
     };
 
     /// @return The last hit, valid after a run that ended in Status::BREAKPOINT because of a
@@ -344,9 +344,9 @@ class Emulator32bit
     struct RegisterWatch
     {
         U8 reg;
-        bool has_value; ///< Only a change to `value` counts.
+        bool has_value; /// Only a change to `value` counts.
         word value;
-        word last;      ///< The value when the watch was last checked.
+        word last;      /// The value when the watch was last checked.
     };
 
     /// @return The number of register watches, at most kMaxRegisterWatches.
@@ -565,15 +565,14 @@ class Emulator32bit
     /// register reads and writes) and the kernel one while in user mode. m_x[sp] is the one in use.
     word m_sp_other = 0;
 
-    // System registers, see docs/exceptions.md.
-    word m_elr = 0;   ///< Where ERET goes back to.
-    word m_spsr = 0;  ///< PSTATE of the code that was interrupted.
-    word m_esr = 0;   ///< Class (bits 26-31) and syndrome of the last exception.
-    word m_far = 0;   ///< Address of the last abort.
-    word m_vbar =
-        0; ///< Vector table. 0: there is none and nothing is raised, see deliver_exception ().
-    word m_ptbr = 0;  ///< Physical address of the first level page table (a page).
-    word m_sctlr = 0; ///< System control: bit 0 turns on translation by the page tables.
+    /// System registers, see docs/exceptions.md.
+    word m_elr = 0;   /// Where ERET returns back to.
+    word m_spsr = 0;  /// PSTATE of the code that was interrupted.
+    word m_esr = 0;   /// Class (bits 26-31) and syndrome of the last exception (bits 0-25).
+    word m_far = 0;   /// Address of the last abort.
+    word m_vbar = 0;  /// Vector table address. 0: Nothing is raised, see deliver_exception().
+    word m_ptbr = 0;  /// Physical address of the first level page table (a page).
+    word m_sctlr = 0; /// System control: bit 0 turns on translation by the page tables.
 
     /// Set by a handler that writes the pc itself (a taken branch, ERET, taking an exception).
     /// run () then does not add 4.
@@ -600,10 +599,10 @@ class Emulator32bit
     struct MemOperand
     {
         word address;
-        U8 base;          ///< Register that the address is relative to.
+        U8 base;          /// Register that the address is relative to.
         word base_after;
-        bool writes_back; ///< Pre and post indexed accesses.
-        bool unaligned;   ///< ADDR_UNALIGNED: the address need not be aligned to the access size.
+        bool writes_back; /// Pre and post indexed accesses.
+        bool unaligned;   /// ADDR_UNALIGNED: the address need not be aligned to the access size.
     };
 
     /// Works out the address of a load or store and what the base register becomes, without
@@ -641,7 +640,7 @@ class Emulator32bit
     /// @param[in] iss The syndrome.
     /// @param[in] far The address of an abort.
     /// @param[in] elr Where ERET returns to.
-    void enter_exception(ExceptionClass cls, word iss, word far, word elr);
+    void raise_exception(ExceptionClass cls, word iss, word far, word elr);
 
     /// Raises the exception that an error stands for, if the CPU raises one for it and a vector
     /// table is installed. If not, the caller reports the error as a fault.
@@ -730,8 +729,8 @@ class Emulator32bit
 
     /// The instruction that run () is executing, for the exception it may raise.
     word m_instr_in_flight = 0;
-    word m_fpcr = 0; ///< Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
-    word m_fpsr = 0; ///< Floating point status: the cumulative exception flags, bits 4-0.
+    word m_fpcr = 0; /// Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
+    word m_fpsr = 0; /// Floating point status: the cumulative exception flags, bits 4-0.
 
     // The tables of the debugger are after the members that every instruction reads. Each is a
     // struct of arrays: the fields of entry i are at index i of each array, and [0, count) are the

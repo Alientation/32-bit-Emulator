@@ -24,7 +24,7 @@ constexpr word kListedOpcodes[] = {
 };
 
 // AEMU_OPCODES is the only list of opcodes, so this checks it at compile time.
-constexpr bool opcodes_are_valid()
+static constexpr bool opcodes_are_valid()
 {
     for (size_t i = 0; i < std::size(kListedOpcodes); i++)
     {
@@ -265,7 +265,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             // have executed.
             if (UNLIKELY(bus.intc.has_pending()) && m_vbar != 0 && !test_bit<kIrqMaskBit>(m_pstate))
             {
-                enter_exception(ExceptionClass::IRQ, 0, 0, m_pc);
+                raise_exception(ExceptionClass::IRQ, 0, 0, m_pc);
                 m_pc_written = false;
                 continue;
             }
@@ -913,7 +913,7 @@ void Emulator32bit::require_kernel() const
     }
 }
 
-void Emulator32bit::enter_exception(const ExceptionClass cls, const word iss, const word far,
+void Emulator32bit::raise_exception(const ExceptionClass cls, const word iss, const word far,
                                     const word elr)
 {
     if (m_just_took_exception)
@@ -958,11 +958,11 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
             // A pc that is not aligned, or a load or a store at such an address.
             if (fetching)
             {
-                enter_exception(ExceptionClass::INSTRUCTION_ABORT, kAbortIss_alignment, m_pc, m_pc);
+                raise_exception(ExceptionClass::INSTRUCTION_ABORT, kAbortIss_alignment, m_pc, m_pc);
             }
             else
             {
-                enter_exception(ExceptionClass::DATA_ABORT, emu->get_iss(), data_address_of(instr),
+                raise_exception(ExceptionClass::DATA_ABORT, emu->get_iss(), data_address_of(instr),
                                 m_pc);
             }
             return true;
@@ -973,7 +973,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
             return false; // These are never exceptions: halt, failed assertion, brk, double fault.
         }
 
-        enter_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);
+        raise_exception(ExceptionClass::UNDEFINED_INSTRUCTION, emu->get_iss(), 0, m_pc);
         return true;
     }
 
@@ -999,13 +999,13 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
             const word address = data_address_of(instr);
             far = (address >> kNumPageOffsetBits) == fault->get_vpage() ? address : page_start;
         }
-        enter_exception(abort_class, iss, far, m_pc);
+        raise_exception(abort_class, iss, far, m_pc);
         return true;
     }
 
     if (dynamic_cast<const SystemBus::BusError *>(&error) != nullptr)
     {
-        enter_exception(abort_class, kAbortIss_bus, fetching ? m_pc : data_address_of(instr), m_pc);
+        raise_exception(abort_class, kAbortIss_bus, fetching ? m_pc : data_address_of(instr), m_pc);
         return true;
     }
 

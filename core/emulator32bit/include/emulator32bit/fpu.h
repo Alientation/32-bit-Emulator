@@ -21,10 +21,10 @@ namespace fpu
 {
 
 /// FPCR: the rounding mode, bits 1-0.
-constexpr word kRoundNearest = 0; ///< To nearest, ties to even.
-constexpr word kRoundUp = 1;      ///< Toward +infinity.
-constexpr word kRoundDown = 2;    ///< Toward -infinity.
-constexpr word kRoundZero = 3;    ///< Toward zero.
+constexpr word kRoundNearest = 0; /// To nearest, ties to even.
+constexpr word kRoundUp = 1;      /// Toward +infinity.
+constexpr word kRoundDown = 2;    /// Toward -infinity.
+constexpr word kRoundZero = 3;    /// Toward zero.
 /// The bits of FPCR that exist.
 constexpr word kFpcrMask = 0b11;
 
@@ -50,10 +50,10 @@ constexpr U8 kBinaryFn_count = 6;
 
 /// The function field (bits 1-0) of `fop3`, with the names and the signs of AArch64: `a`, `b` and
 /// `c` are the operands `xn`, `xm` and `xa`, and the product is not rounded before it is added.
-constexpr U8 kFmaFn_madd = 0;  ///< a * b + c
-constexpr U8 kFmaFn_msub = 1;  ///< c - a * b
-constexpr U8 kFmaFn_nmadd = 2; ///< -c - a * b
-constexpr U8 kFmaFn_nmsub = 3; ///< a * b - c
+constexpr U8 kFmaFn_madd = 0;  /// a * b + c
+constexpr U8 kFmaFn_msub = 1;  /// c - a * b
+constexpr U8 kFmaFn_nmadd = 2; /// -c - a * b
+constexpr U8 kFmaFn_nmsub = 3; /// a * b - c
 /// The number of functions of `fop3`.
 constexpr U8 kFmaFn_count = 4;
 
@@ -61,18 +61,18 @@ constexpr U8 kFmaFn_count = 4;
 constexpr U8 kUnaryFn_abs = 0;
 constexpr U8 kUnaryFn_neg = 1;
 constexpr U8 kUnaryFn_sqrt = 2;
-constexpr U8 kUnaryFn_rint = 3;  ///< Round to an integral value, in the mode of the FPCR.
-constexpr U8 kUnaryFn_rintz = 4; ///< Toward zero.
-constexpr U8 kUnaryFn_rintm = 5; ///< Toward -infinity (floor).
-constexpr U8 kUnaryFn_rintp = 6; ///< Toward +infinity (ceil).
-constexpr U8 kUnaryFn_rinta = 7; ///< To nearest, ties away from zero.
-constexpr U8 kUnaryFn_tos32 = 8; ///< Float to int32, toward zero (the C cast).
-constexpr U8 kUnaryFn_tou32 = 9; ///< Float to uint32, toward zero.
-constexpr U8 kUnaryFn_tos32r = 10;  ///< Float to int32, in the mode of the FPCR.
-constexpr U8 kUnaryFn_tou32r = 11;  ///< Float to uint32, in the mode of the FPCR.
-constexpr U8 kUnaryFn_froms32 = 12; ///< int32 to float.
-constexpr U8 kUnaryFn_fromu32 = 13; ///< uint32 to float.
-constexpr U8 kUnaryFn_fcvt = 14;    ///< Float to the other precision.
+constexpr U8 kUnaryFn_rint = 3;     /// Round to an integral value, in the mode of the FPCR.
+constexpr U8 kUnaryFn_rintz = 4;    /// Toward zero.
+constexpr U8 kUnaryFn_rintm = 5;    /// Toward -infinity (floor).
+constexpr U8 kUnaryFn_rintp = 6;    /// Toward +infinity (ceil).
+constexpr U8 kUnaryFn_rinta = 7;    /// To nearest, ties away from zero.
+constexpr U8 kUnaryFn_tos32 = 8;    /// Float to int32, toward zero (the C cast).
+constexpr U8 kUnaryFn_tou32 = 9;    /// Float to uint32, toward zero.
+constexpr U8 kUnaryFn_tos32r = 10;  /// Float to int32, in the mode of the FPCR.
+constexpr U8 kUnaryFn_tou32r = 11;  /// Float to uint32, in the mode of the FPCR.
+constexpr U8 kUnaryFn_froms32 = 12; /// int32 to float.
+constexpr U8 kUnaryFn_fromu32 = 13; /// uint32 to float.
+constexpr U8 kUnaryFn_fcvt = 14;    /// Float to the other precision.
 constexpr U8 kUnaryFn_count = 15;
 
 /// @param[in] fn A kUnaryFn_*.

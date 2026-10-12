@@ -220,8 +220,8 @@ struct State
     std::atomic<bool> color{false};
     std::atomic<bool> timestamps{false};
 
-    std::mutex mutex; ///< Guards `sink` and serializes output.
-    Sink sink;        ///< Empty means the default stderr sink.
+    std::mutex mutex; /// Guards `sink` and serializes output.
+    Sink sink;        /// Empty means the default stderr sink.
 
     const S64 start_ns = monotonic_ns();
 
@@ -298,8 +298,7 @@ inline void write_default(const Record &record, const bool color, const bool tim
 
     if (timestamps)
     {
-        line +=
-            std::format("[{:9.3f}s] ", static_cast<double>(record.since_start_ns) / 1e9);
+        line += std::format("[{:9.3f}s] ", static_cast<double>(record.since_start_ns) / 1e9);
     }
 
     if (color)

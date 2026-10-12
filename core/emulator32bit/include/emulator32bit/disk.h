@@ -181,13 +181,13 @@ class Disk : public BaseMemory
         bool valid = false;
     };
 
-    File m_diskfile;                ///< Where the contents of disk memory are stored at.
-    File m_diskfile_manager;        ///< Where the disk memory manager data is stored at.
-    std::fstream m_stream;          ///< The disk file, open for as long as the disk exists.
-    std::streamsize m_npages = 0;   ///< Number of pages the disk memory contains.
-    std::vector<CachePage> m_cache; ///< Disk cache for read/write optimization.
+    File m_diskfile;                /// Where the contents of disk memory are stored at.
+    File m_diskfile_manager;        /// Where the disk memory manager data is stored at.
+    std::fstream m_stream;          /// The disk file, open for as long as the disk exists.
+    std::streamsize m_npages = 0;   /// Number of pages the disk memory contains.
+    std::vector<CachePage> m_cache; /// Disk cache for read/write optimization.
 
-    FreeBlockList m_free_list;      ///< Disk manager, which pages are free to use.
+    FreeBlockList m_free_list;      /// Disk manager, which pages are free to use.
 
     /// Reads a specified size little endian value from disk.
     ///

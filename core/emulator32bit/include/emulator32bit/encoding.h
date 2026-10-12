@@ -51,10 +51,10 @@ inline constexpr word kUnaryId_rev = 0b0101;
 inline constexpr word kUnaryId_rev16 = 0b0110;
 
 /// The variants of CSEL (bits 4-5): what is written when the condition is false.
-inline constexpr word kCselId_csel = 0b00;  ///< xm
-inline constexpr word kCselId_csinc = 0b01; ///< `xm` + 1.
-inline constexpr word kCselId_csinv = 0b10; ///< ~xm
-inline constexpr word kCselId_csneg = 0b11; ///< -xm
+inline constexpr word kCselId_csel = 0b00;  /// xm
+inline constexpr word kCselId_csinc = 0b01; /// `xm` + 1.
+inline constexpr word kCselId_csinv = 0b10; /// ~xm
+inline constexpr word kCselId_csneg = 0b11; /// -xm
 
 /// The operation of an atomic instruction (bits 0-3): what is written to memory.
 inline constexpr word kAtomicId_swp = 0b0000;
@@ -68,12 +68,12 @@ inline constexpr word kAtomicWidth_byte = 0b01;
 inline constexpr word kAtomicWidth_hword = 0b10;
 
 /// The widths in bits of the immediates in the instruction formats (docs/isa.md).
-inline constexpr U8 kShiftAmountBits = 5;   ///< The shift amount of a shift by an immediate.
-inline constexpr U8 kDataImmBits = 14;      ///< The immediate of a data processing instruction.
-inline constexpr U8 kMovImmBits = 19;       ///< The immediate of `mov` and `mvn`.
-inline constexpr U8 kMemoryOffsetBits = 12; ///< The signed offset of a load or a store.
-inline constexpr U8 kBranchFieldBits = 22;  ///< The offset of `b`, the number of `swi` and `brk`.
-inline constexpr U8 kSysregImmBits = 16; ///< The immediate of `msr`.
+inline constexpr U8 kShiftAmountBits = 5;   /// The shift amount of a shift by an immediate.
+inline constexpr U8 kDataImmBits = 14;      /// The immediate of a data processing instruction.
+inline constexpr U8 kMovImmBits = 19;       /// The immediate of `mov` and `mvn`.
+inline constexpr U8 kMemoryOffsetBits = 12; /// The signed offset of a load or a store.
+inline constexpr U8 kBranchFieldBits = 22;  /// The offset of `b`, the number of `swi` and `brk`.
+inline constexpr U8 kSysregImmBits = 16;    /// The immediate of `msr`.
 
 /// Bit 0 of SCTLR, which turns on translation by the page tables.
 inline constexpr word kSctlrMmuEnable = 1;

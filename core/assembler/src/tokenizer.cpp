@@ -297,7 +297,7 @@ struct Keyword
 {
     TokenType type;
     U8 flags;
-    bool allows_s; ///< `<name>s` is the flag setting variant.
+    bool allows_s; /// `<name>s` is the flag setting variant.
 };
 
 using KeywordMap = std::unordered_map<std::string_view, Keyword>;
@@ -1058,9 +1058,9 @@ class Lexer
         std::size_t end = begin + 1;
         while (end < m_src.size() && is_ident_char(m_src[end])) end++;
         m_pos = end;
-        error(loc, "'" + std::string(m_src.substr(begin, end - begin)) + "' is not a number: "
-                       + base_name + " numbers are written " + new_example + ", not "
-                       + old_example);
+        error(loc, "'" + std::string(m_src.substr(begin, end - begin))
+                       + "' is not a number: " + base_name + " numbers are written " + new_example
+                       + ", not " + old_example);
         emit(TokenType::INVALID, begin, loc);
     }
 
