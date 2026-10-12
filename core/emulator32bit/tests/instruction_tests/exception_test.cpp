@@ -3,8 +3,8 @@
 // gets back, and what user mode may not do.
 
 #include "emulator32bit/fpu.h"
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/virtual_memory.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <sstream>
 
@@ -401,6 +401,7 @@ TEST_F(Exceptions, a_misaligned_load_or_store_is_a_data_abort_with_the_alignment
 TEST_F(Exceptions, a_misaligned_atomic_is_a_data_abort_with_the_alignment_syndrome)
 {
     install_vectors();
+
     struct Case
     {
         word width;

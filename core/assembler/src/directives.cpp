@@ -534,8 +534,7 @@ ObjectFile::UserSection *Assembler::current_user_section()
 
 word &Assembler::zero_size()
 {
-    return m_cur_section == Section::BSS ? m_obj.bss_section
-                                         : current_user_section()->zero_size;
+    return m_cur_section == Section::BSS ? m_obj.bss_section : current_user_section()->zero_size;
 }
 
 bool Assembler::in_byte_section() const
@@ -634,9 +633,9 @@ void Assembler::_org()
     {
     case Section::BSS:
     case Section::USER_BSS:
-        check(val >= zero_size(), ".org cannot move the assembler backwards, expected >= "
-                                      + std::to_string(zero_size()) + ", got "
-                                      + std::to_string(val));
+        check(val >= zero_size(),
+              ".org cannot move the assembler backwards, expected >= " + std::to_string(zero_size())
+                  + ", got " + std::to_string(val));
         zero_size() = val;
         break;
     case Section::DATA:
@@ -818,7 +817,8 @@ void Assembler::_section()
             const std::string type = basm::unescape_string_literal(*type_token);
             if (type != "nobits")
             {
-                fail(*type_token, "unknown section type \"" + type + "\", the only one is \"nobits\"");
+                fail(*type_token,
+                     "unknown section type \"" + type + "\", the only one is \"nobits\"");
             }
             if (!writable || executable)
             {
@@ -1004,10 +1004,9 @@ std::vector<byte> convert_little_endian(const std::vector<dword> &data, const U8
 
 void Assembler::define_data(const char *directive, const U8 n_bytes)
 {
-    check(in_byte_section(),
-          std::string(directive)
-              + " can only define data in the .data section or another "
-                "data section (.rodata, .init_array, .fini_array)");
+    check(in_byte_section(), std::string(directive)
+                                 + " can only define data in the .data section or another "
+                                   "data section (.rodata, .init_array, .fini_array)");
 
     m_cursor.next();
 
@@ -1033,8 +1032,8 @@ void Assembler::append_value(const char *directive, const U8 n_bytes, const Expr
         // the address goes.
         if (n_bytes != sizeof(word))
         {
-            fail(first, std::string(directive)
-                            + " cannot hold the address of a symbol, only .word can");
+            fail(first,
+                 std::string(directive) + " cannot hold the address of a symbol, only .word can");
         }
         add_relocation(section_relocations(), word(section_bytes().size()),
                        ObjectFile::RelocationEntry::Type::R_EMU32_ABS32, value);
@@ -1078,10 +1077,9 @@ void Assembler::_dword()
 
 void Assembler::define_float(const char *directive, const bool dbl)
 {
-    check(in_byte_section(),
-          std::string(directive)
-              + " can only define data in the .data section or another "
-                "data section (.rodata, .init_array, .fini_array)");
+    check(in_byte_section(), std::string(directive)
+                                 + " can only define data in the .data section or another "
+                                   "data section (.rodata, .init_array, .fini_array)");
 
     m_cursor.next();
     do
@@ -1119,15 +1117,14 @@ void Assembler::_fill()
         if (size != sizeof(byte) && size != sizeof(hword) && size != sizeof(word)
             && size != sizeof(dword))
         {
-            fail(size_token, ".fill expects a size of 1, 2, 4 or 8 bytes, got "
-                                 + std::to_string(size));
+            fail(size_token,
+                 ".fill expects a size of 1, 2, 4 or 8 bytes, got " + std::to_string(size));
         }
     }
     if (static_cast<dword>(count) * size >= kSizeLimit)
     {
-        fail(count_token,
-             ".fill is large and likely unintentional (" + std::to_string(count) + " of "
-                 + std::to_string(size) + " bytes)");
+        fail(count_token, ".fill is large and likely unintentional (" + std::to_string(count)
+                              + " of " + std::to_string(size) + " bytes)");
     }
 
     ExprValue value;
@@ -1146,7 +1143,7 @@ void Assembler::_fill()
 void Assembler::_ascii()
 {
     check(in_byte_section(), ".ascii can only define data in the .data section or "
-                                             "another data section (.rodata, ...)");
+                             "another data section (.rodata, ...)");
     m_cursor.next();
 
     // Note, does not automatically add the null terminator.
@@ -1164,7 +1161,7 @@ void Assembler::_ascii()
 void Assembler::_asciz()
 {
     check(in_byte_section(), ".asciz can only define data in the .data section or "
-                                             "another data section (.rodata, ...)");
+                             "another data section (.rodata, ...)");
     m_cursor.next();
 
     do

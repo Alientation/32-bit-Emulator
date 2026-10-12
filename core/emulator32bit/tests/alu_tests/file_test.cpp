@@ -42,7 +42,8 @@ TEST(ByteWriterTest, bytes_past_the_width_of_the_value_are_zero)
     }
 
     std::ifstream in(path, std::ios::binary);
-    const std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const std::string written((std::istreambuf_iterator<char>(in)),
+                              std::istreambuf_iterator<char>());
     EXPECT_EQ(written, std::string("\x08\x07\x06\x05\x04\x03\x02\x01\0\0", 10));
     std::filesystem::remove_all(dir);
 }

@@ -154,9 +154,9 @@ TEST_F(InstructionTable, text_opcode_and_disassembly_agree)
         // `fadd.f32` is one word of the disassembly, the dot is part of it.
         const std::string disassembly = Emulator32bit::disassemble_instr(words[0]);
         const bool is_float = format == InstructionFormat::F1 || format == InstructionFormat::F2
-                              || format == InstructionFormat::F3
-                              || format == InstructionFormat::F4;
-        EXPECT_EQ(is_float ? disassembly.substr(0, disassembly.find(' ')) : mnemonic_of(disassembly),
+                              || format == InstructionFormat::F3 || format == InstructionFormat::F4;
+        EXPECT_EQ(is_float ? disassembly.substr(0, disassembly.find(' '))
+                           : mnemonic_of(disassembly),
                   spec->text)
             << line;
         checked++;
@@ -376,7 +376,7 @@ namespace
 using Emulator = Emulator32bit;
 using fpu::kBinaryFn_add;
 using fpu::kBinaryFn_div;
-}
+} // namespace
 
 TEST_F(InstructionTable, floating_point_instructions_encode_their_function_and_precision)
 {
@@ -392,8 +392,10 @@ TEST_F(InstructionTable, floating_point_instructions_encode_their_function_and_p
               std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_abs, false, 1, 2)});
     EXPECT_EQ(assemble("frintm.f32 x1, x2"),
               std::vector<word>{Emulator::asm_fop1(fpu::kUnaryFn_rintm, false, 1, 2)});
-    EXPECT_EQ(assemble("fcmp.f32 x1, x2"), std::vector<word>{Emulator::asm_fcmp(false, false, 1, 2)});
-    EXPECT_EQ(assemble("fcmpe.f64 x2, x4"), std::vector<word>{Emulator::asm_fcmp(true, true, 2, 4)});
+    EXPECT_EQ(assemble("fcmp.f32 x1, x2"),
+              std::vector<word>{Emulator::asm_fcmp(false, false, 1, 2)});
+    EXPECT_EQ(assemble("fcmpe.f64 x2, x4"),
+              std::vector<word>{Emulator::asm_fcmp(true, true, 2, 4)});
 }
 
 TEST_F(InstructionTable, the_conversions_are_named_by_their_types)
@@ -482,7 +484,8 @@ TEST_F(InstructionTable, fmov_moves_a_register_or_loads_a_constant)
     // A constant is loaded as `ldr xd, =bits` does.
     EXPECT_EQ(assemble("fmov.f32 x1, 1.0"), assemble("ldr x1, =0x3F800000"));
     EXPECT_EQ(assemble("fmov.f32 x1, -2.5"), assemble("ldr x1, =0xC0200000"));
-    EXPECT_EQ(assemble("fmov.f32 x1, 3"), assemble("ldr x1, =0x40400000")) << "an integer is a number";
+    EXPECT_EQ(assemble("fmov.f32 x1, 3"), assemble("ldr x1, =0x40400000"))
+        << "an integer is a number";
     EXPECT_EQ(assemble("fmov.f32 x1, 0.0"), assemble("ldr x1, =0"));
     EXPECT_EQ(assemble("fmov.f32 x1, 0.1"), assemble("ldr x1, =0x3DCCCCCD"))
         << "the decimal number is rounded once, to a float";
@@ -513,6 +516,7 @@ TEST_F(InstructionTable, float_and_double_define_data)
                                  0, 0x40}));
     EXPECT_EQ(data_of(".float 0.0\n.float +1"), (std::vector<byte>{0, 0, 0, 0, 0, 0, 0x80, 0x3F}));
 
-    EXPECT_TRUE(contains(error_of([&] { data_of(".float foo"); }), "expected a floating point number"));
+    EXPECT_TRUE(
+        contains(error_of([&] { data_of(".float foo"); }), "expected a floating point number"));
     EXPECT_TRUE(contains(error_of([&] { assemble(".float 1.0"); }), "can only define data"));
 }

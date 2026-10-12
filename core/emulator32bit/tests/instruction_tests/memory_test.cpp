@@ -475,8 +475,8 @@ TEST_F(MemoryTest, an_access_that_is_not_aligned_to_its_size_faults_and_does_not
                 const int offset = mode == AddrType::ADDR_POST_INC ? 8 : int(8 + skew);
                 const auto before = snapshot_registers();
 
-                const auto result = step(
-                    0, Emulator32bit::asm_format_m(op.opcode, false, kXt, kXn, offset, mode));
+                const auto result =
+                    step(0, Emulator32bit::asm_format_m(op.opcode, false, kXt, kXn, offset, mode));
 
                 EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT) << ctx;
                 EXPECT_NE(result.message.find("Misaligned"), std::string::npos)
@@ -515,8 +515,8 @@ TEST_F(MemoryTest, the_unaligned_forms_access_any_address)
         if (op.width == 1) continue;
 
         // Around a page boundary (0x1000) too: the pattern covers it.
-        for (const word addr : {kBase + 1, kBase + 2, kBase + 3, kBase - 1, kBase - 2, kBase - 3,
-                                kBase + 0x101})
+        for (const word addr :
+             {kBase + 1, kBase + 2, kBase + 3, kBase - 1, kBase - 2, kBase - 3, kBase + 0x101})
             for (const bool reg_offset : {false, true})
                 for (const bool sign : {false, true})
                 {
@@ -573,8 +573,8 @@ TEST_F(MemoryTest, the_unaligned_mode_of_a_byte_access_is_an_undefined_instructi
     {
         fill_registers();
         cpu.write_reg(kXn, kBase);
-        const auto result = step(0, Emulator32bit::asm_format_m(opcode, false, kXt, kXn, 0,
-                                                                AddrType::ADDR_UNALIGNED));
+        const auto result = step(
+            0, Emulator32bit::asm_format_m(opcode, false, kXt, kXn, 0, AddrType::ADDR_UNALIGNED));
         EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
         EXPECT_NE(result.message.find("Bad memory address mode"), std::string::npos)
             << result.message;

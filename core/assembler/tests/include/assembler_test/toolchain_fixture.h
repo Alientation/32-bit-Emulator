@@ -11,10 +11,10 @@
 #include "assembler/preprocessor.h"
 #include "util/logger.h"
 
-#include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <gtest/gtest.h>
 #include <memory>
 #include <sstream>
 #include <string>

@@ -499,13 +499,13 @@ word word_at(const std::vector<byte> &bytes, size_t offset)
 
 constexpr const char *kUserProgram = ".global _start\n.global vec\n.global tbl\n.global st\n"
                                      ".text\n"
-                                     "_start: nop\n" // 0
+                                     "_start: nop\n"            // 0
                                      ".section \"vectors\", \"rx\"\n"
-                                     "vec: nop\nb _start\n" // 8 bytes
+                                     "vec: nop\nb _start\n"     // 8 bytes
                                      ".section \"table\", \"r\"\n"
                                      "tbl: .word _start, vec\n" // 8 bytes
                                      ".section \"state\"\n"
-                                     "st: .word 7\n" // 4 bytes
+                                     "st: .word 7\n"            // 4 bytes
                                      ".data\n"
                                      "values: .word 1, 2, 3\n"
                                      ".rodata\n"
@@ -520,7 +520,8 @@ TEST_F(LinkerScript, the_default_layout_puts_code_read_only_data_and_data_in_the
     EXPECT_EQ(section(exe, ".text").address, 0u);
     EXPECT_EQ(address_of(exe, "vectors"), 4u) << "after .text, still code";
     EXPECT_EQ(section(exe, ".rodata").address, 0x1000u) << "the next page";
-    EXPECT_EQ(address_of(exe, "table"), 0x1004u) << "after .rodata (3 bytes) and the arrays (words)";
+    EXPECT_EQ(address_of(exe, "table"), 0x1004u)
+        << "after .rodata (3 bytes) and the arrays (words)";
     EXPECT_EQ(section(exe, ".data").address, 0x2000u) << "the next page";
     EXPECT_EQ(address_of(exe, "state"), 0x2000u + 12) << "after .data";
     EXPECT_EQ(section(exe, ".bss").address, 0x2000u + 12 + 4);
@@ -581,11 +582,14 @@ TEST_F(LinkerScript, a_user_section_of_several_files_is_joined_and_keeps_its_ali
 TEST_F(LinkerScript, a_symbol_keeps_its_section_when_the_files_have_different_sections)
 {
     // The headers of "b" are at other places in each file.
-    const ObjectFile first = assemble("first", ".global _start\n.global in_first\n.text\n_start: nop\n"
-                                               ".section \"a\"\n.byte 1\n"
-                                               ".section \"b\"\nin_first: .byte 2\n");
-    const ObjectFile second = assemble("second", ".global in_second\n.section \"b\"\nin_second: .byte 3\n");
-    ASSERT_NE(first.find_user_section("b")->header_index, second.find_user_section("b")->header_index);
+    const ObjectFile first =
+        assemble("first", ".global _start\n.global in_first\n.text\n_start: nop\n"
+                          ".section \"a\"\n.byte 1\n"
+                          ".section \"b\"\nin_first: .byte 2\n");
+    const ObjectFile second =
+        assemble("second", ".global in_second\n.section \"b\"\nin_second: .byte 3\n");
+    ASSERT_NE(first.find_user_section("b")->header_index,
+              second.find_user_section("b")->header_index);
 
     const ObjectFile exe = link_default({first, second}, "differ");
     const U32 b = exe.find_user_section("b")->header_index;
@@ -683,12 +687,12 @@ TEST_F(LinkerScript, nobits_sections_of_several_files_are_added_up_and_aligned)
 
 TEST_F(LinkerScript, the_default_layout_puts_a_nobits_section_with_the_data_before_bss)
 {
-    const ObjectFile exe = link_default(
-        {assemble("n", ".global _start\n.text\n_start: nop\n"
-                       ".data\n.word 1\n"
-                       ".section \"zeros\", \"rw\", \"nobits\"\n.advance 100\n"
-                       ".bss\n.advance 4\n")},
-        "nobitslayout");
+    const ObjectFile exe =
+        link_default({assemble("n", ".global _start\n.text\n_start: nop\n"
+                                    ".data\n.word 1\n"
+                                    ".section \"zeros\", \"rw\", \"nobits\"\n.advance 100\n"
+                                    ".bss\n.advance 4\n")},
+                     "nobitslayout");
     EXPECT_EQ(section(exe, ".data").address, 0x1000u);
     EXPECT_EQ(address_of(exe, "zeros"), 0x1004u) << "after .data";
     EXPECT_EQ(section(exe, ".bss").address, 0x1004u + 100u) << "and before .bss";
@@ -699,7 +703,8 @@ TEST_F(LinkerScript, the_script_places_a_nobits_section_by_name)
     const std::vector<ObjectFile> objects = {
         assemble("p", ".global _start\n.global top\n.text\n_start: nop\n"
                       ".section \"stack\", \"rw\", \"nobits\"\n.align 8\ntop: .advance 0x1000\n")};
-    const std::string ld = write("stack.ld", "SECTIONS (\n.text = 0;\n\"stack\" = 0x8000;\n.data;\n.bss;\n)\n");
+    const std::string ld =
+        write("stack.ld", "SECTIONS (\n.text = 0;\n\"stack\" = 0x8000;\n.data;\n.bss;\n)\n");
     const std::string path = (m_dir / "out" / "stack.bexe").string();
     Linker linker(objects, File(path, true), File(ld));
     linker.link();
@@ -710,7 +715,8 @@ TEST_F(LinkerScript, the_script_places_a_nobits_section_by_name)
     EXPECT_EQ(symbol_value(exe, "top"), 0x8000u);
 
     // And one that is not in the script is the same error as for a section with bytes.
-    const std::string partial = write("partial_stack.ld", "SECTIONS (\n.text = 0;\n.data;\n.bss;\n)\n");
+    const std::string partial =
+        write("partial_stack.ld", "SECTIONS (\n.text = 0;\n.data;\n.bss;\n)\n");
     EXPECT_TRUE(contains(error_of(
                              [&]
                              {
@@ -747,6 +753,6 @@ TEST_F(LinkerScript, a_data_section_cannot_hold_a_relocation_that_patches_an_ins
     d.executable = false;
     d.writable = true;
     object.sections[d.header_index].type = ObjectFile::SectionHeader::Type::USER_RW;
-    EXPECT_TRUE(contains(error_of([&] { link_default({object}, "bad"); }),
-                         "A relocation in d of type"));
+    EXPECT_TRUE(
+        contains(error_of([&] { link_default({object}, "bad"); }), "A relocation in d of type"));
 }

@@ -107,9 +107,8 @@ std::vector<LibraryMember> read_static_library(const File &in)
     ByteReader b_reader(bytes);
     b_reader.skip_bytes(kMagicLength);
     const U16 version = b_reader.read_hword();
-    AEMU_CHECK(version == kVersion,
-               "'{}' is version {} of the format, version {} is read.",
-               path, version, kVersion);
+    AEMU_CHECK(version == kVersion, "'{}' is version {} of the format, version {} is read.", path,
+               version, kVersion);
 
     std::vector<LibraryMember> members;
     try
@@ -119,8 +118,7 @@ std::vector<LibraryMember> read_static_library(const File &in)
         {
             const U64 name_length = b_reader.read_dword();
             AEMU_CHECK(name_length <= kMaxNameLength,
-                       "'{}' is corrupt, a member has a name of {} bytes.",
-                       path, name_length);
+                       "'{}' is corrupt, a member has a name of {} bytes.", path, name_length);
             std::string name;
             for (size_t b = 0; b < name_length; b++)
             {

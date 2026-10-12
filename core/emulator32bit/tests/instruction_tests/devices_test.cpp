@@ -307,9 +307,8 @@ TEST_F(Devices, wfi_waits_for_the_host_when_the_program_asked_to_hear_of_a_byte)
     std::vector<word> program;
     append(program, constant(10, kIntcBase));
     append(program, constant(11, kConsoleBase));
-    program.insert(program.end(), {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08),
-                                   mov(1, 1), store_at(1, 11, 0x08), E::asm_wfi(),
-                                   load_at(8, 10, 0), // claim
+    program.insert(program.end(), {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08), mov(1, 1),
+                                   store_at(1, 11, 0x08), E::asm_wfi(), load_at(8, 10, 0), // claim
                                    load_at(9, 11, 0), // the byte
                                    E::asm_hlt()});
     const auto result = run(program);
@@ -329,8 +328,8 @@ TEST_F(Devices, wfi_ends_the_run_when_the_input_from_the_host_has_ended)
 
     std::vector<word> program;
     append(program, constant(11, kConsoleBase));
-    program.insert(program.end(), {mov(1, 1), store_at(1, 11, 0x08), E::asm_wfi(), mov(3, 7),
-                                   E::asm_hlt()});
+    program.insert(program.end(),
+                   {mov(1, 1), store_at(1, 11, 0x08), E::asm_wfi(), mov(3, 7), E::asm_hlt()});
     const auto result = run(program);
     EXPECT_EQ(result.status, Status::HALTED);
     EXPECT_NE(result.message.find("no interrupt source"), std::string::npos) << result.message;
@@ -945,18 +944,18 @@ TEST(BlockDeviceScatterGather, a_list_of_pieces_moves_between_the_disk_and_sever
     }
 
     // Sector 4 to 0x1000, then sectors 0 and 1 to 0x1400, which is not where the first ends.
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
-                      {{4, 1, 0x1000}, {0, 2, 0x1400}}, 2),
-              BlockDevice::kDone);
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{4, 1, 0x1000}, {0, 2, 0x1400}}, 2),
+        BlockDevice::kDone);
     EXPECT_EQ(disk.ram.read_word(0x1000), 500u);
     EXPECT_EQ(disk.ram.read_word(0x1400), 100u);
     EXPECT_EQ(disk.ram.read_word(0x1400 + 512), 200u);
     EXPECT_EQ(disk.ram.read_word(0x1200), 0u) << "between the buffers nothing is written";
 
     // And back to other sectors: RAM 0x1400 (two sectors) to sector 6, RAM 0x1000 to sector 3.
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterWrite, 0x2000,
-                      {{6, 2, 0x1400}, {3, 1, 0x1000}}, 2),
-              BlockDevice::kDone);
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterWrite, 0x2000, {{6, 2, 0x1400}, {3, 1, 0x1000}}, 2),
+        BlockDevice::kDone);
     EXPECT_EQ(disk.block.sector(6), disk.block.sector(0));
     EXPECT_EQ(disk.block.sector(7), disk.block.sector(1));
     EXPECT_EQ(disk.block.sector(3), disk.block.sector(4));
@@ -992,14 +991,14 @@ TEST(BlockDeviceScatterGather, one_piece_that_is_not_valid_fails_all_of_them)
     disk.write_sector(1, 5);
     const word failed = BlockDevice::kDone | BlockDevice::kError;
 
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
-                      {{1, 1, 0x1000}, {3, 2, 0x1400}}, 2),
-              failed)
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{1, 1, 0x1000}, {3, 2, 0x1400}}, 2),
+        failed)
         << "the second runs off the disk";
     EXPECT_EQ(disk.ram.read_word(0x1000), 0u) << "and the first was not done";
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
-                      {{1, 1, 0x1000}, {0, 1, 0x1402}}, 2),
-              failed)
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{1, 1, 0x1000}, {0, 1, 0x1402}}, 2),
+        failed)
         << "not word aligned";
     EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{1, 0, 0x1000}}, 1), failed)
         << "no sectors";
@@ -1016,9 +1015,9 @@ TEST(BlockDeviceScatterGather, the_list_has_to_be_there)
     const word failed = BlockDevice::kDone | BlockDevice::kError;
 
     EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {}, 0), failed) << "no pieces";
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {},
-                      BlockDevice::kMaxDescriptors + 1),
-              failed)
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {}, BlockDevice::kMaxDescriptors + 1),
+        failed)
         << "too many";
     EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2002, {{0, 1, 0x1000}}, 1), failed)
         << "the list is not word aligned";
@@ -1036,15 +1035,16 @@ TEST(BlockDeviceScatterGather, the_list_has_to_be_there)
     EXPECT_EQ(lone.read_word(kBlockBase + 0x04), failed);
 }
 
-TEST(BlockDeviceScatterGather, where_the_pieces_overlap_the_later_one_wins_and_a_reset_clears_the_list)
+TEST(BlockDeviceScatterGather,
+     where_the_pieces_overlap_the_later_one_wins_and_a_reset_clears_the_list)
 {
     DmaDisk disk(4);
     disk.write_sector(0, 11);
     disk.write_sector(1, 22);
 
-    EXPECT_EQ(scatter(disk, BlockDevice::kCmdScatterRead, 0x2000,
-                      {{0, 1, 0x1000}, {1, 1, 0x1000}}, 2),
-              BlockDevice::kDone);
+    EXPECT_EQ(
+        scatter(disk, BlockDevice::kCmdScatterRead, 0x2000, {{0, 1, 0x1000}, {1, 1, 0x1000}}, 2),
+        BlockDevice::kDone);
     EXPECT_EQ(disk.ram.read_word(0x1000), 22u);
 
     disk.block.reset();

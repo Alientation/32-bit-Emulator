@@ -571,8 +571,8 @@ Linker::SectionBase Linker::place_sections()
         if (section.set_address)
         {
             AEMU_CHECK(size == 0 || section.address % alignment == 0,
-                       "The section {} is at {:#x} but is aligned to {} bytes.",
-                       name, section.address, alignment);
+                       "The section {} is at {:#x} but is aligned to {} bytes.", name,
+                       section.address, alignment);
             *section_address = section.address;
         }
         else
@@ -798,8 +798,8 @@ void Linker::relocate(const std::vector<SectionBase> &bases, const SectionBase &
                 AEMU_CHECK(is_resolvable(symbol), "Error, undefined reference to '{}'.",
                            m_exe.strings.at(symbol.symbol_name));
                 AEMU_CHECK(rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
-                           "A relocation in {} of type {} is not supported.",
-                           section.name, U32(rel.type));
+                           "A relocation in {} of type {} is not supported.", section.name,
+                           U32(rel.type));
 
                 word current = 0;
                 for (size_t b = 0; b < sizeof(word); b++)
@@ -829,10 +829,9 @@ void Linker::relocate(const std::vector<SectionBase> &bases, const SectionBase &
 
                 AEMU_CHECK(is_resolvable(symbol), "Error, undefined reference to '{}'.",
                            m_exe.strings.at(symbol.symbol_name));
-                AEMU_CHECK(user.executable
-                               || rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
-                           "A relocation in {} of type {} is not supported.",
-                           user.name, U32(rel.type));
+                AEMU_CHECK(
+                    user.executable || rel.type == ObjectFile::RelocationEntry::Type::R_EMU32_ABS32,
+                    "A relocation in {} of type {} is not supported.", user.name, U32(rel.type));
 
                 word current = 0;
                 for (size_t b = 0; b < sizeof(word); b++)
@@ -841,9 +840,8 @@ void Linker::relocate(const std::vector<SectionBase> &bases, const SectionBase &
                 }
 
                 const word index = bases[i].users[e] + rel.offset;
-                const word patched =
-                    apply_relocation(rel.type, current, addresses.users[e] + index,
-                                     symbol.symbol_value + word(rel.addend));
+                const word patched = apply_relocation(rel.type, current, addresses.users[e] + index,
+                                                      symbol.symbol_value + word(rel.addend));
                 for (size_t b = 0; b < sizeof(word); b++)
                 {
                     m_exe.user_sections[e].bytes[index + b] = byte(patched >> (kNumByteBits * b));
@@ -860,11 +858,11 @@ void Linker::tokenize_ld()
     options.keep_newlines = false;
 
     const basm::SourceId source =
-        m_use_default_script ? m_sources.add("<default linker script>",
-                                             default_linker_script(m_obj_files))
-                             : m_sources.add_file(m_ld_file.get_path());
-    AEMU_CHECK(source != basm::kInvalidSource,
-               "Cannot read the linker script '{}'.", m_ld_file.get_path());
+        m_use_default_script
+            ? m_sources.add("<default linker script>", default_linker_script(m_obj_files))
+            : m_sources.add_file(m_ld_file.get_path());
+    AEMU_CHECK(source != basm::kInvalidSource, "Cannot read the linker script '{}'.",
+               m_ld_file.get_path());
 
     m_lexed = basm::lex(m_sources, source, options);
     basm::fatal_if_errors(m_sources, m_lexed);

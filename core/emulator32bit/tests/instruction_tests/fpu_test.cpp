@@ -152,7 +152,7 @@ int host_mode(const word mode)
     return kHost[mode];
 }
 
-template <class T>
+template<class T>
 U64 canonical_bits(const T value)
 {
     if (value != value)
@@ -162,14 +162,14 @@ U64 canonical_bits(const T value)
     return std::bit_cast<std::conditional_t<sizeof(T) == 4, word, U64>>(value);
 }
 
-template <class T>
+template<class T>
 T value_of(const U64 b)
 {
     return std::bit_cast<T>(std::conditional_t<sizeof(T) == 4, word, U64>(b));
 }
 
 /// One operation on the host: the result and the flags, in the given mode.
-template <class T>
+template<class T>
 [[gnu::noinline]] Out host_binary(const U8 fn, const T a, const T b, const word rounding)
 {
     std::fesetround(host_mode(rounding));
@@ -198,7 +198,7 @@ template <class T>
     return {canonical_bits(value), raised};
 }
 
-template <class T>
+template<class T>
 [[gnu::noinline]] Out host_sqrt(const T a, const word rounding)
 {
     std::fesetround(host_mode(rounding));
@@ -212,7 +212,7 @@ template <class T>
 }
 
 /// a * b + c and its three signed forms, with std::fma on the host.
-template <class T>
+template<class T>
 [[gnu::noinline]] Out host_fused(const U8 fn, const T a, const T b, const T c, const word rounding)
 {
     std::fesetround(host_mode(rounding));
@@ -232,7 +232,7 @@ template <class T>
     case kFmaFn_nmadd: // -(a * b + c), rounded as that, not negated after the rounding
         result = std::fma(-T(va), T(vb), -T(vc));
         break;
-    default: // kFmaFn_nmsub
+    default:           // kFmaFn_nmsub
         result = std::fma(T(va), T(vb), -T(vc));
         break;
     }
@@ -270,6 +270,7 @@ TEST_F(FpuTest, binary_results_worked_out_by_hand)
         float expected;
         word flags;
     };
+
     const float inf = std::numeric_limits<float>::infinity();
     const float max = std::numeric_limits<float>::max();
     const Case cases[] = {
@@ -324,8 +325,10 @@ TEST_F(FpuTest, a_nan_result_is_always_the_default_nan)
 
 TEST_F(FpuTest, binary_results_of_a_double)
 {
-    EXPECT_EQ(binary(kBinaryFn_add, true, bits(0.1), bits(0.2)), (Out{0x3FD3333333333334ull, kInexact}));
-    EXPECT_EQ(binary(kBinaryFn_div, true, bits(1.0), bits(3.0)), (Out{0x3FD5555555555555ull, kInexact}));
+    EXPECT_EQ(binary(kBinaryFn_add, true, bits(0.1), bits(0.2)),
+              (Out{0x3FD3333333333334ull, kInexact}));
+    EXPECT_EQ(binary(kBinaryFn_div, true, bits(1.0), bits(3.0)),
+              (Out{0x3FD5555555555555ull, kInexact}));
     EXPECT_EQ(binary(kBinaryFn_mul, true, bits(1.5), bits(-2.0)), (Out{bits(-3.0), 0}));
     EXPECT_EQ(binary(kBinaryFn_div, true, bits(1.0), bits(0.0)),
               (Out{0x7FF0000000000000ull, kDivByZero}));
@@ -341,6 +344,7 @@ TEST_F(FpuTest, the_rounding_mode_of_the_fpcr_decides_an_inexact_result)
         word expected_f32;
         U64 expected_f64;
     };
+
     const Case cases[] = {
         {kRoundNearest, 0x3EAAAAAB, 0x3FD5555555555555ull},
         {kRoundUp, 0x3EAAAAAB, 0x3FD5555555555556ull},
@@ -514,19 +518,25 @@ TEST_F(FpuTest, rounding_to_an_integral_value)
         float in;
         float rint, rintz, rintm, rintp, rinta; // rint is to nearest even
     };
+
     const Case cases[] = {
-        {2.5f, 2.0f, 2.0f, 2.0f, 3.0f, 3.0f},   {3.5f, 4.0f, 3.0f, 3.0f, 4.0f, 4.0f},
+        {2.5f, 2.0f, 2.0f, 2.0f, 3.0f, 3.0f},       {3.5f, 4.0f, 3.0f, 3.0f, 4.0f, 4.0f},
         {-2.5f, -2.0f, -2.0f, -3.0f, -2.0f, -3.0f}, {2.4f, 2.0f, 2.0f, 2.0f, 3.0f, 2.0f},
         {-0.4f, -0.0f, -0.0f, -1.0f, -0.0f, -0.0f}, {0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f},
         {7.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f},
     };
     for (const Case &c : cases)
     {
-        EXPECT_EQ(unary(kUnaryFn_rint, false, bits(c.in)), (Out{bits(c.rint), 0})) << "rint " << c.in;
-        EXPECT_EQ(unary(kUnaryFn_rintz, false, bits(c.in)), (Out{bits(c.rintz), 0})) << "rintz " << c.in;
-        EXPECT_EQ(unary(kUnaryFn_rintm, false, bits(c.in)), (Out{bits(c.rintm), 0})) << "rintm " << c.in;
-        EXPECT_EQ(unary(kUnaryFn_rintp, false, bits(c.in)), (Out{bits(c.rintp), 0})) << "rintp " << c.in;
-        EXPECT_EQ(unary(kUnaryFn_rinta, false, bits(c.in)), (Out{bits(c.rinta), 0})) << "rinta " << c.in;
+        EXPECT_EQ(unary(kUnaryFn_rint, false, bits(c.in)), (Out{bits(c.rint), 0}))
+            << "rint " << c.in;
+        EXPECT_EQ(unary(kUnaryFn_rintz, false, bits(c.in)), (Out{bits(c.rintz), 0}))
+            << "rintz " << c.in;
+        EXPECT_EQ(unary(kUnaryFn_rintm, false, bits(c.in)), (Out{bits(c.rintm), 0}))
+            << "rintm " << c.in;
+        EXPECT_EQ(unary(kUnaryFn_rintp, false, bits(c.in)), (Out{bits(c.rintp), 0}))
+            << "rintp " << c.in;
+        EXPECT_EQ(unary(kUnaryFn_rinta, false, bits(c.in)), (Out{bits(c.rinta), 0}))
+            << "rinta " << c.in;
         EXPECT_EQ(unary(kUnaryFn_rintz, true, bits(double(c.in))), (Out{bits(double(c.rintz)), 0}));
     }
 
@@ -617,7 +627,8 @@ TEST_F(FpuTest, converting_between_the_precisions)
     // Float to double is exact.
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, bits(1.5f)), (Out{bits(1.5), 0}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, bits(-0.1f)), (Out{bits(double(-0.1f)), 0}));
-    EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0x00000001), (Out{bits(double(std::bit_cast<float>(1u))), 0}));
+    EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0x00000001),
+              (Out{bits(double(std::bit_cast<float>(1u))), 0}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0x7F800000), (Out{0x7FF0000000000000ull, 0}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, kSignalingNan32), (Out{kQuietNan64, kInvalid}));
     EXPECT_EQ(unary(kUnaryFn_fcvt, false, 0xFFC00001), (Out{kQuietNan64, 0}));
@@ -670,6 +681,7 @@ TEST_F(FpuTest, the_conditions_after_a_compare_follow_c_for_a_nan)
         const char *name;
         bool less, equal, greater, unordered;
     };
+
     // What the flags of fcmp make the condition: eq, mi (<), ls (<=), gt and ge are false for a
     // NaN, ne is true. (lt and le are true for a NaN, so a compiler uses mi and ls.)
     const Case cases[] = {
@@ -689,8 +701,8 @@ TEST_F(FpuTest, the_conditions_after_a_compare_follow_c_for_a_nan)
         for (int i = 0; i < 4; i++)
         {
             const word nzcv = outcomes[i];
-            const NZCVFlags f = {.n = bool(nzcv & 8), .z = bool(nzcv & 4), .c = bool(nzcv & 2),
-                                 .v = bool(nzcv & 1)};
+            const NZCVFlags f = {
+                .n = bool(nzcv & 8), .z = bool(nzcv & 4), .c = bool(nzcv & 2), .v = bool(nzcv & 1)};
             set_flags(f);
             EXPECT_EQ(check_cond(cpu.get_pstate(), U8(c.cond)), expected[i])
                 << c.name << " after outcome " << i;
@@ -783,7 +795,7 @@ TEST_F(FpuTest, a_conversion_takes_the_registers_of_its_types)
     execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, kXd, kXa)); // f32 -> f64
     EXPECT_EQ(get_value(kXd, true), bits(0.5));
     expect_registers_unchanged_except(before3, {kXd, U8(kXd + 1)});
-    execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, true, kXa, kXd)); // f64 -> f32
+    execute(Emulator32bit::asm_fop1(kUnaryFn_fcvt, true, kXa, kXd));  // f64 -> f32
     EXPECT_EQ(cpu.read_reg(kXa), bits(0.5f));
 }
 
@@ -796,10 +808,13 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
             {"first source of fop2", Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, reg, 4)},
             {"second source of fop2", Emulator32bit::asm_fop2(kBinaryFn_add, true, 6, 2, reg)},
             {"fcmp", Emulator32bit::asm_fcmp(true, false, reg, 4)},
-            {"destination of a double result", Emulator32bit::asm_fop1(kUnaryFn_sqrt, true, reg, 2)},
+            {"destination of a double result",
+             Emulator32bit::asm_fop1(kUnaryFn_sqrt, true, reg, 2)},
             {"source of a double to int", Emulator32bit::asm_fop1(kUnaryFn_tos32, true, 6, reg)},
-            {"destination of int to double", Emulator32bit::asm_fop1(kUnaryFn_froms32, true, reg, 2)},
-            {"destination of float to double", Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, reg, 2)},
+            {"destination of int to double",
+             Emulator32bit::asm_fop1(kUnaryFn_froms32, true, reg, 2)},
+            {"destination of float to double",
+             Emulator32bit::asm_fop1(kUnaryFn_fcvt, false, reg, 2)},
             {"source of double to float", Emulator32bit::asm_fop1(kUnaryFn_fcvt, true, 6, reg)},
         };
         for (const auto &[what, instruction] : instructions)
@@ -811,7 +826,8 @@ TEST_F(FpuTest, a_double_cannot_start_in_x29_sp_or_xzr)
 
             const auto result = step(0, instruction);
 
-            EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT) << what << " x" << int(reg);
+            EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT)
+                << what << " x" << int(reg);
             EXPECT_NE(result.message.find("register pair"), std::string::npos) << result.message;
             expect_registers_unchanged_except(before, {}, what);
             EXPECT_EQ(fpsr(), 0u) << what;
@@ -867,8 +883,9 @@ TEST_F(FpuTest, the_product_of_a_fused_operation_is_not_rounded)
 
     EXPECT_EQ(fused(kFmaFn_madd, false, bits(a), bits(a), bits(c)),
               (Out{bits(std::ldexp(1.0f, -24)), 0}));
-    EXPECT_EQ(binary(kBinaryFn_add, false, binary(kBinaryFn_mul, false, bits(a), bits(a)).value, bits(c)),
-              (Out{0, 0}))
+    EXPECT_EQ(
+        binary(kBinaryFn_add, false, binary(kBinaryFn_mul, false, bits(a), bits(a)).value, bits(c)),
+        (Out{0, 0}))
         << "a multiplication and an addition lose it";
 
     const double d = 1.0 + std::ldexp(1.0, -27);
@@ -895,9 +912,9 @@ TEST_F(FpuTest, fused_operations_raise_the_flags_of_the_result)
               (Out{bits(inf), kOverflow | kInexact}));
     EXPECT_EQ(fused(kFmaFn_madd, false, bits(1.0f), bits(1.0f), bits(std::ldexp(1.0f, -30))),
               (Out{bits(1.0f), kInexact}));
-    EXPECT_EQ(fused(kFmaFn_madd, false, bits(1.0f), bits(1.0f), bits(std::ldexp(1.0f, -30)),
-                    kRoundUp),
-              (Out{bits(std::nextafter(1.0f, 2.0f)), kInexact}))
+    EXPECT_EQ(
+        fused(kFmaFn_madd, false, bits(1.0f), bits(1.0f), bits(std::ldexp(1.0f, -30)), kRoundUp),
+        (Out{bits(std::nextafter(1.0f, 2.0f)), kInexact}))
         << "in the mode of the FPCR";
 }
 

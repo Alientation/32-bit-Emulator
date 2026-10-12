@@ -6,15 +6,15 @@
 #include "assembler/object_file.h"
 #include "emulator32bit/emulator32bit.h"
 
-#include <gtest/gtest.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
+#include <sys/wait.h>
 #include <unordered_map>
 #include <vector>
-#include <sys/wait.h>
 
 namespace fs = std::filesystem;
 
@@ -2454,8 +2454,7 @@ _start:
                 hlt
 )");
     EXPECT_NE(basm("-o far far.basm -outdir ."), 0);
-    EXPECT_NE(log_tail("basm.log").find("cannot reach"), std::string::npos)
-        << log_tail("basm.log");
+    EXPECT_NE(log_tail("basm.log").find("cannot reach"), std::string::npos) << log_tail("basm.log");
 }
 
 // .section "name", "flags": a section of the program's own is linked, loaded and used like the
@@ -2601,7 +2600,8 @@ SECTIONS (
     EXPECT_EQ(handler_symbol->symbol_value, 0x2000u + 16);
 }
 
-TEST_F(AssemblerIntegration, a_section_of_the_programs_own_that_the_script_does_not_place_is_an_error)
+TEST_F(AssemblerIntegration,
+       a_section_of_the_programs_own_that_the_script_does_not_place_is_an_error)
 {
     write_file("unplaced.basm", R"(.global _start
 
@@ -2651,7 +2651,8 @@ _start:
 
 // A zero filled section of its own ("nobits") is only a size in the files, and a block of memory
 // when the program runs: here the stack of a program, at an address the linker script chooses.
-TEST_F(AssemblerIntegration, a_nobits_section_is_memory_the_program_can_use_and_not_bytes_in_the_file)
+TEST_F(AssemblerIntegration,
+       a_nobits_section_is_memory_the_program_can_use_and_not_bytes_in_the_file)
 {
     write_file("stack.basm", R"(.global _start
 

@@ -201,8 +201,7 @@ void Build::evaluate_args(const std::vector<std::string> &args_list)
         if (m_parse_options && !arg.empty() && arg[0] == '-')
         {
             // This is a flag.
-            AEMU_CHECK(m_flags.find(arg) != m_flags.end(), "Invalid flag: {}",
-                       arg);
+            AEMU_CHECK(m_flags.find(arg) != m_flags.end(), "Invalid flag: {}", arg);
 
             (this->*m_flags[arg])(i, args_list);
 
@@ -217,8 +216,8 @@ void Build::evaluate_args(const std::vector<std::string> &args_list)
             AEMU_DEBUG("Adding file {}", file.get_path());
 
             // Check the extension.
-            AEMU_CHECK(file.get_extension() == SOURCE_EXTENSION,
-                       "Invalid file extension: {}", file.get_extension());
+            AEMU_CHECK(file.get_extension() == SOURCE_EXTENSION, "Invalid file extension: {}",
+                       file.get_extension());
 
             m_src_files.push_back(file);
         }
@@ -359,8 +358,7 @@ void Build::_output(size_t &index, const std::vector<std::string> &args)
     m_output_file = args[++index];
 
     // Check that the output file is valid.
-    AEMU_CHECK(File::valid_path(m_output_file),
-               "Invalid output file path: '{}'.", m_output_file);
+    AEMU_CHECK(File::valid_path(m_output_file), "Invalid output file path: '{}'.", m_output_file);
 }
 
 void Build::_outdir(size_t &index, const std::vector<std::string> &args)
@@ -369,8 +367,8 @@ void Build::_outdir(size_t &index, const std::vector<std::string> &args)
     m_output_dir = args[++index];
     m_has_output_dir = true;
     // Check that the output directory is valid.
-    AEMU_CHECK(Directory::valid_path(m_output_dir),
-               "Invalid output directory path: '{}'.", m_output_dir);
+    AEMU_CHECK(Directory::valid_path(m_output_dir), "Invalid output directory path: '{}'.",
+               m_output_dir);
 }
 
 void Build::_warn(size_t &index, const std::vector<std::string> &args)
@@ -379,8 +377,8 @@ void Build::_warn(size_t &index, const std::vector<std::string> &args)
     std::string warning_type = args[++index];
 
     // Check that the warning type is valid.
-    AEMU_CHECK(WARNINGS.find(warning_type) != WARNINGS.end(),
-               "Invalid warning type: '{}'.", warning_type);
+    AEMU_CHECK(WARNINGS.find(warning_type) != WARNINGS.end(), "Invalid warning type: '{}'.",
+               warning_type);
     m_enabled_warnings.insert(warning_type);
 }
 
@@ -398,8 +396,7 @@ void Build::_include(size_t &index, const std::vector<std::string> &args)
     std::string dpath = args[++index];
 
     // Check that the include directory is valid.
-    AEMU_CHECK(Directory::valid_path(dpath),
-               "Invalid include directory path: '{}'.", dpath);
+    AEMU_CHECK(Directory::valid_path(dpath), "Invalid include directory path: '{}'.", dpath);
     m_system_dirs.push_back(Directory(dpath));
 }
 
@@ -409,20 +406,17 @@ void Build::_library(size_t &index, const std::vector<std::string> &args)
     std::string fpath = args[++index];
 
     // Check that the library name is valid.
-    AEMU_CHECK(File::valid_path(fpath), "Invalid library file path: '{}'.",
-               fpath);
+    AEMU_CHECK(File::valid_path(fpath), "Invalid library file path: '{}'.", fpath);
     m_linked_lib.push_back(File(fpath));
 }
 
 void Build::_library_directory(size_t &index, const std::vector<std::string> &args)
 {
-    AEMU_CHECK(index + 1 < args.size(),
-               "Missing library directory path.");
+    AEMU_CHECK(index + 1 < args.size(), "Missing library directory path.");
     std::string dpath = args[++index];
 
     // Check that the library directory is valid.
-    AEMU_CHECK(Directory::valid_path(dpath),
-               "Invalid library directory path: '{}'.", dpath);
+    AEMU_CHECK(Directory::valid_path(dpath), "Invalid library directory path: '{}'.", dpath);
     m_library_dirs.push_back(Directory(dpath));
 }
 
@@ -457,8 +451,7 @@ void Build::_ld(size_t &index, const std::vector<std::string> &args)
     std::string fpath = args[++index];
 
     // Check that the linker script name is valid.
-    AEMU_CHECK(File::valid_path(fpath), "Invalid linker script file path: '{}'.",
-               fpath);
+    AEMU_CHECK(File::valid_path(fpath), "Invalid linker script file path: '{}'.", fpath);
     m_ld_file = File(fpath);
     m_has_ld_file = true;
 }
@@ -521,4 +514,3 @@ File Build::get_exe_file() const
 {
     return m_exe_file;
 }
-

@@ -17,8 +17,7 @@ Assembler::Assembler(const File &processed_file, const std::string &output_path)
 
     // Convert the input file into tokens.
     const basm::SourceId source = m_sources->add_file(processed_file.get_path());
-    AEMU_CHECK(source != basm::kInvalidSource, "Cannot read '{}'.",
-               processed_file.get_path());
+    AEMU_CHECK(source != basm::kInvalidSource, "Cannot read '{}'.", processed_file.get_path());
     basm::LexResult lexed = basm::lex(*m_sources, source);
     basm::fatal_if_errors(*m_sources, lexed);
     m_tokens = std::move(lexed.tokens);
@@ -49,8 +48,7 @@ void Assembler::init(const File &processed_file, const std::string &output_path)
         m_out_obj_file = File(output_path, true);
     }
 
-    AEMU_CHECK(processed_file.get_extension() == PROCESSED_EXTENSION,
-               "Invalid processed file: {}",
+    AEMU_CHECK(processed_file.get_extension() == PROCESSED_EXTENSION, "Invalid processed file: {}",
                processed_file.get_extension());
 }
 
@@ -96,8 +94,7 @@ void Assembler::assemble()
     while (!m_cursor.at_end())
     {
         const basm::Token &token = m_cursor.peek();
-        AEMU_DEBUG("Assembling token {}: {}", m_cursor.position(),
-                   basm::describe(token));
+        AEMU_DEBUG("Assembling token {}: {}", m_cursor.position(), basm::describe(token));
 
         if (token.is(basm::TokenType::NEWLINE))
         {

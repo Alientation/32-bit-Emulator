@@ -6,8 +6,6 @@ struct CompilerOptions
 {
     size_t n_src_files;
     const char **src_files;
-
-
 };
 
 /**
@@ -20,4 +18,4 @@ struct CompilerOptions
  *
  * @param filepath
  */
-void ccompile (const char *sourcefile);
+void ccompile(const char *sourcefile);

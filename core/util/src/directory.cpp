@@ -37,8 +37,7 @@ std::vector<File> Directory::get_all_subfiles()
     {
         if (entry.is_regular_file())
         {
-            all_subfiles.push_back(
-                File(entry.path().generic_string()));
+            all_subfiles.push_back(File(entry.path().generic_string()));
         }
     }
     return all_subfiles;

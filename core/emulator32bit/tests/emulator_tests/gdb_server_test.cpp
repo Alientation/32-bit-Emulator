@@ -125,7 +125,7 @@ TEST_F(GdbTest, cpsr_shows_the_flags_and_the_mode_in_the_bits_of_an_arm_one)
     std::string bytes;
     ASSERT_TRUE(GdbServer::from_hex(bytes, ask("p10")));
     const word cpsr = word(U8(bytes[0])) | (word(U8(bytes[1])) << 8) | (word(U8(bytes[2])) << 16)
-           | (word(U8(bytes[3])) << 24);
+                      | (word(U8(bytes[3])) << 24);
     EXPECT_EQ(cpsr >> 28, 0b1010u) << "N and C";
     EXPECT_EQ(cpsr & 0x1F, 0x13u) << "supervisor: the machine is in kernel mode";
     EXPECT_NE(cpsr & 0x80, 0u) << "IRQs are masked after a reset";
@@ -338,7 +338,9 @@ class TestClient
 
         std::string reply;
         char c = 0;
-        while (recv(m_fd, &c, 1, 0) == 1 && c != '$') {} // the "+" first
+        while (recv(m_fd, &c, 1, 0) == 1 && c != '$')
+        {
+        } // the "+" first
         while (recv(m_fd, &c, 1, 0) == 1 && c != '#') reply += c;
         char checksum[2];
         recv(m_fd, checksum, 2, MSG_WAITALL);

@@ -116,9 +116,8 @@ const ObjectFile::ByteSection *ObjectFile::byte_section_of(const SectionHeader::
     return nullptr;
 }
 
-ObjectFile::SectionHeader::Type ObjectFile::user_section_type(const bool writable,
-                                                              const bool executable,
-                                                              const bool nobits)
+ObjectFile::SectionHeader::Type
+ObjectFile::user_section_type(const bool writable, const bool executable, const bool nobits)
 {
     using Type = SectionHeader::Type;
     if (nobits) return Type::USER_BSS;
@@ -234,8 +233,7 @@ void ObjectFile::deserialize_checked(const std::vector<byte> &bytes)
     catch (const std::out_of_range &e)
     {
         // ByteReader and the section/string lookups are bounds checked.
-        AEMU_FATAL("'{}' is truncated or corrupt: {}",
-                   m_obj_file.get_path(), e.what());
+        AEMU_FATAL("'{}' is truncated or corrupt: {}", m_obj_file.get_path(), e.what());
     }
 }
 
@@ -248,8 +246,8 @@ void ObjectFile::deserialize(const std::vector<byte> &bytes)
     AEMU_DEBUG("Reading BELF Header");
     if (bytes.size() < kBELFHeaderSize + sizeof(dword))
     {
-        AEMU_FATAL("'{}' is too small ({} bytes) to be an object file.",
-                   m_obj_file.get_path(), bytes.size());
+        AEMU_FATAL("'{}' is too small ({} bytes) to be an object file.", m_obj_file.get_path(),
+                   bytes.size());
         return;
     }
 
@@ -258,16 +256,15 @@ void ObjectFile::deserialize(const std::vector<byte> &bytes)
     {
         if (expected[i] != reader.read_byte())
         {
-            AEMU_FATAL("'{}' is not an object file, bad magic number.",
-                       m_obj_file.get_path());
+            AEMU_FATAL("'{}' is not an object file, bad magic number.", m_obj_file.get_path());
             return;
         }
     }
     reader.skip_bytes(kBELFHeaderPadding); // 4-15
-    file_type = reader.read_hword(); // 16-17
-    target_machine = reader.read_hword(); // 18-19
-    flags = reader.read_hword(); // 20-21
-    n_sections = reader.read_hword(); // 22-23
+    file_type = reader.read_hword();       // 16-17
+    target_machine = reader.read_hword();  // 18-19
+    flags = reader.read_hword();           // 20-21
+    n_sections = reader.read_hword();      // 22-23
 
     AEMU_DEBUG("Belf Header = (filetype={}, target_machine={}, "
                "flags={}, n_sections={})",
@@ -683,10 +680,9 @@ void ObjectFile::add_symbol(const std::string &symbol, const word value,
         }
         else if (symbol_entry.section != U32(-1) && section != U32(-1))
         {
-            AEMU_FATAL(
-                "Multiple definition of symbol {} at sections {} and {}",
-                symbol, strings[sections[section].section_name],
-                strings[sections[symbol_entry.section].section_name]);
+            AEMU_FATAL("Multiple definition of symbol {} at sections {} and {}", symbol,
+                       strings[sections[section].section_name],
+                       strings[sections[symbol_entry.section].section_name]);
             return;
         }
 
@@ -718,7 +714,7 @@ void ObjectFile::write_object_file(const File &object_file)
 
     // Write the BELF header.
     AEMU_DEBUG("Writing BELF header.");
-    m_writer.write("BELF"); // BELF magic number header
+    m_writer.write("BELF");                                          // BELF magic number header
     byte_writer << ByteWriter::Data(0, kBELFHeaderPadding);          // Unused padding
     byte_writer << ByteWriter::Data(file_type, sizeof(hword));       // Object file type
     byte_writer << ByteWriter::Data(target_machine, sizeof(hword));  // Target machine
@@ -751,8 +747,7 @@ void ObjectFile::write_object_file(const File &object_file)
     }
 
     // Write the BSS section.
-    AEMU_DEBUG("Writing .bss section. Size {} bytes.",
-               bss_section);
+    AEMU_DEBUG("Writing .bss section. Size {} bytes.", bss_section);
     byte_writer << ByteWriter::Data(bss_section, kBSSSectionSize);
     sections[section_table[".bss"]].section_size = bss_section;
     sections[section_table[".bss"]].section_start = current_byte;
@@ -767,9 +762,8 @@ void ObjectFile::write_object_file(const File &object_file)
         byte_writer << ByteWriter::Data(S16(symbol.binding_info), sizeof(hword));
         byte_writer << ByteWriter::Data(symbol.section, sizeof(dword));
 
-        AEMU_DEBUG("symbol {} = {} ({})[{}]",
-                   strings[symbol.symbol_name], symbol.symbol_value, U32(symbol.binding_info),
-                   symbol.section);
+        AEMU_DEBUG("symbol {} = {} ({})[{}]", strings[symbol.symbol_name], symbol.symbol_value,
+                   U32(symbol.binding_info), symbol.section);
     }
     sections[section_table[".symtab"]].section_size = symbol_table.size() * kSymbolTableEntrySize;
     sections[section_table[".symtab"]].section_start = current_byte;
@@ -865,8 +859,7 @@ word ObjectFile::get_bss_section_size() const
 
 word ObjectFile::get_section_size(const U32 section) const
 {
-    AEMU_CHECK(section < sections.size(), "No section {}.",
-               section);
+    AEMU_CHECK(section < sections.size(), "No section {}.", section);
     switch (sections[section].type)
     {
     case SectionHeader::Type::TEXT:

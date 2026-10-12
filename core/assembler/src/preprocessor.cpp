@@ -174,8 +174,7 @@ Preprocessor::Preprocessor(const File &input_file, const std::string &output_fil
 
     AEMU_CHECK(input_file.get_extension() == SOURCE_EXTENSION
                    || input_file.get_extension() == INCLUDE_EXTENSION,
-               "Invalid source file: '{}'.",
-               input_file.get_extension());
+               "Invalid source file: '{}'.", input_file.get_extension());
 
     m_state = State::UNPROCESSED;
 }
@@ -195,8 +194,7 @@ File Preprocessor::preprocess()
 {
     AEMU_DEBUG("Preprocessing file: {}", m_input_file.get_name());
 
-    AEMU_CHECK(m_state == State::UNPROCESSED,
-               "Preprocessor is not in the UNPROCESSED state");
+    AEMU_CHECK(m_state == State::UNPROCESSED, "Preprocessor is not in the UNPROCESSED state");
     m_state = State::PROCESSING;
 
     define_from_options();
@@ -227,8 +225,7 @@ File Preprocessor::preprocess()
         // Truncates the intermediate output file.
         std::ofstream out(m_output_file.get_path(),
                           std::ios::out | std::ios::trunc | std::ios::binary);
-        AEMU_CHECK(out.good(), "Cannot write to '{}'.",
-                   m_output_file.get_path());
+        AEMU_CHECK(out.good(), "Cannot write to '{}'.", m_output_file.get_path());
         out << m_out;
         out.close();
     }
@@ -240,8 +237,7 @@ File Preprocessor::preprocess()
 
 basm::PreprocessedSource Preprocessor::take_result()
 {
-    AEMU_CHECK(m_state == State::PROCESSED_SUCCESS,
-               "The file is not preprocessed");
+    AEMU_CHECK(m_state == State::PROCESSED_SUCCESS, "The file is not preprocessed");
     return {.sources = m_sources, .tokens = std::move(m_out_tokens)};
 }
 

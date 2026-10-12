@@ -2,174 +2,171 @@
 
 #include "ccompiler/massert.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-static void ASTNode_free (void *node);
-static void ASTNode_print (void *node, int tabs);
+static void ASTNode_free(void *node);
+static void ASTNode_print(void *node, int tabs);
 
-static void tokerr (parser_data_t *parser, token_t *tok);
-static token_t *nxttok (parser_data_t *parser);
-static token_t *exp_nxttok_is (parser_data_t *parser, tokentype_t type, const char *error_msg);
+static void tokerr(parser_data_t *parser, token_t *tok);
+static token_t *nxttok(parser_data_t *parser);
+static token_t *exp_nxttok_is(parser_data_t *parser, tokentype_t type, const char *error_msg);
 
-static token_t *tok (parser_data_t *parser);
-static tokentype_t toktype (parser_data_t *parser);
-static bool istok (parser_data_t *parser, tokentype_t type);
+static token_t *tok(parser_data_t *parser);
+static tokentype_t toktype(parser_data_t *parser);
+static bool istok(parser_data_t *parser, tokentype_t type);
 
-static void err (parser_data_t *parser, const char * fmt, ...);
+static void err(parser_data_t *parser, const char *fmt, ...);
 
-static astnode_t *allocate_astnode (astnodetype_t type);
+static astnode_t *allocate_astnode(astnodetype_t type);
 
-static astnode_t *parse_prog (parser_data_t *parser);
-static astnode_t *parse_func (parser_data_t *parser);
-static astnode_t *parse_statement (parser_data_t *parser);
-static astnode_t *parse_expr (parser_data_t *parser);
+static astnode_t *parse_prog(parser_data_t *parser);
+static astnode_t *parse_func(parser_data_t *parser);
+static astnode_t *parse_statement(parser_data_t *parser);
+static astnode_t *parse_expr(parser_data_t *parser);
 
-static bool to_int (parser_data_t *parser, token_t *tok, int *out);
-static astnode_t *parse_literal_int (parser_data_t *parser);
-static token_t *get_unary_op (parser_data_t *parser);
-static astnode_t *parse_unary_expr (parser_data_t *parser);
-static astnode_t *parse_binary_expr_1 (parser_data_t *parser);
-static token_t *get_binary_op_1 (parser_data_t *parser);
-static astnode_t *parse_binary_expr_2 (parser_data_t *parser);
-static token_t *get_binary_op_2 (parser_data_t *parser);
-static astnode_t *parse_factor (parser_data_t *parser);
-static astnode_t *parse_ident (parser_data_t *parser);
+static bool to_int(parser_data_t *parser, token_t *tok, int *out);
+static astnode_t *parse_literal_int(parser_data_t *parser);
+static token_t *get_unary_op(parser_data_t *parser);
+static astnode_t *parse_unary_expr(parser_data_t *parser);
+static astnode_t *parse_binary_expr_1(parser_data_t *parser);
+static token_t *get_binary_op_1(parser_data_t *parser);
+static astnode_t *parse_binary_expr_2(parser_data_t *parser);
+static token_t *get_binary_op_2(parser_data_t *parser);
+static astnode_t *parse_factor(parser_data_t *parser);
+static astnode_t *parse_ident(parser_data_t *parser);
 
-void parse (const lexer_data_t *lexer,
-           parser_data_t *parser)
+void parse(const lexer_data_t *lexer, parser_data_t *parser)
 {
     parser->lexer = lexer;
-    parser->ast = parse_prog (parser);
+    parser->ast = parse_prog(parser);
 }
 
-
-void parser_init (parser_data_t *parser)
+void parser_init(parser_data_t *parser)
 {
     parser->lexer = NULL;
     parser->tok_i = 0;
     parser->ast = NULL;
 
-    stringbuffer_init (&parser->err_msg_buffer);
+    stringbuffer_init(&parser->err_msg_buffer);
 }
 
-void parser_free (parser_data_t *parser)
+void parser_free(parser_data_t *parser)
 {
-    ASTNode_free (parser->ast);
-    stringbuffer_free (&parser->err_msg_buffer);
+    ASTNode_free(parser->ast);
+    stringbuffer_free(&parser->err_msg_buffer);
 }
 
-
-void parser_print (parser_data_t *parser)
+void parser_print(parser_data_t *parser)
 {
-    printf ("PRINTING AST\n");
-    ASTNode_print (parser->ast, 0);
+    printf("PRINTING AST\n");
+    ASTNode_print(parser->ast, 0);
 }
 
-const char *parser_astnode_type_to_str (astnodetype_t type)
+const char *parser_astnode_type_to_str(astnodetype_t type)
 {
     switch (type)
     {
-        case AST_ERR:
-            return "AST_ERR";
-        case AST_LITERAL_INT:
-            return "AST_LITERAL_INT";
-        case AST_IDENT:
-            return "AST_IDENT";
-        case AST_EXPR:
-            return "AST_EXPR";
-        case AST_UNARY_EXPR:
-            return "AST_UNARY_EXPR";
-        case AST_BINARY_EXPR_1:
-            return "AST_BINARY_EXPR_1";
-        case AST_BINARY_EXPR_2:
-            return "AST_BINARY_EXPR_2";
-        case AST_FACTOR:
-            return "AST_FACTOR";
-        case AST_STATEMENT:
-            return "AST_STATEMENT";
-        case AST_FUNC:
-            return "AST_FUNC";
-        case AST_PROG:
-            return "AST_PROG";
-        default:
-            UNREACHABLE ();
+    case AST_ERR:
+        return "AST_ERR";
+    case AST_LITERAL_INT:
+        return "AST_LITERAL_INT";
+    case AST_IDENT:
+        return "AST_IDENT";
+    case AST_EXPR:
+        return "AST_EXPR";
+    case AST_UNARY_EXPR:
+        return "AST_UNARY_EXPR";
+    case AST_BINARY_EXPR_1:
+        return "AST_BINARY_EXPR_1";
+    case AST_BINARY_EXPR_2:
+        return "AST_BINARY_EXPR_2";
+    case AST_FACTOR:
+        return "AST_FACTOR";
+    case AST_STATEMENT:
+        return "AST_STATEMENT";
+    case AST_FUNC:
+        return "AST_FUNC";
+    case AST_PROG:
+        return "AST_PROG";
+    default:
+        UNREACHABLE();
     }
     return "ERR";
 }
 
-static void ASTNode_print (void *node, int tabs)
+static void ASTNode_print(void *node, int tabs)
 {
     for (int i = 0; i < tabs; i++)
     {
-        printf ("\t");
+        printf("\t");
     }
 
     if (node == NULL)
     {
-        printf ("NULL\n");
+        printf("NULL\n");
         return;
     }
 
     astnode_t *ast_node = node;
     switch (ast_node->type)
     {
-        case AST_ERR:
-            printf ("ERROR\n");
-            break;
-        case AST_LITERAL_INT:
-            printf ("int<%d>", ast_node->as.literal_int.value);
-            break;
-        case AST_IDENT:
-            printf ("ident<%s>", token_tostr (ast_node->as.ident.tok_id));
-            break;
-        case AST_EXPR:
-            printf ("expr:\n");
-            ASTNode_print (ast_node->as.expr.body, tabs + 1);
-            printf ("\n");
-            break;
-        case AST_UNARY_EXPR:
-            printf ("unary_expr<%s>:\n", token_tostr (ast_node->as.unary_expr.tok_op));
-            ASTNode_print (ast_node->as.unary_expr.operand, tabs + 1);
-            break;
-        case AST_BINARY_EXPR_1:
-            printf ("binary_expr_1<%s>:\n", token_tostr (ast_node->as.binary_expr_1.tok_op));
-            ASTNode_print (ast_node->as.binary_expr_1.operand_a, tabs + 1);
-            ASTNode_print (ast_node->as.binary_expr_1.operand_b, tabs + 1);
-            break;
-        case AST_BINARY_EXPR_2:
-            printf ("binary_expr_2<%s>:\n", token_tostr (ast_node->as.binary_expr_2.tok_op));
-            ASTNode_print (ast_node->as.binary_expr_2.operand_a, tabs + 1);
-            ASTNode_print (ast_node->as.binary_expr_2.operand_b, tabs + 1);
-            break;
-        case AST_FACTOR:
-            printf ("factor:\n");
-            ASTNode_print (ast_node->as.factor.body, tabs + 1);
-            break;
-        case AST_STATEMENT:
-            printf ("statement:\n");
-            ASTNode_print (ast_node->as.statement.body, tabs + 1);
-            break;
-        case AST_FUNC:
-            printf ("func <int> ");
-            ASTNode_print (ast_node->as.func.name, 0);
-            printf (" () ");
-            printf (":\n");
-            ASTNode_print (ast_node->as.func.body, tabs + 1);
-            break;
-        case AST_PROG:
-            printf ("prog:\n");
-            ASTNode_print (ast_node->as.prog.func, tabs + 1);
-            break;
-        default:
-            UNREACHABLE ();
+    case AST_ERR:
+        printf("ERROR\n");
+        break;
+    case AST_LITERAL_INT:
+        printf("int<%d>", ast_node->as.literal_int.value);
+        break;
+    case AST_IDENT:
+        printf("ident<%s>", token_tostr(ast_node->as.ident.tok_id));
+        break;
+    case AST_EXPR:
+        printf("expr:\n");
+        ASTNode_print(ast_node->as.expr.body, tabs + 1);
+        printf("\n");
+        break;
+    case AST_UNARY_EXPR:
+        printf("unary_expr<%s>:\n", token_tostr(ast_node->as.unary_expr.tok_op));
+        ASTNode_print(ast_node->as.unary_expr.operand, tabs + 1);
+        break;
+    case AST_BINARY_EXPR_1:
+        printf("binary_expr_1<%s>:\n", token_tostr(ast_node->as.binary_expr_1.tok_op));
+        ASTNode_print(ast_node->as.binary_expr_1.operand_a, tabs + 1);
+        ASTNode_print(ast_node->as.binary_expr_1.operand_b, tabs + 1);
+        break;
+    case AST_BINARY_EXPR_2:
+        printf("binary_expr_2<%s>:\n", token_tostr(ast_node->as.binary_expr_2.tok_op));
+        ASTNode_print(ast_node->as.binary_expr_2.operand_a, tabs + 1);
+        ASTNode_print(ast_node->as.binary_expr_2.operand_b, tabs + 1);
+        break;
+    case AST_FACTOR:
+        printf("factor:\n");
+        ASTNode_print(ast_node->as.factor.body, tabs + 1);
+        break;
+    case AST_STATEMENT:
+        printf("statement:\n");
+        ASTNode_print(ast_node->as.statement.body, tabs + 1);
+        break;
+    case AST_FUNC:
+        printf("func <int> ");
+        ASTNode_print(ast_node->as.func.name, 0);
+        printf(" () ");
+        printf(":\n");
+        ASTNode_print(ast_node->as.func.body, tabs + 1);
+        break;
+    case AST_PROG:
+        printf("prog:\n");
+        ASTNode_print(ast_node->as.prog.func, tabs + 1);
+        break;
+    default:
+        UNREACHABLE();
     }
 }
 
-static void ASTNode_free (void *node)
+static void ASTNode_free(void *node)
 {
     if (node == NULL)
     {
@@ -180,80 +177,79 @@ static void ASTNode_free (void *node)
 
     switch (ast_node->type)
     {
-        case AST_ERR:
-            fprintf (stderr, "ERROR: encountered AST_ERR node while freeing\n");
-            exit (EXIT_FAILURE);
-            break;
-        case AST_LITERAL_INT:
-            break;
-        case AST_IDENT:
-            break;
-        case AST_EXPR:
-            ASTNode_free (ast_node->as.expr.body);
-            break;
-        case AST_UNARY_EXPR:
-            ASTNode_free (ast_node->as.unary_expr.operand);
-            break;
-        case AST_BINARY_EXPR_1:
-            ASTNode_free (ast_node->as.binary_expr_1.operand_a);
-            ASTNode_free (ast_node->as.binary_expr_1.operand_b);
-            break;
-        case AST_BINARY_EXPR_2:
-            ASTNode_free (ast_node->as.binary_expr_2.operand_a);
-            ASTNode_free (ast_node->as.binary_expr_2.operand_b);
-            break;
-        case AST_FACTOR:
-            ASTNode_free (ast_node->as.factor.body);
-            break;
-        case AST_STATEMENT:
-            ASTNode_free (ast_node->as.statement.body);
-            break;
-        case AST_FUNC:
-            ASTNode_free (ast_node->as.func.name);
-            ASTNode_free (ast_node->as.func.body);
-            break;
-        case AST_PROG:
-            ASTNode_free (ast_node->as.prog.func);
-            break;
-        default:
-            UNREACHABLE ();
+    case AST_ERR:
+        fprintf(stderr, "ERROR: encountered AST_ERR node while freeing\n");
+        exit(EXIT_FAILURE);
+        break;
+    case AST_LITERAL_INT:
+        break;
+    case AST_IDENT:
+        break;
+    case AST_EXPR:
+        ASTNode_free(ast_node->as.expr.body);
+        break;
+    case AST_UNARY_EXPR:
+        ASTNode_free(ast_node->as.unary_expr.operand);
+        break;
+    case AST_BINARY_EXPR_1:
+        ASTNode_free(ast_node->as.binary_expr_1.operand_a);
+        ASTNode_free(ast_node->as.binary_expr_1.operand_b);
+        break;
+    case AST_BINARY_EXPR_2:
+        ASTNode_free(ast_node->as.binary_expr_2.operand_a);
+        ASTNode_free(ast_node->as.binary_expr_2.operand_b);
+        break;
+    case AST_FACTOR:
+        ASTNode_free(ast_node->as.factor.body);
+        break;
+    case AST_STATEMENT:
+        ASTNode_free(ast_node->as.statement.body);
+        break;
+    case AST_FUNC:
+        ASTNode_free(ast_node->as.func.name);
+        ASTNode_free(ast_node->as.func.body);
+        break;
+    case AST_PROG:
+        ASTNode_free(ast_node->as.prog.func);
+        break;
+    default:
+        UNREACHABLE();
     }
 
-    free (ast_node);
+    free(ast_node);
     ast_node = NULL;
 }
 
-static void tokerr (parser_data_t *parser, token_t *tok)
+static void tokerr(parser_data_t *parser, token_t *tok)
 {
-    err (parser, "ERROR: at tok %d \'%s\' at line %d, column %d\n", parser->tok_i - 1,
-               token_tostr (tok), tok->line, tok->column);
+    err(parser, "ERROR: at tok %d \'%s\' at line %d, column %d\n", parser->tok_i - 1,
+        token_tostr(tok), tok->line, tok->column);
 }
 
-static token_t *nxttok (parser_data_t *parser)
+static token_t *nxttok(parser_data_t *parser)
 {
     if (parser->tok_i < parser->lexer->tok_cnt)
     {
         return &parser->lexer->toks[parser->tok_i++];
     }
 
-    err (parser, "ERROR: Unexpected end of file\n");
+    err(parser, "ERROR: Unexpected end of file\n");
     return NULL;
 }
 
-static token_t *exp_nxttok_is (parser_data_t *parser, tokentype_t type,
-                                           const char *err_msg)
+static token_t *exp_nxttok_is(parser_data_t *parser, tokentype_t type, const char *err_msg)
 {
-    token_t *tok = nxttok (parser);
+    token_t *tok = nxttok(parser);
     if (tok && tok->type != type)
     {
-        tokerr (parser, tok);
-        err (parser, err_msg);
+        tokerr(parser, tok);
+        err(parser, err_msg);
         return NULL;
     }
     return tok;
 }
 
-static bool istok (parser_data_t *parser, tokentype_t type)
+static bool istok(parser_data_t *parser, tokentype_t type)
 {
     if (parser->tok_i >= parser->lexer->tok_cnt)
     {
@@ -264,113 +260,113 @@ static bool istok (parser_data_t *parser, tokentype_t type)
     return tok->type == type;
 }
 
-static token_t *tok (parser_data_t *parser)
+static token_t *tok(parser_data_t *parser)
 {
     if (parser->tok_i >= parser->lexer->tok_cnt)
     {
-        err (parser, "ERROR: unexpected end of file\n");
+        err(parser, "ERROR: unexpected end of file\n");
         return NULL;
     }
 
     return &parser->lexer->toks[parser->tok_i];
 }
 
-static tokentype_t toktype (parser_data_t *parser)
+static tokentype_t toktype(parser_data_t *parser)
 {
     if (parser->tok_i >= parser->lexer->tok_cnt)
     {
-        err (parser, "ERROR: unexpected end of file\n");
+        err(parser, "ERROR: unexpected end of file\n");
         return TOKEN_ERROR;
     }
 
     return parser->lexer->toks[parser->tok_i].type;
 }
 
-static void err (parser_data_t *parser, const char * fmt, ...)
+static void err(parser_data_t *parser, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    stringbuffer_appendf (&parser->err_msg_buffer, fmt, args);
+    stringbuffer_appendf(&parser->err_msg_buffer, fmt, args);
 }
 
-static astnode_t *allocate_astnode (astnodetype_t type)
+static astnode_t *allocate_astnode(astnodetype_t type)
 {
-    astnode_t *node = calloc (1, sizeof (astnode_t));
+    astnode_t *node = calloc(1, sizeof(astnode_t));
     if (!node)
     {
-        fprintf (stderr, "ERROR: failed to allocate memory\n");
-        exit (EXIT_FAILURE);
+        fprintf(stderr, "ERROR: failed to allocate memory\n");
+        exit(EXIT_FAILURE);
     }
 
     node->type = type;
     return node;
 }
 
-
-static astnode_t *parse_prog (parser_data_t *parser)
+static astnode_t *parse_prog(parser_data_t *parser)
 {
-    astnode_t *prog = allocate_astnode (AST_PROG);
+    astnode_t *prog = allocate_astnode(AST_PROG);
 
-    if (!(prog->as.prog.func = parse_func (parser)))
+    if (!(prog->as.prog.func = parse_func(parser)))
     {
-        ASTNode_free (prog);
+        ASTNode_free(prog);
         return NULL;
     }
 
     return prog;
 }
 
-static astnode_t *parse_func (parser_data_t *parser)
+static astnode_t *parse_func(parser_data_t *parser)
 {
-    astnode_t *func = allocate_astnode (AST_FUNC);
+    astnode_t *func = allocate_astnode(AST_FUNC);
 
-    if (!exp_nxttok_is (parser, TOKEN_KEYWORD_INT, "Expected an 'int' return type for function\n") ||
-        !(func->as.func.name = parse_ident (parser)) ||
-        !exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS, "Expected '(' after function identifier\n") ||
-        !exp_nxttok_is (parser, TOKEN_CLOSE_PARENTHESIS, "Expected ')' after '('\n") ||
-        !exp_nxttok_is (parser, TOKEN_OPEN_BRACE, "Expected '{' to begin function body\n") ||
-        !(func->as.func.body = parse_statement (parser)) ||
-        !exp_nxttok_is (parser, TOKEN_CLOSE_BRACE, "Expected '}' to close function body\n"))
+    if (!exp_nxttok_is(parser, TOKEN_KEYWORD_INT, "Expected an 'int' return type for function\n")
+        || !(func->as.func.name = parse_ident(parser))
+        || !exp_nxttok_is(parser, TOKEN_OPEN_PARENTHESIS,
+                          "Expected '(' after function identifier\n")
+        || !exp_nxttok_is(parser, TOKEN_CLOSE_PARENTHESIS, "Expected ')' after '('\n")
+        || !exp_nxttok_is(parser, TOKEN_OPEN_BRACE, "Expected '{' to begin function body\n")
+        || !(func->as.func.body = parse_statement(parser))
+        || !exp_nxttok_is(parser, TOKEN_CLOSE_BRACE, "Expected '}' to close function body\n"))
     {
-        ASTNode_free (func);
+        ASTNode_free(func);
         return NULL;
     }
 
     return func;
 }
 
-static astnode_t *parse_statement (parser_data_t *parser)
+static astnode_t *parse_statement(parser_data_t *parser)
 {
-    astnode_t *statement = allocate_astnode (AST_STATEMENT);
+    astnode_t *statement = allocate_astnode(AST_STATEMENT);
 
-    if (!exp_nxttok_is (parser, TOKEN_KEYWORD_RETURN, "Expected \'return\' statement\n") ||
-        !(statement->as.statement.body = parse_expr (parser)) ||
-        !exp_nxttok_is (parser, TOKEN_SEMICOLON, "Expected \';\' to end statement\n"))
+    if (!exp_nxttok_is(parser, TOKEN_KEYWORD_RETURN, "Expected \'return\' statement\n")
+        || !(statement->as.statement.body = parse_expr(parser))
+        || !exp_nxttok_is(parser, TOKEN_SEMICOLON, "Expected \';\' to end statement\n"))
     {
-        ASTNode_free (statement);
+        ASTNode_free(statement);
         return NULL;
     }
     return statement;
 }
 
-static astnode_t *parse_expr (parser_data_t *parser)
+static astnode_t *parse_expr(parser_data_t *parser)
 {
-    astnode_t *expr = allocate_astnode (AST_EXPR);
+    astnode_t *expr = allocate_astnode(AST_EXPR);
 
-    if (!(expr->as.expr.body = parse_factor (parser)) ||
-        !(expr->as.expr.body = parse_binary_expr_2 (parser)))
+    if (!(expr->as.expr.body = parse_factor(parser))
+        || !(expr->as.expr.body = parse_binary_expr_2(parser)))
     {
-        ASTNode_free (expr);
+        ASTNode_free(expr);
         return NULL;
     }
     return expr;
 }
 
-static bool to_int (parser_data_t *parser, token_t *tok, int *out)
+static bool to_int(parser_data_t *parser, token_t *tok, int *out)
 {
     if (tok->type != TOKEN_I_CONSTANT)
     {
-        err (parser, "Expected literal int\n");
+        err(parser, "Expected literal int\n");
         return false;
     }
 
@@ -385,21 +381,22 @@ static bool to_int (parser_data_t *parser, token_t *tok, int *out)
     return true;
 }
 
-static astnode_t *parse_literal_int (parser_data_t *parser)
+static astnode_t *parse_literal_int(parser_data_t *parser)
 {
-    astnode_t *literal_int = allocate_astnode (AST_LITERAL_INT);
-    if (!(literal_int->as.literal_int.tok_int = exp_nxttok_is (parser, TOKEN_I_CONSTANT, "Expected integer literal\n")) ||
-        !to_int (parser, literal_int->as.literal_int.tok_int, &literal_int->as.literal_int.value))
+    astnode_t *literal_int = allocate_astnode(AST_LITERAL_INT);
+    if (!(literal_int->as.literal_int.tok_int =
+              exp_nxttok_is(parser, TOKEN_I_CONSTANT, "Expected integer literal\n"))
+        || !to_int(parser, literal_int->as.literal_int.tok_int, &literal_int->as.literal_int.value))
     {
-        ASTNode_free (literal_int);
+        ASTNode_free(literal_int);
         return NULL;
     }
     return literal_int;
 }
 
-static token_t *get_unary_op (parser_data_t *parser)
+static token_t *get_unary_op(parser_data_t *parser)
 {
-    token_t *tok = nxttok (parser);
+    token_t *tok = nxttok(parser);
     if (!tok)
     {
         return NULL;
@@ -407,21 +404,21 @@ static token_t *get_unary_op (parser_data_t *parser)
 
     if (tok->type != TOKEN_HYPEN && tok->type != TOKEN_EXCLAMATION_MARK && tok->type != TOKEN_TILDE)
     {
-        tokerr (parser, tok);
-        err (parser, "ERROR: invalid unary op\n");
+        tokerr(parser, tok);
+        err(parser, "ERROR: invalid unary op\n");
         return NULL;
     }
     return tok;
 }
 
-static astnode_t *parse_unary_expr (parser_data_t *parser)
+static astnode_t *parse_unary_expr(parser_data_t *parser)
 {
-    astnode_t *unary_expr = allocate_astnode (AST_UNARY_EXPR);
+    astnode_t *unary_expr = allocate_astnode(AST_UNARY_EXPR);
 
-    if (!(unary_expr->as.unary_expr.tok_op = get_unary_op (parser)) ||
-        !(unary_expr->as.unary_expr.operand = parse_factor (parser)))
+    if (!(unary_expr->as.unary_expr.tok_op = get_unary_op(parser))
+        || !(unary_expr->as.unary_expr.operand = parse_factor(parser)))
     {
-        ASTNode_free (unary_expr);
+        ASTNode_free(unary_expr);
         return NULL;
     }
     return unary_expr;
@@ -429,96 +426,96 @@ static astnode_t *parse_unary_expr (parser_data_t *parser)
 
 // TODO LEFT OFF HERE
 
-static token_t *get_binary_op_1 (parser_data_t *parser)
+static token_t *get_binary_op_1(parser_data_t *parser)
 {
-    token_t *tok = nxttok (parser);
-    if (!tok )
+    token_t *tok = nxttok(parser);
+    if (!tok)
     {
         return NULL;
     }
 
     if (tok->type != TOKEN_ASTERICK && tok->type != TOKEN_FORWARD_SLASH)
     {
-        tokerr (parser, tok);
-        err (parser, "ERROR: invalid binary_op_1\n");
+        tokerr(parser, tok);
+        err(parser, "ERROR: invalid binary_op_1\n");
         return NULL;
     }
     return tok;
 }
 
-static astnode_t *parse_binary_expr_1 (parser_data_t *parser)
+static astnode_t *parse_binary_expr_1(parser_data_t *parser)
 {
-    astnode_t *binary_expr_1 = allocate_astnode (AST_BINARY_EXPR_1);
+    astnode_t *binary_expr_1 = allocate_astnode(AST_BINARY_EXPR_1);
 
-    if (!(binary_expr_1->as.binary_expr_1.operand_a = parse_factor (parser)) ||
-        !(binary_expr_1->as.binary_expr_1.tok_op = get_binary_op_1 (parser)) ||
-        !(binary_expr_1->as.binary_expr_1.operand_b = parse_factor (parser)))
+    if (!(binary_expr_1->as.binary_expr_1.operand_a = parse_factor(parser))
+        || !(binary_expr_1->as.binary_expr_1.tok_op = get_binary_op_1(parser))
+        || !(binary_expr_1->as.binary_expr_1.operand_b = parse_factor(parser)))
     {
-        ASTNode_free (binary_expr_1);
+        ASTNode_free(binary_expr_1);
         return NULL;
     }
     return binary_expr_1;
 }
 
-
-static token_t *get_binary_op_2 (parser_data_t *parser)
+static token_t *get_binary_op_2(parser_data_t *parser)
 {
-    token_t *tok = nxttok (parser);
-    if (!tok )
+    token_t *tok = nxttok(parser);
+    if (!tok)
     {
         return NULL;
     }
 
     if (tok->type != TOKEN_PLUS && tok->type != TOKEN_HYPEN)
     {
-        tokerr (parser, tok);
-        err (parser, "ERROR: invalid binary_op_2\n");
+        tokerr(parser, tok);
+        err(parser, "ERROR: invalid binary_op_2\n");
         return NULL;
     }
     return tok;
 }
 
-static astnode_t *parse_binary_expr_2 (parser_data_t *parser)
+static astnode_t *parse_binary_expr_2(parser_data_t *parser)
 {
-    astnode_t *binary_expr_2 = allocate_astnode (AST_BINARY_EXPR_2);
+    astnode_t *binary_expr_2 = allocate_astnode(AST_BINARY_EXPR_2);
 
-    if (!(binary_expr_2->as.binary_expr_2.operand_a = parse_binary_expr_1 (parser)) ||
-        !(binary_expr_2->as.binary_expr_2.tok_op = get_binary_op_2 (parser)) ||
-        !(binary_expr_2->as.binary_expr_2.operand_b = parse_binary_expr_1 (parser)))
+    if (!(binary_expr_2->as.binary_expr_2.operand_a = parse_binary_expr_1(parser))
+        || !(binary_expr_2->as.binary_expr_2.tok_op = get_binary_op_2(parser))
+        || !(binary_expr_2->as.binary_expr_2.operand_b = parse_binary_expr_1(parser)))
     {
-        ASTNode_free (binary_expr_2);
+        ASTNode_free(binary_expr_2);
         return NULL;
     }
     return binary_expr_2;
 }
 
-static astnode_t *parse_factor (parser_data_t *parser)
+static astnode_t *parse_factor(parser_data_t *parser)
 {
-    astnode_t *factor = allocate_astnode (AST_FACTOR);
+    astnode_t *factor = allocate_astnode(AST_FACTOR);
 
-    if (exp_nxttok_is (parser, TOKEN_OPEN_PARENTHESIS, "Expected open parenthesis\n") &&
-        (factor->as.factor.body = parse_expr (parser)))
+    if (exp_nxttok_is(parser, TOKEN_OPEN_PARENTHESIS, "Expected open parenthesis\n")
+        && (factor->as.factor.body = parse_expr(parser)))
     {
         return factor;
     }
 
-    if (!(factor->as.factor.body = parse_unary_expr (parser)) ||
-        !(factor->as.factor.body = parse_literal_int (parser)))
+    if (!(factor->as.factor.body = parse_unary_expr(parser))
+        || !(factor->as.factor.body = parse_literal_int(parser)))
     {
-        ASTNode_free (factor);
+        ASTNode_free(factor);
         return NULL;
     }
 
     return factor;
 }
 
-static astnode_t *parse_ident (parser_data_t *parser)
+static astnode_t *parse_ident(parser_data_t *parser)
 {
-    astnode_t *ident = allocate_astnode (AST_IDENT);
+    astnode_t *ident = allocate_astnode(AST_IDENT);
 
-    if (!(ident->as.ident.tok_id = exp_nxttok_is (parser, TOKEN_IDENTIFIER, "Expected identifier\n")))
+    if (!(ident->as.ident.tok_id =
+              exp_nxttok_is(parser, TOKEN_IDENTIFIER, "Expected identifier\n")))
     {
-        ASTNode_free (ident);
+        ASTNode_free(ident);
         return NULL;
     }
     return ident;

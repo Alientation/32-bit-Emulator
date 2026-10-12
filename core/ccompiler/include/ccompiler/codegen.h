@@ -6,7 +6,6 @@
 
 #include <stdio.h>
 
-
 /*
 example.c
 int main ()
@@ -60,7 +59,7 @@ typedef struct CodegenFunc
         LO ADDR
     */
     int stack_used;
-    int stack_capacity;     // max stack space required by the function
+    int stack_capacity; // max stack space required by the function
 
     // push allocated to stack before function call, pop off after
     codegen_reg_t caller_saved_regs[CODEGEN_NUM_CALLER_REGS]; // x0-x17
@@ -68,7 +67,6 @@ typedef struct CodegenFunc
     // push to stack when allocated, pop off when deallocated
     codegen_reg_t callee_saved_regs[CODEGEN_NUM_CALLEE_REGS]; // x19-x27
 } codegen_func_t;
-
 
 typedef struct CodegenData
 {
@@ -82,4 +80,4 @@ typedef struct CodegenData
     stringbuffer_t *cur_txt_sect;
 } codegen_data_t;
 
-void codegen (parser_data_t *parser, const char *output_filepath);
+void codegen(parser_data_t *parser, const char *output_filepath);

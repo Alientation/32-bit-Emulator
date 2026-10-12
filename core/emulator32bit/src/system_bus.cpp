@@ -58,8 +58,7 @@ SystemBus::~SystemBus()
     }
     catch (const std::exception &error)
     {
-        AEMU_ERROR("The block device could not be saved: {}",
-                   error.what());
+        AEMU_ERROR("The block device could not be saved: {}", error.what());
     }
 }
 

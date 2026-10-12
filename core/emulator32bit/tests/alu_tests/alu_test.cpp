@@ -1,7 +1,7 @@
 #include "emulator32bit/alu.h"
 
-#include <gtest/gtest.h>
 #include <array>
+#include <gtest/gtest.h>
 
 namespace
 {

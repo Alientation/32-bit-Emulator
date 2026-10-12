@@ -110,7 +110,8 @@ class BaseMemory
 /// @param[in] memory The memory to read from.
 /// @param[in] address The address to read at.
 /// @return The value.
-template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
+template<class T, class Mem>
+inline T mem_read(Mem &memory, const word address)
 {
     static_assert(std::is_unsigned_v<T> && sizeof(T) <= sizeof(word), "byte, hword or word");
     if constexpr (sizeof(T) == sizeof(byte)) return memory.read_byte(address);
@@ -125,7 +126,8 @@ template <class T, class Mem> inline T mem_read(Mem &memory, const word address)
 /// @param[out] memory The memory to write to.
 /// @param[in] address The address to write at.
 /// @param[in] value The value to store.
-template <class T, class Mem> inline void mem_write(Mem &memory, const word address, const T value)
+template<class T, class Mem>
+inline void mem_write(Mem &memory, const word address, const T value)
 {
     static_assert(std::is_unsigned_v<T> && sizeof(T) <= sizeof(word), "byte, hword or word");
     if constexpr (sizeof(T) == sizeof(byte)) memory.write_byte(address, value);

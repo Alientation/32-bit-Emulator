@@ -83,6 +83,7 @@ TEST_F(EmulatorFixture, the_four_shifts_are_one_opcode_with_the_type_in_the_inst
                  {ShiftType::SHIFT_LSR, "lsr x1, x2, 3"},
                  {ShiftType::SHIFT_ASR, "asr x1, x2, 3"},
                  {ShiftType::SHIFT_ROR, "ror x1, x2, 3"}};
+
     for (const auto &kind : kinds)
     {
         const word instr = Emulator32bit::asm_format_o1(kind.type, 1, 2, true, 0, 3);
@@ -116,9 +117,9 @@ TEST_F(EmulatorFixture, bx_and_blx_are_one_opcode_with_a_link_bit)
     EXPECT_EQ(Emulator32bit::disassemble_instr(blx), "blx x5");
     EXPECT_EQ(Emulator32bit::disassemble_instr(Emulator32bit::asm_format_b2(ConditionCode::AL, 29)),
               "ret");
-    EXPECT_EQ(Emulator32bit::disassemble_instr(
-                  Emulator32bit::asm_format_b2(ConditionCode::AL, 29, true)),
-              "blx lr")
+    EXPECT_EQ(
+        Emulator32bit::disassemble_instr(Emulator32bit::asm_format_b2(ConditionCode::AL, 29, true)),
+        "blx lr")
         << "only bx x29 is a ret";
 }
 

@@ -121,11 +121,13 @@ TEST(Relocation, adr_reaches_the_ends_of_the_21_bit_range)
     const word adr = Emulator32bit::asm_format_m1(encoding::_op_adr, 3, 0);
     constexpr word kBase = 0x400000;
 
-    const word forward = apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase + (1 << 20) - 1);
+    const word forward =
+        apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase + (1 << 20) - 1);
     EXPECT_EQ(bitfield_unsigned(forward, 0, 20), word((1 << 20) - 1));
     EXPECT_FALSE(test_bit(forward, kInstructionUpdateFlagBit));
 
-    const word backward = apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase - (1 << 20));
+    const word backward =
+        apply_relocation(Type::R_EMU32_ADR_PCREL21, adr, kBase, kBase - (1 << 20));
     EXPECT_EQ(bitfield_unsigned(backward, 0, 20), 0u);
     EXPECT_TRUE(test_bit(backward, kInstructionUpdateFlagBit));
 

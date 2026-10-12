@@ -357,8 +357,8 @@ void Debugger::command_watch(const std::vector<std::string> &args)
     bool joined = false;
     for (const std::string &arg : args)
     {
-        const bool is_operator = arg == "==" || arg == "!=" || arg == "<" || arg == "<="
-                                 || arg == ">" || arg == ">=";
+        const bool is_operator =
+            arg == "==" || arg == "!=" || arg == "<" || arg == "<=" || arg == ">" || arg == ">=";
         spec += (spec.empty() || joined ? "" : ":") + arg;
         joined = is_operator;
     }
@@ -373,7 +373,8 @@ void Debugger::command_watch(const std::vector<std::string> &args)
     if (!m_emu.add_watchpoint(watch->address, watch->length, watch->kind, watch->physical,
                               watch->compare, watch->compare_value))
     {
-        m_out << "There are " << kMaxWatchpoints << " watchpoints already; remove one with unwatch.\n";
+        m_out << "There are " << kMaxWatchpoints
+              << " watchpoints already; remove one with unwatch.\n";
         return;
     }
     m_out << "Watching " << watch->length << " byte" << (watch->length == 1 ? "" : "s") << " at "
@@ -382,7 +383,8 @@ void Debugger::command_watch(const std::vector<std::string> &args)
           << " for " << watch_kind_name(watch->kind);
     if (watch->compare != Emulator32bit::WatchCompare::NONE)
     {
-        m_out << " when the value is " << describe_watch_condition(watch->compare, watch->compare_value);
+        m_out << " when the value is "
+              << describe_watch_condition(watch->compare, watch->compare_value);
     }
     m_out << ".\n";
 }
@@ -458,7 +460,8 @@ void Debugger::command_watchreg(const std::vector<std::string> &args)
     if (!(watch->has_value ? m_emu.add_register_watch(watch->reg, watch->value)
                            : m_emu.add_register_watch(watch->reg)))
     {
-        m_out << kMaxRegisterWatches << " registers are watched already; remove one with unwatchreg.\n";
+        m_out << kMaxRegisterWatches
+              << " registers are watched already; remove one with unwatchreg.\n";
         return;
     }
     m_out << "Watching " << register_name(watch->reg) << " for a change"

@@ -4,8 +4,8 @@
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/emulator32bit_util.h"
 
-#include <gtest/gtest.h>
 #include <array>
+#include <gtest/gtest.h>
 #include <iomanip>
 #include <new>
 #include <ostream>

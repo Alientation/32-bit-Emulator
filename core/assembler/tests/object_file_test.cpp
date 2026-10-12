@@ -318,8 +318,8 @@ TEST_F(ObjectFileUnit, the_listing_has_the_size_of_a_nobits_section)
     assemble(".section \"stack\", \"rw\", \"nobits\"\n.advance 4096\n");
     std::ostringstream listing;
     ObjectFile(File(path("main.bo"))).print(listing);
-    EXPECT_TRUE(contains(listing.str(),
-                         "Contents of section stack: 4096 bytes, zero filled when loaded"));
+    EXPECT_TRUE(
+        contains(listing.str(), "Contents of section stack: 4096 bytes, zero filled when loaded"));
 }
 
 TEST_F(ObjectFileUnit, a_file_with_user_sections_is_the_same_bytes_every_time)
@@ -340,14 +340,18 @@ TEST_F(ObjectFileUnit, a_user_section_that_is_corrupt_is_refused)
         return error_of([&] { ObjectFile read{File(path("damaged.bo"))}; });
     };
 
-    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].symbol = 999; }),
-                         "a relocation of table is for the symbol 999"));
-    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].offset = 6; }),
-                         "a relocation of table is at 6, outside of the section"));
-    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("code")->relocations[0].offset = 2; }),
-                         "a relocation of code is at 2, which is not the start of an instruction"));
-    EXPECT_TRUE(contains(damaged([](ObjectFile &o) { o.find_user_section("code")->bytes.push_back(1); }),
-                         "the code of code is not made of whole instructions"));
+    EXPECT_TRUE(contains(
+        damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].symbol = 999; }),
+        "a relocation of table is for the symbol 999"));
+    EXPECT_TRUE(contains(
+        damaged([](ObjectFile &o) { o.find_user_section("table")->relocations[0].offset = 6; }),
+        "a relocation of table is at 6, outside of the section"));
+    EXPECT_TRUE(contains(
+        damaged([](ObjectFile &o) { o.find_user_section("code")->relocations[0].offset = 2; }),
+        "a relocation of code is at 2, which is not the start of an instruction"));
+    EXPECT_TRUE(
+        contains(damaged([](ObjectFile &o) { o.find_user_section("code")->bytes.push_back(1); }),
+                 "the code of code is not made of whole instructions"));
     EXPECT_TRUE(contains(damaged(
                              [](ObjectFile &o)
                              {

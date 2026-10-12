@@ -31,7 +31,7 @@ class PhysicalPages
     /// @return The bytes of the page, or null.
     virtual byte *direct_page(const word ppage)
     {
-        (void)ppage;
+        (void) ppage;
         return nullptr;
     }
 

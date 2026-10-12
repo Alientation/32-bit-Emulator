@@ -133,12 +133,11 @@ bool GdbServer::from_hex(std::string &bytes, const std::string &text)
 
 std::string GdbServer::target_description()
 {
-    std::string xml =
-        "<?xml version=\"1.0\"?>\n"
-        "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n"
-        "<target version=\"1.0\">\n"
-        "  <architecture>arm</architecture>\n"
-        "  <feature name=\"org.gnu.gdb.arm.core\">\n";
+    std::string xml = "<?xml version=\"1.0\"?>\n"
+                      "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n"
+                      "<target version=\"1.0\">\n"
+                      "  <architecture>arm</architecture>\n"
+                      "  <feature name=\"org.gnu.gdb.arm.core\">\n";
     for (U32 i = 0; i <= 12; i++)
     {
         xml += std::format("    <reg name=\"r{}\" bitsize=\"32\" regnum=\"{}\"/>\n", i, i);
@@ -421,8 +420,9 @@ std::string GdbServer::monitor(const std::string &command)
         {
             try
             {
-                text += std::format("{:#010x}: {}\n", address,
-                                    Emulator32bit::disassemble_instr(m_emu.memory.read_word(address)));
+                text +=
+                    std::format("{:#010x}: {}\n", address,
+                                Emulator32bit::disassemble_instr(m_emu.memory.read_word(address)));
             }
             catch (const std::exception &)
             {

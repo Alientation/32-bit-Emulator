@@ -1,10 +1,10 @@
 #pragma once
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifndef TAB_SIZE
-    #define TAB_SIZE 4
+#define TAB_SIZE 4
 #endif
 
 typedef struct Token token_t;
@@ -136,16 +136,14 @@ struct Token
     size_t column;
 };
 
-bool lex_file (const char *filepath,
-              lexer_data_t *lexer);
-bool lex_str (const char *str,
-             lexer_data_t *lexer);
+bool lex_file(const char *filepath, lexer_data_t *lexer);
+bool lex_str(const char *str, lexer_data_t *lexer);
 
-void lexer_init (lexer_data_t *lexer);
-void lexer_print (const lexer_data_t *lexer);
-void lexer_free (lexer_data_t *lexer);
+void lexer_init(lexer_data_t *lexer);
+void lexer_print(const lexer_data_t *lexer);
+void lexer_free(lexer_data_t *lexer);
 
 /* Returns a string representation of a token. String is valid until the next token_tostr() call.
    Memory is not dynamically allocated. */
-char *token_tostr (token_t *tok);
-void token_print (token_t *tok);
+char *token_tostr(token_t *tok);
+void token_print(token_t *tok);

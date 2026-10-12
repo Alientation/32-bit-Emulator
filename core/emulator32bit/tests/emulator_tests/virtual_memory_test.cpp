@@ -1,6 +1,6 @@
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/disk.h"
 #include "emulator32bit/virtual_memory.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <map>
 #include <optional>
@@ -730,7 +730,8 @@ TEST(virtual_memory_fetch, a_page_that_stops_being_executable_cannot_be_fetched_
     EXPECT_EQ(fetch_fault_of(m.vm, 10), Fault::Reason::EXECUTE_DENIED);
 }
 
-TEST(virtual_memory_fetch, a_page_that_becomes_kernel_memory_cannot_be_fetched_from_by_a_user_process)
+TEST(virtual_memory_fetch,
+     a_page_that_becomes_kernel_memory_cannot_be_fetched_from_by_a_user_process)
 {
     Machine m;
     const long long pid = m.vm.begin_process(false);

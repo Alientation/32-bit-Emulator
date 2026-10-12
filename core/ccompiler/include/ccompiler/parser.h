@@ -45,13 +45,11 @@ typedef struct ASTNode
             int value;
         } literal_int;
 
-
         struct
         {
             token_t *tok_op;
-            struct ASTNode *operand;        /* <factor> */
+            struct ASTNode *operand; /* <factor> */
         } unary_expr;
-
 
         struct
         {
@@ -60,7 +58,6 @@ typedef struct ASTNode
             struct ASTNode *operand_b;
         } binary_expr_1;
 
-
         struct
         {
             struct ASTNode *operand_a;
@@ -68,46 +65,39 @@ typedef struct ASTNode
             struct ASTNode *operand_b;
         } binary_expr_2;
 
-
         struct
         {
             struct ASTNode *body;
         } factor;
 
-
         struct
         {
-            struct ASTNode *body;           /* <factor> | <binary_expr_2> */
+            struct ASTNode *body; /* <factor> | <binary_expr_2> */
         } expr;
 
-
         struct
         {
-            struct ASTNode *body;           /* <expr> */
+            struct ASTNode *body; /* <expr> */
         } statement;
-
 
         struct
         {
             token_t *tok_id;
         } ident;
 
-
         struct
         {
-            struct ASTNode *name;           /* <ident> */
-            struct ASTNode *body;           /* <statement> */
+            struct ASTNode *name; /* <ident> */
+            struct ASTNode *body; /* <statement> */
         } func;
 
-
         struct
         {
-            struct ASTNode *func;           /* <func> */
+            struct ASTNode *func; /* <func> */
         } prog;
     } as;
 
 } astnode_t;
-
 
 typedef struct ParserData
 {
@@ -120,12 +110,11 @@ typedef struct ParserData
     stringbuffer_t err_msg_buffer;
 } parser_data_t;
 
-void parse (const lexer_data_t *lexer,
-           parser_data_t *parser);
+void parse(const lexer_data_t *lexer, parser_data_t *parser);
 
-void parser_init (parser_data_t *parser);
-void parser_free (parser_data_t *parser);
+void parser_init(parser_data_t *parser);
+void parser_free(parser_data_t *parser);
 
-void parser_print (parser_data_t *parser);
+void parser_print(parser_data_t *parser);
 
-const char *parser_astnode_type_to_str (astnodetype_t type);
+const char *parser_astnode_type_to_str(astnodetype_t type);

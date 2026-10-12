@@ -1,14 +1,14 @@
+#include "assembler/load_executable.h"
+#include "assembler/object_file.h"
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/gdb_server.h"
 #include "emulator32bit/host_input.h"
-#include "assembler/load_executable.h"
-#include "assembler/object_file.h"
 #include "util/file.h"
 #include "util/logger.h"
 
-#include <cxxopts.hpp>
 #include <cstdio>
+#include <cxxopts.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -439,8 +439,8 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     std::unique_ptr<Disk> disk;
     if (result.count("disk-file"))
     {
-        disk = std::make_unique<Disk>(File(result["disk-file"].as<std::string>()),
-                                      args.disk_npages, args.disk_start_page);
+        disk = std::make_unique<Disk>(File(result["disk-file"].as<std::string>()), args.disk_npages,
+                                      args.disk_start_page);
     }
     else
     {

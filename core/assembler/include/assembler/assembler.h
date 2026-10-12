@@ -4,9 +4,9 @@
 #include "assembler/object_file.h"
 #include "assembler/options.h"
 #include "assembler/tokenizer.h"
+#include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
-#include "emulator32bit/emulator32bit.h"
 
 #include <string>
 #include <unordered_map>
@@ -200,6 +200,7 @@ class Assembler
         U32 index;
         const basm::Token *site;
     };
+
     std::vector<SavedSection> m_saved_sections;
 
     /// How deep the expression being parsed is nested (parentheses, unary operators).

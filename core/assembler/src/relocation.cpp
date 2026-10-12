@@ -46,8 +46,7 @@ word apply_relocation(const ObjectFile::RelocationEntry::Type type, const word i
     case Type::R_EMU32_B_OFFSET22:
     {
         AEMU_CHECK(target % kInstructionSize == 0,
-                   "Expected the branch target to be 4 byte aligned. Got {}",
-                   target);
+                   "Expected the branch target to be 4 byte aligned. Got {}", target);
 
         // The offset in words, relative to the branch instruction itself.
         const sword delta_words = (sword(target) - sword(instr_address)) / sword(kInstructionSize);

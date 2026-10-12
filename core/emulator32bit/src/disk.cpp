@@ -206,7 +206,7 @@ dword Disk::read_val(word address, const size_t n_bytes)
     // Read from the end since the most significant byte will be located there in little endian.
     address += n_bytes - 1;
     word page = address >> kNumPageOffsetBits; // Get the page address (upper bits).
-    word offset = address & (kPageSize - 1); // Offset into the page (lower bits).
+    word offset = address & (kPageSize - 1);   // Offset into the page (lower bits).
     const CachePage *cpage = &get_cpage(page);
 
     dword val = 0;
@@ -276,7 +276,7 @@ void Disk::write_val(word address, dword val, const size_t n_bytes)
     address -= m_start_addr;
 
     word page = address >> kNumPageOffsetBits; // Get the page address (upper bits).
-    word offset = address & (kPageSize - 1); // Offset into the page (lower bits).
+    word offset = address & (kPageSize - 1);   // Offset into the page (lower bits).
     CachePage *cpage = &get_cpage(page);
     cpage->dirty = true;
 
@@ -340,8 +340,7 @@ void Disk::write_cpage(CachePage &cpage)
     m_stream.seekp(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.write(reinterpret_cast<const char *>(cpage.data), kPageSize);
     m_stream.flush();
-    AEMU_CHECK(bool(m_stream), "Error writing page {} to the disk file.",
-               cpage.page);
+    AEMU_CHECK(bool(m_stream), "Error writing page {} to the disk file.", cpage.page);
 
     cpage.dirty = false;
     AEMU_DEBUG("Successfully wrote page {} to disk.", cpage.page);
@@ -353,8 +352,7 @@ void Disk::read_cpage(CachePage &cpage)
     m_stream.clear();
     m_stream.seekg(std::streamoff(U64(cpage.page) << kNumPageOffsetBits));
     m_stream.read(reinterpret_cast<char *>(cpage.data), kPageSize);
-    AEMU_CHECK(bool(m_stream), "Error reading page {} from the disk file.",
-               cpage.page);
+    AEMU_CHECK(bool(m_stream), "Error reading page {} from the disk file.", cpage.page);
 
     AEMU_DEBUG("Successfully read page {} from disk.", cpage.page);
 }

@@ -22,9 +22,8 @@ TEST_F(EmulatorFixture, include_system_dir)
 {
     Build p("-kp " + std::string(AEMU_PROJECT_ROOT_DIR)
             + "assembler/tests/programs/src/include_sys_dir.basm " + "-I "
-            + std::string(AEMU_PROJECT_ROOT_DIR)
-            + "assembler/tests/programs/include/system " + "-outdir "
-            + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/programs/build");
+            + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/programs/include/system "
+            + "-outdir " + std::string(AEMU_PROJECT_ROOT_DIR) + "assembler/tests/programs/build");
     p.run();
     ASSERT_TRUE(p.does_create_exe());
 
@@ -123,7 +122,6 @@ TEST_F(EmulatorFixture, define_undefine)
 
     ASSERT_EQ(machine->read_reg(0), 13);
 }
-
 
 TEST_F(EmulatorFixture, macro_no_args)
 {
@@ -262,4 +260,3 @@ TEST_F(EmulatorFixture, conditional_chain)
     ASSERT_EQ(machine->read_reg(2), 4);
     ASSERT_EQ(machine->read_reg(3), 16);
 }
-

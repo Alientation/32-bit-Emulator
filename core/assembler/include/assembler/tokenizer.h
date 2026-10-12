@@ -16,8 +16,8 @@
 /// - Whitespace is not a token. Whether a token was preceded by whitespace is recorded in
 /// TokenFlag::SPACE_BEFORE, which is what e.g. `#define F(x)` vs `#define F (x)` needs.
 
-#include "util/types.h"
 #include "assembler/instruction_list.h"
+#include "util/types.h"
 
 #include <cstddef>
 #include <deque>

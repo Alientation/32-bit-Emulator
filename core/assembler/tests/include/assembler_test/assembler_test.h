@@ -9,8 +9,8 @@
 #include "assembler/static_library.h"
 #include "assembler/tokenizer.h"
 
-#include <gtest/gtest.h>
 #include <filesystem>
+#include <gtest/gtest.h>
 #include <string>
 
 static constexpr U64 MAX_INSTRUCTIONS = 10000;

@@ -1,7 +1,7 @@
 #include "emulator32bit/emulator32bit_util.h"
 
-#include <gtest/gtest.h>
 #include <array>
+#include <gtest/gtest.h>
 #include <type_traits>
 
 namespace
@@ -132,9 +132,8 @@ TYPED_TEST(BitUtilTest, fields_match_reference)
         {
             for (unsigned len = 1; len <= width - bit_i; len++)
             {
-                const std::string ctx =
-                    "val=" + std::to_string(+val) + " bit_i=" + std::to_string(bit_i) +
-                    " len=" + std::to_string(len);
+                const std::string ctx = "val=" + std::to_string(+val) + " bit_i="
+                                        + std::to_string(bit_i) + " len=" + std::to_string(len);
                 ASSERT_EQ(bitfield_unsigned(val, bit_i, len), ref_unsigned(val, bit_i, len)) << ctx;
                 ASSERT_EQ(bitfield_signed(val, bit_i, len), ref_signed(val, bit_i, len)) << ctx;
                 ASSERT_EQ(zero_bits(val, bit_i, len), ref_mask_0(val, bit_i, len)) << ctx;

@@ -1,5 +1,5 @@
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/memory.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <filesystem>
 #include <fstream>

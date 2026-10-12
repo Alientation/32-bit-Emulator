@@ -1,6 +1,6 @@
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/fbl.h"
 #include "emulator32bit/frame_allocator.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 
 #include <random>
 
@@ -96,7 +96,7 @@ TEST(frame_allocator, it_does_what_the_free_block_list_does_for_single_pages)
             const word page = kFirst - 2 + random() % (count + 4); // some are outside the range
             switch (random() % 3)
             {
-            case 0: // allocate
+            case 0:                                                // allocate
             {
                 const bool can = list.can_fit(1);
                 ASSERT_EQ(frames.any_free(), can);

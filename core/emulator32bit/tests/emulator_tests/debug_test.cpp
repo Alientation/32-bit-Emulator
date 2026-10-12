@@ -1,6 +1,6 @@
-#include "emulator32bit_test/emulator32bit_test.h"
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/symbols.h"
+#include "emulator32bit_test/emulator32bit_test.h"
 #include "util/logger.h"
 
 #include <format>
@@ -461,10 +461,10 @@ TEST_F(DebuggerTest, backtrace_stops_at_a_broken_chain)
     cpu.write_reg(Register::FP, 0x202);
     EXPECT_NE(command("bt").find("not word aligned"), std::string::npos);
 
-    cpu.write_reg(Register::FP, 0x10000000);  // not mapped
+    cpu.write_reg(Register::FP, 0x10000000); // not mapped
     EXPECT_NE(command("bt").find("cannot read"), std::string::npos);
 
-    cpu.memory.write_word(0x200, 0x100);      // below its own record
+    cpu.memory.write_word(0x200, 0x100);     // below its own record
     cpu.memory.write_word(0x204, 0x44);
     cpu.write_reg(Register::FP, 0x200);
     const std::string text = command("bt");
@@ -690,14 +690,16 @@ TEST_F(WatchpointTest, the_old_value_of_a_byte_store_is_that_byte_and_a_read_has
 TEST(WatchCompare, compares_the_value_as_an_unsigned_number)
 {
     using Compare = Emulator32bit::WatchCompare;
+
     struct Case
     {
         Compare compare;
         bool less, equal, greater; // for a value below, at and above the number
     };
-    const Case cases[] = {{Compare::NONE, true, true, true},   {Compare::EQ, false, true, false},
-                          {Compare::NE, true, false, true},    {Compare::LT, true, false, false},
-                          {Compare::LE, true, true, false},    {Compare::GT, false, false, true},
+
+    const Case cases[] = {{Compare::NONE, true, true, true}, {Compare::EQ, false, true, false},
+                          {Compare::NE, true, false, true},  {Compare::LT, true, false, false},
+                          {Compare::LE, true, true, false},  {Compare::GT, false, false, true},
                           {Compare::GE, false, true, true}};
     for (const Case &c : cases)
     {

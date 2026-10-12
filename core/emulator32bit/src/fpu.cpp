@@ -81,7 +81,8 @@ class HostFpu
 class HostFpu
 {
   public:
-    [[gnu::always_inline]] explicit HostFpu(word rounding) : m_saved(std::fegetround())
+    [[gnu::always_inline]] explicit HostFpu(word rounding) :
+        m_saved(std::fegetround())
     {
         constexpr S32 kModes[4] = {FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO};
         std::feclearexcept(FE_ALL_EXCEPT);
@@ -121,10 +122,10 @@ class HostFpu
 #endif
 
 /// The two precisions, with what the code needs to know about the bit patterns.
-template <class T>
+template<class T>
 struct Format;
 
-template <>
+template<>
 struct Format<float>
 {
     using Bits = U32;
@@ -134,7 +135,7 @@ struct Format<float>
     static constexpr Bits kDefaultNan = 0x7FC00000u;
 };
 
-template <>
+template<>
 struct Format<double>
 {
     using Bits = U64;
@@ -161,8 +162,8 @@ bool is_signaling_nan(const T value)
 {
     using F = Format<T>;
     const typename F::Bits bits = std::bit_cast<typename F::Bits>(value);
-    return (bits & F::kExponent) == F::kExponent
-           && (bits & ~(F::kSign | F::kExponent)) != 0 && (bits & F::kQuiet) == 0;
+    return (bits & F::kExponent) == F::kExponent && (bits & ~(F::kSign | F::kExponent)) != 0
+           && (bits & F::kQuiet) == 0;
 }
 
 /// @return The bits of @p value, or the default NaN if it is one.
@@ -372,7 +373,7 @@ Result binary(const U8 fn, const bool dbl, const U64 a, const U64 b, const word 
 }
 
 Result fused(const U8 fn, const bool dbl, const U64 a, const U64 b, const U64 c,
-              const word rounding)
+             const word rounding)
 {
     return dbl ? fused_op<double>(fn, a, b, c, rounding) : fused_op<float>(fn, a, b, c, rounding);
 }
