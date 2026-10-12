@@ -233,12 +233,12 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     0, `run()` turns what stops an instruction into an exception instead of ending the run:
     `deliver_exception` maps the C++ exceptions (`Emulator32bit::Trap` of type
     `BAD_INSTR`/`BAD_REG`, `PageFault`, `SystemBus::BusError`) to undefined instruction /
-    instruction abort / data abort, `enter_exception` saves ELR/SPSR/ESR/FAR, goes to kernel mode
+    instruction abort / data abort, `raise_exception` saves ELR/SPSR/ESR/FAR, goes to kernel mode
     (banked `sp`) and jumps to `VBAR + 16 * class`; `ERET` returns. `HALT_INSTR`, a failed assertion
     and a `FatalError` are never exceptions. With `VBAR == 0` nothing changes (the old fault path).
     A `Trap` carries an ISS (`kUndefinedIss_*`) for the syndrome, so a new `throw Trap
     (BAD_INSTR, ...)` should pass the right one. A handler that sets `m_pc` itself (a taken
-    branch, `ERET`, `enter_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
+    branch, `ERET`, `raise_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
     call `require_kernel ()`.
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
     `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
