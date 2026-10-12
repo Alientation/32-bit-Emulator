@@ -616,7 +616,7 @@ TEST_F(WatchpointTest, removing_and_clearing)
 
 TEST_F(WatchpointTest, there_is_a_limit_and_a_replacement_needs_no_room)
 {
-    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    for (size_t i = 0; i < kMaxWatchpoints; i++)
     {
         EXPECT_TRUE(cpu.add_watchpoint(0x1000 + 0x10 * i));
     }
@@ -1012,7 +1012,7 @@ TEST_F(WatchpointDebuggerTest, a_condition_and_a_physical_address_in_the_command
 
 TEST_F(WatchpointDebuggerTest, a_full_table_says_so)
 {
-    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    for (size_t i = 0; i < kMaxWatchpoints; i++)
     {
         command(std::format("watch {:#x}", 0x1000 + 0x10 * i));
     }

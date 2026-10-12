@@ -20,10 +20,10 @@
 #include <string>
 
 /// The most watchpoints that can be set at once (`add_watchpoint`).
-inline constexpr unsigned kMaxWatchpoints = 16;
+inline constexpr size_t kMaxWatchpoints = 16;
 
 /// The most registers that can be watched at once (`add_register_watch`).
-inline constexpr unsigned kMaxRegisterWatches = 8;
+inline constexpr size_t kMaxRegisterWatches = 8;
 
 /// The deepest nesting of exceptions that `exception_depth ()` counts. Deeper ones are not counted.
 inline constexpr U8 kMaxExceptionDepth = 255;
@@ -229,7 +229,7 @@ class Emulator32bit
         ACCESS = 3, ///< Either.
     };
 
-    /// How the value of an access is compared with the number of a watchpoint (unsigned).
+    /// How the value of an access is compared with watchpoint's value.
     enum class WatchCompare : U8
     {
         NONE, ///< Every access counts.
@@ -293,14 +293,14 @@ class Emulator32bit
     void clear_watchpoints();
 
     /// @return The number of watchpoints, at most kMaxWatchpoints.
-    unsigned watchpoint_count() const
+    size_t watchpoint_count() const
     {
         return m_watchpoints.count;
     }
 
     /// @param[in] i The index, below watchpoint_count (it changes when one is removed).
     /// @return The watchpoint.
-    Watchpoint watchpoint(unsigned i) const;
+    Watchpoint watchpoint(size_t i) const;
 
     /// What the last watchpoint that stopped a run was hit by.
     struct WatchHit
@@ -350,14 +350,14 @@ class Emulator32bit
     };
 
     /// @return The number of register watches, at most kMaxRegisterWatches.
-    unsigned register_watch_count() const
+    size_t register_watch_count() const
     {
         return m_regwatches.count;
     }
 
     /// @param[in] i The index, below register_watch_count (it changes when one is removed).
     /// @return The register watch.
-    RegisterWatch register_watch(unsigned i) const;
+    RegisterWatch register_watch(size_t i) const;
 
     /// Writes a line per instruction to the stream before the next run (), or nothing for nullptr:
     /// `pc <symbol>: instruction | what changed`, or the reason when the instruction faulted.
@@ -696,10 +696,13 @@ class Emulator32bit
     /// @param[in] instr The instruction.
     void record_history(word instr);
 
+    /// The index that find_watchpoint () and find_register_watch () return for no match.
+    static constexpr size_t kNotFound = ~U64(0);
+
     /// @param[in] address The address.
     /// @param[in] physical Whether the watchpoint is on a physical address.
-    /// @return The index of the watchpoint at the address, or m_watchpoints.count if there is none.
-    unsigned find_watchpoint(word address, bool physical) const;
+    /// @return The index of the watchpoint at the address, or kNotFound if there is none.
+    size_t find_watchpoint(word address, bool physical) const;
 
     /// Looks at the watched registers between two instructions, which covers a completed
     /// instruction and an exception entry.
@@ -710,8 +713,8 @@ class Emulator32bit
     bool register_watch_hit(RunResult &result);
 
     /// @param[in] reg The register.
-    /// @return The index of the watch on the register, or m_regwatches.count if there is none.
-    unsigned find_register_watch(U8 reg) const;
+    /// @return The index of the watch on the register, or kNotFound if there is none.
+    size_t find_register_watch(U8 reg) const;
 
     /// Adds a register watch or replaces the one on `reg`. The overloads of add_register_watch ()
     /// call it.
@@ -737,7 +740,7 @@ class Emulator32bit
     /// The watchpoints, see Watchpoint.
     struct WatchpointTable
     {
-        unsigned count = 0;
+        size_t count = 0;
         word address[kMaxWatchpoints];
         word length[kMaxWatchpoints];
         WatchKind kind[kMaxWatchpoints];
@@ -757,7 +760,7 @@ class Emulator32bit
     /// The register watches, see RegisterWatch.
     struct RegisterWatchTable
     {
-        unsigned count = 0;
+        size_t count = 0;
         U8 reg[kMaxRegisterWatches];
         word value[kMaxRegisterWatches];
         word last[kMaxRegisterWatches];

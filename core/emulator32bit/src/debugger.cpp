@@ -418,13 +418,13 @@ void Debugger::command_watches()
     {
         m_out << "No watchpoints.\n";
     }
-    for (unsigned i = 0; i < m_emu.register_watch_count(); i++)
+    for (size_t i = 0; i < m_emu.register_watch_count(); i++)
     {
         const Emulator32bit::RegisterWatch watch = m_emu.register_watch(i);
         m_out << "  " << register_name(watch.reg) << ", changes"
               << (watch.has_value ? std::format(" to {:#x}", watch.value) : "") << "\n";
     }
-    for (unsigned i = 0; i < m_emu.watchpoint_count(); i++)
+    for (size_t i = 0; i < m_emu.watchpoint_count(); i++)
     {
         const Emulator32bit::Watchpoint watch = m_emu.watchpoint(i);
         m_out << "  "

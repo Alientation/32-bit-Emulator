@@ -188,7 +188,7 @@ bool translate_watched_byte(word &physical_address, VirtualMemory &mmu, const wo
 
 bool Emulator32bit::register_watch_hit(RunResult &result)
 {
-    for (unsigned i = 0; i < m_regwatches.count; i++)
+    for (size_t i = 0; i < m_regwatches.count; i++)
     {
         const word now = read_reg(m_regwatches.reg[i]);
         const word before = m_regwatches.last[i];
@@ -219,7 +219,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
     // Start without the hit of the last run. The debugger may have changed the watched registers
     // between runs, so their last values are read again.
     m_watchpoints.hit_message.clear();
-    for (unsigned i = 0; i < m_regwatches.count; i++)
+    for (size_t i = 0; i < m_regwatches.count; i++)
     {
         m_regwatches.last[i] = read_reg(m_regwatches.reg[i]);
     }
@@ -404,15 +404,16 @@ const std::set<word> &Emulator32bit::breakpoints() const
     return m_breakpoints;
 }
 
-unsigned Emulator32bit::find_watchpoint(const word address, const bool physical) const
+size_t Emulator32bit::find_watchpoint(const word address, const bool physical) const
 {
-    unsigned i = 0;
-    while (i < m_watchpoints.count
-           && !(m_watchpoints.address[i] == address && m_watchpoints.physical.test(i) == physical))
+    for (size_t i = 0; i < m_watchpoints.count; i++)
     {
-        i++;
+        if (m_watchpoints.address[i] == address && m_watchpoints.physical.test(i) == physical)
+        {
+            return i;
+        }
     }
-    return i; // Not found: the count.
+    return kNotFound;
 }
 
 bool Emulator32bit::add_watchpoint(const word address, const word length, const WatchKind kind,
@@ -420,11 +421,11 @@ bool Emulator32bit::add_watchpoint(const word address, const word length, const 
                                    const word compare_value)
 {
     AEMU_CHECK(length != 0, "A watchpoint needs a length of at least 1");
-    const unsigned i = find_watchpoint(address, physical);
-    if (i == m_watchpoints.count)
+    size_t i = find_watchpoint(address, physical);
+    if (i == kNotFound)
     {
         if (m_watchpoints.count == kMaxWatchpoints) return false;
-        m_watchpoints.count++;
+        i = m_watchpoints.count++;
     }
     m_watchpoints.address[i] = address;
     m_watchpoints.length[i] = length;
@@ -437,12 +438,12 @@ bool Emulator32bit::add_watchpoint(const word address, const word length, const 
 
 bool Emulator32bit::remove_watchpoint(const word address, const bool physical)
 {
-    const unsigned i = find_watchpoint(address, physical);
-    if (i == m_watchpoints.count)
+    const size_t i = find_watchpoint(address, physical);
+    if (i == kNotFound)
     {
         return false;
     }
-    const unsigned last = --m_watchpoints.count;
+    const size_t last = --m_watchpoints.count;
     m_watchpoints.address[i] = m_watchpoints.address[last];
     m_watchpoints.length[i] = m_watchpoints.length[last];
     m_watchpoints.kind[i] = m_watchpoints.kind[last];
@@ -481,7 +482,7 @@ void Emulator32bit::clear_watchpoints()
     m_watchpoints.physical.clear();
 }
 
-Emulator32bit::Watchpoint Emulator32bit::watchpoint(const unsigned i) const
+Emulator32bit::Watchpoint Emulator32bit::watchpoint(const size_t i) const
 {
     AEMU_CHECK(i < m_watchpoints.count, "There is no watchpoint {}", i);
     return {.address = m_watchpoints.address[i],
@@ -492,21 +493,23 @@ Emulator32bit::Watchpoint Emulator32bit::watchpoint(const unsigned i) const
             .compare_value = m_watchpoints.compare_value[i]};
 }
 
-unsigned Emulator32bit::find_register_watch(const U8 reg) const
+size_t Emulator32bit::find_register_watch(const U8 reg) const
 {
-    unsigned i = 0;
-    while (i < m_regwatches.count && m_regwatches.reg[i] != reg) i++;
-    return i; // Not found: the count.
+    for (size_t i = 0; i < m_regwatches.count; i++)
+    {
+        if (m_regwatches.reg[i] == reg) return i;
+    }
+    return kNotFound;
 }
 
 bool Emulator32bit::set_register_watch(const U8 reg, const bool has_value, const word value)
 {
     AEMU_CHECK(reg <= static_cast<U8>(Register::SP), "Cannot watch register {}", reg);
-    const unsigned i = find_register_watch(reg);
-    if (i == m_regwatches.count)
+    size_t i = find_register_watch(reg);
+    if (i == kNotFound)
     {
         if (m_regwatches.count == kMaxRegisterWatches) return false;
-        m_regwatches.count++;
+        i = m_regwatches.count++;
     }
     m_regwatches.reg[i] = reg;
     m_regwatches.has_value.assign(i, has_value);
@@ -527,9 +530,9 @@ bool Emulator32bit::add_register_watch(const U8 reg, const word value)
 
 bool Emulator32bit::remove_register_watch(const U8 reg)
 {
-    const unsigned i = find_register_watch(reg);
-    if (i == m_regwatches.count) return false;
-    const unsigned last = --m_regwatches.count;
+    const size_t i = find_register_watch(reg);
+    if (i == kNotFound) return false;
+    const size_t last = --m_regwatches.count;
     m_regwatches.reg[i] = m_regwatches.reg[last];
     m_regwatches.has_value.copy(last, i);
     m_regwatches.value[i] = m_regwatches.value[last];
@@ -543,7 +546,7 @@ void Emulator32bit::clear_register_watches()
     m_regwatches.has_value.clear();
 }
 
-Emulator32bit::RegisterWatch Emulator32bit::register_watch(const unsigned i) const
+Emulator32bit::RegisterWatch Emulator32bit::register_watch(const size_t i) const
 {
     AEMU_CHECK(i < m_regwatches.count, "There is no register watch {}", i);
     return {.reg = m_regwatches.reg[i],
@@ -574,7 +577,7 @@ void Emulator32bit::watch_access(const word address, const word length, const bo
 
     const U64 first = address;
     const U64 last = first + length; // One past the end, in 64 bits so that it cannot wrap.
-    for (unsigned i = 0; i < m_watchpoints.count; i++)
+    for (size_t i = 0; i < m_watchpoints.count; i++)
     {
         const WatchKind kind = m_watchpoints.kind[i];
         const bool kind_matches =

@@ -204,7 +204,7 @@ TEST_F(GdbTest, a_watchpoint_stops_after_the_access)
     EXPECT_EQ(ask("Z2,100,0"), "E01") << "no length";
 
     EXPECT_EQ(ask("z4,100,4"), "OK");
-    for (unsigned i = 0; i < kMaxWatchpoints; i++)
+    for (size_t i = 0; i < kMaxWatchpoints; i++)
     {
         EXPECT_EQ(ask(std::format("Z2,{:x},4", 0x1000 + 0x10 * i)), "OK");
     }
