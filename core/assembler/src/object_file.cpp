@@ -64,10 +64,10 @@ void write_relocations(ByteWriter &byte_writer, size_t &current_byte,
 
 ObjectFile::ObjectFile() = default;
 
-const std::array<ObjectFile::ByteSection, ObjectFile::kNumByteSections> &ObjectFile::byte_sections()
+const ObjectFile::ByteSections &ObjectFile::byte_sections()
 {
     using Type = SectionHeader::Type;
-    static const std::array<ByteSection, kNumByteSections> sections = {{
+    static const ByteSections sections = {
         {.name = ".data",
          .rel_name = ".rel.data",
          .type = Type::DATA,
@@ -100,7 +100,7 @@ const std::array<ObjectFile::ByteSection, ObjectFile::kNumByteSections> &ObjectF
          .relocations = &ObjectFile::rel_fini_array,
          .writable = false,
          .alignment = 4},
-    }};
+    };
     return sections;
 }
 

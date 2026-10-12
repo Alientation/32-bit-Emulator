@@ -3,7 +3,6 @@
 #include "emulator32bit/emulator32bit_util.h"
 #include "util/file.h"
 
-#include <array>
 #include <iosfwd>
 #include <map>
 #include <unordered_map>
@@ -394,8 +393,10 @@ class ObjectFile
     static constexpr size_t kInitArrayIndex = 2;
     static constexpr size_t kFiniArrayIndex = 3;
 
+    using ByteSections = ByteSection[kNumByteSections];
+
     /// @return The byte sections, in the order .data, .rodata, .init_array, .fini_array.
-    static const std::array<ByteSection, kNumByteSections> &byte_sections();
+    static const ByteSections &byte_sections();
 
     /// @param[in] type A section type or relocation section type.
     /// @return The byte section with the type, or null if the type is none of them.

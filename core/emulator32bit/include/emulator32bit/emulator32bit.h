@@ -12,7 +12,6 @@
 #include "emulator32bit/virtual_memory.h"
 #include "util/bitarray.h"
 
-#include <array>
 #include <iosfwd>
 #include <memory>
 #include <optional>
@@ -376,7 +375,7 @@ class Emulator32bit
     size_t history_size() const;
 
     /// Room for the most instructions that the history can keep.
-    using History = std::array<ExecutedInstruction, kMaxHistory>;
+    using History = ExecutedInstruction[kMaxHistory];
 
     /// @param[out] out Receives the last instructions that were executed, the oldest first.
     /// @return The number of entries of `out` that were written, at most history_size ().

@@ -3,7 +3,6 @@
 #include "assembler/object_file.h"
 #include "assembler/tokenizer.h"
 
-#include <array>
 #include <unordered_map>
 #include <vector>
 
@@ -87,7 +86,7 @@ class Linker
     struct SectionBase
     {
         word text = 0;
-        std::array<word, ObjectFile::kNumByteSections> bytes = {};
+        word bytes[ObjectFile::kNumByteSections] = {};
         word bss = 0;
         std::vector<word> users = {};
     };

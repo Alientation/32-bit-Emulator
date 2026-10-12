@@ -436,7 +436,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections()
 {
     const auto &byte_sections = ObjectFile::byte_sections();
     SectionBase alignment = {.text = kInstructionSize, .bytes = {}, .bss = 1};
-    for (size_t k = 0; k < byte_sections.size(); k++)
+    for (size_t k = 0; k < ObjectFile::kNumByteSections; k++)
     {
         alignment.bytes[k] = 1;
     }
@@ -457,7 +457,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections()
         m_exe.text_section.insert(m_exe.text_section.end(), obj.text_section.begin(),
                                   obj.text_section.end());
 
-        for (size_t k = 0; k < byte_sections.size(); k++)
+        for (size_t k = 0; k < ObjectFile::kNumByteSections; k++)
         {
             const ObjectFile::ByteSection &section = byte_sections[k];
             std::vector<byte> &merged = m_exe.*section.bytes;
@@ -497,7 +497,7 @@ std::vector<Linker::SectionBase> Linker::merge_sections()
     }
 
     m_exe.sections[m_exe.section_table.at(".text")].alignment = alignment.text;
-    for (size_t k = 0; k < byte_sections.size(); k++)
+    for (size_t k = 0; k < ObjectFile::kNumByteSections; k++)
     {
         m_exe.sections[m_exe.section_table.at(byte_sections[k].name)].alignment =
             alignment.bytes[k];
@@ -700,7 +700,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(const std::vector<SectionBa
                 }
                 else if (const ObjectFile::ByteSection *bytes = ObjectFile::byte_section_of(type))
                 {
-                    const size_t k = bytes - ObjectFile::byte_sections().data();
+                    const size_t k = bytes - ObjectFile::byte_sections();
                     value += addresses.bytes[k] + bases[i].bytes[k];
                 }
             }
@@ -787,7 +787,7 @@ void Linker::relocate(const std::vector<SectionBase> &bases, const SectionBase &
         }
 
         // The words of .data, .rodata and the arrays that hold the address of a symbol.
-        for (size_t k = 0; k < ObjectFile::byte_sections().size(); k++)
+        for (size_t k = 0; k < ObjectFile::kNumByteSections; k++)
         {
             const ObjectFile::ByteSection &section = ObjectFile::byte_sections()[k];
             for (const ObjectFile::RelocationEntry &rel : obj.*section.relocations)
