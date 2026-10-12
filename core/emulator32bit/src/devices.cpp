@@ -52,29 +52,31 @@ InterruptController::InterruptController() :
 
 void InterruptController::raise(const word line)
 {
-    if (line >= 32 || !(m_enable & (word(1) << line)) || (m_queued & (word(1) << line)))
+    if (line >= kLines || !test_bit(m_enable, line) || test_bit(m_queued, line))
     {
         return;
     }
-    m_queued |= word(1) << line;
-    m_queue.push_back(line);
+    m_queued = set_bit(m_queued, line, true);
+    m_ring[(m_head + m_count) & (kLines - 1)] = U8(line);
+    ++m_count;
 }
 
 word InterruptController::claim()
 {
-    if (m_queue.empty())
+    if (m_count == 0)
     {
         return 0xFFFFFFFF;
     }
-    const word line = m_queue.front();
-    m_queue.pop_front();
-    m_queued &= ~(word(1) << line);
+    const U8 line = m_ring[m_head];
+    m_head = U8((m_head + 1) & (kLines - 1));
+    --m_count;
+    m_queued = set_bit(m_queued, line, false);
     return line;
 }
 
 void InterruptController::reset()
 {
-    m_queue.clear();
+    m_count = 0;
     m_queued = 0;
     m_enable = 0;
 }
@@ -86,7 +88,7 @@ word InterruptController::read_register(const word offset)
     case 0x00:
         return claim();
     case 0x04:
-        return word(m_queue.size());
+        return m_count;
     case 0x08:
         return m_enable;
     case 0x10:

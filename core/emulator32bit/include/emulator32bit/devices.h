@@ -56,7 +56,8 @@ class Device : public BaseMemory
 };
 
 /// The interrupt controller. Lines are served first come, first served: a line that is raised
-/// joins the end of a queue, a line that is already in it is not queued again, and the CPU takes
+/// joins the end of a queue (a ring of 32 entries, which cannot overflow because a line that is
+/// already in it is not queued again), and the CPU takes
 /// the interrupt exception while the queue is not empty and IRQs are not masked. The handler reads
 /// CLAIM to get the line at the head, which removes it.
 ///
@@ -79,7 +80,7 @@ class InterruptController : public Device
     /// @return Whether any line is in the queue.
     bool has_pending() const
     {
-        return !m_queue.empty();
+        return m_count != 0;
     }
 
     /// Removes the line at the head of the queue.
@@ -100,8 +101,13 @@ class InterruptController : public Device
     void write_register(word offset, word value) override;
 
   private:
-    std::deque<word> m_queue;
-    word m_queued = 0; /// Bit n: line n is in the queue.
+    static constexpr U8 kLines = 32; /// A power of two, the ring wraps with a mask.
+    static_assert((kLines & (kLines - 1)) == 0);
+
+    U8 m_ring[kLines] = {};          /// The lines in the queue, from m_head on, wrapping.
+    U8 m_head = 0;
+    U8 m_count = 0;
+    word m_queued = 0;               /// Bit n: line n is in the queue.
     word m_enable = 0;
 };
 

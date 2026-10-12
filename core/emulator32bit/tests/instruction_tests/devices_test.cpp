@@ -134,6 +134,36 @@ TEST(InterruptControllerUnit,
     EXPECT_EQ(intc.claim(), 0xFFFFFFFFu);
 }
 
+TEST(InterruptControllerUnit, the_queue_holds_all_32_lines_and_keeps_its_order_when_it_wraps)
+{
+    InterruptController intc;
+    intc.write_word(kIntcBase + 0x08, 0xFFFFFFFF);
+    for (word line = 0; line < 32; ++line)
+    {
+        intc.raise(31 - line);
+    }
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 32u);
+    for (word line = 31; line >= 12; --line)
+    {
+        EXPECT_EQ(intc.claim(), line);
+    }
+    for (word line = 31; line >= 12; --line)
+    {
+        intc.raise(line); // the tail passes the end of the ring; lines 11-0 are still waiting
+    }
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x04), 32u);
+    for (word line = 11; line != ~word(0); --line)
+    {
+        EXPECT_EQ(intc.claim(), line);
+    }
+    for (word line = 31; line >= 12; --line)
+    {
+        EXPECT_EQ(intc.claim(), line);
+    }
+    EXPECT_FALSE(intc.has_pending());
+    EXPECT_EQ(intc.claim(), 0xFFFFFFFFu);
+}
+
 TEST(InterruptControllerUnit, a_line_that_is_not_enabled_is_lost)
 {
     InterruptController intc;
@@ -156,6 +186,7 @@ TEST(InterruptControllerUnit, reset_empties_the_queue_and_disables_the_lines)
     intc.raise(0);
     intc.reset();
     EXPECT_FALSE(intc.has_pending());
+    EXPECT_EQ(intc.read_word(kIntcBase + 0x10), 0u);
     EXPECT_EQ(intc.read_word(kIntcBase + 0x08), 0u);
 }
 
