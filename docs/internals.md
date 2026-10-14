@@ -138,12 +138,15 @@ and the release build has debug info so the samples can be attributed to source 
   without building.
 - `app/emulator_app`: builds the program and runs it on the emulator. Sample programs are in
   `core/app/programs/`.
-- `ccompiler/bcc`: C to basm, `bcc [-o out.basm] in.c`; exits 0 on success and 1 on an error, with
-  the file, the line and the place on stderr. How it is built and what it does is in
+- `ccompiler/bcc`: C to basm, `bcc [-E] [-o out] [-I dir] [-D name[=value]] [-U name] in.c`
+  (`-E` writes the preprocessed tokens instead); exits 0 on success and 1 on an error, with the
+  file, the line and the place on stderr. How it is built and what it does is in
   [ccompiler.md](ccompiler.md). Its test (`integration_tests/ccompiler_integration/`) is the
   assembler's pattern with `bcc` in front and the extra definitions `CCOMPILER_PATH` and
   `CRT0_PATH` (`ccompiler/lib/crt0.basm`, linked with every program); it keeps its scratch dirs in
-  `/tmp/aemu_ccompiler_integration/`.
+  `/tmp/aemu_ccompiler_integration/`. The lexer and the preprocessor also have unit tests
+  (`ccompiler/tests/`, label `ccompiler`), which call the C library and check the errors with death
+  tests; their scratch dirs are in `/tmp/aemu_ccompiler_tests/`.
 
 Integration tests receive the binary paths as the `EMULATOR_PATH` / `ASSEMBLER_PATH` compile
 definitions, and `PROGRAMS_DIR` (core/app/programs). The assembler suite

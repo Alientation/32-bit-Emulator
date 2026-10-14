@@ -4,7 +4,7 @@ Work that is not done yet. The other documents describe what exists, so what is 
 
 ## C compiler
 
-The compiler (`core/ccompiler`, [ccompiler.md](ccompiler.md)) has a first slice that compiles `int` expressions. What is left is its [plan](ccompiler.md#plan): core C, aggregates, the preprocessor and a libc (with semihosting file calls in the emulator), the bootstrap, `long long` and floating point, and optimization.
+The compiler (`core/ccompiler`, [ccompiler.md](ccompiler.md)) has a complete lexer and preprocessor, and a first slice of the parser and code generator that compiles `int` expressions. What is left is its [plan](ccompiler.md#plan): core C, aggregates, the freestanding headers and a libc (with semihosting file calls in the emulator), the bootstrap, `long long` and floating point, and optimization.
 
 ## Code and build
 

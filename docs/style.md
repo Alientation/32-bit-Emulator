@@ -69,7 +69,7 @@ A few records the program keeps for its whole run (watchpoints, register watches
 - **Names:** types are `CamelCase` typedefs, functions and variables `snake_case`, enumerators upper case with the prefix of their enum (`TK_`, `ND_`, `TY_`). Everything used in one file only is `static`.
 - **The grammar** in [ccompiler.md](ccompiler.md#grammar) changes with the parser, in the same commit, and so does the `///` rule above the function.
 - **Tables over chains of `if`:** the keyword list, the punctuators and the binary operator levels are arrays, and a new one is a row.
-- **Tests** are end to end, in the integration test: a case needs an expected value worked out by hand and checked with the host compiler.
+- **Tests** are end to end, in the integration test: a case needs an expected value worked out by hand and checked with the host compiler. The lexer and the preprocessor have unit tests as well (`core/ccompiler/tests`), whose expected expansions are the standard's examples or the host's `cpp -P`.
 
 ## Performance
 

@@ -77,19 +77,19 @@ class CompilerIntegration : public ::testing::Test
         return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     }
 
-    /// Compiles `source`, a whole C file, to test.basm. Returns the exit code of bcc, whose
-    /// messages are in bcc.log.
-    int compile(const std::string &source)
+    /// Compiles `source`, a whole C file, to test.basm, with the bcc options `options`. Returns
+    /// the exit code of bcc, whose messages are in bcc.log.
+    int compile(const std::string &source, const std::string &options = "")
     {
         write_file("test.c", source);
-        return run_command(CCOMPILER_PATH, "-o test.basm test.c", "bcc.log");
+        return run_command(CCOMPILER_PATH, options + " -o test.basm test.c", "bcc.log");
     }
 
     /// Compiles `source`, links it with crt0 and runs it. Fails the test unless the program halts.
     /// x0 starts as 99, so that a result of 0 is something main did.
-    void run_c(const std::string &source)
+    void run_c(const std::string &source, const std::string &options = "")
     {
-        ASSERT_EQ(compile(source), 0) << log_tail("bcc.log");
+        ASSERT_EQ(compile(source, options), 0) << log_tail("bcc.log");
         ASSERT_EQ(run_command(ASSEMBLER_PATH, "-o prog \"" CRT0_PATH "\" test.basm -outdir .",
                               "basm.log"),
                   0)
@@ -114,9 +114,9 @@ class CompilerIntegration : public ::testing::Test
     }
 
     /// Runs a program and expects main to return `expected`.
-    void expect_result(const std::string &source, word expected)
+    void expect_result(const std::string &source, word expected, const std::string &options = "")
     {
-        ASSERT_NO_FATAL_FAILURE(run_c(source));
+        ASSERT_NO_FATAL_FAILURE(run_c(source, options));
         EXPECT_EQ(static_cast<word>(std::stoull(m_state["x0"], nullptr, 0)), expected);
     }
 
@@ -226,11 +226,67 @@ TEST_F(CompilerIntegration, rejects_what_is_not_valid)
 
 TEST_F(CompilerIntegration, rejects_invalid_integer_constants)
 {
-    expect_error("int main(void) { return 2147483648; }", "does not fit in an int");
-    expect_error("int main(void) { return 99999999999; }", "too large");
+    expect_error("int main(void) { return 18446744073709551616; }", "too large");
     expect_error("int main(void) { return 09; }", "invalid integer constant");
     expect_error("int main(void) { return 0x; }", "invalid integer constant");
-    expect_error("int main(void) { return 12u; }", "invalid integer constant");
+    expect_error("int main(void) { return 12uu; }", "invalid integer constant");
+}
+
+TEST_F(CompilerIntegration, rejects_constants_of_other_types_than_int)
+{
+    // The lexer knows them, the parser does not yet: their value would be read as an int.
+    expect_error("int main(void) { return 2147483648; }",
+                 "constants of type 'long long' are not supported yet");
+    expect_error("int main(void) { return 12u; }",
+                 "constants of type 'unsigned int' are not supported yet");
+    expect_error("int main(void) { return 0x80000000; }",
+                 "constants of type 'unsigned int' are not supported yet");
+    expect_error("int main(void) { return 1.5; }",
+                 "constants of type 'double' are not supported yet");
+}
+
+TEST_F(CompilerIntegration, character_constants_and_digraphs)
+{
+    expect_result("int main(void) <% return 'A' + '\\n' + '\\377'; %>", 65 + 10 - 1);
+}
+
+TEST_F(CompilerIntegration, preprocessor)
+{
+    write_file("defs.h", "#ifndef DEFS_H\n#define DEFS_H\n#define TWICE(x) ((x) + (x))\n"
+                         "int seven(void) { return 7; }\n#endif\n");
+    expect_result(R"(#include "defs.h"
+#include "defs.h"
+#define LIMIT 10
+#define CAT(a, b) a ## b
+#if LIMIT > 5 && defined TWICE && __STDC_VERSION__ >= 201710L
+int CAT(ma, in)(void) { return TWICE(LIMIT) + __LINE__; }
+#else
+int main(void) { return 0; }
+#endif
+)",
+                  26);
+}
+
+TEST_F(CompilerIntegration, preprocessor_options)
+{
+    fs::create_directories(m_dir / "inc");
+    write_file("inc/value.h", "#define VALUE 30\n");
+    expect_result("#include <value.h>\nint main(void) { return VALUE + EXTRA + ONE; }", 35,
+                  "-I inc -D EXTRA=4 -DONE -U __bcc__");
+
+    write_file("test.c", "#define F(x) x + x\nF(1)\n");
+    ASSERT_EQ(run_command(CCOMPILER_PATH, "-E -o test.i test.c", "bcc.log"), 0)
+        << log_tail("bcc.log");
+    EXPECT_EQ(log_tail("test.i"), "1 + 1\n");
+}
+
+TEST_F(CompilerIntegration, preprocessor_errors_name_the_file_and_line)
+{
+    write_file("bad.h", "\n\nint f(void) { return 1 + ; }\n");
+    expect_error("#include \"bad.h\"\nint main(void) { return 0; }", "bad.h:3:");
+    expect_error("#line 50 \"renamed.c\"\nint main(void) { return @; }", "renamed.c:50:");
+    expect_error("#if 1\nint main(void) { return 0; }\n", "unterminated #if");
+    expect_error("#error not done\n", "#error not done");
 }
 
 TEST_F(CompilerIntegration, reports_the_place_of_an_error)
@@ -245,6 +301,7 @@ TEST_F(CompilerIntegration, usage_errors)
 {
     EXPECT_EQ(run_command(CCOMPILER_PATH, "", "bcc.log"), 1);
     EXPECT_EQ(run_command(CCOMPILER_PATH, "a.c b.c", "bcc.log"), 1);
+    EXPECT_EQ(run_command(CCOMPILER_PATH, "a.c -I", "bcc.log"), 1);
     EXPECT_EQ(run_command(CCOMPILER_PATH, "missing.c", "bcc.log"), 1);
     EXPECT_NE(log_tail("bcc.log").find("cannot open 'missing.c'"), std::string::npos);
 }

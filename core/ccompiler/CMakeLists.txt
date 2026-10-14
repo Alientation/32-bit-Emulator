@@ -3,6 +3,7 @@
 add_library(ccompiler STATIC
     src/codegen.c
     src/lex.c
+    src/preprocess.c
     src/parse.c
     src/type.c
     src/util.c
@@ -29,4 +30,6 @@ if(BUILD_TESTS)
         COMMAND ${PROJECT_SOURCE_DIR}/tools/check_selfhost_subset.sh
             ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include)
     set_tests_properties(ccompiler_subset PROPERTIES LABELS ccompiler)
+
+    add_subdirectory(tests)
 endif()
