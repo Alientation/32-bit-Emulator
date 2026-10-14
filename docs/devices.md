@@ -1,6 +1,6 @@
 # Devices, interrupts and the boot sequence
 
-The machine has four memory mapped devices: an interrupt controller, a timer, a console and a block device. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console) and to keep data (block device). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
+The machine has five memory mapped devices: an interrupt controller, a timer, a console, a block device and a display. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console), to keep data (block device) and to show pictures (display, described in [display.md](display.md)). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
 
 ## Memory map
 
@@ -15,10 +15,11 @@ Physical addresses:
 | `0xF0001000` | **timer**, one page |
 | `0xF0002000` | **console**, one page |
 | `0xF0003000` | **block device**, one page |
+| `0xF0004000` | **display**, one page ([display.md](display.md)) |
 
 A store by a program to the ROM is a bus error as well (nothing is written; a store that crosses into the ROM from the page before writes nothing either). The host can still write the image (the loader's physical sections, `ROM::write_*` in a test).
 
-Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0004000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA) does it once per access.
+Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0005000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA) does it once per access.
 
 Programs without page tables (`SCTLR.M` = 0, what `emu32 -e` runs) reach the devices at these addresses directly, the swapping memory leaves addresses from `0xF0000000` alone.
 
@@ -30,7 +31,7 @@ An IRQ is **first come, first served**, there are no priorities:
 2. Between two instructions, if the queue is not empty, `PSTATE.I` is 0 and a vector table is installed (`VBAR != 0`), the CPU takes the **IRQ exception**, vector 6, `VBAR + 96`. `ELR` is the instruction that would have run, so `ERET` resumes exactly there. `I` is set on entry, so the handler is not interrupted unless it clears `I`.
 3. The handler reads CLAIM, which returns the line at the head of the queue and removes it, and serves that device. If more lines are waiting it may claim again, or return and be interrupted again at once (the queue is still not empty).
 
-Without a vector table nothing is ever delivered (the queue just fills), which keeps programs that do not know about interrupts unchanged. Lines: 0 timer, 1 console receive, 2 block device.
+Without a vector table nothing is ever delivered (the queue just fills), which keeps programs that do not know about interrupts unchanged. Lines: 0 timer, 1 console receive, 2 block device, 3 display.
 
 ### Interrupt controller (`0xF0000000`)
 
@@ -65,7 +66,7 @@ A timer that is not periodic disables itself when it fires. The match is for equ
 
 Output goes to the console stream (standard output for `emu32`; `Console::set_output` in a test). Input is queued by the host: `emu32 --console-input FILE` queues the bytes of the file at start, `Console::push_input` does it from C++. With CTRL bit 0 set, each byte that arrives raises line 1 (and enabling it while bytes wait raises it).
 
-Input can also arrive **while the machine runs**: `emu32 --console-stdin` hands the console what is typed (a thread reads the standard input a character at a time; not with `--debug`, which reads it too), and `Console::attach_host_input` takes a `HostInput` (`host_input.h`) that any thread of the host pushes bytes to. The console takes them on the thread of the machine: when `STATUS` or `DATA` is read, between two instructions (a run with a live input checks before each instruction, and takes the slower path of `run ()` that the debugging features use), and when `WFI` waits. `WFI` with nothing else to wait for (no timer match, no command in progress) and the receive interrupt enabled **blocks until a byte is typed**, which is host time passing, not instructions; when the input has ended (the end of the file on the standard input) it ends the run like without a live input. A machine that never reads the console and does not enable the interrupt does not look at the input.
+Input can also arrive **while the machine runs**: `emu32 --console-stdin` hands the console what is typed (a thread reads the standard input a character at a time; not with `--debug`, which reads it too), so does the window of `emu32 --display` ([display.md](display.md#the-window-emu32---display)), and `Console::attach_host_input` takes a `HostInput` (`host_input.h`) that any thread of the host pushes bytes to. The console takes them on the thread of the machine: when `STATUS` or `DATA` is read, when the device clock looks (at least every 10000 executed instructions, `Console::kHostInputPollInterval`, and at the start of a run), and when `WFI` waits. So a byte that is typed is received, and raises line 1 if that is enabled, at most 10000 instructions later, without the machine looking before each instruction; when it arrives is up to the host anyway. `WFI` with nothing else to wait for (no timer match, no command in progress) and the receive interrupt enabled **blocks until a byte is typed**, which is host time passing, not instructions; when the input has ended (the end of the file on the standard input) it ends the run like without a live input. A machine that never reads the console and does not enable the interrupt only queues what arrives.
 
 ### Block device (`0xF0003000`)
 
@@ -109,7 +110,7 @@ The list is read **when the command is given**, the data moves when it completes
 
 ## `WFI`
 
-`WFI` (privileged) returns as soon as an interrupt is pending, even a masked one: the next instruction runs, and takes the interrupt if it is not masked. Nothing else runs while the CPU waits, so the only things that can produce an interrupt are the timer and a block device command in progress, and `WFI` **jumps** to the nearer of the two moments: time passes at once, the device finishes and raises its interrupt. A kernel's idle loop is `wfi` and then the interrupt handling, and costs one instruction however long the wait is. With nothing that could ever wake it (no pending interrupt, the timer off), `WFI` ends the run like `HLT` instead of hanging, with the message `WFI with no interrupt source`.
+`WFI` (privileged) returns as soon as an interrupt is pending, even a masked one: the next instruction runs, and takes the interrupt if it is not masked. Nothing else runs while the CPU waits, so the only things that can produce an interrupt are the timer, a block device command in progress and the end of a frame of the display (when its interrupt is enabled), and `WFI` **jumps** to the nearest of these moments: time passes at once, the device finishes and raises its interrupt. A kernel's idle loop is `wfi` and then the interrupt handling, and costs one instruction however long the wait is. With nothing that could ever wake it (no pending interrupt, the timer off, no command in progress, the display off or without its interrupt), `WFI` ends the run like `HLT` instead of hanging, with the message `WFI with no interrupt source`.
 
 ## Boot sequence
 
@@ -141,4 +142,6 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Where it is in the code
 
-`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console` and `BlockDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console` and `block`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions and ticks the timer and the block device after each executed instruction. `Emulator32bit::_wfi` asks both devices how long until their next event. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.
+`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console`, `BlockDevice` and `Display` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block` and `display`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
+
+The timer, the block device and the display count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame), and then gives all three the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers, starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the console's live input, and while there is one it counts down to at most `Console::kHostInputPollInterval`. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.

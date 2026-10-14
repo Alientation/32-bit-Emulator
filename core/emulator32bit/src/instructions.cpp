@@ -3,6 +3,7 @@
 #include "util/common.h"
 #include "util/logger.h"
 
+#include <algorithm>
 #include <bit>
 #include <format>
 #include <string>
@@ -366,15 +367,17 @@ void Emulator32bit::_wfi(const word instr)
         return;
     }
 
-    // Time jumps to the first event, whichever device it is.
+    // Time jumps to the first interrupt, whichever device it is.
     constexpr word kNever = word(-1);
-    const word timer_wait = bus.timer.cycles_until_event();
-    const word block_wait = bus.block.cycles_until_event();
-    const word wait = timer_wait < block_wait ? timer_wait : block_wait;
+    bus.clock.sync();
+    const word wait = std::min({bus.timer.cycles_until_event(), bus.block.cycles_until_event(),
+                                bus.display.cycles_until_event()});
     if (wait != kNever)
     {
         bus.timer.advance(wait);
         bus.block.advance(wait);
+        bus.display.advance(wait);
+        bus.clock.sync();
         if (bus.intc.has_pending())
         {
             return;

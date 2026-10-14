@@ -139,6 +139,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
 * Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint
 * Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug`, `--gdb` (see [`docs/debugging.md`](./docs/debugging.md))
+* Display: `--display-dump FILE` writes the display's picture as a PPM image; `--display` shows it in a window, in a build configured with `-DAEMU_GUI=ON` (needs SDL2, see [`docs/display.md`](./docs/display.md))
 * Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out
 
 
@@ -149,6 +150,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * [`docs/exceptions.md`](./docs/exceptions.md): privilege levels, system registers, exceptions and the vector table
 * [`docs/mmu.md`](./docs/mmu.md): the page tables and the TLB
 * [`docs/devices.md`](./docs/devices.md): the memory map, the devices, interrupts and the boot sequence
+* [`docs/display.md`](./docs/display.md): the display, its picture in RAM and frames
 * [`docs/abi.md`](./docs/abi.md): the calling convention, the data layout and the frame record
 * [`docs/debugging.md`](./docs/debugging.md): tracing, breakpoints, watchpoints, the interactive debugger and the gdb server
 * [`docs/internals.md`](./docs/internals.md): how the code is put together, the invariants to keep when changing it, and how to measure a change

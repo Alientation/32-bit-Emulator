@@ -23,6 +23,7 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compile
 tools/bench.sh        # times the emulator (MIPS); --baseline <emu32 of another commit> compares two builds
 tools/bench_toolchain.sh  # times basm and the loader on generated programs, fails on a quadratic step
 tools/mutate.sh FILE LINE # removes a line, runs the tests: do they notice?
+cmake -S . -B build/gui -G Ninja -DAEMU_GUI=ON && cmake --build build/gui   # emu32 --display (needs libsdl2-dev); ./build.sh never builds it
 ```
 
 Run a single test or suite:
@@ -50,6 +51,7 @@ Each of these has a test, but only for the way it has broken so far. Details: [i
 - **VirtualMemory:** whatever changes whether a fetch is allowed or where the page is calls `drop_fetch_cache ()`; whatever changes the current process, `m_enabled` or `m_walk` calls `update_swap_key ()`.
 - **`Emulator32bit::run ()`:** a new per instruction debugging feature has to be part of the `hooked` local, and is set between runs. The instruction being executed is kept in `m_instr_in_flight` and not in a local (register allocation, see the benchmark notes). A handler that writes the pc itself (a taken branch, `ERET`, `raise_exception`) sets `m_pc_written`; the loop adds 4 otherwise.
 - **Exceptions:** a `throw Trap (BAD_INSTR/BAD_REG, ...)` passes a `kUndefinedIss_*`. An argument error of an emulator call (`swi 1`) is `PROGRAM_ERROR`, a pc or an access that is not aligned is `MISALIGNED`. Privileged instructions call `require_kernel ()`. `HALT_INSTR`, a failed assertion and a `FatalError` are never exceptions.
+- **Devices:** a device that counts instructions is moved on by `DeviceClock::sync ()`, never by a tick in `run ()`. `run ()` syncs at its start and end, so the host may change a device directly between runs; code inside a run (a handler, like `_wfi`) that changes or reads a device directly, not through its registers, calls `clock.sync ()` before and after.
 - **Memory instructions:** a load, store or atomic changes no register until its access succeeded; a new kind of access is added to `data_address_of` and calls `watch_access ()` when watchpoints are set (the stores test that at their top and go to `store_watched`).
 - **Floating point:** the operands and results of the host FPU operations are `volatile` and the guard has signal fences; test the `<cfenv>` path with `-DAEMU_FPU_FENV` after touching `fpu.cpp`.
 - **New instruction:** a row in `AEMU_OPCODES` (the next free opcode), the handler, `disassemble_<name>` (`emulator32bit/src/disassembler.cpp`), `asm_*`, one row of `BASM_INSTRUCTION_LIST` in the same position, a test in `instruction_tests/`, `docs/isa.md`.

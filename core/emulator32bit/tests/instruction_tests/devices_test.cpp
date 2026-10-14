@@ -2,6 +2,7 @@
 // taking an interrupt between instructions, WFI, and running code from the ROM.
 
 #include "emulator32bit/devices.h"
+#include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 #include "emulator32bit_test/emulator32bit_test.h"
 
@@ -321,6 +322,36 @@ TEST_F(Devices, input_from_the_host_interrupts_a_program_that_is_running)
     EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
     EXPECT_EQ(cpu.read_reg(8), kIrqLineConsole);
     EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'x');
+}
+
+// A program that never looks at the console still gets what is typed while it runs: the clock looks
+// at the input at least every Console::kHostInputPollInterval instructions.
+TEST_F(Devices, a_byte_typed_while_a_program_runs_in_a_loop_interrupts_it)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    install_vectors({E::asm_hlt()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kConsoleBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineConsole), store_at(1, 10, 0x08), mov(1, 1),
+                    store_at(1, 11, 0x08), E::asm_msr(encoding::kSysregId_pstate, true, 0),
+                    E::asm_format_b1(encoding::_op_b, ConditionCode::AL, 0)}); // to itself
+    std::thread typist(
+        [input]
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            input->push("z");
+        });
+    constexpr U64 kLimit = 100'000'000;
+    const auto result = run(program, kLimit);
+    typist.join();
+
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_LT(result.instructions_ran, kLimit);
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 'z');
 }
 
 // The machine has nothing to do, so wfi waits for what is typed (in the time of the host).
@@ -1121,4 +1152,320 @@ TEST_F(Devices, a_program_reads_sectors_by_dma)
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
 {
     EXPECT_THROW(cpu.memory.read_word(kDeviceBase + 0x5000), SystemBus::BusError);
+}
+
+// --- display -------------------------------------------------------------------------------
+
+namespace
+{
+
+/// A display with 2 pages of RAM at page 1 (0x1000-0x2FFF) for its picture, and line 3 enabled.
+struct Screen
+{
+    InterruptController intc;
+    Display display{intc};
+    RAM ram{2, 1};
+
+    Screen()
+    {
+        intc.write_word(kIntcBase + InterruptController::kRegEnable, 1u << kIrqLineDisplay);
+        display.set_ram(&ram);
+    }
+
+    word reg(const word offset)
+    {
+        return display.read_word(kDisplayBase + offset);
+    }
+
+    void set(const word offset, const word value)
+    {
+        display.write_word(kDisplayBase + offset, value);
+    }
+
+    void ticks(const word count)
+    {
+        for (word i = 0; i < count; i++)
+        {
+            display.tick();
+        }
+    }
+
+    /// A picture of `width` by `height` at 0x1000 in the format.
+    void picture(const word width, const word height, const word format)
+    {
+        set(Display::kRegAddress, 0x1000);
+        set(Display::kRegWidth, width);
+        set(Display::kRegHeight, height);
+        set(Display::kRegFormat, format);
+    }
+};
+
+} // namespace
+
+TEST(DisplayUnit, a_frame_ends_every_interval_instructions_while_it_is_on)
+{
+    Screen screen;
+    screen.picture(4, 4, Display::kFormatIndexed);
+    screen.set(Display::kRegInterval, 10);
+    screen.ticks(50);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 0u) << "it is off";
+
+    screen.set(Display::kRegCtrl, Display::kCtrlOn | Display::kCtrlFrameInterrupt);
+    screen.ticks(9);
+    EXPECT_EQ(screen.reg(Display::kRegStatus), 0u);
+    EXPECT_FALSE(screen.intc.has_pending());
+    screen.ticks(1);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 1u);
+    EXPECT_EQ(screen.reg(Display::kRegStatus), Display::kStatusFrame);
+    EXPECT_EQ(screen.intc.claim(), kIrqLineDisplay);
+
+    screen.set(Display::kRegStatus, 0);
+    EXPECT_EQ(screen.reg(Display::kRegStatus), 0u);
+    screen.ticks(5);
+    screen.set(Display::kRegInterval, 10); // a new frame starts
+    screen.ticks(9);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 1u);
+    screen.ticks(1);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 2u);
+    EXPECT_EQ(screen.intc.claim(), kIrqLineDisplay);
+
+    screen.set(Display::kRegCtrl, Display::kCtrlOn);
+    screen.ticks(10);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 3u);
+    EXPECT_FALSE(screen.intc.has_pending()) << "the interrupt is off";
+
+    screen.ticks(4);
+    screen.set(Display::kRegCtrl, 0);
+    screen.set(Display::kRegCtrl, Display::kCtrlOn); // turning it on starts a frame
+    screen.ticks(9);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 3u);
+    screen.ticks(1);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 4u);
+}
+
+TEST(DisplayUnit, the_picture_is_read_through_the_palette_or_as_words)
+{
+    Screen screen;
+    screen.picture(3, 2, Display::kFormatIndexed);
+    const byte indexes[] = {0x00, 0xFF, 0xE0, 0x1C, 0x03, 0x01};
+    screen.ram.write_block(0x1000, indexes, sizeof(indexes));
+
+    Frame frame;
+    ASSERT_TRUE(screen.display.capture(frame));
+    EXPECT_EQ(frame.width, 3u);
+    EXPECT_EQ(frame.height, 2u);
+    EXPECT_EQ(frame.pixels,
+              (std::vector<word>{0x000000, 0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF, 0x000055}))
+        << "the palette of a reset is rrrgggbb";
+
+    screen.set(Display::kRegPalette + 4 * 1, 0xFF123456);
+    EXPECT_EQ(screen.reg(Display::kRegPalette + 4 * 1), 0x123456u);
+    ASSERT_TRUE(screen.display.capture(frame));
+    EXPECT_EQ(frame.pixels[5], 0x123456u);
+
+    screen.picture(2, 1, Display::kFormatRgb);
+    screen.ram.write_word(0x1000, 0xFFABCDEF);
+    screen.ram.write_word(0x1004, 0x00010203);
+    ASSERT_TRUE(screen.display.capture(frame));
+    EXPECT_EQ(frame.pixels, (std::vector<word>{0xABCDEF, 0x010203}));
+}
+
+TEST(DisplayUnit, a_picture_that_is_not_all_in_ram_is_an_error)
+{
+    Screen screen;
+    Frame frame;
+    screen.picture(64, 32, Display::kFormatRgb); // 8 KiB: one byte more than the RAM has
+    screen.set(Display::kRegAddress, 0x1004);
+    EXPECT_FALSE(screen.display.capture(frame));
+
+    screen.set(Display::kRegInterval, 1);
+    screen.set(Display::kRegCtrl, Display::kCtrlOn);
+    screen.ticks(1);
+    EXPECT_EQ(screen.reg(Display::kRegStatus), Display::kStatusFrame | Display::kStatusError);
+
+    screen.set(Display::kRegAddress, 0x1000);
+    EXPECT_TRUE(screen.display.capture(frame)) << "it fits from the start of the RAM";
+    screen.set(Display::kRegAddress, 0x1002);
+    EXPECT_FALSE(screen.display.capture(frame)) << "not a multiple of 4";
+    screen.set(Display::kRegAddress, 0x1000);
+    screen.set(Display::kRegWidth, 0);
+    EXPECT_FALSE(screen.display.capture(frame));
+    screen.set(Display::kRegWidth, Display::kMaxSize + 1);
+    screen.set(Display::kRegHeight, 1);
+    EXPECT_FALSE(screen.display.capture(frame));
+    screen.display.set_ram(nullptr);
+    screen.set(Display::kRegWidth, 1);
+    EXPECT_FALSE(screen.display.capture(frame));
+}
+
+TEST(DisplayUnit, advance_lets_many_frames_pass_and_wfi_only_waits_for_the_interrupt)
+{
+    Screen screen;
+    screen.set(Display::kRegInterval, 10);
+    screen.set(Display::kRegCtrl, Display::kCtrlOn);
+    EXPECT_EQ(screen.display.cycles_until_event(), word(-1)) << "no interrupt to wait for";
+    screen.set(Display::kRegCtrl, Display::kCtrlOn | Display::kCtrlFrameInterrupt);
+    EXPECT_EQ(screen.display.cycles_until_event(), 10u);
+
+    screen.display.advance(3);
+    EXPECT_EQ(screen.display.cycles_until_event(), 7u);
+    screen.display.advance(22);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 2u);
+    EXPECT_EQ(screen.display.cycles_until_event(), 5u);
+    screen.ticks(4);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 2u);
+    screen.ticks(1);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 3u);
+}
+
+TEST(DisplayUnit, a_reset_turns_it_off_and_restores_the_registers_and_the_palette)
+{
+    Screen screen;
+    screen.picture(8, 8, Display::kFormatRgb);
+    screen.set(Display::kRegInterval, 1);
+    screen.set(Display::kRegCtrl, Display::kCtrlOn);
+    screen.set(Display::kRegPalette, 0x123456);
+    screen.ticks(3);
+    screen.set(Display::kRegFormat, 3);
+    EXPECT_EQ(screen.reg(Display::kRegFormat), Display::kFormatRgb) << "the bits of a format";
+    screen.set(Display::kRegInterval, 0);
+    EXPECT_EQ(screen.reg(Display::kRegInterval), 1u) << "at least 1";
+
+    screen.display.reset();
+    EXPECT_EQ(screen.reg(Display::kRegCtrl), 0u);
+    EXPECT_EQ(screen.reg(Display::kRegStatus), 0u);
+    EXPECT_EQ(screen.reg(Display::kRegAddress), 0u);
+    EXPECT_EQ(screen.reg(Display::kRegWidth), Display::kDefaultWidth);
+    EXPECT_EQ(screen.reg(Display::kRegHeight), Display::kDefaultHeight);
+    EXPECT_EQ(screen.reg(Display::kRegFormat), Display::kFormatIndexed);
+    EXPECT_EQ(screen.reg(Display::kRegInterval), Display::kDefaultInterval);
+    EXPECT_EQ(screen.reg(Display::kRegFrames), 0u);
+    EXPECT_EQ(screen.reg(Display::kRegPalette), 0u);
+    EXPECT_EQ(screen.reg(Display::kRegPalette + 4 * 0xFF), 0xFFFFFFu);
+}
+
+TEST(DisplayUnit, each_frame_goes_to_the_window_of_the_host)
+{
+    Screen screen;
+    const auto host = std::make_shared<HostDisplay>(0);
+    screen.display.attach_host_display(host);
+    screen.picture(2, 1, Display::kFormatIndexed);
+    screen.ram.write_byte(0x1001, 0xE0);
+    screen.set(Display::kRegInterval, 5);
+    screen.set(Display::kRegCtrl, Display::kCtrlOn);
+
+    Frame frame;
+    EXPECT_FALSE(host->take(frame));
+    screen.ticks(5);
+    ASSERT_TRUE(host->take(frame));
+    EXPECT_EQ(frame.pixels, (std::vector<word>{0x000000, 0xFF0000}));
+    EXPECT_FALSE(host->take(frame)) << "it was taken";
+
+    screen.ram.write_byte(0x1000, 0x03);
+    screen.ticks(5);
+    ASSERT_TRUE(host->take(frame));
+    EXPECT_EQ(frame.pixels, (std::vector<word>{0x0000FF, 0xFF0000}));
+
+    screen.set(Display::kRegWidth, 0);
+    screen.ticks(5);
+    EXPECT_FALSE(host->take(frame)) << "a picture that is not valid is not handed over";
+
+    EXPECT_FALSE(host->closed());
+    host->close();
+    EXPECT_TRUE(host->closed());
+}
+
+// A program draws a pixel, turns the display on and waits for the end of the frame with WFI.
+TEST_F(Devices, wfi_waits_for_the_end_of_a_frame)
+{
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kDisplayBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineDisplay), store_at(1, 10, 0x08),    // enable line 3
+                    mov(12, 0x4000), mov(1, 0x1C), store_at(1, 12, 0),       // a green pixel
+                    store_at(12, 11, 0x08),                                  // the picture
+                    mov(1, 1), store_at(1, 11, 0x0C), store_at(1, 11, 0x10), // 1 by 1
+                    mov(1, 5000), store_at(1, 11, 0x18),                     // a slow frame
+                    mov(1, 3), store_at(1, 11, 0x00), E::asm_wfi(),          // on, interrupt
+                    load_at(8, 10, 0),                                       // claim
+                    load_at(9, 11, 0x1C),                                    // frames
+                    E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineDisplay);
+    EXPECT_EQ(cpu.read_reg(9), 1u);
+    EXPECT_LT(result.instructions_ran, 40u) << "it did not execute 5000 instructions";
+
+    Frame frame;
+    ASSERT_TRUE(cpu.system_bus->display.capture(frame)) << "the machine wired the RAM";
+    EXPECT_EQ(frame.pixels, std::vector<word>{0x00FF00});
+}
+
+// --- the clock of the devices --------------------------------------------------------------
+
+// The devices are moved on only when one of them has something to do or is looked at, and still
+// see every instruction: across WFI, register reads and a write of the count.
+TEST_F(Devices, the_timer_counts_every_instruction_across_wfi_and_its_registers)
+{
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kTimerBase));
+    program.insert(program.end(), {mov(1, 1), store_at(1, 10, 0x08),    // enable line 0
+                                   mov(1, 1000), store_at(1, 11, 0x04), // compare
+                                   mov(1, 100), store_at(1, 11, 0x0C),  // interval
+                                   mov(1, 3), store_at(1, 11, 0x08),    // on, periodic
+                                   nop(), nop(), nop(),                 // no device access
+                                   E::asm_wfi()});                      // to count 1000
+    // It fires at 1100 and 1200, then the compare and the count are read and the count is set
+    // to 0.
+    program.insert(program.end(), 250, nop());
+    program.insert(program.end(),
+                   {load_at(8, 11, 0x04), load_at(9, 11, 0x00), mov(2, 0), store_at(2, 11, 0x00)});
+    program.insert(program.end(), 10, nop());
+    program.insert(program.end(), {load_at(12, 11, 0x00), E::asm_hlt()});
+
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), 1300u) << "the compare of the third period";
+    EXPECT_EQ(cpu.read_reg(9), 1252u) << "1000, the wfi, 250 nops and the load of the compare";
+    EXPECT_EQ(cpu.read_reg(12), 11u) << "the store and 10 nops";
+}
+
+// What the host changes directly between two runs is seen by the next run, and the devices are up
+// to date when a run ends.
+TEST_F(Devices, a_run_starts_and_ends_with_the_devices_up_to_date)
+{
+    Timer &timer = cpu.system_bus->timer;
+    cpu.system_bus->intc.write_word(kIntcBase + InterruptController::kRegEnable, 1);
+    timer.write_word(kTimerBase + Timer::kRegCompare, 100);
+    timer.write_word(kTimerBase + Timer::kRegCtrl, Timer::kEnabled);
+    timer.advance(90);
+
+    const auto result = run(std::vector<word>(20, nop()), 15);
+    EXPECT_EQ(result.instructions_ran, 15u);
+    EXPECT_EQ(timer.count(), 105u);
+    EXPECT_TRUE(cpu.system_bus->intc.has_pending()) << "it fired at 100, 10 instructions in";
+}
+
+// A frame ends INTERVAL instructions after the display was turned on, which a program that reads
+// STATUS sees at that instruction.
+TEST_F(Devices, a_program_sees_the_end_of_a_frame_at_the_instruction_it_happens)
+{
+    std::vector<word> program;
+    append(program, constant(11, kDisplayBase));
+    program.insert(program.end(), {mov(12, 0x4000), store_at(12, 11, 0x08), // the picture
+                                   mov(1, 1), store_at(1, 11, 0x0C), store_at(1, 11, 0x10),
+                                   mov(1, 50), store_at(1, 11, 0x18),       // interval
+                                   mov(1, 1), store_at(1, 11, 0x00)});      // on
+    program.insert(program.end(), 48, nop());
+    program.insert(program.end(), {load_at(3, 11, 0x04), // the 49th instruction: not yet
+                                   load_at(4, 11, 0x04), // after the 50th
+                                   load_at(5, 11, 0x1C), E::asm_hlt()});
+
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(3), 0u);
+    EXPECT_EQ(cpu.read_reg(4), Display::kStatusFrame);
+    EXPECT_EQ(cpu.read_reg(5), 1u);
 }

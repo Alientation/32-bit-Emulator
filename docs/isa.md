@@ -316,7 +316,7 @@ Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 
 ### WFI
 
-`000000 | 0110 | 0…0`. Waits for an interrupt: returns when one is pending, jumping time forward to the next timer or block device event. With nothing that could produce one it ends the run like `HLT`. See [devices.md](devices.md#wfi).
+`000000 | 0110 | 0…0`. Waits for an interrupt: returns when one is pending, jumping time forward to the next timer, block device or display interrupt. With nothing that could produce one it ends the run like `HLT`. See [devices.md](devices.md#wfi).
 
 ### BRK
 

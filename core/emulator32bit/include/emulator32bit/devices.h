@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+class DeviceClock;
+class HostDisplay;
 class HostInput;
 
 /// The memory mapped devices (docs/devices.md). Each is one page of registers at a physical address
@@ -20,11 +22,13 @@ inline constexpr word kIntcBase = kDeviceBase;
 inline constexpr word kTimerBase = kDeviceBase + 0x1000;
 inline constexpr word kConsoleBase = kDeviceBase + 0x2000;
 inline constexpr word kBlockBase = kDeviceBase + 0x3000;
+inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
 
 /// The interrupt lines.
 inline constexpr word kIrqLineTimer = 0;
 inline constexpr word kIrqLineConsole = 1;
 inline constexpr word kIrqLineBlock = 2;
+inline constexpr word kIrqLineDisplay = 3;
 
 /// A device: one page of registers. The reads and writes of the sizes of BaseMemory are mapped
 /// onto the word registers of the subclass.
@@ -33,6 +37,15 @@ class Device : public BaseMemory
   public:
     /// @param[in] base_address The physical address of the page of registers.
     explicit Device(word base_address);
+
+    /// A device that counts instructions is brought up to date by the clock before each access to
+    /// its registers, and the clock looks again at when it has something to do after each write.
+    ///
+    /// @param[in] clock The clock of the machine, which is not owned.
+    void set_clock(DeviceClock *clock)
+    {
+        m_clock = clock;
+    }
 
     byte read_byte(word address) override;
     hword read_hword(word address) override;
@@ -52,6 +65,15 @@ class Device : public BaseMemory
     /// @param[in] offset The offset of the register in the page, a multiple of 4.
     /// @param[in] value The value written to the register.
     virtual void write_register(word offset, word value) = 0;
+
+  private:
+    /// read_register, with the device up to date.
+    word read_synced(word offset);
+
+    /// write_register, with the device up to date before and the clock told after.
+    void write_synced(word offset, word value);
+
+    DeviceClock *m_clock = nullptr;
 };
 
 /// The interrupt controller. Lines are served first come, first served: a line that is raised
@@ -135,7 +157,8 @@ class Timer : public Device
     /// @param[in] intc The controller that gets the interrupt.
     explicit Timer(InterruptController &intc);
 
-    /// Called after each instruction that completes.
+    /// One instruction completed. The machine moves the timer on with its DeviceClock, which calls
+    /// advance; this is the same for one instruction.
     void tick()
     {
         m_count++;
@@ -145,12 +168,12 @@ class Timer : public Device
         }
     }
 
-    /// For WFI: how long until the timer raises its interrupt.
+    /// For WFI and the clock: how long until the timer raises its interrupt.
     ///
     /// @return The number of instructions, or word(-1) if it is not going to.
     word cycles_until_event() const;
 
-    /// For WFI: `count` instructions pass at once.
+    /// For WFI and the clock: `count` instructions pass at once.
     ///
     /// @param[in] count The number of instructions, no more than cycles_until_event().
     void advance(word count);
@@ -218,9 +241,10 @@ class Console : public Device
         return !m_input.empty();
     }
 
-    /// Takes input that another thread supplies while the machine runs (a terminal). The console
-    /// moves it into its queue on the thread of the emulator: when a register is read, when
-    /// `Emulator32bit::run` calls `poll_host_input` between instructions, and when `WFI` waits.
+    /// Takes input that another thread supplies while the machine runs (a terminal, the window).
+    /// The console moves it into its queue on the thread of the emulator: when a register is read,
+    /// when the DeviceClock looks (at least every kHostInputPollInterval instructions) and when
+    /// `WFI` waits.
     ///
     /// @param[in] input The input, which the console shares.
     void attach_host_input(std::shared_ptr<HostInput> input);
@@ -246,6 +270,10 @@ class Console : public Device
     bool wait_host_input();
 
     void reset() override;
+
+    /// The most instructions between two looks at the live input: a byte that is typed is
+    /// received, and raises the interrupt, at most this many instructions later.
+    static constexpr word kHostInputPollInterval = 10000;
 
     /// The bits of STATUS.
     static constexpr word kStatusRxWaiting = 1;
@@ -375,7 +403,7 @@ class BlockDevice : public Device
     /// @return `false` on an error.
     bool save();
 
-    /// Called after each instruction that completes.
+    /// One instruction completed (the machine calls advance, through its DeviceClock).
     void tick()
     {
         if (UNLIKELY(m_busy))
@@ -387,12 +415,12 @@ class BlockDevice : public Device
         }
     }
 
-    /// For WFI: how long until the command in progress completes.
+    /// For WFI and the clock: how long until the command in progress completes.
     ///
     /// @return The number of instructions, or word(-1) if no command is in progress.
     word cycles_until_event() const;
 
-    /// For WFI: `count` instructions pass at once.
+    /// For WFI and the clock: `count` instructions pass at once.
     ///
     /// @param[in] count The number of instructions, no more than cycles_until_event().
     void advance(word count);
@@ -473,4 +501,209 @@ class BlockDevice : public Device
     std::vector<Segment> m_segments;     /// What the command moves, from the registers or the list.
     bool m_segments_valid = false;       /// Whether they could be read.
     byte m_write_data[kSectorSize] = {}; /// The buffer when a write command was given.
+};
+
+/// A picture of the display: `width * height` pixels, row by row from the top left, each one
+/// 0x00RRGGBB.
+struct Frame
+{
+    word width = 0;
+    word height = 0;
+    std::vector<word> pixels;
+};
+
+/// A display (docs/display.md). The picture is in RAM, at a physical address the program chooses,
+/// and the program draws with ordinary stores. Every INTERVAL executed instructions a frame ends: the
+/// display counts it, says so in STATUS, raises line 3 if that is enabled and, when a window of the
+/// host is attached, hands the picture over to it.
+///
+/// | Offset | Name     | Access | |
+/// | 0x00   | CTRL     | r/w    | bit 0: on, bit 1: raise line 3 when a frame ends |
+/// | 0x04   | STATUS   | r/w    | bit 0: a frame ended, bit 1: error (the picture was not in RAM, or its size not valid). A write clears both |
+/// | 0x08   | ADDRESS  | r/w    | physical RAM address of the picture, a multiple of 4 |
+/// | 0x0C   | WIDTH    | r/w    | pixels across, 1 to 1024. Reset: 320 |
+/// | 0x10   | HEIGHT   | r/w    | pixels down, 1 to 1024. Reset: 240 |
+/// | 0x14   | FORMAT   | r/w    | 0: a byte per pixel, an index into the palette. 1: a word per pixel, 0x00RRGGBB |
+/// | 0x18   | INTERVAL | r/w    | instructions a frame takes, at least 1. Reset: 100000 |
+/// | 0x1C   | FRAMES   | read   | the frames that ended since reset |
+/// | 0x400  | PALETTE  | r/w    | 256 words, entry n at 0x400 + 4n, 0x00RRGGBB. Reset: 3-3-2 (index bits rrrgggbb) |
+///
+/// A frame starts when the display is turned on and when INTERVAL is written. The picture is read
+/// when a frame ends, so a program that draws between two frames is seen whole.
+class Display : public Device
+{
+  public:
+    /// The most pixels across or down.
+    static constexpr word kMaxSize = 1024;
+
+    /// The entries of the palette.
+    static constexpr word kPaletteSize = 256;
+
+    /// The values after a reset.
+    static constexpr word kDefaultWidth = 320;
+    static constexpr word kDefaultHeight = 240;
+    static constexpr word kDefaultInterval = 100000;
+
+    /// The bits of CTRL.
+    static constexpr word kCtrlOn = 1;
+    static constexpr word kCtrlFrameInterrupt = 2;
+
+    /// The bits of STATUS.
+    static constexpr word kStatusFrame = 1;
+    static constexpr word kStatusError = 2;
+
+    /// The formats.
+    static constexpr word kFormatIndexed = 0;
+    static constexpr word kFormatRgb = 1;
+
+    /// The offsets of the registers.
+    static constexpr word kRegCtrl = 0x00;
+    static constexpr word kRegStatus = 0x04;
+    static constexpr word kRegAddress = 0x08;
+    static constexpr word kRegWidth = 0x0C;
+    static constexpr word kRegHeight = 0x10;
+    static constexpr word kRegFormat = 0x14;
+    static constexpr word kRegInterval = 0x18;
+    static constexpr word kRegFrames = 0x1C;
+    static constexpr word kRegPalette = 0x400;
+
+    /// @param[in] intc The controller that gets the interrupt.
+    explicit Display(InterruptController &intc);
+
+    /// The memory that the picture is in (the RAM, by physical address). Without it, every frame
+    /// is an error.
+    ///
+    /// @param[in] ram The RAM, which is not owned.
+    void set_ram(RAM *ram)
+    {
+        m_ram = ram;
+    }
+
+    /// Hands each frame to a window of the host, which runs on another thread.
+    ///
+    /// @param[in] host The window's side, which the display shares.
+    void attach_host_display(std::shared_ptr<HostDisplay> host);
+
+    /// One instruction completed (the machine calls advance, through its DeviceClock).
+    void tick()
+    {
+        if (UNLIKELY(m_ctrl & kCtrlOn))
+        {
+            if (--m_remaining == 0)
+            {
+                end_frames(1);
+            }
+        }
+    }
+
+    /// For the clock: how long until the frame ends.
+    ///
+    /// @return The number of instructions, or word(-1) if the display is off.
+    word cycles_until_frame() const
+    {
+        return (m_ctrl & kCtrlOn) ? m_remaining : word(-1);
+    }
+
+    /// For WFI: how long until the display raises its interrupt.
+    ///
+    /// @return The number of instructions, or word(-1) if it is not going to (it is off, or the
+    ///         interrupt is not enabled).
+    word cycles_until_event() const;
+
+    /// For WFI and the clock: `count` instructions pass at once. Any number of frames may end.
+    ///
+    /// @param[in] count The number of instructions.
+    void advance(word count);
+
+    /// The picture as it is in RAM now.
+    ///
+    /// @param[out] out The picture. Its pixels are reused.
+    /// @return `false` if the picture is not all in RAM or its size is not valid (`out` is
+    ///         unchanged).
+    bool capture(Frame &out) const;
+
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    /// @return The bytes of a pixel in the FORMAT.
+    word bytes_per_pixel() const
+    {
+        return m_format == kFormatRgb ? 4 : 1;
+    }
+
+    /// @return Whether the picture is all in RAM, and its size is valid.
+    bool picture_is_valid() const;
+
+    /// Frames end: counts them, sets STATUS, raises the interrupt if it is enabled and hands the
+    /// picture to the host's window. A new frame of INTERVAL instructions starts.
+    ///
+    /// @param[in] frames The number of frames that ended, at least 1.
+    void end_frames(word frames);
+
+    InterruptController &m_intc;
+    RAM *m_ram = nullptr;
+    std::shared_ptr<HostDisplay> m_host;
+    Frame m_frame; /// The buffer handed to the host, swapped with the one it held.
+
+    word m_ctrl = 0;
+    word m_status = 0;
+    word m_address = 0;
+    word m_width = kDefaultWidth;
+    word m_height = kDefaultHeight;
+    word m_format = kFormatIndexed;
+    word m_interval = kDefaultInterval;
+    word m_frames = 0;
+    word m_remaining = kDefaultInterval; /// Instructions until the frame ends, while it is on.
+    word m_palette[kPaletteSize];
+};
+
+/// The time of the devices that count executed instructions: the timer, the block device and the
+/// display. Rather than each of them looking at every instruction, the clock counts down to the
+/// first moment that one of them has something to do, and only then gives them the instructions
+/// that passed (`advance`). A device is also brought up to date before its registers are read or
+/// written (Device::set_clock), and the countdown starts again after a write, which can change when
+/// the next event is. So a device sees the same instructions, and raises its interrupt after the
+/// same one, as if it counted them one at a time.
+///
+/// The clock also takes the console's live input from the host, at least every
+/// Console::kHostInputPollInterval instructions while there is one. When a byte arrives is up to
+/// the host, so the machine does not have to look before every instruction.
+class DeviceClock
+{
+  public:
+    /// @param[in] timer The timer.
+    /// @param[in] block The block device.
+    /// @param[in] display The display.
+    /// @param[in] console The console, whose live input the clock takes.
+    DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console);
+
+    /// Called after each instruction that completes.
+    void tick()
+    {
+        if (UNLIKELY(--m_until_event == 0))
+        {
+            sync();
+        }
+    }
+
+    /// Gives the devices the instructions that completed since the last time, then counts down
+    /// to the next moment one of them has something to do. Code that runs inside
+    /// `Emulator32bit::run` calls it before looking at a device directly (not through its
+    /// registers) and after changing one directly; `run` calls it when it starts and ends.
+    void sync();
+
+  private:
+    /// The longest countdown, so a timer that waits for its count to wrap around is not passed.
+    static constexpr word kMaxCountdown = word(1) << 30;
+
+    Timer &m_timer;
+    BlockDevice &m_block;
+    Display &m_display;
+    Console &m_console;
+    word m_countdown = 1;   /// What the count down started from.
+    word m_until_event = 1; /// Instructions left of it.
 };

@@ -1,0 +1,46 @@
+; Colour bands that move across the display (docs/display.md). The picture is 320 by 240 pixels of
+; a byte, each the index of a colour of the palette (3-3-2 after a reset). The program draws a
+; frame, waits for the display to show it and draws the next, 300 times (5 seconds at 60 frames a
+; second), then halts. The picture is at a physical address, which display_demo.ld gives it:
+;
+;   basm -o display_demo display_demo.basm -ld display_demo.ld
+;   emu32 -e display_demo.bexe --display
+.global _start
+.text
+_start:
+                ldr     x20, =0xF0000000        ; interrupt controller
+                ldr     x21, =0xF0004000        ; display
+                ldr     x0, =picture
+                str     x0, [x21, 8]            ; address; 320 by 240 indexed is the reset size
+                ldr     x1, =200000
+                str     x1, [x21, 0x18]         ; a frame is 200000 instructions
+                mov     x1, 8
+                str     x1, [x20, 8]            ; enable line 3
+                mov     x1, 3
+                str     x1, [x21, 0]            ; on, interrupt at the end of a frame
+                ldr     x9, =0x01010101         ; a byte times this is the byte in four pixels
+                mov     x10, 0                  ; the frame
+
+L_frame:        ldr     x0, =picture
+                mov     x2, 0                   ; the row
+L_row:          add     x3, x2, x10             ; the colour at the left: row + frame
+                mov     x4, 80                  ; the words of a row
+L_word:         and     x5, x3, 255
+                mul     x5, x5, x9
+                str     x5, [x0], 4
+                add     x3, x3, 1
+                subs    x4, x4, 1
+                b.ne    L_word
+                add     x2, x2, 1
+                cmp     x2, 240
+                b.ne    L_row
+
+                wfi                             ; until the display has shown it
+                ldr     x1, [x20, 0]            ; claim the interrupt
+                add     x10, x10, 1
+                cmp     x10, 300
+                b.ne    L_frame
+                hlt
+
+.bss
+picture:        .advance 76800

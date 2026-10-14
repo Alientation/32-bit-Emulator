@@ -1,7 +1,10 @@
 #include "emulator32bit/devices.h"
 
+#include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -12,34 +15,47 @@ Device::Device(const word base_address) :
 {
 }
 
+word Device::read_synced(const word offset)
+{
+    if (m_clock != nullptr) m_clock->sync();
+    return read_register(offset);
+}
+
+void Device::write_synced(const word offset, const word value)
+{
+    if (m_clock != nullptr) m_clock->sync();
+    write_register(offset, value);
+    if (m_clock != nullptr) m_clock->sync();
+}
+
 byte Device::read_byte(const word address)
 {
-    return byte(read_register(address & 0xFFC) >> (8 * (address & 3)));
+    return byte(read_synced(address & 0xFFC) >> (8 * (address & 3)));
 }
 
 hword Device::read_hword(const word address)
 {
-    return hword(read_register(address & 0xFFC) >> (8 * (address & 2)));
+    return hword(read_synced(address & 0xFFC) >> (8 * (address & 2)));
 }
 
 word Device::read_word(const word address)
 {
-    return read_register(address & 0xFFC);
+    return read_synced(address & 0xFFC);
 }
 
 void Device::write_byte(const word address, const byte value)
 {
-    write_register(address & 0xFFC, word(value) << (8 * (address & 3)));
+    write_synced(address & 0xFFC, word(value) << (8 * (address & 3)));
 }
 
 void Device::write_hword(const word address, const hword value)
 {
-    write_register(address & 0xFFC, word(value) << (8 * (address & 2)));
+    write_synced(address & 0xFFC, word(value) << (8 * (address & 2)));
 }
 
 void Device::write_word(const word address, const word value)
 {
-    write_register(address & 0xFFC, value);
+    write_synced(address & 0xFFC, value);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -600,4 +616,217 @@ void BlockDevice::write_register(const word offset, const word value)
     default:
         break;
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Display
+
+/// The palette after a reset: the index is rrrgggbb, each part scaled to 0-255.
+static constexpr auto kDefaultPalette = []
+{
+    std::array<word, Display::kPaletteSize> palette{};
+    for (word i = 0; i < Display::kPaletteSize; i++)
+    {
+        const word r = (i >> 5) * 255 / 7;
+        const word g = ((i >> 2) & 7) * 255 / 7;
+        const word b = (i & 3) * 255 / 3;
+        palette[i] = (r << 16) | (g << 8) | b;
+    }
+    return palette;
+}();
+
+Display::Display(InterruptController &intc) :
+    Device(kDisplayBase),
+    m_intc(intc)
+{
+    std::memcpy(m_palette, kDefaultPalette.data(), sizeof(m_palette));
+}
+
+void Display::attach_host_display(std::shared_ptr<HostDisplay> host)
+{
+    m_host = std::move(host);
+}
+
+word Display::cycles_until_event() const
+{
+    if ((m_ctrl & kCtrlOn) && (m_ctrl & kCtrlFrameInterrupt)) return m_remaining;
+    return word(-1);
+}
+
+void Display::advance(const word count)
+{
+    if (!(m_ctrl & kCtrlOn)) return;
+    if (count < m_remaining)
+    {
+        m_remaining -= count;
+        return;
+    }
+
+    const word after_first = count - m_remaining;
+    end_frames(1 + after_first / m_interval);
+    m_remaining = m_interval - after_first % m_interval;
+}
+
+bool Display::picture_is_valid() const
+{
+    if (m_ram == nullptr || m_width == 0 || m_width > kMaxSize || m_height == 0
+        || m_height > kMaxSize || m_address % 4 != 0)
+    {
+        return false;
+    }
+    const U64 bytes = U64(m_width) * m_height * bytes_per_pixel();
+    return U64(m_address) + bytes <= (U64(1) << 32) && m_ram->in_bounds(m_address)
+           && m_ram->in_bounds(word(m_address + bytes - 1));
+}
+
+bool Display::capture(Frame &out) const
+{
+    if (!picture_is_valid()) return false;
+
+    const word pixels = m_width * m_height;
+    out.width = m_width;
+    out.height = m_height;
+    out.pixels.resize(pixels);
+    const byte *p = m_ram->bytes_at(m_address);
+    if (m_format == kFormatRgb)
+    {
+        for (word i = 0; i < pixels; i++, p += 4)
+        {
+            out.pixels[i] = word(p[0]) | (word(p[1]) << 8) | (word(p[2]) << 16);
+        }
+    }
+    else
+    {
+        for (word i = 0; i < pixels; i++)
+        {
+            out.pixels[i] = m_palette[p[i]];
+        }
+    }
+    return true;
+}
+
+void Display::end_frames(const word frames)
+{
+    m_frames += frames;
+    m_remaining = m_interval;
+    m_status |= kStatusFrame;
+    if (!picture_is_valid()) m_status |= kStatusError;
+    else if (m_host != nullptr && capture(m_frame)) m_host->present(m_frame);
+    if (m_ctrl & kCtrlFrameInterrupt) m_intc.raise(kIrqLineDisplay);
+}
+
+void Display::reset()
+{
+    m_ctrl = 0;
+    m_status = 0;
+    m_address = 0;
+    m_width = kDefaultWidth;
+    m_height = kDefaultHeight;
+    m_format = kFormatIndexed;
+    m_interval = kDefaultInterval;
+    m_frames = 0;
+    m_remaining = kDefaultInterval;
+    std::memcpy(m_palette, kDefaultPalette.data(), sizeof(m_palette));
+}
+
+word Display::read_register(const word offset)
+{
+    if (offset >= kRegPalette && offset < kRegPalette + 4 * kPaletteSize)
+    {
+        return m_palette[(offset - kRegPalette) / 4];
+    }
+
+    switch (offset)
+    {
+    case kRegCtrl:
+        return m_ctrl;
+    case kRegStatus:
+        return m_status;
+    case kRegAddress:
+        return m_address;
+    case kRegWidth:
+        return m_width;
+    case kRegHeight:
+        return m_height;
+    case kRegFormat:
+        return m_format;
+    case kRegInterval:
+        return m_interval;
+    case kRegFrames:
+        return m_frames;
+    default:
+        return 0;
+    }
+}
+
+void Display::write_register(const word offset, const word value)
+{
+    if (offset >= kRegPalette && offset < kRegPalette + 4 * kPaletteSize)
+    {
+        m_palette[(offset - kRegPalette) / 4] = value & 0x00FFFFFF;
+        return;
+    }
+
+    switch (offset)
+    {
+    case kRegCtrl:
+    {
+        const bool turned_on = (value & kCtrlOn) && !(m_ctrl & kCtrlOn);
+        m_ctrl = value & (kCtrlOn | kCtrlFrameInterrupt);
+        if (turned_on) m_remaining = m_interval;
+        break;
+    }
+    case kRegStatus:
+        m_status = 0;
+        break;
+    case kRegAddress:
+        m_address = value;
+        break;
+    case kRegWidth:
+        m_width = value;
+        break;
+    case kRegHeight:
+        m_height = value;
+        break;
+    case kRegFormat:
+        m_format = value & kFormatRgb;
+        break;
+    case kRegInterval:
+        m_interval = value == 0 ? 1 : value;
+        m_remaining = m_interval;
+        break;
+    default:
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Clock
+
+DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console) :
+    m_timer(timer),
+    m_block(block),
+    m_display(display),
+    m_console(console)
+{
+}
+
+void DeviceClock::sync()
+{
+    // The count down never passes an event, so each device can take all of it at once. They are
+    // moved on in the order the run loop ticked them, which is the order of their interrupts.
+    const word passed = m_countdown - m_until_event;
+    if (passed != 0)
+    {
+        m_timer.advance(passed);
+        m_block.advance(passed);
+        m_display.advance(passed);
+    }
+
+    m_console.poll_host_input();
+
+    const word poll = m_console.has_host_input() ? Console::kHostInputPollInterval : kMaxCountdown;
+    m_countdown = std::min({m_timer.cycles_until_event(), m_block.cycles_until_event(),
+                            m_display.cycles_until_frame(), poll});
+    m_until_event = m_countdown;
 }

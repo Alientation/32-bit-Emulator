@@ -3,10 +3,17 @@
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/gdb_server.h"
+#include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 #include "util/file.h"
 #include "util/logger.h"
 
+#ifdef AEMU_GUI
+#include "emulator32bit/display_window.h"
+#endif
+
+#include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cxxopts.hpp>
 #include <filesystem>
@@ -112,6 +119,35 @@ static void print_history(std::ostream &out, const Emulator32bit &emu, const Sym
     }
 }
 
+/// Writes the display's picture as it is in RAM as a binary PPM image.
+///
+/// @param[in] path The file.
+/// @param[in] display The display.
+/// @return `false` with a message if the picture is not valid or the file cannot be written.
+static bool dump_display(const std::string &path, const Display &display)
+{
+    Frame frame;
+    if (!display.capture(frame))
+    {
+        std::cerr << "ERROR: The display's picture is not in RAM or its size is not valid\n";
+        return false;
+    }
+
+    std::ofstream out(path, std::ios::binary);
+    out << "P6\n" << frame.width << " " << frame.height << "\n255\n";
+    for (const word pixel : frame.pixels)
+    {
+        const char rgb[] = {char(pixel >> 16), char(pixel >> 8), char(pixel)};
+        out.write(rgb, sizeof(rgb));
+    }
+    if (!out)
+    {
+        std::cerr << "ERROR: Cannot write the display's picture: " << path << "\n";
+        return false;
+    }
+    return true;
+}
+
 /// The names of the symbols that the linker put in an executable, for the trace and the debugger.
 static SymbolMap read_symbols(const std::string &exe_path)
 {
@@ -165,6 +201,13 @@ static cxxopts::Options make_options()
         ("o,output", "Write the plain state dump to this file instead of stdout", cxxopts::value<std::string> ())
         ("m,mem", "Memory ranges to include in a plain dump (e.g. 0x1000:16,0x2000:4)",
             cxxopts::value<std::vector<std::string>> ())
+        ("display-dump", "Write the display's picture to this file (a PPM image) when the run ends",
+            cxxopts::value<std::string> ())
+        ("display", "Show the display in a window, which also takes the console's input; closing it ends the run (built with -DAEMU_GUI=ON)")
+        ("display-scale", "Screen pixels for a pixel of the display, across and down",
+            cxxopts::value<std::string> ()->default_value ("3"))
+        ("display-fps", "Frames a second the window shows at most, which slows the machine down to it; 0 for no limit",
+            cxxopts::value<std::string> ()->default_value ("60"))
         ("h,help", "Show help");
 
     options.add_options ("Debugging")
@@ -204,6 +247,8 @@ struct CliArgs
     word limit = 0;
     word flags = 0;
     word history_size = 0;
+    word display_scale = 0;
+    word display_fps = 0;
     word disk_npages = 0;
     word disk_start_page = 0;
     word block_sectors = 0;
@@ -254,6 +299,13 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
     args.limit = number_option(parse_error, result, "limit");
     args.flags = number_option(parse_error, result, "flags");
     args.history_size = number_option(parse_error, result, "history");
+    args.display_scale = number_option(parse_error, result, "display-scale");
+    args.display_fps = number_option(parse_error, result, "display-fps");
+    if (args.display_scale == 0)
+    {
+        std::cerr << "ERROR: --display-scale must be at least 1\n";
+        parse_error = true;
+    }
     if (args.history_size > kMaxHistory)
     {
         std::cerr << "ERROR: --history keeps at most " << kMaxHistory << " instructions\n";
@@ -586,6 +638,11 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
     {
         print_history(out, emu, args.symbols);
     }
+    if (result.count("display-dump")
+        && !dump_display(result["display-dump"].as<std::string>(), emu.system_bus->display))
+    {
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
 
     switch (run_result.status)
     {
@@ -608,6 +665,91 @@ static void report_gdb_port(const U16 port)
 {
     std::cout << "gdb: listening on 127.0.0.1:" << port << std::endl;
 }
+
+#ifdef AEMU_GUI
+/// Runs the machine in slices, so that it stops soon after the window is closed.
+///
+/// @param[in,out] emu The machine.
+/// @param[in] limit The most instructions to run, 0 for no limit.
+/// @param[in] host The window's side of the display.
+/// @return How the run ended. A closed window is a run that reached its limit.
+static Emulator32bit::RunResult run_in_slices(Emulator32bit &emu, const word limit,
+                                              const HostDisplay &host)
+{
+    constexpr U64 kSlice = 100000;
+    U64 ran = 0;
+    for (;;)
+    {
+        const U64 slice = limit == 0 ? kSlice : std::min(kSlice, U64(limit) - ran);
+        Emulator32bit::RunResult result = emu.run(slice);
+        ran += result.instructions_ran;
+        result.instructions_ran = ran;
+        if (result.status != Emulator32bit::RunResult::Status::LIMIT_REACHED
+            || (limit != 0 && ran >= limit))
+        {
+            return result;
+        }
+
+        // run () does not stop at a breakpoint on the first instruction it runs, which is right
+        // for the first slice and wrong for the others (the gdb server does the same).
+        if (emu.breakpoints().contains(emu.get_pc()))
+        {
+            result.status = Emulator32bit::RunResult::Status::BREAKPOINT;
+            result.message = std::format("Breakpoint at {:#010x}", emu.get_pc());
+            return result;
+        }
+        if (host.closed())
+        {
+            result.message = "The display window was closed";
+            return result;
+        }
+    }
+}
+
+/// `--display`: the machine runs on a thread of its own and the window on this one, until the
+/// window is closed. What is typed in the window goes to the console.
+///
+/// @param[in,out] emu The machine.
+/// @param[in] args What the command line asked for.
+/// @param[out] run_result How the run ended.
+/// @return `false` with a message if the window could not be opened.
+static bool run_with_window(Emulator32bit &emu, const CliArgs &args,
+                            Emulator32bit::RunResult &run_result)
+{
+    DisplayWindow window("emu32", args.display_scale);
+    std::string error;
+    if (!window.open(error))
+    {
+        std::cerr << "ERROR: Cannot open the display window: " << error << "\n";
+        return false;
+    }
+
+    Display &display = emu.system_bus->display;
+    const auto host = std::make_shared<HostDisplay>(args.display_fps);
+    const auto keys = std::make_shared<HostInput>();
+    display.attach_host_display(host);
+    emu.system_bus->console.attach_host_input(keys);
+
+    std::atomic<bool> stopped{false};
+    std::thread machine(
+        [&]
+        {
+            run_result = run_in_slices(emu, args.limit, *host);
+            // The picture as the program left it, which is not a frame yet if it drew after the
+            // last one.
+            Frame last;
+            if ((display.read_word(kDisplayBase + Display::kRegCtrl) & Display::kCtrlOn)
+                && display.capture(last))
+            {
+                host->present(last);
+            }
+            stopped.store(true, std::memory_order_release);
+        });
+    window.run(*host, keys.get(), stopped);
+    machine.join();
+    return true;
+}
+#endif
 
 static int run_cli(const int argc, char *argv[])
 {
@@ -655,6 +797,20 @@ static int run_cli(const int argc, char *argv[])
         std::cerr << "ERROR: --gdb cannot be combined with --debug or --console-stdin\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
+    if (result.count("display")
+        && (result.count("debug") || result.count("gdb") || result.count("console-stdin")))
+    {
+        std::cerr << "ERROR: --display cannot be combined with --debug, --gdb or --console-stdin\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+#ifndef AEMU_GUI
+    if (result.count("display"))
+    {
+        std::cerr
+            << "ERROR: --display needs an emu32 built with the window (cmake -DAEMU_GUI=ON)\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+#endif
 
     CliArgs args;
     if (!parse_args(args, result))
@@ -698,6 +854,18 @@ static int run_cli(const int argc, char *argv[])
         }
         return S32(ExitCode::EXIT_HALTED);
     }
+
+#ifdef AEMU_GUI
+    if (result.count("display"))
+    {
+        Emulator32bit::RunResult run_result;
+        if (!run_with_window(*emu, args, run_result))
+        {
+            return S32(ExitCode::EXIT_USAGE_ERROR);
+        }
+        return report(result, args, *emu, run_result);
+    }
+#endif
 
     return report(result, args, *emu, emu->run(args.limit));
 }

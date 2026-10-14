@@ -29,6 +29,10 @@ SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
 {
     validate_memory();
     block.set_dma_memory(this->ram.get());
+    display.set_ram(this->ram.get());
+    timer.set_clock(&clock);
+    block.set_clock(&clock);
+    display.set_clock(&clock);
 }
 
 SystemBus::~SystemBus()
@@ -147,11 +151,14 @@ void SystemBus::write_block(word address, const byte *data, word size)
 
 void SystemBus::reset()
 {
+    // The clock needs nothing: a run ends with the devices up to date and starts by looking at
+    // when their next event is.
     ram->reset();
     intc.reset();
     timer.reset();
     console.reset();
     block.reset();
+    display.reset();
 }
 
 void SystemBus::read_page(byte *const out, const word ppage)

@@ -14,6 +14,9 @@ target_compile_definitions(assembler_integration PRIVATE
     ASSEMBLER_PATH=\"$<TARGET_FILE:basm>\"
     PROGRAMS_DIR=\"${PROJECT_SOURCE_DIR}/app/programs\"
 )
+if(AEMU_GUI)
+    target_compile_definitions(assembler_integration PRIVATE AEMU_GUI)
+endif()
 
 # TODO: Comment back in when ccompiler is implemented.
 # ccompiler pipeline: ccompiler_exec -> basm -> emu32

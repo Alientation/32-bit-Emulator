@@ -112,12 +112,18 @@ class AssemblerIntegration : public ::testing::Test
     }
 
     /// Runs emu32 with a plain state dump to state.txt and loads that dump into m_state. Returns
-    /// the exit code.
-    int emu32(const std::string &args)
+    /// the exit code. With `timeout_args`, timeout(1) runs emu32 with them (`-s INT 1`).
+    int emu32(const std::string &args, const std::string &timeout_args = "")
     {
         fs::remove(m_dir / "state.txt");
         m_state.clear();
-        m_emu_exit = run_command(EMULATOR_PATH, args + " --format plain -o state.txt", "emu32.log");
+        const std::string emu_args = args + " --format plain -o state.txt";
+        m_emu_exit = timeout_args.empty()
+                         ? run_command(EMULATOR_PATH, emu_args, "emu32.log")
+                         : run_command("timeout",
+                                       "--preserve-status " + timeout_args + " \""
+                                           + std::string(EMULATOR_PATH) + "\" " + emu_args,
+                                       "emu32.log");
 
         std::ifstream in(m_dir / "state.txt");
         std::string line;
@@ -1149,6 +1155,16 @@ TEST_F(AssemblerIntegration, sample_programs)
     ASSERT_NO_FATAL_FAILURE(run("out/showcase.bexe"));
     EXPECT_EQ(reg(0), 22u); // 0x12 + 4
     EXPECT_EQ(reg(1), 5u);
+
+    // 300 frames of about 117000 instructions, more than run () allows.
+    ASSERT_NO_FATAL_FAILURE(build("-o out/display_demo programs/src/display_demo.basm "
+                                  "-ld programs/src/display_demo.ld -outdir out"));
+    EXPECT_EQ(emu32("-e out/display_demo.bexe --display-dump out/demo.ppm"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED))
+        << log_tail("emu32.log");
+    EXPECT_EQ(reg(10), 300u) << "frames";
+    EXPECT_EQ(fs::file_size(m_dir / "out/demo.ppm"),
+              std::string("P6\n320 240\n255\n").size() + 320 * 240 * 3);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2399,6 +2415,102 @@ wait3:          ldr     x6, [x22, 4]
     EXPECT_EQ(bytes[513], 0x12);
     EXPECT_EQ(bytes[0], 0);
 }
+
+// The display (docs/display.md): a program draws a picture of 4 by 2 pixels at a physical address
+// (@P), changes a colour of the palette, waits for the end of a frame and emu32 writes the picture.
+TEST_F(AssemblerIntegration, a_program_draws_on_the_display)
+{
+    write_file("draw.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0000000         ; interrupt controller
+                ldr     x21, =0xF0004000         ; display
+                ldr     x0, =picture
+                ldr     x1, =0xE0E0E0E0          ; the first row: red
+                str     x1, [x0]
+                ldr     x1, =0x03030307          ; the second row: entry 7, then blue
+                str     x1, [x0, 4]
+                ldr     x1, =0x123456
+                str     x1, [x21, 0x41C]         ; palette entry 7
+
+                str     x0, [x21, 8]             ; address
+                mov     x1, 4
+                str     x1, [x21, 0xC]           ; width
+                mov     x1, 2
+                str     x1, [x21, 0x10]          ; height
+                mov     x1, 1000
+                str     x1, [x21, 0x18]          ; a frame is 1000 instructions
+                mov     x1, 8
+                str     x1, [x20, 8]             ; enable line 3
+                mov     x1, 3
+                str     x1, [x21, 0]             ; on, interrupt at the end of a frame
+                wfi
+                ldr     x2, [x20, 0]             ; claim
+                ldr     x3, [x21, 0x1C]          ; frames
+                ldr     x4, [x21, 4]             ; status
+                hlt
+
+.bss
+picture:        .advance 8
+)");
+    write_file("draw.ld", "ENTRY(_start)\nSECTIONS (\n @P;\n .text = 0x0;\n .bss = 0x8000;\n)\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o draw draw.basm -ld draw.ld -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("draw.bexe", "--display-dump draw.ppm"));
+
+    EXPECT_EQ(reg(2), 3u) << "the display's line";
+    EXPECT_EQ(reg(3), 1u);
+    EXPECT_EQ(reg(4), 1u) << "a frame ended, no error";
+
+    std::ifstream image(m_dir / "draw.ppm", std::ios::binary);
+    const std::string bytes((std::istreambuf_iterator<char>(image)),
+                            std::istreambuf_iterator<char>());
+    const std::string header = "P6\n4 2\n255\n";
+    ASSERT_EQ(bytes.size(), header.size() + 8 * 3);
+    EXPECT_EQ(bytes.substr(0, header.size()), header);
+    const std::string red("\xFF\x00\x00", 3);
+    const std::string blue("\x00\x00\xFF", 3);
+    EXPECT_EQ(bytes.substr(header.size()),
+              red + red + red + red + std::string("\x12\x34\x56") + blue + blue + blue);
+}
+
+// A picture that is not in RAM cannot be written.
+TEST_F(AssemblerIntegration, emu32_cannot_dump_a_picture_that_is_not_in_ram)
+{
+    write_file("nodraw.basm", ".global _start\n.text\n_start:\n                hlt\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o nodraw nodraw.basm -outdir ."));
+    // The default picture is 320 by 240 bytes at 0, more than 2 pages of RAM.
+    EXPECT_EQ(emu32("-e nodraw.bexe --ram-pages 2 --display-dump nodraw.ppm"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+    EXPECT_NE(log_tail("emu32.log").find("not in RAM"), std::string::npos) << log_tail("emu32.log");
+}
+
+#ifdef AEMU_GUI
+// The window of --display, with SDL's dummy video driver, which needs no screen. The window shows
+// at most 60 frames a second, so the machine has not drawn all 300 frames of the demo when the
+// window is closed (SIGINT, which SDL turns into a close) after a second.
+TEST_F(AssemblerIntegration, closing_the_display_window_ends_the_run)
+{
+    fs::copy(PROGRAMS_DIR, m_dir / "programs", fs::copy_options::recursive);
+    ASSERT_NO_FATAL_FAILURE(build("-o display_demo programs/src/display_demo.basm "
+                                  "-ld programs/src/display_demo.ld -outdir ."));
+    setenv("SDL_VIDEODRIVER", "dummy", 1);
+    EXPECT_EQ(emu32("-e display_demo.bexe --display", "-s INT 1"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state("message"), "The display window was closed");
+    EXPECT_GT(reg(10), 0u) << "it ran";
+    EXPECT_LT(reg(10), 300u) << "at no more than 60 frames a second";
+}
+#else
+TEST_F(AssemblerIntegration, emu32_without_the_window_refuses_display)
+{
+    write_file("nowin.basm", ".global _start\n.text\n_start:\n                hlt\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o nowin nowin.basm -outdir ."));
+    EXPECT_EQ(emu32("-e nowin.bexe --display"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+    EXPECT_NE(log_tail("emu32.log").find("AEMU_GUI"), std::string::npos) << log_tail("emu32.log");
+}
+#endif
 
 // adr is the address of a label in one instruction: a label of the code (the call through a
 // register, a jump table of the code itself), and data in another section, the linker works out

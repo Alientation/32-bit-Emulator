@@ -22,7 +22,9 @@ because the assembler's diagnostics and the report of a faulting program are war
 `leak`, `thread`, which `aemu_target_defaults` turns into `-fsanitize=...` with
 `-fno-sanitize-recover=all` so a report fails the test, plus `_GLIBCXX_ASSERTIONS`; `thread` cannot
 be combined with `address`/`leak`; use a build directory of its own, `build.sh asan` does),
-`BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched). In-tree code links the libraries through the
+`BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched), `AEMU_GUI` (OFF; ON builds the SDL2 window of
+`emu32 --display` into `emu32` only, `find_package(SDL2)`, and defines `AEMU_GUI` for `emu32` and the
+integration tests; use a build directory of its own, e.g. `build/gui`, `docs/display.md`). In-tree code links the libraries through the
 `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
 
 **New test files must be added by hand** to the `SOURCES` list of the `aemu_add_gtest(...)` call in
@@ -242,19 +244,28 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     call `require_kernel ()`.
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
     `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
-    CLAIM register), `Timer` (counts executed instructions, `tick()` is called by `run()` after each
-    one), `Console` (stream out, queued bytes in, and the live input of a `HostInput` that another
+    CLAIM register), `Timer` (counts executed instructions), `Console` (stream out, queued bytes in, and the live input of a `HostInput` that another
     thread fills: it is taken on the emulator thread, by `poll_host_input ()` from the register
-    reads and from the `hooked` part of `run ()`, which a live input turns on) and `BlockDevice` (512 byte sectors, data
+    reads and from `DeviceClock::sync ()`, which looks at least every `kHostInputPollInterval`
+    instructions while there is a live input; it once made `run ()` take its `hooked` path, which
+    cost a run with a live input 30-45%) and `BlockDevice` (512 byte sectors, data
     register, completes after LATENCY ticks, line 2, `--block-file`/`--block-sectors`; DMA commands
     4/5 with DMA_ADDR/DMA_COUNT, and 6/7 with a list of descriptors at DMA_LIST, move whole sectors
-    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU). `SystemBus`
-    owns them (`intc`, `timer`, `console`, `block`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`
+    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM). `SystemBus`
+    owns them (`intc`, `timer`, `console`, `block`, `display`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`/`+0x4000`
     and `route_memory` sends addresses from `kDeviceBase` to them; the swapping MMU leaves those
     addresses untranslated. `run()` takes the IRQ exception between instructions when the queue is
-    not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps the
-    timer to its match, else waits for the host's input if the program asked to hear of a byte, else
-    halts. Instruction fetch also works from the ROM. `emu32
+    not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps
+    time to the nearest interrupt of the timer, the block device or the display, else waits for the
+    host's input if the program asked to hear of a byte, else halts. The devices that count
+    instructions are moved on by the bus's `DeviceClock`: `run()` only counts down
+    (`bus.clock.tick()`, one decrement) to the next event of any of them, and the clock gives them
+    the instructions that passed then, before an access to their registers, after a write, at `WFI`
+    and at the start and end of `run()` (`sync ()`). This replaced a tick of each device after every
+    instruction, which a third device made 1.5-5% slower; a new device that counts instructions is
+    added to `DeviceClock::sync`, not to the loop, and code inside a run that changes or reads a
+    device directly (not through its registers) calls `sync ()` before and after (the host between
+    two runs need not). Instruction fetch also works from the ROM. `emu32
     --console-input FILE` feeds the console, `--console-stdin` hands it what is typed. Memory may not reach `kDeviceBase`.
   - **Page tables** (`docs/mmu.md`): `SCTLR.M = 1` (`msr sctlr, 1`) switches
     `VirtualMemory::translate_address` from the swapping process MMU above to a hardware walk of a
@@ -322,7 +333,8 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     `docs/basm-syntax.md` and `docs/belf-format.md`. Keep them in step when the syntax, a relocation
     type or the `.bo` layout changes. `docs/isa.md` is the ISA reference (keep it in step with
     `opcodes.h` and the handlers). `docs/mmu.md` is the page table format and the TLB rules.
-    `docs/devices.md` is the memory map, the devices, interrupts and the boot sequence.
+    `docs/devices.md` is the memory map, the devices, interrupts and the boot sequence;
+    `docs/display.md` the display.
     `docs/exceptions.md` describes the exception machinery. `docs/abi.md` is the agreed calling
     convention, data layout and frame record for the planned C compiler and OS (a convention,
     nothing enforces it yet; `bt` follows its frame record), plus `udiv`/`sdiv` (implemented: a

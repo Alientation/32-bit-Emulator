@@ -9,3 +9,7 @@ The compiler is in `core/ccompiler` and is currently disabled in `core/CMakeList
 ## Code and build
 
 - Reduce the compilation time further. Parsing the headers is about 16% of the CPU time of a debug build (`-fsyntax-only` of every file against the whole build); the rest is code generation, and the test files and GoogleTest are about 60% of it. `<iostream>`, `<chrono>`, `<filesystem>` and (through `alu.h`) `<format>` are no longer included by the headers that every file includes, which took the parsing of all files from 65.7 s to 54.9 s of CPU time; `<format>` is now only in the 27 library files and 10 test files that log. What is left is the test files (`assembler_test.cpp` and the other large ones are mostly GoogleTest macros).
+
+## Display
+
+- A keyboard device with scan codes and its own interrupt line, if the console's bytes are not enough.

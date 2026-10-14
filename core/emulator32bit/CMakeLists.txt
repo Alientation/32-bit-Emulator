@@ -13,6 +13,7 @@ add_library(emulator32bit STATIC
     src/debugger.cpp
     src/devices.cpp
     src/host_input.cpp
+    src/host_display.cpp
     src/gdb_server.cpp
     src/disassembler.cpp
 )
@@ -37,6 +38,14 @@ set_target_properties(emulator32bit PROPERTIES DEBUG_POSTFIX "d")
 add_executable(emu32 src/cli.cpp)
 target_link_libraries(emu32 PRIVATE aemu::emulator32bit aemu::assembler cxxopts::cxxopts)
 aemu_target_defaults(emu32)
+
+# The window of `emu32 --display`. Only emu32 needs SDL, the library does not.
+if(AEMU_GUI)
+    find_package(SDL2 REQUIRED)
+    target_sources(emu32 PRIVATE src/display_window.cpp)
+    target_link_libraries(emu32 PRIVATE SDL2::SDL2)
+    target_compile_definitions(emu32 PRIVATE AEMU_GUI)
+endif()
 
 # Installation rules
 include(GNUInstallDirs)

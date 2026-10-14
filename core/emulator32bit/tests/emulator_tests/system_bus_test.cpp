@@ -63,9 +63,10 @@ TEST(system_bus, an_address_goes_to_the_memory_or_device_that_has_it)
     EXPECT_EQ(bus->find_memory(kTimerBase + 4), &bus->timer);
     EXPECT_EQ(bus->find_memory(kConsoleBase), &bus->console);
     EXPECT_EQ(bus->find_memory(kBlockBase), &bus->block);
+    EXPECT_EQ(bus->find_memory(kDisplayBase + 0x400), &bus->display);
 
     EXPECT_EQ(bus->find_memory(vaddr(4)), nullptr) << "between the RAM and the ROM";
-    EXPECT_EQ(bus->find_memory(kBlockBase + kPageSize), nullptr) << "after the last device";
+    EXPECT_EQ(bus->find_memory(kDisplayBase + kPageSize), nullptr) << "after the last device";
     EXPECT_EQ(&bus->route_memory(vaddr(9)), bus->rom.get());
 }
 

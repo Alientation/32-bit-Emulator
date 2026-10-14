@@ -221,9 +221,11 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
     // Whether anything needs to look at each instruction (the debugger's breakpoints and watches,
     // the trace, the history). This is used to skip expensive operations.
     const bool hooked = m_regwatches.count != 0 || !m_breakpoints.empty() || m_history.size != 0
-                        || m_trace.out != nullptr || m_watchpoints.count != 0
-                        || system_bus->console.has_host_input();
+                        || m_trace.out != nullptr || m_watchpoints.count != 0;
     SystemBus &bus = *system_bus;
+
+    // The host may have changed a device directly between two runs.
+    bus.clock.sync();
 
     try
     {
@@ -237,9 +239,6 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
         {
             if (UNLIKELY(hooked))
             {
-                // Check for input interrupt from the host.
-                bus.console.poll_host_input();
-
                 // Check for debug watchpoints. Does not need to check just_started because
                 // register values are saved before starting and register watchpoints only hit
                 // on value change.
@@ -300,8 +299,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             m_pc_written = false;
             m_just_took_exception = false;
             result.instructions_ran++;
-            bus.timer.tick();
-            bus.block.tick();
+            bus.clock.tick();
 
             if (UNLIKELY(hooked) && !m_watchpoints.hit_message.empty())
             {
@@ -372,6 +370,8 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
         result.message = e.what();
     }
 
+    // The devices are up to date for whoever looks at them after the run.
+    bus.clock.sync();
     return result;
 }
 
