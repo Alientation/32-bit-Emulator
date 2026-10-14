@@ -59,6 +59,18 @@ A few records the program keeps for its whole run (watchpoints, register watches
 - **A test written with the code is unverified** until `tools/mutate.sh` shows it fails when the line it guards is removed. Say in the commit which lines were mutated if it was not obvious.
 - A table gets tests for: full, replace when full, remove (every field moves with the last entry), clear.
 
+## C (the compiler)
+
+`core/ccompiler` is C and not C++, and has to compile itself ([ccompiler.md](ccompiler.md#self-hosting)). The rules above that are about the language do not apply; formatting (`.clang-format`), the comment rules, and the rules about names and helpers do.
+
+- **Only what the compiler supports:** no `long`, `float`, `double` or VLAs, no GNU extensions, `_Noreturn` or attributes, and no library beyond the small one in the plan. `int`, `char`, `size_t` and `bool`; `U32` and the like are C++. `tools/check_selfhost_subset.sh` checks the types.
+- **Errors:** `error`, `error_at` and `error_tok` print a message and `exit (1)`: a compiler run is one file, and there is nothing to clean up. The compiler does not know they do not return, so write a `return` after the call that is a value of the right kind (`return NULL;`).
+- **Memory:** `arena_alloc`, zeroed, never freed. A new kind of allocation needs a reason.
+- **Names:** types are `CamelCase` typedefs, functions and variables `snake_case`, enumerators upper case with the prefix of their enum (`TK_`, `ND_`, `TY_`). Everything used in one file only is `static`.
+- **The grammar** in [ccompiler.md](ccompiler.md#grammar) changes with the parser, in the same commit, and so does the `///` rule above the function.
+- **Tables over chains of `if`:** the keyword list, the punctuators and the binary operator levels are arrays, and a new one is a row.
+- **Tests** are end to end, in the integration test: a case needs an expected value worked out by hand and checked with the host compiler.
+
 ## Performance
 
 - A change to the hot path (`run ()`, `MemoryPort`, `SystemBus`, `VirtualMemory`, a load/store handler) is benchmarked with `tools/bench.sh --baseline <old emu32> -n 15` and judged on the plain programs, best and median together.
@@ -66,7 +78,7 @@ A few records the program keeps for its whole run (watchpoints, register watches
 
 ## Applying it
 
-The rules hold for all of `core/` (not `ccompiler/`, which is not built, nor `external/`). A new rule is applied in a sweep: one commit per rule, the full `./build.sh` passing, a benchmark if it touches the hot path. Tests keep their lambdas and change only where an API change forces it.
+The rules hold for all of `core/` but `ccompiler/` (C, see [the section on it](#c-the-compiler)) and `external/`. A new rule is applied in a sweep: one commit per rule, the full `./build.sh` passing, a benchmark if it touches the hot path. Tests keep their lambdas and change only where an API change forces it.
 
 Tools for finding the places (`clang-tidy` and `libclang` from `pip` in a virtual environment, on `build/release/compile_commands.json`, with the standard library's include directories as `-isystem`):
 

@@ -2,7 +2,7 @@
 
 This is the convention that a C compiler, the runtime library, the operating system and hand written assembly follow: the data layout, the registers, how arguments and results are passed, the frame record and the system call interface. Everything is little endian.
 
-The convention is not enforced by the toolchain. The instruction set support it relies on is implemented (`UDIV`/`SDIV`, see [Division](#division), and the instructions listed under [Toolchain support](#toolchain-support)) and the debugger's `bt` follows the frame record. The C compiler, `crt0` and the runtime library are not written yet; their sections below say what they have to provide. The register roles are the ones in [isa.md](isa.md#register-conventions).
+The convention is not enforced by the toolchain. The instruction set support it relies on is implemented (`UDIV`/`SDIV`, see [Division](#division), and the instructions listed under [Toolchain support](#toolchain-support)) and the debugger's `bt` follows the frame record. The C compiler ([ccompiler.md](ccompiler.md)) has a first version that follows the frame record and the result register, and a first `crt0` (`ccompiler/lib/crt0.basm`, no arguments and no exit call yet). The runtime library is not written yet; its section below says what it has to provide. The register roles are the ones in [isa.md](isa.md#register-conventions).
 
 ## Data types
 
@@ -18,6 +18,22 @@ The convention is not enforced by the toolchain. The instruction set support it 
 `char` is **signed**: a plain `char` is loaded with `ldrsb`, `unsigned char` with `ldrb`. Structs and arrays use the natural alignment of their members and are padded to a multiple of their alignment. The largest alignment is **4**: there is no 64 bit load or store, so a 64 bit value is always handled as two words and gains nothing from 8 byte alignment. `ldr`, `str`, `ldrh` and `strh` fault on an address that is not aligned to the access, so a member of a `packed` struct, or a pointer that was cast to a type of a larger alignment, is accessed with `ldur`, `stur`, `ldurh`, `sturh` (see [isa.md](isa.md#memory-access-6)).
 
 `float` and `double` are IEEE 754 binary32/binary64. The CPU has hardware floating point ([isa.md](isa.md#floating-point-3)) that works on the integer registers, in which these types are passed anyway, so the same registers are used whether the compiler emits `fadd.f32` or calls the software routine of the [runtime library](#runtime-library) (for what the instructions do not do: `long long` to float, and the math library).
+
+### Standard types and layout
+
+What the C compiler defines, in the headers it ships:
+
+| Type | Is |
+|------|----|
+| `size_t`, `uintptr_t` | `unsigned int` |
+| `ptrdiff_t`, `intptr_t`, `ssize_t`, `wchar_t` | `int` |
+| `long double` | the same as `double` (8 bytes, alignment 4) |
+
+A **bit-field** is placed from the least significant bit of a storage unit of its declared type (the size and alignment of that type), in the order of declaration. It does not straddle a unit: if it does not fit, it starts in the next one, and a zero-width bit-field ends the current unit. A plain `int` bit-field is signed. The alignment of the struct is the largest alignment of the declared types, as for the other members.
+
+### Symbol names
+
+A C function or global `name` is the symbol `_name` in the assembly, since basm does not allow a label that is an instruction, register or condition (`add`, `sp`, `eq`). Hand written code that is called from C, and the runtime library's helpers (`__divdi3`, which the compiler calls directly), are named as they are. `_start` and the linker's `__init_array_start` are not C names.
 
 ## Registers
 

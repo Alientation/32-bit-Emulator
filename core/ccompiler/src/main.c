@@ -1,38 +1,55 @@
-#include "ccompiler/ccompiler.h"
+#include "ccompiler/codegen.h"
+#include "ccompiler/lex.h"
+#include "ccompiler/parse.h"
+#include "ccompiler/util.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-/*
-This is the ccompiler. Usage:
---                                      end of options, rest are parsed as files
--v, --version                           version info
--ar, --archive                          compile into archive library
--o, --output                            output file path
--d, --debug                             enable debug output
--O<level>, --optimize=<level>           optimization level *UNIMPLEMENTED*
--oall                                   optimize everything *UNIMPLEMENTED*
--W<level>, --warning=<level>            warning level *UNIMPLEMENTED*
--wall                                   enable all warnings *UNIMPLEMENTED*
--werror                                 convert warnings to errors *UNIMPLEMENTED*
--I <dir>, --include <dir>               add directory to search for include files
--l <file>, --library <file>             link library
--L <dir>, --librarydir <dir>            link all libraries in directory
--D <flag>                               define a C preprocessor flag
--Dbasm                                  define a basm preprocessor flag
--kp                                     keep preprocessor output
--E                                      only run preprocessor
--C                                      keep comments in preprocessed output
--h, --help                              display this
-
-*/
-
-int main(int argc, char *argv[])
+static void usage(void)
 {
+    fprintf(stderr, "usage: bcc [-o output.basm] input.c\n");
+}
+
+int main(int argc, char **argv)
+{
+    const char *input = NULL;
+    const char *output = NULL;
     for (int i = 1; i < argc; i++)
     {
-        ccompile(argv[i]);
+        if (strcmp(argv[i], "-o") == 0 && i + 1 < argc)
+        {
+            output = argv[++i];
+        }
+        else if (argv[i][0] != '-' && !input)
+        {
+            input = argv[i];
+        }
+        else
+        {
+            usage();
+            return 1;
+        }
+    }
+    if (!input)
+    {
+        usage();
+        return 1;
+    }
+
+    SourceFile *file = read_source_file(input);
+    Token *tok = tokenize(file);
+    Function *prog = parse(tok);
+
+    FILE *out = output ? fopen(output, "w") : stdout;
+    if (!out)
+    {
+        error("cannot open '%s' for writing", output);
+    }
+    codegen(prog, out);
+    if (fflush(out) != 0 || ferror(out) || (out != stdout && fclose(out) != 0))
+    {
+        error("cannot write the output");
     }
     return 0;
 }

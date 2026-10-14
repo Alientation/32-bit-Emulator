@@ -8,10 +8,8 @@ set -euo pipefail
 #                                   if there are any (for CI or a pre-commit check)
 #   tools/format.sh [--check] FILE...   only these files (relative to core/)
 #
-# The files are the ones git tracks with the extension .h, .hpp, .c or .cpp. The inputs of the C
-# compiler tests (ccompiler/testfiles) and its runtime (ccompiler/lib) are left alone, they are
-# data and not code that follows the style. Set CLANG_FORMAT to use another binary, e.g.
-# CLANG_FORMAT=clang-format-18 tools/format.sh.
+# The files are the ones git tracks with the extension .h, .hpp, .c or .cpp. Set CLANG_FORMAT to
+# use another binary, e.g. CLANG_FORMAT=clang-format-18 tools/format.sh.
 
 export LC_ALL=C
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -40,7 +38,7 @@ if [ "$#" -gt 0 ]; then
 else
     while IFS= read -r -d '' f; do
         FILES+=("$f")
-    done < <(git ls-files -z -- '*.h' '*.hpp' '*.c' '*.cpp' ':!:ccompiler/testfiles' ':!:ccompiler/lib')
+    done < <(git ls-files -z -- '*.h' '*.hpp' '*.c' '*.cpp')
 fi
 
 if [ "${#FILES[@]}" -eq 0 ]; then

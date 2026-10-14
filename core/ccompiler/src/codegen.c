@@ -1,434 +1,226 @@
 #include "ccompiler/codegen.h"
 
-#include "ccompiler/massert.h"
+#include "ccompiler/util.h"
 
+#include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#define UNUSED(x) (void) (x)
+static FILE *output;
 
-static void codegen_ast(codegen_data_t *codegen, astnode_t *node);
-static void codegen_prog(codegen_data_t *codegen, astnode_t *node);
-static void codegen_func(codegen_data_t *codegen, astnode_t *node);
-static void codegen_statement(codegen_data_t *codegen, astnode_t *node);
-static regid_t codegen_expr(codegen_data_t *codegen, astnode_t *node);
-static regid_t codegen_factor(codegen_data_t *codegen, astnode_t *node);
-static regid_t codegen_binary_expr_2(codegen_data_t *codegen, astnode_t *node);
-static regid_t codegen_binary_expr_1(codegen_data_t *codegen, astnode_t *node);
-static regid_t codegen_unary_expr(codegen_data_t *codegen, astnode_t *node);
+/// The number of the next label.
+static int label_count;
 
-static void codegenblock_addtok(stringbuffer_t *block, token_t *tok);
+/// The label a `return` of the function that is being generated jumps to.
+static int return_label;
 
-static void func_init(codegen_func_t *func, astnode_t *node);
-static void func_push_reg(codegen_func_t *func, regid_t rid);
-static void func_pop_reg(codegen_func_t *func, regid_t rid);
+/// The number of values that are pushed on the stack and not popped yet, in words.
+static int depth;
 
-static void reg_init(codegen_func_t *func);
-static regid_t reg_alloc(codegen_func_t *func);
-static regid_t reg_evict(codegen_func_t *func);
-static void reg_free(codegen_func_t *func, regid_t rid);
-static codegen_reg_t *reg_get(codegen_func_t *func, regid_t rid);
-static bool reg_is_caller_saved(regid_t rid);
-static bool reg_is_callee_saved(regid_t rid);
-static regid_t reg_get_caller_saved_id(int i);
-static regid_t reg_get_callee_saved_id(int i);
-
-static void func_init(codegen_func_t *func, astnode_t *node)
+static void emit(const char *fmt, ...)
 {
-    func->func = node;
-
-    // by default, stack needs space for LR and FP
-    // can be optimized out, but at the end when funcion code has been generated
-    func->stack_used = 16;
-    func->stack_capacity = 16;
-
-    stringbuffer_init(&func->body);
-    reg_init(func);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(output, fmt, ap);
+    va_end(ap);
+    fprintf(output, "\n");
 }
 
-static void func_push_reg(codegen_func_t *func, regid_t rid)
+static int new_label(void)
 {
-    codegen_reg_t *reg = reg_get(func, rid);
-    reg->stack_offset = func->stack_used;
-    func->stack_used += 8;
-    if (func->stack_capacity < func->stack_used)
+    return label_count++;
+}
+
+static void emit_label(int label)
+{
+    emit("L%d:", label);
+}
+
+static void push(void)
+{
+    emit("    str     x0, [sp, -4]!");
+    depth++;
+}
+
+static void pop(const char *reg)
+{
+    emit("    ldr     %s, [sp], 4", reg);
+    depth--;
+}
+
+static void gen_expr(const Node *node);
+
+/// Evaluates `lhs && rhs` or `lhs || rhs` into x0 as 0 or 1. The right operand is skipped when
+/// the left one decides the result.
+static void gen_logical(const Node *node)
+{
+    const bool is_and = node->kind == ND_LOGAND;
+    const int decided = new_label();
+    const int end = new_label();
+
+    gen_expr(node->lhs);
+    emit("    cmp     x0, 0");
+    emit("    b.%s    L%d", is_and ? "eq" : "ne", decided);
+    gen_expr(node->rhs);
+    emit("    cmp     x0, 0");
+    emit("    b.%s    L%d", is_and ? "eq" : "ne", decided);
+    emit("    mov     x0, %d", is_and ? 1 : 0);
+    emit("    b       L%d", end);
+    emit_label(decided);
+    emit("    mov     x0, %d", is_and ? 0 : 1);
+    emit_label(end);
+}
+
+/// Evaluates an expression into x0.
+static void gen_expr(const Node *node)
+{
+    switch (node->kind)
     {
-        // align to 16
-        func->stack_capacity = ((func->stack_capacity + 15) / 16) * 16;
+    case ND_NUM:
+        emit("    ldr     x0, =%d", node->value);
+        return;
+    case ND_NEG:
+        gen_expr(node->lhs);
+        emit("    sub     x0, xzr, x0");
+        return;
+    case ND_BITNOT:
+        gen_expr(node->lhs);
+        emit("    mvn     x0, x0");
+        return;
+    case ND_NOT:
+        gen_expr(node->lhs);
+        emit("    cmp     x0, 0");
+        emit("    cset    x0, eq");
+        return;
+    case ND_LOGAND:
+    case ND_LOGOR:
+        gen_logical(node);
+        return;
+    default:
+        break;
     }
 
-    // save register to stack 'str <r>, [sp, <offset>]'
-    stringbuffer_appendf(&func->body, "str %s, [sp, %d]\n", reg->name, reg->stack_offset);
-}
+    // The right operand first, so that the left one ends up in x0 and the right one in x1.
+    gen_expr(node->rhs);
+    push();
+    gen_expr(node->lhs);
+    pop("x1");
 
-static void func_pop_reg(codegen_func_t *func, regid_t rid)
-{
-    codegen_reg_t *reg = reg_get(func, rid);
-
-    massert(func->stack_used >= 8, "expected stack size to be greater than the size of a register");
-    massert(reg->stack_offset >= 0,
-            "expected stack offset to be positive since SP points to the bottom of the stack");
-
-    // restore reg from stack 'ldr <r>, [sp, <offset>]'
-    stringbuffer_appendf(&func->body, "ldr %s, [sp, %d]\n", reg->name, reg->stack_offset);
-
-    reg->stack_offset = -1;
-    func->stack_used -= 8;
-}
-
-static void reg_init(codegen_func_t *func)
-{
-    for (int i = 0; i < CODEGEN_NUM_CALLER_REGS; i++)
+    switch (node->kind)
     {
-        func->caller_saved_regs[i].name = NULL;
-        func->caller_saved_regs[i].alloc = false;
-        func->caller_saved_regs[i].stack_offset = -1;
+    case ND_ADD:
+        emit("    add     x0, x0, x1");
+        return;
+    case ND_SUB:
+        emit("    sub     x0, x0, x1");
+        return;
+    case ND_MUL:
+        emit("    mul     x0, x0, x1");
+        return;
+    case ND_DIV:
+        emit("    sdiv    x0, x0, x1");
+        return;
+    case ND_MOD:
+        // There is no remainder instruction: n - (n / d) * d.
+        emit("    sdiv    x2, x0, x1");
+        emit("    mul     x2, x2, x1");
+        emit("    sub     x0, x0, x2");
+        return;
+    case ND_SHL:
+        emit("    lsl     x0, x0, x1");
+        return;
+    case ND_SHR:
+        emit("    asr     x0, x0, x1");
+        return;
+    case ND_BITAND:
+        emit("    and     x0, x0, x1");
+        return;
+    case ND_BITXOR:
+        emit("    eor     x0, x0, x1");
+        return;
+    case ND_BITOR:
+        emit("    orr     x0, x0, x1");
+        return;
+    case ND_EQ:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, eq");
+        return;
+    case ND_NE:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, ne");
+        return;
+    case ND_LT:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, lt");
+        return;
+    case ND_LE:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, le");
+        return;
+    case ND_GT:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, gt");
+        return;
+    case ND_GE:
+        emit("    cmp     x0, x1");
+        emit("    cset    x0, ge");
+        return;
+    default:
+        break;
     }
-
-    for (int i = 0; i < CODEGEN_NUM_CALLEE_REGS; i++)
-    {
-        func->callee_saved_regs[i].name = NULL;
-        func->callee_saved_regs[i].alloc = false;
-        func->callee_saved_regs[i].stack_offset = -1;
-    }
-
-    func->caller_saved_regs[0].name = "x0";
-    func->caller_saved_regs[1].name = "x1";
-    func->caller_saved_regs[2].name = "x2";
-    func->caller_saved_regs[3].name = "x3";
-    func->caller_saved_regs[4].name = "x4";
-    func->caller_saved_regs[5].name = "x5";
-    func->caller_saved_regs[6].name = "x6";
-    func->caller_saved_regs[7].name = "x7";
-    func->caller_saved_regs[8].name = "x8";
-    func->caller_saved_regs[9].name = "x9";
-    func->caller_saved_regs[10].name = "x10";
-    func->caller_saved_regs[11].name = "x11";
-    func->caller_saved_regs[12].name = "x12";
-    func->caller_saved_regs[13].name = "x13";
-    func->caller_saved_regs[14].name = "x14";
-    func->caller_saved_regs[15].name = "x15";
-    func->caller_saved_regs[16].name = "x16";
-    func->caller_saved_regs[17].name = "x17";
-
-    func->callee_saved_regs[0].name = "x19";
-    func->callee_saved_regs[1].name = "x20";
-    func->callee_saved_regs[2].name = "x21";
-    func->callee_saved_regs[3].name = "x22";
-    func->callee_saved_regs[4].name = "x23";
-    func->callee_saved_regs[5].name = "x24";
-    func->callee_saved_regs[6].name = "x25";
-    func->callee_saved_regs[7].name = "x26";
-    func->callee_saved_regs[8].name = "x27";
+    error_tok(node->tok, "this expression cannot be compiled yet");
 }
 
-static regid_t reg_alloc(codegen_func_t *func)
+static void gen_stmt(const Node *node)
 {
-    // prioritize allocating caller saved registers
-    for (int i = 0; i < CODEGEN_NUM_CALLER_REGS; i++)
+    switch (node->kind)
     {
-        if (!func->caller_saved_regs[i].alloc)
+    case ND_RETURN:
+        if (node->lhs)
         {
-            func->caller_saved_regs[i].alloc = true;
-            return reg_get_caller_saved_id(i);
+            gen_expr(node->lhs);
         }
-    }
-
-    // otherwise try to allocate a callee saved register
-    // need to push current value in the reg to stack
-    for (int i = 0; i < CODEGEN_NUM_CALLEE_REGS; i++)
-    {
-        if (!func->callee_saved_regs[i].alloc)
+        emit("    b       L%d", return_label);
+        return;
+    case ND_BLOCK:
+        for (const Node *stmt = node->body; stmt; stmt = stmt->next)
         {
-            func->callee_saved_regs[i].alloc = true;
-            func_push_reg(func, reg_get_callee_saved_id(i));
-            return reg_get_callee_saved_id(i);
+            gen_stmt(stmt);
         }
-    }
-
-    // otherwise, we need to evict
-    return reg_evict(func);
-}
-
-static regid_t reg_evict(codegen_func_t *func)
-{
-    UNUSED(func);
-    M_UNREACHABLE("unimplemented");
-    return -1;
-}
-
-static void reg_free(codegen_func_t *func, regid_t rid)
-{
-    codegen_reg_t *reg = reg_get(func, rid);
-
-    massert(reg->alloc, "attempted to free unallocated register %s", reg->name);
-
-    reg->alloc = false;
-
-    // need to restore old value
-    if (reg_is_callee_saved(rid))
-    {
-        func_pop_reg(func, rid);
-    }
-}
-
-static codegen_reg_t *reg_get(codegen_func_t *func, regid_t rid)
-{
-    massert(rid >= 0 && rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS,
-            "Invalid register identifier: r%d", rid);
-
-    if (rid < CODEGEN_NUM_CALLER_REGS)
-    {
-        return &func->caller_saved_regs[rid];
-    }
-    else if (rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS)
-    {
-        return &func->callee_saved_regs[rid - CODEGEN_NUM_CALLER_REGS];
-    }
-
-    UNREACHABLE();
-    return NULL;
-}
-
-static bool reg_is_caller_saved(regid_t rid)
-{
-    return rid >= 0 && rid < CODEGEN_NUM_CALLER_REGS;
-}
-
-static bool reg_is_callee_saved(regid_t rid)
-{
-    return rid >= CODEGEN_NUM_CALLER_REGS
-           && rid < CODEGEN_NUM_CALLER_REGS + CODEGEN_NUM_CALLEE_REGS;
-}
-
-static regid_t reg_get_caller_saved_id(int i)
-{
-    return i;
-}
-
-static regid_t reg_get_callee_saved_id(int i)
-{
-    return i + CODEGEN_NUM_CALLER_REGS;
-}
-
-void codegen(parser_data_t *parser, const char *output_filepath)
-{
-    FILE *file = fopen(output_filepath, "w");
-    if (file == NULL)
-    {
-        fprintf(stderr, "ERROR: failed to open file\n");
-        exit(EXIT_FAILURE);
-    }
-
-    codegen_data_t codegen = {0};
-    codegen.parser = parser;
-    codegen.output_file = file;
-    codegen.cur_func = NULL;
-    codegen.cur_txt_sect = &codegen.txt_sect;
-    stringbuffer_init(&codegen.glob_sym_decl);
-    stringbuffer_init(&codegen.txt_sect);
-
-    codegen_ast(&codegen, (astnode_t *) parser->ast);
-
-    // Write code blocks to file
-    fprintf(file, "%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
-
-    printf("GENERATED CODE\n\"%s\":\n", output_filepath);
-    printf("%s\n.text\n%s\n\thlt\n", codegen.glob_sym_decl.buf, codegen.txt_sect.buf);
-
-    fclose(file);
-    stringbuffer_free(&codegen.glob_sym_decl);
-    stringbuffer_free(&codegen.txt_sect);
-}
-
-static void codegen_ast(codegen_data_t *codegen, astnode_t *node)
-{
-    switch (node->type)
-    {
-    case AST_ERR:
-    case AST_LITERAL_INT:
-    case AST_IDENT:
-    case AST_EXPR:
-    case AST_UNARY_EXPR:
-    case AST_BINARY_EXPR_1:
-    case AST_BINARY_EXPR_2:
-    case AST_FACTOR:
-    case AST_STATEMENT:
-    case AST_FUNC:
-        M_UNREACHABLE("Unexpected ASTNODE_TYPE in codegen: %s",
-                      parser_astnode_type_to_str(node->type));
-        break;
-    case AST_PROG:
-        codegen_prog(codegen, node);
-        break;
+        return;
     default:
-        UNREACHABLE();
+        break;
     }
+    error_tok(node->tok, "this statement cannot be compiled yet");
 }
 
-static void codegen_prog(codegen_data_t *codegen, astnode_t *node)
+void codegen(const Function *prog, FILE *out)
 {
-    codegen_func(codegen, node->as.prog.func);
-}
-
-static void codegen_func(codegen_data_t *codegen, astnode_t *node)
-{
-    astnode_t *ident = node->as.func.name;
-
-    // mark symbol as global '.global <func.name>'
-    stringbuffer_appendf(&codegen->glob_sym_decl, ".global %.*s\n", ident->as.ident.tok_id->length,
-                         ident->as.ident.tok_id->length);
-
-    // label in text section '<func.name>:'
-    stringbuffer_appendf(&codegen->txt_sect, "%.*s:\n", ident->as.ident.tok_id->length,
-                         ident->as.ident.tok_id->length);
-
-    codegen_func_t func;
-    func_init(&func, node);
-    codegen->cur_func = &func;
-    codegen->cur_txt_sect = &func.body;
-
-    codegen_statement(codegen, node->as.func.body);
-
-    // prologue, set up stack frame
-    stringbuffer_appendf(&codegen->txt_sect, "sub sp, sp, %d\n", func.stack_capacity);
-    stringbuffer_appendf(&codegen->txt_sect, "str x28, [sp]\n");
-    stringbuffer_appendf(&codegen->txt_sect, "str x29, [sp, 8]\n");
-
-    // body
-    stringbuffer_appendf(&codegen->txt_sect, "\n%s\n", func.body.buf);
-
-    // epliogue
-    stringbuffer_appendf(&codegen->txt_sect, "ldr x28, [sp]\n");
-    stringbuffer_appendf(&codegen->txt_sect, "ldr x29, [sp, 8]\n");
-    stringbuffer_appendf(&codegen->txt_sect, "add sp, sp, %d\n", func.stack_capacity);
-    codegen->cur_func = NULL;
-    codegen->cur_txt_sect = &codegen->txt_sect;
-}
-
-static void codegen_statement(codegen_data_t *codegen, astnode_t *node)
-{
-    massert(codegen->cur_func, "Expected AST_STATEMENT to be under an AST_FUNC");
-
-    codegen_expr(codegen, node->as.statement.body);
-    stringbuffer_append(codegen->cur_txt_sect, "\tret\n");
-}
-
-static regid_t codegen_expr(codegen_data_t *codegen, astnode_t *node)
-{
-    switch (node->as.expr.body->type)
+    output = out;
+    emit(".text");
+    for (const Function *fn = prog; fn; fn = fn->next)
     {
-    case AST_FACTOR:
-        return codegen_factor(codegen, node->as.expr.body);
-        break;
-    case AST_BINARY_EXPR_2:
-        return codegen_binary_expr_2(codegen, node->as.expr.body);
-        break;
-    default:
-        fprintf(stderr, "ERROR: unexpected ASTNode type %d\n", node->as.expr.body->type);
+        emit("");
+        emit(".global _%s", fn->name);
+        emit("_%s:", fn->name);
+
+        // The frame record of docs/abi.md: the caller's fp, then the return address.
+        emit("    sub     sp, sp, 8");
+        emit("    str     fp, [sp]");
+        emit("    str     lr, [sp, 4]");
+        emit("    mov     fp, sp");
+
+        return_label = new_label();
+        gen_stmt(fn->body);
+        assert(depth == 0);
+
+        // Reaching the end of a function is a return of 0, which is what main needs.
+        emit("    mov     x0, 0");
+        emit_label(return_label);
+        emit("    mov     sp, fp");
+        emit("    ldr     lr, [fp, 4]");
+        emit("    ldr     fp, [fp]");
+        emit("    add     sp, sp, 8");
+        emit("    ret");
     }
-    return -1;
-}
-
-static regid_t codegen_factor(codegen_data_t *codegen, astnode_t *node)
-{
-    switch (node->as.factor.body->type)
-    {
-    case AST_EXPR:
-        return codegen_expr(codegen, node->as.factor.body);
-        break;
-    case AST_UNARY_EXPR:
-        return codegen_unary_expr(codegen, node->as.factor.body);
-        break;
-    case AST_LITERAL_INT:
-        // todo, problem
-        //  generating code this way would lead to many inefficiencies
-        // since any time we want to use a literal, we have to first load the literal into a reg
-        // instead of taking advantage of instructio immediates
-        // this would be more easily solved with constant folding on IR
-        // but we don't have IR, so... should we implement IR to allow easier compiler otpimizations?
-
-        // TODO last left off here, for now, just allocate a register for the immediate constant...
-        stringbuffer_append(codegen->cur_txt_sect, "\tmov x0, ");
-        codegenblock_addtok(codegen->cur_txt_sect, node->as.factor.body->as.literal_int.tok_int);
-        stringbuffer_append(codegen->cur_txt_sect, "\n");
-        break;
-    default:
-        fprintf(stderr, "ERROR: unexpected ASTNode type %d\n", node->as.factor.body->type);
-    }
-
-    return -1;
-}
-
-static regid_t codegen_binary_expr_2(codegen_data_t *codegen, astnode_t *node)
-{
-    switch (node->as.binary_expr_2.operand_a->type)
-    {
-    case AST_BINARY_EXPR_1:
-        codegen_factor(codegen, node->as.binary_expr_2.operand_a);
-        break;
-    default:
-        fprintf(stderr, "ERROR: unexpected ASTNode type %d\n",
-                node->as.binary_expr_2.operand_a->type);
-    }
-
-    switch (node->as.binary_expr_2.operand_b->type)
-    {
-    case AST_BINARY_EXPR_1:
-        codegen_factor(codegen, node->as.binary_expr_2.operand_b);
-        break;
-    default:
-        fprintf(stderr, "ERROR: unexpected ASTNode type %d\n",
-                node->as.binary_expr_2.operand_b->type);
-    }
-
-    UNUSED(codegen);
-    UNUSED(node);
-    return -1;
-}
-
-static regid_t codegen_binary_expr_1(codegen_data_t *codegen, astnode_t *node)
-{
-    UNUSED(codegen);
-    UNUSED(node);
-    return -1;
-}
-
-static regid_t codegen_unary_expr(codegen_data_t *codegen, astnode_t *node)
-{
-    codegen_expr(codegen, node->as.unary_expr.operand);
-
-    switch (node->as.unary_expr.tok_op->type)
-    {
-    case TOKEN_EXCLAMATION_MARK:
-        stringbuffer_append(codegen->cur_txt_sect, ".scope\n"
-                                                   "\tcmp x0, 0\n"
-                                                   "\tb.eq __set\n"
-                                                   "\tmov x0, 0\n"
-                                                   "\tb __done\n"
-                                                   "__set:\n"
-                                                   "\tmov x0, 1\n"
-                                                   "__done:\n"
-                                                   ".scend\n");
-        break;
-    case TOKEN_HYPEN:
-        stringbuffer_append(codegen->cur_txt_sect, "\tsub x0, xzr, x0\n");
-        break;
-    case TOKEN_TILDE:
-        stringbuffer_append(codegen->cur_txt_sect, "\tmvn x0, x0\n");
-        break;
-    default:
-        fprintf(stderr, "ERROR: unknown unary op \'%s\'\n",
-                token_tostr(node->as.unary_expr.tok_op));
-        exit(EXIT_FAILURE);
-    }
-
-    return -1;
-}
-
-static void codegenblock_addtok(stringbuffer_t *block, token_t *tok)
-{
-    stringbuffer_appendl(block, tok->src, tok->length);
 }

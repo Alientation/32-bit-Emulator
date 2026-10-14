@@ -3,11 +3,11 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. The details of how the code is put together are in `docs/internals.md`; read the section you are changing before changing it.
 
 ## Overview
-An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assembler, and linker for **basm** assembly, plus an executable loader. All code lives under `core/`. A C compiler (`core/ccompiler`, written in C11) is in progress but is currently **commented out** of `core/CMakeLists.txt`.
+An ARM-like 32-bit CPU emulator with its own toolchain: a preprocessor, assembler, and linker for **basm** assembly, plus an executable loader. All code lives under `core/`. A C compiler (`core/ccompiler`, written in C and meant to compile itself) is at its start: [docs/ccompiler.md](docs/ccompiler.md) has what it does and the plan.
 
 File types: `.basm` source, `.binc` header, `.bi` preprocessed file, `.bo` relocatable object (the custom ELF-like "belf" format), `.ba` static library, `.bexe` executable, `.ld` linker script.
 
-Dependency chain of the static libraries: `util` ← `emulator32bit` ← `assembler` ← `app`. Executables (under `build/<config>/`): `emulator32bit/emu32` (runs a `.bexe`), `assembler/basm` (preprocess → assemble → link), `app/emulator_app` (builds and runs).
+Dependency chain of the static libraries: `util` ← `emulator32bit` ← `assembler` ← `app`; `ccompiler` (C) stands alone. Executables (under `build/<config>/`): `emulator32bit/emu32` (runs a `.bexe`), `assembler/basm` (preprocess → assemble → link), `app/emulator_app` (builds and runs), `ccompiler/bcc` (C → basm).
 
 ## Build & test
 Run everything from `core/`. You need CMake ≥ 3.15, Ninja, and a C++20 compiler. cxxopts and GoogleTest are fetched by CMake (FetchContent), so the first configure needs network access.
@@ -28,7 +28,7 @@ tools/mutate.sh FILE LINE # removes a line, runs the tests: do they notice?
 Run a single test or suite:
 ```bash
 ctest --test-dir build/debug -R 'ShiftTest.'         # regex on discovered test name (Suite.Test)
-ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit | assembler | assembler_integration
+ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit | assembler | assembler_integration | ccompiler | ccompiler_integration
 build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='DataProcessingTest.golden_*'
 ```
 
@@ -54,6 +54,7 @@ Each of these has a test, but only for the way it has broken so far. Details: [i
 - **Floating point:** the operands and results of the host FPU operations are `volatile` and the guard has signal fences; test the `<cfenv>` path with `-DAEMU_FPU_FENV` after touching `fpu.cpp`.
 - **New instruction:** a row in `AEMU_OPCODES` (the next free opcode), the handler, `disassemble_<name>` (`emulator32bit/src/disassembler.cpp`), `asm_*`, one row of `BASM_INSTRUCTION_LIST` in the same position, a test in `instruction_tests/`, `docs/isa.md`.
 - **Errors:** library code reports with `AEMU_FATAL`/`AEMU_CHECK` and never calls `exit`; `main` functions and test fixtures set `FatalAction::Throw`. Constructors only store their inputs; `run ()`, `link ()`, `load ()`, `preprocess ()` and `assemble ()` do the work.
+- **C compiler:** its source stays in the subset it compiles (no `long`/`float`/`double`/VLA/GNU extensions: `tools/check_selfhost_subset.sh`, `-Werror=vla`); a C symbol is `_name` in the assembly and the compiler's labels are `L<n>` (a bare name can be an instruction); no C++ rules (`AEMU_*`) apply to it.
 - **Compile time:** a header that many files include (`types.h`, `file.h`, `alu.h`, `emulator32bit.h`) does not include `<iostream>`, `<sstream>`, `<chrono>`, `<filesystem>` or `util/logger.h` (`<format>`): use `<iosfwd>`, `assert` instead of the `AEMU_` macros, and put the code in a `.cpp`.
 
 ## Style

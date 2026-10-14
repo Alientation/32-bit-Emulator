@@ -1,0 +1,18 @@
+; The startup code of a program compiled by bcc: it sets the stack up, calls main and halts
+; with its result in x0. There are no arguments and no exit call yet (docs/ccompiler.md).
+
+.global _start
+.extern _main
+
+.text
+_start:
+    ldr     sp, =stack_top
+    mov     fp, 0               ; ends the chain of frame records
+    mov     lr, 0
+    bl      _main
+    hlt
+
+.section "stack", "rw", "nobits"
+.align 4
+    .advance 65536
+stack_top:

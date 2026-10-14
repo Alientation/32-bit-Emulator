@@ -78,9 +78,10 @@ ninja --version
 build/release/app/emulator_app ...          # build a basm program and run it on the emulator
 build/release/assembler/basm ...            # preprocessor + assembler + linker driver
 build/release/emulator32bit/emu32 ...       # run a .bexe (or raw ROM) on the emulator
+build/release/ccompiler/bcc ...             # compile C to basm (a first slice, see docs/ccompiler.md)
 ```
 
-The C compiler (`core/ccompiler`) is still in development and is currently disabled in `core/CMakeLists.txt`, so there is no `ccompiler` executable yet.
+The C compiler (`core/ccompiler`) is at its start: it compiles functions of `int` expressions (see [docs/ccompiler.md](docs/ccompiler.md)).
 
 
 ## **Running Tests**
@@ -91,7 +92,7 @@ The C compiler (`core/ccompiler`) is still in development and is currently disab
 # Run only the tests (after building)
 ./build.sh test
 
-# Run a subset of tests with ctest (by name regex or by label: emulator32bit | assembler | assembler_integration)
+# Run a subset of tests with ctest (by name regex or by label: emulator32bit | assembler | assembler_integration | ccompiler | ccompiler_integration)
 ctest --test-dir build/debug -R 'ShiftTest.'
 ctest --test-dir build/debug -L assembler_integration
 
