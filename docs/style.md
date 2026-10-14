@@ -63,7 +63,7 @@ A few records the program keeps for its whole run (watchpoints, register watches
 
 `core/ccompiler` is C and not C++, and has to compile itself ([ccompiler.md](ccompiler.md#self-hosting)). The rules above that are about the language do not apply; formatting (`.clang-format`), the comment rules, and the rules about names and helpers do.
 
-- **Only what the compiler supports:** no `long`, `float`, `double` or VLAs, no GNU extensions, `_Noreturn` or attributes, and no library beyond the small one in the plan. `int`, `char`, `size_t` and `bool`; `U32` and the like are C++. `tools/check_selfhost_subset.sh` checks the types.
+- **Only what the compiler supports:** no plain `long`, `long double`, `float` or VLAs, no GNU extensions, `_Noreturn` or attributes, and no library beyond the small one in the plan: a libc function that is hard to write (`strtod`) is done in the compiler instead. `int`, `char`, `size_t`, `bool`, and `long long` and `double` where a value needs them; `U32` and the like are C++. `tools/check_selfhost_subset.sh` checks the types.
 - **Errors:** `error`, `error_at` and `error_tok` print a message and `exit (1)`: a compiler run is one file, and there is nothing to clean up. The compiler does not know they do not return, so write a `return` after the call that is a value of the right kind (`return NULL;`).
 - **Memory:** `arena_alloc`, zeroed, never freed. A new kind of allocation needs a reason.
 - **Names:** types are `CamelCase` typedefs, functions and variables `snake_case`, enumerators upper case with the prefix of their enum (`TK_`, `ND_`, `TY_`). Everything used in one file only is `static`.

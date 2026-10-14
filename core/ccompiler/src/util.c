@@ -1,5 +1,6 @@
 #include "ccompiler/util.h"
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,174 +108,380 @@ void vwarn_at(const char *file_name, int line_no, const char *contents, const ch
     report_at(file_name, line_no, contents, loc, "warning: ", fmt, ap);
 }
 
-Int64 int64_from_int(int value)
+/// A binary floating point format: the bits of the significand, the exponent of the largest power
+/// of 2, and the exponent of the last bit of the smallest subnormal.
+typedef struct
 {
-    Int64 result = {(unsigned int) value, value < 0 ? ~0u : 0u};
-    return result;
-}
+    int mant_bits;
+    int max_exp;
+    int min_lsb;
+} FloatFormat;
 
-Int64 int64_from_uint(unsigned int value)
-{
-    Int64 result = {value, 0};
-    return result;
-}
+static const FloatFormat binary32 = {24, 127, -149};
+static const FloatFormat binary64 = {53, 1023, -1074};
 
-Int64 int64_add(Int64 a, Int64 b)
+enum
 {
-    Int64 result = {a.lo + b.lo, a.hi + b.hi};
-    if (result.lo < a.lo)
+    /// A decimal constant keeps this many significant digits, and the ones after them count only
+    /// as a digit 1 after the last one kept. A halfway point between two doubles has at most 767
+    /// significant digits, so the rounding is the same.
+    MAX_DECIMAL_DIGITS = 800,
+    /// The same for a hexadecimal constant: 120 bits, more than twice those of a double.
+    MAX_HEX_DIGITS = 30,
+    /// The words of a BigInt, enough for the largest number of a conversion: 10^1125 (the
+    /// smallest decimal exponent that does not give 0 at once) shifted by 56 bits.
+    BIG_WORDS = 128,
+};
+
+/// An unsigned integer of up to BIG_WORDS words, the lowest first, without zero words at the top.
+typedef struct
+{
+    unsigned int words[BIG_WORDS];
+    size_t count;
+} BigInt;
+
+/// `a = a * mul + add`.
+static void big_mul_add(BigInt *a, unsigned int mul, unsigned int add)
+{
+    unsigned long long carry = add;
+    for (size_t i = 0; i < a->count; i++)
     {
-        result.hi++;
+        carry += (unsigned long long) a->words[i] * mul;
+        a->words[i] = (unsigned int) carry;
+        carry >>= 32;
     }
-    return result;
-}
-
-Int64 int64_sub(Int64 a, Int64 b)
-{
-    return int64_add(a, int64_neg(b));
-}
-
-/// @return The 64 bit product of two words, worked out from their 16 bit halves.
-static Int64 multiply_words(unsigned int a, unsigned int b)
-{
-    const unsigned int a_lo = a & 0xFFFF;
-    const unsigned int a_hi = a >> 16;
-    const unsigned int b_lo = b & 0xFFFF;
-    const unsigned int b_hi = b >> 16;
-    const unsigned int cross1 = a_hi * b_lo;
-    const unsigned int cross2 = a_lo * b_hi;
-
-    Int64 result = int64_from_uint(a_lo * b_lo);
-    result.hi = a_hi * b_hi;
-    result = int64_add(result, int64_shl(int64_from_uint(cross1), 16));
-    return int64_add(result, int64_shl(int64_from_uint(cross2), 16));
-}
-
-Int64 int64_mul(Int64 a, Int64 b)
-{
-    Int64 result = multiply_words(a.lo, b.lo);
-    result.hi += a.lo * b.hi + a.hi * b.lo;
-    return result;
-}
-
-Int64 int64_neg(Int64 a)
-{
-    Int64 one = {1, 0};
-    return int64_add(int64_not(a), one);
-}
-
-Int64 int64_not(Int64 a)
-{
-    Int64 result = {~a.lo, ~a.hi};
-    return result;
-}
-
-Int64 int64_and(Int64 a, Int64 b)
-{
-    Int64 result = {a.lo & b.lo, a.hi & b.hi};
-    return result;
-}
-
-Int64 int64_or(Int64 a, Int64 b)
-{
-    Int64 result = {a.lo | b.lo, a.hi | b.hi};
-    return result;
-}
-
-Int64 int64_xor(Int64 a, Int64 b)
-{
-    Int64 result = {a.lo ^ b.lo, a.hi ^ b.hi};
-    return result;
-}
-
-Int64 int64_shl(Int64 a, int count)
-{
-    Int64 result = a;
-    if (count >= 32)
+    if (carry)
     {
-        result.hi = a.lo << (count - 32);
-        result.lo = 0;
+        assert(a->count < BIG_WORDS);
+        a->words[a->count++] = (unsigned int) carry;
     }
-    else if (count > 0)
-    {
-        result.hi = a.hi << count | a.lo >> (32 - count);
-        result.lo = a.lo << count;
-    }
-    return result;
 }
 
-Int64 int64_shr(Int64 a, int count, bool is_signed)
+static void big_shl(BigInt *a, int bits)
 {
-    const unsigned int fill = is_signed && (a.hi >> 31) ? ~0u : 0u;
-    Int64 result = a;
-    if (count >= 32)
+    const size_t word_shift = (size_t) bits / 32;
+    const int bit_shift = bits % 32;
+    if (a->count == 0)
     {
-        // A shift by 32 of a word is undefined in C, so a count of 32 gets its own case.
-        result.lo = count == 32 ? a.hi : (a.hi >> (count - 32) | fill << (64 - count));
-        result.hi = fill;
+        return;
     }
-    else if (count > 0)
+    assert(a->count + word_shift + 1 <= BIG_WORDS);
+    a->words[a->count + word_shift] = 0;
+    for (size_t i = a->count; i-- > 0;)
     {
-        result.lo = a.lo >> count | a.hi << (32 - count);
-        result.hi = a.hi >> count | fill << (32 - count);
+        const unsigned long long wide = (unsigned long long) a->words[i] << bit_shift;
+        a->words[i + word_shift + 1] |= (unsigned int) (wide >> 32);
+        a->words[i + word_shift] = (unsigned int) wide;
     }
-    return result;
+    for (size_t i = 0; i < word_shift; i++)
+    {
+        a->words[i] = 0;
+    }
+    a->count += word_shift + 1;
+    while (a->count && a->words[a->count - 1] == 0)
+    {
+        a->count--;
+    }
 }
 
-/// @return Whether the sign bit of `a` is set.
-static bool is_negative(Int64 a)
+static void big_shr1(BigInt *a)
 {
-    return (a.hi >> 31) != 0;
+    for (size_t i = 0; i < a->count; i++)
+    {
+        const unsigned int next = i + 1 < a->count ? a->words[i + 1] : 0;
+        a->words[i] = a->words[i] >> 1 | next << 31;
+    }
+    if (a->count && a->words[a->count - 1] == 0)
+    {
+        a->count--;
+    }
 }
 
-Int64 int64_div(Int64 a, Int64 b, bool is_signed, Int64 *remainder)
+/// @return Whether `a >= b`.
+static bool big_ge(const BigInt *a, const BigInt *b)
 {
-    const bool negate_quotient = is_signed && is_negative(a) != is_negative(b);
-    const bool negate_remainder = is_signed && is_negative(a);
-    if (is_signed && is_negative(a))
+    if (a->count != b->count)
     {
-        a = int64_neg(a);
+        return a->count > b->count;
     }
-    if (is_signed && is_negative(b))
+    for (size_t i = a->count; i-- > 0;)
     {
-        b = int64_neg(b);
-    }
-
-    // Long division, one bit of the quotient at a time.
-    Int64 quotient = {0, 0};
-    Int64 rest = {0, 0};
-    for (int bit = 63; bit >= 0; bit--)
-    {
-        rest = int64_shl(rest, 1);
-        rest.lo |= int64_shr(a, bit, false).lo & 1;
-        if (!int64_lt(rest, b, false))
+        if (a->words[i] != b->words[i])
         {
-            rest = int64_sub(rest, b);
-            quotient = int64_or(quotient, int64_shl(int64_from_uint(1), bit));
+            return a->words[i] > b->words[i];
         }
     }
-
-    *remainder = negate_remainder ? int64_neg(rest) : rest;
-    return negate_quotient ? int64_neg(quotient) : quotient;
+    return true;
 }
 
-bool int64_eq(Int64 a, Int64 b)
+/// `a = a - b`, where `a >= b`.
+static void big_sub(BigInt *a, const BigInt *b)
 {
-    return a.lo == b.lo && a.hi == b.hi;
-}
-
-bool int64_lt(Int64 a, Int64 b, bool is_signed)
-{
-    if (is_signed && is_negative(a) != is_negative(b))
+    unsigned long long borrow = 0;
+    for (size_t i = 0; i < a->count; i++)
     {
-        return is_negative(a);
+        const unsigned long long sub = (i < b->count ? b->words[i] : 0) + borrow;
+        borrow = a->words[i] < sub;
+        a->words[i] = (unsigned int) (a->words[i] - sub);
     }
-    return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo);
+    while (a->count && a->words[a->count - 1] == 0)
+    {
+        a->count--;
+    }
 }
 
-bool int64_is_zero(Int64 a)
+static int big_bit_length(const BigInt *a)
 {
-    return a.lo == 0 && a.hi == 0;
+    if (a->count == 0)
+    {
+        return 0;
+    }
+    int len = (int) (a->count - 1) * 32;
+    for (unsigned int top = a->words[a->count - 1]; top; top >>= 1)
+    {
+        len++;
+    }
+    return len;
+}
+
+static bool big_bit(const BigInt *a, int bit)
+{
+    const size_t word = (size_t) bit / 32;
+    return word < a->count && (a->words[word] >> (bit % 32) & 1);
+}
+
+static double double_from_bits(unsigned long long bits)
+{
+    double value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+/// Rounds `q * 2^exp2` to the nearest value of a format, ties to even. `sticky` says that the
+/// value is a little more than that, by less than one unit of the last bit of `q`.
+///
+/// @param[in] q At most 62 bits, and at least two more than the format keeps when `sticky` is set.
+/// @param[out] overflow Set when the value is too large for the format.
+/// @return The value as a double, infinity when it is too large.
+static double round_to_format(unsigned long long q, int exp2, bool sticky, const FloatFormat *fmt,
+                              bool *overflow)
+{
+    int len = 0;
+    for (unsigned long long rest = q; rest; rest >>= 1)
+    {
+        len++;
+    }
+    // The exponent of the last bit the format keeps, which is fixed for a subnormal.
+    int lsb = exp2 + len - fmt->mant_bits;
+    if (lsb < fmt->min_lsb)
+    {
+        lsb = fmt->min_lsb;
+    }
+    const int shift = lsb - exp2;
+    unsigned long long m = q;
+    int e = exp2;
+    if (shift > 0)
+    {
+        const bool half = shift <= 62 && (q >> (shift - 1) & 1);
+        const bool below = sticky || (shift > 62 ? q != 0 : (q & ((1ull << (shift - 1)) - 1)) != 0);
+        m = shift > 62 ? 0 : q >> shift;
+        e = lsb;
+        if (half && (below || (m & 1)))
+        {
+            m++;
+        }
+        if (m >> fmt->mant_bits)
+        {
+            // Rounding up carried into a new bit.
+            m >>= 1;
+            e++;
+        }
+    }
+    else
+    {
+        assert(!sticky);
+    }
+    if (m == 0)
+    {
+        return 0.0;
+    }
+
+    len = 0;
+    for (unsigned long long rest = m; rest; rest >>= 1)
+    {
+        len++;
+    }
+    const int top = e + len - 1;
+    if (top > fmt->max_exp)
+    {
+        *overflow = true;
+        return double_from_bits(0x7FF0000000000000ull);
+    }
+    // A float is always a normal double; a double below 2^-1022 is a subnormal one.
+    if (top < -1022)
+    {
+        return double_from_bits(m << (e + 1074));
+    }
+    const unsigned long long fraction = (m << (53 - len)) & ((1ull << 52) - 1);
+    return double_from_bits((unsigned long long) (top + 1023) << 52 | fraction);
+}
+
+/// Rounds `n * 2^exp2` to a format, from the top 62 bits of `n` and whether any bit below them is
+/// set.
+static double round_big(const BigInt *n, int exp2, const FloatFormat *fmt, bool *overflow)
+{
+    const int len = big_bit_length(n);
+    const int dropped = len > 62 ? len - 62 : 0;
+    unsigned long long q = 0;
+    for (int bit = len - 1; bit >= dropped; bit--)
+    {
+        q = q << 1 | big_bit(n, bit);
+    }
+    bool sticky = false;
+    for (int bit = 0; bit < dropped && !sticky; bit++)
+    {
+        sticky = big_bit(n, bit);
+    }
+    return round_to_format(q, exp2 + dropped, sticky, fmt, overflow);
+}
+
+/// @return The value of a hexadecimal digit.
+static unsigned int hex_digit_value(char c)
+{
+    if (c >= '0' && c <= '9')
+    {
+        return (unsigned int) (c - '0');
+    }
+    return (unsigned int) ((c | 0x20) - 'a' + 10);
+}
+
+double floating_value(const char *start, const char *end, bool is_float, bool *overflow)
+{
+    const FloatFormat *fmt = is_float ? &binary32 : &binary64;
+    *overflow = false;
+    const char *p = start;
+    const bool hex = p[0] == '0' && (p[1] == 'x' || p[1] == 'X');
+    p += hex ? 2 : 0;
+    const unsigned int base = hex ? 16 : 10;
+    const int max_digits = hex ? MAX_HEX_DIGITS : MAX_DECIMAL_DIGITS;
+    const char exponent_letter = hex ? 'p' : 'e';
+
+    // The value is digits * base^scale * (10 or 2)^exponent.
+    BigInt digits = {{0}, 0};
+    int count = 0;
+    int scale = 0;
+    bool after_point = false;
+    bool dropped = false;
+    for (; p < end && (*p | 0x20) != exponent_letter; p++)
+    {
+        if (*p == '\'')
+        {
+            continue;
+        }
+        if (*p == '.')
+        {
+            after_point = true;
+            continue;
+        }
+        const unsigned int digit = hex_digit_value(*p);
+        if (count < max_digits && (count > 0 || digit != 0))
+        {
+            big_mul_add(&digits, base, digit);
+            count++;
+            scale -= after_point ? 1 : 0;
+        }
+        else if (count == max_digits)
+        {
+            dropped = dropped || digit != 0;
+            scale += after_point ? 0 : 1;
+        }
+        else
+        {
+            // A leading zero.
+            scale -= after_point ? 1 : 0;
+        }
+    }
+    if (dropped)
+    {
+        big_mul_add(&digits, base, 1);
+        count++;
+        scale--;
+    }
+
+    int exponent = 0;
+    if (p < end)
+    {
+        p++;
+        const bool negative = *p == '-';
+        p += *p == '+' || *p == '-' ? 1 : 0;
+        for (; p < end; p++)
+        {
+            // Far beyond any exponent that does not give 0 or infinity, and no int overflow.
+            if (*p != '\'' && exponent < 100000)
+            {
+                exponent = exponent * 10 + (*p - '0');
+            }
+        }
+        exponent = negative ? -exponent : exponent;
+    }
+    if (count == 0)
+    {
+        return 0.0;
+    }
+    if (hex)
+    {
+        return round_big(&digits, 4 * scale + exponent, fmt, overflow);
+    }
+
+    // 10^(count - 1 + e) <= value < 10^(count + e): at least 10^309 is infinity, less than
+    // 10^-324 (below half the smallest subnormal double) is 0.
+    const int e = scale + exponent;
+    if (count - 1 + e >= 309)
+    {
+        *overflow = true;
+        return double_from_bits(0x7FF0000000000000ull);
+    }
+    if (count + e < -324)
+    {
+        return 0.0;
+    }
+    if (e >= 0)
+    {
+        for (int i = 0; i < e; i++)
+        {
+            big_mul_add(&digits, 10, 0);
+        }
+        return round_big(&digits, 0, fmt, overflow);
+    }
+
+    // value = digits / 10^-e. The quotient of digits * 2^k by 10^-e, for a k that makes it
+    // mant_bits + 2 or + 3 bits long, and whether there is a remainder, are enough to round.
+    BigInt divisor = {{1}, 1};
+    for (int i = 0; i < -e; i++)
+    {
+        big_mul_add(&divisor, 10, 0);
+    }
+    const int k = fmt->mant_bits + 2 - (big_bit_length(&digits) - big_bit_length(&divisor));
+    if (k > 0)
+    {
+        big_shl(&digits, k);
+    }
+    else
+    {
+        big_shl(&divisor, -k);
+    }
+    big_shl(&divisor, fmt->mant_bits + 2);
+    unsigned long long q = 0;
+    for (int bit = fmt->mant_bits + 2; bit >= 0; bit--)
+    {
+        if (big_ge(&digits, &divisor))
+        {
+            big_sub(&digits, &divisor);
+            q |= 1ull << bit;
+        }
+        big_shr1(&divisor);
+    }
+    return round_to_format(q, -k, digits.count != 0, fmt, overflow);
 }
 
 /// @return The FNV-1a hash of a string.

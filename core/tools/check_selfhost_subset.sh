@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # Checks that the C compiler's source only uses what the compiler is meant to compile itself with
-# (docs/ccompiler.md): no `long`, `float` or `double`. Comments and the text of string literals are
-# not looked at. (A variable length array is an error of the compiler build, -Werror=vla.)
+# (docs/ccompiler.md): `long long` and `double`, but no plain `long` (64 bit on the host, 32 on the
+# target), `long double` (wider on the host), `float` or `_Complex`. Comments, `#include` lines and
+# the text of string literals are not looked at. (A variable length array is an error of the
+# compiler build, -Werror=vla.)
 #
 #   tools/check_selfhost_subset.sh DIR...
 
@@ -16,10 +18,11 @@ fi
 
 BAD=0
 while IFS= read -r -d '' f; do
-    HITS=$(sed -E 's://.*$::; s:"([^"\\]|\\.)*"::g' "$f" \
-        | grep -n -E '\b(long|float|double|_Complex)\b' || true)
+    HITS=$(sed -E 's:^#[[:space:]]*include.*$::; s://.*$::; s:"([^"\\]|\\.)*"::g' "$f" \
+        | sed -E 's:\blong[[:space:]]+long\b:LLONG:g' \
+        | grep -n -E '\b(long|float|_Complex)\b' || true)
     if [ -n "$HITS" ]; then
-        echo "$f uses a type the compiler cannot compile itself with yet:" >&2
+        echo "$f uses a type outside the subset the compiler compiles itself with:" >&2
         echo "$HITS" >&2
         BAD=1
     fi

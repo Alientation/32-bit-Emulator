@@ -38,6 +38,8 @@ static const char *const predefined_macros[] = {
     "__CHAR32_TYPE__ unsigned int",
     "__INTPTR_TYPE__ int",
     "__UINTPTR_TYPE__ unsigned int",
+    "__INTMAX_TYPE__ long long",
+    "__UINTMAX_TYPE__ unsigned long long",
     "__SCHAR_MAX__ 127",
     "__SHRT_MAX__ 32767",
     "__INT_MAX__ 2147483647",
@@ -45,6 +47,49 @@ static const char *const predefined_macros[] = {
     "__LONG_LONG_MAX__ 9223372036854775807LL",
     "__WCHAR_MAX__ 2147483647",
     "__SIZE_MAX__ 4294967295U",
+    "__INTMAX_MAX__ 9223372036854775807LL",
+    "__UINTMAX_MAX__ 18446744073709551615ULL",
+    // The floating types, for <float.h>: IEEE 754 binary32 and binary64, with GCC's spellings of
+    // the limits. A long double is a double (docs/abi.md).
+    "__FLT_EVAL_METHOD__ 0",
+    "__FLT_RADIX__ 2",
+    "__DECIMAL_DIG__ 17",
+    "__FLT_MANT_DIG__ 24",
+    "__FLT_DIG__ 6",
+    "__FLT_DECIMAL_DIG__ 9",
+    "__FLT_MIN_EXP__ (-125)",
+    "__FLT_MIN_10_EXP__ (-37)",
+    "__FLT_MAX_EXP__ 128",
+    "__FLT_MAX_10_EXP__ 38",
+    "__FLT_MAX__ 3.40282346638528859811704183484516925e+38F",
+    "__FLT_MIN__ 1.17549435082228750796873653722224568e-38F",
+    "__FLT_EPSILON__ 1.19209289550781250000000000000000000e-7F",
+    "__FLT_DENORM_MIN__ 1.40129846432481707092372958328991613e-45F",
+    "__FLT_HAS_DENORM__ 1",
+    "__DBL_MANT_DIG__ 53",
+    "__DBL_DIG__ 15",
+    "__DBL_DECIMAL_DIG__ 17",
+    "__DBL_MIN_EXP__ (-1021)",
+    "__DBL_MIN_10_EXP__ (-307)",
+    "__DBL_MAX_EXP__ 1024",
+    "__DBL_MAX_10_EXP__ 308",
+    "__DBL_MAX__ 1.79769313486231570814527423731704357e+308",
+    "__DBL_MIN__ 2.22507385850720138309023271733240406e-308",
+    "__DBL_EPSILON__ 2.22044604925031308084726333618164062e-16",
+    "__DBL_DENORM_MIN__ 4.94065645841246544176568792868221372e-324",
+    "__DBL_HAS_DENORM__ 1",
+    "__LDBL_MANT_DIG__ 53",
+    "__LDBL_DIG__ 15",
+    "__LDBL_DECIMAL_DIG__ 17",
+    "__LDBL_MIN_EXP__ (-1021)",
+    "__LDBL_MIN_10_EXP__ (-307)",
+    "__LDBL_MAX_EXP__ 1024",
+    "__LDBL_MAX_10_EXP__ 308",
+    "__LDBL_MAX__ 1.79769313486231570814527423731704357e+308L",
+    "__LDBL_MIN__ 2.22507385850720138309023271733240406e-308L",
+    "__LDBL_EPSILON__ 2.22044604925031308084726333618164062e-16L",
+    "__LDBL_DENORM_MIN__ 4.94065645841246544176568792868221372e-324L",
+    "__LDBL_HAS_DENORM__ 1",
     "__ORDER_LITTLE_ENDIAN__ 1234",
     "__ORDER_BIG_ENDIAN__ 4321",
     "__BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__",
@@ -121,10 +166,11 @@ typedef struct
 } Directive;
 
 /// A value of an `#if` expression: every signed type is `intmax_t` there and every unsigned one
-/// `uintmax_t` (C17 6.10.1), which are 64 bit.
+/// `uintmax_t` (C17 6.10.1), which are 64 bit. The value is kept unsigned, so that a signed
+/// overflow wraps; a signed operation reads it as two's complement.
 typedef struct
 {
-    Int64 value;
+    unsigned long long value;
     bool is_unsigned;
 } IfValue;
 
@@ -851,7 +897,7 @@ static Token *directive_undef(Token *tok)
 /// that is not evaluated (`0 && x`), where division by 0 is not an error.
 static IfValue if_expr(Token **rest, Token *tok, bool evaluate);
 
-static IfValue if_value(Int64 value, bool is_unsigned)
+static IfValue if_value(unsigned long long value, bool is_unsigned)
 {
     IfValue result = {value, is_unsigned};
     return result;
@@ -859,7 +905,7 @@ static IfValue if_value(Int64 value, bool is_unsigned)
 
 static IfValue if_bool(bool value)
 {
-    return if_value(int64_from_int(value), false);
+    return if_value(value, false);
 }
 
 static IfValue if_primary(Token **rest, Token *tok, bool evaluate)
@@ -883,9 +929,8 @@ static IfValue if_primary(Token **rest, Token *tok, bool evaluate)
         {
             error_tok(tok, "floating constant in an #if expression");
         }
-        Int64 value = {(unsigned int) constant->value, constant->value_high};
         *rest = tok->next;
-        return if_value(value, constant->ty->is_unsigned);
+        return if_value((unsigned long long) constant->value, constant->ty->is_unsigned);
     }
     if (tok->kind == TK_IDENT)
     {
@@ -907,16 +952,16 @@ static IfValue if_unary(Token **rest, Token *tok, bool evaluate)
     if (token_is(tok, "-"))
     {
         IfValue operand = if_unary(rest, tok->next, evaluate);
-        return if_value(int64_neg(operand.value), operand.is_unsigned);
+        return if_value(-operand.value, operand.is_unsigned);
     }
     if (token_is(tok, "~"))
     {
         IfValue operand = if_unary(rest, tok->next, evaluate);
-        return if_value(int64_not(operand.value), operand.is_unsigned);
+        return if_value(~operand.value, operand.is_unsigned);
     }
     if (token_is(tok, "!"))
     {
-        return if_bool(int64_is_zero(if_unary(rest, tok->next, evaluate).value));
+        return if_bool(if_unary(rest, tok->next, evaluate).value == 0);
     }
     return if_primary(rest, tok, evaluate);
 }
@@ -974,67 +1019,83 @@ enum
     NUM_IF_BINARY_LEVELS = sizeof(if_binary_levels) / sizeof(if_binary_levels[0]),
 };
 
+/// @return `a < b`, compared as signed or unsigned.
+static bool if_less(unsigned long long a, unsigned long long b, bool is_unsigned)
+{
+    return is_unsigned ? a < b : (long long) a < (long long) b;
+}
+
 /// Applies a binary operator other than `&&` and `||`, with the usual arithmetic conversions:
 /// the operation is unsigned if an operand is (the left one for a shift).
 static IfValue if_apply(IfOperator op, IfValue lhs, IfValue rhs, const Token *tok, bool evaluate)
 {
     const bool is_unsigned = lhs.is_unsigned || rhs.is_unsigned;
-    const Int64 a = lhs.value;
-    const Int64 b = rhs.value;
-    Int64 remainder;
+    const unsigned long long a = lhs.value;
+    const unsigned long long b = rhs.value;
     switch (op)
     {
     case OP_MUL:
-        return if_value(int64_mul(a, b), is_unsigned);
+        return if_value(a * b, is_unsigned);
     case OP_DIV:
     case OP_MOD:
-        if (int64_is_zero(b))
+        if (b == 0)
         {
             if (evaluate)
             {
                 error_tok(tok, "division by zero in #if");
             }
-            return if_value(b, is_unsigned);
+            return if_value(0, is_unsigned);
         }
+        if (is_unsigned)
         {
-            const Int64 quotient = int64_div(a, b, !is_unsigned, &remainder);
-            return if_value(op == OP_DIV ? quotient : remainder, is_unsigned);
+            return if_value(op == OP_DIV ? a / b : a % b, true);
         }
+        if (b == ~0ull)
+        {
+            // Division by -1 is a negation, which wraps for INT64_MIN; the host would trap.
+            return if_value(op == OP_DIV ? -a : 0, false);
+        }
+        return if_value(op == OP_DIV ? (unsigned long long) ((long long) a / (long long) b)
+                                     : (unsigned long long) ((long long) a % (long long) b),
+                        false);
     case OP_ADD:
-        return if_value(int64_add(a, b), is_unsigned);
+        return if_value(a + b, is_unsigned);
     case OP_SUB:
-        return if_value(int64_sub(a, b), is_unsigned);
+        return if_value(a - b, is_unsigned);
     case OP_SHL:
     case OP_SHR:
-        if (b.hi != 0 || b.lo >= 64)
+        if (b >= 64)
         {
             if (evaluate)
             {
                 error_tok(tok, "shift count out of range in #if");
             }
-            return if_value(int64_from_int(0), lhs.is_unsigned);
+            return if_value(0, lhs.is_unsigned);
         }
-        return if_value(op == OP_SHL ? int64_shl(a, (int) b.lo)
-                                     : int64_shr(a, (int) b.lo, !lhs.is_unsigned),
-                        lhs.is_unsigned);
+        if (op == OP_SHL)
+        {
+            return if_value(a << b, lhs.is_unsigned);
+        }
+        // A signed shift copies the sign bit in.
+        return if_value(!lhs.is_unsigned && (a >> 63) ? ~(~a >> b) : a >> b, lhs.is_unsigned);
     case OP_LT:
-        return if_bool(int64_lt(a, b, !is_unsigned));
+        return if_bool(if_less(a, b, is_unsigned));
     case OP_LE:
-        return if_bool(!int64_lt(b, a, !is_unsigned));
+        return if_bool(!if_less(b, a, is_unsigned));
     case OP_GT:
-        return if_bool(int64_lt(b, a, !is_unsigned));
+        return if_bool(if_less(b, a, is_unsigned));
     case OP_GE:
-        return if_bool(!int64_lt(a, b, !is_unsigned));
+        return if_bool(!if_less(a, b, is_unsigned));
     case OP_EQ:
-        return if_bool(int64_eq(a, b));
+        return if_bool(a == b);
     case OP_NE:
-        return if_bool(!int64_eq(a, b));
+        return if_bool(a != b);
     case OP_BITAND:
-        return if_value(int64_and(a, b), is_unsigned);
+        return if_value(a & b, is_unsigned);
     case OP_BITXOR:
-        return if_value(int64_xor(a, b), is_unsigned);
+        return if_value(a ^ b, is_unsigned);
     case OP_BITOR:
-        return if_value(int64_or(a, b), is_unsigned);
+        return if_value(a | b, is_unsigned);
     case OP_LOGAND:
     case OP_LOGOR:
         break;
@@ -1064,9 +1125,9 @@ static IfValue if_binary(Token **rest, Token *tok, size_t level, bool evaluate)
         if (op->op == OP_LOGAND || op->op == OP_LOGOR)
         {
             // The right operand is only evaluated if the left one does not decide.
-            const bool decided = int64_is_zero(lhs.value) == (op->op == OP_LOGAND);
+            const bool decided = (lhs.value == 0) == (op->op == OP_LOGAND);
             IfValue rhs = if_binary(&tok, tok->next, level + 1, evaluate && !decided);
-            lhs = if_bool(decided ? op->op == OP_LOGOR : !int64_is_zero(rhs.value));
+            lhs = if_bool(decided ? op->op == OP_LOGOR : rhs.value != 0);
             continue;
         }
         IfValue rhs = if_binary(&tok, tok->next, level + 1, evaluate);
@@ -1085,7 +1146,7 @@ static IfValue if_conditional(Token **rest, Token *tok, bool evaluate)
         *rest = tok;
         return cond;
     }
-    const bool take_first = !int64_is_zero(cond.value);
+    const bool take_first = cond.value != 0;
     IfValue first = if_expr(&tok, tok->next, evaluate && take_first);
     if (!token_is(tok, ":"))
     {
@@ -1188,7 +1249,7 @@ static bool eval_if(Token *directive, Token **rest)
     {
         error_tok(end, "missing an operator before this in #if");
     }
-    return !int64_is_zero(value.value);
+    return value.value != 0;
 }
 
 static Token *directive_if(Token *tok)

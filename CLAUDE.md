@@ -54,7 +54,7 @@ Each of these has a test, but only for the way it has broken so far. Details: [i
 - **Floating point:** the operands and results of the host FPU operations are `volatile` and the guard has signal fences; test the `<cfenv>` path with `-DAEMU_FPU_FENV` after touching `fpu.cpp`.
 - **New instruction:** a row in `AEMU_OPCODES` (the next free opcode), the handler, `disassemble_<name>` (`emulator32bit/src/disassembler.cpp`), `asm_*`, one row of `BASM_INSTRUCTION_LIST` in the same position, a test in `instruction_tests/`, `docs/isa.md`.
 - **Errors:** library code reports with `AEMU_FATAL`/`AEMU_CHECK` and never calls `exit`; `main` functions and test fixtures set `FatalAction::Throw`. Constructors only store their inputs; `run ()`, `link ()`, `load ()`, `preprocess ()` and `assemble ()` do the work.
-- **C compiler:** its source stays in the subset it compiles (no `long`/`float`/`double`/VLA/GNU extensions: `tools/check_selfhost_subset.sh`, `-Werror=vla`); a C symbol is `_name` in the assembly and the compiler's labels are `L<n>` (a bare name can be an instruction); no C++ rules (`AEMU_*`) apply to it.
+- **C compiler:** its source stays in the subset it compiles (`long long` and `double`, but no plain `long`/`long double`/`float`/VLA/GNU extensions: `tools/check_selfhost_subset.sh`, `-Werror=vla`); a C symbol is `_name` in the assembly and the compiler's labels are `L<n>` (a bare name can be an instruction); no C++ rules (`AEMU_*`) apply to it.
 - **Compile time:** a header that many files include (`types.h`, `file.h`, `alu.h`, `emulator32bit.h`) does not include `<iostream>`, `<sstream>`, `<chrono>`, `<filesystem>` or `util/logger.h` (`<format>`): use `<iosfwd>`, `assert` instead of the `AEMU_` macros, and put the code in a `.cpp`.
 
 ## Style

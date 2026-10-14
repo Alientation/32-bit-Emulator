@@ -10,6 +10,7 @@ extern "C"
 #include "ccompiler/preprocess.h"
 }
 
+#include <cfloat>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -293,13 +294,16 @@ TEST_F(Preprocessor, if_arithmetic_is_64_bit)
                           "#if -7 / 2 == -3 && -7 % 2 == -1 && 7 % -3 == 1 && -1 >> 1 == -1 "
                           "&& 1u << 63 > 0 && 1 << 62 > 0 && -0x200000000 >> 32 == -2 && "
                           "0x123456789 >> 32 == 1\nd\n#endif\n"
+                          // INT64_MIN / -1 wraps (the host's division would trap).
+                          "#if (-9223372036854775807 - 1) / -1 == -9223372036854775807 - 1 && "
+                          "(-9223372036854775807 - 1) % -1 == 0 && -7 / -1 == 7\nh\n#endif\n"
                           "#if 'A' == 65 && '\\377' < 0 && L'\\xFFFFFFFF' < 0 && u'x' == 120\n"
                           "e\n#endif\n"
                           "#if (1 ? 2 : 3) == 2 && (0 ? 2 : 3) == 3 && (3, 4) == 4 && ~0 == -1 "
                           "&& +1 == 1 && (-1 > 0u ? 1u : -1) > 0\nf\n#endif\n"
                           "#if 3 * 4 % 5 == 2 && (6 & 3 | 8 ^ 1) == 11 && 1 != 2 && 2 <= 2 && "
                           "3 >= 4 == 0\ng\n#endif\n"),
-        "a\nb\nc\nd\ne\nf\ng\n");
+        "a\nb\nc\nd\nh\ne\nf\ng\n");
     // An operand that is not evaluated may divide by 0.
     EXPECT_EQ(
         preprocess_source("#if 0 && 1 / 0 || 1 || 1 % 0\nyes\n#endif\n#if 1 ? 1 : 1 / 0\nyes\n"
@@ -383,6 +387,37 @@ TEST_F(Preprocessor, predefined_and_builtin_macros)
               "201710L 1 unsigned int 8\nok\n");
     expect_error("__has_include(\"x\")\n", "__has_include can only be in #if");
     expect_error("#define __LINE__ 1\n", "'__LINE__' is redefined differently");
+}
+
+TEST_F(Preprocessor, floating_limits_are_those_of_ieee_754)
+{
+    // The host's float and double are binary32 and binary64 as well.
+    const std::string text = preprocess_source(
+        "__FLT_MAX__ __FLT_MIN__ __FLT_EPSILON__ __FLT_DENORM_MIN__ __DBL_MAX__ __DBL_MIN__ "
+        "__DBL_EPSILON__ __DBL_DENORM_MIN__ __LDBL_MAX__ __LDBL_DENORM_MIN__\n");
+    const Token *tok = convert_pp_tokens(tokenize(new_source_file("limits.c", text.c_str())));
+    const double limits[] = {FLT_MAX, FLT_MIN,     FLT_EPSILON,  FLT_TRUE_MIN, DBL_MAX,
+                             DBL_MIN, DBL_EPSILON, DBL_TRUE_MIN, DBL_MAX,      DBL_TRUE_MIN};
+    for (double limit : limits)
+    {
+        EXPECT_EQ(tok->fval, limit) << std::string(tok->loc, tok->len);
+        tok = tok->next;
+    }
+    EXPECT_EQ(preprocess_source("__FLT_MANT_DIG__ __FLT_DIG__ __FLT_DECIMAL_DIG__ __FLT_MIN_EXP__ "
+                                "__FLT_MIN_10_EXP__ __FLT_MAX_EXP__ __FLT_MAX_10_EXP__\n"
+                                "__DBL_MANT_DIG__ __DBL_DIG__ __DBL_DECIMAL_DIG__ __DBL_MIN_EXP__ "
+                                "__DBL_MIN_10_EXP__ __DBL_MAX_EXP__ __DBL_MAX_10_EXP__\n"),
+              std::to_string(FLT_MANT_DIG) + " " + std::to_string(FLT_DIG) + " "
+                  + std::to_string(FLT_DECIMAL_DIG) + " (" + std::to_string(FLT_MIN_EXP) + ") ("
+                  + std::to_string(FLT_MIN_10_EXP) + ") " + std::to_string(FLT_MAX_EXP) + " "
+                  + std::to_string(FLT_MAX_10_EXP) + "\n" + std::to_string(DBL_MANT_DIG) + " "
+                  + std::to_string(DBL_DIG) + " " + std::to_string(DBL_DECIMAL_DIG) + " ("
+                  + std::to_string(DBL_MIN_EXP) + ") (" + std::to_string(DBL_MIN_10_EXP) + ") "
+                  + std::to_string(DBL_MAX_EXP) + " " + std::to_string(DBL_MAX_10_EXP) + "\n");
+    EXPECT_EQ(preprocess_source("#if __INTMAX_MAX__ == 0x7FFFFFFFFFFFFFFF && __UINTMAX_MAX__ == -1 "
+                                "&& __FLT_EVAL_METHOD__ == 0 && __FLT_RADIX__ == 2\nok\n#endif\n"
+                                "__INTMAX_TYPE__ __UINTMAX_TYPE__\n"),
+              "ok\nlong long unsigned long long\n");
 }
 
 TEST_F(Preprocessor, line_changes_the_line_number_and_the_file_name)

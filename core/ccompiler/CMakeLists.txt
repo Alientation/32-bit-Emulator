@@ -1,5 +1,6 @@
 # The C compiler. It is plain C that is compiled by the host compiler now and has to compile itself
-# later, so it uses nothing but what it supports (docs/ccompiler.md): no VLAs, long, float or double.
+# later, so it uses nothing but what it supports (docs/ccompiler.md): no VLAs, plain long, long
+# double or float.
 add_library(ccompiler STATIC
     src/codegen.c
     src/lex.c

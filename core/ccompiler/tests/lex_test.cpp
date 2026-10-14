@@ -7,7 +7,13 @@ extern "C"
 #include "ccompiler/lex.h"
 }
 
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <gtest/gtest.h>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -51,13 +57,20 @@ std::string string_bytes(const Token *tok)
     return std::string(tok->str, tok->str_size - static_cast<size_t>(tok->ty->size));
 }
 
-void expect_constant(const char *text, Type *ty, unsigned int value, unsigned int value_high)
+void expect_constant(const char *text, Type *ty, long long value)
 {
     const Token *tok = convert(text);
     ASSERT_EQ(tok->kind, TK_NUM) << text;
     EXPECT_EQ(tok->ty, ty) << text << " is a " << tok->ty->name;
-    EXPECT_EQ(static_cast<unsigned int>(tok->value), value) << text;
-    EXPECT_EQ(tok->value_high, value_high) << text;
+    EXPECT_EQ(tok->value, value) << text;
+}
+
+void expect_floating(const char *text, Type *ty, double value)
+{
+    const Token *tok = convert(text);
+    ASSERT_EQ(tok->kind, TK_NUM) << text;
+    EXPECT_EQ(tok->ty, ty) << text << " is a " << tok->ty->name;
+    EXPECT_EQ(tok->fval, value) << text;
 }
 
 void expect_error(const char *text, const char *message)
@@ -163,24 +176,26 @@ TEST(Lexer, keywords_are_converted_after_preprocessing)
 
 TEST(Lexer, integer_constants_take_the_first_type_their_value_fits)
 {
-    expect_constant("0", ty_int, 0, 0);
-    expect_constant("2147483647", ty_int, 0x7FFFFFFF, 0);
+    expect_constant("0", ty_int, 0);
+    expect_constant("2147483647", ty_int, 0x7FFFFFFF);
     // Decimal goes on to long long, the other bases to unsigned first (C17 6.4.4.1).
-    expect_constant("2147483648", ty_llong, 0x80000000, 0);
-    expect_constant("0x80000000", ty_uint, 0x80000000, 0);
-    expect_constant("0x100000000", ty_llong, 0, 1);
-    expect_constant("0xFFFFFFFFFFFFFFFF", ty_ullong, 0xFFFFFFFF, 0xFFFFFFFF);
-    expect_constant("9223372036854775807", ty_llong, 0xFFFFFFFF, 0x7FFFFFFF);
-    expect_constant("4294967296u", ty_ullong, 0, 1);
-    expect_constant("1l", ty_long, 1, 0);
-    expect_constant("0xFFFFFFFFL", ty_ulong, 0xFFFFFFFF, 0);
-    expect_constant("1Lu", ty_ulong, 1, 0);
-    expect_constant("1LL", ty_llong, 1, 0);
-    expect_constant("1llU", ty_ullong, 1, 0);
-    expect_constant("0b1010", ty_int, 10, 0);
-    expect_constant("0777", ty_int, 511, 0);
-    expect_constant("0'7'7", ty_int, 63, 0);
-    expect_constant("1'000'000", ty_int, 1000000, 0);
+    expect_constant("2147483648", ty_llong, 0x80000000);
+    expect_constant("0x80000000", ty_uint, 0x80000000);
+    expect_constant("0x100000000", ty_llong, 0x100000000);
+    // An unsigned long long above LLONG_MAX is its bits.
+    expect_constant("0xFFFFFFFFFFFFFFFF", ty_ullong, -1);
+    expect_constant("0x8000000000000000", ty_ullong, INT64_MIN);
+    expect_constant("9223372036854775807", ty_llong, INT64_MAX);
+    expect_constant("4294967296u", ty_ullong, 0x100000000);
+    expect_constant("1l", ty_long, 1);
+    expect_constant("0xFFFFFFFFL", ty_ulong, 0xFFFFFFFF);
+    expect_constant("1Lu", ty_ulong, 1);
+    expect_constant("1LL", ty_llong, 1);
+    expect_constant("1llU", ty_ullong, 1);
+    expect_constant("0b1010", ty_int, 10);
+    expect_constant("0777", ty_int, 511);
+    expect_constant("0'7'7", ty_int, 63);
+    expect_constant("1'000'000", ty_int, 1000000);
 }
 
 TEST(Lexer, rejects_integer_constants_that_are_not_valid)
@@ -197,36 +212,136 @@ TEST(Lexer, rejects_integer_constants_that_are_not_valid)
     expect_error("9223372036854775808", "too large for its type");
 }
 
-TEST(Lexer, floating_constants_have_a_type_and_no_value_yet)
+TEST(Lexer, floating_constants_have_the_nearest_value_of_their_type)
 {
-    expect_constant("1.5", ty_double, 0, 0);
-    expect_constant(".5e-3f", ty_float, 0, 0);
-    expect_constant("1.", ty_double, 0, 0);
-    expect_constant("1e10", ty_double, 0, 0);
-    expect_constant("0x1.8p1L", ty_ldouble, 0, 0);
-    expect_constant("09.5", ty_double, 0, 0);
-    expect_constant("1'0.0'1", ty_double, 0, 0);
+    expect_floating("1.5", ty_double, 1.5);
+    expect_floating(".5e-3f", ty_float, static_cast<double>(.5e-3f));
+    expect_floating("1.", ty_double, 1.0);
+    expect_floating("1e10", ty_double, 1e10);
+    expect_floating("0.1", ty_double, 0.1);
+    expect_floating("0x1.8p1L", ty_ldouble, 3.0);
+    expect_floating("0x.1P-4", ty_double, 0x1p-8);
+    expect_floating("09.5", ty_double, 9.5);
+    expect_floating("1'0.0'1", ty_double, 10.01);
+    expect_floating("4.9406564584124654e-324", ty_double, 0x1p-1074);
+    // A float is rounded once: through a double this would be 1.0f.
+    expect_floating("1.00000005960464481f", ty_float, 0x1.000002p+0);
+    // Too large for the type is infinity, with a warning.
+    expect_floating("1e39f", ty_float, HUGE_VAL);
+    expect_floating("1e309", ty_double, HUGE_VAL);
     expect_error("1e", "invalid floating constant");
     expect_error("0x1.8", "invalid floating constant");
     expect_error("1.5x", "invalid floating constant");
 }
 
+TEST(Lexer, floating_constants_agree_with_a_correctly_rounded_strtod)
+{
+    // The host's strtod and strtof are correctly rounded. The halfway points between two doubles
+    // (exact in a long double) and two floats (exact in a double) are where a rounding error
+    // shows, and the same with a digit 1 after them, far beyond the digits that are kept.
+    std::mt19937_64 rng(12345);
+    std::vector<std::string> doubles;
+    std::vector<std::string> floats;
+    char text[1024];
+    for (int i = 0; i < 1000; i++)
+    {
+        double low;
+        do
+        {
+            const unsigned long long bits = rng() & 0x7FFFFFFFFFFFFFFFull;
+            std::memcpy(&low, &bits, sizeof(low));
+        } while (!std::isfinite(std::nextafter(low, HUGE_VAL)));
+        const long double half =
+            (static_cast<long double>(low) + std::nextafter(low, HUGE_VAL)) / 2;
+        std::snprintf(text, sizeof(text), "%.800Le", half);
+        doubles.push_back(text);
+        std::string above = text;
+        above.insert(above.find('e'), "0001");
+        doubles.push_back(above);
+
+        float flow;
+        do
+        {
+            const unsigned int bits = static_cast<unsigned int>(rng()) & 0x7FFFFFFFu;
+            std::memcpy(&flow, &bits, sizeof(flow));
+        } while (!std::isfinite(std::nextafter(flow, HUGE_VALF)));
+        std::snprintf(text, sizeof(text), "%.150e",
+                      (static_cast<double>(flow) + std::nextafter(flow, HUGE_VALF)) / 2);
+        floats.push_back(text);
+
+        // A halfway point at or above 2^64 is an even integer, and written as one with 1 more
+        // only the bits below the 62 at the top decide.
+        const unsigned long long big_bits = (rng() & ((1ull << 52) - 1))
+                                            | static_cast<unsigned long long>(1087 + rng() % 900)
+                                                  << 52;
+        double big;
+        std::memcpy(&big, &big_bits, sizeof(big));
+        std::snprintf(text, sizeof(text), "%.0Lf.",
+                      (static_cast<long double>(big) + std::nextafter(big, HUGE_VAL)) / 2);
+        doubles.push_back(text);
+        std::string plus_one = text;
+        plus_one[plus_one.size() - 2]++;
+        doubles.push_back(plus_one);
+
+        // Short random spellings, decimal and hexadecimal, some with more hex digits than kept,
+        // with exponents around the range of each type.
+        for (std::vector<std::string> *list : {&doubles, &floats})
+        {
+            const bool is_double = list == &doubles;
+            std::snprintf(text, sizeof(text), "%llu.%llue%d",
+                          static_cast<unsigned long long>(rng() % 100000000000ull),
+                          static_cast<unsigned long long>(rng() % 1000000000000ull),
+                          static_cast<int>(rng() % (is_double ? 660 : 100))
+                              - (is_double ? 340 : 55));
+            list->push_back(text);
+            std::snprintf(
+                text, sizeof(text), "0x%llx.%llx%llxp%d", static_cast<unsigned long long>(rng()),
+                static_cast<unsigned long long>(rng()), static_cast<unsigned long long>(rng()),
+                static_cast<int>(rng() % (is_double ? 2100 : 300)) - (is_double ? 1140 : 220));
+            list->push_back(text);
+            std::snprintf(
+                text, sizeof(text), "0x%llx%llx%llxp%d", static_cast<unsigned long long>(rng()),
+                static_cast<unsigned long long>(rng()), static_cast<unsigned long long>(rng()),
+                static_cast<int>(rng() % (is_double ? 2100 : 300)) - (is_double ? 1200 : 280));
+            list->push_back(text);
+        }
+    }
+    for (const std::string &spelling : doubles)
+    {
+        const double expected = std::strtod(spelling.c_str(), nullptr);
+        if (convert(spelling.c_str())->fval != expected)
+        {
+            ADD_FAILURE() << spelling << " is not " << expected;
+            break;
+        }
+    }
+    for (const std::string &spelling : floats)
+    {
+        const double expected = std::strtof(spelling.c_str(), nullptr);
+        if (convert((spelling + "f").c_str())->fval != expected)
+        {
+            ADD_FAILURE() << spelling << "f is not " << expected;
+            break;
+        }
+    }
+}
+
 TEST(Lexer, character_constants)
 {
-    expect_constant("'a'", ty_int, 'a', 0);
-    expect_constant("'\\n'", ty_int, '\n', 0);
-    expect_constant("'\\''", ty_int, '\'', 0);
-    expect_constant("'\\101'", ty_int, 'A', 0);
-    expect_constant("'\\x41'", ty_int, 'A', 0);
+    expect_constant("'a'", ty_int, 'a');
+    expect_constant("'\\n'", ty_int, '\n');
+    expect_constant("'\\''", ty_int, '\'');
+    expect_constant("'\\101'", ty_int, 'A');
+    expect_constant("'\\x41'", ty_int, 'A');
     // A plain char is signed.
-    expect_constant("'\\377'", ty_int, 0xFFFFFFFF, 0xFFFFFFFF);
-    expect_constant("L'\\xFFFFFFFF'", ty_int, 0xFFFFFFFF, 0xFFFFFFFF);
-    expect_constant("u'\\u00e9'", ty_ushort, 0xE9, 0);
-    expect_constant("u'\xC3\xA9'", ty_ushort, 0xE9, 0);
-    expect_constant("U'\\U0001F600'", ty_uint, 0x1F600, 0);
-    expect_constant("U'\\xFFFFFFFF'", ty_uint, 0xFFFFFFFF, 0);
+    expect_constant("'\\377'", ty_int, -1);
+    expect_constant("L'\\xFFFFFFFF'", ty_int, -1);
+    expect_constant("u'\\u00e9'", ty_ushort, 0xE9);
+    expect_constant("u'\xC3\xA9'", ty_ushort, 0xE9);
+    expect_constant("U'\\U0001F600'", ty_uint, 0x1F600);
+    expect_constant("U'\\xFFFFFFFF'", ty_uint, 0xFFFFFFFF);
     // A multi-character constant has its bytes, the first one highest, as in GCC.
-    expect_constant("'ab'", ty_int, 0x6162, 0);
+    expect_constant("'ab'", ty_int, 0x6162);
 }
 
 TEST(Lexer, rejects_character_constants_that_are_not_valid)

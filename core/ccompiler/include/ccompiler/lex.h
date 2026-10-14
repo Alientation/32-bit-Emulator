@@ -75,12 +75,12 @@ struct Token
     bool at_bol;
     bool has_space;
 
-    /// The value of an integer or character constant (`TK_NUM`), its low 32 bits, and its high
-    /// 32 bits as a 64 bit value of its type (the sign extension of `value` for a 32 bit signed
-    /// type). A floating constant has only its spelling until the compiler has floating point
-    /// (docs/ccompiler.md, plan step 5).
-    int value;
-    unsigned int value_high;
+    /// The value of an integer or character constant (`TK_NUM`). An `unsigned long long` above
+    /// `LLONG_MAX` is its bits, a negative number.
+    long long value;
+    /// The value of a floating constant (`TK_NUM` of a floating type), rounded to its type: a
+    /// `float` constant is a `float` value.
+    double fval;
     /// The type of a `TK_NUM`, and of the elements of a `TK_STR`.
     Type *ty;
     /// The bytes of a `TK_STR` in the target's layout, little endian elements of the size of

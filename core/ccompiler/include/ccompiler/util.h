@@ -42,51 +42,17 @@ void verror_at(const char *file_name, int line_no, const char *contents, const c
 void vwarn_at(const char *file_name, int line_no, const char *contents, const char *loc,
               const char *fmt, va_list ap);
 
-/// A 64 bit integer as two words, since the compiler's source has no 64 bit type. The functions
-/// below compute modulo 2^64, as unsigned arithmetic does; the signed ones read the bits as two's
-/// complement.
-typedef struct
-{
-    unsigned int lo;
-    unsigned int hi;
-} Int64;
-
-/// @return `value` sign extended.
-Int64 int64_from_int(int value);
-
-/// @return `value` zero extended.
-Int64 int64_from_uint(unsigned int value);
-
-Int64 int64_add(Int64 a, Int64 b);
-Int64 int64_sub(Int64 a, Int64 b);
-Int64 int64_mul(Int64 a, Int64 b);
-Int64 int64_neg(Int64 a);
-Int64 int64_not(Int64 a);
-Int64 int64_and(Int64 a, Int64 b);
-Int64 int64_or(Int64 a, Int64 b);
-Int64 int64_xor(Int64 a, Int64 b);
-
-/// @param[in] count The shift count, 0 to 63.
-Int64 int64_shl(Int64 a, int count);
-
-/// @param[in] count The shift count, 0 to 63.
-/// @param[in] is_signed Whether the sign bit is copied in (arithmetic shift) or 0 (logical).
-Int64 int64_shr(Int64 a, int count, bool is_signed);
-
-/// Divides, rounding toward zero.
+/// Converts the spelling of a floating constant, decimal or hexadecimal, with `'` between digits
+/// and without its suffix, to the nearest `double`, or the nearest `float` (as a `double`), ties to
+/// even. It is what strtod and strtof do, with integer arithmetic only, so that the libc of the
+/// bootstrap does not need them (docs/ccompiler.md#self-hosting).
 ///
-/// @param[in] b The divisor, not 0.
-/// @param[in] is_signed Whether `a` and `b` are signed. INT64_MIN / -1 is INT64_MIN.
-/// @param[out] remainder The remainder, with the sign of `a`.
-/// @return The quotient.
-Int64 int64_div(Int64 a, Int64 b, bool is_signed, Int64 *remainder);
-
-bool int64_eq(Int64 a, Int64 b);
-
-/// @return Whether `a < b`, compared as signed or unsigned.
-bool int64_lt(Int64 a, Int64 b, bool is_signed);
-
-bool int64_is_zero(Int64 a);
+/// @param[in] start The first character, a valid spelling (the lexer checks it).
+/// @param[in] end The character after the last one.
+/// @param[in] is_float Whether the value is rounded to a `float`.
+/// @param[out] overflow Set when the value is too large for its type; the result is then infinity.
+/// @return The value.
+double floating_value(const char *start, const char *end, bool is_float, bool *overflow);
 
 /// A slot of a HashMap, empty when `key` is null.
 typedef struct

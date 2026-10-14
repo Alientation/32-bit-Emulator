@@ -472,13 +472,10 @@ static Type **const int_types_unsigned[3][4] = {
 };
 
 /// @return Whether `value` can be represented in the integer type `ty`.
-static bool fits_in(Int64 value, const Type *ty)
+static bool fits_in(unsigned long long value, const Type *ty)
 {
-    if (ty->size == 8)
-    {
-        return ty->is_unsigned || (value.hi >> 31) == 0;
-    }
-    return value.hi == 0 && (ty->is_unsigned || (value.lo >> 31) == 0);
+    const int bits = ty->size * 8 - (ty->is_unsigned ? 0 : 1);
+    return bits == 64 || value >> bits == 0;
 }
 
 /// Converts an integer constant: decimal, `0x` hexadecimal, `0b` binary or octal with a leading
@@ -510,9 +507,8 @@ static bool convert_integer(Token *tok)
     {
         return false;
     }
-    Int64 value = {0, 0};
+    unsigned long long value = 0;
     bool too_large = false;
-    const Int64 base64 = int64_from_uint((unsigned int) base);
     for (; p < digits_end; p++)
     {
         if (*p == '\'')
@@ -520,12 +516,9 @@ static bool convert_integer(Token *tok)
             continue;
         }
         // value * base + digit has to stay below 2^64.
-        Int64 remainder;
-        const Int64 digit = int64_from_uint((unsigned int) digit_value(*p));
-        const Int64 limit =
-            int64_div(int64_sub(int64_from_int(-1), digit), base64, false, &remainder);
-        too_large = too_large || int64_lt(limit, value, false);
-        value = int64_add(int64_mul(value, base64), digit);
+        const unsigned long long digit = (unsigned long long) digit_value(*p);
+        too_large = too_large || value > (~0ull - digit) / (unsigned long long) base;
+        value = value * (unsigned long long) base + digit;
     }
 
     bool is_unsigned = false;
@@ -570,8 +563,7 @@ static bool convert_integer(Token *tok)
         {
             tok->kind = TK_NUM;
             tok->ty = **types;
-            tok->value = (int) value.lo;
-            tok->value_high = value.hi;
+            tok->value = (long long) value;
             return true;
         }
     }
@@ -580,7 +572,8 @@ static bool convert_integer(Token *tok)
 }
 
 /// Converts a floating constant, decimal or hexadecimal (`0x1.8p3`), with the suffixes `f` and
-/// `l`. It keeps its spelling for now, see `Token::value`.
+/// `l`, to the nearest value of its type (a `float` is rounded once, not through a `double`). A
+/// value too large for the type is infinity, with a warning.
 ///
 /// @return Whether the token is a floating constant.
 static bool convert_float(Token *tok)
@@ -630,6 +623,7 @@ static bool convert_float(Token *tok)
         return false;
     }
 
+    const char *number_end = p;
     tok->ty = ty_double;
     if (*p == 'f' || *p == 'F')
     {
@@ -644,6 +638,13 @@ static bool convert_float(Token *tok)
     if (p != end)
     {
         return false;
+    }
+
+    bool overflow;
+    tok->fval = floating_value(tok->loc, number_end, tok->ty == ty_float, &overflow);
+    if (overflow)
+    {
+        warn_tok(tok, "floating constant exceeds the range of '%s'", tok->ty->name);
     }
     tok->kind = TK_NUM;
     return true;
@@ -962,8 +963,7 @@ static void convert_char(Token *tok)
         }
     }
     tok->kind = TK_NUM;
-    tok->value = (int) value;
-    tok->value_high = !tok->ty->is_unsigned && (value >> 31) ? ~0u : 0u;
+    tok->value = tok->ty->is_unsigned ? (long long) value : (long long) (int) value;
 }
 
 void convert_constant(Token *tok)
