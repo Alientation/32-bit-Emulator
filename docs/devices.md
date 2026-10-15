@@ -1,6 +1,6 @@
 # Devices, interrupts and the boot sequence
 
-The machine has five memory mapped devices: an interrupt controller, a timer, a console, a block device and a display. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console), to keep data (block device) and to show pictures (display, described in [display.md](display.md)). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
+The machine has six memory mapped devices: an interrupt controller, a timer, a console, a block device, a display and a system controller. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console), to keep data (block device), to show pictures (display, described in [display.md](display.md)), and to find out how much memory there is and to turn the machine off or reset it (system controller). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
 
 ## Memory map
 
@@ -16,10 +16,11 @@ Physical addresses:
 | `0xF0002000` | **console**, one page |
 | `0xF0003000` | **block device**, one page |
 | `0xF0004000` | **display**, one page ([display.md](display.md)) |
+| `0xF0005000` | **system controller**, one page |
 
 A store by a program to the ROM is a bus error as well (nothing is written; a store that crosses into the ROM from the page before writes nothing either). The host can still write the image (the loader's physical sections, `ROM::write_*` in a test).
 
-Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0005000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA) does it once per access.
+Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0006000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA) does it once per access.
 
 Programs without page tables (`SCTLR.M` = 0, what `emu32 -e` runs) reach the devices at these addresses directly, the swapping memory leaves addresses from `0xF0000000` alone.
 
@@ -108,6 +109,23 @@ The list is read **when the command is given**, the data moves when it completes
 - Without `--block-file` or `--block-sectors` the disk has 0 sectors. `emu32 --block-sectors N` is a disk of N sectors in memory, `--block-file FILE` keeps it in a file (made, with `--block-sectors`, if it does not exist; its size in sectors otherwise, or more if `--block-sectors` says so). The file is written on FLUSH and when the machine ends.
 - This is separate from `--disk-file`, the memory mapped disk that the swapping memory (`SCTLR.M` = 0) uses.
 
+### System controller (`0xF0005000`)
+
+| Offset | Name | Access | |
+|--------|------|--------|---|
+| `0x00` | POWEROFF | write | turns the machine off after this instruction. The value is the exit code |
+| `0x04` | RESET | write | resets the machine after this instruction (any value) |
+| `0x08` | RAM_START | read | the physical address of the RAM |
+| `0x0C` | RAM_SIZE | read | the bytes of RAM |
+| `0x10` | ROM_START | read | the physical address of the ROM, 0 when there is none |
+| `0x14` | ROM_SIZE | read | the bytes of ROM |
+
+A store to POWEROFF completes like any store, and the run ends before the next instruction: `run` returns `Status::POWER_OFF` with the message `Power off with exit code N`, and the pc is the instruction after the store. `emu32` says `status=poweroff` and **exits with the low byte of the code** (an exit status is a byte), so a kernel's test can tell `ctest` whether it passed: 0 for a pass, a code of its own (not 1-4, which `emu32` uses itself) for a failure. The debugger says `Power off with exit code N after M instructions.` and ends the program, the gdb server sends `W` with the code (`W05`). The machine stays off: another `run` returns `POWER_OFF` at once, until a reset (`Emulator32bit::reset`).
+
+A store to RESET also completes, and then the machine is **reset within the same run**, as at power on ([the boot sequence](#boot-sequence)): the registers, the RAM and the devices go back to their reset values, the ROM and the disks keep their contents, and the next instruction is the one at the **boot address**: what `emu32 --pc` gave (0 by default, and with `-e`, which loads the program into the RAM that the reset clears), `Emulator32bit::set_boot_pc` from C++. So a reset is for a machine that boots from its ROM. The run goes on counting its instructions.
+
+RAM_START and RAM_SIZE are what the machine was made with (`emu32 --ram-start`, `--ram-pages`), so a kernel knows which frames it has without being built for one size.
+
 ## `WFI`
 
 `WFI` (privileged) returns as soon as an interrupt is pending, even a masked one: the next instruction runs, and takes the interrupt if it is not masked. Nothing else runs while the CPU waits, so the only things that can produce an interrupt are the timer, a block device command in progress and the end of a frame of the display (when its interrupt is enabled), and `WFI` **jumps** to the nearest of these moments: time passes at once, the device finishes and raises its interrupt. A kernel's idle loop is `wfi` and then the interrupt handling, and costs one instruction however long the wait is. With nothing that could ever wake it (no pending interrupt, the timer off, no command in progress, the display off or without its interrupt), `WFI` ends the run like `HLT` instead of hanging, with the message `WFI with no interrupt source`.
@@ -119,7 +137,7 @@ At reset (`Emulator32bit::reset`):
 | State | Value |
 |-------|-------|
 | mode | kernel, IRQs masked (`PSTATE = 0x20`) |
-| `PC` | 0 (RAM) unless set: `emu32 --pc ADDRESS`, `set_pc` |
+| `PC` | the boot address: 0 (RAM) unless set, `emu32 --pc ADDRESS`, `set_boot_pc` (and `set_pc` for the first run) |
 | registers, `sp` | 0 |
 | `VBAR`, `PTBR`, `SCTLR` | 0: no vector table, translation off |
 | devices | all registers 0, the interrupt queue empty, every line disabled |
@@ -142,6 +160,6 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Where it is in the code
 
-`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console`, `BlockDevice` and `Display` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block` and `display`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
+`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console`, `BlockDevice`, `Display` and `SystemController` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block`, `display` and `sysctl`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
 
-The timer, the block device and the display count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame), and then gives all three the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers, starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the console's live input, and while there is one it counts down to at most `Console::kHostInputPollInterval`. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller` in the integration tests.
+The timer, the block device and the display count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame), and then gives all three the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers, starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the console's live input, and while there is one it counts down to at most `Console::kHostInputPollInterval`. While the system controller has a request it counts down to 1, so `tick` returns `true` after the instruction that made the request, and `run` serves it (`serve_system_request`): a power off ends the run, a reset calls `reset` and goes on; this costs the loop nothing, the check is on the path where the count down ends. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller`, `a_program_turns_the_machine_off_with_an_exit_code` and `a_machine_that_boots_from_its_rom_is_reset_by_the_program` in the integration tests.

@@ -911,6 +911,11 @@ void Debugger::run_and_report(const U64 instructions)
         m_out << "Fault: " << result.message << "\n";
         print_history(kFaultHistory);
         break;
+    case Status::POWER_OFF:
+        m_finished = true;
+        m_result = result;
+        m_out << result.message << " after " << m_instructions << " instructions.\n";
+        break;
     case Status::BREAKPOINT:
         m_out << result.message << "\n";
         break;

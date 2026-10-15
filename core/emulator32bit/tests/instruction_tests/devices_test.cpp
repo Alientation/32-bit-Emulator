@@ -1151,7 +1151,7 @@ TEST_F(Devices, a_program_reads_sectors_by_dma)
 
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
 {
-    EXPECT_THROW(cpu.memory.read_word(kDeviceBase + 0x5000), SystemBus::BusError);
+    EXPECT_THROW(cpu.memory.read_word(kSysctlBase + kPageSize), SystemBus::BusError);
 }
 
 // --- display -------------------------------------------------------------------------------
@@ -1468,4 +1468,97 @@ TEST_F(Devices, a_program_sees_the_end_of_a_frame_at_the_instruction_it_happens)
     EXPECT_EQ(cpu.read_reg(3), 0u);
     EXPECT_EQ(cpu.read_reg(4), Display::kStatusFrame);
     EXPECT_EQ(cpu.read_reg(5), 1u);
+}
+
+// --- the system controller -----------------------------------------------------------------
+
+TEST(SystemControllerUnit, it_says_what_memory_there_is_and_keeps_a_request_until_a_reset)
+{
+    const RAM ram(16, 2);
+    const ROM rom(4, 32);
+    SystemController sysctl(ram, rom);
+    EXPECT_EQ(sysctl.read_word(kSysctlBase + SystemController::kRegRamStart), 0x2000u);
+    EXPECT_EQ(sysctl.read_word(kSysctlBase + SystemController::kRegRamSize), 16u * kPageSize);
+    EXPECT_EQ(sysctl.read_word(kSysctlBase + SystemController::kRegRomStart), 0x20000u);
+    EXPECT_EQ(sysctl.read_word(kSysctlBase + SystemController::kRegRomSize), 4u * kPageSize);
+    EXPECT_EQ(sysctl.request(), SystemController::Request::NONE);
+
+    sysctl.write_word(kSysctlBase + SystemController::kRegPowerOff, 300);
+    EXPECT_EQ(sysctl.request(), SystemController::Request::POWER_OFF);
+    EXPECT_EQ(sysctl.exit_code(), 300u);
+    EXPECT_EQ(sysctl.read_word(kSysctlBase + SystemController::kRegPowerOff), 0u) << "write only";
+
+    sysctl.reset();
+    EXPECT_EQ(sysctl.request(), SystemController::Request::NONE);
+    EXPECT_EQ(sysctl.exit_code(), 0u);
+    sysctl.write_byte(kSysctlBase + SystemController::kRegReset, 1);
+    EXPECT_EQ(sysctl.request(), SystemController::Request::RESET);
+
+    const ROM no_rom(0, 40);
+    SystemController without_rom(ram, no_rom);
+    EXPECT_EQ(without_rom.read_word(kSysctlBase + SystemController::kRegRomStart), 0u);
+    EXPECT_EQ(without_rom.read_word(kSysctlBase + SystemController::kRegRomSize), 0u);
+}
+
+// The store to POWEROFF completes, and the run ends before the next instruction. The machine stays
+// off until it is reset.
+TEST_F(Devices, a_program_turns_the_machine_off_with_an_exit_code)
+{
+    std::vector<word> program;
+    append(program, constant(10, kSysctlBase));
+    program.insert(program.end(), {mov(1, 42), store_at(1, 10, SystemController::kRegPowerOff),
+                                   mov(3, 1), E::asm_hlt()});
+    auto result = run(program);
+    ASSERT_EQ(result.status, Status::POWER_OFF) << result.message;
+    EXPECT_EQ(result.message, "Power off with exit code 42");
+    EXPECT_EQ(result.instructions_ran, 5u) << "the store is the last instruction";
+    EXPECT_EQ(cpu.get_pc(), kProgram + 5 * 4);
+    EXPECT_EQ(cpu.read_reg(3), 0u);
+    EXPECT_EQ(cpu.system_bus->sysctl.exit_code(), 42u);
+
+    result = cpu.run(100);
+    EXPECT_EQ(result.status, Status::POWER_OFF) << "it is still off";
+    EXPECT_EQ(result.instructions_ran, 0u);
+
+    cpu.reset();
+    write(kProgram, {mov(3, 1), E::asm_hlt()});
+    cpu.set_pc(kProgram);
+    EXPECT_EQ(cpu.run(100).status, Status::HALTED) << "a reset turns it on again";
+    EXPECT_EQ(cpu.read_reg(3), 1u);
+}
+
+// A reset goes on with the program in the ROM at the boot address, with the RAM, the registers
+// and the devices as they are at power on, within the same run.
+TEST_F(Devices, a_reset_by_the_program_starts_again_at_the_boot_address)
+{
+    const word boot = 16 << kNumPageOffsetBits;
+    std::vector<word> program{mov(3, 5)};
+    append(program, constant(10, kSysctlBase));
+    program.insert(program.end(),
+                   {store_at(1, 10, SystemController::kRegReset), mov(6, 9), E::asm_hlt()});
+    for (size_t i = 0; i < program.size(); i++)
+    {
+        cpu.system_bus->rom->write_word(boot + word(i) * 4, program[i]);
+    }
+    cpu.set_boot_pc(boot);
+    cpu.set_pc(boot);
+    cpu.write_reg(20, 99);
+    cpu.memory.write_word(0x2000, 0x1234);
+    cpu.memory.write_word(kIntcBase + InterruptController::kRegEnable, 0xFF);
+
+    // The reset after 5 instructions, then the mov and the first of the constant again.
+    const auto result = cpu.run(7);
+    ASSERT_EQ(result.status, Status::LIMIT_REACHED) << result.message;
+    EXPECT_EQ(result.instructions_ran, 7u);
+    EXPECT_EQ(cpu.get_pc(), boot + 2 * 4);
+    EXPECT_EQ(cpu.read_reg(3), 5u);
+    EXPECT_EQ(cpu.read_reg(6), 0u) << "the instruction after the store never ran";
+    EXPECT_EQ(cpu.read_reg(20), 0u);
+    EXPECT_EQ(cpu.memory.read_word(0x2000), 0u);
+    EXPECT_EQ(intc_read(InterruptController::kRegEnable), 0u);
+    EXPECT_EQ(cpu.system_bus->sysctl.request(), SystemController::Request::NONE);
+
+    cpu.set_boot_pc(0);
+    cpu.reset();
+    EXPECT_EQ(cpu.get_pc(), 0u);
 }

@@ -220,6 +220,13 @@ TEST_F(GdbTest, a_halt_is_an_exit_and_a_fault_is_a_signal)
     EXPECT_EQ(ask("c"), "T0bthread:1;");
 }
 
+TEST_F(GdbTest, a_power_off_is_an_exit_with_its_code)
+{
+    cpu.write_reg(1, kSysctlBase + SystemController::kRegPowerOff);
+    cpu.write_reg(2, 0x107);
+    EXPECT_EQ(ask("c"), "W07") << "the low byte";
+}
+
 class Interrupts : public GdbServer::InterruptSource
 {
   public:

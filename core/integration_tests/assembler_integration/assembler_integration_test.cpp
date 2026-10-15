@@ -2484,6 +2484,56 @@ TEST_F(AssemblerIntegration, emu32_cannot_dump_a_picture_that_is_not_in_ram)
     EXPECT_NE(log_tail("emu32.log").find("not in RAM"), std::string::npos) << log_tail("emu32.log");
 }
 
+// The system controller (docs/devices.md): a program reads how much RAM there is and turns the
+// machine off, and emu32 exits with the program's exit code.
+TEST_F(AssemblerIntegration, a_program_turns_the_machine_off_with_an_exit_code)
+{
+    write_file("off.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0005000         ; system controller
+                ldr     x3, [x20, 0xC]           ; RAM_SIZE
+                ldr     x4, [x20, 0x10]          ; ROM_START
+                mov     x1, 5
+                str     x1, [x20]                ; POWEROFF
+                mov     x5, 1
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o off off.basm -outdir ."));
+    EXPECT_EQ(emu32("-e off.bexe --ram-pages 40 --rom-start 64"), 5) << log_tail("emu32.log");
+    EXPECT_EQ(state("status"), "poweroff");
+    EXPECT_EQ(state("message"), "Power off with exit code 5");
+    EXPECT_EQ(reg(3), 40u * 4096);
+    EXPECT_EQ(reg(4), 64u * 4096);
+    EXPECT_EQ(reg(5), 0u);
+}
+
+// A reset by the system controller starts the ROM again at the --pc it booted from, with the
+// registers of a power on (x10, which pointed at RESET, is 0, so the second store goes to RAM).
+TEST_F(AssemblerIntegration, a_machine_that_boots_from_its_rom_is_reset_by_the_program)
+{
+    const word program[] = {
+        Emulator32bit::asm_format_o(encoding::_op_add, false, 3, 3, 1),
+        Emulator32bit::asm_format_m(encoding::_op_str, false, 1, 10, 0,
+                                    encoding::AddrType::ADDR_OFFSET),
+        Emulator32bit::asm_hlt(),
+    };
+    std::string bytes;
+    for (const word instruction : program)
+    {
+        for (word i = 0; i < 4; i++) bytes += char((instruction >> (8 * i)) & 0xFF);
+    }
+    write_file("boot.bin", bytes);
+
+    // The add and the store, the reset, then the add and the store again.
+    EXPECT_EQ(emu32("--rom-file boot.bin --pc 0x20000 -r x10=0xF0005004 -l 4"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_LIMIT_REACHED))
+        << log_tail("emu32.log");
+    EXPECT_EQ(state_number("pc"), 0x20008u);
+    EXPECT_EQ(reg(3), 1u);
+    EXPECT_EQ(reg(10), 0u);
+}
+
 #ifdef AEMU_GUI
 // The window of --display, with SDL's dummy video driver, which needs no screen. The window shows
 // at most 60 frames a second, so the machine has not drawn all 300 frames of the demo when the

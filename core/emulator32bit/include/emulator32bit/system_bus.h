@@ -42,16 +42,18 @@ class SystemBus : public PhysicalPages
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
 
-    /// The devices, at kIntcBase, kTimerBase, kConsoleBase, kBlockBase and kDisplayBase.
+    /// The devices, at kIntcBase, kTimerBase, kConsoleBase, kBlockBase, kDisplayBase and
+    /// kSysctlBase.
     InterruptController intc;
     Timer timer{intc};
     Console console{intc};
     BlockDevice block{intc};
     Display display{intc};
+    SystemController sysctl{*ram, *rom};
 
-    /// Moves the timer, the block device and the display on as instructions complete, and takes
-    /// the console's live input.
-    DeviceClock clock{timer, block, display, console};
+    /// Moves the timer, the block device and the display on as instructions complete, takes the
+    /// console's live input and passes on the requests of the system controller.
+    DeviceClock clock{timer, block, display, console, sysctl};
 
     /// An address that no memory or device answers to.
     class BusError : public std::runtime_error
@@ -108,5 +110,5 @@ class SystemBus : public PhysicalPages
     /// is a fatal error.
     void validate_memory() const;
 
-    Device *const m_devices[5] = {&intc, &timer, &console, &block, &display};
+    Device *const m_devices[6] = {&intc, &timer, &console, &block, &display, &sysctl};
 };

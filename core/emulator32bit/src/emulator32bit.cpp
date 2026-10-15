@@ -224,8 +224,11 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
                         || m_trace.out != nullptr || m_watchpoints.count != 0;
     SystemBus &bus = *system_bus;
 
-    // The host may have changed a device directly between two runs.
-    bus.clock.sync();
+    // The host may have changed a device directly between two runs, or asked for a power off.
+    if (bus.clock.sync() && serve_system_request(result))
+    {
+        return result;
+    }
 
     try
     {
@@ -299,7 +302,7 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
             m_pc_written = false;
             m_just_took_exception = false;
             result.instructions_ran++;
-            bus.clock.tick();
+            if (UNLIKELY(bus.clock.tick()) && serve_system_request(result)) break;
 
             if (UNLIKELY(hooked) && !m_watchpoints.hit_message.empty())
             {
@@ -373,6 +376,21 @@ Emulator32bit::RunResult Emulator32bit::run(const U64 instructions)
     // The devices are up to date for whoever looks at them after the run.
     bus.clock.sync();
     return result;
+}
+
+bool Emulator32bit::serve_system_request(RunResult &result)
+{
+    const SystemController &sysctl = system_bus->sysctl;
+    if (sysctl.request() == SystemController::Request::POWER_OFF)
+    {
+        result.status = RunResult::Status::POWER_OFF;
+        result.message = std::format("Power off with exit code {}", sysctl.exit_code());
+        return true;
+    }
+
+    reset();
+    system_bus->clock.sync();
+    return false;
 }
 
 void Emulator32bit::add_breakpoint(const word pc)
@@ -1007,7 +1025,7 @@ void Emulator32bit::reset()
 
     // Kernel mode with IRQs masked, and no vector table.
     m_pstate = word(1) << kIrqMaskBit;
-    m_pc = 0;
+    m_pc = m_boot_pc;
 
     m_sp_other = 0;
     m_elr = m_spsr = m_esr = m_far = m_vbar = m_ptbr = m_sctlr = 0;

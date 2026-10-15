@@ -33,6 +33,8 @@ SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
     timer.set_clock(&clock);
     block.set_clock(&clock);
     display.set_clock(&clock);
+    // So that the clock sees a request right after the store that made it.
+    sysctl.set_clock(&clock);
 }
 
 SystemBus::~SystemBus()
@@ -159,6 +161,7 @@ void SystemBus::reset()
     console.reset();
     block.reset();
     display.reset();
+    sysctl.reset();
 }
 
 void SystemBus::read_page(byte *const out, const word ppage)

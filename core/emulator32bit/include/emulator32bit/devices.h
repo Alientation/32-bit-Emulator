@@ -23,6 +23,7 @@ inline constexpr word kTimerBase = kDeviceBase + 0x1000;
 inline constexpr word kConsoleBase = kDeviceBase + 0x2000;
 inline constexpr word kBlockBase = kDeviceBase + 0x3000;
 inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
+inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
 
 /// The interrupt lines.
 inline constexpr word kIrqLineTimer = 0;
@@ -661,6 +662,68 @@ class Display : public Device
     word m_palette[kPaletteSize];
 };
 
+/// The system controller: what memory the machine has, and a way for a program to turn the machine
+/// off (with an exit code, for a kernel's tests) or to reset it.
+///
+/// | Offset | Name      | Access | |
+/// | 0x00   | POWEROFF  | write  | turns the machine off after this instruction, the value is the exit code |
+/// | 0x04   | RESET     | write  | resets the machine after this instruction, which starts again at its boot address |
+/// | 0x08   | RAM_START | read   | the physical address of the RAM |
+/// | 0x0C   | RAM_SIZE  | read   | the bytes of RAM |
+/// | 0x10   | ROM_START | read   | the physical address of the ROM, 0 when there is none |
+/// | 0x14   | ROM_SIZE  | read   | the bytes of ROM |
+///
+/// The device only records the request; the DeviceClock sees it after the instruction that made it,
+/// and `Emulator32bit::run` serves it.
+class SystemController : public Device
+{
+  public:
+    /// What a program asked the machine to do.
+    enum class Request : U8
+    {
+        NONE,
+        POWER_OFF,
+        RESET,
+    };
+
+    /// The offsets of the registers.
+    static constexpr word kRegPowerOff = 0x00;
+    static constexpr word kRegReset = 0x04;
+    static constexpr word kRegRamStart = 0x08;
+    static constexpr word kRegRamSize = 0x0C;
+    static constexpr word kRegRomStart = 0x10;
+    static constexpr word kRegRomSize = 0x14;
+
+    /// @param[in] ram The RAM, which is not owned.
+    /// @param[in] rom The ROM, which is not owned.
+    SystemController(const BaseMemory &ram, const BaseMemory &rom);
+
+    /// @return What the program asked for, NONE until it asks and after a reset.
+    Request request() const
+    {
+        return m_request;
+    }
+
+    /// @return The value written to POWEROFF.
+    word exit_code() const
+    {
+        return m_exit_code;
+    }
+
+    /// Forgets the request: the machine that was turned off is on again.
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    const BaseMemory &m_ram;
+    const BaseMemory &m_rom;
+    Request m_request = Request::NONE;
+    word m_exit_code = 0;
+};
+
 /// The time of the devices that count executed instructions: the timer, the block device and the
 /// display. Rather than each of them looking at every instruction, the clock counts down to the
 /// first moment that one of them has something to do, and only then gives them the instructions
@@ -671,7 +734,8 @@ class Display : public Device
 ///
 /// The clock also takes the console's live input from the host, at least every
 /// Console::kHostInputPollInterval instructions while there is one. When a byte arrives is up to
-/// the host, so the machine does not have to look before every instruction.
+/// the host, so the machine does not have to look before every instruction. And it tells `run`,
+/// after the instruction that made it, of a request of the system controller.
 class DeviceClock
 {
   public:
@@ -679,22 +743,29 @@ class DeviceClock
     /// @param[in] block The block device.
     /// @param[in] display The display.
     /// @param[in] console The console, whose live input the clock takes.
-    DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console);
+    /// @param[in] sysctl The system controller, whose request the clock passes on.
+    DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
+                const SystemController &sysctl);
 
     /// Called after each instruction that completes.
-    void tick()
+    ///
+    /// @return Whether the system controller has a request, which the machine serves now.
+    bool tick()
     {
         if (UNLIKELY(--m_until_event == 0))
         {
-            sync();
+            return sync();
         }
+        return false;
     }
 
     /// Gives the devices the instructions that completed since the last time, then counts down
     /// to the next moment one of them has something to do. Code that runs inside
     /// `Emulator32bit::run` calls it before looking at a device directly (not through its
     /// registers) and after changing one directly; `run` calls it when it starts and ends.
-    void sync();
+    ///
+    /// @return Whether the system controller has a request. While it has, the next tick syncs.
+    bool sync();
 
   private:
     /// The longest countdown, so a timer that waits for its count to wrap around is not passed.
@@ -704,6 +775,7 @@ class DeviceClock
     BlockDevice &m_block;
     Display &m_display;
     Console &m_console;
+    const SystemController &m_sysctl;
     word m_countdown = 1;   /// What the count down started from.
     word m_until_event = 1; /// Instructions left of it.
 };

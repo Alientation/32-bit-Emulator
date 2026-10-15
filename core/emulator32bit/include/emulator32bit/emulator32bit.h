@@ -177,6 +177,7 @@ class Emulator32bit
             LIMIT_REACHED, /// Executed the requested number of instructions.
             FAULT,         /// Any other emulator or system bus exception.
             BREAKPOINT,    /// The PC is at a breakpoint, the instruction there did not run.
+            POWER_OFF,     /// The program turned the machine off (the system controller).
         };
 
         Status status;
@@ -408,8 +409,16 @@ class Emulator32bit
     void set_error_output(std::ostream &err);
 
     /// Resets the processor state: registers, PSTATE (kernel mode, IRQs masked), the system
-    /// registers and the bus.
+    /// registers and the bus. The pc becomes the boot address.
     void reset();
+
+    /// Where a reset starts the machine: what a reset by the system controller runs next.
+    ///
+    /// @param[in] pc The address, 0 until it is set.
+    void set_boot_pc(const word pc)
+    {
+        m_boot_pc = pc;
+    }
 
     /// @param[in] pc The virtual address of the next instruction.
     inline void set_pc(const word pc)
@@ -710,6 +719,13 @@ class Emulator32bit
     /// @return Whether a register watch stopped the run.
     bool register_watch_hit(RunResult &result);
 
+    /// Serves the request of the system controller between two instructions: a reset starts the
+    /// machine again at its boot address, a power off ends the run.
+    ///
+    /// @param[out] result The result of the run, which becomes a power off.
+    /// @return Whether the run ends.
+    bool serve_system_request(RunResult &result);
+
     /// @param[in] reg The register.
     /// @return The index of the watch on the register, or kNotFound if there is none.
     size_t find_register_watch(U8 reg) const;
@@ -730,6 +746,7 @@ class Emulator32bit
     word m_instr_in_flight = 0;
     word m_fpcr = 0; /// Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
     word m_fpsr = 0; /// Floating point status: the cumulative exception flags, bits 4-0.
+    word m_boot_pc = 0; /// The pc after a reset.
 
     // The tables of the debugger are after the members that every instruction reads. Each is a
     // struct of arrays: the fields of entry i are at index i of each array, and [0, count) are the

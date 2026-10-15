@@ -350,6 +350,22 @@ TEST_F(DebuggerTest, a_fault_is_reported_with_the_history)
     EXPECT_EQ(debugger->result().status, Status::FAULT);
 }
 
+TEST_F(DebuggerTest, a_power_off_ends_the_program)
+{
+    cpu.write_reg(1, kSysctlBase + SystemController::kRegPowerOff);
+    cpu.write_reg(2, 3);
+    write_program({add_imm(0, 0, 1),
+                   Emulator32bit::asm_format_m(encoding::_op_str, false, 2, 1, 0,
+                                               encoding::AddrType::ADDR_OFFSET),
+                   Emulator32bit::asm_hlt()});
+    const std::string text = command("continue");
+
+    EXPECT_NE(text.find("Power off with exit code 3 after 2 instructions."), std::string::npos)
+        << text;
+    ASSERT_TRUE(debugger->finished());
+    EXPECT_EQ(debugger->result().status, Status::POWER_OFF);
+}
+
 TEST_F(DebuggerTest, set_pc_runs_the_program_again)
 {
     command("continue");

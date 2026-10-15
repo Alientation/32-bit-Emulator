@@ -801,17 +801,75 @@ void Display::write_register(const word offset, const word value)
 }
 
 // ---------------------------------------------------------------------------------------------
-// Clock
+// System controller
 
-DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console) :
-    m_timer(timer),
-    m_block(block),
-    m_display(display),
-    m_console(console)
+SystemController::SystemController(const BaseMemory &ram, const BaseMemory &rom) :
+    Device(kSysctlBase),
+    m_ram(ram),
+    m_rom(rom)
 {
 }
 
-void DeviceClock::sync()
+void SystemController::reset()
+{
+    m_request = Request::NONE;
+    m_exit_code = 0;
+}
+
+/// @param[in] memory A RAM or a ROM.
+/// @return The physical address of its first byte, 0 when it has none.
+static word memory_start(const BaseMemory &memory)
+{
+    return memory.get_mem_pages() == 0 ? 0 : memory.get_lo_page() << kNumPageOffsetBits;
+}
+
+word SystemController::read_register(const word offset)
+{
+    switch (offset)
+    {
+    case kRegRamStart:
+        return memory_start(m_ram);
+    case kRegRamSize:
+        return m_ram.get_mem_pages() << kNumPageOffsetBits;
+    case kRegRomStart:
+        return memory_start(m_rom);
+    case kRegRomSize:
+        return m_rom.get_mem_pages() << kNumPageOffsetBits;
+    default:
+        return 0;
+    }
+}
+
+void SystemController::write_register(const word offset, const word value)
+{
+    switch (offset)
+    {
+    case kRegPowerOff:
+        m_request = Request::POWER_OFF;
+        m_exit_code = value;
+        break;
+    case kRegReset:
+        m_request = Request::RESET;
+        break;
+    default:
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Clock
+
+DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
+                         const SystemController &sysctl) :
+    m_timer(timer),
+    m_block(block),
+    m_display(display),
+    m_console(console),
+    m_sysctl(sysctl)
+{
+}
+
+bool DeviceClock::sync()
 {
     // The count down never passes an event, so each device can take all of it at once. They are
     // moved on in the order the run loop ticked them, which is the order of their interrupts.
@@ -828,5 +886,9 @@ void DeviceClock::sync()
     const word poll = m_console.has_host_input() ? Console::kHostInputPollInterval : kMaxCountdown;
     m_countdown = std::min({m_timer.cycles_until_event(), m_block.cycles_until_event(),
                             m_display.cycles_until_frame(), poll});
+    // A request is served after the instruction that made it, which the next tick ends.
+    const bool requested = m_sysctl.request() != SystemController::Request::NONE;
+    if (requested) m_countdown = 1;
     m_until_event = m_countdown;
+    return requested;
 }

@@ -20,7 +20,7 @@ This project simulates a computer processor by simulating the execution of machi
 * supports up to 64 instructions (6 bit opcode), currently **35** opcodes are in use (29 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
-* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
+* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA, display, system controller), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
 
 <p align="center">
   <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">
@@ -137,7 +137,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * `-e <file>`: executable to load, `-l <n>`: instruction limit (0 for none)
 * `--reg x0=5,sp=0x2000`, `--flags 0b0100`: initial register and NZCV flag state
 * `--ram-*`, `--rom-*`, `--disk-*`: memory layout, `--format plain|pretty`, `-o`, `-m`: state dump
-* Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint
+* Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint; a program that turns the machine off (the system controller) exits with its own code
 * Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug`, `--gdb` (see [`docs/debugging.md`](./docs/debugging.md))
 * Display: `--display-dump FILE` writes the display's picture as a PPM image; `--display` shows it in a window, in a build configured with `-DAEMU_GUI=ON` (needs SDL2, see [`docs/display.md`](./docs/display.md))
 * Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out

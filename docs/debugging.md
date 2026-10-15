@@ -80,7 +80,7 @@ Breakpoints are virtual addresses, like the PC.
 | `set <reg\|pc> <value>` | change a register or the pc (a finished program can run again after `set pc`) |
 | `help` (`h`), `quit` (`q`) | |
 
-After a fault the debugger prints the message and the last 8 instructions. The registers and memory can still be inspected. The exit code is 3 if the program faulted and 0 otherwise.
+After a fault the debugger prints the message and the last 8 instructions. The registers and memory can still be inspected. The exit code is 3 if the program faulted, the program's exit code if it turned the machine off ([devices.md](devices.md#system-controller-0xf0005000)), and 0 otherwise.
 
 The code is in `emulator32bit/debugger.h`, which takes the input and output streams so it can be tested.
 
@@ -136,7 +136,7 @@ $ gdb-multiarch -nx -ex 'target remote 127.0.0.1:1234'
 - **Registers.** gdb has no architecture for this processor, so the server describes the ARM core registers, which gdb accepts with more registers added: `r0`-`r12` are `x0`-`x12`, `sp` is `sp`, `lr` is `x29`, `pc` is `pc`, `cpsr` is the flags in the bits of an ARM one (N, Z, C, V in bits 31-28, the mode in bits 4-0, the IRQ mask in bit 7; only the flags can be written), and `x13`-`x28` follow as registers of their own.
 - **Not ours: the disassembly and the symbols.** `x/i` and the frames of gdb decode the instructions as ARM and know no symbol of the `.bexe`, so use `monitor disasm [address [count]]` for the instructions and the addresses of `basm -dump`. `bt` of gdb does not follow the frame records either (the `--debug` debugger does).
 - **Breakpoints and watchpoints** (`Z0`-`Z4`) are those of `--break` and `--watch`: a breakpoint stops before the instruction, a watchpoint after the access, in virtual addresses, without a condition. gdb takes it that this kind of processor stops *before* the access and steps over it after the hit; the server reports the hit, and the step that follows it does not run anything, because the instruction has run already. `brk` in the program stops it like a breakpoint.
-- **Stops.** A breakpoint or a watchpoint or a step is `SIGTRAP`, a fault of the program `SIGSEGV` (the message is not sent), the halt (`hlt`) is the exit of the program (`W00`), Ctrl-C of gdb is `SIGINT`: the program runs in slices of 20000 instructions and looks at the client between them.
+- **Stops.** A breakpoint or a watchpoint or a step is `SIGTRAP`, a fault of the program `SIGSEGV` (the message is not sent), the halt (`hlt`) is the exit of the program (`W00`), and so is a power off with its exit code (`W05`), Ctrl-C of gdb is `SIGINT`: the program runs in slices of 20000 instructions and looks at the client between them.
 - **Memory** is read and written with the permissions of the host: `x` works on any mapped address, and a write to the code of a loaded program (not writable by the program) is refused by the machine, so `set *(int*)0x0 = 1` fails with an error.
 - Not supported: threads (there is one), `X` (binary writes, gdb falls back to `M`), `qSymbol`, tracepoints, the registers of the floating point (they are the integer ones), `vRun` (the program is started by `emu32`).
 

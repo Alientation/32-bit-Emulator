@@ -80,12 +80,13 @@ and the release build has debug info so the samples can be attributed to source 
   - `-l N` sets the instruction limit (0 means none). The `--ram-*`/`--rom-*`/`--disk-*` options set
     the memory layout. Without `--disk-file`, a `MockDisk` is used.
   - `--format plain -o state.txt -m 0x1000:16` writes `key=value` lines:
-    `status=halted|limit|fault`, `instructions`, `message`, `pc`, `x0`..`x29`, `sp`,
+    `status=halted|limit|fault|breakpoint|poweroff`, `instructions`, `message`, `pc`, `x0`..`x29`, `sp`,
     `N`/`Z`/`C`/`V`, and `mem[0x00001000]=<hex bytes>`. Without `-o`, the dump goes to stdout mixed
     with the logs.
   - Exit codes: 0 halted, 1 usage/load error, 2 limit reached, 3 fault (an unmapped or not allowed
     access, running out of pages to swap, a failed assertion, a disk error, ...), 4 stopped at a
-    breakpoint (`status=breakpoint`).
+    breakpoint (`status=breakpoint`); a program that turns the machine off through the system
+    controller (`status=poweroff`) exits with the low byte of its code.
   - Debugging (`docs/debugging.md`): `--trace <file|->` (a line per instruction with the registers
     it changed), `--history N` (last N instructions, printed as `history[i]=...` after the run),
     `--break addr|symbol,...`, `--debug` (interactive REPL, `Debugger` in `debugger.h`) and `--gdb PORT`
@@ -251,8 +252,8 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     cost a run with a live input 30-45%) and `BlockDevice` (512 byte sectors, data
     register, completes after LATENCY ticks, line 2, `--block-file`/`--block-sectors`; DMA commands
     4/5 with DMA_ADDR/DMA_COUNT, and 6/7 with a list of descriptors at DMA_LIST, move whole sectors
-    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM). `SystemBus`
-    owns them (`intc`, `timer`, `console`, `block`, `display`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`/`+0x4000`
+    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM) and `SystemController` (the RAM and ROM layout, POWEROFF and RESET: it records the request, the clock counts down to 1 while there is one, so `tick ()` returns `true` after the store and `run ()` serves it, `Status::POWER_OFF` or a `reset ()` to the boot address within the run). `SystemBus`
+    owns them (`intc`, `timer`, `console`, `block`, `display`, `sysctl`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`/`+0x4000`/`+0x5000`
     and `route_memory` sends addresses from `kDeviceBase` to them; the swapping MMU leaves those
     addresses untranslated. `run()` takes the IRQ exception between instructions when the queue is
     not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps

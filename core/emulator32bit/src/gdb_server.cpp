@@ -46,6 +46,9 @@ constexpr U64 kSlice = 20000;
 /// The most bytes a read or write of memory moves in one packet.
 constexpr word kMaxTransfer = 0x4000;
 
+/// The exit status of a `W` packet is a byte.
+constexpr word kExitStatusMask = 0xFF;
+
 static S32 hex_digit(const char c)
 {
     if (c >= '0' && c <= '9') return c - '0';
@@ -324,6 +327,9 @@ std::string GdbServer::stop_reply(const Emulator32bit::RunResult &result)
     case Status::HALTED:
         m_finished = false;    // The client says when it is over, with a detach or a kill.
         return "W00";
+    case Status::POWER_OFF:
+        m_finished = false;
+        return std::format("W{:02x}", m_emu.system_bus->sysctl.exit_code() & kExitStatusMask);
     case Status::FAULT:
         return "T0bthread:1;"; // SIGSEGV
     case Status::BREAKPOINT:

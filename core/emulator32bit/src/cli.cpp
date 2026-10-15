@@ -39,6 +39,8 @@ static const char *status_name(const Emulator32bit::RunResult::Status status)
         return "breakpoint";
     case Emulator32bit::RunResult::Status::FAULT:
         return "fault";
+    case Emulator32bit::RunResult::Status::POWER_OFF:
+        return "poweroff";
     default:
         AEMU_FATAL("Unknown Status: {}", static_cast<U8>(status));
         return "error";
@@ -513,6 +515,7 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     else
     {
         emu->set_pc(args.pc);
+        emu->set_boot_pc(args.pc);
     }
 
     emu->set_NZCV(args.flags & 0b1000, args.flags & 0b0100, args.flags & 0b0010,
@@ -600,6 +603,15 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     return emu;
 }
 
+/// @param[in] emu A machine that the program turned off.
+/// @return The exit code of emu32: the low byte of the program's code, which is all that an exit
+///         status holds.
+static int power_off_exit_code(const Emulator32bit &emu)
+{
+    constexpr word kExitStatusMask = 0xFF;
+    return S32(emu.system_bus->sysctl.exit_code() & kExitStatusMask);
+}
+
 /// Writes the state after a run where `--output` says.
 ///
 /// @param[in] result The parsed command line.
@@ -652,6 +664,8 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
         return S32(ExitCode::EXIT_LIMIT_REACHED);
     case Emulator32bit::RunResult::Status::BREAKPOINT:
         return S32(ExitCode::EXIT_BREAKPOINT);
+    case Emulator32bit::RunResult::Status::POWER_OFF:
+        return power_off_exit_code(emu);
     case Emulator32bit::RunResult::Status::FAULT:
     default:
         return S32(ExitCode::EXIT_FAULT);
@@ -776,7 +790,8 @@ static int run_cli(const int argc, char *argv[])
                   << S32(ExitCode::EXIT_USAGE_ERROR) << " usage error, "
                   << S32(ExitCode::EXIT_LIMIT_REACHED) << " instruction limit reached, "
                   << S32(ExitCode::EXIT_FAULT) << " emulator fault, "
-                  << S32(ExitCode::EXIT_BREAKPOINT) << " breakpoint\n";
+                  << S32(ExitCode::EXIT_BREAKPOINT) << " breakpoint; "
+                  << "a power off by the program: its exit code\n";
         // clang-format on
         return S32(Emulator32bit::EmuCLIExitCode::EXIT_HALTED);
     }
@@ -851,6 +866,11 @@ static int run_cli(const int argc, char *argv[])
             && debugger.result().status == Emulator32bit::RunResult::Status::FAULT)
         {
             return S32(ExitCode::EXIT_FAULT);
+        }
+        if (debugger.finished()
+            && debugger.result().status == Emulator32bit::RunResult::Status::POWER_OFF)
+        {
+            return power_off_exit_code(*emu);
         }
         return S32(ExitCode::EXIT_HALTED);
     }
