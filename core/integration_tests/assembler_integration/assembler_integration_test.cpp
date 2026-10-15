@@ -7,6 +7,7 @@
 #include "emulator32bit/emulator32bit.h"
 
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -2526,16 +2527,38 @@ L_next:         ldr     x5, [x1]
                 add     x1, x1, 0x1000
                 subs    x2, x2, 1
                 b.ne    L_next
-                sub     x8, x1, 0x1000
+                add     x8, x20, 0xFFC
                 ldrb    x7, [x8]                 ; the line of the system controller: none
                 hlt
 )");
     ASSERT_NO_FATAL_FAILURE(build("-o probe probe.basm -outdir ."));
     ASSERT_NO_FATAL_FAILURE(run("probe.bexe"));
-    EXPECT_EQ(reg(3), 6u);
-    EXPECT_EQ(reg(4), 1u + 2 + 3 + 4 + 5 + 6);
-    EXPECT_EQ(reg(5), 0x000601FFu) << "the last one is the system controller";
+    EXPECT_EQ(reg(3), kNumDevices);
+    EXPECT_EQ(reg(4), kNumDevices * (kNumDevices + 1) / 2) << "the types are 1, 2, 3, ...";
     EXPECT_EQ(reg(7), 0xFFu);
+}
+
+// The real time clock: emu32 sets the time it starts at, or makes it the host's.
+TEST_F(AssemblerIntegration, the_real_time_clock_starts_at_the_time_emu32_sets)
+{
+    write_file("time.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0006000         ; real time clock
+                ldr     x3, [x20]                ; SECONDS
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o time time.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("time.bexe", "--rtc-time 1700000000"));
+    EXPECT_EQ(reg(3), 1700000000u);
+
+    const word before = word(std::time(nullptr));
+    ASSERT_NO_FATAL_FAILURE(run("time.bexe", "--rtc-host"));
+    EXPECT_GE(reg(3), before);
+    EXPECT_LE(reg(3), word(std::time(nullptr)));
+
+    EXPECT_EQ(emu32("-e time.bexe --rtc-host --rtc-time 5"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
 }
 
 // A reset by the system controller starts the ROM again at the --pc it booted from, with the

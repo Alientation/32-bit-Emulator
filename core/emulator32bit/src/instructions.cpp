@@ -374,9 +374,7 @@ void Emulator32bit::_wfi(const word instr)
                                 bus.display.cycles_until_event()});
     if (wait != kNever)
     {
-        bus.timer.advance(wait);
-        bus.block.advance(wait);
-        bus.display.advance(wait);
+        bus.clock.advance(wait);
         bus.clock.sync();
         if (bus.intc.has_pending())
         {

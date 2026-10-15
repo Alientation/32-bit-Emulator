@@ -24,10 +24,11 @@ inline constexpr word kConsoleBase = kDeviceBase + 0x2000;
 inline constexpr word kBlockBase = kDeviceBase + 0x3000;
 inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
 inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
+inline constexpr word kRtcBase = kDeviceBase + 0x6000;
 
 /// The devices fill the pages of the window from kDeviceBase on, with no gap. An address after the
 /// last one is a bus error.
-inline constexpr word kNumDevices = 6;
+inline constexpr word kNumDevices = 7;
 inline constexpr word kDeviceEnd = kDeviceBase + kNumDevices * kPageSize;
 
 /// The interrupt lines.
@@ -43,6 +44,7 @@ inline constexpr word kDeviceTypeConsole = 3;
 inline constexpr word kDeviceTypeBlock = 4;
 inline constexpr word kDeviceTypeDisplay = 5;
 inline constexpr word kDeviceTypeSystemController = 6;
+inline constexpr word kDeviceTypeRealTimeClock = 7;
 
 /// The version of every device so far, in bits 15-8 of its ID. A device that changes what it does
 /// gets a higher one.
@@ -109,7 +111,7 @@ class Device : public BaseMemory
     virtual void write_register(word offset, word value) = 0;
 
   private:
-    /// read_register, with the device up to date.
+    /// read_register, with the device up to date (DeviceClock::catch_up).
     word read_synced(word offset);
 
     /// write_register, with the device up to date before and the clock told after.
@@ -768,6 +770,69 @@ class SystemController : public Device
     word m_exit_code = 0;
 };
 
+/// The speed that the machine is taken to run at, by the devices that turn executed instructions
+/// into time: 100 million instructions a second, about what the emulator does on a desktop.
+inline constexpr U64 kInstructionsPerSecond = 100'000'000;
+
+/// A real time clock: the time of day, for `time ()` and the dates of files.
+///
+/// | Offset | Name    | Access | |
+/// | 0x00   | SECONDS | r/w    | seconds since 1970-01-01 00:00 UTC. A read keeps the microseconds for MICROS, a write sets the time to that second |
+/// | 0x04   | MICROS  | read   | the microseconds within the second that the last read of SECONDS gave |
+///
+/// The time is the machine's own unless the host says otherwise: it moves on by a second every
+/// kInstructionsPerSecond executed instructions, from the time the host set (0 by default), so a
+/// run is the same every time. The time of the host (use_host_time) is the host's clock instead. A
+/// reset of the machine keeps the time, like the battery of a real clock.
+class RealTimeClock : public Device
+{
+  public:
+    /// The offsets of the registers.
+    static constexpr word kRegSeconds = 0x00;
+    static constexpr word kRegMicros = 0x04;
+
+    RealTimeClock();
+
+    /// Sets the time, as a write of SECONDS does.
+    ///
+    /// @param[in] seconds The time now, in seconds since 1970.
+    void set_time(U64 seconds);
+
+    /// Makes the time that of the host's clock (`true`), or of the machine, from the time it is
+    /// now (`false`).
+    ///
+    /// @param[in] host Whether the time is the host's.
+    void use_host_time(bool host);
+
+    /// @return The time now, in microseconds since 1970.
+    U64 microseconds() const;
+
+    /// For the clock: `count` instructions pass at once.
+    ///
+    /// @param[in] count The number of instructions.
+    void advance(word count)
+    {
+        m_instructions += count;
+    }
+
+    /// Keeps the time.
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    /// @return The microseconds that the source of the time counts: the executed instructions, or
+    ///         the host's clock.
+    U64 source_microseconds() const;
+
+    U64 m_instructions = 0; /// Executed since the machine was made.
+    bool m_host = false;
+    S64 m_offset = 0;       /// The time is the microseconds of the source plus this.
+    word m_latched_micros = 0;
+};
+
 /// The time of the devices that count executed instructions: the timer, the block device and the
 /// display. Rather than each of them looking at every instruction, the clock counts down to the
 /// first moment that one of them has something to do, and only then gives them the instructions
@@ -788,8 +853,9 @@ class DeviceClock
     /// @param[in] display The display.
     /// @param[in] console The console, whose live input the clock takes.
     /// @param[in] sysctl The system controller, whose request the clock passes on.
+    /// @param[in] rtc The real time clock.
     DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                const SystemController &sysctl);
+                const SystemController &sysctl, RealTimeClock &rtc);
 
     /// Called after each instruction that completes.
     ///
@@ -811,6 +877,17 @@ class DeviceClock
     /// @return Whether the system controller has a request. While it has, the next tick syncs.
     bool sync();
 
+    /// Gives the devices the instructions that completed since the last time, without looking at
+    /// when the next event is: it is the same moment, since the instructions that passed are fewer
+    /// than any device waits for. For a read of a register, which does not change when a device
+    /// has something to do.
+    void catch_up();
+
+    /// Moves all the devices on, for WFI right after a sync (which syncs again after it).
+    ///
+    /// @param[in] passed The instructions, no more than the first device waits for.
+    void advance(word passed);
+
   private:
     /// The longest countdown, so a timer that waits for its count to wrap around is not passed.
     static constexpr word kMaxCountdown = word(1) << 30;
@@ -820,6 +897,7 @@ class DeviceClock
     Display &m_display;
     Console &m_console;
     const SystemController &m_sysctl;
+    RealTimeClock &m_rtc;
     word m_countdown = 1;   /// What the count down started from.
     word m_until_event = 1; /// Instructions left of it.
 };

@@ -6,6 +6,7 @@
 #include "emulator32bit/host_input.h"
 #include "emulator32bit_test/emulator32bit_test.h"
 
+#include <ctime>
 #include <filesystem>
 #include <sstream>
 #include <thread>
@@ -1561,4 +1562,75 @@ TEST_F(Devices, a_reset_by_the_program_starts_again_at_the_boot_address)
     cpu.set_boot_pc(0);
     cpu.reset();
     EXPECT_EQ(cpu.get_pc(), 0u);
+}
+
+// --- the real time clock -------------------------------------------------------------------
+
+TEST(RealTimeClockUnit, the_time_of_the_machine_moves_on_with_the_instructions)
+{
+    RealTimeClock rtc;
+    const auto seconds = [&] { return rtc.read_word(kRtcBase + RealTimeClock::kRegSeconds); };
+    const auto micros = [&] { return rtc.read_word(kRtcBase + RealTimeClock::kRegMicros); };
+    EXPECT_EQ(seconds(), 0u);
+
+    rtc.advance(word(kInstructionsPerSecond) + 250);
+    EXPECT_EQ(micros(), 0u) << "not read yet";
+    EXPECT_EQ(seconds(), 1u);
+    EXPECT_EQ(micros(), 2u) << "250 instructions of 10 ns";
+    rtc.advance(1000);
+    EXPECT_EQ(micros(), 2u) << "what the read of SECONDS kept";
+
+    rtc.write_word(kRtcBase + RealTimeClock::kRegSeconds, 1700000000);
+    EXPECT_EQ(seconds(), 1700000000u);
+    EXPECT_EQ(micros(), 0u);
+    for (word i = 0; i < 5; i++) rtc.advance(word(1) << 30); // more than a word of instructions
+    EXPECT_EQ(rtc.microseconds(), 1700000000u * 1000000ull + (5ull << 30) / 100);
+
+    rtc.reset();
+    EXPECT_EQ(seconds(), 1700000053u) << "a reset keeps the time";
+}
+
+TEST(RealTimeClockUnit, the_time_of_the_host_is_the_hosts_clock_and_can_be_set)
+{
+    RealTimeClock rtc;
+    rtc.set_time(100);
+    rtc.use_host_time(true);
+    const word host = word(std::time(nullptr));
+    const word seconds = rtc.read_word(kRtcBase + RealTimeClock::kRegSeconds);
+    EXPECT_GE(seconds, host - 1);
+    EXPECT_LE(seconds, host + 1);
+
+    rtc.set_time(100);
+    EXPECT_LE(rtc.read_word(kRtcBase + RealTimeClock::kRegSeconds), 101u);
+    rtc.advance(word(kInstructionsPerSecond) * 3);
+    EXPECT_LE(rtc.read_word(kRtcBase + RealTimeClock::kRegSeconds), 101u)
+        << "the instructions do not count";
+
+    rtc.use_host_time(false);
+    const U64 now = rtc.microseconds();
+    rtc.advance(word(kInstructionsPerSecond));
+    EXPECT_EQ(rtc.microseconds(), now + 1000000) << "the machine's time goes on from there";
+}
+
+// A program reads the time after 300 instructions, and after WFI has waited 2 seconds for the timer.
+TEST_F(Devices, a_program_reads_the_time_of_the_machine_also_across_wfi)
+{
+    cpu.system_bus->rtc.set_time(1000);
+    std::vector<word> program;
+    append(program, constant(10, kRtcBase));
+    program.insert(program.end(), 297, nop());
+    program.insert(program.end(), {load_at(3, 10, RealTimeClock::kRegSeconds), // the 301st
+                                   load_at(4, 10, RealTimeClock::kRegMicros)});
+    append(program, constant(11, kTimerBase));
+    append(program, constant(1, 2 * word(kInstructionsPerSecond)));
+    program.insert(program.end(), {store_at(1, 11, Timer::kRegCompare), mov(1, Timer::kEnabled),
+                                   store_at(1, 11, Timer::kRegCtrl), E::asm_wfi(),
+                                   load_at(5, 10, RealTimeClock::kRegSeconds), E::asm_hlt()});
+    cpu.memory.write_word(kIntcBase + InterruptController::kRegEnable, 1u << kIrqLineTimer);
+
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(3), 1000u);
+    EXPECT_EQ(cpu.read_reg(4), 3u) << "300 instructions";
+    EXPECT_EQ(cpu.read_reg(5), 1002u);
 }

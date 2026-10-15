@@ -216,14 +216,7 @@ static cxxopts::Options make_options()
         ("debug", "Start an interactive debugger on stdin/stdout (type 'help'). Ignores --limit")
         ("t,trace", "Write every executed instruction and what it changed to this file (- for stdout)",
             cxxopts::value<std::string> ())
-        ("console-input", "File whose bytes the console device receives (see docs/devices.md)",
-            cxxopts::value<std::string> ())
         ("gdb", "Wait for gdb on this TCP port of 127.0.0.1 before the program starts (see docs/debugging.md)",
-            cxxopts::value<std::string> ())
-        ("console-stdin", "The console device receives what is typed (standard input) while the machine runs")
-        ("block-file", "File that holds the block device's disk (512 byte sectors); made if it does not exist",
-            cxxopts::value<std::string> ())
-        ("block-sectors", "Number of sectors of the block device (at least the size of --block-file)",
             cxxopts::value<std::string> ())
         ("no-semihosting", "Make 'swi 1', the emulator calls (print, assert, ...), an undefined instruction")
         ("break", "Stop before executing the instruction at these addresses or symbols (exit code 4)",
@@ -234,6 +227,18 @@ static cxxopts::Options make_options()
             cxxopts::value<std::vector<std::string>> ())
         ("history", "Keep the last N executed instructions and print them after the run",
             cxxopts::value<std::string> ()->default_value ("0"));
+
+    options.add_options ("Devices (see docs/devices.md)")
+        ("console-input", "File whose bytes the console device receives",
+            cxxopts::value<std::string> ())
+        ("console-stdin", "The console device receives what is typed (standard input) while the machine runs")
+        ("block-file", "File that holds the block device's disk (512 byte sectors); made if it does not exist",
+            cxxopts::value<std::string> ())
+        ("block-sectors", "Number of sectors of the block device (at least the size of --block-file)",
+            cxxopts::value<std::string> ())
+        ("rtc-time", "The time the real time clock starts at, in seconds since 1970 (0); it moves on with the instructions",
+            cxxopts::value<std::string> ())
+        ("rtc-host", "The real time clock is the host's clock, so a run is no longer the same every time");
     // clang-format on
     return options;
 }
@@ -254,6 +259,7 @@ struct CliArgs
     word disk_npages = 0;
     word disk_start_page = 0;
     word block_sectors = 0;
+    word rtc_time = 0;
     bool plain = false;
     std::vector<std::pair<word, word>> mem_ranges;
     std::vector<std::pair<U8, word>> reg_values;
@@ -469,6 +475,11 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
         }
     }
 
+    if (result.count("rtc-time"))
+    {
+        args.rtc_time = number_option(parse_error, result, "rtc-time");
+    }
+
     return !parse_error;
 }
 
@@ -539,6 +550,15 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     else if (args.block_sectors != 0)
     {
         emu->system_bus->block.set_capacity(args.block_sectors);
+    }
+
+    if (result.count("rtc-host"))
+    {
+        emu->system_bus->rtc.use_host_time(true);
+    }
+    else
+    {
+        emu->system_bus->rtc.set_time(args.rtc_time);
     }
 
     if (result.count("console-input"))
@@ -816,6 +836,11 @@ static int run_cli(const int argc, char *argv[])
         && (result.count("debug") || result.count("gdb") || result.count("console-stdin")))
     {
         std::cerr << "ERROR: --display cannot be combined with --debug, --gdb or --console-stdin\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+    if (result.count("rtc-time") && result.count("rtc-host"))
+    {
+        std::cerr << "ERROR: --rtc-time and --rtc-host both set the time\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 #ifndef AEMU_GUI

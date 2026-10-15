@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -19,7 +20,7 @@ Device::Device(const word base_address, const word id) :
 word Device::read_synced(const word offset)
 {
     if (offset == kRegId) return m_id;
-    if (m_clock != nullptr) m_clock->sync();
+    if (m_clock != nullptr) m_clock->catch_up();
     return read_register(offset);
 }
 
@@ -861,29 +862,109 @@ void SystemController::write_register(const word offset, const word value)
 }
 
 // ---------------------------------------------------------------------------------------------
+// Real time clock
+
+/// The microseconds in a second.
+static constexpr U64 kMicrosPerSecond = 1'000'000;
+
+RealTimeClock::RealTimeClock() :
+    Device(kRtcBase, device_id(kDeviceTypeRealTimeClock, kIdNoLine))
+{
+}
+
+U64 RealTimeClock::source_microseconds() const
+{
+    if (m_host)
+    {
+        return U64(std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::system_clock::now().time_since_epoch())
+                       .count());
+    }
+    return m_instructions / (kInstructionsPerSecond / kMicrosPerSecond);
+}
+
+U64 RealTimeClock::microseconds() const
+{
+    return U64(S64(source_microseconds()) + m_offset);
+}
+
+void RealTimeClock::set_time(const U64 seconds)
+{
+    m_offset = S64(seconds * kMicrosPerSecond) - S64(source_microseconds());
+}
+
+void RealTimeClock::use_host_time(const bool host)
+{
+    const U64 now = microseconds();
+    m_host = host;
+    m_offset = host ? 0 : S64(now) - S64(source_microseconds());
+}
+
+void RealTimeClock::reset()
+{
+    m_latched_micros = 0;
+}
+
+word RealTimeClock::read_register(const word offset)
+{
+    switch (offset)
+    {
+    case kRegSeconds:
+    {
+        const U64 now = microseconds();
+        m_latched_micros = word(now % kMicrosPerSecond);
+        return word(now / kMicrosPerSecond);
+    }
+    case kRegMicros:
+        return m_latched_micros;
+    default:
+        return 0;
+    }
+}
+
+void RealTimeClock::write_register(const word offset, const word value)
+{
+    if (offset == kRegSeconds) set_time(value);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Clock
 
 DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                         const SystemController &sysctl) :
+                         const SystemController &sysctl, RealTimeClock &rtc) :
     m_timer(timer),
     m_block(block),
     m_display(display),
     m_console(console),
-    m_sysctl(sysctl)
+    m_sysctl(sysctl),
+    m_rtc(rtc)
 {
+}
+
+void DeviceClock::advance(const word passed)
+{
+    // The count down never passes an event, so each device can take all of it at once. They are
+    // moved on in the order the run loop ticked them, which is the order of their interrupts.
+    m_timer.advance(passed);
+    m_block.advance(passed);
+    m_display.advance(passed);
+    m_rtc.advance(passed);
+}
+
+void DeviceClock::catch_up()
+{
+    const word passed = m_countdown - m_until_event;
+    if (passed != 0)
+    {
+        advance(passed);
+        m_countdown = m_until_event;
+    }
 }
 
 bool DeviceClock::sync()
 {
-    // The count down never passes an event, so each device can take all of it at once. They are
-    // moved on in the order the run loop ticked them, which is the order of their interrupts.
     const word passed = m_countdown - m_until_event;
-    if (passed != 0)
-    {
-        m_timer.advance(passed);
-        m_block.advance(passed);
-        m_display.advance(passed);
-    }
+    if (passed != 0) advance(passed);
 
     m_console.poll_host_input();
 

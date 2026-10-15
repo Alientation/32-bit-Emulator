@@ -253,8 +253,8 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     cost a run with a live input 30-45%) and `BlockDevice` (512 byte sectors, data
     register, completes after LATENCY ticks, line 2, `--block-file`/`--block-sectors`; DMA commands
     4/5 with DMA_ADDR/DMA_COUNT, and 6/7 with a list of descriptors at DMA_LIST, move whole sectors
-    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM) and `SystemController` (the RAM and ROM layout, POWEROFF and RESET: it records the request, the clock counts down to 1 while there is one, so `tick ()` returns `true` after the store and `run ()` serves it, `Status::POWER_OFF` or a `reset ()` to the boot address within the run). `SystemBus`
-    owns them (`intc`, `timer`, `console`, `block`, `display`, `sysctl`) at `0xF0000000`/`+0x1000`/`+0x2000`/`+0x3000`/`+0x4000`/`+0x5000`
+    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM) and `SystemController` (the RAM and ROM layout, POWEROFF and RESET: it records the request, the clock counts down to 1 while there is one, so `tick ()` returns `true` after the store and `run ()` serves it, `Status::POWER_OFF` or a `reset ()` to the boot address within the run) and `RealTimeClock` (SECONDS/MICROS from the executed instructions at `kInstructionsPerSecond`, or the host's clock with `--rtc-host`; kept by a reset). `SystemBus`
+    owns them (`intc`, `timer`, `console`, `block`, `display`, `sysctl`, `rtc`) at `0xF0000000`/`+0x1000`/.../`+0x6000`
     and `route_memory` sends addresses from `kDeviceBase` to them; the swapping MMU leaves those
     addresses untranslated. `run()` takes the IRQ exception between instructions when the queue is
     not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps
@@ -262,7 +262,8 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     host's input if the program asked to hear of a byte, else halts. The devices that count
     instructions are moved on by the bus's `DeviceClock`: `run()` only counts down
     (`bus.clock.tick()`, one decrement) to the next event of any of them, and the clock gives them
-    the instructions that passed then, before an access to their registers, after a write, at `WFI`
+    the instructions that passed then, before an access to their registers (a read only catches
+    them up, `catch_up ()`), after a write, at `WFI`
     and at the start and end of `run()` (`sync ()`). This replaced a tick of each device after every
     instruction, which a third device made 1.5-5% slower; a new device that counts instructions is
     added to `DeviceClock::sync`, not to the loop, and code inside a run that changes or reads a
