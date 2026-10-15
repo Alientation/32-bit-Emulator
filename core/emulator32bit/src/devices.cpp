@@ -10,13 +10,15 @@
 #include <iostream>
 #include <iterator>
 
-Device::Device(const word base_address) :
-    BaseMemory(1, base_address >> kNumPageOffsetBits)
+Device::Device(const word base_address, const word id) :
+    BaseMemory(1, base_address >> kNumPageOffsetBits),
+    m_id(id)
 {
 }
 
 word Device::read_synced(const word offset)
 {
+    if (offset == kRegId) return m_id;
     if (m_clock != nullptr) m_clock->sync();
     return read_register(offset);
 }
@@ -62,7 +64,7 @@ void Device::write_word(const word address, const word value)
 // Interrupt controller
 
 InterruptController::InterruptController() :
-    Device(kIntcBase)
+    Device(kIntcBase, device_id(kDeviceTypeInterruptController, kIdNoLine))
 {
 }
 
@@ -129,7 +131,7 @@ void InterruptController::write_register(const word offset, const word value)
 // Timer
 
 Timer::Timer(InterruptController &intc) :
-    Device(kTimerBase),
+    Device(kTimerBase, device_id(kDeviceTypeTimer, kIrqLineTimer)),
     m_intc(intc)
 {
 }
@@ -207,7 +209,7 @@ void Timer::write_register(const word offset, const word value)
 // Console
 
 Console::Console(InterruptController &intc) :
-    Device(kConsoleBase),
+    Device(kConsoleBase, device_id(kDeviceTypeConsole, kIrqLineConsole)),
     m_intc(intc),
     m_out(&std::cout)
 {
@@ -303,7 +305,7 @@ void Console::write_register(const word offset, const word value)
 // Block device
 
 BlockDevice::BlockDevice(InterruptController &intc) :
-    Device(kBlockBase),
+    Device(kBlockBase, device_id(kDeviceTypeBlock, kIrqLineBlock)),
     m_intc(intc)
 {
 }
@@ -636,7 +638,7 @@ static constexpr auto kDefaultPalette = []
 }();
 
 Display::Display(InterruptController &intc) :
-    Device(kDisplayBase),
+    Device(kDisplayBase, device_id(kDeviceTypeDisplay, kIrqLineDisplay)),
     m_intc(intc)
 {
     std::memcpy(m_palette, kDefaultPalette.data(), sizeof(m_palette));
@@ -804,7 +806,7 @@ void Display::write_register(const word offset, const word value)
 // System controller
 
 SystemController::SystemController(const BaseMemory &ram, const BaseMemory &rom) :
-    Device(kSysctlBase),
+    Device(kSysctlBase, device_id(kDeviceTypeSystemController, kIdNoLine)),
     m_ram(ram),
     m_rom(rom)
 {
@@ -835,6 +837,8 @@ word SystemController::read_register(const word offset)
         return memory_start(m_rom);
     case kRegRomSize:
         return m_rom.get_mem_pages() << kNumPageOffsetBits;
+    case kRegDeviceCount:
+        return kNumDevices;
     default:
         return 0;
     }

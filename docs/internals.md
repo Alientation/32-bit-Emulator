@@ -244,7 +244,8 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     branch, `ERET`, `raise_exception`) sets `m_pc_written` so that `run()` does not add 4. Privileged instructions
     call `require_kernel ()`.
   - **Devices and interrupts** (`docs/devices.md`): `devices.h` has `Device` (a register page, a
-    `BaseMemory`) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
+    `BaseMemory`, whose last word is the ID: type, version, line; `kNumDevices` pages from
+    `kDeviceBase`, counted by the system controller's DEVICE_COUNT) and `InterruptController` (first come, first served queue, 32 lines, ENABLE mask,
     CLAIM register), `Timer` (counts executed instructions), `Console` (stream out, queued bytes in, and the live input of a `HostInput` that another
     thread fills: it is taken on the emulator thread, by `poll_host_input ()` from the register
     reads and from `DeviceClock::sync ()`, which looks at least every `kHostInputPollInterval`

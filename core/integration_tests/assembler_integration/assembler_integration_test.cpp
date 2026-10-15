@@ -2508,6 +2508,36 @@ _start:
     EXPECT_EQ(reg(5), 0u);
 }
 
+// A program finds the devices as a kernel would: DEVICE_COUNT pages from 0xF0000000 on, the type
+// of each in the top half of its ID register.
+TEST_F(AssemblerIntegration, a_program_finds_the_devices_by_their_ids)
+{
+    write_file("probe.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0005000         ; system controller
+                ldr     x3, [x20, 0x18]          ; DEVICE_COUNT
+                ldr     x1, =0xF0000FFC          ; the ID of the first device
+                mov     x2, x3
+                mov     x4, 0                    ; the sum of the types
+L_next:         ldr     x5, [x1]
+                lsr     x6, x5, 16
+                add     x4, x4, x6
+                add     x1, x1, 0x1000
+                subs    x2, x2, 1
+                b.ne    L_next
+                sub     x8, x1, 0x1000
+                ldrb    x7, [x8]                 ; the line of the system controller: none
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o probe probe.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("probe.bexe"));
+    EXPECT_EQ(reg(3), 6u);
+    EXPECT_EQ(reg(4), 1u + 2 + 3 + 4 + 5 + 6);
+    EXPECT_EQ(reg(5), 0x000601FFu) << "the last one is the system controller";
+    EXPECT_EQ(reg(7), 0xFFu);
+}
+
 // A reset by the system controller starts the ROM again at the --pc it booted from, with the
 // registers of a power on (x10, which pointed at RESET, is 0, so the second store goes to RAM).
 TEST_F(AssemblerIntegration, a_machine_that_boots_from_its_rom_is_reset_by_the_program)

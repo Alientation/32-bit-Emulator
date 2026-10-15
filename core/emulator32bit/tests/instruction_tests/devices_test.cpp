@@ -1151,7 +1151,7 @@ TEST_F(Devices, a_program_reads_sectors_by_dma)
 
 TEST_F(Devices, an_address_in_the_device_window_without_a_device_is_a_bus_error)
 {
-    EXPECT_THROW(cpu.memory.read_word(kSysctlBase + kPageSize), SystemBus::BusError);
+    EXPECT_THROW(cpu.memory.read_word(kDeviceEnd), SystemBus::BusError);
 }
 
 // --- display -------------------------------------------------------------------------------

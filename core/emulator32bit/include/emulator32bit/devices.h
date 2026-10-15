@@ -25,19 +25,60 @@ inline constexpr word kBlockBase = kDeviceBase + 0x3000;
 inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
 inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
 
+/// The devices fill the pages of the window from kDeviceBase on, with no gap. An address after the
+/// last one is a bus error.
+inline constexpr word kNumDevices = 6;
+inline constexpr word kDeviceEnd = kDeviceBase + kNumDevices * kPageSize;
+
 /// The interrupt lines.
 inline constexpr word kIrqLineTimer = 0;
 inline constexpr word kIrqLineConsole = 1;
 inline constexpr word kIrqLineBlock = 2;
 inline constexpr word kIrqLineDisplay = 3;
 
+/// The types of device, in bits 31-16 of the ID register of each one.
+inline constexpr word kDeviceTypeInterruptController = 1;
+inline constexpr word kDeviceTypeTimer = 2;
+inline constexpr word kDeviceTypeConsole = 3;
+inline constexpr word kDeviceTypeBlock = 4;
+inline constexpr word kDeviceTypeDisplay = 5;
+inline constexpr word kDeviceTypeSystemController = 6;
+
+/// The version of every device so far, in bits 15-8 of its ID. A device that changes what it does
+/// gets a higher one.
+inline constexpr word kDeviceVersion = 1;
+
+/// The interrupt line in the ID of a device that has none.
+inline constexpr word kIdNoLine = 0xFF;
+
+/// @param[in] type The type of the device (kDeviceType*).
+/// @param[in] line The interrupt line it raises, or kIdNoLine.
+/// @return The value of its ID register: the type in bits 31-16, kDeviceVersion in bits 15-8 and
+///         the line in bits 7-0.
+constexpr word device_id(const word type, const word line)
+{
+    return (type << 16) | (kDeviceVersion << 8) | line;
+}
+
 /// A device: one page of registers. The reads and writes of the sizes of BaseMemory are mapped
-/// onto the word registers of the subclass.
+/// onto the word registers of the subclass. The last word of the page is the ID register, which
+/// says what the device is; it is read only (a subclass ignores a write to an offset it does not
+/// have).
 class Device : public BaseMemory
 {
   public:
+    /// The offset of the ID register.
+    static constexpr word kRegId = 0xFFC;
+
     /// @param[in] base_address The physical address of the page of registers.
-    explicit Device(word base_address);
+    /// @param[in] id The value of the ID register (device_id).
+    Device(word base_address, word id);
+
+    /// @return The value of the ID register.
+    word id() const
+    {
+        return m_id;
+    }
 
     /// A device that counts instructions is brought up to date by the clock before each access to
     /// its registers, and the clock looks again at when it has something to do after each write.
@@ -75,6 +116,7 @@ class Device : public BaseMemory
     void write_synced(word offset, word value);
 
     DeviceClock *m_clock = nullptr;
+    word m_id;
 };
 
 /// The interrupt controller. Lines are served first come, first served: a line that is raised
@@ -672,6 +714,7 @@ class Display : public Device
 /// | 0x0C   | RAM_SIZE  | read   | the bytes of RAM |
 /// | 0x10   | ROM_START | read   | the physical address of the ROM, 0 when there is none |
 /// | 0x14   | ROM_SIZE  | read   | the bytes of ROM |
+/// | 0x18   | DEVICE_COUNT | read | the number of devices, in the pages from kDeviceBase on |
 ///
 /// The device only records the request; the DeviceClock sees it after the instruction that made it,
 /// and `Emulator32bit::run` serves it.
@@ -693,6 +736,7 @@ class SystemController : public Device
     static constexpr word kRegRamSize = 0x0C;
     static constexpr word kRegRomStart = 0x10;
     static constexpr word kRegRomSize = 0x14;
+    static constexpr word kRegDeviceCount = 0x18;
 
     /// @param[in] ram The RAM, which is not owned.
     /// @param[in] rom The ROM, which is not owned.

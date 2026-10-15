@@ -24,6 +24,27 @@ Memory may not reach `0xF0000000` (the machine refuses the layout). Another addr
 
 Programs without page tables (`SCTLR.M` = 0, what `emu32 -e` runs) reach the devices at these addresses directly, the swapping memory leaves addresses from `0xF0000000` alone.
 
+### Finding the devices
+
+The devices fill the pages from `0xF0000000` on with no gap, and the system controller, at the fixed address `0xF0005000`, says how many there are (DEVICE_COUNT). The **last word of every device page, offset `0xFFC`, is its ID** (read only, a write is ignored):
+
+| Bits | |
+|------|---|
+| 31-16 | the type of the device |
+| 15-8 | its version, 1 for all of them so far. A device that changes what it does gets a higher one |
+| 7-0 | the interrupt line it raises, `0xFF` for none |
+
+| Type | Device | Line |
+|------|--------|------|
+| 1 | interrupt controller | none |
+| 2 | timer | 0 |
+| 3 | console | 1 |
+| 4 | block device | 2 |
+| 5 | display | 3 |
+| 6 | system controller | none |
+
+So a kernel finds its drivers' devices by reading DEVICE_COUNT and then the ID of each page, rather than knowing the addresses and lines (`0x000101FF` at `0xF0000FFC`, `0x00020100` at `0xF0001FFC`, ...). The table above is the order now; a new device takes the next page and the next free line.
+
 ## Interrupts
 
 An IRQ is **first come, first served**, there are no priorities:
@@ -119,6 +140,7 @@ The list is read **when the command is given**, the data moves when it completes
 | `0x0C` | RAM_SIZE | read | the bytes of RAM |
 | `0x10` | ROM_START | read | the physical address of the ROM, 0 when there is none |
 | `0x14` | ROM_SIZE | read | the bytes of ROM |
+| `0x18` | DEVICE_COUNT | read | the number of devices, in the pages from `0xF0000000` on ([Finding the devices](#finding-the-devices)) |
 
 A store to POWEROFF completes like any store, and the run ends before the next instruction: `run` returns `Status::POWER_OFF` with the message `Power off with exit code N`, and the pc is the instruction after the store. `emu32` says `status=poweroff` and **exits with the low byte of the code** (an exit status is a byte), so a kernel's test can tell `ctest` whether it passed: 0 for a pass, a code of its own (not 1-4, which `emu32` uses itself) for a failure. The debugger says `Power off with exit code N after M instructions.` and ends the program, the gdb server sends `W` with the code (`W05`). The machine stays off: another `run` returns `POWER_OFF` at once, until a reset (`Emulator32bit::reset`).
 
@@ -160,6 +182,6 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Where it is in the code
 
-`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register`, and `InterruptController`, `Timer`, `Console`, `BlockDevice`, `Display` and `SystemController` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block`, `display` and `sysctl`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
+`HostInput` (`host_input.h`) is the thread safe queue of the console's live input. `Device` (`devices.h`) is the register page, with `read_register`/`write_register` and the ID register (`device_id`, answered by `Device` itself, `kNumDevices` and `kDeviceEnd` for the size of the window), and `InterruptController`, `Timer`, `Console`, `BlockDevice`, `Display` and `SystemController` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block`, `display` and `sysctl`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
 
 The timer, the block device and the display count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame), and then gives all three the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers, starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the console's live input, and while there is one it counts down to at most `Console::kHostInputPollInterval`. While the system controller has a request it counts down to 1, so `tick` returns `true` after the instruction that made the request, and `run` serves it (`serve_system_request`): a power off ends the run, a reset calls `reset` and goes on; this costs the loop nothing, the check is on the path where the count down ends. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt. Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller`, `a_program_turns_the_machine_off_with_an_exit_code` and `a_machine_that_boots_from_its_rom_is_reset_by_the_program` in the integration tests.

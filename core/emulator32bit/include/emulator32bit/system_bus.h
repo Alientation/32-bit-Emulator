@@ -110,5 +110,5 @@ class SystemBus : public PhysicalPages
     /// is a fatal error.
     void validate_memory() const;
 
-    Device *const m_devices[6] = {&intc, &timer, &console, &block, &display, &sysctl};
+    Device *const m_devices[kNumDevices] = {&intc, &timer, &console, &block, &display, &sysctl};
 };

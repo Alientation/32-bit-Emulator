@@ -67,8 +67,39 @@ TEST(system_bus, an_address_goes_to_the_memory_or_device_that_has_it)
     EXPECT_EQ(bus->find_memory(kSysctlBase), &bus->sysctl);
 
     EXPECT_EQ(bus->find_memory(vaddr(4)), nullptr) << "between the RAM and the ROM";
-    EXPECT_EQ(bus->find_memory(kSysctlBase + kPageSize), nullptr) << "after the last device";
+    EXPECT_EQ(bus->find_memory(kDeviceEnd), nullptr) << "after the last device";
     EXPECT_EQ(&bus->route_memory(vaddr(9)), bus->rom.get());
+}
+
+// What a kernel that looks for its devices sees: DEVICE_COUNT pages from kDeviceBase on, each with
+// the ID of its device.
+TEST(system_bus, the_devices_fill_the_window_and_each_says_what_it_is)
+{
+    auto bus = make_bus();
+    const word count =
+        bus->route_memory(kSysctlBase).read_word(kSysctlBase + SystemController::kRegDeviceCount);
+    ASSERT_EQ(count, kNumDevices);
+
+    const word ids[] = {
+        0x000101FF, // the interrupt controller has no line of its own
+        0x00020100, 0x00030101, 0x00040102, 0x00050103,
+        0x000601FF, // nor does the system controller
+    };
+    ASSERT_EQ(std::size(ids), count);
+    for (word n = 0; n < count; n++)
+    {
+        const word page = kDeviceBase + n * kPageSize;
+        BaseMemory *device = bus->find_memory(page);
+        ASSERT_NE(device, nullptr) << "device " << n;
+        EXPECT_EQ(device->read_word(page + Device::kRegId), ids[n]) << "device " << n;
+    }
+    EXPECT_EQ(bus->find_memory(kDeviceEnd), nullptr);
+
+    EXPECT_EQ(bus->timer.read_byte(kTimerBase + Device::kRegId + 2), kDeviceTypeTimer);
+    bus->timer.write_word(kTimerBase + Device::kRegId, 0);
+    EXPECT_EQ(bus->timer.read_word(kTimerBase + Device::kRegId),
+              device_id(kDeviceTypeTimer, kIrqLineTimer))
+        << "read only";
 }
 
 TEST(system_bus, an_address_with_nothing_behind_it_is_an_error)
