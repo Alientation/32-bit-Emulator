@@ -425,9 +425,12 @@ TEST_F(Devices, a_reset_clears_the_devices)
 {
     cpu.memory.write_word(kIntcBase + 8, 0xFF);
     cpu.system_bus->console.push_input("x");
+    const word random = cpu.memory.read_word(kRngBase + RandomNumbers::kRegData);
     cpu.reset();
     EXPECT_EQ(intc_read(0x08), 0u);
     EXPECT_FALSE(cpu.system_bus->console.input_waiting());
+    EXPECT_EQ(cpu.memory.read_word(kRngBase + RandomNumbers::kRegData), random)
+        << "the random numbers start again";
 }
 
 // --- the CPU takes interrupts --------------------------------------------------------------
@@ -1633,4 +1636,58 @@ TEST_F(Devices, a_program_reads_the_time_of_the_machine_also_across_wfi)
     EXPECT_EQ(cpu.read_reg(3), 1000u);
     EXPECT_EQ(cpu.read_reg(4), 3u) << "300 instructions";
     EXPECT_EQ(cpu.read_reg(5), 1002u);
+}
+
+// --- random numbers ------------------------------------------------------------------------
+
+TEST(RandomNumbersUnit, a_seed_gives_the_same_numbers_every_time_and_a_reset_starts_them_again)
+{
+    RandomNumbers rng;
+    const auto data = [&] { return rng.read_word(kRngBase + RandomNumbers::kRegData); };
+    // The first outputs of SplitMix64 from 0, the upper halves of 0xE220A8397B1DCDAF and
+    // 0x6E789E6AA1B965F4.
+    EXPECT_EQ(data(), 0xE220A839u);
+    EXPECT_EQ(data(), 0x6E789E6Au);
+
+    rng.reset();
+    EXPECT_EQ(data(), 0xE220A839u);
+
+    rng.set_seed(12345);
+    const word first = data();
+    const word second = data();
+    EXPECT_NE(first, second);
+    EXPECT_NE(first, 0xE220A839u) << "another seed, other numbers";
+    rng.reset();
+    EXPECT_EQ(data(), first);
+
+    rng.write_word(kRngBase + RandomNumbers::kRegSeed, 0);
+    EXPECT_EQ(data(), 0xE220A839u) << "the program's seed";
+    rng.reset();
+    EXPECT_EQ(data(), first) << "a reset goes back to the host's seed";
+    EXPECT_EQ(rng.read_word(kRngBase + RandomNumbers::kRegSeed), 0u) << "write only";
+}
+
+TEST(RandomNumbersUnit, the_numbers_of_the_host_until_a_program_writes_a_seed_or_a_reset)
+{
+    RandomNumbers rng;
+    rng.use_host_entropy();
+    word numbers[8];
+    bool all_equal = true;
+    for (word &number : numbers)
+    {
+        number = rng.next();
+        all_equal = all_equal && number == numbers[0];
+    }
+    EXPECT_FALSE(all_equal);
+
+    rng.write_word(kRngBase + RandomNumbers::kRegSeed, 0);
+    EXPECT_EQ(rng.next(), 0xE220A839u);
+
+    // After a reset the numbers are not those that the generator would have gone on with.
+    rng.reset();
+    RandomNumbers generator;
+    generator.next();
+    size_t same = 0;
+    for (size_t i = 0; i < 4; i++) same += rng.next() == generator.next() ? 1 : 0;
+    EXPECT_LT(same, 4u) << "the host's numbers again";
 }

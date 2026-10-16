@@ -238,7 +238,9 @@ static cxxopts::Options make_options()
             cxxopts::value<std::string> ())
         ("rtc-time", "The time the real time clock starts at, in seconds since 1970 (0); it moves on with the instructions",
             cxxopts::value<std::string> ())
-        ("rtc-host", "The real time clock is the host's clock, so a run is no longer the same every time");
+        ("rtc-host", "The real time clock is the host's clock, so a run is no longer the same every time")
+        ("rng-seed", "The seed of the random number device (0)", cxxopts::value<std::string> ())
+        ("rng-host", "The random number device gives the host's random numbers, so a run is no longer the same every time");
     // clang-format on
     return options;
 }
@@ -260,6 +262,7 @@ struct CliArgs
     word disk_start_page = 0;
     word block_sectors = 0;
     word rtc_time = 0;
+    word rng_seed = 0;
     bool plain = false;
     std::vector<std::pair<word, word>> mem_ranges;
     std::vector<std::pair<U8, word>> reg_values;
@@ -479,6 +482,10 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
     {
         args.rtc_time = number_option(parse_error, result, "rtc-time");
     }
+    if (result.count("rng-seed"))
+    {
+        args.rng_seed = number_option(parse_error, result, "rng-seed");
+    }
 
     return !parse_error;
 }
@@ -559,6 +566,14 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     else
     {
         emu->system_bus->rtc.set_time(args.rtc_time);
+    }
+    if (result.count("rng-host"))
+    {
+        emu->system_bus->rng.use_host_entropy();
+    }
+    else
+    {
+        emu->system_bus->rng.set_seed(args.rng_seed);
     }
 
     if (result.count("console-input"))
@@ -841,6 +856,12 @@ static int run_cli(const int argc, char *argv[])
     if (result.count("rtc-time") && result.count("rtc-host"))
     {
         std::cerr << "ERROR: --rtc-time and --rtc-host both set the time\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+    if (result.count("rng-seed") && result.count("rng-host"))
+    {
+        std::cerr
+            << "ERROR: --rng-seed and --rng-host both say where the random numbers come from\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 #ifndef AEMU_GUI

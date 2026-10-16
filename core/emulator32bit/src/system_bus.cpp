@@ -164,6 +164,7 @@ void SystemBus::reset()
     display.reset();
     sysctl.reset();
     rtc.reset();
+    rng.reset();
 }
 
 void SystemBus::read_page(byte *const out, const word ppage)

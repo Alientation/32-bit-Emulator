@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <random>
 
 Device::Device(const word base_address, const word id) :
     BaseMemory(1, base_address >> kNumPageOffsetBits),
@@ -925,6 +926,73 @@ word RealTimeClock::read_register(const word offset)
 void RealTimeClock::write_register(const word offset, const word value)
 {
     if (offset == kRegSeconds) set_time(value);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Random numbers
+
+RandomNumbers::RandomNumbers() :
+    Device(kRngBase, device_id(kDeviceTypeRandom, kIdNoLine))
+{
+}
+
+void RandomNumbers::set_seed(const word seed)
+{
+    m_seed = seed;
+    m_entropy = false;
+    reset();
+}
+
+void RandomNumbers::use_host_entropy()
+{
+    m_entropy = true;
+    reset();
+}
+
+/// @return A random word from the host.
+static word host_random()
+{
+    static std::random_device device;
+    return word(device());
+}
+
+word RandomNumbers::next()
+{
+    if (m_from_host) return host_random();
+
+    // SplitMix64 (Steele, Lea and Flood, "Fast splittable pseudorandom number generators", 2014):
+    // the state goes up by the golden ratio, and the output is a mix of it. The upper half of the
+    // mix is the number.
+    constexpr U64 kGoldenGamma = 0x9E3779B97F4A7C15;
+    constexpr U64 kMix1 = 0xBF58476D1CE4E5B9;
+    constexpr U64 kMix2 = 0x94D049BB133111EB;
+    m_state += kGoldenGamma;
+    U64 z = m_state;
+    z = (z ^ (z >> 30)) * kMix1;
+    z = (z ^ (z >> 27)) * kMix2;
+    z ^= z >> 31;
+    return word(z >> kNumWordBits);
+}
+
+void RandomNumbers::reset()
+{
+    m_state = m_seed;
+    m_from_host = m_entropy;
+}
+
+word RandomNumbers::read_register(const word offset)
+{
+    return offset == kRegData ? next() : 0;
+}
+
+void RandomNumbers::write_register(const word offset, const word value)
+{
+    if (offset == kRegSeed)
+    {
+        // The program's own sequence, whatever the host said.
+        m_from_host = false;
+        m_state = value;
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

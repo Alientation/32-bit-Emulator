@@ -42,8 +42,8 @@ class SystemBus : public PhysicalPages
     std::unique_ptr<ROM> rom;
     std::unique_ptr<Disk> disk;
 
-    /// The devices, at kIntcBase, kTimerBase, kConsoleBase, kBlockBase, kDisplayBase, kSysctlBase
-    /// and kRtcBase.
+    /// The devices, at kIntcBase, kTimerBase, kConsoleBase, kBlockBase, kDisplayBase, kSysctlBase,
+    /// kRtcBase and kRngBase.
     InterruptController intc;
     Timer timer{intc};
     Console console{intc};
@@ -51,6 +51,7 @@ class SystemBus : public PhysicalPages
     Display display{intc};
     SystemController sysctl{*ram, *rom};
     RealTimeClock rtc;
+    RandomNumbers rng;
 
     /// Moves the timer, the block device, the display and the real time clock on as instructions
     /// complete, takes the console's live input and passes on the requests of the system
@@ -113,5 +114,5 @@ class SystemBus : public PhysicalPages
     void validate_memory() const;
 
     Device *const m_devices[kNumDevices] = {&intc,    &timer,  &console, &block,
-                                            &display, &sysctl, &rtc};
+                                            &display, &sysctl, &rtc,     &rng};
 };

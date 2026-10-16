@@ -25,10 +25,11 @@ inline constexpr word kBlockBase = kDeviceBase + 0x3000;
 inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
 inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
 inline constexpr word kRtcBase = kDeviceBase + 0x6000;
+inline constexpr word kRngBase = kDeviceBase + 0x7000;
 
 /// The devices fill the pages of the window from kDeviceBase on, with no gap. An address after the
 /// last one is a bus error.
-inline constexpr word kNumDevices = 7;
+inline constexpr word kNumDevices = 8;
 inline constexpr word kDeviceEnd = kDeviceBase + kNumDevices * kPageSize;
 
 /// The interrupt lines.
@@ -45,6 +46,7 @@ inline constexpr word kDeviceTypeBlock = 4;
 inline constexpr word kDeviceTypeDisplay = 5;
 inline constexpr word kDeviceTypeSystemController = 6;
 inline constexpr word kDeviceTypeRealTimeClock = 7;
+inline constexpr word kDeviceTypeRandom = 8;
 
 /// The version of every device so far, in bits 15-8 of its ID. A device that changes what it does
 /// gets a higher one.
@@ -831,6 +833,50 @@ class RealTimeClock : public Device
     bool m_host = false;
     S64 m_offset = 0;       /// The time is the microseconds of the source plus this.
     word m_latched_micros = 0;
+};
+
+/// Random numbers, for stack canaries, the seed of `rand ()` and addresses that differ from run to
+/// run.
+///
+/// | Offset | Name | Access | |
+/// | 0x00   | DATA | read   | the next random word |
+/// | 0x04   | SEED | write  | the numbers start again from this seed |
+///
+/// The numbers come from a generator (SplitMix64) whose seed the host sets (0 by default), so a
+/// run is the same every time. With use_host_entropy they come from the host (std::random_device)
+/// instead, until a program writes SEED. A reset goes back to what the host set.
+class RandomNumbers : public Device
+{
+  public:
+    /// The offsets of the registers.
+    static constexpr word kRegData = 0x00;
+    static constexpr word kRegSeed = 0x04;
+
+    RandomNumbers();
+
+    /// Sets the seed that the numbers start from, now and after a reset, and uses the generator.
+    ///
+    /// @param[in] seed The seed.
+    void set_seed(word seed);
+
+    /// Takes the numbers from the host, now and after a reset, which a run cannot repeat.
+    void use_host_entropy();
+
+    /// @return The next number, as a read of DATA does.
+    word next();
+
+    /// Starts the numbers again from what the host set.
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    U64 m_state = 0;          /// Of the generator.
+    word m_seed = 0;          /// The host's.
+    bool m_entropy = false;   /// Whether the host wants its own numbers.
+    bool m_from_host = false; /// Whether they come from the host now, not the generator.
 };
 
 /// The time of the devices that count executed instructions: the timer, the block device and the

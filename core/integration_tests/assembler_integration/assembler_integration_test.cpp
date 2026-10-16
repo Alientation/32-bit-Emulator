@@ -2561,6 +2561,39 @@ _start:
               S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
 }
 
+// The random numbers are the same for the same --rng-seed, and the host's with --rng-host.
+TEST_F(AssemblerIntegration, random_numbers_follow_the_seed_emu32_sets)
+{
+    write_file("random.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0007000         ; random numbers
+                ldr     x3, [x20]
+                ldr     x4, [x20]
+                hlt
+)");
+    ASSERT_NO_FATAL_FAILURE(build("-o random random.basm -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("random.bexe"));
+    EXPECT_EQ(reg(3), 0xE220A839u) << "the seed is 0";
+    ASSERT_NO_FATAL_FAILURE(run("random.bexe", "--rng-seed 7"));
+    const word first = reg(3);
+    const word second = reg(4);
+    EXPECT_NE(first, 0xE220A839u);
+    EXPECT_NE(first, second);
+    ASSERT_NO_FATAL_FAILURE(run("random.bexe", "--rng-seed 7"));
+    EXPECT_EQ(reg(3), first);
+    EXPECT_EQ(reg(4), second);
+
+    ASSERT_NO_FATAL_FAILURE(run("random.bexe", "--rng-host"));
+    const word host_first = reg(3);
+    const word host_second = reg(4);
+    ASSERT_NO_FATAL_FAILURE(run("random.bexe", "--rng-host"));
+    EXPECT_FALSE(reg(3) == host_first && reg(4) == host_second) << "two runs, other numbers";
+
+    EXPECT_EQ(emu32("-e random.bexe --rng-host --rng-seed 1"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+}
+
 // A reset by the system controller starts the ROM again at the --pc it booted from, with the
 // registers of a power on (x10, which pointed at RESET, is 0, so the second store goes to RAM).
 TEST_F(AssemblerIntegration, a_machine_that_boots_from_its_rom_is_reset_by_the_program)
