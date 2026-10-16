@@ -23,7 +23,7 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, GCC 13 and clang 18
 tools/bench.sh        # times the emulator (MIPS); --baseline <emu32 of another commit> compares two builds
 tools/bench_toolchain.sh  # times basm and the loader on generated programs, fails on a quadratic step
 tools/mutate.sh FILE LINE # removes a line, runs the tests: do they notice?
-tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16   # libFuzzer on a target of core/fuzz (bexe: the loader, run_modes: run (N) = N x run (1) = with the debugging hooks); build/fuzz, clang + ASan/UBSan; crashes in build/fuzz/artifacts
+tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16   # libFuzzer on a target of core/fuzz (bexe: the loader, run_modes: run (N) = N x run (1) = with the debugging hooks, mmu: the MMU against a model); build/fuzz, clang + ASan/UBSan; crashes in build/fuzz/artifacts
 cmake -S . -B build/gui -G Ninja -DAEMU_GUI=ON && cmake --build build/gui   # emu32 --display (needs libsdl2-dev); ./build.sh never builds it
 ```
 

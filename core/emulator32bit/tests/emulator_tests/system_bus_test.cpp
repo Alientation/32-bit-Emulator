@@ -269,6 +269,22 @@ TEST_F(MemoryPortTest, a_store_into_a_page_that_cannot_be_written_changes_nothin
     EXPECT_EQ(physical(3, kPageSize - 1), 0);
 }
 
+TEST(memory_port, a_store_that_crosses_a_page_survives_the_second_page_evicting_the_first)
+{
+    // Two frames: pages 0 and 2 fill them, so bringing in page 1 for the store evicts page 0, whose
+    // part of the store was translated already.
+    Emulator32bit cpu(std::make_unique<RAM>(2, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>());
+    const S64 pid = cpu.mmu->begin_process();
+    cpu.mmu->add_vpage(pid, 0, 3, true, false);
+    cpu.memory.read_word(vaddr(0));
+    cpu.memory.read_word(vaddr(2));
+
+    cpu.memory.write_word(vaddr(0, kPageSize - 2), 0x11223344);
+    EXPECT_EQ(cpu.memory.read_word(vaddr(0, kPageSize - 2)), 0x11223344u);
+    EXPECT_EQ(cpu.memory.read_word(vaddr(1)), 0x1122u) << "the rest of page 1 is zeros";
+}
+
 TEST_F(MemoryPortTest, a_block_is_written_with_a_translation_for_each_page)
 {
     const std::vector<byte> data = pattern(600);

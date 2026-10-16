@@ -110,6 +110,28 @@ and the release build has debug info so the samples can be attributed to source 
   hooks, which must not change what the program does (it found that a store to a device register
   with a watchpoint set read the register first, for the old value, and so took an interrupt from
   CLAIM). The seed is the `.text` of `seeds/run_modes.basm` (from the listing of `basm -dump`).
+- `mmu.cpp` is the MMU against a model: the input is a list of operations and of loads, stores
+  (also across a page) and fetches through the `MemoryPort`, and the model says what each access
+  gives, its value or the fault and its page. The first byte picks one of two models.
+  - The swapping memory of the processes: 4 frames, so pages swap all the time; processes,
+    `add_vpage`, `set_vpage_permissions`, mappings to RAM and ROM pages, kernel-only ROM pages,
+    translation turned off. The model is the bytes of each virtual page, so where a page is (a
+    frame, the disk) does not show, and the TLB, the fetch cache and eviction are tested by the
+    contents staying put. With no process or translation off, a read or fetch must give the
+    physical memory. `check_consistency` runs after each operation.
+  - The page tables in memory: a first level table and three second level tables in RAM (two
+    first level entries can share one), data pages in RAM and ROM, user and kernel mode, `tlbi`
+    after each change that docs/mmu.md asks it for and not otherwise, `PTBR` and `SCTLR` written.
+    The model has the tables, with the accessed and dirty bits that the walk must set, and the
+    data. A process of the swapping memory has filled the TLB with the same pages first.
+
+  It found that a store across a page lost its first bytes when bringing in the second page
+  evicted the first (`MemoryPort::write_val` now translates each byte again before storing it).
+  Removing each call of `drop_fetch_cache` and `update_swap_key` and each `invalidate_tlb` in
+  `virtual_memory.cpp`/`.h` fails it, except four that do not change a result: the clock's
+  `invalidate_tlb` (which page is evicted), the two of `end_process` (removing each page does the
+  same) and the walk's `drop_fetch_cache` (only seen by a program that leaves out a `tlbi`
+  docs/mmu.md asks for). The seeds come from `seeds/mmu_seeds.py`.
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with

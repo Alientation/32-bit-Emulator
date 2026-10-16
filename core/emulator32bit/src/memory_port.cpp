@@ -32,11 +32,15 @@ void MemoryPort::write_val(const word address, dword val, const U8 n_bytes)
         real_addr[i] = m_mmu.translate_address(address + i, VirtualMemory::AccessType::WRITE);
     }
     // The same goes for the ROM, which is not known to be one until it is routed.
-    BaseMemory *target[sizeof(dword)];
-    for (U8 i = 0; i < n_bytes; i++) target[i] = &m_bus.route_store(real_addr[i]);
+    for (U8 i = 0; i < n_bytes; i++) m_bus.route_store(real_addr[i]);
+
+    // Each byte is translated again just before it is stored: in the swapping memory, bringing in
+    // the second page can evict the first, and its address from above is then another page's. (A
+    // page does not move between RAM and ROM, so the routing above still holds.)
     for (U8 i = 0; i < n_bytes; i++)
     {
-        target[i]->write_byte(real_addr[i], val & 0xFF);
+        const word now = m_mmu.translate_address(address + i, VirtualMemory::AccessType::WRITE);
+        m_bus.route_store(now).write_byte(now, val & 0xFF);
         val >>= 8;
     }
 }

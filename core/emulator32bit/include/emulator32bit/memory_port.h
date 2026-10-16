@@ -182,7 +182,8 @@ class MemoryPort
     dword read_val(word address, U8 n_bytes);
 
     /// Writes a value that crosses a page. The pages are translated one by one, and the stores
-    /// are made only after all of them were.
+    /// are made only after all of them were, each with a translation of its own (the swapping
+    /// memory can have moved a page meanwhile).
     ///
     /// @param[in] address The virtual address of the first byte.
     /// @param[in] val The value to store.
