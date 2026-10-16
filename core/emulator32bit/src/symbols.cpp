@@ -15,7 +15,7 @@ void SymbolMap::add(const std::string &name, const word address)
 
 std::optional<word> SymbolMap::find(const std::string &name) const
 {
-    const auto it = m_by_name.find(name);
+    const ByName::const_iterator it = m_by_name.find(name);
     if (it == m_by_name.end())
     {
         return std::nullopt;
@@ -30,7 +30,7 @@ bool SymbolMap::has_symbol_at(const word address) const
 
 std::string SymbolMap::describe(const word address) const
 {
-    auto it = m_by_address.upper_bound(address);
+    ByAddress::const_iterator it = m_by_address.upper_bound(address);
     if (it == m_by_address.begin())
     {
         return "";

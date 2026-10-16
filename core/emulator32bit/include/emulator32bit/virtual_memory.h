@@ -336,7 +336,8 @@ class VirtualMemory
             return true;
         }
 
-        const auto it = m_cur_ptable->entries.find(address >> kNumPageOffsetBits);
+        const PageTable::Entries::const_iterator it =
+            m_cur_ptable->entries.find(address >> kNumPageOffsetBits);
         return it != m_cur_ptable->entries.end() && it->second->execute;
     }
 
@@ -493,9 +494,10 @@ class VirtualMemory
     {
         S64 pid = 0; /// Process ID.
 
+        using Entries = std::unordered_map<word, PageTableEntry *>;
+
         /// Mapping of virtual page address to the corresponding PageTableEntry.
-        std::unordered_map<word, PageTableEntry *> entries =
-            std::unordered_map<word, PageTableEntry *>();
+        Entries entries = Entries();
 
         bool kernel_privilege;
     };

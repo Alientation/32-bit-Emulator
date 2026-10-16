@@ -974,7 +974,7 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
 {
     if (m_vbar == 0) return false;
 
-    if (const auto *emu = dynamic_cast<const Trap *>(&error))
+    if (const Trap *emu = dynamic_cast<const Trap *>(&error))
     {
         if (emu->get_type() == TrapType::MISALIGNED)
         {
@@ -1003,7 +1003,8 @@ bool Emulator32bit::deliver_exception(const std::exception &error, const bool fe
     const ExceptionClass abort_class =
         fetching ? ExceptionClass::INSTRUCTION_ABORT : ExceptionClass::DATA_ABORT;
 
-    if (const auto *fault = dynamic_cast<const VirtualMemory::PageFault *>(&error))
+    if (const VirtualMemory::PageFault *fault =
+            dynamic_cast<const VirtualMemory::PageFault *>(&error))
     {
         using Reason = VirtualMemory::PageFault::Reason;
         word iss =

@@ -30,7 +30,7 @@ std::string to_color_hex_str(const U32 hex)
 std::string color_val_str(const std::string &string)
 {
     std::string result = ccolor::GRAY;
-    auto iterator = string.begin();
+    std::string::const_iterator iterator = string.begin();
 
     // The prefix is gray with the leading zeros.
     if (string.starts_with(kHexPrefix))

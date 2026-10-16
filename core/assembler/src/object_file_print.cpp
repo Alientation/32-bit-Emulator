@@ -172,7 +172,8 @@ void ObjectFile::print(std::ostream &out) const
     out << "\n\nDisassembly of section .text:\n";
 
     // The labels of the code, by address. The labels of a scope are not shown.
-    std::map<sword, U32> labels;
+    using Labels = std::map<sword, U32>;
+    Labels labels;
     for (const auto &[key, symbol] : symbol_table)
     {
         if (symbol.section == U32(-1) || sections[symbol.section].type != SectionHeader::Type::TEXT
@@ -184,7 +185,8 @@ void ObjectFile::print(std::ostream &out) const
         labels[sword(symbol.symbol_value)] = symbol.symbol_name;
     }
 
-    std::unordered_map<word, RelocationEntry> rel_text_map;
+    using RelocationsByOffset = std::unordered_map<word, RelocationEntry>;
+    RelocationsByOffset rel_text_map;
     for (const RelocationEntry &rel : rel_text)
     {
         rel_text_map[rel.offset] = rel;
@@ -199,7 +201,7 @@ void ObjectFile::print(std::ostream &out) const
     for (size_t i = 0; i < text_section.size(); i++)
     {
         const word address = word(i * 4);
-        const auto label_here = labels.find(sword(address));
+        const Labels::const_iterator label_here = labels.find(sword(address));
         if (label_here != labels.end())
         {
             if (i != 0)
@@ -225,7 +227,7 @@ void ObjectFile::print(std::ostream &out) const
                 // Branch offsets are in words, relative to the branch instruction itself.
                 const sword offset_words = bitfield_signed<0, 22>(text_section[i]);
                 const sword target = sword(address) + offset_words * 4;
-                auto label = labels.upper_bound(target);
+                Labels::const_iterator label = labels.upper_bound(target);
                 if (target >= 0 && label != labels.begin())
                 {
                     --label;
@@ -246,7 +248,7 @@ void ObjectFile::print(std::ostream &out) const
         }
 
         // Check whether there is a relocation record here.
-        const auto rel = rel_text_map.find(address);
+        const RelocationsByOffset::const_iterator rel = rel_text_map.find(address);
         if (rel != rel_text_map.end())
         {
             out << "\n" << std::string(text_address_width, ' ');

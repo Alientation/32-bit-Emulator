@@ -507,11 +507,11 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
                                                    const cxxopts::ParseResult &result)
 {
-    auto ram = std::make_unique<RAM>(args.ram_npages, args.ram_start_page);
-    auto rom = result.count("rom-file")
-                   ? std::make_unique<ROM>(File(result["rom-file"].as<std::string>()),
-                                           args.rom_npages, args.rom_start_page)
-                   : std::make_unique<ROM>(args.rom_npages, args.rom_start_page);
+    std::unique_ptr<RAM> ram = std::make_unique<RAM>(args.ram_npages, args.ram_start_page);
+    std::unique_ptr<ROM> rom =
+        result.count("rom-file") ? std::make_unique<ROM>(File(result["rom-file"].as<std::string>()),
+                                                         args.rom_npages, args.rom_start_page)
+                                 : std::make_unique<ROM>(args.rom_npages, args.rom_start_page);
 
     std::unique_ptr<Disk> disk;
     if (result.count("disk-file"))
@@ -525,7 +525,8 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
         disk = std::make_unique<MockDisk>();
     }
 
-    auto emu = std::make_unique<Emulator32bit>(std::move(ram), std::move(rom), std::move(disk));
+    std::unique_ptr<Emulator32bit> emu =
+        std::make_unique<Emulator32bit>(std::move(ram), std::move(rom), std::move(disk));
 
     if (result.count("exe"))
     {
@@ -603,7 +604,7 @@ static std::unique_ptr<Emulator32bit> make_machine(const CliArgs &args,
     {
         // What is typed goes to the console while the machine runs. The thread reads a character
         // at a time and is left blocked on the terminal when the machine ends.
-        const auto input = std::make_shared<HostInput>();
+        const std::shared_ptr<HostInput> input = std::make_shared<HostInput>();
         emu->system_bus->console.attach_host_input(input);
         std::thread(
             [input]
@@ -828,8 +829,8 @@ static bool run_with_window(Emulator32bit &emu, const CliArgs &args,
     }
 
     Display &display = emu.system_bus->display;
-    const auto host = std::make_shared<HostDisplay>(args.display_fps);
-    const auto keys = std::make_shared<HostInput>();
+    const std::shared_ptr<HostDisplay> host = std::make_shared<HostDisplay>(args.display_fps);
+    const std::shared_ptr<HostInput> keys = std::make_shared<HostInput>();
     display.attach_host_display(host);
     emu.system_bus->console.attach_host_input(keys);
     emu.system_bus->input.attach_host_input(keys);

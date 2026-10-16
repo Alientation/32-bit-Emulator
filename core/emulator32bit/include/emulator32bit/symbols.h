@@ -48,6 +48,9 @@ class SymbolMap
     }
 
   private:
-    std::map<word, std::string> m_by_address;
-    std::map<std::string, word> m_by_name;
+    using ByAddress = std::map<word, std::string>;
+    using ByName = std::map<std::string, word>;
+
+    ByAddress m_by_address;
+    ByName m_by_name;
 };

@@ -11,7 +11,7 @@
 static void require_section(const ObjectFile &obj, const std::string &path, const char *name,
                             const ObjectFile::SectionHeader::Type type)
 {
-    const auto section = obj.section_table.find(name);
+    const ObjectFile::NameIndex::const_iterator section = obj.section_table.find(name);
     AEMU_CHECK(section != obj.section_table.end() && obj.sections[section->second].type == type,
                "'{}' is not an object file that can be used, it has no {} section.", path, name);
 }

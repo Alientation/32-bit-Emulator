@@ -65,6 +65,10 @@ class Preprocessor
         Tokens value;
     };
 
+    /// The definitions of one symbol, by parameter count.
+    using Definitions = std::map<std::size_t, Symbol>;
+    using Symbols = std::map<std::string, Definitions>;
+
     /// `#macro name(params)` ... `#macend`. Keyed by "name/<parameter count>".
     struct Macro
     {
@@ -72,6 +76,8 @@ class Preprocessor
         std::vector<std::string> params;
         Tokens body;
     };
+
+    using Macros = std::map<std::string, Macro>;
 
     /// One source of tokens. Expansions own their tokens, so a frame never refers to tokens
     /// that can move.
@@ -127,11 +133,12 @@ class Preprocessor
     State m_state;
 
     std::shared_ptr<basm::SourceManager> m_sources;
-    std::vector<std::unique_ptr<Frame>> m_frames;
+    using Frames = std::vector<std::unique_ptr<Frame>>;
+    Frames m_frames;
     std::vector<Cond> m_conds;
 
-    std::map<std::string, std::map<std::size_t, Symbol>> m_symbols;
-    std::map<std::string, Macro> m_macros;
+    Symbols m_symbols;
+    Macros m_macros;
 
     std::string m_out;
     char m_last_char = '\n';

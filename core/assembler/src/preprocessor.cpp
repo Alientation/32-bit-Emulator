@@ -243,13 +243,13 @@ bool Preprocessor::active() const
 
 bool Preprocessor::is_symbol_def(const std::string &name, const std::size_t num_params) const
 {
-    const auto it = m_symbols.find(name);
+    const Symbols::const_iterator it = m_symbols.find(name);
     return it != m_symbols.end() && it->second.find(num_params) != it->second.end();
 }
 
 Preprocessor::Frame &Preprocessor::push_frame(Tokens tokens)
 {
-    auto frame = std::make_unique<Frame>();
+    std::unique_ptr<Frame> frame = std::make_unique<Frame>();
     frame->tokens = std::move(tokens);
     frame->cursor = TokenCursor(std::span<const Token>(frame->tokens));
     frame->cond_base = m_conds.size();
@@ -490,12 +490,12 @@ Preprocessor::Tokens Preprocessor::substitute(const Tokens &body,
 
 bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
 {
-    const auto symbol = m_symbols.find(token.str());
+    const Symbols::const_iterator symbol = m_symbols.find(token.str());
     if (symbol == m_symbols.end())
     {
         return false;
     }
-    const std::map<std::size_t, Symbol> &definitions = symbol->second;
+    const Definitions &definitions = symbol->second;
 
     // Copy, the cursor is about to move.
     const Token site = token;
@@ -512,7 +512,7 @@ bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
         const std::size_t after_name = frame.cursor.mark();
         if (parse_call_args(args, frame.cursor))
         {
-            const auto it = definitions.find(args.size());
+            const Definitions::const_iterator it = definitions.find(args.size());
             if (it != definitions.end())
             {
                 definition = &it->second;
@@ -538,7 +538,7 @@ bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
 
     if (definition == nullptr)
     {
-        const auto it = definitions.find(0);
+        const Definitions::const_iterator it = definitions.find(0);
         if (it == definitions.end())
         {
             // Only defined with parameters but used without any. Leave it as it is.
@@ -667,7 +667,7 @@ void Preprocessor::_include(TokenCursor &line)
     {
         // Relative to the file that has the #include.
         std::string dir;
-        for (auto it = m_frames.rbegin(); it != m_frames.rend(); ++it)
+        for (Frames::const_reverse_iterator it = m_frames.rbegin(); it != m_frames.rend(); ++it)
         {
             if ((*it)->is_file)
             {
@@ -808,7 +808,8 @@ void Preprocessor::_invoke(TokenCursor &line)
         fail(line.peek(), "unexpected " + describe_next(line) + " after the macro arguments");
     }
 
-    const auto found = m_macros.find(name.str() + "/" + std::to_string(args.size()));
+    const Macros::const_iterator found =
+        m_macros.find(name.str() + "/" + std::to_string(args.size()));
     if (found == m_macros.end())
     {
         fail(name, "no macro '" + name.str() + "' is defined with " + std::to_string(args.size())
@@ -894,7 +895,7 @@ void Preprocessor::_undef(TokenCursor &line)
     }
     line.next();
 
-    const auto it = m_symbols.find(name.str());
+    const Symbols::iterator it = m_symbols.find(name.str());
     if (line.check(TokenType::LITERAL_NUMBER_DECIMAL))
     {
         const std::size_t num_params = static_cast<std::size_t>(line.next().int_value);

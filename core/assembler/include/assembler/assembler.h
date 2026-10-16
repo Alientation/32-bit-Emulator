@@ -336,8 +336,10 @@ class Assembler
     /// @return The name with the scope.
     std::string scoped_name(const std::string &name) const;
 
+    using Constants = std::unordered_map<std::string, sdword>;
+
     /// The values of `.equ`, by name (with the scope for those defined in one).
-    std::unordered_map<std::string, sdword> m_constants;
+    Constants m_constants;
 
     /// Comma separated expressions.
     ///

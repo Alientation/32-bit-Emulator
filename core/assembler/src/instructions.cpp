@@ -361,7 +361,7 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
                                       : encoding::AddrType::ADDR_OFFSET;
             }
 
-            const auto mode = encoded_mode(addressing_mode, unaligned);
+            const encoding::AddrType mode = encoded_mode(addressing_mode, unaligned);
             warn_writeback(addressing_mode, reg_t, reg_a, is_load, offset == 0);
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, offset, mode);
         }
@@ -387,7 +387,7 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
                                       : encoding::AddrType::ADDR_OFFSET;
             }
 
-            const auto mode = encoded_mode(addressing_mode, unaligned);
+            const encoding::AddrType mode = encoded_mode(addressing_mode, unaligned);
             warn_writeback(addressing_mode, reg_t, reg_a, is_load, reg_b == U8(Register::XZR));
             return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, reg_b, shift,
                                                shift_amount, mode);
@@ -396,7 +396,7 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
 
     // Check for invalid addressing mode.
     check(parsed_addressing_mode, "invalid addressing mode");
-    const auto mode = encoded_mode(addressing_mode, unaligned);
+    const encoding::AddrType mode = encoded_mode(addressing_mode, unaligned);
     warn_writeback(addressing_mode, reg_t, reg_a, is_load, true);
     return Emulator32bit::asm_format_m(opcode, sign, reg_t, reg_a, 0, mode);
 }

@@ -630,7 +630,7 @@ void Debugger::command_backtrace()
     if (m_emu.exception_depth() != 0)
     {
         const word esr = m_emu.read_sysreg(encoding::kSysregId_esr);
-        const auto cls =
+        const Emulator32bit::ExceptionClass cls =
             static_cast<Emulator32bit::ExceptionClass>(esr >> encoding::kEsrClassShift);
         const bool is_abort = cls == Emulator32bit::ExceptionClass::INSTRUCTION_ABORT
                               || cls == Emulator32bit::ExceptionClass::DATA_ABORT;
@@ -763,9 +763,11 @@ constexpr ConditionName kConditionNames[] = {
     {.text = ">", .compare = Emulator32bit::WatchCompare::GT},
 };
 
+/// An operator and the number it compares with.
+using WatchCondition = std::pair<Emulator32bit::WatchCompare, word>;
+
 /// "==5", ">=0x10": an operator and a number.
-static std::optional<std::pair<Emulator32bit::WatchCompare, word>>
-parse_watch_condition(const std::string &text)
+static std::optional<WatchCondition> parse_watch_condition(const std::string &text)
 {
     for (const ConditionName &name : kConditionNames)
     {
@@ -839,7 +841,7 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
                         : part == "w" ? Emulator32bit::WatchKind::WRITE
                                       : Emulator32bit::WatchKind::ACCESS;
         }
-        else if (const auto condition = parse_watch_condition(part))
+        else if (const std::optional<WatchCondition> condition = parse_watch_condition(part))
         {
             if (spec.compare != Emulator32bit::WatchCompare::NONE)
             {

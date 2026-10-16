@@ -618,8 +618,8 @@ void BlockDevice::write_register(const word offset, const word value)
 // ---------------------------------------------------------------------------------------------
 // Display
 
-/// The palette after a reset: the index is rrrgggbb, each part scaled to 0-255.
-static constexpr auto kDefaultPalette = []
+/// @return The palette after a reset: the index is rrrgggbb, each part scaled to 0-255.
+static constexpr std::array<word, Display::kPaletteSize> default_palette()
 {
     std::array<word, Display::kPaletteSize> palette{};
     for (word i = 0; i < Display::kPaletteSize; i++)
@@ -630,7 +630,9 @@ static constexpr auto kDefaultPalette = []
         palette[i] = (r << 16) | (g << 8) | b;
     }
     return palette;
-}();
+}
+
+static constexpr std::array<word, Display::kPaletteSize> kDefaultPalette = default_palette();
 
 Display::Display(InterruptController &intc) :
     Device(kDisplayBase, device_id(kDeviceTypeDisplay, kIrqLineDisplay)),

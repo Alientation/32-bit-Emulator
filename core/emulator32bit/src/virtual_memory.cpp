@@ -813,7 +813,7 @@ void VirtualMemory::ensure_physical_page_mapping(const S64 pid, const word vpage
 word VirtualMemory::access_vpage_slow(const PageTable &ptable, const word vpage,
                                       const AccessType access)
 {
-    const auto it = ptable.entries.find(vpage);
+    const PageTable::Entries::const_iterator it = ptable.entries.find(vpage);
     if (UNLIKELY(it == ptable.entries.end()))
     {
         throw_fault(PageFault::Reason::UNMAPPED, vpage, access);

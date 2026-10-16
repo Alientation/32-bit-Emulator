@@ -53,13 +53,15 @@ static Extent merged_extent(const std::vector<ObjectFile> &objects, const std::s
     return extent;
 }
 
+using UserSectionIterator = std::vector<ObjectFile::UserSection>::const_iterator;
+
 /// @param[in] sections User sections.
 /// @param[in] name The name of a section.
 /// @return The section with the name, or `sections.end()` if there is none.
-static std::vector<ObjectFile::UserSection>::const_iterator
-find_user_section(const std::vector<ObjectFile::UserSection> &sections, const std::string &name)
+static UserSectionIterator find_user_section(const std::vector<ObjectFile::UserSection> &sections,
+                                             const std::string &name)
 {
-    auto it = sections.begin();
+    UserSectionIterator it = sections.begin();
     while (it != sections.end() && it->name != name) ++it;
     return it;
 }
@@ -74,7 +76,7 @@ static std::vector<ObjectFile::UserSection> user_sections_of(const std::vector<O
     {
         for (const ObjectFile::UserSection &section : obj.user_sections)
         {
-            const auto same = find_user_section(found, section.name);
+            const UserSectionIterator same = find_user_section(found, section.name);
             if (same == found.end())
             {
                 ObjectFile::UserSection permissions;
@@ -139,7 +141,7 @@ static std::string default_linker_script(const std::vector<ObjectFile> &objects)
     word address = 0;
     std::string script = "ENTRY(_start)\n\nSECTIONS (\n    .text = 0x0;\n";
     place(address, merged_extent(objects, ".text"));
-    for (const auto &section : user)
+    for (const ObjectFile::UserSection &section : user)
     {
         if (!section.executable) continue;
         place(address, merged_extent(objects, section.name));
@@ -157,7 +159,7 @@ static std::string default_linker_script(const std::vector<ObjectFile> &objects)
             script += std::string("    ") + ObjectFile::byte_sections()[k].name + ";\n";
         }
     }
-    for (const auto &section : user)
+    for (const ObjectFile::UserSection &section : user)
     {
         if (section.executable || section.writable) continue;
         place(address, merged_extent(objects, section.name));
@@ -166,7 +168,7 @@ static std::string default_linker_script(const std::vector<ObjectFile> &objects)
 
     address += padding_to(address, kPageSize);
     script += "    .data = " + std::to_string(address) + ";\n";
-    for (const auto &section : user)
+    for (const ObjectFile::UserSection &section : user)
     {
         if (!section.writable) continue;
         script += "    " + quoted(section.name) + ";\n";
@@ -214,7 +216,7 @@ static void define_array_symbol(ObjectFile &exe, const char *name,
 {
     const U32 section_index = exe.section_table.at(section.name);
 
-    const auto found = exe.string_table.find(name);
+    const ObjectFile::NameIndex::const_iterator found = exe.string_table.find(name);
     if (found == exe.string_table.end())
     {
         exe.add_symbol(name, value, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL,
@@ -234,7 +236,7 @@ static void define_array_symbol(ObjectFile &exe, const char *name,
 /// @return Whether the executable has a symbol with the name that is defined.
 static bool is_defined(const ObjectFile &exe, const std::string &name)
 {
-    const auto string = exe.string_table.find(name);
+    const ObjectFile::NameIndex::const_iterator string = exe.string_table.find(name);
     return string != exe.string_table.end() && !is_undefined(exe.symbol_table.at(string->second));
 }
 
@@ -430,7 +432,7 @@ ObjectFile Linker::new_executable() const
 
 std::vector<Linker::SectionBase> Linker::merge_sections()
 {
-    const auto &byte_sections = ObjectFile::byte_sections();
+    const ObjectFile::ByteSections &byte_sections = ObjectFile::byte_sections();
     SectionBase alignment = {.text = kInstructionSize, .bytes = {}, .bss = 1};
     for (size_t k = 0; k < ObjectFile::kNumByteSections; k++)
     {
@@ -701,7 +703,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(const std::vector<SectionBa
                 }
             }
 
-            const auto found = m_exe.string_table.find(name);
+            const ObjectFile::NameIndex::const_iterator found = m_exe.string_table.find(name);
             if (found == m_exe.string_table.end())
             {
                 m_exe.add_symbol(name, value, symbol.binding_info, section);

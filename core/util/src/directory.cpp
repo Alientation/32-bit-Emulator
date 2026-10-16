@@ -33,7 +33,8 @@ std::string Directory::get_path() const
 std::vector<File> Directory::get_all_subfiles()
 {
     std::vector<File> all_subfiles;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(m_dir_path))
+    for (const std::filesystem::directory_entry &entry :
+         std::filesystem::recursive_directory_iterator(m_dir_path))
     {
         if (entry.is_regular_file())
         {

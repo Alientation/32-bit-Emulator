@@ -35,7 +35,7 @@ static word get_format_o_arg(const Emulator32bit &cpu, const word instr)
     }
 
     const word value = cpu.read_reg(_X3(instr));
-    const auto type = ShiftType(bitfield_unsigned<7, 2>(instr));
+    const ShiftType type = ShiftType(bitfield_unsigned<7, 2>(instr));
     const U8 amount = bitfield_unsigned<2, 5>(instr);
 
     return alu_shift(value, type, amount, {}).result;

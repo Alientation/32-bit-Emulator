@@ -406,17 +406,20 @@ class ObjectFile
     // TODO: make the string table store the offset of the first character of a string, not the
     // position of the string in the array.
 
+    /// Maps a name to its index in a table.
+    using NameIndex = std::unordered_map<std::string, U32>;
+
     /// Stores all the strings in a compact table.
     std::vector<std::string> strings;
 
     /// Maps strings to index in the table.
-    std::unordered_map<std::string, U32> string_table;
+    NameIndex string_table;
 
     /// Section headers.
     std::vector<SectionHeader> sections;
 
     /// Map section name to index in sections.
-    std::unordered_map<std::string, U32> section_table;
+    NameIndex section_table;
 
     /// Adds a string to the string table. Fatal if the string is in it already.
     ///

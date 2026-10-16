@@ -474,10 +474,10 @@ static const KeywordMap &preprocessor_directives()
 /// Exact match, or the flag setting `s` variant of an instruction that allows it.
 static std::optional<Keyword> find_keyword(const KeywordMap &map, const std::string_view text)
 {
-    if (auto it = map.find(text); it != map.end()) return it->second;
+    if (const KeywordMap::const_iterator it = map.find(text); it != map.end()) return it->second;
     if (text.size() > 1 && text.back() == 's')
     {
-        if (auto it = map.find(text.substr(0, text.size() - 1));
+        if (const KeywordMap::const_iterator it = map.find(text.substr(0, text.size() - 1));
             it != map.end() && it->second.allows_s)
         {
             return Keyword{.type = it->second.type,

@@ -138,13 +138,13 @@ Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
     {
         const std::string key = i == 0 ? name : name + "::SCOPE:" + std::to_string(m_scopes[i - 1]);
 
-        const auto constant = m_constants.find(key);
+        const Constants::const_iterator constant = m_constants.find(key);
         if (constant != m_constants.end())
         {
             return {.value = constant->second};
         }
 
-        const auto entry = m_obj.string_table.find(key);
+        const ObjectFile::NameIndex::const_iterator entry = m_obj.string_table.find(key);
         if (entry != m_obj.string_table.end())
         {
             const ObjectFile::SymbolTableEntry &label = m_obj.symbol_table.at(entry->second);
@@ -425,7 +425,7 @@ void Assembler::_equ()
     const sdword value = parse_signed_expression();
 
     const std::string key = scoped_name(name.str());
-    const auto label = m_obj.string_table.find(key);
+    const ObjectFile::NameIndex::const_iterator label = m_obj.string_table.find(key);
     check(m_constants.count(key) == 0, "'" + name.str() + "' is already a constant");
     check(label == m_obj.string_table.end()
               || m_obj.symbol_table.at(label->second).section == U32(-1),
@@ -495,7 +495,7 @@ void Assembler::_comm()
           ".comm size is large and likely unintentional (" + std::to_string(size) + ")");
 
     const U32 bss = m_obj.section_table[".bss"];
-    const auto existing = m_obj.string_table.find(name.str());
+    const ObjectFile::NameIndex::const_iterator existing = m_obj.string_table.find(name.str());
     check(existing == m_obj.string_table.end()
               || m_obj.symbol_table.at(existing->second).section == U32(-1),
           "'" + name.str() + "' is already defined");
