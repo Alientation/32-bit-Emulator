@@ -22,7 +22,6 @@ using E = Emulator32bit;
 constexpr word kProgram = 0x100;
 constexpr word kVectors = 0x800;
 constexpr word kIrqVector = kVectors + 16 * word(Class::IRQ);
-constexpr word kIrqMask = 1 << kIrqMaskBit;
 
 word mov(const U8 xd, const word value)
 {

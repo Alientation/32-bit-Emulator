@@ -7,8 +7,26 @@ or the toolchain. `CLAUDE.md` keeps the rules and the checklist of invariants; t
 
 ## Build system
 
-CI (`.github/workflows/ci.yml`, Ubuntu 24.04, GCC 13) runs `./build.sh` and, as a second job,
-`./build.sh asan`.
+CI (`.github/workflows/ci.yml`, Ubuntu 24.04, GCC 13 and clang 18) runs `./build.sh` and, as a
+second job, `./build.sh asan`.
+
+### Compilers
+
+The release build (`build/release`, the one `tools/bench.sh` times) is compiled with clang 18 and
+linked with lld, through the toolchain file `core/cmake/clang.cmake` that `build.sh` passes; the
+debug, coverage and sanitizer builds use the default compiler, GCC 13. Every change is compiled by
+both. Clang uses GCC 13's standard library (`--gcc-install-dir`): by default it takes the newest
+GCC it finds, which on Ubuntu 24.04 is GCC 14 without its libstdc++ headers, or a newer GCC that
+was installed for something else. `build.sh` configures `build/release` again from the start when
+it was configured without the toolchain file, since CMake keeps the compiler of a build directory.
+
+Why (2026-10-15, `tools/bench.sh -n 15`, each against GCC 13, best time): clang 18 is 8-26% faster
+on most programs (crcbench -26%, sievebench -23%, mixbench -19%, sortbench -19%, membench -14%),
+level on walkbench, swapbench, fpbench and devbench, and slower on excbench (+5%) and the debugging
+hooks (`membench+watch` +15%, `callbench+history` +9%). Clang 22 measured within a few percent of
+clang 18, a little slower with GCC 16's standard library than with GCC 13's. GCC 15.2 and a GCC 16
+snapshot were 28-35% slower than GCC 13 on membench and walkbench, so a newer GCC is no way to
+speed up the emulator.
 
 Compile flags are not set per target. Every target calls `aemu_target_defaults(<tgt>)` from
 `core/cmake/AemuHelpers.cmake`, which adds the warnings, `-O3` for Release/RelWithDebInfo (compile
@@ -48,9 +66,11 @@ reference value computed outside the emulator (comment the header with what the 
 line in `BENCHES`; keep it near 30 million instructions (0.1-0.2 s), except for those with
 exceptions, devices or page faults, whose MIPS mean little. Two separate runs of the same binary
 differ by 5% or more on this machine, so compare with `--baseline` (build the other commit in a `git
-worktree`) and `-n 15` or more, and decide on the best and the median together (a new handler can
-slow the *other* instructions by changing the register allocation of `run()`: GCC keeps a value that
-is live across every handler call in memory once the handlers use all the registers a call may
+worktree`; a commit from before the switch to clang has to be configured with
+`-DCMAKE_TOOLCHAIN_FILE=<this tree>/core/cmake/clang.cmake`, or the comparison measures the
+compiler) and `-n 15` or more, and decide on the best and the median together (a new handler can
+slow the *other* instructions by changing the register allocation of `run()`: GCC 13 kept a value that
+was live across every handler call in memory once the handlers used all the registers a call may
 change, which is why `run()` keeps the instruction in `m_instr_in_flight` and not in a local for the
 exception handler; the floating point handlers cost `long_loop` 14% before that, and the benchmark
 showed it, not the tests); a profile where the share of a function dropped is not a speedup until

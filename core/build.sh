@@ -16,6 +16,10 @@ DEBUG_DIR="$BUILD_DIR/debug"
 RELEASE_DIR="$BUILD_DIR/release"
 COVERAGE_DIR="coverage"
 
+# The release build is compiled with clang (docs/internals.md#compilers), the others with the
+# default compiler (GCC).
+RELEASE_TOOLCHAIN="cmake/clang.cmake"
+
 DO_COMPILE=true
 DO_TEST=true
 
@@ -99,8 +103,17 @@ if $DO_COMPILE; then
     echo "Configuring Debug build..."
     cmake -S . -B "$DEBUG_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
 
+    # CMake keeps the compiler of an existing build directory, so a release build that was
+    # configured without the toolchain file (with GCC) is configured again from the start.
+    if [ -f "$RELEASE_DIR/CMakeCache.txt" ] &&
+        ! grep -q "^CMAKE_TOOLCHAIN_FILE:.*$RELEASE_TOOLCHAIN\$" "$RELEASE_DIR/CMakeCache.txt"; then
+        echo "The release build was configured with another compiler, configuring it again..."
+        rm -rf "$RELEASE_DIR"
+    fi
+
     echo "Configuring Release build..."
-    cmake -S . -B "$RELEASE_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    cmake -S . -B "$RELEASE_DIR" -G "Ninja" -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        "-DCMAKE_TOOLCHAIN_FILE=$RELEASE_TOOLCHAIN"
 
     # --- Build ---
     echo "Building Debug..."

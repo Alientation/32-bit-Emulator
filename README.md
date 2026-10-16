@@ -62,7 +62,8 @@ cmake --version
 ninja --version
 
 # Run the build script or CMake to configure and build directly
-# Requires a C++20 compiler and Ninja to build (and gcc/gcov, lcov for code coverage)
+# Requires Ninja, GCC 13 (debug build) and clang 18 with lld (release build, core/cmake/clang.cmake)
+# (and gcov, lcov for code coverage)
 # cxxopts and GoogleTest are downloaded automatically by CMake
 # Builds both build/debug and build/release (and runs the tests)
 ./build.sh [clean | compile | test | coverage | asan | ubsan]
