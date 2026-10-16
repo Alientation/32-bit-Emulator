@@ -62,7 +62,7 @@ class DisplayWindow
     SDL_Window *m_window = nullptr;
     SDL_Renderer *m_renderer = nullptr;
     SDL_Texture *m_texture = nullptr;
-    word m_width = 0; /// Of the texture.
+    word m_width = 0;   /// Of the texture.
     word m_height = 0;
     word m_buttons = 0; /// The buttons of the mouse that are down (InputDevice::kButton*).
 };

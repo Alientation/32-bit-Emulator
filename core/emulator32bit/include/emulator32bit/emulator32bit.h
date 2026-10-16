@@ -744,8 +744,8 @@ class Emulator32bit
 
     /// The instruction that run () is executing, for the exception it may raise.
     word m_instr_in_flight = 0;
-    word m_fpcr = 0; /// Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
-    word m_fpsr = 0; /// Floating point status: the cumulative exception flags, bits 4-0.
+    word m_fpcr = 0;    /// Floating point control: the rounding mode, bits 1-0 (fpu::kRound*).
+    word m_fpsr = 0;    /// Floating point status: the cumulative exception flags, bits 4-0.
     word m_boot_pc = 0; /// The pc after a reset.
 
     // The tables of the debugger are after the members that every instruction reads. Each is a

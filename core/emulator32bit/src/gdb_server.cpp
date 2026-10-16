@@ -325,7 +325,7 @@ std::string GdbServer::stop_reply(const Emulator32bit::RunResult &result)
     switch (result.status)
     {
     case Status::HALTED:
-        m_finished = false;    // The client says when it is over, with a detach or a kill.
+        m_finished = false; // The client says when it is over, with a detach or a kill.
         return "W00";
     case Status::POWER_OFF:
         m_finished = false;
