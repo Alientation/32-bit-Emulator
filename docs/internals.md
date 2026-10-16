@@ -142,6 +142,12 @@ and the release build has debug info so the samples can be attributed to source 
   use each other twice ran out of memory (`Preprocessor::kMaxExpandedTokens`), and that a section
   and a symbol with the same name (`.section "_start"`) crashed the assembler and the linker, which
   took every name in the string table to be a symbol's (`ObjectFile::find_symbol`).
+- `link.cpp` is the object file reader and the linker on files that are not valid: the input is one
+  or two `.bo` files (two bytes with the size of the first), read, listed, linked, loaded and run.
+  The seeds are the objects of the basm seeds and a pair that use each other's symbols, made by
+  `seeds/link_seeds.sh`. It found sections that the linker could not find or merge, which
+  `ObjectFile::validate` now refuses (see [belf-format.md](belf-format.md)), and a user section
+  that was merged with the relocations of another file's section of the same name.
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with

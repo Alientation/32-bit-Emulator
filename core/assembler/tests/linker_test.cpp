@@ -118,6 +118,23 @@ TEST_F(LinkerScript, the_entry_point_must_be_defined)
                          "The entry point '_start' is not defined"));
 }
 
+TEST_F(LinkerScript, a_section_is_merged_only_with_the_sections_of_its_name_that_have_bytes)
+{
+    // The relocations of `table` are named `fast` here, the name of a section of the other file.
+    ObjectFile first =
+        assemble("first", ".global _start\n.text\n_start: hlt\n.section \"table\", \"r\"\n"
+                          ".word _start\n");
+    first.sections[first.find_user_section("table")->header_index + 1].section_name =
+        first.add_string("fast");
+    first.write_object_file(File((m_dir / "out" / "first.bo").string(), true));
+    const ObjectFile second = assemble("second", ".section \"fast\", \"rx\"\nnop\n");
+
+    const ObjectFile exe =
+        link_default({ObjectFile(File((m_dir / "out" / "first.bo").string())), second}, "merged");
+    ASSERT_NE(exe.find_user_section("fast"), nullptr);
+    EXPECT_EQ(exe.find_user_section("fast")->bytes.size(), kInstructionSize);
+}
+
 TEST_F(LinkerScript, a_section_and_a_symbol_can_have_the_same_name)
 {
     const std::string section = ".section \"foo\", \"r\"\n.word 1\n";

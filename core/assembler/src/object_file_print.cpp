@@ -172,7 +172,9 @@ void ObjectFile::print(std::ostream &out) const
     out << "\n\nDisassembly of section .text:\n";
 
     // The labels of the code, by address. The labels of a scope are not shown.
-    using Labels = std::map<sword, U32>;
+    // In 64 bits, so that a label at 0x80000000 and up is after the others and the distance to it
+    // does not overflow.
+    using Labels = std::map<S64, U32>;
     Labels labels;
     for (const auto &[key, symbol] : symbol_table)
     {
@@ -182,7 +184,7 @@ void ObjectFile::print(std::ostream &out) const
             continue;
         }
 
-        labels[sword(symbol.symbol_value)] = symbol.symbol_name;
+        labels[S64(symbol.symbol_value)] = symbol.symbol_name;
     }
 
     using RelocationsByOffset = std::unordered_map<word, RelocationEntry>;
@@ -201,7 +203,7 @@ void ObjectFile::print(std::ostream &out) const
     for (size_t i = 0; i < text_section.size(); i++)
     {
         const word address = word(i * 4);
-        const Labels::const_iterator label_here = labels.find(sword(address));
+        const Labels::const_iterator label_here = labels.find(S64(address));
         if (label_here != labels.end())
         {
             if (i != 0)
@@ -226,12 +228,12 @@ void ObjectFile::print(std::ostream &out) const
             {
                 // Branch offsets are in words, relative to the branch instruction itself.
                 const sword offset_words = bitfield_signed<0, 22>(text_section[i]);
-                const sword target = sword(address) + offset_words * 4;
+                const S64 target = S64(address) + S64(offset_words) * 4;
                 Labels::const_iterator label = labels.upper_bound(target);
                 if (target >= 0 && label != labels.begin())
                 {
                     --label;
-                    const sword delta = target - label->first;
+                    const S64 delta = target - label->first;
                     out << " <" << strings[label->second];
                     if (delta != 0)
                     {

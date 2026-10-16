@@ -97,7 +97,7 @@ constexpr size_t kMaxExpressionDepth = 200;
 constexpr word kSizeLimit = 0xffffff;
 
 /// An alignment of this many bytes or more is rejected for the same reason.
-constexpr word kAlignmentLimit = 0xffff;
+constexpr word kAlignmentLimit = ObjectFile::kAlignmentLimit;
 
 bool Assembler::at_expression()
 {

@@ -23,6 +23,18 @@ static word alignment_of(const ObjectFile &obj, const std::string &name)
     return alignment == 0 ? 1 : alignment;
 }
 
+/// @param[in] name The name of a section.
+/// @return Whether it is .text or a section of bytes, which every file has.
+static bool is_fixed(const std::string &name)
+{
+    if (name == ".text") return true;
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        if (name == section.name) return true;
+    }
+    return false;
+}
+
 /// @param[in] obj An object file that has the section.
 /// @param[in] name The name of a section of code, bytes or the program's own (not .bss).
 /// @return The size of the section in bytes.
@@ -43,7 +55,10 @@ static Extent merged_extent(const std::vector<ObjectFile> &objects, const std::s
     Extent extent;
     for (const ObjectFile &obj : objects)
     {
-        if (!obj.section_table.contains(name)) continue;
+        // Every file has the fixed sections. A section of the program's own is looked up as one:
+        // its name can be that of a section of another kind here (the relocations `.relfoo` of
+        // a section `foo`).
+        if (!is_fixed(name) && obj.find_user_section(name) == nullptr) continue;
 
         const word alignment = alignment_of(obj, name);
         if (alignment > extent.alignment) extent.alignment = alignment;

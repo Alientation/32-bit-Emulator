@@ -23,6 +23,11 @@ class ObjectFile
     friend class Linker;
 
   public:
+    /// An alignment of a section of this many bytes or more is refused: by the assembler (`.align`,
+    /// `.comm`) as more likely a mistake than what the program means, and by the reader, whose
+    /// linker would pad with that many bytes.
+    static constexpr word kAlignmentLimit = 0xffff;
+
     /// Makes an empty object file, which the assembler fills.
     ObjectFile();
 

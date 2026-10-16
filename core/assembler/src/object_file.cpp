@@ -485,9 +485,53 @@ void ObjectFile::deserialize(const std::vector<byte> &bytes)
     AEMU_DEBUG("Finished disassembling");
 }
 
+/// @param[in] type The type of a section.
+/// @return The name that a section of the type has (the linker finds it by that name), or null for
+///     a section of the program's own.
+static const char *fixed_name(const ObjectFile::SectionHeader::Type type)
+{
+    using Type = ObjectFile::SectionHeader::Type;
+    switch (type)
+    {
+    case Type::TEXT:
+        return ".text";
+    case Type::BSS:
+        return ".bss";
+    case Type::SYMTAB:
+        return ".symtab";
+    case Type::STRTAB:
+        return ".strtab";
+    case Type::REL_TEXT:
+        return ".rel.text";
+    case Type::REL_BSS:
+        return ".rel.bss";
+    default:
+        break;
+    }
+    for (const ObjectFile::ByteSection &section : ObjectFile::byte_sections())
+    {
+        if (type == section.type) return section.name;
+        if (type == section.rel_type) return section.rel_name;
+    }
+    return nullptr;
+}
+
+/// @param[in] type The type of a section.
+/// @return Whether a symbol can be defined in it: code, bytes or zeros, not a table.
+static bool can_hold_symbols(const ObjectFile::SectionHeader::Type type)
+{
+    using Type = ObjectFile::SectionHeader::Type;
+    return type == Type::TEXT || type == Type::BSS || ObjectFile::byte_section_of(type) != nullptr
+           || ObjectFile::is_user_section_type(type);
+}
+
 void ObjectFile::validate() const
 {
     const std::string &path = m_obj_file.get_path();
+
+    // Each section has a name of its own: the linker finds them by name.
+    AEMU_CHECK(section_table.size() == sections.size(),
+               "'{}' is corrupt, two of its sections have the same name.", path);
 
     // The sections that everything else is looked up in.
     require_section(*this, path, ".text", SectionHeader::Type::TEXT);
@@ -499,6 +543,18 @@ void ObjectFile::validate() const
     require_section(*this, path, ".symtab", SectionHeader::Type::SYMTAB);
     require_section(*this, path, ".strtab", SectionHeader::Type::STRTAB);
 
+    for (const SectionHeader &header : sections)
+    {
+        const std::string &name = strings[header.section_name];
+        AEMU_CHECK(header.alignment < kAlignmentLimit,
+                   "'{}' is corrupt, the section {} is aligned to {} bytes.", path, name,
+                   header.alignment);
+        const char *fixed = fixed_name(header.type);
+        AEMU_CHECK(fixed == nullptr || name == fixed,
+                   "'{}' is corrupt, the section {} has the type of {}.", path, name,
+                   fixed == nullptr ? "" : fixed);
+    }
+
     for (const auto &[key, symbol] : symbol_table)
     {
         AEMU_CHECK(symbol.symbol_name == key && symbol.symbol_name < strings.size(),
@@ -509,6 +565,11 @@ void ObjectFile::validate() const
                    "'{}' is corrupt, the symbol '{}' is in the invalid "
                    "section {}.",
                    path, strings[symbol.symbol_name], symbol.section);
+        AEMU_CHECK(symbol.section == U32(-1) || can_hold_symbols(sections[symbol.section].type),
+                   "'{}' is corrupt, the symbol '{}' is in the section {}, which has no place for "
+                   "one.",
+                   path, strings[symbol.symbol_name],
+                   strings[sections[symbol.section].section_name]);
         AEMU_CHECK(symbol.binding_info == SymbolTableEntry::BindingInfo::LOCAL
                        || symbol.binding_info == SymbolTableEntry::BindingInfo::GLOBAL
                        || symbol.binding_info == SymbolTableEntry::BindingInfo::WEAK

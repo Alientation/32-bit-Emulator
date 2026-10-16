@@ -331,6 +331,47 @@ TEST_F(ObjectFileUnit, a_file_with_user_sections_is_the_same_bytes_every_time)
     EXPECT_EQ(bytes_of("out/main.bo"), first);
 }
 
+TEST_F(ObjectFileUnit, sections_that_the_linker_cannot_find_or_merge_are_refused)
+{
+    using Type = ObjectFile::SectionHeader::Type;
+    EXPECT_TRUE(contains(error_of_damaged(
+                             [](ObjectFile &o) {
+                                 o.sections[o.section_table.at(".rodata")].section_name =
+                                     o.string_table.at(".data");
+                             }),
+                         "two of its sections have the same name"));
+    EXPECT_TRUE(contains(error_of_damaged(
+                             [](ObjectFile &o) {
+                                 o.sections[o.section_table.at(".data")].alignment =
+                                     ObjectFile::kAlignmentLimit;
+                             }),
+                         "the section .data is aligned to 65535 bytes"));
+    EXPECT_TRUE(contains(error_of_damaged(
+                             [](ObjectFile &o)
+                             {
+                                 const U32 header = o.add_section("other", Type::USER_R);
+                                 o.sections[header].type = Type::DATA;
+                             }),
+                         "the section other has the type of .data"));
+    EXPECT_TRUE(contains(
+        error_of_damaged([](ObjectFile &o)
+                         { o.find_symbol("_start")->section = o.section_table.at(".symtab"); }),
+        "the symbol '_start' is in the section .symtab, which has no place"));
+}
+
+TEST_F(ObjectFileUnit, the_listing_has_labels_at_any_address)
+{
+    // A label at 0x80000000 and up: the distance to it was a signed overflow.
+    ObjectFile object = assemble(kProgram);
+    object.find_symbol("loop")->symbol_value = 0x80000000;
+    object.write_object_file(File(path("high.bo"), true));
+    const ObjectFile read{File(path("high.bo"))};
+
+    std::ostringstream listing;
+    read.print(listing);
+    EXPECT_TRUE(contains(listing.str(), "<_start+0x"));
+}
+
 TEST_F(ObjectFileUnit, a_user_section_that_is_corrupt_is_refused)
 {
     const auto damaged = [&](const std::function<void(ObjectFile &)> &damage)
