@@ -2,6 +2,7 @@
 // taking an interrupt between instructions, WFI, and running code from the ROM.
 
 #include "emulator32bit/devices.h"
+#include "emulator32bit/host_audio.h"
 #include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 #include "emulator32bit_test/emulator32bit_test.h"
@@ -427,7 +428,9 @@ TEST_F(Devices, a_reset_clears_the_devices)
     cpu.system_bus->console.push_input("x");
     const word random = cpu.memory.read_word(kRngBase + RandomNumbers::kRegData);
     cpu.system_bus->input.push({.kind = InputEvent::Kind::KEY, .value = 4});
+    cpu.memory.write_word(kAudioBase + Audio::kRegRate, 8000);
     cpu.reset();
+    EXPECT_EQ(cpu.memory.read_word(kAudioBase + Audio::kRegRate), Audio::kDefaultRate);
     EXPECT_EQ(cpu.memory.read_word(kInputBase + InputDevice::kRegKey), 0u);
     EXPECT_EQ(intc_read(0x08), 0u);
     EXPECT_FALSE(cpu.system_bus->console.input_waiting());
@@ -1922,4 +1925,279 @@ TEST_F(Devices, wfi_waits_for_a_key_when_the_program_asked_to_hear_of_one)
     EXPECT_EQ(cpu.read_reg(8), kIrqLineInput);
     EXPECT_EQ(cpu.read_reg(9), kKeyB | InputDevice::kKeyPressed);
     EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 't') << "the console took the text";
+}
+
+// --- audio ---------------------------------------------------------------------------------
+
+namespace
+{
+
+/// An audio device with 2 pages of RAM at page 1 (0x1000-0x2FFF) for its ring, a recording of what
+/// it plays and line 5 enabled.
+struct Speaker
+{
+    InterruptController intc;
+    Audio audio{intc};
+    RAM ram{2, 1};
+    AudioRecorder recording;
+
+    Speaker()
+    {
+        intc.write_word(kIntcBase + InterruptController::kRegEnable, 1u << kIrqLineAudio);
+        audio.set_ram(&ram);
+        audio.set_sink(&recording);
+    }
+
+    word reg(const word offset)
+    {
+        return audio.read_word(kAudioBase + offset);
+    }
+
+    void set(const word offset, const word value)
+    {
+        audio.write_word(kAudioBase + offset, value);
+    }
+
+    /// A ring of `length` frames at 0x1000 in periods of `period` frames.
+    void ring(const word length, const word period, const word rate, const word format)
+    {
+        set(Audio::kRegAddress, 0x1000);
+        set(Audio::kRegLength, length);
+        set(Audio::kRegPeriod, period);
+        set(Audio::kRegRate, rate);
+        set(Audio::kRegFormat, format);
+    }
+};
+
+} // namespace
+
+// 4 frames at 8000 a second are 500 us, 50000 instructions.
+TEST(AudioUnit, a_period_is_read_when_it_starts_and_the_ring_goes_round)
+{
+    Speaker speaker;
+    speaker.ring(8, 4, 8000, Audio::kFormatU8);
+    const byte frames[] = {128, 129, 130, 131, 132, 133, 134, 135};
+    speaker.ram.write_block(0x1000, frames, sizeof(frames));
+
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn | Audio::kCtrlPeriodInterrupt);
+    ASSERT_EQ(speaker.recording.samples().size(), 2u * 4) << "the first period, at once";
+    EXPECT_EQ(speaker.recording.rate(), 8000u);
+    EXPECT_EQ(speaker.recording.samples()[2], 256) << "129 is 1 above the middle";
+    EXPECT_EQ(speaker.audio.cycles_until_event(), 50000u);
+
+    speaker.audio.advance(49999);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 0u);
+    EXPECT_FALSE(speaker.intc.has_pending());
+    speaker.audio.advance(1);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 1u);
+    EXPECT_EQ(speaker.reg(Audio::kRegStatus), Audio::kStatusPeriod);
+    EXPECT_EQ(speaker.reg(Audio::kRegPosition), 4u);
+    EXPECT_EQ(speaker.intc.claim(), kIrqLineAudio);
+    ASSERT_EQ(speaker.recording.samples().size(), 2u * 8);
+    EXPECT_EQ(speaker.recording.samples()[8], 4 * 256) << "the second period";
+
+    speaker.ram.write_byte(0x1000, 0); // refilled while the second period plays
+    speaker.audio.advance(50000);
+    EXPECT_EQ(speaker.reg(Audio::kRegPosition), 0u) << "round";
+    ASSERT_EQ(speaker.recording.samples().size(), 2u * 12);
+    EXPECT_EQ(speaker.recording.samples()[16], -32768);
+
+    speaker.set(Audio::kRegStatus, 0);
+    EXPECT_EQ(speaker.reg(Audio::kRegStatus), 0u);
+    speaker.set(Audio::kRegCtrl, 0);
+    speaker.audio.advance(1000000);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 2u) << "off";
+    EXPECT_EQ(speaker.audio.cycles_until_period(), word(-1));
+}
+
+// A period of 1 frame at 96000 a second is 1041.67 instructions: 1041, 1042, 1042, and again.
+TEST(AudioUnit, the_periods_keep_to_the_rate_and_advance_lets_many_pass)
+{
+    Speaker speaker;
+    speaker.ring(4, 1, 96000, Audio::kFormatS16);
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1041u);
+    EXPECT_EQ(speaker.audio.cycles_until_event(), word(-1)) << "no interrupt to wait for";
+    speaker.audio.advance(1041);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1042u);
+    speaker.audio.advance(1042 + 1042);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 3u);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1041u);
+
+    speaker.audio.advance(3125 * 10 + 5);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 33u);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1036u);
+    EXPECT_EQ(speaker.recording.samples().size(), 2u * 34) << "a period each, and the first";
+
+    speaker.audio.advance(1036);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1042u) << "a carry from this period";
+    speaker.set(Audio::kRegCtrl, 0);
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    EXPECT_EQ(speaker.audio.cycles_until_period(), 1041u) << "turning it on starts afresh";
+    EXPECT_EQ(speaker.reg(Audio::kRegPosition), 0u);
+}
+
+TEST(AudioUnit, the_formats_become_16_bit_stereo)
+{
+    Speaker speaker;
+    const byte bytes[] = {0x00, 0x80, 0xFF, 0x7F, 0x34, 0x12, 0xCC, 0xED};
+    speaker.ram.write_block(0x1000, bytes, sizeof(bytes));
+
+    speaker.ring(8, 8, 8000, Audio::kFormatU8);
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    const std::vector<S16> u8(speaker.recording.samples().begin(),
+                              speaker.recording.samples().begin() + 4);
+    EXPECT_EQ(u8, (std::vector<S16>{-32768, -32768, 0, 0}));
+
+    speaker.set(Audio::kRegCtrl, 0);
+    speaker.ring(4, 4, 8000, Audio::kFormatS16);
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    const std::vector<S16> s16(speaker.recording.samples().end() - 8,
+                               speaker.recording.samples().end());
+    EXPECT_EQ(s16,
+              (std::vector<S16>{-32768, -32768, 0x7FFF, 0x7FFF, 0x1234, 0x1234, -0x1234, -0x1234}));
+
+    speaker.set(Audio::kRegCtrl, 0);
+    speaker.ring(2, 2, 8000, Audio::kFormatS16Stereo);
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    const std::vector<S16> stereo(speaker.recording.samples().end() - 4,
+                                  speaker.recording.samples().end());
+    EXPECT_EQ(stereo, (std::vector<S16>{-32768, 0x7FFF, 0x1234, -0x1234}));
+}
+
+TEST(AudioUnit, a_ring_that_is_not_valid_is_an_error_and_plays_nothing)
+{
+    Speaker speaker;
+    speaker.ring(4096, 1024, 8000, Audio::kFormatS16); // 8 KiB: just the RAM
+    speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+    EXPECT_EQ(speaker.reg(Audio::kRegStatus), 0u);
+    speaker.set(Audio::kRegCtrl, 0);
+
+    const auto fails = [&](const char *why)
+    {
+        speaker.set(Audio::kRegStatus, 0);
+        const size_t before = speaker.recording.samples().size();
+        speaker.set(Audio::kRegCtrl, Audio::kCtrlOn);
+        EXPECT_EQ(speaker.reg(Audio::kRegStatus), Audio::kStatusError) << why;
+        EXPECT_EQ(speaker.recording.samples().size(), before) << why;
+        EXPECT_NE(speaker.audio.cycles_until_period(), word(-1)) << "the time goes on: " << why;
+        speaker.set(Audio::kRegCtrl, 0);
+    };
+    speaker.set(Audio::kRegAddress, 0x1004);
+    fails("one frame past the RAM");
+    speaker.set(Audio::kRegAddress, 0x1002);
+    speaker.set(Audio::kRegLength, 4);
+    fails("not a multiple of 4");
+    speaker.set(Audio::kRegAddress, 0x1000);
+    speaker.set(Audio::kRegLength, 1000);
+    fails("not a multiple of the period");
+    speaker.set(Audio::kRegLength, 1024);
+    speaker.audio.set_ram(nullptr);
+    fails("no RAM");
+}
+
+TEST(AudioUnit, values_are_kept_in_range_and_a_reset_restores_them)
+{
+    Speaker speaker;
+    speaker.set(Audio::kRegLength, 0);
+    EXPECT_EQ(speaker.reg(Audio::kRegLength), 1u);
+    speaker.set(Audio::kRegPeriod, 70000);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriod), Audio::kMaxFrames);
+    speaker.set(Audio::kRegRate, 100);
+    EXPECT_EQ(speaker.reg(Audio::kRegRate), Audio::kMinRate);
+    speaker.set(Audio::kRegRate, 200000);
+    EXPECT_EQ(speaker.reg(Audio::kRegRate), Audio::kMaxRate);
+    speaker.set(Audio::kRegFormat, 7);
+    EXPECT_EQ(speaker.reg(Audio::kRegFormat), Audio::kFormatS16Stereo);
+    speaker.set(Audio::kRegCtrl, 0xFF);
+    EXPECT_EQ(speaker.reg(Audio::kRegCtrl), Audio::kCtrlOn | Audio::kCtrlPeriodInterrupt);
+
+    speaker.audio.advance(10000000);
+    speaker.audio.reset();
+    EXPECT_EQ(speaker.reg(Audio::kRegCtrl), 0u);
+    EXPECT_EQ(speaker.reg(Audio::kRegStatus), 0u);
+    EXPECT_EQ(speaker.reg(Audio::kRegAddress), 0u);
+    EXPECT_EQ(speaker.reg(Audio::kRegLength), Audio::kDefaultLength);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriod), Audio::kDefaultPeriod);
+    EXPECT_EQ(speaker.reg(Audio::kRegRate), Audio::kDefaultRate);
+    EXPECT_EQ(speaker.reg(Audio::kRegFormat), Audio::kFormatU8);
+    EXPECT_EQ(speaker.reg(Audio::kRegPosition), 0u);
+    EXPECT_EQ(speaker.reg(Audio::kRegPeriods), 0u);
+}
+
+TEST(AudioRecorderUnit, the_sound_is_written_as_a_wav_file_and_passed_on)
+{
+    AudioRecorder inner;
+    AudioRecorder outer(&inner);
+    const S16 first[] = {1, -1, 2, -2};
+    const S16 second[] = {0x1234, 0x5678};
+    outer.play(22050, first, 2);
+    outer.play(44100, second, 1);
+    EXPECT_EQ(outer.rate(), 22050u) << "the first period's";
+    EXPECT_EQ(inner.samples(), outer.samples());
+
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "aemu_audio_recorder_test.wav";
+    ASSERT_TRUE(outer.write_wav(path.string()));
+    std::ifstream in(path, std::ios::binary);
+    const std::string file((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    std::filesystem::remove(path);
+
+    const std::string header("RIFF\x30\0\0\0WAVEfmt \x10\0\0\0\x01\0\x02\0"
+                             "\x22\x56\0\0\x88\x58\x01\0\x04\0\x10\0data\x0C\0\0\0",
+                             44);
+    ASSERT_EQ(file.size(), 44u + 12);
+    EXPECT_EQ(file.substr(0, 44), header);
+    EXPECT_EQ(file.substr(44), std::string("\x01\0\xFF\xFF\x02\0\xFE\xFF\x34\x12\x78\x56", 12));
+    EXPECT_FALSE(outer.write_wav("/nonexistent/dir/a.wav"));
+}
+
+// A program turns the sound on and waits for the end of a period with WFI.
+TEST_F(Devices, wfi_waits_for_the_end_of_a_period)
+{
+    AudioRecorder recording;
+    cpu.system_bus->audio.set_sink(&recording);
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kAudioBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineAudio), store_at(1, 10, 0x08), mov(12, 0x4000),
+                    store_at(12, 11, Audio::kRegAddress), mov(1, 8000),
+                    store_at(1, 11, Audio::kRegRate), mov(1, 16),
+                    store_at(1, 11, Audio::kRegPeriod), store_at(1, 11, Audio::kRegLength),
+                    mov(1, Audio::kCtrlOn | Audio::kCtrlPeriodInterrupt),
+                    store_at(1, 11, Audio::kRegCtrl), E::asm_wfi(), load_at(8, 10, 0), // claim
+                    load_at(9, 11, Audio::kRegPeriods), E::asm_hlt()});
+    const auto result = run(program);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineAudio);
+    EXPECT_EQ(cpu.read_reg(9), 1u);
+    EXPECT_LT(result.instructions_ran, 40u) << "it did not execute 200000 instructions";
+    EXPECT_EQ(recording.samples().size(), 2u * 2 * 16) << "the machine wired the RAM";
+}
+
+// The end of a period interrupts the program at the instruction it happens, without the program
+// looking at the device: the clock counts down to it.
+TEST_F(Devices, the_end_of_a_period_interrupts_a_program_that_runs)
+{
+    install_vectors({mov(7, 1), load_at(8, 10, 0), E::asm_hlt()});
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kAudioBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineAudio), store_at(1, 10, 0x08), mov(12, 0x4000),
+                    store_at(12, 11, Audio::kRegAddress), mov(1, 1),
+                    store_at(1, 11, Audio::kRegPeriod), store_at(1, 11, Audio::kRegLength),
+                    mov(1, 50000), store_at(1, 11, Audio::kRegRate), // 2000 instructions
+                    mov(1, Audio::kCtrlOn | Audio::kCtrlPeriodInterrupt),
+                    store_at(1, 11, Audio::kRegCtrl),                // the 17th instruction
+                    E::asm_msr(encoding::kSysregId_pstate, true, 0),
+                    E::asm_format_b1(encoding::_op_b, ConditionCode::AL, 0)}); // to itself
+
+    const auto result = run(program, 10000);
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(cpu.read_reg(7), 1u) << "the handler ran";
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineAudio);
+    EXPECT_EQ(result.instructions_ran, 16 + 2000 + 2)
+        << "the store and 1999 more, then the mov and the load of the handler";
 }

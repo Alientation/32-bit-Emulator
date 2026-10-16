@@ -1,6 +1,6 @@
 # Devices, interrupts and the boot sequence
 
-The machine has nine memory mapped devices: an interrupt controller, a timer, a console, a block device, a display, a system controller, a real time clock, a source of random numbers and a keyboard with a mouse. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console), to keep data (block device), to show pictures (display, described in [display.md](display.md)), to find out how much memory there is and to turn the machine off or reset it (system controller), to know the time of day (real time clock), for random numbers, and to read the keys and the mouse of the window (input device). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
+The machine has ten memory mapped devices: an interrupt controller, a timer, a console, a block device, a display, a system controller, a real time clock, a source of random numbers, a keyboard with a mouse and an audio device. An operating system uses them to take turns between processes (timer), to wait without spinning (`WFI`), to talk to the user (console), to keep data (block device), to show pictures (display, described in [display.md](display.md)), to find out how much memory there is and to turn the machine off or reset it (system controller), to know the time of day (real time clock), for random numbers, to read the keys and the mouse of the window (input device) and to make sound (audio). They are reached with ordinary loads and stores, so the kernel maps their pages like any other memory (see [mmu.md](mmu.md)).
 
 ## Memory map
 
@@ -20,10 +20,11 @@ Physical addresses:
 | `0xF0006000` | **real time clock**, one page |
 | `0xF0007000` | **random numbers**, one page |
 | `0xF0008000` | **keyboard and mouse** (the input device), one page |
+| `0xF0009000` | **audio**, one page |
 
 A store by a program to the ROM is a bus error as well (nothing is written; a store that crosses into the ROM from the page before writes nothing either). The host can still write the image (the loader's physical sections, `ROM::write_*` in a test).
 
-Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF0009000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA, the random numbers' DATA) does it once per access.
+Memory may not reach `0xF0000000` (the machine refuses the layout). Another address in the window (`0xF000A000` ...) is a bus error (a data abort, ISS 4, with a vector table). A device register is a word. A byte or half-word **read** gives that part of the word, and a byte or half-word **write** writes the register with the value in that position, so `strb x1, [console]` sends one byte. A register that has a side effect on read (the interrupt controller's CLAIM, the console's DATA, the random numbers' DATA) does it once per access.
 
 Programs without page tables (`SCTLR.M` = 0, what `emu32 -e` runs) reach the devices at these addresses directly, the swapping memory leaves addresses from `0xF0000000` alone.
 
@@ -48,6 +49,7 @@ The devices fill the pages from `0xF0000000` on with no gap, and the system cont
 | 7 | real time clock | none |
 | 8 | random numbers | none |
 | 9 | keyboard and mouse | 4 |
+| 10 | audio | 5 |
 
 So a kernel finds its drivers' devices by reading DEVICE_COUNT and then the ID of each page, rather than knowing the addresses and lines (`0x000101FF` at `0xF0000FFC`, `0x00020100` at `0xF0001FFC`, ...). The table above is the order now; a new device takes the next page and the next free line.
 
@@ -59,7 +61,7 @@ An IRQ is **first come, first served**, there are no priorities:
 2. Between two instructions, if the queue is not empty, `PSTATE.I` is 0 and a vector table is installed (`VBAR != 0`), the CPU takes the **IRQ exception**, vector 6, `VBAR + 96`. `ELR` is the instruction that would have run, so `ERET` resumes exactly there. `I` is set on entry, so the handler is not interrupted unless it clears `I`.
 3. The handler reads CLAIM, which returns the line at the head of the queue and removes it, and serves that device. If more lines are waiting it may claim again, or return and be interrupted again at once (the queue is still not empty).
 
-Without a vector table nothing is ever delivered (the queue just fills), which keeps programs that do not know about interrupts unchanged. Lines: 0 timer, 1 console receive, 2 block device, 3 display, 4 keyboard and mouse.
+Without a vector table nothing is ever delivered (the queue just fills), which keeps programs that do not know about interrupts unchanged. Lines: 0 timer, 1 console receive, 2 block device, 3 display, 4 keyboard and mouse, 5 audio.
 
 ### Interrupt controller (`0xF0000000`)
 
@@ -201,9 +203,34 @@ Key events wait in a queue of 64; one that arrives while it is full is lost, and
 
 Like the console's, the events come from another thread (`InputDevice::attach_host_input`, the same `HostInput` as the console's in `emu32`) and are taken on the thread of the machine: when a register is read, at least every 10000 instructions and when `WFI` waits. `WFI` with nothing else to wait for and CTRL not 0 **blocks until an event arrives**, as it does for the console's receive interrupt; what arrives that the program did not ask to hear of (text, with the console's interrupt off) is taken and the wait goes on. Without the window nothing arrives; `InputDevice::push` gives the device an event from C++.
 
+### Audio (`0xF0009000`)
+
+| Offset | Name | Access | |
+|--------|------|--------|---|
+| `0x00` | CTRL | r/w | bit 0: on. bit 1: raise line 5 when a period ends |
+| `0x04` | STATUS | r/w | bit 0: a period ended. bit 1: error, the ring was not valid when a period started. A write clears both |
+| `0x08` | ADDRESS | r/w | physical RAM address of the ring, a multiple of 4 |
+| `0x0C` | LENGTH | r/w | frames in the ring, 1 to 65536, a multiple of PERIOD. Reset: 2048 |
+| `0x10` | PERIOD | r/w | frames of a period, 1 to 65536. Reset: 1024 |
+| `0x14` | RATE | r/w | frames a second, 8000 to 96000. Reset: 22050 |
+| `0x18` | FORMAT | r/w | 0: a byte per frame, unsigned, 128 is silence. 1: a little endian signed half-word. 2: two of them, left then right |
+| `0x1C` | POSITION | read | the frame of the ring where the period that plays now starts |
+| `0x20` | PERIODS | read | the periods that ended since reset |
+
+A value written outside of its range is taken as the nearest one in it (a FORMAT above 2 is 2).
+
+The sound is a **ring of LENGTH frames in RAM** at a physical address, like the display's picture, played a **period** at a time, the way the sound cards of a PC work. Turning it on starts the first period at frame 0. When a period starts, the device reads its PERIOD frames from the ring and hands them to the host; when it ends, PERIOD frames' time later, the device adds 1 to PERIODS, sets STATUS bit 0, raises line 5 if CTRL bit 1 is set, moves POSITION on by PERIOD (back to 0 at the end of the ring) and starts the next period. So with a ring of two periods, the program refills the period that just ended, at its interrupt, while the other one plays. A ring that is not valid when a period starts (not all in RAM, ADDRESS not a multiple of 4, LENGTH not a multiple of PERIOD) sets STATUS bit 1 and the period is silence; the time goes on.
+
+The time of a period is counted in executed instructions at 100 million a second, the speed of the real time clock: PERIOD frames at RATE are `PERIOD * 100000000 / RATE` instructions (1024 frames at 22050 are 4643990 instructions, 46 ms), and what is left of an instruction is carried to the next period, so the periods keep to the rate. A run is the same every time, and `WFI` waits for the end of a period like for the end of a frame when the interrupt is on. The machine is not always that fast: a program that cannot keep up (a period's work takes more instructions than it lasts) is heard with gaps, which `emu32 --audio` shows as the machine waiting less.
+
+In the host, what was played goes to an `AudioSink` (`host_audio.h`, `Audio::set_sink`), as 16 bit stereo at RATE:
+
+- `emu32 --audio-dump FILE` writes all of it as a WAV file when the run ends (16 bit stereo, at the rate of the first period; a later period at another rate is written as it is). `AudioRecorder` does it, and can pass the sound on to another sink.
+- `emu32 --audio` plays it on the speakers through SDL (`AudioOutput`, in a build with `-DAEMU_GUI=ON` like the window, [display.md](display.md); without it emu32 refuses the option). The speakers play 48000 frames a second, and other rates are converted. At most a tenth of a second waits to be heard: the machine waits when it is ahead, so a program that makes sound runs at the speed of its sound, as one that shows frames does with `--display-fps`. When the run ends, emu32 waits for what is left to be heard (at most 2 seconds). It works with or without `--display`.
+
 ## `WFI`
 
-`WFI` (privileged) returns as soon as an interrupt is pending, even a masked one: the next instruction runs, and takes the interrupt if it is not masked. Nothing else runs while the CPU waits, so the only things that can produce an interrupt are the timer, a block device command in progress and the end of a frame of the display (when its interrupt is enabled), and `WFI` **jumps** to the nearest of these moments: time passes at once, the device finishes and raises its interrupt. A kernel's idle loop is `wfi` and then the interrupt handling, and costs one instruction however long the wait is. With nothing that could ever wake it (no pending interrupt, the timer off, no command in progress, the display off or without its interrupt), `WFI` ends the run like `HLT` instead of hanging, with the message `WFI with no interrupt source`.
+`WFI` (privileged) returns as soon as an interrupt is pending, even a masked one: the next instruction runs, and takes the interrupt if it is not masked. Nothing else runs while the CPU waits, so the only things that can produce an interrupt are the timer, a block device command in progress, the end of a frame of the display and the end of a period of the audio (when their interrupts are enabled), and `WFI` **jumps** to the nearest of these moments: time passes at once, the device finishes and raises its interrupt. A kernel's idle loop is `wfi` and then the interrupt handling, and costs one instruction however long the wait is. With nothing that could ever wake it (no pending interrupt, the timer off, no command in progress, the display off or without its interrupt), `WFI` ends the run like `HLT` instead of hanging, with the message `WFI with no interrupt source`.
 
 ## Boot sequence
 
@@ -235,6 +262,6 @@ The linker script places the kernel at physical addresses with `@P;` ([belf-form
 
 ## Where it is in the code
 
-`HostInput` (`host_input.h`) is the thread safe queue of the live input: the console's bytes and the input device's `InputEvent`s. `Device` (`devices.h`) is the register page, with `read_register`/`write_register` and the ID register (`device_id`, answered by `Device` itself, `kNumDevices` and `kDeviceEnd` for the size of the window), and `InterruptController`, `Timer`, `Console`, `BlockDevice`, `Display`, `SystemController`, `RealTimeClock`, `RandomNumbers` and `InputDevice` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block`, `display`, `sysctl`, `rtc`, `rng` and `input`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
+`HostInput` (`host_input.h`) is the thread safe queue of the live input: the console's bytes and the input device's `InputEvent`s. `Device` (`devices.h`) is the register page, with `read_register`/`write_register` and the ID register (`device_id`, answered by `Device` itself, `kNumDevices` and `kDeviceEnd` for the size of the window), and `InterruptController`, `Timer`, `Console`, `BlockDevice`, `Display`, `SystemController`, `RealTimeClock`, `RandomNumbers`, `InputDevice` and `Audio` are its subclasses (`devices.cpp`). `SystemBus` owns `intc`, `timer`, `console`, `block`, `display`, `sysctl`, `rtc`, `rng`, `input` and `audio`, and routes `0xF0000000` and up to them. `Emulator32bit::run` takes the IRQ between instructions.
 
-The timer, the block device, the display and the real time clock count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame), and then gives all of them the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers (`catch_up` for a read, which does not change when the next event is), starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the live input of the console and the input device, and while there is one it counts down to at most `Console::kHostInputPollInterval`. While the system controller has a request it counts down to 1, so `tick` returns `true` after the instruction that made the request, and `run` serves it (`serve_system_request`): a power off ends the run, a reset calls `reset` and goes on; this costs the loop nothing, the check is on the path where the count down ends. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt and moves them all on that far (`DeviceClock::advance`). Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller`, `a_program_turns_the_machine_off_with_an_exit_code`, `the_real_time_clock_starts_at_the_time_emu32_sets`, `random_numbers_follow_the_seed_emu32_sets` and `a_machine_that_boots_from_its_rom_is_reset_by_the_program` in the integration tests.
+The timer, the block device, the display, the real time clock and the audio device count executed instructions, but they do not look at each one. The bus's `DeviceClock` counts down, once per executed instruction in `run`, to the first moment one of them has something to do (`cycles_until_event`, or the end of a frame or of a period), and then gives all of them the instructions that passed at once (`advance`). It also brings them up to date before an access to their registers (`catch_up` for a read, which does not change when the next event is), starts the count down again after a write (which can change when the next event is), and does both at the start and the end of `run`. Each time, it takes the live input of the console and the input device, and while there is one it counts down to at most `Console::kHostInputPollInterval`. While the system controller has a request it counts down to 1, so `tick` returns `true` after the instruction that made the request, and `run` serves it (`serve_system_request`): a power off ends the run, a reset calls `reset` and goes on; this costs the loop nothing, the check is on the path where the count down ends. So a device sees the same count, and raises its interrupt after the same instruction, as if it counted them one at a time; a new device that counts instructions joins the clock. `Emulator32bit::_wfi` asks the devices how long until their next interrupt and moves them all on that far (`DeviceClock::advance`). Tests: `devices_test.cpp`, and `console_timer_and_interrupt_controller`, `a_program_turns_the_machine_off_with_an_exit_code`, `the_real_time_clock_starts_at_the_time_emu32_sets`, `random_numbers_follow_the_seed_emu32_sets`, `a_program_plays_a_ring_of_samples` (and `AudioOutput.the_sound_reaches_sdl_and_play_waits_until_it_is_heard` with SDL's disk audio driver in an `AEMU_GUI` build) and `a_machine_that_boots_from_its_rom_is_reset_by_the_program` in the integration tests.

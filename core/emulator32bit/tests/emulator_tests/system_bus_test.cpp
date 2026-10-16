@@ -86,7 +86,7 @@ TEST(system_bus, the_devices_fill_the_window_and_each_says_what_it_is)
         0x000601FF, // nor does the system controller
         0x000701FF, // nor the real time clock
         0x000801FF, // nor the random numbers
-        0x00090104,
+        0x00090104, 0x000A0105,
     };
     ASSERT_EQ(std::size(ids), count);
     for (word n = 0; n < count; n++)

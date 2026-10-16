@@ -23,8 +23,9 @@ because the assembler's diagnostics and the report of a faulting program are war
 `-fno-sanitize-recover=all` so a report fails the test, plus `_GLIBCXX_ASSERTIONS`; `thread` cannot
 be combined with `address`/`leak`; use a build directory of its own, `build.sh asan` does),
 `BUILD_TESTS` (ON; when OFF, GoogleTest isn't fetched), `AEMU_GUI` (OFF; ON builds the SDL2 window of
-`emu32 --display` into `emu32` only, `find_package(SDL2)`, and defines `AEMU_GUI` for `emu32` and the
-integration tests; use a build directory of its own, e.g. `build/gui`, `docs/display.md`). In-tree code links the libraries through the
+`emu32 --display` and the speakers of `emu32 --audio` into `emu32` (and into the integration tests, which test them
+with SDL's dummy video and disk audio drivers), not into the libraries, `find_package(SDL2)`, and defines `AEMU_GUI` for
+`emu32` and the integration tests; use a build directory of its own, e.g. `build/gui`, `docs/display.md`). In-tree code links the libraries through the
 `aemu::util`, `aemu::emulator32bit` and `aemu::assembler` aliases.
 
 **New test files must be added by hand** to the `SOURCES` list of the `aemu_add_gtest(...)` call in
@@ -253,12 +254,12 @@ Static libraries with this dependency chain: `util` ← `emulator32bit` ← `ass
     cost a run with a live input 30-45%) and `BlockDevice` (512 byte sectors, data
     register, completes after LATENCY ticks, line 2, `--block-file`/`--block-sectors`; DMA commands
     4/5 with DMA_ADDR/DMA_COUNT, and 6/7 with a list of descriptors at DMA_LIST, move whole sectors
-    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU) and `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM) and `SystemController` (the RAM and ROM layout, POWEROFF and RESET: it records the request, the clock counts down to 1 while there is one, so `tick ()` returns `true` after the store and `run ()` serves it, `Status::POWER_OFF` or a `reset ()` to the boot address within the run) and `RealTimeClock` (SECONDS/MICROS from the executed instructions at `kInstructionsPerSecond`, or the host's clock with `--rtc-host`; kept by a reset) `RandomNumbers` (SplitMix64 from `--rng-seed`, or `std::random_device` with `--rng-host`, until a program writes SEED) and `InputDevice` (the keys and the mouse of the window, line 4: a queue of 64 key events, USB HID codes, and the mouse's state; `InputEvent`s come through the console's `HostInput`, and `_wfi` waits on it for either device). `SystemBus`
-    owns them (`intc`, `timer`, `console`, `block`, `display`, `sysctl`, `rtc`, `rng`, `input`) at `0xF0000000`/`+0x1000`/.../`+0x8000`
+    to and from RAM at completion (`set_dma_memory`, wired by `SystemBus`); separate from the memory mapped `Disk` of the swapping MMU), `Display` (`docs/display.md`: a picture in RAM at a physical address, read at the end of each frame of INTERVAL instructions, line 3; `capture` converts it to a `Frame`, `HostDisplay` hands frames to a window on another thread, `emu32 --display-dump` writes a PPM), `SystemController` (the RAM and ROM layout, POWEROFF and RESET: it records the request, the clock counts down to 1 while there is one, so `tick ()` returns `true` after the store and `run ()` serves it, `Status::POWER_OFF` or a `reset ()` to the boot address within the run), `RealTimeClock` (SECONDS/MICROS from the executed instructions at `kInstructionsPerSecond`, or the host's clock with `--rtc-host`; kept by a reset), `RandomNumbers` (SplitMix64 from `--rng-seed`, or `std::random_device` with `--rng-host`, until a program writes SEED), `InputDevice` (the keys and the mouse of the window, line 4: a queue of 64 key events, USB HID codes, and the mouse's state; `InputEvent`s come through the console's `HostInput`, and `_wfi` waits on it for either device) and `Audio` (a ring of frames in physical RAM played a period at a time, line 5, periods timed at `kInstructionsPerSecond` with the remainder carried; each period goes to an `AudioSink` as 16 bit stereo: `AudioRecorder` for `--audio-dump` (WAV), `AudioOutput` (SDL, `AEMU_GUI` only) for `--audio`, which waits while more than 100 ms is queued). `SystemBus`
+    owns them (`intc`, `timer`, `console`, `block`, `display`, `sysctl`, `rtc`, `rng`, `input`, `audio`) at `0xF0000000`/`+0x1000`/.../`+0x9000`
     and `route_memory` sends addresses from `kDeviceBase` to them; the swapping MMU leaves those
     addresses untranslated. `run()` takes the IRQ exception between instructions when the queue is
     not empty, `PSTATE.I` is 0 and `VBAR != 0`; `_wfi` returns when something is pending, jumps
-    time to the nearest interrupt of the timer, the block device or the display, else waits for the
+    time to the nearest interrupt of the timer, the block device, the display or the audio, else waits for the
     host's input if the program asked to hear of a byte, else halts. The devices that count
     instructions are moved on by the bus's `DeviceClock`: `run()` only counts down
     (`bus.clock.tick()`, one decrement) to the next event of any of them, and the clock gives them

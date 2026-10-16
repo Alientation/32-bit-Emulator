@@ -30,12 +30,14 @@ SystemBus::SystemBus(std::unique_ptr<RAM> ram, std::unique_ptr<ROM> rom,
     validate_memory();
     block.set_dma_memory(this->ram.get());
     display.set_ram(this->ram.get());
+    audio.set_ram(this->ram.get());
     timer.set_clock(&clock);
     block.set_clock(&clock);
     display.set_clock(&clock);
     // So that the clock sees a request right after the store that made it.
     sysctl.set_clock(&clock);
     rtc.set_clock(&clock);
+    audio.set_clock(&clock);
 }
 
 SystemBus::~SystemBus()
@@ -166,6 +168,7 @@ void SystemBus::reset()
     rtc.reset();
     rng.reset();
     input.reset();
+    audio.reset();
 }
 
 void SystemBus::read_page(byte *const out, const word ppage)

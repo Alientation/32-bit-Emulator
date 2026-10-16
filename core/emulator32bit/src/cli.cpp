@@ -3,12 +3,14 @@
 #include "emulator32bit/debugger.h"
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/gdb_server.h"
+#include "emulator32bit/host_audio.h"
 #include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 #include "util/file.h"
 #include "util/logger.h"
 
 #ifdef AEMU_GUI
+#include "emulator32bit/audio_output.h"
 #include "emulator32bit/display_window.h"
 #endif
 
@@ -210,6 +212,9 @@ static cxxopts::Options make_options()
             cxxopts::value<std::string> ()->default_value ("3"))
         ("display-fps", "Frames a second the window shows at most, which slows the machine down to it; 0 for no limit",
             cxxopts::value<std::string> ()->default_value ("60"))
+        ("audio-dump", "Write the sound of the audio device to this file (a WAV file) when the run ends",
+            cxxopts::value<std::string> ())
+        ("audio", "Play the sound of the audio device, which makes the machine run at the speed of its sound (built with -DAEMU_GUI=ON)")
         ("h,help", "Show help");
 
     options.add_options ("Debugging")
@@ -272,6 +277,10 @@ struct CliArgs
     std::vector<RegisterWatchSpec> register_watches;
     std::ofstream trace_file;
     std::ostream *trace = nullptr;
+    std::unique_ptr<AudioRecorder> audio_recording; // For --audio-dump.
+#ifdef AEMU_GUI
+    std::unique_ptr<AudioOutput> speakers;          // For --audio.
+#endif
 };
 
 /// Reads an option that is a number.
@@ -647,6 +656,41 @@ static int power_off_exit_code(const Emulator32bit &emu)
     return S32(emu.system_bus->sysctl.exit_code() & kExitStatusMask);
 }
 
+/// Sends the sound of the audio device where the command line asks: to the speakers (`--audio`)
+/// and to a recording (`--audio-dump`).
+///
+/// @param[in,out] args What the command line asked for, which gets the speakers and the recording.
+/// @param[in] result The parsed command line.
+/// @param[in,out] emu The machine.
+/// @return `false` with a message if the speakers could not be opened.
+static bool connect_audio(CliArgs &args, const cxxopts::ParseResult &result, Emulator32bit &emu)
+{
+    AudioSink *sink = nullptr;
+#ifdef AEMU_GUI
+    // A tenth of a second of sound waits at most: enough not to break up, little enough that the
+    // sound follows the program.
+    constexpr word kMaxBufferedMs = 100;
+    if (result.count("audio"))
+    {
+        args.speakers = std::make_unique<AudioOutput>(kMaxBufferedMs);
+        std::string error;
+        if (!args.speakers->open(error))
+        {
+            std::cerr << "ERROR: Cannot open the speakers: " << error << "\n";
+            return false;
+        }
+        sink = args.speakers.get();
+    }
+#endif
+    if (result.count("audio-dump"))
+    {
+        args.audio_recording = std::make_unique<AudioRecorder>(sink);
+        sink = args.audio_recording.get();
+    }
+    emu.system_bus->audio.set_sink(sink);
+    return true;
+}
+
 /// Writes the state after a run where `--output` says.
 ///
 /// @param[in] result The parsed command line.
@@ -671,6 +715,9 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
         }
     }
     std::ostream &out = out_file.is_open() ? out_file : std::cout;
+#ifdef AEMU_GUI
+    if (args.speakers != nullptr) args.speakers->drain();
+#endif
 
     if (args.plain)
     {
@@ -688,6 +735,13 @@ static int report(const cxxopts::ParseResult &result, const CliArgs &args, Emula
     if (result.count("display-dump")
         && !dump_display(result["display-dump"].as<std::string>(), emu.system_bus->display))
     {
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
+    if (args.audio_recording != nullptr
+        && !args.audio_recording->write_wav(result["audio-dump"].as<std::string>()))
+    {
+        std::cerr << "ERROR: Cannot write the sound: " << result["audio-dump"].as<std::string>()
+                  << "\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
 
@@ -872,6 +926,11 @@ static int run_cli(const int argc, char *argv[])
             << "ERROR: --display needs an emu32 built with the window (cmake -DAEMU_GUI=ON)\n";
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }
+    if (result.count("audio"))
+    {
+        std::cerr << "ERROR: --audio needs an emu32 built with SDL (cmake -DAEMU_GUI=ON)\n";
+        return S32(ExitCode::EXIT_USAGE_ERROR);
+    }
 #endif
 
     CliArgs args;
@@ -881,7 +940,7 @@ static int run_cli(const int argc, char *argv[])
     }
 
     const std::unique_ptr<Emulator32bit> emu = make_machine(args, result);
-    if (emu == nullptr)
+    if (emu == nullptr || !connect_audio(args, result, *emu))
     {
         return S32(ExitCode::EXIT_USAGE_ERROR);
     }

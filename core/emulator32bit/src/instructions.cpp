@@ -372,7 +372,7 @@ void Emulator32bit::_wfi(const word instr)
     constexpr word kNever = word(-1);
     bus.clock.sync();
     const word wait = std::min({bus.timer.cycles_until_event(), bus.block.cycles_until_event(),
-                                bus.display.cycles_until_event()});
+                                bus.display.cycles_until_event(), bus.audio.cycles_until_event()});
     if (wait != kNever)
     {
         bus.clock.advance(wait);

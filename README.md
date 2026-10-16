@@ -20,7 +20,7 @@ This project simulates a computer processor by simulating the execution of machi
 * supports up to 64 instructions (6 bit opcode), currently **35** opcodes are in use (29 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
-* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA, display, keyboard and mouse, system controller, real time clock, random numbers), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
+* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA, display, keyboard and mouse, audio, system controller, real time clock, random numbers), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
 
 <p align="center">
   <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">
@@ -140,7 +140,7 @@ build/release/emulator32bit/emu32 -e prog.bexe -l 1000 --format plain -o state.t
 * Exit codes: `0` halted, `1` usage/load error, `2` instruction limit reached, `3` fault, `4` stopped at a breakpoint or watchpoint; a program that turns the machine off (the system controller) exits with its own code
 * Debugging: `--trace`, `--history`, `--break`, `--watch`, `--watch-reg`, `--debug`, `--gdb` (see [`docs/debugging.md`](./docs/debugging.md))
 * Devices: `--console-input`, `--console-stdin`, `--block-file`, `--block-sectors`, `--rtc-time`, `--rtc-host`, `--rng-seed`, `--rng-host` (see [`docs/devices.md`](./docs/devices.md))
-* Display: `--display-dump FILE` writes the display's picture as a PPM image; `--display` shows it in a window, in a build configured with `-DAEMU_GUI=ON` (needs SDL2, see [`docs/display.md`](./docs/display.md))
+* Display and sound: `--display-dump FILE` writes the display's picture as a PPM image and `--audio-dump FILE` the sound as a WAV file; `--display` shows the picture in a window and `--audio` plays the sound, in a build configured with `-DAEMU_GUI=ON` (needs SDL2, see [`docs/display.md`](./docs/display.md) and [`docs/devices.md`](./docs/devices.md))
 * Run with `--help` for all options. A debug build logs a lot (pipe through `grep -v DBG`); the release builds leave the debug and info messages out
 
 

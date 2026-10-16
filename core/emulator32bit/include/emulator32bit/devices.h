@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+class AudioSink;
 class DeviceClock;
 class HostDisplay;
 class HostInput;
@@ -27,10 +28,11 @@ inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
 inline constexpr word kRtcBase = kDeviceBase + 0x6000;
 inline constexpr word kRngBase = kDeviceBase + 0x7000;
 inline constexpr word kInputBase = kDeviceBase + 0x8000;
+inline constexpr word kAudioBase = kDeviceBase + 0x9000;
 
 /// The devices fill the pages of the window from kDeviceBase on, with no gap. An address after the
 /// last one is a bus error.
-inline constexpr word kNumDevices = 9;
+inline constexpr word kNumDevices = 10;
 inline constexpr word kDeviceEnd = kDeviceBase + kNumDevices * kPageSize;
 
 /// The interrupt lines.
@@ -39,6 +41,7 @@ inline constexpr word kIrqLineConsole = 1;
 inline constexpr word kIrqLineBlock = 2;
 inline constexpr word kIrqLineDisplay = 3;
 inline constexpr word kIrqLineInput = 4;
+inline constexpr word kIrqLineAudio = 5;
 
 /// The types of device, in bits 31-16 of the ID register of each one.
 inline constexpr word kDeviceTypeInterruptController = 1;
@@ -50,6 +53,7 @@ inline constexpr word kDeviceTypeSystemController = 6;
 inline constexpr word kDeviceTypeRealTimeClock = 7;
 inline constexpr word kDeviceTypeRandom = 8;
 inline constexpr word kDeviceTypeInput = 9;
+inline constexpr word kDeviceTypeAudio = 10;
 
 /// The version of every device so far, in bits 15-8 of its ID. A device that changes what it does
 /// gets a higher one.
@@ -1010,8 +1014,148 @@ class InputDevice : public Device
     word m_count = 0;
 };
 
-/// The time of the devices that count executed instructions: the timer, the block device and the
-/// display. Rather than each of them looking at every instruction, the clock counts down to the
+/// Sound (docs/devices.md): a ring of samples in RAM, at a physical address the program chooses,
+/// played a period at a time. When a period starts, the device reads its samples and hands them to
+/// the host (an AudioSink); when it ends, the device counts it, says so in STATUS, raises line 5 if
+/// that is enabled and goes on with the next period of the ring. So a program refills the period
+/// that just ended while the next one plays. Time is executed instructions, at
+/// kInstructionsPerSecond, like the real time clock's, so a run is the same every time.
+///
+/// | Offset | Name     | Access | |
+/// | 0x00   | CTRL     | r/w    | bit 0: on, bit 1: raise line 5 when a period ends |
+/// | 0x04   | STATUS   | r/w    | bit 0: a period ended, bit 1: error (the ring was not valid when a period started). A write clears both |
+/// | 0x08   | ADDRESS  | r/w    | physical RAM address of the ring, a multiple of 4 |
+/// | 0x0C   | LENGTH   | r/w    | frames in the ring, 1 to 65536, a multiple of PERIOD. Reset: 2048 |
+/// | 0x10   | PERIOD   | r/w    | frames of a period, 1 to 65536. Reset: 1024 |
+/// | 0x14   | RATE     | r/w    | frames a second, 8000 to 96000. Reset: 22050 |
+/// | 0x18   | FORMAT   | r/w    | 0: a byte per frame, unsigned (128 is silence). 1: a signed half-word. 2: two signed half-words, left then right |
+/// | 0x1C   | POSITION | read   | the frame of the ring where the period that plays now starts |
+/// | 0x20   | PERIODS  | read   | the periods that ended since reset |
+///
+/// A value written outside of its range is taken as the nearest one in it.
+class Audio : public Device
+{
+  public:
+    /// The offsets of the registers.
+    static constexpr word kRegCtrl = 0x00;
+    static constexpr word kRegStatus = 0x04;
+    static constexpr word kRegAddress = 0x08;
+    static constexpr word kRegLength = 0x0C;
+    static constexpr word kRegPeriod = 0x10;
+    static constexpr word kRegRate = 0x14;
+    static constexpr word kRegFormat = 0x18;
+    static constexpr word kRegPosition = 0x1C;
+    static constexpr word kRegPeriods = 0x20;
+
+    /// The bits of CTRL.
+    static constexpr word kCtrlOn = 1;
+    static constexpr word kCtrlPeriodInterrupt = 2;
+
+    /// The bits of STATUS.
+    static constexpr word kStatusPeriod = 1;
+    static constexpr word kStatusError = 2;
+
+    /// The formats.
+    static constexpr word kFormatU8 = 0;
+    static constexpr word kFormatS16 = 1;
+    static constexpr word kFormatS16Stereo = 2;
+
+    /// The ranges and the values after a reset.
+    static constexpr word kMaxFrames = 65536;
+    static constexpr word kMinRate = 8000;
+    static constexpr word kMaxRate = 96000;
+    static constexpr word kDefaultLength = 2048;
+    static constexpr word kDefaultPeriod = 1024;
+    static constexpr word kDefaultRate = 22050;
+
+    /// @param[in] intc The controller that gets the interrupt.
+    explicit Audio(InterruptController &intc);
+
+    /// The memory that the ring is in (the RAM, by physical address). Without it, every period is
+    /// an error.
+    ///
+    /// @param[in] ram The RAM, which is not owned.
+    void set_ram(RAM *ram)
+    {
+        m_ram = ram;
+    }
+
+    /// Where the sound goes.
+    ///
+    /// @param[in] sink The sink, which is not owned, or null to drop the sound.
+    void set_sink(AudioSink *sink)
+    {
+        m_sink = sink;
+    }
+
+    /// For the clock: how long until the period ends.
+    ///
+    /// @return The number of instructions, or word(-1) if the device is off.
+    word cycles_until_period() const
+    {
+        return (m_ctrl & kCtrlOn) ? m_remaining : word(-1);
+    }
+
+    /// For WFI: how long until the device raises its interrupt.
+    ///
+    /// @return The number of instructions, or word(-1) if it is not going to (it is off, or the
+    ///         interrupt is not enabled).
+    word cycles_until_event() const;
+
+    /// For WFI and the clock: `count` instructions pass at once. Any number of periods may end.
+    ///
+    /// @param[in] count The number of instructions.
+    void advance(const word count)
+    {
+        // Inline, so the clock pays little for a device that is off, which is the usual case.
+        if (m_ctrl & kCtrlOn) advance_playing(count);
+    }
+
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    /// advance, while the device is on.
+    ///
+    /// @param[in] count The number of instructions.
+    void advance_playing(word count);
+
+    /// @return The bytes of a frame in the FORMAT.
+    word bytes_per_frame() const;
+
+    /// @return Whether the ring is all in RAM and its sizes are valid.
+    bool ring_is_valid() const;
+
+    /// A period starts at POSITION: its samples go to the sink (or the error bit is set), and its
+    /// time is counted from now.
+    void start_period();
+
+    /// The period ends: it is counted and the next one starts.
+    void end_period();
+
+    InterruptController &m_intc;
+    RAM *m_ram = nullptr;
+    AudioSink *m_sink = nullptr;
+    std::vector<S16> m_samples; /// Of the period, stereo, reused.
+
+    word m_ctrl = 0;
+    word m_status = 0;
+    word m_address = 0;
+    word m_length = kDefaultLength;
+    word m_period = kDefaultPeriod;
+    word m_rate = kDefaultRate;
+    word m_format = kFormatU8;
+    word m_position = 0;
+    word m_periods = 0;
+    word m_remaining = 0; /// Instructions until the period ends, while it is on.
+    U64 m_carry = 0;      /// What the periods so far were short of whole instructions, times RATE.
+};
+
+/// The time of the devices that count executed instructions: the timer, the block device, the
+/// display, the real time clock and the audio device. Rather than each of them looking at every instruction, the clock counts down to the
 /// first moment that one of them has something to do, and only then gives them the instructions
 /// that passed (`advance`). A device is also brought up to date before its registers are read or
 /// written (Device::set_clock), and the countdown starts again after a write, which can change when
@@ -1032,8 +1176,10 @@ class DeviceClock
     /// @param[in] sysctl The system controller, whose request the clock passes on.
     /// @param[in] rtc The real time clock.
     /// @param[in] input The input device, whose live input the clock takes.
+    /// @param[in] audio The audio device.
     DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input);
+                const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input,
+                Audio &audio);
 
     /// Called after each instruction that completes.
     ///
@@ -1077,6 +1223,7 @@ class DeviceClock
     const SystemController &m_sysctl;
     RealTimeClock &m_rtc;
     InputDevice &m_input;
+    Audio &m_audio;
     word m_countdown = 1;   /// What the count down started from.
     word m_until_event = 1; /// Instructions left of it.
 };

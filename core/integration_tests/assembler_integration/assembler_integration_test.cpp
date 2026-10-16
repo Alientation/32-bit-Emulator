@@ -7,12 +7,14 @@
 #include "emulator32bit/emulator32bit.h"
 
 #ifdef AEMU_GUI
+#include "emulator32bit/audio_output.h"
 #include "emulator32bit/display_window.h"
 #include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+#include <chrono>
 #include <cstring>
 #endif
 
@@ -2632,6 +2634,80 @@ TEST_F(AssemblerIntegration, a_machine_that_boots_from_its_rom_is_reset_by_the_p
     EXPECT_EQ(reg(10), 0u);
 }
 
+// The audio device (docs/devices.md): a program plays a ring of 8 frames in periods of 4 at a
+// physical address (@P), waits for two periods to end and turns it off, and emu32 writes what it
+// played: the first period again after the second, 12 frames.
+TEST_F(AssemblerIntegration, a_program_plays_a_ring_of_samples)
+{
+    write_file("sound.basm", R"(.global _start
+.text
+_start:
+                ldr     x20, =0xF0000000         ; interrupt controller
+                ldr     x21, =0xF0009000         ; audio
+                ldr     x0, =ring
+                ldr     x1, =0x83828180          ; the frames 128 to 135, one byte each
+                str     x1, [x0]
+                ldr     x1, =0x87868584
+                str     x1, [x0, 4]
+                str     x0, [x21, 8]             ; ADDRESS
+                mov     x1, 8
+                str     x1, [x21, 0xC]           ; LENGTH
+                mov     x1, 4
+                str     x1, [x21, 0x10]          ; PERIOD
+                mov     x1, 8000
+                str     x1, [x21, 0x14]          ; RATE
+                mov     x1, 32
+                str     x1, [x20, 8]             ; enable line 5
+                mov     x1, 3
+                str     x1, [x21]                ; on, interrupt at the end of a period
+                wfi
+                ldr     x2, [x20]                ; claim
+                wfi
+                ldr     x2, [x20]
+                str     xzr, [x21]               ; off
+                ldr     x3, [x21, 0x20]          ; PERIODS
+                ldr     x4, [x21, 4]             ; STATUS
+                hlt
+
+.bss
+ring:           .advance 8
+)");
+    write_file("sound.ld", "ENTRY(_start)\nSECTIONS (\n @P;\n .text = 0x0;\n .bss = 0x8000;\n)\n");
+    ASSERT_NO_FATAL_FAILURE(build("-o sound sound.basm -ld sound.ld -outdir ."));
+    ASSERT_NO_FATAL_FAILURE(run("sound.bexe", "--audio-dump sound.wav"));
+    EXPECT_EQ(reg(2), 5u) << "the audio's line";
+    EXPECT_EQ(reg(3), 2u);
+    EXPECT_EQ(reg(4), 1u) << "a period ended, no error";
+
+    std::ifstream in(m_dir / "sound.wav", std::ios::binary);
+    const std::string wav((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    ASSERT_EQ(wav.size(), 44u + 12 * 4);
+    EXPECT_EQ(wav.substr(0, 4), "RIFF");
+    EXPECT_EQ(wav.substr(24, 4), std::string("\x40\x1F\0\0", 4)) << "8000 a second";
+    const auto sample = [&](const size_t frame)
+    { return S16(U8(wav[44 + 4 * frame]) | (U8(wav[44 + 4 * frame + 1]) << 8)); };
+    EXPECT_EQ(sample(0), 0) << "128 is silence";
+    EXPECT_EQ(sample(1), 256);
+    EXPECT_EQ(sample(7), 7 * 256);
+    EXPECT_EQ(sample(8), 0) << "round the ring";
+
+    EXPECT_EQ(emu32("-e sound.bexe --audio-dump /nonexistent/dir/sound.wav"),
+              S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
+#ifdef AEMU_GUI
+    // The speakers and the recording together, the speakers with SDL's disk driver.
+    setenv("SDL_AUDIODRIVER", "disk", 1);
+    setenv("SDL_DISKAUDIOFILE", path("speakers.raw").c_str(), 1);
+    ASSERT_NO_FATAL_FAILURE(run("sound.bexe", "--audio --audio-dump both.wav"));
+    std::ifstream both(m_dir / "both.wav", std::ios::binary);
+    EXPECT_EQ(std::string((std::istreambuf_iterator<char>(both)), std::istreambuf_iterator<char>()),
+              wav);
+    EXPECT_GT(fs::file_size(m_dir / "speakers.raw"), 0u);
+#else
+    EXPECT_EQ(emu32("-e sound.bexe --audio"), S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR))
+        << "without SDL";
+#endif
+}
+
 #ifdef AEMU_GUI
 // The window hands what is typed to the console as text, and the keys and the mouse to the input
 // device as events (docs/devices.md), here with SDL's dummy video driver and events pushed to it.
@@ -2718,6 +2794,42 @@ TEST(DisplayWindow, keys_text_and_the_mouse_go_to_the_machine)
         EXPECT_EQ(events[i].x, expected[i].x) << "event " << i;
         EXPECT_EQ(events[i].y, expected[i].y) << "event " << i;
     }
+}
+
+// The speakers (emu32 --audio) with SDL's disk driver, which writes what it plays to a file at the
+// speed it would be heard: play waits while more than the most is queued, and the samples reach
+// SDL as they are at its rate.
+TEST(AudioOutput, the_sound_reaches_sdl_and_play_waits_until_it_is_heard)
+{
+    const fs::path file = fs::temp_directory_path() / "aemu_audio_output_test.raw";
+    setenv("SDL_AUDIODRIVER", "disk", 1);
+    setenv("SDL_DISKAUDIOFILE", file.c_str(), 1);
+
+    constexpr size_t kFrames = 1200; // 25 ms
+    std::vector<S16> period(2 * kFrames);
+    for (size_t i = 0; i < period.size(); i++) period[i] = S16(i % 1000 + 1);
+    std::chrono::steady_clock::duration took{};
+    {
+        AudioOutput speakers(50);
+        std::string error;
+        ASSERT_TRUE(speakers.open(error)) << error;
+        const auto start = std::chrono::steady_clock::now();
+        for (size_t i = 0; i < 12; i++)
+            speakers.play(AudioOutput::kOutputRate, period.data(), kFrames);
+        took = std::chrono::steady_clock::now() - start;
+        speakers.play(22050, period.data(), kFrames); // converted
+        speakers.drain();
+    }
+    EXPECT_GE(took, std::chrono::milliseconds(200)) << "300 ms of sound, at most 50 ms queued";
+
+    std::ifstream in(file, std::ios::binary);
+    const std::string played((std::istreambuf_iterator<char>(in)),
+                             std::istreambuf_iterator<char>());
+    fs::remove(file);
+    const std::string first(reinterpret_cast<const char *>(period.data()),
+                            period.size() * sizeof(S16));
+    EXPECT_NE(played.find(first), std::string::npos) << "a period as it was played";
+    EXPECT_GE(played.size(), 13 * first.size() * 9 / 10);
 }
 
 // The window of --display, with SDL's dummy video driver, which needs no screen. The window shows

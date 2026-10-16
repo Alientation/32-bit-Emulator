@@ -1,5 +1,6 @@
 #include "emulator32bit/devices.h"
 
+#include "emulator32bit/host_audio.h"
 #include "emulator32bit/host_display.h"
 #include "emulator32bit/host_input.h"
 
@@ -1107,17 +1108,207 @@ void InputDevice::write_register(const word offset, const word value)
 }
 
 // ---------------------------------------------------------------------------------------------
+// Audio
+
+Audio::Audio(InterruptController &intc) :
+    Device(kAudioBase, device_id(kDeviceTypeAudio, kIrqLineAudio)),
+    m_intc(intc)
+{
+}
+
+word Audio::bytes_per_frame() const
+{
+    switch (m_format)
+    {
+    case kFormatU8:
+        return sizeof(byte);
+    case kFormatS16:
+        return sizeof(hword);
+    default:
+        return 2 * sizeof(hword);
+    }
+}
+
+bool Audio::ring_is_valid() const
+{
+    if (m_ram == nullptr || m_address % 4 != 0 || m_length % m_period != 0) return false;
+    const U64 bytes = U64(m_length) * bytes_per_frame();
+    return U64(m_address) + bytes <= (U64(1) << 32) && m_ram->in_bounds(m_address)
+           && m_ram->in_bounds(word(m_address + bytes - 1));
+}
+
+void Audio::start_period()
+{
+    // PERIOD frames at RATE in whole instructions; what is left over goes to the next period, so
+    // the periods together keep to the rate.
+    const U64 time = U64(m_period) * kInstructionsPerSecond + m_carry;
+    m_remaining = word(time / m_rate);
+    m_carry = time % m_rate;
+
+    if (!ring_is_valid())
+    {
+        m_status |= kStatusError;
+        return;
+    }
+    if (m_sink == nullptr) return;
+
+    // To 16 bit stereo: an unsigned byte has its middle at 128, mono is the same on both sides.
+    constexpr S32 kU8Middle = 128;
+    m_samples.resize(size_t(2) * m_period);
+    const byte *p = m_ram->bytes_at(m_address + m_position * bytes_per_frame());
+    for (word i = 0; i < m_period; i++)
+    {
+        S16 left;
+        S16 right;
+        switch (m_format)
+        {
+        case kFormatU8:
+            left = right = S16((S32(p[i]) - kU8Middle) * (1 << kNumByteBits));
+            break;
+        case kFormatS16:
+            left = right = S16(p[2 * i] | (p[2 * i + 1] << kNumByteBits));
+            break;
+        default:
+            left = S16(p[4 * i] | (p[4 * i + 1] << kNumByteBits));
+            right = S16(p[4 * i + 2] | (p[4 * i + 3] << kNumByteBits));
+            break;
+        }
+        m_samples[2 * i] = left;
+        m_samples[2 * i + 1] = right;
+    }
+    m_sink->play(m_rate, m_samples.data(), m_period);
+}
+
+void Audio::end_period()
+{
+    m_periods++;
+    m_status |= kStatusPeriod;
+    if (m_ctrl & kCtrlPeriodInterrupt) m_intc.raise(kIrqLineAudio);
+    m_position = (m_position + m_period) % m_length;
+    start_period();
+}
+
+word Audio::cycles_until_event() const
+{
+    if ((m_ctrl & kCtrlOn) && (m_ctrl & kCtrlPeriodInterrupt)) return m_remaining;
+    return word(-1);
+}
+
+void Audio::advance_playing(word count)
+{
+    while (count >= m_remaining)
+    {
+        count -= m_remaining;
+        end_period();
+    }
+    m_remaining -= count;
+}
+
+void Audio::reset()
+{
+    m_ctrl = 0;
+    m_status = 0;
+    m_address = 0;
+    m_length = kDefaultLength;
+    m_period = kDefaultPeriod;
+    m_rate = kDefaultRate;
+    m_format = kFormatU8;
+    m_position = 0;
+    m_periods = 0;
+    m_remaining = 0;
+    m_carry = 0;
+}
+
+word Audio::read_register(const word offset)
+{
+    switch (offset)
+    {
+    case kRegCtrl:
+        return m_ctrl;
+    case kRegStatus:
+        return m_status;
+    case kRegAddress:
+        return m_address;
+    case kRegLength:
+        return m_length;
+    case kRegPeriod:
+        return m_period;
+    case kRegRate:
+        return m_rate;
+    case kRegFormat:
+        return m_format;
+    case kRegPosition:
+        return m_position;
+    case kRegPeriods:
+        return m_periods;
+    default:
+        return 0;
+    }
+}
+
+/// @param[in] value A value written to a register.
+/// @param[in] low The least it can be.
+/// @param[in] high The most it can be.
+/// @return The nearest value from `low` to `high`.
+static word clamp_to(const word value, const word low, const word high)
+{
+    if (value < low) return low;
+    return value > high ? high : value;
+}
+
+void Audio::write_register(const word offset, const word value)
+{
+    switch (offset)
+    {
+    case kRegCtrl:
+    {
+        const bool turned_on = (value & kCtrlOn) && !(m_ctrl & kCtrlOn);
+        m_ctrl = value & (kCtrlOn | kCtrlPeriodInterrupt);
+        if (turned_on)
+        {
+            m_position = 0;
+            m_carry = 0;
+            start_period();
+        }
+        break;
+    }
+    case kRegStatus:
+        m_status = 0;
+        break;
+    case kRegAddress:
+        m_address = value;
+        break;
+    case kRegLength:
+        m_length = clamp_to(value, 1, kMaxFrames);
+        break;
+    case kRegPeriod:
+        m_period = clamp_to(value, 1, kMaxFrames);
+        break;
+    case kRegRate:
+        m_rate = clamp_to(value, kMinRate, kMaxRate);
+        break;
+    case kRegFormat:
+        m_format = clamp_to(value, kFormatU8, kFormatS16Stereo);
+        break;
+    default:
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Clock
 
 DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                         const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input) :
+                         const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input,
+                         Audio &audio) :
     m_timer(timer),
     m_block(block),
     m_display(display),
     m_console(console),
     m_sysctl(sysctl),
     m_rtc(rtc),
-    m_input(input)
+    m_input(input),
+    m_audio(audio)
 {
 }
 
@@ -1129,6 +1320,7 @@ void DeviceClock::advance(const word passed)
     m_block.advance(passed);
     m_display.advance(passed);
     m_rtc.advance(passed);
+    m_audio.advance(passed);
 }
 
 void DeviceClock::catch_up()
@@ -1152,7 +1344,7 @@ bool DeviceClock::sync()
     const bool live = m_console.host_input() != nullptr || m_input.host_input() != nullptr;
     const word poll = live ? Console::kHostInputPollInterval : kMaxCountdown;
     m_countdown = std::min({m_timer.cycles_until_event(), m_block.cycles_until_event(),
-                            m_display.cycles_until_frame(), poll});
+                            m_display.cycles_until_frame(), m_audio.cycles_until_period(), poll});
     // A request is served after the instruction that made it, which the next tick ends.
     const bool requested = m_sysctl.request() != SystemController::Request::NONE;
     if (requested) m_countdown = 1;
