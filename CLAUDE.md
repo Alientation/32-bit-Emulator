@@ -23,13 +23,14 @@ Run everything from `core/`. You need CMake ≥ 3.15, Ninja, GCC 13 and clang 18
 tools/bench.sh        # times the emulator (MIPS); --baseline <emu32 of another commit> compares two builds
 tools/bench_toolchain.sh  # times basm and the loader on generated programs, fails on a quadratic step
 tools/mutate.sh FILE LINE # removes a line, runs the tests: do they notice?
+tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16   # libFuzzer on the .bexe loader (build/fuzz, clang + ASan/UBSan); crashes in build/fuzz/artifacts
 cmake -S . -B build/gui -G Ninja -DAEMU_GUI=ON && cmake --build build/gui   # emu32 --display (needs libsdl2-dev); ./build.sh never builds it
 ```
 
 Run a single test or suite:
 ```bash
 ctest --test-dir build/debug -R 'ShiftTest.'         # regex on discovered test name (Suite.Test)
-ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit | assembler | assembler_integration
+ctest --test-dir build/debug -L emulator32bit        # by label: emulator32bit | assembler | assembler_integration | fuzz (the saved fuzz inputs)
 build/debug/emulator32bit/tests/emulator32bit_tests --gtest_filter='DataProcessingTest.golden_*'
 ```
 

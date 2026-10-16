@@ -91,6 +91,28 @@ and the release build has debug info so the samples can be attributed to source 
   not written any more). To see what a group of tests adds, run the others first, capture with the
   `lcov` options of `build.sh`, run the group and capture again.
 
+## Fuzzing
+
+`core/fuzz/` has the fuzz targets, one `.cpp` each with `LLVMFuzzerTestOneInput`. `bexe.cpp` is the
+loader: the input is read as a `.bexe` (`LoadExecutable` from bytes), loaded into the machine of the
+tests and run for 10000 instructions. What it may do with an input that is not valid is end in a
+`FatalError`; a crash, a sanitizer report, an assertion, any other exception or a hang is a bug.
+
+- `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
+  `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with
+  ASan and UBSan, Debug at `-O1` so the assertions are on, debug logging compiled out) and fuzzes for
+  600 seconds. The corpus it grows is `build/fuzz/corpus/<target>`, crashes go to
+  `build/fuzz/artifacts/<target>/`, the logs of the workers to `build/fuzz/fuzz-N.log`, and
+  `tools/fuzz.sh bexe --replay FILE` runs one input with the sanitizers' report.
+- `core/fuzz/corpus/<target>/` is kept in git: a few seeds (`seed_*`, `seeds/bexe_sections.basm`
+  is the source of the one with every kind of section) and, for each bug that was fixed, the input
+  that found it under a name that says what it was. The normal builds run them all with
+  `<target>_replay` (a `main` instead of libFuzzer, any compiler) as the test `fuzz_corpus.<target>`
+  (label `fuzz`). It has a timeout of 60 s, since an input that once made the loader allocate
+  gigabytes is only slow without the sanitizers.
+- A new target is a `.cpp` and an `aemu_add_fuzz_target(<name> LIBS ...)` line in
+  `core/fuzz/CMakeLists.txt`, with seeds in `corpus/<name>/`.
+
 ## Executables
 - `emulator32bit/emu32`: runs the emulator from the command line (cxxopts). It links
   `aemu::assembler` for the `.bexe` loader. Run `--help` to see the options.

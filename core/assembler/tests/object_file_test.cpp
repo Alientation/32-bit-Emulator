@@ -1,6 +1,7 @@
-// Unit tests for the object file: writing and reading it back, the files that it refuses to read,
-// and the listing that basm -dump prints.
+// Unit tests for the object file: writing and reading it back, the files that it (and the loader)
+// refuses to read, and the listing that basm -dump prints.
 
+#include "assembler/load_executable.h"
 #include "assembler_test/toolchain_fixture.h"
 
 #include <functional>
@@ -433,4 +434,39 @@ TEST_F(ObjectFileUnit, the_listing_has_addresses_of_big_programs)
     // 17000 instructions are 68000 bytes: the adrp is at 0x109a0.
     EXPECT_TRUE(contains(listing.str(), "109a0")) << "the address of the adrp";
     EXPECT_TRUE(contains(listing.str(), "109a0: R_EMU32_ADRP_HI20"));
+}
+
+// The loader looks _start up among the symbols: its name in the strings is not enough.
+TEST_F(ObjectFileUnit, the_loader_refuses_the_name_of_start_without_its_symbol)
+{
+    ObjectFile object = assemble(".global _start\n.text\n_start:\n  hlt\n");
+    object.symbol_table.erase(object.string_table.at("_start"));
+    object.write_object_file(File(path("nostart.bexe"), true));
+
+    Emulator32bit emu(std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>());
+    emu.mmu->begin_process();
+    LoadExecutable loader(emu, bytes_of(path("nostart.bexe")));
+    EXPECT_TRUE(contains(error_of([&] { loader.load(); }), "Missing required _start"));
+}
+
+// The loader only maps the pages of .bss. That is enough also when .bss shares its first page with
+// a section at a physical address, as long as mapping that page clears what the memory held.
+TEST_F(ObjectFileUnit, bss_on_the_page_of_a_physical_section_is_zeros)
+{
+    const ObjectFile object =
+        assemble(".global _start\n.text\n_start:\n  hlt\n.bss\nbuffer: .advance 16\n", "shared");
+    write("shared.ld", "SECTIONS(\n@P;\n.text = 0x0;\n@V;\n.bss = 0x100;\n)\n");
+    Linker linker({object}, File(path("shared.bexe"), true), File((m_dir / "shared.ld").string()));
+    linker.link();
+
+    Emulator32bit emu(std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>());
+    ASSERT_TRUE(emu.system_bus->write_physical_word(0x100, 0xFFFFFFFF));
+    emu.mmu->begin_process();
+    LoadExecutable(emu, File(path("shared.bexe"))).load();
+
+    word value = 1;
+    ASSERT_TRUE(emu.system_bus->read_physical_word(value, 0x100));
+    EXPECT_EQ(value, 0u);
 }

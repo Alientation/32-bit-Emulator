@@ -51,6 +51,12 @@ function(aemu_target_defaults target)
         target_link_options(${target} PRIVATE "$<${gcc_like}:${AEMU_SANITIZE_FLAG}>")
     endif()
 
+    # The coverage that guides libFuzzer, in every library it goes through. The fuzz binaries add
+    # -fsanitize=fuzzer when they link (core/fuzz/CMakeLists.txt).
+    if(AEMU_FUZZ)
+        target_compile_options(${target} PRIVATE -fsanitize=fuzzer-no-link)
+    endif()
+
     if(AEMU_ENABLE_COVERAGE)
         target_compile_options(${target} PRIVATE $<$<AND:${gcc_like},$<CONFIG:Debug>>:--coverage>)
         # --coverage at link time pulls in libgcov, so no explicit gcov link is needed.

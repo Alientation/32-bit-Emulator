@@ -13,6 +13,12 @@ option(AEMU_GUI "Build the display window of emu32 (emu32 --display), which need
 # A ;-separated list of address, undefined, leak, thread, e.g. -DAEMU_SANITIZE="address;undefined".
 # Use a build directory of its own, since the whole tree has to be built with the same flags.
 set(AEMU_SANITIZE "" CACHE STRING "Sanitizers to build the project with")
+# Instruments everything for libFuzzer and builds the fuzz targets (core/fuzz). Needs clang and a
+# build directory of its own; tools/fuzz.sh makes one.
+option(AEMU_FUZZ "Build the libFuzzer binaries of the fuzz targets (clang)" OFF)
+if(AEMU_FUZZ AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(FATAL_ERROR "AEMU_FUZZ needs clang (-DCMAKE_TOOLCHAIN_FILE=cmake/clang.cmake)")
+endif()
 
 # Log calls below this level are removed from the binary: 0 debug, 1 info, 2 warn, 3 error (see
 # util/logger.h). Empty picks it from the configuration: everything in Debug, and in the optimized
@@ -98,3 +104,6 @@ add_subdirectory(app)
 if(BUILD_TESTS)
     add_subdirectory(integration_tests)
 endif()
+
+# The fuzz targets: their saved inputs are a test, and with AEMU_FUZZ the libFuzzer binaries.
+add_subdirectory(fuzz)
