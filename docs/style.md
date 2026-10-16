@@ -7,6 +7,7 @@ How the code is put together; [CLAUDE.md](../CLAUDE.md) has the working rules (b
 Keep compile times down and the code readable without knowing the library. These are preferences to apply with judgment: a standard facility that is shorter *and* clearer than the hand-written code is fine.
 
 - **No standard abstraction that does not earn its place.** `std::exchange` is `old = x; x = y;`, `std::swap` a temporary and two assignments, `std::min`/`std::max`/`std::clamp` a conditional, `std::erase_if` on a small table a swap with the last entry. Write the statements, with a named local for a long expression: they step better and cost the same.
+- **No `auto`:** write the type, so that the code says what a value is without a tool to ask. A long type gets a `using` name next to what it belongs to (`using PagePermissions = std::map<word, std::pair<bool, bool>>;`), also for an iterator. The exception is a structured binding (`const auto &[vpage, access]`), where the language takes nothing else.
 - **A plain array over `std::array`:** `U8 m_ring[kLines] = {};`. A parameter is a reference to the array, which keeps the size (`history (History &out)`, `using History = ExecutedInstruction[kMaxHistory]`), and a function hands one back as a reference to a static one (`ObjectFile::byte_sections ()`). `std::array` only for what a C array cannot do, return by value (a `constexpr` table that a function builds).
 - **Avoid lambdas.** One hides what it captures. Write a `static` function that takes what it needs (`fault (result, what, message)`) or a private member. A condition variable waits in a `while` loop, not with a predicate. Tests may use lambdas.
 - **Avoid `std::optional` for data:** a `bool` next to the value (`has_value`, `value`), or a flag in a `BitArray<N>` for a table. `std::optional` is for a function that can fail to produce a result (a parser, a lookup), never in a stored struct.
@@ -76,6 +77,7 @@ Tools for finding the places (`clang-tidy` and `libclang` from `pip` in a virtua
 | A member function that can be `const` | `readability-make-member-function-const` (not through a pointer member: check by hand) |
 | A braced initializer names its fields | `modernize-use-designated-initializers` (skips macro expansions) |
 | No bare numbers | `readability-magic-numbers` with `IgnoredIntegerValues` `0;1` |
+| No `auto` | `grep -nE '\bauto\b'`, leaving out the structured bindings (`auto &[`); the compiler checks the types written in their place |
 | A by-value parameter that is not `const`, a reference parameter never written | `libclang`: list them, add `const`, build, take back what does not compile |
 | Doc comments | `libclang` gives the `///` of each declaration: `@param` names, order and direction against the declaration (`const` or by-value is `[in]`; a non-`const` reference or pointer by hand), `@return` on `void`, text that is not a sentence |
 
