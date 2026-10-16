@@ -800,14 +800,32 @@ std::optional<U8> Emulator32bit::sysreg_id(const std::string &name)
     {
         if (lower == sysreg.name) return sysreg.id;
     }
-    return std::nullopt;
+
+    // Any register by its number, also the one without a name (`sysreg0`).
+    const std::string prefix = "sysreg";
+    if (!lower.starts_with(prefix))
+    {
+        return std::nullopt;
+    }
+    const std::string digits = lower.substr(prefix.size());
+    if (digits.empty() || digits.size() > 2
+        || digits.find_first_not_of("0123456789") != std::string::npos)
+    {
+        return std::nullopt;
+    }
+    const U32 id = U32(std::stoul(digits));
+    if (id >= kSysregCount)
+    {
+        return std::nullopt;
+    }
+    return U8(id);
 }
 
 word Emulator32bit::read_sysreg(const U8 id) const
 {
     switch (id)
     {
-    case 0:
+    case kSysregId_zero:
         return 0;
     case kSysregId_pstate:
         return m_pstate;
@@ -841,7 +859,7 @@ void Emulator32bit::write_sysreg(const U8 id, const word value)
 {
     switch (id)
     {
-    case 0:
+    case kSysregId_zero:
         break;
     case kSysregId_pstate:
         set_user_mode(test_bit<kUserModeBit>(value));

@@ -152,7 +152,7 @@ add     x0, x0, :lo12:sym       ; x0 = the address of sym
 | `op xd, xn, xm[, shift]` or `op xd, xn, imm14` or `op xd, xn, :lo12:sym` | `add{s}` `sub{s}` `rsb{s}` `adc{s}` `sbc{s}` `rsc{s}` `mul{s}` `udiv{s}` `sdiv{s}` `and{s}` `orr{s}` `eor{s}` `bic{s}` (a division by zero is 0, there is no remainder instruction, see [abi.md](abi.md#division)) |
 | `op xd, xn, xm` or `op xd, xn, imm5` | `lsl{s}` `lsr{s}` `asr{s}` `ror{s}` (with `s`: N, Z and C from the last bit shifted out, V unchanged) |
 | `op xn, xm[, shift]` or `op xn, imm14` | `cmp` `cmn` `tst` `teq` (flags only; they are `subs`, `adds`, `ands` and `eors` with `xzr` as the destination, so `cmp x1, 5` and `subs xzr, x1, 5` are the same instruction) |
-| `mov{s} xd, xm` / `mov{s} xd, imm19` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` (`imm19` is an unsigned 19 bit number, 0 to 524287) |
+| `mov{s} xd, xm` / `mov{s} xd, xm, imm14` / `mov{s} xd, imm19` / `mov xd, :hi13:sym` / `mov xd, :lo19:sym` | `mov` `mvn` (`imm19` is an unsigned 19 bit number, 0 to 524287; `xm, imm14` is `xm + imm14`, of `mvn` the complement of that) |
 | `ldr xd, =constant` / `ldr xd, =symbol` | a **pseudo instruction** that loads any 32 bit constant or an address, see below |
 | `op xlo, xhi, xn, xm` | `umull{s}` `smull{s}` (the 64 bit product: low word in `xlo`, high word in `xhi`) |
 
@@ -210,16 +210,16 @@ Atomics: `swp`, `ldadd`, `ldclr`, `ldset` with `b` (byte) and `h` (halfword) var
 | `blx[.cond] xn` | indirect call: return address in `x29` |
 | `ret` | `bx x29` |
 | `swi[.cond] [n]` | software interrupt, `n` is a number from 0 to 4194303 (0 if left out), not an offset. With a vector table installed it is a system call of an operating system; `swi 1` and (without a table) `swi` are the emulator calls, with the call number in `x8` and the arguments in `x0`–`x4`. See [exceptions.md](exceptions.md#swi-and-the-emulator-calls) |
-| `adrp xd, sym` | page of a symbol, see above |
-| `adr xd, sym` | the address of a symbol in one instruction, relative to the instruction: the symbol has to be within 1 MiB (`adr xd, table + 8` works, no `:lo12:` or `:hi20:`). Further away it is a link error, use `adrp` + `add` |
-| `mrs xd, sysreg` / `msr sysreg, xn\|imm16` | read/write a system register: `pstate` `elr` `spsr` `esr` `far` `vbar` `usp` `ptbr` `sctlr` (any case). Privileged, except the flags of `pstate`. See [exceptions.md](exceptions.md#system-registers) |
+| `adrp xd, sym` / `adrp xd, distance` | page of a symbol, see above. A number is the distance between the pages in bytes, a multiple of 4096 from -2147483648 to 2147479552 (`adrp x0, 8192` is the page two after the one of the instruction) |
+| `adr xd, sym` / `adr xd, distance` | the address of a symbol in one instruction, relative to the instruction: the symbol has to be within 1 MiB (`adr xd, table + 8` works, no `:lo12:` or `:hi20:`). Further away it is a link error, use `adrp` + `add`. A number is the distance in bytes from the instruction, -1048576 to 1048575 |
+| `mrs xd, sysreg` / `msr sysreg, xn\|imm16` | read/write a system register: `pstate` `elr` `spsr` `esr` `far` `vbar` `usp` `ptbr` `sctlr` `fpcr` `fpsr` (any case), or any of them by number, `sysreg0` to `sysreg11` (register 0 has no name). Privileged, except the flags of `pstate`. See [exceptions.md](exceptions.md#system-registers) |
 | `tlbi [xn]` | forget the cached page table translation of the page of `xn`, or all of them (privileged), see [mmu.md](mmu.md) |
 | `eret` | return from an exception (privileged) |
 | `wfi` | wait for an interrupt (privileged; halts while there are no interrupts) |
 | `brk [n]` | breakpoint exception, `n` is a number up to 4194303 |
 | `hlt` (privileged), `nop` | |
 
-`target` is a label (also `label + 4`), or a number: a numeric target is a **signed byte distance from the branch itself**, 4 byte aligned, from -8388608 to 8388604 (`b 8` skips one instruction, `b.ne -2 * 4` goes back two). A constant is a number, not a label, so `b SKIP_BYTES` is a distance.
+`target` is a label (also `label + 4`), or a number: a numeric target is a **signed byte distance from the branch itself**, 4 byte aligned, from -8388608 to 8388604 (`b 8` skips one instruction, `b.ne -2 * 4` goes back two). A constant is a number, not a label, so `b SKIP_BYTES` is a distance. The disassembler writes the distances of `b`, `bl`, `adr` and `adrp` the same way, so its text assembles back to the same instruction.
 
 Condition codes: `eq` `ne` `cs`/`hs` `cc`/`lo` `mi` `pl` `vs` `vc` `hi` `ls` `ge` `lt` `gt` `le` `al` `nv`.
 
@@ -254,6 +254,7 @@ A floating point number is written with a decimal point, `1.5`, `-0.25`, `.5` (a
 | `.byte` `.dbyte` `.word` `.dword` | 1, 2, 4 and 8 byte values, little endian, comma separated: `.word 1, 2, table + 4`. A value has to fit. `.word` also takes an address (`symbol`, `symbol + 4`); the others cannot |
 | `.fill count{, size{, value}}` | `count` copies of a `size` byte value (1, 2, 4 or 8; default 1), little endian. The value defaults to 0, has to fit, and with size 4 can be an address like `.word`'s: `.fill 16, 4, 0xDEADBEEF`. For zeros `.advance` is shorter |
 | `.ascii "text"` / `.asciz "text"` | the bytes of the string / and a 0 byte at the end. A character is a number, so `.byte 'a', 'b'` is one byte for each character |
+| `.inst word{, word}` | instructions given as their 32 bit words, only where code goes (`.text` or an `"rx"` section): `.inst 0x8c000000`. The disassembler writes it for a word that is not an instruction, as objdump does |
 | `.advance n` | skip `n` bytes (zeros in the data sections, which is the zero fill of `.data`; reserves space in `.bss`; a multiple of 4 in `.text`). `n` of 16 MiB or more is an error. Zeros in `.data` take room in the file, a large zeroed array belongs in `.bss` or in a `nobits` section |
 | `.org n` | move forward to the offset `n` of the section (never backward) |
 | `.align n` | pad to a multiple of `n`; the largest alignment of the section is kept in the object file and respected when files are linked |

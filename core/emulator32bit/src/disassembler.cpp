@@ -7,9 +7,19 @@
 #include "util/common.h"
 #include "util/logger.h"
 
+#include <format>
+#include <initializer_list>
+
 static std::string disassemble_gpr(const word instruction, const U8 offset)
 {
     return register_name(bitfield_unsigned(instruction, offset, 5));
+}
+
+/// A word that is not an instruction: it faults with BAD_INSTR or BAD_REG whatever the state of
+/// the machine. Written as the directive that assembles to it, like objdump does.
+static std::string disassemble_undefined(const word instruction)
+{
+    return std::format(".inst {:#010x}", instruction);
 }
 
 /// The `lsl #n` operand of a format M or O instruction with a shifted register.
@@ -81,25 +91,25 @@ static std::string disassemble_condition(const ConditionCode condition)
 
 static std::string disassemble_format_b2(const word instruction, const std::string &op)
 {
-    std::string disassemble = op;
     const ConditionCode condition = (ConditionCode) bitfield_unsigned<22, 4>(instruction);
+
+    // `ret` is `bx lr` and has no condition: `bx.eq lr` stays what it is.
+    if (op == "bx" && condition == ConditionCode::AL
+        && bitfield_unsigned<17, 5>(instruction) == register_to_U8(Register::LR))
+    {
+        return "ret";
+    }
+
+    std::string disassemble = op;
     if (condition != ConditionCode::AL)
     {
         disassemble += "." + disassemble_condition(condition);
     }
-
-    if (op == "bx" && bitfield_unsigned<17, 5>(instruction) == 29)
-    {
-        disassemble = "ret";
-    }
-    else
-    {
-        disassemble += " " + disassemble_gpr(instruction, 17);
-    }
-
-    return disassemble;
+    return disassemble + " " + disassemble_gpr(instruction, 17);
 }
 
+/// The target is the distance in bytes, the way the assembler reads a number: `b 8` is two
+/// instructions ahead (the field counts instructions).
 static std::string disassemble_format_b1(const word instruction, const std::string &op)
 {
     std::string disassemble = op;
@@ -108,104 +118,92 @@ static std::string disassemble_format_b1(const word instruction, const std::stri
     {
         disassemble += "." + disassemble_condition(condition);
     }
-    disassemble += " " + std::to_string(sword(bitfield_signed<0, 22>(instruction)));
-    return disassemble;
+    const sword distance = sword(bitfield_signed<0, 22>(instruction)) * sword(kInstructionSize);
+    return disassemble + " " + std::to_string(distance);
 }
 
-static std::string disassemble_format_m1(const word instruction, const std::string &op)
+/// `adr` is the distance in bytes. `adrp` is a distance of pages, also written in bytes (a
+/// multiple of 4096) like the assembler reads it. An address has 32 bits, so the distance of pages
+/// wraps at 2^20: the low 20 bits as a signed number are the same distance, and in bytes it fits
+/// a 32 bit number.
+static std::string disassemble_format_m1(const word instruction, const std::string &op,
+                                         const bool pages)
 {
-    std::string disassemble = op + " ";
-    disassemble += disassemble_gpr(instruction, 20);
-    disassemble += ", ";
-
-    S32 offset = bitfield_unsigned<0, 20>(instruction);
-    if (test_bit<kInstructionUpdateFlagBit>(instruction))
+    S64 distance = 0;
+    if (pages)
     {
-        offset -= 1 << 20;
+        distance = S64(sword(bitfield_signed<0, 20>(instruction))) * kPageSize;
     }
-    disassemble += std::to_string(offset);
-    return disassemble;
+    else
+    {
+        distance = bitfield_unsigned<0, 20>(instruction);
+        if (test_bit<kInstructionUpdateFlagBit>(instruction))
+        {
+            distance -= S64(1) << 20;
+        }
+    }
+    return op + " " + disassemble_gpr(instruction, 20) + ", " + std::to_string(distance);
 }
 
 /// @param[in] op The name of the instruction, `ldr` for the aligned and the unaligned form.
-/// @param[in] has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh).
+/// @param[in] has_unaligned_form Whether the unaligned form exists (ldur, ldurh, stur, sturh). On
+///     a byte access the unaligned mode is not an instruction.
+/// @param[in] sign_extends Whether `?sign` (bit 25) makes it sign extend (ldrb, ldrh). On the
+///     others the bit does nothing, and is not shown.
 static std::string disassemble_format_m(const word instruction, const std::string &op,
-                                        const bool has_unaligned_form = true)
+                                        const bool has_unaligned_form, const bool sign_extends)
 {
-    std::string disassemble = op;
-
     const U8 adr_mode = bitfield_unsigned<0, 2>(instruction);
     const bool unaligned = adr_mode == U8(encoding::AddrType::ADDR_UNALIGNED);
-    if (unaligned && has_unaligned_form)
+    if (unaligned && !has_unaligned_form)
+    {
+        return disassemble_undefined(instruction);
+    }
+
+    std::string disassemble = op;
+    if (unaligned)
     {
         // ldr -> ldur, strh -> sturh.
         disassemble.insert(disassemble.begin() + 2, 'u');
     }
-
-    if (test_bit<25>(instruction))
+    if (sign_extends && test_bit<25>(instruction))
     {
         // ldrb -> ldrsb, ldurh -> ldursh.
-        disassemble.insert(disassemble.begin() + (unaligned && has_unaligned_form ? 4 : 3), 's');
+        disassemble.insert(disassemble.begin() + (unaligned ? 4 : 3), 's');
     }
-    disassemble += " ";
+    disassemble +=
+        " " + disassemble_gpr(instruction, 20) + ", [" + disassemble_gpr(instruction, 15);
 
-    disassemble += disassemble_gpr(instruction, 20);
-    disassemble += ", ";
-
-    disassemble += "[";
-    disassemble += disassemble_gpr(instruction, 15);
-    if (adr_mode != U8(encoding::AddrType::ADDR_PRE_INC)
-        && adr_mode != U8(encoding::AddrType::ADDR_OFFSET)
-        && adr_mode != U8(encoding::AddrType::ADDR_POST_INC) && !(unaligned && has_unaligned_form))
-    {
-        AEMU_FATAL("Invalid addressing mode "
-                   "in the disassembly of instruction ({}) {}",
-                   op.c_str(), instruction);
-    }
-
+    // What follows the base: `, 8`, `, x3` or `, x3, lsl 2`.
+    std::string offset;
     if (test_bit<14>(instruction))
     {
+        // A zero offset changes nothing in any mode, so it is left out (`[x1]`).
         const S32 simm12 = bitfield_signed<2, 12>(instruction);
         if (simm12 == 0)
         {
-            disassemble += "]";
+            return disassemble + "]";
         }
-        else if (adr_mode == U8(encoding::AddrType::ADDR_PRE_INC))
-        {
-            disassemble += ", " + std::to_string(simm12) + "]!";
-        }
-        else if (adr_mode == U8(encoding::AddrType::ADDR_OFFSET) || unaligned)
-        {
-            disassemble += ", " + std::to_string(simm12) + "]";
-        }
-        else if (adr_mode == U8(encoding::AddrType::ADDR_POST_INC))
-        {
-            disassemble += "], " + std::to_string(simm12);
-        }
+        offset = ", " + std::to_string(simm12);
     }
     else
     {
-        const std::string reg = disassemble_gpr(instruction, 9);
-        std::string shift = "";
+        offset = ", " + disassemble_gpr(instruction, 9);
         if (bitfield_unsigned<2, 5>(instruction) > 0)
         {
-            shift = ", " + disassemble_shift_operand(instruction);
-        }
-
-        if (adr_mode == U8(encoding::AddrType::ADDR_PRE_INC))
-        {
-            disassemble += ", " + reg + ", " + shift + "]!";
-        }
-        else if (adr_mode == U8(encoding::AddrType::ADDR_OFFSET) || unaligned)
-        {
-            disassemble += ", " + reg + ", " + shift + "]";
-        }
-        else if (adr_mode == U8(encoding::AddrType::ADDR_POST_INC))
-        {
-            disassemble += "], " + reg + ", " + shift;
+            offset += ", " + disassemble_shift_operand(instruction);
         }
     }
-    return disassemble;
+
+    if (adr_mode == U8(encoding::AddrType::ADDR_PRE_INC))
+    {
+        return disassemble + offset + "]!";
+    }
+    if (adr_mode == U8(encoding::AddrType::ADDR_POST_INC))
+    {
+        return disassemble + "]" + offset;
+    }
+    return disassemble + offset + "]";
 }
 
 static std::string disassemble_format_o3(const word instruction, const std::string &op)
@@ -226,10 +224,11 @@ static std::string disassemble_format_o3(const word instruction, const std::stri
     }
     else
     {
+        // `mov xd, xn, 4` is xn + 4.
         disassemble += disassemble_gpr(instruction, 14);
         if (bitfield_unsigned<0, 14>(instruction) > 0)
         {
-            disassemble += " " + std::to_string(bitfield_unsigned<0, 14>(instruction));
+            disassemble += ", " + std::to_string(bitfield_unsigned<0, 14>(instruction));
         }
     }
     return disassemble;
@@ -337,32 +336,39 @@ static std::string disassemble_nop(const word instruction)
     return "nop";
 }
 
-/// The name of a system register as the assembler reads it.
+/// The name of a system register as the assembler reads it: its name, or `sysreg<n>` for the one
+/// that has none. Empty for a number that is no register (msr and mrs fault on it).
 static std::string disassemble_sysreg(const U8 sysreg)
 {
-    const char *name = encoding::sysreg_name(sysreg);
-    return name != nullptr ? name : "sysreg" + std::to_string(sysreg);
+    if (const char *name = encoding::sysreg_name(sysreg))
+    {
+        return name;
+    }
+    return sysreg < encoding::kSysregCount ? "sysreg" + std::to_string(sysreg) : "";
 }
 
 static std::string disassemble_msr(const word instruction)
 {
-    const U8 sysreg = bitfield_unsigned<17, 5>(instruction);
-    const bool imm = test_bit<16>(instruction);
-    if (imm)
+    const std::string sysreg = disassemble_sysreg(bitfield_unsigned<17, 5>(instruction));
+    if (sysreg.empty())
     {
-        const word val = bitfield_unsigned<0, 16>(instruction);
-        return "msr " + disassemble_sysreg(sysreg) + ", " + std::to_string(val);
+        return disassemble_undefined(instruction);
     }
-    else
+    if (test_bit<16>(instruction))
     {
-        return "msr " + disassemble_sysreg(sysreg) + ", " + disassemble_gpr(instruction, 11);
+        return "msr " + sysreg + ", " + std::to_string(bitfield_unsigned<0, 16>(instruction));
     }
+    return "msr " + sysreg + ", " + disassemble_gpr(instruction, 11);
 }
 
 static std::string disassemble_mrs(const word instruction)
 {
-    const U8 sysreg = bitfield_unsigned<11, 5>(instruction);
-    return "mrs " + disassemble_gpr(instruction, 17) + ", " + disassemble_sysreg(sysreg);
+    const std::string sysreg = disassemble_sysreg(bitfield_unsigned<11, 5>(instruction));
+    if (sysreg.empty())
+    {
+        return disassemble_undefined(instruction);
+    }
+    return "mrs " + disassemble_gpr(instruction, 17) + ", " + sysreg;
 }
 
 static std::string disassemble_eret(const word instruction)
@@ -408,7 +414,7 @@ static std::string disassemble_atomic(const word instruction)
         disassemble = "ldset";
         break;
     default:
-        return "ERROR: INVALID ATOMIC";
+        return disassemble_undefined(instruction);
     }
 
     switch (width)
@@ -422,7 +428,7 @@ static std::string disassemble_atomic(const word instruction)
         disassemble += "h";
         break;
     default:
-        return "ERROR: INVALID ATOMIC WIDTH";
+        return disassemble_undefined(instruction);
     }
 
     disassemble += " ";
@@ -458,7 +464,7 @@ static std::string disassemble_unary(const word instruction)
         name = "rev16";
         break;
     default:
-        return "ERROR: INVALID UNARY OPERATION";
+        return disassemble_undefined(instruction);
     }
     return std::string(name) + " " + disassemble_gpr(instruction, 17) + ", "
            + disassemble_gpr(instruction, 11);
@@ -491,7 +497,7 @@ static std::string disassemble_special_instructions(const word instruction)
     case encoding::kSpecialOpId_unary:
         return disassemble_unary(instruction);
     default:
-        return "ERROR: INVALID SPECOP";
+        return disassemble_undefined(instruction);
     }
 }
 
@@ -542,11 +548,24 @@ static const char *disassemble_precision(const word instruction)
     return test_bit<25>(instruction) ? "f64" : "f32";
 }
 
+/// Whether a register can hold a double: the first of a pair, which leaves room for the second
+/// among x0-x29. The handlers fault on the others.
+static bool is_pair(const U8 reg)
+{
+    return reg <= register_to_U8(Register::FP);
+}
+
 static std::string disassemble_fop1(const word instruction)
 {
     const U8 fn = bitfield_unsigned<0, 5>(instruction);
     const bool dbl = test_bit<25>(instruction);
     const std::string precision = disassemble_precision(instruction);
+    if (fn >= fpu::kUnaryFn_count
+        || (fpu::unary_dest_is_pair(fn, dbl) && !is_pair(bitfield_unsigned<20, 5>(instruction)))
+        || (fpu::unary_source_is_pair(fn, dbl) && !is_pair(bitfield_unsigned<15, 5>(instruction))))
+    {
+        return disassemble_undefined(instruction);
+    }
 
     std::string name;
     switch (fn)
@@ -597,9 +616,30 @@ static std::string disassemble_fop1(const word instruction)
         name = dbl ? "fcvt.f32.f64" : "fcvt.f64.f32";
         break;
     default:
-        return "ERROR: INVALID FLOATING POINT FUNCTION";
+        return disassemble_undefined(instruction);
     }
     return name + " " + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15);
+}
+
+/// Whether the registers at the bit offsets can all hold a double, or the precision is f32.
+///
+/// @param[in] instruction A floating point instruction.
+/// @param[in] offsets The offsets of its register fields.
+/// @return Whether the handler takes the registers.
+static bool fp_registers_fit(const word instruction, const std::initializer_list<U8> offsets)
+{
+    if (!test_bit<25>(instruction))
+    {
+        return true;
+    }
+    for (const U8 offset : offsets)
+    {
+        if (!is_pair(bitfield_unsigned(instruction, offset, 5)))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 static std::string disassemble_fop2(const word instruction)
@@ -607,9 +647,9 @@ static std::string disassemble_fop2(const word instruction)
     static const char *const kNames[fpu::kBinaryFn_count] = {"fadd", "fsub", "fmul",
                                                              "fdiv", "fmin", "fmax"};
     const U8 fn = bitfield_unsigned<0, 5>(instruction);
-    if (fn >= fpu::kBinaryFn_count)
+    if (fn >= fpu::kBinaryFn_count || !fp_registers_fit(instruction, {20, 15, 9}))
     {
-        return "ERROR: INVALID FLOATING POINT FUNCTION";
+        return disassemble_undefined(instruction);
     }
     return std::string(kNames[fn]) + "." + disassemble_precision(instruction) + " "
            + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15) + ", "
@@ -620,9 +660,9 @@ static std::string disassemble_fop3(const word instruction)
 {
     static const char *const kNames[fpu::kFmaFn_count] = {"fmadd", "fmsub", "fnmadd", "fnmsub"};
     const U8 fn = bitfield_unsigned<0, 4>(instruction);
-    if (fn >= fpu::kFmaFn_count)
+    if (fn >= fpu::kFmaFn_count || !fp_registers_fit(instruction, {20, 15, 9, 4}))
     {
-        return "ERROR: INVALID FLOATING POINT FUNCTION";
+        return disassemble_undefined(instruction);
     }
     return std::string(kNames[fn]) + "." + disassemble_precision(instruction) + " "
            + disassemble_gpr(instruction, 20) + ", " + disassemble_gpr(instruction, 15) + ", "
@@ -631,6 +671,10 @@ static std::string disassemble_fop3(const word instruction)
 
 static std::string disassemble_fcmp(const word instruction)
 {
+    if (!fp_registers_fit(instruction, {15, 9}))
+    {
+        return disassemble_undefined(instruction);
+    }
     return std::string(test_bit<24>(instruction) ? "fcmpe." : "fcmp.")
            + disassemble_precision(instruction) + " " + disassemble_gpr(instruction, 15) + ", "
            + disassemble_gpr(instruction, 9);
@@ -674,32 +718,32 @@ static std::string disassemble_mvn(const word instruction)
 
 static std::string disassemble_ldr(const word instruction)
 {
-    return disassemble_format_m(instruction, "ldr");
+    return disassemble_format_m(instruction, "ldr", true, false);
 }
 
 static std::string disassemble_str(const word instruction)
 {
-    return disassemble_format_m(instruction, "str");
+    return disassemble_format_m(instruction, "str", true, false);
 }
 
 static std::string disassemble_ldrb(const word instruction)
 {
-    return disassemble_format_m(instruction, "ldrb", false);
+    return disassemble_format_m(instruction, "ldrb", false, true);
 }
 
 static std::string disassemble_strb(const word instruction)
 {
-    return disassemble_format_m(instruction, "strb", false);
+    return disassemble_format_m(instruction, "strb", false, false);
 }
 
 static std::string disassemble_ldrh(const word instruction)
 {
-    return disassemble_format_m(instruction, "ldrh");
+    return disassemble_format_m(instruction, "ldrh", true, true);
 }
 
 static std::string disassemble_strh(const word instruction)
 {
-    return disassemble_format_m(instruction, "strh");
+    return disassemble_format_m(instruction, "strh", true, false);
 }
 
 static std::string disassemble_b(const word instruction)
@@ -778,12 +822,12 @@ static std::string disassemble_csel(const word instruction)
 
 static std::string disassemble_adrp(const word instruction)
 {
-    return disassemble_format_m1(instruction, "adrp");
+    return disassemble_format_m1(instruction, "adrp", true);
 }
 
 static std::string disassemble_adr(const word instruction)
 {
-    return disassemble_format_m1(instruction, "adr");
+    return disassemble_format_m1(instruction, "adr", false);
 }
 
 std::string disassembler::disassemble(const word instr)
@@ -796,6 +840,6 @@ std::string disassembler::disassemble(const word instr)
         AEMU_OPCODES(AEMU_DISASSEMBLE_CASE)
 #undef AEMU_DISASSEMBLE_CASE
     default:
-        return disassemble_nop(instr);
+        return disassemble_undefined(instr);
     }
 }

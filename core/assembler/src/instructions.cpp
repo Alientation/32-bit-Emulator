@@ -205,20 +205,60 @@ word Assembler::parse_format_m1(const byte opcode)
 {
     m_cursor.next();
     const byte reg = parse_register();
-    expect(TokenType::COMMA, "expected ',' and a symbol");
+    expect(TokenType::COMMA, "expected ',' and a symbol or a distance");
 
     // An adrp implicitly has :hi20:. An adr is the distance in bytes, so it has no part of an
     // address.
     const bool is_adr = opcode == encoding::_op_adr;
-    if (!is_adr) m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
+    const bool hi20 = !is_adr && m_cursor.accept(TokenType::RELOCATION_EMU32_ADRP_HI20);
+    if (!at_expression())
+    {
+        fail(m_cursor.peek(),
+             "expected a symbol or a distance, got " + basm::describe(m_cursor.peek()));
+    }
+    const Token &first = m_cursor.peek();
+    const ExprValue target = parse_binary_expression(1);
+    if (target.label != nullptr)
+    {
+        add_relocation(code_relocations(), code_offset(),
+                       is_adr ? ObjectFile::RelocationEntry::Type::R_EMU32_ADR_PCREL21
+                              : ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
+                       target);
+        return Emulator32bit::asm_format_m1(opcode, reg, 0);
+    }
+    if (hi20)
+    {
+        fail(first, "expected a symbol after :hi20:, got a number");
+    }
 
-    const ExprValue target = parse_symbol_operand("expected a symbol");
-    add_relocation(code_relocations(), code_offset(),
-                   is_adr ? ObjectFile::RelocationEntry::Type::R_EMU32_ADR_PCREL21
-                          : ObjectFile::RelocationEntry::Type::R_EMU32_ADRP_HI20,
-                   target);
+    // A number is a distance in bytes, the way the disassembler writes it: for adr from the adr,
+    // for adrp between the pages, so a multiple of 4096. The field is 21 bits, the sign is bit 25.
+    const sdword distance = target.value;
+    sdword field = distance;
+    if (is_adr)
+    {
+        const sdword limit = sdword(1) << 20;
+        check(distance >= -limit && distance < limit,
+              "adr distance must be between -1048576 and 1048575 bytes, got "
+                  + std::to_string(distance));
+    }
+    else
+    {
+        check(distance % sdword(kPageSize) == 0,
+              "adrp distance must be a multiple of 4096 bytes, got " + std::to_string(distance));
+        check(distance >= INT32_MIN && distance <= INT32_MAX,
+              "adrp distance must be between -2147483648 and 2147479552 bytes, got "
+                  + std::to_string(distance));
+        field = distance / sdword(kPageSize);
+    }
 
-    return Emulator32bit::asm_format_m1(opcode, reg, 0);
+    word instruction =
+        Emulator32bit::asm_format_m1(opcode, reg, S32(bitfield_unsigned<0, 20>(word(field))));
+    if (field < 0)
+    {
+        instruction = set_bit<kInstructionUpdateFlagBit>(instruction, 1);
+    }
+    return instruction;
 }
 
 void Assembler::warn_writeback(const encoding::AddrType mode, const byte reg_t, const byte reg_a,

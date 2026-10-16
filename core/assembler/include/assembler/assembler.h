@@ -674,6 +674,10 @@ class Assembler
     /// Floating point data: `.float 1.5, -2` (4 bytes each) and `.double 0.1` (8 bytes).
     void _float();
     void _double();
+    /// Instructions given as their 32 bit words, in a code section: what the disassembler writes
+    /// for a word that is not an instruction.
+    /// USAGE:                .inst <expr>{, <expr>}
+    void _inst();
     /// Repeats a value: `count` copies of a `size` byte value (little endian).
     /// The size is 1, 2, 4 or 8 and defaults to 1, the value defaults to 0 and
     /// is a number that fits (for a size of 4 it can also be the address of a
@@ -748,5 +752,6 @@ class Assembler
         {basm::TokenType::ASSEMBLER_DOUBLE, &Assembler::_double},
         {basm::TokenType::ASSEMBLER_ASCII, &Assembler::_ascii},
         {basm::TokenType::ASSEMBLER_ASCIZ, &Assembler::_asciz},
+        {basm::TokenType::ASSEMBLER_INST, &Assembler::_inst},
     };
 };

@@ -216,6 +216,7 @@ Register offset (bit 14 clear):
 The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` (bit 25) is bit 20, set by the linker when the offset is negative.
 
 - `ADRP`: the offset is in pages. The result is `(address of the ADRP & ~0xFFF) + (offset << 12)`.
+- Written as a number (by the disassembler, or by hand), the distance is in bytes for both: `adr x1, -8`, `adrp x2, 8192` (2 pages). Since an address has 32 bits, the page distance of `ADRP` wraps at 2^20 pages, so the disassembler writes the low 20 bits as a signed number, which fits a 32 bit number of bytes.
 - `ADR`: the offset is in bytes. The result is `address of the ADR + offset`, so it reaches 1 MiB back or 1 MiB − 1 forward, and it is the exact address (a label of the code or of any section, the linker works the distance out). A symbol further away is a link error ("cannot reach"); use `adrp` + `add` for it.
 
 ### B1: branch with offset
@@ -229,7 +230,7 @@ The offset is a signed 21 bit number. `imm20` holds its low 20 bits and `?sign` 
 +-------+------+-----------------------+
 ```
 
-`simm22` is a signed offset in words (multiplied by 4), relative to the address of the branch instruction itself. For `SWI` the 22 bits are an unsigned number (`swi 3`, `swi` alone is `swi 0`), see [Software interrupts](#software-interrupts-swi).
+`simm22` is a signed offset in words (multiplied by 4), relative to the address of the branch instruction itself. The assembler reads a numeric target and the disassembler writes it in bytes (`b 8` is `simm22` = 2). For `SWI` the 22 bits are an unsigned number (`swi 3`, `swi` alone is `swi 0`), see [Software interrupts](#software-interrupts-swi).
 
 ### B2: branch to register
 
@@ -332,7 +333,7 @@ Encoding `0x00000000`, so running into zeroed memory halts (in kernel mode).
 +-------+------+------+--+--------------+---------+
 ```
 
-Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register, see [exceptions.md](exceptions.md#system-registers) for the registers. A register that does not exist is an undefined instruction (ISS 4, "System register N unimplemented."). In user mode only the flags of PSTATE and FPCR and FPSR can be written.
+Bit 16 is `?imm`. In the register form `xn` is bits 11–15. Moves a value to a system register, see [exceptions.md](exceptions.md#system-registers) for the registers. A register that does not exist is an undefined instruction (ISS 4, "System register N unimplemented."). In assembly a register is its name or its number, `sysreg0` to `sysreg11`; register 0 (reads 0, ignores writes) has only the number. In user mode only the flags of PSTATE and FPCR and FPSR can be written.
 
 ### MRS
 
@@ -517,7 +518,7 @@ So a compiler uses `MI` and `LS` for `<` and `<=`, as `LT` and `LE` are also tru
 | `010001` | `MOV{S} xd, arg` | O3 | `xd = arg` |
 | `010010` | `MVN{S} xd, arg` | O3 | `xd = ~arg` |
 
-`S` updates N and Z, C and V are unchanged. `arg` is an `imm19`, or `xn + imm14`.
+`S` updates N and Z, C and V are unchanged. `arg` is an `imm19`, or `xn + imm14`, written `mov xd, xn, imm14` (and `mov xd, xn` when the immediate is 0).
 
 ### Memory access (6)
 
@@ -678,6 +679,6 @@ Any other number faults with `BAD_INSTR` ("Invalid syscall number N").
 
 ## Unused opcodes
 
-Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The assigned opcodes are `000000` to `100010`, so the free ones are one range:
+Opcodes that are not assigned fault with `BAD_INSTR` ("Bad opcode N"). They do **not** halt. The disassembler writes such a word as `.inst 0x...`, which assembles back to it, and so every other word that is an undefined instruction whatever the state of the machine: an unknown operation of the special group, of `unary`, of the atomics or of the floating point functions, an atomic of an unknown width, the unaligned mode of `LDRB`/`STRB`, a double whose first register is `lr`, `sp` or `xzr`, and a system register that does not exist. A privileged instruction in user mode is not one of them, it depends on the mode. The assigned opcodes are `000000` to `100010`, so the free ones are one range:
 
 `100011` to `111111` (29 opcodes)

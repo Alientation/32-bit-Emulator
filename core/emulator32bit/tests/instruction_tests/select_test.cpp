@@ -224,7 +224,7 @@ TEST_F(UnaryTest, an_unassigned_operation_is_undefined)
     const word instr = Emulator32bit::asm_unary(0b1111, kXd, kXn);
     const auto result = step(0, instr);
     EXPECT_EQ(result.status, Emulator32bit::RunResult::Status::FAULT);
-    EXPECT_EQ(Emulator32bit::disassemble_instr(instr), "ERROR: INVALID UNARY OPERATION");
+    EXPECT_TRUE(Emulator32bit::disassemble_instr(instr).starts_with(".inst "));
 }
 
 TEST_F(UnaryTest, disassembly)

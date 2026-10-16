@@ -5,6 +5,8 @@
 #include "assembler_test/toolchain_fixture.h"
 #include "emulator32bit/fpu.h"
 
+#include <random>
+
 namespace
 {
 
@@ -69,6 +71,72 @@ const char *operands_of(InstructionFormat format)
     default:
         return "";
     }
+}
+
+/// Where the instruction of run_once is (above the memory it compares, which would differ by the
+/// instruction), and the vector table it faults to.
+constexpr word kCode = 0x8000;
+constexpr word kVectors = 0x800;
+
+/// The bytes of RAM that run_once compares: the registers point into them.
+constexpr word kMemoryWords = 0x4000 / sizeof(word);
+
+/// What a machine looks like after one instruction: the registers, the flags, the system
+/// registers and the memory. Two words that disassemble the same have to give the same.
+struct Outcome
+{
+    Emulator32bit::RunResult::Status status = Emulator32bit::RunResult::Status::LIMIT_REACHED;
+    word pc = 0;
+    word registers[kNumReg] = {};
+    word sysregs[encoding::kSysregCount] = {};
+    std::vector<word> memory;
+
+    /// Whether the instruction was undefined: the exception taken is of that class.
+    bool undefined = false;
+
+    bool operator==(const Outcome &other) const = default;
+};
+
+/// Runs one instruction on a machine that starts the same every time: kernel mode, a vector
+/// table (so a fault is an exception with its class in ESR, and swi is a system call), every
+/// register at its own address in the RAM, so that loads and stores reach memory, and the memory
+/// not zero (a load that sign extends differs from one that does not).
+Outcome run_once(const word instruction)
+{
+    Emulator32bit cpu(std::make_unique<RAM>(16, 0), std::make_unique<ROM>(16, 16),
+                      std::make_unique<MockDisk>());
+    for (word i = 0; i < kMemoryWords; i++)
+    {
+        EXPECT_TRUE(cpu.system_bus->write_physical_word(i * sizeof(word), i * 0x9E3779B9u));
+    }
+    for (U8 reg = 0; reg < register_to_U8(Register::XZR); reg++)
+    {
+        cpu.write_reg(reg, 0x2000 + 0x40 * reg);
+    }
+    cpu.write_sysreg(encoding::kSysregId_vbar, kVectors);
+    EXPECT_TRUE(cpu.system_bus->write_physical_word(kCode, instruction));
+    cpu.set_pc(kCode);
+
+    Outcome outcome;
+    outcome.status = cpu.run(1).status;
+    outcome.pc = cpu.get_pc();
+    for (U8 reg = 0; reg < kNumReg; reg++)
+    {
+        outcome.registers[reg] = cpu.read_reg(reg);
+    }
+    for (U8 id = 0; id < encoding::kSysregCount; id++)
+    {
+        outcome.sysregs[id] = cpu.read_sysreg(id);
+    }
+    outcome.memory.resize(kMemoryWords);
+    for (word i = 0; i < kMemoryWords; i++)
+    {
+        EXPECT_TRUE(cpu.system_bus->read_physical_word(outcome.memory[i], i * sizeof(word)));
+    }
+    const word esr_class = outcome.sysregs[encoding::kSysregId_esr] >> encoding::kEsrClassShift;
+    outcome.undefined = cpu.exception_depth() > 0
+                        && esr_class == word(Emulator32bit::ExceptionClass::UNDEFINED_INSTRUCTION);
+    return outcome;
 }
 
 /// The part of a disassembled instruction before its operands and condition: "b.ne 4" -> "b".
@@ -235,6 +303,14 @@ TEST_F(InstructionTable, msr_and_mrs_name_the_system_registers_in_any_case)
               std::vector<word>{Emulator32bit::asm_msr(encoding::kSysregId_pstate, false, 0)});
     EXPECT_TRUE(
         contains(error_of([&] { assemble("msr nothing, x1"); }), "invalid system register"));
+
+    // By number, also the one without a name, as far as there are registers.
+    EXPECT_EQ(assemble("mrs x2, sysreg0"), std::vector<word>{Emulator32bit::asm_mrs(2, 0)});
+    EXPECT_EQ(assemble("msr SYSREG10, x1"),
+              std::vector<word>{Emulator32bit::asm_msr(encoding::kSysregId_fpcr, false, 1)});
+    EXPECT_TRUE(
+        contains(error_of([&] { assemble("msr sysreg12, x1"); }), "invalid system register"));
+    EXPECT_TRUE(contains(error_of([&] { assemble("msr sysreg, x1"); }), "invalid system register"));
 }
 
 TEST_F(InstructionTable, tlbi_with_and_without_a_register)
@@ -519,4 +595,39 @@ TEST_F(InstructionTable, float_and_double_define_data)
     EXPECT_TRUE(
         contains(error_of([&] { data_of(".float foo"); }), "expected a floating point number"));
     EXPECT_TRUE(contains(error_of([&] { assemble(".float 1.0"); }), "can only define data"));
+}
+
+// Random words of every opcode: the disassembly assembles back to a word that disassembles the
+// same and does the same, and it is `.inst` exactly for the words that are undefined instructions.
+TEST_F(InstructionTable, a_disassembled_word_assembles_back_to_one_that_does_the_same)
+{
+    constexpr size_t kWordsPerOpcode = 32;
+    std::mt19937 random(1);
+    std::vector<word> words;
+    std::string source;
+    for (word opcode = 0; opcode < kMaxInstructions; opcode++)
+    {
+        for (size_t i = 0; i < kWordsPerOpcode; i++)
+        {
+            const word instruction = (word(random()) & 0x03FFFFFF) | (opcode << 26);
+            words.push_back(instruction);
+            source += Emulator32bit::disassemble_instr(instruction) + "\n";
+        }
+    }
+
+    const std::vector<word> back = assemble(source);
+    ASSERT_EQ(back.size(), words.size());
+    for (size_t i = 0; i < words.size(); i++)
+    {
+        const std::string text = Emulator32bit::disassemble_instr(words[i]);
+        EXPECT_EQ(Emulator32bit::disassemble_instr(back[i]), text) << std::hex << words[i];
+
+        const Outcome outcome = run_once(words[i]);
+        EXPECT_EQ(text.starts_with(".inst"), outcome.undefined) << text;
+        if (back[i] != words[i])
+        {
+            EXPECT_TRUE(run_once(back[i]) == outcome)
+                << text << ": " << std::hex << words[i] << " and " << back[i];
+        }
+    }
 }

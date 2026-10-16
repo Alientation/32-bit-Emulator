@@ -529,7 +529,31 @@ TEST_F(AssemblerUnit, adr_is_a_pc_relative_relocation_with_an_addend)
 TEST_F(AssemblerUnit, adr_takes_a_symbol_and_not_a_part_of_an_address)
 {
     EXPECT_TRUE(contains(error(".text\nadr x0, :hi20:buf\n.data\nbuf: .word 1\n"), "symbol"));
-    EXPECT_TRUE(contains(error(".text\nadr x0, 12\n"), "symbol"));
+    EXPECT_TRUE(contains(error(".text\nadrp x0, :hi20: 4096\n"), "symbol after :hi20:"));
+}
+
+// A number is a distance in bytes, the way the disassembler writes it: adrp's is between the
+// pages, so a multiple of 4096.
+TEST_F(AssemblerUnit, adr_and_adrp_take_a_distance_in_bytes)
+{
+    const Words words = text("adr x1, -8\nadrp x2, 12288\nadrp x3, -4096\n");
+    ASSERT_EQ(words.size(), 3u);
+    EXPECT_EQ(Emulator32bit::disassemble_instr(words[0]), "adr x1, -8");
+    EXPECT_EQ(Emulator32bit::disassemble_instr(words[1]), "adrp x2, 12288");
+    EXPECT_EQ(Emulator32bit::disassemble_instr(words[2]), "adrp x3, -4096");
+
+    EXPECT_TRUE(contains(error(".text\nadr x0, 1048576\n"), "adr distance must be between"));
+    EXPECT_TRUE(contains(error(".text\nadrp x0, 100\n"), "multiple of 4096"));
+    EXPECT_TRUE(contains(error(".text\nadrp x0, 2147483648\n"), "adrp distance must be between"));
+}
+
+// What the disassembler writes for a word that is not an instruction.
+TEST_F(AssemblerUnit, inst_puts_words_into_the_code)
+{
+    EXPECT_EQ(text(".inst 0x8c000000, 7\n"), (Words{0x8c000000, 7}));
+    EXPECT_EQ(Emulator32bit::disassemble_instr(0x8c000000), ".inst 0x8c000000");
+    EXPECT_TRUE(contains(error(".data\n.inst 1\n"), ".inst is code"));
+    EXPECT_TRUE(contains(error(".text\n.inst 0x100000000\n"), "does not fit in 32 bits"));
 }
 
 TEST_F(AssemblerUnit, labels_in_a_scope_are_renamed_per_scope)

@@ -390,6 +390,7 @@ static KeywordMap make_assembler_directives()
     D(".double", DOUBLE);
     D(".ascii", ASCII);
     D(".asciz", ASCIZ);
+    D(".inst", INST);
 #undef D
     return m;
 }

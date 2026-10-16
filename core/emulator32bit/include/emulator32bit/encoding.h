@@ -78,7 +78,9 @@ inline constexpr U8 kSysregImmBits = 16;    /// The immediate of `msr`.
 /// Bit 0 of SCTLR, which turns on translation by the page tables.
 inline constexpr word kSctlrMmuEnable = 1;
 
-/// The system registers, the 5 bit number of MSR and MRS. 0 reads 0 and ignores writes.
+/// The system registers, the 5 bit number of MSR and MRS. 0 has no name, it reads 0 and ignores
+/// writes; every register can also be written as `sysreg<n>`.
+inline constexpr word kSysregId_zero = 0;
 inline constexpr word kSysregId_pstate = 1;
 inline constexpr word kSysregId_elr = 2;
 inline constexpr word kSysregId_spsr = 3;
@@ -90,6 +92,8 @@ inline constexpr word kSysregId_ptbr = 8;
 inline constexpr word kSysregId_sctlr = 9;
 inline constexpr word kSysregId_fpcr = 10;
 inline constexpr word kSysregId_fpsr = 11;
+/// One past the last system register. The numbers from it to 31 are reserved: MSR and MRS fault.
+inline constexpr word kSysregCount = 12;
 
 /// ESR: the class of the exception is in bits 26-31 and the syndrome (ISS) in the bits below.
 inline constexpr U8 kEsrClassShift = 26;

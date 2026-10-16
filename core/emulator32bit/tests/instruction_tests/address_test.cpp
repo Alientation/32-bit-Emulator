@@ -108,5 +108,6 @@ TEST_F(EmulatorFixture, adr_and_adrp_are_disassembled)
 {
     EXPECT_EQ(Emulator32bit::disassemble_instr(adr(3, 40)), "adr x3, 40");
     EXPECT_EQ(Emulator32bit::disassemble_instr(adr(3, -8)), "adr x3, -8");
-    EXPECT_EQ(Emulator32bit::disassemble_instr(adrp(4, 2)), "adrp x4, 2");
+    // The distance of pages in bytes, the way the assembler reads it.
+    EXPECT_EQ(Emulator32bit::disassemble_instr(adrp(4, 2)), "adrp x4, 8192");
 }

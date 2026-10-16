@@ -1095,6 +1095,20 @@ void Assembler::_double()
     define_float(".double", true);
 }
 
+void Assembler::_inst()
+{
+    check(in_code_section(), ".inst is code, it must be in the .text section or in a section that "
+                             "is executable (.section \"name\", \"rx\")");
+    m_cursor.next();
+    do
+    {
+        const dword value = parse_expression();
+        check(value < (dword(1) << kNumWordBits),
+              ".inst value " + std::to_string(value) + " does not fit in 32 bits");
+        emit_instruction(word(value));
+    } while (m_cursor.accept(TokenType::COMMA));
+}
+
 void Assembler::_fill()
 {
     check(in_byte_section(),
