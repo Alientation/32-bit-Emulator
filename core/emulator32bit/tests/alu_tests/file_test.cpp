@@ -1,4 +1,5 @@
 #include "util/file.h"
+#include "util/logger.h"
 
 #include <gtest/gtest.h>
 
@@ -70,5 +71,45 @@ TEST(FileTest, clear_empties_a_file_and_fails_for_a_directory_that_does_not_exis
 
     File missing((dir / "no_such_directory" / "contents.txt").string());
     EXPECT_FALSE(missing.clear());
+    std::filesystem::remove_all(dir);
+}
+
+// A dot in a directory is not the start of the extension (`bexe.old/crash-1` used to be read as
+// the file `crash-1.crash-1`).
+TEST(FileTest, the_extension_is_in_the_file_name_and_not_in_a_directory)
+{
+    const File file("build/v1.2/program.bexe");
+    EXPECT_EQ(file.get_dir_str(), "build/v1.2");
+    EXPECT_EQ(file.get_name(), "program");
+    EXPECT_EQ(file.get_extension(), "bexe");
+
+    const File windows("build\\v1.2\\program.bexe");
+    EXPECT_EQ(windows.get_path(), "build/v1.2/program.bexe");
+
+    aemu::log::ScopedLevel quiet(aemu::log::Level::Off);
+    aemu::log::ScopedFatalAction fatal_throws(aemu::log::FatalAction::Throw);
+    EXPECT_THROW(File("build/v1.2/program"), aemu::log::FatalError);
+}
+
+TEST(FileTest, read_file_bytes_reads_every_byte_and_a_missing_file_is_fatal)
+{
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "aemu_read_test";
+    std::filesystem::create_directories(dir);
+    const std::string path = (dir / "bytes.bin").string();
+    std::vector<byte> expected;
+    for (size_t i = 0; i < 300; i++)
+    {
+        expected.push_back(byte(i));
+    }
+    {
+        std::ofstream(path, std::ios::binary)
+            .write(reinterpret_cast<const char *>(expected.data()), expected.size());
+    }
+
+    EXPECT_EQ(read_file_bytes(File(path)), expected);
+
+    aemu::log::ScopedLevel quiet(aemu::log::Level::Off);
+    aemu::log::ScopedFatalAction fatal_throws(aemu::log::FatalAction::Throw);
+    EXPECT_THROW(read_file_bytes(File((dir / "missing.bin").string())), aemu::log::FatalError);
     std::filesystem::remove_all(dir);
 }

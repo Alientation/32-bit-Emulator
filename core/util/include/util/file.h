@@ -66,8 +66,9 @@ class File
     File(const std::string &name, const std::string &extension, const std::string &dir,
          bool create_if_not_present = false);
 
-    /// Constructs a file object with the given file path. A path without an extension, or with an
-    /// invalid name, extension or directory, is a fatal error.
+    /// Constructs a file object with the given file path. The extension is what follows the last
+    /// dot of the file name, a dot in a directory is part of the directory. A file name without an
+    /// extension, or an invalid name, extension or directory, is a fatal error.
     ///
     /// @param[in] path The path of the file.
     /// @param[in] create_if_not_present Whether to create the file when it does not exist.
@@ -189,34 +190,11 @@ class ByteWriter
     FileWriter &m_filewriter;
 };
 
-/// Reads text and bytes from a file. Failing to open the file is a fatal error.
-class FileReader
-{
-  public:
-    /// Opens the file for reading with the given stream modes.
-    ///
-    /// @param[in] file The file to read.
-    /// @param[in] flags The open mode of the stream, e.g. `std::ios::binary`
-    FileReader(const File &file, std::ios_base::openmode flags);
-
-    /// Closes the file.
-    ~FileReader();
-
-    /// @return The next byte, which is consumed. Check has_next_byte () first: at the end of the
-    ///     file this is not a byte of the file.
-    char read_byte();
-
-    /// @return Whether there is a byte left to read.
-    bool has_next_byte();
-
-    /// Closes the file. Closing it again does nothing.
-    void close();
-
-  private:
-    File m_file;
-    std::ifstream *m_file_stream;
-    bool m_closed;
-};
+/// Reads a whole file at once. A file that cannot be opened or read is a fatal error.
+///
+/// @param[in] file The file to read.
+/// @return The bytes of the file.
+std::vector<byte> read_file_bytes(const File &file);
 
 /// Reads values of a given width from a vector of bytes.
 class ByteReader

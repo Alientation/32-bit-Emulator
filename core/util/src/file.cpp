@@ -88,18 +88,21 @@ File::File(const std::string &name, const std::string &extension, const std::str
 
 File::File(const std::string &path, const bool create_if_not_present)
 {
-    const std::size_t extension_separator_index = path.find_last_of(".");
-    if (extension_separator_index == std::string::npos)
+    // The extension is after the last dot of the last part of the path: a dot in a directory
+    // (`v1.2/program`) is not one. Both separators are taken, as trim_dir_path does.
+    const size_t last_separator = path.find_last_of("/\\");
+    const bool has_dir = last_separator != std::string::npos;
+    const std::string name_and_extension = has_dir ? path.substr(last_separator + 1) : path;
+    const size_t dot = name_and_extension.find_last_of('.');
+    if (dot == std::string::npos)
     {
         AEMU_FATAL("File path does not contain an extension: {}", path);
+        return;
     }
 
-    const bool has_dir = path.find_last_of(SEPARATOR) == std::string::npos;
-    const std::string name_and_extension =
-        has_dir ? path : path.substr(path.find_last_of(SEPARATOR) + 1);
-    m_name = name_and_extension.substr(0, name_and_extension.find_last_of("."));
-    m_extension = name_and_extension.substr(name_and_extension.find_last_of(".") + 1);
-    m_dir = has_dir ? "" : trim_dir_path(path.substr(0, path.find_last_of(SEPARATOR)));
+    m_name = name_and_extension.substr(0, dot);
+    m_extension = name_and_extension.substr(dot + 1);
+    m_dir = has_dir ? trim_dir_path(path.substr(0, last_separator)) : "";
 
     if (!valid_name(m_name))
     {
@@ -372,39 +375,30 @@ void ByteReader::skip_bytes(const size_t num_bytes)
     m_cur_byte += num_bytes;
 }
 
-FileReader::FileReader(const File &file, const std::ios_base::openmode flags) :
-    m_file(file)
+std::vector<byte> read_file_bytes(const File &file)
 {
-    m_file_stream = new std::ifstream(m_file.get_path(), flags);
-    m_closed = false;
-
-    if (!m_file_stream->good())
+    std::ifstream in(file.get_path(), std::ios::binary);
+    if (!in)
     {
-        AEMU_FATAL("Failed to open file: '{}'.", m_file.get_path());
+        AEMU_FATAL("Failed to open file: '{}'.", file.get_path());
+        return {};
     }
-}
 
-FileReader::~FileReader()
-{
-    this->close();
-}
-
-char FileReader::read_byte()
-{
-    return m_file_stream->get();
-    ;
-}
-
-bool FileReader::has_next_byte()
-{
-    return m_file_stream->peek() != EOF;
-}
-
-void FileReader::close()
-{
-    if (!m_closed)
+    in.seekg(0, std::ios::end);
+    const std::streamoff size = in.tellg();
+    in.seekg(0, std::ios::beg);
+    if (size < 0)
     {
-        delete m_file_stream;
-        m_closed = true;
+        AEMU_FATAL("Failed to read file: '{}'.", file.get_path());
+        return {};
     }
+
+    std::vector<byte> bytes(size_t(size), 0);
+    in.read(reinterpret_cast<char *>(bytes.data()), size);
+    if (in.gcount() != size)
+    {
+        AEMU_FATAL("Failed to read file: '{}'.", file.get_path());
+        return {};
+    }
+    return bytes;
 }

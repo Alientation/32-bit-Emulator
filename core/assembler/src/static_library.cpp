@@ -45,13 +45,7 @@ void write_static_library(const std::vector<File> &objects, const File &out)
     std::vector<std::pair<std::string, std::vector<byte>>> members;
     for (const File &file : objects)
     {
-        FileReader reader(file, std::ios::in | std::ios::binary);
-        std::vector<byte> bytes;
-        while (reader.has_next_byte())
-        {
-            bytes.push_back(reader.read_byte());
-        }
-        reader.close();
+        std::vector<byte> bytes = read_file_bytes(file);
 
         // Only a file that is an object file can be a member.
         ObjectFile check;
@@ -86,14 +80,7 @@ void write_static_library(const std::vector<File> &objects, const File &out)
 
 std::vector<LibraryMember> read_static_library(const File &in)
 {
-    FileReader reader = FileReader(in, std::ios::in | std::ios::binary);
-
-    std::vector<byte> bytes;
-    while (reader.has_next_byte())
-    {
-        bytes.push_back(reader.read_byte());
-    }
-    reader.close();
+    const std::vector<byte> bytes = read_file_bytes(in);
 
     const std::string &path = in.get_path();
     const size_t header = kMagicLength + sizeof(hword) + sizeof(dword);

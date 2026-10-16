@@ -93,13 +93,7 @@ void Disk::read_disk_files()
 
 void Disk::read_disk_manager_file()
 {
-    FileReader freader(m_diskfile_manager, std::ios::binary | std::ios::in);
-    std::vector<byte> bytes;
-    while (freader.has_next_byte())
-    {
-        bytes.push_back(freader.read_byte());
-    }
-    freader.close();
+    const std::vector<byte> bytes = read_file_bytes(m_diskfile_manager);
     ByteReader reader(bytes);
 
     if (!reader.has_next() || reader.read_word() != MAGIC_HEADER)

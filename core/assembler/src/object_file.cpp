@@ -206,17 +206,7 @@ void ObjectFile::read_object_file(const std::vector<byte> &bytes)
 void ObjectFile::read_object_file(const File &object_file)
 {
     m_obj_file = object_file;
-
-    FileReader file_reader(m_obj_file, std::ios::in | std::ios::binary);
-
-    AEMU_DEBUG("Reading bytes");
-    std::vector<byte> bytes;
-    while (file_reader.has_next_byte())
-    {
-        bytes.push_back(file_reader.read_byte());
-    }
-
-    deserialize_checked(bytes);
+    deserialize_checked(read_file_bytes(m_obj_file));
 }
 
 void ObjectFile::deserialize_checked(const std::vector<byte> &bytes)

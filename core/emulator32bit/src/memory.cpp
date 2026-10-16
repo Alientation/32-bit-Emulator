@@ -67,13 +67,7 @@ ROM::ROM(const word npages, const word start_page) :
 ROM::ROM(const File &file, const word npages, const word start_page) :
     Memory(npages, start_page)
 {
-    FileReader fr(file, std::ios::binary | std::ios::in);
-    std::vector<byte> bytes;
-    while (fr.has_next_byte())
-    {
-        bytes.push_back(fr.read_byte());
-    }
-
+    const std::vector<byte> bytes = read_file_bytes(file);
     if (bytes.size() > npages << kNumPageOffsetBits)
     {
         throw ImageTooLarge("ROM File is larger than the specified ROM size "
