@@ -16,6 +16,12 @@ target_compile_definitions(assembler_integration PRIVATE
 )
 if(AEMU_GUI)
     target_compile_definitions(assembler_integration PRIVATE AEMU_GUI)
+    # What the window hands the machine (the keys, the text, the mouse) is tested on the window
+    # itself, with SDL's dummy video driver.
+    find_package(SDL2 REQUIRED)
+    target_sources(assembler_integration PRIVATE
+        ${PROJECT_SOURCE_DIR}/emulator32bit/src/display_window.cpp)
+    target_link_libraries(assembler_integration PRIVATE SDL2::SDL2)
 endif()
 
 # TODO: Comment back in when ccompiler is implemented.

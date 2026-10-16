@@ -246,14 +246,6 @@ void Console::poll_host_input()
     if (m_input.size() != before && (m_ctrl & kCtrlRxInterrupt)) m_intc.raise(kIrqLineConsole);
 }
 
-bool Console::wait_host_input()
-{
-    if (m_host == nullptr) return false;
-    const bool arrived = m_host->wait();
-    poll_host_input();
-    return arrived;
-}
-
 void Console::reset()
 {
     m_input.clear();
@@ -996,16 +988,136 @@ void RandomNumbers::write_register(const word offset, const word value)
 }
 
 // ---------------------------------------------------------------------------------------------
+// Input device
+
+InputDevice::InputDevice(InterruptController &intc) :
+    Device(kInputBase, device_id(kDeviceTypeInput, kIrqLineInput)),
+    m_intc(intc)
+{
+}
+
+void InputDevice::interrupt(const bool key)
+{
+    if (m_ctrl & (key ? kCtrlKeyInterrupt : kCtrlMouseInterrupt)) m_intc.raise(kIrqLineInput);
+}
+
+void InputDevice::push(const InputEvent &event)
+{
+    switch (event.kind)
+    {
+    case InputEvent::Kind::KEY:
+        if (m_count == kQueueSize)
+        {
+            m_flags |= kStatusLost;
+            return;
+        }
+        m_keys[(m_head + m_count) % kQueueSize] = event.value;
+        ++m_count;
+        interrupt(true);
+        return;
+    case InputEvent::Kind::MOUSE_MOVE:
+        if (event.x == m_x && event.y == m_y) return;
+        m_x = event.x;
+        m_y = event.y;
+        break;
+    case InputEvent::Kind::MOUSE_BUTTONS:
+        if (event.value == m_buttons) return;
+        m_buttons = event.value;
+        break;
+    case InputEvent::Kind::MOUSE_WHEEL:
+        if (event.value == 0) return;
+        m_wheel += event.value;
+        break;
+    }
+    m_flags |= kStatusMouseChanged;
+    interrupt(false);
+}
+
+void InputDevice::attach_host_input(std::shared_ptr<HostInput> input)
+{
+    m_host = std::move(input);
+}
+
+void InputDevice::poll_host_input()
+{
+    if (m_host == nullptr || !m_host->events_pending()) return;
+
+    m_host->take_events(m_arrived);
+    for (const InputEvent &event : m_arrived) push(event);
+}
+
+void InputDevice::reset()
+{
+    m_ctrl = m_flags = 0;
+    m_x = m_y = m_buttons = m_wheel = 0;
+    m_head = m_count = 0;
+}
+
+word InputDevice::read_register(const word offset)
+{
+    poll_host_input();
+
+    switch (offset)
+    {
+    case kRegKey:
+    {
+        if (m_count == 0) return 0;
+        const word key = m_keys[m_head];
+        m_head = (m_head + 1) % kQueueSize;
+        --m_count;
+        return key;
+    }
+    case kRegStatus:
+        return m_flags | (m_count != 0 ? kStatusKeyWaiting : 0);
+    case kRegCtrl:
+        return m_ctrl;
+    case kRegMouseX:
+        return m_x;
+    case kRegMouseY:
+        return m_y;
+    case kRegButtons:
+        return m_buttons;
+    case kRegWheel:
+    {
+        const word steps = m_wheel;
+        m_wheel = 0;
+        return steps;
+    }
+    default:
+        return 0;
+    }
+}
+
+void InputDevice::write_register(const word offset, const word value)
+{
+    switch (offset)
+    {
+    case kRegStatus:
+        m_flags = 0;
+        break;
+    case kRegCtrl:
+        m_ctrl = value & (kCtrlKeyInterrupt | kCtrlMouseInterrupt);
+        // What is already waiting counts as arriving now.
+        if (m_count != 0) interrupt(true);
+        if (m_flags & kStatusMouseChanged) interrupt(false);
+        break;
+    default:
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Clock
 
 DeviceClock::DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                         const SystemController &sysctl, RealTimeClock &rtc) :
+                         const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input) :
     m_timer(timer),
     m_block(block),
     m_display(display),
     m_console(console),
     m_sysctl(sysctl),
-    m_rtc(rtc)
+    m_rtc(rtc),
+    m_input(input)
 {
 }
 
@@ -1035,8 +1147,10 @@ bool DeviceClock::sync()
     if (passed != 0) advance(passed);
 
     m_console.poll_host_input();
+    m_input.poll_host_input();
 
-    const word poll = m_console.has_host_input() ? Console::kHostInputPollInterval : kMaxCountdown;
+    const bool live = m_console.host_input() != nullptr || m_input.host_input() != nullptr;
+    const word poll = live ? Console::kHostInputPollInterval : kMaxCountdown;
     m_countdown = std::min({m_timer.cycles_until_event(), m_block.cycles_until_event(),
                             m_display.cycles_until_frame(), poll});
     // A request is served after the instruction that made it, which the next tick ends.

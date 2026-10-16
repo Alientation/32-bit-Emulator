@@ -20,7 +20,7 @@ This project simulates a computer processor by simulating the execution of machi
 * supports up to 64 instructions (6 bit opcode), currently **35** opcodes are in use (29 are free), including hardware floating point (`float` and `double` in the integer registers)
 * high **test coverage** to ensure correctness of emulator and assembler (unit and integration tests)
 * supports **preprocessors** and **assembler directives** including macro
-* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA, display, system controller, real time clock, random numbers), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
+* privilege levels, exceptions and interrupts, a two level page table MMU, memory mapped devices (timer, console, block device with DMA, display, keyboard and mouse, system controller, real time clock, random numbers), and debugging (trace, breakpoints, watchpoints, a REPL, a gdb server)
 
 <p align="center">
   <img src="./img/objdump.PNG" alt="Objdump of assembled code" width="45%" style="display: inline-block; margin: 0 10px;">

@@ -13,7 +13,8 @@ struct SDL_Window;
 
 /// The window of `emu32 --display` (docs/display.md), an SDL window that is only built with the
 /// CMake option AEMU_GUI. It runs on the main thread and shows the frames that the display of the
-/// machine, on another thread, presents to a HostDisplay. What is typed in it goes to the console.
+/// machine, on another thread, presents to a HostDisplay. What is typed in it goes to the console,
+/// and the keys and the mouse to the input device.
 class DisplayWindow
 {
   public:
@@ -36,7 +37,7 @@ class DisplayWindow
     /// window stays when the machine stops, with the last picture, and says so in its title.
     ///
     /// @param[in,out] host Where the frames come from.
-    /// @param[in] keys Where typed text goes, or null.
+    /// @param[in] keys Where typed text and the events of the keys and the mouse go, or null.
     /// @param[in] stopped Set by the thread of the machine when it stopped.
     void run(HostDisplay &host, HostInput *keys, const std::atomic<bool> &stopped);
 
@@ -49,6 +50,12 @@ class DisplayWindow
     /// Draws the texture again (the window was uncovered or resized).
     void redraw();
 
+    /// Hands what was typed, and the event of a key or the mouse, to the machine.
+    ///
+    /// @param[in] event The event of SDL.
+    /// @param[in,out] keys Where it goes.
+    void forward(const union SDL_Event &event, HostInput &keys);
+
     std::string m_title;
     word m_scale;
     bool m_initialized = false;
@@ -57,4 +64,5 @@ class DisplayWindow
     SDL_Texture *m_texture = nullptr;
     word m_width = 0; /// Of the texture.
     word m_height = 0;
+    word m_buttons = 0; /// The buttons of the mouse that are down (InputDevice::kButton*).
 };

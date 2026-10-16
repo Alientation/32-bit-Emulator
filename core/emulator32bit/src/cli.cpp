@@ -778,6 +778,7 @@ static bool run_with_window(Emulator32bit &emu, const CliArgs &args,
     const auto keys = std::make_shared<HostInput>();
     display.attach_host_display(host);
     emu.system_bus->console.attach_host_input(keys);
+    emu.system_bus->input.attach_host_input(keys);
 
     std::atomic<bool> stopped{false};
     std::thread machine(

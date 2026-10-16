@@ -426,7 +426,9 @@ TEST_F(Devices, a_reset_clears_the_devices)
     cpu.memory.write_word(kIntcBase + 8, 0xFF);
     cpu.system_bus->console.push_input("x");
     const word random = cpu.memory.read_word(kRngBase + RandomNumbers::kRegData);
+    cpu.system_bus->input.push({.kind = InputEvent::Kind::KEY, .value = 4});
     cpu.reset();
+    EXPECT_EQ(cpu.memory.read_word(kInputBase + InputDevice::kRegKey), 0u);
     EXPECT_EQ(intc_read(0x08), 0u);
     EXPECT_FALSE(cpu.system_bus->console.input_waiting());
     EXPECT_EQ(cpu.memory.read_word(kRngBase + RandomNumbers::kRegData), random)
@@ -1690,4 +1692,234 @@ TEST(RandomNumbersUnit, the_numbers_of_the_host_until_a_program_writes_a_seed_or
     size_t same = 0;
     for (size_t i = 0; i < 4; i++) same += rng.next() == generator.next() ? 1 : 0;
     EXPECT_LT(same, 4u) << "the host's numbers again";
+}
+
+// --- the keyboard and the mouse ------------------------------------------------------------
+
+namespace
+{
+
+/// An input device with line 4 enabled.
+struct Keyboard
+{
+    InterruptController intc;
+    InputDevice input{intc};
+
+    Keyboard()
+    {
+        intc.write_word(kIntcBase + InterruptController::kRegEnable, 1u << kIrqLineInput);
+    }
+
+    word reg(const word offset)
+    {
+        return input.read_word(kInputBase + offset);
+    }
+
+    void set(const word offset, const word value)
+    {
+        input.write_word(kInputBase + offset, value);
+    }
+
+    void key(const word code, const word flags)
+    {
+        input.push({.kind = InputEvent::Kind::KEY, .value = InputDevice::key_word(code, flags)});
+    }
+};
+
+/// The USB HID codes of some keys.
+constexpr word kKeyA = 4;
+constexpr word kKeyB = 5;
+constexpr word kKeyUp = 82;
+
+} // namespace
+
+TEST(InputDeviceUnit, key_events_are_read_in_the_order_they_came_and_too_many_are_lost)
+{
+    Keyboard keyboard;
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegKey), 0u) << "none";
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), 0u);
+
+    keyboard.key(kKeyA, InputDevice::kKeyPressed | InputDevice::kModShift);
+    keyboard.key(kKeyA, 0);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), InputDevice::kStatusKeyWaiting);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegKey), 0x01010004u) << "A down with shift";
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegKey), 0x00000004u) << "A up";
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), 0u);
+    EXPECT_FALSE(keyboard.intc.has_pending()) << "the interrupt is off";
+
+    for (word i = 0; i < InputDevice::kQueueSize + 1; i++)
+    {
+        keyboard.key(kKeyB + i, InputDevice::kKeyPressed);
+    }
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus),
+              InputDevice::kStatusKeyWaiting | InputDevice::kStatusLost);
+    for (word i = 0; i < InputDevice::kQueueSize; i++)
+    {
+        ASSERT_EQ(keyboard.reg(InputDevice::kRegKey), (kKeyB + i) | InputDevice::kKeyPressed)
+            << "the queue wraps in order";
+    }
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegKey), 0u) << "the last one was lost";
+    keyboard.set(InputDevice::kRegStatus, 0);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), 0u);
+}
+
+TEST(InputDeviceUnit, the_mouse_is_where_it_is_now_and_the_wheel_counts_steps)
+{
+    Keyboard keyboard;
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 10, .y = 20});
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 12, .y = 21});
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegMouseX), 12u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegMouseY), 21u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), InputDevice::kStatusMouseChanged);
+    keyboard.set(InputDevice::kRegStatus, 0);
+
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 12, .y = 21});
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), 0u) << "it did not move";
+
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_BUTTONS,
+                         .value = InputDevice::kButtonLeft | InputDevice::kButtonMiddle});
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegButtons), 5u);
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_WHEEL, .value = word(-3)});
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_WHEEL, .value = 1});
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegWheel), word(-2));
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegWheel), 0u) << "a read takes the steps";
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), InputDevice::kStatusMouseChanged);
+}
+
+TEST(InputDeviceUnit, line_4_is_raised_for_what_ctrl_asks_and_a_reset_clears_everything)
+{
+    Keyboard keyboard;
+    keyboard.set(InputDevice::kRegCtrl, InputDevice::kCtrlKeyInterrupt);
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 1, .y = 1});
+    EXPECT_FALSE(keyboard.intc.has_pending()) << "only keys";
+    keyboard.key(kKeyUp, InputDevice::kKeyPressed);
+    EXPECT_EQ(keyboard.intc.claim(), kIrqLineInput);
+
+    // The key (not read) and the move wait: enabling either counts as it arriving now.
+    keyboard.set(InputDevice::kRegCtrl, InputDevice::kCtrlMouseInterrupt);
+    EXPECT_EQ(keyboard.intc.claim(), kIrqLineInput) << "the mouse changed";
+    keyboard.set(InputDevice::kRegStatus, 0);
+    keyboard.set(InputDevice::kRegCtrl, 0);
+    keyboard.set(InputDevice::kRegCtrl, 0xFF);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegCtrl),
+              InputDevice::kCtrlKeyInterrupt | InputDevice::kCtrlMouseInterrupt);
+    EXPECT_EQ(keyboard.intc.claim(), kIrqLineInput) << "a key waits";
+    keyboard.reg(InputDevice::kRegKey);
+    keyboard.set(InputDevice::kRegCtrl, InputDevice::kCtrlMouseInterrupt);
+    EXPECT_FALSE(keyboard.intc.has_pending()) << "nothing waits";
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_BUTTONS, .value = 1});
+    EXPECT_EQ(keyboard.intc.claim(), kIrqLineInput);
+    EXPECT_TRUE(keyboard.input.interrupt_enabled());
+
+    keyboard.key(kKeyA, InputDevice::kKeyPressed);
+    keyboard.input.push({.kind = InputEvent::Kind::MOUSE_WHEEL, .value = 2});
+    keyboard.input.reset();
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegKey), 0u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegStatus), 0u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegCtrl), 0u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegMouseX), 0u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegButtons), 0u);
+    EXPECT_EQ(keyboard.reg(InputDevice::kRegWheel), 0u);
+}
+
+TEST(HostInputUnit, events_are_kept_apart_from_the_bytes_and_wake_a_wait)
+{
+    HostInput input;
+    input.push_event({.kind = InputEvent::Kind::KEY, .value = 7});
+    EXPECT_TRUE(input.events_pending());
+    EXPECT_FALSE(input.pending()) << "no bytes";
+    EXPECT_TRUE(input.wait());
+
+    input.push("x");
+    std::deque<byte> bytes;
+    input.take(bytes);
+    EXPECT_TRUE(input.events_pending()) << "taking the bytes leaves the events";
+
+    std::vector<InputEvent> events{{.kind = InputEvent::Kind::MOUSE_WHEEL, .value = 1}};
+    input.take_events(events);
+    ASSERT_EQ(events.size(), 1u) << "what it held is replaced";
+    EXPECT_EQ(events[0].value, 7u);
+    EXPECT_FALSE(input.events_pending());
+    input.take_events(events);
+    EXPECT_TRUE(events.empty());
+}
+
+TEST_F(Devices, keys_from_the_host_are_read_through_the_registers)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->input.attach_host_input(input);
+    input->push_event({.kind = InputEvent::Kind::KEY,
+                       .value = InputDevice::key_word(kKeyA, InputDevice::kKeyPressed)});
+    input->push_event({.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 3, .y = 4});
+    EXPECT_EQ(cpu.memory.read_word(kInputBase + InputDevice::kRegMouseX), 3u)
+        << "a read looks at the host";
+    EXPECT_EQ(cpu.memory.read_word(kInputBase + InputDevice::kRegKey),
+              kKeyA | InputDevice::kKeyPressed);
+}
+
+// A program that never looks at the device still gets a key pressed while it runs.
+TEST_F(Devices, a_key_pressed_while_a_program_runs_in_a_loop_interrupts_it)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->input.attach_host_input(input);
+    install_vectors({E::asm_hlt()});
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kInputBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineInput), store_at(1, 10, 0x08),
+                    mov(1, InputDevice::kCtrlKeyInterrupt), store_at(1, 11, InputDevice::kRegCtrl),
+                    E::asm_msr(encoding::kSysregId_pstate, true, 0),
+                    E::asm_format_b1(encoding::_op_b, ConditionCode::AL, 0)}); // to itself
+    std::thread typist(
+        [input]
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            input->push_event({.kind = InputEvent::Kind::KEY,
+                               .value = InputDevice::key_word(kKeyUp, InputDevice::kKeyPressed)});
+        });
+    constexpr U64 kLimit = 100'000'000;
+    const auto result = run(program, kLimit);
+    typist.join();
+
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_LT(result.instructions_ran, kLimit);
+    EXPECT_EQ(cpu.memory.read_word(kInputBase + InputDevice::kRegKey),
+              kKeyUp | InputDevice::kKeyPressed);
+}
+
+// WFI waits for the host for the input device as for the console; text typed, which the program
+// did not ask to hear of, does not end the wait.
+TEST_F(Devices, wfi_waits_for_a_key_when_the_program_asked_to_hear_of_one)
+{
+    const auto input = std::make_shared<HostInput>();
+    cpu.system_bus->console.attach_host_input(input);
+    cpu.system_bus->input.attach_host_input(input);
+    std::thread typist(
+        [input]
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            input->push("t");
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            input->push_event({.kind = InputEvent::Kind::KEY,
+                               .value = InputDevice::key_word(kKeyB, InputDevice::kKeyPressed)});
+        });
+
+    std::vector<word> program;
+    append(program, constant(10, kIntcBase));
+    append(program, constant(11, kInputBase));
+    program.insert(program.end(),
+                   {mov(1, 1u << kIrqLineInput), store_at(1, 10, 0x08),
+                    mov(1, InputDevice::kCtrlKeyInterrupt), store_at(1, 11, InputDevice::kRegCtrl),
+                    E::asm_wfi(), load_at(8, 10, 0), // claim
+                    load_at(9, 11, InputDevice::kRegKey), E::asm_hlt()});
+    const auto result = run(program);
+    typist.join();
+
+    ASSERT_EQ(result.status, Status::HALTED) << result.message;
+    EXPECT_EQ(result.message.find("no interrupt source"), std::string::npos) << result.message;
+    EXPECT_EQ(cpu.read_reg(8), kIrqLineInput);
+    EXPECT_EQ(cpu.read_reg(9), kKeyB | InputDevice::kKeyPressed);
+    EXPECT_EQ(cpu.memory.read_byte(kConsoleBase), 't') << "the console took the text";
 }

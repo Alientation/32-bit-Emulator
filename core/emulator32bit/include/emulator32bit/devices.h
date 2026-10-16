@@ -26,10 +26,11 @@ inline constexpr word kDisplayBase = kDeviceBase + 0x4000;
 inline constexpr word kSysctlBase = kDeviceBase + 0x5000;
 inline constexpr word kRtcBase = kDeviceBase + 0x6000;
 inline constexpr word kRngBase = kDeviceBase + 0x7000;
+inline constexpr word kInputBase = kDeviceBase + 0x8000;
 
 /// The devices fill the pages of the window from kDeviceBase on, with no gap. An address after the
 /// last one is a bus error.
-inline constexpr word kNumDevices = 8;
+inline constexpr word kNumDevices = 9;
 inline constexpr word kDeviceEnd = kDeviceBase + kNumDevices * kPageSize;
 
 /// The interrupt lines.
@@ -37,6 +38,7 @@ inline constexpr word kIrqLineTimer = 0;
 inline constexpr word kIrqLineConsole = 1;
 inline constexpr word kIrqLineBlock = 2;
 inline constexpr word kIrqLineDisplay = 3;
+inline constexpr word kIrqLineInput = 4;
 
 /// The types of device, in bits 31-16 of the ID register of each one.
 inline constexpr word kDeviceTypeInterruptController = 1;
@@ -47,6 +49,7 @@ inline constexpr word kDeviceTypeDisplay = 5;
 inline constexpr word kDeviceTypeSystemController = 6;
 inline constexpr word kDeviceTypeRealTimeClock = 7;
 inline constexpr word kDeviceTypeRandom = 8;
+inline constexpr word kDeviceTypeInput = 9;
 
 /// The version of every device so far, in bits 15-8 of its ID. A device that changes what it does
 /// gets a higher one.
@@ -296,10 +299,10 @@ class Console : public Device
     /// @param[in] input The input, which the console shares.
     void attach_host_input(std::shared_ptr<HostInput> input);
 
-    /// @return Whether there is a live input.
-    bool has_host_input() const
+    /// @return The live input, or null.
+    HostInput *host_input() const
     {
-        return m_host != nullptr;
+        return m_host.get();
     }
 
     /// Takes the bytes the host has supplied, and raises the interrupt if that is enabled.
@@ -310,11 +313,6 @@ class Console : public Device
     {
         return (m_ctrl & kCtrlRxInterrupt) != 0;
     }
-
-    /// For WFI with nothing else to wait for: blocks until the host supplies a byte.
-    ///
-    /// @return `false` if the input has ended and no byte will come (or there is no live input).
-    bool wait_host_input();
 
     void reset() override;
 
@@ -879,6 +877,139 @@ class RandomNumbers : public Device
     bool m_from_host = false; /// Whether they come from the host now, not the generator.
 };
 
+/// An event of the keyboard or the mouse, which the host gives the input device.
+struct InputEvent
+{
+    enum class Kind : U8
+    {
+        KEY,           /// A key went down, repeated or went up.
+        MOUSE_MOVE,    /// The mouse is at a new position.
+        MOUSE_BUTTONS, /// A button of the mouse went down or up.
+        MOUSE_WHEEL,   /// The wheel turned.
+    };
+
+    Kind kind;
+    word value; /// KEY: the word that KEY reads (InputDevice::key_word). MOUSE_BUTTONS: the buttons
+                /// that are down (InputDevice::kButton*). MOUSE_WHEEL: the steps, up positive.
+    word x = 0; /// MOUSE_MOVE: the position, in pixels of the display from the top left.
+    word y = 0;
+};
+
+/// The keyboard and the mouse of the window (docs/devices.md). Key events wait in a queue; the
+/// mouse is the state it is in now. Raises line 4 when a key event arrives or the mouse changes,
+/// as CTRL says.
+///
+/// | Offset | Name    | Access | |
+/// | 0x00   | KEY     | read   | take the next key event, 0 if there is none (InputDevice::key_word) |
+/// | 0x04   | STATUS  | r/w    | bit 0: a key event is waiting, bit 1: the mouse changed, bit 2: key events were lost. A write clears bits 1 and 2 |
+/// | 0x08   | CTRL    | r/w    | bit 0: raise line 4 for a key event, bit 1: raise it when the mouse changes |
+/// | 0x0C   | MOUSE_X | read   | the position across, in pixels of the display |
+/// | 0x10   | MOUSE_Y | read   | the position down |
+/// | 0x14   | BUTTONS | read   | bit 0: left, bit 1: right, bit 2: middle |
+/// | 0x18   | WHEEL   | read   | the steps the wheel turned since the last read (up positive), and set it to 0 |
+class InputDevice : public Device
+{
+  public:
+    /// The offsets of the registers.
+    static constexpr word kRegKey = 0x00;
+    static constexpr word kRegStatus = 0x04;
+    static constexpr word kRegCtrl = 0x08;
+    static constexpr word kRegMouseX = 0x0C;
+    static constexpr word kRegMouseY = 0x10;
+    static constexpr word kRegButtons = 0x14;
+    static constexpr word kRegWheel = 0x18;
+
+    /// The bits of STATUS.
+    static constexpr word kStatusKeyWaiting = 1;
+    static constexpr word kStatusMouseChanged = 2;
+    static constexpr word kStatusLost = 4;
+
+    /// The bits of CTRL.
+    static constexpr word kCtrlKeyInterrupt = 1;
+    static constexpr word kCtrlMouseInterrupt = 2;
+
+    /// The bits of a key event, above the key code in bits 15-0 (a USB HID usage, the code of the
+    /// key's position and not of what it prints: 4 is A, 40 Enter, 82 up).
+    static constexpr word kKeyCodeMask = 0xFFFF;
+    static constexpr word kKeyPressed = word(1) << 16; /// 0: the key went up.
+    static constexpr word kKeyRepeat = word(1) << 17;  /// The key is held, a press again.
+    static constexpr word kModShift = word(1) << 24;   /// The modifiers that were down.
+    static constexpr word kModCtrl = word(1) << 25;
+    static constexpr word kModAlt = word(1) << 26;
+    static constexpr word kModGui = word(1) << 27;
+
+    /// The bits of BUTTONS.
+    static constexpr word kButtonLeft = 1;
+    static constexpr word kButtonRight = 2;
+    static constexpr word kButtonMiddle = 4;
+
+    /// The key events that wait at most; one more is lost.
+    static constexpr word kQueueSize = 64;
+
+    /// @param[in] code The key code, a USB HID usage (1 to 0xFFFF).
+    /// @param[in] flags kKeyPressed, kKeyRepeat and the kMod* bits.
+    /// @return The word that KEY reads for the event.
+    static constexpr word key_word(const word code, const word flags)
+    {
+        return (code & kKeyCodeMask) | flags;
+    }
+
+    /// @param[in] intc The controller that gets the interrupt.
+    explicit InputDevice(InterruptController &intc);
+
+    /// Takes an event, as if it came from the host now.
+    ///
+    /// @param[in] event The event.
+    void push(const InputEvent &event);
+
+    /// Takes the events that another thread supplies while the machine runs (the window). The
+    /// device moves them in on the thread of the emulator, like the console its bytes: when a
+    /// register is read, when the DeviceClock looks and when `WFI` waits.
+    ///
+    /// @param[in] input The input, which the device shares.
+    void attach_host_input(std::shared_ptr<HostInput> input);
+
+    /// @return The live input, or null.
+    HostInput *host_input() const
+    {
+        return m_host.get();
+    }
+
+    /// Takes the events the host has supplied.
+    void poll_host_input();
+
+    /// @return Whether any event raises the interrupt (CTRL is not 0).
+    bool interrupt_enabled() const
+    {
+        return m_ctrl != 0;
+    }
+
+    void reset() override;
+
+  protected:
+    word read_register(word offset) override;
+    void write_register(word offset, word value) override;
+
+  private:
+    /// Raises the interrupt for a key event (`key`) or a change of the mouse, if CTRL says so.
+    ///
+    /// @param[in] key Whether it is for a key event.
+    void interrupt(bool key);
+
+    InterruptController &m_intc;
+    std::shared_ptr<HostInput> m_host;
+    std::vector<InputEvent> m_arrived; /// What was taken from the host, reused.
+    word m_ctrl = 0;
+    word m_flags = 0;                  /// kStatusMouseChanged and kStatusLost.
+    word m_x = 0;
+    word m_y = 0;
+    word m_buttons = 0;
+    word m_wheel = 0;
+    word m_keys[kQueueSize] = {}; /// The key events, from m_head on, wrapping.
+    word m_head = 0;
+    word m_count = 0;
+};
+
 /// The time of the devices that count executed instructions: the timer, the block device and the
 /// display. Rather than each of them looking at every instruction, the clock counts down to the
 /// first moment that one of them has something to do, and only then gives them the instructions
@@ -887,8 +1018,8 @@ class RandomNumbers : public Device
 /// the next event is. So a device sees the same instructions, and raises its interrupt after the
 /// same one, as if it counted them one at a time.
 ///
-/// The clock also takes the console's live input from the host, at least every
-/// Console::kHostInputPollInterval instructions while there is one. When a byte arrives is up to
+/// The clock also takes the live input from the host of the console and the input device, at least
+/// every Console::kHostInputPollInterval instructions while there is one. When a byte arrives is up to
 /// the host, so the machine does not have to look before every instruction. And it tells `run`,
 /// after the instruction that made it, of a request of the system controller.
 class DeviceClock
@@ -900,8 +1031,9 @@ class DeviceClock
     /// @param[in] console The console, whose live input the clock takes.
     /// @param[in] sysctl The system controller, whose request the clock passes on.
     /// @param[in] rtc The real time clock.
+    /// @param[in] input The input device, whose live input the clock takes.
     DeviceClock(Timer &timer, BlockDevice &block, Display &display, Console &console,
-                const SystemController &sysctl, RealTimeClock &rtc);
+                const SystemController &sysctl, RealTimeClock &rtc, InputDevice &input);
 
     /// Called after each instruction that completes.
     ///
@@ -944,6 +1076,7 @@ class DeviceClock
     Console &m_console;
     const SystemController &m_sysctl;
     RealTimeClock &m_rtc;
+    InputDevice &m_input;
     word m_countdown = 1;   /// What the count down started from.
     word m_until_event = 1; /// Instructions left of it.
 };

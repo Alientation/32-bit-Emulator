@@ -13,6 +13,24 @@ void HostInput::push(const std::string &bytes)
     m_arrived.notify_all();
 }
 
+void HostInput::push_event(const InputEvent &event)
+{
+    {
+        const std::lock_guard lock(m_mutex);
+        m_events.push_back(event);
+        m_events_pending.store(true, std::memory_order_relaxed);
+    }
+    m_arrived.notify_all();
+}
+
+void HostInput::take_events(std::vector<InputEvent> &out)
+{
+    out.clear();
+    const std::lock_guard lock(m_mutex);
+    std::swap(out, m_events);
+    m_events_pending.store(false, std::memory_order_relaxed);
+}
+
 void HostInput::close()
 {
     {
@@ -40,6 +58,6 @@ bool HostInput::finished() const
 bool HostInput::wait()
 {
     std::unique_lock lock(m_mutex);
-    while (m_bytes.empty() && !m_closed) m_arrived.wait(lock);
-    return !m_bytes.empty();
+    while (m_bytes.empty() && m_events.empty() && !m_closed) m_arrived.wait(lock);
+    return !m_bytes.empty() || !m_events.empty();
 }

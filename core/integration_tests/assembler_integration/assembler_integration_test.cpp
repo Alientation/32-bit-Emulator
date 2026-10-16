@@ -6,6 +6,16 @@
 #include "assembler/object_file.h"
 #include "emulator32bit/emulator32bit.h"
 
+#ifdef AEMU_GUI
+#include "emulator32bit/display_window.h"
+#include "emulator32bit/host_display.h"
+#include "emulator32bit/host_input.h"
+
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+#include <cstring>
+#endif
+
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -2552,10 +2562,12 @@ _start:
     ASSERT_NO_FATAL_FAILURE(run("time.bexe", "--rtc-time 1700000000"));
     EXPECT_EQ(reg(3), 1700000000u);
 
+    // time () is the coarse clock of the kernel, which can be a few milliseconds behind the one
+    // the real time clock reads, so it can be a second behind just after a second starts.
     const word before = word(std::time(nullptr));
     ASSERT_NO_FATAL_FAILURE(run("time.bexe", "--rtc-host"));
     EXPECT_GE(reg(3), before);
-    EXPECT_LE(reg(3), word(std::time(nullptr)));
+    EXPECT_LE(reg(3), word(std::time(nullptr)) + 1);
 
     EXPECT_EQ(emu32("-e time.bexe --rtc-host --rtc-time 5"),
               S32(Emulator32bit::EmuCLIExitCode::EXIT_USAGE_ERROR));
@@ -2621,6 +2633,93 @@ TEST_F(AssemblerIntegration, a_machine_that_boots_from_its_rom_is_reset_by_the_p
 }
 
 #ifdef AEMU_GUI
+// The window hands what is typed to the console as text, and the keys and the mouse to the input
+// device as events (docs/devices.md), here with SDL's dummy video driver and events pushed to it.
+TEST(DisplayWindow, keys_text_and_the_mouse_go_to_the_machine)
+{
+    setenv("SDL_VIDEODRIVER", "dummy", 1);
+    DisplayWindow window("test", 1);
+    std::string error;
+    ASSERT_TRUE(window.open(error)) << error;
+
+    SDL_Event event{};
+    event.type = SDL_KEYDOWN;
+    event.key.keysym.scancode = SDL_SCANCODE_A;
+    event.key.keysym.sym = SDLK_a;
+    event.key.keysym.mod = KMOD_LSHIFT;
+    SDL_PushEvent(&event);
+    event.type = SDL_KEYUP;
+    event.key.keysym.mod = KMOD_NONE;
+    SDL_PushEvent(&event);
+    event.type = SDL_KEYDOWN;
+    event.key.keysym.scancode = SDL_SCANCODE_RETURN;
+    event.key.keysym.sym = SDLK_RETURN;
+    event.key.repeat = 1;
+    SDL_PushEvent(&event);
+
+    event = {};
+    event.type = SDL_TEXTINPUT;
+    std::strcpy(event.text.text, "A");
+    SDL_PushEvent(&event);
+
+    event = {};
+    event.type = SDL_MOUSEMOTION;
+    event.motion.x = 10;
+    event.motion.y = 20;
+    SDL_PushEvent(&event);
+    event = {};
+    event.type = SDL_MOUSEBUTTONDOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    SDL_PushEvent(&event);
+    event.button.button = SDL_BUTTON_RIGHT;
+    SDL_PushEvent(&event);
+    event.type = SDL_MOUSEBUTTONUP;
+    event.button.button = SDL_BUTTON_LEFT;
+    SDL_PushEvent(&event);
+    event = {};
+    event.type = SDL_MOUSEWHEEL;
+    event.wheel.y = -2;
+    event.wheel.direction = SDL_MOUSEWHEEL_FLIPPED;
+    SDL_PushEvent(&event);
+
+    event = {};
+    event.type = SDL_QUIT;
+    SDL_PushEvent(&event);
+
+    HostDisplay host(0);
+    HostInput keys;
+    const std::atomic<bool> stopped{true};
+    window.run(host, &keys, stopped);
+    EXPECT_TRUE(host.closed());
+
+    std::deque<byte> bytes;
+    keys.take(bytes);
+    EXPECT_EQ(std::string(bytes.begin(), bytes.end()), "\nA") << "Enter, then the text";
+
+    std::vector<InputEvent> events;
+    keys.take_events(events);
+    const word pressed = InputDevice::kKeyPressed;
+    const InputEvent expected[] = {
+        {.kind = InputEvent::Kind::KEY, .value = 4 | pressed | InputDevice::kModShift},
+        {.kind = InputEvent::Kind::KEY, .value = 4},
+        {.kind = InputEvent::Kind::KEY, .value = 40 | pressed | InputDevice::kKeyRepeat},
+        {.kind = InputEvent::Kind::MOUSE_MOVE, .value = 0, .x = 10, .y = 20},
+        {.kind = InputEvent::Kind::MOUSE_BUTTONS, .value = InputDevice::kButtonLeft},
+        {.kind = InputEvent::Kind::MOUSE_BUTTONS,
+         .value = InputDevice::kButtonLeft | InputDevice::kButtonRight},
+        {.kind = InputEvent::Kind::MOUSE_BUTTONS, .value = InputDevice::kButtonRight},
+        {.kind = InputEvent::Kind::MOUSE_WHEEL, .value = 2},
+    };
+    ASSERT_EQ(events.size(), std::size(expected));
+    for (size_t i = 0; i < events.size(); i++)
+    {
+        EXPECT_EQ(events[i].kind, expected[i].kind) << "event " << i;
+        EXPECT_EQ(events[i].value, expected[i].value) << "event " << i;
+        EXPECT_EQ(events[i].x, expected[i].x) << "event " << i;
+        EXPECT_EQ(events[i].y, expected[i].y) << "event " << i;
+    }
+}
+
 // The window of --display, with SDL's dummy video driver, which needs no screen. The window shows
 // at most 60 frames a second, so the machine has not drawn all 300 frames of the demo when the
 // window is closed (SIGINT, which SDL turns into a close) after a second.

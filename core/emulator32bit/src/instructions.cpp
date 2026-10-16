@@ -1,5 +1,6 @@
 #include "emulator32bit/emulator32bit.h"
 #include "emulator32bit/fpu.h"
+#include "emulator32bit/host_input.h"
 #include "util/common.h"
 #include "util/logger.h"
 
@@ -382,12 +383,27 @@ void Emulator32bit::_wfi(const word instr)
         }
     }
 
-    // Nothing in the machine will wake it, but the terminal can if the program asked for the
-    // receive interrupt: wait for the host, which takes its own time.
-    if (bus.console.has_host_input() && bus.console.receive_interrupt_enabled()
-        && bus.console.wait_host_input() && bus.intc.has_pending())
+    // Nothing in the machine will wake it, but the host can if the program asked for an interrupt
+    // of its input (a typed byte, a key, the mouse): wait for the host, which takes its own time.
+    // What arrives that the program did not ask to hear of is taken, and the wait goes on. The
+    // console and the input device share the input of the window; if they had two, only the
+    // console's would be waited for.
+    for (;;)
     {
-        return;
+        HostInput *host = nullptr;
+        if (bus.console.host_input() != nullptr && bus.console.receive_interrupt_enabled())
+        {
+            host = bus.console.host_input();
+        }
+        else if (bus.input.host_input() != nullptr && bus.input.interrupt_enabled())
+        {
+            host = bus.input.host_input();
+        }
+        if (host == nullptr || !host->wait()) break;
+
+        bus.console.poll_host_input();
+        bus.input.poll_host_input();
+        if (bus.intc.has_pending()) return;
     }
     throw Trap(TrapType::HALT_INSTR, "WFI with no interrupt source");
 }
