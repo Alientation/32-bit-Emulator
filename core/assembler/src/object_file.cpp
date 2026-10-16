@@ -627,12 +627,28 @@ U32 ObjectFile::add_section(const std::string &section_name, const SectionHeader
 
 U32 ObjectFile::add_string(const std::string &string)
 {
-    AEMU_CHECK(string_table.find(string) == string_table.end(),
-               "String name exists in string table");
+    const NameIndex::const_iterator found = string_table.find(string);
+    if (found != string_table.end()) return found->second;
 
-    string_table[string] = U32(string_table.size());
+    string_table[string] = U32(strings.size());
     strings.push_back(string);
     return strings.size() - 1;
+}
+
+const ObjectFile::SymbolTableEntry *ObjectFile::find_symbol(const std::string &name) const
+{
+    const NameIndex::const_iterator string = string_table.find(name);
+    if (string == string_table.end()) return nullptr;
+    const SymbolTable::const_iterator symbol = symbol_table.find(string->second);
+    return symbol == symbol_table.end() ? nullptr : &symbol->second;
+}
+
+ObjectFile::SymbolTableEntry *ObjectFile::find_symbol(const std::string &name)
+{
+    const NameIndex::const_iterator string = string_table.find(name);
+    if (string == string_table.end()) return nullptr;
+    const SymbolTable::iterator symbol = symbol_table.find(string->second);
+    return symbol == symbol_table.end() ? nullptr : &symbol->second;
 }
 
 std::string ObjectFile::get_symbol_name(const U32 symbol) const
@@ -643,13 +659,14 @@ std::string ObjectFile::get_symbol_name(const U32 symbol) const
 void ObjectFile::add_symbol(const std::string &symbol, const word value,
                             const SymbolTableEntry::BindingInfo binding_info, const U32 section)
 {
-    // If symbol does not exist yet, create it.
-    if (string_table.find(symbol) == string_table.end())
+    // If symbol does not exist yet, create it. Its name can be in the string table already, as the
+    // name of a section.
+    SymbolTableEntry *const existing = find_symbol(symbol);
+    if (existing == nullptr)
     {
-        string_table[symbol] = U32(strings.size());
-        strings.push_back(symbol);
-        symbol_table[string_table[symbol]] = {
-            .symbol_name = string_table[symbol],
+        const U32 name = add_string(symbol);
+        symbol_table[name] = {
+            .symbol_name = name,
             .symbol_value = value,
             .binding_info = binding_info,
             .section = section,
@@ -657,7 +674,7 @@ void ObjectFile::add_symbol(const std::string &symbol, const word value,
     }
     else
     {
-        SymbolTableEntry &symbol_entry = symbol_table[string_table[symbol]];
+        SymbolTableEntry &symbol_entry = *existing;
         if (symbol_entry.section == U32(-1) && section != U32(-1))
         {
             symbol_entry.section = section;

@@ -132,6 +132,16 @@ and the release build has debug info so the samples can be attributed to source 
   `invalidate_tlb` (which page is evicted), the two of `end_process` (removing each page does the
   same) and the walk's `drop_fetch_cache` (only seen by a program that leaves out a `tlbi`
   docs/mmu.md asks for). The seeds come from `seeds/mmu_seeds.py`.
+- `basm.cpp` is the toolchain on source text: the input is preprocessed, assembled, written as a
+  `.bo`, read back and written again (the two files must be the same bytes), printed as a listing,
+  linked, loaded and run for 2000 instructions; anything but a `FatalError` is a bug. The files are
+  in a directory of the process (`aemu-basm-fuzz-<pid>` in the temporary directory). `basm.dict`
+  has the keywords (mnemonics, directives, preprocessor directives, registers, relocation operators)
+  and `tools/fuzz.sh` passes `fuzz/<target>.dict` when there is one. The seeds are the programs of
+  the preprocessor tests, of the benchmarks and of the other seeds. It found that definitions that
+  use each other twice ran out of memory (`Preprocessor::kMaxExpandedTokens`), and that a section
+  and a symbol with the same name (`.section "_start"`) crashed the assembler and the linker, which
+  took every name in the string table to be a symbol's (`ObjectFile::find_symbol`).
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with

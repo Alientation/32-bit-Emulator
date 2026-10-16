@@ -215,6 +215,18 @@ TEST_F(PreprocessorUnit, define_that_refers_to_itself_is_an_error)
     EXPECT_TRUE(contains(error("#define A A\n.word A\n"), "'A' expands too deeply"));
 }
 
+TEST_F(PreprocessorUnit, definitions_that_double_each_other_are_an_error_and_not_out_of_memory)
+{
+    // 2^30 tokens at a depth of 30.
+    std::string source = "#define D0 1\n";
+    for (size_t i = 1; i <= 30; i++)
+    {
+        source += std::format("#define D{} D{} D{}\n", i, i - 1, i - 1);
+    }
+    source += ".word D30\n";
+    EXPECT_TRUE(contains(error(source), "the expansions make more than 4194304 tokens"));
+}
+
 TEST_F(PreprocessorUnit, define_errors)
 {
     EXPECT_TRUE(contains(error("#define\n"), "expected a symbol after #define, got end of line"));

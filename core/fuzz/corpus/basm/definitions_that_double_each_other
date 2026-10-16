@@ -1,0 +1,7 @@
+#define ADD(_a, _b) \
+                ad~>~~~~define ADD(_a, _b.rel.fini_arrne ADD(_a, _b.rel.fini_array) \
+                ad~~~~~~~~ay) \
+                ad~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~rraye+xt
+_start:
+                ADD(4, 9)
+                hlt

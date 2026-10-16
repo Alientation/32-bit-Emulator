@@ -123,6 +123,11 @@ class Preprocessor
     /// expands to itself ends with an error.
     static constexpr std::size_t kMaxFrames = 256;
 
+    /// How many tokens the expansions of a file may make in all, so that definitions that use each
+    /// other more than once (each doubling the size of the one before) end with an error and not
+    /// by running out of memory. The biggest program of tools/bench_toolchain.sh makes 640000.
+    static constexpr std::size_t kMaxExpandedTokens = std::size_t(1) << 22;
+
     PreprocessorOptions m_options;
 
     // The .basm or .binc file being preprocessed.
@@ -143,6 +148,9 @@ class Preprocessor
     std::string m_out;
     char m_last_char = '\n';
     Tokens m_out_tokens;
+
+    /// The tokens that the expansions made so far, at most kMaxExpandedTokens.
+    std::size_t m_expanded_tokens = 0;
 
     /// Logs the error at the token (file, line, column, source line) and terminates.
     ///
@@ -204,13 +212,17 @@ class Preprocessor
     /// tokens that come from `body` are marked as produced by expansion `expansion`, the ones
     /// from the arguments keep the location they were written at.
     ///
+    /// The tokens count towards kMaxExpandedTokens, and going past it is an error at `site`.
+    ///
+    /// @param[in] site The use of the symbol or the #invoke.
     /// @param[in] body The tokens of the definition.
     /// @param[in] params The names of the parameters.
     /// @param[in] args The tokens of each argument.
     /// @param[in] expansion The number of the expansion, for the error messages.
     /// @return The tokens with the arguments put in.
-    Tokens substitute(const Tokens &body, const std::vector<std::string> &params,
-                      const std::vector<Tokens> &args, U32 expansion) const;
+    Tokens substitute(const basm::Token &site, const Tokens &body,
+                      const std::vector<std::string> &params, const std::vector<Tokens> &args,
+                      U32 expansion);
 
     /// Replaces a use of a defined symbol with its value.
     ///

@@ -443,10 +443,9 @@ std::vector<std::string> Preprocessor::parse_params(TokenCursor &line)
     }
 }
 
-Preprocessor::Tokens Preprocessor::substitute(const Tokens &body,
+Preprocessor::Tokens Preprocessor::substitute(const Token &site, const Tokens &body,
                                               const std::vector<std::string> &params,
-                                              const std::vector<Tokens> &args,
-                                              const U32 expansion) const
+                                              const std::vector<Tokens> &args, const U32 expansion)
 {
     Tokens result;
     result.reserve(body.size());
@@ -463,6 +462,16 @@ Preprocessor::Tokens Preprocessor::substitute(const Tokens &body,
                     break;
                 }
             }
+        }
+
+        // Counted before the tokens are made: an argument that is used many times can be most of
+        // them.
+        m_expanded_tokens += index == params.size() ? 1 : args[index].size();
+        if (m_expanded_tokens > kMaxExpandedTokens)
+        {
+            fail(site, std::format("the expansions make more than {} tokens, do definitions use "
+                                   "each other more than once?",
+                                   kMaxExpandedTokens));
         }
 
         if (index == params.size())
@@ -554,7 +563,7 @@ bool Preprocessor::expand_symbol(Frame &frame, const Token &token)
     }
 
     const U32 expansion_id = m_sources->add_expansion(site.str(), false, site.loc);
-    Tokens expansion = substitute(definition->value, definition->params, args, expansion_id);
+    Tokens expansion = substitute(site, definition->value, definition->params, args, expansion_id);
     if (!expansion.empty())
     {
         expansion.front().flags =
@@ -829,7 +838,7 @@ void Preprocessor::_invoke(TokenCursor &line)
     expansion.push_back(Token::synthetic(TokenType::NEWLINE, "\n", &directive));
 
     const U32 expansion_id = m_sources->add_expansion(macro.name, true, directive.loc);
-    const Tokens body = substitute(macro.body, macro.params, args, expansion_id);
+    const Tokens body = substitute(directive, macro.body, macro.params, args, expansion_id);
     expansion.insert(expansion.end(), body.begin(), body.end());
 
     const std::size_t tail = expansion.size();

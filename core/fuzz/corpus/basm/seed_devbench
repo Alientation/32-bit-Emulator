@@ -1,0 +1,111 @@
+; Benchmark of the devices (tools/bench.sh, linked with devbench.ld, run with --block-sectors 8).
+;
+; Three phases, each through the path that a device access takes (the bus decodes the address and
+; sends it to the device) and not to RAM:
+;
+;   1. 800000 bytes to the console, each with a read of its status register.
+;   2. 40000 DMA transfers of 8 sectors (4 KiB) in each direction: the program writes a buffer to
+;      the disk, waits for the interrupt with wfi, claims it, reads the disk back into another
+;      buffer and adds up two words of it. The buffers are at physical addresses (the linker
+;      script puts .bss there with @P), which is what DMA needs.
+;   3. 6000 sectors read through the data register, 128 word reads each, added up.
+;
+; The results are the status sum in x24, the DMA check in x25 and the sum of the sectors in x26.
+
+.global _start
+
+.bss
+.align 4096
+bufa:       .advance 4096
+bufb:       .advance 4096
+
+.text
+_start:
+                ldr     x20, =0xF0002000        ; console
+                ldr     x21, =0xF0000000        ; interrupt controller
+                ldr     x22, =0xF0003000        ; block device
+                adrp    x10, bufa
+                add     x10, x10, :lo12:bufa
+                adrp    x11, bufb
+                add     x11, x11, :lo12:bufb
+
+                ; phase 1: the console
+                ldr     x0, =800000
+                mov     x24, 0
+_print:
+                and     x2, x0, 15
+                add     x2, x2, 0x41
+                strb    x2, [x20]
+                ldr     x3, [x20, 4]            ; status: ready to send
+                add     x24, x24, x3
+                subs    x0, x0, 1
+                b.ne    _print
+
+                ; the block device: line 2 on, interrupt at the end of a command, 10 per sector
+                mov     x1, 4
+                str     x1, [x21, 8]
+                mov     x1, 1
+                str     x1, [x22, 0x18]
+                mov     x1, 10
+                str     x1, [x22, 0x1C]
+
+                ; the buffer to write: word i = i * 0x9E3779B1 + 7
+                ldr     x9, =0x9E3779B1
+                mov     x2, 7
+                mov     x3, 0
+_pattern:
+                str     x2, [x10, x3, lsl 2]
+                add     x2, x2, x9
+                add     x3, x3, 1
+                cmp     x3, 1024
+                b.ne    _pattern
+
+                ; phase 2: DMA
+                ldr     x0, =40000
+                mov     x25, 0
+                mov     x4, 8
+                str     xzr, [x22, 8]           ; SECTOR 0
+                str     x4, [x22, 0x24]         ; DMA_COUNT
+_dma:
+                str     x0, [x10]               ; the first word changes with each pass
+                str     x10, [x22, 0x20]        ; DMA_ADDR
+                mov     x1, 5
+                str     x1, [x22]               ; write the buffer to the disk
+                wfi
+                ldr     x2, [x21]               ; claim
+                str     xzr, [x22, 4]           ; acknowledge
+                str     x11, [x22, 0x20]
+                mov     x1, 4
+                str     x1, [x22]               ; read it back
+                wfi
+                ldr     x2, [x21]
+                str     xzr, [x22, 4]
+                ldr     x2, [x11]
+                ldr     x3, [x11, 2044]
+                add     x25, x25, x2
+                add     x25, x25, x3
+                subs    x0, x0, 1
+                b.ne    _dma
+
+                ; phase 3: programmed I/O, sector n mod 8 for n = 0 ... 5999
+                mov     x0, 0
+                mov     x26, 0
+_sector:
+                and     x1, x0, 7
+                str     x1, [x22, 8]            ; SECTOR
+                mov     x1, 1
+                str     x1, [x22]               ; read it into the buffer of the device
+                wfi
+                ldr     x2, [x21]
+                str     xzr, [x22, 4]
+                mov     x5, 128
+_word:
+                ldr     x3, [x22, 0xC]          ; the next word of the buffer
+                add     x26, x26, x3
+                subs    x5, x5, 1
+                b.ne    _word
+                add     x0, x0, 1
+                ldr     x1, =6000
+                cmp     x0, x1
+                b.ne    _sector
+                hlt

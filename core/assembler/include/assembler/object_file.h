@@ -262,10 +262,12 @@ class ObjectFile
     /// Size of .bss section. Zero initialized on program load.
     word bss_section = 0;
 
+    using SymbolTable = std::map<U32, SymbolTableEntry>;
+
     /// Maps string index to symbol.
     /// In the order of the string table, which is the order the symbols were
     /// added in, so a file is the same bytes whatever the standard library is.
-    std::map<U32, SymbolTableEntry> symbol_table;
+    SymbolTable symbol_table;
 
     /// References to symbols that need to be relocated.
     std::vector<RelocationEntry> rel_text;
@@ -421,11 +423,20 @@ class ObjectFile
     /// Map section name to index in sections.
     NameIndex section_table;
 
-    /// Adds a string to the string table. Fatal if the string is in it already.
+    /// The string table has the names of the sections and of the symbols, each string once: a
+    /// section and a symbol can have the same name, and a string is not always a symbol's name.
     ///
-    /// @param[in] string The string to add.
-    /// @return The index of the string.
+    /// @param[in] string The string.
+    /// @return The index of the string, which is added if it is not in the table yet.
     U32 add_string(const std::string &string);
+
+    /// @param[in] name A name.
+    /// @return The symbol with the name, or null if there is none (the name of a section only).
+    const SymbolTableEntry *find_symbol(const std::string &name) const;
+
+    /// @param[in] name A name.
+    /// @return The symbol with the name, or null if there is none (the name of a section only).
+    SymbolTableEntry *find_symbol(const std::string &name);
 
     /// Adds a symbol to the symbol table. A symbol that is in it already, because it was used
     /// before, is defined by this call: it gets the section and the value. Defining it twice is a

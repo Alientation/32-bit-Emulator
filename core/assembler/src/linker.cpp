@@ -216,18 +216,17 @@ static void define_array_symbol(ObjectFile &exe, const char *name,
 {
     const U32 section_index = exe.section_table.at(section.name);
 
-    const ObjectFile::NameIndex::const_iterator found = exe.string_table.find(name);
-    if (found == exe.string_table.end())
+    ObjectFile::SymbolTableEntry *const found = exe.find_symbol(name);
+    if (found == nullptr)
     {
         exe.add_symbol(name, value, ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL,
                        section_index);
     }
-    else if (is_undefined(exe.symbol_table.at(found->second)))
+    else if (is_undefined(*found))
     {
-        ObjectFile::SymbolTableEntry &entry = exe.symbol_table.at(found->second);
-        entry.symbol_value = value;
-        entry.section = section_index;
-        entry.binding_info = ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL;
+        found->symbol_value = value;
+        found->section = section_index;
+        found->binding_info = ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL;
     }
 }
 
@@ -236,8 +235,8 @@ static void define_array_symbol(ObjectFile &exe, const char *name,
 /// @return Whether the executable has a symbol with the name that is defined.
 static bool is_defined(const ObjectFile &exe, const std::string &name)
 {
-    const ObjectFile::NameIndex::const_iterator string = exe.string_table.find(name);
-    return string != exe.string_table.end() && !is_undefined(exe.symbol_table.at(string->second));
+    const ObjectFile::SymbolTableEntry *symbol = exe.find_symbol(name);
+    return symbol != nullptr && !is_undefined(*symbol);
 }
 
 /// A relocation can use the symbol: it is defined, or it is weak and nothing defines it, which
@@ -703,8 +702,8 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(const std::vector<SectionBa
                 }
             }
 
-            const ObjectFile::NameIndex::const_iterator found = m_exe.string_table.find(name);
-            if (found == m_exe.string_table.end())
+            ObjectFile::SymbolTableEntry *const found = m_exe.find_symbol(name);
+            if (found == nullptr)
             {
                 m_exe.add_symbol(name, value, symbol.binding_info, section);
             }
@@ -713,7 +712,7 @@ std::vector<Linker::SymbolMap> Linker::merge_symbols(const std::vector<SectionBa
                 // Seen in an earlier file. A definition beats a reference, a strong definition
                 // beats a weak one (`.weak`, `.comm`), and of two weak ones the first stays. A
                 // reference that is not weak makes the symbol one that has to be defined.
-                ObjectFile::SymbolTableEntry &entry = m_exe.symbol_table.at(found->second);
+                ObjectFile::SymbolTableEntry &entry = *found;
                 const bool defined = symbol.section != U32(-1);
                 const bool weak = symbol.binding_info == Binding::WEAK_DECLARED;
                 const bool entry_defined = entry.section != U32(-1);
@@ -754,8 +753,7 @@ void Linker::define_entry()
                    "defined.",
                    m_entry_symbol);
 
-        const ObjectFile::SymbolTableEntry entry =
-            m_exe.symbol_table.at(m_exe.string_table.at(m_entry_symbol));
+        const ObjectFile::SymbolTableEntry entry = *m_exe.find_symbol(m_entry_symbol);
         m_exe.add_symbol("_start", entry.symbol_value,
                          ObjectFile::SymbolTableEntry::BindingInfo::GLOBAL, entry.section);
     }

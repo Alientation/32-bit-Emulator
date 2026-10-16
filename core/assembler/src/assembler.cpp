@@ -252,12 +252,13 @@ void Assembler::fill_local(std::vector<ObjectFile::RelocationEntry> &relocations
         {
             const std::string local_symbol_name =
                 symbol + "::SCOPE:" + std::to_string(local_scope[scopeI]);
-            if (m_obj.string_table.find(local_symbol_name) == m_obj.string_table.end())
+            const ObjectFile::SymbolTableEntry *local = m_obj.find_symbol(local_symbol_name);
+            if (local == nullptr)
             {
                 continue;
             }
 
-            symbol_entry = m_obj.symbol_table[m_obj.string_table[local_symbol_name]];
+            symbol_entry = *local;
             found_local = true;
             break;
         }

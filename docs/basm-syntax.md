@@ -332,6 +332,7 @@ Preprocessor lines start with `#` and are handled before assembling.
 * Macro parameters are replaced textually, so a macro can contain labels (each use is in its own `.scope`) and `#macret` leaves the macro early, optionally with a value.
 * Include guards work as in C: `#ifndef X` / `#define X` / `#endif` around a header.
 * An error inside a macro or `#define` expansion shows the original source line, then a `note: in expansion of macro 'x'` line.
+* Expansions nest at most 256 deep (a symbol, macro or file that uses itself is an error), and all the expansions of a file make at most 4194304 tokens: definitions that each use the one before twice double with every level, and the 30th would need gigabytes.
 
 ## Errors and warnings
 

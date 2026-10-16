@@ -144,17 +144,13 @@ Assembler::ExprValue Assembler::lookup_symbol(const Token &symbol)
             return {.value = constant->second};
         }
 
-        const ObjectFile::NameIndex::const_iterator entry = m_obj.string_table.find(key);
-        if (entry != m_obj.string_table.end())
+        const ObjectFile::SymbolTableEntry *label = m_obj.find_symbol(key);
+        if (label != nullptr && label->section != U32(-1))
         {
-            const ObjectFile::SymbolTableEntry &label = m_obj.symbol_table.at(entry->second);
-            if (label.section != U32(-1))
-            {
-                return {.value = sdword(label.symbol_value),
-                        .label = &symbol,
-                        .section = label.section,
-                        .base = sdword(label.symbol_value)};
-            }
+            return {.value = sdword(label->symbol_value),
+                    .label = &symbol,
+                    .section = label->section,
+                    .base = sdword(label->symbol_value)};
         }
     }
     return {.label = &symbol};
@@ -425,11 +421,9 @@ void Assembler::_equ()
     const sdword value = parse_signed_expression();
 
     const std::string key = scoped_name(name.str());
-    const ObjectFile::NameIndex::const_iterator label = m_obj.string_table.find(key);
+    const ObjectFile::SymbolTableEntry *label = m_obj.find_symbol(key);
     check(m_constants.count(key) == 0, "'" + name.str() + "' is already a constant");
-    check(label == m_obj.string_table.end()
-              || m_obj.symbol_table.at(label->second).section == U32(-1),
-          "'" + name.str() + "' is already a label");
+    check(label == nullptr || label->section == U32(-1), "'" + name.str() + "' is already a label");
     m_constants[key] = value;
 }
 
@@ -495,9 +489,8 @@ void Assembler::_comm()
           ".comm size is large and likely unintentional (" + std::to_string(size) + ")");
 
     const U32 bss = m_obj.section_table[".bss"];
-    const ObjectFile::NameIndex::const_iterator existing = m_obj.string_table.find(name.str());
-    check(existing == m_obj.string_table.end()
-              || m_obj.symbol_table.at(existing->second).section == U32(-1),
+    const ObjectFile::SymbolTableEntry *existing = m_obj.find_symbol(name.str());
+    check(existing == nullptr || existing->section == U32(-1),
           "'" + name.str() + "' is already defined");
 
     m_obj.bss_section += padding_to(m_obj.bss_section, alignment);

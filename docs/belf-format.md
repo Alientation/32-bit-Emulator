@@ -74,6 +74,8 @@ The *contents* are written in this order and always all of them are there (an em
 
 A label defined in a file is local, or global if `.global` named it. A symbol that is only used (a branch to it, `.word symbol`, `adrp`, ...), or named by `.extern`, is **weak and undefined**. The linker looks every undefined symbol up in the other files. Binding 3 is for `.weak name` and `.comm name, size`: if the symbol is defined in the file it is a *weak definition* (used only if no file has a strong one), and if it is not defined it is a *weak reference* (0 if nothing defines it, instead of the undefined reference error). The symbols of a `.scope` are stored as `name::SCOPE:<id>`; a relocation refers to the symbol of the scope it is in.
 
+The string table has the names of the sections and of the symbols, each name once, so a section and a symbol can have the same name and share the string (`.section "foo"` and a label `foo:`), and a name in the string table is not always that of a symbol. The symbols are keyed by the index of their name.
+
 `.equ` constants are **not** in the symbol table, they only exist while their file is assembled (see [basm-syntax.md](basm-syntax.md#constants-equ)).
 
 ### Relocation entry (28 bytes)

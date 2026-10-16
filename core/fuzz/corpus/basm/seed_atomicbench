@@ -1,0 +1,55 @@
+; Benchmark of the atomic instructions (tools/bench.sh).
+;
+; A spin lock taken and released 3 million times around three read-modify-write operations on a
+; word, a byte and a half word: swp to take the lock (and a test that it was free), ldadd, ldaddb,
+; ldseth and ldclrh in the critical section, swp to release it. 10 instructions per iteration,
+; six of them atomics, which go through _atomic_rmw (a read, an alignment check and a write)
+; instead of the load and store handlers.
+;
+; The results are the word in x20, the byte in x21, the half word in x22 and the number of times
+; the lock was found taken in x23 (it never is, there is one thread).
+
+.global _start
+
+.data
+lock:       .word 0
+counter:    .word 0
+bytes:      .byte 0, 0, 0, 0
+half:       .dbyte 0, 0
+
+.text
+_start:
+                adrp    x1, lock
+                add     x1, x1, :lo12:lock
+                add     x10, x1, 4              ; counter
+                add     x11, x1, 8              ; bytes
+                add     x12, x1, 12             ; half
+                mov     x3, 1                   ; the value of a taken lock
+                mov     x5, 3                   ; added to the word and to the byte
+                mov     x9, 0xF0                ; bits cleared in the half word
+                mov     x23, 0
+                ldr     x0, =3000000
+
+_loop:
+                swp     x2, x3, [x1]            ; take the lock
+                cmp     x2, 0
+                b.ne    _taken
+_locked:
+                ldadd   x4, x5, [x10]
+                ldaddb  x4, x5, [x11]
+                ldseth  x4, x0, [x12]
+                ldclrh  x4, x9, [x12]
+                swp     x2, xzr, [x1]           ; release it
+                subs    x0, x0, 1
+                b.ne    _loop
+                b       _done
+
+_taken:
+                add     x23, x23, 1             ; not expected
+                b       _locked
+
+_done:
+                ldr     x20, [x10]
+                ldrb    x21, [x11]
+                ldrh    x22, [x12]
+                hlt

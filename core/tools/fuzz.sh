@@ -55,5 +55,8 @@ mkdir -p "$CORPUS" "$ARTIFACTS"
 CORE="$(pwd)"
 cd "$BUILD_DIR"
 rm -f fuzz-*.log
+# fuzz/TARGET.dict, if there is one, has the words of the input language (the keywords of basm).
+DICT=()
+[ -f "$CORE/fuzz/$TARGET.dict" ] && DICT=(-dict="$CORE/fuzz/$TARGET.dict")
 "$CORE/$FUZZER" "$CORE/$CORPUS" "$CORE/fuzz/corpus/$TARGET" -max_total_time="$SECONDS_TO_RUN" \
-    -timeout=10 -artifact_prefix="$CORE/$ARTIFACTS/" -print_final_stats=1 "$@"
+    -timeout=10 -artifact_prefix="$CORE/$ARTIFACTS/" -print_final_stats=1 "${DICT[@]}" "$@"

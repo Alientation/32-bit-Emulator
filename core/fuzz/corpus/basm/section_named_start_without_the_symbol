@@ -1,0 +1,8 @@
+; Seed of the bexe fuzz target: :lo19:every kind ofsection the loader    hlt
+.section "fWWWWWWWWWWWWWWWWWWWWWWW", "rx"
+helper:
+    .ascii "s                                                                [                                                           eed"
+.fini_array
+    .word helper
+.section "_start", "r"
+  .advance 08

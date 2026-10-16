@@ -110,6 +110,31 @@ TEST_F(LinkerScript, the_entry_point_must_be_defined)
     const ObjectFile declared = assemble("declared", ".global _start\n.text\nfoo: nop\n");
     EXPECT_TRUE(contains(error_of([&] { link_default({declared}, "declared"); }),
                          "The entry point '_start' is not defined"));
+
+    // The name is in the string table, as a section's.
+    const ObjectFile section =
+        assemble("section", ".section \"_start\", \"r\"\n.word 1\n.text\nnop\n");
+    EXPECT_TRUE(contains(error_of([&] { link_default({section}, "section"); }),
+                         "The entry point '_start' is not defined"));
+}
+
+TEST_F(LinkerScript, a_section_and_a_symbol_can_have_the_same_name)
+{
+    const std::string section = ".section \"foo\", \"r\"\n.word 1\n";
+    const std::string label =
+        ".text\n.global _start\n.global foo\n_start:\nfoo: adr x0, foo\nhlt\n";
+    for (const std::string &source : {section + label, label + section})
+    {
+        const ObjectFile exe = link_default({assemble("same", source)}, "same");
+        ASSERT_NE(exe.find_symbol("foo"), nullptr);
+        EXPECT_EQ(exe.find_symbol("foo")->section, exe.section_table.at(".text"));
+        EXPECT_TRUE(exe.section_table.contains("foo"));
+    }
+
+    const ObjectFile only_section =
+        assemble("only", section + ".text\n.global _start\n_start: adr x0, foo\n");
+    EXPECT_TRUE(contains(error_of([&] { link_default({only_section}, "only"); }),
+                         "undefined reference to 'foo'"));
 }
 
 TEST_F(LinkerScript, overlapping_sections_are_an_error)
