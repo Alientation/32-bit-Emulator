@@ -93,17 +93,33 @@ and the release build has debug info so the samples can be attributed to source 
 
 ## Fuzzing
 
-`core/fuzz/` has the fuzz targets, one `.cpp` each with `LLVMFuzzerTestOneInput`. `bexe.cpp` is the
-loader: the input is read as a `.bexe` (`LoadExecutable` from bytes), loaded into the machine of the
-tests and run for 10000 instructions. What it may do with an input that is not valid is end in a
-`FatalError`; a crash, a sanitizer report, an assertion, any other exception or a hang is a bug.
+`core/fuzz/` has the fuzz targets, one `.cpp` each with `LLVMFuzzerTestOneInput`.
+
+- `bexe.cpp` is the loader: the input is read as a `.bexe` (`LoadExecutable` from bytes), loaded
+  into the machine of the tests and run for 10000 instructions. What it may do with an input that is
+  not valid is end in a `FatalError`; a crash, a sanitizer report, an assertion, any other exception
+  or a hang is a bug.
+- `run_modes.cpp` is the run loop: the input is code (up to 1024 words), put at 0x8000, which is
+  also `VBAR`, on the machine of the tests in kernel mode, with the registers pointing into the RAM
+  and x20-x24 at the interrupt controller, the timer, the console, the system controller and the
+  real time clock. It runs 4096 instructions three ways: `run (4096)`, `run (1)` until 4096 ran,
+  and `run (4096)` with breakpoints, watchpoints, register watches, the history and the trace,
+  resumed after each stop. The result, the registers, the system registers, the RAM and what was
+  printed must be the same; the first field that differs is printed and the target aborts. It
+  guards what the run loop keeps across runs (the device clock, `m_pc_written`) and the debugging
+  hooks, which must not change what the program does (it found that a store to a device register
+  with a watchpoint set read the register first, for the old value, and so took an interrupt from
+  CLAIM). The seed is the `.text` of `seeds/run_modes.basm` (from the listing of `basm -dump`).
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with
   ASan and UBSan, Debug at `-O1` so the assertions are on, debug logging compiled out) and fuzzes for
   600 seconds. The corpus it grows is `build/fuzz/corpus/<target>`, crashes go to
   `build/fuzz/artifacts/<target>/`, the logs of the workers to `build/fuzz/fuzz-N.log`, and
-  `tools/fuzz.sh bexe --replay FILE` runs one input with the sanitizers' report.
+  `tools/fuzz.sh bexe --replay FILE` runs one input with the sanitizers' report. ASan's check of
+  stack use after return is off in these runs (`ASAN_OPTIONS`): it collects its stacks at every C++
+  throw, and the emulator throws one for each fault of a program, which made run_modes three times
+  slower. `./build.sh asan` keeps it.
 - `core/fuzz/corpus/<target>/` is kept in git: a few seeds (`seed_*`, `seeds/bexe_sections.basm`
   is the source of the one with every kind of section) and, for each bug that was fixed, the input
   that found it under a name that says what it was. The normal builds run them all with

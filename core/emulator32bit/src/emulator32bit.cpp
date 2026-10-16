@@ -566,6 +566,17 @@ Emulator32bit::RegisterWatch Emulator32bit::register_watch(const size_t i) const
 
 word Emulator32bit::watch_old_value(const word address, const word length)
 {
+    // A device register is not read: the read can have an effect that the store does not have
+    // (it takes an interrupt from the interrupt controller, a byte from the console).
+    word first;
+    word last;
+    if (!translate_watched_byte(first, *mmu, address)
+        || !translate_watched_byte(last, *mmu, address + length - 1)
+        || system_bus->find_storage(first) == nullptr || system_bus->find_storage(last) == nullptr)
+    {
+        return 0;
+    }
+
     try
     {
         return length == 1   ? word(memory.read<byte>(address))

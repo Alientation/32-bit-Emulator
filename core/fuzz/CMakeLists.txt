@@ -26,3 +26,4 @@ function(aemu_add_fuzz_target name)
 endfunction()
 
 aemu_add_fuzz_target(bexe LIBS aemu::assembler)
+aemu_add_fuzz_target(run_modes LIBS aemu::emulator32bit)

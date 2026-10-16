@@ -703,6 +703,20 @@ TEST_F(WatchpointTest, the_old_value_of_a_byte_store_is_that_byte_and_a_read_has
     EXPECT_EQ(cpu.run(0).message.find("old value"), std::string::npos);
 }
 
+TEST_F(WatchpointTest, a_store_to_a_device_does_not_read_it_for_the_old_value)
+{
+    // A read of CLAIM would take the interrupt that the program raised.
+    write_program({mem_op(encoding::_op_str, 5, 4, 8), mem_op(encoding::_op_str, 6, 4, 12),
+                   mem_op(encoding::_op_str, 2, 4, 0), Emulator32bit::asm_hlt()});
+    cpu.write_reg(4, kIntcBase);
+    cpu.write_reg(5, 1); // ENABLE line 0
+    cpu.write_reg(6, 0); // RAISE line 0
+    cpu.add_watchpoint(kWatched);
+
+    EXPECT_EQ(cpu.run(0).status, Status::HALTED);
+    EXPECT_TRUE(cpu.system_bus->intc.has_pending());
+}
+
 TEST(WatchCompare, compares_the_value_as_an_unsigned_number)
 {
     using Compare = Emulator32bit::WatchCompare;

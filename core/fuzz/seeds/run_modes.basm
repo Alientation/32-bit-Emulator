@@ -1,0 +1,96 @@
+; The source of the seed of the run_modes fuzz target (fuzz/run_modes.cpp), which takes code, not
+; an executable: its .text, from the listing of `basm -dump`, is corpus/run_modes/seed_devices.
+; The target puts the code at 0x8000, which is also VBAR, and starts it there, so it has to work at
+; any address (relative branches only), and it finds the devices in registers: x20 the interrupt
+; controller, x21 the timer, x22 the console, x23 the system controller, x24 the real time clock.
+; The other registers point into the RAM.
+;
+; It takes each kind of exception and interrupt once in a while: system calls from user mode, a
+; data abort, an undefined instruction, timer interrupts with wfi, and prints with an emulator
+; call and on the console, and stores to the RAM the debugging hooks of the target watch.
+
+.global _start
+
+.text
+_start:
+                b       L_main                  ; 0: where the code starts
+                nop
+                nop
+                nop
+                b       L_skip                  ; 1: undefined instruction
+                nop
+                nop
+                nop
+                b       L_svc                   ; 2: supervisor call
+                nop
+                nop
+                nop
+                b       L_skip                  ; 3: instruction abort
+                nop
+                nop
+                nop
+                b       L_skip                  ; 4: data abort
+                nop
+                nop
+                nop
+                b       L_skip                  ; 5: breakpoint
+                nop
+                nop
+                nop
+                b       L_irq                   ; 6: interrupt
+
+L_main:
+                mov     x1, 1
+                str     x1, [x20, 8]            ; enable the line of the timer
+                mov     x1, 37
+                str     x1, [x21, 12]           ; INTERVAL
+                ldr     x2, [x21]               ; COUNT
+                add     x2, x2, x1
+                str     x2, [x21, 4]            ; COMPARE
+                mov     x1, 3
+                str     x1, [x21, 8]            ; enabled and periodic
+
+                adr     x1, L_user
+                msr     elr, x1
+                msr     spsr, 0x10              ; user mode, IRQs not masked
+                eret
+
+L_user:
+                mov     x10, 0
+L_loop:
+                swi     3
+                str     x10, [x3]
+                ldr     x11, [x4, 1]            ; not aligned: a data abort
+                add     x10, x10, 1
+                mov     x1, 65
+                str     x1, [x22]               ; to the console
+                cmp     x10, 20
+                b.lo    L_loop
+                .inst   0xFC000000              ; undefined
+                swi     4                       ; back to kernel mode
+                b       L_user
+
+L_svc:
+                mrs     x12, esr
+                and     x12, x12, 0xFF
+                cmp     x12, 4
+                b.eq    L_kernel
+                eret
+L_kernel:
+                mov     x8, 1003                ; emu_printp
+                swi     1
+                wfi
+                mrs     x12, elr
+                msr     elr, x12
+                eret
+
+L_skip:
+                mrs     x12, elr
+                add     x12, x12, 4
+                msr     elr, x12
+                eret
+
+L_irq:
+                ldr     x13, [x20]              ; claim
+                add     x14, x14, 1
+                eret

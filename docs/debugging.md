@@ -48,7 +48,7 @@ Breakpoints are virtual addresses, like the PC.
 - Only loads, stores and atomics count. Instruction fetches, the page table walker, device activity, `swi` emulator calls (which write memory for the host) and the debugger's own `mem` do not. An atomic is a read and a write; when both match, the write is reported.
 - An access that faults does not count, since it did nothing.
 - A watchpoint at an address that is already watched replaces the old one (one per start address and kind of address, virtual or physical). There are at most 16 (`kMaxWatchpoints`): `add_watchpoint` returns false for one more, `--watch` is a usage error, the debugger says so and a gdb `Z2`/`Z3`/`Z4` is answered with `E02`. Removing one moves the last into its place, so `watchpoint (i)` changes.
-- The value reported is the one loaded or stored (the low bytes for `strb`/`strh`). A write also says what the bytes held before, read just before the store (an atomic knows it already). A load has no old value.
+- The value reported is the one loaded or stored (the low bytes for `strb`/`strh`). A write also says what the bytes held before, read just before the store (an atomic knows it already); for a store to a device register that is 0, since reading the register could change the device (the CLAIM of the interrupt controller takes an interrupt). A load has no old value.
 - It costs one test per memory instruction while none is set, so it is free when unused. With a watch set the stores take a path of their own (`store_watched`).
 
 ### Register watches

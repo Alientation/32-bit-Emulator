@@ -31,6 +31,11 @@ cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang.cmake \
 cmake --build "$BUILD_DIR" --target "${TARGET}_fuzzer"
 FUZZER="$BUILD_DIR/fuzz/${TARGET}_fuzzer"
 
+# ASan collects its stacks for the use after return check at every throw, and the emulator throws a
+# C++ exception for each fault of a program: with it, two thirds of the time of run_modes went there.
+# ./build.sh asan keeps the check.
+export ASAN_OPTIONS="detect_stack_use_after_return=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
+
 if [ "${1:-}" = "--replay" ]; then
     shift
     exec "$FUZZER" "$@"
@@ -46,8 +51,9 @@ mkdir -p "$CORPUS" "$ARTIFACTS"
 
 # -timeout: an input that runs longer is a hang. The first directory is the one that grows, the
 # saved inputs are read from the second. It runs in the build directory, where -jobs writes the logs
-# of the workers (fuzz-N.log).
+# of the workers (fuzz-N.log); those of an earlier run are removed first.
 CORE="$(pwd)"
 cd "$BUILD_DIR"
+rm -f fuzz-*.log
 "$CORE/$FUZZER" "$CORE/$CORPUS" "$CORE/fuzz/corpus/$TARGET" -max_total_time="$SECONDS_TO_RUN" \
     -timeout=10 -artifact_prefix="$CORE/$ARTIFACTS/" -print_final_stats=1 "$@"

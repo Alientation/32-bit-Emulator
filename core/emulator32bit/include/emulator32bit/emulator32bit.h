@@ -688,8 +688,8 @@ class Emulator32bit
 
     /// @param[in] address The virtual address of the store.
     /// @param[in] length The number of bytes.
-    /// @return The bytes at the virtual address as they are before a store (0 if they cannot be
-    ///         read), for watch_access.
+    /// @return The bytes at the virtual address as they are before a store, for watch_access: 0 if
+    ///         they cannot be read or are not all in memory (a device register is not read).
     word watch_old_value(word address, word length);
 
     /// `execute ()` for a run where something looks at each instruction: the old value of a store
