@@ -1,0 +1,23 @@
+frobnicate
+step 0
+step x
+continue y
+breÿÿÿÿÿÿÿÿÿÿÿak nowhere
+delete
+delete 0x40
+w0xatch
+watch 0x100 0
+watch 0x100>p
+watch data:p
+unwatch 0x100 q
+watchreg xzr
+watchreg 3
+unwatchreg0xffffffsm start 0
+set
+set pc 2
+s
+unwatchret x100000004 4:w:==5
+x 0b101 0x10
+w data+4 2 =5
+x 0b101 0x10b100b1 0x10
+w bata+4 2 r != 0

@@ -159,6 +159,12 @@ and the release build has debug info so the samples can be attributed to source 
   changed a register, when the bytes of an `M` that answers OK (outside the devices) do not read
   back with `m`, and when `G` does not take back what `g` gave. It found that a `G` with an
   unaligned pc had written the registers before it.
+- `debugger.cpp` is the debugger of `emu32 --debug`: the input is command lines for
+  `Debugger::execute`, on the same program with a few symbols. The target lowers the count of a
+  `step` or `continue` to 20000 instructions (and gives `continue` without one that count), so that
+  a loop ends. It found that `mem` printed any length (`mem 0 -4` was 4 GB of text: `parse_number`
+  took a sign, and a number over 32 bits was cut to 32), so `mem` and `disasm` have a limit and the
+  values of 32 bits are read with `parse_word`.
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with

@@ -292,14 +292,14 @@ struct CliArgs
 static word number_option(bool &parse_error, const cxxopts::ParseResult &result, const char *option)
 {
     const std::string value = result[option].as<std::string>();
-    const std::optional<U64> number = parse_number(value);
+    const std::optional<word> number = parse_word(value);
     if (!number)
     {
-        std::cerr << "ERROR: Invalid number for --" << option << ": " << value << "\n";
+        std::cerr << "ERROR: Invalid number of 32 bits for --" << option << ": " << value << "\n";
         parse_error = true;
         return 0;
     }
-    return static_cast<word>(*number);
+    return *number;
 }
 
 /// Reads the options into `args`. Every mistake is reported, not just the first.
@@ -345,17 +345,17 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
         for (const std::string &range : result["mem"].as<std::vector<std::string>>())
         {
             const size_t colon = range.find(':');
-            const std::optional<U64> addr =
-                colon == std::string::npos ? std::nullopt : parse_number(range.substr(0, colon));
-            const std::optional<U64> len =
-                colon == std::string::npos ? std::nullopt : parse_number(range.substr(colon + 1));
+            const std::optional<word> addr =
+                colon == std::string::npos ? std::nullopt : parse_word(range.substr(0, colon));
+            const std::optional<word> len =
+                colon == std::string::npos ? std::nullopt : parse_word(range.substr(colon + 1));
             if (!addr || !len)
             {
                 std::cerr << "ERROR: Invalid --mem range (expected addr:len): " << range << "\n";
                 parse_error = true;
                 continue;
             }
-            args.mem_ranges.emplace_back(static_cast<word>(*addr), static_cast<word>(*len));
+            args.mem_ranges.emplace_back(*addr, *len);
         }
     }
 
@@ -367,8 +367,8 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
             const size_t eq = entry.find('=');
             const std::optional<U8> reg =
                 eq == std::string::npos ? std::nullopt : parse_register_name(entry.substr(0, eq));
-            const std::optional<U64> val =
-                eq == std::string::npos ? std::nullopt : parse_number(entry.substr(eq + 1));
+            const std::optional<word> val =
+                eq == std::string::npos ? std::nullopt : parse_word(entry.substr(eq + 1));
             if (!reg || !val)
             {
                 std::cerr << "ERROR: Invalid --reg entry (expected xN=value): " << entry << "\n";
@@ -383,7 +383,7 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
                 continue;
             }
             written_registers |= 1ULL << *reg;
-            args.reg_values.emplace_back(*reg, static_cast<word>(*val));
+            args.reg_values.emplace_back(*reg, *val);
         }
     }
 
@@ -475,7 +475,7 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
 
     if (result.count("block-sectors"))
     {
-        const std::optional<U64> number = parse_number(result["block-sectors"].as<std::string>());
+        const std::optional<word> number = parse_word(result["block-sectors"].as<std::string>());
         if (!number)
         {
             std::cerr << "ERROR: Invalid number for --block-sectors\n";
@@ -483,7 +483,7 @@ static bool parse_args(CliArgs &args, const cxxopts::ParseResult &result)
         }
         else
         {
-            args.block_sectors = static_cast<word>(*number);
+            args.block_sectors = *number;
         }
     }
 

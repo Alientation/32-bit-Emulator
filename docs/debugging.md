@@ -61,7 +61,7 @@ Breakpoints are virtual addresses, like the PC.
 
 ## Debugger
 
-`emu32 -e prog.bexe --debug` (`--limit` is ignored). An address is a number, a symbol, or `symbol+number`.
+`emu32 -e prog.bexe --debug` (`--limit` is ignored). An address is a number, a symbol, or `symbol+number`. A number is decimal, hex (`0x`), octal (a leading `0`) or binary (`0b`), without a sign, and an address or a value has to fit in 32 bits (the command line options are read the same way).
 
 | Command | |
 |---------|-|
@@ -73,8 +73,8 @@ Breakpoints are virtual addresses, like the PC.
 | `unwatch <addr\|all> [p]` / `watches` | remove / list watchpoints (and register watches) |
 | `watchreg <reg> [value]` / `unwatchreg <reg\|all>` | stop after a register changes (to the value) / remove |
 | `regs` (`r`) | registers and flags |
-| `mem <addr> [len]` (`x`) | hex dump, default 16 bytes. Unreadable bytes are `??` |
-| `disasm [addr] [n]` (`dis`) | n instructions (default 8), `=>` marks the pc |
+| `mem <addr> [len]` (`x`) | hex dump, default 16 bytes, at most 65536. Unreadable bytes are `??` |
+| `disasm [addr] [n]` (`dis`) | n instructions (default 8, at most 4096), `=>` marks the pc |
 | `history` (`hist`) | the last executed instructions |
 | `backtrace` (`bt`) | the call chain, see [below](#backtrace) |
 | `set <reg\|pc> <value>` | change a register or the pc (a finished program can run again after `set pc`) |

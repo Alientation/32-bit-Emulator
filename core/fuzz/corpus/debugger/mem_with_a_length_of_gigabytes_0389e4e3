@@ -1,0 +1,36 @@
+hefrlphelp
+regs
+sm
+disasm start 6
+break store
+breakscontinue
+step
+s 3
+history
+bt
+del
+stestore
+wadch d x0 5
+watches
+c
+c
+unwatch data
+udisasm
+disasmdisasm start 6
+break store
+breakscontinue
+step
+s 3
+history
+bt
+del
+stestore
+wadch d x0 7
+watches
+c
+c
+unwatch data
+unwatchreg all
+
+unwatch all
+mem data 0xf0000f

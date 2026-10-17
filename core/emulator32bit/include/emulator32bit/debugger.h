@@ -8,11 +8,17 @@
 #include <string>
 #include <vector>
 
-/// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers.
+/// Parses decimal, hex (0x), octal (leading 0) and binary (0b) numbers, without a sign.
 ///
 /// @param[in] str The text of the number.
 /// @return The number, or nothing if the text is not one.
 std::optional<U64> parse_number(const std::string &str);
+
+/// Parses a number as `parse_number` does, for a value of 32 bits: an address, a register.
+///
+/// @param[in] str The text of the number.
+/// @return The number, or nothing if the text is not one or the number does not fit in 32 bits.
+std::optional<word> parse_word(const std::string &str);
 
 /// A watchpoint as written in `--watch`: `<address|symbol>[:length][:r|w|rw][:p][:<op><number>]`.
 /// The length defaults to 1 and the kind to w. `p` makes the address physical (it has to be a

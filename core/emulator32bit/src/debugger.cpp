@@ -16,6 +16,10 @@ constexpr size_t kDebuggerHistory = 32;
 constexpr word kDefaultDumpBytes = 16;
 constexpr word kDefaultDisassembledInstructions = 8;
 
+/// The most that `mem` and `disasm` show, so that a mistyped length does not print gigabytes.
+constexpr word kMaxDumpBytes = 0x10000;
+constexpr word kMaxDisassembledInstructions = 4096;
+
 static const char *kHelp =
     "Commands (an address is a number, a symbol, or symbol+number):\n"
     "  step [n]            (s)    execute n instructions (default 1)\n"
@@ -31,9 +35,9 @@ static const char *kHelp =
     "  watchreg <reg> [value]     stop after the register changes (to the value, if given)\n"
     "  unwatchreg <reg|all>       remove a register watch\n"
     "  regs                (r)    show the registers and the flags\n"
-    "  mem <address> [len] (x)    show len bytes (default 16)\n"
-    "  disasm [address] [n] (dis) show n instructions (default 8) from the address (default: the "
-    "pc)\n"
+    "  mem <address> [len] (x)    show len bytes (default 16, at most 65536)\n"
+    "  disasm [address] [n] (dis) show n instructions (default 8, at most 4096) from the address "
+    "(default: the pc)\n"
     "  history             (hist) show the last executed instructions\n"
     "  backtrace           (bt)   show the call chain (follows the frame records, see "
     "docs/abi.md)\n"
@@ -43,21 +47,19 @@ static const char *kHelp =
 
 std::optional<U64> parse_number(const std::string &str)
 {
+    const bool binary = str.rfind("0b", 0) == 0 || str.rfind("0B", 0) == 0;
+    const std::string digits = binary ? str.substr(2) : str;
+    // std::stoull takes spaces and a sign before the digits as well: "-4" would be 2^64 - 4.
+    if (digits.empty() || !std::isdigit(static_cast<U8>(digits[0])))
+    {
+        return std::nullopt;
+    }
+
     try
     {
         size_t consumed = 0;
-        U64 value;
-        if (str.rfind("0b", 0) == 0 || str.rfind("0B", 0) == 0)
-        {
-            value = std::stoull(str.substr(2), &consumed, 2);
-            consumed += 2;
-        }
-        else
-        {
-            value = std::stoull(str, &consumed, 0);
-        }
-
-        if (consumed != str.size())
+        const U64 value = std::stoull(digits, &consumed, binary ? 2 : 0);
+        if (consumed != digits.size())
         {
             return std::nullopt;
         }
@@ -67,6 +69,16 @@ std::optional<U64> parse_number(const std::string &str)
     {
         return std::nullopt;
     }
+}
+
+std::optional<word> parse_word(const std::string &str)
+{
+    const std::optional<U64> value = parse_number(str);
+    if (!value || *value > 0xFFFFFFFFu)
+    {
+        return std::nullopt;
+    }
+    return static_cast<word>(*value);
 }
 
 std::optional<U8> parse_register_name(const std::string &str)
@@ -534,13 +546,14 @@ void Debugger::command_mem(const std::vector<std::string> &args)
     word length = kDefaultDumpBytes;
     if (args.size() > 1)
     {
-        const std::optional<U64> parsed = parse_number(args[1]);
-        if (!parsed || *parsed == 0)
+        const std::optional<word> parsed = parse_word(args[1]);
+        if (!parsed || *parsed == 0 || *parsed > kMaxDumpBytes)
         {
-            m_out << "Expected a length greater than 0, got '" << args[1] << "'.\n";
+            m_out << "Expected a length from 1 to " << kMaxDumpBytes << ", got '" << args[1]
+                  << "'.\n";
             return;
         }
-        length = static_cast<word>(*parsed);
+        length = *parsed;
     }
 
     constexpr word kBytesPerRow = 16;
@@ -583,13 +596,14 @@ void Debugger::command_disasm(const std::vector<std::string> &args)
     word count = kDefaultDisassembledInstructions;
     if (args.size() > 1)
     {
-        const std::optional<U64> parsed = parse_number(args[1]);
-        if (!parsed || *parsed == 0)
+        const std::optional<word> parsed = parse_word(args[1]);
+        if (!parsed || *parsed == 0 || *parsed > kMaxDisassembledInstructions)
         {
-            m_out << "Expected a number of instructions greater than 0, got '" << args[1] << "'.\n";
+            m_out << "Expected a number of instructions from 1 to " << kMaxDisassembledInstructions
+                  << ", got '" << args[1] << "'.\n";
             return;
         }
-        count = static_cast<word>(*parsed);
+        count = *parsed;
     }
 
     for (word i = 0; i < count; i++, address += kInstructionSize)
@@ -689,10 +703,10 @@ void Debugger::command_set(const std::vector<std::string> &args)
         m_out << "Usage: set <x0..x29|fp|lr|sp|pc> <value>\n";
         return;
     }
-    const std::optional<U64> value = parse_number(args[1]);
+    const std::optional<word> value = parse_word(args[1]);
     if (!value)
     {
-        m_out << "'" << args[1] << "' is not a number.\n";
+        m_out << "'" << args[1] << "' is not a number of 32 bits.\n";
         return;
     }
 
@@ -703,7 +717,7 @@ void Debugger::command_set(const std::vector<std::string> &args)
             m_out << "The pc has to be a multiple of 4.\n";
             return;
         }
-        m_emu.set_pc(static_cast<word>(*value));
+        m_emu.set_pc(*value);
         m_finished = false;
         print_location();
         return;
@@ -715,7 +729,7 @@ void Debugger::command_set(const std::vector<std::string> &args)
         m_out << "'" << args[0] << "' is not a register that can be set.\n";
         return;
     }
-    m_emu.write_reg(*reg, static_cast<word>(*value));
+    m_emu.write_reg(*reg, *value);
 }
 
 std::optional<word> Debugger::resolve_address(const std::string &text) const
@@ -736,13 +750,13 @@ std::optional<RegisterWatchSpec> parse_register_watch_spec(const std::string &te
     RegisterWatchSpec spec{.reg = *reg, .has_value = false, .value = 0};
     if (equals != std::string::npos)
     {
-        const std::optional<U64> value = parse_number(text.substr(equals + 1));
-        if (!value || *value > 0xFFFFFFFFu)
+        const std::optional<word> value = parse_word(text.substr(equals + 1));
+        if (!value)
         {
             return std::nullopt;
         }
         spec.has_value = true;
-        spec.value = static_cast<word>(*value);
+        spec.value = *value;
     }
     return spec;
 }
@@ -775,12 +789,12 @@ static std::optional<WatchCondition> parse_watch_condition(const std::string &te
         {
             continue;
         }
-        const std::optional<U64> value = parse_number(text.substr(std::string(name.text).size()));
-        if (!value || *value > 0xFFFFFFFFu)
+        const std::optional<word> value = parse_word(text.substr(std::string(name.text).size()));
+        if (!value)
         {
             return std::nullopt;
         }
-        return std::pair{name.compare, static_cast<word>(*value)};
+        return std::pair{name.compare, *value};
     }
     return std::nullopt;
 }
@@ -852,13 +866,13 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
         }
         else
         {
-            const std::optional<U64> length = parse_number(part);
-            if (has_length || !length || *length == 0 || *length > 0xFFFFFFFFu)
+            const std::optional<word> length = parse_word(part);
+            if (has_length || !length || *length == 0)
             {
                 return std::nullopt;
             }
             has_length = true;
-            spec.length = static_cast<word>(*length);
+            spec.length = *length;
         }
     }
 
@@ -872,9 +886,9 @@ std::optional<WatchSpec> parse_watch_spec(const SymbolMap &symbols, const std::s
 
 std::optional<word> resolve_address(const SymbolMap &symbols, const std::string &text)
 {
-    if (const std::optional<U64> number = parse_number(text))
+    if (const std::optional<word> number = parse_word(text))
     {
-        return static_cast<word>(*number);
+        return *number;
     }
     if (const std::optional<word> symbol = symbols.find(text))
     {
@@ -885,10 +899,10 @@ std::optional<word> resolve_address(const SymbolMap &symbols, const std::string 
     if (plus != std::string::npos)
     {
         const std::optional<word> base = symbols.find(text.substr(0, plus));
-        const std::optional<U64> offset = parse_number(text.substr(plus + 1));
+        const std::optional<word> offset = parse_word(text.substr(plus + 1));
         if (base && offset)
         {
-            return static_cast<word>(*base + *offset);
+            return *base + *offset;
         }
     }
     return std::nullopt;

@@ -1,0 +1,34 @@
+help
+regs
+disasm
+disasm start 6
+break store
+breaks
+continue
+step
+s 3
+history
+bt
+delete store
+watch data 4 rw
+watch 0x100:4:w:==5
+watch data 4 w > 2
+watchreg x2
+watchreg x0 7
+watches
+c
+c
+unwatch data
+unwatchreg all
+unwatch all
+mem data 8
+x 0xf0000ffc 4
+set x0 41
+set pc end
+set pc 20
+c
+c
+set pc 0
+set fp 0x200
+bt
+quit

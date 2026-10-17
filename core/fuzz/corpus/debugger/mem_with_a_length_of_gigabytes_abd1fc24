@@ -1,0 +1,23 @@
+frobnicate
+ste00000004 4
+x 0b101 0x10
+w data+4 >2 r != 0
+p$0
+step xstart 0
+-set
+set pc obnicate x
+continue y
+break nowhere
+de¥l
+mem 0x1000 r != 0
+p$0
+step xstart 0
+-set
+set pc obnicate x
+continue y
+break nowhere
+de¥l
+mem 0x100000004 4
+x 0b101 0x1000004 4
+x 0b101 0x10
+w data+4 >2 r != 0

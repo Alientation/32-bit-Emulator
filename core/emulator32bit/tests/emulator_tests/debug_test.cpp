@@ -273,6 +273,11 @@ TEST(ParseTest, numbers_registers_and_addresses)
     EXPECT_EQ(parse_number("0b101010"), std::optional<U64>(42));
     EXPECT_EQ(parse_number("12abc"), std::nullopt);
     EXPECT_EQ(parse_number(""), std::nullopt);
+    EXPECT_EQ(parse_number("-4"), std::nullopt) << "not 2^64 - 4";
+    EXPECT_EQ(parse_number("+4"), std::nullopt);
+    EXPECT_EQ(parse_number("0b-1"), std::nullopt);
+    EXPECT_EQ(parse_word("0xFFFFFFFF"), std::optional<word>(0xFFFFFFFF));
+    EXPECT_EQ(parse_word("0x100000000"), std::nullopt) << "not 0";
 
     EXPECT_EQ(parse_register_name("x5"), std::optional<U8>(5));
     EXPECT_EQ(parse_register_name("sp"), std::optional<U8>(30));
@@ -287,6 +292,8 @@ TEST(ParseTest, numbers_registers_and_addresses)
     EXPECT_EQ(resolve_address(symbols, "main+8"), std::optional<word>(0x108));
     EXPECT_EQ(resolve_address(symbols, "other"), std::nullopt);
     EXPECT_EQ(resolve_address(symbols, "other+8"), std::nullopt);
+    EXPECT_EQ(resolve_address(symbols, "0x100000020"), std::nullopt);
+    EXPECT_EQ(resolve_address(symbols, "main+0x100000000"), std::nullopt);
 }
 
 class DebuggerTest : public DebugFixture
@@ -495,6 +502,12 @@ TEST_F(DebuggerTest, rejects_bad_input_and_quits)
     EXPECT_NE(command("break nowhere").find("not an address"), std::string::npos);
     EXPECT_NE(command("set x99 1").find("not a register"), std::string::npos);
     EXPECT_NE(command("set pc 3").find("multiple of 4"), std::string::npos);
+    EXPECT_NE(command("set pc 0x100000000").find("32 bits"), std::string::npos);
+    EXPECT_EQ(cpu.get_pc(), 0u);
+    // A length that would print gigabytes.
+    EXPECT_NE(command("mem 0 0x10001").find("from 1 to 65536"), std::string::npos);
+    EXPECT_NE(command("mem 0 -4").find("from 1 to 65536"), std::string::npos);
+    EXPECT_NE(command("disasm 0 4097").find("from 1 to 4096"), std::string::npos);
     EXPECT_EQ(command(""), "");
 
     EXPECT_TRUE(debugger->execute("help"));

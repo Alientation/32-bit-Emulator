@@ -1,0 +1,24 @@
+frobnicate
+step 0
+step x
+continue y
+break nowhere
+d>=startelete 1x40
+watcmem
+mem"0x100 0
+disasm start 0
+set
+est pc 2
+set xzr 1
+set x0 z
+set pc 0x100000000
+mem 0x10000000
+mem 0x10000001ÿ¾0
+w data+* 2 r == et
+est pc 2
+set xzr 1
+set x0 z
+set pc 0x100000000
+mem 0x100000004 0x100b101 0x1ÿ¾0
+w data+* 2 r == 0
+0

@@ -1,0 +1,26 @@
+frobnicate
+step 0
+step x
+continue y
+break nowhere
+delete
+delete 22222222222222220x40
+watch
+watch >20x100 0
+watc5
+mem
+mem 0x100 0
+disasm start 0
+set
+set pc ÿÿÿÿÿÿÿÿÿÿÿÿÿ
+mem
+mem 0x100 0
+disasm start 0
+set
+set pc ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ2
+set xzr *1
+set x0 z
+set pc 0x100000000
+mem 0x100000004 -4
+x 0b101 0x10
+w data+4 2 r != 0
