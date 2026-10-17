@@ -1,11 +1,13 @@
 #include "emulator32bit/gdb_server.h"
 
+#include "emulator32bit/debugger.h"
 #include "util/logger.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <format>
+#include <optional>
 #include <ostream>
+#include <sstream>
 
 #if defined(__unix__) || defined(__APPLE__)
 #define AEMU_GDB_SOCKETS 1
@@ -407,21 +409,29 @@ std::string GdbServer::monitor(const std::string &command)
     {
         constexpr word kDefaultCount = 8;
         constexpr word kMaxCount = 256;
+        std::istringstream words(command.substr(std::string("disasm").size()));
+        std::string address_text, count_text, extra;
+        words >> address_text >> count_text >> extra;
+
         word address = m_emu.get_pc();
         word count = kDefaultCount;
-        const size_t first = command.find(' ');
-        if (first != std::string::npos)
+        if (!address_text.empty())
         {
-            char *end = nullptr;
-            const std::string rest = command.substr(first + 1);
-            address = word(std::strtoul(rest.c_str(), &end, 0));
-            if (end != nullptr && *end == ' ')
-            {
-                count = word(std::strtoul(end + 1, nullptr, 0));
-                if (count == 0) count = 1;
-                else if (count > kMaxCount) count = kMaxCount;
-            }
+            const std::optional<word> parsed = parse_word(address_text);
+            if (!parsed) return std::format("disasm: '{}' is not an address\n", address_text);
+            address = *parsed;
         }
+        if (!count_text.empty())
+        {
+            const std::optional<word> parsed = parse_word(count_text);
+            if (!parsed || *parsed == 0 || *parsed > kMaxCount)
+            {
+                return std::format("disasm: expected from 1 to {} instructions, got '{}'\n",
+                                   kMaxCount, count_text);
+            }
+            count = *parsed;
+        }
+        if (!extra.empty()) return "usage: disasm [address [count]]\n";
         std::string text;
         for (word i = 0; i < count; i++, address += kInstructionSize)
         {

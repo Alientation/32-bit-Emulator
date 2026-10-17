@@ -140,8 +140,8 @@ class Build
     /// linking an executable.
     void _ar(size_t &index, const std::vector<std::string> &args);
 
-    /// `-o`, `--output <name>`: the path of the output, without the extension (`.bexe`, or `.ba`
-    /// with -ar, is added).
+    /// `-o`, `--output <name>`: the path of the output; the extension (`.bexe`, or `.ba` with -ar)
+    /// is added unless the path ends with it.
     void _output(size_t &index, const std::vector<std::string> &args);
 
     /// `-outdir <directory>`: where the object files go.

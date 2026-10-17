@@ -300,6 +300,8 @@ TEST_F(GdbTest, monitor_disasm_shows_the_instructions_in_the_syntax_of_the_assem
     EXPECT_EQ(two.find("0x00000008"), std::string::npos);
     EXPECT_NE(monitor("disasm").find("0x00000000:"), std::string::npos) << "from the pc";
     EXPECT_NE(monitor("disasm 0x10000000 1").find("<unreadable>"), std::string::npos);
+    EXPECT_NE(monitor("disasm zz").find("not an address"), std::string::npos) << "not 0";
+    EXPECT_NE(monitor("disasm 0 257").find("from 1 to 256"), std::string::npos);
     EXPECT_NE(monitor("what").find("disasm"), std::string::npos) << "the list of commands";
     EXPECT_EQ(ask("qRcmd,zz"), "E01");
 }

@@ -61,7 +61,6 @@ void Assembler::parse_shift(ShiftType &shift, S32 &shift_amt)
     }
     m_cursor.next();
 
-    // TODO: create a relocation record instead.
     shift_amt = parse_expression();
 
     check(word(shift_amt) < (1ULL << encoding::kShiftAmountBits),
@@ -403,12 +402,12 @@ word Assembler::parse_format_m(const byte opcode, const bool unaligned)
 
 word Assembler::parse_format_o3(const byte opcode)
 {
-    // TODO: make sure to handle relocation.
     const bool s = m_cursor.next().has(basm::SETS_FLAGS);
     const byte reg1 = parse_register();
     expect(TokenType::COMMA, "expected ',' after the destination register");
 
-    // TODO: In future, support relocation for immediate value.
+    // An immediate is a number; only the form without a register takes an address, through the
+    // :hi13: and :lo19: relocations.
     if (basm::is_register(m_cursor.peek().type))
     {
         const byte operand_reg = parse_register();

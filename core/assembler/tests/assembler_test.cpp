@@ -940,7 +940,8 @@ TEST_F(AssemblerUnit, section_errors)
                          ".asciz can only define data in the .data section"));
     EXPECT_TRUE(contains(error("foo:\n"), "label must be located in a section"));
     EXPECT_TRUE(contains(error(".global\n"), "expected a symbol after .global"));
-    EXPECT_TRUE(contains(error(".text\nx: nop\nx: nop\n"), "Multiple definition of symbol x"));
+    EXPECT_TRUE(contains(error(".text\nx: nop\nx: nop\n"),
+                         ":3:1: error: 'x' is already defined in this scope"));
     EXPECT_TRUE(contains(error(".advance 4\n"), ".advance is not inside a section"));
     EXPECT_TRUE(contains(error(".org 4\n"), ".org is not inside a section"));
 }
@@ -1591,5 +1592,5 @@ TEST_F(AssemblerUnit, section_directive_errors)
     EXPECT_TRUE(contains(error(".section \"x\", \"rx\"\nnop\n.byte 1\n"),
                          "not a whole number of instructions"));
     EXPECT_TRUE(contains(error(".section \"x\"\n.word 1\n.section \"x\"\nx: .word 2\nx: .word 3\n"),
-                         "Multiple definition of symbol x"));
+                         "'x' is already defined in this scope"));
 }

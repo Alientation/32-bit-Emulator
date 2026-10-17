@@ -113,14 +113,15 @@ void Assembler::assemble()
 
             // The symbol name depends on its scope level. This allows for nested scopes to have
             // the same label names while referring to different locations in code.
-            // However if two symbols with the same name are in the same scope block, this will
-            // cause the later symbol to overshadow the prior symbol and likely is unintended.
-            // TODO: Warn the user if this is the case. Keep track at each scope level what are
-            // the registered labels thus far.
             const std::string symbol = scoped_name(token.str());
             if (m_constants.count(symbol) != 0)
             {
                 fail(token, "'" + token.str() + "' is already a constant");
+            }
+            const ObjectFile::SymbolTableEntry *const defined = m_obj.find_symbol(symbol);
+            if (defined != nullptr && defined->section != U32(-1))
+            {
+                fail(token, "'" + token.str() + "' is already defined in this scope");
             }
 
             // Track the offset in the section that this label is in.
