@@ -1,0 +1,13 @@
+Gzz
+P21=00000000
+Pf=02000000
+m0,4001
+mf0000ffc,8
+Mf0002000,1:41
+M8000,2:41
+Z9,0,4
+Z2,0,0
+qXfer:features:read:target.xml:zz,1
+qRcmd,6
+vCont;x
+k

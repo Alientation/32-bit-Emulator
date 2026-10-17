@@ -153,6 +153,12 @@ and the release build has debug info so the samples can be attributed to source 
   members that the program needs chosen (`select_library_members`), linked, loaded and run. The
   seeds, made by `seeds/library_seeds.sh`, are a program that needs three of four members (one only
   through another member) and one that needs none.
+- `gdb.cpp` is the gdb server: the input is packets, one a line, that `GdbServer::handle` answers on
+  a machine with a small loop at 0 (a store, a load, a `brk`). A continue runs one slice, as the
+  client always interrupts. Besides a crash, it fails when a `G` or `P` that answers an error
+  changed a register, when the bytes of an `M` that answers OK (outside the devices) do not read
+  back with `m`, and when `G` does not take back what `g` gave. It found that a `G` with an
+  unaligned pc had written the registers before it.
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with

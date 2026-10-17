@@ -116,7 +116,11 @@ TEST_F(GdbTest, registers_are_read_and_written_in_the_order_of_the_description)
 
     EXPECT_EQ(ask("G" + all), "OK");
     EXPECT_EQ(ask("G" + all.substr(8)), "E01") << "too short";
-    EXPECT_EQ(ask("g"), all);
+    std::string bad_pc = all;
+    bad_pc.replace(0, 8, "99999999");
+    bad_pc.replace(15 * 8, 8, "02000000");
+    EXPECT_EQ(ask("G" + bad_pc), "E01");
+    EXPECT_EQ(ask("g"), all) << "a refused G changes no register, also not those before the pc";
 }
 
 TEST_F(GdbTest, cpsr_shows_the_flags_and_the_mode_in_the_bits_of_an_arm_one)

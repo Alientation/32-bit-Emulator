@@ -220,10 +220,16 @@ std::string GdbServer::read_registers()
 bool GdbServer::write_registers(const std::string &hex)
 {
     if (hex.size() != kRegisterCount * 8) return false;
+    // All of them are checked before any is written, so that a refused packet changes nothing.
+    word values[kRegisterCount];
     for (U32 i = 0; i < kRegisterCount; i++)
     {
-        word value = 0;
-        if (!hex_to_word(value, hex.substr(i * 8, 8)) || !write_register(i, value)) return false;
+        if (!hex_to_word(values[i], hex.substr(i * 8, 8))) return false;
+    }
+    if (values[kRegisterPc] % 4 != 0) return false;
+    for (U32 i = 0; i < kRegisterCount; i++)
+    {
+        write_register(i, values[i]);
     }
     return true;
 }
