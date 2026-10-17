@@ -148,6 +148,11 @@ and the release build has debug info so the samples can be attributed to source 
   `seeds/link_seeds.sh`. It found sections that the linker could not find or merge, which
   `ObjectFile::validate` now refuses (see [belf-format.md](belf-format.md)), and a user section
   that was merged with the relocations of another file's section of the same name.
+- `library.cpp` is the static library reader and the choice of its members, as `basm -l` makes it:
+  the input is the `.bo` of a program and a `.ba` (two bytes with the size of the `.bo`), read, the
+  members that the program needs chosen (`select_library_members`), linked, loaded and run. The
+  seeds, made by `seeds/library_seeds.sh`, are a program that needs three of four members (one only
+  through another member) and one that needs none.
 
 - `tools/fuzz.sh bexe 600 -- -jobs=16 -workers=16` builds `build/fuzz` (clang through
   `cmake/clang.cmake`, `-DAEMU_FUZZ=ON`, which adds `-fsanitize=fuzzer-no-link` to every target, with
