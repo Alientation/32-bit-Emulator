@@ -117,7 +117,7 @@ Note, currently the build process argument parser is extremely rudimentary so op
 \
 *Example:* `-I ./programs/include -o ./programs/build/palindrome ./programs/src/palindrome.basm -outdir ./programs/build`
 ##### Some useful options
-* -o <path>: output file path relative to the current directory, without an extension (output file is an executable `.bexe` unless otherwise specified)
+* -o <path>: output file path relative to the current directory; `.bexe` (`.ba` with `-ar`) is added unless the path ends with it
 * -outdir <path>: directory where the object files (`.bo`) are stored
 * -I <path>: add a directory from where the `#include` preprocessor will search for `.binc` files
 * -l <path>: links given library file `.ba` to the rest of the code in the linker phase

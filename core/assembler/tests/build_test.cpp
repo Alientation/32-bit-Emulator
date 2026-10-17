@@ -34,6 +34,27 @@ TEST_F(BuildProcess, the_constructor_only_parses_the_arguments)
     EXPECT_EQ(process.get_exe_file().get_path(), out("prog.bexe"));
 }
 
+TEST_F(BuildProcess, the_output_gets_its_extension_unless_it_has_it)
+{
+    Build with(std::vector<std::string>{"-o", out("given.bexe"), write("main.basm", kProgram),
+                                        "-outdir", (m_dir / "out").string()});
+    with.run();
+    EXPECT_EQ(with.get_exe_file().get_path(), out("given.bexe"));
+    EXPECT_FALSE(fs::exists(out("given.bexe.bexe")));
+
+    // Another extension is part of the name.
+    Build other(std::vector<std::string>{"-o", out("prog.v2"), write("main.basm", kProgram),
+                                         "-outdir", (m_dir / "out").string()});
+    other.run();
+    EXPECT_EQ(other.get_exe_file().get_path(), out("prog.v2.bexe"));
+
+    Build("-ar -o " + out("lib.ba") + " " + write("lib.basm", kProgram) + " -outdir "
+          + (m_dir / "out").string())
+        .run();
+    EXPECT_TRUE(fs::exists(out("lib.ba")));
+    EXPECT_FALSE(fs::exists(out("lib.ba.ba")));
+}
+
 TEST_F(BuildProcess, compile_only_stops_before_linking)
 {
     Build process(build_args("-c"));

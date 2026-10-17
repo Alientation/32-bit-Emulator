@@ -24,6 +24,16 @@ static void print_option(const std::string &option, const std::string &descripti
     std::cout << std::left << std::setw(kOptionWidth) << option << " " << description << '\n';
 }
 
+/// @param[in] path The path given with -o.
+/// @param[in] extension The extension of the file that is written.
+/// @return The path with the extension, which is added unless the path ends with it already: `-o
+///     prog` and `-o prog.bexe` are the same file.
+static std::string with_extension(const std::string &path, const std::string &extension)
+{
+    const std::string suffix = "." + extension;
+    return path.size() > suffix.size() && path.ends_with(suffix) ? path : path + suffix;
+}
+
 /// Reads the members of the library into `members`, unless the library was read already (`read`
 /// has the paths of those).
 static void add_library(std::vector<LibraryMember> &members, std::set<std::string> &read,
@@ -232,7 +242,7 @@ void Build::build()
     if (m_make_lib)
     {
         write_static_library(m_obj_files,
-                             File(m_output_file + "." + STATIC_LIBRARY_EXTENSION, true));
+                             File(with_extension(m_output_file, STATIC_LIBRARY_EXTENSION), true));
         return;
     }
 
@@ -308,7 +318,7 @@ void Build::link()
     // Of those, the ones that the program uses.
     std::vector<ObjectFile> objects = select_library_members(m_objects, members);
 
-    m_exe_file = File(m_output_file + "." + EXECUTABLE_EXTENSION);
+    m_exe_file = File(with_extension(m_output_file, EXECUTABLE_EXTENSION));
     AEMU_DEBUG("output file name: {}", m_exe_file.get_path());
 
     Linker linker = m_has_ld_file ? Linker(std::move(objects), m_exe_file, m_ld_file)

@@ -610,8 +610,9 @@ changing the assembler.
   (std::vector<std::string>{...})` (the constructor only parses, `b.has_work ()` is false after
   `--help`/`--version`), or the pieces: `Preprocessor (file, out_path, options)` + `preprocess ()`,
   `Assembler (bi_file, out_path)` + `assemble ()`, `Linker (objects, exe_file)` + `link ()`.
-- `basm` needs at least one source file even when it's only linking libraries. `-o <name>` takes no
-  extension (it produces `<name>.bexe`, or `<name>.ba` with `-ar`). Object files go to `-outdir` as
+- `basm` needs at least one source file even when it's only linking libraries. `-o <name>` gets the
+  extension added unless it ends with it (`-o prog` and `-o prog.bexe` both write `prog.bexe`, `-ar
+  -o lib` and `-o lib.ba` write `lib.ba`). Object files go to `-outdir` as
   `<src>.bo`. `-c` stops after the object files. There is no `.bi` unless you pass `-kp`. Paths are
   relative to the cwd, and the default output name is `a`.
 - To run a `.bexe` in-process (this is what `emu32 -e` does): build `Emulator32bit
