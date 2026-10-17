@@ -94,7 +94,8 @@ void check_write(GdbServer &server, const std::string &packet, const std::string
         const size_t comma = packet.find(',');
         const size_t colon = packet.find(':');
         const word address = word(std::stoul(packet.substr(1, comma - 1), nullptr, 16));
-        const word length = word(std::stoul(packet.substr(comma + 1, colon - comma - 1), nullptr, 16));
+        const word length =
+            word(std::stoul(packet.substr(comma + 1, colon - comma - 1), nullptr, 16));
         if (length == 0 || touches_devices(address, length)) return;
 
         std::string written = packet.substr(colon + 1);
